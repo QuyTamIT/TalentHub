@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="40" viewBox="0 0 160 40" fill="none">
+  <rect width="36" height="36" rx="8" fill="url(#paint0_linear)" y="2"/>
+  <path d="M18 10L20.4672 15.008L26 15.816L22 19.712L22.944 25.216L18 22.616L13.056 25.216L14 19.712L10 15.816L15.5328 15.008L18 10Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="48" y="27" font-family="'Be Vietnam Pro', sans-serif" font-weight="800" font-size="22" fill="#0F172A">Talent<tspan fill="#F97316">Hub</tspan></text>
+  <defs>
+    <linearGradient id="paint0_linear" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F97316"/>
+      <stop offset="1" stop-color="#EA580C"/>
+    </linearGradient>
+  </defs>
+</svg>
