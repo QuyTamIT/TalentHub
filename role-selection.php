@@ -44,7 +44,7 @@ $roles = [
         'title' => 'Doanh nghiệp',
         'description' => 'Tìm kiếm nhân tài, tuyển thực tập và tài trợ dự án.',
         'cta' => 'Vào khu vực này',
-        'route' => '/app/enterprise',
+        'route' => 'app/enterprise/index.php',
         'is_popular' => false,
         'icon_type' => 'enterprise'
     ]
