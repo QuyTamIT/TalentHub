@@ -225,15 +225,11 @@ function initCtaHandlers() {
 
     appButtons.forEach(btn => {
         btn.addEventListener('click', (e) => {
-            // TODO for future Role Selection module:
-            // When Role Selection page is ready, allow navigation to role-selection.php.
             const href = btn.getAttribute('href');
             if (href === 'role-selection.php' || href.endsWith('role-selection.php')) {
-                const ctaSection = document.querySelector('#app');
-                if (ctaSection && !document.querySelector('.role-selection-container')) {
-                    e.preventDefault();
-                    ctaSection.scrollIntoView({ behavior: 'smooth' });
-                }
+                // Navigating to Role Selection page (role-selection.php)
+                // Browser handles standard navigation natively.
+                return;
             }
         });
     });

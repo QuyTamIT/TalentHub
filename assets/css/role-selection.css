@@ -1,0 +1,280 @@
+/* ==========================================================================
+   TalentHub Role Selection Styles
+   Scoped styles for role-selection.php using shared CSS variables
+   ========================================================================== */
+
+/* Page Container Layout */
+.role-selection-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--background);
+}
+
+/* Header Component */
+.role-selection-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+}
+
+.role-selection-header__container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 4.5rem;
+}
+
+.role-selection-header__back-btn {
+    font-size: 0.875rem;
+    padding: 0.625rem 1.25rem;
+}
+
+/* Main Section */
+.role-selection-main {
+    flex-grow: 1;
+    padding-top: 3.5rem;
+    padding-bottom: 4rem;
+}
+
+.role-selection-intro {
+    text-align: center;
+    max-width: 720px;
+    margin: 0 auto 3rem auto;
+}
+
+.role-selection-title {
+    font-size: 2.25rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    margin-top: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.role-selection-description {
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* Role Cards Grid */
+.role-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+    max-width: 1080px;
+    margin: 0 auto;
+}
+
+/* Role Card Base */
+.role-card {
+    background-color: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 2.5rem;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    outline: none;
+}
+
+.role-card:hover,
+.role-card:focus-visible,
+.role-card.is-selected {
+    border-color: var(--primary);
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-xl);
+}
+
+/* Popular Card Highlight */
+.role-card--popular {
+    border-color: rgba(249, 115, 22, 0.4);
+    background: linear-gradient(180deg, #FFFFFF 0%, #FFF7ED 100%);
+    box-shadow: 0 12px 28px -4px rgba(249, 115, 22, 0.15);
+}
+
+.role-card--popular:hover,
+.role-card--popular:focus-visible,
+.role-card--popular.is-selected {
+    border-color: var(--primary);
+    box-shadow: 0 20px 36px -6px rgba(249, 115, 22, 0.25);
+}
+
+.role-card__badge {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.35rem 0.875rem;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--primary) 0%, #EA580C 100%);
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+}
+
+/* Role Card Icon */
+.role-card__icon {
+    width: 4rem;
+    height: 4rem;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    transition: transform var(--transition-base);
+}
+
+.role-card:hover .role-card__icon,
+.role-card.is-selected .role-card__icon {
+    transform: scale(1.08);
+}
+
+.role-card__icon--student {
+    background-color: #EFF6FF;
+    color: #2563EB;
+}
+
+.role-card__icon--teacher {
+    background-color: #FFF7ED;
+    color: #F97316;
+}
+
+.role-card__icon--school {
+    background-color: #F0FDF4;
+    color: #16A34A;
+}
+
+.role-card__icon--enterprise {
+    background-color: #FAF5FF;
+    color: #9333EA;
+}
+
+/* Role Card Typography & Action */
+.role-card__title {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+
+.role-card__description {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    flex-grow: 1;
+}
+
+.role-card__cta {
+    width: 100%;
+    justify-content: center;
+    margin-top: auto;
+}
+
+/* Bottom Information Note */
+.role-selection-note {
+    max-width: 720px;
+    margin: 3.5rem auto 1rem auto;
+    padding: 1.125rem 1.5rem;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    box-shadow: var(--shadow-sm);
+}
+
+.role-selection-note svg {
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+/* Notification Toast (Route Fallback Message) */
+.role-toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 9999;
+    background: #0F172A;
+    color: #FFFFFF;
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xl);
+    transform: translateY(100px);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.role-toast.is-visible {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.role-toast__content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+}
+
+.role-toast__content svg {
+    color: var(--primary);
+}
+
+/* Responsive Media Queries */
+@media (max-width: 860px) {
+    .role-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .role-selection-title {
+        font-size: 1.875rem;
+    }
+
+    .role-card {
+        padding: 2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .role-selection-header__back-btn span {
+        display: none;
+    }
+
+    .role-selection-main {
+        padding-top: 2rem;
+        padding-bottom: 2.5rem;
+    }
+
+    .role-toast {
+        left: 1rem;
+        right: 1rem;
+        bottom: 1rem;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    .role-card,
+    .role-card__icon,
+    .role-toast {
+        transition-duration: 0.01ms !important;
+        transform: none !important;
+    }
+}
