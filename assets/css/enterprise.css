@@ -1,0 +1,1004 @@
+/* ==========================================================================
+   TalentHub Enterprise Dashboard Styles
+   Production-Grade Enterprise SaaS UI (Information-First & Restrained)
+   ========================================================================== */
+
+/* Page Base */
+.enterprise-dashboard {
+    background-color: var(--background);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+body.ent-sidebar-open {
+    overflow: hidden;
+}
+
+/* Layout Container */
+.ent-layout {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   1. Backdrop Overlay Component
+   -------------------------------------------------------------------------- */
+.ent-sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 998;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-base);
+}
+
+.ent-sidebar-backdrop.is-active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* --------------------------------------------------------------------------
+   2. Sidebar Styling (Desktop Default: 260px)
+   -------------------------------------------------------------------------- */
+.ent-sidebar {
+    width: 260px;
+    background-color: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1000;
+    padding: 1.25rem 1rem;
+    transition: transform var(--transition-base);
+}
+
+.ent-sidebar__brand {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1rem;
+}
+
+.ent-sidebar__subtitle {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-top: 0.375rem;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.ent-sidebar__company {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 1.25rem;
+}
+
+.ent-sidebar__company-avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--radius-sm);
+    background: var(--primary);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8125rem;
+    flex-shrink: 0;
+}
+
+.ent-sidebar__company-info h4 {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.ent-sidebar__badge {
+    display: inline-block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--primary);
+    background-color: var(--primary-light);
+    padding: 0.1rem 0.375rem;
+    border-radius: 4px;
+    margin-top: 0.125rem;
+}
+
+.ent-sidebar__nav-title {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    margin-bottom: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+.ent-sidebar__nav ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.ent-sidebar__link {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.ent-sidebar__link:hover {
+    background-color: var(--background);
+    color: var(--text-primary);
+}
+
+.ent-sidebar__link.is-active {
+    background-color: var(--primary-light);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.ent-sidebar__link.is-active .ent-sidebar__icon {
+    color: var(--primary);
+}
+
+.ent-sidebar__icon {
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ent-sidebar__footer {
+    margin-top: auto;
+    padding-top: 0.875rem;
+    border-top: 1px solid var(--border);
+}
+
+.ent-sidebar__link--switch {
+    color: var(--text-muted);
+}
+
+.ent-sidebar__link--switch:hover {
+    background-color: var(--background);
+    color: var(--text-primary);
+}
+
+/* --------------------------------------------------------------------------
+   3. Main Wrapper & Top Header
+   -------------------------------------------------------------------------- */
+.ent-main-wrapper {
+    flex-grow: 1;
+    margin-left: 260px;
+    width: calc(100% - 260px);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.ent-header {
+    height: 4rem;
+    background-color: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.75rem;
+    box-sizing: border-box;
+}
+
+.ent-header__left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.ent-header__toggle {
+    display: none;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-primary);
+    padding: 0.375rem;
+    border-radius: var(--radius-sm);
+    transition: background-color var(--transition-fast);
+}
+
+.ent-header__toggle:hover {
+    background-color: var(--background);
+}
+
+.ent-header__title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+}
+
+.ent-header__right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.ent-header__icon-btn {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.ent-header__icon-btn:hover {
+    background: var(--background);
+    color: var(--text-primary);
+    border-color: #CBD5E1;
+}
+
+.ent-header__badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background-color: var(--danger);
+    color: #FFFFFF;
+    font-size: 0.625rem;
+    font-weight: 700;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--surface);
+}
+
+.ent-header__account {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding-left: 0.875rem;
+    border-left: 1px solid var(--border);
+}
+
+.ent-header__avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.ent-header__user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.ent-header__company-name {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.ent-header__package-name {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   4. Body & Welcome Banner
+   -------------------------------------------------------------------------- */
+.ent-body {
+    padding: 1.75rem;
+    flex-grow: 1;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+.container-fluid {
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+.ent-welcome {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius-sm);
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.75rem;
+    box-sizing: border-box;
+}
+
+.ent-welcome__tag {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.ent-welcome__title {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-top: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.ent-welcome__description {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    max-width: 680px;
+    margin-bottom: 1.25rem;
+    line-height: 1.55;
+}
+
+.ent-welcome__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    flex-wrap: wrap;
+}
+
+/* --------------------------------------------------------------------------
+   5. KPI Cards Section (Uniform Metrics Grid)
+   -------------------------------------------------------------------------- */
+.ent-kpis-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+}
+
+.ent-kpi-card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1.25rem;
+    transition: border-color var(--transition-fast);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.ent-kpi-card:hover {
+    border-color: #CBD5E1;
+}
+
+.ent-kpi-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.ent-kpi-card__label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.ent-kpi-card__icon {
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ent-kpi-card__value {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.1;
+    margin-bottom: 0.375rem;
+    letter-spacing: -0.02em;
+}
+
+.ent-kpi-card__footer {
+    display: flex;
+    align-items: center;
+}
+
+.ent-kpi-card__change {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.ent-kpi-card__change--positive {
+    color: var(--accent);
+}
+
+.ent-kpi-card__change--neutral {
+    color: var(--text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   6. Main Grid Layout (2 Columns: 2fr / 1fr)
+   -------------------------------------------------------------------------- */
+.ent-grid-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.75rem;
+}
+
+.ent-grid-layout__main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    min-width: 0;
+}
+
+.ent-grid-layout__sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    min-width: 0;
+}
+
+/* Section Container Box */
+.ent-section-box {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1.5rem;
+    box-sizing: border-box;
+}
+
+.ent-section-box__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ent-section-box__title {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.ent-section-box__subtitle {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin-top: 0.125rem;
+}
+
+.ent-section-box__link {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--primary);
+    white-space: nowrap;
+}
+
+.ent-section-box__link:hover {
+    color: var(--primary-hover);
+}
+
+.ent-section-box__count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   7. Featured Talent Cards
+   -------------------------------------------------------------------------- */
+.ent-talents-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.ent-talent-card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1.125rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    transition: border-color var(--transition-fast);
+    box-sizing: border-box;
+}
+
+.ent-talent-card:hover {
+    border-color: #CBD5E1;
+}
+
+.ent-talent-card__left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.ent-talent-card__avatar {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 50%;
+    background-color: #EFF6FF;
+    color: #2563EB;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.0625rem;
+    flex-shrink: 0;
+    border: 1px solid rgba(37, 99, 235, 0.15);
+}
+
+.ent-talent-card__details {
+    min-width: 0;
+}
+
+.ent-talent-card__name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    margin-bottom: 0.125rem;
+    flex-wrap: wrap;
+}
+
+.ent-talent-card__name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ent-talent-card__score-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    background-color: var(--accent-light);
+    color: var(--accent);
+    white-space: nowrap;
+}
+
+.ent-talent-card__meta-line {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.ent-talent-card__school {
+    color: var(--text-secondary);
+}
+
+.ent-talent-card__meta-divider {
+    color: var(--text-muted);
+}
+
+.ent-talent-card__exp {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.ent-talent-card__skills {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    flex-wrap: wrap;
+}
+
+.skill-tag {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.ent-talent-card__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.btn-sm {
+    padding: 0.4375rem 0.875rem;
+    font-size: 0.8125rem;
+    border-radius: var(--radius-sm);
+}
+
+/* --------------------------------------------------------------------------
+   8. Pending Actions Section (Clean Compact Row Layout)
+   -------------------------------------------------------------------------- */
+.ent-actions-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.ent-action-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.875rem 0;
+    border-bottom: 1px solid var(--border);
+    box-sizing: border-box;
+}
+
+.ent-action-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.ent-action-row:first-child {
+    padding-top: 0;
+}
+
+.ent-action-row__icon {
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.ent-action-row--urgent .ent-action-row__icon {
+    color: var(--danger);
+}
+
+.ent-action-row--warning .ent-action-row__icon {
+    color: var(--warning);
+}
+
+.ent-action-row__body {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.ent-action-row__title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+
+.ent-action-row__subtitle {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin-top: 0.125rem;
+}
+
+.ent-action-row__btn {
+    flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   9. Recent Activity Timeline & Enterprise Profile Widget
+   -------------------------------------------------------------------------- */
+.ent-activity-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    position: relative;
+    border-left: 2px solid var(--border);
+    padding-left: 1rem;
+    margin-left: 0.25rem;
+}
+
+.ent-activity-item {
+    position: relative;
+}
+
+.ent-activity-item__indicator {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background-color: #CBD5E1;
+    position: absolute;
+    left: -1.3125rem;
+    top: 0.375rem;
+}
+
+.ent-activity-item__text {
+    font-size: 0.8125rem;
+    color: var(--text-primary);
+    line-height: 1.45;
+}
+
+.ent-activity-item__time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 0.125rem;
+}
+
+.ent-info-widget {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    font-size: 0.8125rem;
+}
+
+.ent-info-widget__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.625rem;
+    border-bottom: 1px dashed var(--border);
+}
+
+.ent-info-widget__row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.font-bold { font-weight: 600; color: var(--text-primary); }
+.text-accent { color: var(--accent); font-weight: 500; }
+.badge-success {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.1rem 0.5rem;
+    background-color: var(--primary-light);
+    color: var(--primary);
+    border-radius: 4px;
+}
+
+/* Toast Message */
+.ent-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 9999;
+    background: #0F172A;
+    color: #FFFFFF;
+    padding: 0.875rem 1.25rem;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(100px);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ent-toast.is-visible {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.ent-toast__content {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.ent-toast__content svg {
+    color: var(--primary);
+}
+
+/* ==========================================================================
+   10. RESPONSIVE BREAKPOINTS
+   ========================================================================== */
+
+/* Tablet & Small Desktop (768px to 1199.98px, including iPad Pro 1024px) */
+@media (max-width: 1199.98px) {
+    .ent-sidebar {
+        transform: translateX(-100%);
+        box-shadow: none;
+        width: 280px;
+        z-index: 1000;
+    }
+
+    .ent-sidebar.is-open {
+        transform: translateX(0);
+        box-shadow: var(--shadow-xl);
+    }
+
+    .ent-main-wrapper {
+        margin-left: 0;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .ent-header__toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .ent-header__title {
+        font-size: 1.1875rem;
+    }
+
+    .ent-body {
+        padding: 1.25rem 1.25rem 2rem 1.25rem;
+    }
+
+    .ent-kpis-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .ent-grid-layout {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+
+    .ent-welcome {
+        padding: 1.25rem 1.5rem;
+    }
+
+    .ent-welcome__title {
+        font-size: 1.25rem;
+    }
+
+    .ent-welcome__description {
+        font-size: 0.875rem;
+        max-width: 100%;
+    }
+
+    .ent-talent-card {
+        padding: 1rem;
+        gap: 1rem;
+    }
+}
+
+/* Mobile (< 768px) */
+@media (max-width: 767.98px) {
+    .ent-header {
+        padding: 0 1rem;
+        height: 3.75rem;
+    }
+
+    .ent-header__user-info {
+        display: none;
+    }
+
+    .ent-header__title {
+        font-size: 1.0625rem;
+    }
+
+    .ent-body {
+        padding: 1rem;
+    }
+
+    .ent-welcome {
+        padding: 1rem 1.125rem;
+    }
+
+    .ent-welcome__title {
+        font-size: 1.125rem;
+    }
+
+    .ent-welcome__description {
+        font-size: 0.875rem;
+    }
+
+    .ent-welcome__actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .ent-welcome__actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .ent-kpis-grid {
+        grid-template-columns: 1fr;
+        gap: 0.875rem;
+    }
+
+    .ent-kpi-card {
+        padding: 1rem;
+    }
+
+    .ent-kpi-card__value {
+        font-size: 1.625rem;
+    }
+
+    .ent-talent-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.875rem;
+    }
+
+    .ent-talent-card__left {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.625rem;
+    }
+
+    .ent-talent-card__actions {
+        flex-direction: row;
+        width: 100%;
+        gap: 0.5rem;
+    }
+
+    .ent-talent-card__actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .ent-action-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.625rem;
+    }
+
+    .ent-action-row__btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .ent-toast {
+        left: 1rem;
+        right: 1rem;
+        bottom: 1rem;
+    }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
