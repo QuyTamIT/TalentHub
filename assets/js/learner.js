@@ -415,6 +415,47 @@
             });
         }
 
+        const aiPage = document.querySelector('[data-ai-page]');
+        const aiPayload = document.getElementById('learner-ai-data');
+
+        if (aiPage && aiPayload) {
+            const loadingState = aiPage.querySelector('[data-ai-loading]');
+            const readyState = aiPage.querySelector('[data-ai-ready]');
+            const insufficientState = aiPage.querySelector('[data-ai-insufficient]');
+            const stateStatus = aiPage.querySelector('[data-ai-state-status]');
+            let aiData = null;
+
+            try {
+                aiData = JSON.parse(aiPayload.textContent || 'null');
+            } catch (error) {
+                aiData = null;
+            }
+
+            const renderAiState = (state) => {
+                if (loadingState) loadingState.hidden = state !== 'loading';
+                if (readyState) readyState.hidden = state !== 'ready';
+                if (insufficientState) insufficientState.hidden = state !== 'insufficient';
+                aiPage.dataset.aiState = state;
+
+                if (stateStatus) {
+                    stateStatus.textContent = state === 'loading'
+                        ? 'AI đang phân tích dữ liệu.'
+                        : state === 'ready'
+                            ? 'Phân tích năng lực đã sẵn sàng.'
+                            : 'Chưa đủ dữ liệu để phân tích năng lực.';
+                }
+            };
+
+            const targetState = getAiRecommendationState(aiData);
+            if (targetState === 'ready') {
+                renderAiState('loading');
+                const delay = global.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 650;
+                global.setTimeout(() => renderAiState('ready'), delay);
+            } else {
+                renderAiState('insufficient');
+            }
+        }
+
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
                 if (activeModal) {
