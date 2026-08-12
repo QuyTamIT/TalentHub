@@ -69,6 +69,11 @@ async function verifyInteractions(browser) {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const page = await context.newPage();
 
+    await page.goto(`${baseUrl}/role-selection.php`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Chọn vai trò Học sinh / Sinh viên' }).click();
+    await page.waitForURL('**/app/learner/index.php');
+    check(await page.getByText('Chào mừng trở lại, Nguyễn Văn A', { exact: false }).isVisible(), 'Role selection navigates into the Learner overview');
+
     await page.goto(`${baseUrl}/app/learner/index.php`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: 'Mở danh mục điều hướng' }).click();
     check(await page.locator('#learner-sidebar').evaluate((element) => element.classList.contains('is-open')), 'Mobile sidebar opens');
