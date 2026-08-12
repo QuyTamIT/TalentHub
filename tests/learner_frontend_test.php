@@ -67,6 +67,8 @@ if (file_exists($profilePath)) {
     check(str_contains($profile, 'learner-edit-modal'), 'Profile provides edit modal');
     check(str_contains($profile, 'learner-share-modal'), 'Profile provides share modal');
     check(str_contains($profile, 'aria-modal="true"'), 'Profile modals expose dialog semantics');
+    check(substr_count($profile, 'aria-describedby="learner-error-') >= 5, 'Profile fields reference their validation messages');
+    check(substr_count($profile, 'role="alert"') >= 5, 'Profile validation messages are announced');
     check(str_contains($profile, 'Dự án đã tham gia'), 'Profile renders projects');
 }
 

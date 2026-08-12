@@ -5,6 +5,10 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
 <div class="learner-sidebar-backdrop" id="learner-sidebar-backdrop" aria-hidden="true"></div>
 
 <aside class="learner-sidebar" id="learner-sidebar" aria-label="Điều hướng Học sinh/Sinh viên">
+    <button class="learner-icon-button learner-sidebar__close" id="learner-sidebar-close" type="button" aria-label="Đóng danh mục điều hướng">
+        <?= learner_icon('x', 22); ?>
+    </button>
+
     <div class="learner-sidebar__brand">
         <a class="learner-brand" href="../../index.php" aria-label="Về trang chủ TalentHub">
             <span class="learner-brand__mark" aria-hidden="true"><?= learner_icon('sparkles', 24); ?></span>

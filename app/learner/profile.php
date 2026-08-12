@@ -149,28 +149,28 @@ $shareUrl = 'http://localhost/TalentHub/app/learner/profile.php?student=nguyen-v
                 <div class="learner-form__grid">
                     <label class="learner-field">
                         <span>Họ và tên</span>
-                        <input id="learner-field-name" name="name" type="text" value="<?= learner_escape($student['name']); ?>" required>
-                        <small class="learner-field__error" data-error-for="name"></small>
+                        <input id="learner-field-name" name="name" type="text" value="<?= learner_escape($student['name']); ?>" aria-describedby="learner-error-name" required>
+                        <small class="learner-field__error" id="learner-error-name" data-error-for="name" role="alert"></small>
                     </label>
                     <label class="learner-field">
                         <span>Lớp</span>
-                        <input id="learner-field-class" name="class" type="text" value="<?= learner_escape($student['class']); ?>" required>
-                        <small class="learner-field__error" data-error-for="class"></small>
+                        <input id="learner-field-class" name="class" type="text" value="<?= learner_escape($student['class']); ?>" aria-describedby="learner-error-class" required>
+                        <small class="learner-field__error" id="learner-error-class" data-error-for="class" role="alert"></small>
                     </label>
                     <label class="learner-field learner-field--wide">
                         <span>Trường</span>
-                        <input id="learner-field-school" name="school" type="text" value="<?= learner_escape($student['school']); ?>" required>
-                        <small class="learner-field__error" data-error-for="school"></small>
+                        <input id="learner-field-school" name="school" type="text" value="<?= learner_escape($student['school']); ?>" aria-describedby="learner-error-school" required>
+                        <small class="learner-field__error" id="learner-error-school" data-error-for="school" role="alert"></small>
                     </label>
                     <label class="learner-field">
                         <span>Email</span>
-                        <input id="learner-field-email" name="email" type="email" value="<?= learner_escape($student['email']); ?>" required>
-                        <small class="learner-field__error" data-error-for="email"></small>
+                        <input id="learner-field-email" name="email" type="email" value="<?= learner_escape($student['email']); ?>" aria-describedby="learner-error-email" required>
+                        <small class="learner-field__error" id="learner-error-email" data-error-for="email" role="alert"></small>
                     </label>
                     <label class="learner-field">
                         <span>Địa điểm</span>
-                        <input id="learner-field-location" name="location" type="text" value="<?= learner_escape($student['location']); ?>" required>
-                        <small class="learner-field__error" data-error-for="location"></small>
+                        <input id="learner-field-location" name="location" type="text" value="<?= learner_escape($student['location']); ?>" aria-describedby="learner-error-location" required>
+                        <small class="learner-field__error" id="learner-error-location" data-error-for="location" role="alert"></small>
                     </label>
                 </div>
                 <div class="learner-modal__actions">

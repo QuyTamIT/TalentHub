@@ -66,6 +66,10 @@
         let returnFocusTarget = null;
         let activeAssessment = null;
 
+        const getFocusableElements = (container) => Array.from(container.querySelectorAll(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )).filter((element) => !element.hidden && element.offsetParent !== null);
+
         const showToast = (message, tone = 'success') => {
             if (!toast) return;
 
@@ -82,22 +86,51 @@
 
         const sidebar = document.getElementById('learner-sidebar');
         const sidebarToggle = document.getElementById('learner-sidebar-toggle');
+        const sidebarClose = document.getElementById('learner-sidebar-close');
         const sidebarBackdrop = document.getElementById('learner-sidebar-backdrop');
+        const drawerMedia = global.matchMedia('(max-width: 1100px)');
 
-        const setSidebarOpen = (shouldOpen) => {
+        const setSidebarOpen = (shouldOpen, restoreFocus = true) => {
             if (!sidebar || !sidebarToggle) return;
+
+            if (!drawerMedia.matches) shouldOpen = false;
+            const wasOpen = sidebar.classList.contains('is-open');
 
             sidebar.classList.toggle('is-open', shouldOpen);
             sidebarBackdrop?.classList.toggle('is-visible', shouldOpen);
             sidebarToggle.setAttribute('aria-expanded', String(shouldOpen));
             sidebarToggle.setAttribute('aria-label', shouldOpen ? 'Đóng danh mục điều hướng' : 'Mở danh mục điều hướng');
             document.body.classList.toggle('learner-sidebar-open', shouldOpen);
+
+            if (drawerMedia.matches) {
+                sidebar.inert = !shouldOpen;
+                sidebar.setAttribute('aria-hidden', String(!shouldOpen));
+            } else {
+                sidebar.inert = false;
+                sidebar.setAttribute('aria-hidden', 'false');
+            }
+
+            if (shouldOpen) {
+                global.requestAnimationFrame(() => {
+                    const target = sidebar.querySelector('[aria-current="page"]') || getFocusableElements(sidebar)[0];
+                    target?.focus();
+                });
+            } else if (wasOpen && restoreFocus) {
+                sidebarToggle.focus();
+            }
+        };
+
+        const syncSidebarMode = () => {
+            setSidebarOpen(false, false);
         };
 
         sidebarToggle?.addEventListener('click', () => {
             setSidebarOpen(!sidebar?.classList.contains('is-open'));
         });
+        sidebarClose?.addEventListener('click', () => setSidebarOpen(false));
         sidebarBackdrop?.addEventListener('click', () => setSidebarOpen(false));
+        drawerMedia.addEventListener('change', syncSidebarMode);
+        syncSidebarMode();
 
         document.querySelectorAll('[data-pending-route]').forEach((link) => {
             link.addEventListener('click', (event) => {
@@ -133,10 +166,6 @@
                 showToast('Đăng ký hoạt động thành công.');
             });
         });
-
-        const getFocusableElements = (modal) => Array.from(modal.querySelectorAll(
-            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        )).filter((element) => !element.hidden && element.offsetParent !== null);
 
         const openModal = (modal, trigger) => {
             if (!modal) return;
@@ -184,7 +213,25 @@
                 return;
             }
 
-            if (event.key !== 'Tab' || !activeModal) return;
+            if (event.key !== 'Tab') return;
+
+            if (!activeModal && drawerMedia.matches && sidebar?.classList.contains('is-open')) {
+                const sidebarFocusable = getFocusableElements(sidebar);
+                if (sidebarFocusable.length === 0) return;
+
+                const firstSidebarItem = sidebarFocusable[0];
+                const lastSidebarItem = sidebarFocusable[sidebarFocusable.length - 1];
+                if (event.shiftKey && document.activeElement === firstSidebarItem) {
+                    event.preventDefault();
+                    lastSidebarItem.focus();
+                } else if (!event.shiftKey && document.activeElement === lastSidebarItem) {
+                    event.preventDefault();
+                    firstSidebarItem.focus();
+                }
+                return;
+            }
+
+            if (!activeModal) return;
 
             const focusable = getFocusableElements(activeModal);
             if (focusable.length === 0) return;
@@ -232,6 +279,7 @@
         });
 
         document.querySelector('[data-copy-profile]')?.addEventListener('click', async (event) => {
+            const button = event.currentTarget;
             const input = document.getElementById('learner-share-link');
             if (!input) return;
 
@@ -249,7 +297,7 @@
                 copied = false;
             }
 
-            event.currentTarget.textContent = copied ? 'Đã sao chép' : 'Chọn liên kết';
+            button.textContent = copied ? 'Đã sao chép' : 'Chọn liên kết';
             showToast(copied ? 'Đã sao chép liên kết hồ sơ.' : 'Hãy chọn và sao chép liên kết thủ công.', copied ? 'success' : 'warning');
         });
 

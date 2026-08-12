@@ -76,6 +76,13 @@
     padding: 0 8px 20px;
 }
 
+.learner-icon-button.learner-sidebar__close {
+    position: absolute;
+    top: 18px;
+    right: 14px;
+    display: none;
+}
+
 .learner-sidebar__brand p {
     margin: 5px 0 0 43px;
     color: var(--text-secondary);
@@ -1449,6 +1456,14 @@ body.learner-sidebar-open {
 
     .learner-sidebar.is-open {
         transform: translateX(0);
+    }
+
+    .learner-icon-button.learner-sidebar__close {
+        display: inline-flex;
+    }
+
+    .learner-sidebar__brand {
+        padding-right: 48px;
     }
 
     .learner-main {
