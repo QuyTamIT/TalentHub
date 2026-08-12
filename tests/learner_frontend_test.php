@@ -49,6 +49,7 @@ if (file_exists($overviewPath)) {
     check(str_contains($overview, 'Chào mừng trở lại, Nguyễn Văn A'), 'Overview renders welcome copy');
     check(substr_count($overview, 'learner-kpi-card') >= 4, 'Overview renders four KPI cards');
     check(str_contains($overview, 'Hồ sơ kỹ năng'), 'Overview renders the skills summary');
+    check(str_contains($overview, 'Thuyết trình'), 'Overview renders the approved presentation skill');
     check(str_contains($overview, 'AI gợi ý cho bạn'), 'Overview renders the AI recommendation');
     check(str_contains($overview, 'Hoạt động sắp diễn ra'), 'Overview renders upcoming activities');
     check(str_contains($overview, 'href="discover.php"'), 'Overview aptitude CTA targets discover page');

@@ -5,7 +5,7 @@ require_once __DIR__ . '/includes/icons.php';
 
 $pageTitle = 'Tổng quan';
 $currentRoute = '/app/learner/index.php';
-$dashboardSkills = array_slice($skills, 0, 4);
+$dashboardSkills = [$skills[0], $skills[1], $skills[2], $skills[4]];
 ?>
 <!DOCTYPE html>
 <html lang="vi">
