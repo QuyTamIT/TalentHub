@@ -90,6 +90,20 @@ $roleSelectionScript = (string) file_get_contents($root . '/assets/js/role-selec
 check(str_contains($roleSelectionSource, "'route' => 'app/learner/index.php'"), 'Role selection targets the implemented Learner entry page');
 check(str_contains($roleSelectionScript, "route.includes('learner')"), 'Role selection script recognizes Learner as implemented');
 
+$cssPath = $root . '/assets/css/learner.css';
+check(file_exists($cssPath), 'Learner stylesheet exists');
+
+if (file_exists($cssPath)) {
+    $css = (string) file_get_contents($cssPath);
+
+    check(str_contains($css, '.learner-layout'), 'Learner stylesheet scopes the app layout');
+    check(str_contains($css, '@media (max-width: 1100px)'), 'Learner stylesheet defines tablet behavior');
+    check(str_contains($css, '@media (max-width: 720px)'), 'Learner stylesheet defines mobile behavior');
+    check(str_contains($css, 'prefers-reduced-motion'), 'Learner stylesheet respects reduced motion');
+    check(!str_contains($css, '.ent-'), 'Learner stylesheet does not target Enterprise selectors');
+    check(!preg_match('/linear-gradient\s*\(/i', $css), 'Learner stylesheet contains no gradient');
+}
+
 if ($failures !== []) {
     fwrite(STDERR, sprintf("\n%d learner frontend assertion(s) failed.\n", count($failures)));
     exit(1);
