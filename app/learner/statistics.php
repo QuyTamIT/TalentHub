@@ -15,6 +15,16 @@ $chartHeight = 170;
 $chartStep = $chartWidth / max(1, count($experience['hours']));
 $barWidth = min(36, $chartStep * 0.42);
 $linePoints = [];
+$experienceSeriesDescription = 'Giờ trải nghiệm của bạn: ' . implode(', ', array_map(
+    static fn ($label, $hours) => "{$label}: {$hours} giờ",
+    $experience['labels'],
+    $experience['hours']
+));
+$comparisonSeriesDescription = 'Xu hướng tham chiếu: ' . implode(', ', array_map(
+    static fn ($label, $hours) => "{$label}: {$hours} giờ",
+    $experience['labels'],
+    $experience['comparison']
+));
 
 foreach ($experience['comparison'] as $index => $value) {
     $x = $chartLeft + ($index + 0.5) * $chartStep;
@@ -93,7 +103,7 @@ $donutOffset = 0.0;
                             </div>
                             <svg class="learner-experience-chart" data-experience-chart viewBox="0 0 640 250" role="img" aria-labelledby="learner-experience-chart-title learner-experience-chart-description">
                                 <title id="learner-experience-chart-title">Biểu đồ giờ trải nghiệm cá nhân theo tháng</title>
-                                <desc id="learner-experience-chart-description" data-experience-description><?= learner_escape(implode(', ', array_map(static fn ($label, $hours) => "{$label}: {$hours} giờ", $experience['labels'], $experience['hours']))); ?></desc>
+                                <desc id="learner-experience-chart-description" data-experience-description><?= learner_escape($experienceSeriesDescription . '. ' . $comparisonSeriesDescription . '.'); ?></desc>
                                 <g class="learner-experience-chart__grid" aria-hidden="true">
                                     <line x1="46" y1="24" x2="46" y2="194"></line>
                                     <line x1="46" y1="194" x2="596" y2="194"></line>

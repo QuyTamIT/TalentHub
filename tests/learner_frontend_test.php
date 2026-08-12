@@ -232,6 +232,11 @@ if (file_exists($statisticsPath)) {
     check(str_contains($statisticsPage, 'id="learner-statistics-period"'), 'Statistics renders period selector');
     check(substr_count($statisticsPage, 'data-statistics-kpi') === 4, 'Statistics renders four personal KPIs');
     check(str_contains($statisticsPage, 'data-experience-chart'), 'Statistics renders experience SVG chart');
+    check(
+        str_contains($statisticsPage, 'Giờ trải nghiệm của bạn:')
+            && str_contains($statisticsPage, 'Xu hướng tham chiếu:'),
+        'Statistics experience chart describes both visual series'
+    );
     check(str_contains($statisticsPage, 'data-field-chart'), 'Statistics renders field allocation SVG chart');
     check(str_contains($statisticsPage, 'role="img"'), 'Statistics charts expose image semantics');
     check(substr_count($statisticsPage, 'data-statistics-skill') === 4, 'Statistics renders four skill progress records');

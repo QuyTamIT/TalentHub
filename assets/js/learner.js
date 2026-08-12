@@ -560,7 +560,9 @@
                 lineLayer.replaceChildren(polyline, ...circles);
                 labelsLayer.replaceChildren(...labelNodes);
                 if (description) {
-                    description.textContent = labels.map((label, index) => `${label}: ${values[index]} giờ`).join(', ');
+                    const learnerSeries = labels.map((label, index) => `${label}: ${values[index]} giờ`).join(', ');
+                    const comparisonSeries = labels.map((label, index) => `${label}: ${comparison[index]} giờ`).join(', ');
+                    description.textContent = `Giờ trải nghiệm của bạn: ${learnerSeries}. Xu hướng tham chiếu: ${comparisonSeries}.`;
                 }
             };
 

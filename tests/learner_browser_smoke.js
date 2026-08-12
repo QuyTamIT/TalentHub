@@ -276,6 +276,14 @@ async function verifyInteractions(browser) {
     await page.locator('#learner-statistics-period').selectOption('three-months');
     check(await page.locator('[data-statistics-kpi][data-kpi-id="hours"] [data-kpi-value]').textContent() === '40', 'Changing statistics period updates personal experience hours');
     check(await page.locator('[data-experience-bars] rect').count() === 3, 'Three-month period redraws three experience bars');
+    const threeMonthDescription = await page.locator('[data-experience-description]').textContent();
+    check(
+        threeMonthDescription.includes('Giờ trải nghiệm của bạn:')
+            && threeMonthDescription.includes('Xu hướng tham chiếu:')
+            && threeMonthDescription.includes('T4: 12 giờ')
+            && threeMonthDescription.includes('T4: 5 giờ'),
+        'Experience chart description updates both named series for assistive technology'
+    );
     check(await page.locator('[data-field-total]').textContent() === '40', 'Field chart total updates with the selected period');
     check(await page.locator('[data-activity-summary][data-activity-id="registered"] [data-activity-value]').textContent() === '8', 'Activity summary updates with the selected period');
     check(await page.locator('[data-statistics-skill]').first().locator('[data-skill-score]').textContent() === '82%', 'Skill progress updates with the selected period');
