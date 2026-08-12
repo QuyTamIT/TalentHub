@@ -24,17 +24,6 @@
         <div class="ent-sidebar__subtitle">Khu vực Doanh nghiệp</div>
     </div>
 
-    <!-- Company Badge Box -->
-    <div class="ent-sidebar__company">
-        <div class="ent-sidebar__company-avatar">
-            <?= htmlspecialchars($enterpriseInfo['logo_initials']); ?>
-        </div>
-        <div class="ent-sidebar__company-info">
-            <h4><?= htmlspecialchars($enterpriseInfo['company_name']); ?></h4>
-            <span class="ent-sidebar__badge"><?= htmlspecialchars($enterpriseInfo['account_type']); ?></span>
-        </div>
-    </div>
-
     <!-- Navigation List -->
     <nav class="ent-sidebar__nav" aria-label="Điều hướng Doanh nghiệp">
         <div class="ent-sidebar__nav-title">QUẢN LÝ DOANH NGHIỆP</div>
