@@ -127,6 +127,20 @@ if (file_exists($activitiesPath)) {
     check(!str_contains($activitiesPage, 'onclick='), 'Activities uses unobtrusive JavaScript');
 }
 
+$checkinPath = $root . '/app/learner/checkin.php';
+check(file_exists($checkinPath), 'Learner check-in page exists');
+
+if (file_exists($checkinPath)) {
+    $checkin = render_page($checkinPath);
+
+    check(str_contains($checkin, 'Check-in trải nghiệm'), 'Check-in renders heading');
+    check(str_contains($checkin, 'aria-label="Mã QR mẫu của Nguyễn Văn A"'), 'Check-in QR has an accessible label');
+    check(substr_count($checkin, 'data-checkin-record') === 4, 'Check-in renders four history records');
+    check(str_contains($checkin, 'Đây là giao diện demo'), 'Scanner identifies demo behavior');
+    check(str_contains($checkin, 'id="learner-scanner-modal"'), 'Check-in provides scanner modal');
+    check(!str_contains($checkin, 'getUserMedia'), 'Check-in never requests camera permission');
+}
+
 $roleSelectionSource = (string) file_get_contents($root . '/role-selection.php');
 $roleSelectionScript = (string) file_get_contents($root . '/assets/js/role-selection.js');
 check(str_contains($roleSelectionSource, "'route' => 'app/learner/index.php'"), 'Role selection targets the implemented Learner entry page');
