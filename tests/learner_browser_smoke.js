@@ -47,6 +47,12 @@ async function captureViewport(browser, pageConfig, viewport) {
     check(response?.status() === 200, `${pageConfig.slug} returns HTTP 200 at ${viewport.name}`);
     check(await page.getByText(pageConfig.marker, { exact: false }).first().isVisible(), `${pageConfig.slug} marker is visible at ${viewport.name}`);
 
+    const menuVisible = await page.locator('#learner-sidebar-toggle').isVisible();
+    check(
+        viewport.width <= 1100 ? menuVisible : !menuVisible,
+        `${pageConfig.slug} shows the sidebar toggle only below desktop width at ${viewport.name}`
+    );
+
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     check(overflow <= 1, `${pageConfig.slug} has no horizontal overflow at ${viewport.name} (${overflow}px)`);
     check(consoleErrors.length === 0, `${pageConfig.slug} has no console errors at ${viewport.name}${consoleErrors.length ? `: ${consoleErrors.join(' | ')}` : ''}`);

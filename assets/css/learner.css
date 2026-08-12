@@ -267,7 +267,7 @@
     gap: 14px;
 }
 
-.learner-header__menu {
+.learner-icon-button.learner-header__menu {
     display: none;
 }
 
@@ -1455,7 +1455,7 @@ body.learner-sidebar-open {
         margin-left: 0;
     }
 
-    .learner-header__menu {
+    .learner-icon-button.learner-header__menu {
         display: inline-flex;
     }
 
