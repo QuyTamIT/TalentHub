@@ -54,6 +54,21 @@ if (file_exists($overviewPath)) {
     check(str_contains($overview, 'href="discover.php"'), 'Overview aptitude CTA targets discover page');
 }
 
+$profilePath = $root . '/app/learner/profile.php';
+check(file_exists($profilePath), 'Learner profile page exists');
+
+if (file_exists($profilePath)) {
+    $profile = render_page($profilePath);
+
+    check(str_contains($profile, 'Đã xác minh'), 'Profile renders verified status');
+    check(str_contains($profile, 'Chia sẻ hồ sơ'), 'Profile renders share action');
+    check(str_contains($profile, 'Chỉnh sửa'), 'Profile renders edit action');
+    check(str_contains($profile, 'learner-edit-modal'), 'Profile provides edit modal');
+    check(str_contains($profile, 'learner-share-modal'), 'Profile provides share modal');
+    check(str_contains($profile, 'aria-modal="true"'), 'Profile modals expose dialog semantics');
+    check(str_contains($profile, 'Dự án đã tham gia'), 'Profile renders projects');
+}
+
 if ($failures !== []) {
     fwrite(STDERR, sprintf("\n%d learner frontend assertion(s) failed.\n", count($failures)));
     exit(1);
