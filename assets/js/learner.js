@@ -456,6 +456,37 @@
             }
         }
 
+        const badgeCards = Array.from(document.querySelectorAll('[data-badge-card]'));
+        const badgeFilters = Array.from(document.querySelectorAll('[data-badge-filter]'));
+        const badgeEmpty = document.querySelector('[data-badge-empty]');
+        const badgeResultStatus = document.querySelector('[data-badge-result-status]');
+
+        if (badgeCards.length > 0 && badgeFilters.length > 0) {
+            const renderBadgeFilter = (activeStatus) => {
+                let visibleCount = 0;
+
+                badgeCards.forEach((card) => {
+                    const matches = badgeMatchesStatus(card.dataset.badgeStatus, activeStatus);
+                    card.hidden = !matches;
+                    if (matches) visibleCount += 1;
+                });
+
+                badgeFilters.forEach((filter) => {
+                    filter.setAttribute('aria-pressed', String(filter.dataset.badgeFilter === activeStatus));
+                });
+                if (badgeEmpty) badgeEmpty.hidden = visibleCount !== 0;
+                if (badgeResultStatus) badgeResultStatus.textContent = `${visibleCount} huy hiệu phù hợp`;
+            };
+
+            badgeFilters.forEach((filter) => {
+                filter.addEventListener('click', () => {
+                    renderBadgeFilter(filter.dataset.badgeFilter || 'all');
+                });
+            });
+
+            renderBadgeFilter('all');
+        }
+
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
                 if (activeModal) {
