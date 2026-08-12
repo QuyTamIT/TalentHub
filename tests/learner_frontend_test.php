@@ -45,6 +45,15 @@ if (file_exists($dataSource)) {
         isset($evaluationTerms['2024-2025-2']) && $evaluationTerms['2024-2025-2']['evaluation'] === null,
         'Evaluation data exposes an empty term'
     );
+    check(count(array_unique(array_column($learnerNav, 'route'))) === 9, 'Sidebar routes are unique');
+    check(!in_array(false, array_column($learnerNav, 'implemented'), true), 'All learner routes are implemented');
+    check(count($learnerBadges ?? []) === 6, 'Badge collection contains six records');
+    check(count($learnerLevels ?? []) === 4, 'Level path contains four levels');
+    check(
+        isset($defaultStatisticsPeriod, $learnerStatisticsPeriods[$defaultStatisticsPeriod]),
+        'Default statistics period exists'
+    );
+    check(isset($aiRecommendation['sufficient']), 'AI recommendation exposes data sufficiency');
 
     $navByLabel = array_column($learnerNav, null, 'label');
     check(
@@ -61,6 +70,21 @@ if (file_exists($dataSource)) {
         ($navByLabel['Đánh giá']['route'] ?? '') === '/app/learner/evaluation.php'
             && ($navByLabel['Đánh giá']['implemented'] ?? false),
         'Evaluation route is implemented'
+    );
+    check(
+        ($navByLabel['AI gợi ý']['route'] ?? '') === '/app/learner/ai-recommendations.php'
+            && ($navByLabel['AI gợi ý']['implemented'] ?? false),
+        'AI recommendations route is implemented'
+    );
+    check(
+        ($navByLabel['Huy hiệu']['route'] ?? '') === '/app/learner/badges.php'
+            && ($navByLabel['Huy hiệu']['implemented'] ?? false),
+        'Badges route is implemented'
+    );
+    check(
+        ($navByLabel['Thống kê']['route'] ?? '') === '/app/learner/statistics.php'
+            && ($navByLabel['Thống kê']['implemented'] ?? false),
+        'Statistics route is implemented'
     );
 }
 
@@ -162,6 +186,62 @@ if (file_exists($evaluationPath)) {
         str_contains($evaluationSource, 'JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT'),
         'Evaluation JSON is serialized safely'
     );
+}
+
+$aiRecommendationsPath = $root . '/app/learner/ai-recommendations.php';
+check(file_exists($aiRecommendationsPath), 'Learner AI recommendations page exists');
+
+if (file_exists($aiRecommendationsPath)) {
+    $aiRecommendations = render_page($aiRecommendationsPath);
+    $aiRecommendationsSource = (string) file_get_contents($aiRecommendationsPath);
+
+    check(str_contains($aiRecommendations, 'AI phân tích năng lực'), 'AI recommendations renders heading');
+    check(substr_count($aiRecommendations, 'data-ai-analysis-card') === 3, 'AI recommendations renders three analysis cards');
+    check(substr_count($aiRecommendations, 'data-ai-roadmap-step') === 3, 'AI recommendations renders three roadmap steps');
+    check(str_contains($aiRecommendations, 'data-ai-loading'), 'AI recommendations provides loading state');
+    check(str_contains($aiRecommendations, 'data-ai-insufficient'), 'AI recommendations provides insufficient-data state');
+    check(str_contains($aiRecommendations, 'href="activities.php"'), 'AI recommendations CTA targets activities');
+    check(
+        str_contains($aiRecommendationsSource, 'JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT'),
+        'AI recommendation JSON is serialized safely'
+    );
+}
+
+$badgesPath = $root . '/app/learner/badges.php';
+check(file_exists($badgesPath), 'Learner badges page exists');
+
+if (file_exists($badgesPath)) {
+    $badgesPage = render_page($badgesPath);
+
+    check(str_contains($badgesPage, 'Huy hiệu và cấp độ'), 'Badges renders heading');
+    check(substr_count($badgesPage, 'data-level-item') === 4, 'Badges renders four levels');
+    check(substr_count($badgesPage, 'data-badge-card') === 6, 'Badges renders six badge cards');
+    check(substr_count($badgesPage, 'data-badge-filter=') === 4, 'Badges renders four filters');
+    check(str_contains($badgesPage, 'data-badge-empty'), 'Badges provides empty state');
+    check(str_contains($badgesPage, 'role="progressbar"'), 'Badges exposes progress semantics');
+}
+
+$statisticsPath = $root . '/app/learner/statistics.php';
+check(file_exists($statisticsPath), 'Learner personal statistics page exists');
+
+if (file_exists($statisticsPath)) {
+    $statisticsPage = render_page($statisticsPath);
+    $statisticsSource = (string) file_get_contents($statisticsPath);
+
+    check(str_contains($statisticsPage, 'Thống kê cá nhân'), 'Statistics renders personal heading');
+    check(str_contains($statisticsPage, 'id="learner-statistics-period"'), 'Statistics renders period selector');
+    check(substr_count($statisticsPage, 'data-statistics-kpi') === 4, 'Statistics renders four personal KPIs');
+    check(str_contains($statisticsPage, 'data-experience-chart'), 'Statistics renders experience SVG chart');
+    check(str_contains($statisticsPage, 'data-field-chart'), 'Statistics renders field allocation SVG chart');
+    check(str_contains($statisticsPage, 'role="img"'), 'Statistics charts expose image semantics');
+    check(substr_count($statisticsPage, 'data-statistics-skill') === 4, 'Statistics renders four skill progress records');
+    check(substr_count($statisticsPage, 'data-activity-summary') === 4, 'Statistics renders four activity totals');
+    check(str_contains($statisticsPage, 'data-statistics-empty'), 'Statistics provides empty state');
+    check(
+        str_contains($statisticsSource, 'JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT'),
+        'Statistics JSON is serialized safely'
+    );
+    check(!str_contains($statisticsPage, 'toàn trường'), 'Statistics contains no school-wide data');
 }
 
 $roleSelectionSource = (string) file_get_contents($root . '/role-selection.php');

@@ -91,3 +91,35 @@ test('evaluation term resolver returns published and empty terms safely', () => 
     assert.equal(learnerUI.getEvaluationTerm(terms, 'missing'), null);
     assert.equal(learnerUI.getEvaluationTerm(null, 'published'), null);
 });
+
+test('AI recommendation state resolves ready and insufficient data', () => {
+    assert.equal(typeof learnerUI.getAiRecommendationState, 'function');
+    assert.equal(learnerUI.getAiRecommendationState({ sufficient: true }), 'ready');
+    assert.equal(learnerUI.getAiRecommendationState({ sufficient: false }), 'insufficient');
+    assert.equal(learnerUI.getAiRecommendationState(null), 'insufficient');
+});
+
+test('badge status matching supports all and exact states', () => {
+    assert.equal(typeof learnerUI.badgeMatchesStatus, 'function');
+    assert.equal(learnerUI.badgeMatchesStatus('achieved', 'all'), true);
+    assert.equal(learnerUI.badgeMatchesStatus('achieved', 'achieved'), true);
+    assert.equal(learnerUI.badgeMatchesStatus('locked', 'achieved'), false);
+});
+
+test('statistics period resolver rejects unknown periods', () => {
+    assert.equal(typeof learnerUI.getStatisticsPeriod, 'function');
+    const periods = { six: { kpis: [] } };
+
+    assert.equal(learnerUI.getStatisticsPeriod(periods, 'six'), periods.six);
+    assert.equal(learnerUI.getStatisticsPeriod(periods, 'missing'), null);
+    assert.equal(learnerUI.getStatisticsPeriod(null, 'six'), null);
+});
+
+test('line chart points stay inside the requested SVG area', () => {
+    assert.equal(typeof learnerUI.buildLineChartPoints, 'function');
+    assert.deepEqual(
+        learnerUI.buildLineChartPoints([0, 10, 20], 200, 100, 20),
+        [[0, 100], [100, 50], [200, 0]]
+    );
+    assert.deepEqual(learnerUI.buildLineChartPoints([], 200, 100, 20), []);
+});
