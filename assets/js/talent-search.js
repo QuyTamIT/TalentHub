@@ -729,13 +729,11 @@ function initTalentSearchModule() {
                             Thông tin cá nhân được bảo vệ
                         </div>
                         <div class="ent-talent-card-item__actions">
-                            <button type="button" 
-                                    class="btn btn-secondary btn-sm ent-talent-action-btn" 
-                                    data-action="view" 
-                                    data-talent-id="${talent.id}"
-                                    data-talent-name="${escapeHtml(talent.name)}">
+                            <a href="/app/enterprise/talents/detail.php?id=${talent.id}" 
+                               class="btn btn-secondary btn-sm" 
+                               data-route="/app/enterprise/talents/detail.php?id=${talent.id}">
                                 Xem hồ sơ
-                            </button>
+                            </a>
                             <button type="button" 
                                     class="btn btn-primary btn-sm ent-talent-action-btn" 
                                     data-action="contact" 

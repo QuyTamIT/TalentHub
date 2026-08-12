@@ -94,7 +94,8 @@ function initRouteNavigation() {
                 route === '/app/enterprise/talents' ||
                 route === '/app/enterprise/talents.php' ||
                 route === '/app/enterprise/talents/' ||
-                route === '/app/enterprise/talents/index.php'
+                route === '/app/enterprise/talents/index.php' ||
+                route.includes('/app/enterprise/talents/detail.php')
             ) {
                 return;
             }
