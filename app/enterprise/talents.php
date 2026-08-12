@@ -37,7 +37,7 @@ $sidebarNav = [
     ],
     [
         'title' => 'Tuyển thực tập',
-        'route' => '/app/enterprise/internships',
+        'route' => '/app/enterprise/internships/',
         'icon' => 'briefcase',
         'active' => false
     ],

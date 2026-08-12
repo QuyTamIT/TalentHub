@@ -2764,5 +2764,771 @@ body.ent-sidebar-open {
     }
 }
 
+/* ==========================================================================
+   14. INTERNSHIP RECRUITMENT MANAGEMENT MODULE STYLES ("TUYỂN THỰC TẬP")
+   ========================================================================== */
+
+/* Soft Hero Banner for Internship Management */
+.ent-internship-hero {
+    background: linear-gradient(135deg, #FFF8F1 0%, #FFFFFF 65%, #F8FAFC 100%);
+    border: 1px solid #FFE4D6;
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius-md);
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    box-shadow: 0 2px 10px rgba(249, 115, 22, 0.04);
+}
+
+.ent-internship-hero__content {
+    flex: 1;
+    max-width: 720px;
+}
+
+.ent-internship-hero__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary);
+    background-color: rgba(249, 115, 22, 0.08);
+    border: 1px solid rgba(249, 115, 22, 0.2);
+    padding: 0.2rem 0.65rem;
+    border-radius: 9999px;
+    margin-bottom: 0.625rem;
+}
+
+.ent-internship-hero__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+    margin-bottom: 0.375rem;
+    letter-spacing: -0.01em;
+}
+
+.ent-internship-hero__desc {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    font-weight: 400;
+    margin: 0;
+}
+
+.ent-internship-hero__action {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.ent-btn-create-hero {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 3px 12px rgba(249, 115, 22, 0.28);
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ent-btn-create-hero:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 16px rgba(249, 115, 22, 0.35);
+}
+
+/* Summary Metrics Cards Grid */
+.ent-internship-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+}
+
+.ent-metric-card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.125rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 96px;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.ent-metric-card:hover {
+    border-color: #CBD5E1;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+}
+
+.ent-metric-card--active {
+    border-left: 3px solid #16A34A;
+}
+
+.ent-metric-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.375rem;
+}
+
+.ent-metric-card__header .label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.ent-metric-card__value {
+    font-size: 1.625rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.25rem;
+}
+
+.ent-metric-card__footer {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+/* Search & Filter Toolbar */
+.ent-search-toolbar {
+    margin-bottom: 1.5rem;
+}
+
+.ent-internship-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.flex-1 { flex: 1; min-width: 260px; }
+
+.ent-filter-select-wrapper {
+    min-width: 150px;
+}
+
+.ent-filter-select-wrapper .ent-filter-select {
+    height: 2.625rem;
+    background-color: var(--surface);
+    border: 1px solid #CBD5E1;
+    border-radius: var(--radius-sm);
+    padding: 0 2rem 0 0.875rem;
+    font-size: 0.84375rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    width: 100%;
+    transition: border-color var(--transition-fast);
+}
+
+.ent-filter-select-wrapper .ent-filter-select:focus {
+    border-color: var(--primary);
+}
+
+/* Status Pills - Soft & Restrained */
+.ent-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78125rem;
+    font-weight: 500;
+    padding: 0.2rem 0.65rem;
+    border-radius: 9999px;
+    white-space: nowrap;
+}
+
+.ent-status-pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.ent-status-pill--active {
+    background-color: #F0FDF4;
+    color: #15803D;
+    border: 1px solid #DCFCE7;
+}
+.ent-status-pill--active .dot {
+    background-color: #16A34A;
+}
+
+.ent-status-pill--draft {
+    background-color: #F8FAFC;
+    color: #64748B;
+    border: 1px solid #E2E8F0;
+}
+.ent-status-pill--draft .dot {
+    background-color: #94A3B8;
+}
+
+.ent-status-pill--closed {
+    background-color: #FEF2F2;
+    color: #B91C1C;
+    border: 1px solid #FEE2E2;
+}
+.ent-status-pill--closed .dot {
+    background-color: #EF4444;
+}
+
+/* Table Design & Row Spacing */
+.ent-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ent-table th {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 0.875rem 1.25rem;
+    background-color: #F8FAFC;
+    border-bottom: 1px solid #E2E8F0;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.ent-table td {
+    padding: 1.125rem 1.25rem;
+    border-bottom: 1px solid #F1F5F9;
+    vertical-align: middle;
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--text-primary);
+}
+
+.ent-table tbody tr {
+    transition: background-color var(--transition-fast);
+}
+
+.ent-table tbody tr:hover {
+    background-color: #FAFAFA;
+}
+
+.ent-post-title-link {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+    display: block;
+    transition: color var(--transition-fast);
+}
+
+.ent-post-title-link:hover {
+    color: var(--primary);
+}
+
+.ent-post-submeta {
+    font-size: 0.78125rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-top: 0.3rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.ent-applicant-count-text {
+    font-size: 0.84375rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+/* Action Area Redesign [Xem ứng viên] [⋯] */
+.ent-table-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.ent-btn-view-applicants {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-sm);
+    height: 2.125rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+.ent-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.ent-dropdown-toggle {
+    height: 2.125rem;
+    width: 2.125rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.125rem;
+    line-height: 1;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    cursor: pointer;
+}
+
+.ent-dropdown-toggle:hover {
+    color: var(--text-primary);
+    border-color: #CBD5E1;
+}
+
+.ent-dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+    min-width: 140px;
+    z-index: 100;
+    display: none;
+    padding: 0.35rem 0;
+}
+
+.ent-dropdown.is-open .ent-dropdown-menu {
+    display: block;
+}
+
+.ent-dropdown-item {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    box-sizing: border-box;
+    transition: background-color var(--transition-fast);
+}
+
+.ent-dropdown-item:hover {
+    background-color: var(--background);
+    color: var(--primary);
+}
+
+/* Form Styles (create.php) */
+.ent-form-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1.125rem;
+}
+
+.col-12 { grid-column: span 12; }
+.col-md-6 { grid-column: span 6; }
+
+.ent-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.ent-form-label {
+    font-size: 0.84375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ent-form-label.required::after {
+    content: ' *';
+    color: var(--danger);
+}
+
+.ent-form-input, .ent-form-select, .ent-form-textarea {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    background-color: var(--surface);
+    border: 1.5px solid #CBD5E1;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color var(--transition-fast);
+}
+
+.ent-form-input:focus, .ent-form-select:focus, .ent-form-textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+}
+
+/* Refined Skill Picker Component (Clean & Scannable UX) */
+.ent-skill-picker-card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+/* 1. Selected Skills Area */
+.ent-skill-selected-area {
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 0.875rem;
+    margin-bottom: 1.375rem; /* ~22px vertical gap to Kỹ năng chuyên môn */
+}
+
+.ent-skill-area-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+.ent-skill-area-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+.btn-clear-all-skills {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+    transition: color var(--transition-fast);
+}
+.btn-clear-all-skills:hover {
+    color: #ef4444;
+}
+
+.ent-skill-tags-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.625rem; /* 10px chip gap */
+    align-items: center;
+}
+
+.ent-skill-empty-tip {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Selected Skill Tags */
+.skill-tag--removable {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    background-color: var(--primary-light);
+    color: var(--primary);
+    border: 1px solid rgba(249, 115, 22, 0.25);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 0.25rem 0.6rem;
+    line-height: 1.3;
+    transition: all var(--transition-fast);
+}
+
+.skill-tag--removable:hover {
+    border-color: var(--primary);
+}
+
+.remove-skill-btn {
+    background: transparent;
+    border: none;
+    color: currentColor;
+    font-size: 1rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    margin-left: 0.125rem;
+    opacity: 0.75;
+    transition: opacity var(--transition-fast);
+}
+.remove-skill-btn:hover {
+    opacity: 1;
+}
+
+/* 2 & 3. Skill Section Blocks (Clear 20–24px vertical separation) */
+.ent-skill-block {
+    position: relative;
+    margin-bottom: 1.375rem; /* 22px vertical separation between groups */
+}
+
+.ent-skill-block:last-of-type {
+    margin-bottom: 1.375rem;
+}
+
+.ent-skill-block-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-bottom: 0.5625rem; /* 9px gap between text and skill buttons */
+}
+
+.ent-skill-block-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 0;
+    line-height: 1.3;
+    text-align: left;
+}
+
+.ent-skill-block-subtitle {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.3;
+    text-align: left;
+}
+
+/* Suggestion Chip Cloud (10–12px row & column gap) */
+.ent-chip-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.625rem 0.75rem; /* 10px vertical row gap, 12px horizontal column gap */
+    align-items: center;
+}
+
+.ent-chip-pill {
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+    min-height: 2.125rem; /* Consistent 34px chip height */
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+.ent-chip-pill:hover {
+    background-color: var(--surface);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.ent-chip-pill.is-selected {
+    background-color: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.ent-chip-pill .chip-check {
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+/* 4. Search Box & Dropdown Integration */
+.ent-skill-search-wrapper {
+    position: relative;
+    margin-top: 1.375rem; /* 22px spacing before search field */
+    padding-top: 1.125rem;
+    border-top: 1px solid var(--border);
+}
+
+.ent-skill-search-box {
+    display: flex;
+    align-items: center;
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.375rem 0.75rem;
+    transition: all var(--transition-fast);
+}
+
+.ent-skill-search-box:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+}
+
+.ent-skill-search-box svg {
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-right: 0.5rem;
+}
+
+.ent-skill-search-input {
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 0.8125rem;
+    color: var(--text-main);
+    width: 100%;
+}
+
+.ent-skill-search-input::placeholder {
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+}
+
+.btn-add-custom-skill {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.65rem;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+}
+
+.btn-add-custom-skill:hover {
+    background-color: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+}
+
+.ent-skill-search-results {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    z-index: 50;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.ent-skill-search-item {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--text-main);
+}
+
+.ent-skill-search-item:hover {
+    background-color: var(--background);
+}
+
+.ent-form-actions-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+
+/* Responsive Media Queries for Internship Module */
+@media (max-width: 1023.98px) {
+    .ent-internship-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 767.98px) {
+    .ent-internship-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .col-md-6 {
+        grid-column: span 12;
+    }
+
+    .ent-internship-filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ent-filter-select-wrapper {
+        width: 100%;
+    }
+
+    /* Stacked Card Layout for Mobile */
+    .ent-table thead {
+        display: none;
+    }
+
+    .ent-table, .ent-table tbody, .ent-table tr, .ent-table td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .ent-table tbody tr {
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        margin-bottom: 1rem;
+        padding: 1.125rem;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+    }
+
+    .ent-table td {
+        padding: 0.4rem 0;
+        border-bottom: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .ent-table td:first-child {
+        display: block;
+        padding-top: 0;
+        padding-bottom: 0.625rem;
+        border-bottom: 1px solid #F1F5F9;
+        margin-bottom: 0.5rem;
+    }
+
+    .ent-table td:last-child {
+        padding-top: 0.75rem;
+        margin-top: 0.5rem;
+        border-top: 1px solid #F1F5F9;
+        justify-content: flex-end;
+    }
+}
+
+@media (max-width: 480px) {
+    .ent-internship-metrics-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 
 
