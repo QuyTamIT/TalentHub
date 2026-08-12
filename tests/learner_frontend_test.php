@@ -155,6 +155,10 @@ if (file_exists($evaluationPath)) {
     check(str_contains($evaluation, 'data-evaluation-classification>Xuất sắc<'), 'Evaluation renders excellent classification');
     check(str_contains($evaluation, 'data-evaluation-empty'), 'Evaluation provides empty state');
     check(
+        str_contains($evaluation, 'data-evaluation-status data-state="published" role="status" aria-live="polite" aria-atomic="true"'),
+        'Evaluation publication status is announced'
+    );
+    check(
         str_contains($evaluationSource, 'JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT'),
         'Evaluation JSON is serialized safely'
     );

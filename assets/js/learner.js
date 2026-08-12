@@ -217,14 +217,16 @@
             });
         };
 
-        const closeModal = (modal = activeModal) => {
+        const closeModal = (modal = activeModal, fallbackFocusTarget = null) => {
             if (!modal) return;
 
             modal.hidden = true;
             modal.setAttribute('aria-hidden', 'true');
             document.body.classList.remove('learner-modal-open');
             activeModal = null;
-            returnFocusTarget?.focus();
+            const focusTarget = fallbackFocusTarget
+                || (returnFocusTarget && !returnFocusTarget.disabled ? returnFocusTarget : null);
+            focusTarget?.focus();
             returnFocusTarget = null;
         };
 
@@ -291,11 +293,16 @@
             registrationConfirm?.addEventListener('click', () => {
                 if (!pendingRegistrationButton) return;
 
-                pendingRegistrationButton.textContent = 'Đã đăng ký';
-                pendingRegistrationButton.disabled = true;
-                pendingRegistrationButton.classList.add('is-complete');
+                const completedButton = pendingRegistrationButton;
+                const fallbackFocusTarget = Array.from(document.querySelectorAll('[data-activity-register]:not(:disabled)'))
+                    .find((button) => button !== completedButton && !button.closest('[hidden]'))
+                    || activitySearch;
+
+                completedButton.textContent = 'Đã đăng ký';
+                completedButton.disabled = true;
+                completedButton.classList.add('is-complete');
                 pendingRegistrationButton = null;
-                closeModal(registrationModal);
+                closeModal(registrationModal, fallbackFocusTarget);
                 showToast('Đăng ký hoạt động thành công.');
             });
 

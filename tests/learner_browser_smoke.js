@@ -130,6 +130,10 @@ async function verifyInteractions(browser) {
     await page.locator('[data-confirm-registration]').click();
     check(await firstCatalogRegistration.isDisabled(), 'Confirming registration disables the selected button');
     check((await firstCatalogRegistration.textContent()).trim() === 'Đã đăng ký', 'Confirming registration updates the selected button');
+    check(
+        await page.locator('[data-activity-register]').nth(1).evaluate((element) => element === document.activeElement),
+        'Confirming registration moves focus to the next available activity action'
+    );
 
     const secondCatalogRegistration = page.locator('[data-activity-register]').nth(1);
     await secondCatalogRegistration.click();

@@ -44,7 +44,7 @@ $currentEvaluation = $currentTerm['evaluation'];
                                 <?php endforeach; ?>
                             </select>
                         </label>
-                        <span class="learner-publication-status" data-evaluation-status data-state="published">
+                        <span class="learner-publication-status" data-evaluation-status data-state="published" role="status" aria-live="polite" aria-atomic="true">
                             <span aria-hidden="true"></span><?= learner_escape($currentTerm['status']); ?>
                         </span>
                     </div>
