@@ -487,6 +487,190 @@
             renderBadgeFilter('all');
         }
 
+        const statisticsSelect = document.getElementById('learner-statistics-period');
+        const statisticsPayload = document.getElementById('learner-statistics-data');
+        const statisticsContent = document.querySelector('[data-statistics-content]');
+        const statisticsEmpty = document.querySelector('[data-statistics-empty]');
+        const statisticsStatus = document.querySelector('[data-statistics-status]');
+
+        if (statisticsSelect && statisticsPayload) {
+            const svgNamespace = 'http://www.w3.org/2000/svg';
+            let statisticsPeriods = {};
+
+            try {
+                statisticsPeriods = JSON.parse(statisticsPayload.textContent || '{}');
+            } catch (error) {
+                statisticsPeriods = {};
+            }
+
+            const createSvgElement = (name, attributes = {}) => {
+                const element = document.createElementNS(svgNamespace, name);
+                Object.entries(attributes).forEach(([attribute, value]) => {
+                    element.setAttribute(attribute, String(value));
+                });
+                return element;
+            };
+
+            const renderExperienceChart = (experience) => {
+                const barsLayer = document.querySelector('[data-experience-bars]');
+                const lineLayer = document.querySelector('[data-experience-line]');
+                const labelsLayer = document.querySelector('[data-experience-labels]');
+                const description = document.querySelector('[data-experience-description]');
+                if (!barsLayer || !lineLayer || !labelsLayer || !experience) return;
+
+                const left = 46;
+                const top = 24;
+                const width = 550;
+                const height = 170;
+                const values = Array.isArray(experience.hours) ? experience.hours : [];
+                const comparison = Array.isArray(experience.comparison) ? experience.comparison : [];
+                const labels = Array.isArray(experience.labels) ? experience.labels : [];
+                const maxValue = Math.max(20, ...values, ...comparison);
+                const step = width / Math.max(1, values.length);
+                const barWidth = Math.min(36, step * 0.42);
+
+                const bars = values.map((value, index) => {
+                    const barHeight = Number(value) / maxValue * height;
+                    return createSvgElement('rect', {
+                        x: left + (index + 0.5) * step - barWidth / 2,
+                        y: top + height - barHeight,
+                        width: barWidth,
+                        height: barHeight,
+                        rx: 5,
+                    });
+                });
+
+                const chartPoints = buildLineChartPoints(comparison, width - step, height, maxValue)
+                    .map(([x, y]) => [left + step / 2 + x, top + y]);
+                const polyline = createSvgElement('polyline', {
+                    points: chartPoints.map((point) => point.join(',')).join(' '),
+                });
+                const circles = chartPoints.map(([x, y]) => createSvgElement('circle', { cx: x, cy: y, r: 4 }));
+                const labelNodes = labels.map((label, index) => {
+                    const node = createSvgElement('text', {
+                        x: left + (index + 0.5) * step,
+                        y: 224,
+                        'text-anchor': 'middle',
+                    });
+                    node.textContent = label;
+                    return node;
+                });
+
+                barsLayer.replaceChildren(...bars);
+                lineLayer.replaceChildren(polyline, ...circles);
+                labelsLayer.replaceChildren(...labelNodes);
+                if (description) {
+                    description.textContent = labels.map((label, index) => `${label}: ${values[index]} giờ`).join(', ');
+                }
+            };
+
+            const renderFieldChart = (fields) => {
+                const segmentsLayer = document.querySelector('[data-field-segments]');
+                const totalElement = document.querySelector('[data-field-total]');
+                const legend = document.querySelector('[data-field-legend]');
+                const description = document.querySelector('[data-field-description]');
+                if (!segmentsLayer || !legend || !Array.isArray(fields)) return;
+
+                const radius = 70;
+                const circumference = 2 * Math.PI * radius;
+                let offset = 0;
+                const segments = fields.map((field) => {
+                    const length = circumference * Number(field.percentage) / 100;
+                    const segment = createSvgElement('circle', {
+                        cx: 100,
+                        cy: 100,
+                        r: radius,
+                        'stroke-dasharray': `${length} ${circumference - length}`,
+                        'stroke-dashoffset': -offset,
+                        class: `learner-statistics-donut__segment learner-statistics-donut__segment--${field.tone}`,
+                    });
+                    offset += length;
+                    return segment;
+                });
+                const legendItems = fields.map((field) => {
+                    const item = document.createElement('div');
+                    item.className = 'learner-field-legend__item';
+                    const dot = document.createElement('span');
+                    dot.className = `learner-field-legend__dot learner-field-legend__dot--${field.tone}`;
+                    dot.setAttribute('aria-hidden', 'true');
+                    const copy = document.createElement('span');
+                    const title = document.createElement('strong');
+                    const detail = document.createElement('small');
+                    title.textContent = field.label;
+                    detail.textContent = `${field.hours} giờ (${field.percentage}%)`;
+                    copy.append(title, detail);
+                    item.append(dot, copy);
+                    return item;
+                });
+
+                segmentsLayer.replaceChildren(...segments);
+                legend.replaceChildren(...legendItems);
+                const total = fields.reduce((sum, field) => sum + Number(field.hours || 0), 0);
+                if (totalElement) totalElement.textContent = String(total);
+                if (description) {
+                    description.textContent = fields.map((field) => `${field.label}: ${field.hours} giờ`).join(', ');
+                }
+            };
+
+            const renderStatistics = (periodId) => {
+                const period = getStatisticsPeriod(statisticsPeriods, periodId);
+                if (statisticsContent) statisticsContent.hidden = !period;
+                if (statisticsEmpty) statisticsEmpty.hidden = Boolean(period);
+                if (statisticsStatus) {
+                    statisticsStatus.textContent = period
+                        ? `Đang hiển thị thống kê ${period.label}.`
+                        : 'Chưa có dữ liệu trong khoảng thời gian đã chọn.';
+                }
+                if (!period) return;
+
+                period.kpis.forEach((kpi) => {
+                    const card = document.querySelector(`[data-statistics-kpi][data-kpi-id="${kpi.id}"]`);
+                    if (!card) return;
+                    const value = card.querySelector('[data-kpi-value]');
+                    const suffix = card.querySelector('[data-kpi-suffix]');
+                    const change = card.querySelector('[data-kpi-change]');
+                    if (value) value.textContent = String(kpi.value);
+                    if (suffix) suffix.textContent = kpi.suffix;
+                    if (change) change.textContent = kpi.change;
+                });
+
+                renderExperienceChart(period.experience);
+                renderFieldChart(period.fields);
+
+                const skillRows = Array.from(document.querySelectorAll('[data-statistics-skill]'));
+                period.skills.forEach((skill, index) => {
+                    const row = skillRows[index];
+                    if (!row) return;
+                    const name = row.querySelector('[data-skill-name]');
+                    const score = row.querySelector('[data-skill-score]');
+                    const level = row.querySelector('[data-skill-level]');
+                    const progress = row.querySelector('[role="progressbar"]');
+                    const bar = progress?.querySelector('span');
+                    if (name) name.textContent = skill.name;
+                    if (score) score.textContent = `${skill.score}%`;
+                    if (level) level.textContent = skill.level;
+                    progress?.setAttribute('aria-label', skill.name);
+                    progress?.setAttribute('aria-valuenow', String(skill.score));
+                    bar?.style.setProperty('--learner-progress', `${skill.score}%`);
+                });
+
+                period.activities.forEach((activity) => {
+                    const item = document.querySelector(`[data-activity-summary][data-activity-id="${activity.id}"]`);
+                    if (!item) return;
+                    const label = item.querySelector('[data-activity-label]');
+                    const value = item.querySelector('[data-activity-value]');
+                    const change = item.querySelector('[data-activity-change]');
+                    if (label) label.textContent = activity.label;
+                    if (value) value.textContent = String(activity.value);
+                    if (change) change.textContent = activity.change;
+                });
+            };
+
+            statisticsSelect.addEventListener('change', () => {
+                renderStatistics(statisticsSelect.value);
+            });
+        }
+
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {
                 if (activeModal) {
