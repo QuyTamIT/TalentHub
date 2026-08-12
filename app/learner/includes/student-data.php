@@ -28,9 +28,9 @@ $learnerNav = [
     ['label' => 'Tổng quan', 'route' => '/app/learner/index.php', 'icon' => 'grid', 'implemented' => true],
     ['label' => 'Hồ sơ năng lực', 'route' => '/app/learner/profile.php', 'icon' => 'user', 'implemented' => true],
     ['label' => 'Khám phá năng khiếu', 'route' => '/app/learner/discover.php', 'icon' => 'compass', 'implemented' => true],
-    ['label' => 'Hoạt động', 'route' => '/app/learner/activities.php', 'icon' => 'calendar', 'implemented' => false],
-    ['label' => 'Check-in QR', 'route' => '/app/learner/check-in.php', 'icon' => 'qr', 'implemented' => false],
-    ['label' => 'Đánh giá', 'route' => '/app/learner/evaluations.php', 'icon' => 'clipboard', 'implemented' => false],
+    ['label' => 'Hoạt động', 'route' => '/app/learner/activities.php', 'icon' => 'calendar', 'implemented' => true],
+    ['label' => 'Check-in QR', 'route' => '/app/learner/checkin.php', 'icon' => 'qr', 'implemented' => true],
+    ['label' => 'Đánh giá', 'route' => '/app/learner/evaluation.php', 'icon' => 'clipboard', 'implemented' => true],
     ['label' => 'AI gợi ý', 'route' => '/app/learner/ai-suggestions.php', 'icon' => 'sparkles', 'implemented' => false],
     ['label' => 'Huy hiệu', 'route' => '/app/learner/badges.php', 'icon' => 'award', 'implemented' => false],
     ['label' => 'Thống kê', 'route' => '/app/learner/statistics.php', 'icon' => 'chart', 'implemented' => false],
@@ -66,10 +66,67 @@ $skills = [
     ['name' => 'Tiếng Anh', 'score' => 80, 'level' => 'Tốt', 'tone' => 'secondary', 'icon' => 'message-circle'],
 ];
 
-$activities = [
-    ['id' => 'iot-lab', 'category' => 'Kỹ thuật', 'tone' => 'primary', 'title' => 'IoT Lab — Cảm biến thông minh', 'time' => 'Th 6, 14:00', 'location' => 'Phòng B305'],
-    ['id' => 'startup-pitch', 'category' => 'Kinh doanh', 'tone' => 'secondary', 'title' => 'Startup Pitch Night', 'time' => 'Th 7, 18:30', 'location' => 'Hall A'],
-    ['id' => 'drone-workshop', 'category' => 'Sáng tạo', 'tone' => 'success', 'title' => 'Drone Workshop', 'time' => 'CN, 09:00', 'location' => 'Sân vận động'],
+$activityCategories = ['Tất cả', 'Kỹ thuật', 'Kinh doanh', 'Sáng tạo', 'Cộng đồng'];
+
+$activityCatalog = [
+    ['id' => 'iot-lab', 'category' => 'Kỹ thuật', 'filter_category' => 'Kỹ thuật', 'tone' => 'primary', 'title' => 'IoT Lab — Cảm biến thông minh', 'time' => 'Th 6, 14:00', 'location' => 'Phòng B305', 'participants' => 38, 'capacity' => 50],
+    ['id' => 'drone-workshop', 'category' => 'Sáng tạo', 'filter_category' => 'Sáng tạo', 'tone' => 'secondary', 'title' => 'Drone Workshop', 'time' => 'CN, 09:00', 'location' => 'Sân vận động', 'participants' => 18, 'capacity' => 20],
+    ['id' => 'startup-pitch', 'category' => 'Kinh doanh', 'filter_category' => 'Kinh doanh', 'tone' => 'success', 'title' => 'Startup Club — Pitch Night', 'time' => 'Th 7, 18:30', 'location' => 'Hall A', 'participants' => 12, 'capacity' => 30],
+    ['id' => 'ai-bootcamp', 'category' => 'Công nghệ', 'filter_category' => 'Kỹ thuật', 'tone' => 'primary', 'title' => 'AI Bootcamp', 'time' => 'T2, 09:00', 'location' => 'Phòng IT', 'participants' => 25, 'capacity' => 40],
+    ['id' => 'design-thinking', 'category' => 'Sáng tạo', 'filter_category' => 'Sáng tạo', 'tone' => 'secondary', 'title' => 'Design Thinking Lab', 'time' => 'T4, 15:00', 'location' => 'Studio C', 'participants' => 9, 'capacity' => 25],
+    ['id' => 'charity-marathon', 'category' => 'Cộng đồng', 'filter_category' => 'Cộng đồng', 'tone' => 'success', 'title' => 'Marathon từ thiện', 'time' => 'CN, 06:00', 'location' => 'Hồ Tây', 'participants' => 67, 'capacity' => 100],
+];
+
+$activities = array_slice($activityCatalog, 0, 3);
+
+$checkinHistory = [
+    ['activity' => 'IoT Lab', 'time' => 'Hôm nay, 14:02', 'location' => 'Phòng B305', 'hours' => 2, 'confirmed' => true],
+    ['activity' => 'Startup Club', 'time' => 'Hôm qua, 18:35', 'location' => 'Hall A', 'hours' => 1.5, 'confirmed' => true],
+    ['activity' => 'Drone Workshop', 'time' => '12/06, 09:10', 'location' => 'Sân vận động', 'hours' => 3, 'confirmed' => true],
+    ['activity' => 'AI Bootcamp', 'time' => '10/06, 09:05', 'location' => 'Phòng IT', 'hours' => 2, 'confirmed' => true],
+];
+
+$defaultEvaluationTerm = '2025-2026-2';
+$evaluationTerms = [
+    '2025-2026-2' => [
+        'label' => 'Học kỳ II · 2025–2026',
+        'status' => 'Đã công bố',
+        'evaluation' => [
+            'criteria' => [
+                ['name' => 'Chuyên môn', 'score' => 36, 'max' => 40, 'tone' => 'primary'],
+                ['name' => 'Sáng tạo', 'score' => 17, 'max' => 20, 'tone' => 'secondary'],
+                ['name' => 'Kỷ luật', 'score' => 19, 'max' => 20, 'tone' => 'secondary'],
+                ['name' => 'Làm việc nhóm', 'score' => 18, 'max' => 20, 'tone' => 'primary'],
+            ],
+            'total' => 90,
+            'classification' => 'Xuất sắc',
+            'ranking' => 'Top 12% học sinh khối 11',
+            'comment' => 'A thể hiện khả năng tư duy hệ thống tốt, chủ động dẫn dắt nhóm trong dự án Smart Garden. Cần luyện thêm kỹ năng thuyết trình trước đám đông.',
+            'reviewer' => 'Cô Lê Thị Hương, IoT Lab',
+        ],
+    ],
+    '2025-2026-1' => [
+        'label' => 'Học kỳ I · 2025–2026',
+        'status' => 'Đã công bố',
+        'evaluation' => [
+            'criteria' => [
+                ['name' => 'Chuyên môn', 'score' => 33, 'max' => 40, 'tone' => 'primary'],
+                ['name' => 'Sáng tạo', 'score' => 16, 'max' => 20, 'tone' => 'secondary'],
+                ['name' => 'Kỷ luật', 'score' => 18, 'max' => 20, 'tone' => 'secondary'],
+                ['name' => 'Làm việc nhóm', 'score' => 17, 'max' => 20, 'tone' => 'primary'],
+            ],
+            'total' => 84,
+            'classification' => 'Tốt',
+            'ranking' => 'Top 20% học sinh khối 11',
+            'comment' => 'A có nền tảng chuyên môn tốt và phối hợp nhóm tích cực. Hãy tiếp tục tăng tính chủ động trong phần trình bày.',
+            'reviewer' => 'Thầy Trần Minh Anh, CLB Công nghệ',
+        ],
+    ],
+    '2024-2025-2' => [
+        'label' => 'Học kỳ II · 2024–2025',
+        'status' => 'Chưa có dữ liệu',
+        'evaluation' => null,
+    ],
 ];
 
 $certificates = [

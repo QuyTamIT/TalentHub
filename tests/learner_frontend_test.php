@@ -38,6 +38,30 @@ if (file_exists($dataSource)) {
     check(learner_escape('<script>') === '&lt;script&gt;', 'Dynamic learner data is HTML escaped');
     check(count($learnerNav) === 9, 'Sidebar data contains nine navigation items');
     check(($student['name'] ?? '') === 'Nguyễn Văn A', 'Student mock data exposes the approved learner');
+    check(count($activityCatalog ?? []) === 6, 'Activity catalog contains six records');
+    check(count($checkinHistory ?? []) === 4, 'Check-in history contains four records');
+    check(isset($evaluationTerms['2025-2026-2']), 'Default evaluation term exists');
+    check(
+        isset($evaluationTerms['2024-2025-2']) && $evaluationTerms['2024-2025-2']['evaluation'] === null,
+        'Evaluation data exposes an empty term'
+    );
+
+    $navByLabel = array_column($learnerNav, null, 'label');
+    check(
+        ($navByLabel['Hoạt động']['route'] ?? '') === '/app/learner/activities.php'
+            && ($navByLabel['Hoạt động']['implemented'] ?? false),
+        'Activities route is implemented'
+    );
+    check(
+        ($navByLabel['Check-in QR']['route'] ?? '') === '/app/learner/checkin.php'
+            && ($navByLabel['Check-in QR']['implemented'] ?? false),
+        'Check-in route is implemented'
+    );
+    check(
+        ($navByLabel['Đánh giá']['route'] ?? '') === '/app/learner/evaluation.php'
+            && ($navByLabel['Đánh giá']['implemented'] ?? false),
+        'Evaluation route is implemented'
+    );
 }
 
 $overviewPath = $root . '/app/learner/index.php';
