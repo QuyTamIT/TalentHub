@@ -175,8 +175,12 @@ if (file_exists($cssPath)) {
     check(str_contains($css, '@media (max-width: 1100px)'), 'Learner stylesheet defines tablet behavior');
     check(str_contains($css, '@media (max-width: 720px)'), 'Learner stylesheet defines mobile behavior');
     check(str_contains($css, 'prefers-reduced-motion'), 'Learner stylesheet respects reduced motion');
+    check(str_contains($css, '.learner-activity-catalog'), 'Learner stylesheet styles activity catalog');
+    check(str_contains($css, '.learner-checkin-grid'), 'Learner stylesheet styles check-in layout');
+    check(str_contains($css, '.learner-evaluation-grid'), 'Learner stylesheet styles evaluation layout');
+    check(str_contains($css, '.learner-scanner-frame'), 'Learner stylesheet styles demo scanner');
     check(!str_contains($css, '.ent-'), 'Learner stylesheet does not target Enterprise selectors');
-    check(!preg_match('/linear-gradient\s*\(/i', $css), 'Learner stylesheet contains no gradient');
+    check(!preg_match('/(?:linear|radial)-gradient\s*\(/i', $css), 'Learner stylesheet contains no gradient');
 }
 
 if ($failures !== []) {
