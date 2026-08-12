@@ -16,6 +16,9 @@ const pages = [
     { slug: 'activities', path: '/app/learner/activities.php', marker: 'Khám phá hoạt động' },
     { slug: 'checkin', path: '/app/learner/checkin.php', marker: 'Check-in trải nghiệm' },
     { slug: 'evaluation', path: '/app/learner/evaluation.php', marker: 'Đánh giá năng lực' },
+    { slug: 'ai', path: '/app/learner/ai-recommendations.php', marker: 'AI phân tích năng lực' },
+    { slug: 'badges', path: '/app/learner/badges.php', marker: 'Huy hiệu và cấp độ' },
+    { slug: 'statistics', path: '/app/learner/statistics.php', marker: 'Thống kê cá nhân' },
 ];
 
 const viewports = [
@@ -46,9 +49,22 @@ async function captureViewport(browser, pageConfig, viewport) {
 
     const response = await page.goto(`${baseUrl}${pageConfig.path}`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(250);
+    if (pageConfig.slug === 'ai') {
+        await page.waitForFunction(() => document.querySelector('[data-ai-page]')?.dataset.aiState === 'ready');
+    }
 
     check(response?.status() === 200, `${pageConfig.slug} returns HTTP 200 at ${viewport.name}`);
     check(await page.getByText(pageConfig.marker, { exact: false }).first().isVisible(), `${pageConfig.slug} marker is visible at ${viewport.name}`);
+
+    const sidebarLinks = page.locator('#learner-sidebar .learner-sidebar__link');
+    check(await sidebarLinks.count() === 9, `${pageConfig.slug} keeps exactly nine sidebar links at ${viewport.name}`);
+    check(await page.locator('#learner-sidebar [data-pending-route]').count() === 0, `${pageConfig.slug} has no pending sidebar route at ${viewport.name}`);
+    const activeLinks = page.locator('#learner-sidebar .learner-sidebar__link[aria-current="page"]');
+    check(await activeLinks.count() === 1, `${pageConfig.slug} has one active sidebar item at ${viewport.name}`);
+    check(
+        (await activeLinks.first().getAttribute('href')) === pageConfig.path,
+        `${pageConfig.slug} activates its matching sidebar route at ${viewport.name}`
+    );
 
     const menuVisible = await page.locator('#learner-sidebar-toggle').isVisible();
     check(
@@ -216,6 +232,57 @@ async function verifyInteractions(browser) {
     check(await page.locator('[data-evaluation-content]').isHidden(), 'Empty semester hides criteria content');
     await page.locator('#learner-evaluation-term').selectOption('2025-2026-2');
     check(await page.locator('[data-evaluation-criterion]').count() === 4, 'Returning to the current semester restores four criteria');
+
+    await page.goto(`${baseUrl}/app/learner/ai-recommendations.php`, { waitUntil: 'domcontentloaded' });
+    check(await page.locator('[data-ai-loading]').isVisible(), 'AI page exposes the simulated loading state');
+    await page.waitForFunction(() => document.querySelector('[data-ai-page]')?.dataset.aiState === 'ready');
+    check(await page.locator('[data-ai-ready]').isVisible(), 'AI loading resolves to server-rendered recommendations');
+    check(await page.locator('[data-ai-analysis-card]').count() === 3, 'AI page renders three analysis cards');
+    check(await page.locator('[data-ai-roadmap-step]').count() === 3, 'AI page renders the three-month roadmap');
+    await page.getByRole('link', { name: /Khám phá hoạt động phù hợp/ }).click();
+    await page.waitForURL('**/app/learner/activities.php');
+    check(await page.getByRole('heading', { name: 'Khám phá hoạt động' }).isVisible(), 'AI activity CTA navigates to the activity catalog');
+
+    await page.route('**/app/learner/ai-recommendations.php?state=insufficient', async (route) => {
+        const response = await route.fetch();
+        const body = (await response.text()).replace('"sufficient":true', '"sufficient":false');
+        await route.fulfill({ response, body });
+    });
+    await page.goto(`${baseUrl}/app/learner/ai-recommendations.php?state=insufficient`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelector('[data-ai-page]')?.dataset.aiState === 'insufficient');
+    check(await page.locator('[data-ai-insufficient]').isVisible(), 'AI page exposes the insufficient-data fallback');
+    check(await page.locator('[data-ai-ready]').isHidden(), 'Insufficient AI data hides recommendation cards');
+
+    await page.goto(`${baseUrl}/app/learner/badges.php`, { waitUntil: 'domcontentloaded' });
+    check(await page.locator('[data-level-item]').count() === 4, 'Badges page renders four level milestones');
+    check(await page.locator('[data-badge-card]:visible').count() === 6, 'Badges page starts with all six badges');
+    const achievedFilter = page.getByRole('button', { name: 'Đã đạt', exact: true });
+    await achievedFilter.click();
+    check(await page.locator('[data-badge-card]:visible').count() === 2, 'Achieved badge filter shows two earned badges');
+    check(await achievedFilter.getAttribute('aria-pressed') === 'true', 'Badge filter exposes its selected state');
+    await page.getByRole('button', { name: 'Đang tiến hành', exact: true }).click();
+    check(await page.locator('[data-badge-card]:visible').count() === 2, 'In-progress badge filter shows two badges');
+    await page.getByRole('button', { name: 'Chưa đạt', exact: true }).click();
+    check(await page.locator('[data-badge-card]:visible').count() === 2, 'Locked badge filter shows two unearned badges');
+    check(await page.locator('[data-badge-card]:visible .learner-badge-card__status--success').count() === 0, 'Unearned badges never use the success-green status');
+    await page.getByRole('button', { name: 'Tất cả', exact: true }).click();
+    check(await page.locator('[data-badge-card]:visible').count() === 6, 'All badge filter restores the collection');
+
+    await page.goto(`${baseUrl}/app/learner/statistics.php`, { waitUntil: 'domcontentloaded' });
+    check(await page.locator('[data-statistics-kpi][data-kpi-id="hours"] [data-kpi-value]').textContent() === '64', 'Statistics starts with 64 personal experience hours');
+    check(await page.locator('svg[role="img"]').count() === 2, 'Statistics exposes both charts with image semantics');
+    const initialBars = await page.locator('[data-experience-bars] rect').count();
+    check(initialBars === 6, 'Six-month statistics renders six experience bars');
+    await page.locator('#learner-statistics-period').selectOption('three-months');
+    check(await page.locator('[data-statistics-kpi][data-kpi-id="hours"] [data-kpi-value]').textContent() === '40', 'Changing statistics period updates personal experience hours');
+    check(await page.locator('[data-experience-bars] rect').count() === 3, 'Three-month period redraws three experience bars');
+    check(await page.locator('[data-field-total]').textContent() === '40', 'Field chart total updates with the selected period');
+    check(await page.locator('[data-activity-summary][data-activity-id="registered"] [data-activity-value]').textContent() === '8', 'Activity summary updates with the selected period');
+    check(await page.locator('[data-statistics-skill]').first().locator('[data-skill-score]').textContent() === '82%', 'Skill progress updates with the selected period');
+    await page.locator('#learner-statistics-period').selectOption('twelve-months');
+    check(await page.locator('[data-statistics-kpi][data-kpi-id="hours"] [data-kpi-value]').textContent() === '112', 'Twelve-month period updates the personal KPI');
+    check(await page.locator('[data-experience-bars] rect').count() === 12, 'Twelve-month period redraws all twelve bars');
+    check((await page.locator('[data-statistics-status]').textContent()).includes('12 tháng gần nhất'), 'Statistics period change is announced');
 
     await page.setViewportSize({ width: 1200, height: 800 });
     await page.goto(`${baseUrl}/app/learner/index.php`, { waitUntil: 'domcontentloaded' });

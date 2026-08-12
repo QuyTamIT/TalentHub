@@ -287,10 +287,10 @@ $learnerStatisticsPeriods = [
             ['label' => 'Cộng đồng', 'hours' => 2, 'percentage' => 5, 'tone' => 'neutral'],
         ],
         'skills' => [
-            ['name' => 'IoT', 'score' => 86, 'level' => 'Level 4 · Nâng cao', 'icon' => 'bot', 'tone' => 'primary'],
-            ['name' => 'Lập trình', 'score' => 72, 'level' => 'Level 3 · Trung cấp', 'icon' => 'activity', 'tone' => 'secondary'],
-            ['name' => 'Làm việc nhóm', 'score' => 68, 'level' => 'Level 3 · Trung cấp', 'icon' => 'users', 'tone' => 'success'],
-            ['name' => 'Thuyết trình', 'score' => 54, 'level' => 'Level 2 · Cơ bản', 'icon' => 'message-circle', 'tone' => 'warning'],
+            ['name' => 'IoT', 'score' => 82, 'level' => 'Level 4 · Nâng cao', 'icon' => 'bot', 'tone' => 'primary'],
+            ['name' => 'Lập trình', 'score' => 69, 'level' => 'Level 3 · Trung cấp', 'icon' => 'activity', 'tone' => 'secondary'],
+            ['name' => 'Làm việc nhóm', 'score' => 65, 'level' => 'Level 3 · Trung cấp', 'icon' => 'users', 'tone' => 'success'],
+            ['name' => 'Thuyết trình', 'score' => 50, 'level' => 'Level 2 · Cơ bản', 'icon' => 'message-circle', 'tone' => 'warning'],
         ],
         'activities' => [
             ['id' => 'registered', 'label' => 'Đăng ký', 'value' => 8, 'change' => '↑ 2 so với kỳ trước', 'icon' => 'calendar', 'tone' => 'primary'],
