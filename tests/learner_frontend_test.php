@@ -69,6 +69,22 @@ if (file_exists($profilePath)) {
     check(str_contains($profile, 'Dự án đã tham gia'), 'Profile renders projects');
 }
 
+$discoverPath = $root . '/app/learner/discover.php';
+check(file_exists($discoverPath), 'Learner discovery page exists');
+
+if (file_exists($discoverPath)) {
+    $discover = render_page($discoverPath);
+
+    foreach (['Holland', 'MBTI', 'DISC', 'Đa trí thông minh'] as $assessmentName) {
+        check(str_contains($discover, $assessmentName), "Discovery renders {$assessmentName}");
+    }
+
+    check(str_contains($discover, 'role="img"'), 'Radar chart exposes image semantics');
+    check(str_contains($discover, 'learner-radar-data'), 'Radar chart renders a data polygon');
+    check(str_contains($discover, 'Kỹ thuật'), 'Discovery renders career directions');
+    check(str_contains($discover, 'learner-assessment-modal'), 'Discovery provides assessment feedback modal');
+}
+
 if ($failures !== []) {
     fwrite(STDERR, sprintf("\n%d learner frontend assertion(s) failed.\n", count($failures)));
     exit(1);
