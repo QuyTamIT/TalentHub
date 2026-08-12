@@ -40,6 +40,20 @@ if (file_exists($dataSource)) {
     check(($student['name'] ?? '') === 'Nguyễn Văn A', 'Student mock data exposes the approved learner');
 }
 
+$overviewPath = $root . '/app/learner/index.php';
+check(file_exists($overviewPath), 'Learner overview page exists');
+
+if (file_exists($overviewPath)) {
+    $overview = render_page($overviewPath);
+
+    check(str_contains($overview, 'Chào mừng trở lại, Nguyễn Văn A'), 'Overview renders welcome copy');
+    check(substr_count($overview, 'learner-kpi-card') >= 4, 'Overview renders four KPI cards');
+    check(str_contains($overview, 'Hồ sơ kỹ năng'), 'Overview renders the skills summary');
+    check(str_contains($overview, 'AI gợi ý cho bạn'), 'Overview renders the AI recommendation');
+    check(str_contains($overview, 'Hoạt động sắp diễn ra'), 'Overview renders upcoming activities');
+    check(str_contains($overview, 'href="discover.php"'), 'Overview aptitude CTA targets discover page');
+}
+
 if ($failures !== []) {
     fwrite(STDERR, sprintf("\n%d learner frontend assertion(s) failed.\n", count($failures)));
     exit(1);
