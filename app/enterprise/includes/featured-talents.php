@@ -10,7 +10,7 @@
             <h3 class="ent-section-box__title">Nhân tài nổi bật trong tuần</h3>
             <p class="ent-section-box__subtitle">Đề xuất dựa trên tiêu chí tuyển dụng và kỹ năng yêu cầu của doanh nghiệp</p>
         </div>
-        <a href="/app/enterprise/talents" class="ent-section-box__link" data-route="/app/enterprise/talents">
+        <a href="/app/enterprise/talents.php" class="ent-section-box__link" data-route="/app/enterprise/talents.php">
             Xem tất cả (1,247) &rarr;
         </a>
     </div>
@@ -26,7 +26,7 @@
                         <div class="ent-talent-card__name-row">
                             <h4 class="ent-talent-card__name"><?= htmlspecialchars($talent['name']); ?></h4>
                             <span class="ent-talent-card__score-badge">
-                                <?= htmlspecialchars($talent['match_score']); ?>% Phù hợp
+                                <?= htmlspecialchars($talent['talent_score'] ?? $talent['match_score']); ?> điểm
                             </span>
                         </div>
                         

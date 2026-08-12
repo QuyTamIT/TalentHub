@@ -18,7 +18,7 @@
             </svg>
         </button>
 
-        <h1 class="ent-header__title">Tổng quan Doanh nghiệp</h1>
+        <h1 class="ent-header__title"><?= isset($pageTitle) ? htmlspecialchars($pageTitle) : 'Tổng quan Doanh nghiệp'; ?></h1>
     </div>
 
     <div class="ent-header__right">
