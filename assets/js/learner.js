@@ -11,6 +11,9 @@
         '/app/learner/index.php',
         '/app/learner/profile.php',
         '/app/learner/discover.php',
+        '/app/learner/activities.php',
+        '/app/learner/checkin.php',
+        '/app/learner/evaluation.php',
     ]);
 
     function validateProfile(data) {
@@ -51,10 +54,36 @@
         return implementedRoutes.has(normalizedRoute);
     }
 
+    function normalizeSearchText(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd')
+            .replace(/Đ/g, 'D')
+            .toLocaleLowerCase('vi')
+            .trim();
+    }
+
+    function activityMatches(activity, query, category) {
+        const normalizedCategory = category || 'Tất cả';
+        const categoryMatches = normalizedCategory === 'Tất cả'
+            || activity.filterCategory === normalizedCategory;
+        const haystack = normalizeSearchText([
+            activity.title,
+            activity.category,
+            activity.filterCategory,
+            activity.location,
+        ].join(' '));
+
+        return categoryMatches && haystack.includes(normalizeSearchText(query));
+    }
+
     global.LearnerUI = {
         validateProfile,
         nextAssessmentState,
         isImplementedRoute,
+        normalizeSearchText,
+        activityMatches,
     };
 
     if (typeof document === 'undefined') return;
@@ -202,6 +231,70 @@
         document.querySelectorAll('[data-close-modal]').forEach((trigger) => {
             trigger.addEventListener('click', () => closeModal(trigger.closest('.learner-modal')));
         });
+
+        const activityCards = Array.from(document.querySelectorAll('[data-activity-card]'));
+        const activityFilters = Array.from(document.querySelectorAll('[data-activity-filter]'));
+        const activityEmpty = document.querySelector('[data-activity-empty]');
+        const activityResultStatus = document.querySelector('[data-activity-result-status]');
+        const activitySearch = document.getElementById('learner-search-input');
+        const registrationModal = document.getElementById('learner-registration-modal');
+        const registrationName = registrationModal?.querySelector('[data-registration-name]');
+        const registrationConfirm = registrationModal?.querySelector('[data-confirm-registration]');
+        let activeActivityCategory = 'Tất cả';
+        let pendingRegistrationButton = null;
+
+        const updateActivityResults = () => {
+            let visibleCount = 0;
+            activityCards.forEach((card) => {
+                const matches = activityMatches({
+                    title: card.dataset.title,
+                    category: card.dataset.category,
+                    filterCategory: card.dataset.filterCategory,
+                    location: card.dataset.location,
+                }, activitySearch?.value || '', activeActivityCategory);
+                card.hidden = !matches;
+                if (matches) visibleCount += 1;
+            });
+
+            if (activityEmpty) activityEmpty.hidden = visibleCount !== 0;
+            if (activityResultStatus) activityResultStatus.textContent = `${visibleCount} hoạt động phù hợp`;
+        };
+
+        if (activityCards.length > 0) {
+            activitySearch?.addEventListener('input', updateActivityResults);
+            activityFilters.forEach((filter) => {
+                filter.addEventListener('click', () => {
+                    activeActivityCategory = filter.dataset.activityFilter || 'Tất cả';
+                    activityFilters.forEach((item) => {
+                        item.setAttribute('aria-pressed', String(item === filter));
+                    });
+                    updateActivityResults();
+                });
+            });
+
+            document.querySelectorAll('[data-activity-register]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    pendingRegistrationButton = button;
+                    if (registrationName) {
+                        registrationName.textContent = button.dataset.activityName || 'hoạt động này';
+                    }
+                    openModal(registrationModal, button);
+                });
+            });
+
+            registrationConfirm?.addEventListener('click', () => {
+                if (!pendingRegistrationButton) return;
+
+                pendingRegistrationButton.textContent = 'Đã đăng ký';
+                pendingRegistrationButton.disabled = true;
+                pendingRegistrationButton.classList.add('is-complete');
+                pendingRegistrationButton = null;
+                closeModal(registrationModal);
+                showToast('Đăng ký hoạt động thành công.');
+            });
+
+            updateActivityResults();
+        }
 
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') {

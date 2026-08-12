@@ -58,5 +58,23 @@ test('only implemented learner routes navigate directly', () => {
     assert.equal(typeof learnerUI.isImplementedRoute, 'function');
     assert.equal(learnerUI.isImplementedRoute('/app/learner/profile.php'), true);
     assert.equal(learnerUI.isImplementedRoute('/app/learner/discover.php'), true);
-    assert.equal(learnerUI.isImplementedRoute('/app/learner/activities.php'), false);
+    assert.equal(learnerUI.isImplementedRoute('/app/learner/activities.php'), true);
+    assert.equal(learnerUI.isImplementedRoute('/app/learner/checkin.php'), true);
+    assert.equal(learnerUI.isImplementedRoute('/app/learner/evaluation.php'), true);
+    assert.equal(learnerUI.isImplementedRoute('/app/learner/ai-suggestions.php'), false);
+});
+
+test('activity matching combines accent-insensitive query and category', () => {
+    assert.equal(typeof learnerUI.activityMatches, 'function');
+    const activity = {
+        title: 'IoT Lab — Cảm biến thông minh',
+        category: 'Công nghệ',
+        filterCategory: 'Kỹ thuật',
+        location: 'Phòng B305',
+    };
+
+    assert.equal(learnerUI.activityMatches(activity, 'cam bien', 'Kỹ thuật'), true);
+    assert.equal(learnerUI.activityMatches(activity, 'PHONG B305', 'Tất cả'), true);
+    assert.equal(learnerUI.activityMatches(activity, 'ho tay', 'Kỹ thuật'), false);
+    assert.equal(learnerUI.activityMatches(activity, '', 'Cộng đồng'), false);
 });

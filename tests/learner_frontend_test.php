@@ -112,6 +112,21 @@ if (file_exists($discoverPath)) {
     check(str_contains($discover, 'learner-assessment-modal'), 'Discovery provides assessment feedback modal');
 }
 
+$activitiesPath = $root . '/app/learner/activities.php';
+check(file_exists($activitiesPath), 'Learner activities page exists');
+
+if (file_exists($activitiesPath)) {
+    $activitiesPage = render_page($activitiesPath);
+
+    check(str_contains($activitiesPage, 'Khám phá hoạt động'), 'Activities renders heading');
+    check(substr_count($activitiesPage, 'data-activity-card') === 6, 'Activities renders six cards');
+    check(substr_count($activitiesPage, 'data-activity-filter=') === 5, 'Activities renders five filters');
+    check(str_contains($activitiesPage, 'id="learner-registration-modal"'), 'Activities provides registration modal');
+    check(str_contains($activitiesPage, 'data-activity-empty'), 'Activities provides empty state');
+    check(str_contains($activitiesPage, 'role="progressbar"'), 'Activities exposes capacity progress semantics');
+    check(!str_contains($activitiesPage, 'onclick='), 'Activities uses unobtrusive JavaScript');
+}
+
 $roleSelectionSource = (string) file_get_contents($root . '/role-selection.php');
 $roleSelectionScript = (string) file_get_contents($root . '/assets/js/role-selection.js');
 check(str_contains($roleSelectionSource, "'route' => 'app/learner/index.php'"), 'Role selection targets the implemented Learner entry page');

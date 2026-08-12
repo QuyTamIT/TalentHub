@@ -1,4 +1,8 @@
-<?php require_once __DIR__ . '/icons.php'; ?>
+<?php
+require_once __DIR__ . '/icons.php';
+$headerSearchLabel = $headerSearchLabel ?? 'Tìm hoạt động hoặc kỹ năng';
+$headerSearchPlaceholder = $headerSearchPlaceholder ?? 'Tìm hoạt động, kỹ năng...';
+?>
 <header class="learner-header">
     <div class="learner-header__left">
         <button
@@ -19,9 +23,9 @@
 
     <div class="learner-header__right">
         <form class="learner-search" id="learner-search-form" role="search">
-            <label class="learner-visually-hidden" for="learner-search-input">Tìm hoạt động hoặc kỹ năng</label>
+            <label class="learner-visually-hidden" for="learner-search-input"><?= learner_escape($headerSearchLabel); ?></label>
             <?= learner_icon('search', 20); ?>
-            <input id="learner-search-input" name="q" type="search" placeholder="Tìm hoạt động, kỹ năng..." autocomplete="off">
+            <input id="learner-search-input" name="q" type="search" placeholder="<?= learner_escape($headerSearchPlaceholder); ?>" autocomplete="off">
         </form>
 
         <button class="learner-icon-button" id="learner-notification-button" type="button" aria-label="Xem thông báo">
