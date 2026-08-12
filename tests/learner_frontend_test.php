@@ -141,6 +141,25 @@ if (file_exists($checkinPath)) {
     check(!str_contains($checkin, 'getUserMedia'), 'Check-in never requests camera permission');
 }
 
+$evaluationPath = $root . '/app/learner/evaluation.php';
+check(file_exists($evaluationPath), 'Learner evaluation page exists');
+
+if (file_exists($evaluationPath)) {
+    $evaluation = render_page($evaluationPath);
+    $evaluationSource = (string) file_get_contents($evaluationPath);
+
+    check(str_contains($evaluation, 'Đánh giá năng lực'), 'Evaluation renders heading');
+    check(str_contains($evaluation, 'id="learner-evaluation-term"'), 'Evaluation renders semester selector');
+    check(substr_count($evaluation, 'data-evaluation-criterion=""') === 4, 'Default evaluation renders four criteria');
+    check(str_contains($evaluation, 'data-evaluation-total>90<'), 'Evaluation renders total 90');
+    check(str_contains($evaluation, 'data-evaluation-classification>Xuất sắc<'), 'Evaluation renders excellent classification');
+    check(str_contains($evaluation, 'data-evaluation-empty'), 'Evaluation provides empty state');
+    check(
+        str_contains($evaluationSource, 'JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT'),
+        'Evaluation JSON is serialized safely'
+    );
+}
+
 $roleSelectionSource = (string) file_get_contents($root . '/role-selection.php');
 $roleSelectionScript = (string) file_get_contents($root . '/assets/js/role-selection.js');
 check(str_contains($roleSelectionSource, "'route' => 'app/learner/index.php'"), 'Role selection targets the implemented Learner entry page');

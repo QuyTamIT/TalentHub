@@ -78,3 +78,16 @@ test('activity matching combines accent-insensitive query and category', () => {
     assert.equal(learnerUI.activityMatches(activity, 'ho tay', 'Kỹ thuật'), false);
     assert.equal(learnerUI.activityMatches(activity, '', 'Cộng đồng'), false);
 });
+
+test('evaluation term resolver returns published and empty terms safely', () => {
+    assert.equal(typeof learnerUI.getEvaluationTerm, 'function');
+    const terms = {
+        published: { status: 'Đã công bố', evaluation: { total: 90 } },
+        empty: { status: 'Chưa có dữ liệu', evaluation: null },
+    };
+
+    assert.equal(learnerUI.getEvaluationTerm(terms, 'published').evaluation.total, 90);
+    assert.equal(learnerUI.getEvaluationTerm(terms, 'empty').evaluation, null);
+    assert.equal(learnerUI.getEvaluationTerm(terms, 'missing'), null);
+    assert.equal(learnerUI.getEvaluationTerm(null, 'published'), null);
+});

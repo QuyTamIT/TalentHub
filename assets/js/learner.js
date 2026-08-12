@@ -78,12 +78,18 @@
         return categoryMatches && haystack.includes(normalizeSearchText(query));
     }
 
+    function getEvaluationTerm(terms, termId) {
+        if (!terms || typeof terms !== 'object') return null;
+        return Object.prototype.hasOwnProperty.call(terms, termId) ? terms[termId] : null;
+    }
+
     global.LearnerUI = {
         validateProfile,
         nextAssessmentState,
         isImplementedRoute,
         normalizeSearchText,
         activityMatches,
+        getEvaluationTerm,
     };
 
     if (typeof document === 'undefined') return;
@@ -294,6 +300,82 @@
             });
 
             updateActivityResults();
+        }
+
+        const evaluationSelect = document.getElementById('learner-evaluation-term');
+        const evaluationPayload = document.getElementById('learner-evaluation-data');
+        const evaluationContent = document.querySelector('[data-evaluation-content]');
+        const evaluationSummary = document.querySelector('[data-evaluation-summary]');
+        const evaluationEmpty = document.querySelector('[data-evaluation-empty]');
+        const evaluationCriteria = document.querySelector('[data-evaluation-criteria]');
+        const evaluationStatus = document.querySelector('[data-evaluation-status]');
+
+        if (evaluationSelect && evaluationPayload) {
+            let evaluationTerms = {};
+            try {
+                evaluationTerms = JSON.parse(evaluationPayload.textContent || '{}');
+            } catch (error) {
+                showToast('Không thể tải dữ liệu đánh giá.', 'warning');
+            }
+
+            const setEvaluationText = (selector, value) => {
+                const target = document.querySelector(selector);
+                if (target) target.textContent = String(value ?? '');
+            };
+
+            const renderEvaluation = (termId) => {
+                const term = getEvaluationTerm(evaluationTerms, termId);
+                const evaluation = term?.evaluation || null;
+
+                if (evaluationStatus) {
+                    evaluationStatus.textContent = term?.status || 'Chưa có dữ liệu';
+                    evaluationStatus.dataset.state = evaluation ? 'published' : 'empty';
+                }
+                if (evaluationContent) evaluationContent.hidden = !evaluation;
+                if (evaluationSummary) evaluationSummary.hidden = !evaluation;
+                if (evaluationEmpty) evaluationEmpty.hidden = Boolean(evaluation);
+                if (!evaluation || !evaluationCriteria) return;
+
+                const rows = evaluation.criteria.map((criterion) => {
+                    const row = document.createElement('article');
+                    row.className = 'learner-evaluation-criterion';
+                    row.dataset.evaluationCriterion = '';
+
+                    const heading = document.createElement('div');
+                    heading.className = 'learner-evaluation-criterion__heading';
+                    const name = document.createElement('span');
+                    const score = document.createElement('strong');
+                    name.textContent = criterion.name;
+                    score.textContent = `${criterion.score}/${criterion.max}`;
+                    heading.append(name, score);
+
+                    const progress = document.createElement('div');
+                    progress.className = 'learner-progress';
+                    progress.setAttribute('role', 'progressbar');
+                    progress.setAttribute('aria-label', criterion.name);
+                    progress.setAttribute('aria-valuemin', '0');
+                    progress.setAttribute('aria-valuemax', String(criterion.max));
+                    progress.setAttribute('aria-valuenow', String(criterion.score));
+
+                    const bar = document.createElement('span');
+                    bar.className = `learner-progress--${criterion.tone}`;
+                    bar.style.setProperty('--learner-progress', `${criterion.score / criterion.max * 100}%`);
+                    progress.append(bar);
+                    row.append(heading, progress);
+                    return row;
+                });
+
+                evaluationCriteria.replaceChildren(...rows);
+                setEvaluationText('[data-evaluation-total]', evaluation.total);
+                setEvaluationText('[data-evaluation-classification]', evaluation.classification);
+                setEvaluationText('[data-evaluation-ranking]', evaluation.ranking);
+                setEvaluationText('[data-evaluation-comment]', evaluation.comment);
+                setEvaluationText('[data-evaluation-reviewer]', evaluation.reviewer);
+            };
+
+            evaluationSelect.addEventListener('change', () => {
+                renderEvaluation(evaluationSelect.value);
+            });
         }
 
         document.addEventListener('keydown', (event) => {
