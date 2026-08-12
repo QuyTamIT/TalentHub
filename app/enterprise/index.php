@@ -28,7 +28,7 @@ $sidebarNav = [
     ],
     [
         'title' => 'Tìm nhân tài',
-        'route' => '/app/enterprise/talents',
+        'route' => '/app/enterprise/talents.php',
         'icon' => 'search-users',
         'active' => false
     ],
@@ -93,7 +93,7 @@ $featuredTalents = [
         'name' => 'Nguyễn Văn An',
         'school' => 'Đại học Bách Khoa Hà Nội',
         'major' => 'Công nghệ Thông tin',
-        'match_score' => 98,
+        'talent_score' => 95,
         'experience_hours' => '120h thực án',
         'skills' => ['React', 'Node.js', 'TypeScript', 'UI/UX']
     ],
@@ -102,7 +102,7 @@ $featuredTalents = [
         'name' => 'Lê Thị Bích Ngọc',
         'school' => 'Đại học Quốc Gia TP.HCM',
         'major' => 'Khoa học Dữ liệu & AI',
-        'match_score' => 95,
+        'talent_score' => 92,
         'experience_hours' => '95h thực án',
         'skills' => ['Python', 'PyTorch', 'SQL', 'Data Analytics']
     ],
@@ -111,7 +111,7 @@ $featuredTalents = [
         'name' => 'Trần Minh Đức',
         'school' => 'Đại học FPT',
         'major' => 'Kỹ thuật Phần mềm',
-        'match_score' => 92,
+        'talent_score' => 88,
         'experience_hours' => '150h thực án',
         'skills' => ['PHP', 'Laravel', 'MySQL', 'Docker']
     ]
@@ -144,7 +144,7 @@ $pendingActions = [
         'subtitle' => 'Yêu cầu kết nối từ Giảng viên Hướng dẫn ĐH Bách Khoa',
         'type' => 'neutral',
         'action_label' => 'Trả lời ngay',
-        'route' => '/app/enterprise/talents'
+        'route' => '/app/enterprise/talents.php'
     ]
 ];
 

@@ -87,8 +87,15 @@ function initRouteNavigation() {
         link.addEventListener('click', (e) => {
             const route = link.getAttribute('data-route');
             
-            // Allow default navigation if clicking main overview page
-            if (route === '/app/enterprise' || route === '/app/enterprise/index.php') {
+            // Allow default navigation if clicking implemented pages
+            if (
+                route === '/app/enterprise' || 
+                route === '/app/enterprise/index.php' ||
+                route === '/app/enterprise/talents' ||
+                route === '/app/enterprise/talents.php' ||
+                route === '/app/enterprise/talents/' ||
+                route === '/app/enterprise/talents/index.php'
+            ) {
                 return;
             }
 
@@ -137,11 +144,10 @@ function showEntToast(message) {
 
     toast.classList.add('is-visible');
 
-    if (entToastTimeout) {
-        clearTimeout(entToastTimeout);
-    }
-
     entToastTimeout = setTimeout(() => {
         toast.classList.remove('is-visible');
     }, 4000);
 }
+
+window.showEntToast = showEntToast;
+

@@ -39,10 +39,12 @@
     <nav class="ent-sidebar__nav" aria-label="Điều hướng Doanh nghiệp">
         <div class="ent-sidebar__nav-title">QUẢN LÝ DOANH NGHIỆP</div>
         <ul>
-            <?php foreach ($sidebarNav as $navItem): ?>
+            <?php foreach ($sidebarNav as $navItem): 
+                $isActive = (isset($currentRoute) && ($navItem['route'] === $currentRoute || strpos($currentRoute, strtok($navItem['route'], '.')) === 0 && $navItem['route'] !== '/app/enterprise')) || (!isset($currentRoute) && $navItem['active']);
+            ?>
                 <li>
                     <a href="<?= htmlspecialchars($navItem['route']); ?>" 
-                       class="ent-sidebar__link <?= $navItem['active'] ? 'is-active' : ''; ?>"
+                       class="ent-sidebar__link <?= $isActive ? 'is-active' : ''; ?>"
                        data-route="<?= htmlspecialchars($navItem['route']); ?>">
                         
                         <span class="ent-sidebar__icon">
