@@ -31,9 +31,9 @@ $learnerNav = [
     ['label' => 'Hoạt động', 'route' => '/app/learner/activities.php', 'icon' => 'calendar', 'implemented' => true],
     ['label' => 'Check-in QR', 'route' => '/app/learner/checkin.php', 'icon' => 'qr', 'implemented' => true],
     ['label' => 'Đánh giá', 'route' => '/app/learner/evaluation.php', 'icon' => 'clipboard', 'implemented' => true],
-    ['label' => 'AI gợi ý', 'route' => '/app/learner/ai-suggestions.php', 'icon' => 'sparkles', 'implemented' => false],
-    ['label' => 'Huy hiệu', 'route' => '/app/learner/badges.php', 'icon' => 'award', 'implemented' => false],
-    ['label' => 'Thống kê', 'route' => '/app/learner/statistics.php', 'icon' => 'chart', 'implemented' => false],
+    ['label' => 'AI gợi ý', 'route' => '/app/learner/ai-recommendations.php', 'icon' => 'sparkles', 'implemented' => true],
+    ['label' => 'Huy hiệu', 'route' => '/app/learner/badges.php', 'icon' => 'award', 'implemented' => true],
+    ['label' => 'Thống kê', 'route' => '/app/learner/statistics.php', 'icon' => 'chart', 'implemented' => true],
 ];
 
 $level = [
@@ -180,4 +180,152 @@ $careerDirections = [
     ['label' => 'Kinh doanh', 'score' => 30, 'icon' => 'briefcase', 'tone' => 'success'],
     ['label' => 'Học thuật', 'score' => 20, 'icon' => 'graduation-cap', 'tone' => 'secondary'],
     ['label' => 'Nghệ thuật', 'score' => 10, 'icon' => 'palette', 'tone' => 'warning'],
+];
+
+$aiRecommendation = [
+    'sufficient' => true,
+    'updated_at' => '12/08/2026',
+    'summary' => 'Bạn có năng lực nổi bật về IoT và Drone. Khuyến nghị tham gia nhóm nghiên cứu tự động hóa và cuộc thi sáng tạo kỹ thuật.',
+    'groups' => [
+        [
+            'title' => 'Điểm mạnh',
+            'tone' => 'success',
+            'icon' => 'chart',
+            'items' => ['Tư duy logic, lập trình', 'Làm việc nhóm & dẫn dắt', 'Học nhanh công nghệ mới'],
+        ],
+        [
+            'title' => 'Cần cải thiện',
+            'tone' => 'primary',
+            'icon' => 'activity',
+            'items' => ['Thuyết trình trước đám đông', 'Quản lý thời gian dài hạn', 'Tiếng Anh học thuật'],
+        ],
+        [
+            'title' => 'Khả năng phát triển',
+            'tone' => 'secondary',
+            'icon' => 'compass',
+            'items' => ['Kỹ sư tự động hóa', 'Nghiên cứu AI/Robotics', 'Khởi nghiệp deep-tech'],
+        ],
+    ],
+    'roadmap' => [
+        ['month' => 'Tháng 1', 'action' => 'Hoàn thành khóa Arduino nâng cao và tham gia IoT Lab hằng tuần.'],
+        ['month' => 'Tháng 2', 'action' => 'Đăng ký cuộc thi sáng tạo kỹ thuật cấp thành phố với đề tài tự động hóa nông nghiệp.'],
+        ['month' => 'Tháng 3', 'action' => 'Mentor 2 dự án nhóm và viết blog kỹ thuật để rèn khả năng truyền đạt.'],
+    ],
+    'insufficient_title' => 'Chưa đủ dữ liệu để AI phân tích',
+    'insufficient_copy' => 'Hãy hoàn thiện hồ sơ kỹ năng, bài đánh giá năng khiếu và ít nhất một hoạt động trải nghiệm.',
+    'disclaimer' => 'Gợi ý từ AI chỉ mang tính định hướng, không thay thế đánh giá chuyên môn từ giáo viên và cố vấn.',
+];
+
+$learnerLevels = [
+    ['id' => 'explorer', 'name' => 'Explorer', 'number' => 3, 'hours' => 10, 'state' => 'achieved', 'status' => 'Đã đạt'],
+    ['id' => 'innovator', 'name' => 'Innovator', 'number' => 2, 'hours' => 64, 'target' => 100, 'state' => 'current', 'status' => 'Hiện tại'],
+    ['id' => 'expert', 'name' => 'Expert', 'number' => 1, 'hours' => 36, 'state' => 'next', 'status' => 'Còn 36 giờ'],
+    ['id' => 'master', 'name' => 'Master', 'number' => 0, 'hours' => 200, 'state' => 'locked', 'status' => '200 giờ'],
+];
+
+$learnerBadgeFilters = [
+    ['id' => 'all', 'label' => 'Tất cả'],
+    ['id' => 'achieved', 'label' => 'Đã đạt'],
+    ['id' => 'in_progress', 'label' => 'Đang tiến hành'],
+    ['id' => 'locked', 'label' => 'Chưa đạt'],
+];
+
+$learnerBadges = [
+    ['id' => 'explorer', 'name' => 'Người khám phá', 'description' => 'Tham gia 3 hoạt động khám phá năng khiếu', 'icon' => 'compass', 'status' => 'achieved', 'status_label' => 'Đã đạt', 'current' => 3, 'target' => 3],
+    ['id' => 'creator', 'name' => 'Nhà sáng tạo', 'description' => 'Hoàn thành 1 dự án sáng tạo', 'icon' => 'lightbulb', 'status' => 'in_progress', 'status_label' => 'Đang tiến hành', 'current' => 1, 'target' => 2],
+    ['id' => 'team-player', 'name' => 'Đồng đội xuất sắc', 'description' => 'Hợp tác trong 3 hoạt động nhóm', 'icon' => 'users', 'status' => 'achieved', 'status_label' => 'Đã đạt', 'current' => 3, 'target' => 3],
+    ['id' => 'young-leader', 'name' => 'Thủ lĩnh trẻ', 'description' => 'Đảm nhận vai trò trưởng nhóm 2 lần', 'icon' => 'trophy', 'status' => 'in_progress', 'status_label' => 'Đang tiến hành', 'current' => 1, 'target' => 2],
+    ['id' => 'iot-expert', 'name' => 'Chuyên gia IoT', 'description' => 'Hoàn thành 2 khóa học liên quan đến IoT', 'icon' => 'bot', 'status' => 'locked', 'status_label' => 'Chưa đạt', 'current' => 0, 'target' => 2],
+    ['id' => 'community', 'name' => 'Vì cộng đồng', 'description' => 'Tham gia 1 hoạt động tình nguyện', 'icon' => 'leaf', 'status' => 'locked', 'status_label' => 'Chưa đạt', 'current' => 0, 'target' => 1],
+];
+
+$defaultStatisticsPeriod = 'six-months';
+$learnerStatisticsPeriods = [
+    'six-months' => [
+        'label' => '6 tháng gần nhất',
+        'kpis' => [
+            ['id' => 'hours', 'label' => 'Giờ trải nghiệm', 'value' => 64, 'suffix' => 'giờ', 'change' => '↑ 18% so với 6 tháng trước', 'icon' => 'clock', 'tone' => 'primary'],
+            ['id' => 'badges', 'label' => 'Huy hiệu', 'value' => 12, 'suffix' => 'huy hiệu', 'change' => '↑ 2 huy hiệu mới', 'icon' => 'award', 'tone' => 'secondary'],
+            ['id' => 'completed', 'label' => 'Hoạt động hoàn thành', 'value' => 8, 'suffix' => 'hoạt động', 'change' => '↑ 3 hoạt động', 'icon' => 'check', 'tone' => 'success'],
+            ['id' => 'competency', 'label' => 'Điểm năng lực', 'value' => 92, 'suffix' => 'điểm năng lực', 'change' => '↑ 12 điểm', 'icon' => 'star', 'tone' => 'warning'],
+        ],
+        'experience' => ['labels' => ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'], 'hours' => [6, 8, 12, 10, 18, 10], 'comparison' => [2, 3, 5, 5, 9, 6]],
+        'fields' => [
+            ['label' => 'Kỹ thuật', 'hours' => 32, 'percentage' => 50, 'tone' => 'primary'],
+            ['label' => 'Học thuật', 'hours' => 14, 'percentage' => 22, 'tone' => 'secondary'],
+            ['label' => 'Kinh doanh', 'hours' => 8, 'percentage' => 13, 'tone' => 'warning'],
+            ['label' => 'Nghệ thuật', 'hours' => 6, 'percentage' => 9, 'tone' => 'accent'],
+            ['label' => 'Cộng đồng', 'hours' => 4, 'percentage' => 6, 'tone' => 'neutral'],
+        ],
+        'skills' => [
+            ['name' => 'IoT', 'score' => 86, 'level' => 'Level 4 · Nâng cao', 'icon' => 'bot', 'tone' => 'primary'],
+            ['name' => 'Lập trình', 'score' => 72, 'level' => 'Level 3 · Trung cấp', 'icon' => 'activity', 'tone' => 'secondary'],
+            ['name' => 'Làm việc nhóm', 'score' => 68, 'level' => 'Level 3 · Trung cấp', 'icon' => 'users', 'tone' => 'success'],
+            ['name' => 'Thuyết trình', 'score' => 54, 'level' => 'Level 2 · Cơ bản', 'icon' => 'message-circle', 'tone' => 'warning'],
+        ],
+        'activities' => [
+            ['id' => 'registered', 'label' => 'Đăng ký', 'value' => 14, 'change' => '↑ 3 so với 6 tháng trước', 'icon' => 'calendar', 'tone' => 'primary'],
+            ['id' => 'checked-in', 'label' => 'Đã check-in', 'value' => 11, 'change' => '↑ 2 so với 6 tháng trước', 'icon' => 'clipboard', 'tone' => 'secondary'],
+            ['id' => 'completed', 'label' => 'Hoàn thành', 'value' => 8, 'change' => '↑ 3 so với 6 tháng trước', 'icon' => 'check', 'tone' => 'success'],
+            ['id' => 'cancelled', 'label' => 'Đã hủy', 'value' => 2, 'change' => '↓ 1 so với 6 tháng trước', 'icon' => 'x', 'tone' => 'danger'],
+        ],
+    ],
+    'three-months' => [
+        'label' => '3 tháng gần nhất',
+        'kpis' => [
+            ['id' => 'hours', 'label' => 'Giờ trải nghiệm', 'value' => 40, 'suffix' => 'giờ', 'change' => '↑ 12% so với 3 tháng trước', 'icon' => 'clock', 'tone' => 'primary'],
+            ['id' => 'badges', 'label' => 'Huy hiệu', 'value' => 7, 'suffix' => 'huy hiệu', 'change' => '↑ 1 huy hiệu mới', 'icon' => 'award', 'tone' => 'secondary'],
+            ['id' => 'completed', 'label' => 'Hoạt động hoàn thành', 'value' => 5, 'suffix' => 'hoạt động', 'change' => '↑ 2 hoạt động', 'icon' => 'check', 'tone' => 'success'],
+            ['id' => 'competency', 'label' => 'Điểm năng lực', 'value' => 88, 'suffix' => 'điểm năng lực', 'change' => '↑ 8 điểm', 'icon' => 'star', 'tone' => 'warning'],
+        ],
+        'experience' => ['labels' => ['T4', 'T5', 'T6'], 'hours' => [12, 18, 10], 'comparison' => [5, 9, 6]],
+        'fields' => [
+            ['label' => 'Kỹ thuật', 'hours' => 20, 'percentage' => 50, 'tone' => 'primary'],
+            ['label' => 'Học thuật', 'hours' => 9, 'percentage' => 23, 'tone' => 'secondary'],
+            ['label' => 'Kinh doanh', 'hours' => 5, 'percentage' => 12, 'tone' => 'warning'],
+            ['label' => 'Nghệ thuật', 'hours' => 4, 'percentage' => 10, 'tone' => 'accent'],
+            ['label' => 'Cộng đồng', 'hours' => 2, 'percentage' => 5, 'tone' => 'neutral'],
+        ],
+        'skills' => [
+            ['name' => 'IoT', 'score' => 86, 'level' => 'Level 4 · Nâng cao', 'icon' => 'bot', 'tone' => 'primary'],
+            ['name' => 'Lập trình', 'score' => 72, 'level' => 'Level 3 · Trung cấp', 'icon' => 'activity', 'tone' => 'secondary'],
+            ['name' => 'Làm việc nhóm', 'score' => 68, 'level' => 'Level 3 · Trung cấp', 'icon' => 'users', 'tone' => 'success'],
+            ['name' => 'Thuyết trình', 'score' => 54, 'level' => 'Level 2 · Cơ bản', 'icon' => 'message-circle', 'tone' => 'warning'],
+        ],
+        'activities' => [
+            ['id' => 'registered', 'label' => 'Đăng ký', 'value' => 8, 'change' => '↑ 2 so với kỳ trước', 'icon' => 'calendar', 'tone' => 'primary'],
+            ['id' => 'checked-in', 'label' => 'Đã check-in', 'value' => 7, 'change' => '↑ 2 so với kỳ trước', 'icon' => 'clipboard', 'tone' => 'secondary'],
+            ['id' => 'completed', 'label' => 'Hoàn thành', 'value' => 5, 'change' => '↑ 2 so với kỳ trước', 'icon' => 'check', 'tone' => 'success'],
+            ['id' => 'cancelled', 'label' => 'Đã hủy', 'value' => 1, 'change' => '↓ 1 so với kỳ trước', 'icon' => 'x', 'tone' => 'danger'],
+        ],
+    ],
+    'twelve-months' => [
+        'label' => '12 tháng gần nhất',
+        'kpis' => [
+            ['id' => 'hours', 'label' => 'Giờ trải nghiệm', 'value' => 112, 'suffix' => 'giờ', 'change' => '↑ 24% so với năm trước', 'icon' => 'clock', 'tone' => 'primary'],
+            ['id' => 'badges', 'label' => 'Huy hiệu', 'value' => 18, 'suffix' => 'huy hiệu', 'change' => '↑ 6 huy hiệu mới', 'icon' => 'award', 'tone' => 'secondary'],
+            ['id' => 'completed', 'label' => 'Hoạt động hoàn thành', 'value' => 15, 'suffix' => 'hoạt động', 'change' => '↑ 7 hoạt động', 'icon' => 'check', 'tone' => 'success'],
+            ['id' => 'competency', 'label' => 'Điểm năng lực', 'value' => 92, 'suffix' => 'điểm năng lực', 'change' => '↑ 15 điểm', 'icon' => 'star', 'tone' => 'warning'],
+        ],
+        'experience' => ['labels' => ['T7', 'T8', 'T9', 'T10', 'T11', 'T12', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6'], 'hours' => [8, 9, 10, 7, 8, 9, 6, 8, 12, 10, 15, 10], 'comparison' => [4, 5, 6, 5, 6, 6, 4, 5, 7, 7, 10, 7]],
+        'fields' => [
+            ['label' => 'Kỹ thuật', 'hours' => 56, 'percentage' => 50, 'tone' => 'primary'],
+            ['label' => 'Học thuật', 'hours' => 24, 'percentage' => 21, 'tone' => 'secondary'],
+            ['label' => 'Kinh doanh', 'hours' => 14, 'percentage' => 13, 'tone' => 'warning'],
+            ['label' => 'Nghệ thuật', 'hours' => 10, 'percentage' => 9, 'tone' => 'accent'],
+            ['label' => 'Cộng đồng', 'hours' => 8, 'percentage' => 7, 'tone' => 'neutral'],
+        ],
+        'skills' => [
+            ['name' => 'IoT', 'score' => 86, 'level' => 'Level 4 · Nâng cao', 'icon' => 'bot', 'tone' => 'primary'],
+            ['name' => 'Lập trình', 'score' => 72, 'level' => 'Level 3 · Trung cấp', 'icon' => 'activity', 'tone' => 'secondary'],
+            ['name' => 'Làm việc nhóm', 'score' => 68, 'level' => 'Level 3 · Trung cấp', 'icon' => 'users', 'tone' => 'success'],
+            ['name' => 'Thuyết trình', 'score' => 54, 'level' => 'Level 2 · Cơ bản', 'icon' => 'message-circle', 'tone' => 'warning'],
+        ],
+        'activities' => [
+            ['id' => 'registered', 'label' => 'Đăng ký', 'value' => 24, 'change' => '↑ 8 so với năm trước', 'icon' => 'calendar', 'tone' => 'primary'],
+            ['id' => 'checked-in', 'label' => 'Đã check-in', 'value' => 20, 'change' => '↑ 7 so với năm trước', 'icon' => 'clipboard', 'tone' => 'secondary'],
+            ['id' => 'completed', 'label' => 'Hoàn thành', 'value' => 15, 'change' => '↑ 7 so với năm trước', 'icon' => 'check', 'tone' => 'success'],
+            ['id' => 'cancelled', 'label' => 'Đã hủy', 'value' => 3, 'change' => '↓ 2 so với năm trước', 'icon' => 'x', 'tone' => 'danger'],
+        ],
+    ],
 ];

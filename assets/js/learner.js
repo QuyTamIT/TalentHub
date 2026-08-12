@@ -14,6 +14,9 @@
         '/app/learner/activities.php',
         '/app/learner/checkin.php',
         '/app/learner/evaluation.php',
+        '/app/learner/ai-recommendations.php',
+        '/app/learner/badges.php',
+        '/app/learner/statistics.php',
     ]);
 
     function validateProfile(data) {
@@ -83,6 +86,29 @@
         return Object.prototype.hasOwnProperty.call(terms, termId) ? terms[termId] : null;
     }
 
+    function getAiRecommendationState(data) {
+        return data && data.sufficient === true ? 'ready' : 'insufficient';
+    }
+
+    function badgeMatchesStatus(badgeStatus, activeStatus) {
+        return activeStatus === 'all' || badgeStatus === activeStatus;
+    }
+
+    function getStatisticsPeriod(periods, periodId) {
+        if (!periods || typeof periods !== 'object') return null;
+        return Object.prototype.hasOwnProperty.call(periods, periodId) ? periods[periodId] : null;
+    }
+
+    function buildLineChartPoints(values, width, height, maxValue) {
+        if (!Array.isArray(values) || values.length === 0 || maxValue <= 0) return [];
+
+        const denominator = Math.max(1, values.length - 1);
+        return values.map((value, index) => [
+            width * index / denominator,
+            height - Math.max(0, Math.min(maxValue, Number(value) || 0)) / maxValue * height,
+        ]);
+    }
+
     global.LearnerUI = {
         validateProfile,
         nextAssessmentState,
@@ -90,6 +116,10 @@
         normalizeSearchText,
         activityMatches,
         getEvaluationTerm,
+        getAiRecommendationState,
+        badgeMatchesStatus,
+        getStatisticsPeriod,
+        buildLineChartPoints,
     };
 
     if (typeof document === 'undefined') return;
