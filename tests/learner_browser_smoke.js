@@ -13,6 +13,9 @@ const pages = [
     { slug: 'overview', path: '/app/learner/index.php', marker: 'Chào mừng trở lại, Nguyễn Văn A' },
     { slug: 'profile', path: '/app/learner/profile.php', marker: 'Hồ sơ năng lực' },
     { slug: 'discover', path: '/app/learner/discover.php', marker: 'Khám phá năng khiếu' },
+    { slug: 'activities', path: '/app/learner/activities.php', marker: 'Khám phá hoạt động' },
+    { slug: 'checkin', path: '/app/learner/checkin.php', marker: 'Check-in trải nghiệm' },
+    { slug: 'evaluation', path: '/app/learner/evaluation.php', marker: 'Đánh giá năng lực' },
 ];
 
 const viewports = [
@@ -97,8 +100,42 @@ async function verifyInteractions(browser) {
     await registration.click();
     check((await registration.textContent()).trim() === 'Đã đăng ký', 'Activity registration updates button state');
 
-    await page.getByText('Khám phá hoạt động', { exact: false }).click();
-    check(await page.locator('#learner-toast').evaluate((element) => element.classList.contains('is-visible')), 'Pending activity route shows toast feedback');
+    await page.getByRole('link', { name: /Khám phá hoạt động/ }).click();
+    await page.waitForURL('**/app/learner/activities.php');
+    check(await page.getByRole('heading', { name: 'Khám phá hoạt động' }).isVisible(), 'Overview activity CTA navigates to the implemented page');
+
+    const creativeFilter = page.getByRole('button', { name: 'Sáng tạo', exact: true });
+    await creativeFilter.click();
+    check(await page.locator('[data-activity-card]:visible').count() === 2, 'Activity category filter shows the two creative activities');
+    check(await creativeFilter.getAttribute('aria-pressed') === 'true', 'Active activity filter exposes pressed state');
+
+    await page.getByRole('button', { name: 'Tất cả', exact: true }).click();
+    const activitySearch = page.locator('#learner-search-input');
+    await activitySearch.fill('cam bien');
+    check(await page.locator('[data-activity-card]:visible').count() === 1, 'Activity search matches Vietnamese text without accents');
+    check(await page.locator('[data-activity-card]:visible').getAttribute('data-title') === 'IoT Lab — Cảm biến thông minh', 'Activity search keeps the matching card');
+
+    await activitySearch.fill('khong ton tai');
+    check(await page.locator('[data-activity-empty]').isVisible(), 'Activity search exposes an empty state');
+    await activitySearch.fill('');
+    check(await page.locator('[data-activity-card]:visible').count() === 6, 'Clearing activity search restores all cards');
+
+    const firstCatalogRegistration = page.locator('[data-activity-register]').first();
+    await firstCatalogRegistration.click();
+    check(await page.locator('#learner-registration-modal').isVisible(), 'Activity registration confirmation modal opens');
+    check((await page.locator('[data-registration-name]').textContent()).includes('IoT Lab'), 'Registration modal identifies the selected activity');
+    await page.getByRole('button', { name: 'Hủy' }).click();
+    check((await firstCatalogRegistration.textContent()).trim() === 'Đăng ký ngay', 'Cancelling registration preserves the original state');
+    await firstCatalogRegistration.click();
+    await page.locator('[data-confirm-registration]').click();
+    check(await firstCatalogRegistration.isDisabled(), 'Confirming registration disables the selected button');
+    check((await firstCatalogRegistration.textContent()).trim() === 'Đã đăng ký', 'Confirming registration updates the selected button');
+
+    const secondCatalogRegistration = page.locator('[data-activity-register]').nth(1);
+    await secondCatalogRegistration.click();
+    await page.keyboard.press('Escape');
+    check(await page.locator('#learner-registration-modal').isHidden(), 'Escape closes the registration modal');
+    check(await secondCatalogRegistration.evaluate((element) => element === document.activeElement), 'Registration modal restores focus to its trigger');
 
     await page.goto(`${baseUrl}/app/learner/profile.php`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: /Chỉnh sửa/ }).click();
@@ -150,6 +187,31 @@ async function verifyInteractions(browser) {
     check(await page.locator('#learner-assessment-modal').isVisible(), 'Assessment modal opens');
     await page.locator('[data-confirm-assessment]').click();
     check((await discCard.locator('[data-assessment-action]').textContent()).trim() === 'Tiếp tục', 'Starting DISC changes CTA to continue');
+
+    await page.goto(`${baseUrl}/app/learner/checkin.php`, { waitUntil: 'domcontentloaded' });
+    check(await page.locator('[data-checkin-record]').count() === 4, 'Check-in renders four confirmed history records');
+    check(await page.getByText('Đã xác nhận', { exact: true }).count() === 4, 'Check-in history uses confirmed status');
+    const scannerTrigger = page.getByRole('button', { name: /Mở camera quét/ });
+    await scannerTrigger.click();
+    check(await page.locator('#learner-scanner-modal').isVisible(), 'QR demo scanner modal opens');
+    check(await page.getByText('Đây là giao diện demo.', { exact: false }).isVisible(), 'QR modal clearly identifies demo behavior');
+    await page.keyboard.press('Escape');
+    check(await page.locator('#learner-scanner-modal').isHidden(), 'Escape closes the QR demo modal');
+    check(await scannerTrigger.evaluate((element) => element === document.activeElement), 'QR demo modal restores focus');
+
+    await page.goto(`${baseUrl}/app/learner/evaluation.php`, { waitUntil: 'domcontentloaded' });
+    const termSelectBorder = await page.locator('#learner-evaluation-term').evaluate((element) => getComputedStyle(element).borderTopWidth);
+    check(termSelectBorder === '0px', 'Evaluation semester select does not render a duplicate native border');
+    check((await page.locator('[data-evaluation-total]').textContent()).trim() === '90', 'Evaluation starts with total score 90');
+    check((await page.locator('[data-evaluation-classification]').textContent()).trim() === 'Xuất sắc', 'Evaluation starts with excellent classification');
+    await page.locator('#learner-evaluation-term').selectOption('2025-2026-1');
+    check((await page.locator('[data-evaluation-total]').textContent()).trim() === '84', 'Changing semester updates the total score');
+    check(await page.locator('[data-evaluation-criterion]').count() === 4, 'Published semester renders four updated criteria');
+    await page.locator('#learner-evaluation-term').selectOption('2024-2025-2');
+    check(await page.locator('[data-evaluation-empty]').isVisible(), 'Empty semester exposes the evaluation empty state');
+    check(await page.locator('[data-evaluation-content]').isHidden(), 'Empty semester hides criteria content');
+    await page.locator('#learner-evaluation-term').selectOption('2025-2026-2');
+    check(await page.locator('[data-evaluation-criterion]').count() === 4, 'Returning to the current semester restores four criteria');
 
     await page.setViewportSize({ width: 1200, height: 800 });
     await page.goto(`${baseUrl}/app/learner/index.php`, { waitUntil: 'domcontentloaded' });
