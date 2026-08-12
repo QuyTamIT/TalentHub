@@ -263,6 +263,9 @@ if (file_exists($cssPath)) {
     check(str_contains($css, '.learner-checkin-grid'), 'Learner stylesheet styles check-in layout');
     check(str_contains($css, '.learner-evaluation-grid'), 'Learner stylesheet styles evaluation layout');
     check(str_contains($css, '.learner-scanner-frame'), 'Learner stylesheet styles demo scanner');
+    check(str_contains($css, '.learner-ai-analysis-grid'), 'Learner stylesheet styles AI recommendations');
+    check(str_contains($css, '.learner-badge-grid'), 'Learner stylesheet styles badges and levels');
+    check(str_contains($css, '.learner-statistics-grid'), 'Learner stylesheet styles personal statistics');
     check(!str_contains($css, '.ent-'), 'Learner stylesheet does not target Enterprise selectors');
     check(!preg_match('/(?:linear|radial)-gradient\s*\(/i', $css), 'Learner stylesheet contains no gradient');
 }
