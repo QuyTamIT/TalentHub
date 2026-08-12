@@ -85,6 +85,11 @@ if (file_exists($discoverPath)) {
     check(str_contains($discover, 'learner-assessment-modal'), 'Discovery provides assessment feedback modal');
 }
 
+$roleSelectionSource = (string) file_get_contents($root . '/role-selection.php');
+$roleSelectionScript = (string) file_get_contents($root . '/assets/js/role-selection.js');
+check(str_contains($roleSelectionSource, "'route' => 'app/learner/index.php'"), 'Role selection targets the implemented Learner entry page');
+check(str_contains($roleSelectionScript, "route.includes('learner')"), 'Role selection script recognizes Learner as implemented');
+
 if ($failures !== []) {
     fwrite(STDERR, sprintf("\n%d learner frontend assertion(s) failed.\n", count($failures)));
     exit(1);
