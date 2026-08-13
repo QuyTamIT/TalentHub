@@ -2,9 +2,11 @@
 /** TalentHub Learner - QR check-in */
 require __DIR__ . '/includes/student-data.php';
 require_once __DIR__ . '/includes/icons.php';
+require_once __DIR__ . '/includes/activity-data.php';
 
 $pageTitle = 'Check-in QR';
 $currentRoute = '/app/learner/checkin.php';
+$linkedActivity = isset($_GET['activity']) ? learner_activity_find((string) $_GET['activity']) : null;
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -28,6 +30,13 @@ $currentRoute = '/app/learner/checkin.php';
                     <h1>Check-in trải nghiệm</h1>
                     <p>Quét mã tại địa điểm hoạt động — giờ trải nghiệm sẽ được ghi nhận tự động.</p>
                 </div>
+                <?php if ($linkedActivity): ?>
+                    <section class="learner-card learner-checkin-linked-activity">
+                        <span class="learner-verified-pill"><?= learner_icon('check', 14); ?> Đã đăng ký</span>
+                        <div><h2><?= learner_escape($linkedActivity['title']); ?></h2><p><?= learner_escape((new DateTimeImmutable($linkedActivity['start_at']))->format('d/m/Y · H:i')); ?> · <?= learner_escape($linkedActivity['location']); ?></p></div>
+                        <a class="learner-btn learner-btn--outline" href="activity-detail.php?id=<?= learner_escape($linkedActivity['id']); ?>">Xem chi tiết</a>
+                    </section>
+                <?php endif; ?>
 
                 <div class="learner-checkin-grid">
                     <section class="learner-card learner-qr-card" aria-labelledby="learner-qr-title">

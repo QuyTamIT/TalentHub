@@ -2,6 +2,7 @@
 /** TalentHub Learner - Aptitude discovery */
 require __DIR__ . '/includes/student-data.php';
 require_once __DIR__ . '/includes/icons.php';
+require_once __DIR__ . '/includes/assessment-data.php';
 
 $pageTitle = 'Khám phá năng khiếu';
 $currentRoute = '/app/learner/discover.php';
@@ -10,6 +11,7 @@ $assessmentLabels = [
     'continue' => 'Tiếp tục',
     'start' => 'Bắt đầu bài test',
 ];
+$hollandDefinition = learner_assessment_definition('holland');
 
 $radarCenterX = 260;
 $radarCenterY = 180;
@@ -68,6 +70,9 @@ $radarPolygon = implode(' ', array_map(
                 <section class="learner-assessment-grid" aria-label="Các bài đánh giá năng khiếu">
                     <?php foreach ($assessments as $assessment): ?>
                         <article class="learner-card learner-assessment-card" data-assessment-card="<?= learner_escape($assessment['id']); ?>" data-state="<?= learner_escape($assessment['state']); ?>">
+                            <span class="learner-assessment-card__status <?= $assessment['id'] === 'holland' ? 'is-experimental' : 'is-coming-soon'; ?>">
+                                <?= $assessment['id'] === 'holland' ? 'Bản thử nghiệm' : 'Sắp triển khai'; ?>
+                            </span>
                             <span class="learner-assessment-card__icon learner-icon-tile learner-icon-tile--<?= learner_escape($assessment['tone']); ?>"><?= learner_icon($assessment['icon'], 28); ?></span>
                             <h2><?= learner_escape($assessment['name']); ?></h2>
                             <p><?= learner_escape($assessment['description']); ?></p>
@@ -79,19 +84,30 @@ $radarPolygon = implode(' ', array_map(
                                     </div>
                                 </div>
                             <?php endif; ?>
-                            <button
-                                class="learner-btn <?= $assessment['state'] === 'start' ? 'learner-btn--primary' : 'learner-btn--secondary'; ?> learner-btn--block"
-                                type="button"
-                                data-assessment-action="<?= learner_escape($assessment['state']); ?>"
-                                data-assessment-id="<?= learner_escape($assessment['id']); ?>"
-                                data-assessment-name="<?= learner_escape($assessment['name']); ?>"
-                                data-assessment-result="<?= learner_escape($assessmentResults[$assessment['id']]); ?>"
-                            >
-                                <?= learner_escape($assessmentLabels[$assessment['state']]); ?>
-                            </button>
+                            <?php if ($assessment['id'] === 'holland'): ?>
+                                <a class="learner-btn learner-btn--primary learner-btn--block" href="assessment.php?id=holland">Mở bài test Holland</a>
+                            <?php else: ?>
+                                <button
+                                    class="learner-btn <?= $assessment['state'] === 'start' ? 'learner-btn--primary' : 'learner-btn--secondary'; ?> learner-btn--block"
+                                    type="button"
+                                    data-assessment-action="<?= learner_escape($assessment['state']); ?>"
+                                    data-assessment-id="<?= learner_escape($assessment['id']); ?>"
+                                    data-assessment-name="<?= learner_escape($assessment['name']); ?>"
+                                    data-assessment-result="<?= learner_escape($assessmentResults[$assessment['id']]); ?>"
+                                >
+                                    Xem dữ liệu demo
+                                </button>
+                            <?php endif; ?>
                         </article>
                     <?php endforeach; ?>
                 </section>
+
+                <section class="learner-card learner-holland-latest" data-holland-latest hidden>
+                    <div><span class="learner-eyebrow">Kết quả Holland trên trình duyệt này</span><h2>Mã Holland gần nhất: <strong data-holland-latest-code></strong></h2><p data-holland-latest-date></p></div>
+                    <a class="learner-btn learner-btn--outline" data-holland-latest-link href="assessment-result.php?id=holland">Xem kết quả chi tiết</a>
+                </section>
+
+                <div class="learner-data-note learner-discover-data-note"><?= learner_icon('info', 17); ?><p>Biểu đồ “Bản đồ năng khiếu” bên dưới là dữ liệu demo của bài Đa trí thông minh, không tự thay đổi theo kết quả Holland.</p></div>
 
                 <div class="learner-discovery-grid">
                     <section class="learner-card learner-radar-card" aria-labelledby="radar-title">
@@ -188,5 +204,6 @@ $radarPolygon = implode(' ', array_map(
     </div>
 
     <script src="../../assets/js/learner.js"></script>
+    <script src="../../assets/js/learner-assessment.js"></script>
 </body>
 </html>
