@@ -16,7 +16,7 @@ $roles = [
         'title' => 'Học sinh / Sinh viên',
         'description' => 'Khám phá năng khiếu, xây dựng hồ sơ năng lực và tham gia hoạt động.',
         'cta' => 'Vào khu vực này',
-        'route' => 'app/learner/index.php',
+        'route' => '/app/learner/index.php',
         'is_popular' => true,
         'badge' => 'Phổ biến nhất',
         'icon_type' => 'student'
@@ -44,7 +44,7 @@ $roles = [
         'title' => 'Doanh nghiệp',
         'description' => 'Tìm kiếm nhân tài, tuyển thực tập và tài trợ dự án.',
         'cta' => 'Vào khu vực này',
-        'route' => 'app/enterprise/index.php',
+        'route' => '/app/enterprise/index.php',
         'is_popular' => false,
         'icon_type' => 'enterprise'
     ]
