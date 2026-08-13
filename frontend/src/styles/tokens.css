@@ -1,0 +1,27 @@
+:root {
+  --font-primary: 'Be Vietnam Pro', sans-serif;
+
+  --primary: #F97316;
+  --primary-hover: #EA580C;
+  --primary-light: #FFF7ED;
+
+  --secondary: #2563EB;
+  --secondary-light: #EFF6FF;
+
+  --accent: #16A34A;
+
+  --background: #F8FAFC;
+  --surface: #FFFFFF;
+
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+
+  --border: #E2E8F0;
+
+  --success: #16A34A;
+  --warning: #F59E0B;
+  --danger: #DC2626;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+}
