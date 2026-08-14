@@ -40,7 +40,7 @@ $sidebarNav = [
     ],
     [
         'title' => 'Tài trợ dự án',
-        'route' => '/app/enterprise/sponsorships',
+        'route' => '/app/enterprise/sponsorships/',
         'icon' => 'award',
         'active' => false
     ],
@@ -137,7 +137,7 @@ $pendingActions = [
         'subtitle' => 'Dự án Sân chơi Năng khiếu Công nghệ 2026',
         'type' => 'info',
         'action_label' => 'Xác nhận tài trợ',
-        'route' => '/app/enterprise/sponsorships'
+        'route' => '/app/enterprise/sponsorships/'
     ],
     [
         'title' => '3 yêu cầu liên hệ chưa xử lý',
