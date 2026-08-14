@@ -104,7 +104,10 @@ function initRouteNavigation() {
                 route === '/app/enterprise/sponsorships/' ||
                 route === '/app/enterprise/sponsorships.php' ||
                 route === '/app/enterprise/sponsorships/index.php' ||
-                route.startsWith('/app/enterprise/sponsorships')
+                route.startsWith('/app/enterprise/sponsorships') ||
+                route === '/app/enterprise/analytics' ||
+                route === '/app/enterprise/analytics.php' ||
+                route.startsWith('/app/enterprise/analytics')
             ) {
                 return;
             }
