@@ -99,7 +99,12 @@ function initRouteNavigation() {
                 route === '/app/enterprise/internships' ||
                 route === '/app/enterprise/internships/' ||
                 route === '/app/enterprise/internships/index.php' ||
-                route.startsWith('/app/enterprise/internships')
+                route.startsWith('/app/enterprise/internships') ||
+                route === '/app/enterprise/sponsorships' ||
+                route === '/app/enterprise/sponsorships/' ||
+                route === '/app/enterprise/sponsorships.php' ||
+                route === '/app/enterprise/sponsorships/index.php' ||
+                route.startsWith('/app/enterprise/sponsorships')
             ) {
                 return;
             }

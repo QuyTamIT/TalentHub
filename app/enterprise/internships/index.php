@@ -43,7 +43,7 @@ $sidebarNav = [
     ],
     [
         'title' => 'Tài trợ dự án',
-        'route' => '/app/enterprise/sponsorships',
+        'route' => '/app/enterprise/sponsorships/',
         'icon' => 'award',
         'active' => false
     ],
