@@ -62,13 +62,18 @@ function selectCard(selectedCard) {
  * Handles navigation to destination module or displays fallback feedback if module isn't created yet.
  */
 function handleRoleNavigation(route, roleName) {
-    // If route points to an existing module (e.g. Enterprise Dashboard), navigate directly!
-    if (route === '/TalentHub/app/teacher/index.php' || route === 'app/enterprise/index.php' || route.includes('enterprise')) {
+    // Navigate directly when the selected role module is available.
+    if (
+        route.includes('learner') ||
+        route.includes('teacher') ||
+        route.includes('enterprise') ||
+        route.includes('school')
+    ) {
         window.location.href = route;
         return;
     }
 
-    // Currently, other backend modules (/app/learner, /app/teacher, /app/school) are pending future tasks
+    // Other backend modules use the fallback notice until they are available.
     showRoleToast(`Khu vực ${roleName} đang được phát triển! (${route})`);
 }
 

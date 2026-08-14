@@ -37,7 +37,7 @@ $sidebarNav = [
     ],
     [
         'title' => 'Tuyển thực tập',
-        'route' => '/app/enterprise/internships',
+        'route' => '/app/enterprise/internships/',
         'icon' => 'briefcase',
         'active' => false
     ],
@@ -85,17 +85,36 @@ $sidebarNav = [
             <main class="ent-body">
                 <div class="container-fluid">
                     
-                    <!-- Page Banner Header -->
-                    <div class="ent-page-header">
-                        <div class="ent-page-header__left">
-                            <h2 class="ent-page-header__title">Tìm kiếm & Đánh giá nhân tài</h2>
-                            <p class="ent-page-header__desc">
+                    <!-- Talent Search Intro Hero Banner -->
+                    <div class="ent-talent-hero">
+                        <div class="ent-talent-hero__left">
+                            <div class="ent-talent-hero__title-row">
+                                <span class="ent-talent-hero__icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                    </svg>
+                                </span>
+                                <h2 class="ent-talent-hero__title">Tìm kiếm & Đánh giá nhân tài</h2>
+                            </div>
+                            <p class="ent-talent-hero__desc">
                                 Khám phá hồ sơ năng lực thực tế của học sinh, sinh viên từ các trường THPT, Cao đẳng và Đại học trên toàn quốc.
                             </p>
                         </div>
-                        <div class="ent-page-header__right">
-                            <div class="ent-result-badge" id="ent-total-badge">
-                                Hiển thị <strong id="ent-count-num"><?= count($mockTalents); ?></strong> nhân tài phù hợp
+                        
+                        <!-- Prominent Result Summary Card -->
+                        <div class="ent-result-card" id="ent-total-badge">
+                            <div class="ent-result-card__icon" aria-hidden="true">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="9" cy="7" r="4"></circle>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                </svg>
+                            </div>
+                            <div class="ent-result-card__content">
+                                <span class="ent-result-card__number" id="ent-count-num"><?= count($mockTalents); ?></span>
+                                <span class="ent-result-card__label">nhân tài phù hợp</span>
                             </div>
                         </div>
                     </div>

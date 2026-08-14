@@ -53,9 +53,9 @@
                 </div>
 
                 <div class="ent-talent-card__actions">
-                    <button class="btn btn-secondary btn-sm ent-talent-btn" data-talent-id="<?= htmlspecialchars($talent['id']); ?>" data-action="view">
+                    <a href="/app/enterprise/talents/detail.php?id=<?= htmlspecialchars($talent['id']); ?>" class="btn btn-secondary btn-sm" data-route="/app/enterprise/talents/detail.php?id=<?= htmlspecialchars($talent['id']); ?>">
                         Xem hồ sơ
-                    </button>
+                    </a>
                     <button class="btn btn-primary btn-sm ent-talent-btn" data-talent-id="<?= htmlspecialchars($talent['id']); ?>" data-action="contact">
                         Liên hệ
                     </button>
