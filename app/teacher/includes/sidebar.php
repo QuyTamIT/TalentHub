@@ -18,14 +18,6 @@
         <div class="teacher-sidebar__subtitle">Khu vực Giáo viên</div>
     </div>
 
-    <div class="teacher-sidebar__profile">
-        <div class="teacher-sidebar__avatar"><?= htmlspecialchars($teacherInfo['avatar_initials']); ?></div>
-        <div class="teacher-sidebar__profile-info">
-            <h4><?= htmlspecialchars($teacherInfo['full_name']); ?></h4>
-            <span class="teacher-sidebar__badge"><?= htmlspecialchars($teacherInfo['role_label']); ?></span>
-        </div>
-    </div>
-
     <nav class="teacher-sidebar__nav" aria-label="Điều hướng Giáo viên">
         <div class="teacher-sidebar__nav-title">QUẢN LÝ GIÁO VIÊN</div>
         <ul>
