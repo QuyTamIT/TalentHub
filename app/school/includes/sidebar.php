@@ -1,41 +1,45 @@
 <?php
 /**
  * School Dashboard - Sidebar Component
+ *
+ * Expects the following variables from the parent scope:
+ *   - $schoolInfo  (array) resolved by the SchoolAppContext
+ *   - $currentRoute (string) route path used to highlight the active item
  */
+
+if (!isset($schoolInfo)) {
+    $schoolInfo = [
+        'name'          => 'Trường học',
+        'logo_initials' => 'TH',
+        'level'         => '',
+        'district'      => '',
+        'academic_year' => '',
+    ];
+}
 
 $sidebarNav = [
     [
-        'title' => 'Tổng quan',
-        'route' => '/app/school/',
-        'icon' => 'grid',
-        'active' => true
+        'title'  => 'Tổng quan',
+        'route'  => '/app/school/',
+        'icon'   => 'grid',
+        'active' => true,
     ],
     [
         'title' => 'Phân tích',
         'route' => '/app/school/analytics.php',
-        'icon' => 'trending-up',
-        'active' => false
+        'icon'  => 'trending-up',
     ],
     [
         'title' => 'Báo cáo',
         'route' => '/app/school/reports.php',
-        'icon' => 'file-text',
-        'badge' => 2
+        'icon'  => 'file-text',
+        'badge' => 2,
     ],
     [
         'title' => 'Lớp & Khối',
         'route' => '/app/school/classes.php',
-        'icon' => 'users',
-        'active' => false
-    ]
-];
-
-$schoolInfo = [
-    'name' => 'THPT Nguyễn Trãi',
-    'logo_initials' => 'NT',
-    'level' => 'Trung học Phổ thông',
-    'district' => 'Quận 1, TP.HCM',
-    'academic_year' => '2025 - 2026'
+        'icon'  => 'users',
+    ],
 ];
 ?>
 <!-- Sidebar Overlay Backdrop for Mobile -->
@@ -72,11 +76,16 @@ $schoolInfo = [
     <nav class="school-sidebar__nav" aria-label="Điều hướng Nhà trường">
         <div class="school-sidebar__nav-title">QUẢN LÝ TRƯỜNG HỌC</div>
         <ul>
-            <?php foreach ($sidebarNav as $navItem): 
-                $isActive = isset($currentRoute) && $navItem['route'] === $currentRoute;
+            <?php
+            $currentPage = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+            foreach ($sidebarNav as $navItem):
+                $routePath = parse_url($navItem['route'], PHP_URL_PATH) ?: $navItem['route'];
+                $routeBase = basename($routePath);
+                $isActive  = ($routeBase !== '' && $routeBase === $currentPage)
+                    || (isset($currentRoute) && $navItem['route'] === $currentRoute);
             ?>
                 <li>
-                    <a href="<?= htmlspecialchars($navItem['route']); ?>" 
+                    <a href="<?= htmlspecialchars($navItem['route']); ?>"
                        class="school-sidebar__link <?= $isActive ? 'is-active' : ''; ?>">
                         <span class="school-sidebar__icon">
                             <?php if ($navItem['icon'] === 'grid'): ?>

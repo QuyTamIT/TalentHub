@@ -1,63 +1,58 @@
 <?php
 /**
  * TalentHub - School Dashboard Main Entry Point
- * Dashboard cho Nhà trường
+ * Dashboard cho Nhà trường (data from DB via SchoolDashboardService).
  */
+declare(strict_types=1);
 
-$currentRoute = 'index.php';
-$pageTitle = 'Tổng quan';
+require dirname(__DIR__, 2) . '/bin/bootstrap.php';
+require dirname(__DIR__, 2) . '/src/Bootstrap/SchoolAppContext.php';
 
-// Mock data
+use TalentHub\Bootstrap\SchoolAppContext;
+
+$context = (new SchoolAppContext())->boot();
+$user = $context['user'];
+$school = $context['school'];
+$dashboard = $context['dashboard'];
+
 $schoolInfo = [
-    'name' => 'THPT Nguyễn Trãi',
-    'logo_initials' => 'NT',
-    'level' => 'Trung học Phổ thông',
-    'academic_year' => '2025 - 2026'
+    'name'          => $school['name'],
+    'logo_initials' => mb_substr($school['name'], 0, 2),
+    'level'         => $school['level'] ?? 'Trung học',
+    'district'      => $school['address'] ?? '',
+    'academic_year' => $school['academicYear'] ?? '',
+    'logoUrl'       => $school['logoUrl'],
+    'phone'         => $school['phone'],
+    'email'         => $school['email'],
+    'website'       => $school['website'],
+    'address'       => $school['address'],
+    'studentCount'  => (int) $school['studentCount'],
+    'teacherCount'  => (int) $school['teacherCount'],
 ];
 
-$kpis = [
-    ['label' => 'Học sinh đang hoạt động', 'value' => '1,247', 'change' => '+12 học sinh tuần này', 'change_type' => 'positive', 'icon' => 'users'],
-    ['label' => 'Hoạt động tháng này', 'value' => '18', 'change' => '8 sắp diễn ra', 'change_type' => 'neutral', 'icon' => 'calendar'],
-    ['label' => 'Chứng chỉ đã cấp', 'value' => '456', 'change' => '+23 tuần này', 'change_type' => 'positive', 'icon' => 'award'],
-    ['label' => 'Tỷ lệ hoàn thiện hồ sơ', 'value' => '78%', 'change' => 'Mục tiêu: 85%', 'change_type' => 'neutral', 'icon' => 'check-circle']
-];
+$kpis            = $dashboard['kpis'];
+$topTalents      = $dashboard['topTalents'];
+$classes         = $dashboard['classes'];
+$recentActivities= $dashboard['recentActivity'];
 
-$topTalents = [
-    ['name' => 'Nguyễn Văn Minh', 'class' => '12A', 'talent' => 'Toán học', 'score' => '98/100'],
-    ['name' => 'Trần Thu Hà', 'class' => '11B', 'talent' => 'Âm nhạc', 'score' => '95/100'],
-    ['name' => 'Lê Hoàng Nam', 'class' => '10C', 'talent' => 'Lập trình', 'score' => '92/100'],
-    ['name' => 'Phạm Thị Lan', 'class' => '12D', 'talent' => 'Ngữ Văn', 'score' => '90/100']
-];
-
-$classes = [
-    ['name' => '10A', 'grade' => 'Khối 10', 'students' => 42, 'homeroom' => 'Nguyễn Thị Mai', 'status' => 'success', 'status_text' => 'Hoạt động tốt'],
-    ['name' => '10B', 'grade' => 'Khối 10', 'students' => 40, 'homeroom' => 'Trần Văn Hùng', 'status' => 'success', 'status_text' => 'Hoạt động tốt'],
-    ['name' => '11A', 'grade' => 'Khối 11', 'students' => 38, 'homeroom' => 'Lê Thị Hương', 'status' => 'warning', 'status_text' => 'Cần cải thiện'],
-    ['name' => '12A', 'grade' => 'Khối 12', 'students' => 45, 'homeroom' => 'Phạm Văn Đức', 'status' => 'success', 'status_text' => 'Xuất sắc']
-];
+$currentRoute = '/app/school/';
+$pageTitle    = 'Tổng quan';
 
 $quickActions = [
     ['title' => 'Thêm hoạt động mới', 'subtitle' => 'Tạo sự kiện hoặc cuộc thi', 'icon' => 'plus', 'type' => 'primary'],
     ['title' => 'Duyệt hồ sơ chờ xác nhận', 'subtitle' => '5 hồ sơ đang chờ', 'icon' => 'clock', 'type' => 'warning', 'count' => 5],
-    ['title' => 'Xuất báo cáo tháng', 'subtitle' => 'Tổng hợp hoạt động tháng 8', 'icon' => 'download', 'type' => 'default'],
-    ['title' => 'Gửi thông báo', 'subtitle' => 'Thông báo đến phụ huynh', 'icon' => 'send', 'type' => 'default']
+    ['title' => 'Xuất báo cáo tháng', 'subtitle' => 'Tổng hợp hoạt động tháng ' . date('n'), 'icon' => 'download', 'type' => 'default'],
+    ['title' => 'Gửi thông báo', 'subtitle' => 'Thông báo đến phụ huynh', 'icon' => 'send', 'type' => 'default'],
 ];
 
-$recentActivities = [
-    ['text' => 'Nguyễn Văn Minh đạt giải Nhất cuộc thi Toán cấp Quận', 'time' => '2 giờ trước'],
-    ['text' => 'Lớp 12A hoàn thành 100% hồ sơ năng lực', 'time' => '4 giờ trước'],
-    ['text' => 'Câu lạc bộ Âm nhạc khai giảng khóa mới với 45 thành viên', 'time' => '1 ngày trước'],
-    ['text' => '25 học sinh đăng ký tham gia sân chơi lập trình tháng 9', 'time' => '1 ngày trước'],
-    ['text' => 'Trường được vinh danh "Top 10 trường có hoạt động năng khiếu xuất sắc"', 'time' => '2 ngày trước']
-];
-
-function getInitials($name) {
+function getInitials(string $name): string
+{
     $words = explode(' ', $name);
     $initials = '';
     foreach (array_slice($words, 0, 2) as $word) {
         $initials .= mb_substr($word, 0, 1);
     }
-    return $initials;
+    return $initials ?: 'NA';
 }
 ?>
 <!DOCTYPE html>
@@ -66,7 +61,7 @@ function getInitials($name) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="TalentHub School Dashboard - Quản lý hoạt động năng khiếu cho Nhà trường.">
-    <title>Dashboard Nhà Trường - THPT Nguyễn Trãi | TalentHub</title>
+    <title>Dashboard Nhà Trường - <?= htmlspecialchars($schoolInfo['name']); ?> | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/school.css">
 </head>
@@ -159,7 +154,7 @@ function getInitials($name) {
                                 </div>
                                 <div class="school-kpi-card__value"><?= htmlspecialchars($kpi['value']); ?></div>
                                 <div class="school-kpi-card__footer">
-                                    <span class="school-kpi-card__change school-kpi-card__change--<?= htmlspecialchars($kpi['change_type']); ?>">
+                                    <span class="school-kpi-card__change school-kpi-card__change--<?= htmlspecialchars($kpi['changeType']); ?>">
                                         <?= htmlspecialchars($kpi['change']); ?>
                                     </span>
                                 </div>
@@ -209,7 +204,7 @@ function getInitials($name) {
                                 <div class="school-section-box__header">
                                     <div>
                                         <h3 class="school-section-box__title">Danh sách lớp</h3>
-                                        <p class="school-section-box__subtitle">12 lớp trong trường</p>
+                                        <p class="school-section-box__subtitle"><?= count($classes); ?> lớp trong trường</p>
                                     </div>
                                     <a href="/app/school/classes.php" class="school-section-box__link">Quản lý lớp</a>
                                 </div>
@@ -228,11 +223,11 @@ function getInitials($name) {
                                             <tr>
                                                 <td><strong><?= htmlspecialchars($class['name']); ?></strong></td>
                                                 <td><?= htmlspecialchars($class['grade']); ?></td>
-                                                <td><?= htmlspecialchars($class['students']); ?> HS</td>
+                                                <td><?= htmlspecialchars((string) $class['students']); ?> HS</td>
                                                 <td><?= htmlspecialchars($class['homeroom']); ?></td>
                                                 <td>
-                                                    <span class="school-class-badge school-class-badge--<?= $class['status']; ?>">
-                                                        <?= htmlspecialchars($class['status_text']); ?>
+                                                    <span class="school-class-badge school-class-badge--<?= htmlspecialchars($class['status']); ?>">
+                                                        <?= htmlspecialchars($class['statusText']); ?>
                                                     </span>
                                                 </td>
                                             </tr>

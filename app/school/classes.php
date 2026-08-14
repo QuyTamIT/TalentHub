@@ -1,33 +1,54 @@
 <?php
 /**
  * TalentHub - School Dashboard Classes Page
- * Quản lý Lớp & Khối cho Nhà trường
+ * Quản lý Lớp & Khối cho Nhà trường (data from DB).
  */
+declare(strict_types=1);
 
-$currentRoute = 'classes.php';
-$pageTitle = 'Lớp & Khối';
+require dirname(__DIR__, 2) . '/bin/bootstrap.php';
+require dirname(__DIR__, 2) . '/src/Bootstrap/SchoolAppContext.php';
 
-$classes = [
-    ['name' => '10A', 'grade' => 'Khối 10', 'students' => 42, 'homeroom' => 'Nguyễn Thị Mai', 'status' => 'success', 'status_text' => 'Hoạt động tốt', 'completion' => 82],
-    ['name' => '10B', 'grade' => 'Khối 10', 'students' => 40, 'homeroom' => 'Trần Văn Hùng', 'status' => 'success', 'status_text' => 'Hoạt động tốt', 'completion' => 78],
-    ['name' => '10C', 'grade' => 'Khối 10', 'students' => 38, 'homeroom' => 'Lê Thị Hương', 'status' => 'warning', 'status_text' => 'Cần cải thiện', 'completion' => 65],
-    ['name' => '11A', 'grade' => 'Khối 11', 'students' => 40, 'homeroom' => 'Phạm Văn Đức', 'status' => 'success', 'status_text' => 'Hoạt động tốt', 'completion' => 85],
-    ['name' => '11B', 'grade' => 'Khối 11', 'students' => 42, 'homeroom' => 'Hoàng Thị Lan', 'status' => 'warning', 'status_text' => 'Cần cải thiện', 'completion' => 72],
-    ['name' => '12A', 'grade' => 'Khối 12', 'students' => 45, 'homeroom' => 'Vũ Thị Hà', 'status' => 'success', 'status_text' => 'Xuất sắc', 'completion' => 92],
-    ['name' => '12B', 'grade' => 'Khối 12', 'students' => 43, 'homeroom' => 'Đặng Văn Minh', 'status' => 'success', 'status_text' => 'Hoạt động tốt', 'completion' => 88],
-    ['name' => '12C', 'grade' => 'Khối 12', 'students' => 41, 'homeroom' => 'Bùi Thị Mai', 'status' => 'success', 'status_text' => 'Hoạt động tốt', 'completion' => 80]
-];
+use TalentHub\Bootstrap\SchoolAppContext;
 
-$grades = ['Khối 10' => [], 'Khối 11' => [], 'Khối 12' => []];
+$context = (new SchoolAppContext())->boot();
+$school  = $context['school'];
+$service = $context['service'];
+$userId  = $context['user']['id'];
+
+$classes = $service->classes($userId);
+
+$grades = [];
 foreach ($classes as $class) {
     $grades[$class['grade']][] = $class;
 }
+ksort($grades);
 
-$gradeStats = [
-    ['name' => 'Khối 10', 'classes' => 3, 'students' => 120, 'avgCompletion' => 75],
-    ['name' => 'Khối 11', 'classes' => 2, 'students' => 82, 'avgCompletion' => 78.5],
-    ['name' => 'Khối 12', 'classes' => 3, 'students' => 129, 'avgCompletion' => 86.7]
+$gradeStats = [];
+foreach ($grades as $gradeName => $gradeClasses) {
+    $studentSum = array_sum(array_column($gradeClasses, 'students'));
+    $avgCompletion = count($gradeClasses) > 0
+        ? round(array_sum(array_column($gradeClasses, 'completion')) / count($gradeClasses))
+        : 0;
+    $gradeStats[] = [
+        'name'          => $gradeName,
+        'classes'       => count($gradeClasses),
+        'students'      => $studentSum,
+        'avgCompletion' => $avgCompletion,
+    ];
+}
+
+$totalStudents = array_sum(array_column($classes, 'students'));
+
+$schoolInfo = [
+    'name'          => $school['name'],
+    'logo_initials' => mb_substr($school['name'], 0, 2),
+    'level'         => $school['level'] ?? 'Trung học',
+    'district'      => $school['address'] ?? '',
+    'academic_year' => $school['academicYear'] ?? '',
 ];
+
+$currentRoute = '/app/school/classes.php';
+$pageTitle = 'Lớp & Khối';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -35,7 +56,7 @@ $gradeStats = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Quản lý lớp và khối - TalentHub School Dashboard">
-    <title>Lớp & Khối - THPT Nguyễn Trãi | TalentHub</title>
+    <title>Lớp & Khối - <?= htmlspecialchars($schoolInfo['name']); ?> | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/school.css">
 </head>
@@ -56,7 +77,7 @@ $gradeStats = [
                                     Quản lý Lớp & Khối
                                 </h2>
                                 <p style="font-size: 0.875rem; color: var(--text-secondary);">
-                                    12 lớp học • 1,247 học sinh
+                                    <?= count($classes); ?> lớp học • <?= number_format($totalStudents); ?> học sinh
                                 </p>
                             </div>
                             <div style="display: flex; gap: 0.5rem;">
@@ -127,8 +148,8 @@ $gradeStats = [
                                                     GVCM: <?= htmlspecialchars($class['homeroom']) ?>
                                                 </p>
                                             </div>
-                                            <span class="school-class-badge school-class-badge--<?= $class['status']; ?>">
-                                                <?= htmlspecialchars($class['status_text']) ?>
+                                            <span class="school-class-badge school-class-badge--<?= htmlspecialchars($class['status']); ?>">
+                                                <?= htmlspecialchars($class['statusText']); ?>
                                             </span>
                                         </div>
                                         <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">

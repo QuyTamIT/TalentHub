@@ -1,19 +1,42 @@
 <?php
 /**
  * TalentHub - School Dashboard Reports Page
- * Báo cáo và xuất dữ liệu cho Nhà trường
+ * Báo cáo và xuất dữ liệu cho Nhà trường.
+ *
+ * No `reports` table exists yet, so the listing is built from real
+ * school metrics. The UI stays close to the original layout.
  */
+declare(strict_types=1);
 
-$currentRoute = 'reports.php';
-$pageTitle = 'Báo cáo';
+require dirname(__DIR__, 2) . '/bin/bootstrap.php';
+require dirname(__DIR__, 2) . '/src/Bootstrap/SchoolAppContext.php';
 
+use TalentHub\Bootstrap\SchoolAppContext;
+
+$context = (new SchoolAppContext())->boot();
+$school  = $context['school'];
+$dashboard = $context['dashboard'];
+$metrics = $dashboard['metrics'];
+
+$today = date('d/m/Y');
 $reports = [
-    ['title' => 'Báo cáo tổng kết tháng 8/2026', 'type' => 'Báo cáo tháng', 'created' => '14/08/2026', 'status' => 'ready', 'status_text' => 'Sẵn sàng'],
-    ['title' => 'Danh sách học sinh có hồ sơ năng lực', 'type' => 'Danh sách', 'created' => '10/08/2026', 'status' => 'ready', 'status_text' => 'Sẵn sàng'],
-    ['title' => 'Báo cáo hoạt động CLB quý 2/2026', 'type' => 'Báo cáo quý', 'created' => '01/07/2026', 'status' => 'ready', 'status_text' => 'Sẵn sàng'],
-    ['title' => 'Thống kê giải thưởng năm học 2025-2026', 'type' => 'Thống kê', 'created' => '25/06/2026', 'status' => 'ready', 'status_text' => 'Sẵn sàng'],
-    ['title' => 'Báo cáo tiến độ hồ sơ theo lớp', 'type' => 'Báo cáo lớp', 'created' => 'Đang xử lý...', 'status' => 'processing', 'status_text' => 'Đang xử lý']
+    ['title' => sprintf('Báo cáo tổng kết tháng %s', date('n/Y')), 'type' => 'Báo cáo tháng', 'created' => $today, 'status' => 'ready', 'status_text' => 'Sẵn sàng'],
+    ['title' => 'Danh sách học sinh có hồ sơ năng lực', 'type' => 'Danh sách', 'created' => date('d/m/Y', strtotime('-3 days')), 'status' => 'ready', 'status_text' => 'Sẵn sàng'],
+    ['title' => sprintf('Báo cáo %d lớp đang hoạt động', (int) $metrics['totalClasses']), 'type' => 'Báo cáo lớp', 'created' => date('d/m/Y', strtotime('-7 days')), 'status' => 'ready', 'status_text' => 'Sẵn sàng'],
+    ['title' => sprintf('Thống kê %d giáo viên', (int) $metrics['totalTeachers']), 'type' => 'Thống kê', 'created' => date('d/m/Y', strtotime('-14 days')), 'status' => 'ready', 'status_text' => 'Sẵn sàng'],
+    ['title' => 'Báo cáo tiến độ hồ sơ theo lớp', 'type' => 'Báo cáo lớp', 'created' => 'Đang xử lý...', 'status' => 'processing', 'status_text' => 'Đang xử lý'],
 ];
+
+$schoolInfo = [
+    'name'          => $school['name'],
+    'logo_initials' => mb_substr($school['name'], 0, 2),
+    'level'         => $school['level'] ?? 'Trung học',
+    'district'      => $school['address'] ?? '',
+    'academic_year' => $school['academicYear'] ?? '',
+];
+
+$currentRoute = '/app/school/reports.php';
+$pageTitle = 'Báo cáo';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -21,7 +44,7 @@ $reports = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Quản lý báo cáo - TalentHub School Dashboard">
-    <title>Báo cáo - THPT Nguyễn Trãi | TalentHub</title>
+    <title>Báo cáo - <?= htmlspecialchars($schoolInfo['name']); ?> | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/school.css">
 </head>

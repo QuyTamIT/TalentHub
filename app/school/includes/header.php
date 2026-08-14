@@ -1,9 +1,13 @@
 <?php
 /**
  * School Dashboard - Header Component
+ *
+ * Expects $schoolInfo and $user (optional) to be set by the parent scope.
  */
 
 $schoolRole = 'Ban Giám hiệu';
+$displayName = $schoolInfo['name'] ?? 'Nhà trường';
+$initials    = $schoolInfo['logo_initials'] ?? 'TH';
 ?>
 <header class="school-header">
     <div class="school-header__left">
@@ -34,12 +38,18 @@ $schoolRole = 'Ban Giám hiệu';
         <!-- School Account Area -->
         <div class="school-header__account">
             <div class="school-header__avatar">
-                <?= htmlspecialchars($schoolInfo['logo_initials']); ?>
+                <?= htmlspecialchars($initials); ?>
             </div>
             <div class="school-header__user-info">
-                <span class="school-header__user-name"><?= htmlspecialchars($schoolInfo['name']); ?></span>
+                <span class="school-header__user-name"><?= htmlspecialchars($displayName); ?></span>
                 <span class="school-header__user-role"><?= htmlspecialchars($schoolRole); ?></span>
             </div>
         </div>
+
+        <a href="/logout.php" class="school-header__logout" title="Đăng xuất">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 17l5-5-5-5M19.8 12H9M13 22a10 10 0 1 1 0-20"></path>
+            </svg>
+        </a>
     </div>
 </header>
