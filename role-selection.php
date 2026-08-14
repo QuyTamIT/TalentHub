@@ -26,7 +26,7 @@ $roles = [
         'title' => 'Giáo viên / HLV',
         'description' => 'Quản lý hoạt động, theo dõi và đánh giá năng lực người học.',
         'cta' => 'Vào khu vực này',
-        'route' => '/app/teacher',
+        'route' => '/TalentHub/app/teacher/index.php',
         'is_popular' => false,
         'icon_type' => 'teacher'
     ],

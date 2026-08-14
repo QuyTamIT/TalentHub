@@ -63,7 +63,7 @@ function selectCard(selectedCard) {
  */
 function handleRoleNavigation(route, roleName) {
     // If route points to an existing module (e.g. Enterprise Dashboard), navigate directly!
-    if (route === 'app/enterprise/index.php' || route.includes('enterprise')) {
+    if (route === '/TalentHub/app/teacher/index.php' || route === 'app/enterprise/index.php' || route.includes('enterprise')) {
         window.location.href = route;
         return;
     }
