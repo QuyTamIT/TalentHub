@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initTeacherSidebar();
     initTeacherNotifications();
     initTeacherRoutes();
+    initTeacherFocusOnLoad();
 });
 
 function initTeacherSidebar() {
@@ -70,7 +71,7 @@ function initTeacherRoutes() {
         link.addEventListener('click', (event) => {
             const route = link.getAttribute('data-route');
 
-            if (route === 'index.php' || route === './' || route === '/TalentHub/app/teacher/' || route === '/TalentHub/app/teacher/index.php') {
+            if (route === 'index.php' || route === './' || route === '../index.php' || route === 'activities/' || route === 'activities/index.php' || route === '/TalentHub/app/teacher/' || route === '/TalentHub/app/teacher/index.php') {
                 return;
             }
 
@@ -78,6 +79,17 @@ function initTeacherRoutes() {
             const label = link.textContent.trim().replace(/\s+/g, ' ');
             showTeacherToast(`Tính năng "${label}" (${route}) đang được phát triển.`);
         });
+    });
+}
+
+function initTeacherFocusOnLoad() {
+    const target = document.querySelector('[data-focus-on-load]');
+    if (!target) return;
+
+    requestAnimationFrame(() => {
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
     });
 }
 
