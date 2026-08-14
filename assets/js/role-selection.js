@@ -62,13 +62,18 @@ function selectCard(selectedCard) {
  * Handles navigation to destination module or displays fallback feedback if module isn't created yet.
  */
 function handleRoleNavigation(route, roleName) {
-    // Learner, Enterprise and School modules are available and navigate directly.
-    if (route.includes('learner') || route.includes('enterprise') || route.includes('school')) {
+    // Navigate directly when the selected role module is available.
+    if (
+        route.includes('learner') ||
+        route.includes('teacher') ||
+        route.includes('enterprise') ||
+        route.includes('school')
+    ) {
         window.location.href = route;
         return;
     }
 
-    // Teacher module is pending future tasks.
+    // Other backend modules use the fallback notice until they are available.
     showRoleToast(`Khu vực ${roleName} đang được phát triển! (${route})`);
 }
 
