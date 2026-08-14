@@ -12,3 +12,6 @@ Thumbs.db
 .idea/
 
 *.log
+
+# Runtime-generated uploads and reports
+/src/storage/

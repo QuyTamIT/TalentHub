@@ -30,14 +30,20 @@ final class SchoolDemoSeeder
         'class10b'           => '20000000-0000-4000-8000-000000000031',
         'class11a'           => '20000000-0000-4000-8000-000000000032',
         'class12a'           => '20000000-0000-4000-8000-000000000033',
+        'class10c'           => '20000000-0000-4000-8000-000000000034',
+        'classArchived'      => '20000000-0000-4000-8000-000000000035',
         'teacher1'           => '20000000-0000-4000-8000-000000000040',
         'teacher2'           => '20000000-0000-4000-8000-000000000041',
         'teacher3'           => '20000000-0000-4000-8000-000000000042',
         'teacher4'           => '20000000-0000-4000-8000-000000000043',
+        'teacher5'           => '20000000-0000-4000-8000-000000000044',
+        'teacher6'           => '20000000-0000-4000-8000-000000000045',
         'teacherProfile1'    => '20000000-0000-4000-8000-000000000050',
         'teacherProfile2'    => '20000000-0000-4000-8000-000000000051',
         'teacherProfile3'    => '20000000-0000-4000-8000-000000000052',
         'teacherProfile4'    => '20000000-0000-4000-8000-000000000053',
+        'teacherProfile5'    => '20000000-0000-4000-8000-000000000054',
+        'teacherProfile6'    => '20000000-0000-4000-8000-000000000055',
         'studentProfile1'    => '20000000-0000-4000-8000-000000000060',
         'studentProfile2'    => '20000000-0000-4000-8000-000000000061',
         'studentProfile3'    => '20000000-0000-4000-8000-000000000062',
@@ -46,6 +52,9 @@ final class SchoolDemoSeeder
         'studentProfile6'    => '20000000-0000-4000-8000-000000000065',
         'studentProfile7'    => '20000000-0000-4000-8000-000000000066',
         'studentProfile8'    => '20000000-0000-4000-8000-000000000067',
+        'studentProfile9'    => '20000000-0000-4000-8000-000000000068',
+        'studentProfile10'   => '20000000-0000-4000-8000-000000000069',
+        'studentProfile11'   => '20000000-0000-4000-8000-00000000006a',
         'studentUser1'       => '20000000-0000-4000-8000-000000000070',
         'studentUser2'       => '20000000-0000-4000-8000-000000000071',
         'studentUser3'       => '20000000-0000-4000-8000-000000000072',
@@ -54,10 +63,15 @@ final class SchoolDemoSeeder
         'studentUser6'       => '20000000-0000-4000-8000-000000000075',
         'studentUser7'       => '20000000-0000-4000-8000-000000000076',
         'studentUser8'       => '20000000-0000-4000-8000-000000000077',
+        'studentUser9'       => '20000000-0000-4000-8000-000000000078',
+        'studentUser10'      => '20000000-0000-4000-8000-000000000079',
+        'studentUser11'      => '20000000-0000-4000-8000-00000000007a',
         'teacherUser1'       => '20000000-0000-4000-8000-000000000080',
         'teacherUser2'       => '20000000-0000-4000-8000-000000000081',
         'teacherUser3'       => '20000000-0000-4000-8000-000000000082',
         'teacherUser4'       => '20000000-0000-4000-8000-000000000083',
+        'teacherUser5'       => '20000000-0000-4000-8000-000000000084',
+        'teacherUser6'       => '20000000-0000-4000-8000-000000000085',
     ];
 
     public function run(PDO $pdo, string $environment, string $password): void
@@ -155,6 +169,8 @@ final class SchoolDemoSeeder
             ['user' => self::IDS['teacherUser2'], 'name' => 'Trần Văn Hùng',   'email' => 'gv.hung@talenthub.vn'],
             ['user' => self::IDS['teacherUser3'], 'name' => 'Lê Thị Hương',    'email' => 'gv.huong@talenthub.vn'],
             ['user' => self::IDS['teacherUser4'], 'name' => 'Phạm Văn Đức',    'email' => 'gv.duc@talenthub.vn'],
+            ['user' => self::IDS['teacherUser5'], 'name' => 'Đặng Thị Lan',    'email' => 'gv.lan@talenthub.vn'],
+            ['user' => self::IDS['teacherUser6'], 'name' => 'Bùi Minh Quân',   'email' => 'gv.quan@talenthub.vn'],
         ];
         foreach ($teachers as $t) {
             $stmt->execute([
@@ -177,6 +193,9 @@ final class SchoolDemoSeeder
             ['user' => self::IDS['studentUser6'], 'name' => 'Võ Thị Tuyết',     'email' => 'hs.tuyet@talenthub.vn'],
             ['user' => self::IDS['studentUser7'], 'name' => 'Hoàng Minh Khôi',  'email' => 'hs.khoi@talenthub.vn'],
             ['user' => self::IDS['studentUser8'], 'name' => 'Phan Thanh Trúc',  'email' => 'hs.truc@talenthub.vn'],
+            ['user' => self::IDS['studentUser9'], 'name' => 'Đinh Gia Khánh',   'email' => 'hs.khanh@talenthub.vn'],
+            ['user' => self::IDS['studentUser10'],'name' => 'Ngô Phương Linh',  'email' => 'hs.linh@talenthub.vn'],
+            ['user' => self::IDS['studentUser11'],'name' => 'Trương Mỹ Duyên',  'email' => 'hs.duyen@talenthub.vn'],
         ];
         foreach ($students as $s) {
             $stmt->execute([
@@ -196,10 +215,12 @@ final class SchoolDemoSeeder
                  VALUES (:id, :schoolId, :name, :grade, :year, :status)';
         $stmt = $pdo->prepare($sql);
         $rows = [
-            ['id' => self::IDS['class10a'], 'name' => '10A', 'grade' => 10],
-            ['id' => self::IDS['class10b'], 'name' => '10B', 'grade' => 10],
-            ['id' => self::IDS['class11a'], 'name' => '11A', 'grade' => 11],
-            ['id' => self::IDS['class12a'], 'name' => '12A', 'grade' => 12],
+            ['id' => self::IDS['class10a'],      'name' => '10A', 'grade' => 10, 'status' => 'active'],
+            ['id' => self::IDS['class10b'],      'name' => '10B', 'grade' => 10, 'status' => 'active'],
+            ['id' => self::IDS['class11a'],      'name' => '11A', 'grade' => 11, 'status' => 'active'],
+            ['id' => self::IDS['class12a'],      'name' => '12A', 'grade' => 12, 'status' => 'active'],
+            ['id' => self::IDS['class10c'],      'name' => '10C', 'grade' => 10, 'status' => 'active'],
+            ['id' => self::IDS['classArchived'], 'name' => '9A',  'grade' => 9,  'status' => 'archived'],
         ];
         foreach ($rows as $row) {
             $stmt->execute([
@@ -208,7 +229,7 @@ final class SchoolDemoSeeder
                 'name'     => $row['name'],
                 'grade'    => $row['grade'],
                 'year'     => '2025 - 2026',
-                'status'   => 'active',
+                'status'   => $row['status'],
             ]);
         }
     }
@@ -223,6 +244,8 @@ final class SchoolDemoSeeder
             [self::IDS['teacherProfile2'], self::IDS['teacherUser2'], '0901000002', 'Vật lý',    'Giáo viên Vật lý, chủ nhiệm lớp 10B'],
             [self::IDS['teacherProfile3'], self::IDS['teacherUser3'], '0901000003', 'Ngữ văn',   'Giáo viên Ngữ văn, chủ nhiệm lớp 11A'],
             [self::IDS['teacherProfile4'], self::IDS['teacherUser4'], '0901000004', 'Tin học',   'Giáo viên Tin học, chủ nhiệm lớp 12A'],
+            [self::IDS['teacherProfile5'], self::IDS['teacherUser5'], '0901000005', 'Tiếng Anh', 'Giáo viên Tiếng Anh, 8 năm kinh nghiệm'],
+            [self::IDS['teacherProfile6'], self::IDS['teacherUser6'], '0901000006', 'Thể dục',   'Giáo viên Thể dục, huấn luyện viên bơi'],
         ];
         foreach ($pairs as [$id, $userId, $phone, $spec, $bio]) {
             $stmt->execute([
@@ -243,14 +266,17 @@ final class SchoolDemoSeeder
                  VALUES (:id, :userId, :classId, :dob, :phone, :status)';
         $stmt = $pdo->prepare($sql);
         $placements = [
-            ['id' => self::IDS['studentProfile1'], 'user' => self::IDS['studentUser1'], 'class' => self::IDS['class12a'], 'dob' => '2008-09-12', 'phone' => '0912000001'],
-            ['id' => self::IDS['studentProfile2'], 'user' => self::IDS['studentUser2'], 'class' => self::IDS['class11a'], 'dob' => '2008-04-21', 'phone' => '0912000002'],
-            ['id' => self::IDS['studentProfile3'], 'user' => self::IDS['studentUser3'], 'class' => self::IDS['class12a'], 'dob' => '2008-11-03', 'phone' => '0912000003'],
-            ['id' => self::IDS['studentProfile4'], 'user' => self::IDS['studentUser4'], 'class' => self::IDS['class12a'], 'dob' => '2008-01-15', 'phone' => '0912000004'],
-            ['id' => self::IDS['studentProfile5'], 'user' => self::IDS['studentUser5'], 'class' => self::IDS['class10a'], 'dob' => '2009-08-09', 'phone' => '0912000005'],
-            ['id' => self::IDS['studentProfile6'], 'user' => self::IDS['studentUser6'], 'class' => self::IDS['class10a'], 'dob' => '2009-02-17', 'phone' => '0912000006'],
-            ['id' => self::IDS['studentProfile7'], 'user' => self::IDS['studentUser7'], 'class' => self::IDS['class10b'], 'dob' => '2009-05-22', 'phone' => '0912000007'],
-            ['id' => self::IDS['studentProfile8'], 'user' => self::IDS['studentUser8'], 'class' => self::IDS['class11a'], 'dob' => '2008-07-30', 'phone' => '0912000008'],
+            ['id' => self::IDS['studentProfile1'],  'user' => self::IDS['studentUser1'],  'class' => self::IDS['class12a'], 'dob' => '2008-09-12', 'phone' => '0912000001'],
+            ['id' => self::IDS['studentProfile2'],  'user' => self::IDS['studentUser2'],  'class' => self::IDS['class11a'], 'dob' => '2008-04-21', 'phone' => '0912000002'],
+            ['id' => self::IDS['studentProfile3'],  'user' => self::IDS['studentUser3'],  'class' => self::IDS['class12a'], 'dob' => '2008-11-03', 'phone' => '0912000003'],
+            ['id' => self::IDS['studentProfile4'],  'user' => self::IDS['studentUser4'],  'class' => self::IDS['class12a'], 'dob' => '2008-01-15', 'phone' => '0912000004'],
+            ['id' => self::IDS['studentProfile5'],  'user' => self::IDS['studentUser5'],  'class' => self::IDS['class10a'], 'dob' => '2009-08-09', 'phone' => '0912000005'],
+            ['id' => self::IDS['studentProfile6'],  'user' => self::IDS['studentUser6'],  'class' => self::IDS['class10a'], 'dob' => '2009-02-17', 'phone' => '0912000006'],
+            ['id' => self::IDS['studentProfile7'],  'user' => self::IDS['studentUser7'],  'class' => self::IDS['class10b'], 'dob' => '2009-05-22', 'phone' => '0912000007'],
+            ['id' => self::IDS['studentProfile8'],  'user' => self::IDS['studentUser8'],  'class' => self::IDS['class11a'], 'dob' => '2008-07-30', 'phone' => '0912000008'],
+            ['id' => self::IDS['studentProfile9'],  'user' => self::IDS['studentUser9'],  'class' => self::IDS['class10c'], 'dob' => '2009-03-12', 'phone' => '0912000009'],
+            ['id' => self::IDS['studentProfile10'], 'user' => self::IDS['studentUser10'], 'class' => self::IDS['class11a'], 'dob' => '2008-10-05', 'phone' => '0912000010'],
+            ['id' => self::IDS['studentProfile11'], 'user' => self::IDS['studentUser11'], 'class' => self::IDS['class12a'], 'dob' => '2008-12-19', 'phone' => '0912000011'],
         ];
         foreach ($placements as $row) {
             $stmt->execute([
