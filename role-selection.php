@@ -35,7 +35,7 @@ $roles = [
         'title' => 'Nhà trường',
         'description' => 'Theo dõi năng lực, lớp học, phân tích và báo cáo toàn trường.',
         'cta' => 'Vào khu vực này',
-        'route' => '/app/school',
+        'route' => 'app/school/index.php',
         'is_popular' => false,
         'icon_type' => 'school'
     ],
