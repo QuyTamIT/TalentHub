@@ -20,4 +20,8 @@ final class MigrationContext
     {
         if ($this->tableExists($table)) { throw new RuntimeException("Table {$table} already exists."); }
     }
+    public function assertTableExists(string $table): void
+    {
+        if (!$this->tableExists($table)) { throw new RuntimeException("Table {$table} does not exist."); }
+    }
 }

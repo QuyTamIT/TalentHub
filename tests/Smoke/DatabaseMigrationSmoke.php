@@ -14,12 +14,12 @@ final class DatabaseMigrationSmoke
         $this->assertSafeTarget($pdo,$database);$results=['connection: OK'];
         foreach(self::TABLES as $table){if($this->tableExists($pdo,$table)){throw new RuntimeException("Fresh test database required; found {$table}.");}}
         $runner->validate();$results[]='validate: OK';
-        if(count($runner->migrate())!==5){throw new RuntimeException('First migrate must apply five migrations.');}$results[]='migrate: OK';
+        if(count($runner->migrate())!==6){throw new RuntimeException('First migrate must apply six migrations.');}$results[]='migrate: OK';
         (new RolePermissionSeeder())->run($pdo);$results[]='system seed: OK';
         if($runner->migrate()!==[]){throw new RuntimeException('Second migrate must be a no-op.');}$results[]='migrate no-op: OK';
-        if(count($runner->rollbackLastBatch())!==5){throw new RuntimeException('Rollback must revert five migrations.');}
+        if(count($runner->rollbackLastBatch())!==6){throw new RuntimeException('Rollback must revert six migrations.');}
         foreach(self::TABLES as $table){if($this->tableExists($pdo,$table)){throw new RuntimeException("Rollback left table {$table}.");}}$results[]='rollback: OK';
-        if(count($runner->migrate())!==5){throw new RuntimeException('Migrate after rollback must apply five migrations.');}
+        if(count($runner->migrate())!==6){throw new RuntimeException('Migrate after rollback must apply six migrations.');}
         (new RolePermissionSeeder())->run($pdo);$this->assertFingerprint($pdo);$results[]='migrate again + fingerprint: OK';return $results;
     }
     private function assertSafeTarget(PDO $pdo,string $database): void
@@ -31,5 +31,5 @@ final class DatabaseMigrationSmoke
     }
     private function tableExists(PDO $pdo,string $table): bool{$s=$pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=:table');$s->execute(['table'=>$table]);return(int)$s->fetchColumn()===1;}
     private function assertFingerprint(PDO $pdo): void
-    {foreach(self::TABLES as $table){if(!$this->tableExists($pdo,$table)){throw new RuntimeException("Missing baseline table {$table}.");}}foreach(['roles'=>4,'permissions'=>81,'role_permissions'=>99] as $table=>$expected){$actual=(int)$pdo->query("SELECT COUNT(*) FROM `{$table}`")->fetchColumn();if($actual!==$expected){throw new RuntimeException("Unexpected {$table} count: {$actual}.");}}}
+    {foreach(self::TABLES as $table){if(!$this->tableExists($pdo,$table)){throw new RuntimeException("Missing baseline table {$table}.");}}foreach(['roles'=>4,'permissions'=>84,'role_permissions'=>102] as $table=>$expected){$actual=(int)$pdo->query("SELECT COUNT(*) FROM `{$table}`")->fetchColumn();if($actual!==$expected){throw new RuntimeException("Unexpected {$table} count: {$actual}.");}}}
 }
