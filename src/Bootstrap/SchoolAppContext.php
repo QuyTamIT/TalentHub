@@ -6,6 +6,7 @@ use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\School\Repository\SchoolRepository;
+use TalentHub\Modules\School\Service\SchoolAuthorization;
 use TalentHub\Modules\School\Service\SchoolDashboardService;
 
 /**
@@ -29,7 +30,12 @@ final class SchoolAppContext
         $this->session = new SessionManager(require dirname(__DIR__, 2) . '/config/session.php');
         $this->session->start();
         $pdo = $this->connection->connect();
-        $this->service = new SchoolDashboardService(new SchoolRepository($pdo), $pdo);
+        $repository = new SchoolRepository($pdo);
+        $this->service = new SchoolDashboardService(
+            $repository,
+            $pdo,
+            new SchoolAuthorization($pdo)
+        );
     }
 
     /**
