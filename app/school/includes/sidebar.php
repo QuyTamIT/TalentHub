@@ -6,25 +6,25 @@
 $sidebarNav = [
     [
         'title' => 'Tổng quan',
-        'route' => 'index.php',
+        'route' => '/app/school/',
         'icon' => 'grid',
         'active' => true
     ],
     [
         'title' => 'Phân tích',
-        'route' => 'analytics.php',
+        'route' => '/app/school/analytics.php',
         'icon' => 'trending-up',
         'active' => false
     ],
     [
         'title' => 'Báo cáo',
-        'route' => 'reports.php',
+        'route' => '/app/school/reports.php',
         'icon' => 'file-text',
         'badge' => 2
     ],
     [
         'title' => 'Lớp & Khối',
-        'route' => 'classes.php',
+        'route' => '/app/school/classes.php',
         'icon' => 'users',
         'active' => false
     ]
