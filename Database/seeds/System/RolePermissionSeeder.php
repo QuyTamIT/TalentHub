@@ -43,7 +43,11 @@ final class RolePermissionSeeder
             'internship_application.read_own', 'internship_application.withdraw_own',
             'contact_request.read_own', 'contact_request.respond_own',
         ],
-        'teacher' => [],
+        'teacher' => [
+            'teacher_profile.read_own',
+            'teacher_profile.update_own',
+            'teacher_dashboard.read_own',
+        ],
         'school' => [
             'school_profile.read_own', 'school_profile.update_own', 'school_dashboard.read_own',
             'school_analytics.read_own', 'class.read_own_school', 'class.create_own_school',
