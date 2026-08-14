@@ -45,7 +45,7 @@ function getInitials($name) {
             <h3 class="school-section-box__title">Top tài năng nổi bật</h3>
             <p class="school-section-box__subtitle">Học sinh có thành tích xuất sắc</p>
         </div>
-        <a href="analytics.php" class="school-section-box__link">Xem tất cả</a>
+        <a href="/app/school/analytics.php" class="school-section-box__link">Xem tất cả</a>
     </div>
     <div class="school-talents-list">
         <?php foreach ($topTalents as $talent): ?>

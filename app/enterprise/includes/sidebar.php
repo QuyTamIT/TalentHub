@@ -30,9 +30,14 @@
         <ul>
             <?php foreach ($sidebarNav as $navItem): 
                 $isActive = (isset($currentRoute) && ($navItem['route'] === $currentRoute || strpos($currentRoute, strtok($navItem['route'], '.')) === 0 && $navItem['route'] !== '/app/enterprise')) || (!isset($currentRoute) && $navItem['active']);
+                
+                $hrefRoute = $navItem['route'];
+                if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/TalentHub') !== false && strpos($hrefRoute, '/TalentHub') === false && strpos($hrefRoute, '/') === 0) {
+                    $hrefRoute = '/TalentHub' . $hrefRoute;
+                }
             ?>
                 <li>
-                    <a href="<?= htmlspecialchars($navItem['route']); ?>" 
+                    <a href="<?= htmlspecialchars($hrefRoute); ?>" 
                        class="ent-sidebar__link <?= $isActive ? 'is-active' : ''; ?>"
                        data-route="<?= htmlspecialchars($navItem['route']); ?>">
                         

@@ -43,14 +43,14 @@ $sidebarNav = [
     ],
     [
         'title' => 'Tài trợ dự án',
-        'route' => '/app/enterprise/sponsorships',
+        'route' => '/app/enterprise/sponsorships/',
         'icon' => 'award',
         'active' => false
     ],
     [
         'title' => 'Phân tích tuyển dụng',
-        'route' => '/app/enterprise/analytics',
-        'icon' => 'bar-chart',
+        'route' => '/app/enterprise/analytics.php',
+        'icon' => 'bar-chart-2',
         'active' => false
     ]
 ];
