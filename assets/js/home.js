@@ -1,11 +1,7 @@
 /**
  * TalentHub - Public Home Page Scripts
  * Modular JavaScript for header scrolling, responsive mobile menu, smooth scrolling, 
- * active section highlighting, and statistics counter animations.
- * 
- * Note for Junior Developers:
- * - Temporary routes (login.php & role-selection.php) are handled safely with fallbacks until backend modules are ready.
- * - Data configs (e.g. statistics) are stored in JS constants below.
+ * active section highlighting, statistics counter animations, and interactive audience tabs.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -14,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSmoothScroll();
     initActiveSectionObserver();
     initStatsCounter();
+    initAudienceTabs();
     initCtaHandlers();
 });
 
@@ -65,7 +62,6 @@ function initMobileNav() {
         }
     });
 
-    // Close mobile menu when clicking any mobile link or action button
     const mobileLinks = mobileMenu.querySelectorAll('.mobile-menu__link, .mobile-menu__btn');
     mobileLinks.forEach(link => {
         link.addEventListener('click', () => {
@@ -73,7 +69,6 @@ function initMobileNav() {
         });
     });
 
-    // Close menu when pressing Escape key
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && mobileMenu.classList.contains('is-active')) {
             closeMenu();
@@ -96,7 +91,6 @@ function initSmoothScroll() {
             if (targetElement) {
                 event.preventDefault();
                 
-                // Account for sticky header height
                 const headerHeight = document.querySelector('.site-header')?.offsetHeight || 72;
                 const elementPosition = targetElement.getBoundingClientRect().top;
                 const offsetPosition = elementPosition + window.pageYOffset - headerHeight;
@@ -111,7 +105,7 @@ function initSmoothScroll() {
 }
 
 /* ==========================================================================
-   4. Active Section Observer (Highlights current section link in header)
+   4. Active Section Observer
    ========================================================================== */
 function initActiveSectionObserver() {
     const sections = document.querySelectorAll('section[id], header[id]');
@@ -145,15 +139,8 @@ function initActiveSectionObserver() {
 }
 
 /* ==========================================================================
-   5. Platform Statistics (Mock Data & Counter Animation)
+   5. Platform Statistics Counter Animation
    ========================================================================== */
-const MOCK_STATISTICS = [
-    { id: 'students', target: 50000, suffix: '+', label: 'Học sinh / Sinh viên' },
-    { id: 'schools', target: 150, suffix: '+', label: 'Nhà trường đồng hành' },
-    { id: 'activities', target: 500, suffix: '+', label: 'Hoạt động / Tháng' },
-    { id: 'enterprises', target: 80, suffix: '+', label: 'Doanh nghiệp liên kết' }
-];
-
 function initStatsCounter() {
     const statsSection = document.querySelector('#statistics');
     if (!statsSection) return;
@@ -200,7 +187,38 @@ function animateStatNumbers() {
 }
 
 /* ==========================================================================
-   6. CTA Buttons Action Handlers (Future Backend Routes Handlers)
+   6. Interactive Audience Role Tab Switcher
+   ========================================================================== */
+function initAudienceTabs() {
+    const tabBtns = document.querySelectorAll('.audience-tab-btn');
+    const tabPanels = document.querySelectorAll('.audience-panel');
+
+    if (!tabBtns.length || !tabPanels.length) return;
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-target');
+            if (!targetId) return;
+
+            tabBtns.forEach(b => {
+                b.classList.remove('is-active');
+                b.setAttribute('aria-selected', 'false');
+            });
+            tabPanels.forEach(p => p.classList.remove('is-active'));
+
+            btn.classList.add('is-active');
+            btn.setAttribute('aria-selected', 'true');
+
+            const targetPanel = document.getElementById(targetId);
+            if (targetPanel) {
+                targetPanel.classList.add('is-active');
+            }
+        });
+    });
+}
+
+/* ==========================================================================
+   7. CTA Buttons Action Handlers
    ========================================================================== */
 function initCtaHandlers() {
     const loginButtons = document.querySelectorAll('[data-cta="login"]');
@@ -208,12 +226,8 @@ function initCtaHandlers() {
 
     loginButtons.forEach(btn => {
         btn.addEventListener('click', (e) => {
-            // TODO for future Backend Auth module:
-            // When authentication API/pages are created, remove event.preventDefault() 
-            // to allow navigation to login.php or open Auth Modal.
             const href = btn.getAttribute('href');
             if (href === 'login.php' || href.endsWith('login.php')) {
-                // If login.php page is not created yet in current environment, scroll to CTA section gracefully
                 const ctaSection = document.querySelector('#app');
                 if (ctaSection && !document.querySelector('form#login-form')) {
                     e.preventDefault();
@@ -227,8 +241,6 @@ function initCtaHandlers() {
         btn.addEventListener('click', (e) => {
             const href = btn.getAttribute('href');
             if (href === 'role-selection.php' || href.endsWith('role-selection.php')) {
-                // Navigating to Role Selection page (role-selection.php)
-                // Browser handles standard navigation natively.
                 return;
             }
         });

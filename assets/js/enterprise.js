@@ -94,7 +94,20 @@ function initRouteNavigation() {
                 route === '/app/enterprise/talents' ||
                 route === '/app/enterprise/talents.php' ||
                 route === '/app/enterprise/talents/' ||
-                route === '/app/enterprise/talents/index.php'
+                route === '/app/enterprise/talents/index.php' ||
+                route.includes('/app/enterprise/talents/detail.php') ||
+                route === '/app/enterprise/internships' ||
+                route === '/app/enterprise/internships/' ||
+                route === '/app/enterprise/internships/index.php' ||
+                route.startsWith('/app/enterprise/internships') ||
+                route === '/app/enterprise/sponsorships' ||
+                route === '/app/enterprise/sponsorships/' ||
+                route === '/app/enterprise/sponsorships.php' ||
+                route === '/app/enterprise/sponsorships/index.php' ||
+                route.startsWith('/app/enterprise/sponsorships') ||
+                route === '/app/enterprise/analytics' ||
+                route === '/app/enterprise/analytics.php' ||
+                route.startsWith('/app/enterprise/analytics')
             ) {
                 return;
             }

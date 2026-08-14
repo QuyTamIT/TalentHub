@@ -80,47 +80,103 @@ body.ent-sidebar-open {
     text-align: center;
 }
 
+/* Sidebar Company Card (Refined Enterprise Design) */
 .ent-sidebar__company {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem;
-    background-color: var(--background);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    padding: 0.875rem 0.875rem;
+    background: linear-gradient(135deg, #FFFFFF 0%, #FFF7ED 100%);
+    border: 1px solid rgba(249, 115, 22, 0.18);
+    border-radius: var(--radius-md);
     margin-bottom: 1.25rem;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+    transition: all var(--transition-fast);
+}
+
+.ent-sidebar__company:hover {
+    border-color: rgba(249, 115, 22, 0.3);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.08);
 }
 
 .ent-sidebar__company-avatar {
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: var(--radius-sm);
-    background: var(--primary);
+    width: 2.625rem;
+    height: 2.625rem;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
     color: #FFFFFF;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    font-size: 0.8125rem;
+    font-weight: 800;
+    font-size: 0.875rem;
+    letter-spacing: 0.02em;
     flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.25);
+}
+
+.ent-sidebar__company-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.ent-sidebar__company-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
 }
 
 .ent-sidebar__company-info h4 {
     font-size: 0.875rem;
     font-weight: 700;
     color: var(--text-primary);
-    line-height: 1.2;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ent-sidebar__verified-icon {
+    flex-shrink: 0;
+}
+
+.ent-sidebar__company-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .ent-sidebar__badge {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
     font-size: 0.6875rem;
     font-weight: 600;
-    color: var(--primary);
-    background-color: var(--primary-light);
-    padding: 0.1rem 0.375rem;
+    color: #C2410C;
+    background-color: rgba(249, 115, 22, 0.12);
+    padding: 0.15rem 0.45rem;
     border-radius: 4px;
-    margin-top: 0.125rem;
+    line-height: 1.2;
+}
+
+.ent-sidebar__status-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.ent-sidebar__status-dot .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
 }
 
 .ent-sidebar__nav-title {
@@ -342,36 +398,76 @@ body.ent-sidebar-open {
     box-sizing: border-box;
 }
 
+/* Welcome Banner Section (Refined Enterprise Design with Tower Graphic) */
 .ent-welcome {
-    background-color: var(--surface);
-    border: 1px solid var(--border);
+    background: linear-gradient(120deg, #FFFFFF 0%, #FFF7ED 40%, #F1F5F9 100%);
+    border: 1px solid rgba(226, 232, 240, 0.9);
     border-left: 4px solid var(--primary);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     padding: 1.5rem 1.75rem;
     margin-bottom: 1.75rem;
     box-sizing: border-box;
+    box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
+    position: relative;
+    overflow: hidden;
+}
+
+.ent-welcome::before {
+    content: '';
+    position: absolute;
+    top: -50px;
+    right: 180px;
+    width: 180px;
+    height: 180px;
+    background: radial-gradient(circle, rgba(249, 115, 22, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.ent-welcome__body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.ent-welcome__content {
+    flex: 1;
+    min-width: 0;
 }
 
 .ent-welcome__tag {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.725rem;
+    font-weight: 700;
+    color: var(--primary);
+    background: rgba(249, 115, 22, 0.09);
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.ent-welcome__tag svg {
+    color: var(--primary);
 }
 
 .ent-welcome__title {
     font-size: 1.375rem;
     font-weight: 700;
     color: var(--text-primary);
-    margin-top: 0.25rem;
     margin-bottom: 0.5rem;
+    letter-spacing: -0.01em;
 }
 
 .ent-welcome__description {
     font-size: 0.9375rem;
     color: var(--text-secondary);
-    max-width: 680px;
+    max-width: 640px;
     margin-bottom: 1.25rem;
     line-height: 1.55;
 }
@@ -381,6 +477,46 @@ body.ent-sidebar-open {
     align-items: center;
     gap: 0.875rem;
     flex-wrap: wrap;
+}
+
+.ent-welcome__graphic {
+    width: 220px;
+    height: 150px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ent-welcome__building-svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 4px 12px rgba(15, 23, 42, 0.06));
+    transition: transform var(--transition-base);
+}
+
+.ent-welcome:hover .ent-welcome__building-svg {
+    transform: translateY(-2px);
+}
+
+@media (max-width: 992px) {
+    .ent-welcome__graphic {
+        width: 170px;
+        height: 120px;
+    }
+}
+
+@media (max-width: 768px) {
+    .ent-welcome__body {
+        flex-direction: column-reverse;
+        align-items: flex-start;
+    }
+    .ent-welcome__graphic {
+        width: 100%;
+        max-width: 200px;
+        height: 110px;
+        align-self: center;
+    }
 }
 
 /* --------------------------------------------------------------------------
@@ -1007,65 +1143,128 @@ body.ent-sidebar-open {
    11. TALENT SEARCH PAGE SCOPED STYLES ("TÌM NHÂN TÀI")
    ========================================================================== */
 
-/* Page Header & Badge */
-.ent-page-header {
+/* Page Intro Hero Section ("Tìm kiếm & Đánh giá nhân tài") */
+.ent-talent-hero {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: 1rem;
+    gap: 1.5rem;
+    background: linear-gradient(135deg, #FFF8F1 0%, #FFFFFF 100%);
+    border: 1px solid rgba(249, 115, 22, 0.18);
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius-md);
+    padding: 1.25rem 1.5rem;
     margin-bottom: 1.5rem;
-    flex-wrap: wrap;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
 }
 
-.ent-page-header__title {
+.ent-talent-hero__left {
+    flex: 1;
+    min-width: 0;
+}
+
+.ent-talent-hero__title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.375rem;
+}
+
+.ent-talent-hero__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.875rem;
+    height: 1.875rem;
+    border-radius: 6px;
+    background-color: rgba(249, 115, 22, 0.12);
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+.ent-talent-hero__title {
     font-size: 1.375rem;
     font-weight: 700;
     color: var(--text-primary);
     letter-spacing: -0.01em;
+    line-height: 1.25;
 }
 
-.ent-page-header__desc {
+.ent-talent-hero__desc {
     font-size: 0.875rem;
     color: var(--text-secondary);
-    margin-top: 0.25rem;
-    max-width: 680px;
+    max-width: 660px;
     line-height: 1.5;
 }
 
-.ent-result-badge {
+/* Redesigned Prominent Result Summary Card */
+.ent-result-card {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
+    gap: 0.875rem;
     background-color: var(--surface);
-    border: 1px solid var(--border);
-    padding: 0.5rem 0.875rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.8125rem;
+    border: 1px solid rgba(249, 115, 22, 0.22);
+    padding: 0.75rem 1.125rem;
+    border-radius: var(--radius-md);
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.06);
+    flex-shrink: 0;
+    transition: all var(--transition-fast);
+}
+
+.ent-result-card:hover {
+    border-color: rgba(249, 115, 22, 0.4);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.12);
+}
+
+.ent-result-card__icon {
+    width: 2.375rem;
+    height: 2.375rem;
+    border-radius: 50%;
+    background-color: var(--primary-light);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.ent-result-card__content {
+    display: flex;
+    flex-direction: column;
+}
+
+.ent-result-card__number {
+    font-size: 1.625rem;
+    font-weight: 800;
+    color: var(--primary);
+    line-height: 1;
+    letter-spacing: -0.02em;
+}
+
+.ent-result-card__label {
+    font-size: 0.78125rem;
+    font-weight: 600;
     color: var(--text-secondary);
+    margin-top: 0.15rem;
     white-space: nowrap;
 }
 
-.ent-result-badge strong {
-    color: var(--primary);
-    font-weight: 700;
-}
-
-/* Search & Quick Filters Toolbar */
+/* Search & Quick Filters Toolbar Container */
 .ent-search-toolbar {
     background-color: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     padding: 1.25rem;
     margin-bottom: 1.5rem;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.125rem;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
 }
 
 .ent-search-input-wrapper {
     position: relative;
     width: 100%;
-
 }
 
 .ent-search-icon {
@@ -1073,16 +1272,21 @@ body.ent-sidebar-open {
     left: 1rem;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--text-muted);
+    color: #64748B;
     pointer-events: none;
+    transition: color var(--transition-fast);
+}
+
+.ent-search-input-wrapper:focus-within .ent-search-icon {
+    color: var(--primary);
 }
 
 .ent-search-input {
     width: 100%;
-    height: 2.75rem;
+    height: 2.875rem;
     padding: 0 2.5rem 0 2.75rem;
-    background-color: var(--background);
-    border: 1px solid var(--border);
+    background-color: var(--surface);
+    border: 1.5px solid #CBD5E1;
     border-radius: var(--radius-sm);
     font-size: 0.875rem;
     color: var(--text-primary);
@@ -1131,12 +1335,12 @@ body.ent-sidebar-open {
 }
 
 .ent-quick-pill {
-    background-color: var(--background);
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
+    background-color: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    color: #475569;
     font-size: 0.78125rem;
     font-weight: 500;
-    padding: 0.35rem 0.75rem;
+    padding: 0.35rem 0.8125rem;
     border-radius: var(--radius-full);
     cursor: pointer;
     transition: all var(--transition-fast);
@@ -1144,16 +1348,33 @@ body.ent-sidebar-open {
 }
 
 .ent-quick-pill:hover {
-    background-color: #F1F5F9;
-    color: var(--text-primary);
-    border-color: #CBD5E1;
+    background-color: #FFF7ED;
+    color: var(--primary);
+    border-color: rgba(249, 115, 22, 0.3);
 }
 
 .ent-quick-pill.is-active {
-    background-color: var(--primary-light);
-    color: var(--primary);
-    border-color: var(--primary);
+    background-color: #FFF7ED;
+    color: #EA580C;
+    border-color: rgba(249, 115, 22, 0.45);
     font-weight: 600;
+    box-shadow: 0 1px 4px rgba(249, 115, 22, 0.12);
+}
+
+/* Responsive adjustments for Talent Search Intro & Result Card */
+@media (max-width: 768px) {
+    .ent-talent-hero {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1.125rem;
+    }
+
+    .ent-result-card {
+        width: 100%;
+        box-sizing: border-box;
+        justify-content: flex-start;
+    }
 }
 
 /* Talent Grid Layout */
@@ -1966,5 +2187,1980 @@ body.ent-sidebar-open {
         width: 95%;
     }
 }
+
+/* ==========================================================================
+   13. TALENT PASSPORT / DETAIL PAGE STYLES
+   ========================================================================== */
+
+/* Back Navigation Link */
+.ent-back-bar {
+    margin-bottom: 1.25rem;
+}
+
+.ent-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.ent-back-link:hover {
+    color: var(--primary);
+}
+
+/* Main 2-Column Passport Layout */
+.ent-passport-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.ent-passport-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.ent-passport-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* Section Box Base */
+.ent-section-box {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.ent-section-box__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.ent-section-box__title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.ent-section-box__subtitle {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    margin-top: 0.125rem;
+}
+
+.ent-section-box__count {
+    font-size: 0.78125rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background-color: var(--background);
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-full);
+}
+
+/* Profile Overview Card Header */
+.ent-passport-overview-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.ent-passport-overview__top {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+}
+
+.ent-passport-overview__avatar {
+    width: 4.5rem;
+    height: 4.5rem;
+    border-radius: var(--radius-md);
+    background-color: var(--primary-light);
+    color: var(--primary);
+    font-size: 1.5rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--surface);
+    box-shadow: var(--shadow-md);
+    flex-shrink: 0;
+}
+
+.ent-passport-overview__info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.ent-passport-overview__title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.ent-passport-overview__name {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.ent-passport-score-badge {
+    display: inline-flex;
+    align-items: center;
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #059669;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    font-size: 0.875rem;
+    font-weight: 700;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-full);
+}
+
+.ent-passport-overview__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+.ent-passport-overview__meta .dot {
+    color: var(--text-muted);
+}
+
+.ent-passport-overview__sub {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.ent-passport-overview__sub .label {
+    color: var(--text-muted);
+}
+
+.ent-passport-overview__actions-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.ent-passport-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    background-color: var(--background);
+    padding: 0.375rem 0.875rem;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border);
+}
+
+.ent-passport-status-pill .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--success);
+}
+
+.ent-passport-btn-group {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+}
+
+.ent-passport-save-btn.is-saved {
+    background-color: var(--primary-light);
+    color: var(--primary);
+    border-color: rgba(249, 115, 22, 0.4);
+}
+
+/* Bio Text */
+.ent-passport-bio-text {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+/* Skills Cards Grid */
+.ent-passport-skills-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.875rem;
+}
+
+.ent-passport-skill-card {
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.875rem 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.ent-passport-skill-card__name {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.ent-passport-skill-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.ent-skill-level {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.ent-verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #059669;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    padding: 0.15rem 0.45rem;
+    border-radius: var(--radius-xs);
+}
+
+.ent-unverified-badge {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    background-color: var(--surface);
+    padding: 0.15rem 0.45rem;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--border);
+}
+
+/* Experience Logs Timeline */
+.ent-exp-hours-badge {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--primary);
+    background-color: var(--primary-light);
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-sm);
+}
+
+.ent-passport-timeline {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding-left: 1.25rem;
+    border-left: 2px solid var(--border);
+}
+
+.ent-passport-timeline-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.ent-passport-timeline-item__indicator {
+    position: absolute;
+    left: -1.625rem;
+    top: 0.35rem;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--primary);
+    border: 2px solid var(--surface);
+    box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.ent-passport-timeline-item__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.ent-passport-timeline-item__title {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.ent-passport-timeline-item__duration {
+    font-size: 0.78125rem;
+    color: var(--text-muted);
+}
+
+.ent-passport-timeline-item__meta {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.ent-passport-timeline-item__desc {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-top: 0.25rem;
+}
+
+/* Featured Projects Cards */
+.ent-passport-projects-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.ent-passport-project-card {
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.ent-passport-project-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.ent-passport-project-card__title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.ent-project-result-badge {
+    background-color: var(--primary-light);
+    color: var(--primary);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-xs);
+    border: 1px solid rgba(249, 115, 22, 0.25);
+}
+
+.ent-passport-project-card__desc {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.ent-passport-project-card__meta {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.ent-passport-project-card__techs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: 0.25rem;
+}
+
+/* Certificates List Rows */
+.ent-passport-certs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ent-passport-cert-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.ent-passport-cert-row__icon {
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+}
+
+.ent-passport-cert-row__info {
+    flex-grow: 1;
+}
+
+.ent-passport-cert-row__info .cert-name {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.ent-passport-cert-row__info .cert-issuer {
+    font-size: 0.78125rem;
+    color: var(--text-muted);
+}
+
+/* Sidebar Readiness & Privacy Cards */
+.ent-readiness-widget {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+    font-size: 0.875rem;
+}
+
+.ent-readiness-widget__status .status-value {
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.ent-readiness-widget__strengths ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 0.375rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    color: var(--text-secondary);
+}
+
+.ent-privacy-card {
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ent-privacy-card__icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 50%;
+    background-color: var(--primary-light);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ent-privacy-card h4 {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.ent-privacy-card p {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* Contact Modal Body Styling */
+.ent-contact-modal__body {
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.ent-contact-privacy-note {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    background-color: var(--primary-light);
+    color: var(--primary);
+    border: 1px solid rgba(249, 115, 22, 0.3);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.ent-contact-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    outline: none;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
+.ent-contact-textarea:focus {
+    border-color: var(--primary);
+}
+
+/* Responsive Media Queries */
+@media (max-width: 1023.98px) {
+    .ent-passport-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .ent-passport-overview__top {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .ent-passport-overview__actions-bar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .ent-passport-btn-group {
+        width: 100%;
+    }
+
+    .ent-passport-btn-group .btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .ent-passport-skills-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .ent-passport-skills-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==========================================================================
+   14. INTERNSHIP RECRUITMENT MANAGEMENT MODULE STYLES ("TUYỂN THỰC TẬP")
+   ========================================================================== */
+
+/* Soft Hero Banner for Internship Management */
+.ent-internship-hero {
+    background: linear-gradient(135deg, #FFF8F1 0%, #FFFFFF 65%, #F8FAFC 100%);
+    border: 1px solid #FFE4D6;
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius-md);
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    box-shadow: 0 2px 10px rgba(249, 115, 22, 0.04);
+}
+
+.ent-internship-hero__content {
+    flex: 1;
+    max-width: 720px;
+}
+
+.ent-internship-hero__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary);
+    background-color: rgba(249, 115, 22, 0.08);
+    border: 1px solid rgba(249, 115, 22, 0.2);
+    padding: 0.2rem 0.65rem;
+    border-radius: 9999px;
+    margin-bottom: 0.625rem;
+}
+
+.ent-internship-hero__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+    margin-bottom: 0.375rem;
+    letter-spacing: -0.01em;
+}
+
+.ent-internship-hero__desc {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    font-weight: 400;
+    margin: 0;
+}
+
+.ent-internship-hero__action {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.ent-btn-create-hero {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 3px 12px rgba(249, 115, 22, 0.28);
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ent-btn-create-hero:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 16px rgba(249, 115, 22, 0.35);
+}
+
+/* Summary Metrics Cards Grid */
+.ent-internship-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+}
+
+.ent-metric-card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.125rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 96px;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.ent-metric-card:hover {
+    border-color: #CBD5E1;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+}
+
+.ent-metric-card--active {
+    border-left: 3px solid #16A34A;
+}
+
+.ent-metric-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.375rem;
+}
+
+.ent-metric-card__header .label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.ent-metric-card__value {
+    font-size: 1.625rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.25rem;
+}
+
+.ent-metric-card__footer {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+/* Search & Filter Toolbar */
+.ent-search-toolbar {
+    margin-bottom: 1.5rem;
+}
+
+.ent-internship-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.flex-1 { flex: 1; min-width: 260px; }
+
+.ent-filter-select-wrapper {
+    min-width: 150px;
+}
+
+.ent-filter-select-wrapper .ent-filter-select {
+    height: 2.625rem;
+    background-color: var(--surface);
+    border: 1px solid #CBD5E1;
+    border-radius: var(--radius-sm);
+    padding: 0 2rem 0 0.875rem;
+    font-size: 0.84375rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    width: 100%;
+    transition: border-color var(--transition-fast);
+}
+
+.ent-filter-select-wrapper .ent-filter-select:focus {
+    border-color: var(--primary);
+}
+
+/* Status Pills - Soft & Restrained */
+.ent-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78125rem;
+    font-weight: 500;
+    padding: 0.2rem 0.65rem;
+    border-radius: 9999px;
+    white-space: nowrap;
+}
+
+.ent-status-pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.ent-status-pill--active {
+    background-color: #F0FDF4;
+    color: #15803D;
+    border: 1px solid #DCFCE7;
+}
+.ent-status-pill--active .dot {
+    background-color: #16A34A;
+}
+
+.ent-status-pill--draft {
+    background-color: #F8FAFC;
+    color: #64748B;
+    border: 1px solid #E2E8F0;
+}
+.ent-status-pill--draft .dot {
+    background-color: #94A3B8;
+}
+
+.ent-status-pill--closed {
+    background-color: #FEF2F2;
+    color: #B91C1C;
+    border: 1px solid #FEE2E2;
+}
+.ent-status-pill--closed .dot {
+    background-color: #EF4444;
+}
+
+/* Table Design & Row Spacing */
+.ent-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ent-table th {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 0.875rem 1.25rem;
+    background-color: #F8FAFC;
+    border-bottom: 1px solid #E2E8F0;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.ent-table td {
+    padding: 1.125rem 1.25rem;
+    border-bottom: 1px solid #F1F5F9;
+    vertical-align: middle;
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--text-primary);
+}
+
+.ent-table tbody tr {
+    transition: background-color var(--transition-fast);
+}
+
+.ent-table tbody tr:hover {
+    background-color: #FAFAFA;
+}
+
+.ent-post-title-link {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+    display: block;
+    transition: color var(--transition-fast);
+}
+
+.ent-post-title-link:hover {
+    color: var(--primary);
+}
+
+.ent-post-submeta {
+    font-size: 0.78125rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-top: 0.3rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.ent-applicant-count-text {
+    font-size: 0.84375rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+/* Action Area Redesign [Xem ứng viên] [⋯] */
+.ent-table-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.ent-btn-view-applicants {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-sm);
+    height: 2.125rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+.ent-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.ent-dropdown-toggle {
+    height: 2.125rem;
+    width: 2.125rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.125rem;
+    line-height: 1;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    cursor: pointer;
+}
+
+.ent-dropdown-toggle:hover {
+    color: var(--text-primary);
+    border-color: #CBD5E1;
+}
+
+.ent-dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+    min-width: 140px;
+    z-index: 100;
+    display: none;
+    padding: 0.35rem 0;
+}
+
+.ent-dropdown.is-open .ent-dropdown-menu {
+    display: block;
+}
+
+.ent-dropdown-item {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    box-sizing: border-box;
+    transition: background-color var(--transition-fast);
+}
+
+.ent-dropdown-item:hover {
+    background-color: var(--background);
+    color: var(--primary);
+}
+
+/* Form Styles (create.php) */
+.ent-form-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1.125rem;
+}
+
+.col-12 { grid-column: span 12; }
+.col-md-6 { grid-column: span 6; }
+
+.ent-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.ent-form-label {
+    font-size: 0.84375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ent-form-label.required::after {
+    content: ' *';
+    color: var(--danger);
+}
+
+.ent-form-input, .ent-form-select, .ent-form-textarea {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    background-color: var(--surface);
+    border: 1.5px solid #CBD5E1;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color var(--transition-fast);
+}
+
+.ent-form-input:focus, .ent-form-select:focus, .ent-form-textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+}
+
+/* Refined Skill Picker Component (Clean & Scannable UX) */
+.ent-skill-picker-card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+/* 1. Selected Skills Area */
+.ent-skill-selected-area {
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 0.875rem;
+    margin-bottom: 1.375rem; /* ~22px vertical gap to Kỹ năng chuyên môn */
+}
+
+.ent-skill-area-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+.ent-skill-area-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+.btn-clear-all-skills {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+    transition: color var(--transition-fast);
+}
+.btn-clear-all-skills:hover {
+    color: #ef4444;
+}
+
+.ent-skill-tags-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.625rem; /* 10px chip gap */
+    align-items: center;
+}
+
+.ent-skill-empty-tip {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Selected Skill Tags */
+.skill-tag--removable {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    background-color: var(--primary-light);
+    color: var(--primary);
+    border: 1px solid rgba(249, 115, 22, 0.25);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 0.25rem 0.6rem;
+    line-height: 1.3;
+    transition: all var(--transition-fast);
+}
+
+.skill-tag--removable:hover {
+    border-color: var(--primary);
+}
+
+.remove-skill-btn {
+    background: transparent;
+    border: none;
+    color: currentColor;
+    font-size: 1rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    margin-left: 0.125rem;
+    opacity: 0.75;
+    transition: opacity var(--transition-fast);
+}
+.remove-skill-btn:hover {
+    opacity: 1;
+}
+
+/* 2 & 3. Skill Section Blocks (Clear 20–24px vertical separation) */
+.ent-skill-block {
+    position: relative;
+    margin-bottom: 1.375rem; /* 22px vertical separation between groups */
+}
+
+.ent-skill-block:last-of-type {
+    margin-bottom: 1.375rem;
+}
+
+.ent-skill-block-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-bottom: 0.5625rem; /* 9px gap between text and skill buttons */
+}
+
+.ent-skill-block-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 0;
+    line-height: 1.3;
+    text-align: left;
+}
+
+.ent-skill-block-subtitle {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.3;
+    text-align: left;
+}
+
+/* Suggestion Chip Cloud (10–12px row & column gap) */
+.ent-chip-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.625rem 0.75rem; /* 10px vertical row gap, 12px horizontal column gap */
+    align-items: center;
+}
+
+.ent-chip-pill {
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+    min-height: 2.125rem; /* Consistent 34px chip height */
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+.ent-chip-pill:hover {
+    background-color: var(--surface);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.ent-chip-pill.is-selected {
+    background-color: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.ent-chip-pill .chip-check {
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+/* 4. Search Box & Dropdown Integration */
+.ent-skill-search-wrapper {
+    position: relative;
+    margin-top: 1.375rem; /* 22px spacing before search field */
+    padding-top: 1.125rem;
+    border-top: 1px solid var(--border);
+}
+
+.ent-skill-search-box {
+    display: flex;
+    align-items: center;
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.375rem 0.75rem;
+    transition: all var(--transition-fast);
+}
+
+.ent-skill-search-box:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+}
+
+.ent-skill-search-box svg {
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-right: 0.5rem;
+}
+
+.ent-skill-search-input {
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 0.8125rem;
+    color: var(--text-main);
+    width: 100%;
+}
+
+.ent-skill-search-input::placeholder {
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+}
+
+.btn-add-custom-skill {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.65rem;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition-fast);
+}
+
+.btn-add-custom-skill:hover {
+    background-color: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+}
+
+.ent-skill-search-results {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    z-index: 50;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.ent-skill-search-item {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--text-main);
+}
+
+.ent-skill-search-item:hover {
+    background-color: var(--background);
+}
+
+.ent-form-actions-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+
+/* Responsive Media Queries for Internship Module */
+@media (max-width: 1023.98px) {
+    .ent-internship-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 767.98px) {
+    .ent-internship-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .col-md-6 {
+        grid-column: span 12;
+    }
+
+    .ent-internship-filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ent-filter-select-wrapper {
+        width: 100%;
+    }
+
+    /* Stacked Card Layout for Mobile */
+    .ent-table thead {
+        display: none;
+    }
+
+    .ent-table, .ent-table tbody, .ent-table tr, .ent-table td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .ent-table tbody tr {
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        margin-bottom: 1rem;
+        padding: 1.125rem;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+    }
+
+    .ent-table td {
+        padding: 0.4rem 0;
+        border-bottom: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .ent-table td:first-child {
+        display: block;
+        padding-top: 0;
+        padding-bottom: 0.625rem;
+        border-bottom: 1px solid #F1F5F9;
+        margin-bottom: 0.5rem;
+    }
+
+    .ent-table td:last-child {
+        padding-top: 0.75rem;
+        margin-top: 0.5rem;
+        border-top: 1px solid #F1F5F9;
+        justify-content: flex-end;
+    }
+}
+
+@media (max-width: 480px) {
+    .ent-internship-metrics-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==========================================================================
+   15. APPLICANT MANAGEMENT MODULE STYLES ("QUẢN LÝ ỨNG VIÊN")
+   ========================================================================== */
+
+/* Responsive Containers: Desktop Table vs Mobile Cards */
+.ent-desktop-table-container {
+    display: block;
+}
+.ent-mobile-cards-container {
+    display: none;
+}
+
+@media (max-width: 767.98px) {
+    .ent-desktop-table-container {
+        display: none !important;
+    }
+    .ent-mobile-cards-container {
+        display: block !important;
+    }
+}
+
+/* Page Header & Breadcrumbs */
+.ent-page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0F172A;
+    margin: 0.5rem 0 1rem 0;
+    line-height: 1.2;
+}
+
+.ent-back-bar {
+    margin-bottom: 0.75rem;
+}
+
+.ent-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.ent-back-link:hover {
+    color: var(--primary);
+}
+
+/* Internship Context Card */
+.ent-applicant-context-card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.125rem 1.35rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+}
+
+.ent-applicant-context-card__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #0F172A;
+    margin: 0;
+}
+
+.ent-applicant-context-card__meta {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: #64748B;
+    margin-top: 0.25rem;
+}
+
+.ent-applicant-count-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background-color: rgba(249, 115, 22, 0.08);
+    color: var(--primary);
+    border: 1px solid rgba(249, 115, 22, 0.2);
+}
+
+/* Status Pipeline Filter Tabs */
+.ent-pipeline-tabs-wrapper {
+    background-color: var(--surface);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.25rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.ent-pipeline-nav {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.ent-pipeline-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.75rem 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #64748B;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ent-pipeline-tab:hover {
+    color: #0F172A;
+}
+
+.ent-pipeline-tab.is-active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
+}
+
+.ent-pipeline-tab__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #F1F5F9;
+    color: #64748B;
+}
+
+.ent-pipeline-tab.is-active .ent-pipeline-tab__count {
+    background-color: rgba(249, 115, 22, 0.12);
+    color: var(--primary);
+}
+
+/* Toolbar Controls */
+.ent-search-toolbar {
+    margin-bottom: 1.25rem;
+}
+
+.ent-search-toolbar .ent-internship-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: nowrap;
+}
+
+.ent-search-toolbar .ent-search-input,
+.ent-search-toolbar .ent-filter-select {
+    height: 38px;
+    font-size: 0.875rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    box-sizing: border-box;
+}
+
+.ent-search-toolbar .ent-search-input-wrapper {
+    flex: 1;
+    min-width: 240px;
+}
+
+.ent-search-toolbar .ent-filter-select-wrapper {
+    width: auto;
+    min-width: 150px;
+}
+
+/* Table Styling */
+.ent-applicant-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+.ent-applicant-table th {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #475569;
+    background-color: #F8FAFC;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.ent-applicant-table td {
+    padding: 0.875rem 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #F1F5F9;
+    font-size: 0.875rem;
+    color: #0F172A;
+}
+
+.ent-applicant-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary) 0%, #EA580C 100%);
+    color: #FFFFFF;
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.ent-applicant-info__name {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #0F172A;
+    text-decoration: none;
+    transition: color 0.15s ease;
+    display: block;
+    line-height: 1.3;
+}
+
+.ent-applicant-info__name:hover {
+    color: var(--primary);
+}
+
+.ent-applicant-info__sub {
+    font-size: 0.78125rem;
+    font-weight: 400;
+    color: #64748B;
+    margin-top: 0.15rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Compact Skill Chips */
+.ent-skill-tag-compact {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 0.5rem;
+    background-color: #F1F5F9;
+    color: #475569;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-right: 0.35rem;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+}
+
+.ent-skill-tag-compact--more {
+    background-color: #E2E8F0;
+    color: #334155;
+    font-weight: 600;
+}
+
+/* Match Score Tag (Single Line) */
+.ent-job-match-tag {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.78125rem;
+    font-weight: 600;
+    background-color: #FFF7ED;
+    color: #C2410C;
+    border: 1px solid #FED7AA;
+}
+
+.ent-job-match-tag--medium {
+    background-color: #EFF6FF;
+    color: #1D4ED8;
+    border-color: #BFDBFE;
+}
+
+.ent-job-match-tag--low {
+    background-color: #F8FAFC;
+    color: #64748B;
+    border-color: #E2E8F0;
+}
+
+/* Applicant Status Pills */
+.ent-app-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ent-app-status-pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.ent-app-status-pill--new {
+    background-color: #EFF6FF;
+    color: #1D4ED8;
+    border: 1px solid #BFDBFE;
+}
+.ent-app-status-pill--new .dot { background-color: #2563EB; }
+
+.ent-app-status-pill--reviewing {
+    background-color: #FEF3C7;
+    color: #B45309;
+    border: 1px solid #FDE68A;
+}
+.ent-app-status-pill--reviewing .dot { background-color: #F59E0B; }
+
+.ent-app-status-pill--interviewing {
+    background-color: #F3E8FF;
+    color: #6B21A8;
+    border: 1px solid #E9D5FF;
+}
+.ent-app-status-pill--interviewing .dot { background-color: #9333EA; }
+
+.ent-app-status-pill--accepted {
+    background-color: #DCFCE7;
+    color: #15803D;
+    border: 1px solid #BBF7D0;
+}
+.ent-app-status-pill--accepted .dot { background-color: #16A34A; }
+
+.ent-app-status-pill--rejected {
+    background-color: #FEE2E2;
+    color: #B91C1C;
+    border: 1px solid #FCA5A5;
+}
+.ent-app-status-pill--rejected .dot { background-color: #DC2626; }
+
+/* Action Button Group Alignment */
+.ent-action-group {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    white-space: nowrap;
+}
+
+.ent-action-group .btn-sm {
+    height: 30px;
+    padding: 0 0.65rem;
+    font-size: 0.78125rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    border-radius: var(--radius-sm);
+}
+
+/* Dropdown Menu styling */
+.ent-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.ent-dropdown-toggle {
+    padding: 0 0.5rem !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+}
+
+.ent-dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+    min-width: 170px;
+    z-index: 100;
+    display: none;
+    padding: 0.35rem 0;
+}
+
+.ent-dropdown.is-active .ent-dropdown-menu {
+    display: block;
+}
+
+.ent-dropdown-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.8125rem;
+    color: #334155;
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.ent-dropdown-item:hover {
+    background-color: #F1F5F9;
+    color: #0F172A;
+}
+
+/* Drawer Component Styles */
+.ent-drawer-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(3px);
+    z-index: 1040;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.ent-drawer-backdrop.is-open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.ent-drawer-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 520px;
+    background-color: #FFFFFF;
+    z-index: 1050;
+    box-shadow: -4px 0 24px rgba(15, 23, 42, 0.15);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ent-drawer-backdrop.is-open .ent-drawer-panel {
+    transform: translateX(0);
+}
+
+.ent-drawer-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #FAFAFA;
+}
+
+.ent-drawer-header__title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #0F172A;
+    margin: 0;
+}
+
+.ent-drawer-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+}
+
+.ent-drawer-close:hover {
+    color: #0F172A;
+    background-color: #E2E8F0;
+}
+
+.ent-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+}
+
+.ent-drawer-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border);
+    background-color: #FAFAFA;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.ent-status-select-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.ent-status-radio-card {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background-color: var(--surface);
+}
+
+.ent-status-radio-card input[type="radio"] {
+    accent-color: var(--primary);
+}
+
+.ent-status-radio-card:hover {
+    border-color: #CBD5E1;
+    background-color: #F8FAFC;
+}
+
+.ent-status-radio-card.is-selected {
+    border-color: var(--primary);
+    background-color: var(--primary-light);
+    color: var(--primary);
+}
+
+/* Lightbox Modal for CV View */
+.ent-cv-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1060;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.ent-cv-modal.is-open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.ent-cv-modal-content {
+    background: #FFFFFF;
+    border-radius: var(--radius-md);
+    width: 100%;
+    max-width: 780px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+}
+
+.ent-cv-modal-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #F8FAFC;
+}
+
+.ent-cv-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    background-color: #F1F5F9;
+}
+
+.ent-cv-paper-preview {
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: var(--radius-sm);
+    padding: 2.5rem 2rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    max-width: 680px;
+    margin: 0 auto;
+    font-family: inherit;
+}
+
+/* Mobile Card Custom Styles */
+.ent-applicant-mobile-card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    margin-bottom: 0.875rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.ent-applicant-mobile-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.ent-applicant-mobile-card__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed #E2E8F0;
+}
+
+
+
 
 

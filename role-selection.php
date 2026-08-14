@@ -16,7 +16,7 @@ $roles = [
         'title' => 'Học sinh / Sinh viên',
         'description' => 'Khám phá năng khiếu, xây dựng hồ sơ năng lực và tham gia hoạt động.',
         'cta' => 'Vào khu vực này',
-        'route' => '/app/learner',
+        'route' => 'app/learner/index.php',
         'is_popular' => true,
         'badge' => 'Phổ biến nhất',
         'icon_type' => 'student'
@@ -26,7 +26,7 @@ $roles = [
         'title' => 'Giáo viên / HLV',
         'description' => 'Quản lý hoạt động, theo dõi và đánh giá năng lực người học.',
         'cta' => 'Vào khu vực này',
-        'route' => '/app/teacher',
+        'route' => 'app/teacher/index.php',
         'is_popular' => false,
         'icon_type' => 'teacher'
     ],
@@ -35,7 +35,7 @@ $roles = [
         'title' => 'Nhà trường',
         'description' => 'Theo dõi năng lực, lớp học, phân tích và báo cáo toàn trường.',
         'cta' => 'Vào khu vực này',
-        'route' => '/app/school',
+        'route' => 'app/school/index.php',
         'is_popular' => false,
         'icon_type' => 'school'
     ],

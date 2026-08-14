@@ -2,20 +2,15 @@
 /**
  * TalentHub - Public Home Page
  * Entry point for public visitors (Students, Teachers, Schools, Enterprises).
- * 
- * Note for Junior Developers:
- * - This file contains lightweight PHP + HTML5 structure.
- * - Shared CSS design tokens are defined in assets/css/home.css
- * - Dynamic statistics and smooth scrolling logic are in assets/js/home.js
+ * Impeccable Craft Redesign (Editorial Hierarchy & Asymmetric Layouts)
  */
 
-// Core Modules Data (Currently 6 identified modules out of 8 total core modules)
-// To add Module 7 & 8 in the future, simply append them to this array!
+// Core Modules Data
 $modules = [
     [
         'id' => '01',
         'title' => 'Hồ sơ năng lực',
-        'subtitle' => 'Talent Passport',
+        'subtitle' => 'Talent Passport 360°',
         'description' => 'Lưu trữ và chứng nhận toàn bộ quá trình học tập, năng khiếu, giải thưởng và chứng chỉ của học sinh dưới dạng 360°.',
         'features' => ['Số hóa thành tích 360°', 'Xác thực chứng chỉ số', 'Chia sẻ hồ sơ linh hoạt'],
         'icon_type' => 'passport'
@@ -38,7 +33,7 @@ $modules = [
     ],
     [
         'id' => '04',
-        'title' => 'Check-in QR',
+        'title' => 'Check-in QR Smart',
         'subtitle' => 'Smart QR Check-in',
         'description' => 'Điểm danh và xác thực tham gia sự kiện, hoạt động nhanh chóng qua mã QR Code chuẩn xác, bảo mật.',
         'features' => ['Điểm danh tức thì < 1s', 'Tự động lưu lịch sử', 'Chống gian lận chuyên nghiệp'],
@@ -46,8 +41,8 @@ $modules = [
     ],
     [
         'id' => '05',
-        'title' => 'AI đánh giá',
-        'subtitle' => 'AI Analytics & Insights',
+        'title' => 'AI Analytics & Insights',
+        'subtitle' => 'AI Intelligence',
         'description' => 'Trí tuệ nhân tạo phân tích lộ trình phát triển, đưa ra gợi ý học tập và dự báo tiềm năng đột phá.',
         'features' => ['Báo cáo xu hướng tiến bộ', 'Dự báo tiềm năng tương lai', 'Khuyên học tập thông minh'],
         'icon_type' => 'ai'
@@ -55,7 +50,7 @@ $modules = [
     [
         'id' => '06',
         'title' => 'Dashboard Nhà trường',
-        'subtitle' => 'School Dashboard',
+        'subtitle' => 'School Command Center',
         'description' => 'Báo cáo trực quan dành cho ban giám hiệu để theo dõi, thống kê hoạt động toàn trường minh bạch.',
         'features' => ['Thống kê phong trào toàn trường', 'Xuất báo cáo định kỳ', 'Quản lý phân quyền hệ thống'],
         'icon_type' => 'dashboard'
@@ -69,48 +64,56 @@ $audiences = [
         'title' => 'Học sinh / Sinh viên',
         'subtitle' => 'Khai phá tiềm năng & Định hướng tương lai',
         'icon_class' => 'student',
+        'badge' => 'Dành cho thế hệ trẻ',
         'description' => 'Xây dựng Hồ sơ Năng lực 360°, tham gia các sân chơi tài năng uy tín và mở rộng cơ hội học bổng & việc làm từ các doanh nghiệp hàng đầu.',
         'benefits' => [
             'Lưu giữ trọn vẹn lịch sử thành tích và chứng chỉ số',
             'Nhận phân tích và gợi ý phát triển từ công cụ AI',
             'Tiếp cận cơ hội học bổng và kết nối nhà tuyển dụng sớm'
-        ]
+        ],
+        'cta_text' => 'Bắt đầu tạo Hồ sơ Năng lực'
     ],
     [
         'role' => 'teacher',
         'title' => 'Giáo viên / HLV',
         'subtitle' => 'Đồng hành & Quản lý phát triển học viên',
         'icon_class' => 'teacher',
+        'badge' => 'Dành cho nhà giáo',
         'description' => 'Quản lý lớp học và các câu lạc bộ tài năng, theo dõi tiến bộ khoa học, ghi nhận thành tích và lập kế hoạch giảng dạy cá nhân hóa.',
         'benefits' => [
             'Theo dõi sát sao tiến độ phát triển của từng học viên',
             'Đánh giá năng khiếu và kỹ năng dựa trên dữ liệu thực tế',
             'Tiết kiệm thời gian lập báo cáo và quản lý danh sách'
-        ]
+        ],
+        'cta_text' => 'Khám phá công cụ Quản lý Lớp'
     ],
     [
         'role' => 'school',
         'title' => 'Nhà trường',
         'subtitle' => 'Số hóa quản lý & Nâng cao uy tín giáo dục',
         'icon_class' => 'school',
+        'badge' => 'Dành cho Ban Giám hiệu',
         'description' => 'Số hóa công tác quản lý hoạt động ngoại khóa, tự động hóa điểm danh QR, tổng hợp báo cáo minh bạch và khẳng định chất lượng đào tạo.',
         'benefits' => [
             'Quản lý tập trung toàn bộ phong trào ngoại khóa & CLB',
             'Tự động hóa điểm danh QR Code nhanh chóng và chuẩn xác',
             'Tổng hợp báo cáo số liệu hỗ trợ công tác kiểm định chất lượng'
-        ]
+        ],
+        'cta_text' => 'Đăng ký Giải pháp cho Nhà trường'
     ],
     [
         'role' => 'enterprise',
         'title' => 'Doanh nghiệp',
         'subtitle' => 'Kết nối tài năng trẻ & Tuyển dụng sớm',
         'icon_class' => 'enterprise',
+        'badge' => 'Dành cho Nhà tuyển dụng',
         'description' => 'Tiếp cận nguồn nhân lực tài năng trẻ ngay từ sớm, tài trợ các cuộc thi/sân chơi phát triển và đánh giá ứng viên qua dữ liệu thực tế.',
         'benefits' => [
             'Tiếp cận và thu hút nhân tài phù hợp ngay từ ghế nhà trường',
             'Đồng hành xây dựng thương hiệu tuyển dụng qua các sân chơi',
             'Đánh giá năng lực ứng viên chính xác qua hồ sơ 360°'
-        ]
+        ],
+        'cta_text' => 'Truy cập Enterprise Dashboard'
     ]
 ];
 ?>
@@ -145,20 +148,18 @@ $audiences = [
             <!-- Navigation Links (Desktop) -->
             <nav class="site-nav" aria-label="Điều hướng chính">
                 <a href="#hero" class="site-nav__link">Về TalentHub</a>
-                <a href="#modules" class="site-nav__link">Tính năng</a>
-                <a href="#audiences" class="site-nav__link">Đối tượng</a>
                 <a href="#statistics" class="site-nav__link">Thống kê</a>
+                <a href="#modules" class="site-nav__link">Tính năng (8 Modules)</a>
+                <a href="#audiences" class="site-nav__link">Đối tượng</a>
             </nav>
 
             <!-- Header Actions -->
             <div class="site-header__actions">
-                <!-- TODO: Replace temporary href="login.php" once authentication system is built -->
                 <a href="login.php" class="btn btn-secondary site-header__login-btn" data-cta="login">
                     Đăng nhập
                 </a>
                 
-                <!-- TODO: Replace temporary href="role-selection.php" once Role Selection page is ready -->
-                <a href="role-selection.php" class="btn btn-primary site-header__app-btn" data-cta="app">
+                <a href="/role-selection.php" class="btn btn-primary site-header__app-btn" data-cta="app">
                     Vào app
                     <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -166,7 +167,7 @@ $audiences = [
                 </a>
 
                 <!-- Mobile Hamburger Toggle -->
-                <button class="site-header__mobile-toggle" aria-label="Mở menu điều hướng" aria-controls="mobile-menu" aria-expanded="false">
+                <button class="site-header__mobile-toggle" id="mobile-toggle-btn" aria-label="Mở menu điều hướng" aria-controls="mobile-menu" aria-expanded="false">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="3" y1="12" x2="21" y2="12" class="hamburger-line line-top"></line>
                         <line x1="3" y1="6" x2="21" y2="6" class="hamburger-line line-mid"></line>
@@ -180,15 +181,13 @@ $audiences = [
         <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
             <nav class="mobile-menu__nav" aria-label="Điều hướng di động">
                 <a href="#hero" class="mobile-menu__link">Về TalentHub</a>
-                <a href="#modules" class="mobile-menu__link">Tính năng</a>
-                <a href="#audiences" class="mobile-menu__link">Đối tượng</a>
                 <a href="#statistics" class="mobile-menu__link">Thống kê</a>
+                <a href="#modules" class="mobile-menu__link">Tính năng (8 Modules)</a>
+                <a href="#audiences" class="mobile-menu__link">Đối tượng</a>
                 
                 <div class="mobile-menu__actions">
-                    <!-- TODO: Temporary route for authentication module -->
                     <a href="login.php" class="btn btn-secondary mobile-menu__btn" data-cta="login">Đăng nhập</a>
-                    <!-- TODO: Temporary route for role selection page -->
-                    <a href="role-selection.php" class="btn btn-primary mobile-menu__btn" data-cta="app">
+                    <a href="/role-selection.php" class="btn btn-primary mobile-menu__btn" data-cta="app">
                         Vào app
                         <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -201,7 +200,7 @@ $audiences = [
 
     <main>
         <!-- ================================================================
-             2. Hero Section
+             2. Hero Section (Editorial 2-Column + Product Window Canvas)
              ================================================================ -->
         <section class="hero-section" id="hero">
             <div class="container">
@@ -209,7 +208,7 @@ $audiences = [
                     <!-- Left Content -->
                     <div class="hero-content">
                         <div class="hero-badge">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <path d="M12 8v4l3 3"></path>
                             </svg>
@@ -222,7 +221,7 @@ $audiences = [
                             TalentHub giúp học sinh ghi nhận hồ sơ năng lực 360°, kết nối nhà trường, giáo viên và doanh nghiệp nhằm định hướng và tối ưu hóa tiềm năng của thế hệ trẻ.
                         </p>
                         <div class="hero-cta-group">
-                            <a href="role-selection.php" class="btn btn-primary" data-cta="app">
+                            <a href="/role-selection.php" class="btn btn-primary" data-cta="app">
                                 Trải nghiệm ngay
                                 <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -237,80 +236,66 @@ $audiences = [
                         </div>
                     </div>
 
-                    <!-- Right Visual Interactive Graphic -->
+                    <!-- Right Showcase UI Window Frame -->
                     <div class="hero-visual">
-                        <!-- Floating Badge 1 -->
-                        <div class="hero-floating-badge badge-top-right">
-                            <div class="floating-icon icon-orange">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                                </svg>
+                        <div class="hero-window-frame">
+                            <!-- Window Control Bar -->
+                            <div class="window-bar">
+                                <div class="window-dots">
+                                    <span class="dot red"></span>
+                                    <span class="dot yellow"></span>
+                                    <span class="dot green"></span>
+                                </div>
+                                <div class="window-address-bar">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                    talenthub.vn/passport/TH-882910
+                                </div>
+                                <span class="window-tag">Live UI</span>
                             </div>
-                            <div class="floating-text">
-                                <p>Hồ sơ Năng lực</p>
-                                <strong>Xác thực 360°</strong>
-                            </div>
-                        </div>
 
-                        <!-- Main Showcase Card -->
-                        <div class="hero-visual-card">
-                            <div class="hero-preview-header">
-                                <div class="user-profile-preview">
-                                    <div class="avatar-placeholder">TH</div>
-                                    <div class="user-info">
-                                        <h4>Hồ sơ Học viên Tài năng</h4>
-                                        <p>Mã ID: #TH-882910</p>
+                            <!-- Showcase Content Inside Window -->
+                            <div class="window-content">
+                                <div class="hero-preview-header">
+                                    <div class="user-profile-preview">
+                                        <div class="avatar-placeholder">TH</div>
+                                        <div class="user-info">
+                                            <h4>Hồ sơ Học viên Tài năng</h4>
+                                            <p>Mã ID: #TH-882910</p>
+                                        </div>
+                                    </div>
+                                    <div class="status-chip">
+                                        <span class="status-dot"></span> Đã xác thực AI
                                     </div>
                                 </div>
-                                <div class="status-chip">
-                                    <span class="status-dot"></span> Đã xác thực AI
-                                </div>
-                            </div>
 
-                            <div class="talent-metric-grid">
-                                <div class="metric-box">
-                                    <label>Chỉ số Năng khiếu</label>
-                                    <div class="val accent">98.5 / 100</div>
+                                <div class="talent-metric-grid">
+                                    <div class="metric-box">
+                                        <label>Chỉ số Năng khiếu</label>
+                                        <div class="val accent">98.5 / 100</div>
+                                    </div>
+                                    <div class="metric-box">
+                                        <label>Hoạt động & Giải thưởng</label>
+                                        <div class="val">24 Huy chương</div>
+                                    </div>
+                                    <div class="metric-box">
+                                        <label>Điểm danh QR</label>
+                                        <div class="val">100% Chính xác</div>
+                                    </div>
+                                    <div class="metric-box">
+                                        <label>Kết nối Doanh nghiệp</label>
+                                        <div class="val accent">Top 5% Xuất sắc</div>
+                                    </div>
                                 </div>
-                                <div class="metric-box">
-                                    <label>Hoạt động & Giải thưởng</label>
-                                    <div class="val">24 Huy chương</div>
-                                </div>
-                                <div class="metric-box">
-                                    <label>Điểm danh QR</label>
-                                    <div class="val">100% Chính xác</div>
-                                </div>
-                                <div class="metric-box">
-                                    <label>Kết nối Doanh nghiệp</label>
-                                    <div class="val accent">Top 5% Xuất sắc</div>
-                                </div>
-                            </div>
 
-                            <!-- Interactive Progress Bar -->
-                            <div style="background-color: var(--background); padding: 0.875rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
-                                <div style="display: flex; justify-content: space-between; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.5rem;">
-                                    <span>Lộ trình Học bổng Doanh nghiệp</span>
-                                    <span style="color: var(--primary);">85% Hoàn thành</span>
+                                <div class="hero-progress-box">
+                                    <div class="hero-progress-info">
+                                        <span>Lộ trình Học bổng Doanh nghiệp</span>
+                                        <span class="hero-progress-percent">85% Hoàn thành</span>
+                                    </div>
+                                    <div class="hero-progress-track">
+                                        <div class="hero-progress-fill"></div>
+                                    </div>
                                 </div>
-                                <div style="width: 100%; height: 8px; background-color: var(--border); border-radius: var(--radius-full); overflow: hidden;">
-                                    <div style="width: 85%; height: 100%; background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%); border-radius: var(--radius-full);"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Floating Badge 2 -->
-                        <div class="hero-floating-badge badge-bottom-left">
-                            <div class="floating-icon icon-blue">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect x="3" y="3" width="7" height="7"></rect>
-                                    <rect x="14" y="3" width="7" height="7"></rect>
-                                    <rect x="14" y="14" width="7" height="7"></rect>
-                                    <rect x="3" y="14" width="7" height="7"></rect>
-                                </svg>
-                            </div>
-                            <div class="floating-text">
-                                <p>Check-in QR</p>
-                                <strong>Điểm danh < 1s</strong>
                             </div>
                         </div>
                     </div>
@@ -319,75 +304,52 @@ $audiences = [
         </section>
 
         <!-- ================================================================
-             3. Platform Statistics Section (#statistics)
+             3. Platform Statistics Section (#statistics - Editorial Split Layout)
              ================================================================ -->
         <section class="stats-section section-padding" id="statistics">
             <div class="container">
-                <div class="section-header">
-                    <span class="section-tag">Thống kê Nền tảng</span>
-                    <h2 class="section-title">Những Con Số Ấn Tượng</h2>
-                    <p class="section-description">
-                        Minh chứng thực tế cho quy mô kết nối và giá trị mà TalentHub mang lại cho cộng đồng giáo dục.
-                    </p>
-                </div>
-
-                <!-- 
-                    Note for Junior Developers:
-                    Values below use temporary mock data. When API is ready, JS in assets/js/home.js
-                    can update `data-target` attributes dynamically.
-                -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon-wrapper">
-                            <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
-                                <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
-                            </svg>
-                        </div>
-                        <div class="stat-number" data-target="50000" data-suffix="+">50,000+</div>
-                        <div class="stat-label">Học sinh / Sinh viên</div>
+                <div class="stats-split-container">
+                    <!-- Left Editorial Intro -->
+                    <div class="stats-editorial-left">
+                        <span class="section-tag">Thống kê Nền tảng</span>
+                        <h2 class="section-title">Những Con Số Ấn Tượng</h2>
+                        <p class="section-description">
+                            Minh chứng thực tế cho quy mô kết nối và giá trị mà TalentHub mang lại cho cộng đồng giáo dục.
+                        </p>
                     </div>
 
-                    <div class="stat-card">
-                        <div class="stat-icon-wrapper">
-                            <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                            </svg>
+                    <!-- Right High-Contrast Metric Numbers -->
+                    <div class="stats-strip">
+                        <div class="stat-col">
+                            <div class="stat-number" data-target="50000" data-suffix="+">50,000+</div>
+                            <div class="stat-label">Học sinh / Sinh viên</div>
+                            <div class="stat-sub">Đã tạo Passport 360°</div>
                         </div>
-                        <div class="stat-number" data-target="150" data-suffix="+">150+</div>
-                        <div class="stat-label">Nhà trường đồng hành</div>
-                    </div>
 
-                    <div class="stat-card">
-                        <div class="stat-icon-wrapper">
-                            <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                <line x1="16" y1="2" x2="16" y2="6"></line>
-                                <line x1="8" y1="2" x2="8" y2="6"></line>
-                                <line x1="3" y1="10" x2="21" y2="10"></line>
-                            </svg>
+                        <div class="stat-col">
+                            <div class="stat-number" data-target="150" data-suffix="+">150+</div>
+                            <div class="stat-label">Nhà trường đồng hành</div>
+                            <div class="stat-sub">THPT, Cao đẳng & ĐH</div>
                         </div>
-                        <div class="stat-number" data-target="500" data-suffix="+">500+</div>
-                        <div class="stat-label">Hoạt động / Tháng</div>
-                    </div>
 
-                    <div class="stat-card">
-                        <div class="stat-icon-wrapper">
-                            <svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                            </svg>
+                        <div class="stat-col">
+                            <div class="stat-number" data-target="500" data-suffix="+">500+</div>
+                            <div class="stat-label">Hoạt động / Tháng</div>
+                            <div class="stat-sub">Sự kiện & Sân chơi</div>
                         </div>
-                        <div class="stat-number" data-target="80" data-suffix="+">80+</div>
-                        <div class="stat-label">Doanh nghiệp liên kết</div>
+
+                        <div class="stat-col">
+                            <div class="stat-number" data-target="80" data-suffix="+">80+</div>
+                            <div class="stat-label">Doanh nghiệp liên kết</div>
+                            <div class="stat-sub">Tuyển dụng & Tài trợ</div>
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- ================================================================
-             4. Core Modules Section (#modules)
+             4. Core Modules Section (#modules - Asymmetric Bento Grid)
              ================================================================ -->
         <section class="modules-section section-padding" id="modules">
             <div class="container">
@@ -399,9 +361,16 @@ $audiences = [
                     </p>
                 </div>
 
-                <div class="modules-grid">
-                    <?php foreach ($modules as $mod): ?>
-                        <article class="module-card">
+                <!-- Bento Grid Layout -->
+                <div class="bento-grid">
+                    <?php foreach ($modules as $index => $mod): 
+                        $bentoClass = 'bento-card';
+                        if ($mod['id'] === '01') $bentoClass .= ' bento-card--hero';
+                        if ($mod['id'] === '04') $bentoClass .= ' bento-card--highlight';
+                        if ($mod['id'] === '05') $bentoClass .= ' bento-card--ai';
+                        if ($mod['id'] === '06') $bentoClass .= ' bento-card--wide';
+                    ?>
+                        <article class="<?= $bentoClass; ?>">
                             <div class="module-header">
                                 <div class="module-icon-box">
                                     <?php if ($mod['icon_type'] === 'passport'): ?>
@@ -454,26 +423,29 @@ $audiences = [
                                 <span class="module-tag">Module <?= htmlspecialchars($mod['id']); ?></span>
                             </div>
 
-                            <h3 class="module-title"><?= htmlspecialchars($mod['title']); ?></h3>
-                            <p class="module-description"><?= htmlspecialchars($mod['description']); ?></p>
+                            <div class="bento-card-body">
+                                <h3 class="module-title"><?= htmlspecialchars($mod['title']); ?></h3>
+                                <div class="module-subtitle"><?= htmlspecialchars($mod['subtitle']); ?></div>
+                                <p class="module-description"><?= htmlspecialchars($mod['description']); ?></p>
 
-                            <div class="module-features">
-                                <?php foreach ($mod['features'] as $feat): ?>
-                                    <div class="module-feature-item">
-                                        <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                            <polyline points="20 6 9 17 4 12"></polyline>
-                                        </svg>
-                                        <span><?= htmlspecialchars($feat); ?></span>
-                                    </div>
-                                <?php endforeach; ?>
+                                <div class="module-features">
+                                    <?php foreach ($mod['features'] as $feat): ?>
+                                        <div class="module-feature-item">
+                                            <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                            <span><?= htmlspecialchars($feat); ?></span>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
                             </div>
 
-                            <span class="module-footer-link">
+                            <a href="/role-selection.php" class="module-footer-link">
                                 Trải nghiệm module
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M5 12h14M12 5l7 7-7 7"/>
                                 </svg>
-                            </span>
+                            </a>
                         </article>
                     <?php endforeach; ?>
 
@@ -488,7 +460,7 @@ $audiences = [
                                 Đội ngũ TalentHub đang phát triển và hoàn thiện 2 module tiếp theo nhằm mở rộng thêm khả năng định hướng sự nghiệp và kết nối quỹ tài trợ chuyên sâu.
                             </p>
                         </div>
-                        <a href="role-selection.php" class="btn btn-primary" data-cta="app" style="white-space: nowrap;">
+                        <a href="/role-selection.php" class="btn btn-primary expansion-btn" data-cta="app">
                             Đăng ký nhận thông báo
                         </a>
                     </div>
@@ -497,7 +469,7 @@ $audiences = [
         </section>
 
         <!-- ================================================================
-             5. Target Audiences Section (#audiences)
+             5. Target Audiences Section (#audiences - Interactive Role Tabs)
              ================================================================ -->
         <section class="audiences-section section-padding" id="audiences">
             <div class="container">
@@ -509,54 +481,67 @@ $audiences = [
                     </p>
                 </div>
 
-                <div class="audiences-grid">
-                    <?php foreach ($audiences as $aud): ?>
-                        <article class="audience-card">
-                            <div class="audience-top">
+                <!-- Interactive Audience Role Showcase Panel -->
+                <div class="audience-showcase">
+                    <!-- Left Vertical Tab Selector -->
+                    <div class="audience-tabs" role="tablist" aria-label="Danh mục đối tượng">
+                        <?php foreach ($audiences as $idx => $aud): ?>
+                            <button class="audience-tab-btn <?= $idx === 0 ? 'is-active' : ''; ?>" 
+                                    data-target="role-panel-<?= htmlspecialchars($aud['role']); ?>"
+                                    role="tab" 
+                                    aria-selected="<?= $idx === 0 ? 'true' : 'false'; ?>">
                                 <div class="audience-icon <?= htmlspecialchars($aud['icon_class']); ?>">
                                     <?php if ($aud['role'] === 'student'): ?>
-                                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
-                                            <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
-                                        </svg>
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
                                     <?php elseif ($aud['role'] === 'teacher'): ?>
-                                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                            <circle cx="9" cy="7" r="4"></circle>
-                                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                                        </svg>
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                                     <?php elseif ($aud['role'] === 'school'): ?>
-                                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M3 21h18"></path>
-                                            <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"></path>
-                                            <path d="M9 10h2v2H9zM13 10h2v2h-2zM9 14h2v2H9zM13 14h2v2h-2z"></path>
-                                        </svg>
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"></path><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"></path><path d="M9 10h2v2H9zM13 10h2v2h-2zM9 14h2v2H9zM13 14h2v2h-2z"></path></svg>
                                     <?php else: ?>
-                                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                                            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                                        </svg>
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
                                     <?php endif; ?>
                                 </div>
-                                <div class="audience-title-box">
-                                    <h3><?= htmlspecialchars($aud['title']); ?></h3>
-                                    <span class="audience-subtitle"><?= htmlspecialchars($aud['subtitle']); ?></span>
+                                <div class="tab-label">
+                                    <div class="tab-title"><?= htmlspecialchars($aud['title']); ?></div>
+                                    <div class="tab-subtitle"><?= htmlspecialchars($aud['subtitle']); ?></div>
                                 </div>
-                            </div>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
 
-                            <p class="audience-description"><?= htmlspecialchars($aud['description']); ?></p>
+                    <!-- Right Dynamic Audience Panel -->
+                    <div class="audience-panels">
+                        <?php foreach ($audiences as $idx => $aud): ?>
+                            <article class="audience-panel <?= $idx === 0 ? 'is-active' : ''; ?>" 
+                                     id="role-panel-<?= htmlspecialchars($aud['role']); ?>"
+                                     role="tabpanel">
+                                <div class="panel-header">
+                                    <span class="panel-badge"><?= htmlspecialchars($aud['badge']); ?></span>
+                                    <h3 class="panel-title"><?= htmlspecialchars($aud['title']); ?></h3>
+                                    <p class="panel-description"><?= htmlspecialchars($aud['description']); ?></p>
+                                </div>
 
-                            <div class="audience-benefits">
-                                <?php foreach ($aud['benefits'] as $benefit): ?>
-                                    <div class="benefit-item">
-                                        <span class="benefit-bullet"></span>
-                                        <span><?= htmlspecialchars($benefit); ?></span>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </article>
-                    <?php endforeach; ?>
+                                <div class="panel-benefits">
+                                    <div class="benefits-title">Lợi ích vượt trội dành cho bạn:</div>
+                                    <ul>
+                                        <?php foreach ($aud['benefits'] as $benefit): ?>
+                                            <li class="benefit-row">
+                                                <svg class="benefit-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                <span><?= htmlspecialchars($benefit); ?></span>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                </div>
+
+                                <div class="panel-footer">
+                                    <a href="/role-selection.php" class="btn btn-primary" data-cta="app">
+                                        <?= htmlspecialchars($aud['cta_text']); ?>
+                                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                                    </a>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
         </section>
@@ -572,7 +557,7 @@ $audiences = [
                         Gia nhập nền tảng ngay hôm nay để khai phá tiềm năng, xây dựng hồ sơ năng lực 360° và kết nối hàng ngàn cơ hội phát triển đột phá.
                     </p>
                     <div class="cta-buttons">
-                        <a href="role-selection.php" class="btn btn-white" data-cta="app">
+                        <a href="/role-selection.php" class="btn btn-white" data-cta="app">
                             Trải nghiệm ngay
                             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -597,7 +582,7 @@ $audiences = [
                 <div class="footer-brand">
                     <a href="#hero" class="brand-logo" aria-label="Trang chủ TalentHub">
                         <div class="brand-icon">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                             </svg>
                         </div>
@@ -613,9 +598,9 @@ $audiences = [
                     <h4 class="footer-title">Khám Phá</h4>
                     <ul class="footer-links">
                         <li><a href="#hero">Về TalentHub</a></li>
+                        <li><a href="#statistics">Thống kê nền tảng</a></li>
                         <li><a href="#modules">8 Module hệ thống</a></li>
                         <li><a href="#audiences">Đối tượng người dùng</a></li>
-                        <li><a href="#statistics">Thống kê nền tảng</a></li>
                     </ul>
                 </div>
 

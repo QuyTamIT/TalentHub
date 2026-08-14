@@ -24,26 +24,20 @@
         <div class="ent-sidebar__subtitle">Khu vực Doanh nghiệp</div>
     </div>
 
-    <!-- Company Badge Box -->
-    <div class="ent-sidebar__company">
-        <div class="ent-sidebar__company-avatar">
-            <?= htmlspecialchars($enterpriseInfo['logo_initials']); ?>
-        </div>
-        <div class="ent-sidebar__company-info">
-            <h4><?= htmlspecialchars($enterpriseInfo['company_name']); ?></h4>
-            <span class="ent-sidebar__badge"><?= htmlspecialchars($enterpriseInfo['account_type']); ?></span>
-        </div>
-    </div>
-
     <!-- Navigation List -->
     <nav class="ent-sidebar__nav" aria-label="Điều hướng Doanh nghiệp">
         <div class="ent-sidebar__nav-title">QUẢN LÝ DOANH NGHIỆP</div>
         <ul>
             <?php foreach ($sidebarNav as $navItem): 
                 $isActive = (isset($currentRoute) && ($navItem['route'] === $currentRoute || strpos($currentRoute, strtok($navItem['route'], '.')) === 0 && $navItem['route'] !== '/app/enterprise')) || (!isset($currentRoute) && $navItem['active']);
+                
+                $hrefRoute = $navItem['route'];
+                if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/TalentHub') !== false && strpos($hrefRoute, '/TalentHub') === false && strpos($hrefRoute, '/') === 0) {
+                    $hrefRoute = '/TalentHub' . $hrefRoute;
+                }
             ?>
                 <li>
-                    <a href="<?= htmlspecialchars($navItem['route']); ?>" 
+                    <a href="<?= htmlspecialchars($hrefRoute); ?>" 
                        class="ent-sidebar__link <?= $isActive ? 'is-active' : ''; ?>"
                        data-route="<?= htmlspecialchars($navItem['route']); ?>">
                         
@@ -87,7 +81,7 @@
 
     <!-- Bottom Action to Return to Role Selection -->
     <div class="ent-sidebar__footer">
-        <a href="../../role-selection.php" class="ent-sidebar__link ent-sidebar__link--switch">
+        <a href="/role-selection.php" class="ent-sidebar__link ent-sidebar__link--switch">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M16 17l5-5-5-5M19.8 12H9M13 22a10 10 0 1 1 0-20"></path>
             </svg>
