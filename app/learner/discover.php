@@ -12,6 +12,14 @@ $assessmentLabels = [
     'start' => 'Bắt đầu bài test',
 ];
 $hollandDefinition = learner_assessment_definition('holland');
+$hollandQuestions = $hollandDefinition === null ? [] : learner_assessment_questions((string) $hollandDefinition['id']);
+$hollandReady = $hollandDefinition !== null
+    && \TalentHub\Learner\Data\ReadModel\AssessmentReadModel::isHollandReady($hollandQuestions);
+$hollandBootData = $hollandDefinition === null ? null : [
+    'student_id' => learner_current_student_id(),
+    'assessment_id' => $hollandDefinition['id'],
+    'result_url' => 'assessment-result.php?id=holland',
+];
 
 $radarCenterX = 260;
 $radarCenterY = 180;
@@ -70,8 +78,10 @@ $radarPolygon = implode(' ', array_map(
                 <section class="learner-assessment-grid" aria-label="Các bài đánh giá năng khiếu">
                     <?php foreach ($assessments as $assessment): ?>
                         <article class="learner-card learner-assessment-card" data-assessment-card="<?= learner_escape($assessment['id']); ?>" data-state="<?= learner_escape($assessment['state']); ?>">
-                            <span class="learner-assessment-card__status <?= $assessment['id'] === 'holland' ? 'is-experimental' : 'is-coming-soon'; ?>">
-                                <?= $assessment['id'] === 'holland' ? 'Bản thử nghiệm' : 'Sắp triển khai'; ?>
+                            <span class="learner-assessment-card__status <?= $assessment['id'] === 'holland' && $hollandReady ? 'is-experimental' : 'is-coming-soon'; ?>">
+                                <?= $assessment['id'] === 'holland'
+                                    ? ($hollandReady ? 'Bản thử nghiệm' : 'Bài test chưa sẵn sàng')
+                                    : 'Sắp triển khai'; ?>
                             </span>
                             <span class="learner-assessment-card__icon learner-icon-tile learner-icon-tile--<?= learner_escape($assessment['tone']); ?>"><?= learner_icon($assessment['icon'], 28); ?></span>
                             <h2><?= learner_escape($assessment['name']); ?></h2>
@@ -84,8 +94,10 @@ $radarPolygon = implode(' ', array_map(
                                     </div>
                                 </div>
                             <?php endif; ?>
-                            <?php if ($assessment['id'] === 'holland'): ?>
+                            <?php if ($assessment['id'] === 'holland' && $hollandReady): ?>
                                 <a class="learner-btn learner-btn--primary learner-btn--block" href="assessment.php?id=holland">Mở bài test Holland</a>
+                            <?php elseif ($assessment['id'] === 'holland'): ?>
+                                <button class="learner-btn learner-btn--secondary learner-btn--block" type="button" disabled>Bài test chưa sẵn sàng</button>
                             <?php else: ?>
                                 <button
                                     class="learner-btn <?= $assessment['state'] === 'start' ? 'learner-btn--primary' : 'learner-btn--secondary'; ?> learner-btn--block"
@@ -203,6 +215,7 @@ $radarPolygon = implode(' ', array_map(
         </div>
     </div>
 
+    <?php if ($hollandBootData): ?><script id="learner-assessment-discover-boot" type="application/json"><?= json_encode($hollandBootData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script><?php endif; ?>
     <script src="../../assets/js/learner.js"></script>
     <script src="../../assets/js/learner-assessment.js"></script>
 </body>

@@ -7,13 +7,16 @@ require_once __DIR__ . '/includes/assessment-data.php';
 $assessmentId = $_GET['id'] ?? 'holland';
 $definition = learner_assessment_definition($assessmentId);
 $questions = learner_assessment_questions($assessmentId);
+$isReady = $definition !== null
+    && \TalentHub\Learner\Data\ReadModel\AssessmentReadModel::isHollandReady($questions);
 $pageTitle = 'Bài test Holland';
 $currentRoute = '/app/learner/discover.php';
 $bootData = $definition ? [
-    'student' => ['id' => 'student-demo-001', 'name' => $student['name']],
+    'student' => ['id' => learner_current_student_id(), 'name' => $student['name']],
     'definition' => $definition,
     'questions' => $questions,
-    'result_url' => 'assessment-result.php?id=' . rawurlencode($assessmentId),
+    'available' => $isReady,
+    'result_url' => 'assessment-result.php?id=holland',
 ] : null;
 ?>
 <!DOCTYPE html>
@@ -42,6 +45,13 @@ $bootData = $definition ? [
                         <p>Bài đánh giá chưa được công bố hoặc liên kết không hợp lệ.</p>
                         <a class="learner-btn learner-btn--primary" href="discover.php">Quay lại khám phá</a>
                     </section>
+                <?php elseif (!$isReady): ?>
+                    <div class="learner-assessment-shell" data-assessment-runner>
+                        <section class="learner-card learner-assessment-state learner-assessment-state--error" data-assessment-error>
+                            <?= learner_icon('info', 32); ?><h1>Bài test chưa sẵn sàng</h1>
+                            <p data-assessment-error-message>Bộ câu hỏi phải có đúng 24 câu với nội dung, phương án và dimension RIASEC hợp lệ.</p>
+                        </section>
+                    </div>
                 <?php else: ?>
                     <div class="learner-assessment-shell" data-assessment-runner>
                         <section class="learner-card learner-assessment-state" data-assessment-loading>
@@ -51,7 +61,7 @@ $bootData = $definition ? [
                         </section>
 
                         <section class="learner-card learner-assessment-state learner-assessment-state--error" data-assessment-error hidden>
-                            <?= learner_icon('info', 32); ?><h1>Không thể mở bài test</h1>
+                            <?= learner_icon('info', 32); ?><h1>Bài test chưa sẵn sàng</h1>
                             <p data-assessment-error-message>Dữ liệu bài test chưa hợp lệ. Vui lòng thử lại.</p>
                             <button class="learner-btn learner-btn--primary" type="button" data-assessment-retry>Thử lại</button>
                         </section>

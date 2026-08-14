@@ -4,9 +4,52 @@
 
     const DEFAULT_STORAGE_KEY = 'talenthub.learner.assessments.v1';
     const SCHEMA_VERSION = 1;
+    const HOLLAND_DIMENSIONS = ['R', 'I', 'A', 'S', 'E', 'C'];
+
+    function normalizeQuestionOptions(options) {
+        if (!Array.isArray(options)) return [];
+        return options.flatMap((option) => {
+            if (typeof option === 'number' || (typeof option === 'string' && option.trim() !== '' && Number.isFinite(Number(option)))) {
+                return [{ value: Number(option), label: String(option) }];
+            }
+            if (!option || typeof option !== 'object' || Array.isArray(option)) return [];
+            const value = Number(option.value);
+            const label = String(option.label ?? option.value ?? '').trim();
+            if (!Number.isFinite(value) || label === '') return [];
+            return [{ value, label }];
+        });
+    }
+
+    function hasValidHollandOptions(options) {
+        const values = options.map((option) => Number(option.value)).sort((left, right) => left - right);
+        return options.length === 5
+            && options.every((option) => Number.isFinite(Number(option.value))
+                && String(option.label || '').trim() !== '')
+            && values.every((value, index) => value === index + 1);
+    }
+
+    function validateHollandAssessment(questions) {
+        const normalized = Array.isArray(questions) ? questions.map((question) => ({
+            ...question,
+            dimension: typeof question?.dimension === 'string' ? question.dimension.trim().toUpperCase() : '',
+            prompt: String(question?.prompt ?? '').trim(),
+            options: normalizeQuestionOptions(question?.options),
+        })) : [];
+        const ids = new Set(normalized.map((question) => String(question?.id ?? '').trim()));
+        const dimensionCounts = Object.fromEntries(HOLLAND_DIMENSIONS.map((dimension) => [dimension, 0]));
+        normalized.forEach((question) => {
+            if (HOLLAND_DIMENSIONS.includes(question.dimension)) dimensionCounts[question.dimension] += 1;
+        });
+        const available = normalized.length === 24 && ids.size === 24 && !ids.has('')
+            && normalized.every((question) => question.prompt !== ''
+                && HOLLAND_DIMENSIONS.includes(question.dimension)
+                && hasValidHollandOptions(question.options))
+            && HOLLAND_DIMENSIONS.every((dimension) => dimensionCounts[dimension] === 4);
+        return { available, questions: normalized };
+    }
 
     function scoreHolland(questions, answers) {
-        const dimensions = ['R', 'I', 'A', 'S', 'E', 'C'];
+        const dimensions = HOLLAND_DIMENSIONS;
         const totals = Object.fromEntries(dimensions.map((dimension) => [dimension, 0]));
         const counts = Object.fromEntries(dimensions.map((dimension) => [dimension, 0]));
         questions.forEach((question) => {
@@ -106,7 +149,8 @@
     }
 
     function canSubmitAttempt(questions, attempt) {
-        return attempt?.status === 'in_progress'
+        return validateHollandAssessment(questions).available
+            && attempt?.status === 'in_progress'
             && getUnansweredQuestionIds(questions, attempt.answers).length === 0;
     }
 
@@ -134,14 +178,43 @@
         };
     }
 
+    function hasValidHollandResult(result) {
+        if (!result || typeof result !== 'object' || Array.isArray(result)) return false;
+        const code = String(result.code || '').trim().toUpperCase();
+        const primary = String(result.primary_dimension || '').trim().toUpperCase();
+        const scores = result.scores;
+        if (!/^[RIASEC]{1,6}$/.test(code) || !HOLLAND_DIMENSIONS.includes(primary)
+            || !scores || typeof scores !== 'object' || Array.isArray(scores)
+            || !Object.prototype.hasOwnProperty.call(scores, primary)) return false;
+        const entries = Object.entries(scores);
+        return entries.length === HOLLAND_DIMENSIONS.length
+            && entries.every(([dimension, score]) => HOLLAND_DIMENSIONS.includes(dimension)
+            && Number.isFinite(Number(score)));
+    }
+
+    function isCompletedAttempt(attempt) {
+        return ['submitted', 'completed'].includes(attempt?.status)
+            && hasValidHollandResult(attempt?.result);
+    }
+
+    function filterCompletedAttempts(attempts, studentId, assessmentId) {
+        return (attempts || []).filter((attempt) => attempt.student_id === studentId
+            && attempt.assessment_id === assessmentId
+            && isCompletedAttempt(attempt));
+    }
+
     function mergeAssessmentHistory(mockHistory, localHistory) {
         const byId = new Map();
-        [...(mockHistory || []), ...(localHistory || [])].forEach((attempt) => byId.set(attempt.id, attempt));
+        [...(mockHistory || []), ...(localHistory || [])]
+            .filter(isCompletedAttempt)
+            .forEach((attempt) => byId.set(attempt.id, attempt));
         return Array.from(byId.values()).sort((left, right) => String(right.submitted_at || '')
             .localeCompare(String(left.submitted_at || '')));
     }
 
     global.LearnerAssessment = {
+        normalizeQuestionOptions,
+        validateHollandAssessment,
         scoreHolland,
         getUnansweredQuestionIds,
         getRemainingSeconds,
@@ -150,6 +223,7 @@
         canSubmitAttempt,
         answerAttempt,
         submitAttempt,
+        filterCompletedAttempts,
         mergeAssessmentHistory,
     };
 
@@ -167,6 +241,8 @@
 
         if (runnerRoot) {
             const boot = parseBoot('learner-assessment-boot');
+            const validation = validateHollandAssessment(boot?.questions);
+            if (boot) boot.questions = validation.questions;
             const loading = runnerRoot.querySelector('[data-assessment-loading]');
             const errorState = runnerRoot.querySelector('[data-assessment-error]');
             const errorMessage = runnerRoot.querySelector('[data-assessment-error-message]');
@@ -270,8 +346,8 @@
             };
 
             global.setTimeout(() => {
-                if (!boot?.definition || !Array.isArray(boot.questions) || boot.questions.length !== 24) {
-                    fail('Bộ câu hỏi Holland không đầy đủ hoặc sai phiên bản.');
+                if (!boot?.definition || !validation.available) {
+                    fail('Bài test chưa sẵn sàng');
                     return;
                 }
                 try {
@@ -343,12 +419,17 @@
             const boot = parseBoot('learner-assessment-result-boot');
             if (!boot) return;
             const storage = createAssessmentStorage();
-            const localHistory = storage.getAttempts().filter((attempt) => attempt.student_id === boot.student_id
-                && attempt.assessment_id === boot.assessment_id && attempt.status === 'submitted');
+            const localHistory = filterCompletedAttempts(
+                storage.getAttempts(),
+                boot.student_id,
+                boot.assessment_id
+            );
             const history = mergeAssessmentHistory(boot.mock_history, localHistory);
             const requestedAttemptId = new URLSearchParams(global.location.search).get('attempt');
             const current = history.find((attempt) => attempt.id === requestedAttemptId) || history[0];
             if (!current?.result) return;
+            setHidden(resultRoot.querySelector('[data-assessment-result-empty]'), true);
+            setHidden(resultRoot.querySelector('[data-assessment-result-content]'), false);
             const dimension = boot.dimensions[current.result.primary_dimension];
             const code = resultRoot.querySelector('[data-result-code]');
             const name = resultRoot.querySelector('[data-result-primary-name]');
@@ -382,16 +463,22 @@
 
         const latestHolland = document.querySelector('[data-holland-latest]');
         if (latestHolland) {
+            const boot = parseBoot('learner-assessment-discover-boot');
+            if (!boot?.student_id || !boot?.assessment_id) return;
             const storage = createAssessmentStorage();
-            const latest = storage.getLatestAttempt('student-demo-001', 'holland', ['submitted']);
-            if (latest?.result) {
+            const latest = filterCompletedAttempts(
+                storage.getAttempts(),
+                boot.student_id,
+                boot.assessment_id
+            ).sort((left, right) => String(right.submitted_at || '').localeCompare(String(left.submitted_at || '')))[0];
+            if (latest) {
                 latestHolland.hidden = false;
                 const code = latestHolland.querySelector('[data-holland-latest-code]');
                 const date = latestHolland.querySelector('[data-holland-latest-date]');
                 const link = latestHolland.querySelector('[data-holland-latest-link]');
                 if (code) code.textContent = latest.result.code;
                 if (date) date.textContent = `Hoàn thành lúc ${new Date(latest.submitted_at).toLocaleString('vi-VN')}.`;
-                if (link) link.href = `assessment-result.php?id=holland&attempt=${encodeURIComponent(latest.id)}`;
+                if (link) link.href = `${boot.result_url}&attempt=${encodeURIComponent(latest.id)}`;
             }
         }
     });

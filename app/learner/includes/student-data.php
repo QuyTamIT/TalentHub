@@ -6,6 +6,8 @@
  * introduced. Keep presentation concerns out of this file.
  */
 
+require_once dirname(__DIR__) . '/data/bootstrap.php';
+
 if (!function_exists('learner_escape')) {
     function learner_escape(mixed $value): string
     {
@@ -13,7 +15,12 @@ if (!function_exists('learner_escape')) {
     }
 }
 
-$student = [
+$studentMock = [
+    'id' => 'student-demo-001',
+    'school_id' => 'school-demo-nguyen-du',
+    'class_id' => 'class-demo-11a2',
+    'user_id' => 'user-demo-nguyen-van-a',
+    'study_status' => 'active',
     'name' => 'Nguyễn Văn A',
     'initials' => 'A',
     'class' => 'Lớp 11A2',
@@ -24,6 +31,10 @@ $student = [
     'streak_days' => 7,
     'experience_hours' => 64,
 ];
+$studentRecord = learner_repository_factory()
+    ->student([$studentMock])
+    ->findById(learner_current_student_id());
+$student = \TalentHub\Learner\Data\ReadModel\StudentReadModel::fromRecord($studentRecord ?? []);
 $learnerNav = [
     ['label' => 'Tổng quan', 'route' => '/app/learner/index.php', 'icon' => 'grid', 'implemented' => true],
     ['label' => 'Hồ sơ năng lực', 'route' => '/app/learner/profile.php', 'icon' => 'user', 'implemented' => true],
