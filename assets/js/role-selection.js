@@ -62,13 +62,13 @@ function selectCard(selectedCard) {
  * Handles navigation to destination module or displays fallback feedback if module isn't created yet.
  */
 function handleRoleNavigation(route, roleName) {
-    // Learner and Enterprise modules are available and navigate directly.
-    if (route.includes('learner') || route.includes('enterprise')) {
+    // Learner, Enterprise and School modules are available and navigate directly.
+    if (route.includes('learner') || route.includes('enterprise') || route.includes('school')) {
         window.location.href = route;
         return;
     }
 
-    // Teacher and School modules are pending future tasks.
+    // Teacher module is pending future tasks.
     showRoleToast(`Khu vực ${roleName} đang được phát triển! (${route})`);
 }
 
