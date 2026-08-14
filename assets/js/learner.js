@@ -17,6 +17,13 @@
         '/app/learner/ai-recommendations.php',
         '/app/learner/badges.php',
         '/app/learner/statistics.php',
+        '/app/learner/ecosystem.php',
+        '/app/learner/partner.php',
+        '/app/learner/opportunity.php',
+        '/app/learner/assessment.php',
+        '/app/learner/assessment-result.php',
+        '/app/learner/activity-detail.php',
+        '/app/learner/my-activities.php',
     ]);
 
     function validateProfile(data) {
@@ -109,6 +116,50 @@
         ]);
     }
 
+    function ecosystemItemMatches(item, filters = {}) {
+        const query = normalizeSearchText(filters.query || '');
+        const field = normalizeSearchText(filters.field || 'all');
+        const location = normalizeSearchText(filters.location || 'all');
+        const search = normalizeSearchText(item?.search || '');
+        const itemField = normalizeSearchText(item?.field || '');
+        const itemLocation = normalizeSearchText(item?.location || '');
+
+        return (!query || search.includes(query))
+            && (field === 'all' || itemField.includes(field))
+            && (location === 'all' || itemLocation.includes(location));
+    }
+
+    function applicationMatches(application, query, status) {
+        const normalizedStatus = status || 'all';
+        return (normalizedStatus === 'all' || application?.status === normalizedStatus)
+            && normalizeSearchText(application?.search || '').includes(normalizeSearchText(query));
+    }
+
+    function canApplyToOpportunity(opportunity, today) {
+        if (!opportunity || opportunity.status !== 'active') return false;
+        const currentDate = today || new Date().toISOString().slice(0, 10);
+        return String(opportunity.deadline || '') >= currentDate;
+    }
+
+    function validateApplication(data) {
+        const message = String(data?.message || '');
+        if (message.length > 300) {
+            return {
+                valid: false,
+                field: 'message',
+                message: 'Lời nhắn không được vượt quá 300 ký tự.',
+            };
+        }
+        if (data?.consent !== true) {
+            return {
+                valid: false,
+                field: 'consent',
+                message: 'Bạn cần đồng ý chia sẻ hồ sơ trước khi ứng tuyển.',
+            };
+        }
+        return { valid: true, field: '', message: '' };
+    }
+
     global.LearnerUI = {
         validateProfile,
         nextAssessmentState,
@@ -120,6 +171,10 @@
         badgeMatchesStatus,
         getStatisticsPeriod,
         buildLineChartPoints,
+        ecosystemItemMatches,
+        applicationMatches,
+        canApplyToOpportunity,
+        validateApplication,
     };
 
     if (typeof document === 'undefined') return;
@@ -268,6 +323,170 @@
 
         document.querySelectorAll('[data-close-modal]').forEach((trigger) => {
             trigger.addEventListener('click', () => closeModal(trigger.closest('.learner-modal')));
+        });
+
+        const ecosystemPage = document.querySelector('[data-ecosystem-page]');
+        if (ecosystemPage) {
+            const ecosystemTabs = Array.from(document.querySelectorAll('[data-ecosystem-tab]'));
+            const ecosystemPanels = Array.from(document.querySelectorAll('[data-ecosystem-panel]'));
+            const ecosystemSearch = document.querySelector('[data-ecosystem-search]');
+            const headerEcosystemSearch = document.getElementById('learner-search-input');
+            const ecosystemFilters = Array.from(document.querySelectorAll('[data-ecosystem-filter]'));
+
+            const updateEcosystemResults = () => {
+                const activePanel = ecosystemPanels.find((panel) => !panel.hidden);
+                if (!activePanel) return;
+
+                const filters = ecosystemFilters.reduce((result, select) => {
+                    result[select.dataset.ecosystemFilter] = select.value;
+                    return result;
+                }, {
+                    query: ecosystemSearch?.value || headerEcosystemSearch?.value || '',
+                });
+                filters.query = ecosystemSearch?.value || headerEcosystemSearch?.value || '';
+
+                let visibleCount = 0;
+                activePanel.querySelectorAll('[data-ecosystem-item]').forEach((card) => {
+                    const visible = ecosystemItemMatches({
+                        search: card.dataset.search,
+                        field: card.dataset.field,
+                        location: card.dataset.location,
+                    }, filters);
+                    card.hidden = !visible;
+                    if (visible) visibleCount += 1;
+                });
+
+                const emptyState = activePanel.querySelector('[data-ecosystem-empty]');
+                if (emptyState) emptyState.hidden = visibleCount !== 0;
+            };
+
+            const activateEcosystemTab = (tabId, focusTab = false) => {
+                const nextTab = ecosystemTabs.find((tab) => tab.dataset.ecosystemTab === tabId)
+                    || ecosystemTabs[0];
+                ecosystemTabs.forEach((tab) => {
+                    const selected = tab === nextTab;
+                    tab.setAttribute('aria-selected', String(selected));
+                    tab.tabIndex = selected ? 0 : -1;
+                });
+                ecosystemPanels.forEach((panel) => {
+                    panel.hidden = panel.dataset.ecosystemPanel !== nextTab.dataset.ecosystemTab;
+                });
+                const nextUrl = new URL(global.location.href);
+                nextUrl.searchParams.set('tab', nextTab.dataset.ecosystemTab);
+                global.history.replaceState({}, '', nextUrl);
+                updateEcosystemResults();
+                if (focusTab) nextTab.focus();
+            };
+
+            ecosystemTabs.forEach((tab, index) => {
+                tab.addEventListener('click', () => activateEcosystemTab(tab.dataset.ecosystemTab));
+                tab.addEventListener('keydown', (event) => {
+                    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+                    event.preventDefault();
+                    const direction = event.key === 'ArrowRight' ? 1 : -1;
+                    const nextIndex = (index + direction + ecosystemTabs.length) % ecosystemTabs.length;
+                    activateEcosystemTab(ecosystemTabs[nextIndex].dataset.ecosystemTab, true);
+                });
+            });
+            ecosystemFilters.forEach((select) => select.addEventListener('change', updateEcosystemResults));
+            ecosystemSearch?.addEventListener('input', () => {
+                if (headerEcosystemSearch) headerEcosystemSearch.value = ecosystemSearch.value;
+                updateEcosystemResults();
+            });
+            headerEcosystemSearch?.addEventListener('input', () => {
+                if (ecosystemSearch) ecosystemSearch.value = headerEcosystemSearch.value;
+                updateEcosystemResults();
+            });
+            activateEcosystemTab(ecosystemPage.dataset.initialTab || 'enterprises');
+        }
+
+        const applicationItems = Array.from(document.querySelectorAll('[data-application-item]'));
+        const applicationSearch = document.querySelector('[data-application-search]');
+        const applicationFilters = Array.from(document.querySelectorAll('[data-application-filter]'));
+        let activeApplicationStatus = 'all';
+
+        const updateApplications = () => {
+            let visibleCount = 0;
+            applicationItems.forEach((item) => {
+                const visible = applicationMatches({
+                    search: item.dataset.search,
+                    status: item.dataset.status,
+                }, applicationSearch?.value || '', activeApplicationStatus);
+                item.hidden = !visible;
+                if (visible) visibleCount += 1;
+            });
+            const empty = document.querySelector('[data-application-empty]');
+            if (empty) empty.hidden = visibleCount !== 0;
+        };
+
+        applicationSearch?.addEventListener('input', updateApplications);
+        applicationFilters.forEach((button) => {
+            button.addEventListener('click', () => {
+                activeApplicationStatus = button.dataset.applicationFilter || 'all';
+                applicationFilters.forEach((filter) => {
+                    filter.setAttribute('aria-pressed', String(filter === button));
+                });
+                updateApplications();
+            });
+        });
+        applicationItems.forEach((item) => {
+            const toggle = item.querySelector('[data-application-toggle]');
+            const details = item.querySelector('[data-application-details]');
+            toggle?.addEventListener('click', () => {
+                const expanded = toggle.getAttribute('aria-expanded') === 'true';
+                toggle.setAttribute('aria-expanded', String(!expanded));
+                if (details) details.hidden = expanded;
+            });
+            item.querySelector('[data-withdraw-application]')?.addEventListener('click', (event) => {
+                event.currentTarget.remove();
+                item.dataset.status = 'withdrawn';
+                const status = item.querySelector('.learner-application-status');
+                if (status) {
+                    status.className = 'learner-application-status learner-application-status--withdrawn';
+                    status.textContent = 'Đã rút hồ sơ';
+                }
+                showToast('Đã rút hồ sơ trên giao diện demo.', 'warning');
+                updateApplications();
+            });
+        });
+
+        const applicationForm = document.querySelector('[data-application-form]');
+        const applicationMessage = applicationForm?.querySelector('[data-application-message]');
+        const applicationMessageCount = applicationForm?.querySelector('[data-application-message-count]');
+        const applicationError = applicationForm?.querySelector('[data-application-error]');
+        applicationMessage?.addEventListener('input', () => {
+            if (applicationMessageCount) applicationMessageCount.textContent = String(applicationMessage.value.length);
+        });
+        applicationForm?.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const consent = applicationForm.querySelector('[data-application-consent]');
+            const validation = validateApplication({
+                message: applicationMessage?.value || '',
+                consent: consent?.checked === true,
+            });
+            if (!validation.valid) {
+                if (applicationError) {
+                    applicationError.hidden = false;
+                    applicationError.textContent = validation.message;
+                }
+                const target = applicationForm.elements.namedItem(validation.field);
+                target?.focus();
+                return;
+            }
+            if (applicationError) applicationError.hidden = true;
+            closeModal(applicationForm.closest('.learner-modal'));
+            showToast('Hồ sơ ứng tuyển đã được ghi nhận trên giao diện demo.');
+            applicationForm.reset();
+            if (applicationMessageCount) applicationMessageCount.textContent = '0';
+        });
+
+        document.querySelector('[data-save-opportunity]')?.addEventListener('click', (event) => {
+            const button = event.currentTarget;
+            button.classList.toggle('is-saved');
+            button.textContent = button.classList.contains('is-saved')
+                ? 'Đã lưu cơ hội'
+                : 'Lưu cơ hội';
+            showToast(button.classList.contains('is-saved') ? 'Đã lưu cơ hội.' : 'Đã bỏ lưu cơ hội.', 'info');
         });
 
         const activityCards = Array.from(document.querySelectorAll('[data-activity-card]'));

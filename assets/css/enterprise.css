@@ -3530,5 +3530,637 @@ body.ent-sidebar-open {
     }
 }
 
+/* ==========================================================================
+   15. APPLICANT MANAGEMENT MODULE STYLES ("QUẢN LÝ ỨNG VIÊN")
+   ========================================================================== */
+
+/* Responsive Containers: Desktop Table vs Mobile Cards */
+.ent-desktop-table-container {
+    display: block;
+}
+.ent-mobile-cards-container {
+    display: none;
+}
+
+@media (max-width: 767.98px) {
+    .ent-desktop-table-container {
+        display: none !important;
+    }
+    .ent-mobile-cards-container {
+        display: block !important;
+    }
+}
+
+/* Page Header & Breadcrumbs */
+.ent-page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0F172A;
+    margin: 0.5rem 0 1rem 0;
+    line-height: 1.2;
+}
+
+.ent-back-bar {
+    margin-bottom: 0.75rem;
+}
+
+.ent-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.ent-back-link:hover {
+    color: var(--primary);
+}
+
+/* Internship Context Card */
+.ent-applicant-context-card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.125rem 1.35rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+}
+
+.ent-applicant-context-card__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #0F172A;
+    margin: 0;
+}
+
+.ent-applicant-context-card__meta {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: #64748B;
+    margin-top: 0.25rem;
+}
+
+.ent-applicant-count-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background-color: rgba(249, 115, 22, 0.08);
+    color: var(--primary);
+    border: 1px solid rgba(249, 115, 22, 0.2);
+}
+
+/* Status Pipeline Filter Tabs */
+.ent-pipeline-tabs-wrapper {
+    background-color: var(--surface);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.25rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.ent-pipeline-nav {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.ent-pipeline-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.75rem 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #64748B;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ent-pipeline-tab:hover {
+    color: #0F172A;
+}
+
+.ent-pipeline-tab.is-active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
+}
+
+.ent-pipeline-tab__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #F1F5F9;
+    color: #64748B;
+}
+
+.ent-pipeline-tab.is-active .ent-pipeline-tab__count {
+    background-color: rgba(249, 115, 22, 0.12);
+    color: var(--primary);
+}
+
+/* Toolbar Controls */
+.ent-search-toolbar {
+    margin-bottom: 1.25rem;
+}
+
+.ent-search-toolbar .ent-internship-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: nowrap;
+}
+
+.ent-search-toolbar .ent-search-input,
+.ent-search-toolbar .ent-filter-select {
+    height: 38px;
+    font-size: 0.875rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    box-sizing: border-box;
+}
+
+.ent-search-toolbar .ent-search-input-wrapper {
+    flex: 1;
+    min-width: 240px;
+}
+
+.ent-search-toolbar .ent-filter-select-wrapper {
+    width: auto;
+    min-width: 150px;
+}
+
+/* Table Styling */
+.ent-applicant-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+.ent-applicant-table th {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #475569;
+    background-color: #F8FAFC;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.ent-applicant-table td {
+    padding: 0.875rem 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #F1F5F9;
+    font-size: 0.875rem;
+    color: #0F172A;
+}
+
+.ent-applicant-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary) 0%, #EA580C 100%);
+    color: #FFFFFF;
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.ent-applicant-info__name {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #0F172A;
+    text-decoration: none;
+    transition: color 0.15s ease;
+    display: block;
+    line-height: 1.3;
+}
+
+.ent-applicant-info__name:hover {
+    color: var(--primary);
+}
+
+.ent-applicant-info__sub {
+    font-size: 0.78125rem;
+    font-weight: 400;
+    color: #64748B;
+    margin-top: 0.15rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Compact Skill Chips */
+.ent-skill-tag-compact {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 0.5rem;
+    background-color: #F1F5F9;
+    color: #475569;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-right: 0.35rem;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+}
+
+.ent-skill-tag-compact--more {
+    background-color: #E2E8F0;
+    color: #334155;
+    font-weight: 600;
+}
+
+/* Match Score Tag (Single Line) */
+.ent-job-match-tag {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.78125rem;
+    font-weight: 600;
+    background-color: #FFF7ED;
+    color: #C2410C;
+    border: 1px solid #FED7AA;
+}
+
+.ent-job-match-tag--medium {
+    background-color: #EFF6FF;
+    color: #1D4ED8;
+    border-color: #BFDBFE;
+}
+
+.ent-job-match-tag--low {
+    background-color: #F8FAFC;
+    color: #64748B;
+    border-color: #E2E8F0;
+}
+
+/* Applicant Status Pills */
+.ent-app-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ent-app-status-pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.ent-app-status-pill--new {
+    background-color: #EFF6FF;
+    color: #1D4ED8;
+    border: 1px solid #BFDBFE;
+}
+.ent-app-status-pill--new .dot { background-color: #2563EB; }
+
+.ent-app-status-pill--reviewing {
+    background-color: #FEF3C7;
+    color: #B45309;
+    border: 1px solid #FDE68A;
+}
+.ent-app-status-pill--reviewing .dot { background-color: #F59E0B; }
+
+.ent-app-status-pill--interviewing {
+    background-color: #F3E8FF;
+    color: #6B21A8;
+    border: 1px solid #E9D5FF;
+}
+.ent-app-status-pill--interviewing .dot { background-color: #9333EA; }
+
+.ent-app-status-pill--accepted {
+    background-color: #DCFCE7;
+    color: #15803D;
+    border: 1px solid #BBF7D0;
+}
+.ent-app-status-pill--accepted .dot { background-color: #16A34A; }
+
+.ent-app-status-pill--rejected {
+    background-color: #FEE2E2;
+    color: #B91C1C;
+    border: 1px solid #FCA5A5;
+}
+.ent-app-status-pill--rejected .dot { background-color: #DC2626; }
+
+/* Action Button Group Alignment */
+.ent-action-group {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    white-space: nowrap;
+}
+
+.ent-action-group .btn-sm {
+    height: 30px;
+    padding: 0 0.65rem;
+    font-size: 0.78125rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    border-radius: var(--radius-sm);
+}
+
+/* Dropdown Menu styling */
+.ent-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.ent-dropdown-toggle {
+    padding: 0 0.5rem !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+}
+
+.ent-dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+    min-width: 170px;
+    z-index: 100;
+    display: none;
+    padding: 0.35rem 0;
+}
+
+.ent-dropdown.is-active .ent-dropdown-menu {
+    display: block;
+}
+
+.ent-dropdown-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.8125rem;
+    color: #334155;
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.ent-dropdown-item:hover {
+    background-color: #F1F5F9;
+    color: #0F172A;
+}
+
+/* Drawer Component Styles */
+.ent-drawer-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(3px);
+    z-index: 1040;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.ent-drawer-backdrop.is-open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.ent-drawer-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 520px;
+    background-color: #FFFFFF;
+    z-index: 1050;
+    box-shadow: -4px 0 24px rgba(15, 23, 42, 0.15);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ent-drawer-backdrop.is-open .ent-drawer-panel {
+    transform: translateX(0);
+}
+
+.ent-drawer-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #FAFAFA;
+}
+
+.ent-drawer-header__title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #0F172A;
+    margin: 0;
+}
+
+.ent-drawer-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+}
+
+.ent-drawer-close:hover {
+    color: #0F172A;
+    background-color: #E2E8F0;
+}
+
+.ent-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+}
+
+.ent-drawer-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border);
+    background-color: #FAFAFA;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.ent-status-select-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.ent-status-radio-card {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background-color: var(--surface);
+}
+
+.ent-status-radio-card input[type="radio"] {
+    accent-color: var(--primary);
+}
+
+.ent-status-radio-card:hover {
+    border-color: #CBD5E1;
+    background-color: #F8FAFC;
+}
+
+.ent-status-radio-card.is-selected {
+    border-color: var(--primary);
+    background-color: var(--primary-light);
+    color: var(--primary);
+}
+
+/* Lightbox Modal for CV View */
+.ent-cv-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1060;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.ent-cv-modal.is-open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.ent-cv-modal-content {
+    background: #FFFFFF;
+    border-radius: var(--radius-md);
+    width: 100%;
+    max-width: 780px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+}
+
+.ent-cv-modal-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #F8FAFC;
+}
+
+.ent-cv-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    background-color: #F1F5F9;
+}
+
+.ent-cv-paper-preview {
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: var(--radius-sm);
+    padding: 2.5rem 2rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    max-width: 680px;
+    margin: 0 auto;
+    font-family: inherit;
+}
+
+/* Mobile Card Custom Styles */
+.ent-applicant-mobile-card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    margin-bottom: 0.875rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.ent-applicant-mobile-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.ent-applicant-mobile-card__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed #E2E8F0;
+}
+
+
+
 
 

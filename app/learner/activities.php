@@ -2,11 +2,13 @@
 /** TalentHub Learner - Activities catalog */
 require __DIR__ . '/includes/student-data.php';
 require_once __DIR__ . '/includes/icons.php';
+require_once __DIR__ . '/includes/activity-data.php';
 
 $pageTitle = 'Hoạt động';
 $currentRoute = '/app/learner/activities.php';
 $headerSearchLabel = 'Tìm hoạt động';
 $headerSearchPlaceholder = 'Tìm hoạt động...';
+$activityCatalog = learner_activity_catalog();
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -33,6 +35,7 @@ $headerSearchPlaceholder = 'Tìm hoạt động...';
                     </div>
 
                     <div class="learner-filter-list" aria-label="Lọc hoạt động theo lĩnh vực">
+                        <a class="learner-btn learner-btn--outline" href="my-activities.php">Hoạt động của tôi</a>
                         <?php foreach ($activityCategories as $index => $category): ?>
                             <button
                                 class="learner-filter-button"
@@ -67,7 +70,7 @@ $headerSearchPlaceholder = 'Tìm hoạt động...';
                             </span>
                             <h2><?= learner_escape($activity['title']); ?></h2>
                             <div class="learner-catalog-card__meta">
-                                <span><?= learner_icon('clock', 18); ?> <?= learner_escape($activity['time']); ?></span>
+                                <span><?= learner_icon('clock', 18); ?> <?= learner_escape((new DateTimeImmutable($activity['start_at']))->format('d/m/Y · H:i')); ?></span>
                                 <span><?= learner_icon('map-pin', 18); ?> <?= learner_escape($activity['location']); ?></span>
                             </div>
                             <div class="learner-catalog-card__capacity">
@@ -84,14 +87,7 @@ $headerSearchPlaceholder = 'Tìm hoạt động...';
                             >
                                 <span class="learner-progress--<?= learner_escape($activity['tone']); ?>" style="--learner-progress: <?= learner_escape($occupancy); ?>%;"></span>
                             </div>
-                            <button
-                                class="learner-btn learner-btn--primary learner-btn--block"
-                                type="button"
-                                data-activity-register
-                                data-activity-name="<?= learner_escape($activity['title']); ?>"
-                            >
-                                Đăng ký ngay
-                            </button>
+                            <a class="learner-btn learner-btn--primary learner-btn--block" href="activity-detail.php?id=<?= learner_escape($activity['id']); ?>">Xem chi tiết</a>
                         </article>
                     <?php endforeach; ?>
                 </section>
@@ -102,24 +98,6 @@ $headerSearchPlaceholder = 'Tìm hoạt động...';
                     <p>Hãy thử từ khóa khác hoặc chọn lại lĩnh vực “Tất cả”.</p>
                 </section>
             </main>
-        </div>
-    </div>
-
-    <div class="learner-modal" id="learner-registration-modal" role="dialog" aria-modal="true" aria-labelledby="learner-registration-title" hidden>
-        <div class="learner-modal__backdrop" data-close-modal></div>
-        <div class="learner-modal__dialog learner-modal__dialog--compact" tabindex="-1">
-            <div class="learner-modal__header">
-                <div>
-                    <span class="learner-modal__eyebrow">Xác nhận đăng ký</span>
-                    <h2 id="learner-registration-title">Đăng ký hoạt động</h2>
-                </div>
-                <button class="learner-icon-button" type="button" data-close-modal aria-label="Đóng xác nhận đăng ký"><?= learner_icon('x', 22); ?></button>
-            </div>
-            <p class="learner-modal__copy">Bạn muốn đăng ký <strong data-registration-name>hoạt động này</strong>? Trạng thái chỉ được lưu trong phiên giao diện demo.</p>
-            <div class="learner-modal__actions">
-                <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Hủy</button>
-                <button class="learner-btn learner-btn--primary" type="button" data-confirm-registration>Xác nhận đăng ký</button>
-            </div>
         </div>
     </div>
 
