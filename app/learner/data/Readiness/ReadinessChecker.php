@@ -41,8 +41,8 @@ final class ReadinessChecker
         }
 
         $result->addPass('database.connection', 'Shared database connection is available.');
-        $inspector = new SchemaInspector($pdo, (string) $pdo->query('SELECT DATABASE()')->fetchColumn());
         try {
+            $inspector = new SchemaInspector($pdo, (string) $pdo->query('SELECT DATABASE()')->fetchColumn());
             foreach ($definition['tables'] as $table) {
                 if (!$inspector->hasTable($table)) {
                     $result->addFailure('schema.table', "Missing table: {$table}");

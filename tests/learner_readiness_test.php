@@ -81,6 +81,9 @@ readiness_assert($phaseZero->status() === 'READY', 'phase 0 does not invoke data
 $unavailable = $checker->check(1, dirname(__DIR__), static fn (): PDO => throw new RuntimeException('offline'));
 readiness_assert($unavailable->status() === 'BLOCKED', 'shared database outage is blocked');
 readiness_assert($unavailable->exitCode() === 3, 'blocked database returns exit 3');
+$schemaInitializationFailure = $checker->check(1, dirname(__DIR__), static fn (): PDO => new PDO('sqlite::memory:'));
+readiness_assert($schemaInitializationFailure->status() === 'BLOCKED', 'shared schema initialization outage is blocked');
+readiness_assert($schemaInitializationFailure->exitCode() === 3, 'schema initialization outage returns exit 3');
 
 $migrationRunner = new LearnerMigrationRunner($database);
 $migrationRunner->ensureRegistry();
@@ -106,7 +109,12 @@ readiness_assert(
     'phase 1 is READY with a canonical shared database or BLOCKED when the shared database is unavailable'
 );
 $blockedCliPayload = json_decode(implode("\n", $blockedCliOutput), true, 512, JSON_THROW_ON_ERROR);
-readiness_assert($blockedCliPayload['status'] !== 'READY', 'phase 1 without an explicit database is not ready');
+if ($blockedCliExitCode === 0) {
+    readiness_assert($blockedCliPayload['status'] === 'READY', 'canonical shared database makes phase 1 READY');
+} else {
+    readiness_assert($blockedCliExitCode === 3, 'unavailable shared database blocks phase 1');
+    readiness_assert($blockedCliPayload['status'] === 'BLOCKED', 'unavailable shared database reports BLOCKED');
+}
 readiness_assert(!str_contains(json_encode($blockedCliPayload, JSON_THROW_ON_ERROR), 'password='), 'CLI diagnostics do not disclose secrets');
 exec("{$php} {$cli} --phase=0 --format=text 2>&1", $textCliOutput, $textCliExitCode);
 readiness_assert($textCliExitCode === 0, 'phase 0 CLI text format exits READY');
