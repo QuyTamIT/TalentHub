@@ -66,8 +66,9 @@
 }
 
 .spon-metric-label {
-    font-size: 0.8125rem;
-    font-weight: 600;
+    font-size: var(--ent-text-kpi-label);
+    font-weight: var(--ent-text-kpi-label-w);
+    line-height: var(--ent-text-kpi-label-lh);
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -75,15 +76,17 @@
 }
 
 .spon-metric-value {
-    font-size: 1.625rem;
-    font-weight: 800;
+    font-size: var(--ent-text-kpi-val);
+    font-weight: var(--ent-text-kpi-val-w);
+    line-height: var(--ent-text-kpi-val-lh);
     color: var(--text-primary);
-    line-height: 1.2;
     letter-spacing: -0.02em;
 }
 
 .spon-metric-sub {
-    font-size: 0.78125rem;
+    font-size: var(--ent-text-meta);
+    font-weight: var(--ent-text-meta-w);
+    line-height: var(--ent-text-meta-lh);
     color: var(--text-muted);
     margin-top: 0.2rem;
 }

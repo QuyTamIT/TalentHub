@@ -661,6 +661,7 @@ function initTalentSearchModule() {
         cardsContainer.innerHTML = talents.map(talent => {
             const topSkills = talent.skills.slice(0, 4);
             const isSaved = talent.saved;
+            const score = talent.talent_score || talent.match_score;
 
             let statusBadgeClass = 'badge-ready-now';
             if (talent.internship_status === 'ready_1_3m') statusBadgeClass = 'badge-ready-later';
@@ -675,13 +676,19 @@ function initTalentSearchModule() {
                             </div>
                             <div class="ent-talent-card-item__title-box">
                                 <div class="ent-talent-card-item__name-row">
-                                    <h3 class="ent-talent-card-item__name">${escapeHtml(talent.name)}</h3>
-                                    <span class="ent-talent-card-item__score">
-                                        ${talent.talent_score || talent.match_score} điểm
+                                    <a href="/app/enterprise/talents/detail.php?id=${talent.id}" class="ent-talent-card-item__name">
+                                        ${escapeHtml(talent.name)}
+                                    </a>
+                                    <span class="ent-talent-card-item__score" title="Điểm đánh giá năng lực">
+                                        ${score}% phù hợp
                                     </span>
                                 </div>
                                 <div class="ent-talent-card-item__school">
-                                    ${escapeHtml(talent.school)} &bull; ${escapeHtml(talent.class_year)} &bull; ${escapeHtml(talent.education_level)}
+                                    <span>${escapeHtml(talent.school)}</span>
+                                    <span class="ent-talent-card-item__dot">&bull;</span>
+                                    <span>${escapeHtml(talent.major_field)}</span>
+                                    <span class="ent-talent-card-item__dot">&bull;</span>
+                                    <span>${escapeHtml(talent.class_year)}</span>
                                 </div>
                             </div>
                         </div>
@@ -690,43 +697,49 @@ function initTalentSearchModule() {
                                 class="ent-bookmark-btn ${isSaved ? 'is-saved' : ''}" 
                                 data-action="save" 
                                 data-talent-id="${talent.id}" 
-                                title="${isSaved ? 'Đã lưu hồ sơ' : 'Lưu hồ sơ này'}">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="${isSaved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
+                                title="${isSaved ? 'Đã lưu hồ sơ' : 'Lưu hồ sơ này'}"
+                                aria-label="${isSaved ? 'Đã lưu hồ sơ' : 'Lưu hồ sơ'}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="${isSaved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
                                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                             </svg>
                         </button>
                     </div>
 
-                    <div class="ent-talent-card-item__meta-grid">
-                        <div class="ent-meta-chip">
-                            <span class="label">Lĩnh vực:</span>
-                            <span class="value font-medium">${escapeHtml(talent.major_field)}</span>
+                    <!-- Refined Horizontal Snapshot Metadata Strip -->
+                    <div class="ent-talent-card-item__meta-strip">
+                        <div class="ent-meta-item">
+                            <span class="ent-meta-item__label">Kinh nghiệm:</span>
+                            <span class="ent-meta-item__value font-semibold text-dark">${talent.experience_hours}h thực án</span>
                         </div>
-                        <div class="ent-meta-chip">
-                            <span class="label">Kinh nghiệm thực án:</span>
-                            <span class="value font-semibold text-primary">${talent.experience_hours}h trải nghiệm</span>
-                        </div>
-                        <div class="ent-meta-chip">
-                            <span class="label">Trạng thái:</span>
+                        <div class="ent-meta-item__divider"></div>
+                        <div class="ent-meta-item">
+                            <span class="ent-meta-item__label">Trạng thái:</span>
                             <span class="val-status ${statusBadgeClass}">${escapeHtml(talent.internship_status_label)}</span>
+                        </div>
+                        <div class="ent-meta-item__divider"></div>
+                        <div class="ent-meta-item">
+                            <span class="ent-meta-item__label">Bậc học:</span>
+                            <span class="ent-meta-item__value">${escapeHtml(talent.education_level)}</span>
                         </div>
                     </div>
 
+                    <!-- Compact Skills Row -->
                     <div class="ent-talent-card-item__skills">
-                        <span class="skills-label">Kỹ năng chính:</span>
+                        <span class="skills-label">Kỹ năng:</span>
                         <div class="skills-chips">
                             ${topSkills.map(skill => `<span class="skill-tag">${escapeHtml(skill)}</span>`).join('')}
                             ${talent.skills.length > 4 ? `<span class="skill-tag skill-tag--more">+${talent.skills.length - 4}</span>` : ''}
                         </div>
                     </div>
 
+                    <!-- Clean Card Footer -->
                     <div class="ent-talent-card-item__footer">
-                        <div class="ent-privacy-note">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <div class="ent-privacy-note" title="Thông tin liên hệ (Email, SĐT) chỉ được hiển thị khi ứng viên đồng ý kết nối">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                                 <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                             </svg>
-                            Thông tin cá nhân được bảo vệ
+                            <span>Hồ sơ đã bảo vệ danh tính</span>
                         </div>
                         <div class="ent-talent-card-item__actions">
                             <a href="/app/enterprise/talents/detail.php?id=${talent.id}" 

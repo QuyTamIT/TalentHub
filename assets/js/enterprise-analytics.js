@@ -133,28 +133,30 @@ document.addEventListener('DOMContentLoaded', function () {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>
-                    <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.15rem;">${item.position}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">Mã tin: ${item.code}</div>
+                    <div class="ana-job-title">${item.position}</div>
+                    <div class="ana-job-code">Mã: ${item.code}</div>
                 </td>
-                <td>
-                    <span class="ana-dept-badge ${item.department_badge}">${item.department}</span>
+                <td class="text-center">
+                    <span class="ana-dept-badge">${item.department}</span>
                 </td>
-                <td>
-                    <strong style="color: var(--text-primary);">${item.applicants.toLocaleString('vi-VN')}</strong>
+                <td class="text-center">
+                    <span class="font-semibold text-dark">${item.applicants.toLocaleString('vi-VN')}</span>
                 </td>
-                <td>
-                    <span style="color: #16A34A; font-weight: 700;">${item.qualified.toLocaleString('vi-VN')}</span>
-                    <span style="font-size: 0.75rem; color: var(--text-muted);">(${Math.round((item.qualified/item.applicants)*100)}%)</span>
+                <td class="text-center">
+                    <span class="font-semibold text-accent">${item.qualified.toLocaleString('vi-VN')}</span>
+                    <span class="ana-qual-pct">(${Math.round((item.qualified/item.applicants)*100)}%)</span>
                 </td>
-                <td>${item.interviewed}</td>
-                <td>
-                    <strong style="color: var(--primary);">${item.passed}</strong>
+                <td class="text-center">
+                    <span class="font-medium text-secondary">${item.interviewed}</span>
                 </td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span style="font-weight: 800; color: var(--text-primary);">${item.avg_match}</span>
-                        <div style="flex: 1; height: 6px; background: rgba(226, 232, 240, 0.7); border-radius: 3px; max-width: 60px; overflow: hidden;">
-                            <div style="width: ${item.avg_match}%; height: 100%; background: var(--primary);"></div>
+                <td class="text-center">
+                    <span class="font-semibold text-primary">${item.passed}</span>
+                </td>
+                <td class="text-center">
+                    <div class="ana-match-cell">
+                        <span class="ana-match-val">${item.avg_match}</span>
+                        <div class="ana-match-bar-track">
+                            <div class="ana-match-bar-fill" style="width: ${item.avg_match}%;"></div>
                         </div>
                     </div>
                 </td>
