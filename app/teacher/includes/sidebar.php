@@ -7,6 +7,7 @@ $teacherSidebarRoleHref = '/role-selection.php';
 $teacherRouteHrefs = [
     'grid' => '/app/teacher/index.php',
     'trophy' => '/app/teacher/activities/index.php',
+    'clipboard-check' => '/app/teacher/assessments/index.php',
     'users' => '/app/teacher/students/index.php',
 ];
 ?>

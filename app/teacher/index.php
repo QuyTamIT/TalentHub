@@ -39,6 +39,7 @@ $sidebarNav = [
     [
         'title' => 'Chấm điểm',
         'route' => 'assessments',
+        'href' => '/app/teacher/assessments/index.php',
         'icon' => 'clipboard-check',
         'active' => false,
     ],
