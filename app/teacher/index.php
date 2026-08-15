@@ -30,8 +30,9 @@ $sidebarNav = [
         'active' => true,
     ],
     [
-        'title' => 'Sân chơi của tôi',
-        'route' => 'playgrounds',
+        'title' => 'Hoạt động',
+        'route' => 'activities/',
+        'href' => 'activities/',
         'icon' => 'trophy',
         'active' => false,
     ],
