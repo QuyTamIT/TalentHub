@@ -18,6 +18,7 @@ require_once $learnerDataRoot . '/Support/KeyMapper.php';
 require_once $learnerDataRoot . '/Support/Uuid.php';
 require_once $learnerDataRoot . '/Support/MockRecordNormalizer.php';
 require_once $learnerDataRoot . '/Support/LearnerViewAdapter.php';
+require_once $learnerDataRoot . '/Support/SharedStudentAdapter.php';
 require_once $learnerDataRoot . '/ReadModel/ReadModelDefaults.php';
 require_once $learnerDataRoot . '/ReadModel/StudentReadModel.php';
 require_once $learnerDataRoot . '/ReadModel/AssessmentReadModel.php';
