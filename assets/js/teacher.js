@@ -70,8 +70,9 @@ function initTeacherRoutes() {
     links.forEach(link => {
         link.addEventListener('click', (event) => {
             const route = link.getAttribute('data-route');
+            const href = link.getAttribute('href') || '';
 
-            if (route === 'index.php' || route === './' || route === '../index.php' || route === 'activities/' || route === 'activities/index.php' || route === '/TalentHub/app/teacher/' || route === '/TalentHub/app/teacher/index.php') {
+            if (href.trim() !== '' && href.trim() !== '#') {
                 return;
             }
 
