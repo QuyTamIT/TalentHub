@@ -31,7 +31,7 @@ final class RolePermissionSeeder
 
     private const ROLE_PERMISSIONS = [
         'student' => [
-            'student_profile.read_own', 'student_profile.update_own', 'student_profile.share_own',
+            'student_profile.read_own', 'student_profile.update_own', 'student_profile.share_own', 'student_dashboard.read_own',
             'privacy_consent.read_own', 'privacy_consent.manage_own',
             'student_skill.read_own', 'student_skill.manage_own', 'talent_test.read_catalog',
             'test_attempt.create_own', 'test_attempt.read_own', 'test_attempt.submit_own',
@@ -47,6 +47,10 @@ final class RolePermissionSeeder
             'teacher_profile.read_own',
             'teacher_profile.update_own',
             'teacher_dashboard.read_own',
+            'activity.read_managed',
+            'activity_registration.read_managed',
+            'assessment.read_managed',
+            'assessment.update_managed',
         ],
         'school' => [
             'school_profile.read_own', 'school_profile.update_own', 'school_dashboard.read_own',
@@ -103,6 +107,18 @@ final class RolePermissionSeeder
         }
 
         return ['roles' => count(self::ROLES), 'permissions' => count($this->allPermissions()), 'mappings' => $mappingCount];
+    }
+
+    /** @return array<string,list<string>> */
+    public function expectedPermissionsByRole(): array
+    {
+        $result=[];
+        foreach(array_keys(self::ROLES) as $roleCode){
+            $codes=array_values(array_unique(array_merge(self::COMMON_PERMISSIONS,self::ROLE_PERMISSIONS[$roleCode])));
+            sort($codes);$result[$roleCode]=$codes;
+        }
+        ksort($result);
+        return $result;
     }
 
     private function assertRequiredTables(PDO $pdo): void

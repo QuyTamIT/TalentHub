@@ -159,8 +159,8 @@ $audiences = [
                     Đăng nhập
                 </a>
                 
-                <a href="/role-selection.php" class="btn btn-primary site-header__app-btn" data-cta="app">
-                    Vào app
+                <a href="/register.php" class="btn btn-primary site-header__app-btn">
+                    Đăng ký
                     <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M5 12h14M12 5l7 7-7 7"/>
                     </svg>
@@ -187,8 +187,8 @@ $audiences = [
                 
                 <div class="mobile-menu__actions">
                     <a href="login.php" class="btn btn-secondary mobile-menu__btn" data-cta="login">Đăng nhập</a>
-                    <a href="/role-selection.php" class="btn btn-primary mobile-menu__btn" data-cta="app">
-                        Vào app
+                    <a href="/register.php" class="btn btn-primary mobile-menu__btn">
+                        Đăng ký
                         <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 12h14M12 5l7 7-7 7"/>
                         </svg>

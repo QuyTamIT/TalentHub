@@ -224,18 +224,9 @@ function initCtaHandlers() {
     const loginButtons = document.querySelectorAll('[data-cta="login"]');
     const appButtons = document.querySelectorAll('[data-cta="app"]');
 
-    loginButtons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const href = btn.getAttribute('href');
-            if (href === 'login.php' || href.endsWith('login.php')) {
-                const ctaSection = document.querySelector('#app');
-                if (ctaSection && !document.querySelector('form#login-form')) {
-                    e.preventDefault();
-                    ctaSection.scrollIntoView({ behavior: 'smooth' });
-                }
-            }
-        });
-    });
+    loginButtons.forEach(btn => btn.addEventListener('click', () => {
+        document.body.classList.remove('mobile-menu-open');
+    }));
 
     appButtons.forEach(btn => {
         btn.addEventListener('click', (e) => {
