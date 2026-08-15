@@ -80,8 +80,12 @@ function school_smoke_restore_auth_state(
 
 $environment = Environment::appEnvironment();
 $config = require $root . '/config/database.php';
-if ($environment !== 'test' || preg_match('/test/i', (string) $config['database']) !== 1) {
-    fwrite(STDERR, '[FAIL] School API smoke requires APP_ENV=test and a test database' . PHP_EOL);
+$disposableDatabaseProven = $environment === 'test'
+    && Environment::boolean('TALENTHUB_DISPOSABLE_TEST_DB', false)
+    && strtolower((string) $config['host']) === '127.0.0.1'
+    && preg_match('/\Atalenthub_test_[a-z0-9_]+\z/', (string) $config['database']) === 1;
+if (!$disposableDatabaseProven) {
+    fwrite(STDERR, '[FAIL] School API smoke requires explicit disposable loopback database proof' . PHP_EOL);
     exit(1);
 }
 $pdo    = (new Connection($config))->connect();
@@ -131,6 +135,7 @@ $env = getenv();
 $env = is_array($env) ? $env : [];
 $env = array_replace($env, [
     'APP_ENV'                 => 'test',
+    'TALENTHUB_DISPOSABLE_TEST_DB' => 'true',
     'DB_HOST'                 => (string) $config['host'],
     'DB_PORT'                 => (string) $config['port'],
     'DB_DATABASE'             => (string) $config['database'],
@@ -253,7 +258,11 @@ try {
             $keys = array_keys($data['data']);
             echo '[OK]   ' . sprintf('%-45s', "$method $path") . ' status=200 keys=' . implode(',', array_slice($keys, 0, 6)) . PHP_EOL;
         } else {
-            echo '[WARN] ' . sprintf('%-45s', "$method $path") . " status={$status} => " . substr((string) $output, 0, 200) . PHP_EOL;
+            $errorCode = is_array($data) && is_string($data['error']['code'] ?? null)
+                && preg_match('/\A[A-Z][A-Z0-9_]{1,63}\z/', $data['error']['code']) === 1
+                    ? $data['error']['code']
+                    : 'INVALID_RESPONSE';
+            echo '[WARN] ' . sprintf('%-45s', "$method $path") . " status={$status} error={$errorCode}" . PHP_EOL;
             $failures++;
         }
     }

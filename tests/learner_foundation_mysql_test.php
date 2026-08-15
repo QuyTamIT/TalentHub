@@ -143,8 +143,26 @@ function mysql_foundation_remove_runtime_directory(string $directory): void
     }
 }
 
+/** @return array{0:resource,1:int} */
+function mysql_foundation_reserve_loopback_port(): array
+{
+    $reservation = @stream_socket_server('tcp://127.0.0.1:0', $errorNumber, $errorMessage);
+    if (!is_resource($reservation)) {
+        throw new RuntimeException('Unable to reserve a Student API test port');
+    }
+    $address = stream_socket_get_name($reservation, false);
+    $separator = is_string($address) ? strrpos($address, ':') : false;
+    $port = is_int($separator) ? (int) substr($address, $separator + 1) : 0;
+    if ($port < 1) {
+        fclose($reservation);
+        throw new RuntimeException('Unable to select a Student API test port');
+    }
+
+    return [$reservation, $port];
+}
+
 /**
- * @param list<array{id:string,lastLoginAt:?string,updatedAt:string}> $userState
+ * @param list<array{id:string,passwordHash:string,fullName:string,lastLoginAt:?string,updatedAt:string}> $userState
  * @param array{id:string,dateOfBirth:string,phone:string,studyStatus:string,updatedAt:string} $profileState
  * @param list<array<string,mixed>> $rateLimitState
  * @param list<string> $requestIds
@@ -163,9 +181,17 @@ function mysql_foundation_restore_auth_state(
             $statement = $pdo->prepare("DELETE FROM audit_logs WHERE requestId IN ({$placeholders})");
             $statement->execute($requestIds);
         }
-        $statement = $pdo->prepare('UPDATE users SET lastLoginAt = ?, updatedAt = ? WHERE id = ?');
+        $statement = $pdo->prepare(
+            'UPDATE users SET passwordHash = ?, fullName = ?, lastLoginAt = ?, updatedAt = ? WHERE id = ?',
+        );
         foreach ($userState as $row) {
-            $statement->execute([$row['lastLoginAt'], $row['updatedAt'], $row['id']]);
+            $statement->execute([
+                $row['passwordHash'],
+                $row['fullName'],
+                $row['lastLoginAt'],
+                $row['updatedAt'],
+                $row['id'],
+            ]);
         }
         $statement = $pdo->prepare(
             'UPDATE student_profiles SET dateOfBirth = ?, phone = ?, studyStatus = ?, updatedAt = ? WHERE id = ?',
@@ -203,8 +229,16 @@ function mysql_foundation_restore_auth_state(
 
 $databaseConfig = require dirname(__DIR__) . '/config/database.php';
 mysql_foundation_assert(
-    preg_match('/test/i', (string) $databaseConfig['database']) === 1,
-    'Student foundation integration requires a test database',
+    Environment::boolean('TALENTHUB_DISPOSABLE_TEST_DB', false),
+    'Student foundation integration requires explicit disposable database opt-in',
+);
+mysql_foundation_assert(
+    strtolower((string) $databaseConfig['host']) === '127.0.0.1',
+    'Student foundation integration requires a loopback database host',
+);
+mysql_foundation_assert(
+    preg_match('/\Atalenthub_test_[a-z0-9_]+\z/', (string) $databaseConfig['database']) === 1,
+    'Student foundation integration requires the talenthub_test_ disposable database prefix',
 );
 $pdo = (new Connection($databaseConfig))->connect();
 mysql_foundation_assert(
@@ -244,6 +278,15 @@ mysql_foundation_assert(
         && str_contains($schoolSmokeSource, 'school@test.talenthub.local'),
     'School smoke uses the canonical testing fixture without demo seed dependency',
 );
+mysql_foundation_assert(
+    str_contains($schoolSmokeSource, 'TALENTHUB_DISPOSABLE_TEST_DB')
+        && str_contains($schoolSmokeSource, 'talenthub_test_'),
+    'School smoke requires explicit disposable loopback database proof',
+);
+mysql_foundation_assert(
+    !str_contains($schoolSmokeSource, 'substr((string) $output'),
+    'School smoke failure output excludes raw response bodies',
+);
 $studentEmail = 'student@test.talenthub.local';
 $studentRow = (new AuthRepository($pdo))->findByEmail($studentEmail);
 mysql_foundation_assert(is_array($studentRow), 'minimal Student fixture exists');
@@ -277,11 +320,17 @@ mysql_foundation_assert((int) $adminStatement->fetchColumn() === 1, 'school fixt
 $authUserIds = [(string) $studentRow['id'], (string) $school['id'], (string) $business['id']];
 $placeholders = implode(',', array_fill(0, count($authUserIds), '?'));
 $authStateStatement = $pdo->prepare(
-    "SELECT id,lastLoginAt,updatedAt FROM users WHERE id IN ({$placeholders}) ORDER BY id",
+    "SELECT id,passwordHash,fullName,lastLoginAt,updatedAt FROM users WHERE id IN ({$placeholders}) ORDER BY id",
 );
 $authStateStatement->execute($authUserIds);
 $authUserState = $authStateStatement->fetchAll();
 mysql_foundation_assert(count($authUserState) === count($authUserIds), 'auth fixture state is snapshot for cleanup');
+mysql_foundation_assert(
+    is_string($authUserState[0]['passwordHash'] ?? null)
+        && array_key_exists('fullName', $authUserState[0]),
+    'auth fixture snapshot covers passwordHash and fullName mutations',
+);
+$authFixtureFingerprint = hash('sha256', json_encode($authUserState, JSON_THROW_ON_ERROR));
 $profileStateStatement = $pdo->prepare(
     'SELECT id,dateOfBirth,phone,studyStatus,updatedAt FROM student_profiles WHERE id = ?',
 );
@@ -289,21 +338,11 @@ $profileStateStatement->execute([(string) $profile['id']]);
 $studentProfileState = $profileStateStatement->fetch();
 mysql_foundation_assert(is_array($studentProfileState), 'Student profile state is snapshot for cleanup');
 $rateLimitState = $pdo->query('SELECT * FROM auth_rate_limits ORDER BY bucketKey')->fetchAll();
+$auditLogState = $pdo->query('SELECT * FROM audit_logs ORDER BY id')->fetchAll();
+$auditLogFingerprint = hash('sha256', json_encode($auditLogState, JSON_THROW_ON_ERROR));
 
 $root = dirname(__DIR__);
-$port = random_int(20000, 40000);
-$baseUrl = "http://127.0.0.1:{$port}";
 $sessionPath = $root . '/.superpowers/sdd/task7-sessions-' . bin2hex(random_bytes(8));
-$serverCommand = [
-    PHP_BINARY,
-    '-d',
-    'session.save_path=' . $sessionPath,
-    '-S',
-    "127.0.0.1:{$port}",
-    '-t',
-    $root,
-    $root . '/api/v1/index.php',
-];
 $descriptors = [
     0 => ['pipe', 'r'],
     1 => ['pipe', 'w'],
@@ -316,14 +355,30 @@ $adminCookie = null;
 $businessCookie = null;
 $otherStudentCookie = null;
 $apiFailure = null;
+$cleanupFailures = [];
 $auditRequestIds = [];
 $server = null;
 $serverPipes = [];
+$portReservation = null;
 
 try {
     if (!mkdir($sessionPath, 0770, true) && !is_dir($sessionPath)) {
         throw new RuntimeException('Task 7 session directory is not writable');
     }
+    [$portReservation, $port] = mysql_foundation_reserve_loopback_port();
+    $baseUrl = "http://127.0.0.1:{$port}";
+    $serverCommand = [
+        PHP_BINARY,
+        '-d',
+        'session.save_path=' . $sessionPath,
+        '-S',
+        "127.0.0.1:{$port}",
+        '-t',
+        $root,
+        $root . '/api/v1/index.php',
+    ];
+    fclose($portReservation);
+    $portReservation = null;
     $server = proc_open($serverCommand, $descriptors, $serverPipes, $root, getenv());
     if (!is_resource($server)) {
         throw new RuntimeException('Student API test server did not start');
@@ -334,12 +389,19 @@ try {
     mysql_foundation_remove_test_student($pdo, $otherStudentEmail);
     $ready = false;
     for ($attempt = 0; $attempt < 30; $attempt++) {
+        $processStatus = proc_get_status($server);
+        if (($processStatus['running'] ?? false) !== true) {
+            break;
+        }
         $healthCookie = null;
         $health = mysql_foundation_http_request($baseUrl, 'GET', '/api/v1/health', null, $healthCookie);
         if ($health['status'] === 200) {
             mysql_foundation_assert_success($health, 200, 'health route uses success envelope');
-            $ready = true;
-            break;
+            $processStatus = proc_get_status($server);
+            if (($processStatus['running'] ?? false) === true) {
+                $ready = true;
+                break;
+            }
         }
         usleep(100000);
     }
@@ -392,12 +454,17 @@ try {
     mysql_foundation_assert_error($missingCsrf, 403, 'CSRF_TOKEN_INVALID', 'Student PATCH rejects missing CSRF token');
 
     $validPatch = mysql_foundation_http_request($baseUrl, 'PATCH', '/api/v1/students/me', [
-        'fullName' => $profile['fullName'],
+        'fullName' => 'Task 7 Temporary Student Name',
         'dateOfBirth' => $profile['dateOfBirth'],
         'phone' => $profile['phone'],
     ], $studentCookie, ['X-CSRF-Token: ' . $csrfToken]);
+    if (is_string($validPatch['payload']['meta']['requestId'] ?? null)) {
+        $auditRequestIds[] = $validPatch['payload']['meta']['requestId'];
+    }
     $patchedProfile = mysql_foundation_assert_success($validPatch, 200, 'Student PATCH accepts valid CSRF token');
-    if (($patchedProfile['id'] ?? null) !== $profile['id']) {
+    if (($patchedProfile['id'] ?? null) !== $profile['id']
+        || ($patchedProfile['fullName'] ?? null) !== 'Task 7 Temporary Student Name'
+    ) {
         throw new RuntimeException('Student PATCH remains scoped to the owning profile');
     }
 
@@ -473,6 +540,9 @@ try {
 } catch (Throwable $exception) {
     $apiFailure = $exception;
 } finally {
+    if (is_resource($portReservation)) {
+        fclose($portReservation);
+    }
     if (is_resource($server)) {
         proc_terminate($server, 9);
     }
@@ -487,7 +557,7 @@ try {
     try {
         mysql_foundation_remove_test_student($pdo, $otherStudentEmail);
     } catch (Throwable $cleanupException) {
-        $apiFailure ??= new RuntimeException('second Student fixture cleanup failed');
+        $cleanupFailures[] = 'second Student fixture cleanup failed';
     }
     try {
         mysql_foundation_restore_auth_state(
@@ -498,17 +568,47 @@ try {
             $auditRequestIds,
         );
     } catch (Throwable $cleanupException) {
-        $apiFailure ??= new RuntimeException('auth fixture state cleanup failed');
+        $cleanupFailures[] = 'auth fixture state cleanup failed';
+    }
+    try {
+        $authStateStatement->execute($authUserIds);
+        $restoredAuthUserState = $authStateStatement->fetchAll();
+        $restoredAuthFixtureFingerprint = hash(
+            'sha256',
+            json_encode($restoredAuthUserState, JSON_THROW_ON_ERROR),
+        );
+        if (!hash_equals($authFixtureFingerprint, $restoredAuthFixtureFingerprint)) {
+            throw new RuntimeException('auth fixture fingerprint was not fully restored');
+        }
+    } catch (Throwable $cleanupException) {
+        $cleanupFailures[] = 'auth fixture fingerprint restoration failed';
+    }
+    try {
+        $restoredAuditLogState = $pdo->query('SELECT * FROM audit_logs ORDER BY id')->fetchAll();
+        $restoredAuditLogFingerprint = hash(
+            'sha256',
+            json_encode($restoredAuditLogState, JSON_THROW_ON_ERROR),
+        );
+        if (!hash_equals($auditLogFingerprint, $restoredAuditLogFingerprint)) {
+            throw new RuntimeException('audit log fingerprint was not fully restored');
+        }
+    } catch (Throwable $cleanupException) {
+        $cleanupFailures[] = 'audit log fingerprint restoration failed';
     }
     try {
         mysql_foundation_remove_runtime_directory($sessionPath);
     } catch (Throwable $cleanupException) {
-        $apiFailure ??= new RuntimeException('Student API runtime cleanup failed');
+        $cleanupFailures[] = 'Student API runtime cleanup failed';
     }
 }
 
 if ($apiFailure instanceof Throwable) {
-    fwrite(STDERR, 'Assertion failed: ' . $apiFailure->getMessage() . "\n");
+    $cleanupSummary = $cleanupFailures === [] ? '' : '; cleanup failures: ' . implode(', ', $cleanupFailures);
+    fwrite(STDERR, 'Assertion failed: ' . $apiFailure->getMessage() . $cleanupSummary . "\n");
+    exit(1);
+}
+if ($cleanupFailures !== []) {
+    fwrite(STDERR, 'Assertion failed: cleanup failures: ' . implode(', ', $cleanupFailures) . "\n");
     exit(1);
 }
 
