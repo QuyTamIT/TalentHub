@@ -55,10 +55,10 @@ $reportTypes = [
 
 ob_start();
 ?>
-<div class="school-section-box" style="margin-bottom: 1.5rem;">
-    <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0 0 0.25rem;">Quản lý Báo cáo</h2>
-    <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0;">Tạo và tải các báo cáo CSV của trường.</p>
-</div>
+<?php
+$pageDescription = 'Tạo và tải xuống các báo cáo CSV theo kỳ cho nhà trường.';
+include __DIR__ . '/includes/page-banner.php';
+?>
 
 <?php if ($flash): ?>
     <div class="school-flash school-flash--success"><?= $flash; ?></div>
@@ -67,7 +67,7 @@ ob_start();
     <div class="school-flash school-flash--error"><?= htmlspecialchars($error); ?></div>
 <?php endif; ?>
 
-<div class="school-grid-2col">
+<div class="school-grid-2col school-grid-2col--reports">
     <div class="school-section-box">
         <div class="school-section-box__header">
             <h3 class="school-section-box__title">Tạo báo cáo mới</h3>

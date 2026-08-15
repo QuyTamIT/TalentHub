@@ -69,16 +69,11 @@ $school = $context['school'];
 
 ob_start();
 ?>
+<?php
+$pageDescription = 'Cập nhật hồ sơ nhà trường: tên, địa chỉ, cấp học, niên khóa, liên hệ.';
+include __DIR__ . '/includes/page-banner.php';
+?>
 <div class="school-section-box" style="margin-bottom: 1.5rem;">
-    <div class="school-section-box__header">
-        <div>
-            <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">Cập nhật hồ sơ nhà trường</h2>
-            <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0.25rem 0 0;">
-                Thay đổi tên, địa chỉ, cấp học, niên khóa và các thông tin liên hệ.
-            </p>
-        </div>
-    </div>
-
     <?php if ($flash): ?>
         <div class="school-flash school-flash--success" role="status"><?= htmlspecialchars($flash); ?></div>
     <?php endif; ?>

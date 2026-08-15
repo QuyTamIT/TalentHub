@@ -60,18 +60,10 @@ $pageTitle    = 'Giáo viên';
 
 ob_start();
 ?>
-<div class="school-section-box" style="margin-bottom: 1.5rem;">
-    <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-        <div>
-            <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">
-                Giáo viên của trường
-            </h2>
-            <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0;">
-                <?= count($teachers); ?> giáo viên đang thuộc trường.
-            </p>
-        </div>
-    </div>
-</div>
+<?php
+$pageDescription = 'Mời giáo viên mới và quản lý hồ sơ giáo viên trong trường.';
+include __DIR__ . '/includes/page-banner.php';
+?>
 
 <?php if ($flash): ?>
     <div class="school-flash school-flash--success"><?= htmlspecialchars($flash); ?></div>

@@ -46,6 +46,10 @@ $pageTitle    = 'Tài khoản';
 
 ob_start();
 ?>
+<?php
+$pageDescription = 'Đổi mật khẩu cho tài khoản quản trị đang đăng nhập.';
+include __DIR__ . '/includes/page-banner.php';
+?>
 <div class="school-section-box" style="max-width: 520px;">
     <div class="school-section-box__header">
         <div>

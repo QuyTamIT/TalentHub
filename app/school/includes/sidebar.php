@@ -77,19 +77,6 @@ $sidebarNav = [
         <div class="school-sidebar__subtitle">Khu vực Nhà trường</div>
     </div>
 
-    <!-- School Card -->
-    <div class="school-sidebar__school-card">
-        <div class="school-sidebar__school-avatar">
-            <?= htmlspecialchars($schoolInfo['logo_initials']); ?>
-        </div>
-        <div class="school-sidebar__school-info">
-            <span class="school-sidebar__school-name"><?= htmlspecialchars($schoolInfo['name']); ?></span>
-            <div class="school-sidebar__school-meta">
-                <span class="school-sidebar__badge"><?= htmlspecialchars($schoolInfo['level']); ?></span>
-            </div>
-        </div>
-    </div>
-
     <!-- Navigation List -->
     <nav class="school-sidebar__nav" aria-label="Điều hướng Nhà trường">
         <div class="school-sidebar__nav-title">QUẢN LÝ TRƯỜNG HỌC</div>
