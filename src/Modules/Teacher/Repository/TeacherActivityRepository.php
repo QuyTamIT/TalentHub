@@ -7,6 +7,14 @@ use PDO;
 
 final class TeacherActivityRepository
 {
+    /** @var array<string,string> */
+    private const STATUS_TRANSITIONS = [
+        'draft' => 'published',
+        'published' => 'ongoing',
+        'ongoing' => 'completed',
+        'completed' => 'archived',
+    ];
+
     public function __construct(private readonly PDO $pdo) {}
 
     /** @return list<array<string,mixed>> */
@@ -25,6 +33,7 @@ final class TeacherActivityRepository
                     SELECT COUNT(*)
                     FROM activity_registrations ar
                     WHERE ar.activityId = a.id
+                      AND ar.status IN ('approved', 'attended')
                 ) AS registered_count
             FROM activities a
             WHERE a.createdByTeacherId = :teacherId
@@ -59,6 +68,7 @@ final class TeacherActivityRepository
                     SELECT COUNT(*)
                     FROM activity_registrations ar
                     WHERE ar.activityId = a.id
+                      AND ar.status IN ('approved', 'attended')
                 ) AS registered_count
             FROM activities a
             WHERE a.createdByTeacherId = :teacherId
@@ -93,12 +103,12 @@ final class TeacherActivityRepository
         return $statement->fetchAll();
     }
 
-    /** @param array{title:string,category:string,startAt:string,endAt:string,capacity:int,status:string} $data */
+    /** @param array{title:string,category:string,startAt:string,endAt:string,capacity:int} $data */
     public function create(string $teacherId, string $schoolId, string $activityId, array $data): void
     {
         $statement = $this->pdo->prepare("
             INSERT INTO activities (id, schoolId, createdByTeacherId, title, category, startAt, endAt, capacity, status)
-            VALUES (:id, :schoolId, :teacherId, :title, :category, :startAt, :endAt, :capacity, :status)
+            VALUES (:id, :schoolId, :teacherId, :title, :category, :startAt, :endAt, :capacity, 'draft')
         ");
         $statement->execute([
             'id' => $activityId,
@@ -109,11 +119,10 @@ final class TeacherActivityRepository
             'startAt' => $data['startAt'],
             'endAt' => $data['endAt'],
             'capacity' => $data['capacity'],
-            'status' => $data['status'],
         ]);
     }
 
-    /** @param array{title:string,category:string,startAt:string,endAt:string,capacity:int,status:string} $data */
+    /** @param array{title:string,category:string,startAt:string,endAt:string,capacity:int} $data */
     public function update(string $teacherId, string $activityId, array $data): bool
     {
         $statement = $this->pdo->prepare("
@@ -122,8 +131,7 @@ final class TeacherActivityRepository
                 category = :category,
                 startAt = :startAt,
                 endAt = :endAt,
-                capacity = :capacity,
-                status = :status
+                capacity = :capacity
             WHERE id = :activityId
               AND createdByTeacherId = :teacherId
         ");
@@ -133,7 +141,6 @@ final class TeacherActivityRepository
             'startAt' => $data['startAt'],
             'endAt' => $data['endAt'],
             'capacity' => $data['capacity'],
-            'status' => $data['status'],
             'activityId' => $activityId,
             'teacherId' => $teacherId,
         ]);
@@ -141,17 +148,26 @@ final class TeacherActivityRepository
         return $this->find($teacherId, $activityId) !== null;
     }
 
-    public function setRegistrationStatus(string $teacherId, string $activityId, string $status): bool
+    public function advanceStatus(string $teacherId, string $activityId, string $expectedStatus, string $nextStatus): bool
     {
+        if ((self::STATUS_TRANSITIONS[$expectedStatus] ?? null) !== $nextStatus) {
+            throw new \InvalidArgumentException('Invalid activity status transition.');
+        }
+
         $statement = $this->pdo->prepare("
             UPDATE activities
-            SET status = :status,
-                startAt = startAt
+            SET status = :nextStatus
             WHERE id = :activityId
               AND createdByTeacherId = :teacherId
+              AND status = :expectedStatus
         ");
-        $statement->execute(['status' => $status, 'activityId' => $activityId, 'teacherId' => $teacherId]);
+        $statement->execute([
+            'nextStatus' => $nextStatus,
+            'activityId' => $activityId,
+            'teacherId' => $teacherId,
+            'expectedStatus' => $expectedStatus,
+        ]);
 
-        return $this->find($teacherId, $activityId) !== null;
+        return $statement->rowCount() === 1;
     }
 }

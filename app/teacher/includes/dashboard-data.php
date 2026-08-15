@@ -187,7 +187,7 @@ function teacherDashboardReadData(): array
         SELECT COUNT(*)
         FROM activities
         WHERE createdByTeacherId = :teacherId
-          AND LOWER(status) IN ('open', 'active', 'published', 'ongoing', 'in_progress', 'dang_mo', 'mo')
+          AND status IN ('published', 'ongoing')
     ", ['teacherId' => $teacherId]) ?? 0);
 
     $data['metrics']['pending_assessments'] = (int) (teacherDashboardScalar($pdo, "
@@ -239,18 +239,13 @@ function teacherDashboardReadData(): array
         SELECT COUNT(*)
         FROM activities
         WHERE createdByTeacherId = :teacherId
+          AND status = 'published'
           AND startAt >= NOW()
           AND startAt < DATE_ADD(NOW(), INTERVAL 7 DAY)
     ", ['teacherId' => $teacherId]) ?? 0);
 
-    $data['metrics']['qr_tokens_expiring'] = (int) (teacherDashboardScalar($pdo, "
-        SELECT COUNT(*)
-        FROM activity_qr_tokens qt
-        INNER JOIN activities a ON a.id = qt.activityId
-        WHERE a.createdByTeacherId = :teacherId
-          AND qt.expiresAt >= NOW()
-          AND qt.expiresAt < DATE_ADD(NOW(), INTERVAL 1 DAY)
-    ", ['teacherId' => $teacherId]) ?? 0);
+    // QR tables are not part of the current migration contract.
+    $data['metrics']['qr_tokens_expiring'] = 0;
 
     $data['teacherInfo']['notification_count'] = (int) (teacherDashboardScalar($pdo, "
         SELECT COUNT(*)

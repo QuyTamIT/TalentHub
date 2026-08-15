@@ -1172,13 +1172,14 @@ body.teacher-sidebar-open {
     white-space: nowrap;
 }
 
-.teacher-registration-pill--open {
+.teacher-registration-pill--available {
     border-color: rgba(22, 163, 74, 0.24);
     background-color: var(--accent-light);
     color: var(--accent);
 }
 
-.teacher-registration-pill--closed {
+.teacher-registration-pill--unavailable,
+.teacher-registration-pill--status {
     background-color: var(--background);
     color: var(--text-muted);
 }

@@ -68,12 +68,12 @@ $kpis = [
         'status' => ((int) $metrics['total_students'] > 0) ? 'Có dữ liệu' : 'Chưa có học viên',
     ],
     [
-        'label' => 'Sân chơi đang mở',
+        'label' => 'Hoạt động đang công bố/diễn ra',
         'value' => number_format((int) $metrics['open_activities']),
-        'change' => 'Hoạt động đang mở',
+        'change' => 'Status published hoặc ongoing',
         'change_type' => ((int) $metrics['open_activities'] > 0) ? 'positive' : 'neutral',
         'icon' => 'trophy',
-        'status' => ((int) $metrics['open_activities'] > 0) ? 'Đang hoạt động' : 'Không có sân chơi mở',
+        'status' => ((int) $metrics['open_activities'] > 0) ? 'Đang công bố/diễn ra' : 'Không có hoạt động phù hợp',
     ],
     [
         'label' => 'Bài cần chấm',
@@ -143,7 +143,7 @@ $activityOverview = [
         'label' => 'Sân chơi phụ trách',
         'value' => number_format((int) $metrics['managed_activities']),
         'meta' => 'Tổng hoạt động do giáo viên tạo',
-        'bar_label' => 'Đang mở',
+        'bar_label' => 'Đang công bố/diễn ra',
         'bar_value' => teacherDashboardPercent((int) $metrics['open_activities'], max(1, (int) $metrics['managed_activities'])),
     ],
     [
