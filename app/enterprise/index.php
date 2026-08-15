@@ -210,33 +210,36 @@ $recentActivities = [
                     <!-- Main Grid Section (2 Columns) -->
                     <div class="ent-grid-layout">
                         
-                        <!-- Left Column (Featured Talents + Pending Actions) -->
+                        <!-- Left Column (Pending Actions + Featured Talents) -->
                         <div class="ent-grid-layout__main">
-                            <?php include __DIR__ . '/includes/featured-talents.php'; ?>
+                            <!-- 1. Pending Action Items (High Priority) -->
                             <?php include __DIR__ . '/includes/pending-actions.php'; ?>
+
+                            <!-- 2. Featured Weekly Talents -->
+                            <?php include __DIR__ . '/includes/featured-talents.php'; ?>
                         </div>
 
                         <!-- Right Column (Activity Feed + Quick Info Widget) -->
                         <aside class="ent-grid-layout__sidebar">
                             <?php include __DIR__ . '/includes/recent-activity.php'; ?>
 
-                            <!-- Enterprise Summary Card -->
-                            <div class="ent-section-box">
-                                <div class="ent-section-box__header">
+                            <!-- Enterprise Summary Card (Compact) -->
+                            <div class="ent-section-box ent-section-box--compact">
+                                <div class="ent-section-box__header mb-2">
                                     <h3 class="ent-section-box__title">Hồ sơ Doanh nghiệp</h3>
+                                    <span class="badge-success font-medium"><?= htmlspecialchars($enterpriseInfo['account_type']); ?></span>
                                 </div>
                                 <div class="ent-info-widget">
                                     <div class="ent-info-widget__row">
-                                        <span class="label">Doanh nghiệp:</span>
-                                        <span class="val font-bold"><?= htmlspecialchars($enterpriseInfo['company_name']); ?></span>
+                                        <span class="label">Đơn vị:</span>
+                                        <span class="val font-semibold text-dark"><?= htmlspecialchars($enterpriseInfo['company_name']); ?></span>
                                     </div>
-                                    <div class="ent-info-widget__row">
-                                        <span class="label">Gói dịch vụ:</span>
-                                        <span class="val badge-success"><?= htmlspecialchars($enterpriseInfo['account_type']); ?></span>
-                                    </div>
-                                    <div class="ent-info-widget__row">
-                                        <span class="label">Trạng thái kết nối:</span>
-                                        <span class="val text-accent">● Đang hoạt động</span>
+                                    <div class="ent-info-widget__row" style="border-bottom: none; padding-bottom: 0;">
+                                        <span class="label">Trạng thái:</span>
+                                        <span class="val text-accent font-medium d-inline-flex align-items-center gap-1">
+                                            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: var(--accent);"></span>
+                                            Đang hoạt động
+                                        </span>
                                     </div>
                                 </div>
                             </div>

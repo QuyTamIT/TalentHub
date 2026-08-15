@@ -98,7 +98,7 @@ $popularSkills = ['React', 'Node.js', 'TypeScript', 'Python', 'PyTorch', 'Figma'
                     <div class="ent-section-box mb-4">
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                             <div>
-                                <h2 class="ent-section-box__title" style="font-size: 1.375rem;">
+                                <h2 class="ent-section-box__title">
                                     <?= $isEdit ? 'Chỉnh sửa Tin tuyển dụng' : 'Tạo Tin tuyển dụng Thực tập Mới'; ?>
                                 </h2>
                                 <p class="ent-section-box__subtitle">
@@ -218,7 +218,7 @@ $popularSkills = ['React', 'Node.js', 'TypeScript', 'Python', 'PyTorch', 'Figma'
 
                         <!-- 2. Detailed Description & Skills Section -->
                         <section class="ent-section-box mb-4">
-                            <h3 class="ent-section-box__title mb-3" style="font-size: 1.0625rem;">2. Mô tả công việc & Kỹ năng yêu cầu</h3>
+                            <h3 class="ent-section-box__title mb-3">2. Mô tả công việc & Kỹ năng yêu cầu</h3>
 
                             <!-- Mô tả công việc -->
                             <div class="ent-form-group mb-4">
@@ -233,8 +233,8 @@ $popularSkills = ['React', 'Node.js', 'TypeScript', 'Python', 'PyTorch', 'Figma'
                             <!-- Kỹ năng yêu cầu Section -->
                             <div class="ent-form-group mb-5">
                                 <div class="ent-field-header mb-3">
-                                    <label class="ent-form-label required mb-1" style="font-size: 0.9375rem; font-weight: 600;">Kỹ năng yêu cầu</label>
-                                    <p class="ent-form-help-text mb-0" style="font-size: 0.8125rem; color: var(--text-muted);">Chọn các kỹ năng cần thiết cho vị trí tuyển dụng.</p>
+                                    <label class="ent-form-label required mb-1">Kỹ năng yêu cầu</label>
+                                    <p class="ent-form-help-text mb-0">Chọn các kỹ năng cần thiết cho vị trí tuyển dụng.</p>
                                 </div>
 
                                 <div class="ent-skill-picker-card" id="skill-picker-container" data-initial-skills="<?= htmlspecialchars(json_encode($isEdit ? $editingPost['skills'] : [])); ?>">
