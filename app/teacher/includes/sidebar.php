@@ -2,12 +2,18 @@
 /**
  * Teacher Dashboard - Sidebar Component
  */
+$teacherSidebarHomeHref = $teacherSidebarHomeHref ?? '/index.php';
+$teacherSidebarRoleHref = $teacherSidebarRoleHref ?? '/role-selection.php';
+$teacherRouteHrefs = [
+    'index.php' => '/app/teacher/index.php',
+    'assessments' => '/app/teacher/assessments/index.php',
+];
 ?>
 <div class="teacher-sidebar-backdrop" id="teacher-sidebar-backdrop" aria-hidden="true"></div>
 
 <aside class="teacher-sidebar" id="teacher-sidebar">
     <div class="teacher-sidebar__brand">
-        <a href="../../index.php" class="site-header__brand" aria-label="Về trang chủ TalentHub">
+        <a href="<?= htmlspecialchars($teacherSidebarHomeHref); ?>" class="site-header__brand" aria-label="Về trang chủ TalentHub">
             <div class="site-header__brand-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
@@ -23,9 +29,10 @@
         <ul>
             <?php foreach ($sidebarNav as $navItem):
                 $isActive = (isset($currentRoute) && $navItem['route'] === $currentRoute) || (!isset($currentRoute) && $navItem['active']);
+                $navHref = $navItem['href'] ?? ($teacherRouteHrefs[$navItem['route']] ?? ($isActive ? $navItem['route'] : '#'));
             ?>
                 <li>
-                    <a href="<?= $isActive ? htmlspecialchars($navItem['route']) : '#'; ?>"
+                    <a href="<?= htmlspecialchars($navHref); ?>"
                        class="teacher-sidebar__link <?= $isActive ? 'is-active' : ''; ?>"
                        data-route="<?= htmlspecialchars($navItem['route']); ?>">
                         <span class="teacher-sidebar__icon">
@@ -73,7 +80,7 @@
     </nav>
 
     <div class="teacher-sidebar__footer">
-        <a href="../../role-selection.php" class="teacher-sidebar__link teacher-sidebar__link--switch">
+        <a href="<?= htmlspecialchars($teacherSidebarRoleHref); ?>" class="teacher-sidebar__link teacher-sidebar__link--switch">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M16 17l5-5-5-5M19.8 12H9M13 22a10 10 0 1 1 0-20"></path>
             </svg>

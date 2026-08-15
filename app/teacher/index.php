@@ -25,6 +25,7 @@ $sidebarNav = [
     [
         'title' => 'Tổng quan',
         'route' => 'index.php',
+        'href' => '/app/teacher/index.php',
         'icon' => 'grid',
         'active' => true,
     ],
@@ -37,6 +38,7 @@ $sidebarNav = [
     [
         'title' => 'Chấm điểm',
         'route' => 'assessments',
+        'href' => '/app/teacher/assessments/index.php',
         'icon' => 'clipboard-check',
         'active' => false,
     ],
