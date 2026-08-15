@@ -25,6 +25,7 @@ $sidebarNav = [
     [
         'title' => 'Tổng quan',
         'route' => 'index.php',
+        'href' => '/app/teacher/index.php',
         'icon' => 'grid',
         'active' => true,
     ],
@@ -43,6 +44,7 @@ $sidebarNav = [
     [
         'title' => 'Học viên',
         'route' => 'students',
+        'href' => '/app/teacher/students/index.php',
         'icon' => 'users',
         'active' => false,
     ],
