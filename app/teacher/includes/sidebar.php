@@ -2,11 +2,13 @@
 /**
  * Teacher Dashboard - Sidebar Component
  */
-$teacherSidebarHomeHref = $teacherSidebarHomeHref ?? '/index.php';
-$teacherSidebarRoleHref = $teacherSidebarRoleHref ?? '/role-selection.php';
+$teacherSidebarHomeHref = '/index.php';
+$teacherSidebarRoleHref = '/role-selection.php';
 $teacherRouteHrefs = [
-    'index.php' => '/app/teacher/index.php',
-    'assessments' => '/app/teacher/assessments/index.php',
+    'grid' => '/app/teacher/index.php',
+    'trophy' => '/app/teacher/activities/index.php',
+    'clipboard-check' => '/app/teacher/assessments/index.php',
+    'users' => '/app/teacher/students/index.php',
 ];
 ?>
 <div class="teacher-sidebar-backdrop" id="teacher-sidebar-backdrop" aria-hidden="true"></div>
@@ -29,7 +31,7 @@ $teacherRouteHrefs = [
         <ul>
             <?php foreach ($sidebarNav as $navItem):
                 $isActive = (isset($currentRoute) && $navItem['route'] === $currentRoute) || (!isset($currentRoute) && $navItem['active']);
-                $navHref = $navItem['href'] ?? ($teacherRouteHrefs[$navItem['route']] ?? ($isActive ? $navItem['route'] : '#'));
+                $navHref = $teacherRouteHrefs[$navItem['icon']] ?? '#';
             ?>
                 <li>
                     <a href="<?= htmlspecialchars($navHref); ?>"
