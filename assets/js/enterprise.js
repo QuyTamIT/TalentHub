@@ -11,6 +11,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     initMobileSidebar();
     initNotificationBell();
+    initAccountDropdown();
     initRouteNavigation();
     initTalentActions();
 });
@@ -66,7 +67,100 @@ function initMobileSidebar() {
 }
 
 /* ==========================================================================
-   2. Mock Notification Bell Handler
+   2. Enterprise Account Dropdown Menu Handler
+   ========================================================================== */
+function initAccountDropdown() {
+    const trigger = document.getElementById('ent-account-trigger');
+    const menu = document.getElementById('ent-account-menu');
+    const wrapper = document.getElementById('ent-account-wrapper');
+
+    if (!trigger || !menu) return;
+
+    const menuItems = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+
+    function openMenu() {
+        trigger.setAttribute('aria-expanded', 'true');
+        menu.removeAttribute('hidden');
+        menu.classList.add('is-open');
+    }
+
+    function closeMenu(focusTrigger = false) {
+        trigger.setAttribute('aria-expanded', 'false');
+        menu.setAttribute('hidden', '');
+        menu.classList.remove('is-open');
+        if (focusTrigger) {
+            trigger.focus();
+        }
+    }
+
+    function toggleMenu() {
+        const isExpanded = trigger.getAttribute('aria-expanded') === 'true';
+        if (isExpanded) {
+            closeMenu();
+        } else {
+            openMenu();
+        }
+    }
+
+    // Toggle on trigger click
+    trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMenu();
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+        if (wrapper && !wrapper.contains(e.target)) {
+            closeMenu();
+        }
+    });
+
+    // Keyboard navigation on trigger button
+    trigger.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openMenu();
+            if (menuItems.length > 0) {
+                menuItems[0].focus();
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            openMenu();
+            if (menuItems.length > 0) {
+                menuItems[menuItems.length - 1].focus();
+            }
+        } else if (e.key === 'Escape') {
+            if (trigger.getAttribute('aria-expanded') === 'true') {
+                e.preventDefault();
+                closeMenu(true);
+            }
+        }
+    });
+
+    // Keyboard navigation inside dropdown menu
+    menu.addEventListener('keydown', (e) => {
+        const currentFocusedIndex = menuItems.indexOf(document.activeElement);
+
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closeMenu(true);
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const nextIndex = (currentFocusedIndex + 1) % menuItems.length;
+            menuItems[nextIndex].focus();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            const prevIndex = (currentFocusedIndex - 1 + menuItems.length) % menuItems.length;
+            menuItems[prevIndex].focus();
+        } else if (e.key === 'Tab') {
+            // Close menu when tabbing away
+            closeMenu();
+        }
+    });
+}
+
+/* ==========================================================================
+   3. Mock Notification Bell Handler
    ========================================================================== */
 function initNotificationBell() {
     const notifBtn = document.getElementById('ent-notif-trigger');

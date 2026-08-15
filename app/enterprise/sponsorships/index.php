@@ -88,18 +88,37 @@ $mySponsorships = getMySponsorships();
             <main class="ent-body">
                 <div class="container-fluid">
                 
-                <!-- Page Title Header Row -->
-                <div class="ent-page-header" style="margin-bottom: 1.5rem;">
-                    <div>
-                        <div style="font-size: 0.8125rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.25rem;">
-                            Doanh nghiệp • Ươm mầm tài năng
+                <!-- Enterprise Sponsorship Hero Banner -->
+                <div class="ent-hero-banner ent-sponsorship-hero">
+                    <div class="ent-hero-banner__content">
+                        <div class="ent-hero-banner__tag">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            </svg>
+                            <span>Doanh nghiệp • Ươm mầm tài năng</span>
                         </div>
-                        <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.35rem; letter-spacing: -0.02em;">
-                            <?= htmlspecialchars($pageTitle); ?>
-                        </h1>
-                        <p style="font-size: 0.9375rem; color: var(--text-secondary);">
-                            Đồng hành, đầu tư và ươm mầm các dự án sáng tạo, đề tài nghiên cứu từ học sinh, sinh viên và trường học.
+                        <div class="ent-hero-banner__title-row">
+                            <span class="ent-hero-banner__icon" aria-hidden="true">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="6" x2="12" y2="18"></line>
+                                    <line x1="6" y1="12" x2="18" y2="12"></line>
+                                </svg>
+                            </span>
+                            <h1 class="ent-hero-banner__title">Tài trợ Dự án & Ươm mầm Sáng tạo</h1>
+                        </div>
+                        <p class="ent-hero-banner__desc">
+                            Đồng hành, tài trợ kinh phí và ươm mầm các đề tài nghiên cứu, dự án công nghệ đột phá từ học sinh, sinh viên và các trường đối tác.
                         </p>
+                    </div>
+                    <div class="ent-hero-banner__action">
+                        <button type="button" class="btn btn-primary ent-btn-hero" onclick="document.querySelector('[data-tab=\'discover\']')?.click(); document.getElementById('spon-search-input')?.focus();">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <span>Khám phá dự án mới</span>
+                        </button>
                     </div>
                 </div>
 
@@ -664,6 +683,7 @@ $mySponsorships = getMySponsorships();
         window.ENTERPRISE_PROJECTS = <?= json_encode($projects); ?>;
         window.ENTERPRISE_SPONSORSHIPS = <?= json_encode($mySponsorships); ?>;
     </script>
+    <script src="../../../assets/js/enterprise.js"></script>
     <script src="../../../assets/js/enterprise-sponsorships.js"></script>
 </body>
 </html>

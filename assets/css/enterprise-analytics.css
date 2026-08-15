@@ -1,116 +1,196 @@
 /* ==========================================================================
    TalentHub Enterprise - Recruitment Analytics Module Styles
-   Design System: SaaS Enterprise Analytics, Clean Data Visualizations, Crisp Typography
+   Design System: Enterprise SaaS Analytics, Data-First, Restrained Orange & Neutral Surfaces
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   1. KPI Summary Cards
+   0. Layout & Section Container Utilities
+   -------------------------------------------------------------------------- */
+.ent-page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.ent-page-header__left {
+    flex: 1;
+    min-width: 280px;
+}
+
+.ent-page-header__breadcrumb {
+    font-size: var(--ent-text-meta);
+    font-weight: 700;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.25rem;
+    line-height: var(--ent-text-meta-lh);
+}
+
+.ent-page-header__title {
+    font-size: var(--ent-text-page-title);
+    font-weight: var(--ent-text-page-title-w);
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    line-height: var(--ent-text-page-title-lh);
+    margin-bottom: 0.35rem;
+}
+
+.ent-page-header__desc {
+    font-size: var(--ent-text-page-sub);
+    font-weight: var(--ent-text-page-sub-w);
+    color: var(--text-secondary);
+    line-height: var(--ent-text-page-sub-lh);
+    margin: 0;
+}
+
+.ent-page-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    padding-top: 0.25rem;
+}
+
+.ana-section-box {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1.125rem 1.25rem;
+    margin-bottom: 1.125rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+}
+
+.ana-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.625rem;
+    border-bottom: 1px solid #F1F5F9;
+}
+
+.ana-section-title {
+    font-size: var(--ent-text-section-title);
+    font-weight: var(--ent-text-section-title-w);
+    line-height: var(--ent-text-section-title-lh);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    letter-spacing: -0.01em;
+    margin: 0;
+}
+
+.ana-section-subtitle {
+    font-size: var(--ent-text-meta);
+    color: var(--text-secondary);
+    font-weight: 400;
+    display: block;
+    margin-top: 0.15rem;
+}
+
+/* --------------------------------------------------------------------------
+   1. KPI Summary Cards Grid
    -------------------------------------------------------------------------- */
 .ana-kpis-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1.25rem;
-    margin-bottom: 1.75rem;
+    gap: 0.875rem;
+    margin-bottom: 1.125rem;
 }
 
 .ana-kpi-card {
     background-color: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 1.25rem 1.5rem;
+    border-radius: var(--radius-sm);
+    padding: 0.875rem 1rem;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    transition: all var(--transition-base);
-    box-shadow: var(--shadow-sm);
-    position: relative;
-    overflow: hidden;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
 }
 
 .ana-kpi-card:hover {
-    border-color: rgba(249, 115, 22, 0.3);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
+    border-color: #CBD5E1;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
 }
 
 .ana-kpi-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.35rem;
 }
 
 .ana-kpi-title {
-    font-size: 0.8125rem;
-    font-weight: 700;
+    font-size: var(--ent-text-kpi-label);
+    font-weight: var(--ent-text-kpi-label-w);
+    line-height: var(--ent-text-kpi-label-lh);
     color: var(--text-secondary);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
 }
 
 .ana-kpi-icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: var(--radius-md);
+    width: 1.625rem;
+    height: 1.625rem;
+    border-radius: 4px;
+    background-color: #F8FAFC;
+    border: 1px solid #F1F5F9;
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
 }
 
-.ana-kpi-icon.blue {
-    background-color: rgba(59, 130, 246, 0.12);
-    color: #2563EB;
-}
-
-.ana-kpi-icon.orange {
-    background-color: var(--primary-light);
+.ana-kpi-icon.icon--orange {
     color: var(--primary);
 }
 
-.ana-kpi-icon.purple {
-    background-color: rgba(139, 92, 246, 0.12);
-    color: #7C3AED;
-}
-
-.ana-kpi-icon.green {
-    background-color: var(--accent-light);
-    color: var(--accent);
+.ana-kpi-icon.icon--green {
+    color: #16A34A;
 }
 
 .ana-kpi-value {
-    font-size: 1.875rem;
-    font-weight: 800;
+    font-size: var(--ent-text-kpi-val);
+    font-weight: var(--ent-text-kpi-val-w);
+    line-height: var(--ent-text-kpi-val-lh);
     color: var(--text-primary);
-    line-height: 1.15;
     letter-spacing: -0.02em;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
 }
 
 .ana-kpi-meta {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8125rem;
+    gap: 0.375rem;
+    font-size: var(--ent-text-meta);
+    line-height: var(--ent-text-meta-lh);
 }
 
 .ana-badge-change {
     display: inline-flex;
     align-items: center;
-    gap: 0.2rem;
-    padding: 0.15rem 0.45rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
+    gap: 0.15rem;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.6875rem;
     font-weight: 700;
 }
 
 .ana-badge-change.positive {
-    background-color: rgba(22, 163, 74, 0.12);
+    background-color: #F0FDF4;
     color: #15803D;
 }
 
 .ana-badge-change.neutral {
-    background-color: rgba(148, 163, 184, 0.12);
+    background-color: #F8FAFC;
     color: #475569;
 }
 
@@ -119,61 +199,33 @@
 }
 
 /* --------------------------------------------------------------------------
-   2. Interactive Filters Bar
+   2. Interactive Filters Toolbar
    -------------------------------------------------------------------------- */
 .ana-filter-card {
     background-color: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 1.25rem 1.5rem;
-    margin-bottom: 1.75rem;
-    box-shadow: var(--shadow-sm);
-}
-
-.ana-filter-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-}
-
-.ana-filter-title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-}
-
-.ana-filter-title {
-    font-size: 0.9375rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.ana-filter-active-tag {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--primary);
-    background-color: var(--primary-light);
-    padding: 0.2rem 0.6rem;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.125rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
 }
 
 .ana-filter-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr) auto;
-    gap: 1rem;
+    gap: 0.75rem;
     align-items: end;
 }
 
 .ana-filter-group {
     display: flex;
     flex-direction: column;
-    gap: 0.375rem;
+    gap: 0.25rem;
 }
 
 .ana-filter-label {
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: 0.6875rem;
+    font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -181,31 +233,33 @@
 
 .ana-select {
     width: 100%;
-    padding: 0.625rem 0.875rem;
-    background-color: var(--background);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    font-size: 0.875rem;
-    font-weight: 600;
+    height: 2.25rem;
+    padding: 0 0.625rem;
+    background-color: var(--surface);
+    border: 1px solid #CBD5E1;
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    font-weight: 500;
     color: var(--text-primary);
     outline: none;
-    transition: all var(--transition-fast);
+    transition: border-color var(--transition-fast);
 }
 
 .ana-select:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1);
 }
 
 .ana-btn-reset {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.625rem 1rem;
-    background-color: var(--background);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    font-size: 0.875rem;
+    gap: 0.35rem;
+    height: 2.25rem;
+    padding: 0 0.875rem;
+    background-color: var(--surface);
+    border: 1px solid #CBD5E1;
+    border-radius: var(--radius-sm);
+    font-size: 0.78125rem;
     font-weight: 600;
     color: var(--text-secondary);
     cursor: pointer;
@@ -214,177 +268,162 @@
 }
 
 .ana-btn-reset:hover {
-    background-color: var(--surface);
+    background-color: #F8FAFC;
     color: var(--text-primary);
-    border-color: #CBD5E1;
+    border-color: #94A3B8;
 }
 
 /* --------------------------------------------------------------------------
-   3. Main 2-Column Analytics Grid (Funnel + Trend)
+   3. Horizontal Recruitment Funnel Progression Pipeline
+   -------------------------------------------------------------------------- */
+.ana-horizontal-funnel {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.ana-funnel-step {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    position: relative;
+}
+
+.ana-funnel-step__content {
+    flex: 1;
+    background-color: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 0.875rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    transition: border-color var(--transition-fast);
+}
+
+.ana-funnel-step__content:hover {
+    border-color: #CBD5E1;
+}
+
+.ana-funnel-step__top {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.ana-funnel-step__num {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.ana-funnel-step__name {
+    font-size: 0.78125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ana-funnel-step__count {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+}
+
+.ana-funnel-step__meta {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    font-size: 0.6875rem;
+}
+
+.ana-funnel-step__conv {
+    font-weight: 700;
+    color: #EA580C;
+}
+
+.ana-funnel-step__sub {
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ana-funnel-step__track {
+    height: 4px;
+    background-color: #E2E8F0;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 0.15rem;
+}
+
+.ana-funnel-step__fill {
+    height: 100%;
+    background-color: #EA580C;
+    border-radius: 2px;
+    transition: width var(--transition-base);
+}
+
+.ana-funnel-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94A3B8;
+    flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   4. 2-Column Analytics Grid (Application Trend + Match Score)
    -------------------------------------------------------------------------- */
 .ana-grid-2col {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1.75rem;
-    margin-bottom: 1.75rem;
+    gap: 1.125rem;
+    margin-bottom: 1.125rem;
 }
 
-.ana-section-card {
-    background-color: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 1.5rem;
-    box-shadow: var(--shadow-sm);
-    display: flex;
-    flex-direction: column;
-}
-
-.ana-section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.25rem;
-    padding-bottom: 0.875rem;
-    border-bottom: 1px solid var(--border);
-}
-
-.ana-section-title {
-    font-size: 1.0625rem;
-    font-weight: 800;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.ana-section-subtitle {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-}
-
-/* --------------------------------------------------------------------------
-   4. Recruitment Funnel Visualizer
-   -------------------------------------------------------------------------- */
-.ana-funnel-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    flex-grow: 1;
-    justify-content: center;
-}
-
-.ana-funnel-stage {
-    background-color: var(--background);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 1rem 1.25rem;
-    position: relative;
-    transition: all var(--transition-fast);
-}
-
-.ana-funnel-stage:hover {
-    border-color: rgba(249, 115, 22, 0.3);
-    box-shadow: var(--shadow-sm);
-}
-
-.ana-funnel-stage-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-}
-
-.ana-funnel-stage-title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-}
-
-.ana-funnel-stage-icon {
-    width: 2rem;
-    height: 2rem;
-    border-radius: var(--radius-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.ana-funnel-stage-name {
-    font-size: 0.9375rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.ana-funnel-stage-sub {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-}
-
-.ana-funnel-stage-metrics {
-    text-align: right;
-}
-
-.ana-funnel-count {
-    font-size: 1.1875rem;
-    font-weight: 800;
-    color: var(--text-primary);
-    line-height: 1.2;
-}
-
-.ana-funnel-conv {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--primary);
-}
-
-.ana-funnel-bar-track {
-    height: 8px;
-    background-color: rgba(226, 232, 240, 0.7);
-    border-radius: var(--radius-full);
-    overflow: hidden;
-}
-
-.ana-funnel-bar-fill {
-    height: 100%;
-    border-radius: var(--radius-full);
-    transition: width var(--transition-base);
-}
-
-/* --------------------------------------------------------------------------
-   5. Application Trend Bar Chart
-   -------------------------------------------------------------------------- */
+/* 4a. Trend Bar Chart */
 .ana-chart-legend-row {
     display: flex;
     align-items: center;
-    gap: 1.25rem;
-    margin-bottom: 1.25rem;
-    font-size: 0.8125rem;
-    font-weight: 600;
+    gap: 1rem;
+    margin-bottom: 0.875rem;
+    font-size: 0.75rem;
+    font-weight: 500;
     color: var(--text-secondary);
 }
 
 .ana-legend-item {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.375rem;
 }
 
 .ana-legend-dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 2px;
+}
+
+.ana-legend-dot.legend--total {
+    background-color: #64748B;
+}
+
+.ana-legend-dot.legend--qualified {
+    background-color: #EA580C;
 }
 
 .ana-bars-container {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 1rem;
-    height: 210px;
-    padding-top: 1.5rem;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 0.75rem;
+    gap: 0.75rem;
+    height: 180px;
+    padding-top: 1.25rem;
+    border-bottom: 1px solid #E2E8F0;
+    margin-bottom: 0.5rem;
 }
 
 .ana-bar-col {
@@ -394,41 +433,41 @@
     align-items: center;
     height: 100%;
     justify-content: flex-end;
-    gap: 0.5rem;
+    gap: 0.35rem;
     position: relative;
 }
 
 .ana-bar-group {
     display: flex;
     align-items: flex-end;
-    gap: 0.35rem;
+    gap: 0.25rem;
     width: 100%;
-    max-width: 44px;
+    max-width: 38px;
     height: 100%;
     justify-content: center;
 }
 
 .ana-bar {
-    width: 50%;
-    border-radius: 4px 4px 0 0;
-    transition: height 0.4s ease;
+    width: 46%;
+    border-radius: 3px 3px 0 0;
+    transition: height 0.3s ease;
     position: relative;
 }
 
 .ana-bar.total {
-    background: linear-gradient(180deg, #3B82F6 0%, #93C5FD 100%);
+    background-color: #64748B;
 }
 
 .ana-bar.qualified {
-    background: linear-gradient(180deg, #F97316 0%, #FDBA74 100%);
+    background-color: #EA580C;
 }
 
 .ana-bar-val {
     position: absolute;
-    top: -20px;
+    top: -18px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 0.6875rem;
+    font-size: 0.65625rem;
     font-weight: 700;
     color: var(--text-primary);
     opacity: 0;
@@ -440,155 +479,228 @@
     opacity: 1;
 }
 
-.ana-bar-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-secondary);
+.ana-bar-label-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    white-space: nowrap;
 }
 
-/* --------------------------------------------------------------------------
-   6. Match Score Distribution & Quality Section
-   -------------------------------------------------------------------------- */
-.ana-match-summary-box {
+.ana-bar-label {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.ana-bar-col.is-current .ana-bar-label {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.ana-current-badge {
+    font-size: 0.5625rem;
+    font-weight: 600;
+    color: #EA580C;
+    background-color: #FFF7ED;
+    border: 1px solid rgba(249, 115, 22, 0.25);
+    padding: 0.05rem 0.3rem;
+    border-radius: 3px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+/* 4b. Match Score Analysis Layout */
+.ana-match-hero {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: linear-gradient(135deg, #FFF7ED 0%, #FFFFFF 100%);
-    border: 1px solid rgba(249, 115, 22, 0.25);
-    border-radius: var(--radius-lg);
-    padding: 1.125rem 1.5rem;
-    margin-bottom: 1.25rem;
+    background-color: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.875rem;
 }
 
-.ana-match-score-pill {
+.ana-match-hero__score-wrap {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 .ana-score-number {
-    font-size: 2.25rem;
-    font-weight: 900;
-    color: var(--primary);
+    font-size: 1.875rem;
+    font-weight: 800;
+    color: #EA580C;
     line-height: 1;
+    letter-spacing: -0.02em;
+}
+
+.ana-score-info {
+    display: flex;
+    flex-direction: column;
 }
 
 .ana-score-label {
     font-size: 0.8125rem;
     font-weight: 700;
     color: var(--text-primary);
-    line-height: 1.3;
 }
 
-.ana-match-tiers-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.ana-tier-card {
-    background-color: var(--background);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-}
-
-.ana-tier-range {
-    font-size: 0.75rem;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-}
-
-.ana-tier-label {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.ana-tier-count {
-    font-size: 1.35rem;
-    font-weight: 800;
-    color: var(--text-primary);
-    margin-top: 0.2rem;
-}
-
-.ana-tier-percent {
-    font-size: 0.75rem;
+.ana-score-sub {
+    font-size: 0.6875rem;
     color: var(--text-muted);
 }
 
-/* Skills dimensions meter */
+.ana-match-hero__note {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.ana-match-tiers-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 0.875rem;
+}
+
+.ana-tier-item {
+    background-color: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.625rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.ana-tier-item__top {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.ana-tier-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.ana-tier-range {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.ana-tier-item__count {
+    font-size: 1.0625rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.1;
+}
+
+.ana-tier-item__label {
+    font-size: 0.65625rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ana-dimensions-container {
+    padding-top: 0.5rem;
+    border-top: 1px solid #F1F5F9;
+}
+
+.ana-dimensions-title {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.5rem;
+}
+
 .ana-dimensions-list {
     display: flex;
     flex-direction: column;
-    gap: 0.875rem;
+    gap: 0.5rem;
 }
 
 .ana-dimension-item {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
+    gap: 0.2rem;
 }
 
 .ana-dimension-info {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.8125rem;
-    font-weight: 600;
+    font-size: 0.75rem;
     color: var(--text-primary);
+    font-weight: 500;
+}
+
+.ana-dimension-score {
+    font-weight: 700;
+    color: #EA580C;
+    font-size: 0.71875rem;
+}
+
+.ana-dimension-track {
+    height: 5px;
+    background-color: #E2E8F0;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.ana-dimension-fill {
+    height: 100%;
+    background-color: #EA580C;
+    border-radius: 2px;
 }
 
 /* --------------------------------------------------------------------------
-   7. Job Performance Comparison Table
+   5. Job Performance Comparison Table
    -------------------------------------------------------------------------- */
-.ana-table-card {
-    background-color: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 1.5rem;
-    margin-bottom: 1.75rem;
-    box-shadow: var(--shadow-sm);
-}
-
 .ana-table-header-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 1.25rem;
+    margin-bottom: 0.875rem;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 .ana-search-input-wrap {
     position: relative;
-    min-width: 280px;
+    min-width: 240px;
 }
 
 .ana-search-input {
     width: 100%;
-    padding: 0.55rem 0.875rem 0.55rem 2.25rem;
-    background-color: var(--background);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    font-size: 0.875rem;
+    height: 2.125rem;
+    padding: 0 0.75rem 0 2rem;
+    background-color: var(--surface);
+    border: 1px solid #CBD5E1;
+    border-radius: var(--radius-sm);
+    font-size: 0.78125rem;
     color: var(--text-primary);
     outline: none;
-    transition: all var(--transition-fast);
+    transition: border-color var(--transition-fast);
 }
 
 .ana-search-input:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1);
 }
 
 .ana-search-icon {
     position: absolute;
-    left: 0.75rem;
+    left: 0.625rem;
     top: 50%;
     transform: translateY(-50%);
     color: var(--text-muted);
@@ -597,32 +709,31 @@
 
 .ana-table-wrapper {
     overflow-x: auto;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border: 1px solid #E2E8F0;
+    border-radius: var(--radius-sm);
 }
 
 .ana-table {
     width: 100%;
     border-collapse: collapse;
-    text-align: left;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
 }
 
-.ana-table th {
-    background-color: var(--background);
-    padding: 0.875rem 1rem;
-    font-size: 0.75rem;
-    font-weight: 700;
+.ana-table thead th {
+    background-color: #F8FAFC;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #E2E8F0;
     white-space: nowrap;
 }
 
-.ana-table td {
-    padding: 1rem;
-    border-bottom: 1px solid var(--border);
+.ana-table tbody td {
+    padding: 0.6875rem 0.875rem;
+    border-bottom: 1px solid #F1F5F9;
     color: var(--text-primary);
     vertical-align: middle;
 }
@@ -632,89 +743,201 @@
 }
 
 .ana-table tbody tr:hover {
-    background-color: rgba(249, 115, 22, 0.02);
+    background-color: #FAFAFA;
+}
+
+.ana-job-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    line-height: 1.3;
+}
+
+.ana-job-code {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    margin-top: 0.1rem;
+}
+
+.ana-table th.text-center,
+.ana-table td.text-center {
+    text-align: center !important;
+}
+
+.ana-table th.text-left,
+.ana-table td.text-left {
+    text-align: left !important;
 }
 
 .ana-dept-badge {
-    display: inline-block;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 700;
-}
-
-.ana-dept-badge.tech { background: #EFF6FF; color: #2563EB; }
-.ana-dept-badge.web { background: #FFF7ED; color: #C2410C; }
-.ana-dept-badge.cloud { background: #F3E8FF; color: #7C3AED; }
-.ana-dept-badge.design { background: #FCE7F3; color: #DB2777; }
-.ana-dept-badge.hardware { background: #DCFCE7; color: #15803D; }
-
-/* --------------------------------------------------------------------------
-   8. Recruitment Insights Section
-   -------------------------------------------------------------------------- */
-.ana-insights-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.25rem;
-}
-
-.ana-insight-card {
-    background-color: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 1.35rem 1.5rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    box-shadow: var(--shadow-sm);
-    position: relative;
-}
-
-.ana-insight-card.success { border-left: 4px solid #16A34A; }
-.ana-insight-card.warning { border-left: 4px solid #DC2626; }
-.ana-insight-card.info { border-left: 4px solid #2563EB; }
-
-.ana-insight-badge {
-    display: inline-block;
-    font-size: 0.6875rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-    margin-bottom: 0.75rem;
-    width: fit-content;
-}
-
-.ana-insight-card.success .ana-insight-badge { background: #DCFCE7; color: #15803D; }
-.ana-insight-card.warning .ana-insight-badge { background: #FEE2E2; color: #B91C1C; }
-.ana-insight-card.info .ana-insight-badge { background: #EFF6FF; color: #1D4ED8; }
-
-.ana-insight-title {
-    font-size: 0.9375rem;
-    font-weight: 800;
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
-    line-height: 1.35;
-}
-
-.ana-insight-desc {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    line-height: 1.55;
-    margin-bottom: 1rem;
-}
-
-.ana-insight-footer {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    padding-top: 0.75rem;
-    border-top: 1px dashed var(--border);
+    justify-content: center;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    background-color: #F1F5F9;
+    color: #475569;
+    border: 1px solid #E2E8F0;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.ana-qual-pct {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+}
+
+.ana-match-cell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    width: auto;
+}
+
+.ana-match-val {
+    font-weight: 700;
+    color: var(--text-primary);
     font-size: 0.78125rem;
 }
 
+.ana-match-bar-track {
+    width: 48px;
+    height: 4px;
+    background-color: #E2E8F0;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.ana-match-bar-fill {
+    height: 100%;
+    background-color: #EA580C;
+    border-radius: 2px;
+}
+
 /* --------------------------------------------------------------------------
-   9. Responsive Breakpoints (375px to 1440px)
+   6. Recruitment Insights Ranked List
+   -------------------------------------------------------------------------- */
+.ana-insights-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.ana-insight-row {
+    background-color: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: var(--radius-sm);
+    padding: 0.875rem 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    transition: border-color var(--transition-fast);
+}
+
+.ana-insight-row:hover {
+    border-color: #CBD5E1;
+}
+
+.ana-insight-row.insight--success {
+    border-left: 3px solid #16A34A;
+}
+
+.ana-insight-row.insight--warning {
+    border-left: 3px solid #DC2626;
+}
+
+.ana-insight-row.insight--info {
+    border-left: 3px solid #2563EB;
+}
+
+.ana-insight-row__rank {
+    font-size: 0.875rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    line-height: 1.2;
+    padding-top: 0.1rem;
+}
+
+.ana-insight-row__body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.ana-insight-row__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.ana-insight-tag {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+.ana-insight-tag.tag--success {
+    background-color: #DCFCE7;
+    color: #15803D;
+}
+
+.ana-insight-tag.tag--warning {
+    background-color: #FEE2E2;
+    color: #B91C1C;
+}
+
+.ana-insight-tag.tag--info {
+    background-color: #EFF6FF;
+    color: #1D4ED8;
+}
+
+.ana-insight-row__title {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.35;
+}
+
+.ana-insight-row__desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.ana-insight-row__metric {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    padding-left: 0.875rem;
+    border-left: 1px solid #E2E8F0;
+    min-width: 120px;
+    flex-shrink: 0;
+}
+
+.ana-insight-row__metric-label {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+}
+
+.ana-insight-row__metric-val {
+    font-size: 0.9375rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+/* --------------------------------------------------------------------------
+   7. Responsive Breakpoints
    -------------------------------------------------------------------------- */
 @media (max-width: 1200px) {
     .ana-kpis-grid {
@@ -729,12 +952,13 @@
         grid-template-columns: 1fr;
     }
 
-    .ana-match-tiers-grid {
-        grid-template-columns: repeat(2, 1fr);
+    .ana-horizontal-funnel {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.625rem;
     }
 
-    .ana-insights-grid {
-        grid-template-columns: 1fr;
+    .ana-funnel-arrow {
+        display: none;
     }
 }
 
@@ -747,19 +971,31 @@
         grid-template-columns: 1fr;
     }
 
-    .ana-match-tiers-grid {
+    .ana-horizontal-funnel {
         grid-template-columns: 1fr;
     }
 
-    .ana-match-summary-box {
+    .ana-match-tiers-strip {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .ana-match-hero {
         flex-direction: column;
         align-items: flex-start;
-        gap: 1rem;
+        gap: 0.5rem;
+    }
+
+    .ana-insight-row {
+        flex-direction: column;
+    }
+
+    .ana-insight-row__metric {
+        border-left: none;
+        padding-left: 0;
+        padding-top: 0.5rem;
+        border-top: 1px dashed #E2E8F0;
+        align-items: flex-start;
+        width: 100%;
     }
 }
 
-@media (max-width: 480px) {
-    .ana-table th, .ana-table td {
-        padding: 0.75rem 0.5rem;
-    }
-}

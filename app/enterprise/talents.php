@@ -89,8 +89,8 @@ $sidebarNav = [
                     <div class="ent-talent-hero">
                         <div class="ent-talent-hero__left">
                             <div class="ent-talent-hero__title-row">
-                                <span class="ent-talent-hero__icon">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <span class="ent-talent-hero__icon" aria-hidden="true">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                         <circle cx="11" cy="11" r="8"></circle>
                                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                                     </svg>
@@ -105,7 +105,7 @@ $sidebarNav = [
                         <!-- Prominent Result Summary Card -->
                         <div class="ent-result-card" id="ent-total-badge">
                             <div class="ent-result-card__icon" aria-hidden="true">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                                     <circle cx="9" cy="7" r="4"></circle>
                                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
@@ -114,7 +114,7 @@ $sidebarNav = [
                             </div>
                             <div class="ent-result-card__content">
                                 <span class="ent-result-card__number" id="ent-count-num"><?= count($mockTalents); ?></span>
-                                <span class="ent-result-card__label">nhân tài phù hợp</span>
+                                <span class="ent-result-card__label">Nhân tài phù hợp</span>
                             </div>
                         </div>
                     </div>
@@ -123,14 +123,14 @@ $sidebarNav = [
                     <div class="ent-search-toolbar">
                         <!-- Main Search Bar -->
                         <div class="ent-search-input-wrapper">
-                            <svg class="ent-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg class="ent-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <circle cx="11" cy="11" r="8"></circle>
                                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                             </svg>
                             <input type="text" 
                                    id="talent-search-input" 
                                    class="ent-search-input" 
-                                   placeholder="Nhập tên học sinh/sinh viên, kỹ năng (React, Python...), trường học, hoặc lĩnh vực..."
+                                   placeholder="Nhập tên ứng viên, kỹ năng (React, Python...), trường học, hoặc lĩnh vực..."
                                    aria-label="Tìm kiếm nhân tài">
                             <button type="button" class="ent-search-clear" id="talent-search-clear" aria-label="Xóa từ khóa tìm kiếm" style="display: none;">
                                 &times;
@@ -165,7 +165,7 @@ $sidebarNav = [
                         <aside class="ent-filter-card" id="ent-filter-card">
                             <div class="ent-filter-card__header">
                                 <h3>
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                         <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                                     </svg>
                                     Bộ lọc tìm kiếm
@@ -176,7 +176,7 @@ $sidebarNav = [
                             </div>
 
                             <form id="talent-filter-form" class="ent-filter-form" onsubmit="return false;">
-                                <!-- Bậc học -->
+                                <!-- Primary Filter: Bậc học -->
                                 <div class="ent-filter-group">
                                     <label for="filter-edu-level" class="ent-filter-label">Bậc học</label>
                                     <select id="filter-edu-level" class="ent-filter-select">
@@ -188,7 +188,7 @@ $sidebarNav = [
                                     </select>
                                 </div>
 
-                                <!-- Trường học -->
+                                <!-- Primary Filter: Trường học -->
                                 <div class="ent-filter-group">
                                     <label for="filter-school" class="ent-filter-label">Trường học</label>
                                     <select id="filter-school" class="ent-filter-select">
@@ -199,22 +199,7 @@ $sidebarNav = [
                                     </select>
                                 </div>
 
-                                <!-- Khối / Năm học -->
-                                <div class="ent-filter-group">
-                                    <label for="filter-class-year" class="ent-filter-label">Khối / Năm học</label>
-                                    <select id="filter-class-year" class="ent-filter-select">
-                                        <option value="">Tất cả khối / năm</option>
-                                        <option value="Lớp 9">Lớp 9</option>
-                                        <option value="Lớp 11">Lớp 11</option>
-                                        <option value="Lớp 12">Lớp 12</option>
-                                        <option value="Năm 2">Năm 2</option>
-                                        <option value="Năm 3">Năm 3</option>
-                                        <option value="Năm 4">Năm 4</option>
-                                        <option value="Đã tốt nghiệp">Đã tốt nghiệp</option>
-                                    </select>
-                                </div>
-
-                                <!-- Lĩnh vực năng lực -->
+                                <!-- Primary Filter: Lĩnh vực năng lực -->
                                 <div class="ent-filter-group">
                                     <label for="filter-major-field" class="ent-filter-label">Lĩnh vực năng lực</label>
                                     <select id="filter-major-field" class="ent-filter-select">
@@ -225,7 +210,7 @@ $sidebarNav = [
                                     </select>
                                 </div>
 
-                                <!-- Điểm đánh giá -->
+                                <!-- Primary Filter: Điểm đánh giá -->
                                 <div class="ent-filter-group">
                                     <label for="filter-match-score" class="ent-filter-label">Điểm đánh giá năng lực</label>
                                     <select id="filter-match-score" class="ent-filter-select">
@@ -236,18 +221,7 @@ $sidebarNav = [
                                     </select>
                                 </div>
 
-                                <!-- Giờ trải nghiệm -->
-                                <div class="ent-filter-group">
-                                    <label for="filter-exp-hours" class="ent-filter-label">Giờ trải nghiệm thực án</label>
-                                    <select id="filter-exp-hours" class="ent-filter-select">
-                                        <option value="0">Tất cả số giờ</option>
-                                        <option value="50">Từ 50h trở lên</option>
-                                        <option value="100">Từ 100h trở lên</option>
-                                        <option value="150">Từ 150h trở lên</option>
-                                    </select>
-                                </div>
-
-                                <!-- Trạng thái thực tập -->
+                                <!-- Primary Filter: Trạng thái thực tập -->
                                 <div class="ent-filter-group">
                                     <label for="filter-readiness" class="ent-filter-label">Trạng thái thực tập</label>
                                     <select id="filter-readiness" class="ent-filter-select">
@@ -258,9 +232,51 @@ $sidebarNav = [
                                     </select>
                                 </div>
 
+                                <!-- Collapsible Advanced Filters: Khối/Năm & Giờ thực án -->
+                                <details class="ent-filter-advanced">
+                                    <summary class="ent-filter-advanced__summary">
+                                        <span>Bộ lọc nâng cao</span>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="ent-filter-advanced__icon" aria-hidden="true">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                    </summary>
+                                    <div class="ent-filter-advanced__content">
+                                        <!-- Khối / Năm học -->
+                                        <div class="ent-filter-group">
+                                            <label for="filter-class-year" class="ent-filter-label">Khối / Năm học</label>
+                                            <select id="filter-class-year" class="ent-filter-select">
+                                                <option value="">Tất cả khối / năm</option>
+                                                <option value="Lớp 9">Lớp 9</option>
+                                                <option value="Lớp 11">Lớp 11</option>
+                                                <option value="Lớp 12">Lớp 12</option>
+                                                <option value="Năm 2">Năm 2</option>
+                                                <option value="Năm 3">Năm 3</option>
+                                                <option value="Năm 4">Năm 4</option>
+                                                <option value="Đã tốt nghiệp">Đã tốt nghiệp</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Giờ trải nghiệm -->
+                                        <div class="ent-filter-group mt-2">
+                                            <label for="filter-exp-hours" class="ent-filter-label">Giờ trải nghiệm thực án</label>
+                                            <select id="filter-exp-hours" class="ent-filter-select">
+                                                <option value="0">Tất cả số giờ</option>
+                                                <option value="50">Từ 50h trở lên</option>
+                                                <option value="100">Từ 100h trở lên</option>
+                                                <option value="150">Từ 150h trở lên</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </details>
+
                                 <!-- Kỹ năng phổ biến & Xem thêm -->
                                 <div class="ent-filter-group">
-                                    <label class="ent-filter-label">Kỹ năng phổ biến</label>
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <label class="ent-filter-label mb-0">Kỹ năng phổ biến</label>
+                                        <button type="button" class="ent-more-skills-link" id="open-skills-modal-btn">
+                                            + Xem thêm
+                                        </button>
+                                    </div>
                                     <div class="ent-filter-checkboxes" id="popular-skills-container">
                                         <?php 
                                         $popularSkills = [
@@ -276,10 +292,6 @@ $sidebarNav = [
                                             </label>
                                         <?php endforeach; ?>
                                     </div>
-                                    
-                                    <button type="button" class="ent-more-skills-btn" id="open-skills-modal-btn">
-                                        + Xem thêm kỹ năng
-                                    </button>
                                 </div>
 
                                 <!-- Container hiển thị thẻ kỹ năng đã chọn -->
@@ -290,10 +302,10 @@ $sidebarNav = [
 
                                 <!-- Filter Buttons -->
                                 <div class="ent-filter-actions">
-                                    <button type="button" class="btn btn-primary btn-block" id="apply-filters-btn">
+                                    <button type="button" class="btn btn-primary btn-block btn-sm" id="apply-filters-btn">
                                         Áp dụng bộ lọc
                                     </button>
-                                    <button type="button" class="btn btn-secondary btn-block" id="clear-filters-btn">
+                                    <button type="button" class="btn btn-secondary btn-block btn-sm" id="clear-filters-btn">
                                         Xóa bộ lọc
                                     </button>
                                 </div>

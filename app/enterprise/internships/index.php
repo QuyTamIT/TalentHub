@@ -91,21 +91,22 @@ $metrics = getInternshipMetrics();
                     <!-- Enterprise Internship Hero Banner -->
                     <div class="ent-internship-hero">
                         <div class="ent-internship-hero__content">
-                            <div class="ent-internship-hero__badge">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                                </svg>
-                                <span>Khu vực Tuyển dụng & Thống kê</span>
+                            <div class="ent-internship-hero__title-row">
+                                <span class="ent-internship-hero__icon" aria-hidden="true">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                                    </svg>
+                                </span>
+                                <h2 class="ent-internship-hero__title">Quản lý Tuyển dụng Thực tập</h2>
                             </div>
-                            <h2 class="ent-internship-hero__title">Quản lý Tuyển dụng Thực tập</h2>
                             <p class="ent-internship-hero__desc">
                                 Đăng tin tuyển dụng thực tập sinh, theo dõi số lượng ứng viên và tiếp nhận hồ sơ từ các trường đối tác trên toàn quốc.
                             </p>
                         </div>
                         <div class="ent-internship-hero__action">
                             <a href="create.php" class="btn btn-primary ent-btn-create-hero" id="btn-create-internship">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
                                     <line x1="5" y1="12" x2="19" y2="12"></line>
                                 </svg>
@@ -119,8 +120,8 @@ $metrics = getInternshipMetrics();
                         <div class="ent-metric-card" data-metric="total">
                             <div class="ent-metric-card__header">
                                 <span class="label">Tổng số tin</span>
-                                <span class="ent-metric-card__icon text-secondary">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <span class="ent-metric-card__icon text-secondary" aria-hidden="true">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
                                         <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
                                     </svg>
@@ -133,22 +134,22 @@ $metrics = getInternshipMetrics();
                         <div class="ent-metric-card ent-metric-card--active" data-metric="active">
                             <div class="ent-metric-card__header">
                                 <span class="label">Đang tuyển</span>
-                                <span class="ent-metric-card__icon text-accent">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <span class="ent-metric-card__icon text-accent" aria-hidden="true">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <circle cx="12" cy="12" r="10"></circle>
                                         <polyline points="12 6 12 12 16 14"></polyline>
                                     </svg>
                                 </span>
                             </div>
                             <div class="ent-metric-card__value text-accent" id="metric-active"><?= $metrics['active']; ?></div>
-                            <div class="ent-metric-card__footer">Đang hiển thị cho người học</div>
+                            <div class="ent-metric-card__footer">Đang hiển thị công khai</div>
                         </div>
 
                         <div class="ent-metric-card" data-metric="draft">
                             <div class="ent-metric-card__header">
                                 <span class="label">Bản nháp</span>
-                                <span class="ent-metric-card__icon text-muted">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <span class="ent-metric-card__icon text-muted" aria-hidden="true">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                     </svg>
@@ -161,8 +162,8 @@ $metrics = getInternshipMetrics();
                         <div class="ent-metric-card" data-metric="closed">
                             <div class="ent-metric-card__header">
                                 <span class="label">Đã đóng</span>
-                                <span class="ent-metric-card__icon text-muted">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <span class="ent-metric-card__icon text-muted" aria-hidden="true">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <circle cx="12" cy="12" r="10"></circle>
                                         <line x1="15" y1="9" x2="9" y2="15"></line>
                                         <line x1="9" y1="9" x2="15" y2="15"></line>
@@ -170,7 +171,7 @@ $metrics = getInternshipMetrics();
                                 </span>
                             </div>
                             <div class="ent-metric-card__value" id="metric-closed"><?= $metrics['closed']; ?></div>
-                            <div class="ent-metric-card__footer">Đã tạm ngưng / hoàn tất đợt tuyển</div>
+                            <div class="ent-metric-card__footer">Đã hoàn tất đợt tuyển</div>
                         </div>
                     </div>
 
@@ -179,14 +180,14 @@ $metrics = getInternshipMetrics();
                         <div class="ent-internship-filter-row">
                             <!-- Title Search Input -->
                             <div class="ent-search-input-wrapper flex-1">
-                                <svg class="ent-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg class="ent-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                     <circle cx="11" cy="11" r="8"></circle>
                                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                                 </svg>
                                 <input type="text" 
                                        id="internship-search-input" 
                                        class="ent-search-input" 
-                                       placeholder="Tìm kiếm theo tiêu đề vị trí tuyển dụng (Frontend, AI, Backend...)"
+                                       placeholder="Tìm theo tiêu đề vị trí tuyển dụng (Frontend, AI, Backend...)"
                                        aria-label="Tìm kiếm tin tuyển dụng">
                                 <button type="button" class="ent-search-clear" id="internship-search-clear" aria-label="Xóa tìm kiếm" style="display: none;">&times;</button>
                             </div>
@@ -229,13 +230,13 @@ $metrics = getInternshipMetrics();
                             <table class="ent-table" id="internship-posts-table">
                                 <thead>
                                     <tr>
-                                        <th style="min-width: 260px;">Vị trí tuyển dụng</th>
-                                        <th style="width: 120px;">Trạng thái</th>
-                                        <th style="width: 110px;">Ngày đăng</th>
-                                        <th style="width: 110px;">Hạn nộp</th>
+                                        <th style="min-width: 240px; text-align: left;">Vị trí tuyển dụng</th>
+                                        <th style="width: 130px; text-align: center;">Trạng thái</th>
+                                        <th style="width: 110px; text-align: center;">Ngày đăng</th>
+                                        <th style="width: 110px; text-align: center;">Hạn nộp</th>
                                         <th style="width: 90px; text-align: center;">Số lượng</th>
-                                        <th style="width: 120px; text-align: center;">Ứng viên</th>
-                                        <th style="width: 160px; text-align: right;">Thao tác</th>
+                                        <th style="width: 130px; text-align: center;">Ứng viên</th>
+                                        <th style="width: 170px; text-align: center;">Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody id="internship-tbody">
@@ -256,7 +257,7 @@ $metrics = getInternshipMetrics();
                                                 </div>
                                             </td>
 
-                                            <td>
+                                            <td class="text-center">
                                                 <?php if ($post['status'] === 'active'): ?>
                                                     <span class="ent-status-pill ent-status-pill--active">
                                                         <span class="dot"></span>
@@ -275,25 +276,28 @@ $metrics = getInternshipMetrics();
                                                 <?php endif; ?>
                                             </td>
 
-                                            <td>
-                                                <span class="text-secondary"><?= htmlspecialchars($post['created_at']); ?></span>
-                                            </td>
-
-                                            <td>
-                                                <span class="text-primary font-medium"><?= htmlspecialchars($post['deadline']); ?></span>
+                                            <td class="text-center">
+                                                <span class="ent-table-date text-muted"><?= htmlspecialchars($post['created_at']); ?></span>
                                             </td>
 
                                             <td class="text-center">
-                                                <span class="font-medium text-primary"><?= htmlspecialchars($post['slots']); ?></span>
+                                                <span class="ent-table-date font-medium text-dark"><?= htmlspecialchars($post['deadline']); ?></span>
                                             </td>
 
                                             <td class="text-center">
-                                                <span class="ent-applicant-count-text">
-                                                    <?= htmlspecialchars($post['applicant_count']); ?> ứng viên
+                                                <span class="font-semibold text-dark"><?= htmlspecialchars($post['slots']); ?></span>
+                                            </td>
+
+                                            <td class="text-center ent-applicant-col">
+                                                <span class="ent-applicant-count-cell">
+                                                    <strong class="ent-applicant-num <?= $post['applicant_count'] > 0 ? 'text-primary' : 'text-muted' ?>">
+                                                        <?= htmlspecialchars($post['applicant_count']); ?>
+                                                    </strong>
+                                                    <span class="ent-applicant-text">ứng viên</span>
                                                 </span>
                                             </td>
 
-                                            <td class="text-right">
+                                            <td class="text-center">
                                                 <div class="ent-table-actions">
                                                     <a href="applicants.php?postId=<?= $post['id']; ?>" 
                                                        class="btn btn-secondary btn-sm ent-btn-view-applicants" 
@@ -340,16 +344,16 @@ $metrics = getInternshipMetrics();
                         </div>
 
                         <!-- Empty State Container -->
-                        <div class="ent-empty-state" id="internships-empty-state" style="display: none; padding: 3rem 1.5rem;">
+                        <div class="ent-empty-state" id="internships-empty-state" style="display: none; padding: 2.5rem 1.5rem;">
                             <div class="ent-empty-state__icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                     <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
                                     <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
                                 </svg>
                             </div>
                             <h3 class="ent-empty-state__title">Không tìm thấy tin tuyển dụng</h3>
                             <p class="ent-empty-state__desc">Không có tin tuyển dụng nào phù hợp với từ khóa hoặc bộ lọc của bạn.</p>
-                            <button type="button" class="btn btn-secondary" id="reset-search-btn">Đặt lại bộ lọc</button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="reset-search-btn">Đặt lại bộ lọc</button>
                         </div>
                     </div>
 

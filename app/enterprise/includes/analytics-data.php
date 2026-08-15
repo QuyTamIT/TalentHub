@@ -97,7 +97,8 @@ $funnelStages = [
 ];
 
 $applicationTrend = [
-    'labels' => ['Thg 3', 'Thg 4', 'Thg 5', 'Thg 6', 'Thg 7', 'Thg 8 (Hiện tại)'],
+    'labels' => ['Thg 3', 'Thg 4', 'Thg 5', 'Thg 6', 'Thg 7', 'Thg 8'],
+    'current_month_index' => 5,
     'total_applicants' => [140, 195, 250, 310, 340, 247],
     'qualified_applicants' => [88, 126, 168, 205, 222, 155]
 ];

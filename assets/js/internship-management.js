@@ -140,8 +140,8 @@ function initInternshipManagementModule() {
         const sortedRows = rows.filter(r => r.style.display !== 'none');
         sortedRows.sort((a, b) => {
             if (sortVal === 'applicants') {
-                const numA = parseInt(a.querySelector('.ent-applicant-count-badge')?.textContent || '0', 10);
-                const numB = parseInt(b.querySelector('.ent-applicant-count-badge')?.textContent || '0', 10);
+                const numA = parseInt(a.querySelector('.ent-applicant-num')?.textContent || a.querySelector('.ent-applicant-count-badge')?.textContent || a.querySelector('.ent-applicant-count-text')?.textContent || '0', 10);
+                const numB = parseInt(b.querySelector('.ent-applicant-num')?.textContent || b.querySelector('.ent-applicant-count-badge')?.textContent || b.querySelector('.ent-applicant-count-text')?.textContent || '0', 10);
                 return numB - numA;
             } else if (sortVal === 'deadline') {
                 const deadA = a.querySelectorAll('td')[3]?.textContent.trim() || '';
