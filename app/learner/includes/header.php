@@ -33,7 +33,7 @@ $headerSearchPlaceholder = $headerSearchPlaceholder ?? 'Tìm hoạt động, k�
             <span class="learner-notification-dot" aria-hidden="true"></span>
         </button>
 
-        <button class="learner-avatar" type="button" aria-label="Mở tài khoản Nguyễn Văn A">
+        <button class="learner-avatar" type="button" aria-label="Mở tài khoản <?= learner_escape($student['name']); ?>" data-learner-account>
             <?= learner_escape($student['initials']); ?>
         </button>
     </div>
@@ -43,3 +43,10 @@ $headerSearchPlaceholder = $headerSearchPlaceholder ?? 'Tìm hoạt động, k�
     <span class="learner-toast__icon"><?= learner_icon('check', 18); ?></span>
     <span class="learner-toast__message">Đã cập nhật.</span>
 </div>
+
+<?php if (isset($GLOBALS['learner_page_context'])): ?>
+<script id="learner-session-boot" type="application/json"><?= json_encode([
+    'csrfToken' => $GLOBALS['learner_page_context']['csrfToken'],
+    'apiBase' => '/api/v1',
+], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
+<?php endif; ?>

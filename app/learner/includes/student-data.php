@@ -1,11 +1,14 @@
 <?php
 /**
- * TalentHub Learner mock data.
+ * TalentHub Learner page data.
  *
- * Replace these arrays with a repository or API response when a backend is
- * introduced. Keep presentation concerns out of this file.
+ * The remaining mock domain arrays keep deterministic rendering available to
+ * the test suite. Authenticated production pages use the shared application
+ * context below.
  */
 
+$repositoryRoot = dirname(__DIR__, 3);
+require_once $repositoryRoot . '/bin/bootstrap.php';
 require_once dirname(__DIR__) . '/data/bootstrap.php';
 
 if (!function_exists('learner_escape')) {
@@ -31,10 +34,32 @@ $studentMock = [
     'streak_days' => 7,
     'experience_hours' => 64,
 ];
-$studentRecord = learner_repository_factory()
-    ->student([$studentMock])
-    ->findById(learner_current_student_id());
-$student = \TalentHub\Learner\Data\ReadModel\StudentReadModel::fromRecord($studentRecord ?? []);
+$appEnvironment = strtolower((string) (getenv('APP_ENV') ?: ''));
+$learnerSource = strtolower((string) (getenv('TALENTHUB_LEARNER_SOURCE') ?: 'database'));
+$useMock = $appEnvironment === 'test' && $learnerSource === 'mock';
+
+if ($useMock) {
+    $learnerDataConfig = learner_data_config();
+    learner_configure_data(['source' => 'mock']);
+    try {
+        $studentRecord = learner_repository_factory()->student([$studentMock])->findById($studentMock['id']);
+    } finally {
+        learner_configure_data($learnerDataConfig);
+    }
+    $student = \TalentHub\Learner\Data\ReadModel\StudentReadModel::fromRecord($studentRecord ?? []);
+} else {
+    try {
+        $context = (new \TalentHub\Bootstrap\StudentAppContext())->boot();
+    } catch (\TalentHub\Database\Exception\DatabaseConnectionException) {
+        require __DIR__ . '/runtime-unavailable.php';
+        exit;
+    }
+    $student = \TalentHub\Learner\Data\Support\SharedStudentAdapter::toView(
+        $context['student'],
+        $context['dashboard']
+    );
+    $GLOBALS['learner_page_context'] = $context;
+}
 $learnerNav = [
     ['label' => 'Tổng quan', 'route' => '/app/learner/index.php', 'icon' => 'grid', 'implemented' => true],
     ['label' => 'Hồ sơ năng lực', 'route' => '/app/learner/profile.php', 'icon' => 'user', 'implemented' => true],
