@@ -177,6 +177,35 @@
         validateApplication,
     };
 
+    function createPageApiClient() {
+        if (typeof document === 'undefined') return null;
+
+        const node = document.getElementById('learner-session-boot');
+        if (!node || !global.TalentHubLearnerApi) return null;
+
+        let boot;
+        try {
+            boot = JSON.parse(node.textContent || '{}');
+        } catch {
+            return null;
+        }
+
+        try {
+            return global.TalentHubLearnerApi.createLearnerApiClient({
+                baseUrl: boot.apiBase || '/api/v1',
+                csrfToken: boot.csrfToken || '',
+                onUnauthorized: () => {
+                    if (typeof global.location?.assign !== 'function') return;
+                    global.location.assign(`/login.php?next=${encodeURIComponent(global.location.pathname + global.location.search)}`);
+                },
+            });
+        } catch {
+            return null;
+        }
+    }
+
+    global.TalentHubLearnerClient = createPageApiClient();
+
     if (typeof document === 'undefined') return;
 
     document.addEventListener('DOMContentLoaded', () => {

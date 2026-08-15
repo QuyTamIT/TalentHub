@@ -131,6 +131,7 @@ $dashboardSkills = [$skills[0], $skills[1], $skills[2], $skills[4]];
         </div>
     </div>
 
+    <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
 </body>
 </html>

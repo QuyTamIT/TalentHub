@@ -147,6 +147,7 @@ $deadlineLabel = $opportunity ? (new DateTimeImmutable($opportunity['deadline'])
         </div>
     <?php endif; ?>
 
+    <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
 </body>
 </html>

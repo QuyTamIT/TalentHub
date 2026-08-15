@@ -157,6 +157,7 @@ $bootData = $definition ? [
         </div>
         <script id="learner-assessment-boot" type="application/json"><?= json_encode($bootData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
     <?php endif; ?>
+    <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
     <script src="../../assets/js/learner-assessment.js"></script>
 </body>

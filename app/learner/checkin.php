@@ -107,6 +107,7 @@ $linkedActivity = isset($_GET['activity']) ? learner_activity_find((string) $_GE
         </div>
     </div>
 
+    <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
 </body>
 </html>

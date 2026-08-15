@@ -282,6 +282,7 @@ function learner_ecosystem_date(string $date): string
         </aside>
     </div>
 
+    <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
 </body>
 </html>

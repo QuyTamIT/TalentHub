@@ -201,6 +201,7 @@ $shareUrl = 'http://localhost/TalentHub/app/learner/profile.php?student=nguyen-v
         </div>
     </div>
 
+    <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
 </body>
 </html>

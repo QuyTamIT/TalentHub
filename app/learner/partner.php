@@ -149,6 +149,7 @@ $isEnterprise = $partner && $partner['type'] === 'enterprise';
         </div>
     </div>
 
+    <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
 </body>
 </html>
