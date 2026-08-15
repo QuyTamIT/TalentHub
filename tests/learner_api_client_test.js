@@ -50,3 +50,121 @@ test('API errors preserve safe contract and notify on 401', async () => {
   });
   assert.equal(unauthorized, 1);
 });
+
+test('client ignores an external base URL and stays under the canonical API root', async () => {
+  let requestUrl = '';
+  const client = createLearnerApiClient({
+    baseUrl: 'https://untrusted.example/api/v1',
+    fetchImpl: async (url) => {
+      requestUrl = url;
+      return { ok: true, status: 200, json: async () => ({ data: {} }) };
+    },
+  });
+
+  await client.get('/students/me?include=profile');
+  assert.equal(requestUrl, '/api/v1/students/me?include=profile');
+});
+
+test('client rejects traversal paths before making a request', async () => {
+  let calls = 0;
+  const client = createLearnerApiClient({
+    fetchImpl: async () => {
+      calls += 1;
+      return { ok: true, status: 200, json: async () => ({ data: {} }) };
+    },
+  });
+
+  await assert.rejects(client.get('/../../protected'), error => {
+    assert.ok(error instanceof LearnerApiError);
+    assert.equal(error.code, 'INVALID_API_PATH');
+    return true;
+  });
+  assert.equal(calls, 0);
+});
+
+test('read methods never send CSRF tokens even when called with a body', async () => {
+  let request;
+  const client = createLearnerApiClient({
+    csrfToken: 'csrf-test',
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: true, status: 200, json: async () => ({ data: {} }) };
+    },
+  });
+
+  await client.send('GET', '/students/me', { ignored: true });
+  assert.equal(request.options.headers['X-CSRF-Token'], undefined);
+  assert.equal(request.options.body, JSON.stringify({ ignored: true }));
+});
+
+test('bodyless mutations include the current CSRF token', async () => {
+  let request;
+  const client = createLearnerApiClient({
+    csrfToken: 'csrf-first',
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: true, status: 200, json: async () => ({ data: {} }) };
+    },
+  });
+
+  client.setCsrfToken('csrf-current');
+  await client.send('DELETE', '/students/me/avatar');
+  assert.equal(request.options.headers['X-CSRF-Token'], 'csrf-current');
+  assert.equal(request.options.body, undefined);
+});
+
+test('403, 422, and 503 responses use the normalized error contract', async () => {
+  for (const [status, code] of [[403, 'FORBIDDEN'], [422, 'VALIDATION_FAILED'], [503, 'SERVICE_UNAVAILABLE']]) {
+    const client = createLearnerApiClient({
+      fetchImpl: async () => ({
+        ok: false,
+        status,
+        json: async () => ({ error: { code, details: [{ field: 'name' }] }, meta: { requestId: `req-${status}` } }),
+      }),
+    });
+
+    await assert.rejects(client.get('/students/me'), error => {
+      assert.ok(error instanceof LearnerApiError);
+      assert.equal(error.status, status);
+      assert.equal(error.code, code);
+      assert.deepEqual(error.details, [{ field: 'name' }]);
+      assert.equal(error.requestId, `req-${status}`);
+      return true;
+    });
+  }
+});
+
+test('a non-JSON 401 still notifies unauthorized handling with a safe error', async () => {
+  let unauthorized = 0;
+  const client = createLearnerApiClient({
+    onUnauthorized: () => { unauthorized += 1; },
+    fetchImpl: async () => ({
+      ok: false,
+      status: 401,
+      json: async () => { throw new Error('HTML error page'); },
+    }),
+  });
+
+  await assert.rejects(client.get('/students/me'), error => {
+    assert.ok(error instanceof LearnerApiError);
+    assert.equal(error.status, 401);
+    assert.equal(error.code, 'INVALID_RESPONSE');
+    return true;
+  });
+  assert.equal(unauthorized, 1);
+});
+
+test('malformed successful envelopes produce safe client errors', async () => {
+  for (const payload of [null, {}]) {
+    const client = createLearnerApiClient({
+      fetchImpl: async () => ({ ok: true, status: 200, json: async () => payload }),
+    });
+
+    await assert.rejects(client.get('/students/me'), error => {
+      assert.ok(error instanceof LearnerApiError);
+      assert.equal(error.status, 200);
+      assert.equal(error.code, 'INVALID_RESPONSE');
+      return true;
+    });
+  }
+});
