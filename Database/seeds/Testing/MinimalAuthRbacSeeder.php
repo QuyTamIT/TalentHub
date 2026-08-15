@@ -92,7 +92,7 @@ final class MinimalAuthRbacSeeder
             [self::IDS['teacherProfile'], self::IDS['teacherUser'], self::IDS['school'], 0]);
         $this->insertIgnore($pdo,
             'INSERT IGNORE INTO school_members (id, schoolId, userId, memberRole) VALUES (?, ?, ?, ?)',
-            [self::IDS['schoolMember'], self::IDS['school'], self::IDS['schoolUser'], 'member']);
+            [self::IDS['schoolMember'], self::IDS['school'], self::IDS['schoolUser'], 'admin']);
         $this->insertIgnore($pdo,
             'INSERT IGNORE INTO enterprise_members (id, enterpriseId, userId, memberRole) VALUES (?, ?, ?, ?)',
             [self::IDS['enterpriseMember'], self::IDS['enterprise'], self::IDS['businessUser'], 'member']);

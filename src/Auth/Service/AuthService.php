@@ -2,12 +2,43 @@
 declare(strict_types=1);
 namespace TalentHub\Auth\Service;
 
+use DateTimeImmutable;
+use PDOException;
 use TalentHub\Auth\Repository\AuthRepository;
 use TalentHub\Http\ApiException;
+use TalentHub\Support\Uuid;
 
 final class AuthService
 {
+    private const REGISTER_FIELDS=['email','password','fullName','classId','dateOfBirth','phone'];
     public function __construct(private readonly AuthRepository $repository) {}
+
+    /** @return array{id:string,email:string,fullName:string,role:string,status:string} */
+    public function registerStudent(array $input,string $requestId='system',?string $ip=null): array
+    {
+        $details=[];
+        foreach(array_keys($input) as $field){if(!in_array($field,self::REGISTER_FIELDS,true)){$details[]=['field'=>(string)$field,'code'=>'FIELD_NOT_ALLOWED','message'=>'Không được phép gửi field này.'];}}
+        $email=strtolower(trim(is_string($input['email']??null)?$input['email']:''));
+        $password=is_string($input['password']??null)?$input['password']:'';
+        $fullName=trim(is_string($input['fullName']??null)?$input['fullName']:'');
+        $classId=strtolower(trim(is_string($input['classId']??null)?$input['classId']:''));
+        $dateOfBirth=is_string($input['dateOfBirth']??null)?$input['dateOfBirth']:'';
+        $phone=trim(is_string($input['phone']??null)?$input['phone']:'');
+        if(!filter_var($email,FILTER_VALIDATE_EMAIL)||strlen($email)>255){$details[]=['field'=>'email','code'=>'INVALID_EMAIL','message'=>'Email không đúng định dạng.'];}
+        if(strlen($password)<12||strlen($password)>255){$details[]=['field'=>'password','code'=>'INVALID_LENGTH','message'=>'Mật khẩu phải có từ 12 đến 255 ký tự.'];}
+        if(mb_strlen($fullName)<2||mb_strlen($fullName)>150){$details[]=['field'=>'fullName','code'=>'INVALID_LENGTH','message'=>'Họ tên phải có từ 2 đến 150 ký tự.'];}
+        if(!Uuid::isValid($classId)){$details[]=['field'=>'classId','code'=>'INVALID_UUID','message'=>'classId phải là UUID hợp lệ.'];}
+        $date=DateTimeImmutable::createFromFormat('!Y-m-d',$dateOfBirth);
+        if(!$date||$date->format('Y-m-d')!==$dateOfBirth||$date>new DateTimeImmutable('today')){$details[]=['field'=>'dateOfBirth','code'=>'INVALID_DATE','message'=>'Ngày sinh phải hợp lệ và không nằm trong tương lai.'];}
+        if(mb_strlen($phone)<6||mb_strlen($phone)>30||preg_match('/^[0-9+() .-]+$/',$phone)!==1){$details[]=['field'=>'phone','code'=>'INVALID_PHONE','message'=>'Số điện thoại không hợp lệ.'];}
+        if($details!==[]){throw new ApiException(422,'VALIDATION_FAILED','Dữ liệu gửi lên không hợp lệ.',$details);}
+        if($this->repository->findByEmail($email)!==null){throw new ApiException(409,'DUPLICATE_RESOURCE','Email đã được sử dụng.');}
+        $hash=password_hash($password,PASSWORD_DEFAULT);if($hash===false){throw new ApiException(500,'INTERNAL_ERROR','Không thể tạo tài khoản.');}
+        try{$id=$this->repository->createStudent(['email'=>$email,'passwordHash'=>$hash,'fullName'=>$fullName,'classId'=>$classId,'dateOfBirth'=>$dateOfBirth,'phone'=>$phone],$requestId,$ip);}
+        catch(PDOException $exception){if((int)($exception->errorInfo[1]??0)===1062){throw new ApiException(409,'DUPLICATE_RESOURCE','Email đã được sử dụng.');}throw $exception;}
+        if($id===''){throw new ApiException(422,'VALIDATION_FAILED','Lớp không tồn tại hoặc không còn nhận học viên.',[['field'=>'classId','code'=>'CLASS_NOT_AVAILABLE','message'=>'Lớp không tồn tại hoặc không còn hoạt động.']]);}
+        return $this->current($id);
+    }
     /** @return array{id:string,email:string,fullName:string,role:string,status:string} */
     public function login(array $input,string $requestId='system',?string $ip=null): array
     {

@@ -1,161 +1,80 @@
 <?php
-/**
- * TalentHub - Login Page (School demo entry point).
- *
- * The legacy UI lives outside the /api/v1 router, so this page handles
- * the form POST directly via the same AuthService used by the API. The
- * service writes the session, regenerates the session id and stores the
- * authenticated user payload for the school dashboard.
- */
 declare(strict_types=1);
-
-require __DIR__ . '/bin/bootstrap.php';
+require __DIR__.'/bin/bootstrap.php';
 
 use TalentHub\Auth\Repository\AuthRepository;
+use TalentHub\Auth\Service\AuthPortalRouter;
 use TalentHub\Auth\Service\AuthService;
+use TalentHub\Auth\Service\LoginRateLimiter;
 use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
 use TalentHub\Support\Id\RequestId;
 
-$errorMessage = null;
-$emailValue   = '';
+$session=new SessionManager(require __DIR__.'/config/session.php');$session->start();
+$requestedNext=is_string($_GET['next']??null)?$_GET['next']:null;
+if(($current=$session->user())!==null){header('Location: '.AuthPortalRouter::destination((string)$current['role'],$requestedNext));exit;}
 
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    $config    = require __DIR__ . '/config/database.php';
-    $pdo       = (new Connection($config))->connect();
-    $session   = new SessionManager(require __DIR__ . '/config/session.php');
-    $session->start();
-    $auth      = new AuthService(new AuthRepository($pdo));
+$errorMessage=null;$emailValue='';$fieldErrors=[];$flash=$_SESSION['authFlash']??null;unset($_SESSION['authFlash']);
+if(is_array($flash)){$emailValue=(string)($flash['email']??'');}
 
-    $emailValue = trim((string) ($_POST['email'] ?? ''));
-    $password   = (string) ($_POST['password'] ?? '');
-    $next       = (string) ($_POST['next'] ?? ($_GET['next'] ?? '/app/school/'));
-    if (!str_starts_with($next, '/') || str_starts_with($next, '//')) {
-        $next = '/app/school/';
-    }
-
-    try {
-        $session->assertLoginAllowed();
-        $requestId = RequestId::make(null);
-        $user = $auth->login(
-            ['email' => $emailValue, 'password' => $password],
-            $requestId,
-            $_SERVER['REMOTE_ADDR'] ?? null
-        );
-        $session->clearLoginFailures();
-        $session->login($user);
-        header('Location: ' . $next);
-        exit;
-    } catch (ApiException $e) {
-        if ($e->errorCode === 'INVALID_CREDENTIALS') {
-            $session->recordLoginFailure();
-        }
-        $errorMessage = $e->getMessage();
-    } catch (Throwable $e) {
-        $errorMessage = 'Đã xảy ra lỗi hệ thống, vui lòng thử lại.';
-    }
+if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
+    $emailValue=trim((string)($_POST['email']??''));$password=(string)($_POST['password']??'');$requestedNext=is_string($_POST['next']??null)?$_POST['next']:$requestedNext;
+    try{
+        $pdo=(new Connection(require __DIR__.'/config/database.php'))->connect();$repository=new AuthRepository($pdo);$auth=new AuthService($repository);$limiter=new LoginRateLimiter($pdo);$ip=$_SERVER['REMOTE_ADDR']??null;$requestId=RequestId::make(null);
+        $limiter->assertAllowed($emailValue,$ip);$session->assertLoginAllowed();
+        try{$user=$auth->login(['email'=>$emailValue,'password'=>$password],$requestId,$ip);}catch(ApiException $exception){if($exception->errorCode==='INVALID_CREDENTIALS'){$limiter->recordFailure($emailValue,$ip);$session->recordLoginFailure();}throw $exception;}
+        $limiter->clearIdentity($emailValue,$ip);$session->clearLoginFailures();$session->login($user);header('Location: '.AuthPortalRouter::destination($user['role'],$requestedNext));exit;
+    }catch(ApiException $exception){$errorMessage=$exception->getMessage();foreach($exception->details as $detail){$fieldErrors[$detail['field']]=$detail['message'];}if(isset($exception->headers['Retry-After'])){header('Retry-After: '.$exception->headers['Retry-After']);}}
+    catch(Throwable){$errorMessage='Không thể kết nối dịch vụ đăng nhập. Vui lòng thử lại sau.';}
 }
 
-$next = (string) ($_GET['next'] ?? '/app/school/');
+function authEscape(mixed $value): string{return htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8');}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập - TalentHub Nhà trường</title>
+    <meta name="description" content="Đăng nhập TalentHub để tiếp tục vào không gian học tập và quản lý của bạn.">
+    <title>Đăng nhập | TalentHub</title>
     <link rel="stylesheet" href="assets/css/home.css">
-    <style>
-        .login-shell {
-            max-width: 420px;
-            margin: 80px auto;
-            padding: 36px 32px;
-            border-radius: 16px;
-            background: #ffffff;
-            box-shadow: 0 30px 60px rgba(15, 23, 42, 0.08);
-        }
-        .login-shell h1 {
-            font-size: 1.6rem;
-            margin: 0 0 6px;
-        }
-        .login-shell p.lead {
-            margin: 0 0 24px;
-            color: #475569;
-        }
-        .login-field {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            margin-bottom: 16px;
-        }
-        .login-field label {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #1e293b;
-        }
-        .login-field input {
-            padding: 10px 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
-            font-size: 1rem;
-        }
-        .login-field input:focus {
-            outline: 2px solid #2563eb;
-            border-color: #2563eb;
-        }
-        .login-shell .btn-primary {
-            width: 100%;
-            padding: 12px 0;
-            border-radius: 10px;
-        }
-        .login-error {
-            background: #fef2f2;
-            color: #b91c1c;
-            border: 1px solid #fecaca;
-            border-radius: 10px;
-            padding: 10px 12px;
-            margin-bottom: 16px;
-            font-size: 0.9rem;
-        }
-        .login-hint {
-            margin-top: 18px;
-            font-size: 0.85rem;
-            color: #475569;
-            background: #f1f5f9;
-            padding: 12px;
-            border-radius: 10px;
-        }
-        .login-hint code { background: #e2e8f0; padding: 1px 6px; border-radius: 6px; }
-    </style>
+    <link rel="stylesheet" href="assets/css/auth.css">
 </head>
-<body>
-    <main class="login-shell">
-        <h1>Đăng nhập Nhà trường</h1>
-        <p class="lead">Sử dụng tài khoản school admin đã được seed để truy cập dashboard.</p>
-
-        <?php if ($errorMessage !== null): ?>
-            <div class="login-error"><?= htmlspecialchars($errorMessage); ?></div>
-        <?php endif; ?>
-
-        <form method="post" action="login.php" novalidate>
-            <input type="hidden" name="next" value="<?= htmlspecialchars($next); ?>">
-            <div class="login-field">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" value="<?= htmlspecialchars($emailValue); ?>" required autocomplete="email">
-            </div>
-            <div class="login-field">
-                <label for="password">Mật khẩu</label>
-                <input type="password" id="password" name="password" required autocomplete="current-password">
-            </div>
-            <button type="submit" class="btn btn-primary">Đăng nhập</button>
-        </form>
-
-        <div class="login-hint">
-            <strong>Tài khoản demo:</strong><br>
-            Email: <code>school.admin@talenthub.vn</code><br>
-            Mật khẩu: <code>TestPassword_2026</code>
+<body class="auth-page">
+<main class="auth-layout">
+    <section class="auth-brand" aria-labelledby="auth-brand-title">
+        <a class="auth-brand__logo" href="/index.php" aria-label="TalentHub - Về trang chủ"><img src="/assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
+        <div class="auth-brand__content">
+            <p class="auth-eyebrow">Một tài khoản, đúng không gian</p>
+            <h1 id="auth-brand-title">Tiếp tục hành trình phát triển tài năng</h1>
+            <p>TalentHub tự nhận diện vai trò và đưa bạn đến dashboard phù hợp ngay sau khi đăng nhập.</p>
+            <ul class="auth-role-list" aria-label="Các khu vực trên TalentHub">
+                <li><span class="auth-role-dot auth-role-dot--student"></span><strong>Học viên</strong><span>Hồ sơ năng lực và trải nghiệm</span></li>
+                <li><span class="auth-role-dot auth-role-dot--teacher"></span><strong>Giáo viên</strong><span>Đồng hành và đánh giá</span></li>
+                <li><span class="auth-role-dot auth-role-dot--school"></span><strong>Nhà trường</strong><span>Quản trị và phân tích</span></li>
+                <li><span class="auth-role-dot auth-role-dot--business"></span><strong>Doanh nghiệp</strong><span>Kết nối nhân tài</span></li>
+            </ul>
         </div>
-    </main>
+        <p class="auth-brand__footer">Nền tảng hướng nghiệp và phát triển năng lực toàn diện.</p>
+    </section>
+    <section class="auth-panel" aria-labelledby="login-title">
+        <div class="auth-panel__inner">
+            <a class="auth-mobile-logo" href="/index.php"><img src="/assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
+            <div class="auth-heading"><p class="auth-kicker">Chào mừng trở lại</p><h2 id="login-title">Đăng nhập tài khoản</h2><p>Nhập thông tin đã đăng ký hoặc được tổ chức cấp.</p></div>
+            <?php if(is_array($flash)): ?><div class="auth-alert auth-alert--success" role="status"><strong>Đăng ký thành công.</strong> Bạn có thể đăng nhập bằng tài khoản vừa tạo.</div><?php endif; ?>
+            <?php if($errorMessage!==null): ?><div class="auth-alert auth-alert--error" role="alert"><?=authEscape($errorMessage)?></div><?php endif; ?>
+            <form class="auth-form" method="post" action="/login.php" data-auth-form>
+                <?php if($requestedNext!==null): ?><input type="hidden" name="next" value="<?=authEscape($requestedNext)?>"><?php endif; ?>
+                <div class="auth-field"><label for="email">Email</label><input id="email" name="email" type="email" value="<?=authEscape($emailValue)?>" autocomplete="email" inputmode="email" maxlength="255" required autofocus aria-describedby="email-hint"><span id="email-hint" class="auth-field__hint">Email cá nhân hoặc email do tổ chức cấp.</span></div>
+                <div class="auth-field"><div class="auth-field__label-row"><label for="password">Mật khẩu</label></div><div class="auth-password"><input id="password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="255" required><button type="button" class="auth-password__toggle" data-password-toggle aria-controls="password" aria-pressed="false">Hiện</button></div></div>
+                <button class="auth-submit" type="submit" data-submit><span>Đăng nhập</span><span aria-hidden="true">→</span></button>
+            </form>
+            <p class="auth-switch">Chưa có tài khoản học viên? <a href="/register.php">Đăng ký ngay</a></p>
+            <a class="auth-back" href="/index.php">← Về trang chủ</a>
+        </div>
+    </section>
+</main>
+<script src="/assets/js/auth.js" defer></script>
 </body>
 </html>
