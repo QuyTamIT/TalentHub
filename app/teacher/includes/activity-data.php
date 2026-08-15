@@ -32,46 +32,51 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
     $endAt = teacherActivitiesDate($row['endAt'] ?? null);
     $rawStatus = strtolower(trim((string) ($row['status'] ?? '')));
 
-    $draftStatuses = ['draft', 'pending', 'new', 'nhap', 'ban_nhap'];
-    $endedStatuses = ['completed', 'ended', 'finished', 'cancelled', 'canceled', 'da_ket_thuc'];
-
-    if (in_array($rawStatus, $draftStatuses, true)) {
-        $statusKey = 'draft';
-    } elseif (($endAt && $endAt < $now) || in_array($rawStatus, $endedStatuses, true)) {
-        $statusKey = 'ended';
-    } elseif ($startAt && $startAt > $now) {
-        $statusKey = 'upcoming';
-    } else {
-        $statusKey = 'ongoing';
-    }
+    $statusLabels = [
+        'draft' => 'Bản nháp',
+        'published' => 'Đã công bố',
+        'ongoing' => 'Đang diễn ra',
+        'completed' => 'Đã hoàn tất',
+        'archived' => 'Đã lưu trữ',
+    ];
+    $statusClasses = [
+        'draft' => 'warning',
+        'published' => 'info',
+        'ongoing' => 'success',
+        'completed' => 'muted',
+        'archived' => 'muted',
+    ];
+    $statusKey = array_key_exists($rawStatus, $statusLabels) ? $rawStatus : 'unknown';
 
     $registeredCount = (int) ($row['registered_count'] ?? 0);
     $capacity = (int) ($row['capacity'] ?? 0);
-    $registrationClosedStatuses = array_merge($draftStatuses, $endedStatuses, ['closed', 'registration_closed', 'closed_registration']);
-    $registrationOpen = !in_array($rawStatus, $registrationClosedStatuses, true)
-        && (!$endAt || $endAt >= $now)
-        && $capacity > 0
-        && $registeredCount < $capacity;
+    $registrationAvailable = false;
+    $registrationLabel = 'Không xác định';
+
+    if ($rawStatus === 'draft') {
+        $registrationLabel = 'Chưa mở đăng ký';
+    } elseif ($rawStatus === 'published' && $registeredCount >= $capacity) {
+        $registrationLabel = 'Đã đủ chỗ';
+    } elseif ($rawStatus === 'published') {
+        $registrationAvailable = true;
+        $registrationLabel = 'Đang nhận đăng ký';
+    } elseif ($rawStatus === 'ongoing') {
+        $registrationLabel = 'Đã đóng đăng ký';
+    } elseif ($rawStatus === 'completed') {
+        $registrationLabel = 'Đã kết thúc';
+    } elseif ($rawStatus === 'archived') {
+        $registrationLabel = 'Đã lưu trữ';
+    }
 
     return array_merge($row, [
         'raw_status' => $rawStatus,
         'status_key' => $statusKey,
-        'status_label' => [
-            'upcoming' => 'Sắp diễn ra',
-            'ongoing' => 'Đang diễn ra',
-            'ended' => 'Đã kết thúc',
-            'draft' => 'Bản nháp',
-        ][$statusKey],
-        'status_class' => [
-            'upcoming' => 'info',
-            'ongoing' => 'success',
-            'ended' => 'muted',
-            'draft' => 'warning',
-        ][$statusKey],
+        'status_label' => $statusLabels[$statusKey] ?? 'Không xác định',
+        'status_class' => $statusClasses[$statusKey] ?? 'muted',
         'registered_count' => $registeredCount,
         'capacity' => $capacity,
-        'registration_open' => $registrationOpen,
-        'registration_label' => $registrationOpen ? 'Đang mở' : 'Đã đóng',
+        'registration_available' => $registrationAvailable,
+        'registration_label' => $registrationLabel,
         'start_label' => $startAt ? $startAt->format('d/m/Y H:i') : 'Chưa xác định',
         'end_label' => $endAt ? $endAt->format('d/m/Y H:i') : 'Chưa xác định',
         'start_input' => $startAt ? $startAt->format('Y-m-d\TH:i') : '',

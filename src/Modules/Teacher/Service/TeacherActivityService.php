@@ -10,7 +10,15 @@ use TalentHub\Modules\Teacher\Repository\TeacherActivityRepository;
 
 final class TeacherActivityService
 {
-    private const ALLOWED_STATUSES = ['draft', 'open', 'closed'];
+    private const ALLOWED_STATUSES = ['draft', 'published', 'ongoing', 'completed', 'archived'];
+
+    /** @var array<string,string> */
+    private const NEXT_STATUSES = [
+        'draft' => 'published',
+        'published' => 'ongoing',
+        'ongoing' => 'completed',
+        'completed' => 'archived',
+    ];
 
     public function __construct(private readonly TeacherActivityRepository $repository) {}
 
@@ -32,13 +40,13 @@ final class TeacherActivityService
         return $this->repository->registrations($teacherId, trim($activityId));
     }
 
-    /** @param array{title:string,category:string,startAt:DateTimeImmutable,endAt:DateTimeImmutable,capacity:int,status:string} $input */
+    /** @param array{title:string,category:string,startAt:DateTimeImmutable,endAt:DateTimeImmutable,capacity:int} $input */
     public function create(string $teacherId, string $schoolId, array $input): void
     {
         $this->repository->create($teacherId, $schoolId, self::uuid(), $this->payload($input));
     }
 
-    /** @param array{title:string,category:string,startAt:DateTimeImmutable,endAt:DateTimeImmutable,capacity:int,status:string} $input */
+    /** @param array{title:string,category:string,startAt:DateTimeImmutable,endAt:DateTimeImmutable,capacity:int} $input */
     public function update(string $teacherId, string $activityId, array $input): void
     {
         if (!$this->repository->update($teacherId, trim($activityId), $this->payload($input))) {
@@ -46,28 +54,40 @@ final class TeacherActivityService
         }
     }
 
-    public function setRegistrationStatus(string $teacherId, string $activityId, string $status): void
+    public function advanceStatus(string $teacherId, string $activityId): string
     {
-        $status = trim($status);
-        if (!in_array($status, ['open', 'closed'], true)) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Trạng thái đăng ký không hợp lệ.');
-        }
-
-        if (!$this->repository->setRegistrationStatus($teacherId, trim($activityId), $status)) {
+        $activityId = trim($activityId);
+        $activity = $this->repository->find($teacherId, $activityId);
+        if ($activity === null) {
             throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.');
         }
+
+        $currentStatus = strtolower(trim((string) ($activity['status'] ?? '')));
+        if (!in_array($currentStatus, self::ALLOWED_STATUSES, true)) {
+            throw new ApiException(422, 'INVALID_STATUS', 'Trạng thái hiện tại của hoạt động không hợp lệ.');
+        }
+
+        $nextStatus = self::NEXT_STATUSES[$currentStatus] ?? null;
+        if ($nextStatus === null) {
+            throw new ApiException(422, 'INVALID_TRANSITION', 'Hoạt động đã lưu trữ và không thể chuyển tiếp.');
+        }
+
+        if (!$this->repository->advanceStatus($teacherId, $activityId, $currentStatus, $nextStatus)) {
+            throw new ApiException(409, 'STATUS_CONFLICT', 'Hoạt động đã thay đổi hoặc không còn thuộc giáo viên này.');
+        }
+
+        return $nextStatus;
     }
 
     /**
-     * @param array{title:string,category:string,startAt:DateTimeImmutable,endAt:DateTimeImmutable,capacity:int,status:string} $input
-     * @return array{title:string,category:string,startAt:string,endAt:string,capacity:int,status:string}
+     * @param array{title:string,category:string,startAt:DateTimeImmutable,endAt:DateTimeImmutable,capacity:int} $input
+     * @return array{title:string,category:string,startAt:string,endAt:string,capacity:int}
      */
     private function payload(array $input): array
     {
         $title = trim($input['title']);
         $category = trim($input['category']);
         $capacity = $input['capacity'];
-        $status = trim($input['status']);
 
         if ($title === '') {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Vui lòng nhập tên hoạt động.');
@@ -81,9 +101,6 @@ final class TeacherActivityService
         if ($input['endAt'] <= $input['startAt']) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Thời gian kết thúc phải sau thời gian bắt đầu.');
         }
-        if (!in_array($status, self::ALLOWED_STATUSES, true)) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Trạng thái hoạt động không hợp lệ.');
-        }
 
         return [
             'title' => $title,
@@ -91,7 +108,6 @@ final class TeacherActivityService
             'startAt' => $input['startAt']->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
             'endAt' => $input['endAt']->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
             'capacity' => $capacity,
-            'status' => $status,
         ];
     }
 
