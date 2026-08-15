@@ -52,6 +52,10 @@ final class StudentAppContext
             }
             throw $exception;
         }
+        if (($user['role'] ?? null) !== 'student') {
+            header('Location: ' . AuthPortalRouter::destination((string) ($user['role'] ?? '')));
+            exit;
+        }
         $this->session->refreshUser($user);
         $this->permissions->require($user['id'], 'student_profile.read_own');
 
