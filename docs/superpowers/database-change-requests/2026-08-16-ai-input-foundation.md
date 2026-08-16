@@ -168,11 +168,11 @@ Restore validation is **complete**. The original application-principal `CREATE D
 2. Verify the migration's canonical MySQL statement sequence SHA-256 equals `af48c71c5d4dd825da3dfd8a2325662b9ae0dd1cd09123fa709a8296d5c0838a`; re-display the exact DDL above and ensure static scope audit has no destructive token. The source was created under the exact-DDL source/disposable approval recorded above; that approval does not authorize shared execution.
 3. Before any shared execution, take a restorable, access-controlled logical backup or provider snapshot. Record backup identifier, UTC completion time, database/schema fingerprint, checksum, and a successful restore-validation result. Do not include credentials or raw personal records in this DCR.
 4. Run compatibility preflight described above. Also assert `@@session.time_zone = '+00:00'` before any default `CURRENT_TIMESTAMP(6)` may be evaluated; otherwise stop. Any existing target table that is absent from the exact contract, including legacy `activity_qr_tokens`, `checkins`, or `experience_logs`, is a hard stop. Do not repair it with `ALTER` or data copy; submit a new DCR.
-5. Run migration only on a disposable schema first; run it twice and retain logs proving all ten contracts pass and the second run applies no versions. Then obtain second explicit approval with disposable output, backup proof, live row baseline, and hashes before calling `migrateApproved()` on shared infrastructure. This was completed as recorded below.
+5. Run migration only on a disposable schema first; run it twice and retain logs proving the runner's table/column/index checks pass and the second run applies no versions. Independently verify the complete DDL contract (FK endpoints/actions, CHECK/JSON checks, and table options) from the exact source fingerprint and MySQL metadata before shared execution. Then obtain second explicit approval with disposable output, backup proof, live row baseline, and hashes before calling `migrateApproved()` on shared infrastructure. This was completed as recorded below.
 
 ## Post-approval verification/test checklist
 
-- Create `tests/learner_ai_input_schema_test.php` only after migration source is approved; it must scan that exact source for destructive SQL and use `SchemaInspector` to assert every listed table, column, unique key, FK-facing key, FK action, CHECK, and `JSON_VALID` constraint.
+- `tests/learner_ai_input_schema_test.php` scans the exact source for destructive SQL and uses `SchemaInspector` for every listed table, column, named index, and FK endpoint in an isolated SQLite fixture. The exact MySQL DDL fingerprint separately covers FK actions, CHECK/`JSON_VALID` expressions, and table options; MySQL metadata evidence below verifies the executed result.
 - Run `& $php tests\learner_ai_scope_policy_test.php` and disposable schema test; retain PASS output and prove second run reports no applied versions.
 - Immediately before and after shared execution, capture exact counts and schema hashes for `student_profiles`, `activities`, and `activity_registrations`. Require before == after for every count and hash; no shared data changes are allowed either side of those proofs.
 - Verify all ten canonical tables, FK violations = 0, registry checksum/version match, second run `[]`, protected-role smoke checks PASS, and no secret/token/plaintext QR value appears in logs or database columns.
@@ -183,7 +183,7 @@ The exact approved MySQL statement sequence retained fingerprint `af48c71c5d4dd8
 
 ### Disposable execution
 
-On the restored disposable schema `talenthub_ai_backup_verify_20260816`, `migrateApproved(['002_create_ai_input_foundation'])` returned `['002_create_ai_input_foundation']` on the first run and `[]` on the second. The registry contained exactly one matching version; `@@session.time_zone` was `+00:00`. The schema contained all ten canonical tables and 13 foreign keys; the three restored parent counts remained `12`, `0`, and `0`.
+On the restored disposable schema `talenthub_ai_backup_verify_20260816`, `migrateApproved(['002_create_ai_input_foundation'])` returned `['002_create_ai_input_foundation']` on the first run and `[]` on the second. The runner's expected table/column/index checks passed before it recorded the one matching registry version; `@@session.time_zone` was `+00:00`. Independent metadata queries found all ten canonical tables and 13 foreign keys; the three restored parent counts remained `12`, `0`, and `0`.
 
 ### Shared execution
 
@@ -196,9 +196,11 @@ The first shared invocation returned `['002_create_ai_input_foundation']`; the i
 | Existing parent row counts and normalized schema hashes | identical to the pre-execution baseline: `student_profiles=12`, `activities=0`, `activity_registrations=0` |
 | Canonical target tables | 10/10 present |
 | New-table rows | all 10 tables contain 0 rows; no seed or backfill ran |
-| Foreign keys | 13 total, all `ON DELETE RESTRICT ON UPDATE CASCADE`; `@@foreign_key_checks=1` |
+| Foreign keys | 13 total, each metadata rule is `ON DELETE RESTRICT ON UPDATE CASCADE`; `@@foreign_key_checks=1`. All new child tables contain 0 rows, so there are no new-child FK violations to check. |
 | Session time zone | `+00:00` |
 | Registry idempotency | exactly one matching migration record; second run `[]` |
+
+A non-mutating protected-role syntax smoke check passed for all 57 PHP files under `app/teacher`, `app/school`, and `app/enterprise`; the committed diff contains no protected-role, `src`, or `api` path. The migration and MySQL column metadata use only `activity_qr_tokens.tokenHash`; no raw QR token/plaintext-token column exists, and operational command logs record only aggregate counts, hashes, versions, and metadata—not credentials, personal rows, QR material, or provider secrets.
 
 No existing table was altered and no existing row was written, deleted, truncated, or replaced. The database change is complete and remains forward-only; any future schema or data change requires a new DCR and approval.
 
