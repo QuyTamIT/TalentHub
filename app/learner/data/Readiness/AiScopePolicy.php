@@ -67,13 +67,51 @@ final class AiScopePolicy
 
     private function normalize(string $path): string
     {
-        return ltrim(str_replace('\\', '/', trim($path)), './');
+        $path = str_replace('\\', '/', trim($path));
+        if ($path === '') {
+            return '';
+        }
+
+        // Keep absolute paths and leading traversal visibly non-relative. They
+        // must never be reduced into an allowlisted relative path.
+        $absolute = str_starts_with($path, '/') || preg_match('/^[A-Za-z]:\//', $path) === 1;
+        $parts = explode('/', $path);
+        $canonical = [];
+        $leadingTraversal = false;
+        foreach ($parts as $part) {
+            if ($part === '' || $part === '.') {
+                continue;
+            }
+            if ($part === '..') {
+                if ($canonical !== [] && end($canonical) !== '..') {
+                    array_pop($canonical);
+                } else {
+                    $leadingTraversal = true;
+                }
+                continue;
+            }
+            $canonical[] = $part;
+        }
+
+        $normalized = implode('/', $canonical);
+        if ($absolute) {
+            return '/' . $normalized;
+        }
+        return $leadingTraversal ? '../' . $normalized : $normalized;
     }
 
     /** @param list<string> $prefixes */
     private function startsWithAny(string $path, array $prefixes): bool
     {
         foreach ($prefixes as $prefix) {
+            if ($prefix === 'assets/js/learner') {
+                // Learner assets may be the learner directory or a learner-
+                // named file (e.g. learner.js), but not sibling lookalikes.
+                if ($path === $prefix || str_starts_with($path, $prefix . '/') || str_starts_with($path, $prefix . '.')) {
+                    return true;
+                }
+                continue;
+            }
             if (str_starts_with($path, $prefix)) {
                 return true;
             }
