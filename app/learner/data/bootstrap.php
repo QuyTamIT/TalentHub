@@ -7,6 +7,7 @@ $GLOBALS['learner_data_defaults'] ??= require $learnerDataRoot . '/config.php';
 
 require_once $learnerDataRoot . '/Contracts/StudentRepository.php';
 require_once $learnerDataRoot . '/Contracts/AssessmentRepository.php';
+require_once $learnerDataRoot . '/Contracts/AssessmentWriteRepository.php';
 require_once $learnerDataRoot . '/Contracts/ActivityRepository.php';
 require_once $learnerDataRoot . '/Contracts/EcosystemRepository.php';
 require_once $learnerDataRoot . '/Contracts/ApplicationRepository.php';
@@ -34,6 +35,7 @@ require_once $learnerDataRoot . '/Database/AbstractDatabaseRepository.php';
 require_once $learnerDataRoot . '/Database/SchemaInspector.php';
 require_once $learnerDataRoot . '/Database/DatabaseStudentRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseAssessmentRepository.php';
+require_once $learnerDataRoot . '/Database/DatabaseAssessmentWriteRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseActivityRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseEcosystemRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseApplicationRepository.php';
@@ -42,6 +44,7 @@ require_once $learnerDataRoot . '/Migrations/LearnerForwardMigration.php';
 require_once $learnerDataRoot . '/Migrations/LearnerMigrationPreflight.php';
 require_once $learnerDataRoot . '/Migrations/ForwardMigrationDefinition.php';
 require_once $learnerDataRoot . '/Migrations/LearnerForwardMigrationRunner.php';
+require_once $learnerDataRoot . '/Service/LearnerAssessmentService.php';
 require_once $learnerDataRoot . '/RepositoryFactory.php';
 
 unset($learnerDataRoot);

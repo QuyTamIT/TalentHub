@@ -178,6 +178,31 @@
         };
     }
 
+    function createAssessmentWriteClient({ transport, storage } = {}) {
+        const required = ['start', 'saveAnswer', 'submit'];
+        if (!transport || required.some((method) => typeof transport[method] !== 'function')) {
+            throw new TypeError('A complete assessment write transport is required.');
+        }
+        const cacheDraft = (attempt) => {
+            if (attempt?.status === 'in_progress') storage?.saveAttempt?.(attempt);
+            return attempt;
+        };
+
+        return {
+            async start(studentId, testId, version) {
+                return cacheDraft(await transport.start(studentId, testId, version));
+            },
+            async saveAnswer(studentId, attemptId, questionId, answer) {
+                return cacheDraft(await transport.saveAnswer(studentId, attemptId, questionId, answer));
+            },
+            async submit(studentId, attemptId) {
+                const result = await transport.submit(studentId, attemptId);
+                storage?.removeAttempt?.(attemptId);
+                return result;
+            },
+        };
+    }
+
     function hasValidHollandResult(result) {
         if (!result || typeof result !== 'object' || Array.isArray(result)) return false;
         const code = String(result.code || '').trim().toUpperCase();
@@ -223,6 +248,7 @@
         canSubmitAttempt,
         answerAttempt,
         submitAttempt,
+        createAssessmentWriteClient,
         filterCompletedAttempts,
         mergeAssessmentHistory,
     };

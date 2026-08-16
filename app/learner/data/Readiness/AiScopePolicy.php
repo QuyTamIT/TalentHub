@@ -112,8 +112,12 @@ final class AiScopePolicy
         foreach ($prefixes as $prefix) {
             if ($prefix === 'assets/js/learner') {
                 // Learner assets may be the learner directory or a learner-
-                // named file (e.g. learner.js), but not sibling lookalikes.
-                if ($path === $prefix || str_starts_with($path, $prefix . '/') || str_starts_with($path, $prefix . '.')) {
+                // named file (e.g. learner.js or learner-assessment.js), but
+                // not sibling lookalikes.
+                if ($path === $prefix
+                    || str_starts_with($path, $prefix . '/')
+                    || str_starts_with($path, $prefix . '.')
+                    || str_starts_with($path, $prefix . '-')) {
                     return true;
                 }
                 continue;

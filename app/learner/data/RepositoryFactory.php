@@ -8,6 +8,7 @@ use PDO;
 use TalentHub\Learner\Data\Contracts\ActivityRepository;
 use TalentHub\Learner\Data\Contracts\ApplicationRepository;
 use TalentHub\Learner\Data\Contracts\AssessmentRepository;
+use TalentHub\Learner\Data\Contracts\AssessmentWriteRepository;
 use TalentHub\Learner\Data\Contracts\EcosystemRepository;
 use TalentHub\Learner\Data\Contracts\StudentRepository;
 use TalentHub\Learner\Data\Exceptions\LearnerDataConfigurationException;
@@ -61,6 +62,17 @@ final class RepositoryFactory
         }
 
         return new MockAssessmentRepository($definitions, $questions, $attempts, $evaluations);
+    }
+
+    public function assessmentWrite(): AssessmentWriteRepository
+    {
+        if ($this->source !== 'database') {
+            throw new LearnerDataConfigurationException(
+                'Versioned assessment persistence requires the canonical learner database source.'
+            );
+        }
+
+        return new Database\DatabaseAssessmentWriteRepository($this->pdo);
     }
 
     public function activity(array $activities = [], array $registrations = []): ActivityRepository
