@@ -179,7 +179,16 @@ snapshot_assert_no_private_keys($orderedInput->payload());
 snapshot_assert(str_contains($orderedInput->canonicalJson(), 'learner@example.test') === false, 'canonical snapshot excludes direct identifiers');
 snapshot_assert(($orderedInput->sourceUpdatedAt()['assessment'] ?? null) === '2026-08-01T08:00:00.000000+00:00', 'snapshot records source timestamps with microseconds');
 snapshot_assert(count($orderedInput->evidenceReferences()) === 6, 'snapshot contains minimized evidence references for all source records');
-snapshot_assert(in_array(['observed_at' => '2026-08-02T09:00:00.000000+00:00', 'source_id' => 'experience-1', 'source_type' => 'activity_experience'], $orderedInput->evidenceReferences(), true), 'snapshot retains stable non-identity evidence references');
+snapshot_assert(in_array([
+    'observed_at' => '2026-08-02T09:00:00.000000+00:00',
+    'safe_value' => [
+        'activity_category' => 'workshop',
+        'confirmed_at' => '2026-08-02T09:00:00.000000+00:00',
+        'hours' => 4.5,
+    ],
+    'source_id' => 'experience-1',
+    'source_type' => 'activity_experience',
+], $orderedInput->evidenceReferences(), true), 'snapshot evidence references retain the exact minimized source value without learner identity');
 
 $changed = $complete;
 $changed['skills'][0]['level_score'] = 81;

@@ -17,6 +17,7 @@ require_once dirname(__DIR__) . '/app/learner/ai/Domain/RecommendationItem.php';
 require_once dirname(__DIR__) . '/app/learner/ai/Domain/RecommendationResult.php';
 require_once dirname(__DIR__) . '/app/learner/ai/Persistence/RecommendationRepository.php';
 require_once dirname(__DIR__) . '/app/learner/ai/Persistence/DatabaseRecommendationRepository.php';
+require_once dirname(__DIR__) . '/app/learner/data/bootstrap.php';
 
 function recommendation_repository_assert(bool $condition, string $message): void
 {
@@ -54,18 +55,10 @@ function recommendation_repository_fixture(): PDO
     $pdo = new PDO('sqlite::memory:');
     $pdo->exec('PRAGMA foreign_keys = ON');
     $pdo->exec('CREATE TABLE student_profiles (id CHAR(36) NOT NULL PRIMARY KEY)');
-    $pdo->exec("CREATE TABLE learner_recommendation_input_snapshots (id CHAR(36) NOT NULL PRIMARY KEY, studentId CHAR(36) NOT NULL, schemaVersion VARCHAR(100) NOT NULL, contentHash CHAR(64) NOT NULL, consentScopesJson TEXT NOT NULL, qualityFlagsJson TEXT NOT NULL, payloadJson TEXT NOT NULL, sourceUpdatedAt TEXT NOT NULL, createdAt TEXT NOT NULL, UNIQUE (studentId, contentHash), UNIQUE (id, studentId), FOREIGN KEY (studentId) REFERENCES student_profiles(id) ON DELETE RESTRICT ON UPDATE CASCADE)");
-    $pdo->exec("CREATE TABLE learner_recommendation_runs (id CHAR(36) NOT NULL PRIMARY KEY, studentId CHAR(36) NOT NULL, snapshotId CHAR(36) NOT NULL, idempotencyKey VARCHAR(100) NOT NULL, engineType VARCHAR(50) NOT NULL, status VARCHAR(50) NOT NULL, ruleVersion VARCHAR(100) NULL, provider VARCHAR(100) NULL, modelVersion VARCHAR(100) NULL, promptVersion VARCHAR(100) NULL, fallbackReason VARCHAR(100) NULL, safeErrorCode VARCHAR(100) NULL, startedAt TEXT NOT NULL, completedAt TEXT NULL, createdAt TEXT NOT NULL, UNIQUE (studentId, idempotencyKey), FOREIGN KEY (studentId) REFERENCES student_profiles(id) ON DELETE RESTRICT ON UPDATE CASCADE, FOREIGN KEY (snapshotId, studentId) REFERENCES learner_recommendation_input_snapshots(id, studentId) ON DELETE RESTRICT ON UPDATE CASCADE, CHECK (engineType IN ('rule','model')), CHECK (status IN ('pending','completed','failed','fallback')), CHECK ((engineType = 'rule' AND ruleVersion IS NOT NULL AND provider IS NULL AND modelVersion IS NULL AND promptVersion IS NULL) OR (engineType = 'model' AND ruleVersion IS NULL AND provider IS NOT NULL AND modelVersion IS NOT NULL AND promptVersion IS NOT NULL)), CHECK ((status = 'pending' AND completedAt IS NULL) OR (status IN ('completed','failed','fallback') AND completedAt IS NOT NULL)))");
-    $pdo->exec("CREATE TABLE learner_recommendation_snapshot_evidence (id CHAR(36) NOT NULL PRIMARY KEY, snapshotId CHAR(36) NOT NULL, sourceType VARCHAR(50) NOT NULL, sourceId CHAR(36) NOT NULL, observedAt TEXT NULL, safeValueJson TEXT NOT NULL, createdAt TEXT NOT NULL, UNIQUE (snapshotId, sourceType, sourceId), FOREIGN KEY (snapshotId) REFERENCES learner_recommendation_input_snapshots(id) ON DELETE RESTRICT ON UPDATE CASCADE)");
-    $pdo->exec("CREATE TABLE learner_recommendation_items (id CHAR(36) NOT NULL PRIMARY KEY, runId CHAR(36) NOT NULL, itemType VARCHAR(50) NOT NULL, title VARCHAR(255) NOT NULL, summary VARCHAR(1000) NOT NULL, priority INTEGER NOT NULL, confidenceBand VARCHAR(50) NOT NULL, actionJson TEXT NOT NULL, lifecycleStatus VARCHAR(50) NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (runId) REFERENCES learner_recommendation_runs(id) ON DELETE RESTRICT ON UPDATE CASCADE)");
-    $pdo->exec("CREATE TABLE learner_recommendation_evidence (id CHAR(36) NOT NULL PRIMARY KEY, itemId CHAR(36) NOT NULL, snapshotEvidenceId CHAR(36) NOT NULL, sourceType VARCHAR(50) NOT NULL, sourceId CHAR(36) NOT NULL, observedAt TEXT NULL, contributionLabel VARCHAR(100) NOT NULL, safeValueJson TEXT NOT NULL, createdAt TEXT NOT NULL, UNIQUE (itemId, sourceType, sourceId), FOREIGN KEY (itemId) REFERENCES learner_recommendation_items(id) ON DELETE RESTRICT ON UPDATE CASCADE, FOREIGN KEY (snapshotEvidenceId) REFERENCES learner_recommendation_snapshot_evidence(id) ON DELETE RESTRICT ON UPDATE CASCADE)");
-    $pdo->exec("CREATE TABLE learner_recommendation_feedback (id CHAR(36) NOT NULL PRIMARY KEY, studentId CHAR(36) NOT NULL, itemId CHAR(36) NOT NULL, verdict VARCHAR(50) NOT NULL, reasonCode VARCHAR(100) NOT NULL, safeComment VARCHAR(500) NULL, createdAt TEXT NOT NULL, FOREIGN KEY (studentId) REFERENCES student_profiles(id) ON DELETE RESTRICT ON UPDATE CASCADE, FOREIGN KEY (itemId) REFERENCES learner_recommendation_items(id) ON DELETE RESTRICT ON UPDATE CASCADE)");
-    $pdo->exec("CREATE TABLE learner_recommendation_audit_events (id CHAR(36) NOT NULL PRIMARY KEY, runId CHAR(36) NOT NULL, studentId CHAR(36) NOT NULL, requestId CHAR(36) NOT NULL, actorType VARCHAR(50) NOT NULL, action VARCHAR(100) NOT NULL, engineMetadataJson TEXT NOT NULL, status VARCHAR(50) NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (runId) REFERENCES learner_recommendation_runs(id) ON DELETE RESTRICT ON UPDATE CASCADE, FOREIGN KEY (studentId) REFERENCES student_profiles(id) ON DELETE RESTRICT ON UPDATE CASCADE)");
-    $pdo->exec("CREATE TRIGGER trg_learner_recommendation_evidence_snapshot_match_insert BEFORE INSERT ON learner_recommendation_evidence FOR EACH ROW WHEN NOT EXISTS (SELECT 1 FROM learner_recommendation_items AS items INNER JOIN learner_recommendation_runs AS runs ON runs.id = items.runId INNER JOIN learner_recommendation_snapshot_evidence AS snapshot_evidence ON snapshot_evidence.id = NEW.snapshotEvidenceId WHERE items.id = NEW.itemId AND runs.snapshotId = snapshot_evidence.snapshotId AND NEW.sourceType = snapshot_evidence.sourceType AND NEW.sourceId = snapshot_evidence.sourceId) BEGIN SELECT RAISE(ABORT, 'recommendation evidence snapshot mismatch'); END");
-    $pdo->exec("CREATE TRIGGER trg_learner_recommendation_feedback_owner_match_insert BEFORE INSERT ON learner_recommendation_feedback FOR EACH ROW WHEN NOT EXISTS (SELECT 1 FROM learner_recommendation_items AS items INNER JOIN learner_recommendation_runs AS runs ON runs.id = items.runId WHERE items.id = NEW.itemId AND runs.studentId = NEW.studentId) BEGIN SELECT RAISE(ABORT, 'recommendation feedback learner ownership mismatch'); END");
-    $pdo->exec("CREATE TRIGGER trg_learner_recommendation_feedback_append_only_update BEFORE UPDATE ON learner_recommendation_feedback FOR EACH ROW BEGIN SELECT RAISE(ABORT, 'append-only recommendation feedback'); END");
-    $pdo->exec("CREATE TRIGGER trg_learner_recommendation_feedback_append_only_delete BEFORE DELETE ON learner_recommendation_feedback FOR EACH ROW BEGIN SELECT RAISE(ABORT, 'append-only recommendation feedback'); END");
-    $pdo->exec("CREATE TRIGGER trg_learner_recommendation_audit_events_owner_match_insert BEFORE INSERT ON learner_recommendation_audit_events FOR EACH ROW WHEN NOT EXISTS (SELECT 1 FROM learner_recommendation_runs AS runs WHERE runs.id = NEW.runId AND runs.studentId = NEW.studentId) BEGIN SELECT RAISE(ABORT, 'recommendation audit learner ownership mismatch'); END");
+    $definition = require dirname(__DIR__) . '/Database/migrations/learner/004_create_recommendation_store.php';
+    foreach ($definition->migration->statements('sqlite') as $statement) {
+        $pdo->exec($statement);
+    }
     return $pdo;
 }
 
@@ -76,15 +69,15 @@ function recommendation_repository_input(string $skillId, string $assessmentId):
         ['skill' => '2026-08-16T00:00:00.000000+00:00'],
         ['allowed_scopes' => ['assessment', 'skills']],
         [
-            ['source_type' => 'skill', 'source_id' => $skillId, 'observed_at' => '2026-08-16T00:00:00.000000+00:00'],
-            ['source_type' => 'assessment', 'source_id' => $assessmentId, 'observed_at' => '2026-08-15T00:00:00.000000+00:00'],
+            ['source_type' => 'skill', 'source_id' => $skillId, 'observed_at' => '2026-08-16T00:00:00.000000+00:00', 'safe_value' => ['level_score' => 82, 'verification_status' => 'verified']],
+            ['source_type' => 'assessment', 'source_id' => $assessmentId, 'observed_at' => '2026-08-15T00:00:00.000000+00:00', 'safe_value' => ['result_code' => 'high_iot']],
         ],
     );
 }
 
 function recommendation_repository_result(string $skillId, string $assessmentId, bool $duplicateEvidence = false): RecommendationResult
 {
-    $evidence = [new RecommendationEvidence('skill', $skillId, '2026-08-16T00:00:00.000000+00:00', 'verified_skill', ['verification_status' => 'verified'])];
+    $evidence = [new RecommendationEvidence('skill', $skillId, '2020-01-01T00:00:00.000000+00:00', 'verified_skill', ['engine_claim' => 'must_not_replace_snapshot'])];
     if ($duplicateEvidence) {
         $evidence[] = new RecommendationEvidence('skill', $skillId, '2026-08-16T00:00:00.000000+00:00', 'duplicate_skill', []);
     }
@@ -109,6 +102,12 @@ $repository = new DatabaseRecommendationRepository($pdo, static fn (): string =>
 recommendation_repository_assert($repository instanceof RecommendationRepository, 'database repository implements the recommendation contract');
 
 $inputA = recommendation_repository_input($skillA, $assessmentA);
+$mismatchedContext = new RecommendationContext(['skills'], 'request-00000000000000000000000000000000', 'idempotency-consent-mismatch-000000000000001');
+recommendation_repository_expect_exception(
+    static fn (): array => $repository->createPendingRun($studentA, $inputA, $mismatchedContext),
+    'Recommendation context scopes do not match input snapshot'
+);
+recommendation_repository_assert((int) $pdo->query("SELECT COUNT(*) FROM learner_recommendation_input_snapshots WHERE studentId = '{$studentA}'")->fetchColumn() === 0, 'scope mismatch persists no snapshot');
 $contextA = new RecommendationContext(['skills', 'assessment'], 'request-00000000000000000000000000000001', 'idempotency-000000000000000000000000000001');
 $pendingA = $repository->createPendingRun($studentA, $inputA, $contextA);
 recommendation_repository_assert($pendingA['status'] === 'pending' && $pendingA['reused'] === false, 'first request creates a pending learner-owned run');
@@ -116,6 +115,24 @@ recommendation_repository_assert((int) $pdo->query("SELECT COUNT(*) FROM learner
 recommendation_repository_assert((int) $pdo->query("SELECT COUNT(*) FROM learner_recommendation_snapshot_evidence WHERE snapshotId = '" . $pendingA['snapshotId'] . "'")->fetchColumn() === 2, 'pending run normalizes every Task 7 evidence reference');
 recommendation_repository_assert($pdo->query("SELECT startedAt FROM learner_recommendation_runs WHERE id = '" . $pendingA['runId'] . "'")->fetchColumn() === '2026-08-16 12:00:00.000000', 'run timestamps are normalized for MySQL DATETIME(6) storage');
 recommendation_repository_assert($pdo->query("SELECT observedAt FROM learner_recommendation_snapshot_evidence WHERE snapshotId = '" . $pendingA['snapshotId'] . "' AND sourceType = 'skill'")->fetchColumn() === '2026-08-16 00:00:00.000000', 'snapshot evidence timestamps are normalized for MySQL DATETIME(6) storage');
+$snapshotEvidence = $pdo->query("SELECT safeValueJson FROM learner_recommendation_snapshot_evidence WHERE snapshotId = '" . $pendingA['snapshotId'] . "' AND sourceType = 'skill'")->fetchColumn();
+recommendation_repository_assert($snapshotEvidence === '{"level_score":82,"verification_status":"verified"}', 'snapshot evidence persists the exact normalized safe value from input');
+recommendation_repository_expect_pdo_exception(
+    static fn (): int|false => $pdo->exec("UPDATE learner_recommendation_input_snapshots SET payloadJson = '{}' WHERE id = '" . $pendingA['snapshotId'] . "'"),
+    'actual 004 SQLite fixture rejects snapshot rewrites'
+);
+recommendation_repository_expect_pdo_exception(
+    static fn (): int|false => $pdo->exec("DELETE FROM learner_recommendation_input_snapshots WHERE id = '" . $pendingA['snapshotId'] . "'"),
+    'actual 004 SQLite fixture rejects snapshot deletion'
+);
+recommendation_repository_expect_pdo_exception(
+    static fn (): int|false => $pdo->exec("UPDATE learner_recommendation_snapshot_evidence SET safeValueJson = '{}' WHERE snapshotId = '" . $pendingA['snapshotId'] . "'"),
+    'actual 004 SQLite fixture rejects snapshot evidence rewrites'
+);
+recommendation_repository_expect_pdo_exception(
+    static fn (): int|false => $pdo->exec("DELETE FROM learner_recommendation_snapshot_evidence WHERE snapshotId = '" . $pendingA['snapshotId'] . "'"),
+    'actual 004 SQLite fixture rejects snapshot evidence deletion'
+);
 $pendingARepeat = $repository->createPendingRun($studentA, $inputA, $contextA);
 recommendation_repository_assert($pendingARepeat['runId'] === $pendingA['runId'] && $pendingARepeat['reused'] === true, 'same learner idempotency key returns the existing run');
 recommendation_repository_assert((int) $pdo->query("SELECT COUNT(*) FROM learner_recommendation_runs WHERE studentId = '{$studentA}'")->fetchColumn() === 1, 'idempotent request does not create a second run');
@@ -128,6 +145,8 @@ $completedA = $repository->completeRun($studentA, $pendingA['runId'], recommenda
 recommendation_repository_assert($completedA['status'] === 'completed' && count($completedA['items']) === 1, 'completion persists a validated recommendation item');
 $itemA = $completedA['items'][0];
 recommendation_repository_assert((int) $pdo->query("SELECT COUNT(*) FROM learner_recommendation_evidence WHERE itemId = '" . $itemA['itemId'] . "'")->fetchColumn() === 1, 'completion persists an evidence link to the immutable input snapshot');
+$itemEvidence = $pdo->query("SELECT observedAt, safeValueJson FROM learner_recommendation_evidence WHERE itemId = '" . $itemA['itemId'] . "'")->fetch(PDO::FETCH_ASSOC);
+recommendation_repository_assert(($itemEvidence['observedAt'] ?? null) === '2026-08-16 00:00:00.000000' && ($itemEvidence['safeValueJson'] ?? null) === '{"level_score":82,"verification_status":"verified"}', 'completion copies canonical snapshot evidence instead of engine-supplied stale values');
 $latestA = $repository->latestForStudent($studentA);
 $latestB = $repository->latestForStudent($studentB);
 recommendation_repository_assert($latestA !== null && $latestA['runId'] === $pendingA['runId'], 'learner A can load only its latest completed run');
@@ -146,9 +165,19 @@ recommendation_repository_expect_pdo_exception(
     static fn (): int|false => $pdo->exec("UPDATE learner_recommendation_feedback SET verdict = 'not_helpful' WHERE id = '" . $feedback['feedbackId'] . "'"),
     'database feedback trigger preserves append-only history'
 );
+recommendation_repository_expect_pdo_exception(
+    static fn (): int|false => $pdo->exec("INSERT INTO learner_recommendation_feedback (id, studentId, itemId, verdict, reasonCode, safeComment, createdAt) VALUES ('00000000-0000-4000-8000-000000000301', '{$studentB}', '" . $itemA['itemId'] . "', 'helpful', 'relevant', NULL, '2026-08-16 12:00:00.000000')"),
+    'actual 004 SQLite fixture rejects feedback whose learner does not own its item'
+);
+recommendation_repository_expect_pdo_exception(
+    static fn (): int|false => $pdo->exec("INSERT INTO learner_recommendation_audit_events (id, runId, studentId, requestId, actorType, action, engineMetadataJson, status, createdAt) VALUES ('00000000-0000-4000-8000-000000000302', '" . $pendingA['runId'] . "', '{$studentB}', '00000000-0000-4000-8000-000000000303', 'system', 'cross_learner', '{}', 'pending', '2026-08-16 12:00:00.000000')"),
+    'actual 004 SQLite fixture rejects audit records whose learner does not own its run'
+);
 
 $contextMembership = new RecommendationContext(['skills', 'assessment'], 'request-00000000000000000000000000000003', 'idempotency-000000000000000000000000000003');
 $pendingMembership = $repository->createPendingRun($studentA, $inputA, $contextMembership);
+recommendation_repository_assert($pendingMembership['snapshotId'] === $pendingA['snapshotId'] && $pendingMembership['runId'] !== $pendingA['runId'], 'a retry with another idempotency key reuses the same learner snapshot and creates one run');
+recommendation_repository_assert((int) $pdo->query("SELECT COUNT(*) FROM learner_recommendation_input_snapshots WHERE studentId = '{$studentA}' AND contentHash = '" . $inputA->contentHash() . "'")->fetchColumn() === 1, 'snapshot deduplication retains one canonical learner snapshot');
 $missingSnapshotEvidence = new RecommendationResult('rule', 'learner-rules-1.0.0', null, null, null, null, [new RecommendationItem('development', 'Communication', 'Practice communication.', 60, 'medium', ['type' => 'roadmap'], [new RecommendationEvidence('evaluation', 'evaluation-000000000000000000000000000001', '2026-08-16T00:00:00.000000+00:00', 'missing', [])])]);
 recommendation_repository_expect_exception(
     static fn (): array => $repository->completeRun($studentA, $pendingMembership['runId'], $missingSnapshotEvidence),

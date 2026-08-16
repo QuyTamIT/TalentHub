@@ -243,7 +243,7 @@ final class RecommendationSnapshotBuilder
      * @param list<array<string,mixed>> $activities
      * @param list<array<string,mixed>> $evaluations
      * @param list<array<string,mixed>> $opportunities
-     * @return list<array{source_type:string,source_id:string,observed_at:?string}>
+     * @return list<array{source_type:string,source_id:string,observed_at:?string,safe_value:array<string,mixed>}>
      */
     private function evidenceReferences(array $skills, array $assessments, array $activities, array $evaluations, array $opportunities): array
     {
@@ -256,10 +256,13 @@ final class RecommendationSnapshotBuilder
             'opportunity' => [$opportunities, 'deadline_at'],
         ] as $type => [$records, $timestampField]) {
             foreach ($records as $record) {
+                $safeValue = $record;
+                unset($safeValue['_source_id']);
                 $references[] = [
                     'source_type' => $type,
                     'source_id' => (string) $record['_source_id'],
                     'observed_at' => $record[$timestampField] ?? null,
+                    'safe_value' => $safeValue,
                 ];
             }
         }

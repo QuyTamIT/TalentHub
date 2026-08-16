@@ -25,7 +25,7 @@ final class RecommendationInput
      * @param array<string,mixed> $payload
      * @param array<string,string> $sourceUpdatedAt
      * @param array<string,mixed> $qualityFlags
-     * @param list<array{source_type:string,source_id:string,observed_at:?string}> $evidenceReferences
+     * @param list<array{source_type:string,source_id:string,observed_at:?string,safe_value:array<string,mixed>}> $evidenceReferences
      */
     public function __construct(array $payload, array $sourceUpdatedAt, array $qualityFlags, array $evidenceReferences)
     {
@@ -77,7 +77,7 @@ final class RecommendationInput
         return $this->qualityFlags;
     }
 
-    /** @return list<array{source_type:string,source_id:string,observed_at:?string}> */
+    /** @return list<array{source_type:string,source_id:string,observed_at:?string,safe_value:array<string,mixed>}> */
     public function evidenceReferences(): array
     {
         return $this->evidenceReferences;

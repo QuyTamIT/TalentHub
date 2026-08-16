@@ -37,55 +37,76 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
         if (strlen($idempotencyKey) > 100) {
             throw new \InvalidArgumentException('Recommendation idempotency key is too long.');
         }
+        $this->assertContextScopesMatchInput($input, $context);
 
-        try {
-            return $this->transaction(function () use ($studentId, $input, $context, $idempotencyKey): array {
+        for ($attempt = 0; $attempt < 2; $attempt++) {
+            try {
+                return $this->transaction(function () use ($studentId, $input, $context, $idempotencyKey): array {
+                    $existing = $this->runByIdempotency($studentId, $idempotencyKey);
+                    if ($existing !== null) {
+                        return $this->pendingRunResponse($existing, true);
+                    }
+
+                    $snapshotId = $this->findSnapshotId($studentId, $input->contentHash());
+                    if ($snapshotId === null) {
+                        $snapshotId = self::uuid();
+                        $createdSnapshot = false;
+                        try {
+                            $this->insertSnapshot($snapshotId, $studentId, $input, $context->allowedScopes());
+                            $createdSnapshot = true;
+                        } catch (PDOException $exception) {
+                            // A concurrent request may have committed this exact learner/hash after our read.
+                            $snapshotId = $this->findSnapshotId($studentId, $input->contentHash());
+                            if ($snapshotId === null) {
+                                throw $exception;
+                            }
+                        }
+                        if ($createdSnapshot) {
+                            $this->insertSnapshotEvidence($snapshotId, $input);
+                        }
+                    }
+
+                    $runId = self::uuid();
+                    $now = $this->now();
+                    $insert = $this->pdo->prepare(
+                        'INSERT INTO learner_recommendation_runs (id, studentId, snapshotId, idempotencyKey, engineType, status, ruleVersion, provider, modelVersion, promptVersion, fallbackReason, safeErrorCode, startedAt, completedAt, createdAt) VALUES (:id, :studentId, :snapshotId, :idempotencyKey, :engineType, :status, :ruleVersion, NULL, NULL, NULL, NULL, NULL, :startedAt, NULL, :createdAt)'
+                    );
+                    $insert->execute([
+                        'id' => $runId,
+                        'studentId' => $studentId,
+                        'snapshotId' => $snapshotId,
+                        'idempotencyKey' => $idempotencyKey,
+                        'engineType' => 'rule',
+                        'status' => 'pending',
+                        'ruleVersion' => self::PENDING_RULE_VERSION,
+                        'startedAt' => $now,
+                        'createdAt' => $now,
+                    ]);
+                    $this->insertAuditEvent($runId, $studentId, $context->requestId() ?? self::uuid(), 'run_created', ['engine_type' => 'rule'], 'pending');
+
+                    return [
+                        'runId' => $runId,
+                        'snapshotId' => $snapshotId,
+                        'studentId' => $studentId,
+                        'idempotencyKey' => $idempotencyKey,
+                        'status' => 'pending',
+                        'reused' => false,
+                    ];
+                });
+            } catch (PDOException $exception) {
                 $existing = $this->runByIdempotency($studentId, $idempotencyKey);
                 if ($existing !== null) {
                     return $this->pendingRunResponse($existing, true);
                 }
-
-                $snapshotId = $this->findSnapshotId($studentId, $input->contentHash());
-                if ($snapshotId === null) {
-                    $snapshotId = self::uuid();
-                    $this->insertSnapshot($snapshotId, $studentId, $input, $context->allowedScopes());
-                    $this->insertSnapshotEvidence($snapshotId, $input);
+                if ($attempt === 0 && $this->findSnapshotId($studentId, $input->contentHash()) !== null) {
+                    // Roll back and retry so snapshot reuse also works under transaction snapshot isolation.
+                    continue;
                 }
-
-                $runId = self::uuid();
-                $now = $this->now();
-                $insert = $this->pdo->prepare(
-                    'INSERT INTO learner_recommendation_runs (id, studentId, snapshotId, idempotencyKey, engineType, status, ruleVersion, provider, modelVersion, promptVersion, fallbackReason, safeErrorCode, startedAt, completedAt, createdAt) VALUES (:id, :studentId, :snapshotId, :idempotencyKey, :engineType, :status, :ruleVersion, NULL, NULL, NULL, NULL, NULL, :startedAt, NULL, :createdAt)'
-                );
-                $insert->execute([
-                    'id' => $runId,
-                    'studentId' => $studentId,
-                    'snapshotId' => $snapshotId,
-                    'idempotencyKey' => $idempotencyKey,
-                    'engineType' => 'rule',
-                    'status' => 'pending',
-                    'ruleVersion' => self::PENDING_RULE_VERSION,
-                    'startedAt' => $now,
-                    'createdAt' => $now,
-                ]);
-                $this->insertAuditEvent($runId, $studentId, $context->requestId() ?? self::uuid(), 'run_created', ['engine_type' => 'rule'], 'pending');
-
-                return [
-                    'runId' => $runId,
-                    'snapshotId' => $snapshotId,
-                    'studentId' => $studentId,
-                    'idempotencyKey' => $idempotencyKey,
-                    'status' => 'pending',
-                    'reused' => false,
-                ];
-            });
-        } catch (PDOException $exception) {
-            $existing = $this->runByIdempotency($studentId, $idempotencyKey);
-            if ($existing !== null) {
-                return $this->pendingRunResponse($existing, true);
+                throw $exception;
             }
-            throw $exception;
         }
+
+        throw new RuntimeException('Recommendation snapshot retry was exhausted');
     }
 
     /** @return array<string,mixed> */
@@ -105,11 +126,11 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
                 $itemId = self::uuid();
                 $this->insertItem($itemId, $runId, $item, $now);
                 foreach ($item->evidence() as $evidence) {
-                    $snapshotEvidenceId = $this->snapshotEvidenceId($studentId, (string) $run['snapshotId'], $evidence);
-                    if ($snapshotEvidenceId === null) {
+                    $snapshotEvidence = $this->snapshotEvidence($studentId, (string) $run['snapshotId'], $evidence);
+                    if ($snapshotEvidence === null) {
                         throw new RuntimeException('Recommendation evidence is not part of run snapshot');
                     }
-                    $this->insertEvidence($itemId, $snapshotEvidenceId, $evidence, $now);
+                    $this->insertEvidence($itemId, $snapshotEvidence, $evidence->contributionLabel(), $now);
                 }
             }
 
@@ -266,13 +287,17 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
             if ($observedAt !== null && !is_string($observedAt)) {
                 throw new \InvalidArgumentException('Recommendation snapshot evidence observation time is invalid.');
             }
+            $safeValue = $reference['safe_value'] ?? null;
+            if (!is_array($safeValue)) {
+                throw new \InvalidArgumentException('Recommendation snapshot evidence safe value is required.');
+            }
             $insert->execute([
                 'id' => self::uuid(),
                 'snapshotId' => $snapshotId,
                 'sourceType' => $sourceType,
                 'sourceId' => $sourceId,
                 'observedAt' => $this->databaseTimestamp($observedAt),
-                'safeValueJson' => '{}',
+                'safeValueJson' => self::json($safeValue),
                 'createdAt' => $this->now(),
             ]);
         }
@@ -297,7 +322,8 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
         ]);
     }
 
-    private function insertEvidence(string $itemId, string $snapshotEvidenceId, RecommendationEvidence $evidence, string $createdAt): void
+    /** @param array{id:string,sourceType:string,sourceId:string,observedAt:?string,safeValueJson:string} $snapshotEvidence */
+    private function insertEvidence(string $itemId, array $snapshotEvidence, string $contributionLabel, string $createdAt): void
     {
         $insert = $this->pdo->prepare(
             'INSERT INTO learner_recommendation_evidence (id, itemId, snapshotEvidenceId, sourceType, sourceId, observedAt, contributionLabel, safeValueJson, createdAt) VALUES (:id, :itemId, :snapshotEvidenceId, :sourceType, :sourceId, :observedAt, :contributionLabel, :safeValueJson, :createdAt)'
@@ -305,12 +331,12 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
         $insert->execute([
             'id' => self::uuid(),
             'itemId' => $itemId,
-            'snapshotEvidenceId' => $snapshotEvidenceId,
-            'sourceType' => $evidence->sourceType(),
-            'sourceId' => $evidence->sourceId(),
-            'observedAt' => $this->databaseTimestamp($evidence->observedAt()),
-            'contributionLabel' => $evidence->contributionLabel(),
-            'safeValueJson' => $evidence->safeValueJson(),
+            'snapshotEvidenceId' => $snapshotEvidence['id'],
+            'sourceType' => $snapshotEvidence['sourceType'],
+            'sourceId' => $snapshotEvidence['sourceId'],
+            'observedAt' => $snapshotEvidence['observedAt'],
+            'contributionLabel' => $contributionLabel,
+            'safeValueJson' => $snapshotEvidence['safeValueJson'],
             'createdAt' => $createdAt,
         ]);
     }
@@ -369,10 +395,11 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
         return $row;
     }
 
-    private function snapshotEvidenceId(string $studentId, string $snapshotId, RecommendationEvidence $evidence): ?string
+    /** @return array{id:string,sourceType:string,sourceId:string,observedAt:?string,safeValueJson:string}|null */
+    private function snapshotEvidence(string $studentId, string $snapshotId, RecommendationEvidence $evidence): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT evidence.id FROM learner_recommendation_snapshot_evidence AS evidence INNER JOIN learner_recommendation_input_snapshots AS snapshots ON snapshots.id = evidence.snapshotId WHERE evidence.snapshotId = :snapshotId AND snapshots.studentId = :studentId AND evidence.sourceType = :sourceType AND evidence.sourceId = :sourceId'
+            'SELECT evidence.id, evidence.sourceType, evidence.sourceId, evidence.observedAt, evidence.safeValueJson FROM learner_recommendation_snapshot_evidence AS evidence INNER JOIN learner_recommendation_input_snapshots AS snapshots ON snapshots.id = evidence.snapshotId WHERE evidence.snapshotId = :snapshotId AND snapshots.studentId = :studentId AND evidence.sourceType = :sourceType AND evidence.sourceId = :sourceId'
         );
         $statement->execute([
             'snapshotId' => $snapshotId,
@@ -380,8 +407,29 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
             'sourceType' => $evidence->sourceType(),
             'sourceId' => $evidence->sourceId(),
         ]);
-        $id = $statement->fetchColumn();
-        return $id === false ? null : (string) $id;
+        $snapshotEvidence = $statement->fetch(PDO::FETCH_ASSOC);
+        return $snapshotEvidence === false ? null : $snapshotEvidence;
+    }
+
+    private function assertContextScopesMatchInput(RecommendationInput $input, RecommendationContext $context): void
+    {
+        $embeddedScopes = $input->qualityFlags()['allowed_scopes'] ?? null;
+        if (!is_array($embeddedScopes)) {
+            throw new RuntimeException('Recommendation context scopes do not match input snapshot');
+        }
+
+        $normalized = [];
+        foreach ($embeddedScopes as $scope) {
+            if (!is_string($scope) || trim($scope) === '') {
+                throw new RuntimeException('Recommendation context scopes do not match input snapshot');
+            }
+            $normalized[trim($scope)] = true;
+        }
+        $inputScopes = array_keys($normalized);
+        sort($inputScopes, SORT_STRING);
+        if ($inputScopes !== $context->allowedScopes()) {
+            throw new RuntimeException('Recommendation context scopes do not match input snapshot');
+        }
     }
 
     /** @return array<string,mixed>|null */
