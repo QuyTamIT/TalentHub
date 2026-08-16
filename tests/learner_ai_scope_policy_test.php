@@ -33,6 +33,8 @@ ai_assert($policy->inspectPaths([$migrationPath])['approval_required_paths'] ===
 ai_assert($policy->inspectPaths([$migrationPath], [$migrationPath])['allowed'], 'exact approved database path is allowed');
 ai_assert($policy->inspectMigrationText('CREATE TABLE learner_x(id CHAR(36))') === [], 'additive DDL is accepted');
 ai_assert($policy->inspectMigrationText('FOREIGN KEY (studentId) REFERENCES student_profiles(id) ON DELETE RESTRICT ON UPDATE CASCADE') === [], 'restrictive foreign-key action is accepted');
+ai_assert($policy->inspectMigrationText('CREATE TRIGGER learner_consent_no_delete BEFORE DELETE ON learner_ai_consent_events FOR EACH ROW SIGNAL SQLSTATE \'45000\'') === [], 'append-only trigger delete header is accepted');
+ai_assert($policy->inspectMigrationText('CREATE TRIGGER learner_consent_no_delete BEFORE DELETE ON learner_ai_consent_events FOR EACH ROW DELETE FROM users') === ['DELETE'], 'delete DML inside a trigger remains rejected');
 ai_assert($policy->inspectMigrationText('DROP TABLE learner_x') === ['DROP'], 'DROP is rejected');
 ai_assert($policy->inspectMigrationText('DELETE FROM users') === ['DELETE'], 'DELETE is rejected');
 ai_assert($policy->inspectMigrationText('-- DROP TABLE learner_x') === [], 'line comments are ignored');

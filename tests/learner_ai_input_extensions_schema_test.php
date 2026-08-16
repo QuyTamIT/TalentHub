@@ -8,7 +8,7 @@ use TalentHub\Learner\Data\Readiness\AiScopePolicy;
 
 require_once dirname(__DIR__) . '/app/learner/data/bootstrap.php';
 
-const AI_INPUT_EXTENSIONS_DDL_SHA256 = 'ce622b3f8a741bf8624bf0e32f7766609444d99da2ee96d448fb35e807d2cded';
+const AI_INPUT_EXTENSIONS_DDL_SHA256 = 'b051de910491339de78eebb95e01da683dd3230601b7357e12013099e54d9ed4';
 
 function ai_extensions_assert(bool $condition, string $message): void
 {
@@ -115,6 +115,13 @@ function ai_extensions_assert_restrict_cascade(PDO $pdo, string $table, array $f
     ai_extensions_assert(false, "foreign key is available for action check: {$table}.{$foreignKey['from']}");
 }
 
+function ai_extensions_assert_trigger(PDO $pdo, string $name): void
+{
+    $statement = $pdo->prepare("SELECT 1 FROM sqlite_master WHERE type = 'trigger' AND name = :name");
+    $statement->execute(['name' => $name]);
+    ai_extensions_assert($statement->fetchColumn() !== false, "SQLite trigger exists: {$name}");
+}
+
 function ai_extensions_insert_fixture_rows(PDO $pdo): void
 {
     $pdo->exec("INSERT INTO student_profiles (id) VALUES ('student-000000000000000000000000000001')");
@@ -150,6 +157,7 @@ ai_extensions_assert($definition->version === '003_create_ai_input_extensions', 
 ai_extensions_assert($migration->version() === '003_create_ai_input_extensions', 'migration implementation has approved version');
 ai_extensions_assert(implode("\n\n", $migration->statements('mysql')) === $dcrSql, 'MySQL statements exactly reproduce approved DCR fence');
 ai_extensions_assert(hash('sha256', implode("\n\n", $migration->statements('mysql'))) === AI_INPUT_EXTENSIONS_DDL_SHA256, 'MySQL statement fingerprint is approved');
+ai_extensions_assert(!str_contains(implode("\n\n", $migration->statements('mysql')), 'CREATE TABLE IF NOT EXISTS'), 'extension migration refuses pre-existing targets instead of accepting an unchecked shape');
 ai_extensions_assert((new AiScopePolicy())->inspectMigrationText((string) file_get_contents($migrationPath)) === [], 'migration source has no destructive SQL token');
 
 $pdo = ai_extensions_fixture();
@@ -171,8 +179,21 @@ foreach (ai_extensions_contract() as $table => $contract) {
         ai_extensions_assert_restrict_cascade($pdo, $table, $foreignKey);
     }
 }
+foreach ([
+    'trg_learner_assessment_attempt_metadata_test_match_insert',
+    'trg_learner_assessment_attempt_metadata_test_match_update',
+    'trg_learner_assessment_answers_version_match_insert',
+    'trg_learner_assessment_answers_version_match_update',
+    'trg_learner_ai_consent_events_append_only_update',
+    'trg_learner_ai_consent_events_append_only_delete',
+] as $trigger) {
+    ai_extensions_assert_trigger($pdo, $trigger);
+}
 
 ai_extensions_insert_fixture_rows($pdo);
+$pdo->exec("INSERT INTO talent_tests (id, code, name, type, status) VALUES ('test-000000000000000000000000000000002', 'aptitude', 'Aptitude', 'aptitude', 'published')");
+$pdo->exec("INSERT INTO test_questions (id, testId, code, content, optionsJson, status) VALUES ('question-00000000000000000000000000002', 'test-000000000000000000000000000000002', 'a1', 'Other question', '[]', 'published')");
+$pdo->exec("INSERT INTO learner_assessment_versions (id, testId, version, scoringVersion, schemaHash, status, publishedAt) VALUES ('version-0000000000000000000000000000002', 'test-000000000000000000000000000000002', '1.0.0', 'score-1.0.0', 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', 'published', '2026-08-16 00:00:00')");
 ai_extensions_expect_constraint(
     static fn (): int|false => $pdo->exec("INSERT INTO learner_assessment_versions (id, testId, version, scoringVersion, schemaHash, status, publishedAt) VALUES ('version-duplicate-0000000000000000000000001', 'test-000000000000000000000000000000001', '1.0.0', 'score-1.0.0', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'published', '2026-08-16 00:00:00')"),
     'assessment version rejects duplicate (testId, version)'
@@ -186,6 +207,22 @@ ai_extensions_expect_constraint(
     'assessment answers reject duplicate (attemptId, questionId)'
 );
 ai_extensions_expect_constraint(
+    static fn (): int|false => $pdo->exec("INSERT INTO learner_assessment_attempt_metadata (id, attemptId, versionId, status) VALUES ('attempt-metadata-cross-test-00000000000000001', 'attempt-0000000000000000000000000000001', 'version-0000000000000000000000000000002', 'in_progress')"),
+    'attempt metadata rejects a version from another test'
+);
+ai_extensions_expect_constraint(
+    static fn (): int|false => $pdo->exec("UPDATE learner_assessment_attempt_metadata SET versionId = 'version-0000000000000000000000000000002' WHERE id = 'attempt-metadata-00000000000000000000000001'"),
+    'attempt metadata rejects a later cross-test version change'
+);
+ai_extensions_expect_constraint(
+    static fn (): int|false => $pdo->exec("INSERT INTO learner_assessment_answers (id, attemptId, questionId, answerJson) VALUES ('answer-cross-version-00000000000000000000001', 'attempt-0000000000000000000000000000001', 'question-00000000000000000000000000002', '{\"choice\":\"A\"}')"),
+    'assessment answers reject a question absent from the selected version'
+);
+ai_extensions_expect_constraint(
+    static fn (): int|false => $pdo->exec("UPDATE learner_assessment_answers SET questionId = 'question-00000000000000000000000000002' WHERE id = 'answer-00000000000000000000000000000001'"),
+    'assessment answers reject a later question outside the selected version'
+);
+ai_extensions_expect_constraint(
     static fn (): int|false => $pdo->exec("INSERT INTO learner_ai_consent_events (id, studentId, scope, action, policyVersion, occurredAt, requestId) VALUES ('consent-invalid-action-0000000000000000000001', 'student-000000000000000000000000000001', 'assessment', 'unknown', 'policy-1.0.0', '2026-08-16 00:00:01', 'request-invalid-action-00000000000000000001')"),
     'consent action is constrained to granted or revoked'
 );
@@ -193,6 +230,14 @@ $pdo->exec("INSERT INTO learner_ai_consent_events (id, studentId, scope, action,
 ai_extensions_expect_constraint(
     static fn (): int|false => $pdo->exec("INSERT INTO learner_ai_consent_events (id, studentId, scope, action, policyVersion, occurredAt, requestId) VALUES ('consent-duplicate-00000000000000000000001', 'student-000000000000000000000000000001', 'assessment', 'granted', 'policy-1.0.0', '2026-08-16 00:00:01', 'request-000000000000000000000000000002')"),
     'consent events reject duplicate ordering keys'
+);
+ai_extensions_expect_constraint(
+    static fn (): int|false => $pdo->exec("UPDATE learner_ai_consent_events SET action = 'revoked' WHERE id = 'consent-000000000000000000000000000001'"),
+    'consent events reject updates'
+);
+ai_extensions_expect_constraint(
+    static fn (): int|false => $pdo->exec("DELETE FROM learner_ai_consent_events WHERE id = 'consent-000000000000000000000000000001'"),
+    'consent events reject deletes'
 );
 $latestAction = $pdo->query("SELECT action FROM learner_ai_consent_events WHERE studentId = 'student-000000000000000000000000000001' AND scope = 'assessment' ORDER BY occurredAt DESC, requestId DESC LIMIT 1")->fetchColumn();
 ai_extensions_assert($latestAction === 'revoked', 'append-only consent ordering resolves the latest event deterministically');
@@ -204,8 +249,20 @@ $missingParentInspector = new SchemaInspector($missingParentPdo, 'main');
 $missingParentRunner = new LearnerForwardMigrationRunner($missingParentPdo, dirname($migrationPath), $missingParentInspector);
 ai_extensions_expect_exception(
     static fn (): array => $missingParentRunner->migrateApproved(['003_create_ai_input_extensions']),
-    'Learner migration preflight missing required Task 3 parent: talent_tests'
+    'Learner migration preflight requires verified Task 3 migration: 002_create_ai_input_foundation'
 );
 ai_extensions_assert(!$missingParentInspector->hasTable('learner_forward_migrations'), 'missing Task 3 parent creates no migration registry');
+
+$checksumMismatchPdo = ai_extensions_fixture();
+$checksumMismatchInspector = new SchemaInspector($checksumMismatchPdo, 'main');
+$checksumMismatchRunner = new LearnerForwardMigrationRunner($checksumMismatchPdo, dirname($migrationPath), $checksumMismatchInspector);
+ai_extensions_assert($checksumMismatchRunner->migrateApproved(['002_create_ai_input_foundation']) === ['002_create_ai_input_foundation'], 'foundation applies for checksum preflight fixture');
+$checksumMismatchPdo->exec("UPDATE learner_forward_migrations SET checksum = '0000000000000000000000000000000000000000000000000000000000000000' WHERE version = '002_create_ai_input_foundation'");
+ai_extensions_expect_exception(
+    static function () use ($migration, $checksumMismatchInspector): void {
+        $migration->assertBeforeApply($checksumMismatchInspector);
+    },
+    'Learner migration preflight requires verified Task 3 migration: 002_create_ai_input_foundation'
+);
 
 echo "learner_ai_input_extensions_schema_test: OK\n";

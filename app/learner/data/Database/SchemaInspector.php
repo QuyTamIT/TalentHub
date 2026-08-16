@@ -166,6 +166,27 @@ final class SchemaInspector
             && strcasecmp((string) $metadata['table_collation'], $collation) === 0;
     }
 
+    public function migrationChecksum(string $version): ?string
+    {
+        if (preg_match('/^\d{3}_[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/', $version) !== 1) {
+            throw new InvalidArgumentException('Invalid learner migration version: ' . $version);
+        }
+        if (!$this->hasTable('learner_forward_migrations')) {
+            return null;
+        }
+
+        if ($this->driver() === 'sqlite') {
+            $query = $this->pdo->prepare(
+                'SELECT checksum FROM ' . $this->quote($this->schema) . '.' . $this->quote('learner_forward_migrations') . ' WHERE version = :version'
+            );
+        } else {
+            $query = $this->pdo->prepare('SELECT checksum FROM learner_forward_migrations WHERE version = :version');
+        }
+        $query->execute(['version' => $version]);
+        $checksum = $query->fetchColumn();
+        return $checksum === false ? null : (string) $checksum;
+    }
+
     public function mysqlSessionTimeZone(): ?string
     {
         if ($this->driver() !== 'mysql') {

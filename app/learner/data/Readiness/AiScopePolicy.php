@@ -59,10 +59,15 @@ final class AiScopePolicy
             ' ',
             $withoutComments
         ) ?? $withoutComments;
+        $withoutAppendOnlyTriggerHeaders = preg_replace(
+            '/\\bCREATE\\s+TRIGGER\\s+[A-Za-z_][A-Za-z0-9_]*\\s+BEFORE\\s+DELETE\\s+ON\\s+[A-Za-z_][A-Za-z0-9_]*/i',
+            ' ',
+            $withoutForeignKeyActions
+        ) ?? $withoutForeignKeyActions;
         $matched = [];
 
         foreach (self::FORBIDDEN_SQL as $keyword) {
-            $inspectable = $keyword === 'DELETE' ? $withoutForeignKeyActions : $withoutComments;
+            $inspectable = $keyword === 'DELETE' ? $withoutAppendOnlyTriggerHeaders : $withoutComments;
             if (preg_match('/\\b' . $keyword . '\\b/i', $inspectable) === 1) {
                 $matched[] = $keyword;
             }
