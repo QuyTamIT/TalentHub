@@ -118,7 +118,9 @@ final class LearnerForwardMigrationRunner
                 throw new RuntimeException('Invalid learner migration filename: ' . $filename);
             }
             $definition = require $path;
-            if (!$definition instanceof ForwardMigrationDefinition || $definition->version !== $match[1] || $definition->path !== $path) {
+            $definitionPath = $definition instanceof ForwardMigrationDefinition ? realpath($definition->path) : false;
+            $migrationPath = realpath($path);
+            if (!$definition instanceof ForwardMigrationDefinition || $definition->version !== $match[1] || $definitionPath === false || $migrationPath === false || $definitionPath !== $migrationPath) {
                 throw new RuntimeException('Invalid learner migration definition: ' . $filename);
             }
             $checksum = hash_file('sha256', $path);
