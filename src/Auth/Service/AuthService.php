@@ -32,10 +32,10 @@ final class AuthService
         if(!$date||$date->format('Y-m-d')!==$dateOfBirth||$date>new DateTimeImmutable('today')){$details[]=['field'=>'dateOfBirth','code'=>'INVALID_DATE','message'=>'Ngày sinh phải hợp lệ và không nằm trong tương lai.'];}
         if(mb_strlen($phone)<6||mb_strlen($phone)>30||preg_match('/^[0-9+() .-]+$/',$phone)!==1){$details[]=['field'=>'phone','code'=>'INVALID_PHONE','message'=>'Số điện thoại không hợp lệ.'];}
         if($details!==[]){throw new ApiException(422,'VALIDATION_FAILED','Dữ liệu gửi lên không hợp lệ.',$details);}
-        if($this->repository->findByEmail($email)!==null){throw new ApiException(409,'DUPLICATE_RESOURCE','Email đã được sử dụng.');}
+        if($this->repository->findByEmail($email)!==null){throw new ApiException(409,'DUPLICATE_RESOURCE','Email đã được sử dụng.',[['field'=>'email','code'=>'DUPLICATE_EMAIL','message'=>'Email này đã được sử dụng.']]);}
         $hash=password_hash($password,PASSWORD_DEFAULT);if($hash===false){throw new ApiException(500,'INTERNAL_ERROR','Không thể tạo tài khoản.');}
         try{$id=$this->repository->createStudent(['email'=>$email,'passwordHash'=>$hash,'fullName'=>$fullName,'classId'=>$classId,'dateOfBirth'=>$dateOfBirth,'phone'=>$phone],$requestId,$ip);}
-        catch(PDOException $exception){if((int)($exception->errorInfo[1]??0)===1062){throw new ApiException(409,'DUPLICATE_RESOURCE','Email đã được sử dụng.');}throw $exception;}
+        catch(PDOException $exception){if((int)($exception->errorInfo[1]??0)===1062){throw new ApiException(409,'DUPLICATE_RESOURCE','Email đã được sử dụng.',[['field'=>'email','code'=>'DUPLICATE_EMAIL','message'=>'Email này đã được sử dụng.']]);}throw $exception;}
         if($id===''){throw new ApiException(422,'VALIDATION_FAILED','Lớp không tồn tại hoặc không còn nhận học viên.',[['field'=>'classId','code'=>'CLASS_NOT_AVAILABLE','message'=>'Lớp không tồn tại hoặc không còn hoạt động.']]);}
         return $this->current($id);
     }
@@ -43,7 +43,10 @@ final class AuthService
     public function login(array $input,string $requestId='system',?string $ip=null): array
     {
         $email=strtolower(trim(is_string($input['email']??null)?$input['email']:''));$password=is_string($input['password']??null)?$input['password']:'';
-        if(!filter_var($email,FILTER_VALIDATE_EMAIL)||$password===''){throw new ApiException(422,'VALIDATION_FAILED','Dữ liệu gửi lên không hợp lệ.');}
+        $details=[];
+        if(!filter_var($email,FILTER_VALIDATE_EMAIL)||strlen($email)>255){$details[]=['field'=>'email','code'=>'INVALID_EMAIL','message'=>'Email không đúng định dạng.'];}
+        if($password===''){$details[]=['field'=>'password','code'=>'REQUIRED','message'=>'Vui lòng nhập mật khẩu.'];}
+        if($details!==[]){throw new ApiException(422,'VALIDATION_FAILED','Vui lòng kiểm tra lại thông tin đăng nhập.',$details);}
         $row=$this->repository->findByEmail($email);
         if(!$row||!password_verify($password,(string)$row['passwordHash'])){$this->repository->audit($row?(string)$row['id']:null,'auth.login_failed',$requestId,$ip,['reason'=>'invalid_credentials']);throw new ApiException(401,'INVALID_CREDENTIALS','Email hoặc mật khẩu không chính xác.');}
         if($row['status']!=='active'){$this->repository->audit((string)$row['id'],'auth.login_failed',$requestId,$ip,['reason'=>'account_not_active']);throw new ApiException(403,'ACCOUNT_NOT_ACTIVE','Tài khoản chưa được phép đăng nhập.');}
