@@ -5,6 +5,8 @@
     'use strict';
 
     const API_ROOT = '/api/v1';
+    const LEARNER_API_ROOT = '/app/learner/api/v1';
+    const ALLOWED_API_BASES = new Set([API_ROOT, LEARNER_API_ROOT]);
     const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
     class LearnerApiError extends Error {
@@ -28,7 +30,7 @@
 
     function normalizeApiBase(baseUrl) {
         const requestedBase = String(baseUrl || '').trim().replace(/\/+$/, '');
-        return requestedBase === API_ROOT ? requestedBase : API_ROOT;
+        return ALLOWED_API_BASES.has(requestedBase) ? requestedBase : API_ROOT;
     }
 
     function createApiPathError() {
@@ -50,7 +52,7 @@
             throw createApiPathError();
         }
 
-        if (url.pathname !== API_ROOT && !url.pathname.startsWith(`${API_ROOT}/`)) {
+        if (url.pathname !== baseUrl && !url.pathname.startsWith(`${baseUrl}/`)) {
             throw createApiPathError();
         }
         return `${url.pathname}${url.search}`;

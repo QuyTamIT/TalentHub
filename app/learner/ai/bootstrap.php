@@ -19,5 +19,23 @@ require_once $learnerAiRoot . '/Sources/Database/DatabasePublishedEvaluationSour
 require_once $learnerAiRoot . '/Sources/Database/DatabaseOpportunitySource.php';
 require_once $learnerAiRoot . '/Sources/Database/DatabaseConsentSource.php';
 require_once $learnerAiRoot . '/Consent/ConsentPolicy.php';
+require_once $learnerAiRoot . '/Domain/RecommendationContext.php';
+require_once $learnerAiRoot . '/Domain/RecommendationEvidence.php';
+require_once $learnerAiRoot . '/Domain/RecommendationInput.php';
+require_once $learnerAiRoot . '/Domain/RecommendationItem.php';
+require_once $learnerAiRoot . '/Domain/RecommendationResult.php';
+require_once $learnerAiRoot . '/Quality/DataQualityResult.php';
+require_once $learnerAiRoot . '/Quality/DataQualityGate.php';
+require_once $learnerAiRoot . '/Snapshot/RecommendationSnapshotBuilder.php';
+require_once $learnerAiRoot . '/Contracts/RecommendationEngine.php';
+require_once $learnerAiRoot . '/Explanation/RecommendationExplainer.php';
+require_once $learnerAiRoot . '/Rules/RuleDefinition.php';
+require_once $learnerAiRoot . '/Rules/RuleSetV1.php';
+require_once $learnerAiRoot . '/Rules/RuleRecommendationEngine.php';
+require_once $learnerAiRoot . '/Persistence/RecommendationRepository.php';
+require_once $learnerAiRoot . '/Persistence/DatabaseRecommendationRepository.php';
+require_once $learnerAiRoot . '/Validation/RecommendationResultValidator.php';
+require_once $learnerAiRoot . '/Service/RecommendationResponseMapper.php';
+require_once $learnerAiRoot . '/Service/RecommendationService.php';
 
 unset($learnerAiRoot);

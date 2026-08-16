@@ -65,6 +65,20 @@ test('client ignores an external base URL and stays under the canonical API root
   assert.equal(requestUrl, '/api/v1/students/me?include=profile');
 });
 
+test('client accepts the learner-local API base without escaping it', async () => {
+  let requestUrl = '';
+  const client = createLearnerApiClient({
+    baseUrl: '/app/learner/api/v1',
+    fetchImpl: async (url) => {
+      requestUrl = url;
+      return { ok: true, status: 200, json: async () => ({ data: {} }) };
+    },
+  });
+
+  await client.get('/recommendations.php');
+  assert.equal(requestUrl, '/app/learner/api/v1/recommendations.php');
+});
+
 test('client rejects traversal paths before making a request', async () => {
   let calls = 0;
   const client = createLearnerApiClient({
