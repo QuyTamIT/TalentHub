@@ -51,21 +51,9 @@ final class LearnerForwardMigrationRunner
     public function migrateApproved(array $approvedVersions): array
     {
         $definitions = $this->definitions();
-        $applied = $this->applied();
-        foreach ($applied as $version => $checksum) {
-            if (!isset($definitions[$version]) || !hash_equals($checksum, $definitions[$version]->checksum)) {
-                throw new RuntimeException('Applied learner migration drift');
-            }
-        }
-
-        $approved = array_fill_keys($approvedVersions, true);
-        $pending = array_filter($definitions, static fn (ForwardMigrationDefinition $definition): bool => isset($approved[$definition->version]) && !isset($applied[$definition->version]));
-        if ($pending === []) {
-            return [];
-        }
-
         $driver = strtolower((string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
         $locked = false;
+        $startedTransaction = false;
         if ($driver === 'mysql') {
             $lock = $this->pdo->prepare('SELECT GET_LOCK(:name, 30)');
             $lock->execute(['name' => self::LOCK_NAME]);
@@ -76,10 +64,27 @@ final class LearnerForwardMigrationRunner
         }
 
         try {
-            $startedTransaction = !$this->pdo->inTransaction();
+            $startedTransaction = $driver !== 'mysql' && !$this->pdo->inTransaction();
             if ($startedTransaction) {
                 $this->pdo->beginTransaction();
             }
+
+            $applied = $this->applied();
+            foreach ($applied as $version => $checksum) {
+                if (!isset($definitions[$version]) || !hash_equals($checksum, $definitions[$version]->checksum)) {
+                    throw new RuntimeException('Applied learner migration drift');
+                }
+            }
+
+            $approved = array_fill_keys($approvedVersions, true);
+            $pending = array_filter($definitions, static fn (ForwardMigrationDefinition $definition): bool => isset($approved[$definition->version]) && !isset($applied[$definition->version]));
+            if ($pending === []) {
+                if ($startedTransaction) {
+                    $this->pdo->commit();
+                }
+                return [];
+            }
+
             $this->ensureRegistry();
             $run = [];
             foreach ($pending as $definition) {
@@ -91,7 +96,7 @@ final class LearnerForwardMigrationRunner
             }
             return $run;
         } catch (\Throwable $exception) {
-            if (($startedTransaction ?? false) && $this->pdo->inTransaction()) {
+            if ($startedTransaction && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
             throw $exception;
@@ -122,6 +127,9 @@ final class LearnerForwardMigrationRunner
             $migrationPath = realpath($path);
             if (!$definition instanceof ForwardMigrationDefinition || $definition->version !== $match[1] || $definitionPath === false || $migrationPath === false || $definitionPath !== $migrationPath) {
                 throw new RuntimeException('Invalid learner migration definition: ' . $filename);
+            }
+            if ($definition->migration->version() !== $definition->version) {
+                throw new RuntimeException('Learner migration version mismatch: ' . $filename);
             }
             $checksum = hash_file('sha256', $path);
             if ($checksum === false || !hash_equals($checksum, $definition->checksum)) {

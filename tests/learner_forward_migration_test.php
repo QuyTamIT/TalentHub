@@ -65,6 +65,22 @@ try {
     forward_expect_exception(static fn (): array => $runner->status(), 'Invalid learner migration filename: bad-name.php');
 
     unlink($directory . '/bad-name.php');
+    file_put_contents($directory . '/003_version_mismatch.php', <<<'PHP'
+<?php
+return new \TalentHub\Learner\Data\Migrations\ForwardMigrationDefinition(
+    '003_version_mismatch', 'Version mismatch', __FILE__, hash_file('sha256', __FILE__),
+    new class implements \TalentHub\Learner\Data\Migrations\LearnerForwardMigration {
+        public function version(): string { return '999_wrong_version'; }
+        public function description(): string { return 'Version mismatch'; }
+        public function statements(string $driver): array { return []; }
+        public function expectedSchema(): array { return []; }
+    }
+);
+PHP
+    );
+    forward_expect_exception(static fn (): array => $runner->status(), 'Learner migration version mismatch: 003_version_mismatch.php');
+
+    unlink($directory . '/003_version_mismatch.php');
     file_put_contents($directory . '/003_drop_sample.php', <<<'PHP'
 <?php
 return new \TalentHub\Learner\Data\Migrations\ForwardMigrationDefinition(
