@@ -11,10 +11,11 @@ require_once dirname(__DIR__) . '/data/Readiness/AiScopePolicy.php';
 function ai_scope_audit_git_paths(string $repositoryRoot, array $arguments): array
 {
     $paths = [];
+    $standardError = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
     foreach ($arguments as $argument) {
         $output = [];
         $exitCode = 0;
-        exec('git -C ' . escapeshellarg($repositoryRoot) . ' ' . $argument, $output, $exitCode);
+        exec('git -C ' . escapeshellarg($repositoryRoot) . ' ' . $argument . ' 2>' . escapeshellarg($standardError), $output, $exitCode);
         if ($exitCode === 0) {
             array_push($paths, ...$output);
         }
@@ -41,19 +42,28 @@ function ai_scope_audit_forbidden_sql(AiScopePolicy $policy, string $repositoryR
     return $forbidden;
 }
 
-$options = getopt('', ['format:']);
+$options = getopt('', ['format:', 'approved-database-path:']);
 $format = strtolower((string) ($options['format'] ?? 'text'));
 if (!in_array($format, ['text', 'json'], true)) {
     fwrite(STDERR, "Format must be text or json.\n");
     exit(2);
 }
 
+$approvedDatabasePaths = $options['approved-database-path'] ?? [];
+if (!is_array($approvedDatabasePaths)) {
+    $approvedDatabasePaths = [$approvedDatabasePaths];
+}
+$approvedDatabasePaths = array_values(array_filter(
+    $approvedDatabasePaths,
+    static fn (mixed $path): bool => is_string($path) && $path !== ''
+));
+
 $policy = new AiScopePolicy();
 $scope = $policy->inspectPaths(ai_scope_audit_git_paths($repositoryRoot, [
     'diff --name-only --cached',
     'diff --name-only',
     'ls-files --others --exclude-standard',
-]));
+]), $approvedDatabasePaths);
 $forbiddenSql = ai_scope_audit_forbidden_sql($policy, $repositoryRoot);
 $allowed = $scope['allowed'] && $forbiddenSql === [];
 $payload = [

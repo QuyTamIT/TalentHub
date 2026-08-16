@@ -31,6 +31,7 @@ $migrationPath = 'Database/migrations/learner/002_create_ai_input_foundation.php
 ai_assert($policy->inspectPaths([$migrationPath])['approval_required_paths'] === [$migrationPath], 'database path requires approval');
 ai_assert($policy->inspectPaths([$migrationPath], [$migrationPath])['allowed'], 'exact approved database path is allowed');
 ai_assert($policy->inspectMigrationText('CREATE TABLE learner_x(id CHAR(36))') === [], 'additive DDL is accepted');
+ai_assert($policy->inspectMigrationText('FOREIGN KEY (studentId) REFERENCES student_profiles(id) ON DELETE RESTRICT ON UPDATE CASCADE') === [], 'restrictive foreign-key action is accepted');
 ai_assert($policy->inspectMigrationText('DROP TABLE learner_x') === ['DROP'], 'DROP is rejected');
 ai_assert($policy->inspectMigrationText('DELETE FROM users') === ['DELETE'], 'DELETE is rejected');
 ai_assert($policy->inspectMigrationText('-- DROP TABLE learner_x') === [], 'line comments are ignored');

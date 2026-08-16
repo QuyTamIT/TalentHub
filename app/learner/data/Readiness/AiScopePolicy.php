@@ -54,10 +54,16 @@ final class AiScopePolicy
     public function inspectMigrationText(string $sql): array
     {
         $withoutComments = preg_replace(['~/\*.*?\*/~s', '~--[^\r\n]*~'], ' ', $sql) ?? $sql;
+        $withoutForeignKeyActions = preg_replace(
+            '/\\bON\\s+DELETE\\s+(?:RESTRICT|CASCADE|SET\\s+NULL|NO\\s+ACTION)\\b/i',
+            ' ',
+            $withoutComments
+        ) ?? $withoutComments;
         $matched = [];
 
         foreach (self::FORBIDDEN_SQL as $keyword) {
-            if (preg_match('/\\b' . $keyword . '\\b/i', $withoutComments) === 1) {
+            $inspectable = $keyword === 'DELETE' ? $withoutForeignKeyActions : $withoutComments;
+            if (preg_match('/\\b' . $keyword . '\\b/i', $inspectable) === 1) {
                 $matched[] = $keyword;
             }
         }

@@ -39,6 +39,7 @@ require_once $learnerDataRoot . '/Database/DatabaseEcosystemRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseApplicationRepository.php';
 require_once $learnerDataRoot . '/Readiness/AiScopePolicy.php';
 require_once $learnerDataRoot . '/Migrations/LearnerForwardMigration.php';
+require_once $learnerDataRoot . '/Migrations/LearnerMigrationPreflight.php';
 require_once $learnerDataRoot . '/Migrations/ForwardMigrationDefinition.php';
 require_once $learnerDataRoot . '/Migrations/LearnerForwardMigrationRunner.php';
 require_once $learnerDataRoot . '/RepositoryFactory.php';

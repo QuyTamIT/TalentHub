@@ -85,6 +85,11 @@ final class LearnerForwardMigrationRunner
                 return [];
             }
 
+            foreach ($pending as $definition) {
+                if ($definition->migration instanceof LearnerMigrationPreflight) {
+                    $definition->migration->assertBeforeApply($this->schemaInspector);
+                }
+            }
             $this->ensureRegistry();
             $run = [];
             foreach ($pending as $definition) {

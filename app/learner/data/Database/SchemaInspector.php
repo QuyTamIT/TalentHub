@@ -66,6 +66,60 @@ final class SchemaInspector
         return $query->fetchColumn() !== false;
     }
 
+    public function hasForeignKey(string $table, string $referencedTable, string $fromColumn, string $toColumn): bool
+    {
+        $this->identifier($table);
+        $this->identifier($referencedTable);
+        $this->identifier($fromColumn);
+        $this->identifier($toColumn);
+        if ($this->driver() === 'sqlite') {
+            $rows = $this->pdo->query('PRAGMA ' . $this->quote($this->schema) . '.foreign_key_list(' . $this->quote($table) . ')')->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $row) {
+                if (($row['table'] ?? null) === $referencedTable && ($row['from'] ?? null) === $fromColumn && ($row['to'] ?? null) === $toColumn) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        $query = $this->pdo->prepare(
+            'SELECT 1 FROM information_schema.key_column_usage WHERE table_schema = :schema AND table_name = :table AND column_name = :column AND referenced_table_name = :referencedTable AND referenced_column_name = :referencedColumn'
+        );
+        $query->execute([
+            'schema' => $this->schema,
+            'table' => $table,
+            'column' => $fromColumn,
+            'referencedTable' => $referencedTable,
+            'referencedColumn' => $toColumn,
+        ]);
+        return $query->fetchColumn() !== false;
+    }
+
+    public function columnType(string $table, string $column): ?string
+    {
+        $this->identifier($table);
+        $this->identifier($column);
+        if ($this->driver() === 'sqlite') {
+            $rows = $this->pdo->query('PRAGMA ' . $this->quote($this->schema) . '.table_info(' . $this->quote($table) . ')')->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $row) {
+                if (($row['name'] ?? null) === $column) {
+                    return strtoupper((string) ($row['type'] ?? ''));
+                }
+            }
+            return null;
+        }
+
+        $query = $this->pdo->prepare('SELECT data_type, character_maximum_length FROM information_schema.columns WHERE table_schema = :schema AND table_name = :table AND column_name = :column');
+        $query->execute(['schema' => $this->schema, 'table' => $table, 'column' => $column]);
+        $row = $query->fetch(PDO::FETCH_ASSOC);
+        if ($row === false) {
+            return null;
+        }
+        $type = strtoupper((string) $row['data_type']);
+        $length = $row['character_maximum_length'];
+        return $length === null ? $type : $type . '(' . $length . ')';
+    }
+
     private function driver(): string
     {
         return strtolower((string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
