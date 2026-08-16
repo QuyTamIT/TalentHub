@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace TalentHub\Learner\Ai\Service;
 
 use Closure;
+use TalentHub\Learner\Ai\Config\RecommendationConfig;
 use TalentHub\Learner\Ai\Contracts\RecommendationEngine;
 use TalentHub\Learner\Ai\Domain\RecommendationContext;
 use TalentHub\Learner\Ai\Domain\RecommendationInput;
 use TalentHub\Learner\Ai\Persistence\RecommendationRepository;
 use TalentHub\Learner\Ai\Quality\DataQualityResult;
+use TalentHub\Learner\Ai\Rollout\RecommendationRolloutSelector;
 use TalentHub\Learner\Ai\Validation\RecommendationResultValidator;
 
 final class RecommendationService
@@ -46,6 +48,9 @@ final class RecommendationService
         callable $snapshotBuilder,
         callable $qualityGate,
         callable $snapshotFreshness,
+        private readonly ?RecommendationEngine $modelEngine = null,
+        private readonly ?RecommendationConfig $modelConfig = null,
+        private readonly ?RecommendationRolloutSelector $rolloutSelector = null,
     ) {
         $this->authorizer = Closure::fromCallable($authorizer);
         $this->scopeResolver = Closure::fromCallable($scopeResolver);
@@ -110,7 +115,8 @@ final class RecommendationService
         try {
             $result = $this->engine->generate($input, $context);
             $this->validator->validate($result);
-            return $this->mapper->run($this->repository->completeRun($studentId, (string) $pending['runId'], $result));
+            $ruleRun = $this->repository->completeRun($studentId, (string) $pending['runId'], $result);
+            return $this->visibleModelOrRule($studentId, $input, $context, $ruleRun);
         } catch (\Throwable) {
             try {
                 $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), 'engine_failure');
@@ -136,5 +142,34 @@ final class RecommendationService
         $result = array_keys($normalized);
         sort($result, SORT_STRING);
         return $result;
+    }
+
+    /** @param array<string,mixed> $ruleRun @return array<string,mixed> */
+    private function visibleModelOrRule(string $studentId, RecommendationInput $input, RecommendationContext $ruleContext, array $ruleRun): array
+    {
+        if ($this->modelEngine === null || $this->modelConfig === null || $this->rolloutSelector === null
+            || !$this->rolloutSelector->canShowModel($studentId, $this->modelConfig, $ruleContext->allowedScopes(), true)) {
+            return $this->mapper->run($ruleRun);
+        }
+        $modelContext = new RecommendationContext(
+            $ruleContext->allowedScopes(),
+            $ruleContext->requestId(),
+            'model-' . hash('sha256', $input->contentHash() . ':' . (string) $ruleContext->idempotencyKey()),
+            $studentId,
+        );
+        try {
+            $modelResult = $this->modelEngine->generate($input, $modelContext);
+            if ($modelResult->engineType() !== 'model') {
+                return $this->mapper->run($ruleRun);
+            }
+            $this->validator->validate($modelResult);
+            $pending = $this->repository->createPendingRun($studentId, $input, $modelContext);
+            if (($pending['reused'] ?? false) === true) {
+                return $this->mapper->run($ruleRun);
+            }
+            return $this->mapper->run($this->repository->completeRun($studentId, (string) ($pending['runId'] ?? ''), $modelResult));
+        } catch (\Throwable) {
+            return $this->mapper->run($ruleRun);
+        }
     }
 }

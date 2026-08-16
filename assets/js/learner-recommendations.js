@@ -121,6 +121,7 @@
             results: root.querySelector('[data-ai-results]'),
             list: root.querySelector('[data-ai-result-list]'),
             engineLabel: root.querySelector('[data-ai-engine-label]'),
+            generatedAt: root.querySelector('[data-ai-generated-at]'),
             feedbackStatus: root.querySelector('[data-ai-feedback-status]'),
         };
         const evidenceByItem = new Map();
@@ -184,6 +185,10 @@
             while (nodes.list.firstChild) nodes.list.removeChild(nodes.list.firstChild);
             evidenceByItem.clear();
             if (nodes.engineLabel) nodes.engineLabel.textContent = engineLabel(state);
+            if (nodes.generatedAt) {
+                const generatedAt = displayDate(payload?.generated_at);
+                nodes.generatedAt.textContent = generatedAt === 'Ngày nguồn không xác định' ? '' : `Tạo ngày ${generatedAt}`;
+            }
             const items = Array.isArray(payload?.items) ? payload.items : [];
             for (const item of items) {
                 if (!item || typeof item !== 'object') continue;
@@ -224,6 +229,7 @@
                 feedback.append(
                     feedbackButton(itemId, 'helpful', 'relevant', 'Hữu ích'),
                     feedbackButton(itemId, 'not_helpful', 'not_relevant', 'Chưa phù hợp'),
+                    feedbackButton(itemId, 'not_helpful', 'unsafe_output', 'Báo cáo nội dung không an toàn', true),
                 );
                 article.appendChild(feedback);
             }
@@ -256,7 +262,7 @@
         return { render, toggleEvidence, focusFeedback };
     }
 
-    function feedbackButton(itemId, verdict, reasonCode, label) {
+    function feedbackButton(itemId, verdict, reasonCode, label, reportUnsafe = false) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'learner-btn learner-btn--text';
@@ -264,6 +270,7 @@
         button.dataset.aiFeedbackItem = itemId;
         button.dataset.aiFeedbackVerdict = verdict;
         button.dataset.aiFeedbackReason = reasonCode;
+        if (reportUnsafe) button.dataset.aiReportUnsafe = 'true';
         return button;
     }
 

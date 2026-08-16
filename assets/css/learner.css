@@ -2179,6 +2179,12 @@ body.learner-sidebar-open {
     text-transform: uppercase;
 }
 
+.learner-ai-results__generated {
+    margin-top: 3px;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+}
+
 .learner-ai-result-list {
     display: grid;
     gap: 14px;

@@ -76,6 +76,7 @@ $currentRoute = '/app/learner/ai-recommendations.php';
                         <div>
                             <p class="learner-ai-results__eyebrow" data-ai-engine-label>Rule baseline</p>
                             <h2>Gợi ý dành cho bạn</h2>
+                            <p class="learner-ai-results__generated" data-ai-generated-at></p>
                         </div>
                         <button class="learner-btn learner-btn--secondary" type="button" data-ai-generate>Tạo lại</button>
                     </div>

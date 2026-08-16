@@ -46,6 +46,7 @@ final class RecommendationResponseMapper
             'model_version' => $this->nullableString($run['modelVersion'] ?? null),
             'prompt_version' => $this->nullableString($run['promptVersion'] ?? null),
             'fallback_reason' => $fallbackReason,
+            'generated_at' => $this->nullableString($run['completedAt'] ?? null),
             'items' => $this->items($run['items'] ?? []),
         ];
     }

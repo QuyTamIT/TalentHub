@@ -32,6 +32,7 @@ foreach ([
     'data-ai-results',
     'data-ai-result-list',
     'data-ai-feedback-status',
+    'data-ai-generated-at',
     'data-ai-generate',
     'data-ai-retry',
 ] as $semanticHook) {

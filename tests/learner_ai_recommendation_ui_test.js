@@ -142,4 +142,5 @@ test('recommendation client renders untrusted response strings with textContent 
   const source = fs.readFileSync(modulePath, 'utf8');
   assert.equal(source.includes('.innerHTML'), false);
   assert.equal(source.includes('.textContent'), true);
+  assert.equal(source.includes('dataset.aiReportUnsafe'), true);
 });
