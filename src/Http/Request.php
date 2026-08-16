@@ -27,6 +27,9 @@ final class Request
         if(isset($_SERVER['CONTENT_TYPE'])){$headers['content-type']=(string)$_SERVER['CONTENT_TYPE'];}
         $uri=(string)($_SERVER['REQUEST_URI']??'/');
         $path = parse_url($uri, PHP_URL_PATH) ?: '/';
+        if (($apiPos = strpos($path, '/api/')) !== false && $apiPos > 0) {
+            $path = substr($path, $apiPos);
+        }
         $queryString = (string) (parse_url($uri, PHP_URL_QUERY) ?? '');
         $queryParams = [];
         if ($queryString !== '') {

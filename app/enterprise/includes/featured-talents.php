@@ -10,7 +10,7 @@
             <h3 class="ent-section-box__title">Nhân tài nổi bật trong tuần</h3>
             <p class="ent-section-box__subtitle">Đề xuất dựa trên tiêu chí tuyển dụng và kỹ năng yêu cầu của doanh nghiệp</p>
         </div>
-        <a href="../../talents.php" class="ent-section-box__link" data-route="/app/enterprise/talents.php">
+        <a href="<?= app_href('/app/enterprise/talents.php'); ?>" class="ent-section-box__link" data-route="/app/enterprise/talents.php">
             Xem tất cả &rarr;
         </a>
     </div>
@@ -22,6 +22,7 @@
                 ? mb_substr($nameParts[count($nameParts) - 2], 0, 1, 'UTF-8') . mb_substr($nameParts[count($nameParts) - 1], 0, 1, 'UTF-8')
                 : mb_substr($nameParts[0], 0, 1, 'UTF-8');
             $score = $talent['talent_score'] ?? $talent['match_score'];
+            $detailUrl = app_href('/app/enterprise/talents/detail.php?id=' . urlencode((string)$talent['id']));
         ?>
             <article class="ent-talent-card">
                 <div class="ent-talent-card__left">
@@ -30,7 +31,7 @@
                     </div>
                     <div class="ent-talent-card__details">
                         <div class="ent-talent-card__name-row">
-                            <a href="../../talents/detail.php?id=<?= htmlspecialchars($talent['id']); ?>" class="ent-talent-card__name">
+                            <a href="<?= htmlspecialchars($detailUrl); ?>" class="ent-talent-card__name">
                                 <?= htmlspecialchars($talent['name']); ?>
                             </a>
                             <span class="ent-talent-card__score-badge" title="Độ tương thích năng lực">
@@ -61,7 +62,7 @@
                 </div>
 
                 <div class="ent-talent-card__actions">
-                    <a href="../../talents/detail.php?id=<?= htmlspecialchars($talent['id']); ?>" class="btn btn-secondary btn-sm" data-route="/app/enterprise/talents/detail.php?id=<?= htmlspecialchars($talent['id']); ?>">
+                    <a href="<?= htmlspecialchars($detailUrl); ?>" class="btn btn-secondary btn-sm" data-route="<?= htmlspecialchars($detailUrl); ?>">
                         Xem hồ sơ
                     </a>
                     <button class="btn btn-primary btn-sm ent-talent-btn" data-talent-id="<?= htmlspecialchars($talent['id']); ?>" data-action="contact">

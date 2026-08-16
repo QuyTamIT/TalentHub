@@ -63,9 +63,23 @@ final class RoleProfileIntegration
     {
         $user=$this->login($auth,'business@test.talenthub.local',$password,'business');
         foreach(['business_profile.read_own','business_profile.update_own','business_dashboard.read_own'] as $code){$permission->require($user['id'],$code);}
-        $service=new BusinessProfileService(new BusinessRepository($pdo));$profile=$service->update($user['id'],['name'=>'Integration Business','industry'=>'Education Technology','phone'=>'0900000077']);
-        if($profile['name']!=='Integration Business'||$service->dashboard($user['id'])['business']['id']!==$profile['id']){throw new RuntimeException('Business profile/dashboard mismatch.');}
+        $service=new BusinessProfileService(new BusinessRepository($pdo));
+        $profile=$service->update($user['id'],[
+            'name'=>'Integration Business',
+            'industry'=>'Education Technology',
+            'companySize'=>'50 - 200 nhân viên',
+            'foundedYear'=>2019,
+            'taxCode'=>'0109988776',
+            'phone'=>'0900000077',
+            'website'=>'https://business.integration.local',
+            'address'=>'123 Innovation Blvd',
+            'description'=>'Enterprise integration testing description.'
+        ]);
+        if($profile['name']!=='Integration Business'||$profile['companySize']!=='50 - 200 nhân viên'||$profile['foundedYear']!==2019||$profile['taxCode']!=='0109988776'||$service->dashboard($user['id'])['business']['id']!==$profile['id']){
+            throw new RuntimeException('Business profile/dashboard mismatch.');
+        }
         $this->assertFieldRejected(fn()=>$service->update($user['id'],['verificationStatus'=>'verified']));
+        $this->assertFieldRejected(fn()=>$service->update($user['id'],['foundedYear'=>1750]));
         $this->changeAndRelogin($auth,$user['id'],'business@test.talenthub.local',$password);
     }
 

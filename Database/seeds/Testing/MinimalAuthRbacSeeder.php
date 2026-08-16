@@ -78,8 +78,58 @@ final class MinimalAuthRbacSeeder
         }
 
         $this->insertIgnore($pdo,
-            'INSERT IGNORE INTO enterprises (id, name, status, email, verificationStatus) VALUES (?, ?, ?, ?, ?)',
-            [self::IDS['enterprise'], 'TalentHub Test Business', 'active', 'business@test.talenthub.local', 'pending']);
+            'INSERT IGNORE INTO enterprises (id, name, status, logoUrl, industry, companySize, foundedYear, description, email, phone, website, taxCode, address, verificationStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                self::IDS['enterprise'],
+                'FPT Software',
+                'active',
+                '/assets/images/fpt-software-logo.svg',
+                'Công nghệ thông tin & Dịch vụ phần mềm',
+                '10,000+ nhân viên',
+                1999,
+                'FPT Software là công ty công nghệ và dịch vụ CNTT hàng đầu thế giới có trụ sở chính tại Việt Nam, tiên phong trong chuyển đổi số, AI và đào tạo phát triển tài năng trẻ.',
+                'business@test.talenthub.local',
+                '024 7300 7575',
+                'https://fptsoftware.com',
+                '0101234567',
+                'Tòa nhà FPT, Phố Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+                'verified'
+            ]
+        );
+
+        $updateEnterprise = $pdo->prepare(
+            'UPDATE enterprises SET 
+                name = :name,
+                status = :status,
+                logoUrl = :logoUrl,
+                industry = :industry,
+                companySize = :companySize,
+                foundedYear = :foundedYear,
+                description = :description,
+                email = :email,
+                phone = :phone,
+                website = :website,
+                taxCode = :taxCode,
+                address = :address,
+                verificationStatus = :verificationStatus
+             WHERE id = :id'
+        );
+        $updateEnterprise->execute([
+            'id'                 => self::IDS['enterprise'],
+            'name'               => 'FPT Software',
+            'status'             => 'active',
+            'logoUrl'            => '/assets/images/fpt-software-logo.svg',
+            'industry'           => 'Công nghệ thông tin & Dịch vụ phần mềm',
+            'companySize'        => '10,000+ nhân viên',
+            'foundedYear'        => 1999,
+            'description'        => 'FPT Software là công ty công nghệ và dịch vụ CNTT hàng đầu thế giới có trụ sở chính tại Việt Nam, tiên phong trong chuyển đổi số, AI và đào tạo phát triển tài năng trẻ.',
+            'email'              => 'business@test.talenthub.local',
+            'phone'              => '024 7300 7575',
+            'website'            => 'https://fptsoftware.com',
+            'taxCode'            => '0101234567',
+            'address'            => 'Tòa nhà FPT, Phố Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+            'verificationStatus' => 'verified',
+        ]);
     }
 
     private function insertScopes(PDO $pdo): void

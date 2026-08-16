@@ -7,10 +7,16 @@
  * - Notification bell is UI mock only (no API/database).
  * - Account dropdown provides quick company identity, profile navigation, and secure logout.
  */
+
+// Ensure app_href() is available regardless of whether the caller loaded bootstrap.
+if (!function_exists('app_href') && is_file(__DIR__ . '/../../../bin/bootstrap.php')) {
+    require_once __DIR__ . '/../../../bin/bootstrap.php';
+}
+
 $basePrefix = (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/TalentHub') !== false) ? '/TalentHub' : '';
-$logoutUrl = $basePrefix . '/logout.php';
 $profileRoute = '/app/enterprise/profile.php';
-$profileUrl = $basePrefix . $profileRoute;
+$logoutUrl = function_exists('app_href') ? app_href('/logout.php') : ($basePrefix . '/logout.php');
+$profileUrl = function_exists('app_href') ? app_href($profileRoute) : ($basePrefix . $profileRoute);
 ?>
 <header class="ent-header">
     <div class="ent-header__left">
@@ -50,11 +56,18 @@ $profileUrl = $basePrefix . $profileRoute;
                 aria-label="Tài khoản doanh nghiệp: <?= htmlspecialchars($enterpriseInfo['company_name'] ?? 'FPT Software'); ?>"
             >
                 <div class="ent-header__avatar" aria-hidden="true">
-                    <?= htmlspecialchars($enterpriseInfo['logo_initials'] ?? 'FPT'); ?>
+                    <?php 
+                    $resolvedHeaderLogo = !empty($enterpriseInfo['logo_url']) ? (function_exists('resolve_logo_url') ? resolve_logo_url($enterpriseInfo['logo_url']) : $enterpriseInfo['logo_url']) : null;
+                    if ($resolvedHeaderLogo): ?>
+                        <img src="<?= htmlspecialchars($resolvedHeaderLogo); ?>" alt="Logo" style="width:100%;height:100%;object-fit:contain;background:#ffffff;padding:2px;border-radius:inherit;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+                        <span class="ent-avatar-fallback" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;"><?= htmlspecialchars($enterpriseInfo['logo_initials'] ?? 'DN'); ?></span>
+                    <?php else: ?>
+                        <span class="ent-avatar-fallback" style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;"><?= htmlspecialchars($enterpriseInfo['logo_initials'] ?? 'DN'); ?></span>
+                    <?php endif; ?>
                 </div>
                 <div class="ent-header__user-info">
-                    <span class="ent-header__company-name"><?= htmlspecialchars($enterpriseInfo['company_name'] ?? 'FPT Software'); ?></span>
-                    <span class="ent-header__package-name"><?= htmlspecialchars($enterpriseInfo['account_type'] ?? 'Gói Premium'); ?></span>
+                    <span class="ent-header__company-name"><?= htmlspecialchars($enterpriseInfo['company_name'] ?? 'Doanh nghiệp'); ?></span>
+                    <span class="ent-header__package-name"><?= htmlspecialchars($enterpriseInfo['account_type'] ?? 'Tài khoản Doanh nghiệp'); ?></span>
                 </div>
                 <span class="ent-header__chevron" aria-hidden="true">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -74,11 +87,16 @@ $profileUrl = $basePrefix . $profileRoute;
                 <!-- Company Identity Header -->
                 <div class="ent-account-menu__identity" role="none">
                     <div class="ent-account-menu__avatar" aria-hidden="true">
-                        <?= htmlspecialchars($enterpriseInfo['logo_initials'] ?? 'FPT'); ?>
+                        <?php if ($resolvedHeaderLogo): ?>
+                            <img src="<?= htmlspecialchars($resolvedHeaderLogo); ?>" alt="Logo" style="width:100%;height:100%;object-fit:contain;background:#ffffff;padding:2px;border-radius:inherit;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+                            <span class="ent-avatar-fallback" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;"><?= htmlspecialchars($enterpriseInfo['logo_initials'] ?? 'DN'); ?></span>
+                        <?php else: ?>
+                            <span class="ent-avatar-fallback" style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;"><?= htmlspecialchars($enterpriseInfo['logo_initials'] ?? 'DN'); ?></span>
+                        <?php endif; ?>
                     </div>
                     <div class="ent-account-menu__details">
-                        <span class="ent-account-menu__company-name"><?= htmlspecialchars($enterpriseInfo['company_name'] ?? 'FPT Software'); ?></span>
-                        <span class="ent-account-menu__badge"><?= htmlspecialchars($enterpriseInfo['account_type'] ?? 'Gói Premium'); ?></span>
+                        <span class="ent-account-menu__company-name"><?= htmlspecialchars($enterpriseInfo['company_name'] ?? 'Doanh nghiệp'); ?></span>
+                        <span class="ent-account-menu__badge"><?= htmlspecialchars($enterpriseInfo['account_type'] ?? 'Tài khoản Doanh nghiệp'); ?></span>
                     </div>
                 </div>
 

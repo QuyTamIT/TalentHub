@@ -60,59 +60,48 @@ spl_autoload_register(static function(string $class): void {
 });
 
 /**
- * Convert an absolute app path (e.g. "/app/school/students.php") into a
- * relative URL from the current executing script's directory.
+ * Convert an app-relative path (e.g. "/app/enterprise/index.php" or "login.php") into
+ * a robust, base-prefixed URL path (e.g. "/TalentHub/app/enterprise/index.php" when mounted
+ * under a subdirectory, or "/app/enterprise/index.php" when mounted at web root).
  *
- * Browser resolves relative URLs from the directory *containing* the current
- * script. The helper computes the shortest relative path from that directory
- * to the target, keeping navigation correct regardless of where the app
- * is mounted under the web server's DocumentRoot.
- *
- * Examples (app at /FTalentHUB/TalentHub/):
- *   login.php + /app/school/index.php  ->  app/school/index.php
- *   students.php + /app/school/teachers.php  ->  teachers.php
- *   app/teacher/students/index.php + /login.php  ->  ../../../login.php
+ * Preserves query parameters, works consistently from any nested route,
+ * and avoids fragile relative "../" traversing.
  */
 if (!function_exists('app_href')) {
     function app_href(string $absolutePath): string {
-        $appRootFs = str_replace('\\', '/', dirname(__DIR__));
-        $docRootFs = str_replace('\\', '/', (string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
-        $appRootUrl = ($docRootFs !== '' && str_starts_with($appRootFs, $docRootFs))
-            ? substr($appRootFs, strlen($docRootFs))
-            : '/';
-        $appRootUrl = '/' . ltrim($appRootUrl, '/');
+        $appRootFs  = str_replace('\\', '/', dirname(__DIR__));
+        $docRootFs  = str_replace('\\', '/', (string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+        $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
 
-        // Browser resolves from the directory containing the current script.
-        $scriptDir = str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '')));
-        $targetPath = str_replace('\\', '/', parse_url($absolutePath, PHP_URL_PATH) ?: $absolutePath);
+        $basePrefix = '';
+        if ($docRootFs !== '' && stripos($appRootFs, $docRootFs) === 0) {
+            $sub = substr($appRootFs, strlen($docRootFs));
+            $trimmed = trim(str_replace('\\', '/', $sub), '/');
+            $basePrefix = $trimmed !== '' ? ('/' . $trimmed) : '';
+        } elseif ($scriptName !== '' && stripos($scriptName, '/TalentHub') !== false) {
+            $basePrefix = '/TalentHub';
+        } elseif (isset($_SERVER['REQUEST_URI']) && stripos((string)$_SERVER['REQUEST_URI'], '/TalentHub') !== false) {
+            $basePrefix = '/TalentHub';
+        }
 
-        // Strip app root from both.
-        $scriptInsideApp = str_starts_with($scriptDir, $appRootUrl)
-            && (strlen($scriptDir) === strlen($appRootUrl) || $scriptDir[strlen($appRootUrl)] === '/');
-        $targetInsideApp = str_starts_with($targetPath, $appRootUrl)
-            && (strlen($targetPath) === strlen($appRootUrl) || $targetPath[strlen($appRootUrl)] === '/');
+        $path = '/' . ltrim($absolutePath, '/');
+        if ($basePrefix !== '' && (str_starts_with($path, $basePrefix . '/') || $path === $basePrefix)) {
+            return $path;
+        }
 
-        $scriptRel = $scriptInsideApp
-            ? substr($scriptDir, strlen($appRootUrl) + 1)
-            : substr($scriptDir, 1);
-        $targetRel = $targetInsideApp
-            ? substr($targetPath, strlen($appRootUrl) + 1)
-            : substr($targetPath, 1);
+        return $basePrefix . $path;
+    }
+}
 
-        if ($targetRel === '') { $targetRel = '.'; }
-        if ($scriptRel === '') { return $targetRel; }
-
-        $scriptParts = explode('/', $scriptRel);
-        $targetParts = explode('/', $targetRel);
-
-        $i = 0;
-        $max = min(count($scriptParts), count($targetParts));
-        while ($i < $max && $scriptParts[$i] === $targetParts[$i]) { $i++; }
-
-        $up = count($scriptParts) - $i;
-        $down = array_slice($targetParts, $i);
-
-        $relative = str_repeat('../', $up) . implode('/', $down);
-        return $relative === '' ? './' : $relative;
+if (!function_exists('resolve_logo_url')) {
+    function resolve_logo_url(?string $url): ?string {
+        if ($url === null || trim($url) === '') {
+            return null;
+        }
+        $url = trim($url);
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://') || str_starts_with($url, 'data:')) {
+            return $url;
+        }
+        return app_href($url);
     }
 }

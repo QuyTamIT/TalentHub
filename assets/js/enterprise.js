@@ -201,7 +201,10 @@ function initRouteNavigation() {
                 route.startsWith('/app/enterprise/sponsorships') ||
                 route === '/app/enterprise/analytics' ||
                 route === '/app/enterprise/analytics.php' ||
-                route.startsWith('/app/enterprise/analytics')
+                route.startsWith('/app/enterprise/analytics') ||
+                route === '/app/enterprise/profile' ||
+                route === '/app/enterprise/profile.php' ||
+                route.startsWith('/app/enterprise/profile')
             ) {
                 return;
             }
