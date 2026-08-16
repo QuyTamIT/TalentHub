@@ -13,11 +13,13 @@ final class LoginRateLimiter
     private const BLOCK_SECONDS=900;
     private const IDENTITY_LIMIT=5;
     private const IP_LIMIT=20;
+    private ?bool $storageAvailable=null;
 
     public function __construct(private readonly PDO $pdo) {}
 
     public function assertAllowed(string $email,?string $ip): void
     {
+        if(!$this->hasStorage()){return;}
         $keys=array_values($this->keys($email,$ip));$placeholders=implode(',',array_fill(0,count($keys),'?'));
         $statement=$this->pdo->prepare("SELECT blockedUntil FROM auth_rate_limits WHERE bucketKey IN ({$placeholders}) AND blockedUntil>UTC_TIMESTAMP(6) ORDER BY blockedUntil DESC LIMIT 1");$statement->execute($keys);$blocked=$statement->fetchColumn();
         if(is_string($blocked)){$retry=max(1,strtotime($blocked.' UTC')-time());throw new ApiException(429,'RATE_LIMIT_EXCEEDED','Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau.',[],['Retry-After'=>(string)$retry]);}
@@ -25,12 +27,14 @@ final class LoginRateLimiter
 
     public function recordFailure(string $email,?string $ip): void
     {
+        if(!$this->hasStorage()){return;}
         $this->pdo->exec('DELETE FROM auth_rate_limits WHERE updatedAt<UTC_TIMESTAMP(6)-INTERVAL 30 DAY LIMIT 100');
         foreach($this->keys($email,$ip) as $scope=>$key){$this->increment($key,$scope,$scope==='identity'?self::IDENTITY_LIMIT:self::IP_LIMIT);}
     }
 
     public function clearIdentity(string $email,?string $ip): void
     {
+        if(!$this->hasStorage()){return;}
         $statement=$this->pdo->prepare('DELETE FROM auth_rate_limits WHERE bucketKey=?');$statement->execute([$this->keys($email,$ip)['identity']]);
     }
 
@@ -51,5 +55,12 @@ final class LoginRateLimiter
             $window=$count===1?$now->format('Y-m-d H:i:s.u'):(string)$row['windowStartedAt'];$blocked=$count>=$limit?$now->modify('+'.self::BLOCK_SECONDS.' seconds')->format('Y-m-d H:i:s.u'):null;
             $statement=$this->pdo->prepare('UPDATE auth_rate_limits SET failureCount=?,windowStartedAt=?,blockedUntil=? WHERE bucketKey=?');$statement->execute([$count,$window,$blocked,$key]);$this->pdo->commit();
         }catch(\Throwable $exception){if($this->pdo->inTransaction()){$this->pdo->rollBack();}throw $exception;}
+    }
+
+    private function hasStorage(): bool
+    {
+        if($this->storageAvailable!==null){return $this->storageAvailable;}
+        $statement=$this->pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='auth_rate_limits'");
+        return $this->storageAvailable=(int)$statement->fetchColumn()===1;
     }
 }
