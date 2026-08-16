@@ -3,13 +3,13 @@
 **Requested migration path:** `Database/migrations/learner/002_create_ai_input_foundation.php`
 **Version:** `002_create_ai_input_foundation`
 **Scope owner:** Learner module
-**Status:** exact-DDL source/disposable approval granted in this session; shared-database execution remains pending
+**Status:** exact-DDL approval granted; disposable proof and the separately authorized shared-database execution completed on 2026-08-16
 
 ## Approval Gate
 
-The user granted exact-DDL source/disposable approval in this session. The migration source was created from SHA-256 `af48c71c5d4dd825da3dfd8a2325662b9ae0dd1cd09123fa709a8296d5c0838a` and is limited to disposable-schema proof.
+The user granted exact-DDL source/disposable approval in this session. The migration source was created from SHA-256 `af48c71c5d4dd825da3dfd8a2325662b9ae0dd1cd09123fa709a8296d5c0838a` and is limited to the statement sequence below.
 
-**APPROVAL REQUIRED: do not execute migration 002 against a shared database** until a separate explicit shared-execution approval is granted after the backup, live-baseline, fresh preflight, and disposable-run evidence below is reviewed.
+After the backup, fresh live-baseline, preflight, and disposable-run evidence was collected, the user explicitly authorized execution that does not delete the database or create conflicts. Migration `002` was then executed once on `talenthub_local`; this document records its evidence below. That authorization does not authorize a later extension, recommendation, seed, shared-module, runtime-write, `ALTER`, `DROP`, deletion, truncation, or data rewrite.
 
 This request is additive and forward-only. It creates no seed data, alters no existing table, and changes no existing row. It must not be treated as approval for any later extension, recommendation, seed, shared-module, or runtime-write change.
 
@@ -41,6 +41,18 @@ On 2026-08-16, the controller used the repository connection configuration in a 
 | `checkins` | proposed canonical table | N/A | absent from live schema |
 | `experience_logs` | proposed canonical table | N/A | absent from live schema |
 | `learner_forward_migrations` | learner migration registry | N/A | absent; it will be created only when an approved migration actually runs |
+
+### Fresh shared-execution baseline (read-only)
+
+Captured at `2026-08-16T06:30:20+00:00` in a `SET SESSION TRANSACTION READ ONLY` transaction. The MySQL server was `8.4.3` and `@@session.time_zone` was `+00:00`. No source rows, schema objects, or session data were written. The parent-table fingerprints are SHA-256 of normalized `SHOW CREATE TABLE` output (whitespace normalized and `AUTO_INCREMENT=<n>` normalized to `AUTO_INCREMENT=?`).
+
+| Parent table | Row count | Schema SHA-256 |
+|---|---:|---|
+| `student_profiles` | 12 | `0c85d3ba8fef1ba0fccb7d34191e5f1b0b0fcff17e272b359b0138e5ea6267bf` |
+| `activities` | 0 | `d94c87bea21513d25caa23e4123020137710792acf0f3ee54e58a3badc5ef951` |
+| `activity_registrations` | 0 | `6f843809380fea4633105bd8d107f9dc09413c0b27403f658b10b021f4a2e95d` |
+
+All ten canonical targets and `learner_forward_migrations` were absent at capture time. Immediately before any shared execution, repeat this capture and require the same parent counts and fingerprints; any difference is a hard stop requiring a new review.
 
 Committed static evidence is not evidence of the live database: `Database/Talenthub_DB.sql` contains legacy shapes for all ten target names, but this live inventory confirms that none of those target tables exists in the current shared schema. In particular, the static file uses `token`/`expiresAt` rather than `tokenHash`/`validFrom`/`validUntil`, omits several statuses, uses cascade FKs, and lacks required canonical fields. The authoritative application migration `20260815000100_create_teacher_activity_assessments.php` defines the shared parent contracts below. Static differences still make a fresh live shape verification mandatory immediately before execution.
 
@@ -146,11 +158,17 @@ CREATE TABLE IF NOT EXISTS experience_logs (
 
 ## Mandatory preflight, backup, and execution evidence
 
+### Backup / restore proof status
+
+A logical backup was created on `2026-08-16` at `D:\TalentHub\.tmp\learner-ai-backups\shared-pre-002-20260816T063020Z-no-tablespaces.sql`: 75,590 bytes, SHA-256 `723ca792c96ca94fc28604c05b16262574f6be5283d2f18cf628c878a6a50b89`, with an empty stderr log. It contains the accessible schema, data, and triggers. The application database principal does not have `PROCESS` or `EVENT` privileges, so the backup intentionally uses `--no-tablespaces` and excludes events/routines; the original all-options attempt is retained separately for audit and must not be used as restore proof.
+
+Restore validation is **complete**. The original application-principal `CREATE DATABASE` attempt was refused with `ERROR 1044 (42000)` and is retained as audit evidence. Under the user's explicit authority, the local MySQL administrator created only the disposable schema `talenthub_ai_backup_verify_20260816` and granted the application principal access; no `talenthub_local` object or row was changed. A restore-ready copy at `D:\TalentHub\.tmp\learner-ai-backups\shared-pre-002-20260816T063020Z-restore-verify.sql` (75,444 bytes, SHA-256 `2d1dfa6d3044b8c2de2804d7cbcc273f8041bf83b48de3f69e924da6019f72b6`) restored with empty stderr. Source/restored counts were `student_profiles=12`, `activities=0`, and `activity_registrations=0`. Their normalized `SHOW CREATE TABLE` fingerprints matched after normalizing MySQL's semantically redundant explicit `CHARACTER SET utf8mb4` table option; engine, character set, and collation also matched. No backup artifact contains credentials in this document.
+
 1. Use a dedicated read-only credential/session to capture `SHOW CREATE TABLE` and exact `COUNT(*)` for every inventory row, plus a deterministic schema fingerprint (SHA-256 of normalized `SHOW CREATE TABLE` output) for the three existing parents and registry. Record timestamp, database/server version, counts, and hashes without credentials or personal data.
 2. Verify the migration's canonical MySQL statement sequence SHA-256 equals `af48c71c5d4dd825da3dfd8a2325662b9ae0dd1cd09123fa709a8296d5c0838a`; re-display the exact DDL above and ensure static scope audit has no destructive token. The source was created under the exact-DDL source/disposable approval recorded above; that approval does not authorize shared execution.
 3. Before any shared execution, take a restorable, access-controlled logical backup or provider snapshot. Record backup identifier, UTC completion time, database/schema fingerprint, checksum, and a successful restore-validation result. Do not include credentials or raw personal records in this DCR.
 4. Run compatibility preflight described above. Also assert `@@session.time_zone = '+00:00'` before any default `CURRENT_TIMESTAMP(6)` may be evaluated; otherwise stop. Any existing target table that is absent from the exact contract, including legacy `activity_qr_tokens`, `checkins`, or `experience_logs`, is a hard stop. Do not repair it with `ALTER` or data copy; submit a new DCR.
-5. Run migration only on a disposable schema first; run it twice and retain logs proving all ten contracts pass and the second run applies no versions. Then obtain second explicit approval with disposable output, backup proof, live row baseline, and hashes before calling `migrateApproved()` on shared infrastructure.
+5. Run migration only on a disposable schema first; run it twice and retain logs proving all ten contracts pass and the second run applies no versions. Then obtain second explicit approval with disposable output, backup proof, live row baseline, and hashes before calling `migrateApproved()` on shared infrastructure. This was completed as recorded below.
 
 ## Post-approval verification/test checklist
 
@@ -158,6 +176,31 @@ CREATE TABLE IF NOT EXISTS experience_logs (
 - Run `& $php tests\learner_ai_scope_policy_test.php` and disposable schema test; retain PASS output and prove second run reports no applied versions.
 - Immediately before and after shared execution, capture exact counts and schema hashes for `student_profiles`, `activities`, and `activity_registrations`. Require before == after for every count and hash; no shared data changes are allowed either side of those proofs.
 - Verify all ten canonical tables, FK violations = 0, registry checksum/version match, second run `[]`, protected-role smoke checks PASS, and no secret/token/plaintext QR value appears in logs or database columns.
+
+## Execution record (completed)
+
+The exact approved MySQL statement sequence retained fingerprint `af48c71c5d4dd825da3dfd8a2325662b9ae0dd1cd09123fa709a8296d5c0838a`. The PHP migration source file checksum was `f1c7d125c475fddad946448b9a320ae6207ea5903eaa2d652fb456d505a929bc`.
+
+### Disposable execution
+
+On the restored disposable schema `talenthub_ai_backup_verify_20260816`, `migrateApproved(['002_create_ai_input_foundation'])` returned `['002_create_ai_input_foundation']` on the first run and `[]` on the second. The registry contained exactly one matching version; `@@session.time_zone` was `+00:00`. The schema contained all ten canonical tables and 13 foreign keys; the three restored parent counts remained `12`, `0`, and `0`.
+
+### Shared execution
+
+At `2026-08-16T06:58:46Z`, immediately before shared execution, a read-only transaction against `talenthub_local` reconfirmed MySQL `8.4.3`, `@@session.time_zone = '+00:00'`, the three parent counts and schema fingerprints from the earlier baseline, and that all ten canonical targets plus `learner_forward_migrations` were absent. The migration runner's preflight therefore ran against the same compatible parent contract before it created the registry or executed DDL.
+
+The first shared invocation returned `['002_create_ai_input_foundation']`; the immediate second invocation returned `[]`. The registry stores version `002_create_ai_input_foundation` with checksum `f1c7d125c475fddad946448b9a320ae6207ea5903eaa2d652fb456d505a929bc`, exactly matching the source file. Post-run read-only verification confirmed:
+
+| Check | Result |
+|---|---|
+| Existing parent row counts and normalized schema hashes | identical to the pre-execution baseline: `student_profiles=12`, `activities=0`, `activity_registrations=0` |
+| Canonical target tables | 10/10 present |
+| New-table rows | all 10 tables contain 0 rows; no seed or backfill ran |
+| Foreign keys | 13 total, all `ON DELETE RESTRICT ON UPDATE CASCADE`; `@@foreign_key_checks=1` |
+| Session time zone | `+00:00` |
+| Registry idempotency | exactly one matching migration record; second run `[]` |
+
+No existing table was altered and no existing row was written, deleted, truncated, or replaced. The database change is complete and remains forward-only; any future schema or data change requires a new DCR and approval.
 
 ## Operational rollback
 
