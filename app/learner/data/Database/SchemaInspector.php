@@ -120,6 +120,62 @@ final class SchemaInspector
         return $length === null ? $type : $type . '(' . $length . ')';
     }
 
+    public function hasPrimaryKey(string $table, string $column): bool
+    {
+        $this->identifier($table);
+        $this->identifier($column);
+        if ($this->driver() === 'sqlite') {
+            $rows = $this->pdo->query('PRAGMA ' . $this->quote($this->schema) . '.table_info(' . $this->quote($table) . ')')->fetchAll(PDO::FETCH_ASSOC);
+            $primaryKeyColumns = [];
+            foreach ($rows as $row) {
+                $position = (int) ($row['pk'] ?? 0);
+                if ($position > 0) {
+                    $primaryKeyColumns[$position] = $row['name'] ?? null;
+                }
+            }
+            ksort($primaryKeyColumns);
+            return array_values($primaryKeyColumns) === [$column];
+        }
+
+        $query = $this->pdo->prepare(
+            'SELECT column_name FROM information_schema.key_column_usage WHERE table_schema = :schema AND table_name = :table AND constraint_name = \'PRIMARY\' ORDER BY ordinal_position'
+        );
+        $query->execute(['schema' => $this->schema, 'table' => $table]);
+        return $query->fetchAll(PDO::FETCH_COLUMN) === [$column];
+    }
+
+    public function hasMySqlTableOptions(string $table, string $engine, string $characterSet, string $collation): bool
+    {
+        $this->identifier($table);
+        if ($this->driver() !== 'mysql') {
+            return false;
+        }
+
+        $query = $this->pdo->prepare(
+            'SELECT tables.engine, collations.character_set_name, tables.table_collation FROM information_schema.tables AS tables INNER JOIN information_schema.collations AS collations ON collations.collation_name = tables.table_collation WHERE tables.table_schema = :schema AND tables.table_name = :table'
+        );
+        $query->execute(['schema' => $this->schema, 'table' => $table]);
+        $metadata = $query->fetch(PDO::FETCH_ASSOC);
+        return $metadata !== false
+            && strcasecmp((string) $metadata['engine'], $engine) === 0
+            && strcasecmp((string) $metadata['character_set_name'], $characterSet) === 0
+            && strcasecmp((string) $metadata['table_collation'], $collation) === 0;
+    }
+
+    public function mysqlSessionTimeZone(): ?string
+    {
+        if ($this->driver() !== 'mysql') {
+            return null;
+        }
+
+        return $this->pdo->query('SELECT @@session.time_zone')->fetchColumn() ?: null;
+    }
+
+    public function isMySql(): bool
+    {
+        return $this->driver() === 'mysql';
+    }
+
     private function driver(): string
     {
         return strtolower((string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME));

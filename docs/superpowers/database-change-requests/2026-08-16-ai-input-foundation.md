@@ -1,13 +1,15 @@
 # Database Change Request: Canonical AI-input foundation
 
-**Requested migration path (not yet created):** `Database/migrations/learner/002_create_ai_input_foundation.php`
+**Requested migration path:** `Database/migrations/learner/002_create_ai_input_foundation.php`
 **Version:** `002_create_ai_input_foundation`
 **Scope owner:** Learner module
-**Status:** pending exact-DDL approval
+**Status:** exact-DDL source/disposable approval granted in this session; shared-database execution remains pending
 
 ## Approval Gate
 
-APPROVAL REQUIRED: do not create or run migration 002 until the user explicitly approves this exact DDL.
+The user granted exact-DDL source/disposable approval in this session. The migration source was created from SHA-256 `af48c71c5d4dd825da3dfd8a2325662b9ae0dd1cd09123fa709a8296d5c0838a` and is limited to disposable-schema proof.
+
+**APPROVAL REQUIRED: do not execute migration 002 against a shared database** until a separate explicit shared-execution approval is granted after the backup, live-baseline, fresh preflight, and disposable-run evidence below is reviewed.
 
 This request is additive and forward-only. It creates no seed data, alters no existing table, and changes no existing row. It must not be treated as approval for any later extension, recommendation, seed, shared-module, or runtime-write change.
 
@@ -145,7 +147,7 @@ CREATE TABLE IF NOT EXISTS experience_logs (
 ## Mandatory preflight, backup, and execution evidence
 
 1. Use a dedicated read-only credential/session to capture `SHOW CREATE TABLE` and exact `COUNT(*)` for every inventory row, plus a deterministic schema fingerprint (SHA-256 of normalized `SHOW CREATE TABLE` output) for the three existing parents and registry. Record timestamp, database/server version, counts, and hashes without credentials or personal data.
-2. Verify the migration's canonical MySQL statement sequence SHA-256 equals `af48c71c5d4dd825da3dfd8a2325662b9ae0dd1cd09123fa709a8296d5c0838a`; re-display the exact DDL above and ensure static scope audit has no destructive token. No migration file may be created until this DCR is explicitly approved.
+2. Verify the migration's canonical MySQL statement sequence SHA-256 equals `af48c71c5d4dd825da3dfd8a2325662b9ae0dd1cd09123fa709a8296d5c0838a`; re-display the exact DDL above and ensure static scope audit has no destructive token. The source was created under the exact-DDL source/disposable approval recorded above; that approval does not authorize shared execution.
 3. Before any shared execution, take a restorable, access-controlled logical backup or provider snapshot. Record backup identifier, UTC completion time, database/schema fingerprint, checksum, and a successful restore-validation result. Do not include credentials or raw personal records in this DCR.
 4. Run compatibility preflight described above. Also assert `@@session.time_zone = '+00:00'` before any default `CURRENT_TIMESTAMP(6)` may be evaluated; otherwise stop. Any existing target table that is absent from the exact contract, including legacy `activity_qr_tokens`, `checkins`, or `experience_logs`, is a hard stop. Do not repair it with `ALTER` or data copy; submit a new DCR.
 5. Run migration only on a disposable schema first; run it twice and retain logs proving all ten contracts pass and the second run applies no versions. Then obtain second explicit approval with disposable output, backup proof, live row baseline, and hashes before calling `migrateApproved()` on shared infrastructure.

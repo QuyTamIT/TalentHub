@@ -45,6 +45,16 @@ return new ForwardMigrationDefinition(
                 if ($schemaInspector->columnType($parent, 'id') !== 'CHAR(36)') {
                     throw new RuntimeException('Learner migration preflight requires CHAR(36) parent id: ' . $parent . '.id');
                 }
+                if (!$schemaInspector->hasPrimaryKey($parent, 'id')) {
+                    throw new RuntimeException('Learner migration preflight requires primary-key parent id: ' . $parent . '.id');
+                }
+                if ($schemaInspector->isMySql() && !$schemaInspector->hasMySqlTableOptions($parent, 'InnoDB', 'utf8mb4', 'utf8mb4_unicode_ci')) {
+                    throw new RuntimeException('Learner migration preflight requires InnoDB utf8mb4 utf8mb4_unicode_ci parent table: ' . $parent);
+                }
+            }
+
+            if ($schemaInspector->isMySql() && $schemaInspector->mysqlSessionTimeZone() !== '+00:00') {
+                throw new RuntimeException('Learner migration preflight requires MySQL session time zone +00:00');
             }
 
             foreach (array_keys(self::EXPECTED_SCHEMA) as $table) {

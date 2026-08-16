@@ -58,10 +58,21 @@ function ai_schema_fixture(bool $conflictingSkills = false): PDO
     return $pdo;
 }
 
+function ai_schema_fixture_with_parent_id(string $parent, string $idDefinition): PDO
+{
+    $pdo = ai_schema_fixture();
+    $pdo->exec('DROP TABLE ' . $parent);
+    $pdo->exec('CREATE TABLE ' . $parent . ' (id ' . $idDefinition . ')');
+    return $pdo;
+}
+
 $repositoryRoot = dirname(__DIR__);
 $migrationPath = $repositoryRoot . '/Database/migrations/learner/002_create_ai_input_foundation.php';
 $dcrPath = $repositoryRoot . '/docs/superpowers/database-change-requests/2026-08-16-ai-input-foundation.md';
 $dcr = (string) file_get_contents($dcrPath);
+ai_schema_assert(str_contains($dcr, '**Status:** exact-DDL source/disposable approval granted in this session'), 'DCR records the exact-DDL source/disposable approval');
+ai_schema_assert(str_contains($dcr, 'APPROVAL REQUIRED: do not execute migration 002 against a shared database'), 'DCR retains a separate shared-database execution approval gate');
+ai_schema_assert(str_contains($dcr, 'migration source was created from SHA-256 `af48c71c5d4dd825da3dfd8a2325662b9ae0dd1cd09123fa709a8296d5c0838a`'), 'DCR records the approved migration source fingerprint');
 ai_schema_assert(preg_match('/```sql\n(.*?)\n```/s', $dcr, $match) === 1, 'DCR contains exact SQL code fence');
 $dcrSql = $match[1];
 ai_schema_assert(hash('sha256', $dcrSql) === 'af48c71c5d4dd825da3dfd8a2325662b9ae0dd1cd09123fa709a8296d5c0838a', 'DCR SQL fingerprint is approved');
@@ -112,5 +123,34 @@ ai_schema_expect_exception(
     'Learner migration preflight missing required parent table: activity_registrations'
 );
 ai_schema_assert(!$missingParentInspector->hasTable('learner_forward_migrations'), 'missing parent creates no registry record');
+
+$wrongTypePdo = ai_schema_fixture_with_parent_id('student_profiles', 'VARCHAR(36) NOT NULL PRIMARY KEY');
+$wrongTypeInspector = new SchemaInspector($wrongTypePdo, 'main');
+$wrongTypeRunner = new LearnerForwardMigrationRunner($wrongTypePdo, dirname($migrationPath), $wrongTypeInspector);
+ai_schema_expect_exception(
+    static fn (): array => $wrongTypeRunner->migrateApproved(['002_create_ai_input_foundation']),
+    'Learner migration preflight requires CHAR(36) parent id: student_profiles.id'
+);
+ai_schema_assert(!$wrongTypeInspector->hasTable('learner_forward_migrations'), 'wrong parent type creates no registry record');
+
+$nonPrimaryPdo = ai_schema_fixture_with_parent_id('activities', 'CHAR(36) NOT NULL');
+$nonPrimaryInspector = new SchemaInspector($nonPrimaryPdo, 'main');
+$nonPrimaryRunner = new LearnerForwardMigrationRunner($nonPrimaryPdo, dirname($migrationPath), $nonPrimaryInspector);
+ai_schema_expect_exception(
+    static fn (): array => $nonPrimaryRunner->migrateApproved(['002_create_ai_input_foundation']),
+    'Learner migration preflight requires primary-key parent id: activities.id'
+);
+ai_schema_assert(!$nonPrimaryInspector->hasTable('learner_forward_migrations'), 'non-primary parent id creates no registry record');
+
+$compositePrimaryPdo = ai_schema_fixture();
+$compositePrimaryPdo->exec('DROP TABLE activities');
+$compositePrimaryPdo->exec('CREATE TABLE activities (id CHAR(36) NOT NULL, secondaryId CHAR(36) NOT NULL, PRIMARY KEY (id, secondaryId))');
+$compositePrimaryInspector = new SchemaInspector($compositePrimaryPdo, 'main');
+$compositePrimaryRunner = new LearnerForwardMigrationRunner($compositePrimaryPdo, dirname($migrationPath), $compositePrimaryInspector);
+ai_schema_expect_exception(
+    static fn (): array => $compositePrimaryRunner->migrateApproved(['002_create_ai_input_foundation']),
+    'Learner migration preflight requires primary-key parent id: activities.id'
+);
+ai_schema_assert(!$compositePrimaryInspector->hasTable('learner_forward_migrations'), 'composite parent id creates no registry record');
 
 echo "learner_ai_input_schema_test: OK\n";
