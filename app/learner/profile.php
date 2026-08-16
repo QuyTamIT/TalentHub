@@ -25,13 +25,23 @@ $shareUrl = 'http://localhost/TalentHub/app/learner/profile.php?student=nguyen-v
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content">
+                <?php
+                $learnerPageBanner = [
+                    'id' => 'learner-profile-page-title',
+                    'eyebrow' => 'Hành trình phát triển',
+                    'title' => 'Hồ sơ năng lực',
+                    'description' => 'Theo dõi những năng lực, thành tích và trải nghiệm tạo nên hồ sơ của bạn.',
+                    'icon' => 'user',
+                ];
+                include __DIR__ . '/includes/page-banner.php';
+                ?>
                 <section class="learner-card learner-profile-hero" aria-labelledby="profile-name">
                     <div class="learner-profile-hero__top">
                         <div class="learner-profile-identity">
                             <div class="learner-profile-avatar" aria-hidden="true"><?= learner_escape($student['initials']); ?></div>
                             <div class="learner-profile-identity__content">
                                 <div class="learner-profile-identity__name-row">
-                                    <h1 id="profile-name" data-profile-name><?= learner_escape($student['name']); ?></h1>
+                                    <h2 id="profile-name" data-profile-name><?= learner_escape($student['name']); ?></h2>
                                     <?php if ($student['verified']): ?>
                                         <span class="learner-verified-badge"><?= learner_icon('check', 15); ?> Đã xác minh</span>
                                     <?php endif; ?>

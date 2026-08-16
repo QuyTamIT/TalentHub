@@ -47,4 +47,15 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
         </div>
         <p><?= learner_escape($level['progress']); ?>/<?= learner_escape($level['target']); ?> giờ đến <?= learner_escape($level['next_level']); ?></p>
     </div>
+
+    <div class="learner-sidebar__footer">
+        <a class="learner-sidebar__link learner-sidebar__link--switch" href="/role-selection.php">
+            <span class="learner-sidebar__icon" aria-hidden="true"><?= learner_icon('arrow-left', 18); ?></span>
+            <span>Đổi vai trò</span>
+        </a>
+        <a class="learner-sidebar__link learner-sidebar__link--logout" href="/logout.php">
+            <span class="learner-sidebar__icon" aria-hidden="true"><?= learner_icon('log-out', 18); ?></span>
+            <span>Đăng xuất</span>
+        </a>
+    </div>
 </aside>

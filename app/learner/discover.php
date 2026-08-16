@@ -70,10 +70,16 @@ $radarPolygon = implode(' ', array_map(
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content">
-                <div class="learner-page-heading">
-                    <h1>Khám phá năng khiếu</h1>
-                    <p>Bộ bài đánh giá giúp bạn hiểu chính mình hơn.</p>
-                </div>
+                <?php
+                $learnerPageBanner = [
+                    'id' => 'learner-discover-page-title',
+                    'eyebrow' => 'Hiểu bản thân hơn',
+                    'title' => 'Khám phá năng khiếu',
+                    'description' => 'Bộ bài đánh giá giúp bạn hiểu rõ điểm mạnh và định hướng phát triển.',
+                    'icon' => 'compass',
+                ];
+                include __DIR__ . '/includes/page-banner.php';
+                ?>
 
                 <section class="learner-assessment-grid" aria-label="Các bài đánh giá năng khiếu">
                     <?php foreach ($assessments as $assessment): ?>

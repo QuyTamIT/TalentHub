@@ -24,10 +24,16 @@ $currentRoute = '/app/learner/badges.php';
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content">
-                <div class="learner-page-heading">
-                    <h1>Huy hiệu và cấp độ</h1>
-                    <p>Ghi nhận hành trình học tập và trải nghiệm của bạn.</p>
-                </div>
+                <?php
+                $learnerPageBanner = [
+                    'id' => 'learner-badges-page-title',
+                    'eyebrow' => 'Ghi nhận nỗ lực',
+                    'title' => 'Huy hiệu và cấp độ',
+                    'description' => 'Theo dõi các cột mốc học tập và trải nghiệm của bạn.',
+                    'icon' => 'award',
+                ];
+                include __DIR__ . '/includes/page-banner.php';
+                ?>
 
                 <section class="learner-card learner-level-overview" aria-labelledby="learner-current-level-title">
                     <div class="learner-level-overview__current">

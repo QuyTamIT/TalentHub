@@ -26,10 +26,16 @@ $linkedActivity = isset($_GET['activity']) ? learner_activity_find((string) $_GE
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content">
-                <div class="learner-page-heading">
-                    <h1>Check-in trải nghiệm</h1>
-                    <p>Quét mã tại địa điểm hoạt động — giờ trải nghiệm sẽ được ghi nhận tự động.</p>
-                </div>
+                <?php
+                $learnerPageBanner = [
+                    'id' => 'learner-checkin-page-title',
+                    'eyebrow' => 'Ghi nhận trải nghiệm',
+                    'title' => 'Check-in trải nghiệm',
+                    'description' => 'Quét mã tại địa điểm hoạt động để ghi nhận giờ trải nghiệm tự động.',
+                    'icon' => 'qr',
+                ];
+                include __DIR__ . '/includes/page-banner.php';
+                ?>
                 <?php if ($linkedActivity): ?>
                     <section class="learner-card learner-checkin-linked-activity">
                         <span class="learner-verified-pill"><?= learner_icon('check', 14); ?> Đã đăng ký</span>

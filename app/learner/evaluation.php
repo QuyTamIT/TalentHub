@@ -26,12 +26,17 @@ $currentEvaluation = $currentTerm['evaluation'];
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content">
-                <div class="learner-evaluation-heading">
-                    <div class="learner-page-heading">
-                        <h1>Đánh giá năng lực</h1>
-                        <p>Theo dõi điểm số và nhận xét từ giáo viên, huấn luyện viên.</p>
-                    </div>
-
+                <?php
+                $learnerPageBanner = [
+                    'id' => 'learner-evaluation-page-title',
+                    'eyebrow' => 'Theo dõi tiến bộ',
+                    'title' => 'Đánh giá năng lực',
+                    'description' => 'Xem điểm số và nhận xét từ giáo viên, huấn luyện viên.',
+                    'icon' => 'clipboard',
+                ];
+                include __DIR__ . '/includes/page-banner.php';
+                ?>
+                <div class="learner-evaluation-heading learner-evaluation-heading--actions">
                     <div class="learner-evaluation-heading__actions">
                         <label class="learner-term-select" for="learner-evaluation-term">
                             <?= learner_icon('calendar', 18); ?>

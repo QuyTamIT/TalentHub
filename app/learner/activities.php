@@ -28,12 +28,17 @@ $activityCatalog = learner_activity_catalog();
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content">
-                <div class="learner-activity-toolbar">
-                    <div class="learner-page-heading">
-                        <h1>Khám phá hoạt động</h1>
-                        <p>Tìm cơ hội phù hợp để học hỏi, trải nghiệm và kết nối.</p>
-                    </div>
-
+                <?php
+                $learnerPageBanner = [
+                    'id' => 'learner-activities-page-title',
+                    'eyebrow' => 'Trải nghiệm để trưởng thành',
+                    'title' => 'Khám phá hoạt động',
+                    'description' => 'Tìm cơ hội phù hợp để học hỏi, trải nghiệm và kết nối.',
+                    'icon' => 'calendar',
+                ];
+                include __DIR__ . '/includes/page-banner.php';
+                ?>
+                <div class="learner-activity-toolbar learner-activity-toolbar--actions">
                     <div class="learner-filter-list" aria-label="Lọc hoạt động theo lĩnh vực">
                         <a class="learner-btn learner-btn--outline" href="my-activities.php">Hoạt động của tôi</a>
                         <?php foreach ($activityCategories as $index => $category): ?>

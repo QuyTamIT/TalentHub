@@ -55,12 +55,17 @@ $donutOffset = 0.0;
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content">
-                <div class="learner-statistics-heading">
-                    <div class="learner-page-heading">
-                        <h1>Thống kê cá nhân</h1>
-                        <p>Theo dõi tiến bộ học tập và trải nghiệm của bạn theo thời gian.</p>
-                    </div>
-
+                <?php
+                $learnerPageBanner = [
+                    'id' => 'learner-statistics-page-title',
+                    'eyebrow' => 'Nhìn lại hành trình',
+                    'title' => 'Thống kê cá nhân',
+                    'description' => 'Theo dõi tiến bộ học tập và trải nghiệm của bạn theo thời gian.',
+                    'icon' => 'chart',
+                ];
+                include __DIR__ . '/includes/page-banner.php';
+                ?>
+                <div class="learner-statistics-heading learner-statistics-heading--actions">
                     <label class="learner-statistics-period" for="learner-statistics-period">
                         <?= learner_icon('calendar', 19); ?>
                         <span class="learner-visually-hidden">Chọn khoảng thời gian thống kê</span>

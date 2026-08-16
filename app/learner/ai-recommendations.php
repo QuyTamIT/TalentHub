@@ -25,13 +25,16 @@ $aiState = $aiRecommendation['sufficient'] ? 'ready' : 'insufficient';
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content" data-ai-page data-ai-state="<?= learner_escape($aiState); ?>">
-                <div class="learner-ai-heading">
-                    <span class="learner-ai-heading__icon" aria-hidden="true"><?= learner_icon('sparkles', 30); ?></span>
-                    <div class="learner-page-heading">
-                        <h1>AI phân tích năng lực</h1>
-                        <p>Hiểu rõ điểm mạnh, điểm cần cải thiện và lộ trình phát triển của bạn.</p>
-                    </div>
-                </div>
+                <?php
+                $learnerPageBanner = [
+                    'id' => 'learner-ai-page-title',
+                    'eyebrow' => 'Gợi ý cá nhân hóa',
+                    'title' => 'AI phân tích năng lực',
+                    'description' => 'Hiểu rõ điểm mạnh, điểm cần cải thiện và lộ trình phát triển của bạn.',
+                    'icon' => 'sparkles',
+                ];
+                include __DIR__ . '/includes/page-banner.php';
+                ?>
 
                 <p class="learner-visually-hidden" data-ai-state-status role="status" aria-live="polite" aria-atomic="true">
                     <?= $aiState === 'ready' ? 'Phân tích năng lực đã sẵn sàng.' : 'Chưa đủ dữ liệu để phân tích năng lực.'; ?>
