@@ -31,11 +31,16 @@ require_once $learnerDataRoot . '/Mock/MockActivityRepository.php';
 require_once $learnerDataRoot . '/Mock/MockEcosystemRepository.php';
 require_once $learnerDataRoot . '/Mock/MockApplicationRepository.php';
 require_once $learnerDataRoot . '/Database/AbstractDatabaseRepository.php';
+require_once $learnerDataRoot . '/Database/SchemaInspector.php';
 require_once $learnerDataRoot . '/Database/DatabaseStudentRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseAssessmentRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseActivityRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseEcosystemRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseApplicationRepository.php';
+require_once $learnerDataRoot . '/Readiness/AiScopePolicy.php';
+require_once $learnerDataRoot . '/Migrations/LearnerForwardMigration.php';
+require_once $learnerDataRoot . '/Migrations/ForwardMigrationDefinition.php';
+require_once $learnerDataRoot . '/Migrations/LearnerForwardMigrationRunner.php';
 require_once $learnerDataRoot . '/RepositoryFactory.php';
 
 unset($learnerDataRoot);
