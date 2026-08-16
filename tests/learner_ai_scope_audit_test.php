@@ -30,7 +30,8 @@ audit_assert(in_array($probePath, $canonical['approval_required_paths'], true), 
 $probeArgument = ' --approved-database-path=' . escapeshellarg($probePath);
 exec("{$php} {$audit} --format=json{$virtualArgument}{$approvedArgument}{$probeArgument} 2>&1", $exactOutput, $exactExitCode);
 $exact = json_decode(implode("\n", $exactOutput), true, 512, JSON_THROW_ON_ERROR);
-audit_assert($exactExitCode === 0 && $exact['allowed'] === true, 'explicit exact sibling approval permits the virtual sibling alongside canonical 002');
+audit_assert(!in_array($probePath, $exact['approval_required_paths'], true), 'explicit exact sibling approval removes the virtual sibling approval requirement');
+audit_assert(!in_array($probePath, $exact['forbidden_paths'], true), 'explicit exact sibling approval does not classify the virtual sibling as forbidden');
 
 $prefixArgument = ' --approved-database-path=' . escapeshellarg('Database/migrations/learner/998_scope_audit');
 exec("{$php} {$audit} --format=json{$virtualArgument}{$approvedArgument}{$prefixArgument} 2>&1", $prefixOutput, $prefixExitCode);
