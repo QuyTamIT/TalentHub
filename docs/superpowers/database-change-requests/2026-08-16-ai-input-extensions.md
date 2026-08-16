@@ -9,7 +9,7 @@
 
 The exact SQL in this request is approved for migration-source creation and SQLite/disposable verification only. **APPROVAL REQUIRED: do not execute migration 003 against a shared database** until a fresh compatibility preflight, backup/restore proof, live count/hash baseline, and a separately recorded shared-execution approval have been completed.
 
-This request is additive and forward-only. It creates six learner-owned canonical tables and six learner-owned integrity triggers, writes no seed data, alters no existing table, and changes no existing row. It contains no data-mutating `INSERT`, `UPDATE`, `DELETE`, `ALTER`, `DROP`, `TRUNCATE`, rename, conversion, or backfill; the trigger headers only reject invalid future writes. It must not be treated as approval for a later recommendation, seed, shared-module, runtime-write, or model-provider change.
+This request is additive and forward-only. It creates six learner-owned canonical tables and twelve learner-owned integrity triggers, writes no seed data, alters no existing table, and changes no existing row. It contains no data-mutating `INSERT`, `UPDATE`, `DELETE`, `ALTER`, `DROP`, `TRUNCATE`, rename, conversion, or backfill; the trigger headers only reject invalid future writes. It must not be treated as approval for a later recommendation, seed, shared-module, runtime-write, or model-provider change.
 
 ## Purpose and boundary
 
@@ -89,6 +89,62 @@ CREATE TABLE learner_ai_consent_events (
   CONSTRAINT chk_learner_ai_consent_events_action CHECK (action IN ('granted','revoked'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TRIGGER trg_learner_assessment_versions_immutable_update
+BEFORE UPDATE ON learner_assessment_versions
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'assessment version is immutable';
+END;
+
+CREATE TRIGGER trg_learner_assessment_versions_immutable_delete
+BEFORE DELETE ON learner_assessment_versions
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'assessment version is immutable';
+END;
+
+CREATE TRIGGER trg_learner_assessment_question_versions_test_match_insert
+BEFORE INSERT ON learner_assessment_question_versions
+FOR EACH ROW
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM learner_assessment_versions AS versions
+    INNER JOIN test_questions AS questions ON questions.id = NEW.questionId
+    WHERE versions.id = NEW.versionId AND versions.testId = questions.testId
+  ) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'assessment question version test mismatch';
+  END IF;
+END;
+
+CREATE TRIGGER trg_learner_assessment_question_versions_test_match_update
+BEFORE UPDATE ON learner_assessment_question_versions
+FOR EACH ROW
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM learner_assessment_versions AS versions
+    INNER JOIN test_questions AS questions ON questions.id = NEW.questionId
+    WHERE versions.id = NEW.versionId AND versions.testId = questions.testId
+  ) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'assessment question version test mismatch';
+  END IF;
+END;
+
+CREATE TRIGGER trg_learner_assessment_question_versions_immutable_update
+BEFORE UPDATE ON learner_assessment_question_versions
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'assessment question version is immutable';
+END;
+
+CREATE TRIGGER trg_learner_assessment_question_versions_immutable_delete
+BEFORE DELETE ON learner_assessment_question_versions
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'assessment question version is immutable';
+END;
+
 CREATE TRIGGER trg_learner_assessment_attempt_metadata_test_match_insert
 BEFORE INSERT ON learner_assessment_attempt_metadata
 FOR EACH ROW
@@ -161,7 +217,7 @@ END;
 ```
 
 ```text
-SHA-256: `b051de910491339de78eebb95e01da683dd3230601b7357e12013099e54d9ed4`
+SHA-256: `2f64222d2ffa82ab77e5c1a697682723a22b26ea9eaf1a3b4770c5bc92e6e09f`
 ```
 
 ## Canonical FK contract
@@ -180,13 +236,13 @@ SHA-256: `b051de910491339de78eebb95e01da683dd3230601b7357e12013099e54d9ed4`
 
 ## Versioning and append-only guarantees
 
-`learner_assessment_versions` uniquely identifies `(testId, version)`. `learner_assessment_question_versions` uniquely identifies both `(versionId, questionId)` and `(versionId, position)`, so the selected question set and order cannot be ambiguous. `learner_assessment_attempt_metadata.attemptId` is unique; each answer is unique by `(attemptId, questionId)` and is JSON-valid. Learner-owned insert/update triggers reject an attempt whose `test_attempts.testId` differs from its selected version's `testId`, and reject an answer whose question is absent from that selected version.
+`learner_assessment_versions` uniquely identifies `(testId, version)`; database triggers reject every update/delete, so a published historical version cannot be rewritten or removed. `learner_assessment_question_versions` uniquely identifies both `(versionId, questionId)` and `(versionId, position)`, so the selected question set and order cannot be ambiguous. Its insert/update validation triggers require the version's `testId` to equal the selected `test_questions.testId`, and its immutable triggers reject every later update/delete. `learner_assessment_attempt_metadata.attemptId` is unique; each answer is unique by `(attemptId, questionId)` and is JSON-valid. Learner-owned insert/update triggers reject an attempt whose `test_attempts.testId` differs from its selected version's `testId`, and reject an answer whose question is absent from that selected version.
 
 `learner_ai_consent_events` deliberately has no `updatedAt`, `revokedAt`, current-state flag, or replacement key. Its immutable ordering key is `(studentId, scope, occurredAt, requestId)`; readers must resolve the latest event by `occurredAt DESC, requestId DESC`. Database-level learner-owned triggers reject every update and delete, so future learner write code can append an event only. This migration itself contains no data mutation; database privileges and future repository tests must preserve the append-only contract.
 
 ## Mandatory preflight, backup, and execution evidence
 
-Before a disposable or shared run, assert all six target tables are absent, migration `002_create_ai_input_foundation` is recorded in `learner_forward_migrations` with the fixed checked-in source checksum `f1c7d125c475fddad946448b9a320ae6207ea5903eaa2d652fb456d505a929bc`, and all Task 3 FK parents have the reviewed primary-key/type, InnoDB, `utf8mb4`, and `utf8mb4_unicode_ci` contracts. Require `@@session.time_zone = '+00:00'` before timestamp defaults are evaluated. If any target exists, the registry entry is absent/drifted, or a parent differs, stop: do not use `ALTER`, copy, or data repair.
+Before a disposable or shared run, assert all six target tables are absent, migration `002_create_ai_input_foundation` is recorded in `learner_forward_migrations` with the fixed checked-in source checksum `f1c7d125c475fddad946448b9a320ae6207ea5903eaa2d652fb456d505a929bc`, and all Task 3 FK parents have the reviewed primary-key/type, InnoDB, `utf8mb4`, and `utf8mb4_unicode_ci` contracts. The forward runner deliberately preflights every pending approved version before it applies any DDL, so `migrateApproved(['002_create_ai_input_foundation', '003_create_ai_input_extensions'])` fails closed: 003 correctly sees no registered 002 yet. Invoke 003 only after a separate successful, registered 002 invocation. Require `@@session.time_zone = '+00:00'` before timestamp defaults are evaluated. If any target exists, the registry entry is absent/drifted, or a parent differs, stop: do not use `ALTER`, copy, or data repair.
 
 Before shared execution, take a restorable, access-controlled backup/provider snapshot and record its UTC completion time, checksum/identifier, successful restore validation, fresh existing-parent counts, and normalized schema hashes. Run the migration on a dedicated disposable schema twice first; retain proof that the first run applies only `003_create_ai_input_extensions`, the second returns `[]`, exactly one registry record exists, all six tables/FKs/CHECKs/triggers exist, invalid cross-test/cross-version writes and consent update/delete are rejected, and no Task 3/shared parent row count changes.
 

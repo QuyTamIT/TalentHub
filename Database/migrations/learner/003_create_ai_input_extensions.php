@@ -141,6 +141,68 @@ CREATE TABLE learner_ai_consent_events (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 SQL,
                 <<<'SQL'
+CREATE TRIGGER trg_learner_assessment_versions_immutable_update
+BEFORE UPDATE ON learner_assessment_versions
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'assessment version is immutable';
+END;
+SQL,
+                <<<'SQL'
+CREATE TRIGGER trg_learner_assessment_versions_immutable_delete
+BEFORE DELETE ON learner_assessment_versions
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'assessment version is immutable';
+END;
+SQL,
+                <<<'SQL'
+CREATE TRIGGER trg_learner_assessment_question_versions_test_match_insert
+BEFORE INSERT ON learner_assessment_question_versions
+FOR EACH ROW
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM learner_assessment_versions AS versions
+    INNER JOIN test_questions AS questions ON questions.id = NEW.questionId
+    WHERE versions.id = NEW.versionId AND versions.testId = questions.testId
+  ) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'assessment question version test mismatch';
+  END IF;
+END;
+SQL,
+                <<<'SQL'
+CREATE TRIGGER trg_learner_assessment_question_versions_test_match_update
+BEFORE UPDATE ON learner_assessment_question_versions
+FOR EACH ROW
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM learner_assessment_versions AS versions
+    INNER JOIN test_questions AS questions ON questions.id = NEW.questionId
+    WHERE versions.id = NEW.versionId AND versions.testId = questions.testId
+  ) THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'assessment question version test mismatch';
+  END IF;
+END;
+SQL,
+                <<<'SQL'
+CREATE TRIGGER trg_learner_assessment_question_versions_immutable_update
+BEFORE UPDATE ON learner_assessment_question_versions
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'assessment question version is immutable';
+END;
+SQL,
+                <<<'SQL'
+CREATE TRIGGER trg_learner_assessment_question_versions_immutable_delete
+BEFORE DELETE ON learner_assessment_question_versions
+FOR EACH ROW
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'assessment question version is immutable';
+END;
+SQL,
+                <<<'SQL'
 CREATE TRIGGER trg_learner_assessment_attempt_metadata_test_match_insert
 BEFORE INSERT ON learner_assessment_attempt_metadata
 FOR EACH ROW
@@ -229,6 +291,12 @@ SQL,
                 "CREATE TABLE learner_assessment_answers (id CHAR(36) NOT NULL PRIMARY KEY, attemptId CHAR(36) NOT NULL, questionId CHAR(36) NOT NULL, answerJson TEXT NOT NULL, answeredAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (attemptId) REFERENCES learner_assessment_attempt_metadata(attemptId) ON DELETE RESTRICT ON UPDATE CASCADE, FOREIGN KEY (questionId) REFERENCES test_questions(id) ON DELETE RESTRICT ON UPDATE CASCADE, CHECK (json_valid(answerJson)))",
                 "CREATE TABLE learner_skill_evidence (id CHAR(36) NOT NULL PRIMARY KEY, studentSkillId CHAR(36) NOT NULL, evidenceType VARCHAR(50) NOT NULL, evidenceRef VARCHAR(191) NOT NULL, verificationStatus VARCHAR(50) NOT NULL DEFAULT 'pending', observedAt TEXT NOT NULL, createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (studentSkillId) REFERENCES student_skills(id) ON DELETE RESTRICT ON UPDATE CASCADE, CHECK (verificationStatus IN ('self_declared','pending','verified','rejected')))",
                 "CREATE TABLE learner_ai_consent_events (id CHAR(36) NOT NULL PRIMARY KEY, studentId CHAR(36) NOT NULL, scope VARCHAR(50) NOT NULL, action VARCHAR(50) NOT NULL, policyVersion VARCHAR(100) NOT NULL, occurredAt TEXT NOT NULL, requestId CHAR(36) NOT NULL, FOREIGN KEY (studentId) REFERENCES student_profiles(id) ON DELETE RESTRICT ON UPDATE CASCADE, CHECK (scope IN ('assessment','skills','activity','evaluation')), CHECK (action IN ('granted','revoked')))",
+                "CREATE TRIGGER trg_learner_assessment_versions_immutable_update BEFORE UPDATE ON learner_assessment_versions FOR EACH ROW BEGIN SELECT RAISE(ABORT, 'assessment version is immutable'); END",
+                "CREATE TRIGGER trg_learner_assessment_versions_immutable_delete BEFORE DELETE ON learner_assessment_versions FOR EACH ROW BEGIN SELECT RAISE(ABORT, 'assessment version is immutable'); END",
+                "CREATE TRIGGER trg_learner_assessment_question_versions_test_match_insert BEFORE INSERT ON learner_assessment_question_versions FOR EACH ROW WHEN NOT EXISTS (SELECT 1 FROM learner_assessment_versions AS versions INNER JOIN test_questions AS questions ON questions.id = NEW.questionId WHERE versions.id = NEW.versionId AND versions.testId = questions.testId) BEGIN SELECT RAISE(ABORT, 'assessment question version test mismatch'); END",
+                "CREATE TRIGGER trg_learner_assessment_question_versions_test_match_update BEFORE UPDATE OF versionId, questionId ON learner_assessment_question_versions FOR EACH ROW WHEN NOT EXISTS (SELECT 1 FROM learner_assessment_versions AS versions INNER JOIN test_questions AS questions ON questions.id = NEW.questionId WHERE versions.id = NEW.versionId AND versions.testId = questions.testId) BEGIN SELECT RAISE(ABORT, 'assessment question version test mismatch'); END",
+                "CREATE TRIGGER trg_learner_assessment_question_versions_immutable_update BEFORE UPDATE ON learner_assessment_question_versions FOR EACH ROW BEGIN SELECT RAISE(ABORT, 'assessment question version is immutable'); END",
+                "CREATE TRIGGER trg_learner_assessment_question_versions_immutable_delete BEFORE DELETE ON learner_assessment_question_versions FOR EACH ROW BEGIN SELECT RAISE(ABORT, 'assessment question version is immutable'); END",
                 "CREATE TRIGGER trg_learner_assessment_attempt_metadata_test_match_insert BEFORE INSERT ON learner_assessment_attempt_metadata FOR EACH ROW WHEN NOT EXISTS (SELECT 1 FROM test_attempts AS attempts INNER JOIN learner_assessment_versions AS versions ON versions.id = NEW.versionId WHERE attempts.id = NEW.attemptId AND attempts.testId = versions.testId) BEGIN SELECT RAISE(ABORT, 'assessment attempt version test mismatch'); END",
                 "CREATE TRIGGER trg_learner_assessment_attempt_metadata_test_match_update BEFORE UPDATE OF attemptId, versionId ON learner_assessment_attempt_metadata FOR EACH ROW WHEN NOT EXISTS (SELECT 1 FROM test_attempts AS attempts INNER JOIN learner_assessment_versions AS versions ON versions.id = NEW.versionId WHERE attempts.id = NEW.attemptId AND attempts.testId = versions.testId) BEGIN SELECT RAISE(ABORT, 'assessment attempt version test mismatch'); END",
                 "CREATE TRIGGER trg_learner_assessment_answers_version_match_insert BEFORE INSERT ON learner_assessment_answers FOR EACH ROW WHEN NOT EXISTS (SELECT 1 FROM learner_assessment_attempt_metadata AS metadata INNER JOIN learner_assessment_question_versions AS question_versions ON question_versions.versionId = metadata.versionId WHERE metadata.attemptId = NEW.attemptId AND question_versions.questionId = NEW.questionId) BEGIN SELECT RAISE(ABORT, 'assessment answer question version mismatch'); END",

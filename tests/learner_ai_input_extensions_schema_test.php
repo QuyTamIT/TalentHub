@@ -8,7 +8,7 @@ use TalentHub\Learner\Data\Readiness\AiScopePolicy;
 
 require_once dirname(__DIR__) . '/app/learner/data/bootstrap.php';
 
-const AI_INPUT_EXTENSIONS_DDL_SHA256 = 'b051de910491339de78eebb95e01da683dd3230601b7357e12013099e54d9ed4';
+const AI_INPUT_EXTENSIONS_DDL_SHA256 = '2f64222d2ffa82ab77e5c1a697682723a22b26ea9eaf1a3b4770c5bc92e6e09f';
 
 function ai_extensions_assert(bool $condition, string $message): void
 {
@@ -160,6 +160,15 @@ ai_extensions_assert(hash('sha256', implode("\n\n", $migration->statements('mysq
 ai_extensions_assert(!str_contains(implode("\n\n", $migration->statements('mysql')), 'CREATE TABLE IF NOT EXISTS'), 'extension migration refuses pre-existing targets instead of accepting an unchecked shape');
 ai_extensions_assert((new AiScopePolicy())->inspectMigrationText((string) file_get_contents($migrationPath)) === [], 'migration source has no destructive SQL token');
 
+$combinedPdo = ai_extensions_fixture();
+$combinedInspector = new SchemaInspector($combinedPdo, 'main');
+$combinedRunner = new LearnerForwardMigrationRunner($combinedPdo, dirname($migrationPath), $combinedInspector);
+ai_extensions_expect_exception(
+    static fn (): array => $combinedRunner->migrateApproved(['002_create_ai_input_foundation', '003_create_ai_input_extensions']),
+    'Learner migration preflight requires verified Task 3 migration: 002_create_ai_input_foundation'
+);
+ai_extensions_assert(!$combinedInspector->hasTable('learner_forward_migrations'), 'combined migration call fails before creating a registry');
+
 $pdo = ai_extensions_fixture();
 $inspector = new SchemaInspector($pdo, 'main');
 $runner = new LearnerForwardMigrationRunner($pdo, dirname($migrationPath), $inspector);
@@ -180,6 +189,12 @@ foreach (ai_extensions_contract() as $table => $contract) {
     }
 }
 foreach ([
+    'trg_learner_assessment_versions_immutable_update',
+    'trg_learner_assessment_versions_immutable_delete',
+    'trg_learner_assessment_question_versions_test_match_insert',
+    'trg_learner_assessment_question_versions_test_match_update',
+    'trg_learner_assessment_question_versions_immutable_update',
+    'trg_learner_assessment_question_versions_immutable_delete',
     'trg_learner_assessment_attempt_metadata_test_match_insert',
     'trg_learner_assessment_attempt_metadata_test_match_update',
     'trg_learner_assessment_answers_version_match_insert',
@@ -193,7 +208,10 @@ foreach ([
 ai_extensions_insert_fixture_rows($pdo);
 $pdo->exec("INSERT INTO talent_tests (id, code, name, type, status) VALUES ('test-000000000000000000000000000000002', 'aptitude', 'Aptitude', 'aptitude', 'published')");
 $pdo->exec("INSERT INTO test_questions (id, testId, code, content, optionsJson, status) VALUES ('question-00000000000000000000000000002', 'test-000000000000000000000000000000002', 'a1', 'Other question', '[]', 'published')");
+$pdo->exec("INSERT INTO test_questions (id, testId, code, content, optionsJson, status) VALUES ('question-00000000000000000000000000003', 'test-000000000000000000000000000000001', 'r2', 'Second question', '[]', 'published')");
 $pdo->exec("INSERT INTO learner_assessment_versions (id, testId, version, scoringVersion, schemaHash, status, publishedAt) VALUES ('version-0000000000000000000000000000002', 'test-000000000000000000000000000000002', '1.0.0', 'score-1.0.0', 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', 'published', '2026-08-16 00:00:00')");
+$pdo->exec("INSERT INTO learner_assessment_versions (id, testId, version, scoringVersion, schemaHash, status, publishedAt) VALUES ('version-0000000000000000000000000000003', 'test-000000000000000000000000000000001', '2.0.0', 'score-2.0.0', 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', 'published', '2026-08-16 00:00:00')");
+$pdo->exec("INSERT INTO learner_assessment_question_versions (id, versionId, questionId, position, dimensionCode, required) VALUES ('question-version-000000000000000000000000002', 'version-0000000000000000000000000000001', 'question-00000000000000000000000000003', 2, 'S', 1)");
 ai_extensions_expect_constraint(
     static fn (): int|false => $pdo->exec("INSERT INTO learner_assessment_versions (id, testId, version, scoringVersion, schemaHash, status, publishedAt) VALUES ('version-duplicate-0000000000000000000000001', 'test-000000000000000000000000000000001', '1.0.0', 'score-1.0.0', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'published', '2026-08-16 00:00:00')"),
     'assessment version rejects duplicate (testId, version)'
@@ -205,6 +223,30 @@ ai_extensions_expect_constraint(
 ai_extensions_expect_constraint(
     static fn (): int|false => $pdo->exec("INSERT INTO learner_assessment_answers (id, attemptId, questionId, answerJson) VALUES ('answer-duplicate-0000000000000000000000001', 'attempt-0000000000000000000000000000001', 'question-00000000000000000000000000001', '{\"choice\":\"B\"}')"),
     'assessment answers reject duplicate (attemptId, questionId)'
+);
+ai_extensions_expect_constraint(
+    static fn (): int|false => $pdo->exec("INSERT INTO learner_assessment_question_versions (id, versionId, questionId, position, dimensionCode, required) VALUES ('question-version-cross-test-00000000000000001', 'version-0000000000000000000000000000001', 'question-00000000000000000000000000002', 3, 'A', 1)"),
+    'assessment question version rejects a question from another test'
+);
+ai_extensions_expect_constraint(
+    static fn (): int|false => $pdo->exec("UPDATE learner_assessment_question_versions SET questionId = 'question-00000000000000000000000000002' WHERE id = 'question-version-000000000000000000000000002'"),
+    'assessment question version rejects a later cross-test question change'
+);
+ai_extensions_expect_constraint(
+    static fn (): int|false => $pdo->exec("UPDATE learner_assessment_versions SET scoringVersion = 'score-rewritten' WHERE id = 'version-0000000000000000000000000000003'"),
+    'assessment versions reject updates'
+);
+ai_extensions_expect_constraint(
+    static fn (): int|false => $pdo->exec("DELETE FROM learner_assessment_versions WHERE id = 'version-0000000000000000000000000000003'"),
+    'assessment versions reject deletes without relying on child foreign keys'
+);
+ai_extensions_expect_constraint(
+    static fn (): int|false => $pdo->exec("UPDATE learner_assessment_question_versions SET dimensionCode = 'I' WHERE id = 'question-version-000000000000000000000000002'"),
+    'assessment question versions reject updates'
+);
+ai_extensions_expect_constraint(
+    static fn (): int|false => $pdo->exec("DELETE FROM learner_assessment_question_versions WHERE id = 'question-version-000000000000000000000000002'"),
+    'assessment question versions reject deletes without relying on child foreign keys'
 );
 ai_extensions_expect_constraint(
     static fn (): int|false => $pdo->exec("INSERT INTO learner_assessment_attempt_metadata (id, attemptId, versionId, status) VALUES ('attempt-metadata-cross-test-00000000000000001', 'attempt-0000000000000000000000000000001', 'version-0000000000000000000000000000002', 'in_progress')"),
