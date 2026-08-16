@@ -56,21 +56,21 @@ ob_start();
                 Theo dõi tổng quan hoạt động năng khiếu của trường, quản lý hồ sơ học sinh và xem báo cáo chi tiết về tiềm năng phát triển tài năng trong năm học <?= htmlspecialchars($school['academicYear']); ?>.
             </p>
             <div class="school-welcome__actions">
-                <a href="/app/school/analytics.php" class="btn btn-primary">
+                <a href="./analytics.php" class="btn btn-primary">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
                         <polyline points="17 6 23 6 23 12"></polyline>
                     </svg>
                     Xem phân tích
                 </a>
-                <a href="/app/school/reports.php" class="btn btn-secondary">
+                <a href="./reports.php" class="btn btn-secondary">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
                     </svg>
                     Tạo báo cáo
                 </a>
-                <a href="/app/school/settings.php" class="btn btn-outline">
+                <a href="./settings.php" class="btn btn-outline">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <circle cx="12" cy="12" r="3"></circle>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
@@ -106,7 +106,7 @@ ob_start();
                     <h3 class="school-section-box__title">Lớp học</h3>
                     <p class="school-section-box__subtitle"><?= count($classes); ?> lớp trong trường</p>
                 </div>
-                <a href="/app/school/classes.php" class="school-section-box__link">Quản lý lớp</a>
+                <a href="./classes.php" class="school-section-box__link">Quản lý lớp</a>
             </div>
             <table class="school-class-table">
                 <thead>

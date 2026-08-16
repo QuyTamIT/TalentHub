@@ -1,7 +1,7 @@
 <?php
 /**
  * TalentHub Enterprise - Talent Passport / Hồ sơ nhân tài Detail Page
- * 
+ *
  * Note for Developers:
  * - This detail page displays comprehensive learner profiles including skills,
  *   experience logs, featured projects, certificates, and internship readiness.
@@ -10,53 +10,82 @@
  * - Contact requests trigger a modal with privacy consent notices.
  */
 
+require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
+require_once dirname(__DIR__, 3) . '/src/Bootstrap/EnterpriseAppContext.php';
 require_once __DIR__ . '/../includes/talents-data.php';
 
+use TalentHub\Bootstrap\EnterpriseAppContext;
+
+$context = (new EnterpriseAppContext())->boot();
+$user       = $context['user'];
+$enterprise = $context['enterprise'];
+
+if (!function_exists('getInitials')) {
+    function getInitials(string $name): string {
+        $words = preg_split('/\s+/', trim($name));
+        if (empty($words) || $words[0] === '') return 'DN';
+        if (count($words) === 1) return mb_strtoupper(mb_substr($words[0], 0, 2));
+        return mb_strtoupper(mb_substr($words[0], 0, 1) . mb_substr($words[count($words) - 1], 0, 1));
+    }
+}
+
+$companyInitials = getInitials($enterprise['name']);
+$isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
+$accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
+
 $enterpriseInfo = [
-    'company_name' => 'FPT Software',
-    'account_type' => 'Gói Premium',
-    'logo_initials' => 'FPT',
+    'id'                => $enterprise['id'],
+    'company_name'      => $enterprise['name'],
+    'account_type'      => $accountType,
+    'logo_initials'     => $companyInitials,
+    'logo_url'          => $enterprise['logoUrl'] ?? null,
     'new_matches_count' => 86,
-    'total_talents' => 1247
+    'total_talents'     => 1247,
 ];
 
-$talentId = isset($_GET['id']) ? intval($_GET['id']) : 1;
-$talent = getMockTalentById($talentId);
+$talentId = isset($_GET['id']) ? trim((string)$_GET['id']) : '1';
+$talent = getTalentById($talentId);
 
 $pageTitle = $talent ? ('Hồ sơ nhân tài - ' . $talent['name']) : 'Không tìm thấy hồ sơ';
 $currentRoute = '/app/enterprise/talents.php';
 
 $sidebarNav = [
     [
-        'title' => 'Tổng quan',
-        'route' => '/app/enterprise',
-        'icon' => 'grid',
-        'active' => false
+        'title'  => 'Tổng quan',
+        'route'  => '/app/enterprise/index.php',
+        'icon'   => 'grid',
+        'active' => false,
     ],
     [
-        'title' => 'Tìm nhân tài',
-        'route' => '/app/enterprise/talents.php',
-        'icon' => 'search-users',
-        'active' => true
+        'title'  => 'Tìm nhân tài',
+        'route'  => '/app/enterprise/talents.php',
+        'icon'   => 'search-users',
+        'active' => true,
     ],
     [
-        'title' => 'Tuyển thực tập',
-        'route' => '/app/enterprise/internships/',
-        'icon' => 'briefcase',
-        'active' => false
+        'title'  => 'Tuyển thực tập',
+        'route'  => '/app/enterprise/internships/',
+        'icon'   => 'briefcase',
+        'active' => false,
     ],
     [
-        'title' => 'Tài trợ dự án',
-        'route' => '/app/enterprise/sponsorships/',
-        'icon' => 'award',
-        'active' => false
+        'title'  => 'Tài trợ dự án',
+        'route'  => '/app/enterprise/sponsorships/',
+        'icon'   => 'award',
+        'active' => false,
     ],
     [
-        'title' => 'Phân tích tuyển dụng',
-        'route' => '/app/enterprise/analytics.php',
-        'icon' => 'bar-chart-2',
-        'active' => false
-    ]
+        'title'  => 'Phân tích tuyển dụng',
+        'route'  => '/app/enterprise/analytics.php',
+        'icon'   => 'bar-chart-2',
+        'active' => false,
+    ],
+    [
+        'title'  => 'Hồ sơ doanh nghiệp',
+        'route'  => '/app/enterprise/profile.php',
+        'icon'   => 'building',
+        'active' => false,
+    ],
 ];
 ?>
 <!DOCTYPE html>
@@ -68,8 +97,8 @@ $sidebarNav = [
     <title><?= htmlspecialchars($pageTitle); ?> | TalentHub Enterprise</title>
     
     <!-- CSS Assets -->
-    <link rel="stylesheet" href="../../../assets/css/home.css">
-    <link rel="stylesheet" href="../../../assets/css/enterprise.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise.css'); ?>">
 </head>
 <body class="enterprise-dashboard">
 
@@ -91,7 +120,7 @@ $sidebarNav = [
                     
                     <!-- Back Link Navigation -->
                     <div class="ent-back-bar">
-                        <a href="/app/enterprise/talents.php" class="ent-back-link" data-route="/app/enterprise/talents.php">
+                        <a href="<?= app_href('/app/enterprise/talents.php'); ?>" class="ent-back-link" data-route="/app/enterprise/talents.php">
                             &larr; Quay lại Tìm nhân tài
                         </a>
                     </div>
@@ -108,9 +137,9 @@ $sidebarNav = [
                             </div>
                             <h3 class="ent-empty-state__title">Không tìm thấy hồ sơ nhân tài</h3>
                             <p class="ent-empty-state__desc">
-                                Hồ sơ ứng viên với mã mã số #<?= htmlspecialchars($talentId); ?> không tồn tại hoặc đã bị xóa khỏi hệ thống.
+                                Hồ sơ ứng viên với mã số #<?= htmlspecialchars($talentId); ?> không tồn tại hoặc đã bị xóa khỏi hệ thống.
                             </p>
-                            <a href="/app/enterprise/talents.php" class="btn btn-primary">
+                            <a href="<?= app_href('/app/enterprise/talents.php'); ?>" class="btn btn-primary">
                                 &larr; Quay lại Tìm nhân tài
                             </a>
                         </div>
@@ -415,7 +444,7 @@ $sidebarNav = [
                         <textarea id="contact-message-input" 
                                   class="ent-contact-textarea" 
                                   rows="4" 
-                                  placeholder="Ví dụ: Chào bạn, FPT Software ấn tượng với hồ sơ năng lực của bạn và muốn mời bạn tham gia buổi phỏng vấn thực tập vị trí <?= htmlspecialchars($talent['major_field']); ?>..."></textarea>
+                                  placeholder="Ví dụ: Chào bạn, <?= htmlspecialchars($enterpriseInfo['company_name']); ?> ấn tượng với hồ sơ năng lực của bạn và muốn mời bạn tham gia buổi phỏng vấn thực tập vị trí <?= htmlspecialchars($talent['major_field']); ?>..."></textarea>
                     </div>
                 </div>
 
@@ -440,7 +469,7 @@ $sidebarNav = [
     </div>
 
     <!-- JavaScript Assets -->
-    <script src="../../../assets/js/enterprise.js"></script>
-    <script src="../../../assets/js/talent-detail.js"></script>
+    <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/talent-detail.js'); ?>"></script>
 </body>
 </html>

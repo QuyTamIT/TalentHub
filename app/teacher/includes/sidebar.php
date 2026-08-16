@@ -2,13 +2,13 @@
 /**
  * Teacher Dashboard - Sidebar Component
  */
-$teacherSidebarHomeHref = '/index.php';
-$teacherSidebarRoleHref = '/role-selection.php';
+$teacherSidebarHomeHref = '../../index.php';
+$teacherSidebarRoleHref = '../../role-selection.php';
 $teacherRouteHrefs = [
-    'grid' => '/app/teacher/index.php',
-    'trophy' => '/app/teacher/activities/index.php',
-    'clipboard-check' => '/app/teacher/assessments/index.php',
-    'users' => '/app/teacher/students/index.php',
+    'grid' => app_href('/app/teacher/index.php'),
+    'trophy' => app_href('/app/teacher/activities/index.php'),
+    'clipboard-check' => app_href('/app/teacher/assessments/index.php'),
+    'users' => app_href('/app/teacher/students/index.php'),
 ];
 ?>
 <div class="teacher-sidebar-backdrop" id="teacher-sidebar-backdrop" aria-hidden="true"></div>

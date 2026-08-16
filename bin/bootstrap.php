@@ -34,7 +34,6 @@ declare(strict_types=1);
             continue;
         }
         $value = trim(substr($trim, $eq + 1));
-        // Strip surrounding single or double quotes.
         if (strlen($value) >= 2) {
             $first = $value[0];
             $last  = $value[strlen($value) - 1];
@@ -42,7 +41,6 @@ declare(strict_types=1);
                 $value = substr($value, 1, -1);
             }
         }
-        // Skip when an env var is already set (real environment trumps .env).
         if (array_key_exists($name, $_ENV) || array_key_exists($name, $_SERVER) || getenv($name) !== false) {
             continue;
         }
@@ -60,3 +58,50 @@ spl_autoload_register(static function(string $class): void {
     else{$path=dirname(__DIR__).'/src/'.$relative.'.php';}
     if(is_file($path)){require $path;}
 });
+
+/**
+ * Convert an app-relative path (e.g. "/app/enterprise/index.php" or "login.php") into
+ * a robust, base-prefixed URL path (e.g. "/TalentHub/app/enterprise/index.php" when mounted
+ * under a subdirectory, or "/app/enterprise/index.php" when mounted at web root).
+ *
+ * Preserves query parameters, works consistently from any nested route,
+ * and avoids fragile relative "../" traversing.
+ */
+if (!function_exists('app_href')) {
+    function app_href(string $absolutePath): string {
+        $appRootFs  = str_replace('\\', '/', dirname(__DIR__));
+        $docRootFs  = str_replace('\\', '/', (string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+        $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+
+        $basePrefix = '';
+        if ($docRootFs !== '' && stripos($appRootFs, $docRootFs) === 0) {
+            $sub = substr($appRootFs, strlen($docRootFs));
+            $trimmed = trim(str_replace('\\', '/', $sub), '/');
+            $basePrefix = $trimmed !== '' ? ('/' . $trimmed) : '';
+        } elseif ($scriptName !== '' && stripos($scriptName, '/TalentHub') !== false) {
+            $basePrefix = '/TalentHub';
+        } elseif (isset($_SERVER['REQUEST_URI']) && stripos((string)$_SERVER['REQUEST_URI'], '/TalentHub') !== false) {
+            $basePrefix = '/TalentHub';
+        }
+
+        $path = '/' . ltrim($absolutePath, '/');
+        if ($basePrefix !== '' && (str_starts_with($path, $basePrefix . '/') || $path === $basePrefix)) {
+            return $path;
+        }
+
+        return $basePrefix . $path;
+    }
+}
+
+if (!function_exists('resolve_logo_url')) {
+    function resolve_logo_url(?string $url): ?string {
+        if ($url === null || trim($url) === '') {
+            return null;
+        }
+        $url = trim($url);
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://') || str_starts_with($url, 'data:')) {
+            return $url;
+        }
+        return app_href($url);
+    }
+}

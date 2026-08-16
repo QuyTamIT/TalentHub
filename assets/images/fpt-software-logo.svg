@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 70" width="260" height="70">
+  <defs>
+    <!-- Gradients for subtle premium depth -->
+    <linearGradient id="fptBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0072BC"/>
+      <stop offset="100%" stop-color="#00549A"/>
+    </linearGradient>
+    <linearGradient id="fptOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F58220"/>
+      <stop offset="100%" stop-color="#E65A00"/>
+    </linearGradient>
+    <linearGradient id="fptGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#58B947"/>
+      <stop offset="100%" stop-color="#388E3C"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(6, 6)">
+    <!-- F Element (Blue Pill) -->
+    <g transform="translate(0, 0)">
+      <rect x="0" y="4" width="38" height="50" rx="14" fill="url(#fptBlue)" transform="skewX(-14)"/>
+      <text x="17" y="38" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="900" font-size="28" fill="#FFFFFF" text-anchor="middle" font-style="italic">F</text>
+    </g>
+
+    <!-- P Element (Orange Pill) -->
+    <g transform="translate(34, 0)">
+      <rect x="0" y="4" width="38" height="50" rx="14" fill="url(#fptOrange)" transform="skewX(-14)"/>
+      <text x="17" y="38" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="900" font-size="28" fill="#FFFFFF" text-anchor="middle" font-style="italic">P</text>
+    </g>
+
+    <!-- T Element (Green Pill) -->
+    <g transform="translate(68, 0)">
+      <rect x="0" y="4" width="38" height="50" rx="14" fill="url(#fptGreen)" transform="skewX(-14)"/>
+      <text x="17" y="38" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="900" font-size="28" fill="#FFFFFF" text-anchor="middle" font-style="italic">T</text>
+    </g>
+
+    <!-- Wordmark "Software" -->
+    <text x="118" y="40" font-family="'Segoe UI', Roboto, -apple-system, sans-serif" font-weight="700" font-size="24" fill="#0F172A" letter-spacing="-0.5px">Software</text>
+  </g>
+</svg>

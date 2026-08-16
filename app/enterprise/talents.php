@@ -9,14 +9,40 @@
  * - Privacy rules strictly enforced: NO personal email, phone numbers or sensitive data exposed.
  */
 
+require_once dirname(__DIR__, 2) . '/bin/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/Bootstrap/EnterpriseAppContext.php';
 require_once __DIR__ . '/includes/talents-data.php';
 
+$schoolsList = array_values(array_unique(array_column($mockTalents ?? [], 'school')));
+$majorFieldsList = array_values(array_unique(array_column($mockTalents ?? [], 'major_field')));
+
+use TalentHub\Bootstrap\EnterpriseAppContext;
+
+$context = (new EnterpriseAppContext())->boot();
+$user       = $context['user'];
+$enterprise = $context['enterprise'];
+
+if (!function_exists('getInitials')) {
+    function getInitials(string $name): string {
+        $words = preg_split('/\s+/', trim($name));
+        if (empty($words) || $words[0] === '') return 'DN';
+        if (count($words) === 1) return mb_strtoupper(mb_substr($words[0], 0, 2));
+        return mb_strtoupper(mb_substr($words[0], 0, 1) . mb_substr($words[count($words) - 1], 0, 1));
+    }
+}
+
+$companyInitials = getInitials($enterprise['name']);
+$isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
+$accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
+
 $enterpriseInfo = [
-    'company_name' => 'FPT Software',
-    'account_type' => 'Gói Premium',
-    'logo_initials' => 'FPT',
+    'id'                => $enterprise['id'],
+    'company_name'      => $enterprise['name'],
+    'account_type'      => $accountType,
+    'logo_initials'     => $companyInitials,
+    'logo_url'          => $enterprise['logoUrl'] ?? null,
     'new_matches_count' => 86,
-    'total_talents' => 1247
+    'total_talents'     => 1247,
 ];
 
 $pageTitle = 'Tìm nhân tài';
@@ -24,35 +50,41 @@ $currentRoute = '/app/enterprise/talents.php';
 
 $sidebarNav = [
     [
-        'title' => 'Tổng quan',
-        'route' => '/app/enterprise',
-        'icon' => 'grid',
-        'active' => false
+        'title'  => 'Tổng quan',
+        'route'  => '/app/enterprise/index.php',
+        'icon'   => 'grid',
+        'active' => false,
     ],
     [
-        'title' => 'Tìm nhân tài',
-        'route' => '/app/enterprise/talents.php',
-        'icon' => 'search-users',
-        'active' => true
+        'title'  => 'Tìm nhân tài',
+        'route'  => '/app/enterprise/talents.php',
+        'icon'   => 'search-users',
+        'active' => true,
     ],
     [
-        'title' => 'Tuyển thực tập',
-        'route' => '/app/enterprise/internships/',
-        'icon' => 'briefcase',
-        'active' => false
+        'title'  => 'Tuyển thực tập',
+        'route'  => '/app/enterprise/internships/',
+        'icon'   => 'briefcase',
+        'active' => false,
     ],
     [
-        'title' => 'Tài trợ dự án',
-        'route' => '/app/enterprise/sponsorships/',
-        'icon' => 'award',
-        'active' => false
+        'title'  => 'Tài trợ dự án',
+        'route'  => '/app/enterprise/sponsorships/',
+        'icon'   => 'award',
+        'active' => false,
     ],
     [
-        'title' => 'Phân tích tuyển dụng',
-        'route' => '/app/enterprise/analytics.php',
-        'icon' => 'bar-chart-2',
-        'active' => false
-    ]
+        'title'  => 'Phân tích tuyển dụng',
+        'route'  => '/app/enterprise/analytics.php',
+        'icon'   => 'bar-chart-2',
+        'active' => false,
+    ],
+    [
+        'title'  => 'Hồ sơ doanh nghiệp',
+        'route'  => '/app/enterprise/profile.php',
+        'icon'   => 'building',
+        'active' => false,
+    ],
 ];
 ?>
 <!DOCTYPE html>

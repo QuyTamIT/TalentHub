@@ -1,55 +1,81 @@
 <?php
 /**
  * TalentHub - Enterprise Dashboard Main Entry Point
- * 
- * Note for Junior Developers:
- * - This file orchestrates the Enterprise Dashboard layout and loads modular PHP partials from includes/
- * - Mock data is defined in arrays below and passed cleanly into partials.
- * - When database/API is ready, replace static arrays with DB fetch functions.
+ *
+ * Boots EnterpriseAppContext and resolves dynamic company data from database.
  */
+declare(strict_types=1);
 
-// --------------------------------------------------------------------------
-// 1. Temporary Mock Data Configuration
-// --------------------------------------------------------------------------
+require_once dirname(__DIR__, 2) . '/bin/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/Bootstrap/EnterpriseAppContext.php';
+
+use TalentHub\Bootstrap\EnterpriseAppContext;
+
+$context = (new EnterpriseAppContext())->boot();
+$user       = $context['user'];
+$enterprise = $context['enterprise'];
+$dashboard  = $context['dashboard'];
+
+if (!function_exists('getInitials')) {
+    function getInitials(string $name): string {
+        $words = preg_split('/\s+/', trim($name));
+        if (empty($words) || $words[0] === '') return 'DN';
+        if (count($words) === 1) return mb_strtoupper(mb_substr($words[0], 0, 2));
+        return mb_strtoupper(mb_substr($words[0], 0, 1) . mb_substr($words[count($words) - 1], 0, 1));
+    }
+}
+
+$companyInitials = getInitials($enterprise['name']);
+$isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
+$accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
+
 $enterpriseInfo = [
-    'company_name' => 'FPT Software',
-    'account_type' => 'Gói Premium',
-    'logo_initials' => 'FPT',
+    'id'                => $enterprise['id'],
+    'company_name'      => $enterprise['name'],
+    'account_type'      => $accountType,
+    'logo_initials'     => $companyInitials,
+    'logo_url'          => $enterprise['logoUrl'] ?? null,
     'new_matches_count' => 86,
-    'total_talents' => 1247
+    'total_talents'     => 1247,
 ];
 
 $sidebarNav = [
     [
-        'title' => 'Tổng quan',
-        'route' => '/app/enterprise',
-        'icon' => 'grid',
-        'active' => true
+        'title'  => 'Tổng quan',
+        'route'  => '/app/enterprise/index.php',
+        'icon'   => 'grid',
+        'active' => true,
     ],
     [
-        'title' => 'Tìm nhân tài',
-        'route' => '/app/enterprise/talents.php',
-        'icon' => 'search-users',
-        'active' => false
+        'title'  => 'Tìm nhân tài',
+        'route'  => '/app/enterprise/talents.php',
+        'icon'   => 'search-users',
+        'active' => false,
     ],
     [
-        'title' => 'Tuyển thực tập',
-        'route' => '/app/enterprise/internships/',
-        'icon' => 'briefcase',
-        'active' => false
+        'title'  => 'Tuyển thực tập',
+        'route'  => '/app/enterprise/internships/',
+        'icon'   => 'briefcase',
+        'active' => false,
     ],
     [
-        'title' => 'Tài trợ dự án',
-        'route' => '/app/enterprise/sponsorships/',
-        'icon' => 'award',
-        'active' => false
+        'title'  => 'Tài trợ dự án',
+        'route'  => '/app/enterprise/sponsorships/',
+        'icon'   => 'award',
+        'active' => false,
     ],
     [
-        'title' => 'Phân tích tuyển dụng',
-        'route' => '/app/enterprise/analytics.php',
-        'icon' => 'bar-chart-2',
-        'active' => false
-    ]
+        'title'  => 'Phân tích tuyển dụng',
+        'route'  => '/app/enterprise/analytics.php',
+        'icon'   => 'bar-chart-2',
+        'active' => false,
+    ],
+    [
+        'title'  => 'Hồ sơ doanh nghiệp',
+        'route'  => '/app/enterprise/profile.php',
+        'icon'   => 'building',
+        'active' => false,
+    ],
 ];
 
 $kpis = [
@@ -177,7 +203,7 @@ $recentActivities = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="TalentHub Enterprise Dashboard - Quản lý tuyển dụng và kết nối tài năng dành cho Doanh nghiệp.">
-    <title>Dashboard Doanh Nghiệp - FPT Software | TalentHub</title>
+    <title>Dashboard Doanh Nghiệp - <?= htmlspecialchars($enterpriseInfo['company_name']); ?> | TalentHub</title>
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../assets/css/home.css">

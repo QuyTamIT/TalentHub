@@ -60,7 +60,7 @@ ob_start();
 ?>
 <?php
 $pageDescription = 'Quản lý danh sách học sinh toàn trường, lọc theo lớp và trạng thái.';
-$pageActions = '<a href="/app/school/student-edit.php" class="btn btn-primary">+ Thêm học sinh</a>';
+$pageActions = '<a href="./student-edit.php" class="btn btn-primary">+ Thêm học sinh</a>';
 include __DIR__ . '/includes/page-banner.php';
 ?>
 
@@ -110,7 +110,7 @@ include __DIR__ . '/includes/page-banner.php';
                             </span>
                         </td>
                         <td style="text-align: right;">
-                            <a href="/app/school/student-edit.php?id=<?= urlencode($s['id']); ?>" class="btn btn-sm btn-outline" style="text-decoration:none;">Sửa</a>
+                            <a href="./student-edit.php?id=<?= urlencode($s['id']); ?>" class="btn btn-sm btn-outline" style="text-decoration:none;">Sửa</a>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -136,8 +136,6 @@ $pageBody = ob_get_clean();
 $extraStyles = <<<'HTML'
 <style>
 .school-inline-select { padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); font-size: 0.875rem; }
-.school-pagination { display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; justify-content: flex-end; }
-.school-pagination__info { font-size: 0.8125rem; color: var(--text-muted); }
 </style>
 HTML;
 

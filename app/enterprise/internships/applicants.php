@@ -5,16 +5,39 @@
  * Route: app/enterprise/internships/applicants.php?postId=...
  */
 
+require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
+require_once dirname(__DIR__, 3) . '/src/Bootstrap/EnterpriseAppContext.php';
 require_once __DIR__ . '/../includes/internships-data.php';
 require_once __DIR__ . '/../includes/applicants-data.php';
 require_once __DIR__ . '/../includes/talents-data.php';
 
+use TalentHub\Bootstrap\EnterpriseAppContext;
+
+$context = (new EnterpriseAppContext())->boot();
+$user       = $context['user'];
+$enterprise = $context['enterprise'];
+
+if (!function_exists('getInitials')) {
+    function getInitials(string $name): string {
+        $words = preg_split('/\s+/', trim($name));
+        if (empty($words) || $words[0] === '') return 'DN';
+        if (count($words) === 1) return mb_strtoupper(mb_substr($words[0], 0, 2));
+        return mb_strtoupper(mb_substr($words[0], 0, 1) . mb_substr($words[count($words) - 1], 0, 1));
+    }
+}
+
+$companyInitials = getInitials($enterprise['name']);
+$isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
+$accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
+
 $enterpriseInfo = [
-    'company_name' => 'FPT Software',
-    'account_type' => 'Gói Premium',
-    'logo_initials' => 'FPT',
+    'id'                => $enterprise['id'],
+    'company_name'      => $enterprise['name'],
+    'account_type'      => $accountType,
+    'logo_initials'     => $companyInitials,
+    'logo_url'          => $enterprise['logoUrl'] ?? null,
     'new_matches_count' => 86,
-    'total_talents' => 1247
+    'total_talents'     => 1247,
 ];
 
 $postId = isset($_GET['postId']) ? intval($_GET['postId']) : 1;
@@ -27,35 +50,41 @@ $currentRoute = '/app/enterprise/internships/';
 
 $sidebarNav = [
     [
-        'title' => 'Tổng quan',
-        'route' => '/app/enterprise',
-        'icon' => 'grid',
-        'active' => false
+        'title'  => 'Tổng quan',
+        'route'  => '/app/enterprise/index.php',
+        'icon'   => 'grid',
+        'active' => false,
     ],
     [
-        'title' => 'Tìm nhân tài',
-        'route' => '/app/enterprise/talents.php',
-        'icon' => 'search-users',
-        'active' => false
+        'title'  => 'Tìm nhân tài',
+        'route'  => '/app/enterprise/talents.php',
+        'icon'   => 'search-users',
+        'active' => false,
     ],
     [
-        'title' => 'Tuyển thực tập',
-        'route' => '/app/enterprise/internships/',
-        'icon' => 'briefcase',
-        'active' => true
+        'title'  => 'Tuyển thực tập',
+        'route'  => '/app/enterprise/internships/',
+        'icon'   => 'briefcase',
+        'active' => true,
     ],
     [
-        'title' => 'Tài trợ dự án',
-        'route' => '/app/enterprise/sponsorships/',
-        'icon' => 'award',
-        'active' => false
+        'title'  => 'Tài trợ dự án',
+        'route'  => '/app/enterprise/sponsorships/',
+        'icon'   => 'award',
+        'active' => false,
     ],
     [
-        'title' => 'Phân tích tuyển dụng',
-        'route' => '/app/enterprise/analytics.php',
-        'icon' => 'bar-chart-2',
-        'active' => false
-    ]
+        'title'  => 'Phân tích tuyển dụng',
+        'route'  => '/app/enterprise/analytics.php',
+        'icon'   => 'bar-chart-2',
+        'active' => false,
+    ],
+    [
+        'title'  => 'Hồ sơ doanh nghiệp',
+        'route'  => '/app/enterprise/profile.php',
+        'icon'   => 'building',
+        'active' => false,
+    ],
 ];
 ?>
 <!DOCTYPE html>
@@ -168,7 +197,7 @@ $sidebarNav = [
                                     Hiện tại chưa có ứng viên nào gửi hồ sơ đăng ký cho vị trí <strong>"<?= htmlspecialchars($post['title']); ?>"</strong>. Bạn có thể sử dụng công cụ Tìm kiếm nhân tài chủ động để kết nối với các ứng viên phù hợp.
                                 </p>
                                 <div class="d-flex align-items-center justify-content-center gap-2">
-                                    <a href="/app/enterprise/talents.php" class="btn btn-primary">
+                                    <a href="../talents.php" class="btn btn-primary">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <circle cx="11" cy="11" r="8"></circle>
                                             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>

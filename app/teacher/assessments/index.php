@@ -19,11 +19,11 @@ $session->start();
 
 $user = $session->user();
 if ($user === null) {
-    header('Location: /login.php?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/app/teacher/assessments/'));
+    header('Location: ' . app_href('/login.php') . '?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/app/teacher/assessments/'));
     exit;
 }
 if (($user['role'] ?? null) !== 'teacher') {
-    header('Location: /role-selection.php');
+    header('Location: ' . app_href('/role-selection.php'));
     exit;
 }
 
@@ -78,7 +78,7 @@ try {
         if (isset($_POST['q']) && trim((string) $_POST['q']) !== '') {
             $redirectQuery['q'] = trim((string) $_POST['q']);
         }
-        header('Location: /app/teacher/assessments/index.php?' . http_build_query($redirectQuery));
+        header('Location: ./index.php?' . http_build_query($redirectQuery));
         exit;
     }
 

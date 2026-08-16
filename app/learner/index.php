@@ -34,7 +34,7 @@ $dashboardSkills = [$skills[0], $skills[1], $skills[2], $skills[4]];
                         <h1 id="welcome-title">Chào mừng trở lại, <?= learner_escape($student['name']); ?> <span aria-hidden="true">👋</span></h1>
                         <p>Bạn đã hoàn thành <?= learner_escape($student['experience_hours']); ?> giờ trải nghiệm tháng này — vượt 28% so với tháng trước.</p>
                         <div class="learner-welcome__actions">
-                            <a class="learner-btn learner-btn--primary" href="/app/learner/activities.php">
+                            <a class="learner-btn learner-btn--primary" href="./activities.php">
                                 Khám phá hoạt động <?= learner_icon('arrow-right', 18); ?>
                             </a>
                             <a class="learner-btn learner-btn--secondary" href="discover.php">Làm test năng khiếu</a>
@@ -114,7 +114,7 @@ $dashboardSkills = [$skills[0], $skills[1], $skills[2], $skills[4]];
                 <section class="learner-card learner-activities" aria-labelledby="activities-title">
                     <div class="learner-section-heading">
                         <h2 id="activities-title">Hoạt động sắp diễn ra</h2>
-                        <a href="/app/learner/activities.php">Tất cả hoạt động</a>
+                        <a href="./activities.php">Tất cả hoạt động</a>
                     </div>
                     <div class="learner-activity-grid">
                         <?php foreach ($activities as $activity): ?>
