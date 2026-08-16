@@ -55,30 +55,16 @@ $pageTitle    = 'Lớp & Khối';
 
 ob_start();
 ?>
-<div class="school-section-box" style="margin-bottom: 1.5rem;">
-    <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-        <div>
-            <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">
-                Quản lý Lớp & Khối
-            </h2>
-            <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0;">
-                <?= count($classes); ?> lớp học <?= $showArchived ? '(bao gồm lưu trữ)' : '(đang hoạt động)'; ?> •
-                <?= number_format($totalStudents); ?> học sinh
-            </p>
-        </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <a href="?<?= $showArchived ? '' : 'archived=1'; ?>" class="btn btn-sm btn-outline">
-                <?= $showArchived ? 'Chỉ lớp đang hoạt động' : 'Hiển thị cả lớp lưu trữ'; ?>
-            </a>
-            <a href="/app/school/class-edit.php" class="btn btn-primary btn-sm">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                Thêm lớp mới
-            </a>
-        </div>
-    </div>
+<?php
+$pageDescription = 'Quản lý các lớp theo khối, xem sĩ số và tỷ lệ hoàn thiện hồ sơ.';
+$pageActions = '<a href="/app/school/class-edit.php" class="btn btn-primary">+ Thêm lớp mới</a>';
+include __DIR__ . '/includes/page-banner.php';
+?>
+
+<div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+    <a href="?<?= $showArchived ? '' : 'archived=1'; ?>" class="btn btn-sm btn-outline">
+        <?= $showArchived ? 'Chỉ lớp đang hoạt động' : 'Hiển thị cả lớp lưu trữ'; ?>
+    </a>
 </div>
 
 <div class="school-grade-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 1.75rem;">

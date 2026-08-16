@@ -58,44 +58,29 @@ $baseQuery = http_build_query(array_filter([
 
 ob_start();
 ?>
-<div class="school-section-box" style="margin-bottom: 1.5rem;">
-    <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-        <div>
-            <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">
-                Danh sách học sinh
-            </h2>
-            <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0;">
-                <?= count($students); ?> học sinh
-                <?= $classFilter ? '(trong lớp đã chọn)' : '(trang ' . $page . ')'; ?>
-            </p>
-        </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <form method="get" style="display:flex; gap: 0.5rem; align-items: center;">
-                <select name="classId" onchange="this.form.submit()" class="school-inline-select" aria-label="Lọc theo lớp">
-                    <option value="">Tất cả lớp</option>
-                    <?php foreach ($classes as $c): ?>
-                        <option value="<?= htmlspecialchars($c['id']); ?>" <?= $classFilter === $c['id'] ? 'selected' : ''; ?>>
-                            <?= htmlspecialchars($c['name']); ?> - <?= htmlspecialchars($c['grade']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <?php if ($page > 1): ?>
-                    <input type="hidden" name="page" value="<?= $page; ?>">
-                <?php endif; ?>
-                <input type="hidden" name="perPage" value="<?= $perPage; ?>">
-            </form>
-            <a href="/app/school/student-edit.php" class="btn btn-primary btn-sm">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                Thêm học sinh
-            </a>
-        </div>
-    </div>
-</div>
+<?php
+$pageDescription = 'Quản lý danh sách học sinh toàn trường, lọc theo lớp và trạng thái.';
+$pageActions = '<a href="/app/school/student-edit.php" class="btn btn-primary">+ Thêm học sinh</a>';
+include __DIR__ . '/includes/page-banner.php';
+?>
 
 <div class="school-section-box">
+    <div class="school-section-box__header">
+        <p class="school-section-box__subtitle">
+            <?= count($students); ?> học sinh <?= $classFilter ? '(trong lớp đã chọn)' : '(trang ' . $page . ')'; ?>
+        </p>
+        <form method="get">
+            <select name="classId" onchange="this.form.submit()" class="school-inline-select" aria-label="Lọc theo lớp">
+                <option value="">Tất cả lớp</option>
+                <?php foreach ($classes as $c): ?>
+                    <option value="<?= htmlspecialchars($c['id']); ?>" <?= $classFilter === $c['id'] ? 'selected' : ''; ?>>
+                        <?= htmlspecialchars($c['name']); ?> - <?= htmlspecialchars($c['grade']); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <input type="hidden" name="perPage" value="<?= $perPage; ?>">
+        </form>
+    </div>
     <?php if ($students === []): ?>
         <p style="text-align: center; color: var(--text-muted); padding: 2rem 0;">
             Chưa có học sinh nào trong lớp đã chọn.

@@ -60,18 +60,10 @@ $pageTitle    = 'Giáo viên';
 
 ob_start();
 ?>
-<div class="school-section-box" style="margin-bottom: 1.5rem;">
-    <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-        <div>
-            <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">
-                Giáo viên của trường
-            </h2>
-            <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0;">
-                <?= count($teachers); ?> giáo viên đang thuộc trường.
-            </p>
-        </div>
-    </div>
-</div>
+<?php
+$pageDescription = 'Mời giáo viên mới và quản lý hồ sơ giáo viên trong trường.';
+include __DIR__ . '/includes/page-banner.php';
+?>
 
 <?php if ($flash): ?>
     <div class="school-flash school-flash--success"><?= htmlspecialchars($flash); ?></div>
@@ -96,11 +88,9 @@ ob_start();
                     <span>Email <em>*</em></span>
                     <input type="email" name="email" maxlength="255" required placeholder="gv.a@talenthub.vn">
                 </label>
-                <label class="school-form__field">
-                    <span style="display:flex; align-items:center; gap: 0.5rem;">
-                        <input type="checkbox" name="isSchoolAdmin" value="1">
-                        Cấp quyền quản trị trường
-                    </span>
+                <label class="school-form__field school-form__field--checkbox">
+                    <input type="checkbox" name="isSchoolAdmin" value="1">
+                    <span>Cấp quyền quản trị trường</span>
                 </label>
             </div>
             <div class="school-form__actions">
@@ -193,8 +183,20 @@ $extraStyles = <<<'HTML'
 .school-form__field { display: flex; flex-direction: column; gap: 0.375rem; font-size: 0.875rem; color: var(--text-secondary); }
 .school-form__field input,
 .school-form__field select { width: 100%; padding: 0.625rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); font-size: 0.9375rem; }
-.school-form__field input:focus { outline: 2px solid #2563EB; outline-offset: 1px; }
+.school-form__field input:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
 .school-form__field em { color: #DC2626; font-style: normal; margin-left: 2px; }
+.school-form__field--checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+.school-form__field--checkbox input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    accent-color: var(--primary);
+}
 .school-form__actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; }
 .school-flash { padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: 0.875rem; }
 .school-flash--success { background: #ECFDF5; color: #047857; border: 1px solid #6EE7B7; }
