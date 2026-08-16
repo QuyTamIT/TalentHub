@@ -19,6 +19,16 @@ function sources_assert(bool $condition, string $message): void
     }
 }
 
+/** @return array{exception:?Throwable,result:?array} */
+function sources_call_source_safely(callable $callback): array
+{
+    try {
+        return ['exception' => null, 'result' => $callback()];
+    } catch (Throwable $exception) {
+        return ['exception' => $exception, 'result' => null];
+    }
+}
+
 function sources_fixture(): PDO
 {
     $pdo = new PDO('sqlite::memory:');
@@ -129,6 +139,43 @@ sources_assert(count($opportunities) === 1, 'opportunity source returns only act
 sources_assert($opportunities[0]['title'] === 'IoT Intern', 'opportunity source keeps a minimized opportunity record');
 sources_assert($opportunities[0]['deadline_at'] === '2026-09-01T00:00:00+00:00', 'opportunity deadline is RFC 3339');
 sources_assert($opportunitySource->forStudent('unknown-student') === [], 'opportunity query binds and checks the student id');
+
+$missingOpportunityTable = new PDO('sqlite::memory:');
+$missingOpportunityTable->exec('CREATE TABLE student_profiles (id TEXT PRIMARY KEY)');
+$missingOpportunityTableResult = sources_call_source_safely(
+    static fn (): array => (new DatabaseOpportunitySource($missingOpportunityTable))->forStudent('student-a')
+);
+sources_assert($missingOpportunityTableResult['exception'] === null, 'opportunity source does not throw when required tables are unavailable');
+sources_assert($missingOpportunityTableResult['result'] === [], 'opportunity source fails closed when required tables are unavailable');
+
+$missingEnterpriseTable = new PDO('sqlite::memory:');
+$missingEnterpriseTable->exec('CREATE TABLE student_profiles (id TEXT PRIMARY KEY)');
+$missingEnterpriseTable->exec('CREATE TABLE internship_posts (id TEXT PRIMARY KEY, enterpriseId TEXT NOT NULL, title TEXT NOT NULL, location TEXT NOT NULL, deadline TEXT NOT NULL, status TEXT NOT NULL)');
+$missingEnterpriseTableResult = sources_call_source_safely(
+    static fn (): array => (new DatabaseOpportunitySource($missingEnterpriseTable))->forStudent('student-a')
+);
+sources_assert($missingEnterpriseTableResult['exception'] === null, 'opportunity source does not throw when enterprise contract is unavailable');
+sources_assert($missingEnterpriseTableResult['result'] === [], 'opportunity source fails closed when enterprise table is unavailable');
+
+$missingOpportunityColumn = new PDO('sqlite::memory:');
+$missingOpportunityColumn->exec('CREATE TABLE student_profiles (id TEXT PRIMARY KEY)');
+$missingOpportunityColumn->exec('CREATE TABLE enterprises (id TEXT PRIMARY KEY, status TEXT NOT NULL, verificationStatus TEXT NOT NULL)');
+$missingOpportunityColumn->exec('CREATE TABLE internship_posts (id TEXT PRIMARY KEY, enterpriseId TEXT NOT NULL, title TEXT NOT NULL, location TEXT NOT NULL, status TEXT NOT NULL)');
+$missingOpportunityColumnResult = sources_call_source_safely(
+    static fn (): array => (new DatabaseOpportunitySource($missingOpportunityColumn))->forStudent('student-a')
+);
+sources_assert($missingOpportunityColumnResult['exception'] === null, 'opportunity source does not throw when a required field is unavailable');
+sources_assert($missingOpportunityColumnResult['result'] === [], 'opportunity source fails closed when a required field is unavailable');
+
+$missingEnterpriseColumn = new PDO('sqlite::memory:');
+$missingEnterpriseColumn->exec('CREATE TABLE student_profiles (id TEXT PRIMARY KEY)');
+$missingEnterpriseColumn->exec('CREATE TABLE enterprises (id TEXT PRIMARY KEY, status TEXT NOT NULL)');
+$missingEnterpriseColumn->exec('CREATE TABLE internship_posts (id TEXT PRIMARY KEY, enterpriseId TEXT NOT NULL, title TEXT NOT NULL, location TEXT NOT NULL, deadline TEXT NOT NULL, status TEXT NOT NULL)');
+$missingEnterpriseColumnResult = sources_call_source_safely(
+    static fn (): array => (new DatabaseOpportunitySource($missingEnterpriseColumn))->forStudent('student-a')
+);
+sources_assert($missingEnterpriseColumnResult['exception'] === null, 'opportunity source does not throw when an enterprise field is unavailable');
+sources_assert($missingEnterpriseColumnResult['result'] === [], 'opportunity source fails closed when an enterprise field is unavailable');
 
 $events = $consentSource->forStudent('student-a');
 sources_assert(count($events) === 7, 'consent source returns only the learner append-only events');
