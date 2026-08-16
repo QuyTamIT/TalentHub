@@ -3,11 +3,11 @@
 **Requested migration path:** `Database/migrations/learner/003_create_ai_input_extensions.php`
 **Version:** `003_create_ai_input_extensions`
 **Scope owner:** Learner module
-**Status:** exact-DDL source/disposable approval granted; shared-database execution remains pending
+**Status:** exact-DDL approval granted; disposable proof and the separately authorized shared-database execution completed on 2026-08-16
 
 ## Approval Gate
 
-The exact SQL in this request is approved for migration-source creation and SQLite/disposable verification only. **APPROVAL REQUIRED: do not execute migration 003 against a shared database** until a fresh compatibility preflight, backup/restore proof, live count/hash baseline, and a separately recorded shared-execution approval have been completed.
+The exact SQL in this request was approved for migration-source creation and SQLite/disposable verification. After a fresh compatibility preflight, backup/restore proof, live count/hash baseline, and disposable MySQL trigger proof, the user explicitly authorized non-destructive, non-conflicting execution. Migration `003` was then executed once on `talenthub_local`; the evidence is recorded below. That authorization does not authorize later schema/data changes, `ALTER`, `DROP`, deletion, truncation, backfill, a recommendation-store migration, or a model-provider change.
 
 This request is additive and forward-only. It creates six learner-owned canonical tables and twelve learner-owned integrity triggers, writes no seed data, alters no existing table, and changes no existing row. It contains no data-mutating `INSERT`, `UPDATE`, `DELETE`, `ALTER`, `DROP`, `TRUNCATE`, rename, conversion, or backfill; the trigger headers only reject invalid future writes. It must not be treated as approval for a later recommendation, seed, shared-module, runtime-write, or model-provider change.
 
@@ -247,6 +247,36 @@ Before a disposable or shared run, assert all six target tables are absent, migr
 Before shared execution, take a restorable, access-controlled backup/provider snapshot and record its UTC completion time, checksum/identifier, successful restore validation, fresh existing-parent counts, and normalized schema hashes. Run the migration on a dedicated disposable schema twice first; retain proof that the first run applies only `003_create_ai_input_extensions`, the second returns `[]`, exactly one registry record exists, all six tables/FKs/CHECKs/triggers exist, invalid cross-test/cross-version writes and consent update/delete are rejected, and no Task 3/shared parent row count changes.
 
 Immediately before and after a separately approved shared run, compare counts and normalized schema fingerprints for `student_profiles`, `talent_tests`, `test_questions`, `test_attempts`, and `student_skills`; require equality. Confirm all six new tables start with zero rows, FK integrity passes, the registry checksum matches source, and existing role read-only smoke checks pass. Do not record credentials, raw personal data, answers, or consent events in this request.
+
+## Execution record (completed)
+
+The approved MySQL statement sequence retained SHA-256 `2f64222d2ffa82ab77e5c1a697682723a22b26ea9eaf1a3b4770c5bc92e6e09f`. The migration source file checksum recorded in the registry is `6b2c5674e4da5d98bc7540881f90ce5fab421d2cf52e41b7899f51a87d563c38`.
+
+### Backup, restore, and disposable proof
+
+Before 003, a new logical backup was created at `D:\TalentHub\.tmp\learner-ai-backups\shared-pre-003-20260816T072000Z.sql`: 92,973 bytes, SHA-256 `c819fec82761368c057e123c57a5e3bd426c9961e9c76e1a510cf650b64b5183`. It used `--single-transaction --routines --events --triggers --no-tablespaces` under the local administrator and restored successfully into a newly created disposable schema. No shared object or row was changed while provisioning/restoring disposable schemas.
+
+The application principal's first disposable execution stopped at MySQL error 1419 because binary logging was enabled and that principal lacked the privilege required to create triggers. It created no registry record; its partially created disposable schema was deliberately preserved rather than deleted. A fresh disposable restore was then used. The migration ran under the local administrator only for DDL/triggers with an explicitly session-scoped `+00:00` time zone; its first run returned `['003_create_ai_input_extensions']` and its immediate second run returned `[]`.
+
+The application principal then performed a disposable transaction that inserted only synthetic trigger-probe rows and rolled it back. It proved each of the following was rejected: cross-test question-version map, cross-test attempt/version binding, answer outside selected version, assessment-version update, question-version delete, consent update, and consent delete. No probe row persisted.
+
+### Fresh shared preflight and execution
+
+At `2026-08-16T07:28:35Z`, a read-only transaction against `talenthub_local` confirmed MySQL `8.4.3`, `@@session.time_zone = '+00:00'`, the registered 002 checksum `f1c7d125c475fddad946448b9a320ae6207ea5903eaa2d652fb456d505a929bc`, and that all six 003 targets were absent. The migration preflight passed. Parent count/hash evidence at that instant was:
+
+| Parent | Count | Normalized schema SHA-256 |
+|---|---:|---|
+| `student_profiles` | 12 | `0c85d3ba8fef1ba0fccb7d34191e5f1b0b0fcff17e272b359b0138e5ea6267bf` |
+| `talent_tests` | 0 | `5c006a08323100675e8cc5bae8e61273b3d1be5989d7f19a43b114d97200e189` |
+| `test_questions` | 0 | `d74474493f68906aae6f274ccc7f8b02eca58a6a7d18729aa4b11fd2d6ea9597` |
+| `test_attempts` | 0 | `b751ac7823cce44a3027534df883d4adcf093e011554b1c137b895e574650ae7` |
+| `student_skills` | 0 | `c1e51e7bc1014af4e75a855b4fc662218999e0ce97be90c9f226937726f63fdc` |
+
+Because the application principal cannot create triggers under the server's binary-log setting, the local database administrator executed the reviewed runner only for migration DDL with a session-scoped `+00:00` time zone. The first shared call returned `['003_create_ai_input_extensions']`; the immediate second call returned `[]`. The regular application principal subsequently read all six new tables successfully.
+
+Post-execution read-only verification confirmed the five parent counts and normalized schema hashes above were identical, all six new tables contained 0 rows, all six targets existed, all nine FK rules were `ON DELETE RESTRICT ON UPDATE CASCADE`, `@@foreign_key_checks=1`, and all 12 learner trigger definitions existed. The registry checksum exactly matched the migration source file. Empty new-child tables mean no newly introduced child-row FK violations exist; trigger rejection semantics were proven on the disposable schema with a rollback-only application-principal transaction. Existing Teacher/School/Enterprise PHP syntax smoke checks pass and no protected-role, `src`, or `api` path is in the committed diff.
+
+No existing table was altered and no existing row was written, deleted, truncated, or replaced. Future trigger-owning migrations require a dedicated migration principal with the relevant MySQL binary-log privilege, or a separately approved server configuration change; the application principal must not be granted broader administrative privileges merely to run normal learner features.
 
 ## Operational rollback
 

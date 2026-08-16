@@ -145,8 +145,9 @@ ai_extensions_assert(is_file($dcrPath), 'Task 4 DCR exists before extension migr
 ai_extensions_assert(is_file($migrationPath), 'Task 4 migration source exists after the approved DCR');
 
 $dcr = (string) file_get_contents($dcrPath);
-ai_extensions_assert(str_contains($dcr, '**Status:** exact-DDL source/disposable approval granted; shared-database execution remains pending'), 'DCR keeps shared execution separately gated');
-ai_extensions_assert(str_contains($dcr, 'APPROVAL REQUIRED: do not execute migration 003 against a shared database'), 'DCR requires a separate shared execution approval');
+ai_extensions_assert(str_contains($dcr, '**Status:** exact-DDL approval granted; disposable proof and the separately authorized shared-database execution completed'), 'DCR records the approved and completed execution state');
+ai_extensions_assert(str_contains($dcr, '## Execution record (completed)'), 'DCR contains completed migration evidence');
+ai_extensions_assert(str_contains($dcr, "The first shared call returned `['003_create_ai_input_extensions']`; the immediate second call returned `[]`"), 'DCR records shared migration idempotency');
 ai_extensions_assert(preg_match('/```sql\n(.*?)\n```/s', $dcr, $match) === 1, 'DCR contains exact SQL code fence');
 $dcrSql = $match[1];
 ai_extensions_assert(hash('sha256', $dcrSql) === AI_INPUT_EXTENSIONS_DDL_SHA256, 'DCR SQL fingerprint is approved');
