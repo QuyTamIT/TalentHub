@@ -97,7 +97,7 @@ final class RecommendationService
             return $this->mapper->quality($quality);
         }
 
-        $context = new RecommendationContext($scopes, $requestId, $idempotencyKey);
+        $context = new RecommendationContext($scopes, $requestId, $idempotencyKey, $studentId);
         try {
             $pending = $this->repository->createPendingRun($studentId, $input, $context);
         } catch (\Throwable) {

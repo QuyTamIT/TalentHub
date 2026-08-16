@@ -10,7 +10,12 @@ final class RecommendationContext
     private readonly array $allowedScopes;
 
     /** @param list<string> $allowedScopes */
-    public function __construct(array $allowedScopes, private readonly ?string $requestId = null, private readonly ?string $idempotencyKey = null)
+    public function __construct(
+        array $allowedScopes,
+        private readonly ?string $requestId = null,
+        private readonly ?string $idempotencyKey = null,
+        private readonly ?string $studentId = null,
+    )
     {
         $allowed = array_values(array_unique(array_filter(
             array_map(static fn (mixed $scope): string => is_string($scope) ? trim($scope) : '', $allowedScopes),
@@ -34,5 +39,10 @@ final class RecommendationContext
     public function idempotencyKey(): ?string
     {
         return $this->idempotencyKey;
+    }
+
+    public function studentId(): ?string
+    {
+        return $this->studentId;
     }
 }
