@@ -76,6 +76,7 @@
 
 .learner-sidebar__brand {
     padding: 0 8px 20px;
+    text-align: center;
 }
 
 .learner-icon-button.learner-sidebar__close {
@@ -86,22 +87,18 @@
 }
 
 .learner-sidebar__brand p {
-    margin: 5px 0 0 48px;
+    margin: 4px 0 0;
     color: var(--text-secondary);
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
 }
 
 .learner-brand {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 10px;
     color: var(--text-primary);
-}
-
-.learner-brand__logo {
-    display: block;
-    width: 160px;
-    height: auto;
 }
 
 .learner-brand:hover .learner-brand__mark {
@@ -110,14 +107,14 @@
 
 .learner-brand__mark {
     display: inline-flex;
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     align-items: center;
     justify-content: center;
-    flex: 0 0 34px;
+    flex: 0 0 36px;
     color: var(--surface);
     background: var(--primary);
-    border-radius: 50%;
+    border-radius: 8px;
     transition: transform var(--transition-base);
 }
 

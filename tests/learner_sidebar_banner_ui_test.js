@@ -34,9 +34,20 @@ test('primary learner pages include the shared page banner', () => {
 
 test('sidebar wordmark and banner component use shared styling hooks', () => {
     const css = read('assets/css/learner.css');
-    assert.match(css, /\.learner-brand__logo\s*\{/);
     assert.match(css, /\.learner-sidebar__footer\s*\{/);
     assert.match(css, /\.learner-page-banner\s*\{/);
+});
+
+test('learner sidebar uses the centered icon and wordmark lockup', () => {
+    const sidebar = read('app/learner/includes/sidebar.php');
+    const css = read('assets/css/learner.css');
+
+    assert.match(sidebar, /class="learner-brand__mark"/);
+    assert.match(sidebar, /class="learner-brand__name">Talent<span>Hub<\/span>/);
+    assert.match(sidebar, />Khu vực Học sinh</);
+    assert.doesNotMatch(sidebar, /learner-brand__logo/);
+    assert.match(css, /\.learner-sidebar__brand\s*\{[\s\S]*text-align:\s*center/);
+    assert.match(css, /\.learner-brand__mark\s*\{[\s\S]*width:\s*36px/);
 });
 
 test('shared page banner is a labelled learner section', () => {
