@@ -38,15 +38,15 @@ test('sidebar wordmark and banner component use shared styling hooks', () => {
     assert.match(css, /\.learner-page-banner\s*\{/);
 });
 
-test('learner sidebar uses the centered icon and wordmark lockup', () => {
+test('learner sidebar uses the student icon and wordmark lockup with Khu vực sinh viên slogan', () => {
     const sidebar = read('app/learner/includes/sidebar.php');
     const css = read('assets/css/learner.css');
 
     assert.match(sidebar, /class="learner-brand__mark"/);
     assert.match(sidebar, /class="learner-brand__name">Talent<span>Hub<\/span>/);
-    assert.match(sidebar, />Khu vực Học sinh</);
+    assert.match(sidebar, />Khu vực sinh viên</);
     assert.doesNotMatch(sidebar, /learner-brand__logo/);
-    assert.match(css, /\.learner-sidebar__brand\s*\{[\s\S]*text-align:\s*center/);
+    assert.match(css, /\.learner-sidebar__brand\s*\{/);
     assert.match(css, /\.learner-brand__mark\s*\{[\s\S]*width:\s*36px/);
 });
 

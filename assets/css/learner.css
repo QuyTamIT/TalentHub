@@ -75,8 +75,9 @@
 }
 
 .learner-sidebar__brand {
-    padding: 0 8px 20px;
-    text-align: center;
+    padding: 0 0 1rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1rem;
 }
 
 .learner-icon-button.learner-sidebar__close {
@@ -86,19 +87,12 @@
     display: none;
 }
 
-.learner-sidebar__brand p {
-    margin: 4px 0 0;
-    color: var(--text-secondary);
-    font-size: 0.75rem;
-    line-height: 1.2;
-}
-
 .learner-brand {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: 10px;
+    gap: 0.75rem;
     color: var(--text-primary);
+    text-decoration: none;
 }
 
 .learner-brand:hover .learner-brand__mark {
@@ -112,20 +106,39 @@
     align-items: center;
     justify-content: center;
     flex: 0 0 36px;
-    color: var(--surface);
-    background: var(--primary);
+    color: #FFFFFF;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
     border-radius: 8px;
     transition: transform var(--transition-base);
+}
+
+.learner-brand__text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.15;
 }
 
 .learner-brand__name {
     font-size: 1.35rem;
     font-weight: 800;
-    letter-spacing: -0.04em;
+    letter-spacing: -0.03em;
+    color: var(--text-primary);
 }
 
 .learner-brand__name span {
     color: var(--primary);
+}
+
+.learner-brand__subtitle,
+.learner-sidebar__subtitle,
+.learner-sidebar__brand p {
+    margin: 2px 0 0;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.2;
+    text-align: left;
 }
 
 .learner-sidebar__nav {

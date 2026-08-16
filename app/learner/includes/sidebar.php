@@ -12,9 +12,11 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
     <div class="learner-sidebar__brand">
         <a class="learner-brand" href="../../index.php" aria-label="Về trang chủ TalentHub">
             <span class="learner-brand__mark" aria-hidden="true"><?= learner_icon('star', 20); ?></span>
-            <span class="learner-brand__name">Talent<span>Hub</span></span>
+            <div class="learner-brand__text">
+                <span class="learner-brand__name">Talent<span>Hub</span></span>
+                <span class="learner-brand__subtitle">Khu vực sinh viên</span>
+            </div>
         </a>
-        <p>Khu vực Học sinh</p>
     </div>
 
     <nav class="learner-sidebar__nav" aria-label="Danh mục Học sinh/Sinh viên">
