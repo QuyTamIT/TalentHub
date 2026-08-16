@@ -192,7 +192,9 @@ recommendation_schema_assert(is_file($dcrPath), 'Task 8 DCR exists before recomm
 recommendation_schema_assert(is_file($migrationPath), 'Task 8 migration source exists after the approved DCR');
 
 $dcr = (string) file_get_contents($dcrPath);
-recommendation_schema_assert(str_contains($dcr, 'APPROVAL REQUIRED: do not execute migration 004 against a shared database'), 'DCR keeps the shared-database execution gate visible');
+recommendation_schema_assert(str_contains($dcr, '**Status:** exact-DDL approval granted; disposable MySQL proof and separately authorized shared-database execution completed'), 'DCR records completed approved execution');
+recommendation_schema_assert(str_contains($dcr, '## Execution record (completed)'), 'DCR contains execution evidence');
+recommendation_schema_assert(str_contains($dcr, "The first shared call returned `['004_create_recommendation_store']`; the immediate second call returned `[]`"), 'DCR records shared migration idempotency');
 recommendation_schema_assert(preg_match_all('/```sql\n(.*?)\n```/s', $dcr, $matches) === 2, 'DCR contains exact MySQL and SQLite SQL code fences');
 $dcrSql = $matches[1][0];
 $dcrSqlite = $matches[1][1];

@@ -1,10 +1,10 @@
 # DCR: Learner recommendation store (004)
 
-**Status:** exact-DDL approval granted; SQLite-only schema proof required before any shared-database execution.
+**Status:** exact-DDL approval granted; disposable MySQL proof and separately authorized shared-database execution completed on 2026-08-16.
 
 ## Approval gate
 
-APPROVAL REQUIRED: do not execute migration 004 against a shared database. The user has approved creation of this additive, learner-owned DDL only. A later execution request must capture the shared-schema baseline, backup/recovery proof, preflight result, unchanged existing-row counts, foreign-key check, and a second-run no-op result.
+The user explicitly authorized this non-destructive, non-conflicting execution after the shared-schema baseline, backup/recovery proof, preflight result, unchanged existing-row evidence, disposable trigger proof, and second-run no-op result were obtained. This authorization does not cover a later schema/data change, delete/truncate, seed/backfill, or model-provider rollout.
 
 ## Purpose and ownership
 
@@ -352,10 +352,12 @@ CREATE INDEX idx_learner_recommendation_audit_events_student_created ON learner_
 CREATE INDEX idx_learner_recommendation_audit_events_run_created ON learner_recommendation_audit_events (runId, createdAt)
 ```
 
-## Execution checklist (not yet authorized)
+## Execution record (completed)
 
-1. Verify a recoverable shared-database backup and record baseline row counts/checksums for all existing tables.
-2. Run only `004_create_recommendation_store` after registry 002 and 003 match the checked-in source checksums.
-3. Confirm all seven tables, indexes, foreign keys, checks, and fourteen triggers; run a foreign-key check and learner read-only smoke test.
-4. Confirm no count or checksum changed for existing canonical tables and the second approved call returns `[]`.
-5. Record the exact timestamp, operator, preflight, and repeat-run output here before enabling Task 9 writes.
+The exact MySQL DDL fingerprint is `3742e97d…eb931c4`; migration source checksum recorded for `004_create_recommendation_store` is `48d7eaf7122cae13d5dbcb1dbaa2e157c34f2f4cea8f0c430914f193be48f0be`.
+
+Before 004, a logical backup was created at `D:\TalentHub\.tmp\learner-ai-backups\shared-pre-004-20260816T075836Z.sql`: 119,253 bytes, SHA-256 `cd8aaa0bcd2b5e0f4a162a22754ca079bad8719f6dd22af30c87afdb56cebd4f`. It restored successfully to a new disposable schema. There, the administrator ran 004 once and received `['004_create_recommendation_store']`; the immediate second run returned `[]`. The regular application principal then ran rollback-only synthetic DML to prove cross-learner run/feedback/audit, cross-snapshot evidence, snapshot update, and snapshot-evidence delete were all rejected by constraints/triggers. No disposable probe row persisted.
+
+At `2026-08-16T08:01:30Z`, a read-only shared preflight confirmed MySQL 8.4.3, session UTC, valid registered 002/003 checksums, and all seven 004 targets absent. Parent count/hash evidence was unchanged from Task 3/4: `student_profiles=12`; `talent_tests=0`; `test_questions=0`; `test_attempts=0`; `student_skills=0`; `learner_ai_consent_events=0`. The local administrator executed the reviewed DDL only because the application principal lacks the binary-log privilege needed to create MySQL triggers; no broad runtime privilege was granted to the application.
+
+The first shared call returned `['004_create_recommendation_store']`; the immediate second call returned `[]`. Post-run read-only verification found all seven tables empty, 11 foreign keys with `ON DELETE RESTRICT ON UPDATE CASCADE`, 14 learner recommendation triggers, `@@foreign_key_checks=1`, and a registry checksum matching source. The six parent counts and normalized schema hashes remained identical to the preflight. No existing table or row was altered, written, deleted, truncated, or replaced. Task 9 may now write only through the learner-owned transactional repository and must retain the same ownership/provenance constraints.
