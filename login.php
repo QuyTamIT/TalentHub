@@ -16,7 +16,8 @@ $requestedNext=is_string($_GET['next']??null)?$_GET['next']:null;
 if(($current=$session->user())!==null){header('Location: '.AuthPortalRouter::destination((string)$current['role'],$requestedNext));exit;}
 
 $errorMessage=null;$emailValue='';$fieldErrors=[];$flash=$_SESSION['authFlash']??null;unset($_SESSION['authFlash']);
-if(is_array($flash)){$emailValue=(string)($flash['email']??'');}
+$registrationSucceeded=is_array($flash)&&($flash['type']??null)==='registered';
+if($registrationSucceeded){$emailValue=(string)($flash['email']??'');}
 
 if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
     $emailValue=trim((string)($_POST['email']??''));$password=(string)($_POST['password']??'');$requestedNext=is_string($_POST['next']??null)?$_POST['next']:$requestedNext;
@@ -62,12 +63,12 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
         <div class="auth-panel__inner">
             <a class="auth-mobile-logo" href="/index.php"><img src="/assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
             <div class="auth-heading"><p class="auth-kicker">Chào mừng trở lại</p><h2 id="login-title">Đăng nhập tài khoản</h2><p>Nhập thông tin đã đăng ký hoặc được tổ chức cấp.</p></div>
-            <?php if(is_array($flash)): ?><div class="auth-alert auth-alert--success" role="status"><strong>Đăng ký thành công.</strong> Bạn có thể đăng nhập bằng tài khoản vừa tạo.</div><?php endif; ?>
-            <?php if($errorMessage!==null): ?><div class="auth-alert auth-alert--error" role="alert"><?=authEscape($errorMessage)?></div><?php endif; ?>
+            <?php if($registrationSucceeded): ?><div class="auth-alert auth-alert--success" role="status"><strong>Đăng ký thành công.</strong> Bạn có thể đăng nhập bằng tài khoản vừa tạo.</div><?php endif; ?>
+            <?php if($errorMessage!==null): ?><div class="auth-alert auth-alert--error" role="alert" tabindex="-1" data-error-summary><strong><?=authEscape($errorMessage)?></strong><?php if($fieldErrors!==[]): ?><ul><?php foreach($fieldErrors as $field=>$message): ?><li><a href="#<?=authEscape($field)?>"><?=authEscape($message)?></a></li><?php endforeach; ?></ul><?php endif; ?></div><?php endif; ?>
             <form class="auth-form" method="post" action="/login.php" data-auth-form>
                 <?php if($requestedNext!==null): ?><input type="hidden" name="next" value="<?=authEscape($requestedNext)?>"><?php endif; ?>
-                <div class="auth-field"><label for="email">Email</label><input id="email" name="email" type="email" value="<?=authEscape($emailValue)?>" autocomplete="email" inputmode="email" maxlength="255" required autofocus aria-describedby="email-hint"><span id="email-hint" class="auth-field__hint">Email cá nhân hoặc email do tổ chức cấp.</span></div>
-                <div class="auth-field"><div class="auth-field__label-row"><label for="password">Mật khẩu</label></div><div class="auth-password"><input id="password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="255" required><button type="button" class="auth-password__toggle" data-password-toggle aria-controls="password" aria-pressed="false">Hiện</button></div></div>
+                <div class="auth-field"><label for="email">Email</label><input id="email" name="email" type="email" value="<?=authEscape($emailValue)?>" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" maxlength="255" required autofocus aria-describedby="email-hint<?php if(isset($fieldErrors['email'])): ?> email-error<?php endif; ?>" <?php if(isset($fieldErrors['email'])): ?>aria-invalid="true"<?php endif; ?>><span id="email-hint" class="auth-field__hint">Email cá nhân hoặc email do tổ chức cấp.</span><?php if(isset($fieldErrors['email'])): ?><span class="auth-field__error" id="email-error"><?=authEscape($fieldErrors['email'])?></span><?php endif; ?></div>
+                <div class="auth-field"><div class="auth-field__label-row"><label for="password">Mật khẩu</label></div><div class="auth-password"><input id="password" name="password" type="password" autocomplete="current-password" maxlength="255" required <?php if(isset($fieldErrors['password'])): ?>aria-invalid="true" aria-describedby="password-error"<?php endif; ?>><button type="button" class="auth-password__toggle" data-password-toggle aria-controls="password" aria-pressed="false">Hiện</button></div><?php if(isset($fieldErrors['password'])): ?><span class="auth-field__error" id="password-error"><?=authEscape($fieldErrors['password'])?></span><?php endif; ?></div>
                 <button class="auth-submit" type="submit" data-submit><span>Đăng nhập</span><span aria-hidden="true">→</span></button>
             </form>
             <p class="auth-switch">Chưa có tài khoản học viên? <a href="/register.php">Đăng ký ngay</a></p>
