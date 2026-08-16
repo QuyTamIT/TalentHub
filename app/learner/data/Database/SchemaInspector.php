@@ -115,6 +115,7 @@ final class SchemaInspector
         if ($row === false) {
             return null;
         }
+        $row = $this->normalizeMetadataKeys($row);
         $type = strtoupper((string) $row['data_type']);
         $length = $row['character_maximum_length'];
         return $length === null ? $type : $type . '(' . $length . ')';
@@ -156,6 +157,9 @@ final class SchemaInspector
         );
         $query->execute(['schema' => $this->schema, 'table' => $table]);
         $metadata = $query->fetch(PDO::FETCH_ASSOC);
+        if ($metadata !== false) {
+            $metadata = $this->normalizeMetadataKeys($metadata);
+        }
         return $metadata !== false
             && strcasecmp((string) $metadata['engine'], $engine) === 0
             && strcasecmp((string) $metadata['character_set_name'], $characterSet) === 0
@@ -191,5 +195,11 @@ final class SchemaInspector
     private function quote(string $identifier): string
     {
         return '"' . str_replace('"', '""', $identifier) . '"';
+    }
+
+    /** @param array<string,mixed> $metadata @return array<string,mixed> */
+    private function normalizeMetadataKeys(array $metadata): array
+    {
+        return array_change_key_case($metadata, CASE_LOWER);
     }
 }
