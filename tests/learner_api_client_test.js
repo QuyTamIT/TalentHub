@@ -127,6 +127,21 @@ test('bodyless mutations include the current CSRF token', async () => {
   assert.equal(request.options.body, undefined);
 });
 
+test('recommendation generation sends an explicit idempotency key without exposing it in the body', async () => {
+  let request;
+  const client = createLearnerApiClient({
+    baseUrl: '/app/learner/api/v1', csrfToken: 'csrf-current',
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: true, status: 202, json: async () => ({ data: { state: 'pending' } }) };
+    },
+  });
+
+  await client.send('POST', '/recommendations.php', undefined, { idempotencyKey: 'idempotency-key-0001' });
+  assert.equal(request.options.headers['X-Idempotency-Key'], 'idempotency-key-0001');
+  assert.equal(request.options.body, undefined);
+});
+
 test('403, 422, and 503 responses use the normalized error contract', async () => {
   for (const [status, code] of [[403, 'FORBIDDEN'], [422, 'VALIDATION_FAILED'], [503, 'SERVICE_UNAVAILABLE']]) {
     const client = createLearnerApiClient({

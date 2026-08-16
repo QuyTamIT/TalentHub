@@ -91,7 +91,7 @@
             }
         }
 
-        async function request(method, path, body) {
+        async function request(method, path, body, requestOptions = {}) {
             const normalizedMethod = String(method).toUpperCase();
             const headers = { Accept: 'application/json' };
             const options = { method: normalizedMethod, headers, credentials: 'same-origin' };
@@ -100,6 +100,10 @@
                 options.body = JSON.stringify(body);
             }
             if (MUTATION_METHODS.has(normalizedMethod)) headers['X-CSRF-Token'] = csrf;
+            const idempotencyKey = requestOptions && typeof requestOptions.idempotencyKey === 'string'
+                ? requestOptions.idempotencyKey.trim()
+                : '';
+            if (idempotencyKey !== '') headers['X-Idempotency-Key'] = idempotencyKey;
 
             const url = buildApiUrl(apiBase, path);
             let response;
@@ -134,7 +138,7 @@
 
         return {
             get: (path) => request('GET', path),
-            send: (method, path, body) => request(String(method).toUpperCase(), path, body),
+            send: (method, path, body, requestOptions) => request(String(method).toUpperCase(), path, body, requestOptions),
             setCsrfToken: (token) => { csrf = String(token || ''); },
         };
     }

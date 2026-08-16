@@ -7,6 +7,7 @@ namespace TalentHub\Learner\Data\Readiness;
 final class AiScopePolicy
 {
     private const ALLOWED_PREFIXES = ['app/learner/', 'assets/js/learner', 'tests/learner_', 'docs/superpowers/'];
+    private const ALLOWED_EXACT_PATHS = ['assets/css/learner.css'];
     private const PROTECTED_PREFIXES = ['app/teacher/', 'app/school/', 'app/enterprise/', 'src/', 'api/'];
     private const APPROVAL_PREFIXES = ['Database/migrations/learner/', 'Database/seeds/learner/'];
     private const FORBIDDEN_SQL = ['DELETE', 'DROP', 'TRUNCATE', 'RENAME'];
@@ -35,7 +36,8 @@ final class AiScopePolicy
                 continue;
             }
 
-            if (!$this->startsWithAny($path, self::ALLOWED_PREFIXES)) {
+            if (!in_array($path, self::ALLOWED_EXACT_PATHS, true)
+                && !$this->startsWithAny($path, self::ALLOWED_PREFIXES)) {
                 $forbidden[] = $path;
             }
         }

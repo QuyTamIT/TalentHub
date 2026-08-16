@@ -26,6 +26,8 @@ ai_assert(!$policy->inspectPaths(['src/Bootstrap/Application.php'])['allowed'], 
 ai_assert($policy->inspectPaths(['assets/js/learner/app.js'])['allowed'], 'learner asset directory is allowed');
 ai_assert($policy->inspectPaths(['assets/js/learner.js'])['allowed'], 'learner asset file is allowed');
 ai_assert($policy->inspectPaths(['assets/js/learner-assessment.js'])['allowed'], 'learner hyphenated asset file is allowed');
+ai_assert($policy->inspectPaths(['assets/css/learner.css'])['allowed'], 'learner stylesheet is allowed');
+ai_assert(!$policy->inspectPaths(['assets/css/home.css'])['allowed'], 'shared stylesheet remains forbidden');
 ai_assert(!$policy->inspectPaths(['assets/js/learner_evil.js'])['allowed'], 'learner asset sibling is forbidden');
 ai_assert(!$policy->inspectPaths(['assets/js/learners/'])['allowed'], 'learner asset sibling directory is forbidden');
 $migrationPath = 'Database/migrations/learner/002_create_ai_input_foundation.php';

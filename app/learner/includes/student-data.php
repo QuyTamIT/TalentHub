@@ -219,40 +219,6 @@ $careerDirections = [
     ['label' => 'Nghệ thuật', 'score' => 10, 'icon' => 'palette', 'tone' => 'warning'],
 ];
 
-$aiRecommendation = [
-    'sufficient' => true,
-    'updated_at' => '12/08/2026',
-    'summary' => 'Bạn có năng lực nổi bật về IoT và Drone. Khuyến nghị tham gia nhóm nghiên cứu tự động hóa và cuộc thi sáng tạo kỹ thuật.',
-    'groups' => [
-        [
-            'title' => 'Điểm mạnh',
-            'tone' => 'success',
-            'icon' => 'chart',
-            'items' => ['Tư duy logic, lập trình', 'Làm việc nhóm & dẫn dắt', 'Học nhanh công nghệ mới'],
-        ],
-        [
-            'title' => 'Cần cải thiện',
-            'tone' => 'primary',
-            'icon' => 'activity',
-            'items' => ['Thuyết trình trước đám đông', 'Quản lý thời gian dài hạn', 'Tiếng Anh học thuật'],
-        ],
-        [
-            'title' => 'Khả năng phát triển',
-            'tone' => 'secondary',
-            'icon' => 'compass',
-            'items' => ['Kỹ sư tự động hóa', 'Nghiên cứu AI/Robotics', 'Khởi nghiệp deep-tech'],
-        ],
-    ],
-    'roadmap' => [
-        ['month' => 'Tháng 1', 'action' => 'Hoàn thành khóa Arduino nâng cao và tham gia IoT Lab hằng tuần.'],
-        ['month' => 'Tháng 2', 'action' => 'Đăng ký cuộc thi sáng tạo kỹ thuật cấp thành phố với đề tài tự động hóa nông nghiệp.'],
-        ['month' => 'Tháng 3', 'action' => 'Mentor 2 dự án nhóm và viết blog kỹ thuật để rèn khả năng truyền đạt.'],
-    ],
-    'insufficient_title' => 'Chưa đủ dữ liệu để AI phân tích',
-    'insufficient_copy' => 'Hãy hoàn thiện hồ sơ kỹ năng, bài đánh giá năng khiếu và ít nhất một hoạt động trải nghiệm.',
-    'disclaimer' => 'Gợi ý từ AI chỉ mang tính định hướng, không thay thế đánh giá chuyên môn từ giáo viên và cố vấn.',
-];
-
 $learnerLevels = [
     ['id' => 'explorer', 'name' => 'Explorer', 'number' => 3, 'hours' => 10, 'state' => 'achieved', 'status' => 'Đã đạt'],
     ['id' => 'innovator', 'name' => 'Innovator', 'number' => 2, 'hours' => 64, 'target' => 100, 'state' => 'current', 'status' => 'Hiện tại'],
