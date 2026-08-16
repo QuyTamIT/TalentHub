@@ -44,4 +44,22 @@ $lookalike = json_decode(implode("\n", $lookalikeOutput), true, 512, JSON_THROW_
 audit_assert($lookalikeExitCode === 2, 'lookalike approval does not permit the virtual sibling');
 audit_assert(in_array($probePath, $lookalike['approval_required_paths'], true), 'lookalike approval leaves virtual sibling approval-required');
 
+$leadingTraversalPath = '../Database/migrations/learner/998_scope_audit_probe.php';
+$leadingTraversalArgument = ' --audit-path=' . escapeshellarg($leadingTraversalPath);
+$leadingTraversalApprovalArgument = ' --approved-database-path=' . escapeshellarg($leadingTraversalPath);
+exec("{$php} {$audit} --format=json{$leadingTraversalArgument}{$leadingTraversalApprovalArgument} 2>&1", $leadingTraversalOutput, $leadingTraversalExitCode);
+$leadingTraversal = json_decode(implode("\n", $leadingTraversalOutput), true, 512, JSON_THROW_ON_ERROR);
+audit_assert($leadingTraversalExitCode === 2, 'leading traversal remains rejected when identically approved');
+audit_assert($leadingTraversal['allowed'] === false, 'leading traversal approval cannot make the audit allowed');
+audit_assert(in_array('../Database/migrations/learner/998_scope_audit_probe.php', $leadingTraversal['forbidden_paths'], true), 'leading traversal is reported as forbidden');
+
+$absoluteWindowsPath = 'C:\\outside\\Database\\migrations\\learner\\998_scope_audit_probe.php';
+$absoluteWindowsArgument = ' --audit-path=' . escapeshellarg($absoluteWindowsPath);
+$absoluteWindowsApprovalArgument = ' --approved-database-path=' . escapeshellarg($absoluteWindowsPath);
+exec("{$php} {$audit} --format=json{$absoluteWindowsArgument}{$absoluteWindowsApprovalArgument} 2>&1", $absoluteWindowsOutput, $absoluteWindowsExitCode);
+$absoluteWindows = json_decode(implode("\n", $absoluteWindowsOutput), true, 512, JSON_THROW_ON_ERROR);
+audit_assert($absoluteWindowsExitCode === 2, 'absolute Windows path remains rejected when identically approved');
+audit_assert($absoluteWindows['allowed'] === false, 'absolute Windows path approval cannot make the audit allowed');
+audit_assert(in_array('/C:/outside/Database/migrations/learner/998_scope_audit_probe.php', $absoluteWindows['forbidden_paths'], true), 'absolute Windows path is reported as forbidden');
+
 echo "learner_ai_scope_audit_test: OK\n";
