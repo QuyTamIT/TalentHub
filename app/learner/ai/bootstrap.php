@@ -45,6 +45,8 @@ require_once $learnerAiRoot . '/Persistence/RecommendationRepository.php';
 require_once $learnerAiRoot . '/Persistence/DatabaseRecommendationRepository.php';
 require_once $learnerAiRoot . '/Validation/RecommendationResultValidator.php';
 require_once $learnerAiRoot . '/Model/ModelRecommendationEngine.php';
+require_once $learnerAiRoot . '/Evaluation/RecommendationEvaluator.php';
+require_once $learnerAiRoot . '/Evaluation/ShadowRunService.php';
 require_once $learnerAiRoot . '/Service/RecommendationResponseMapper.php';
 require_once $learnerAiRoot . '/Service/RecommendationService.php';
 
