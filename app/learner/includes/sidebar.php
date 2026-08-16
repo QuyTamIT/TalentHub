@@ -1,5 +1,9 @@
 <?php
 require_once __DIR__ . '/icons.php';
+// Ensure app_href() is available regardless of whether the caller loaded bootstrap.
+if (!function_exists('app_href') && is_file(__DIR__ . '/../../../bin/bootstrap.php')) {
+    require_once __DIR__ . '/../../../bin/bootstrap.php';
+}
 $activeRoute = $currentRoute ?? '/app/learner/index.php';
 ?>
 <div class="learner-sidebar-backdrop" id="learner-sidebar-backdrop" aria-hidden="true"></div>

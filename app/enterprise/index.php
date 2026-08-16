@@ -1,7 +1,7 @@
 <?php
 /**
  * TalentHub - Enterprise Dashboard Main Entry Point
- * 
+ *
  * Note for Junior Developers:
  * - This file orchestrates the Enterprise Dashboard layout and loads modular PHP partials from includes/
  * - Mock data is defined in arrays below and passed cleanly into partials.

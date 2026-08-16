@@ -1,7 +1,7 @@
 <?php
 /**
  * TalentHub Enterprise - Talent Passport / Hồ sơ nhân tài Detail Page
- * 
+ *
  * Note for Developers:
  * - This detail page displays comprehensive learner profiles including skills,
  *   experience logs, featured projects, certificates, and internship readiness.

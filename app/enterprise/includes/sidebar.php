@@ -1,11 +1,16 @@
 <?php
 /**
  * Enterprise Dashboard - Sidebar Component
- * 
+ *
  * Note for Junior Developers:
  * - Sidebar contains navigation for Enterprise functions.
  * - Notifications are located in the top header, NOT in the sidebar per specification.
  */
+
+// Ensure app_href() is available regardless of whether the caller loaded bootstrap.
+if (!function_exists('app_href') && is_file(__DIR__ . '/../../../bin/bootstrap.php')) {
+    require_once __DIR__ . '/../../../bin/bootstrap.php';
+}
 ?>
 <!-- Sidebar Overlay Backdrop for Mobile & Tablet -->
 <div class="ent-sidebar-backdrop" id="ent-sidebar-backdrop" aria-hidden="true"></div>
