@@ -15,7 +15,7 @@ $headerSearchPlaceholder = $headerSearchPlaceholder ?? 'Tìm hoạt động, k�
         >
             <?= learner_icon('menu', 24); ?>
         </button>
-        <a class="learner-role-switch" href="/role-selection.php">
+        <a class="learner-role-switch" href="../../role-selection.php">
             <?= learner_icon('arrow-left', 18); ?>
             <span>Đổi vai trò</span>
         </a>

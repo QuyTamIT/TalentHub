@@ -70,11 +70,11 @@ $session = new SessionManager(require dirname(__DIR__, 3) . '/config/session.php
 $session->start();
 $user = $session->user();
 if ($user === null) {
-    header('Location: /login.php?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/app/teacher/students/index.php'));
+    header('Location: ../../login.php?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/app/teacher/students/index.php'));
     exit;
 }
 if (($user['role'] ?? null) !== 'teacher') {
-    header('Location: /role-selection.php');
+    header('Location: ../../role-selection.php');
     exit;
 }
 
@@ -187,7 +187,7 @@ $kpis = [
                             <span class="teacher-section-box__count">Trang <?= (int) $pagination['page']; ?> / <?= (int) $pagination['lastPage']; ?></span>
                         </div>
 
-                        <form class="teacher-students-filters" method="get" action="/app/teacher/students/index.php">
+                        <form class="teacher-students-filters" method="get" action="./index.php">
                             <label class="teacher-students-field teacher-students-field--search">
                                 <span>Tìm kiếm</span>
                                 <input type="search" name="search" maxlength="100" value="<?= teacher_students_escape($filters['search']); ?>" placeholder="Họ tên hoặc email">
@@ -216,7 +216,7 @@ $kpis = [
                             </label>
                             <input type="hidden" name="perPage" value="<?= (int) $pagination['perPage']; ?>">
                             <div class="teacher-students-filter-actions">
-                                <a class="btn btn-sm btn-outline" href="/app/teacher/students/index.php">Xoá lọc</a>
+                                <a class="btn btn-sm btn-outline" href="./index.php">Xoá lọc</a>
                                 <button class="btn btn-sm btn-primary" type="submit">Lọc</button>
                             </div>
                         </form>

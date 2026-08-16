@@ -31,10 +31,7 @@
             <?php foreach ($sidebarNav as $navItem): 
                 $isActive = (isset($currentRoute) && ($navItem['route'] === $currentRoute || strpos($currentRoute, strtok($navItem['route'], '.')) === 0 && $navItem['route'] !== '/app/enterprise')) || (!isset($currentRoute) && $navItem['active']);
                 
-                $hrefRoute = $navItem['route'];
-                if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/TalentHub') !== false && strpos($hrefRoute, '/TalentHub') === false && strpos($hrefRoute, '/') === 0) {
-                    $hrefRoute = '/TalentHub' . $hrefRoute;
-                }
+                $hrefRoute = app_href($navItem['route']);
             ?>
                 <li>
                     <a href="<?= htmlspecialchars($hrefRoute); ?>" 
@@ -81,7 +78,7 @@
 
     <!-- Bottom Action to Return to Role Selection -->
     <div class="ent-sidebar__footer">
-        <a href="/role-selection.php" class="ent-sidebar__link ent-sidebar__link--switch">
+        <a href="../../role-selection.php" class="ent-sidebar__link ent-sidebar__link--switch">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M16 17l5-5-5-5M19.8 12H9M13 22a10 10 0 1 1 0-20"></path>
             </svg>

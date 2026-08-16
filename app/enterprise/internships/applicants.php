@@ -168,7 +168,7 @@ $sidebarNav = [
                                     Hiện tại chưa có ứng viên nào gửi hồ sơ đăng ký cho vị trí <strong>"<?= htmlspecialchars($post['title']); ?>"</strong>. Bạn có thể sử dụng công cụ Tìm kiếm nhân tài chủ động để kết nối với các ứng viên phù hợp.
                                 </p>
                                 <div class="d-flex align-items-center justify-content-center gap-2">
-                                    <a href="/app/enterprise/talents.php" class="btn btn-primary">
+                                    <a href="../talents.php" class="btn btn-primary">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <circle cx="11" cy="11" r="8"></circle>
                                             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>

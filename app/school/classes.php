@@ -57,7 +57,7 @@ ob_start();
 ?>
 <?php
 $pageDescription = 'Quản lý các lớp theo khối, xem sĩ số và tỷ lệ hoàn thiện hồ sơ.';
-$pageActions = '<a href="/app/school/class-edit.php" class="btn btn-primary">+ Thêm lớp mới</a>';
+$pageActions = '<a href="./class-edit.php" class="btn btn-primary">+ Thêm lớp mới</a>';
 include __DIR__ . '/includes/page-banner.php';
 ?>
 
@@ -132,14 +132,14 @@ include __DIR__ . '/includes/page-banner.php';
                         <div style="height: 100%; width: <?= $class['completion'] ?>%; background: <?= $class['completion'] >= 80 ? '#22C55E' : ($class['completion'] >= 70 ? '#F59E0B' : '#EF4444'); ?>; border-radius: 3px;"></div>
                     </div>
                     <div style="display: flex; gap: 0.5rem;">
-                        <a href="/app/school/students.php?classId=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="flex: 1; text-decoration:none;">
+                        <a href="./students.php?classId=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="flex: 1; text-decoration:none;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
                             </svg>
                             Học sinh
                         </a>
-                        <a href="/app/school/class-edit.php?id=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="text-decoration:none;">
+                        <a href="./class-edit.php?id=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="text-decoration:none;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -156,7 +156,7 @@ include __DIR__ . '/includes/page-banner.php';
 <?php if ($classes === []): ?>
     <div class="school-section-box" style="text-align:center;padding:3rem 1.5rem;">
         <p style="color: var(--text-muted); margin-bottom:1rem;">Trường chưa có lớp học nào.</p>
-        <a href="/app/school/class-edit.php" class="btn btn-primary">Tạo lớp đầu tiên</a>
+        <a href="./class-edit.php" class="btn btn-primary">Tạo lớp đầu tiên</a>
     </div>
 <?php endif; ?>
 <?php

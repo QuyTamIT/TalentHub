@@ -11,7 +11,7 @@ use TalentHub\Http\ApiException;
 use TalentHub\Support\Id\RequestId;
 
 $session=new SessionManager(require __DIR__.'/config/session.php');$session->start();
-if(($current=$session->user())!==null){header('Location: '.AuthPortalRouter::destination((string)$current['role']));exit;}
+if(($current=$session->user())!==null){header('Location: '.app_href(AuthPortalRouter::destination((string)$current['role'])));exit;}
 
 $values=['fullName'=>'','email'=>'','phone'=>'','dateOfBirth'=>'','schoolId'=>'','classId'=>''];$fieldErrors=[];$errorMessage=null;$classes=[];$repository=null;
 try{$pdo=(new Connection(require __DIR__.'/config/database.php'))->connect();$repository=new AuthRepository($pdo);$classes=$repository->registrationClasses();}
@@ -28,8 +28,8 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
     if($repository===null){$errorMessage='Không thể kết nối dịch vụ đăng ký. Vui lòng thử lại sau.';}
     elseif($fieldErrors===[]){
         try{
-            $auth=new AuthService($repository);$user=$auth->registerStudent(['fullName'=>$values['fullName'],'email'=>$values['email'],'phone'=>$values['phone'],'dateOfBirth'=>$values['dateOfBirth'],'classId'=>$values['classId'],'password'=>$password],RequestId::make(null),$_SERVER['REMOTE_ADDR']??null);
-            $_SESSION['authFlash']=['type'=>'registered','email'=>$user['email']];header('Location: /login.php');exit;
+            $auth=new AuthService($repository);$user=$auth->registerStudent([...$values,'password'=>$password],RequestId::make(null),$_SERVER['REMOTE_ADDR']??null);
+            $_SESSION['authFlash']=['type'=>'registered','email'=>$user['email']];header('Location: ./login.php');exit;
         }catch(ApiException $exception){$errorMessage=$exception->getMessage();foreach($exception->details as $detail){$fieldErrors[$detail['field']]=$detail['message'];}}
         catch(Throwable){$errorMessage='Không thể hoàn tất đăng ký. Vui lòng thử lại sau.';}
     }
@@ -51,7 +51,7 @@ $schools=[];foreach($classes as $class){$schools[$class['schoolId']]=['id'=>$cla
 <body class="auth-page auth-page--register">
 <main class="auth-layout">
     <section class="auth-brand auth-brand--register" aria-labelledby="auth-brand-title">
-        <a class="auth-brand__logo" href="/index.php" aria-label="TalentHub - Về trang chủ"><img src="/assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
+        <a class="auth-brand__logo" href="./index.php" aria-label="TalentHub - Về trang chủ"><img src="./assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
         <div class="auth-brand__content">
             <p class="auth-eyebrow">Khởi tạo hồ sơ học viên</p>
             <h1 id="auth-brand-title">Bắt đầu từ năng lực của chính bạn</h1>
@@ -66,10 +66,10 @@ $schools=[];foreach($classes as $class){$schools[$class['schoolId']]=['id'=>$cla
     </section>
     <section class="auth-panel" aria-labelledby="register-title">
         <div class="auth-panel__inner auth-panel__inner--wide">
-            <a class="auth-mobile-logo" href="/index.php"><img src="/assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
+            <a class="auth-mobile-logo" href="./index.php"><img src="./assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
             <div class="auth-heading"><div class="auth-heading__row"><div><p class="auth-kicker">Tài khoản mới</p><h2 id="register-title">Đăng ký học viên</h2></div><span class="auth-role-badge">Student</span></div><p>Điền đúng thông tin đang sử dụng tại trường của bạn.</p></div>
             <?php if($errorMessage!==null): ?><div class="auth-alert auth-alert--error" role="alert"><?=registerEscape($errorMessage)?></div><?php endif; ?>
-            <form class="auth-form auth-form--register" method="post" action="/register.php" data-auth-form novalidate>
+            <form class="auth-form auth-form--register" method="post" action="./register.php" data-auth-form novalidate>
                 <div class="auth-form-grid">
                     <div class="auth-form-section auth-field--full"><span>01</span><div><strong>Thông tin cá nhân</strong><small>Nhập thông tin cơ bản của học viên</small></div></div>
                     <div class="auth-field auth-field--full"><label for="fullName">Họ và tên</label><input id="fullName" name="fullName" value="<?=registerEscape($values['fullName'])?>" autocomplete="name" minlength="2" maxlength="150" required <?php if(isset($fieldErrors['fullName'])): ?>aria-invalid="true" aria-describedby="fullName-error"<?php endif; ?>><?php if(isset($fieldErrors['fullName'])): ?><span class="auth-field__error" id="fullName-error"><?=registerEscape($fieldErrors['fullName'])?></span><?php endif; ?></div>
@@ -85,11 +85,11 @@ $schools=[];foreach($classes as $class){$schools[$class['schoolId']]=['id'=>$cla
                 </div>
                 <button class="auth-submit" type="submit" data-submit <?php if($classes===[]): ?>disabled<?php endif; ?>><span>Tạo tài khoản học viên</span><span aria-hidden="true">→</span></button>
             </form>
-            <p class="auth-switch">Đã có tài khoản? <a href="/login.php">Đăng nhập</a></p>
-            <a class="auth-back" href="/index.php">← Về trang chủ</a>
+            <p class="auth-switch">Đã có tài khoản? <a href="./login.php">Đăng nhập</a></p>
+            <a class="auth-back" href="./index.php">← Về trang chủ</a>
         </div>
     </section>
 </main>
-<script src="/assets/js/auth.js" defer></script>
+<script src="./assets/js/auth.js" defer></script>
 </body>
 </html>

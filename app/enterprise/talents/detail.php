@@ -91,7 +91,7 @@ $sidebarNav = [
                     
                     <!-- Back Link Navigation -->
                     <div class="ent-back-bar">
-                        <a href="/app/enterprise/talents.php" class="ent-back-link" data-route="/app/enterprise/talents.php">
+                        <a href="../talents.php" class="ent-back-link" data-route="/app/enterprise/talents.php">
                             &larr; Quay lại Tìm nhân tài
                         </a>
                     </div>
@@ -110,7 +110,7 @@ $sidebarNav = [
                             <p class="ent-empty-state__desc">
                                 Hồ sơ ứng viên với mã mã số #<?= htmlspecialchars($talentId); ?> không tồn tại hoặc đã bị xóa khỏi hệ thống.
                             </p>
-                            <a href="/app/enterprise/talents.php" class="btn btn-primary">
+                            <a href="../talents.php" class="btn btn-primary">
                                 &larr; Quay lại Tìm nhân tài
                             </a>
                         </div>

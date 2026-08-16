@@ -293,6 +293,14 @@ final class SchoolDashboardService
         $fullName = $this->text($input['fullName'] ?? null, 'fullName', 2, 150, false);
         $isAdmin  = !empty($input['isSchoolAdmin']);
 
+        $exists = $this->pdo->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
+        $exists->execute(['email' => $email]);
+        if ($exists->fetchColumn()) {
+            throw new ApiException(422, 'EMAIL_ALREADY_EXISTS', 'Email đã được sử dụng bởi người dùng khác.', [
+                ['field' => 'email', 'code' => 'EMAIL_ALREADY_EXISTS', 'message' => 'Email đã tồn tại trong hệ thống.'],
+            ]);
+        }
+
         $generated = bin2hex(random_bytes(6));
         $passwordHash = password_hash($generated, PASSWORD_DEFAULT);
 

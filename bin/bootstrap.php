@@ -34,7 +34,6 @@ declare(strict_types=1);
             continue;
         }
         $value = trim(substr($trim, $eq + 1));
-        // Strip surrounding single or double quotes.
         if (strlen($value) >= 2) {
             $first = $value[0];
             $last  = $value[strlen($value) - 1];
@@ -42,7 +41,6 @@ declare(strict_types=1);
                 $value = substr($value, 1, -1);
             }
         }
-        // Skip when an env var is already set (real environment trumps .env).
         if (array_key_exists($name, $_ENV) || array_key_exists($name, $_SERVER) || getenv($name) !== false) {
             continue;
         }
@@ -60,3 +58,61 @@ spl_autoload_register(static function(string $class): void {
     else{$path=dirname(__DIR__).'/src/'.$relative.'.php';}
     if(is_file($path)){require $path;}
 });
+
+/**
+ * Convert an absolute app path (e.g. "/app/school/students.php") into a
+ * relative URL from the current executing script's directory.
+ *
+ * Browser resolves relative URLs from the directory *containing* the current
+ * script. The helper computes the shortest relative path from that directory
+ * to the target, keeping navigation correct regardless of where the app
+ * is mounted under the web server's DocumentRoot.
+ *
+ * Examples (app at /FTalentHUB/TalentHub/):
+ *   login.php + /app/school/index.php  ->  app/school/index.php
+ *   students.php + /app/school/teachers.php  ->  teachers.php
+ *   app/teacher/students/index.php + /login.php  ->  ../../../login.php
+ */
+if (!function_exists('app_href')) {
+    function app_href(string $absolutePath): string {
+        $appRootFs = str_replace('\\', '/', dirname(__DIR__));
+        $docRootFs = str_replace('\\', '/', (string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+        $appRootUrl = ($docRootFs !== '' && str_starts_with($appRootFs, $docRootFs))
+            ? substr($appRootFs, strlen($docRootFs))
+            : '/';
+        $appRootUrl = '/' . ltrim($appRootUrl, '/');
+
+        // Browser resolves from the directory containing the current script.
+        $scriptDir = str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '')));
+        $targetPath = str_replace('\\', '/', parse_url($absolutePath, PHP_URL_PATH) ?: $absolutePath);
+
+        // Strip app root from both.
+        $scriptInsideApp = str_starts_with($scriptDir, $appRootUrl)
+            && (strlen($scriptDir) === strlen($appRootUrl) || $scriptDir[strlen($appRootUrl)] === '/');
+        $targetInsideApp = str_starts_with($targetPath, $appRootUrl)
+            && (strlen($targetPath) === strlen($appRootUrl) || $targetPath[strlen($appRootUrl)] === '/');
+
+        $scriptRel = $scriptInsideApp
+            ? substr($scriptDir, strlen($appRootUrl) + 1)
+            : substr($scriptDir, 1);
+        $targetRel = $targetInsideApp
+            ? substr($targetPath, strlen($appRootUrl) + 1)
+            : substr($targetPath, 1);
+
+        if ($targetRel === '') { $targetRel = '.'; }
+        if ($scriptRel === '') { return $targetRel; }
+
+        $scriptParts = explode('/', $scriptRel);
+        $targetParts = explode('/', $targetRel);
+
+        $i = 0;
+        $max = min(count($scriptParts), count($targetParts));
+        while ($i < $max && $scriptParts[$i] === $targetParts[$i]) { $i++; }
+
+        $up = count($scriptParts) - $i;
+        $down = array_slice($targetParts, $i);
+
+        $relative = str_repeat('../', $up) . implode('/', $down);
+        return $relative === '' ? './' : $relative;
+    }
+}

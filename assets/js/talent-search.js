@@ -676,7 +676,7 @@ function initTalentSearchModule() {
                             </div>
                             <div class="ent-talent-card-item__title-box">
                                 <div class="ent-talent-card-item__name-row">
-                                    <a href="/app/enterprise/talents/detail.php?id=${talent.id}" class="ent-talent-card-item__name">
+                                    <a href="../talents/detail.php?id=${talent.id}" class="ent-talent-card-item__name">
                                         ${escapeHtml(talent.name)}
                                     </a>
                                     <span class="ent-talent-card-item__score" title="Điểm đánh giá năng lực">
@@ -742,7 +742,7 @@ function initTalentSearchModule() {
                             <span>Hồ sơ đã bảo vệ danh tính</span>
                         </div>
                         <div class="ent-talent-card-item__actions">
-                            <a href="/app/enterprise/talents/detail.php?id=${talent.id}" 
+                            <a href="../talents/detail.php?id=${talent.id}" 
                                class="btn btn-secondary btn-sm" 
                                data-route="/app/enterprise/talents/detail.php?id=${talent.id}">
                                 Xem hồ sơ

@@ -72,7 +72,7 @@ include __DIR__ . '/includes/page-banner.php';
     <div class="school-flash school-flash--error"><?= htmlspecialchars($error); ?></div>
 <?php endif; ?>
 
-<div class="school-grid-2col">
+<div class="school-grid-2col school-grid-2col--teachers">
     <div class="school-section-box">
         <div class="school-section-box__header">
             <h3 class="school-section-box__title">Mời giáo viên mới</h3>
@@ -178,32 +178,8 @@ $pageBody = ob_get_clean();
 
 $extraStyles = <<<'HTML'
 <style>
-.school-grid-2col { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 1.5rem; }
-.school-form__grid { display: grid; gap: 1rem; margin-top: 1rem; }
-.school-form__field { display: flex; flex-direction: column; gap: 0.375rem; font-size: 0.875rem; color: var(--text-secondary); }
-.school-form__field input,
-.school-form__field select { width: 100%; padding: 0.625rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); font-size: 0.9375rem; }
-.school-form__field input:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
-.school-form__field em { color: #DC2626; font-style: normal; margin-left: 2px; }
-.school-form__field--checkbox {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 500;
-}
-.school-form__field--checkbox input[type="checkbox"] {
-    width: 1rem;
-    height: 1rem;
-    margin: 0;
-    accent-color: var(--primary);
-}
-.school-form__actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; }
-.school-flash { padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: 0.875rem; }
-.school-flash--success { background: #ECFDF5; color: #047857; border: 1px solid #6EE7B7; }
-.school-flash--error { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
-.school-pagination { display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; justify-content: flex-end; }
-.school-pagination__info { font-size: 0.8125rem; color: var(--text-muted); }
-@media (max-width: 900px) { .school-grid-2col { grid-template-columns: 1fr; } }
+.school-grid-2col.school-grid-2col--teachers { grid-template-columns: minmax(0, 320px) minmax(0, 1fr); }
+@media (max-width: 900px) { .school-grid-2col--teachers { grid-template-columns: 1fr; } }
 </style>
 HTML;
 

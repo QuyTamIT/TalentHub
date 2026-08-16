@@ -255,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="ent-applicant-identity">
                                 <div class="ent-applicant-avatar">${escapeHtml(app.avatar_initials)}</div>
                                 <div class="ent-applicant-info">
-                                    <a href="/app/enterprise/talents/detail.php?id=${app.student_id}" 
+                                    <a href="../talents/detail.php?id=${app.student_id}" 
                                        class="ent-applicant-info__name"
                                        title="Xem Talent Passport của ${escapeHtml(app.name)}">
                                         ${escapeHtml(app.name)}
@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </td>
                         <td class="text-right">
                             <div class="ent-action-group">
-                                <a href="/app/enterprise/talents/detail.php?id=${app.student_id}" 
+                                <a href="../talents/detail.php?id=${app.student_id}" 
                                    class="btn btn-secondary btn-sm"
                                    title="Xem Talent Passport">
                                     Xem hồ sơ
@@ -339,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     ${escapeHtml(app.avatar_initials)}
                                 </div>
                                 <div class="ent-applicant-info">
-                                    <a href="/app/enterprise/talents/detail.php?id=${app.student_id}" class="ent-applicant-info__name">
+                                    <a href="../talents/detail.php?id=${app.student_id}" class="ent-applicant-info__name">
                                         ${escapeHtml(app.name)}
                                     </a>
                                     <div class="ent-applicant-info__sub">${escapeHtml(app.school)} &middot; ${escapeHtml(app.class_code || app.education_level)}</div>
@@ -355,7 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="d-flex align-items-center justify-content-between pt-2 border-top">
                             <div>${renderStatusPillHtml(app.status, app.status_label)}</div>
                             <div class="ent-action-group">
-                                <a href="/app/enterprise/talents/detail.php?id=${app.student_id}" class="btn btn-secondary btn-sm">Xem hồ sơ</a>
+                                <a href="../talents/detail.php?id=${app.student_id}" class="btn btn-secondary btn-sm">Xem hồ sơ</a>
                                 <button type="button" class="btn ${primaryBtnClass} btn-sm btn-review-app" data-app-id="${app.id}">${primaryBtnText}</button>
                                 <div class="ent-dropdown">
                                     <button type="button" class="btn btn-secondary btn-sm ent-dropdown-toggle">&ctdot;</button>

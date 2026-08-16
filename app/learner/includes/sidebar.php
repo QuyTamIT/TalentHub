@@ -23,7 +23,7 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
                 <li>
                     <a
                         class="learner-sidebar__link<?= $isActive ? ' is-active' : ''; ?>"
-                        href="<?= learner_escape($item['route']); ?>"
+                        href="<?= learner_escape(app_href($item['route'])); ?>"
                         <?= $isActive ? 'aria-current="page"' : ''; ?>
                         <?= !$item['implemented'] ? 'data-pending-route="true"' : ''; ?>
                     >

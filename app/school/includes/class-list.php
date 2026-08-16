@@ -44,7 +44,7 @@ $classes = [
             <h3 class="school-section-box__title">Danh sách lớp</h3>
             <p class="school-section-box__subtitle">12 lớp trong trường</p>
         </div>
-        <a href="/app/school/classes.php" class="school-section-box__link">Quản lý lớp</a>
+        <a href="../classes.php" class="school-section-box__link">Quản lý lớp</a>
     </div>
     <table class="school-class-table">
         <thead>

@@ -87,7 +87,7 @@ final class SchoolAppContext
 
     public function redirectToRoleSelection(string $query = ''): never
     {
-        $target = '/role-selection.php' . $query;
+        $target = app_href('/role-selection.php') . $query;
         header('Location: ' . $target);
         exit;
     }
@@ -104,7 +104,7 @@ final class SchoolAppContext
 
     private function resolveLoginUrl(): string
     {
-        $base = '/login.php';
+        $base = app_href('/login.php');
         return $base . '?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/app/school/');
     }
 }
