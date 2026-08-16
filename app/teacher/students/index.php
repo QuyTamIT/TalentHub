@@ -70,11 +70,11 @@ $session = new SessionManager(require dirname(__DIR__, 3) . '/config/session.php
 $session->start();
 $user = $session->user();
 if ($user === null) {
-    header('Location: ../../login.php?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/app/teacher/students/index.php'));
+    header('Location: ' . app_href('/login.php') . '?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/app/teacher/students/index.php'));
     exit;
 }
 if (($user['role'] ?? null) !== 'teacher') {
-    header('Location: ../../role-selection.php');
+    header('Location: ' . app_href('/role-selection.php'));
     exit;
 }
 
