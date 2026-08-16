@@ -30,7 +30,7 @@ WHERE experience.studentId = :student_id
   AND experience.confirmedAt IS NOT NULL
   AND checkin_record.status = 'confirmed'
   AND checkin_record.confirmedAt IS NOT NULL
-  AND activity.status = 'active'
+  AND activity.status IN ('published', 'active')
 ORDER BY experience.confirmedAt DESC, experience.id DESC
 SQL;
 

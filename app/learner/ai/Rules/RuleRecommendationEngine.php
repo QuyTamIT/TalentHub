@@ -49,7 +49,7 @@ final class RuleRecommendationEngine implements RecommendationEngine
                         $evidence,
                     ),
                     'priority' => $definition->priority(),
-                    'source_id' => (string) ($built['source_id'] ?? ''),
+                    'source_id' => (string) ($built['sort_source_id'] ?? $built['source_id'] ?? ''),
                     'rule_id' => $definition->id(),
                 ];
             }

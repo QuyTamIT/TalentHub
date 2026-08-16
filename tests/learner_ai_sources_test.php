@@ -45,6 +45,8 @@ function sources_fixture(): PDO
     $pdo->exec('CREATE TABLE checkins (id TEXT PRIMARY KEY, registrationId TEXT NOT NULL, status TEXT NOT NULL, confirmedAt TEXT NULL)');
     $pdo->exec('CREATE TABLE experience_logs (id TEXT PRIMARY KEY, studentId TEXT NOT NULL, activityId TEXT NOT NULL, checkinId TEXT NOT NULL, hours REAL NOT NULL, status TEXT NOT NULL, confirmedAt TEXT NULL)');
     $pdo->exec('CREATE TABLE assessments (id TEXT PRIMARY KEY, studentId TEXT NOT NULL, activityId TEXT NOT NULL, overallScore REAL NULL, comment TEXT NULL, status TEXT NOT NULL, publishedAt TEXT NULL)');
+    $pdo->exec('CREATE TABLE assessment_criteria (id TEXT PRIMARY KEY, code TEXT NOT NULL, name TEXT NOT NULL, status TEXT NOT NULL)');
+    $pdo->exec('CREATE TABLE assessment_scores (id TEXT PRIMARY KEY, assessmentId TEXT NOT NULL, criteriaId TEXT NOT NULL, score REAL NOT NULL)');
     $pdo->exec('CREATE TABLE enterprises (id TEXT PRIMARY KEY, status TEXT NOT NULL, verificationStatus TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE internship_posts (id TEXT PRIMARY KEY, enterpriseId TEXT NOT NULL, title TEXT NOT NULL, location TEXT NOT NULL, deadline TEXT NOT NULL, status TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE learner_ai_consent_events (id TEXT PRIMARY KEY, studentId TEXT NOT NULL, scope TEXT NOT NULL, action TEXT NOT NULL, policyVersion TEXT NOT NULL, occurredAt TEXT NOT NULL, requestId TEXT NOT NULL)');
@@ -59,12 +61,14 @@ function sources_fixture(): PDO
     $pdo->exec("INSERT INTO learner_assessment_attempt_metadata (id, attemptId, versionId, status, submittedAt) VALUES ('metadata-published', 'attempt-published', 'version-published', 'submitted', '2026-08-02 11:00:00.234567'), ('metadata-draft', 'attempt-draft', 'version-draft', 'submitted', '2026-08-03 11:00:00'), ('metadata-b', 'attempt-b', 'version-published', 'submitted', '2026-08-04 11:00:00')");
     $pdo->exec("INSERT INTO test_results (id, attemptId, resultCode, dimensionScoresJson) VALUES ('result-published', 'attempt-published', 'RIASEC', '{\"R\":82,\"I\":71}'), ('result-draft', 'attempt-draft', 'DRAFT', '{\"S\":99}'), ('result-b', 'attempt-b', 'B', '{\"A\":65}')");
 
-    $pdo->exec("INSERT INTO activities (id, category, status) VALUES ('activity-confirmed', 'workshop', 'active'), ('activity-pending', 'seminar', 'active'), ('activity-closed', 'workshop', 'inactive'), ('activity-b', 'project', 'active')");
+    $pdo->exec("INSERT INTO activities (id, category, status) VALUES ('activity-confirmed', 'workshop', 'published'), ('activity-pending', 'seminar', 'active'), ('activity-closed', 'workshop', 'inactive'), ('activity-b', 'project', 'active')");
     $pdo->exec("INSERT INTO activity_registrations (id, activityId, studentId) VALUES ('registration-confirmed', 'activity-confirmed', 'student-a'), ('registration-pending', 'activity-pending', 'student-a'), ('registration-closed', 'activity-closed', 'student-a'), ('registration-b', 'activity-b', 'student-b')");
     $pdo->exec("INSERT INTO checkins (id, registrationId, status, confirmedAt) VALUES ('checkin-confirmed', 'registration-confirmed', 'confirmed', '2026-08-05 10:00:00'), ('checkin-not-confirmed', 'registration-pending', 'checked_in', NULL), ('checkin-closed', 'registration-closed', 'confirmed', '2026-08-05 10:00:00'), ('checkin-b', 'registration-b', 'confirmed', '2026-08-06 10:00:00')");
     $pdo->exec("INSERT INTO experience_logs (id, studentId, activityId, checkinId, hours, status, confirmedAt) VALUES ('experience-confirmed', 'student-a', 'activity-confirmed', 'checkin-confirmed', 4.5, 'confirmed', '2026-08-05 12:00:00.345678'), ('experience-checkin-pending', 'student-a', 'activity-pending', 'checkin-not-confirmed', 6, 'confirmed', '2026-08-06 12:00:00'), ('experience-closed', 'student-a', 'activity-closed', 'checkin-closed', 6, 'confirmed', '2026-08-05 12:00:00'), ('experience-pending', 'student-a', 'activity-confirmed', 'checkin-confirmed', 7, 'pending', NULL), ('experience-b', 'student-b', 'activity-b', 'checkin-b', 8, 'confirmed', '2026-08-06 12:00:00')");
 
     $pdo->exec("INSERT INTO assessments (id, studentId, activityId, overallScore, comment, status, publishedAt) VALUES ('evaluation-published', 'student-a', 'activity-confirmed', 92, 'Teacher-only comment', 'published', '2026-08-07 08:00:00.456789'), ('evaluation-draft', 'student-a', 'activity-confirmed', 100, 'Draft comment', 'draft', NULL), ('evaluation-b', 'student-b', 'activity-b', 80, 'Other learner comment', 'published', '2026-08-08 08:00:00')");
+    $pdo->exec("INSERT INTO assessment_criteria (id, code, name, status) VALUES ('criteria-presentation', 'presentation', 'Presentation', 'active')");
+    $pdo->exec("INSERT INTO assessment_scores (id, assessmentId, criteriaId, score) VALUES ('score-presentation-a', 'evaluation-published', 'criteria-presentation', 55)");
 
     $pdo->exec("INSERT INTO enterprises (id, status, verificationStatus) VALUES ('enterprise-active', 'active', 'verified'), ('enterprise-inactive', 'inactive', 'verified'), ('enterprise-unverified', 'active', 'pending')");
     $pdo->exec("INSERT INTO internship_posts (id, enterpriseId, title, location, deadline, status) VALUES ('opportunity-active', 'enterprise-active', 'IoT Intern', 'Da Nang', '2026-09-01 00:00:00.567890', 'active'), ('opportunity-inactive', 'enterprise-active', 'Closed Intern', 'Ha Noi', '2026-09-02', 'inactive'), ('opportunity-enterprise-inactive', 'enterprise-inactive', 'Blocked Intern', 'Hue', '2026-09-03', 'active'), ('opportunity-unverified', 'enterprise-unverified', 'Pending Intern', 'Can Tho', '2026-09-04', 'active')");
@@ -128,11 +132,18 @@ sources_assert($experience[0]['confirmed_at'] === '2026-08-05T12:00:00.345678+00
 $evaluations = $evaluationSource->forStudent('student-a');
 sources_assert(count($evaluations) === 1, 'published evaluation source excludes drafts and other learner rows');
 sources_assert($evaluations[0]['overall_score'] === 92.0, 'published evaluation returns score but no teacher comment');
+sources_assert($evaluations[0]['presentation_score'] === 55.0, 'published evaluation exposes only the scalar presentation criterion needed by the rule baseline');
 sources_assert($evaluations[0]['published_at'] === '2026-08-07T08:00:00.456789+00:00', 'published evaluation timestamp preserves microseconds in UTC');
 
 $contractUnavailable = new PDO('sqlite::memory:');
 $contractUnavailable->exec('CREATE TABLE assessments (id TEXT PRIMARY KEY, studentId TEXT NOT NULL, activityId TEXT NOT NULL, overallScore REAL NULL, status TEXT NOT NULL)');
 sources_assert((new DatabasePublishedEvaluationSource($contractUnavailable))->forStudent('student-a') === [], 'published evaluation fails closed when the publishedAt contract is unavailable');
+
+$presentationContractUnavailable = new PDO('sqlite::memory:');
+$presentationContractUnavailable->exec('CREATE TABLE assessments (id TEXT PRIMARY KEY, studentId TEXT NOT NULL, activityId TEXT NOT NULL, overallScore REAL NOT NULL, status TEXT NOT NULL, publishedAt TEXT NOT NULL)');
+$presentationContractUnavailable->exec("INSERT INTO assessments (id, studentId, activityId, overallScore, status, publishedAt) VALUES ('evaluation-base-only', 'student-a', 'activity-a', 75, 'published', '2026-08-07 08:00:00')");
+$baseOnlyEvaluations = (new DatabasePublishedEvaluationSource($presentationContractUnavailable))->forStudent('student-a');
+sources_assert(count($baseOnlyEvaluations) === 1 && !array_key_exists('presentation_score', $baseOnlyEvaluations[0]), 'published evaluation retains base-safe output when optional presentation tables are unavailable');
 
 $opportunities = $opportunitySource->forStudent('student-a');
 sources_assert(count($opportunities) === 1, 'opportunity source returns only active opportunities from active verified enterprises');

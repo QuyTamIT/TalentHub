@@ -159,7 +159,7 @@ $complete = [
         'experience_id' => 'experience-1', 'activity_id' => 'activity-1', 'activity_category' => 'workshop', 'hours' => 4.5, 'confirmed_at' => '2026-08-02T09:00:00+00:00',
     ]],
     'evaluations' => [[
-        'evaluation_id' => 'evaluation-1', 'activity_id' => 'activity-1', 'overall_score' => 92, 'published_at' => '2026-08-03T09:00:00+00:00',
+        'evaluation_id' => 'evaluation-1', 'activity_id' => 'activity-1', 'overall_score' => 92, 'presentation_score' => 55, 'published_at' => '2026-08-03T09:00:00+00:00',
     ]],
     'opportunities' => [[
         'opportunity_id' => 'opportunity-1', 'enterprise_id' => 'enterprise-1', 'title' => 'IoT internship', 'location' => 'Da Nang', 'deadline_at' => '2026-09-01T00:00:00+00:00',
@@ -189,6 +189,10 @@ snapshot_assert(in_array([
     'source_id' => 'experience-1',
     'source_type' => 'activity_experience',
 ], $orderedInput->evidenceReferences(), true), 'snapshot evidence references retain the exact minimized source value without learner identity');
+snapshot_assert(
+    ($orderedInput->payload()['evaluations'][0]['presentation_score'] ?? null) === 55.0,
+    'snapshot retains the scalar published presentation score required by the rule baseline'
+);
 
 $changed = $complete;
 $changed['skills'][0]['level_score'] = 81;

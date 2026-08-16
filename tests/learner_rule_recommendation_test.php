@@ -98,4 +98,13 @@ learner_rule_assert(
     'score ties are ordered by rule priority then stable source ID'
 );
 
+$sameSkillAssessmentTies = $engine->generate(
+    learner_rule_input([learner_rule_iot_skill('skill-iot')], [learner_rule_holland('assessment-b'), learner_rule_holland('assessment-a')], [], [learner_rule_evaluation()]),
+    learner_rule_context(['assessment', 'skills', 'evaluation']),
+);
+learner_rule_assert(
+    array_map(static fn (RecommendationItem $item): array => [learner_rule_evidence_ids($item, 'skill')[0] ?? '', learner_rule_evidence_ids($item, 'assessment')[0] ?? ''], $sameSkillAssessmentTies->items()) === [['skill-iot', 'assessment-a'], ['skill-iot', 'assessment-b']],
+    'same-skill rule ties are resolved deterministically by the linked assessment source ID'
+);
+
 echo "learner_rule_recommendation_test: OK\n";

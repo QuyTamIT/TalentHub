@@ -180,11 +180,15 @@ final class RecommendationSnapshotBuilder
             if ($id === '' || $publishedAt === null || !is_numeric($record['overall_score'] ?? null)) {
                 continue;
             }
-            $evaluations[] = [
+            $evaluation = [
                 '_source_id' => $id,
                 'overall_score' => (float) $record['overall_score'],
                 'published_at' => $publishedAt,
             ];
+            if (is_numeric($record['presentation_score'] ?? null)) {
+                $evaluation['presentation_score'] = (float) $record['presentation_score'];
+            }
+            $evaluations[] = $evaluation;
         }
         return $this->sortRecords($evaluations);
     }

@@ -57,6 +57,7 @@ final class RuleSetV1
                             'confidence_band' => 'high',
                             'action' => ['type' => 'develop_skill', 'skill_code' => 'iot'],
                             'source_id' => $match['skill']['source_id'],
+                            'sort_source_id' => $match['skill']['source_id'] . ':' . $match['assessment']['source_id'],
                             'evidence_facts' => [$match['assessment'], $match['skill']],
                         ];
                     }
@@ -81,6 +82,7 @@ final class RuleSetV1
                                 'confidence_band' => 'medium',
                                 'action' => ['type' => 'continue_technical_activity', 'activity_source_id' => $activity['source_id']],
                                 'source_id' => $activity['source_id'],
+                                'sort_source_id' => $activity['source_id'] . ':' . $match['skill']['source_id'] . ':' . $match['assessment']['source_id'],
                                 'evidence_facts' => [$match['assessment'], $match['skill'], $activity],
                             ];
                         }
@@ -104,6 +106,7 @@ final class RuleSetV1
                         'confidence_band' => 'medium',
                         'action' => ['type' => 'practice_presentation', 'weeks' => 4],
                         'source_id' => $evaluations[0]['source_id'],
+                        'sort_source_id' => $evaluations[0]['source_id'],
                         'evidence_facts' => $evaluations,
                     ]];
                 },
