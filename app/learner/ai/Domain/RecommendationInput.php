@@ -85,8 +85,17 @@ final class RecommendationInput
 
     private static function normalize(mixed $value): mixed
     {
-        if (!is_array($value)) {
+        if ($value === null || is_string($value) || is_int($value) || is_bool($value)) {
             return $value;
+        }
+        if (is_float($value)) {
+            if (is_finite($value)) {
+                return $value;
+            }
+            throw new \InvalidArgumentException('Recommendation input cannot contain non-finite numbers.');
+        }
+        if (!is_array($value)) {
+            throw new \InvalidArgumentException('Recommendation input cannot contain objects or non-JSON values.');
         }
 
         $normalized = [];

@@ -132,7 +132,7 @@ SQL;
         try {
             return (new DateTimeImmutable($value, new DateTimeZone('UTC')))
                 ->setTimezone(new DateTimeZone('UTC'))
-                ->format(DATE_ATOM);
+                ->format('Y-m-d\\TH:i:s.uP');
         } catch (Throwable) {
             return null;
         }

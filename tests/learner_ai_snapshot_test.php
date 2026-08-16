@@ -177,19 +177,50 @@ snapshot_assert($orderedInput->canonicalJson() === $reorderedInput->canonicalJso
 snapshot_assert(strlen($orderedInput->contentHash()) === 64, 'snapshot exposes a SHA-256 content hash');
 snapshot_assert_no_private_keys($orderedInput->payload());
 snapshot_assert(str_contains($orderedInput->canonicalJson(), 'learner@example.test') === false, 'canonical snapshot excludes direct identifiers');
-snapshot_assert(($orderedInput->sourceUpdatedAt()['assessment'] ?? null) === '2026-08-01T08:00:00+00:00', 'snapshot records source timestamps');
+snapshot_assert(($orderedInput->sourceUpdatedAt()['assessment'] ?? null) === '2026-08-01T08:00:00.000000+00:00', 'snapshot records source timestamps with microseconds');
 snapshot_assert(count($orderedInput->evidenceReferences()) === 6, 'snapshot contains minimized evidence references for all source records');
-snapshot_assert(in_array(['observed_at' => '2026-08-02T09:00:00+00:00', 'source_id' => 'experience-1', 'source_type' => 'activity_experience'], $orderedInput->evidenceReferences(), true), 'snapshot retains stable non-identity evidence references');
+snapshot_assert(in_array(['observed_at' => '2026-08-02T09:00:00.000000+00:00', 'source_id' => 'experience-1', 'source_type' => 'activity_experience'], $orderedInput->evidenceReferences(), true), 'snapshot retains stable non-identity evidence references');
 
 $changed = $complete;
 $changed['skills'][0]['level_score'] = 81;
 $changedInput = snapshot_builder($changed)->build('student-a', ['assessment', 'skills', 'activity', 'evaluation']);
 snapshot_assert($orderedInput->contentHash() !== $changedInput->contentHash(), 'a minimized source value change produces a new content hash');
+$microsecondFirst = $complete;
+$microsecondFirst['skills'][0]['source_updated_at'] = '2026-08-11T09:00:00.000001+00:00';
+$microsecondSecond = $complete;
+$microsecondSecond['skills'][0]['source_updated_at'] = '2026-08-11T09:00:00.000002+00:00';
+snapshot_assert(
+    snapshot_builder($microsecondFirst)->build('student-a', ['assessment', 'skills', 'activity', 'evaluation'])->contentHash()
+        !== snapshot_builder($microsecondSecond)->build('student-a', ['assessment', 'skills', 'activity', 'evaluation'])->contentHash(),
+    'a microsecond-only source timestamp change produces a new content hash'
+);
+$naiveUtc = $complete;
+$naiveUtc['skills'][0]['source_updated_at'] = '2026-08-11 09:00:00.123456';
+$originalTimezone = date_default_timezone_get();
+date_default_timezone_set('Asia/Bangkok');
+try {
+    snapshot_assert(
+        (snapshot_builder($naiveUtc)->build('student-a', ['assessment', 'skills', 'activity', 'evaluation'])->sourceUpdatedAt()['skill'] ?? null)
+            === '2026-08-11T09:00:00.123456+00:00',
+        'snapshot treats timezone-less source timestamps as UTC'
+    );
+} finally {
+    date_default_timezone_set($originalTimezone);
+}
 $payloadCopy = $orderedInput->payload();
 $payloadCopy['skills'] = [];
 snapshot_assert(count($orderedInput->payload()['skills']) === 2, 'snapshot values cannot be mutated through a returned payload copy');
 $privateInput = new RecommendationInput(['access_token' => 'must-not-persist'], [], [], []);
 snapshot_assert(str_contains($privateInput->canonicalJson(), 'must-not-persist') === false, 'snapshot value object removes token-like private keys defensively');
+$mutableObject = (object) ['score' => 82];
+$nestedObjectRejected = false;
+try {
+    new RecommendationInput(['scores' => ['result' => $mutableObject]], [], [], []);
+} catch (InvalidArgumentException) {
+    $nestedObjectRejected = true;
+}
+$mutableObject->score = 0;
+snapshot_assert($nestedObjectRejected, 'snapshot rejects nested mutable objects rather than retaining mutable references');
 
 $qualityGate = new DataQualityGate(new DateTimeImmutable('2026-08-16T00:00:00+00:00'));
 $ready = $qualityGate->evaluate($orderedInput);

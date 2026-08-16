@@ -51,25 +51,25 @@ function sources_fixture(): PDO
 
     $pdo->exec("INSERT INTO student_profiles (id, studyStatus) VALUES ('student-a', 'active'), ('student-b', 'graduated')");
     $pdo->exec("INSERT INTO skills (id, code, name, category, status) VALUES ('skill-python', 'python', 'Python', 'technology', 'active'), ('skill-iot', 'iot', 'IoT', 'technology', 'active'), ('skill-rejected', 'rejected', 'Rejected', 'technology', 'active'), ('skill-inactive', 'inactive', 'Inactive', 'technology', 'inactive')");
-    $pdo->exec("INSERT INTO student_skills (id, studentId, skillId, levelScore, sourceType, verificationStatus, verifiedAt, updatedAt) VALUES ('student-skill-python', 'student-a', 'skill-python', 87, 'assessment', 'verified', '2026-08-01 09:00:00', '2026-08-01 09:00:00'), ('student-skill-iot', 'student-a', 'skill-iot', 61, 'self_declared', 'self_declared', NULL, '2026-08-02 09:00:00'), ('student-skill-rejected', 'student-a', 'skill-rejected', 98, 'assessment', 'rejected', NULL, '2026-08-03 09:00:00'), ('student-skill-inactive', 'student-a', 'skill-inactive', 90, 'assessment', 'verified', '2026-08-04 09:00:00', '2026-08-04 09:00:00'), ('student-skill-b', 'student-b', 'skill-python', 75, 'assessment', 'verified', '2026-08-05 09:00:00', '2026-08-05 09:00:00')");
+    $pdo->exec("INSERT INTO student_skills (id, studentId, skillId, levelScore, sourceType, verificationStatus, verifiedAt, updatedAt) VALUES ('student-skill-python', 'student-a', 'skill-python', 87, 'assessment', 'verified', '2026-08-01 09:00:00.123456', '2026-08-01 09:00:00.123456'), ('student-skill-iot', 'student-a', 'skill-iot', 61, 'self_declared', 'self_declared', NULL, '2026-08-02 09:00:00'), ('student-skill-rejected', 'student-a', 'skill-rejected', 98, 'assessment', 'rejected', NULL, '2026-08-03 09:00:00'), ('student-skill-inactive', 'student-a', 'skill-inactive', 90, 'assessment', 'verified', '2026-08-04 09:00:00', '2026-08-04 09:00:00'), ('student-skill-b', 'student-b', 'skill-python', 75, 'assessment', 'verified', '2026-08-05 09:00:00', '2026-08-05 09:00:00')");
 
     $pdo->exec("INSERT INTO talent_tests (id, code, type, status) VALUES ('test-published', 'holland', 'interest', 'published'), ('test-draft', 'draft-test', 'skills', 'draft')");
     $pdo->exec("INSERT INTO learner_assessment_versions (id, testId, version, scoringVersion, status, publishedAt) VALUES ('version-published', 'test-published', '1.0.0', 'score-1', 'published', '2026-08-01 00:00:00'), ('version-draft', 'test-draft', '1.0.0', 'score-1', 'draft', NULL)");
     $pdo->exec("INSERT INTO test_attempts (id, testId, studentId, status) VALUES ('attempt-published', 'test-published', 'student-a', 'submitted'), ('attempt-draft', 'test-draft', 'student-a', 'submitted'), ('attempt-b', 'test-published', 'student-b', 'submitted')");
-    $pdo->exec("INSERT INTO learner_assessment_attempt_metadata (id, attemptId, versionId, status, submittedAt) VALUES ('metadata-published', 'attempt-published', 'version-published', 'submitted', '2026-08-02 11:00:00'), ('metadata-draft', 'attempt-draft', 'version-draft', 'submitted', '2026-08-03 11:00:00'), ('metadata-b', 'attempt-b', 'version-published', 'submitted', '2026-08-04 11:00:00')");
+    $pdo->exec("INSERT INTO learner_assessment_attempt_metadata (id, attemptId, versionId, status, submittedAt) VALUES ('metadata-published', 'attempt-published', 'version-published', 'submitted', '2026-08-02 11:00:00.234567'), ('metadata-draft', 'attempt-draft', 'version-draft', 'submitted', '2026-08-03 11:00:00'), ('metadata-b', 'attempt-b', 'version-published', 'submitted', '2026-08-04 11:00:00')");
     $pdo->exec("INSERT INTO test_results (id, attemptId, resultCode, dimensionScoresJson) VALUES ('result-published', 'attempt-published', 'RIASEC', '{\"R\":82,\"I\":71}'), ('result-draft', 'attempt-draft', 'DRAFT', '{\"S\":99}'), ('result-b', 'attempt-b', 'B', '{\"A\":65}')");
 
     $pdo->exec("INSERT INTO activities (id, category) VALUES ('activity-confirmed', 'workshop'), ('activity-pending', 'seminar'), ('activity-b', 'project')");
     $pdo->exec("INSERT INTO activity_registrations (id, activityId, studentId) VALUES ('registration-confirmed', 'activity-confirmed', 'student-a'), ('registration-pending', 'activity-pending', 'student-a'), ('registration-b', 'activity-b', 'student-b')");
     $pdo->exec("INSERT INTO checkins (id, registrationId, status, confirmedAt) VALUES ('checkin-confirmed', 'registration-confirmed', 'confirmed', '2026-08-05 10:00:00'), ('checkin-not-confirmed', 'registration-pending', 'checked_in', NULL), ('checkin-b', 'registration-b', 'confirmed', '2026-08-06 10:00:00')");
-    $pdo->exec("INSERT INTO experience_logs (id, studentId, activityId, checkinId, hours, status, confirmedAt) VALUES ('experience-confirmed', 'student-a', 'activity-confirmed', 'checkin-confirmed', 4.5, 'confirmed', '2026-08-05 12:00:00'), ('experience-checkin-pending', 'student-a', 'activity-pending', 'checkin-not-confirmed', 6, 'confirmed', '2026-08-06 12:00:00'), ('experience-pending', 'student-a', 'activity-confirmed', 'checkin-confirmed', 7, 'pending', NULL), ('experience-b', 'student-b', 'activity-b', 'checkin-b', 8, 'confirmed', '2026-08-06 12:00:00')");
+    $pdo->exec("INSERT INTO experience_logs (id, studentId, activityId, checkinId, hours, status, confirmedAt) VALUES ('experience-confirmed', 'student-a', 'activity-confirmed', 'checkin-confirmed', 4.5, 'confirmed', '2026-08-05 12:00:00.345678'), ('experience-checkin-pending', 'student-a', 'activity-pending', 'checkin-not-confirmed', 6, 'confirmed', '2026-08-06 12:00:00'), ('experience-pending', 'student-a', 'activity-confirmed', 'checkin-confirmed', 7, 'pending', NULL), ('experience-b', 'student-b', 'activity-b', 'checkin-b', 8, 'confirmed', '2026-08-06 12:00:00')");
 
-    $pdo->exec("INSERT INTO assessments (id, studentId, activityId, overallScore, comment, status, publishedAt) VALUES ('evaluation-published', 'student-a', 'activity-confirmed', 92, 'Teacher-only comment', 'published', '2026-08-07 08:00:00'), ('evaluation-draft', 'student-a', 'activity-confirmed', 100, 'Draft comment', 'draft', NULL), ('evaluation-b', 'student-b', 'activity-b', 80, 'Other learner comment', 'published', '2026-08-08 08:00:00')");
+    $pdo->exec("INSERT INTO assessments (id, studentId, activityId, overallScore, comment, status, publishedAt) VALUES ('evaluation-published', 'student-a', 'activity-confirmed', 92, 'Teacher-only comment', 'published', '2026-08-07 08:00:00.456789'), ('evaluation-draft', 'student-a', 'activity-confirmed', 100, 'Draft comment', 'draft', NULL), ('evaluation-b', 'student-b', 'activity-b', 80, 'Other learner comment', 'published', '2026-08-08 08:00:00')");
 
     $pdo->exec("INSERT INTO enterprises (id, status, verificationStatus) VALUES ('enterprise-active', 'active', 'verified'), ('enterprise-inactive', 'inactive', 'verified'), ('enterprise-unverified', 'active', 'pending')");
-    $pdo->exec("INSERT INTO internship_posts (id, enterpriseId, title, location, deadline, status) VALUES ('opportunity-active', 'enterprise-active', 'IoT Intern', 'Da Nang', '2026-09-01', 'active'), ('opportunity-inactive', 'enterprise-active', 'Closed Intern', 'Ha Noi', '2026-09-02', 'inactive'), ('opportunity-enterprise-inactive', 'enterprise-inactive', 'Blocked Intern', 'Hue', '2026-09-03', 'active'), ('opportunity-unverified', 'enterprise-unverified', 'Pending Intern', 'Can Tho', '2026-09-04', 'active')");
+    $pdo->exec("INSERT INTO internship_posts (id, enterpriseId, title, location, deadline, status) VALUES ('opportunity-active', 'enterprise-active', 'IoT Intern', 'Da Nang', '2026-09-01 00:00:00.567890', 'active'), ('opportunity-inactive', 'enterprise-active', 'Closed Intern', 'Ha Noi', '2026-09-02', 'inactive'), ('opportunity-enterprise-inactive', 'enterprise-inactive', 'Blocked Intern', 'Hue', '2026-09-03', 'active'), ('opportunity-unverified', 'enterprise-unverified', 'Pending Intern', 'Can Tho', '2026-09-04', 'active')");
 
-    $pdo->exec("INSERT INTO learner_ai_consent_events (id, studentId, scope, action, policyVersion, occurredAt, requestId) VALUES ('consent-a1', 'student-a', 'assessment', 'granted', 'policy-1', '2026-08-01 00:00:00', 'request-01'), ('consent-a2', 'student-a', 'assessment', 'revoked', 'policy-1', '2026-08-02 00:00:00', 'request-02'), ('consent-a3', 'student-a', 'skills', 'revoked', 'policy-1', '2026-08-01 00:00:00', 'request-03'), ('consent-a4', 'student-a', 'skills', 'granted', 'policy-1', '2026-08-03 00:00:00', 'request-04'), ('consent-a5', 'student-a', 'activity', 'granted', 'policy-1', '2026-08-04 00:00:00', 'request-05'), ('consent-a6', 'student-a', 'evaluation', 'granted', 'policy-1', '2026-08-05 00:00:00', 'request-06'), ('consent-a7', 'student-a', 'evaluation', 'revoked', 'policy-1', '2026-08-05 00:00:00', 'request-07'), ('consent-b1', 'student-b', 'assessment', 'granted', 'policy-1', '2026-08-01 00:00:00', 'request-08')");
+    $pdo->exec("INSERT INTO learner_ai_consent_events (id, studentId, scope, action, policyVersion, occurredAt, requestId) VALUES ('consent-a1', 'student-a', 'assessment', 'granted', 'policy-1', '2026-08-01 00:00:00', 'request-01'), ('consent-a2', 'student-a', 'assessment', 'revoked', 'policy-1', '2026-08-02 00:00:00', 'request-02'), ('consent-a3', 'student-a', 'skills', 'revoked', 'policy-1', '2026-08-01 00:00:00', 'request-03'), ('consent-a4', 'student-a', 'skills', 'granted', 'policy-1', '2026-08-03 00:00:00', 'request-04'), ('consent-a5', 'student-a', 'activity', 'granted', 'policy-1', '2026-08-04 00:00:00', 'request-05'), ('consent-a6', 'student-a', 'evaluation', 'granted', 'policy-1', '2026-08-05 00:00:00', 'request-06'), ('consent-a7', 'student-a', 'evaluation', 'revoked', 'policy-1', '2026-08-05 00:00:00.678901', 'request-07'), ('consent-b1', 'student-b', 'assessment', 'granted', 'policy-1', '2026-08-01 00:00:00', 'request-08')");
 
     return $pdo;
 }
@@ -112,23 +112,23 @@ $skills = $skillSource->forStudent('student-a');
 sources_assert(count($skills) === 2, 'skills exclude rejected, inactive, and other learner rows');
 sources_assert($skills[0]['verification_status'] === 'verified', 'verified skill preserves verification state');
 sources_assert($skills[1]['verification_status'] === 'self_declared', 'self-declared skill preserves verification state');
-sources_assert($skills[0]['verified_at'] === '2026-08-01T09:00:00+00:00', 'skill timestamp is RFC 3339');
+sources_assert($skills[0]['verified_at'] === '2026-08-01T09:00:00.123456+00:00', 'skill timestamp preserves microseconds in UTC');
 
 $assessments = $assessmentSource->forStudent('student-a');
 sources_assert(count($assessments) === 1, 'assessment source returns only submitted results on published definitions and versions');
 sources_assert($assessments[0]['result_code'] === 'RIASEC', 'assessment source returns minimized scored result');
 sources_assert($assessments[0]['dimension_scores'] === ['R' => 82, 'I' => 71], 'assessment source decodes the fixed score payload');
-sources_assert($assessments[0]['submitted_at'] === '2026-08-02T11:00:00+00:00', 'assessment timestamp is RFC 3339');
+sources_assert($assessments[0]['submitted_at'] === '2026-08-02T11:00:00.234567+00:00', 'assessment timestamp preserves microseconds in UTC');
 
 $experience = $experienceSource->forStudent('student-a');
 sources_assert(count($experience) === 1, 'experience exposes hours only after confirmed check-in and confirmed experience');
 sources_assert($experience[0]['hours'] === 4.5, 'confirmed experience exposes its minimized hours');
-sources_assert($experience[0]['confirmed_at'] === '2026-08-05T12:00:00+00:00', 'experience timestamp is RFC 3339');
+sources_assert($experience[0]['confirmed_at'] === '2026-08-05T12:00:00.345678+00:00', 'experience timestamp preserves microseconds in UTC');
 
 $evaluations = $evaluationSource->forStudent('student-a');
 sources_assert(count($evaluations) === 1, 'published evaluation source excludes drafts and other learner rows');
 sources_assert($evaluations[0]['overall_score'] === 92.0, 'published evaluation returns score but no teacher comment');
-sources_assert($evaluations[0]['published_at'] === '2026-08-07T08:00:00+00:00', 'published evaluation timestamp is RFC 3339');
+sources_assert($evaluations[0]['published_at'] === '2026-08-07T08:00:00.456789+00:00', 'published evaluation timestamp preserves microseconds in UTC');
 
 $contractUnavailable = new PDO('sqlite::memory:');
 $contractUnavailable->exec('CREATE TABLE assessments (id TEXT PRIMARY KEY, studentId TEXT NOT NULL, activityId TEXT NOT NULL, overallScore REAL NULL, status TEXT NOT NULL)');
@@ -137,7 +137,7 @@ sources_assert((new DatabasePublishedEvaluationSource($contractUnavailable))->fo
 $opportunities = $opportunitySource->forStudent('student-a');
 sources_assert(count($opportunities) === 1, 'opportunity source returns only active opportunities from active verified enterprises');
 sources_assert($opportunities[0]['title'] === 'IoT Intern', 'opportunity source keeps a minimized opportunity record');
-sources_assert($opportunities[0]['deadline_at'] === '2026-09-01T00:00:00+00:00', 'opportunity deadline is RFC 3339');
+sources_assert($opportunities[0]['deadline_at'] === '2026-09-01T00:00:00.567890+00:00', 'opportunity deadline preserves microseconds in UTC');
 sources_assert($opportunitySource->forStudent('unknown-student') === [], 'opportunity query binds and checks the student id');
 
 $missingOpportunityTable = new PDO('sqlite::memory:');
@@ -179,7 +179,7 @@ sources_assert($missingEnterpriseColumnResult['result'] === [], 'opportunity sou
 
 $events = $consentSource->forStudent('student-a');
 sources_assert(count($events) === 7, 'consent source returns only the learner append-only events');
-sources_assert($events[0]['occurred_at'] === '2026-08-05T00:00:00+00:00', 'consent timestamp is RFC 3339');
+sources_assert($events[0]['occurred_at'] === '2026-08-05T00:00:00.678901+00:00', 'consent timestamp preserves microseconds in UTC');
 sources_assert($consentPolicy->allowedScopes('student-a') === ['activity', 'skills'], 'consent policy returns only scopes whose latest append-only action is granted');
 sources_assert($consentPolicy->allowedScopes('student-b') === ['assessment'], 'consent policy does not use another learner events');
 

@@ -295,7 +295,9 @@ final class RecommendationSnapshotBuilder
             return null;
         }
         try {
-            return (new \DateTimeImmutable($value))->setTimezone(new \DateTimeZone('UTC'))->format(DATE_ATOM);
+            return (new \DateTimeImmutable($value, new \DateTimeZone('UTC')))
+                ->setTimezone(new \DateTimeZone('UTC'))
+                ->format('Y-m-d\\TH:i:s.uP');
         } catch (\Throwable) {
             return null;
         }
