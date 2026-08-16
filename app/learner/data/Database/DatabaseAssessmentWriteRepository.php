@@ -385,7 +385,13 @@ SQL,
             if (!in_array($dimension, self::HOLLAND_DIMENSIONS, true)) {
                 throw new RuntimeException('Assessment version contains an unsupported Holland dimension.');
             }
-            $answer = $answers[$question['question_id']] ?? null;
+            if (!array_key_exists($question['question_id'], $answers)) {
+                if ((int) $question['required'] === 1) {
+                    throw new RuntimeException('All required assessment questions must be answered before submission.');
+                }
+                continue;
+            }
+            $answer = $answers[$question['question_id']];
             if (!is_int($answer) && !is_float($answer) && !(is_string($answer) && is_numeric($answer))) {
                 throw new RuntimeException('Holland answers must be numeric values.');
             }
@@ -400,7 +406,8 @@ SQL,
         $scores = [];
         foreach (self::HOLLAND_DIMENSIONS as $dimension) {
             if ($counts[$dimension] === 0) {
-                throw new RuntimeException('Assessment version is incomplete for approved Holland scoring.');
+                $scores[$dimension] = 0;
+                continue;
             }
             $scores[$dimension] = (int) round((($totals[$dimension] - $counts[$dimension]) / ($counts[$dimension] * 4)) * 100);
         }

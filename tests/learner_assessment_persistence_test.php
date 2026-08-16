@@ -55,8 +55,9 @@ function assessment_write_fixture(): PDO
     foreach (['R', 'I', 'A', 'S', 'E', 'C'] as $position => $dimension) {
         $questionId = sprintf('55555555-5555-4555-8555-%012d', $position + 1);
         $questionVersionId = sprintf('66666666-6666-4666-8666-%012d', $position + 1);
+        $required = $dimension === 'C' ? 0 : 1;
         $pdo->exec("INSERT INTO test_questions (id, testId, content) VALUES ('{$questionId}', '" . ASSESSMENT_TEST_ID . "', 'Question {$dimension}')");
-        $pdo->exec("INSERT INTO learner_assessment_question_versions (id, versionId, questionId, position, dimensionCode, required, createdAt) VALUES ('{$questionVersionId}', '" . ASSESSMENT_VERSION_ID . "', '{$questionId}', " . ($position + 1) . ", '{$dimension}', 1, '2026-08-16T00:00:00+00:00')");
+        $pdo->exec("INSERT INTO learner_assessment_question_versions (id, versionId, questionId, position, dimensionCode, required, createdAt) VALUES ('{$questionVersionId}', '" . ASSESSMENT_VERSION_ID . "', '{$questionId}', " . ($position + 1) . ", '{$dimension}', {$required}, '2026-08-16T00:00:00+00:00')");
     }
 
     return $pdo;
@@ -93,9 +94,35 @@ assessment_write_assert($submitted['scoring_version'] === 'holland-riasec-1.0', 
 assessment_write_assert(preg_match('/^[a-f0-9]{64}$/', (string) $submitted['input_hash']) === 1, 'submitted result retains an input hash');
 assessment_write_assert($submitted['result_code'] === 'RIA', 'approved Holland scoring calculates a deterministic result');
 
+$optionalAttempt = $service->start(ASSESSMENT_STUDENT_A, ASSESSMENT_TEST_ID, '1.0.0');
+foreach ([5, 4, 3, 2, 1] as $position => $answer) {
+    $questionId = sprintf('55555555-5555-4555-8555-%012d', $position + 1);
+    $service->saveAnswer(ASSESSMENT_STUDENT_A, $optionalAttempt['id'], $questionId, $answer);
+}
+$optionalSubmitted = $service->submit(ASSESSMENT_STUDENT_A, $optionalAttempt['id']);
+assessment_write_assert($optionalSubmitted['result_code'] === 'RIA', 'an unanswered optional question does not block deterministic scoring');
+assessment_write_assert(($optionalSubmitted['dimension_scores']['C'] ?? null) === 0, 'an unanswered optional dimension has a neutral score');
+
+$missingRequiredAttempt = $service->start(ASSESSMENT_STUDENT_A, ASSESSMENT_TEST_ID, '1.0.0');
+$service->saveAnswer(ASSESSMENT_STUDENT_A, $missingRequiredAttempt['id'], '55555555-5555-4555-8555-000000000001', 5);
+assessment_write_expect_exception(
+    static fn (): array => $service->submit(ASSESSMENT_STUDENT_A, $missingRequiredAttempt['id']),
+    'an unanswered required question still rejects submission'
+);
+
+$nonNumericRequiredAttempt = $service->start(ASSESSMENT_STUDENT_A, ASSESSMENT_TEST_ID, '1.0.0');
+foreach ([5, 'not-a-number', 3, 2, 1] as $position => $answer) {
+    $questionId = sprintf('55555555-5555-4555-8555-%012d', $position + 1);
+    $service->saveAnswer(ASSESSMENT_STUDENT_A, $nonNumericRequiredAttempt['id'], $questionId, $answer);
+}
+assessment_write_expect_exception(
+    static fn (): array => $service->submit(ASSESSMENT_STUDENT_A, $nonNumericRequiredAttempt['id']),
+    'a non-numeric required answer still rejects submission'
+);
+
 $replayed = $service->submit(ASSESSMENT_STUDENT_A, $attempt['id']);
 assessment_write_assert($replayed === $submitted, 'the same submit request returns the existing canonical result');
-assessment_write_assert((int) $pdo->query('SELECT COUNT(*) FROM test_results')->fetchColumn() === 1, 'idempotent submit creates exactly one result row');
+assessment_write_assert((int) $pdo->query("SELECT COUNT(*) FROM test_results WHERE attemptId = '" . $attempt['id'] . "'")->fetchColumn() === 1, 'idempotent submit creates exactly one result row');
 
 assessment_write_expect_exception(
     static fn (): array => $service->saveAnswer(ASSESSMENT_STUDENT_A, $attempt['id'], '55555555-5555-4555-8555-000000000001', 1),
