@@ -172,4 +172,19 @@ WHERE NOT EXISTS (
 - **Approval Status:** APPROVED — DISPOSABLE SCHEMA ONLY
 - **Approved By:** Lead Architect / User
 - **Approved At:** 2026-08-17 08:28:27 UTC
-- **Execution Status:** NOT EXECUTED
+- **Execution Status:** EXECUTED (2026-08-17 08:29:35 UTC)
+- **First Seed Result:** `declared=1116, inserted=1116, existing=0, students=24, complete=18, edge=6`
+- **Second Seed Result (Idempotency):** `declared=1116, inserted=0, existing=1116, students=24, complete=18, edge=6`
+- **Quality Gate State Totals:** `ready=18, insufficient_data=4, consent_required=2`
+- **Verified Integration Tests:**
+  - `tests/learner_ai_synthetic_dataset_v2_mysql_test.php: OK`
+  - `tests/learner_ai_synthetic_dataset_v2_contract_test.php: OK`
+  - `tests/learner_ai_end_to_end_mysql_test.php: OK`
+  - `tests/learner_ai_pilot_seed_test.php: OK`
+  - `tests/learner_ai_sources_test.php: OK`
+  - `tests/learner_ai_snapshot_test.php: OK`
+  - `tests/learner_rule_recommendation_test.php: OK`
+  - `tests/learner_recommendation_repository_test.php: OK`
+  - `tests/learner_recommendation_service_test.php: OK`
+  - `tests/learner_ai_scope_policy_test.php: OK`
+  - `tests/learner_ai_scope_audit_test.php: OK`
