@@ -15,6 +15,21 @@ require_once $seederFile;
 
 require_once $root . '/app/learner/ai/bootstrap.php';
 
+use TalentHub\Learner\Ai\Consent\ConsentPolicy;
+use TalentHub\Learner\Ai\Domain\RecommendationContext;
+use TalentHub\Learner\Ai\Domain\RecommendationEvidence;
+use TalentHub\Learner\Ai\Domain\RecommendationItem;
+use TalentHub\Learner\Ai\Domain\RecommendationResult;
+use TalentHub\Learner\Ai\Quality\DataQualityGate;
+use TalentHub\Learner\Ai\Rules\RuleRecommendationEngine;
+use TalentHub\Learner\Ai\Snapshot\RecommendationSnapshotBuilder;
+use TalentHub\Learner\Ai\Sources\Database\DatabaseActivityExperienceSource;
+use TalentHub\Learner\Ai\Sources\Database\DatabaseAssessmentSource;
+use TalentHub\Learner\Ai\Sources\Database\DatabaseConsentSource;
+use TalentHub\Learner\Ai\Sources\Database\DatabaseOpportunitySource;
+use TalentHub\Learner\Ai\Sources\Database\DatabasePublishedEvaluationSource;
+use TalentHub\Learner\Ai\Sources\Database\DatabaseSkillSource;
+use TalentHub\Learner\Ai\Sources\Database\DatabaseStudentProfileSource;
 use TalentHub\Learner\Seeds\Staging\LearnerAiPilotSeeder;
 use TalentHub\Learner\Seeds\Staging\LearnerAiSyntheticDatasetV2;
 use TalentHub\Learner\Seeds\Staging\LearnerAiSyntheticDatasetV2Seeder;
@@ -39,6 +54,58 @@ function v2_mysql_expect_exception(callable $operation, string $expectedMessageP
         return;
     }
     throw new RuntimeException('Expected exception was not thrown.');
+}
+
+function v2_snapshot_builder(PDO $pdo): RecommendationSnapshotBuilder
+{
+    return new RecommendationSnapshotBuilder(
+        new DatabaseStudentProfileSource($pdo),
+        new DatabaseSkillSource($pdo),
+        new DatabaseAssessmentSource($pdo),
+        new DatabaseActivityExperienceSource($pdo),
+        new DatabasePublishedEvaluationSource($pdo),
+        new DatabaseOpportunitySource($pdo),
+    );
+}
+
+/**
+ * @return array{
+ *     engineType: string,
+ *     fallbackReason: ?string,
+ *     items: list<array{
+ *         itemType: string,
+ *         title: string,
+ *         priority: int,
+ *         actionJson: string,
+ *         evidence: list<array{sourceType: string, sourceId: string}>
+ *     }>
+ * }
+ */
+function v2_canonical_signature(RecommendationResult $result): array
+{
+    $items = [];
+    foreach ($result->items() as $item) {
+        $evidence = [];
+        foreach ($item->evidence() as $ev) {
+            $evidence[] = [
+                'sourceType' => $ev->sourceType(),
+                'sourceId' => $ev->sourceId(),
+            ];
+        }
+        $items[] = [
+            'itemType' => $item->itemType(),
+            'title' => $item->title(),
+            'priority' => $item->priority(),
+            'actionJson' => $item->actionJson(),
+            'evidence' => $evidence,
+        ];
+    }
+
+    return [
+        'engineType' => $result->engineType(),
+        'fallbackReason' => $result->fallbackReason(),
+        'items' => $items,
+    ];
 }
 
 // ============================================================================
@@ -151,6 +218,27 @@ v2_mysql_assert($parsedApproved['total_rows'] === 1116, 'approved DCR matches ro
 $executedDcr = str_replace('Execution Status:** NOT EXECUTED', 'Execution Status:** EXECUTED (2026-08-17)', $baseApprovedDcr);
 $parsedExecuted = LearnerAiSyntheticDatasetV2Seeder::validateDcr($executedDcr, $approvedSchema, $approvedFingerprint);
 v2_mysql_assert($parsedExecuted['execution_status'] === 'executed', 'approved DCR parses executed status');
+
+// --- PURE TEST C: Canonical Signature & Determinism Helper ---
+$mockItem = new RecommendationItem(
+    'strength',
+    'Test Title',
+    'Test Summary',
+    20,
+    'high',
+    ['type' => 'test_action', 'key' => 'val'],
+    [new RecommendationEvidence('skill', '00000000-0000-4000-8000-000000200001', '2026-08-16T00:00:00.000000+00:00', 'test', ['k' => 'v'])],
+);
+$mockResult = new RecommendationResult('rule', 'learner-rules-1.0.0', null, null, null, null, [$mockItem]);
+$mockSig = v2_canonical_signature($mockResult);
+v2_mysql_assert($mockSig['engineType'] === 'rule', 'signature captures engineType');
+v2_mysql_assert($mockSig['fallbackReason'] === null, 'signature captures fallbackReason');
+v2_mysql_assert(count($mockSig['items']) === 1, 'signature captures items');
+v2_mysql_assert($mockSig['items'][0]['itemType'] === 'strength', 'signature item captures itemType');
+v2_mysql_assert($mockSig['items'][0]['title'] === 'Test Title', 'signature item captures title');
+v2_mysql_assert($mockSig['items'][0]['priority'] === 20, 'signature item captures priority');
+v2_mysql_assert($mockSig['items'][0]['evidence'][0]['sourceType'] === 'skill', 'signature item captures evidence sourceType');
+v2_mysql_assert($mockSig['items'][0]['evidence'][0]['sourceId'] === '00000000-0000-4000-8000-000000200001', 'signature item captures evidence sourceId');
 
 echo "learner_ai_synthetic_dataset_v2_mysql_test: PURE IN-MEMORY TESTS OK\n";
 
@@ -310,6 +398,186 @@ foreach ($recommendationTables as $recTable) {
     v2_mysql_assert(
         $afterCount === $baselineRecommendationCounts[$recTable],
         'Recommendation table count for ' . $recTable . ' must remain unchanged'
+    );
+}
+
+// ============================================================================
+// TASK 4: REAL PIPELINE VERIFICATION (24 LEARNERS)
+// ============================================================================
+
+// 12. Pipeline Factory & Fixed Verification Clock
+$fixedClock = new DateTimeImmutable('2026-08-17T00:00:00.000000+00:00', new DateTimeZone('UTC'));
+$consent = new ConsentPolicy(new DatabaseConsentSource($pdo));
+$builder = v2_snapshot_builder($pdo);
+$quality = new DataQualityGate($fixedClock);
+$engine = new RuleRecommendationEngine();
+
+$participants = LearnerAiSyntheticDatasetV2::participants();
+v2_mysql_assert(count($participants) === 24, 'Task 4 evaluates exactly 24 participants');
+
+// Preload student-scoped ownership maps for evidence boundary assertions
+$skillOwnershipStmt = $pdo->prepare('SELECT id, studentId FROM student_skills WHERE id LIKE :prefix');
+$skillOwnershipStmt->execute(['prefix' => $reservedPrefix . '%']);
+$skillOwnership = $skillOwnershipStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+$assessmentOwnershipStmt = $pdo->prepare('SELECT tr.id, ta.studentId FROM test_results tr JOIN test_attempts ta ON ta.id = tr.attemptId WHERE tr.id LIKE :prefix');
+$assessmentOwnershipStmt->execute(['prefix' => $reservedPrefix . '%']);
+$assessmentOwnership = $assessmentOwnershipStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+$activityOwnershipStmt = $pdo->prepare('SELECT id, studentId FROM experience_logs WHERE id LIKE :prefix');
+$activityOwnershipStmt->execute(['prefix' => $reservedPrefix . '%']);
+$activityOwnership = $activityOwnershipStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+$evaluationOwnershipStmt = $pdo->prepare('SELECT id, studentId FROM assessments WHERE id LIKE :prefix');
+$evaluationOwnershipStmt->execute(['prefix' => $reservedPrefix . '%']);
+$evaluationOwnership = $evaluationOwnershipStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+// 13. Data Quality Gate & Evidence Ownership Assertions across all 24 learners
+$stateTotals = ['ready' => 0, 'insufficient_data' => 0, 'consent_required' => 0];
+
+foreach ($participants as $p) {
+    $studentId = $p['student_id'];
+    $seq = $p['sequence'];
+    $allowedScopes = $consent->allowedScopes($studentId);
+    $snapshot = $builder->build($studentId, $allowedScopes);
+    $qualityResult = $quality->evaluate($snapshot);
+    $state = $qualityResult->state();
+
+    v2_mysql_assert(isset($stateTotals[$state]), "Known quality state {$state} for learner {$seq}");
+    $stateTotals[$state]++;
+
+    // Assert source_counts.opportunities === 0 for every learner
+    v2_mysql_assert(
+        ($snapshot->qualityFlags()['source_counts']['opportunities'] ?? null) === 0,
+        "Learner {$seq} source_counts.opportunities must be 0"
+    );
+
+    // Verify exact expected state and missing fields per scenario
+    if ($seq === 104) {
+        v2_mysql_assert($state === 'insufficient_data', 'learner 104 state is insufficient_data');
+        v2_mysql_assert($qualityResult->missingCategories() === ['skills'], 'learner 104 missing categories is exactly [skills]');
+    } elseif ($seq === 108) {
+        v2_mysql_assert($state === 'insufficient_data', 'learner 108 state is insufficient_data');
+        v2_mysql_assert($qualityResult->missingCategories() === ['experience'], 'learner 108 missing categories is exactly [experience]');
+    } elseif ($seq === 112) {
+        v2_mysql_assert($state === 'insufficient_data', 'learner 112 state is insufficient_data');
+        v2_mysql_assert($qualityResult->missingCategories() === ['assessment'], 'learner 112 missing categories is exactly [assessment]');
+    } elseif ($seq === 116) {
+        v2_mysql_assert($state === 'insufficient_data', 'learner 116 state is insufficient_data');
+        v2_mysql_assert($qualityResult->missingCategories() === ['evaluations'], 'learner 116 missing categories is exactly [evaluations]');
+    } elseif ($seq === 120) {
+        v2_mysql_assert($state === 'consent_required', 'learner 120 state is consent_required');
+        v2_mysql_assert($qualityResult->missingConsentScopes() === ['evaluation'], 'learner 120 missing consent is exactly [evaluation]');
+    } elseif ($seq === 124) {
+        v2_mysql_assert($state === 'consent_required', 'learner 124 state is consent_required');
+        v2_mysql_assert($qualityResult->missingConsentScopes() === ['activity'], 'learner 124 missing consent is exactly [activity]');
+    } else {
+        v2_mysql_assert($state === 'ready', "learner {$seq} state must be ready");
+        v2_mysql_assert($qualityResult->missingCategories() === [], "learner {$seq} has no missing categories");
+        v2_mysql_assert($qualityResult->missingConsentScopes() === [], "learner {$seq} has no missing consent scopes");
+    }
+
+    // Verify that every evidence reference in the snapshot belongs strictly to this student
+    foreach ($snapshot->evidenceReferences() as $ref) {
+        $srcType = $ref['source_type'];
+        $srcId = $ref['source_id'];
+        $ownerStudentId = match ($srcType) {
+            'skill' => $skillOwnership[$srcId] ?? null,
+            'assessment' => $assessmentOwnership[$srcId] ?? null,
+            'activity_experience' => $activityOwnership[$srcId] ?? null,
+            'evaluation' => $evaluationOwnership[$srcId] ?? null,
+            'opportunity' => null,
+            default => null,
+        };
+        if ($srcType !== 'opportunity') {
+            v2_mysql_assert(
+                $ownerStudentId === $studentId,
+                "Snapshot evidence {$srcType}:{$srcId} must belong to student {$studentId}, got {$ownerStudentId}"
+            );
+        }
+    }
+}
+
+v2_mysql_assert(
+    $stateTotals === ['ready' => 18, 'insufficient_data' => 4, 'consent_required' => 2],
+    'Task 4 quality state totals must be exactly ready=18, insufficient_data=4, consent_required=2'
+);
+
+// 14. Deterministic Rule Recommendations for Ready Learners
+$seenItemTypes = [];
+foreach ($participants as $p) {
+    if ($p['expected_state'] !== 'ready') {
+        continue;
+    }
+    $studentId = $p['student_id'];
+    $seq = $p['sequence'];
+    $allowedScopes = $consent->allowedScopes($studentId);
+    $snapshot = $builder->build($studentId, $allowedScopes);
+
+    $snapshotEvidenceIds = [];
+    foreach ($snapshot->evidenceReferences() as $ref) {
+        $snapshotEvidenceIds[$ref['source_type'] . "\0" . $ref['source_id']] = true;
+    }
+
+    $context1 = new RecommendationContext(
+        $allowedScopes,
+        '00000000-0000-4000-8000-' . str_pad((string) (910000 + $seq), 12, '0', STR_PAD_LEFT),
+        'v2-gen-1-' . $seq,
+        $studentId,
+    );
+    $context2 = new RecommendationContext(
+        $allowedScopes,
+        '00000000-0000-4000-8000-' . str_pad((string) (910000 + $seq), 12, '0', STR_PAD_LEFT),
+        'v2-gen-2-' . $seq,
+        $studentId,
+    );
+
+    $res1 = $engine->generate($snapshot, $context1);
+    $res2 = $engine->generate($snapshot, $context2);
+
+    $sig1 = v2_canonical_signature($res1);
+    $sig2 = v2_canonical_signature($res2);
+    v2_mysql_assert($sig1 === $sig2, "Learner {$seq} recommendation generation must be strictly deterministic");
+    v2_mysql_assert($res1->items() !== [], "Ready learner {$seq} must produce at least one recommendation item");
+    v2_mysql_assert($res1->fallbackReason() === null, "Ready learner {$seq} must have null fallbackReason");
+
+    foreach ($res1->items() as $item) {
+        $seenItemTypes[$item->itemType()] = true;
+        v2_mysql_assert($item->evidence() !== [], "Item in learner {$seq} must have evidence");
+        foreach ($item->evidence() as $ev) {
+            $evKey = $ev->sourceType() . "\0" . $ev->sourceId();
+            v2_mysql_assert(
+                isset($snapshotEvidenceIds[$evKey]),
+                "Item evidence {$evKey} must belong to learner {$seq} snapshot"
+            );
+        }
+    }
+
+    if ($seq === 101) {
+        $itemTypes101 = array_map(static fn (RecommendationItem $item): string => $item->itemType(), $res1->items());
+        v2_mysql_assert(
+            in_array('roadmap', $itemTypes101, true),
+            'Learner 101 must generate a roadmap recommendation due to two low presentation scores'
+        );
+    }
+}
+
+// Whole dataset produces at least one strength, activity, and roadmap item
+v2_mysql_assert(isset($seenItemTypes['strength']), 'Dataset must produce at least one strength recommendation item');
+v2_mysql_assert(isset($seenItemTypes['activity']), 'Dataset must produce at least one activity recommendation item');
+v2_mysql_assert(isset($seenItemTypes['roadmap']), 'Dataset must produce at least one roadmap recommendation item');
+
+// 15. Read-only opportunity check: internship_posts table must NOT exist
+$internshipTables = $pdo->query("SHOW TABLES LIKE 'internship_posts'")->fetchAll();
+v2_mysql_assert(count($internshipTables) === 0, 'internship_posts table must not exist in disposable schema');
+
+// 16. Recommendation tables isolation (verification pipeline must be purely in-memory)
+foreach ($recommendationTables as $recTable) {
+    $stmt = $pdo->query('SELECT COUNT(*) FROM ' . $recTable);
+    $finalCount = (int) $stmt->fetchColumn();
+    v2_mysql_assert(
+        $finalCount === $baselineRecommendationCounts[$recTable],
+        'Recommendation table count for ' . $recTable . ' must remain unchanged after pipeline verification'
     );
 }
 
