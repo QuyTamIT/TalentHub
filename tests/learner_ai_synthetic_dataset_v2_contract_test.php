@@ -49,4 +49,13 @@ foreach (['UPDATE ', 'DELETE ', 'REPLACE ', 'DROP ', 'TRUNCATE ', 'ALTER '] as $
     v2_contract_assert(stripos($source, $forbidden) === false, 'dataset contains no destructive or mutable SQL token: ' . trim($forbidden));
 }
 
+$dcrPath = $root . '/docs/superpowers/database-change-requests/2026-08-17-learner-ai-synthetic-dataset-v2.md';
+v2_contract_assert(is_file($dcrPath), 'V2 DCR exists');
+$dcr = file_get_contents($dcrPath);
+v2_contract_assert(is_string($dcr), 'V2 DCR is readable');
+v2_contract_assert(str_contains($dcr, '`talenthub_ai_backup_verify_004_20260816`'), 'DCR pins the approved disposable schema');
+v2_contract_assert(str_contains($dcr, '`' . LearnerAiSyntheticDatasetV2::contentHash() . '`'), 'DCR records the exact dataset fingerprint');
+v2_contract_assert(str_contains($dcr, '1116'), 'DCR records the exact V2 row count');
+v2_contract_assert(!str_contains($dcr, 'talenthub_local` is approved'), 'DCR never approves the shared schema');
+
 echo 'learner_ai_synthetic_dataset_v2_contract_test: OK' . PHP_EOL;
