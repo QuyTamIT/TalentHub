@@ -505,10 +505,20 @@ v2_mysql_assert(
 
 // 14. Deterministic Rule Recommendations for Ready Learners
 $seenItemTypes = [];
+$readyCount = 0;
+$totalItemCount = 0;
+$totalEvidenceCount = 0;
+$itemTypeCounts = [
+    'strength' => 0,
+    'activity' => 0,
+    'roadmap' => 0,
+];
+
 foreach ($participants as $p) {
     if ($p['expected_state'] !== 'ready') {
         continue;
     }
+    $readyCount++;
     $studentId = $p['student_id'];
     $seq = $p['sequence'];
     $allowedScopes = $consent->allowedScopes($studentId);
@@ -541,10 +551,19 @@ foreach ($participants as $p) {
     v2_mysql_assert($res1->items() !== [], "Ready learner {$seq} must produce at least one recommendation item");
     v2_mysql_assert($res1->fallbackReason() === null, "Ready learner {$seq} must have null fallbackReason");
 
+    // Only count the first generate result ($res1)
     foreach ($res1->items() as $item) {
-        $seenItemTypes[$item->itemType()] = true;
-        v2_mysql_assert($item->evidence() !== [], "Item in learner {$seq} must have evidence");
-        foreach ($item->evidence() as $ev) {
+        $totalItemCount++;
+        $type = $item->itemType();
+        $seenItemTypes[$type] = true;
+        v2_mysql_assert(isset($itemTypeCounts[$type]), "Known recommendation item type {$type} for learner {$seq}");
+        $itemTypeCounts[$type]++;
+
+        $evidenceList = $item->evidence();
+        v2_mysql_assert($evidenceList !== [], "Item in learner {$seq} must have evidence");
+        $totalEvidenceCount += count($evidenceList);
+
+        foreach ($evidenceList as $ev) {
             $evKey = $ev->sourceType() . "\0" . $ev->sourceId();
             v2_mysql_assert(
                 isset($snapshotEvidenceIds[$evKey]),
@@ -561,6 +580,15 @@ foreach ($participants as $p) {
         );
     }
 }
+
+// Exact deterministic metric assertions
+v2_mysql_assert($readyCount === 18, 'Ready learner count must be exactly 18');
+v2_mysql_assert($totalItemCount === 34, 'Total recommendation item count across ready learners must be exactly 34');
+v2_mysql_assert($totalEvidenceCount === 81, 'Total evidence count across ready learners must be exactly 81');
+v2_mysql_assert($itemTypeCounts['strength'] === 20, 'Strength recommendation count must be exactly 20');
+v2_mysql_assert($itemTypeCounts['activity'] === 13, 'Activity recommendation count must be exactly 13');
+v2_mysql_assert($itemTypeCounts['roadmap'] === 1, 'Roadmap recommendation count must be exactly 1');
+v2_mysql_assert($itemTypeCounts['strength'] + $itemTypeCounts['activity'] + $itemTypeCounts['roadmap'] === $totalItemCount, 'Sum of item type counts must equal total item count');
 
 // Whole dataset produces at least one strength, activity, and roadmap item
 v2_mysql_assert(isset($seenItemTypes['strength']), 'Dataset must produce at least one strength recommendation item');
@@ -580,5 +608,16 @@ foreach ($recommendationTables as $recTable) {
         'Recommendation table count for ' . $recTable . ' must remain unchanged after pipeline verification'
     );
 }
+
+// 17. Sanitized summary output without secrets or PII
+echo sprintf(
+    "V2_TASK4_METRICS ready=%d items=%d evidence=%d strength=%d activity=%d roadmap=%d\n",
+    $readyCount,
+    $totalItemCount,
+    $totalEvidenceCount,
+    $itemTypeCounts['strength'],
+    $itemTypeCounts['activity'],
+    $itemTypeCounts['roadmap']
+);
 
 echo "learner_ai_synthetic_dataset_v2_mysql_test: OK\n";

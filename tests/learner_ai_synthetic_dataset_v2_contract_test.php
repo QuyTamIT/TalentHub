@@ -855,7 +855,7 @@ v2_assert_throws(
     'verified evidence'
 );
 
-// 12. DCR File Assertions
+// 12. Strict DCR File Assertions & Negative Contract Cases
 $source = file_get_contents($datasetFile);
 v2_contract_assert(is_string($source), 'dataset source is readable');
 foreach (['UPDATE ', 'DELETE ', 'REPLACE ', 'DROP ', 'TRUNCATE ', 'ALTER '] as $forbidden) {
@@ -866,16 +866,174 @@ $dcrPath = $root . '/docs/superpowers/database-change-requests/2026-08-17-learne
 v2_contract_assert(is_file($dcrPath), 'V2 DCR exists');
 $dcr = file_get_contents($dcrPath);
 v2_contract_assert(is_string($dcr), 'V2 DCR is readable');
-v2_contract_assert(str_contains($dcr, '`talenthub_ai_backup_verify_004_20260816`'), 'DCR pins the approved disposable schema');
-v2_contract_assert(str_contains($dcr, '`' . LearnerAiSyntheticDatasetV2::contentHash() . '`'), 'DCR records the exact dataset fingerprint');
-v2_contract_assert(str_contains($dcr, '1116'), 'DCR records the exact V2 row count');
-v2_contract_assert(
-    str_contains($dcr, 'PROPOSED — DISPOSABLE SCHEMA ONLY') || str_contains($dcr, 'APPROVED — DISPOSABLE SCHEMA ONLY'),
-    'DCR status is valid'
+
+/**
+ * Strict anchored DCR validator for pure contract validation.
+ *
+ * @return array{
+ *     status: string,
+ *     targetSchema: string,
+ *     fingerprint: string,
+ *     totalRows: int,
+ *     approvalStatus: string,
+ *     approvedBy: string,
+ *     approvedAt: string,
+ *     executedAt: string
+ * }
+ */
+function v2_validate_dcr_strict(string $dcr, string $expectedSchema, string $expectedFingerprint, int $expectedRows): array
+{
+    // 1. Anchored top-level Status
+    if (preg_match('/^\*\*Status:\*\*\s*(.+)$/m', $dcr, $matches) !== 1) {
+        throw new RuntimeException('V2 DCR missing anchored top-level Status.');
+    }
+    $status = trim($matches[1]);
+    if ($status !== 'APPROVED — DISPOSABLE SCHEMA ONLY') {
+        throw new RuntimeException("V2 DCR top-level Status must be 'APPROVED — DISPOSABLE SCHEMA ONLY', got '{$status}'.");
+    }
+
+    // 2. Anchored Authorized Target Schema
+    if (preg_match('/-\s*\*\*Authorized Target Schema:\*\*\s*`([^`]+)`/m', $dcr, $matches) !== 1) {
+        throw new RuntimeException('V2 DCR missing Authorized Target Schema.');
+    }
+    $targetSchema = trim($matches[1]);
+    if ($targetSchema !== $expectedSchema || $targetSchema === 'talenthub_local') {
+        throw new RuntimeException("V2 DCR target schema mismatch or unauthorized: {$targetSchema}.");
+    }
+
+    // 3. Forbidden Shared / Production Schemas
+    if (preg_match('/-\s*\*\*Shared \/ Production Schemas:\*\*\s*(.+)$/m', $dcr, $matches) !== 1
+        || !str_contains($matches[1], 'Strictly forbidden')
+        || !str_contains($matches[1], '`talenthub_local` is never approved')
+        || str_contains($dcr, '`talenthub_local` is approved')) {
+        throw new RuntimeException('V2 DCR must explicitly forbid talenthub_local and shared schemas.');
+    }
+
+    // 4. Anchored Dataset Fingerprint (SHA-256)
+    if (preg_match('/-\s*\*\*Dataset Fingerprint \(SHA-256\):\*\*\s*`([a-f0-9]{64})`/m', $dcr, $matches) !== 1) {
+        throw new RuntimeException('V2 DCR missing or invalid Dataset Fingerprint format.');
+    }
+    $fingerprint = trim($matches[1]);
+    if (!hash_equals($expectedFingerprint, $fingerprint)) {
+        throw new RuntimeException("V2 DCR fingerprint mismatch; expected {$expectedFingerprint}, got {$fingerprint}.");
+    }
+
+    // 5. Anchored Total Declared V2 Rows
+    if (preg_match('/-\s*\*\*Total Declared V2 Rows:\*\*\s*`([0-9]+)`/m', $dcr, $matches) !== 1) {
+        throw new RuntimeException('V2 DCR missing Total Declared V2 Rows.');
+    }
+    $totalRows = (int) $matches[1];
+    if ($totalRows !== $expectedRows) {
+        throw new RuntimeException("V2 DCR total rows mismatch; expected {$expectedRows}, got {$totalRows}.");
+    }
+
+    // 6. Anchored Approval Status
+    if (preg_match('/-\s*\*\*Approval Status:\*\*\s*(.+)$/m', $dcr, $matches) !== 1) {
+        throw new RuntimeException('V2 DCR missing Approval Status in log.');
+    }
+    $approvalStatus = trim($matches[1]);
+    if ($approvalStatus !== 'APPROVED — DISPOSABLE SCHEMA ONLY') {
+        throw new RuntimeException("V2 DCR Approval Status must be 'APPROVED — DISPOSABLE SCHEMA ONLY', got '{$approvalStatus}'.");
+    }
+
+    // 7. Anchored Approved By
+    if (preg_match('/-\s*\*\*Approved By:\*\*\s*(.+)$/m', $dcr, $matches) !== 1) {
+        throw new RuntimeException('V2 DCR missing Approved By in log.');
+    }
+    $approvedBy = trim($matches[1]);
+    if ($approvedBy === '' || stripos($approvedBy, 'pending') !== false) {
+        throw new RuntimeException('V2 DCR Approved By cannot be empty or pending.');
+    }
+
+    // 8. Anchored Approved At
+    if (preg_match('/-\s*\*\*Approved At:\*\*\s*(.+)$/m', $dcr, $matches) !== 1) {
+        throw new RuntimeException('V2 DCR missing Approved At in log.');
+    }
+    $approvedAt = trim($matches[1]);
+    if ($approvedAt === '' || stripos($approvedAt, 'pending') !== false) {
+        throw new RuntimeException('V2 DCR Approved At cannot be empty or pending.');
+    }
+
+    // 9. Anchored Execution Status with valid UTC timestamp format (rejects NOT EXECUTED)
+    if (preg_match('/-\s*\*\*Execution Status:\*\*\s*EXECUTED\s*\(([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} UTC)\)/m', $dcr, $matches) !== 1) {
+        throw new RuntimeException('V2 DCR Execution Status must be anchored EXECUTED with valid UTC timestamp.');
+    }
+    $executedAt = trim($matches[1]);
+
+    return [
+        'status' => $status,
+        'targetSchema' => $targetSchema,
+        'fingerprint' => $fingerprint,
+        'totalRows' => $totalRows,
+        'approvalStatus' => $approvalStatus,
+        'approvedBy' => $approvedBy,
+        'approvedAt' => $approvedAt,
+        'executedAt' => $executedAt,
+    ];
+}
+
+$approvedSchema = 'talenthub_ai_backup_verify_004_20260816';
+$approvedFingerprint = LearnerAiSyntheticDatasetV2::contentHash();
+
+// Positive check against existing DCR
+$validatedDcr = v2_validate_dcr_strict($dcr, $approvedSchema, $approvedFingerprint, 1116);
+v2_contract_assert($validatedDcr['status'] === 'APPROVED — DISPOSABLE SCHEMA ONLY', 'DCR top-level status is approved');
+v2_contract_assert($validatedDcr['approvalStatus'] === 'APPROVED — DISPOSABLE SCHEMA ONLY', 'DCR approval status is approved');
+v2_contract_assert(str_starts_with($validatedDcr['executedAt'], '2026-08-17'), 'DCR execution timestamp is 2026-08-17');
+
+// Negative Test 1: Top-level Status mutated to PROPOSED while PROPOSED still exists in history/notes
+$mutatedDcrTopProposed = preg_replace(
+    '/^\*\*Status:\*\*\s*.+$/m',
+    '**Status:** PROPOSED — DISPOSABLE SCHEMA ONLY',
+    $dcr
 );
-v2_contract_assert(
-    str_contains($dcr, 'NOT EXECUTED') || str_contains($dcr, 'EXECUTED'),
-    'DCR execution status is valid'
+v2_assert_throws(
+    static fn () => v2_validate_dcr_strict($mutatedDcrTopProposed, $approvedSchema, $approvedFingerprint, 1116),
+    'top-level Status'
+);
+
+// Negative Test 2: Approval Status mutated to PROPOSED
+$mutatedDcrApprovalProposed = preg_replace(
+    '/-\s*\*\*Approval Status:\*\*\s*.+$/m',
+    '- **Approval Status:** PROPOSED — DISPOSABLE SCHEMA ONLY',
+    $dcr
+);
+v2_assert_throws(
+    static fn () => v2_validate_dcr_strict($mutatedDcrApprovalProposed, $approvedSchema, $approvedFingerprint, 1116),
+    'Approval Status'
+);
+
+// Negative Test 3: Execution Status mutated to NOT EXECUTED
+$mutatedDcrNotExecuted = preg_replace(
+    '/-\s*\*\*Execution Status:\*\*\s*.+$/m',
+    '- **Execution Status:** NOT EXECUTED',
+    $dcr
+);
+v2_assert_throws(
+    static fn () => v2_validate_dcr_strict($mutatedDcrNotExecuted, $approvedSchema, $approvedFingerprint, 1116),
+    'Execution Status'
+);
+
+// Negative Test 4: Target schema mutated to talenthub_local
+$mutatedDcrLocalSchema = preg_replace(
+    '/-\s*\*\*Authorized Target Schema:\*\*\s*`[^`]+`/m',
+    '- **Authorized Target Schema:** `talenthub_local`',
+    $dcr
+);
+v2_assert_throws(
+    static fn () => v2_validate_dcr_strict($mutatedDcrLocalSchema, $approvedSchema, $approvedFingerprint, 1116),
+    'target schema'
+);
+
+// Negative Test 5: Shared schema prohibition mutated to claim talenthub_local is approved
+$mutatedDcrApprovedLocal = str_replace(
+    '`talenthub_local` is never approved',
+    '`talenthub_local` is approved',
+    $dcr
+);
+v2_assert_throws(
+    static fn () => v2_validate_dcr_strict($mutatedDcrApprovedLocal, $approvedSchema, $approvedFingerprint, 1116),
+    'shared schemas'
 );
 
 // DCR contains verbatim question text of all 24 questions
