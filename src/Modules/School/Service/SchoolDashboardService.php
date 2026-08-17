@@ -49,6 +49,14 @@ final class SchoolDashboardService
     {
         $school = $this->getByUser($userId);
         $schoolId = $school['id'];
+        if ($this->usesLegacySchoolSchema()) {
+            $studentStmt=$this->pdo->prepare("SELECT COUNT(*) FROM student_profiles sp JOIN classes c ON c.id=sp.classId WHERE c.schoolId=? AND sp.studyStatus='active'");$studentStmt->execute([$schoolId]);
+            $classStmt=$this->pdo->prepare('SELECT COUNT(*) FROM classes WHERE schoolId=?');$classStmt->execute([$schoolId]);
+            $teacherStmt=$this->pdo->prepare('SELECT COUNT(*) FROM teacher_profiles WHERE schoolId=?');$teacherStmt->execute([$schoolId]);
+            $metrics=['totalStudents'=>(int)$studentStmt->fetchColumn(),'totalClasses'=>(int)$classStmt->fetchColumn(),'totalTeachers'=>(int)$teacherStmt->fetchColumn()];
+            $classesStmt=$this->pdo->prepare("SELECT c.id,c.schoolId,c.name,c.gradeLevel,c.academicYear,'active' AS status,(SELECT COUNT(*) FROM student_profiles sp WHERE sp.classId=c.id AND sp.studyStatus='active') AS studentCount FROM classes c WHERE c.schoolId=? ORDER BY c.gradeLevel,c.name");$classesStmt->execute([$schoolId]);$classes=$classesStmt->fetchAll();
+            return ['school'=>$school,'metrics'=>$metrics,'kpis'=>$this->buildKpis($metrics,$classes),'topTalents'=>$this->topStudentsForDemo($schoolId,4),'classes'=>$this->presentClasses($classes),'recentActivity'=>[]];
+        }
         $metrics  = $this->repository->dashboardMetrics($schoolId);
 
         $topTalents = $this->topStudentsForDemo($schoolId, 4);
@@ -64,6 +72,11 @@ final class SchoolDashboardService
             'classes'       => $this->presentClasses($classes),
             'recentActivity'=> $recent,
         ];
+    }
+
+    private function usesLegacySchoolSchema(): bool
+    {
+        $stmt=$this->pdo->query("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='schools' AND column_name='level'");return (int)$stmt->fetchColumn()===0;
     }
 
     public function update(string $userId, array $input): array

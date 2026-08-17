@@ -28,7 +28,15 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
     if($repository===null){$errorMessage='Không thể kết nối dịch vụ đăng ký. Vui lòng thử lại sau.';}
     elseif($fieldErrors===[]){
         try{
-            $auth=new AuthService($repository);$user=$auth->registerStudent([...$values,'password'=>$password],RequestId::make(null),$_SERVER['REMOTE_ADDR']??null);
+            $registrationInput=[
+                'email'=>$values['email'],
+                'password'=>$password,
+                'fullName'=>$values['fullName'],
+                'classId'=>$values['classId'],
+                'dateOfBirth'=>$values['dateOfBirth'],
+                'phone'=>$values['phone'],
+            ];
+            $auth=new AuthService($repository);$user=$auth->registerStudent($registrationInput,RequestId::make(null),$_SERVER['REMOTE_ADDR']??null);
             $_SESSION['authFlash']=['type'=>'registered','email'=>$user['email']];header('Location: ./login.php');exit;
         }catch(ApiException $exception){$errorMessage=$exception->getMessage();foreach($exception->details as $detail){$fieldErrors[$detail['field']]=$detail['message'];}}
         catch(Throwable){$errorMessage='Không thể hoàn tất đăng ký. Vui lòng thử lại sau.';}
