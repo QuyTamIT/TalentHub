@@ -31,6 +31,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentPostId = applicantsDataEl.getAttribute('data-post-id') || '1';
     const storageKey = `talenthub_applicant_reviews_${currentPostId}`;
 
+    function resolveCandidateDetailUrl(id) {
+        const basePrefix = window.location.pathname.includes('/TalentHub') ? '/TalentHub' : '';
+        return `${basePrefix}/app/enterprise/talents/detail.php?id=${encodeURIComponent(id)}`;
+    }
+
     // Load persisted mock reviews from localStorage if available
     const savedReviews = localStorage.getItem(storageKey);
     if (savedReviews) {
@@ -249,13 +254,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const primaryBtnText = isDecisionMade ? 'Chi tiết' : 'Duyệt';
                 const primaryBtnClass = isDecisionMade ? 'btn-secondary' : 'btn-primary';
 
+                const detailUrl = resolveCandidateDetailUrl(app.student_id);
+
                 return `
                     <tr data-applicant-id="${app.id}">
                         <td>
                             <div class="ent-applicant-identity">
                                 <div class="ent-applicant-avatar">${escapeHtml(app.avatar_initials)}</div>
                                 <div class="ent-applicant-info">
-                                    <a href="/app/enterprise/talents/detail.php?id=${app.student_id}" 
+                                    <a href="${detailUrl}" 
                                        class="ent-applicant-info__name"
                                        title="Xem Talent Passport của ${escapeHtml(app.name)}">
                                         ${escapeHtml(app.name)}
@@ -280,7 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </td>
                         <td class="text-right">
                             <div class="ent-action-group">
-                                <a href="/app/enterprise/talents/detail.php?id=${app.student_id}" 
+                                <a href="${detailUrl}" 
                                    class="btn btn-secondary btn-sm"
                                    title="Xem Talent Passport">
                                     Xem hồ sơ
@@ -331,6 +338,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const primaryBtnText = isDecisionMade ? 'Chi tiết' : 'Duyệt hồ sơ';
                 const primaryBtnClass = isDecisionMade ? 'btn-secondary' : 'btn-primary';
 
+                const detailUrl = resolveCandidateDetailUrl(app.student_id);
+
                 return `
                     <article class="ent-applicant-mobile-card" data-applicant-id="${app.id}">
                         <div class="ent-applicant-mobile-card__header">
@@ -339,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     ${escapeHtml(app.avatar_initials)}
                                 </div>
                                 <div class="ent-applicant-info">
-                                    <a href="/app/enterprise/talents/detail.php?id=${app.student_id}" class="ent-applicant-info__name">
+                                    <a href="${detailUrl}" class="ent-applicant-info__name">
                                         ${escapeHtml(app.name)}
                                     </a>
                                     <div class="ent-applicant-info__sub">${escapeHtml(app.school)} &middot; ${escapeHtml(app.class_code || app.education_level)}</div>
@@ -355,7 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="d-flex align-items-center justify-content-between pt-2 border-top">
                             <div>${renderStatusPillHtml(app.status, app.status_label)}</div>
                             <div class="ent-action-group">
-                                <a href="/app/enterprise/talents/detail.php?id=${app.student_id}" class="btn btn-secondary btn-sm">Xem hồ sơ</a>
+                                <a href="${detailUrl}" class="btn btn-secondary btn-sm">Xem hồ sơ</a>
                                 <button type="button" class="btn ${primaryBtnClass} btn-sm btn-review-app" data-app-id="${app.id}">${primaryBtnText}</button>
                                 <div class="ent-dropdown">
                                     <button type="button" class="btn btn-secondary btn-sm ent-dropdown-toggle">&ctdot;</button>
@@ -597,7 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 4. Quick Action Links
         const passportBtn = document.getElementById('btn-drawer-passport');
         if (passportBtn) {
-            passportBtn.href = `/app/enterprise/talents/detail.php?id=${app.student_id}`;
+            passportBtn.href = resolveCandidateDetailUrl(app.student_id);
         }
 
         const cvBtn = document.getElementById('btn-drawer-cv');
@@ -698,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const passportModalBtn = document.getElementById('btn-cv-modal-passport');
         if (passportModalBtn) {
-            passportModalBtn.href = `/app/enterprise/talents/detail.php?id=${app.student_id}`;
+            passportModalBtn.href = resolveCandidateDetailUrl(app.student_id);
         }
 
         // 2. Recruiter Context Bar

@@ -2,22 +2,41 @@
 declare(strict_types=1);
 namespace TalentHub\Auth\Session;
 
+use RuntimeException;
 use TalentHub\Http\ApiException;
 
 final class SessionManager
 {
-    /** @param array{name:string,lifetime:int,secure:bool,sameSite:string} $config */
+    /** @param array{name:string,lifetime:int,secure:bool,sameSite:string,savePath:string} $config */
     public function __construct(private readonly array $config) {}
 
     public function start(): void
     {
         if(session_status()===PHP_SESSION_ACTIVE){return;}
+        $this->configureStorage();
         session_name($this->config['name']);
         session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>$this->config['secure'],'httponly'=>true,'samesite'=>$this->config['sameSite']]);
         ini_set('session.use_strict_mode','1');ini_set('session.use_only_cookies','1');
-        session_start();
-        if(isset($_SESSION['lastSeenAt'])&&time()-(int)$_SESSION['lastSeenAt']>$this->config['lifetime']){$this->destroy();session_start();}
+        $this->open();
+        if(isset($_SESSION['lastSeenAt'])&&time()-(int)$_SESSION['lastSeenAt']>$this->config['lifetime']){$this->destroy();$this->open();}
         $_SESSION['lastSeenAt']=time();
+    }
+
+    private function open(): void
+    {
+        if(!@session_start()){throw new RuntimeException('Unable to start the session.');}
+    }
+
+    private function configureStorage(): void
+    {
+        $savePath=trim($this->config['savePath']);
+        if($savePath===''){throw new RuntimeException('Session save path must not be empty.');}
+        if(headers_sent()){throw new RuntimeException('Session must be started before response output.');}
+        if(!is_dir($savePath)&&!@mkdir($savePath,0700,true)&&!is_dir($savePath)){
+            throw new RuntimeException('Unable to create the session storage directory.');
+        }
+        if(!is_writable($savePath)){throw new RuntimeException('Session storage directory is not writable.');}
+        if(session_save_path($savePath)===false){throw new RuntimeException('Unable to configure session storage.');}
     }
 
     /** @param array{id:string,email:string,fullName:string,role:string,status:string} $user */

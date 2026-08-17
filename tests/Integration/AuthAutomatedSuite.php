@@ -19,6 +19,7 @@ final class AuthAutomatedSuite
             'login rate limit'=>(new LoginRateLimitIntegration())->run(...),
             'teacher auth/profile'=>(new TeacherAuthIntegration())->run(...),
             'school/student/business auth/profile'=>(new RoleProfileIntegration())->run(...),
+            'school dashboard api'=>(new SchoolDashboardApiTest())->run(...),
         ];
         foreach($cases as $name=>$case){
             $runner=new MigrationRunner($pdo,$migrationDirectory);

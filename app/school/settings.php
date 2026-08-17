@@ -82,7 +82,7 @@ include __DIR__ . '/includes/page-banner.php';
     <?php endif; ?>
 
     <form method="post" class="school-form" enctype="multipart/form-data" novalidate>
-        <div class="school-form__grid">
+        <div class="school-form__grid school-form__grid--2col">
             <label class="school-form__field">
                 <span>Tên trường <em>*</em></span>
                 <input type="text" name="name" value="<?= htmlspecialchars($school['name']); ?>" maxlength="255" required>
@@ -127,7 +127,7 @@ include __DIR__ . '/includes/page-banner.php';
             </div>
 
             <div class="school-form__actions">
-                <a href="/app/school/" class="btn btn-outline">Huỷ</a>
+                <a href="./" class="btn btn-outline">Huỷ</a>
                 <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
             </div>
         </form>
@@ -135,21 +135,7 @@ include __DIR__ . '/includes/page-banner.php';
 <?php
 $pageBody = ob_get_clean();
 
-$extraStyles = <<<HTML
-<style>
-.school-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1rem; }
-.school-form__field { display: flex; flex-direction: column; gap: 0.375rem; font-size: 0.875rem; color: var(--text-secondary); }
-.school-form__field--full { grid-column: 1 / -1; }
-.school-form__field input { width: 100%; padding: 0.625rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); font-size: 0.9375rem; }
-.school-form__field input:focus { outline: 2px solid #2563EB; outline-offset: 1px; }
-.school-form__field em { color: #DC2626; font-style: normal; margin-left: 2px; }
-.school-form__actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; }
-.school-flash { padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-top: 1rem; font-size: 0.875rem; }
-.school-flash--success { background: #ECFDF5; color: #047857; border: 1px solid #6EE7B7; }
-.school-flash--error { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
-@media (max-width: 720px) { .school-form__grid { grid-template-columns: 1fr; } }
-</style>
-HTML;
+$extraStyles = '';
 
 $extraScripts = <<<HTML
 <script>

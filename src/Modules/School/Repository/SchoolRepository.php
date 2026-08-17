@@ -354,28 +354,19 @@ final class SchoolRepository
             throw new RuntimeException('Lớp không thuộc trường hiện tại.');
         }
 
-        $this->pdo->beginTransaction();
-        try {
-            $profileId = Uuid::v4();
-            $stmt = $this->pdo->prepare(
-                'INSERT INTO student_profiles (id, userId, classId, dateOfBirth, phone, studyStatus)
-                 VALUES (:id, :userId, :classId, :dob, :phone, \'active\')'
-            );
-            $stmt->execute([
-                'id'      => $profileId,
-                'userId'  => $data['userId'],
-                'classId' => $data['classId'],
-                'dob'     => $data['dateOfBirth'],
-                'phone'   => $data['phone'],
-            ]);
-            $this->pdo->commit();
-            return $profileId;
-        } catch (\Throwable $e) {
-            if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
-            throw $e;
-        }
+        $profileId = Uuid::v4();
+        $stmt = $this->pdo->prepare(
+            'INSERT INTO student_profiles (id, userId, classId, dateOfBirth, phone, studyStatus)
+             VALUES (:id, :userId, :classId, :dob, :phone, \'active\')'
+        );
+        $stmt->execute([
+            'id'      => $profileId,
+            'userId'  => $data['userId'],
+            'classId' => $data['classId'],
+            'dob'     => $data['dateOfBirth'],
+            'phone'   => $data['phone'],
+        ]);
+        return $profileId;
     }
 
     /**

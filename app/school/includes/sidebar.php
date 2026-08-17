@@ -90,7 +90,7 @@ $sidebarNav = [
                     || (isset($currentRoute) && $navItem['route'] === $currentRoute);
             ?>
                 <li>
-                    <a href="<?= htmlspecialchars($navItem['route']); ?>"
+                    <a href="<?= htmlspecialchars(app_href($navItem['route'])); ?>"
                        class="school-sidebar__link <?= $isActive ? 'is-active' : ''; ?>">
                         <span class="school-sidebar__icon">
                             <?php if ($navItem['icon'] === 'grid'): ?>
@@ -159,7 +159,7 @@ $sidebarNav = [
 
     <!-- Bottom Action -->
     <div class="school-sidebar__footer">
-        <a href="/role-selection.php" class="school-sidebar__link school-sidebar__link--switch">
+        <a href="../../role-selection.php" class="school-sidebar__link school-sidebar__link--switch">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M16 17l5-5-5-5M19.8 12H9M13 22a10 10 0 1 1 0-20"></path>
             </svg>

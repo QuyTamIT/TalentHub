@@ -309,14 +309,140 @@ $mockTalents = [
     ]
 ];
 
-// Provide helper to find candidate by ID (or default fallback to candidate 1)
-function getMockTalentById($id) {
+/**
+ * Load student profile from database if available
+ */
+function loadStudentProfileFromDb(string $id): ?array {
+    static $dbStudentsCache = [];
+    if (isset($dbStudentsCache[$id])) {
+        return $dbStudentsCache[$id];
+    }
+
+    try {
+        global $pdo;
+        if (!isset($pdo) || !$pdo instanceof PDO) {
+            $config = require dirname(__DIR__, 3) . '/config/database.php';
+            $pdo = (new \TalentHub\Database\Connection($config))->connect();
+        }
+
+        $stmt = $pdo->prepare(
+            'SELECT sp.id AS studentProfileId, sp.userId, u.fullName AS name, u.email, sp.dateOfBirth, sp.phone, sp.studyStatus, 
+                    c.name AS className, c.gradeLevel, s.name AS schoolName, s.level AS schoolLevel
+             FROM student_profiles sp
+             JOIN users u ON u.id = sp.userId
+             LEFT JOIN classes c ON c.id = sp.classId
+             LEFT JOIN schools s ON s.id = c.schoolId
+             WHERE sp.id = ? OR sp.userId = ? OR u.id = ?
+             LIMIT 1'
+        );
+        $stmt->execute([$id, $id, $id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            return null;
+        }
+
+        $words = preg_split('/\s+/', trim($row['name']));
+        $initials = count($words) === 1 
+            ? mb_strtoupper(mb_substr($words[0], 0, 2, 'UTF-8')) 
+            : mb_strtoupper(mb_substr($words[0], 0, 1, 'UTF-8') . mb_substr($words[count($words) - 1], 0, 1, 'UTF-8'));
+
+        $schoolName = $row['schoolName'] ?? 'THPT Nguyễn Trãi';
+        $educationLevel = $row['schoolLevel'] ?: 'Trung học Phổ thông';
+        $className = $row['className'] ? ('Lớp ' . $row['className']) : 'Lớp 12';
+
+        $talentData = [
+            'id' => (string)$row['studentProfileId'],
+            'user_id' => (string)$row['userId'],
+            'name' => $row['name'],
+            'avatar_initials' => $initials,
+            'school' => $schoolName,
+            'education_level' => $educationLevel,
+            'class_year' => $className,
+            'major_field' => 'Công nghệ Thông tin & Khoa học Tự nhiên',
+            'talent_score' => 92,
+            'match_score' => 92,
+            'experience_hours' => 85,
+            'internship_status' => 'ready_now',
+            'internship_status_label' => 'Sẵn sàng thực tập ngay',
+            'skills' => ['Lập trình cơ bản', 'Toán tin', 'Tư duy logic', 'Giao tiếp', 'Làm việc nhóm'],
+            'updated_at' => date('Y-m-d'),
+            'saved' => false,
+            'bio' => "Học sinh tại {$schoolName} với niềm đam mê công nghệ và năng lực giải quyết vấn đề sáng tạo, sẵn sàng tiếp thu kiến thức và tham gia các dự án thực tiễn.",
+            'detailed_skills' => [
+                ['name' => 'Tư duy logic & Thuật toán', 'level' => 'Nâng cao', 'verified' => true],
+                ['name' => 'Lập trình căn bản', 'level' => 'Trung cấp', 'verified' => true],
+                ['name' => 'Giao tiếp & Thuyết trình', 'level' => 'Nâng cao', 'verified' => true],
+                ['name' => 'Làm việc nhóm Agile', 'level' => 'Trung cấp', 'verified' => false]
+            ],
+            'experience_logs' => [
+                [
+                    'title' => 'Hoạt động Trải nghiệm STEM & Dự án Sáng tạo trẻ',
+                    'role' => 'Thành viên nòng cốt',
+                    'duration' => '2025 - 2026',
+                    'hours' => 50,
+                    'description' => 'Tham gia nghiên cứu và ứng dụng giải pháp công nghệ trong học tập và rèn luyện kỹ năng thực tế.'
+                ]
+            ],
+            'projects' => [
+                [
+                    'name' => 'Dự án Sáng tạo Học sinh TalentHub',
+                    'description' => 'Mô hình ứng dụng chuyển đổi số và phát triển kỹ năng cho học sinh.',
+                    'role' => 'Thành viên dự án',
+                    'technologies' => ['Web', 'STEM', 'Design'],
+                    'result' => 'Đạt chứng nhận Dự án Tiêu biểu'
+                ]
+            ],
+            'certificates' => [
+                ['name' => 'Chứng nhận Tham gia Hoạt động Hướng nghiệp & STEM', 'issuer' => $schoolName, 'issue_date' => '2026', 'verified' => true]
+            ],
+            'readiness_summary' => [
+                'status_label' => 'Sẵn sàng tham gia thực tập / hướng nghiệp',
+                'strengths' => ['Tư duy học hỏi nhanh', 'Thái độ tích cực', 'Kỹ năng nhóm tốt'],
+                'preferred_field' => 'Công nghệ Thông tin / Kỹ thuật',
+                'total_exp_hours' => '85h thực hành dự án'
+            ]
+        ];
+
+        $dbStudentsCache[$id] = $talentData;
+        return $talentData;
+    } catch (\Throwable $e) {
+        return null;
+    }
+}
+
+/**
+ * Provide canonical candidate lookup supporting both numeric IDs and UUID strings.
+ */
+function getTalentById(string|int|null $id): ?array {
+    if ($id === null || $id === '') {
+        return null;
+    }
+
+    $strId = trim((string)$id);
+
+    // 1. Check in database first
+    $dbTalent = loadStudentProfileFromDb($strId);
+    if ($dbTalent !== null) {
+        return $dbTalent;
+    }
+
+    // 2. Check in mock / memory candidate dataset
     global $mockTalents;
-    $id = intval($id);
-    foreach ($mockTalents as $talent) {
-        if ($talent['id'] === $id) {
-            return $talent;
+    if (is_array($mockTalents)) {
+        foreach ($mockTalents as $talent) {
+            if ((string)$talent['id'] === $strId) {
+                return $talent;
+            }
         }
     }
+
     return null;
 }
+
+/**
+ * Backward compatibility wrapper
+ */
+function getMockTalentById($id) {
+    return getTalentById($id);
+}
+

@@ -655,6 +655,11 @@ function initTalentSearchModule() {
         }
     }
 
+    function resolveCandidateDetailUrl(id) {
+        const basePrefix = window.location.pathname.includes('/TalentHub') ? '/TalentHub' : '';
+        return `${basePrefix}/app/enterprise/talents/detail.php?id=${encodeURIComponent(id)}`;
+    }
+
     function renderCards(talents) {
         if (!cardsContainer) return;
 
@@ -662,6 +667,7 @@ function initTalentSearchModule() {
             const topSkills = talent.skills.slice(0, 4);
             const isSaved = talent.saved;
             const score = talent.talent_score || talent.match_score;
+            const detailUrl = resolveCandidateDetailUrl(talent.id);
 
             let statusBadgeClass = 'badge-ready-now';
             if (talent.internship_status === 'ready_1_3m') statusBadgeClass = 'badge-ready-later';
@@ -676,7 +682,7 @@ function initTalentSearchModule() {
                             </div>
                             <div class="ent-talent-card-item__title-box">
                                 <div class="ent-talent-card-item__name-row">
-                                    <a href="/app/enterprise/talents/detail.php?id=${talent.id}" class="ent-talent-card-item__name">
+                                    <a href="${detailUrl}" class="ent-talent-card-item__name">
                                         ${escapeHtml(talent.name)}
                                     </a>
                                     <span class="ent-talent-card-item__score" title="Điểm đánh giá năng lực">
@@ -742,9 +748,9 @@ function initTalentSearchModule() {
                             <span>Hồ sơ đã bảo vệ danh tính</span>
                         </div>
                         <div class="ent-talent-card-item__actions">
-                            <a href="/app/enterprise/talents/detail.php?id=${talent.id}" 
+                            <a href="${detailUrl}" 
                                class="btn btn-secondary btn-sm" 
-                               data-route="/app/enterprise/talents/detail.php?id=${talent.id}">
+                               data-route="${detailUrl}">
                                 Xem hồ sơ
                             </a>
                             <button type="button" 
