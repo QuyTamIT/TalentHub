@@ -383,7 +383,11 @@ foundation_assert(
 );
 
 $databaseRepositoryFiles = glob(dirname(__DIR__) . '/app/learner/data/Database/*.php') ?: [];
+$assessmentWriteRepositoryPath = dirname(__DIR__) . '/app/learner/data/Database/DatabaseAssessmentWriteRepository.php';
 foreach ($databaseRepositoryFiles as $databaseRepositoryFile) {
+    if ($databaseRepositoryFile === $assessmentWriteRepositoryPath) {
+        continue;
+    }
     $databaseRepositorySource = file_get_contents($databaseRepositoryFile);
     foundation_assert($databaseRepositorySource !== false, 'database repository source is readable');
     foundation_assert(
@@ -391,6 +395,16 @@ foreach ($databaseRepositoryFiles as $databaseRepositoryFile) {
         basename($databaseRepositoryFile) . ' contains read-only SQL only'
     );
 }
+$assessmentWriteRepositorySource = file_get_contents($assessmentWriteRepositoryPath);
+foundation_assert($assessmentWriteRepositorySource !== false, 'assessment write repository source is readable');
+foundation_assert(
+    preg_match('/\b(CREATE|ALTER|DROP|DELETE|TRUNCATE)\b/i', $assessmentWriteRepositorySource) !== 1,
+    'assessment write repository has no destructive SQL'
+);
+foundation_assert(
+    preg_match('/\b(INSERT|UPDATE)\b/i', $assessmentWriteRepositorySource) === 1,
+    'assessment write repository contains the explicit persistence operations'
+);
 $abstractDatabaseSource = file_get_contents(dirname(__DIR__) . '/app/learner/data/Database/AbstractDatabaseRepository.php');
 foundation_assert(str_contains((string) $abstractDatabaseSource, '->prepare('), 'database reads use prepared statements');
 foundation_assert(!str_contains((string) $abstractDatabaseSource, '->query('), 'database reads do not use direct query calls');

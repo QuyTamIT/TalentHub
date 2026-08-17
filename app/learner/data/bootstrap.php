@@ -7,6 +7,7 @@ $GLOBALS['learner_data_defaults'] ??= require $learnerDataRoot . '/config.php';
 
 require_once $learnerDataRoot . '/Contracts/StudentRepository.php';
 require_once $learnerDataRoot . '/Contracts/AssessmentRepository.php';
+require_once $learnerDataRoot . '/Contracts/AssessmentWriteRepository.php';
 require_once $learnerDataRoot . '/Contracts/ActivityRepository.php';
 require_once $learnerDataRoot . '/Contracts/EcosystemRepository.php';
 require_once $learnerDataRoot . '/Contracts/ApplicationRepository.php';
@@ -31,19 +32,27 @@ require_once $learnerDataRoot . '/Mock/MockActivityRepository.php';
 require_once $learnerDataRoot . '/Mock/MockEcosystemRepository.php';
 require_once $learnerDataRoot . '/Mock/MockApplicationRepository.php';
 require_once $learnerDataRoot . '/Database/AbstractDatabaseRepository.php';
+require_once $learnerDataRoot . '/Database/SchemaInspector.php';
 require_once $learnerDataRoot . '/Database/DatabaseStudentRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseAssessmentRepository.php';
+require_once $learnerDataRoot . '/Database/DatabaseAssessmentWriteRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseActivityRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseEcosystemRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseApplicationRepository.php';
-require_once $learnerDataRoot . '/Database/SchemaInspector.php';
+require_once $learnerDataRoot . '/Readiness/AiScopePolicy.php';
 require_once $learnerDataRoot . '/Readiness/ReadinessResult.php';
-require_once $learnerDataRoot . '/Readiness/PhaseRequirements.php';
 require_once $learnerDataRoot . '/Readiness/GitScopeGuard.php';
 require_once $learnerDataRoot . '/Readiness/LearnerMigrationRunner.php';
+require_once $learnerDataRoot . '/Readiness/PhaseRequirements.php';
 require_once $learnerDataRoot . '/Readiness/ReadinessChecker.php';
-require_once dirname($learnerDataRoot) . '/runtime/LearnerRuntime.php';
+require_once $learnerDataRoot . '/Migrations/LearnerForwardMigration.php';
+require_once $learnerDataRoot . '/Migrations/LearnerMigrationPreflight.php';
+require_once $learnerDataRoot . '/Migrations/ForwardMigrationDefinition.php';
+require_once $learnerDataRoot . '/Migrations/LearnerMigrationChecksum.php';
+require_once $learnerDataRoot . '/Migrations/LearnerForwardMigrationRunner.php';
+require_once $learnerDataRoot . '/Service/LearnerAssessmentService.php';
 require_once $learnerDataRoot . '/RepositoryFactory.php';
+require_once dirname($learnerDataRoot) . '/runtime/LearnerRuntime.php';
 
 unset($learnerDataRoot);
 
@@ -80,27 +89,6 @@ if (!function_exists('learner_repository_factory')) {
     }
 }
 
-if (!function_exists('learner_safe_runtime_diagnostics')) {
-    function learner_safe_runtime_diagnostics(): array
-    {
-        $config = learner_data_config();
-        $source = strtolower(trim((string) ($config['source'] ?? '')));
-
-        return [
-            'source' => $source,
-            'pdo_configured' => ($config['pdo'] ?? null) instanceof \PDO,
-            'student_id_configured' => trim((string) ($config['student_id'] ?? '')) !== '',
-        ];
-    }
-}
-
-if (!function_exists('learner_runtime')) {
-    function learner_runtime(): \TalentHub\Learner\Runtime\LearnerRuntime
-    {
-        return \TalentHub\Learner\Runtime\LearnerRuntime::fromConfig(learner_data_config());
-    }
-}
-
 if (!function_exists('learner_current_student_id')) {
     function learner_current_student_id(): string
     {
@@ -117,5 +105,25 @@ if (!function_exists('learner_current_student_id')) {
         }
 
         return 'student-demo-001';
+    }
+}
+
+if (!function_exists('learner_safe_runtime_diagnostics')) {
+    /** @return array{source:string,student_id:?string} */
+    function learner_safe_runtime_diagnostics(): array
+    {
+        $config = learner_data_config();
+        $studentId = trim((string) ($config['student_id'] ?? ''));
+        return [
+            'source' => strtolower(trim((string) ($config['source'] ?? 'mock'))),
+            'student_id' => $studentId === '' ? null : $studentId,
+        ];
+    }
+}
+
+if (!function_exists('learner_runtime')) {
+    function learner_runtime(): \TalentHub\Learner\Runtime\LearnerRuntime
+    {
+        return \TalentHub\Learner\Runtime\LearnerRuntime::fromConfig(learner_data_config());
     }
 }

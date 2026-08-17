@@ -6,10 +6,6 @@ namespace TalentHub\Learner\Data\Readiness;
 
 final class ReadinessResult
 {
-    private const READY = 'READY';
-    private const NOT_READY = 'NOT_READY';
-    private const BLOCKED = 'BLOCKED';
-
     /** @var list<array{check:string,message:string}> */
     private array $passes = [];
 
@@ -22,34 +18,41 @@ final class ReadinessResult
 
     public function addPass(string $check, string $message): void
     {
-        $this->passes[] = ['check' => $check, 'message' => $message];
+        $this->passes[] = ['check' => trim($check), 'message' => trim($message)];
     }
 
     public function addFailure(string $check, string $message, bool $blocked = false): void
     {
-        $this->failures[] = ['check' => $check, 'message' => $message, 'blocked' => $blocked];
+        $this->failures[] = [
+            'check' => trim($check),
+            'message' => trim($message),
+            'blocked' => $blocked,
+        ];
     }
 
     public function status(): string
     {
+        if ($this->failures === []) {
+            return 'READY';
+        }
         foreach ($this->failures as $failure) {
             if ($failure['blocked']) {
-                return self::BLOCKED;
+                return 'BLOCKED';
             }
         }
-
-        return $this->failures === [] ? self::READY : self::NOT_READY;
+        return 'NOT_READY';
     }
 
     public function exitCode(): int
     {
         return match ($this->status()) {
-            self::READY => 0,
-            self::NOT_READY => 2,
-            self::BLOCKED => 3,
+            'READY' => 0,
+            'BLOCKED' => 3,
+            default => 2,
         };
     }
 
+    /** @return array{phase:int,status:string,exit_code:int,passes:list<array{check:string,message:string}>,failures:list<array{check:string,message:string,blocked:bool}>} */
     public function toArray(): array
     {
         return [

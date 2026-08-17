@@ -1,0 +1,109 @@
+<?php
+
+declare(strict_types=1);
+
+namespace TalentHub\Learner\Ai\Model;
+
+use TalentHub\Learner\Ai\Config\RecommendationConfig;
+use TalentHub\Learner\Ai\Contracts\RecommendationEngine;
+use TalentHub\Learner\Ai\Contracts\RecommendationProvider;
+use TalentHub\Learner\Ai\Domain\RecommendationContext;
+use TalentHub\Learner\Ai\Domain\RecommendationEvidence;
+use TalentHub\Learner\Ai\Domain\RecommendationInput;
+use TalentHub\Learner\Ai\Domain\RecommendationItem;
+use TalentHub\Learner\Ai\Domain\RecommendationResult;
+use TalentHub\Learner\Ai\Provider\ProviderRequest;
+use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
+use TalentHub\Learner\Ai\Validation\RecommendationResultValidator;
+
+final class ModelRecommendationEngine implements RecommendationEngine
+{
+    public function __construct(
+        private readonly RecommendationProvider $provider,
+        private readonly RecommendationEngine $fallback,
+        private readonly PromptRegistry $prompts,
+        private readonly RecommendationRateLimiter $rateLimiter,
+        private readonly RecommendationConfig $config,
+        private readonly RecommendationResultValidator $validator,
+    ) {
+    }
+
+    public function generate(RecommendationInput $input, RecommendationContext $context): RecommendationResult
+    {
+        if (!$this->config->enabled() || ($studentId = trim((string) $context->studentId())) === '') {
+            return $this->fallback($input, $context, 'model_disabled');
+        }
+        if (!$this->rateLimiter->acquire($studentId)->allowed()) {
+            return $this->fallback($input, $context, 'rate_limited');
+        }
+        $request = $this->prompts->create($input, $context);
+        $response = $this->provider->generate($request);
+        if (!$response->isSuccess()) {
+            return $this->fallback($input, $context, (string) $response->errorCode());
+        }
+        try {
+            $result = new RecommendationResult(
+                'model',
+                null,
+                (string) $this->config->provider(),
+                (string) $this->config->model(),
+                $request->promptVersion(),
+                null,
+                $this->items($response->items(), $request),
+            );
+            $this->validator->validate($result);
+            return $result;
+        } catch (\Throwable) {
+            return $this->fallback($input, $context, 'invalid_model_response');
+        }
+    }
+
+    /** @param list<array<string,mixed>> $items @return list<RecommendationItem> */
+    private function items(array $items, ProviderRequest $request): array
+    {
+        $result = [];
+        foreach ($items as $item) {
+            $references = $item['evidence_ref_ids'] ?? null;
+            if (!is_array($references) || $references === []) {
+                throw new \InvalidArgumentException('Model item evidence references are required.');
+            }
+            $evidence = [];
+            foreach ($references as $referenceId) {
+                if (!is_string($referenceId) || ($record = $request->evidence($referenceId)) === null) {
+                    throw new \InvalidArgumentException('Model item cited an unavailable evidence reference.');
+                }
+                $evidence[] = new RecommendationEvidence(
+                    $record->sourceType(),
+                    $record->sourceId(),
+                    $record->observedAt(),
+                    'model_source',
+                    $record->safeValue(),
+                );
+            }
+            $result[] = new RecommendationItem(
+                is_string($item['item_type'] ?? null) ? $item['item_type'] : '',
+                is_string($item['title'] ?? null) ? $item['title'] : '',
+                is_string($item['summary'] ?? null) ? $item['summary'] : '',
+                is_int($item['priority'] ?? null) ? $item['priority'] : 0,
+                is_string($item['confidence_band'] ?? null) ? $item['confidence_band'] : '',
+                is_array($item['action'] ?? null) ? $item['action'] : [],
+                $evidence,
+            );
+        }
+        return $result;
+    }
+
+    private function fallback(RecommendationInput $input, RecommendationContext $context, string $reason): RecommendationResult
+    {
+        $rule = $this->fallback->generate($input, $context);
+        return new RecommendationResult(
+            'rule',
+            $rule->ruleVersion() ?? 'learner-rules-fallback-1.0.0',
+            null,
+            null,
+            null,
+            trim($reason) === '' ? 'provider_unavailable' : trim($reason),
+            $rule->items(),
+        );
+    }
+}

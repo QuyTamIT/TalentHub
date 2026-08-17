@@ -65,6 +65,20 @@ test('client ignores an external base URL and stays under the canonical API root
   assert.equal(requestUrl, '/api/v1/students/me?include=profile');
 });
 
+test('client accepts the learner-local API base without escaping it', async () => {
+  let requestUrl = '';
+  const client = createLearnerApiClient({
+    baseUrl: '/app/learner/api/v1',
+    fetchImpl: async (url) => {
+      requestUrl = url;
+      return { ok: true, status: 200, json: async () => ({ data: {} }) };
+    },
+  });
+
+  await client.get('/recommendations.php');
+  assert.equal(requestUrl, '/app/learner/api/v1/recommendations.php');
+});
+
 test('client rejects traversal paths before making a request', async () => {
   let calls = 0;
   const client = createLearnerApiClient({
@@ -110,6 +124,21 @@ test('bodyless mutations include the current CSRF token', async () => {
   client.setCsrfToken('csrf-current');
   await client.send('DELETE', '/students/me/avatar');
   assert.equal(request.options.headers['X-CSRF-Token'], 'csrf-current');
+  assert.equal(request.options.body, undefined);
+});
+
+test('recommendation generation sends an explicit idempotency key without exposing it in the body', async () => {
+  let request;
+  const client = createLearnerApiClient({
+    baseUrl: '/app/learner/api/v1', csrfToken: 'csrf-current',
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: true, status: 202, json: async () => ({ data: { state: 'pending' } }) };
+    },
+  });
+
+  await client.send('POST', '/recommendations.php', undefined, { idempotencyKey: 'idempotency-key-0001' });
+  assert.equal(request.options.headers['X-Idempotency-Key'], 'idempotency-key-0001');
   assert.equal(request.options.body, undefined);
 });
 

@@ -13,24 +13,31 @@ final class LearnerRuntime
     {
     }
 
+    /** @param array{source?:mixed,pdo?:mixed,student_id?:mixed} $config */
     public static function fromConfig(array $config): self
     {
-        $source = strtolower(trim((string) ($config['source'] ?? '')));
+        $source = strtolower(trim((string) ($config['source'] ?? 'mock')));
         if (!in_array($source, ['mock', 'database'], true)) {
-            throw new LearnerDataConfigurationException('Learner runtime source must be explicitly mock or database.');
+            throw new LearnerDataConfigurationException('Learner runtime source must be mock or database.');
         }
 
         $pdo = $config['pdo'] ?? null;
         if ($source === 'database' && !$pdo instanceof PDO) {
-            throw new LearnerDataConfigurationException('Learner database runtime requires a real PDO instance; mock fallback is disabled.');
+            throw new LearnerDataConfigurationException('Learner database runtime requires a real PDO instance.');
+        }
+        if ($pdo !== null && !$pdo instanceof PDO) {
+            throw new LearnerDataConfigurationException('Learner runtime PDO configuration must be a PDO instance.');
         }
 
         $studentId = trim((string) ($config['student_id'] ?? ''));
-        if ($source === 'database' && $studentId === '') {
-            throw new LearnerDataConfigurationException('Learner database runtime requires an explicit student_id configuration.');
+        if ($studentId === '') {
+            if ($source === 'database') {
+                throw new LearnerDataConfigurationException('Learner database runtime requires an explicit student_id.');
+            }
+            $studentId = 'student-demo-001';
         }
 
-        return new self($source, $pdo instanceof PDO ? $pdo : null, $studentId !== '' ? $studentId : 'student-demo-001');
+        return new self($source, $pdo, $studentId);
     }
 
     public function source(): string
@@ -38,22 +45,14 @@ final class LearnerRuntime
         return $this->source;
     }
 
-    public function pdo(): ?PDO
-    {
-        return $this->pdo;
-    }
-
     public function studentId(): string
     {
         return $this->studentId;
     }
 
+    /** @return array{source:string,student_id:string} */
     public function diagnostics(): array
     {
-        return [
-            'source' => $this->source,
-            'pdo_configured' => $this->pdo instanceof PDO,
-            'student_id_configured' => $this->studentId !== '',
-        ];
+        return ['source' => $this->source, 'student_id' => $this->studentId];
     }
 }

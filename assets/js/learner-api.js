@@ -5,6 +5,8 @@
     'use strict';
 
     const API_ROOT = '/api/v1';
+    const LEARNER_API_ROOT = '/app/learner/api/v1';
+    const ALLOWED_API_BASES = new Set([API_ROOT, LEARNER_API_ROOT]);
     const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
     class LearnerApiError extends Error {
@@ -28,7 +30,7 @@
 
     function normalizeApiBase(baseUrl) {
         const requestedBase = String(baseUrl || '').trim().replace(/\/+$/, '');
-        return requestedBase === API_ROOT ? requestedBase : API_ROOT;
+        return ALLOWED_API_BASES.has(requestedBase) ? requestedBase : API_ROOT;
     }
 
     function createApiPathError() {
@@ -50,7 +52,7 @@
             throw createApiPathError();
         }
 
-        if (url.pathname !== API_ROOT && !url.pathname.startsWith(`${API_ROOT}/`)) {
+        if (url.pathname !== baseUrl && !url.pathname.startsWith(`${baseUrl}/`)) {
             throw createApiPathError();
         }
         return `${url.pathname}${url.search}`;
@@ -89,7 +91,7 @@
             }
         }
 
-        async function request(method, path, body) {
+        async function request(method, path, body, requestOptions = {}) {
             const normalizedMethod = String(method).toUpperCase();
             const headers = { Accept: 'application/json' };
             const options = { method: normalizedMethod, headers, credentials: 'same-origin' };
@@ -98,6 +100,10 @@
                 options.body = JSON.stringify(body);
             }
             if (MUTATION_METHODS.has(normalizedMethod)) headers['X-CSRF-Token'] = csrf;
+            const idempotencyKey = requestOptions && typeof requestOptions.idempotencyKey === 'string'
+                ? requestOptions.idempotencyKey.trim()
+                : '';
+            if (idempotencyKey !== '') headers['X-Idempotency-Key'] = idempotencyKey;
 
             const url = buildApiUrl(apiBase, path);
             let response;
@@ -132,7 +138,7 @@
 
         return {
             get: (path) => request('GET', path),
-            send: (method, path, body) => request(String(method).toUpperCase(), path, body),
+            send: (method, path, body, requestOptions) => request(String(method).toUpperCase(), path, body, requestOptions),
             setCsrfToken: (token) => { csrf = String(token || ''); },
         };
     }

@@ -59,8 +59,8 @@ final class PhaseRequirements
             9 => $this->definition(true, [], ['badges', 'student_badges', 'experience_logs'], [
                 'badges' => ['id'], 'student_badges' => ['studentId', 'badgeId'], 'experience_logs' => ['studentId'],
             ], ['student_badges' => ['uq_student_badges_student_badge']]),
-            10 => $this->definition(true, [], ['learner_schema_migrations'], ['learner_schema_migrations' => ['version']]),
-            11 => $this->definition(true, [], ['learner_schema_migrations'], ['learner_schema_migrations' => ['version']]),
+            10 => $this->definition(true, [], ['learner_forward_migrations'], ['learner_forward_migrations' => ['version', 'name', 'checksum', 'description', 'appliedAt']]),
+            11 => $this->definition(true, [], ['learner_forward_migrations'], ['learner_forward_migrations' => ['version', 'name', 'checksum', 'description', 'appliedAt']]),
         ];
     }
 
