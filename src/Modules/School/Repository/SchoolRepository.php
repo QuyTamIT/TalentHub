@@ -13,6 +13,10 @@ final class SchoolRepository
     /** @return array<string,mixed>|null */
     public function findByUserId(string $userId): ?array
     {
+        if (!$this->hasTable('school_members')) {
+            $stmt=$this->pdo->prepare("SELECT s.id,s.name,s.status,NULL AS logoUrl,NULL AS address,NULL AS phone,NULL AS email,NULL AS website,NULL AS level,0 AS studentCount,0 AS teacherCount,'' AS academicYear,CURRENT_TIMESTAMP AS createdAt,CURRENT_TIMESTAMP AS updatedAt,'admin' AS memberRole FROM users u JOIN schools s ON s.status='active' WHERE u.id=:userId AND u.roles='school' ORDER BY s.name LIMIT 1");
+            $stmt->execute(['userId'=>$userId]);$row=$stmt->fetch();return is_array($row)?$row:null;
+        }
         $sql = 'SELECT s.id, s.name, s.status, s.logoUrl, s.address, s.phone, s.email, s.website,
                        s.level, s.studentCount, s.teacherCount, s.academicYear,
                        s.createdAt, s.updatedAt,
@@ -25,6 +29,11 @@ final class SchoolRepository
         $stmt->execute(['userId' => $userId]);
         $row = $stmt->fetch();
         return is_array($row) ? $row : null;
+    }
+
+    private function hasTable(string $table): bool
+    {
+        $stmt=$this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=?');$stmt->execute([$table]);return (int)$stmt->fetchColumn()===1;
     }
 
     /** @return array<string,mixed>|null */

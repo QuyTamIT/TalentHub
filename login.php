@@ -13,7 +13,6 @@ use TalentHub\Support\Id\RequestId;
 
 $session=new SessionManager(require __DIR__.'/config/session.php');$session->start();
 $requestedNext=is_string($_GET['next']??null)?$_GET['next']:null;
-if(($current=$session->user())!==null){header('Location: '.app_href(AuthPortalRouter::destination((string)$current['role'],$requestedNext)));exit;}
 
 $errorMessage=null;$emailValue='';$fieldErrors=[];$flash=$_SESSION['authFlash']??null;unset($_SESSION['authFlash']);
 $registrationSucceeded=is_array($flash)&&($flash['type']??null)==='registered';
