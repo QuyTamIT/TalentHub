@@ -776,6 +776,85 @@ v2_assert_throws(
     'missing consent grant'
 );
 
+// Negative test 26: duplicate QR hashes are rejected
+$mutatedDuplicateQrRows = $rows;
+$firstQrHash = null;
+foreach ($mutatedDuplicateQrRows as $idx => $r) {
+    if ($r['table'] !== 'activity_qr_tokens') {
+        continue;
+    }
+    if ($firstQrHash === null) {
+        $firstQrHash = $r['values']['tokenHash'];
+        continue;
+    }
+    $mutatedDuplicateQrRows[$idx]['values']['tokenHash'] = $firstQrHash;
+    break;
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedDuplicateQrRows),
+    'duplicate tokenHash'
+);
+
+// Negative test 27: QR rows reject undeclared raw-token fields
+$mutatedRawQrRows = $rows;
+foreach ($mutatedRawQrRows as $idx => $r) {
+    if ($r['table'] === 'activity_qr_tokens') {
+        $mutatedRawQrRows[$idx]['values']['rawToken'] = 'synthetic-ai-v2-raw-token';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedRawQrRows),
+    'unexpected QR columns'
+);
+
+// Negative test 28: a later revoke overrides an earlier grant for a ready learner
+$mutatedLatestRevokeRows = $rows;
+foreach ($mutatedLatestRevokeRows as $idx => $r) {
+    if (
+        $r['table'] === 'learner_ai_consent_events'
+        && $r['values']['studentId'] === '00000000-0000-4000-8000-000000000104'
+        && $r['values']['scope'] === 'evaluation'
+    ) {
+        $mutatedLatestRevokeRows[$idx]['values']['studentId'] = '00000000-0000-4000-8000-000000000101';
+        $mutatedLatestRevokeRows[$idx]['values']['action'] = 'revoked';
+        $mutatedLatestRevokeRows[$idx]['values']['occurredAt'] = '2026-08-08 11:00:00.000000';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedLatestRevokeRows),
+    'latest consent'
+);
+
+// Negative test 29: a verified V2 IoT skill requires verified evidence
+$mutatedRejectedEvidenceRows = $rows;
+$learner103IotStudentSkillId = null;
+foreach ($mutatedRejectedEvidenceRows as $r) {
+    if (
+        $r['table'] === 'student_skills'
+        && $r['values']['studentId'] === '00000000-0000-4000-8000-000000000103'
+        && $r['values']['skillId'] === $v1SkillIot
+    ) {
+        $learner103IotStudentSkillId = $r['id'];
+        break;
+    }
+}
+v2_contract_assert($learner103IotStudentSkillId !== null, 'learner 103 IoT student_skill exists for evidence mutation');
+foreach ($mutatedRejectedEvidenceRows as $idx => $r) {
+    if (
+        $r['table'] === 'learner_skill_evidence'
+        && $r['values']['studentSkillId'] === $learner103IotStudentSkillId
+    ) {
+        $mutatedRejectedEvidenceRows[$idx]['values']['verificationStatus'] = 'rejected';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedRejectedEvidenceRows),
+    'verified evidence'
+);
+
 // 12. DCR File Assertions
 $source = file_get_contents($datasetFile);
 v2_contract_assert(is_string($source), 'dataset source is readable');

@@ -954,7 +954,14 @@ final class LearnerAiSyntheticDatasetV2
             }
         }
 
+        $allowedQrColumns = ['activityId', 'createdAt', 'id', 'status', 'tokenHash', 'validFrom', 'validUntil'];
+        $seenQrHashes = [];
         foreach ($rowsByTable['activity_qr_tokens'] ?? [] as $id => $qr) {
+            $actualQrColumns = array_keys($qr);
+            sort($actualQrColumns, SORT_STRING);
+            if ($actualQrColumns !== $allowedQrColumns) {
+                throw new RuntimeException('V2 validation failed: unexpected QR columns in ' . $id);
+            }
             if (!isset($allActivityIds[$qr['activityId']])) {
                 throw new RuntimeException('V2 validation failed: invalid activityId in qr_tokens ' . $id);
             }
@@ -962,6 +969,10 @@ final class LearnerAiSyntheticDatasetV2
             if (preg_match('/^[a-f0-9]{64}$/', $hash) !== 1) {
                 throw new RuntimeException('V2 validation failed: invalid tokenHash format in qr ' . $id);
             }
+            if (isset($seenQrHashes[$hash])) {
+                throw new RuntimeException('V2 validation failed: duplicate tokenHash in qr ' . $id);
+            }
+            $seenQrHashes[$hash] = true;
         }
 
         foreach ($rowsByTable['activity_registrations'] ?? [] as $id => $ar) {
@@ -1140,12 +1151,36 @@ final class LearnerAiSyntheticDatasetV2
             '00000000-0000-4000-8000-000000000102' => ['iot' => true, 'python' => true],
         ];
 
-        foreach ($rowsByTable['student_skills'] ?? [] as $ss) {
+        $verifiedEvidenceByStudentSkill = [];
+        foreach ($rowsByTable['learner_skill_evidence'] ?? [] as $evidence) {
+            if ($evidence['verificationStatus'] === 'verified') {
+                $verifiedEvidenceByStudentSkill[$evidence['studentSkillId']] = true;
+            }
+        }
+
+        foreach ($rowsByTable['student_skills'] ?? [] as $studentSkillId => $ss) {
             if ($ss['verificationStatus'] === 'verified') {
+                if (!isset($verifiedEvidenceByStudentSkill[$studentSkillId])) {
+                    throw new RuntimeException('V2 validation failed: verified student skill lacks verified evidence in ' . $studentSkillId);
+                }
                 $code = $skillCodeMap[$ss['skillId']] ?? '';
                 if ($code !== '') {
                     $effectiveSkills[$ss['studentId']][$code] = true;
                 }
+            }
+        }
+
+        $latestConsentByStudentScope = [];
+        foreach ($rowsByTable['learner_ai_consent_events'] ?? [] as $ce) {
+            $studentId = (string) $ce['studentId'];
+            $scope = (string) $ce['scope'];
+            $current = $latestConsentByStudentScope[$studentId][$scope] ?? null;
+            if (
+                $current === null
+                || [(string) $ce['occurredAt'], (string) $ce['requestId']]
+                    > [(string) $current['occurredAt'], (string) $current['requestId']]
+            ) {
+                $latestConsentByStudentScope[$studentId][$scope] = $ce;
             }
         }
 
@@ -1201,6 +1236,16 @@ final class LearnerAiSyntheticDatasetV2
                         $evalConsents[] = $ce;
                     }
                 }
+                usort(
+                    $evalConsents,
+                    static fn (array $left, array $right): int => [
+                        (string) $left['occurredAt'],
+                        (string) $left['requestId'],
+                    ] <=> [
+                        (string) $right['occurredAt'],
+                        (string) $right['requestId'],
+                    ]
+                );
                 if (count($evalConsents) !== 2 || $evalConsents[0]['action'] !== 'granted' || $evalConsents[1]['action'] !== 'revoked' || $evalConsents[1]['occurredAt'] <= $evalConsents[0]['occurredAt']) {
                     throw new RuntimeException('V2 validation failed: learner 120 must have evaluation grant followed by revoke as latest event.');
                 }
@@ -1213,15 +1258,10 @@ final class LearnerAiSyntheticDatasetV2
                 }
             }
             if ($p['expected_state'] === 'ready') {
-                $grantedScopes = [];
-                foreach ($rowsByTable['learner_ai_consent_events'] ?? [] as $ce) {
-                    if ($ce['studentId'] === $sId && $ce['action'] === 'granted') {
-                        $grantedScopes[$ce['scope']] = true;
-                    }
-                }
                 foreach (['assessment', 'skills', 'activity', 'evaluation'] as $reqScope) {
-                    if (!isset($grantedScopes[$reqScope])) {
-                        throw new RuntimeException('V2 validation failed: ready learner ' . $seq . ' missing consent grant for ' . $reqScope);
+                    $latestConsent = $latestConsentByStudentScope[$sId][$reqScope] ?? null;
+                    if ($latestConsent === null || $latestConsent['action'] !== 'granted') {
+                        throw new RuntimeException('V2 validation failed: ready learner ' . $seq . ' missing consent grant because latest consent is not granted for ' . $reqScope);
                     }
                 }
             }
