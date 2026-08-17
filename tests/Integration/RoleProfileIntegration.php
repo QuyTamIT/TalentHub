@@ -61,7 +61,7 @@ final class RoleProfileIntegration
 
     private function business(PDO $pdo,AuthService $auth,PermissionService $permission,string $password): void
     {
-        $user=$this->login($auth,'business@test.talenthub.local',$password,'business');
+        $user=$this->login($auth,'business@test.talenthub.local',$password,'enterprise');
         foreach(['business_profile.read_own','business_profile.update_own','business_dashboard.read_own'] as $code){$permission->require($user['id'],$code);}
         $service=new BusinessProfileService(new BusinessRepository($pdo));
         $profile=$service->update($user['id'],[

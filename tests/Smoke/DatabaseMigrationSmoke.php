@@ -14,12 +14,12 @@ final class DatabaseMigrationSmoke
         $this->assertSafeTarget($pdo,$database);$results=['connection: OK'];
         foreach(self::TABLES as $table){if($this->tableExists($pdo,$table)){throw new RuntimeException("Fresh test database required; found {$table}.");}}
         $runner->validate();$results[]='validate: OK';
-        if(count($runner->migrate())!==10){throw new RuntimeException('First migrate must apply ten migrations.');}$results[]='migrate: OK';
+        if(count($runner->migrate())!==11){throw new RuntimeException('First migrate must apply eleven migrations.');}$results[]='migrate: OK';
         $seeder=new RolePermissionSeeder();$seeder->run($pdo);$seeder->run($pdo);$this->assertRolePermissionMatrix($pdo,$seeder);$results[]='system seed idempotency + exact role matrix: OK';
         if($runner->migrate()!==[]){throw new RuntimeException('Second migrate must be a no-op.');}$results[]='migrate no-op: OK';
-        if(count($runner->rollbackLastBatch())!==10){throw new RuntimeException('Rollback must revert ten migrations.');}
+        if(count($runner->rollbackLastBatch())!==11){throw new RuntimeException('Rollback must revert eleven migrations.');}
         foreach(self::TABLES as $table){if($this->tableExists($pdo,$table)){throw new RuntimeException("Rollback left table {$table}.");}}$results[]='rollback: OK';
-        if(count($runner->migrate())!==10){throw new RuntimeException('Migrate after rollback must apply ten migrations.');}
+        if(count($runner->migrate())!==11){throw new RuntimeException('Migrate after rollback must apply eleven migrations.');}
         $seeder->run($pdo);$this->assertFingerprint($pdo);$this->assertRolePermissionMatrix($pdo,$seeder);$results[]='migrate again + fingerprint + exact role matrix: OK';return $results;
     }
     private function assertSafeTarget(PDO $pdo,string $database): void

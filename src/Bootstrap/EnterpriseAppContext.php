@@ -3,10 +3,14 @@ declare(strict_types=1);
 namespace TalentHub\Bootstrap;
 
 use TalentHub\Auth\Session\SessionManager;
+use TalentHub\Auth\Repository\AuthRepository;
+use TalentHub\Auth\Service\AuthService;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\Business\Repository\BusinessRepository;
 use TalentHub\Modules\Business\Service\BusinessProfileService;
+use TalentHub\Rbac\RoleCodes;
+use TalentHub\Rbac\Service\PermissionService;
 
 /**
  * Lightweight service container for the Enterprise portal under /app/enterprise.
@@ -21,6 +25,8 @@ final class EnterpriseAppContext
     private Connection $connection;
     private SessionManager $session;
     private BusinessProfileService $service;
+    private AuthService $auth;
+    private PermissionService $permissions;
 
     public function __construct()
     {
@@ -31,6 +37,8 @@ final class EnterpriseAppContext
         $pdo = $this->connection->connect();
         $repository = new BusinessRepository($pdo);
         $this->service = new BusinessProfileService($repository);
+        $this->auth = new AuthService(new AuthRepository($pdo));
+        $this->permissions = new PermissionService($pdo);
     }
 
     /**
@@ -48,13 +56,24 @@ final class EnterpriseAppContext
      */
     public function boot(): array
     {
-        $user = $this->session->user();
-        if ($user === null) {
+        $cached = $this->session->user();
+        if ($cached === null) {
             $this->redirectToLogin();
         }
-        if (($user['role'] ?? null) !== 'business') {
+        try {
+            $user = $this->auth->current((string) $cached['id']);
+            $this->session->refreshUser($user);
+        } catch (ApiException $exception) {
+            if ($exception->status === 401) {
+                $this->session->destroy();
+                $this->redirectToLogin();
+            }
+            throw $exception;
+        }
+        if (!RoleCodes::matches((string) ($user['role'] ?? ''), RoleCodes::ENTERPRISE)) {
             $this->redirectToRoleSelection();
         }
+        $this->permissions->require($user['id'], 'business_dashboard.read_own');
 
         try {
             $enterprise = $this->service->get($user['id']);

@@ -9,7 +9,7 @@ use TalentHub\Database\Connection;
 $config = require __DIR__ . '/../../config/database.php';
 $pdo = (new Connection($config))->connect();
 
-$stmt = $pdo->prepare("SELECT u.id, u.email, u.fullName FROM users u JOIN roles r ON r.id = u.roleId WHERE r.code = 'business' LIMIT 1");
+$stmt = $pdo->prepare("SELECT u.id, u.email, u.fullName FROM users u JOIN roles r ON r.id = u.roleId WHERE r.code = 'enterprise' LIMIT 1");
 $stmt->execute();
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -25,7 +25,7 @@ $session->login([
     'id'       => $user['id'],
     'email'    => $user['email'],
     'fullName' => $user['fullName'],
-    'role'     => 'business',
+    'role'     => 'enterprise',
     'status'   => 'active',
 ]);
 

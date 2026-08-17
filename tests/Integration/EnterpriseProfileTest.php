@@ -26,7 +26,7 @@ final class EnterpriseProfileTest
         $service = new BusinessProfileService($repo);
 
         // 1. Fetch business user ID from DB
-        $stmt = $pdo->prepare("SELECT u.id, u.email FROM users u JOIN roles r ON r.id = u.roleId WHERE r.code = 'business' LIMIT 1");
+        $stmt = $pdo->prepare("SELECT u.id, u.email FROM users u JOIN roles r ON r.id = u.roleId WHERE r.code = 'enterprise' LIMIT 1");
         $stmt->execute();
         $businessUser = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$businessUser) {
@@ -130,7 +130,7 @@ final class EnterpriseProfileTest
             'id'       => $userId,
             'email'    => $businessUser['email'],
             'fullName' => 'Test Business User',
-            'role'     => 'business',
+            'role'     => 'enterprise',
             'status'   => 'active',
         ];
         $session->login($sessionUser);
