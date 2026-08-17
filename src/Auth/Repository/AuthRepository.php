@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace TalentHub\Auth\Repository;
 
 use PDO;
+use TalentHub\Database\Seeds\System\RolePermissionSeeder;
 use TalentHub\Support\Uuid;
 
 final class AuthRepository
@@ -30,7 +31,15 @@ final class AuthRepository
         $this->pdo->beginTransaction();
         try{
             $legacy=$this->isLegacySchema();$role=null;
-            if(!$legacy){$role=$this->pdo->query("SELECT id FROM roles WHERE code='student' LIMIT 1 FOR UPDATE")->fetchColumn();if(!is_string($role)||$role===''){throw new \RuntimeException('Student role has not been seeded.');}}
+            if(!$legacy){
+                $roleCount=(int)$this->pdo->query('SELECT COUNT(*) FROM roles')->fetchColumn();
+                if($roleCount===0){
+                    require_once dirname(__DIR__,3).'/Database/seeds/System/RolePermissionSeeder.php';
+                    (new RolePermissionSeeder())->runWithinTransaction($this->pdo);
+                }
+                $role=$this->pdo->query("SELECT id FROM roles WHERE code='student' LIMIT 1 FOR UPDATE")->fetchColumn();
+                if(!is_string($role)||$role===''){throw new \RuntimeException('Student role is missing from a non-empty roles table. Run the system RBAC seed.');}
+            }
             $classCondition=$legacy?"s.status='active'":"c.status='active' AND s.status='active'";
             $class=$this->pdo->prepare("SELECT c.id FROM classes c JOIN schools s ON s.id=c.schoolId WHERE c.id=? AND {$classCondition} LIMIT 1 FOR UPDATE");$class->execute([$data['classId']]);
             if($class->fetchColumn()===false){$this->pdo->rollBack();return '';}

@@ -3,11 +3,14 @@ declare(strict_types=1);
 namespace TalentHub\Bootstrap;
 
 use TalentHub\Auth\Session\SessionManager;
+use TalentHub\Auth\Repository\AuthRepository;
+use TalentHub\Auth\Service\AuthService;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\School\Repository\SchoolRepository;
 use TalentHub\Modules\School\Service\SchoolAuthorization;
 use TalentHub\Modules\School\Service\SchoolDashboardService;
+use TalentHub\Rbac\Service\PermissionService;
 
 /**
  * Lightweight service container for the legacy PHP UI under /app/school.
@@ -22,6 +25,8 @@ final class SchoolAppContext
     private Connection $connection;
     private SessionManager $session;
     private SchoolDashboardService $service;
+    private AuthService $auth;
+    private PermissionService $permissions;
 
     public function __construct()
     {
@@ -36,6 +41,8 @@ final class SchoolAppContext
             $pdo,
             new SchoolAuthorization($pdo)
         );
+        $this->auth = new AuthService(new AuthRepository($pdo));
+        $this->permissions = new PermissionService($pdo);
     }
 
     /**
@@ -52,18 +59,29 @@ final class SchoolAppContext
      */
     public function boot(): array
     {
-        $user = $this->session->user();
-        if ($user === null) {
+        $cached = $this->session->user();
+        if ($cached === null) {
             $this->redirectToLogin();
+        }
+        try {
+            $user = $this->auth->current((string) $cached['id']);
+            $this->session->refreshUser($user);
+        } catch (ApiException $exception) {
+            if ($exception->status === 401) {
+                $this->session->destroy();
+                $this->redirectToLogin();
+            }
+            throw $exception;
         }
         if (($user['role'] ?? null) !== 'school') {
             $this->redirectToRoleSelection();
         }
+        $this->permissions->require($user['id'], 'school_dashboard.read_own');
 
         try {
             $dashboard = $this->service->dashboard($user['id']);
         } catch (ApiException $exception) {
-            if ($exception->statusCode === 404) {
+            if ($exception->status === 404) {
                 $this->redirectToRoleSelection('?error=school_missing');
             }
             throw $exception;

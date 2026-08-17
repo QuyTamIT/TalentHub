@@ -69,7 +69,7 @@ final class MinimalAuthRbacSeeder
             [self::IDS['studentUser'], $roleIds['student'], 'student@test.talenthub.local', $hash, 'Test Student'],
             [self::IDS['teacherUser'], $roleIds['teacher'], 'teacher@test.talenthub.local', $hash, 'Test Teacher'],
             [self::IDS['schoolUser'], $roleIds['school'], 'school@test.talenthub.local', $hash, 'Test School User'],
-            [self::IDS['businessUser'], $roleIds['business'], 'business@test.talenthub.local', $hash, 'Test Business User'],
+            [self::IDS['businessUser'], $roleIds['enterprise'], 'business@test.talenthub.local', $hash, 'Test Enterprise User'],
         ];
         foreach ($users as $user) {
             $this->insertIgnore($pdo,
@@ -151,7 +151,7 @@ final class MinimalAuthRbacSeeder
     /** @return array<string, string> */
     private function roleIds(PDO $pdo): array
     {
-        $statement = $pdo->query("SELECT code, id FROM roles WHERE code IN ('student', 'teacher', 'school', 'business')");
+        $statement = $pdo->query("SELECT code, id FROM roles WHERE code IN ('student', 'teacher', 'school', 'enterprise')");
         $roles = $statement->fetchAll(PDO::FETCH_KEY_PAIR);
         if (count($roles) !== 4) {
             throw new RuntimeException('Run RolePermissionSeeder before MinimalAuthRbacSeeder.');

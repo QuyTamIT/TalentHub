@@ -6,6 +6,7 @@ use DateTimeImmutable;
 use PDOException;
 use TalentHub\Auth\Repository\AuthRepository;
 use TalentHub\Http\ApiException;
+use TalentHub\Rbac\RoleCodes;
 use TalentHub\Support\Uuid;
 
 final class AuthService
@@ -65,5 +66,5 @@ final class AuthService
         $hash=password_hash($next,PASSWORD_DEFAULT);if($hash===false){throw new ApiException(500,'INTERNAL_ERROR','Không thể cập nhật mật khẩu.');}$this->repository->updatePassword($id,$hash);
     }
     /** @param array<string,mixed> $row @return array{id:string,email:string,fullName:string,role:string,status:string} */
-    private function publicUser(array $row): array{return ['id'=>(string)$row['id'],'email'=>(string)$row['email'],'fullName'=>(string)$row['fullName'],'role'=>(string)$row['role'],'status'=>(string)$row['status']];}
+    private function publicUser(array $row): array{return ['id'=>(string)$row['id'],'email'=>(string)$row['email'],'fullName'=>(string)$row['fullName'],'role'=>RoleCodes::canonical((string)$row['role']),'status'=>(string)$row['status']];}
 }
