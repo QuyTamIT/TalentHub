@@ -8,7 +8,7 @@ This Database Change Request (DCR) requests authorization to seed the determinis
 
 - **Authorized Target Schema:** `talenthub_ai_backup_verify_004_20260816`
 - **Shared / Production Schemas:** Strictly forbidden. `talenthub_local` is never approved and the seeder must immediately reject any connection to it or to any non-matching schema name.
-- **Dataset Fingerprint (SHA-256):** `f5c7ad84893346f50cc049af231be76c281e69bee0ed69c8f06f0abc7a475905`
+- **Dataset Fingerprint (SHA-256):** `c6e417b69a06b9bf93a5762b03850b90c79fd88b716a1b3de48cb5097cf75b6f`
 - **Total Declared V2 Rows:** `1116`
 
 Every V2 record uses the reserved UUID prefix `00000000-0000-4000-8000-`, `.example` email domains, non-login placeholder password hashes (`!synthetic-disabled-login-v2!`), and fictional names and phone numbers. No real personal data, production records, live credentials, raw QR tokens, or real AI provider calls are involved.
@@ -25,9 +25,25 @@ The target disposable database must have recorded and verified the following can
 | `003_create_ai_input_extensions` | `6b2c5674e4da5d98bc7540881f90ce5fab421d2cf52e41b7899f51a87d563c38` | versioned assessments, answers, evidence, append-only consent |
 | `004_create_recommendation_store` | `48d7eaf7122cae13d5dbcb1dbaa2e157c34f2f4cea8f0c430914f193be48f0be` | immutable recommendation snapshots, runs, items, evidence |
 
-## V1 Provenance Preservation
+## V1 Provenance Preservation & Historical Backfill Policy
 
 The V1 pilot dataset (61 rows declared by `LearnerAiPilotSeeder`) is preserved unchanged in the disposable schema. V2 builds upon V1 parent entities (roles, school, class, teacher user/profile, Holland test, R1/I1/A1 questions, IoT/Python skills, activity `...000030`, presentation criterion) and adds version 2.0.0 assessment, 22 new learners (103–124), 21 new questions, 10 new skills, 11 new activities, and new versioned evidence for all 24 learners.
+
+### Learner 112: Historical Synthetic Backfill
+Learner 112 models an assessment submitted over 365 days ago to exercise the DataQualityGate stale assessment rule.
+- `test_attempts.startedAt`: `2024-01-15 08:30:00.000000`
+- `test_attempts.submittedAt`: `2024-01-15 09:00:00.000000`
+- `learner_assessment_answers.answeredAt`: 24 timestamps from `2024-01-15 08:31:30.000000` to `2024-01-15 08:43:00.000000` (all satisfying `startedAt <= answeredAt <= submittedAt`)
+- `createdAt` values are set to `2026-08-16 00:00:00.000000` to represent historical data backfilled during the 2026 dataset setup.
+
+## Deterministic Timestamp Rules
+
+All timestamps are generated using deterministic UTC `DateTimeImmutable` base objects:
+- Timestamps follow strict MySQL `DATETIME(6)` formatting `YYYY-MM-DD HH:MM:SS.uuuuuu`.
+- Seconds are strictly in the range `00..59` with zero second-overflow.
+- Consent event timestamps are generated from a UTC base `2026-08-08 09:00:00.000000` with second offsets (`modify('+N seconds')`).
+- Learner 120's evaluation revoke event occurs at `2026-08-08 10:00:00.000000` (+3600s), strictly after its evaluation grant.
+- Assessment answers adhere to chronological ordering `attempt.startedAt <= answer.answeredAt <= attempt.submittedAt`.
 
 ## Participant Matrix (24 Learners)
 
@@ -50,16 +66,36 @@ Participant UUIDs use the reserved prefix `00000000-0000-4000-8000-` and sequenc
 
 **Summary:** 18 `ready`, 4 `insufficient_data`, 2 `consent_required`. Exactly 4 learners per RIASEC archetype.
 
-## Question Bank (24 Synthetic Questions)
+## Question Bank (Verbatim 24 Questions)
 
 Assessment version `2.0.0` (`...000000001130`) under test `holland` (`...000000000060`) with scoring version `pilot-riasec-2`:
 
-- **Realistic (R):** R1 (`...000061`, V1), R2 (`...001101`), R3 (`...001102`), R4 (`...001103`)
-- **Investigative (I):** I1 (`...000062`, V1), I2 (`...001104`), I3 (`...001105`), I4 (`...001106`)
-- **Artistic (A):** A1 (`...000063`, V1), A2 (`...001107`), A3 (`...001108`), A4 (`...001109`)
-- **Social (S):** S1 (`...001110`), S2 (`...001111`), S3 (`...001112`), S4 (`...001113`)
-- **Enterprising (E):** E1 (`...001114`), E2 (`...001115`), E3 (`...001116`), E4 (`...001117`)
-- **Conventional (C):** C1 (`...001118`), C2 (`...001119`), C3 (`...001120`), C4 (`...001121`)
+| Code | ID | Dimension | Verbatim Content |
+|---|---|---|---|
+| `R1` | `...000061` (V1) | R | Synthetic realistic-interest question. |
+| `R2` | `...001101` | R | Tôi thích lắp ráp một mô hình từ các bộ phận có sẵn. |
+| `R3` | `...001102` | R | Tôi hứng thú khi thử dụng cụ để tạo ra một sản phẩm nhỏ. |
+| `R4` | `...001103` | R | Tôi muốn thực hành quy trình an toàn trong một xưởng mô phỏng. |
+| `I1` | `...000062` (V1) | I | Synthetic investigative-interest question. |
+| `I2` | `...001104` | I | Tôi thích đặt giả thuyết rồi kiểm tra bằng dữ liệu giả lập. |
+| `I3` | `...001105` | I | Tôi muốn phân tích nguyên nhân của một kết quả bất thường. |
+| `I4` | `...001106` | I | Tôi thấy hứng thú khi so sánh nhiều cách giải một vấn đề. |
+| `A1` | `...000063` (V1) | A | Synthetic artistic-interest question. |
+| `A2` | `...001107` | A | Tôi thích tạo bố cục hình ảnh cho một câu chuyện giả tưởng. |
+| `A3` | `...001108` | A | Tôi muốn thử nhiều cách diễn đạt cho cùng một ý tưởng. |
+| `A4` | `...001109` | A | Tôi hứng thú khi biến một chủ đề thành sản phẩm sáng tạo. |
+| `S1` | `...001110` | S | Tôi thích hướng dẫn bạn khác hoàn thành một nhiệm vụ mới. |
+| `S2` | `...001111` | S | Tôi muốn lắng nghe và giúp một nhóm thống nhất cách làm. |
+| `S3` | `...001112` | S | Tôi thấy có động lực khi hỗ trợ người khác tiến bộ. |
+| `S4` | `...001113` | S | Tôi hứng thú với vai trò điều phối một buổi học nhóm. |
+| `E1` | `...001114` | E | Tôi thích trình bày một ý tưởng để thuyết phục nhóm thử nghiệm. |
+| `E2` | `...001115` | E | Tôi muốn chủ động tổ chức nguồn lực cho một dự án nhỏ. |
+| `E3` | `...001116` | E | Tôi hứng thú khi đặt mục tiêu và theo dõi tiến độ của nhóm. |
+| `E4` | `...001117` | E | Tôi thích đề xuất một hướng đi khi nhóm cần quyết định. |
+| `C1` | `...001118` | C | Tôi thích sắp xếp dữ liệu theo một cấu trúc rõ ràng. |
+| `C2` | `...001119` | C | Tôi muốn kiểm tra chi tiết để phát hiện sai lệch trong bảng số liệu. |
+| `C3` | `...001120` | C | Tôi hứng thú với việc chuẩn hóa các bước của một quy trình. |
+| `C4` | `...001121` | C | Tôi thích hoàn thành công việc theo tiêu chí và thứ tự xác định. |
 
 ## Synthetic Skills Catalog (12 Skills)
 
@@ -105,6 +141,15 @@ Assessment version `2.0.0` (`...000000001130`) under test `holland` (`...0000000
 | `learner_ai_consent_events` | 96 | `...900001` through `...900096` |
 | **Total** | **1116** | |
 
+## Data Diversity & Value Distributions
+
+To avoid test blind spots and validate varied scoring paths, V2 incorporates diverse deterministic distributions:
+
+- **Experience Hours:** 9 distinct values spanning `2.50`, `3.00`, `3.50`, `4.00`, `4.50`, `5.00`, `5.50`, `6.00`, `6.50`.
+- **Teacher Overall Scores:** 9 distinct published values spanning `72.00` to `94.00` (Learner 116 remains `null` in draft).
+- **Presentation Scores:** 6 distinct values (`55.00`, `58.00`, `62.00`, `68.00`, `75.00`, `82.00`), containing scores both below and above `60.00`. Learner 101's score is fixed at `55.00` to combine with V1 for the roadmap rule.
+- All values strictly comply with database check constraints (`levelScore` 0..100, `hours` 0..24, `score` 0..100, `overallScore` 0..100).
+
 ## Execution Form & Safety Invariants
 
 Persistence uses the following strictly parameterized insert-only form:
@@ -120,6 +165,7 @@ WHERE NOT EXISTS (
 - **Idempotency:** A second execution must report `inserted=0, existing=1116`.
 - **Non-reserved row isolation:** Counts outside `00000000-0000-4000-8000-` must remain identical before and after seeding.
 - **Rollback Policy:** In case of failure or constraint violation, the transaction rolls back cleanly. No row deletion or rollback data script is executed. Any future correction must be issued as a forward V3 dataset with new distinct IDs.
+- **Contract Verification:** The pure contract test proves exact DATETIME(6) round-trip, foreign key/parent closure, chronology, data diversity, and security properties without database connectivity.
 
 ## Approval & Execution Log
 

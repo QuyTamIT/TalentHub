@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace TalentHub\Learner\Seeds\Staging;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use RuntimeException;
 
 final class LearnerAiSyntheticDatasetV2
@@ -353,6 +355,7 @@ final class LearnerAiSyntheticDatasetV2
             $scores = self::PROFILES[$primary];
 
             if ($sequence === 112) {
+                // Historical backfill learner: assessment submitted in 2024 (>365 days ago)
                 $startedAt = '2024-01-15 08:30:00.000000';
                 $submittedAt = self::STALE_SUBMITTED_AT;
             } else {
@@ -395,7 +398,13 @@ final class LearnerAiSyntheticDatasetV2
                     $qId = $questionMap[$code];
                     $answerId = self::id(500000 + $answerIndex++);
 
-                    $answeredAt = sprintf('2026-08-10 09:%02d:%02d.000000', 1 + intdiv($questionNum, 2), ($questionNum % 2) * 30);
+                    // Chronology: startedAt <= answeredAt <= submittedAt
+                    if ($sequence === 112) {
+                        $answeredAt = sprintf('2024-01-15 08:%02d:%02d.000000', 31 + intdiv($questionNum, 2), ($questionNum % 2) * 30);
+                    } else {
+                        $answeredAt = sprintf('2026-08-10 09:%02d:%02d.000000', 1 + intdiv($questionNum, 2), ($questionNum % 2) * 30);
+                    }
+
                     $answersData[] = ['question_id' => $qId, 'value' => $val];
 
                     $attemptAnswerRows[] = self::row('learner_assessment_answers', [
@@ -476,7 +485,8 @@ final class LearnerAiSyntheticDatasetV2
         }
 
         // 9. activity_registrations (24 rows), checkins (23 rows), experience_logs (23 rows)
-        // Activity map for participants: 101 uses 1021, 102 uses 1021, others use their archetype activity
+        $hoursPool = ['2.50', '3.00', '3.50', '4.00', '4.50', '5.00', '5.50', '6.00', '6.50'];
+
         foreach (self::SCENARIOS as $sequence => [$primary]) {
             $studentId = self::studentId($sequence);
             $regId = self::id(700000 + $sequence);
@@ -510,6 +520,8 @@ final class LearnerAiSyntheticDatasetV2
             ]);
 
             if ($sequence !== 108) {
+                $hours = $hoursPool[($sequence - 101) % count($hoursPool)];
+
                 $rows[] = self::row('checkins', [
                     'id' => $checkinId,
                     'registrationId' => $regId,
@@ -525,7 +537,7 @@ final class LearnerAiSyntheticDatasetV2
                     'studentId' => $studentId,
                     'activityId' => $activityId,
                     'checkinId' => $checkinId,
-                    'hours' => '4.50',
+                    'hours' => $hours,
                     'status' => 'confirmed',
                     'auditReason' => 'Synthetic V2 confirmed attendance.',
                     'confirmedAt' => '2026-08-06 12:00:00.000000',
@@ -535,6 +547,9 @@ final class LearnerAiSyntheticDatasetV2
         }
 
         // 10. assessments (24 rows) and assessment_scores (24 rows)
+        $overallScorePool = ['76.00', '82.00', '88.00', '91.00', '74.00', '85.00', '79.00', '94.00', '72.00'];
+        $presentationPool = ['58.00', '62.00', '68.00', '75.00', '82.00', '55.00'];
+
         foreach (self::SCENARIOS as $sequence => [$primary]) {
             $studentId = self::studentId($sequence);
             $assessmentId = self::id(800000 + $sequence);
@@ -557,7 +572,7 @@ final class LearnerAiSyntheticDatasetV2
 
             $isDraft = ($sequence === 116);
             $status = $isDraft ? 'draft' : 'published';
-            $overallScore = $isDraft ? null : '82.00';
+            $overallScore = $isDraft ? null : $overallScorePool[($sequence - 101) % count($overallScorePool)];
             $publishedAt = $isDraft ? null : '2026-08-07 09:00:00.000000';
 
             $rows[] = self::row('assessments', [
@@ -577,7 +592,7 @@ final class LearnerAiSyntheticDatasetV2
             // Presentation score
             $scoreValue = match ($sequence) {
                 101 => '55.00',
-                default => '75.00',
+                default => $presentationPool[($sequence - 101) % count($presentationPool)],
             };
 
             $rows[] = self::row('assessment_scores', [
@@ -591,6 +606,7 @@ final class LearnerAiSyntheticDatasetV2
         }
 
         // 11. learner_ai_consent_events (96 rows)
+        $consentBase = new DateTimeImmutable('2026-08-08 09:00:00.000000', new DateTimeZone('UTC'));
         $consentEventIndex = 1;
         $consentRequestIndex = 1;
 
@@ -602,10 +618,11 @@ final class LearnerAiSyntheticDatasetV2
                 default => ['assessment', 'skills', 'activity', 'evaluation'],
             };
 
-            foreach ($scopes as $scopeIndex => $scope) {
-                $eventId = self::id(900000 + $consentEventIndex++);
+            foreach ($scopes as $scope) {
+                $eventId = self::id(900000 + $consentEventIndex);
                 $requestId = self::id(910000 + $consentRequestIndex++);
-                $occurredAt = sprintf('2026-08-08 09:00:%02d.000000', $consentEventIndex);
+                $occurredAt = $consentBase->modify('+' . $consentEventIndex . ' seconds')->format('Y-m-d H:i:s.u');
+                $consentEventIndex++;
 
                 $rows[] = self::row('learner_ai_consent_events', [
                     'id' => $eventId,
@@ -619,8 +636,11 @@ final class LearnerAiSyntheticDatasetV2
             }
 
             if ($sequence === 120) {
-                $eventId = self::id(900000 + $consentEventIndex++);
+                $eventId = self::id(900000 + $consentEventIndex);
                 $requestId = self::id(910000 + $consentRequestIndex++);
+                // Revoke occurs 1 hour later (3600 seconds), strictly after the grant
+                $occurredAt = $consentBase->modify('+3600 seconds')->format('Y-m-d H:i:s.u');
+                $consentEventIndex++;
 
                 $rows[] = self::row('learner_ai_consent_events', [
                     'id' => $eventId,
@@ -628,7 +648,7 @@ final class LearnerAiSyntheticDatasetV2
                     'scope' => 'evaluation',
                     'action' => 'revoked',
                     'policyVersion' => self::POLICY_VERSION,
-                    'occurredAt' => '2026-08-08 10:00:00.000000',
+                    'occurredAt' => $occurredAt,
                     'requestId' => $requestId,
                 ]);
             }
@@ -694,6 +714,12 @@ final class LearnerAiSyntheticDatasetV2
         }
 
         $keys = [];
+        $datetimeColumns = [
+            'createdAt', 'updatedAt', 'startAt', 'endAt', 'validFrom', 'validUntil',
+            'checkedInAt', 'confirmedAt', 'registeredAt', 'publishedAt', 'startedAt',
+            'submittedAt', 'expiresAt', 'answeredAt', 'observedAt', 'verifiedAt', 'occurredAt', 'lastLoginAt'
+        ];
+
         foreach ($rows as $row) {
             $table = $row['table'];
             $id = $row['id'];
@@ -712,6 +738,28 @@ final class LearnerAiSyntheticDatasetV2
             }
 
             foreach ($row['values'] as $column => $value) {
+                if ($value === null) {
+                    continue;
+                }
+                if ($column === 'dateOfBirth') {
+                    if (!is_string($value) || preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/', $value) !== 1) {
+                        throw new RuntimeException('V2 validation failed: dateOfBirth invalid format in ' . $id);
+                    }
+                    continue;
+                }
+                if (in_array($column, $datetimeColumns, true)) {
+                    if (!is_string($value) || preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}$/', $value) !== 1) {
+                        throw new RuntimeException('V2 validation failed: invalid DATETIME(6) in ' . $table . '.' . $column . ': ' . $value);
+                    }
+                    $parsed = DateTimeImmutable::createFromFormat('Y-m-d H:i:s.u', $value, new DateTimeZone('UTC'));
+                    if ($parsed === false || $parsed->format('Y-m-d H:i:s.u') !== $value) {
+                        throw new RuntimeException('V2 validation failed: DATETIME(6) round-trip mismatch in ' . $table . '.' . $column . ': ' . $value);
+                    }
+                    $errors = DateTimeImmutable::getLastErrors();
+                    if ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+                        throw new RuntimeException('V2 validation failed: DATETIME(6) has errors in ' . $value);
+                    }
+                }
                 if (is_string($value) && str_contains($value, '@')) {
                     if (preg_match('/@(?:[A-Za-z0-9-]+\.)*example$/', $value) !== 1) {
                         throw new RuntimeException('V2 validation failed: invalid email domain in ' . $table . '.' . $column . ': ' . $value);
