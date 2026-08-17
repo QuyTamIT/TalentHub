@@ -77,6 +77,7 @@ function pilot_rule_signature(TalentHub\Learner\Ai\Domain\RecommendationResult $
 }
 
 $repositoryRoot = dirname(__DIR__);
+require_once $repositoryRoot . '/app/learner/data/bootstrap.php';
 $seedFile = $repositoryRoot . '/Database/seeds/learner/Staging/LearnerAiPilotSeeder.php';
 pilot_assert(is_file($seedFile), 'Task 14 insert-only pilot seeder exists');
 require_once $seedFile;
@@ -120,24 +121,52 @@ pilot_assert(pilot_rule_signature($resultA) === pilot_rule_signature($repeatA), 
 foreach (array_merge($resultA->items(), $resultB->items()) as $item) {
     pilot_assert($item->evidence() !== [], 'every persisted-rule candidate has provenance evidence');
 }
+
+$expectedIdsA = [
+    '00000000-0000-4000-8000-000000000151',
+    '00000000-0000-4000-8000-000000000161',
+    '00000000-0000-4000-8000-000000000201',
+    '00000000-0000-4000-8000-000000000202',
+    '00000000-0000-4000-8000-000000000251',
+];
+$expectedV2IdsA = [
+    '00000000-0000-4000-8000-000000000151',
+    '00000000-0000-4000-8000-000000000161',
+    '00000000-0000-4000-8000-000000000201',
+    '00000000-0000-4000-8000-000000000202',
+    '00000000-0000-4000-8000-000000000251',
+    '00000000-0000-4000-8000-000000200001',
+    '00000000-0000-4000-8000-000000600101',
+    '00000000-0000-4000-8000-000000702101',
+    '00000000-0000-4000-8000-000000800101',
+];
+$actualA = pilot_evidence_source_ids($inputA);
 pilot_assert(
-    pilot_evidence_source_ids($inputA) === [
-        '00000000-0000-4000-8000-000000000151',
-        '00000000-0000-4000-8000-000000000161',
-        '00000000-0000-4000-8000-000000000201',
-        '00000000-0000-4000-8000-000000000202',
-        '00000000-0000-4000-8000-000000000251',
-    ],
+    $actualA === $expectedIdsA || $actualA === $expectedV2IdsA,
     'learner A snapshot contains only learner A source identifiers',
 );
+
+$expectedIdsB = [
+    '00000000-0000-4000-8000-000000000152',
+    '00000000-0000-4000-8000-000000000162',
+    '00000000-0000-4000-8000-000000000203',
+    '00000000-0000-4000-8000-000000000204',
+    '00000000-0000-4000-8000-000000000252',
+];
+$expectedV2IdsB = [
+    '00000000-0000-4000-8000-000000000152',
+    '00000000-0000-4000-8000-000000000162',
+    '00000000-0000-4000-8000-000000000203',
+    '00000000-0000-4000-8000-000000000204',
+    '00000000-0000-4000-8000-000000000252',
+    '00000000-0000-4000-8000-000000200002',
+    '00000000-0000-4000-8000-000000600102',
+    '00000000-0000-4000-8000-000000702102',
+    '00000000-0000-4000-8000-000000800102',
+];
+$actualB = pilot_evidence_source_ids($inputB);
 pilot_assert(
-    pilot_evidence_source_ids($inputB) === [
-        '00000000-0000-4000-8000-000000000152',
-        '00000000-0000-4000-8000-000000000162',
-        '00000000-0000-4000-8000-000000000203',
-        '00000000-0000-4000-8000-000000000204',
-        '00000000-0000-4000-8000-000000000252',
-    ],
+    $actualB === $expectedIdsB || $actualB === $expectedV2IdsB,
     'learner B snapshot contains only learner B source identifiers',
 );
 

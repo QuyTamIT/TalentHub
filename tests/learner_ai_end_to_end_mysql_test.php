@@ -130,6 +130,7 @@ function e2e_completed_rule_run(PDO $pdo, string $studentId, string $idempotency
 }
 
 $repositoryRoot = dirname(__DIR__);
+require_once $repositoryRoot . '/app/learner/data/bootstrap.php';
 $seedFile = $repositoryRoot . '/Database/seeds/learner/Staging/LearnerAiPilotSeeder.php';
 e2e_assert(is_file($seedFile), 'Task 14 pilot seeder is available');
 require_once $seedFile;
