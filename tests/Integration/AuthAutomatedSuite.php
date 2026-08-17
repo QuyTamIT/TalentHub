@@ -41,9 +41,9 @@ final class AuthAutomatedSuite
 
     private function assertPortalRedirects(): void
     {
-        $expected=['student'=>'/app/learner/index.php','teacher'=>'/app/teacher/index.php','school'=>'/app/school/index.php','business'=>'/app/enterprise/index.php'];
+        $expected=['student'=>'/app/learner/index.php','teacher'=>'/app/teacher/index.php','school'=>'/app/school/index.php','enterprise'=>'/app/enterprise/index.php'];
         foreach($expected as $role=>$path){if(AuthPortalRouter::destination($role)!==$path){throw new RuntimeException("Dashboard redirect mismatch for {$role}.");}}
-        if(AuthPortalRouter::destination('business','/app/school/index.php')!=='/app/enterprise/index.php'||AuthPortalRouter::destination('student','//external.test')!=='/app/learner/index.php'){throw new RuntimeException('Cross-role or external redirect was accepted.');}
+        if(AuthPortalRouter::destination('enterprise','/app/school/index.php')!=='/app/enterprise/index.php'||AuthPortalRouter::destination('business')!=='/app/enterprise/index.php'||AuthPortalRouter::destination('student','//external.test')!=='/app/learner/index.php'){throw new RuntimeException('Cross-role, legacy alias, or external redirect handling is invalid.');}
     }
 
     private function removeMigrationMetadata(PDO $pdo,string $database): void

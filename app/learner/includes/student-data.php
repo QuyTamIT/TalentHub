@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/auth-guard.php';
 /**
  * TalentHub Learner mock data.
  *

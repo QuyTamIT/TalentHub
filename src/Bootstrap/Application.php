@@ -22,6 +22,7 @@ use TalentHub\Modules\Student\Service\StudentProfileService;
 use TalentHub\Modules\Teacher\Repository\TeacherRepository;
 use TalentHub\Modules\Teacher\Service\TeacherProfileService;
 use TalentHub\Rbac\Service\PermissionService;
+use TalentHub\Rbac\RoleCodes;
 use TalentHub\Support\Id\RequestId;
 use Throwable;
 
@@ -77,10 +78,10 @@ final class Application
         $router->add('GET','/api/v1/students/me',function()use($session,$permissions,$students,$requestId){$user=$this->requireRole($session,'student','học viên');$permissions->require($user['id'],'student_profile.read_own');return JsonResponse::success($students->get($user['id']),$requestId);});
         $router->add('PATCH','/api/v1/students/me',function(Request $r)use($session,$permissions,$students,$auth,$requestId){$user=$this->requireRole($session,'student','học viên');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'student_profile.update_own');$profile=$students->update($user['id'],$r->json());$session->refreshUser($auth->current($user['id']));return JsonResponse::success($profile,$requestId);});
         $router->add('GET','/api/v1/students/me/dashboard',function()use($session,$permissions,$students,$requestId){$user=$this->requireRole($session,'student','học viên');$permissions->require($user['id'],'student_dashboard.read_own');return JsonResponse::success($students->dashboard($user['id']),$requestId);});
-        $router->add('GET','/api/v1/businesses/me',function()use($session,$permissions,$businesses,$requestId){$user=$this->requireRole($session,'business','doanh nghiệp');$permissions->require($user['id'],'business_profile.read_own');return JsonResponse::success($businesses->get($user['id']),$requestId);});
-        $router->add('PATCH','/api/v1/businesses/me',function(Request $r)use($session,$permissions,$businesses,$requestId){$user=$this->requireRole($session,'business','doanh nghiệp');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'business_profile.update_own');return JsonResponse::success($businesses->update($user['id'],$r->json()),$requestId);});
-        $router->add('POST','/api/v1/businesses/me/logo',function(Request $r)use($session,$permissions,$businesses,$requestId){$user=$this->requireRole($session,'business','doanh nghiệp');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'business_profile.update_own');$url=$businesses->uploadLogo($user['id'],$r->json());return JsonResponse::success(['logoUrl'=>$url],$requestId);});
-        $router->add('GET','/api/v1/businesses/me/dashboard',function()use($session,$permissions,$businesses,$requestId){$user=$this->requireRole($session,'business','doanh nghiệp');$permissions->require($user['id'],'business_dashboard.read_own');return JsonResponse::success($businesses->dashboard($user['id']),$requestId);});
+        $router->add('GET','/api/v1/businesses/me',function()use($session,$permissions,$businesses,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'business_profile.read_own');return JsonResponse::success($businesses->get($user['id']),$requestId);});
+        $router->add('PATCH','/api/v1/businesses/me',function(Request $r)use($session,$permissions,$businesses,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'business_profile.update_own');return JsonResponse::success($businesses->update($user['id'],$r->json()),$requestId);});
+        $router->add('POST','/api/v1/businesses/me/logo',function(Request $r)use($session,$permissions,$businesses,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'business_profile.update_own');$url=$businesses->uploadLogo($user['id'],$r->json());return JsonResponse::success(['logoUrl'=>$url],$requestId);});
+        $router->add('GET','/api/v1/businesses/me/dashboard',function()use($session,$permissions,$businesses,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'business_dashboard.read_own');return JsonResponse::success($businesses->dashboard($user['id']),$requestId);});
         return $router;
     }
 
@@ -89,7 +90,7 @@ final class Application
     /** @return array{id:string,email:string,fullName:string,role:string,status:string} */
     private function requireSchool(SessionManager $session): array{$user=$session->requireUser();if($user['role']!=='school'){throw new ApiException(403,'PERMISSION_DENIED','Endpoint chỉ dành cho nhà trường.');}return $user;}
     /** @return array{id:string,email:string,fullName:string,role:string,status:string} */
-    private function requireRole(SessionManager $session,string $role,string $label): array{$user=$session->requireUser();if($user['role']!==$role){throw new ApiException(403,'PERMISSION_DENIED',"Endpoint chỉ dành cho {$label}.");}return $user;}
+    private function requireRole(SessionManager $session,string $role,string $label): array{$user=$session->requireUser();if(!RoleCodes::matches($user['role'],$role)){throw new ApiException(403,'PERMISSION_DENIED',"Endpoint chỉ dành cho {$label}.");}return $user;}
 
     private function parseInt(?string $value, int $min, int $max, int $default): int
     {

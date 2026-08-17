@@ -32,7 +32,7 @@ $session->login([
     'id' => '10000000-0000-4000-8000-000000000014',
     'email' => 'business@test.talenthub.local',
     'fullName' => 'Test Business User',
-    'role' => 'business',
+    'role' => 'enterprise',
     'status' => 'active'
 ]);
 

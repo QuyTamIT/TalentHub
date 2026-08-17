@@ -17,7 +17,7 @@ final class RolePermissionSeeder
         'student' => ['name' => 'Student', 'description' => 'Học sinh hoặc sinh viên'],
         'teacher' => ['name' => 'Teacher', 'description' => 'Giáo viên hoặc huấn luyện viên'],
         'school' => ['name' => 'School', 'description' => 'Nhân sự quản trị nhà trường'],
-        'business' => ['name' => 'Business', 'description' => 'Nhân sự doanh nghiệp'],
+        'enterprise' => ['name' => 'Enterprise', 'description' => 'Nhân sự doanh nghiệp'],
     ];
 
     private const COMMON_PERMISSIONS = [
@@ -67,7 +67,7 @@ final class RolePermissionSeeder
             'project.create_own_school', 'project.update_own_school',
             'sponsorship.read_own_school_project', 'notification.send_own_school',
         ],
-        'business' => [
+        'enterprise' => [
             'business_profile.read_own', 'business_profile.update_own', 'business_dashboard.read_own',
             'talent.search_consented', 'talent.read_consented', 'contact_request.create_own_business',
             'contact_request.read_own_business', 'contact_request.cancel_own_business',
@@ -87,6 +87,7 @@ final class RolePermissionSeeder
         $pdo->beginTransaction();
 
         try {
+            $this->migrateLegacyBusinessRole($pdo);
             $this->upsertRoles($pdo);
             $permissions = $this->allPermissions();
             $this->upsertPermissions($pdo, $permissions);
@@ -99,6 +100,18 @@ final class RolePermissionSeeder
 
             throw $exception;
         }
+    }
+
+    public function runWithinTransaction(PDO $pdo): void
+    {
+        if (!$pdo->inTransaction()) {
+            throw new RuntimeException('runWithinTransaction requires an active transaction.');
+        }
+        $this->assertRequiredTables($pdo);
+        $this->migrateLegacyBusinessRole($pdo);
+        $this->upsertRoles($pdo);
+        $this->upsertPermissions($pdo, $this->allPermissions());
+        $this->synchronizeMappings($pdo);
     }
 
     /** @return array<string, int> */
@@ -148,7 +161,7 @@ final class RolePermissionSeeder
         );
 
         foreach (self::ROLES as $code => $role) {
-            $id = self::stableId("role:{$code}");
+            $id = self::roleId($code);
             $select->execute(['code' => $code]);
             $existingId = $select->fetchColumn();
             if ($existingId !== false && $existingId !== $id) {
@@ -186,7 +199,7 @@ final class RolePermissionSeeder
             'INSERT IGNORE INTO role_permissions (roleId, permissionId) VALUES (:roleId, :permissionId)'
         );
         foreach (array_keys(self::ROLES) as $roleCode) {
-            $roleId = self::stableId("role:{$roleCode}");
+            $roleId = self::roleId($roleCode);
             $codes = array_values(array_unique(array_merge(self::COMMON_PERMISSIONS, self::ROLE_PERMISSIONS[$roleCode])));
             foreach ($codes as $code) {
                 $insert->execute(['roleId' => $roleId, 'permissionId' => self::stableId("permission:{$code}")]);
@@ -226,5 +239,23 @@ final class RolePermissionSeeder
         $hash = sha1($namespace . $name);
         return sprintf('%s-%s-5%s-%s%s-%s', substr($hash, 0, 8), substr($hash, 8, 4), substr($hash, 13, 3),
             dechex((hexdec($hash[16]) & 0x3) | 0x8), substr($hash, 17, 3), substr($hash, 20, 12));
+    }
+
+    private static function roleId(string $code): string
+    {
+        return self::stableId('role:' . ($code === 'enterprise' ? 'business' : $code));
+    }
+
+    private function migrateLegacyBusinessRole(PDO $pdo): void
+    {
+        $enterprise = $pdo->query("SELECT id FROM roles WHERE code = 'enterprise' LIMIT 1")->fetchColumn();
+        $business = $pdo->query("SELECT id FROM roles WHERE code = 'business' LIMIT 1")->fetchColumn();
+        if ($enterprise !== false && $business !== false && $enterprise !== $business) {
+            throw new RuntimeException('Both legacy business and canonical enterprise roles exist. Resolve duplicate role data first.');
+        }
+        if ($enterprise === false && $business !== false) {
+            $statement = $pdo->prepare("UPDATE roles SET code = 'enterprise', name = 'Enterprise' WHERE id = ? AND code = 'business'");
+            $statement->execute([$business]);
+        }
     }
 }
