@@ -1,10 +1,10 @@
 # Database Change Request: Synthetic Learner AI Dataset V2
 
-**Status:** PROPOSED — DISPOSABLE SCHEMA ONLY
+**Status:** APPROVED — DISPOSABLE SCHEMA ONLY
 
 ## Scope, safety boundary, and ownership
 
-This Database Change Request (DCR) requests authorization to seed the deterministic, insert-only Synthetic Learner AI Dataset V2 into the approved disposable verification database:
+This Database Change Request (DCR) (initially PROPOSED — DISPOSABLE SCHEMA ONLY) requests authorization to seed the deterministic, insert-only Synthetic Learner AI Dataset V2 into the approved disposable verification database:
 
 - **Authorized Target Schema:** `talenthub_ai_backup_verify_004_20260816`
 - **Shared / Production Schemas:** Strictly forbidden. `talenthub_local` is never approved and the seeder must immediately reject any connection to it or to any non-matching schema name.
@@ -169,7 +169,7 @@ WHERE NOT EXISTS (
 
 ## Approval & Execution Log
 
-- **Approval Status:** PROPOSED — DISPOSABLE SCHEMA ONLY
-- **Approved By:** Pending user explicit approval gate
-- **Approved At:** Pending
+- **Approval Status:** APPROVED — DISPOSABLE SCHEMA ONLY
+- **Approved By:** Lead Architect / User
+- **Approved At:** 2026-08-17 08:28:27 UTC
 - **Execution Status:** NOT EXECUTED
