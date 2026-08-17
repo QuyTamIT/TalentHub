@@ -172,13 +172,22 @@ v2_mysql_assert(
     'V2 MySQL test requires exact schema talenthub_ai_backup_verify_004_20260816'
 );
 
+// 2. Require explicit DCR approval before reading DB config or opening PDO
+$dcrContent = (string) file_get_contents($root . '/' . LearnerAiSyntheticDatasetV2Seeder::DCR_RELATIVE_PATH);
+$dcr = LearnerAiSyntheticDatasetV2Seeder::validateDcr(
+    $dcrContent,
+    $schema,
+    LearnerAiSyntheticDatasetV2::contentHash()
+);
+
+// 3. Load external config only after approval
 $configRoot = (string) getenv('TALENTHUB_DB_CONFIG_ROOT');
 v2_mysql_assert(
     $configRoot !== '' && is_file($configRoot . '/bin/bootstrap.php') && is_file($configRoot . '/config/database.php'),
     'V2 MySQL test requires an external local configuration root'
 );
 
-// 2. Open PDO connection to disposable schema only
+// 4. Open PDO connection to disposable schema only
 require_once $configRoot . '/bin/bootstrap.php';
 $config = require $configRoot . '/config/database.php';
 $config['database'] = $schema;
@@ -188,16 +197,8 @@ v2_mysql_assert(
     'V2 MySQL test connection is pinned to the requested disposable schema'
 );
 
-// 3. Read DCR and validate approval status for execution
-$dcrContent = (string) file_get_contents($root . '/' . LearnerAiSyntheticDatasetV2Seeder::DCR_RELATIVE_PATH);
-$dcr = LearnerAiSyntheticDatasetV2Seeder::validateDcr(
-    $dcrContent,
-    $schema,
-    LearnerAiSyntheticDatasetV2::contentHash()
-);
-
-// 4. Capture baseline counts:
-// 4a. Non-reserved counts on every touched table
+// 5. Capture baseline counts:
+// 5a. Non-reserved counts on every touched table
 $reservedPrefix = LearnerAiSyntheticDatasetV2::RESERVED_PREFIX;
 $touchedTables = LearnerAiSyntheticDatasetV2::touchedTables();
 $baselineNonReservedCounts = [];
@@ -211,7 +212,7 @@ foreach ($touchedTables as $table) {
     $baselineNonReservedCounts[$table] = (int) $stmt->fetchColumn();
 }
 
-// 4b. Recommendation table baseline total counts (before any seed)
+// 5b. Recommendation table baseline total counts (before any seed)
 $recommendationTables = [
     'learner_recommendation_input_snapshots',
     'learner_recommendation_runs',
