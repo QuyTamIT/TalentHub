@@ -12,6 +12,7 @@ use TalentHub\Learner\Data\Migrations\LearnerMigrationChecksum;
 
 final class LearnerAiSyntheticDatasetV2Seeder
 {
+    public const DCR_RELATIVE_PATH = 'docs/superpowers/database-change-requests/2026-08-17-learner-ai-synthetic-dataset-v2.md';
     private const SCHEMA_PATTERN = '/^talenthub_ai_backup_verify_[A-Za-z0-9_]+$/';
     private const APPROVED_SCHEMA = 'talenthub_ai_backup_verify_004_20260816';
     private const APPROVED_CONTENT_HASH = 'c6e417b69a06b9bf93a5762b03850b90c79fd88b716a1b3de48cb5097cf75b6f';
@@ -42,6 +43,136 @@ final class LearnerAiSyntheticDatasetV2Seeder
     }
 
     /**
+     * Parse raw DCR markdown and extract metadata fields.
+     *
+     * @return array{
+     *     status: string,
+     *     target_schema: string,
+     *     fingerprint: string,
+     *     total_rows: int,
+     *     approval_status: string,
+     *     approved_by: string,
+     *     approved_at: string,
+     *     execution_status: 'not_executed'|'executed'
+     * }
+     */
+    public static function parseDcr(string $markdown): array
+    {
+        if (preg_match('/^\*\*Status:\*\*\s*(.+)$/m', $markdown, $matches) !== 1) {
+            throw new RuntimeException('V2 seed DCR missing top-level Status.');
+        }
+        $status = trim($matches[1]);
+
+        if (preg_match('/-\s*\*\*Authorized Target Schema:\*\*\s*`?([A-Za-z0-9_]+)`?/m', $markdown, $matches) !== 1) {
+            throw new RuntimeException('V2 seed DCR missing Authorized Target Schema.');
+        }
+        $targetSchema = trim($matches[1]);
+
+        if (preg_match('/-\s*\*\*Dataset Fingerprint \(SHA-256\):\*\*\s*`?([a-f0-9]{64})`?/m', $markdown, $matches) !== 1) {
+            throw new RuntimeException('V2 seed DCR missing Dataset Fingerprint.');
+        }
+        $fingerprint = trim($matches[1]);
+
+        if (preg_match('/-\s*\*\*Total Declared V2 Rows:\*\*\s*`?(\d+)`?/m', $markdown, $matches) !== 1) {
+            throw new RuntimeException('V2 seed DCR missing Total Declared V2 Rows.');
+        }
+        $totalRows = (int) $matches[1];
+
+        if (preg_match('/-\s*\*\*Approval Status:\*\*\s*(.+)$/m', $markdown, $matches) !== 1) {
+            throw new RuntimeException('V2 seed DCR missing Approval Status in log.');
+        }
+        $approvalStatus = trim($matches[1]);
+
+        if (preg_match('/-\s*\*\*Approved By:\*\*\s*(.+)$/m', $markdown, $matches) !== 1) {
+            throw new RuntimeException('V2 seed DCR missing Approved By in log.');
+        }
+        $approvedBy = trim($matches[1]);
+
+        if (preg_match('/-\s*\*\*Approved At:\*\*\s*(.+)$/m', $markdown, $matches) !== 1) {
+            throw new RuntimeException('V2 seed DCR missing Approved At in log.');
+        }
+        $approvedAt = trim($matches[1]);
+
+        if (preg_match('/-\s*\*\*Execution Status:\*\*\s*(.+)$/m', $markdown, $matches) !== 1) {
+            throw new RuntimeException('V2 seed DCR missing Execution Status in log.');
+        }
+        $rawExecutionStatus = trim($matches[1]);
+        $executionStatus = match (true) {
+            (bool) preg_match('/not\s*executed/i', $rawExecutionStatus) => 'not_executed',
+            (bool) preg_match('/executed/i', $rawExecutionStatus) => 'executed',
+            default => throw new RuntimeException('V2 seed DCR has unrecognized Execution Status: ' . $rawExecutionStatus),
+        };
+
+        return [
+            'status' => $status,
+            'target_schema' => $targetSchema,
+            'fingerprint' => $fingerprint,
+            'total_rows' => $totalRows,
+            'approval_status' => $approvalStatus,
+            'approved_by' => $approvedBy,
+            'approved_at' => $approvedAt,
+            'execution_status' => $executionStatus,
+        ];
+    }
+
+    /**
+     * Validate parsed DCR document against approval rules.
+     *
+     * @return array{
+     *     status: string,
+     *     target_schema: string,
+     *     fingerprint: string,
+     *     total_rows: int,
+     *     approval_status: string,
+     *     approved_by: string,
+     *     approved_at: string,
+     *     execution_status: 'not_executed'|'executed'
+     * }
+     */
+    public static function validateDcr(string $markdown, string $expectedSchema, string $approvedFingerprint): array
+    {
+        $parsed = self::parseDcr($markdown);
+
+        $approvedHeader = 'APPROVED — DISPOSABLE SCHEMA ONLY';
+        if ($parsed['status'] !== $approvedHeader || $parsed['approval_status'] !== $approvedHeader) {
+            throw new RuntimeException(
+                'V2 seed requires approved DCR; top-level Status and Approval Status must be: ' . $approvedHeader
+            );
+        }
+
+        if ($parsed['approved_by'] === '' || stripos($parsed['approved_by'], 'pending') !== false) {
+            throw new RuntimeException('V2 seed DCR Approved By is pending or empty.');
+        }
+
+        if ($parsed['approved_at'] === '' || stripos($parsed['approved_at'], 'pending') !== false) {
+            throw new RuntimeException('V2 seed DCR Approved At is pending or empty.');
+        }
+
+        if ($parsed['target_schema'] !== self::APPROVED_SCHEMA
+            || $parsed['target_schema'] !== $expectedSchema
+            || $parsed['target_schema'] === 'talenthub_local') {
+            throw new RuntimeException(
+                'V2 seed DCR requires approved disposable schema ' . self::APPROVED_SCHEMA . '; got: ' . $parsed['target_schema']
+            );
+        }
+
+        if ($parsed['fingerprint'] !== self::APPROVED_CONTENT_HASH
+            || !hash_equals($approvedFingerprint, $parsed['fingerprint'])) {
+            throw new RuntimeException(
+                'V2 seed DCR fingerprint mismatch; expected ' . self::APPROVED_CONTENT_HASH . ', got: ' . $parsed['fingerprint']
+            );
+        }
+
+        if ($parsed['total_rows'] !== 1116) {
+            throw new RuntimeException(
+                'V2 seed DCR row count mismatch; expected 1116, got: ' . $parsed['total_rows']
+            );
+        }
+
+        return $parsed;
+    }
+
+    /**
      * @return array{
      *     declared: int,
      *     inserted: int,
@@ -53,12 +184,20 @@ final class LearnerAiSyntheticDatasetV2Seeder
      */
     public function seed(): array
     {
-        // 1. Pure validation of dataset contract before any DB read
+        // 1. Pure validation of dataset contract before any DB read or DCR check
         LearnerAiSyntheticDatasetV2::validate();
 
-        // 2. Preflight checks in exact order
+        // 2. Reject externally owned transaction FIRST
+        if ($this->pdo->inTransaction()) {
+            throw new RuntimeException('V2 seed refuses an externally owned transaction.');
+        }
+
+        // 3. Runtime DCR approval gate (fails before any DB reads if DCR is not approved)
+        $dcr = $this->assertApprovedDcr();
+
+        // 4. Assert connection target, content hash, migrations, exact columns, V1 prerequisites
         $this->assertTarget();
-        $this->assertContentHash();
+        $this->assertContentHash($dcr['fingerprint']);
         $this->assertCanonicalMigrations();
         $this->assertTouchedTablesAndColumns();
         $this->assertV1Prerequisites();
@@ -68,7 +207,7 @@ final class LearnerAiSyntheticDatasetV2Seeder
             throw new RuntimeException('V2 seed row declaration count is invalid.');
         }
 
-        // 3. Preflight scan of all V2 declared rows
+        // 5. Preflight scan of all V2 declared rows
         $missing = [];
         $existing = 0;
         foreach ($rows as $row) {
@@ -81,14 +220,14 @@ final class LearnerAiSyntheticDatasetV2Seeder
             $existing++;
         }
 
-        // 4. Reject partial state before beginTransaction()
+        // 6. Reject partial state before beginTransaction()
         if ($existing > 0 && count($missing) > 0) {
             throw new RuntimeException(
                 'V2 seed detected a partial state (' . $existing . ' existing, ' . count($missing) . ' missing); transactional V2 state must be either completely absent or completely present.'
             );
         }
 
-        // 5. If everything already exists, return idempotent summary
+        // 7. If everything already exists, return idempotent summary
         if (count($missing) === 0) {
             return [
                 'declared' => count($rows),
@@ -100,11 +239,7 @@ final class LearnerAiSyntheticDatasetV2Seeder
             ];
         }
 
-        // 6. Insert-only transaction
-        if ($this->pdo->inTransaction()) {
-            throw new RuntimeException('V2 seed refuses an externally owned transaction.');
-        }
-
+        // 8. Insert-only transaction
         $this->pdo->beginTransaction();
         try {
             $inserted = 0;
@@ -133,6 +268,21 @@ final class LearnerAiSyntheticDatasetV2Seeder
         ];
     }
 
+    private function assertApprovedDcr(): array
+    {
+        $root = dirname(__DIR__, 4);
+        $dcrPath = $root . '/' . self::DCR_RELATIVE_PATH;
+        if (!is_file($dcrPath) || !is_readable($dcrPath)) {
+            throw new RuntimeException('V2 seed requires approved DCR artifact at: ' . self::DCR_RELATIVE_PATH);
+        }
+        $content = file_get_contents($dcrPath);
+        if ($content === false) {
+            throw new RuntimeException('V2 seed could not read DCR artifact: ' . self::DCR_RELATIVE_PATH);
+        }
+
+        return self::validateDcr($content, $this->expectedSchema, $this->approvedContentHash);
+    }
+
     private function assertTarget(): void
     {
         if ($this->expectedSchema !== self::APPROVED_SCHEMA
@@ -152,11 +302,12 @@ final class LearnerAiSyntheticDatasetV2Seeder
         }
     }
 
-    private function assertContentHash(): void
+    private function assertContentHash(string $dcrFingerprint): void
     {
         $calculatedHash = LearnerAiSyntheticDatasetV2::contentHash();
         if (!hash_equals(self::APPROVED_CONTENT_HASH, $this->approvedContentHash)
-            || !hash_equals($calculatedHash, $this->approvedContentHash)) {
+            || !hash_equals($calculatedHash, $this->approvedContentHash)
+            || !hash_equals($dcrFingerprint, $this->approvedContentHash)) {
             throw new RuntimeException('V2 seed content hash does not match approved fingerprint.');
         }
     }
@@ -199,13 +350,15 @@ final class LearnerAiSyntheticDatasetV2Seeder
         $declaredColumnsByTable = [];
         foreach (LearnerAiSyntheticDatasetV2::rows() as $row) {
             $table = $row['table'];
+            $this->assertIdentifier($table);
             foreach (array_keys($row['values']) as $column) {
+                $this->assertIdentifier($column);
                 $declaredColumnsByTable[$table][$column] = true;
             }
         }
 
         $statement = $this->pdo->prepare(
-            'SELECT column_name FROM information_schema.columns WHERE table_schema = :schema AND table_name = :table'
+            'SELECT column_name FROM information_schema.columns WHERE table_schema = :schema AND table_name = :table ORDER BY ordinal_position'
         );
 
         foreach (LearnerAiSyntheticDatasetV2::touchedTables() as $table) {
@@ -213,15 +366,30 @@ final class LearnerAiSyntheticDatasetV2Seeder
             $statement->execute(['schema' => $this->expectedSchema, 'table' => $table]);
             $columns = $statement->fetchAll(PDO::FETCH_COLUMN);
             if (!is_array($columns) || count($columns) === 0) {
-                throw new RuntimeException('V2 seed touched table does not exist: ' . $table);
+                throw new RuntimeException('V2 seed touched table does not exist or has empty shape: ' . $table);
             }
-            $existingColumns = array_change_key_case(array_flip(array_map(static fn($c): string => (string) $c, $columns)), CASE_LOWER);
-            foreach (array_keys($declaredColumnsByTable[$table] ?? []) as $declaredColumn) {
-                if (!isset($existingColumns[strtolower($declaredColumn)])) {
-                    throw new RuntimeException(
-                        'V2 seed table ' . $table . ' is missing declared column: ' . $declaredColumn
-                    );
+
+            $actualColumns = array_map(static fn($c): string => strtolower(trim((string) $c)), $columns);
+            $declaredColumns = array_map(static fn($c): string => strtolower(trim((string) $c)), array_keys($declaredColumnsByTable[$table] ?? []));
+
+            $actualUnique = array_values(array_unique($actualColumns));
+            $declaredUnique = array_values(array_unique($declaredColumns));
+            sort($actualUnique, SORT_STRING);
+            sort($declaredUnique, SORT_STRING);
+
+            if ($actualUnique !== $declaredUnique) {
+                $missing = array_diff($declaredUnique, $actualUnique);
+                $extra = array_diff($actualUnique, $declaredUnique);
+                $details = [];
+                if (count($missing) > 0) {
+                    $details[] = 'missing declared columns: ' . implode(', ', $missing);
                 }
+                if (count($extra) > 0) {
+                    $details[] = 'unexpected extra columns: ' . implode(', ', $extra);
+                }
+                throw new RuntimeException(
+                    'V2 seed table column contract mismatch for table ' . $table . ' (' . implode('; ', $details) . ').'
+                );
             }
         }
     }
