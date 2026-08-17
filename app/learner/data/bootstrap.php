@@ -40,12 +40,18 @@ require_once $learnerDataRoot . '/Database/DatabaseActivityRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseEcosystemRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseApplicationRepository.php';
 require_once $learnerDataRoot . '/Readiness/AiScopePolicy.php';
+require_once $learnerDataRoot . '/Readiness/ReadinessResult.php';
+require_once $learnerDataRoot . '/Readiness/GitScopeGuard.php';
+require_once $learnerDataRoot . '/Readiness/LearnerMigrationRunner.php';
+require_once $learnerDataRoot . '/Readiness/PhaseRequirements.php';
+require_once $learnerDataRoot . '/Readiness/ReadinessChecker.php';
 require_once $learnerDataRoot . '/Migrations/LearnerForwardMigration.php';
 require_once $learnerDataRoot . '/Migrations/LearnerMigrationPreflight.php';
 require_once $learnerDataRoot . '/Migrations/ForwardMigrationDefinition.php';
 require_once $learnerDataRoot . '/Migrations/LearnerForwardMigrationRunner.php';
 require_once $learnerDataRoot . '/Service/LearnerAssessmentService.php';
 require_once $learnerDataRoot . '/RepositoryFactory.php';
+require_once dirname($learnerDataRoot) . '/Runtime/LearnerRuntime.php';
 
 unset($learnerDataRoot);
 
@@ -98,5 +104,18 @@ if (!function_exists('learner_current_student_id')) {
         }
 
         return 'student-demo-001';
+    }
+}
+
+if (!function_exists('learner_safe_runtime_diagnostics')) {
+    /** @return array{source:string,student_id:?string} */
+    function learner_safe_runtime_diagnostics(): array
+    {
+        $config = learner_data_config();
+        $studentId = trim((string) ($config['student_id'] ?? ''));
+        return [
+            'source' => strtolower(trim((string) ($config['source'] ?? 'mock'))),
+            'student_id' => $studentId === '' ? null : $studentId,
+        ];
     }
 }

@@ -15,3 +15,16 @@
 - [ ] Explicit model-visible approval records a deterministic pilot percentage above zero.
 
 The feature flags are `TALENTHUB_AI_ENABLED`, `TALENTHUB_AI_SHADOW`, `TALENTHUB_AI_SHADOW_GATE_APPROVED`, `TALENTHUB_AI_VISIBLE_PERCENT`, and `TALENTHUB_AI_PROVIDER`. Turning any flag off requires no database change. Never use an environment or database edit to bypass this checklist.
+
+## Verification recorded 2026-08-17
+
+The following evidence was run only against the verified disposable Laragon MySQL schema
+`talenthub_ai_backup_verify_004_20260816`; `talenthub_local` was not queried or changed.
+
+- [x] Insert-only pilot seed verification passed twice (`learner_ai_pilot_seed_test.php`): 61 deterministic synthetic rows, no update/delete path, and no change to rows outside the documented reserved UUID prefix.
+- [x] Disposable two-learner isolation verification passed (`learner_ai_end_to_end_mysql_test.php`): source data, recommendation runs, evidence, reads, and feedback stay scoped to the authenticated learner.
+- [x] Provider-failure simulation passed (`learner_ai_end_to_end_mysql_test.php`): the fake unavailable provider returns an evidence-backed rule fallback; no network provider call or real API credential was used.
+- [x] Metadata compatibility verification passed (`learner_ai_mysql_metadata_test.php`) on MySQL 8.4 through Laragon.
+- [x] Protected-path and syntax verification passed: no changed or untracked files under Teacher, School, Enterprise, `src`, or `api`; PHP lint passed for their 57 files.
+
+The existing foundation MySQL test was intentionally not run: it contains cleanup `DELETE` statements and therefore conflicts with the no-delete data-safety boundary. The available Teacher/School dynamic smoke scripts are either mutating or require separate demo accounts not present in this disposable fixture; none was used to create those accounts. This is not an authorization to remove or create shared-role data. The unmet governance, consent-revocation, shadow-quality, dynamic cross-role, and explicit product-approval gates above keep the current decision **NOT READY** and the visible model percentage at `0`.

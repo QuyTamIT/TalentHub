@@ -209,7 +209,7 @@ final class SchemaInspector
     private function identifier(string $value): void
     {
         if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $value) !== 1) {
-            throw new InvalidArgumentException('Invalid schema identifier: ' . $value);
+            throw new InvalidArgumentException('Invalid validated identifier: ' . $value);
         }
     }
 
