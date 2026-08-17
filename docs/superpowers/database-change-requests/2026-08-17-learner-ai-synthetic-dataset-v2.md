@@ -38,7 +38,7 @@ Learner 112 models an assessment submitted over 365 days ago to exercise the Dat
 
 ## Deterministic Timestamp Rules
 
-All timestamps are generated using deterministic UTC `DateTimeImmutable` base objects:
+All timestamps are deterministic UTC; specifically consent timestamps are generated using `DateTimeImmutable` base objects and second offsets:
 - Timestamps follow strict MySQL `DATETIME(6)` formatting `YYYY-MM-DD HH:MM:SS.uuuuuu`.
 - Seconds are strictly in the range `00..59` with zero second-overflow.
 - Consent event timestamps are generated from a UTC base `2026-08-08 09:00:00.000000` with second offsets (`modify('+N seconds')`).

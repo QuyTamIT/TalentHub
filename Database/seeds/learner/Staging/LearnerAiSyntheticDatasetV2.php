@@ -678,7 +678,19 @@ final class LearnerAiSyntheticDatasetV2
 
     public static function validate(): void
     {
-        $participants = self::participants();
+        self::validateDataset(self::participants(), self::questions(), self::rows());
+    }
+
+    /**
+     * Pure validation entrypoint to enforce all structural, relational, and scenario invariants.
+     *
+     * @param list<array{sequence:int, student_id:string, primary:string, scenario:string, expected_state:string, expected_missing:list<string>, scores:array<string,int>}> $participants
+     * @param list<array{id:string, code:string, dimension:string, content:string, is_v1:bool}> $questions
+     * @param list<array{table:string, id:string, values:array<string, scalar|null>}> $rows
+     */
+    public static function validateDataset(array $participants, array $questions, array $rows): void
+    {
+        // 1. Participant count & distribution
         if (count($participants) !== 24) {
             throw new RuntimeException('V2 validation failed: exactly 24 participants required.');
         }
@@ -698,7 +710,7 @@ final class LearnerAiSyntheticDatasetV2
             throw new RuntimeException('V2 validation failed: expected state counts mismatch.');
         }
 
-        $questions = self::questions();
+        // 2. Question count & distribution
         if (count($questions) !== 24) {
             throw new RuntimeException('V2 validation failed: exactly 24 questions required.');
         }
@@ -708,11 +720,36 @@ final class LearnerAiSyntheticDatasetV2
             throw new RuntimeException('V2 validation failed: four questions per dimension required.');
         }
 
-        $rows = self::rows();
+        // 3. Row count & row-family counts
         if (count($rows) !== 1116) {
             throw new RuntimeException('V2 validation failed: exactly 1116 rows required, got ' . count($rows));
         }
 
+        $expectedFamilyCounts = [
+            'users' => 22,
+            'student_profiles' => 22,
+            'skills' => 10,
+            'student_skills' => 66,
+            'learner_skill_evidence' => 66,
+            'test_questions' => 21,
+            'learner_assessment_versions' => 1,
+            'learner_assessment_question_versions' => 24,
+            'test_attempts' => 24,
+            'learner_assessment_attempt_metadata' => 24,
+            'learner_assessment_answers' => 576,
+            'test_results' => 24,
+            'activities' => 11,
+            'activity_qr_tokens' => 11,
+            'activity_registrations' => 24,
+            'checkins' => 23,
+            'experience_logs' => 23,
+            'assessments' => 24,
+            'assessment_scores' => 24,
+            'learner_ai_consent_events' => 96,
+        ];
+
+        $actualFamilyCounts = [];
+        $rowsByTable = [];
         $keys = [];
         $datetimeColumns = [
             'createdAt', 'updatedAt', 'startAt', 'endAt', 'validFrom', 'validUntil',
@@ -721,8 +758,13 @@ final class LearnerAiSyntheticDatasetV2
         ];
 
         foreach ($rows as $row) {
-            $table = $row['table'];
-            $id = $row['id'];
+            $table = $row['table'] ?? '';
+            $id = $row['id'] ?? '';
+            $values = $row['values'] ?? [];
+
+            $actualFamilyCounts[$table] = ($actualFamilyCounts[$table] ?? 0) + 1;
+            $rowsByTable[$table][$id] = $values;
+
             $key = $table . "\0" . $id;
             if (isset($keys[$key])) {
                 throw new RuntimeException('V2 validation failed: duplicate row key ' . $table . '.' . $id);
@@ -733,31 +775,49 @@ final class LearnerAiSyntheticDatasetV2
                 throw new RuntimeException('V2 validation failed: row id outside reserved prefix: ' . $id);
             }
 
-            if (($row['values']['id'] ?? null) !== $id) {
+            if (($values['id'] ?? null) !== $id) {
                 throw new RuntimeException('V2 validation failed: row values id mismatch for ' . $table . '.' . $id);
             }
 
-            foreach ($row['values'] as $column => $value) {
+            // Values validation (emails, passwords, datetimes)
+            foreach ($values as $column => $value) {
                 if ($value === null) {
                     continue;
+                }
+                if ($column === 'passwordHash' && $value !== '!synthetic-disabled-login-v2!') {
+                    throw new RuntimeException('V2 validation failed: password placeholder mismatch in ' . $table . '.' . $id);
                 }
                 if ($column === 'dateOfBirth') {
                     if (!is_string($value) || preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/', $value) !== 1) {
                         throw new RuntimeException('V2 validation failed: dateOfBirth invalid format in ' . $id);
                     }
+                    $parsed = DateTimeImmutable::createFromFormat('Y-m-d', $value, new DateTimeZone('UTC'));
+                    if ($parsed === false || $parsed->format('Y-m-d') !== $value) {
+                        throw new RuntimeException('V2 validation failed: dateOfBirth round-trip mismatch in ' . $id);
+                    }
                     continue;
                 }
                 if (in_array($column, $datetimeColumns, true)) {
                     if (!is_string($value) || preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}$/', $value) !== 1) {
-                        throw new RuntimeException('V2 validation failed: invalid DATETIME(6) in ' . $table . '.' . $column . ': ' . $value);
+                        throw new RuntimeException('V2 validation failed: invalid DATETIME(6) format in ' . $table . '.' . $column . ': ' . $value);
                     }
+
+                    $parts = explode(' ', $value);
+                    $timeParts = explode(':', $parts[1] ?? '');
+                    $hour = (int) ($timeParts[0] ?? -1);
+                    $minute = (int) ($timeParts[1] ?? -1);
+                    $second = (float) ($timeParts[2] ?? -1);
+                    if ($hour < 0 || $hour > 23 || $minute < 0 || $minute > 59 || $second < 0.0 || $second >= 60.0) {
+                        throw new RuntimeException('V2 validation failed: invalid DATETIME(6) hour/minute/second in ' . $value);
+                    }
+
                     $parsed = DateTimeImmutable::createFromFormat('Y-m-d H:i:s.u', $value, new DateTimeZone('UTC'));
                     if ($parsed === false || $parsed->format('Y-m-d H:i:s.u') !== $value) {
                         throw new RuntimeException('V2 validation failed: DATETIME(6) round-trip mismatch in ' . $table . '.' . $column . ': ' . $value);
                     }
                     $errors = DateTimeImmutable::getLastErrors();
                     if ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
-                        throw new RuntimeException('V2 validation failed: DATETIME(6) has errors in ' . $value);
+                        throw new RuntimeException('V2 validation failed: DATETIME(6) has parse errors in ' . $value);
                     }
                 }
                 if (is_string($value) && str_contains($value, '@')) {
@@ -768,7 +828,13 @@ final class LearnerAiSyntheticDatasetV2
             }
         }
 
-        // Validate score profiles
+        ksort($actualFamilyCounts);
+        ksort($expectedFamilyCounts);
+        if ($actualFamilyCounts !== $expectedFamilyCounts) {
+            throw new RuntimeException('V2 validation failed: exact row-family counts mismatch.');
+        }
+
+        // 4. Score profiles validation
         foreach (self::PROFILES as $primary => $scores) {
             $topDimension = null;
             $topScore = -1;
@@ -790,6 +856,374 @@ final class LearnerAiSyntheticDatasetV2
             }
             if ($scores['R'] < 70 || $scores['I'] < 70) {
                 throw new RuntimeException('V2 validation failed: R and I must be >= 70 for baseline rule match.');
+            }
+        }
+
+        // 5. Parent / FK Closure Validation
+        $v1RoleLearner = '00000000-0000-4000-8000-000000000001';
+        $v1School = '00000000-0000-4000-8000-000000000010';
+        $v1Class = '00000000-0000-4000-8000-000000000011';
+        $v1TeacherProfile = '00000000-0000-4000-8000-000000000021';
+        $v1CriterionPresentation = '00000000-0000-4000-8000-000000000040';
+        $v1SkillIot = '00000000-0000-4000-8000-000000000050';
+        $v1SkillPython = '00000000-0000-4000-8000-000000000051';
+        $v1TestHolland = '00000000-0000-4000-8000-000000000060';
+        $v1Questions = [
+            '00000000-0000-4000-8000-000000000061' => true,
+            '00000000-0000-4000-8000-000000000062' => true,
+            '00000000-0000-4000-8000-000000000063' => true,
+        ];
+        $v1Activity = '00000000-0000-4000-8000-000000000030';
+        $v1Qr = '00000000-0000-4000-8000-000000000031';
+
+        $allStudentIds = array_fill_keys(self::studentIds(), true);
+        $allSkillIds = array_merge([$v1SkillIot => true, $v1SkillPython => true], array_fill_keys(array_keys($rowsByTable['skills'] ?? []), true));
+        $allQuestionIds = array_merge($v1Questions, array_fill_keys(array_keys($rowsByTable['test_questions'] ?? []), true));
+        $allActivityIds = array_merge([$v1Activity => true], array_fill_keys(array_keys($rowsByTable['activities'] ?? []), true));
+        $allQrIds = array_merge([$v1Qr => true], array_fill_keys(array_keys($rowsByTable['activity_qr_tokens'] ?? []), true));
+
+        foreach ($rowsByTable['users'] ?? [] as $id => $u) {
+            if ($u['roleId'] !== $v1RoleLearner || !isset($allStudentIds[$id])) {
+                throw new RuntimeException('V2 validation failed: invalid user roleId or studentId in ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['student_profiles'] ?? [] as $id => $sp) {
+            if ($sp['userId'] !== $id || $sp['classId'] !== $v1Class) {
+                throw new RuntimeException('V2 validation failed: invalid student profile in ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['student_skills'] ?? [] as $id => $ss) {
+            if (!isset($allStudentIds[$ss['studentId']]) || !isset($allSkillIds[$ss['skillId']])) {
+                throw new RuntimeException('V2 validation failed: invalid studentId or skillId in student_skills ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['learner_skill_evidence'] ?? [] as $id => $se) {
+            if (!isset($rowsByTable['student_skills'][$se['studentSkillId']])) {
+                throw new RuntimeException('V2 validation failed: missing studentSkillId in evidence ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['test_questions'] ?? [] as $id => $tq) {
+            if ($tq['testId'] !== $v1TestHolland) {
+                throw new RuntimeException('V2 validation failed: invalid testId in test_questions ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['learner_assessment_versions'] ?? [] as $id => $lav) {
+            if ($lav['testId'] !== $v1TestHolland) {
+                throw new RuntimeException('V2 validation failed: invalid testId in versions ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['learner_assessment_question_versions'] ?? [] as $id => $laqv) {
+            if ($laqv['versionId'] !== self::VERSION_ID || !isset($allQuestionIds[$laqv['questionId']])) {
+                throw new RuntimeException('V2 validation failed: invalid versionId or questionId in question_versions ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['test_attempts'] ?? [] as $id => $ta) {
+            if ($ta['testId'] !== $v1TestHolland || !isset($allStudentIds[$ta['studentId']])) {
+                throw new RuntimeException('V2 validation failed: invalid testId or studentId in test_attempts ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['learner_assessment_attempt_metadata'] ?? [] as $id => $laam) {
+            if (!isset($rowsByTable['test_attempts'][$laam['attemptId']]) || $laam['versionId'] !== self::VERSION_ID) {
+                throw new RuntimeException('V2 validation failed: invalid attemptId or versionId in metadata ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['learner_assessment_answers'] ?? [] as $id => $laa) {
+            if (!isset($rowsByTable['test_attempts'][$laa['attemptId']]) || !isset($allQuestionIds[$laa['questionId']])) {
+                throw new RuntimeException('V2 validation failed: invalid attemptId or questionId in answers ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['test_results'] ?? [] as $id => $tr) {
+            if (!isset($rowsByTable['test_attempts'][$tr['attemptId']])) {
+                throw new RuntimeException('V2 validation failed: invalid attemptId in test_results ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['activities'] ?? [] as $id => $act) {
+            if ($act['schoolId'] !== $v1School || $act['createdByTeacherId'] !== $v1TeacherProfile) {
+                throw new RuntimeException('V2 validation failed: invalid schoolId or teacherId in activities ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['activity_qr_tokens'] ?? [] as $id => $qr) {
+            if (!isset($allActivityIds[$qr['activityId']])) {
+                throw new RuntimeException('V2 validation failed: invalid activityId in qr_tokens ' . $id);
+            }
+            $hash = (string) $qr['tokenHash'];
+            if (preg_match('/^[a-f0-9]{64}$/', $hash) !== 1) {
+                throw new RuntimeException('V2 validation failed: invalid tokenHash format in qr ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['activity_registrations'] ?? [] as $id => $ar) {
+            if (!isset($allActivityIds[$ar['activityId']]) || !isset($allStudentIds[$ar['studentId']])) {
+                throw new RuntimeException('V2 validation failed: invalid activityId or studentId in registrations ' . $id);
+            }
+        }
+
+        // Map QR tokens to activity
+        $qrActivityMap = [$v1Qr => $v1Activity];
+        foreach ($rowsByTable['activity_qr_tokens'] ?? [] as $qrId => $qr) {
+            $qrActivityMap[$qrId] = $qr['activityId'];
+        }
+
+        foreach ($rowsByTable['checkins'] ?? [] as $id => $chk) {
+            $regId = (string) $chk['registrationId'];
+            $qrTokenId = (string) $chk['qrTokenId'];
+            if (!isset($rowsByTable['activity_registrations'][$regId]) || !isset($allQrIds[$qrTokenId])) {
+                throw new RuntimeException('V2 validation failed: invalid registrationId or qrTokenId in checkins ' . $id);
+            }
+            $regActivity = $rowsByTable['activity_registrations'][$regId]['activityId'] ?? null;
+            $qrActivity = $qrActivityMap[$qrTokenId] ?? null;
+            if ($regActivity === null || $qrActivity === null || $regActivity !== $qrActivity) {
+                throw new RuntimeException('V2 validation failed: registration / check-in / QR activity mismatch in checkin ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['experience_logs'] ?? [] as $id => $el) {
+            $chkId = (string) $el['checkinId'];
+            if (!isset($allStudentIds[$el['studentId']]) || !isset($allActivityIds[$el['activityId']]) || !isset($rowsByTable['checkins'][$chkId])) {
+                throw new RuntimeException('V2 validation failed: invalid studentId, activityId, or checkinId in experience_logs ' . $id);
+            }
+            $chk = $rowsByTable['checkins'][$chkId];
+            $reg = $rowsByTable['activity_registrations'][$chk['registrationId']] ?? [];
+            if ($reg['studentId'] !== $el['studentId'] || $reg['activityId'] !== $el['activityId']) {
+                throw new RuntimeException('V2 validation failed: experience mismatch with registration via checkin in ' . $id);
+            }
+        }
+
+        // Map registrations per student
+        $studentRegistrations = [];
+        foreach ($rowsByTable['activity_registrations'] ?? [] as $ar) {
+            $studentRegistrations[$ar['studentId']][$ar['activityId']] = true;
+        }
+
+        foreach ($rowsByTable['assessments'] ?? [] as $id => $ass) {
+            if ($ass['teacherId'] !== $v1TeacherProfile || !isset($allStudentIds[$ass['studentId']]) || !isset($allActivityIds[$ass['activityId']])) {
+                throw new RuntimeException('V2 validation failed: invalid teacherId, studentId, or activityId in assessments ' . $id);
+            }
+            if (!isset($studentRegistrations[$ass['studentId']][$ass['activityId']])) {
+                throw new RuntimeException('V2 validation failed: assessment registration mismatch in ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['assessment_scores'] ?? [] as $id => $as) {
+            if (!isset($rowsByTable['assessments'][$as['assessmentId']]) || $as['criteriaId'] !== $v1CriterionPresentation) {
+                throw new RuntimeException('V2 validation failed: invalid assessmentId or criteriaId in assessment_scores ' . $id);
+            }
+        }
+
+        foreach ($rowsByTable['learner_ai_consent_events'] ?? [] as $id => $ce) {
+            if (!isset($allStudentIds[$ce['studentId']])) {
+                throw new RuntimeException('V2 validation failed: invalid studentId in consent_events ' . $id);
+            }
+        }
+
+        // 6. Assessment Consistency & Chronology
+        $questionDimMap = [];
+        foreach ($questions as $q) {
+            $questionDimMap[$q['id']] = $q['dimension'];
+        }
+
+        $answersByAttempt = [];
+        foreach ($rowsByTable['learner_assessment_answers'] ?? [] as $ans) {
+            $answersByAttempt[$ans['attemptId']][] = $ans;
+        }
+
+        foreach ($rowsByTable['test_attempts'] ?? [] as $attemptId => $attempt) {
+            $studentId = $attempt['studentId'];
+            $studentSeq = (int) substr($studentId, -3);
+            $startedAt = $attempt['startedAt'];
+            $submittedAt = $attempt['submittedAt'];
+
+            if ($startedAt > $submittedAt) {
+                throw new RuntimeException('V2 validation failed: attempt startedAt > submittedAt in ' . $attemptId);
+            }
+
+            $attemptAnswers = $answersByAttempt[$attemptId] ?? [];
+            if (count($attemptAnswers) !== 24) {
+                throw new RuntimeException('V2 validation failed: attempt does not have exactly 24 answers in ' . $attemptId);
+            }
+
+            $seenQuestions = [];
+            $dimensionSums = ['R' => 0, 'I' => 0, 'A' => 0, 'S' => 0, 'E' => 0, 'C' => 0];
+            $rawAnswers = [];
+
+            foreach ($attemptAnswers as $ans) {
+                $qId = $ans['questionId'];
+                if (isset($seenQuestions[$qId])) {
+                    throw new RuntimeException('V2 validation failed: duplicate question in attempt ' . $attemptId);
+                }
+                $seenQuestions[$qId] = true;
+
+                $answeredAt = $ans['answeredAt'];
+                if ($answeredAt < $startedAt || $answeredAt > $submittedAt) {
+                    throw new RuntimeException('V2 validation failed: attempt chronology violation in answer ' . $ans['id'] . ' for student ' . $studentSeq);
+                }
+
+                $decoded = json_decode((string) $ans['answerJson'], true);
+                if (!is_array($decoded) || !isset($decoded['value'])) {
+                    throw new RuntimeException('V2 validation failed: invalid answerJson in ' . $ans['id']);
+                }
+                $val = (int) $decoded['value'];
+                if ($val < 1 || $val > 5) {
+                    throw new RuntimeException('V2 validation failed: answer value not in 1..5 in ' . $ans['id']);
+                }
+
+                $dim = $questionDimMap[$qId] ?? null;
+                if ($dim === null) {
+                    throw new RuntimeException('V2 validation failed: unknown question dimension in ' . $qId);
+                }
+                $dimensionSums[$dim] += $val;
+                $rawAnswers[] = ['question_id' => $qId, 'value' => $val];
+            }
+
+            $meta = null;
+            foreach ($rowsByTable['learner_assessment_attempt_metadata'] ?? [] as $m) {
+                if ($m['attemptId'] === $attemptId) {
+                    $meta = $m;
+                    break;
+                }
+            }
+            if ($meta === null || $meta['submittedAt'] !== $submittedAt) {
+                throw new RuntimeException('V2 validation failed: metadata submittedAt mismatch in attempt ' . $attemptId);
+            }
+            $expectedInputHash = hash('sha256', 'pilot-riasec-2:' . $studentId . ':' . json_encode($rawAnswers, JSON_THROW_ON_ERROR));
+            if ($meta['inputHash'] !== $expectedInputHash) {
+                throw new RuntimeException('V2 validation failed: metadata inputHash mismatch in attempt ' . $attemptId);
+            }
+
+            $res = null;
+            foreach ($rowsByTable['test_results'] ?? [] as $r) {
+                if ($r['attemptId'] === $attemptId) {
+                    $res = $r;
+                    break;
+                }
+            }
+            if ($res === null) {
+                throw new RuntimeException('V2 validation failed: missing test_result for attempt ' . $attemptId);
+            }
+            $scores = json_decode((string) $res['dimensionScoresJson'], true);
+            if (!is_array($scores)) {
+                throw new RuntimeException('V2 validation failed: invalid dimensionScoresJson in attempt ' . $attemptId);
+            }
+            foreach ($dimensionSums as $dim => $sum) {
+                if (($sum * 5) !== ($scores[$dim] ?? null)) {
+                    throw new RuntimeException('V2 validation failed: answers sum * 5 does not match dimensionScores for ' . $dim . ' in attempt ' . $attemptId);
+                }
+            }
+            $sorted = $scores;
+            arsort($sorted, SORT_NUMERIC);
+            $top3 = implode('', array_slice(array_keys($sorted), 0, 3));
+            if ($res['resultCode'] !== $top3) {
+                throw new RuntimeException('V2 validation failed: resultCode does not match top 3 dimensions in attempt ' . $attemptId);
+            }
+        }
+
+        // 7. Effective Skills & Scenario Consistency
+        $skillCodeMap = [$v1SkillIot => 'iot', $v1SkillPython => 'python'];
+        foreach ($rowsByTable['skills'] ?? [] as $sId => $sk) {
+            $skillCodeMap[$sId] = $sk['code'];
+        }
+
+        $effectiveSkills = [
+            '00000000-0000-4000-8000-000000000101' => ['iot' => true, 'python' => true],
+            '00000000-0000-4000-8000-000000000102' => ['iot' => true, 'python' => true],
+        ];
+
+        foreach ($rowsByTable['student_skills'] ?? [] as $ss) {
+            if ($ss['verificationStatus'] === 'verified') {
+                $code = $skillCodeMap[$ss['skillId']] ?? '';
+                if ($code !== '') {
+                    $effectiveSkills[$ss['studentId']][$code] = true;
+                }
+            }
+        }
+
+        foreach ($participants as $p) {
+            $sId = $p['student_id'];
+            $seq = $p['sequence'];
+            $skills = $effectiveSkills[$sId] ?? [];
+
+            if ($p['expected_state'] === 'ready') {
+                if (count($skills) < 2) {
+                    throw new RuntimeException('V2 validation failed: ready learner ' . $seq . ' lacks >= 2 effective skills.');
+                }
+                if (!isset($skills['iot'])) {
+                    throw new RuntimeException('V2 validation failed: ready learner ' . $seq . ' lacks verified IoT skill.');
+                }
+            }
+            if ($seq === 104) {
+                if (count($skills) !== 1 || !isset($skills['iot'])) {
+                    throw new RuntimeException('V2 validation failed: learner 104 must have exactly 1 effective skill (IoT).');
+                }
+            }
+            if ($seq === 108) {
+                foreach ($rowsByTable['checkins'] ?? [] as $chk) {
+                    $reg = $rowsByTable['activity_registrations'][$chk['registrationId']] ?? [];
+                    if ($reg['studentId'] === $sId) {
+                        throw new RuntimeException('V2 validation failed: learner 108 must not have confirmed checkin.');
+                    }
+                }
+                foreach ($rowsByTable['experience_logs'] ?? [] as $el) {
+                    if ($el['studentId'] === $sId) {
+                        throw new RuntimeException('V2 validation failed: learner 108 must not have experience log.');
+                    }
+                }
+            }
+            if ($seq === 112) {
+                foreach ($rowsByTable['test_attempts'] ?? [] as $ta) {
+                    if ($ta['studentId'] === $sId && $ta['submittedAt'] !== self::STALE_SUBMITTED_AT) {
+                        throw new RuntimeException('V2 validation failed: learner 112 assessment must be stale at ' . self::STALE_SUBMITTED_AT);
+                    }
+                }
+            }
+            if ($seq === 116) {
+                foreach ($rowsByTable['assessments'] ?? [] as $ass) {
+                    if ($ass['studentId'] === $sId && ($ass['status'] !== 'draft' || $ass['publishedAt'] !== null || $ass['overallScore'] !== null)) {
+                        throw new RuntimeException('V2 validation failed: learner 116 evaluation must be draft with null publishedAt and null overallScore.');
+                    }
+                }
+            }
+            if ($seq === 120) {
+                $evalConsents = [];
+                foreach ($rowsByTable['learner_ai_consent_events'] ?? [] as $ce) {
+                    if ($ce['studentId'] === $sId && $ce['scope'] === 'evaluation') {
+                        $evalConsents[] = $ce;
+                    }
+                }
+                if (count($evalConsents) !== 2 || $evalConsents[0]['action'] !== 'granted' || $evalConsents[1]['action'] !== 'revoked' || $evalConsents[1]['occurredAt'] <= $evalConsents[0]['occurredAt']) {
+                    throw new RuntimeException('V2 validation failed: learner 120 must have evaluation grant followed by revoke as latest event.');
+                }
+            }
+            if ($seq === 124) {
+                foreach ($rowsByTable['learner_ai_consent_events'] ?? [] as $ce) {
+                    if ($ce['studentId'] === $sId && $ce['scope'] === 'activity') {
+                        throw new RuntimeException('V2 validation failed: learner 124 must lack activity consent.');
+                    }
+                }
+            }
+            if ($p['expected_state'] === 'ready') {
+                $grantedScopes = [];
+                foreach ($rowsByTable['learner_ai_consent_events'] ?? [] as $ce) {
+                    if ($ce['studentId'] === $sId && $ce['action'] === 'granted') {
+                        $grantedScopes[$ce['scope']] = true;
+                    }
+                }
+                foreach (['assessment', 'skills', 'activity', 'evaluation'] as $reqScope) {
+                    if (!isset($grantedScopes[$reqScope])) {
+                        throw new RuntimeException('V2 validation failed: ready learner ' . $seq . ' missing consent grant for ' . $reqScope);
+                    }
+                }
             }
         }
     }

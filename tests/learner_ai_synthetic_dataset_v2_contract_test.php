@@ -11,6 +11,21 @@ function v2_contract_assert(bool $condition, string $message): void
     }
 }
 
+function v2_assert_throws(callable $fn, string $expectedMessagePart): void
+{
+    try {
+        $fn();
+    } catch (RuntimeException $e) {
+        if (!str_contains($e->getMessage(), $expectedMessagePart)) {
+            throw new RuntimeException("Expected exception containing '{$expectedMessagePart}', got: '{$e->getMessage()}'");
+        }
+        return;
+    } catch (Throwable $e) {
+        throw new RuntimeException("Expected RuntimeException, got " . get_class($e) . ": " . $e->getMessage());
+    }
+    throw new RuntimeException("Expected RuntimeException containing '{$expectedMessagePart}', but no exception was thrown.");
+}
+
 $root = dirname(__DIR__);
 $datasetFile = $root . '/Database/seeds/learner/Staging/LearnerAiSyntheticDatasetV2.php';
 v2_contract_assert(is_file($datasetFile), 'V2 dataset class exists');
@@ -452,7 +467,316 @@ foreach ($rowsByTable['assessment_scores'] ?? [] as $as) {
 }
 v2_contract_assert($score101 === '55.00', 'learner 101 V2 presentation score is 55.00');
 
-// 11. DCR File Assertions
+// 11. Negative Tests for Runtime Validator
+// Negative test 1: row count !== 1116
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, array_slice($rows, 0, 1115)),
+    'exactly 1116 rows required'
+);
+
+// Negative test 2: wrong row-family count (replace 1 checkin with 1 extra skill)
+$mutatedFamilyRows = $rows;
+foreach ($mutatedFamilyRows as $idx => $r) {
+    if ($r['table'] === 'checkins') {
+        $mutatedFamilyRows[$idx] = [
+            'table' => 'skills',
+            'id' => '00000000-0000-4000-8000-000000001099',
+            'values' => [
+                'id' => '00000000-0000-4000-8000-000000001099',
+                'code' => 'extra_skill',
+                'name' => 'Extra Skill',
+                'category' => 'technology',
+                'status' => 'active',
+                'createdAt' => '2026-08-16 00:00:00.000000',
+                'updatedAt' => '2026-08-16 00:00:00.000000',
+            ],
+        ];
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedFamilyRows),
+    'row-family counts mismatch'
+);
+
+// Negative test 3: duplicate table/id
+$mutatedDupRows = $rows;
+$mutatedDupRows[1] = $mutatedDupRows[0];
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedDupRows),
+    'duplicate row key'
+);
+
+// Negative test 4: invalid UUID prefix
+$mutatedUuidRows = $rows;
+$mutatedUuidRows[0]['id'] = '11111111-2222-3333-4444-555555555555';
+$mutatedUuidRows[0]['values']['id'] = '11111111-2222-3333-4444-555555555555';
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedUuidRows),
+    'reserved prefix'
+);
+
+// Negative test 5: values.id mismatch
+$mutatedValuesIdRows = $rows;
+$mutatedValuesIdRows[0]['values']['id'] = '00000000-0000-4000-8000-000000000999';
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedValuesIdRows),
+    'row values id mismatch'
+);
+
+// Negative test 6: real email domain
+$mutatedEmailRows = $rows;
+$mutatedEmailRows[0]['values']['email'] = 'test@gmail.com';
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedEmailRows),
+    'invalid email domain'
+);
+
+// Negative test 7: password placeholder mismatch
+$mutatedPassRows = $rows;
+$mutatedPassRows[0]['values']['passwordHash'] = 'secretpassword';
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedPassRows),
+    'password placeholder'
+);
+
+// Negative test 8: invalid DATETIME(6) seconds overflow
+$mutatedTimeRows = $rows;
+$mutatedTimeRows[0]['values']['createdAt'] = '2026-08-16 00:00:65.000000';
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedTimeRows),
+    'DATETIME(6)'
+);
+
+// Negative test 9: broken FK closure (unknown skillId)
+$mutatedFkRows = $rows;
+foreach ($mutatedFkRows as $idx => $r) {
+    if ($r['table'] === 'student_skills') {
+        $mutatedFkRows[$idx]['values']['skillId'] = '00000000-0000-4000-8000-000000000999';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedFkRows),
+    'skillId'
+);
+
+// Negative test 10: ready learner lacking 2 effective skills (set 103 skills to rejected)
+$mutatedSkillCountRows = $rows;
+foreach ($mutatedSkillCountRows as $idx => $r) {
+    if ($r['table'] === 'student_skills' && $r['values']['studentId'] === '00000000-0000-4000-8000-000000000103') {
+        $mutatedSkillCountRows[$idx]['values']['verificationStatus'] = 'rejected';
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedSkillCountRows),
+    'effective skills'
+);
+
+// Negative test 11: ready learner lacking verified IoT (set 105 IoT to pending)
+$mutatedIotRows = $rows;
+foreach ($mutatedIotRows as $idx => $r) {
+    if ($r['table'] === 'student_skills' && $r['values']['studentId'] === '00000000-0000-4000-8000-000000000105' && $r['values']['skillId'] === $v1SkillIot) {
+        $mutatedIotRows[$idx]['values']['verificationStatus'] = 'pending';
+        $mutatedIotRows[$idx]['values']['verifiedAt'] = null;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedIotRows),
+    'IoT'
+);
+
+// Negative test 12: learner 104 having 2 skills
+$mutated104Rows = $rows;
+foreach ($mutated104Rows as $idx => $r) {
+    if ($r['table'] === 'student_skills' && $r['values']['studentId'] === '00000000-0000-4000-8000-000000000103' && $r['values']['skillId'] !== $v1SkillIot) {
+        $mutated104Rows[$idx]['values']['studentId'] = '00000000-0000-4000-8000-000000000104';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutated104Rows),
+    'learner 104'
+);
+
+// Negative test 13: learner 108 has check-in
+$mutated108Rows = $rows;
+foreach ($mutated108Rows as $idx => $r) {
+    if ($r['table'] === 'checkins' && $r['id'] === '00000000-0000-4000-8000-000000701101') {
+        $mutated108Rows[$idx]['values']['registrationId'] = '00000000-0000-4000-8000-000000700108';
+        $mutated108Rows[$idx]['values']['qrTokenId'] = '00000000-0000-4000-8000-000000001042';
+    }
+    if ($r['table'] === 'experience_logs' && $r['id'] === '00000000-0000-4000-8000-000000702101') {
+        $mutated108Rows[$idx]['values']['studentId'] = '00000000-0000-4000-8000-000000000108';
+        $mutated108Rows[$idx]['values']['activityId'] = '00000000-0000-4000-8000-000000001022';
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutated108Rows),
+    'learner 108'
+);
+
+// Negative test 14: learner 112 assessment not stale (submitted in 2026)
+$mutated112StaleRows = $rows;
+foreach ($mutated112StaleRows as $idx => $r) {
+    if ($r['table'] === 'test_attempts' && $r['values']['studentId'] === '00000000-0000-4000-8000-000000000112') {
+        $mutated112StaleRows[$idx]['values']['submittedAt'] = '2026-08-10 09:30:00.000000';
+    }
+    if ($r['table'] === 'learner_assessment_attempt_metadata' && $r['id'] === '00000000-0000-4000-8000-000000401112') {
+        $mutated112StaleRows[$idx]['values']['submittedAt'] = '2026-08-10 09:30:00.000000';
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutated112StaleRows),
+    'learner 112'
+);
+
+// Negative test 15: chronology violation (answeredAt after submittedAt)
+$mutatedChronologyRows = $rows;
+foreach ($mutatedChronologyRows as $idx => $r) {
+    if ($r['table'] === 'learner_assessment_answers') {
+        $mutatedChronologyRows[$idx]['values']['answeredAt'] = '2026-08-10 10:00:00.000000';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedChronologyRows),
+    'chronology'
+);
+
+// Negative test 16: learner 116 published
+$mutated116Rows = $rows;
+foreach ($mutated116Rows as $idx => $r) {
+    if ($r['table'] === 'assessments' && $r['values']['studentId'] === '00000000-0000-4000-8000-000000000116') {
+        $mutated116Rows[$idx]['values']['status'] = 'published';
+        $mutated116Rows[$idx]['values']['publishedAt'] = '2026-08-07 09:00:00.000000';
+        $mutated116Rows[$idx]['values']['overallScore'] = '80.00';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutated116Rows),
+    'learner 116'
+);
+
+// Negative test 17: learner 120 revoke missing
+$mutated120Rows = $rows;
+foreach ($mutated120Rows as $idx => $r) {
+    if ($r['table'] === 'learner_ai_consent_events' && $r['values']['studentId'] === '00000000-0000-4000-8000-000000000120' && $r['values']['action'] === 'revoked') {
+        $mutated120Rows[$idx]['values']['action'] = 'granted';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutated120Rows),
+    'learner 120'
+);
+
+// Negative test 18: learner 124 has activity grant
+$mutated124Rows = $rows;
+foreach ($mutated124Rows as $idx => $r) {
+    if ($r['table'] === 'learner_ai_consent_events' && $r['values']['studentId'] === '00000000-0000-4000-8000-000000000124') {
+        $mutated124Rows[$idx]['values']['scope'] = 'activity';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutated124Rows),
+    'learner 124'
+);
+
+// Negative test 19: tokenHash not lowercase hex 64
+$mutatedQrRows = $rows;
+foreach ($mutatedQrRows as $idx => $r) {
+    if ($r['table'] === 'activity_qr_tokens') {
+        $mutatedQrRows[$idx]['values']['tokenHash'] = 'INVALID_TOKEN_HASH_UPPERCASE';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedQrRows),
+    'tokenHash'
+);
+
+// Negative test 20: registration / check-in / QR activity mismatch
+$mutatedActivityMismatchRows = $rows;
+foreach ($mutatedActivityMismatchRows as $idx => $r) {
+    if ($r['table'] === 'checkins') {
+        $mutatedActivityMismatchRows[$idx]['values']['qrTokenId'] = '00000000-0000-4000-8000-000000001051';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedActivityMismatchRows),
+    'activity mismatch'
+);
+
+// Negative test 21: assessment answer sum mismatch
+$mutatedAnswerSumRows = $rows;
+foreach ($mutatedAnswerSumRows as $idx => $r) {
+    if ($r['table'] === 'test_results' && $r['id'] === '00000000-0000-4000-8000-000000600101') {
+        $mutatedAnswerSumRows[$idx]['values']['dimensionScoresJson'] = '{"R":50,"I":80,"A":60,"S":55,"E":70,"C":65}';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedAnswerSumRows),
+    'dimensionScores'
+);
+
+// Negative test 22: inputHash mismatch
+$mutatedInputHashRows = $rows;
+foreach ($mutatedInputHashRows as $idx => $r) {
+    if ($r['table'] === 'learner_assessment_attempt_metadata') {
+        $mutatedInputHashRows[$idx]['values']['inputHash'] = '0000000000000000000000000000000000000000000000000000000000000000';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedInputHashRows),
+    'inputHash'
+);
+
+// Negative test 23: experience student/activity mismatch
+$mutatedExpMismatchRows = $rows;
+foreach ($mutatedExpMismatchRows as $idx => $r) {
+    if ($r['table'] === 'experience_logs') {
+        $mutatedExpMismatchRows[$idx]['values']['activityId'] = '00000000-0000-4000-8000-000000001031';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedExpMismatchRows),
+    'experience mismatch'
+);
+
+// Negative test 24: assessment registration mismatch
+$mutatedAssMismatchRows = $rows;
+foreach ($mutatedAssMismatchRows as $idx => $r) {
+    if ($r['table'] === 'assessments' && $r['values']['studentId'] === '00000000-0000-4000-8000-000000000101') {
+        $mutatedAssMismatchRows[$idx]['values']['activityId'] = '00000000-0000-4000-8000-000000001031';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedAssMismatchRows),
+    'assessment registration mismatch'
+);
+
+// Negative test 25: ready learner missing consent
+$mutatedMissingConsentRows = $rows;
+foreach ($mutatedMissingConsentRows as $idx => $r) {
+    if ($r['table'] === 'learner_ai_consent_events' && $r['values']['studentId'] === '00000000-0000-4000-8000-000000000101' && $r['values']['scope'] === 'evaluation') {
+        $mutatedMissingConsentRows[$idx]['values']['action'] = 'revoked';
+        break;
+    }
+}
+v2_assert_throws(
+    static fn () => LearnerAiSyntheticDatasetV2::validateDataset($participants, $questions, $mutatedMissingConsentRows),
+    'missing consent grant'
+);
+
+// 12. DCR File Assertions
 $source = file_get_contents($datasetFile);
 v2_contract_assert(is_string($source), 'dataset source is readable');
 foreach (['UPDATE ', 'DELETE ', 'REPLACE ', 'DROP ', 'TRUNCATE ', 'ALTER '] as $forbidden) {
