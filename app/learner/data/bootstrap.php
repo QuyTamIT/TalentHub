@@ -36,6 +36,13 @@ require_once $learnerDataRoot . '/Database/DatabaseAssessmentRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseActivityRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseEcosystemRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseApplicationRepository.php';
+require_once $learnerDataRoot . '/Database/SchemaInspector.php';
+require_once $learnerDataRoot . '/Readiness/ReadinessResult.php';
+require_once $learnerDataRoot . '/Readiness/PhaseRequirements.php';
+require_once $learnerDataRoot . '/Readiness/GitScopeGuard.php';
+require_once $learnerDataRoot . '/Readiness/LearnerMigrationRunner.php';
+require_once $learnerDataRoot . '/Readiness/ReadinessChecker.php';
+require_once dirname($learnerDataRoot) . '/runtime/LearnerRuntime.php';
 require_once $learnerDataRoot . '/RepositoryFactory.php';
 
 unset($learnerDataRoot);
@@ -70,6 +77,27 @@ if (!function_exists('learner_repository_factory')) {
         }
 
         return new \TalentHub\Learner\Data\RepositoryFactory((string) $config['source'], $pdo);
+    }
+}
+
+if (!function_exists('learner_safe_runtime_diagnostics')) {
+    function learner_safe_runtime_diagnostics(): array
+    {
+        $config = learner_data_config();
+        $source = strtolower(trim((string) ($config['source'] ?? '')));
+
+        return [
+            'source' => $source,
+            'pdo_configured' => ($config['pdo'] ?? null) instanceof \PDO,
+            'student_id_configured' => trim((string) ($config['student_id'] ?? '')) !== '',
+        ];
+    }
+}
+
+if (!function_exists('learner_runtime')) {
+    function learner_runtime(): \TalentHub\Learner\Runtime\LearnerRuntime
+    {
+        return \TalentHub\Learner\Runtime\LearnerRuntime::fromConfig(learner_data_config());
     }
 }
 
