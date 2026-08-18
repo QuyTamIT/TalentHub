@@ -9,6 +9,7 @@ $teacherRouteHrefs = [
     'trophy' => app_href('/app/teacher/activities/index.php'),
     'clipboard-check' => app_href('/app/teacher/assessments/index.php'),
     'users' => app_href('/app/teacher/students/index.php'),
+    'qr' => app_href('/app/teacher/checkins/index.php'),
 ];
 ?>
 <div class="teacher-sidebar-backdrop" id="teacher-sidebar-backdrop" aria-hidden="true"></div>
@@ -64,6 +65,13 @@ $teacherRouteHrefs = [
                                     <circle cx="9" cy="7" r="4"></circle>
                                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                                     <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                </svg>
+                            <?php elseif ($navItem['icon'] === 'qr'): ?>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="7" height="7"></rect>
+                                    <rect x="14" y="3" width="7" height="7"></rect>
+                                    <rect x="3" y="14" width="7" height="7"></rect>
+                                    <path d="M14 14h3v3h-3zM20 14v7M14 20h3"></path>
                                 </svg>
                             <?php else: ?>
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

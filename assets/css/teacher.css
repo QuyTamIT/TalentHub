@@ -939,6 +939,353 @@ body.teacher-sidebar-open {
     }
 }
 
+/* Teacher QR attendance — Phase 1 */
+.teacher-qr-container {
+    display: grid;
+    gap: 1rem;
+}
+
+.teacher-qr-intro {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.25rem;
+}
+
+.teacher-qr-intro__title {
+    margin-top: 0.25rem;
+    font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+    line-height: 1.2;
+}
+
+.teacher-qr-intro__description {
+    max-width: 48rem;
+    margin-top: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.teacher-qr-phase-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid #BFDBFE;
+    border-radius: var(--radius-sm);
+    background: #EFF6FF;
+    color: #1E3A8A;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.teacher-qr-phase-notice svg {
+    flex: 0 0 auto;
+    margin-top: 0.1rem;
+}
+
+.teacher-qr-flash {
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.teacher-qr-flash--success {
+    border-color: #BBF7D0;
+    background: #F0FDF4;
+    color: #166534;
+}
+
+.teacher-qr-flash--error {
+    border-color: #FECACA;
+    background: #FEF2F2;
+    color: #991B1B;
+}
+
+.teacher-qr-form {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.teacher-qr-form__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) repeat(2, minmax(10rem, 1fr));
+    gap: 1rem;
+}
+
+.teacher-qr-form__activity {
+    min-width: 0;
+}
+
+.teacher-form-field small {
+    display: block;
+    margin-top: 0.3rem;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    line-height: 1.4;
+}
+
+.teacher-qr-form__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding-top: 0.25rem;
+    border-top: 1px solid var(--border);
+}
+
+.teacher-qr-form__note {
+    max-width: 42rem;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
+
+.teacher-qr-reveal {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 18rem);
+    align-items: center;
+    gap: 2rem;
+    border-color: #FDBA74;
+    background: linear-gradient(135deg, #FFF7ED 0%, #FFFFFF 64%);
+}
+
+.teacher-qr-reveal__copy {
+    min-width: 0;
+}
+
+.teacher-qr-token-block {
+    display: grid;
+    gap: 0.55rem;
+    max-width: 42rem;
+    margin-top: 1rem;
+}
+
+.teacher-qr-token-block__label {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.teacher-qr-token {
+    display: block;
+    min-inline-size: 0;
+    padding: 0.8rem 0.9rem;
+    overflow-wrap: anywhere;
+    border: 1px solid #FED7AA;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.9);
+    color: #7C2D12;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.78rem;
+    line-height: 1.55;
+}
+
+.teacher-qr-copy {
+    justify-self: start;
+    min-height: 2.75rem;
+}
+
+.teacher-qr-copy-status {
+    min-height: 1.25rem;
+    color: #166534;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.teacher-qr-code-shell {
+    display: grid;
+    justify-items: center;
+    gap: 0.7rem;
+    min-width: 0;
+}
+
+.teacher-qr-code {
+    display: grid;
+    place-items: center;
+    width: min(100%, 18rem);
+    aspect-ratio: 1;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: #FFFFFF;
+    box-shadow: var(--shadow-md);
+}
+
+.teacher-qr-code img,
+.teacher-qr-code canvas {
+    display: block;
+    width: 100% !important;
+    height: auto !important;
+    max-width: 256px;
+}
+
+.teacher-qr-code-shell__hint {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    text-align: center;
+}
+
+.teacher-qr-table-wrap {
+    overflow-x: auto;
+    margin: 0 -0.25rem;
+}
+
+.teacher-qr-table {
+    width: 100%;
+    min-width: 700px;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+
+.teacher-qr-table th,
+.teacher-qr-table td {
+    padding: 0.9rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.teacher-qr-table th {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.teacher-qr-table td strong {
+    color: var(--text-primary);
+}
+
+.teacher-qr-table td:first-child strong,
+.teacher-qr-table td:first-child span {
+    display: block;
+}
+
+.teacher-qr-table td:first-child span {
+    margin-top: 0.2rem;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+.teacher-qr-revoke-form {
+    display: inline-flex;
+}
+
+.teacher-qr-revoke-button {
+    min-height: 2.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #FECACA;
+    border-radius: var(--radius-sm);
+    background: #FFFFFF;
+    color: #B91C1C;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.teacher-qr-revoke-button:hover,
+.teacher-qr-revoke-button:focus-visible {
+    border-color: #FCA5A5;
+    background: #FEF2F2;
+    color: #991B1B;
+}
+
+.teacher-qr-revoke-button:focus-visible,
+.teacher-qr-copy:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.25);
+    outline-offset: 2px;
+}
+
+.teacher-qr-empty {
+    display: grid;
+    justify-items: center;
+    padding: 2rem 1rem 1rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.teacher-qr-empty__icon {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 0.75rem;
+    border-radius: var(--radius-md);
+    background: var(--secondary-light);
+    color: var(--secondary);
+}
+
+.teacher-qr-empty h3 {
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.teacher-qr-empty p {
+    margin-top: 0.25rem;
+    font-size: 0.8125rem;
+}
+
+@media (max-width: 900px) {
+    .teacher-qr-form__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .teacher-qr-form__activity {
+        grid-column: 1 / -1;
+    }
+
+    .teacher-qr-reveal {
+        grid-template-columns: minmax(0, 1fr) minmax(13rem, 15rem);
+        gap: 1.25rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .teacher-qr-intro,
+    .teacher-qr-form__actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .teacher-qr-intro .teacher-chip,
+    .teacher-qr-form__actions .btn,
+    .teacher-qr-copy {
+        width: 100%;
+        justify-self: stretch;
+        text-align: center;
+    }
+
+    .teacher-qr-form__grid,
+    .teacher-qr-reveal {
+        grid-template-columns: 1fr;
+    }
+
+    .teacher-qr-form__activity {
+        grid-column: auto;
+    }
+
+    .teacher-qr-code-shell {
+        order: -1;
+    }
+
+    .teacher-qr-reveal {
+        padding: 1.1rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .teacher-qr-revoke-button {
+        transition: none;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .teacher-sidebar,
     .teacher-sidebar-backdrop,
