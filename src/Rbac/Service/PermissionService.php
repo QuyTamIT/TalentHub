@@ -29,6 +29,15 @@ final class PermissionService
 
     private function usesLegacyUsers(): bool
     {
+        $driver=strtolower((string)$this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME));
+        if($driver==='sqlite'){
+            $s=$this->pdo->query("PRAGMA table_info('users')");
+            foreach($s->fetchAll(PDO::FETCH_ASSOC) as $column){
+                if(strtolower((string)($column['name']??''))==='roles'){return true;}
+            }
+            return false;
+        }
+        if($driver!=='mysql'){throw new \RuntimeException('Unsupported RBAC database driver.');}
         $s=$this->pdo->query("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='users' AND column_name='roles'");
         return (int)$s->fetchColumn()===1;
     }

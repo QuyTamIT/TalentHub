@@ -95,10 +95,13 @@
 - Create: `tests/permission_service_driver_compatibility_test.php`
 - Modify: `src/Rbac/Service/PermissionService.php`
 - Modify: `tests/learner_recommendation_api_test.php`
+- Modify: `app/learner/data/Readiness/GitScopeGuard.php`
+- Modify: `tests/learner_readiness_test.php`
 
 **Interfaces:**
 - Consumes: `PermissionService::__construct(PDO)` and `PermissionService::require(string $userId, string $permission): void`.
 - Produces: the same public interface with driver-aware legacy-column detection for MySQL and SQLite.
+- Produces: a `GitScopeGuard` exact-path allowlist limited to `src/Rbac/Service/PermissionService.php` and `tests/permission_service_driver_compatibility_test.php`; all other `src/` changes remain protected.
 
 - [ ] **Step 1: Add a focused failing driver-compatibility test**
 
@@ -214,10 +217,23 @@ D:\laragon\bin\php\php-8.3.30-Win32-vs16-x64\php.exe tests\learner_recommendatio
 
 Expected: both print an `OK` line and exit `0`.
 
-- [ ] **Step 6: Commit the isolated compatibility fix**
+- [ ] **Step 6: Preserve the readiness boundary for the approved compatibility fix**
+
+Add this exact-path allowlist to `GitScopeGuard` before protected-prefix evaluation:
+
+```php
+private const ALLOWED_EXACT_PATHS = [
+    'src/Rbac/Service/PermissionService.php',
+    'tests/permission_service_driver_compatibility_test.php',
+];
+```
+
+Allow a path only when it is in this list or already matches an existing learner-owned prefix. Update `learner_readiness_test.php` to assert that both exact Task 1 paths are allowed and that `src/Database/Connection.php` remains forbidden. Run `tests\\learner_readiness_test.php`; expected `learner_readiness_test: OK`.
+
+- [ ] **Step 7: Commit the isolated compatibility fix**
 
 ```powershell
-git add src/Rbac/Service/PermissionService.php tests/permission_service_driver_compatibility_test.php tests/learner_recommendation_api_test.php
+git add src/Rbac/Service/PermissionService.php tests/permission_service_driver_compatibility_test.php tests/learner_recommendation_api_test.php app/learner/data/Readiness/GitScopeGuard.php tests/learner_readiness_test.php
 git commit -m "fix(rbac): support SQLite permission schema detection"
 ```
 

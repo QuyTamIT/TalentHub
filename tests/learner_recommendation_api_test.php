@@ -41,11 +41,13 @@ function learner_api_expect(callable $operation, int $status, string $code): voi
 function learner_api_fixture(): PDO
 {
     $pdo = new PDO('sqlite::memory:');
-    $pdo->exec('CREATE TABLE users (id TEXT PRIMARY KEY, roleId TEXT NOT NULL)');
+    $pdo->exec('CREATE TABLE roles (id TEXT PRIMARY KEY, code TEXT NOT NULL)');
+    $pdo->exec('CREATE TABLE users (id TEXT PRIMARY KEY, roleId TEXT NOT NULL, status TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE role_permissions (roleId TEXT NOT NULL, permissionId TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE permissions (id TEXT PRIMARY KEY, code TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE student_profiles (id TEXT PRIMARY KEY, userId TEXT NOT NULL)');
-    $pdo->exec("INSERT INTO users (id, roleId) VALUES ('user-student', 'role-student'), ('user-teacher', 'role-teacher')");
+    $pdo->exec("INSERT INTO roles (id, code) VALUES ('role-student', 'student'), ('role-teacher', 'teacher')");
+    $pdo->exec("INSERT INTO users (id, roleId, status) VALUES ('user-student', 'role-student', 'active'), ('user-teacher', 'role-teacher', 'active')");
     $pdo->exec("INSERT INTO student_profiles (id, userId) VALUES ('student-1', 'user-student')");
     $pdo->exec("INSERT INTO permissions (id, code) VALUES ('permission-read', 'student_profile.read_own'), ('permission-write', 'student_profile.update_own')");
     return $pdo;

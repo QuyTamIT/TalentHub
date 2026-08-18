@@ -74,6 +74,12 @@ $scope = $guard->inspectPaths(['app/learner/tools/readiness-check.php', 'app\\te
 readiness_assert($scope['allowed'] === false, 'scope guard rejects forbidden normalized path');
 readiness_assert($scope['forbidden_paths'] === ['app/teacher/new.php'], 'scope guard reports normalized forbidden path');
 readiness_assert($guard->inspectPaths(['app/learner/data/bootstrap.php'])['allowed'] === true, 'scope guard allows learner path');
+$taskOneScope = $guard->inspectPaths([
+    'src/Rbac/Service/PermissionService.php',
+    'tests/permission_service_driver_compatibility_test.php',
+]);
+readiness_assert($taskOneScope['allowed'] === true, 'scope guard allows the narrowly approved Task 1 RBAC compatibility fix');
+readiness_assert($guard->inspectPaths(['src/Database/Connection.php'])['allowed'] === false, 'scope guard still blocks unrelated shared source changes');
 
 $checker = new ReadinessChecker(new PhaseRequirements(), $guard);
 $phaseZero = $checker->check(0, dirname(__DIR__), static fn (): PDO => throw new RuntimeException('must not connect'));

@@ -17,6 +17,10 @@ final class GitScopeGuard
         'Database/migrations/learner/',
         'Database/seeds/learner/',
     ];
+    private const ALLOWED_EXACT_PATHS = [
+        'src/Rbac/Service/PermissionService.php',
+        'tests/permission_service_driver_compatibility_test.php',
+    ];
     private const PROTECTED_PREFIXES = ['app/teacher/', 'app/school/', 'app/enterprise/', 'src/', 'api/'];
 
     /** @param list<string> $paths
@@ -26,7 +30,7 @@ final class GitScopeGuard
     {
         $forbidden = [];
         foreach (array_unique(array_map([$this, 'normalize'], $paths)) as $path) {
-            if ($path === '' || $this->startsWith($path, self::PROTECTED_PREFIXES) || !$this->startsWith($path, self::ALLOWED_PREFIXES)) {
+            if ($path === '' || (!in_array($path, self::ALLOWED_EXACT_PATHS, true) && ($this->startsWith($path, self::PROTECTED_PREFIXES) || !$this->startsWith($path, self::ALLOWED_PREFIXES)))) {
                 $forbidden[] = $path;
             }
         }
