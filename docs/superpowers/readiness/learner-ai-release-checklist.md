@@ -28,3 +28,15 @@ The following evidence was run only against the verified disposable Laragon MySQ
 - [x] Protected-path and syntax verification passed: no changed or untracked files under Teacher, School, Enterprise, `src`, or `api`; PHP lint passed for their 57 files.
 
 The existing foundation MySQL test was intentionally not run: it contains cleanup `DELETE` statements and therefore conflicts with the no-delete data-safety boundary. The available Teacher/School dynamic smoke scripts are either mutating or require separate demo accounts not present in this disposable fixture; none was used to create those accounts. This is not an authorization to remove or create shared-role data. The unmet governance, consent-revocation, shadow-quality, dynamic cross-role, and explicit product-approval gates above keep the current decision **NOT READY** and the visible model percentage at `0`.
+
+## Assessment platform verification 2026-08-18
+
+- [x] Runtime connection through `config/database.php` reaches Laragon MySQL Community Server `8.4.3` (`driver=mysql`, `connection=OK`). The read-only connection gate reported zero pending migrations and no drift.
+- [x] Focused assessment and RBAC suites pass: permissions, recommendation API, four deterministic scorer contracts, catalog/lifecycle persistence, assessment API, render contract, and readiness checks.
+- [x] Assessment UI and shared API client suites pass: 13 UI controller tests and 12 API client tests with zero failures. Recommendation UI regression passes 6/6.
+- [x] The non-MySQL learner AI regression suite passes all 18 PHP tests and the recommendation UI suite.
+- [x] Changed PHP files pass syntax lint and the repository diff passes `git diff --check`.
+- [x] The four-assessment catalog/runner/result flow is API-driven; browser scoring and assessment `localStorage` state remain disabled, and untrusted response strings use safe DOM text rendering.
+- [x] No shared migration or question-bank seed was executed during this verification.
+- [x] The model-visible percentage remains fixed at `0`; no Gemini, 9Router, or other provider call was made.
+- [ ] Publishing the 12 age-banded assessment catalogs still requires the separate reviewed catalog plan and Database Change Request.
