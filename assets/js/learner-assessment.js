@@ -148,6 +148,27 @@
             }
         }
 
+        async function loadResult(assessmentCode, educationBand, attemptId = '') {
+            lastAction = () => loadResult(assessmentCode, educationBand, attemptId);
+            view.render('loading', { assessmentCode, educationBand, attemptId });
+            try {
+                let endpoint = `/assessments.php?code=${encodeURIComponent(assessmentCode)}`;
+                if (educationBand) endpoint += `&band=${encodeURIComponent(educationBand)}`;
+                const detail = await api.get(endpoint);
+                const history = Array.isArray(detail?.history) ? detail.history : [];
+                const selected = history.find((item) => String(item?.id || '') === String(attemptId))
+                    || history.find((item) => ['submitted', 'completed'].includes(item?.status));
+                currentResult = selected?.result || selected || null;
+                return renderState(currentResult ? 'complete' : 'ready', {
+                    ...detail,
+                    result: currentResult,
+                    selectedAttempt: selected || null,
+                });
+            } catch (error) {
+                return renderSourceError(error);
+            }
+        }
+
         function saveAnswer(questionId, answer) {
             if (!currentAttempt?.id) {
                 const error = new Error('No active assessment attempt to save answers.');
@@ -287,20 +308,93 @@
             loadDetail,
             startOrResume,
             loadAttempt,
+            loadResult,
             saveAnswer,
             submit,
             retry,
             setAttempt,
             getAttempt,
+            getCatalog: () => currentCatalog,
+            getQuestions: () => currentQuestions,
+            getResult: () => currentResult,
         };
     }
 
+    function parseBoot(id) {
+        if (typeof document === 'undefined') return {};
+        try {
+            const node = document.getElementById(id);
+            const value = JSON.parse(node?.textContent || '{}');
+            return value && typeof value === 'object' ? value : {};
+        } catch {
+            return {};
+        }
+    }
+
+    function createApiClient() {
+        if (!global.TalentHubLearnerApi || typeof global.TalentHubLearnerApi.createLearnerApiClient !== 'function') {
+            return null;
+        }
+        const session = parseBoot('learner-session-boot');
+        try {
+            return global.TalentHubLearnerApi.createLearnerApiClient({
+                baseUrl: '/app/learner/api/v1',
+                csrfToken: session.csrfToken || '',
+            });
+        } catch {
+            return null;
+        }
+    }
+
+    const ASSESSMENT_META = Object.freeze({
+        holland: {
+            name: 'Holland — Sở thích nghề nghiệp',
+            description: 'Khám phá nhóm sở thích nghề nghiệp để định hướng môi trường học tập phù hợp.',
+            tone: 'primary',
+        },
+        mbti: {
+            name: 'MBTI — Xu hướng tính cách',
+            description: 'Tìm hiểu cách bạn tiếp nhận thông tin, học tập và phối hợp với người khác.',
+            tone: 'secondary',
+        },
+        disc: {
+            name: 'DISC — Hành vi học tập',
+            description: 'Nhận diện xu hướng hành vi, giao tiếp và làm việc nhóm trong học tập.',
+            tone: 'success',
+        },
+        multiple_intelligence: {
+            name: 'Đa trí thông minh — Đa diện năng khiếu',
+            description: 'Khám phá các dạng trí thông minh để chọn trải nghiệm phát triển phù hợp.',
+            tone: 'warning',
+        },
+    });
+
+    function setHidden(node, hidden) {
+        if (node) node.hidden = hidden;
+    }
+
+    function createTextElement(doc, tag, text, className = '') {
+        const element = doc.createElement(tag);
+        if (className) element.className = className;
+        element.textContent = String(text ?? '');
+        return element;
+    }
+
     function createDomView(root) {
+        const doc = root.ownerDocument || document;
         const nodes = {
             loading: root.querySelector('[data-assessment-loading]'),
             errorState: root.querySelector('[data-assessment-error]'),
             errorMessage: root.querySelector('[data-assessment-error-message]'),
+            saveError: root.querySelector('[data-assessment-save-error]'),
+            saveErrorMessage: root.querySelector('[data-assessment-save-error-message]'),
+            validationError: root.querySelector('[data-assessment-validation-error]'),
+            validationMessage: root.querySelector('[data-assessment-validation-message]'),
             intro: root.querySelector('[data-assessment-intro]'),
+            introName: root.querySelector('[data-assessment-intro-name]'),
+            introDescription: root.querySelector('[data-assessment-intro-desc]'),
+            introCount: root.querySelector('[data-assessment-intro-count]'),
+            introDuration: root.querySelector('[data-assessment-intro-duration]'),
             active: root.querySelector('[data-assessment-active]'),
             expired: root.querySelector('[data-assessment-expired]'),
             saveStatus: root.querySelector('[data-assessment-save-status]'),
@@ -314,81 +408,337 @@
             progress: root.querySelector('[data-assessment-progress]'),
             timer: root.querySelector('[data-assessment-timer]'),
             questionError: root.querySelector('[data-assessment-question-error]'),
+            navigator: root.querySelector('[data-assessment-navigator]'),
             submitModal: document.querySelector('[data-assessment-submit-modal]'),
             submitAnswered: document.querySelector('[data-submit-answered]'),
             submitUnanswered: document.querySelector('[data-submit-unanswered]'),
             submitError: document.querySelector('[data-assessment-submit-error]'),
             submitButton: document.querySelector('[data-assessment-submit]'),
+            bandModal: document.querySelector('[data-assessment-band-confirmation]'),
         };
+        let questionIndex = 0;
 
-        function setHidden(node, hidden) {
-            if (node) node.hidden = hidden;
+        function currentQuestion(attempt) {
+            const questions = Array.isArray(attempt?.questions) ? attempt.questions : [];
+            if (questions.length === 0) return null;
+            questionIndex = Math.max(0, Math.min(questionIndex, questions.length - 1));
+            return questions[questionIndex];
         }
 
-        function render(state, payload) {
-            setHidden(nodes.loading, state !== 'loading' && state !== 'submitting');
-            setHidden(nodes.errorState, state !== 'source-error' && state !== 'save-error' && state !== 'validation-error');
-            setHidden(nodes.expired, state !== 'expired');
-
-            if (state === 'saving') {
-                if (nodes.saveStatus) nodes.saveStatus.textContent = 'Đang lưu câu trả lời...';
-            } else if (state === 'ready') {
-                if (nodes.saveStatus) nodes.saveStatus.textContent = 'Đã lưu tất cả câu trả lời.';
-                setHidden(nodes.intro, false);
-                setHidden(nodes.active, false);
-            } else if (state === 'save-error') {
-                if (nodes.errorMessage) {
-                    nodes.errorMessage.textContent = payload?.error?.message || 'Không thể lưu câu trả lời. Vui lòng thử lại.';
-                }
-            } else if (state === 'validation-error') {
-                if (nodes.errorMessage) {
-                    nodes.errorMessage.textContent = payload?.error?.message || 'Dữ liệu không hợp lệ hoặc chưa trả lời hết các câu hỏi.';
-                }
-                if (nodes.submitError) {
-                    setHidden(nodes.submitError, false);
-                    nodes.submitError.textContent = payload?.error?.message || 'Cần hoàn thành các câu hỏi trước khi nộp bài.';
-                }
-            } else if (state === 'source-error') {
-                if (nodes.errorMessage) {
-                    nodes.errorMessage.textContent = payload?.error?.message || 'Đã xảy ra lỗi kết nối với máy chủ.';
-                }
-            } else if (state === 'complete') {
-                if (nodes.saveStatus) nodes.saveStatus.textContent = 'Bài đánh giá đã hoàn thành.';
+        function renderQuestion(attempt) {
+            const questions = Array.isArray(attempt?.questions) ? attempt.questions : [];
+            const question = currentQuestion(attempt);
+            if (!question) return;
+            const answers = attempt.answers && typeof attempt.answers === 'object' ? attempt.answers : {};
+            if (nodes.questionHeading) nodes.questionHeading.textContent = String(question.prompt || question.content || '');
+            if (nodes.position) nodes.position.textContent = String(questionIndex + 1);
+            if (nodes.options) {
+                while (nodes.options.firstChild) nodes.options.removeChild(nodes.options.firstChild);
+                const options = Array.isArray(question.options) ? question.options : [];
+                options.forEach((option) => {
+                    const value = typeof option === 'object' ? option.value : option;
+                    const labelText = typeof option === 'object' ? (option.label ?? option.value) : option;
+                    const label = doc.createElement('label');
+                    label.className = 'learner-likert-option';
+                    const input = doc.createElement('input');
+                    input.type = 'radio';
+                    input.name = 'assessment-answer';
+                    input.value = String(value ?? '');
+                    input.checked = String(answers[question.id] ?? '') === String(value ?? '');
+                    const span = doc.createElement('span');
+                    span.textContent = `${String(value ?? '')} ${String(labelText ?? '')}`.trim();
+                    label.appendChild(input);
+                    label.appendChild(span);
+                    nodes.options.appendChild(label);
+                });
+            }
+            if (nodes.previous) nodes.previous.disabled = questionIndex === 0;
+            if (nodes.next) setHidden(nodes.next, questionIndex >= questions.length - 1);
+            if (nodes.openSubmit) setHidden(nodes.openSubmit, questionIndex < questions.length - 1);
+            if (nodes.questionError) nodes.questionError.hidden = true;
+            if (nodes.answeredCount) nodes.answeredCount.textContent = String(Object.keys(answers).length);
+            if (nodes.progress) {
+                const percent = questions.length > 0 ? Math.round((Object.keys(answers).length / questions.length) * 100) : 0;
+                nodes.progress.setAttribute('aria-valuenow', String(percent));
+                const bar = nodes.progress.querySelector('span');
+                if (bar) bar.style.setProperty('--learner-progress', `${percent}%`);
+            }
+            if (nodes.navigator) {
+                while (nodes.navigator.firstChild) nodes.navigator.removeChild(nodes.navigator.firstChild);
+                questions.forEach((item, index) => {
+                    const button = doc.createElement('button');
+                    button.type = 'button';
+                    button.className = 'learner-question-navigator__item';
+                    button.dataset.questionIndex = String(index);
+                    button.textContent = String(index + 1);
+                    button.classList.toggle('is-current', index === questionIndex);
+                    button.classList.toggle('is-answered', Object.prototype.hasOwnProperty.call(answers, item.id));
+                    button.setAttribute('aria-label', `Câu ${index + 1}`);
+                    nodes.navigator.appendChild(button);
+                });
             }
         }
 
-        return { render };
+        function renderDetail(detail) {
+            const assessment = detail?.assessment || {};
+            if (nodes.introName) nodes.introName.textContent = assessment.name || 'Bài đánh giá năng khiếu';
+            if (nodes.introDescription) nodes.introDescription.textContent = assessment.description || 'Khám phá năng khiếu qua các câu hỏi được phê duyệt trên hệ thống.';
+            if (nodes.introCount) nodes.introCount.textContent = `${Number(assessment.question_count || detail?.questions?.length || 0)} câu`;
+            if (nodes.introDuration) nodes.introDuration.textContent = `${Number(assessment.duration_minutes || 12)} phút`;
+        }
+
+        function render(state, payload) {
+            setHidden(nodes.loading, !['loading', 'submitting'].includes(state));
+            setHidden(nodes.errorState, state !== 'source-error');
+            setHidden(nodes.saveError, state !== 'save-error');
+            setHidden(nodes.validationError, state !== 'validation-error');
+            setHidden(nodes.expired, state !== 'expired');
+            if (state === 'loading' || state === 'submitting') {
+                setHidden(nodes.intro, true);
+                setHidden(nodes.active, true);
+            }
+            if (state === 'source-error' && nodes.errorMessage) nodes.errorMessage.textContent = payload?.error?.message || 'Đã xảy ra lỗi kết nối với máy chủ.';
+            if (state === 'save-error' && nodes.saveErrorMessage) nodes.saveErrorMessage.textContent = payload?.error?.message || 'Không thể lưu câu trả lời. Vui lòng thử lại.';
+            if (state === 'validation-error' && nodes.validationMessage) nodes.validationMessage.textContent = payload?.error?.message || 'Vui lòng hoàn thành các câu hỏi bắt buộc.';
+            if (state === 'saving' && nodes.saveStatus) nodes.saveStatus.textContent = 'Đang lưu câu trả lời...';
+            if (state === 'ready') {
+                const isAttempt = Boolean(payload?.id && Array.isArray(payload?.questions));
+                setHidden(nodes.intro, isAttempt);
+                setHidden(nodes.active, !isAttempt);
+                if (isAttempt) renderQuestion(payload);
+                if (nodes.saveStatus) nodes.saveStatus.textContent = 'Đã sẵn sàng.';
+            }
+            if (state === 'complete') {
+                if (nodes.saveStatus) nodes.saveStatus.textContent = 'Bài đánh giá đã hoàn thành.';
+                setHidden(nodes.intro, true);
+                setHidden(nodes.active, true);
+            }
+        }
+
+        return {
+            render,
+            renderDetail,
+            renderQuestion,
+            setQuestionIndex: (index) => { questionIndex = Number(index) || 0; },
+            getQuestionIndex: () => questionIndex,
+            showBandModal: () => setHidden(nodes.bandModal, false),
+            hideBandModal: () => setHidden(nodes.bandModal, true),
+            nodes,
+        };
+    }
+
+    function renderCatalog(root, payload) {
+        const doc = root.ownerDocument || document;
+        const loading = root.querySelector('[data-catalog-loading]');
+        const empty = root.querySelector('[data-empty-catalog]');
+        const cards = root.querySelector('[data-catalog-cards]');
+        setHidden(loading, true);
+        if (cards) while (cards.firstChild) cards.removeChild(cards.firstChild);
+        const items = Array.isArray(payload?.assessments) ? payload.assessments : [];
+        setHidden(empty, items.length !== 0);
+        if (!cards) return;
+        items.forEach((item) => {
+            const code = String(item?.code || '').toLowerCase();
+            const meta = ASSESSMENT_META[code] || { name: code, description: 'Bài đánh giá năng khiếu.', tone: 'primary' };
+            const article = doc.createElement('article');
+            article.className = 'learner-card learner-assessment-card';
+            article.dataset.assessmentCard = code;
+            const status = doc.createElement('span');
+            status.className = 'learner-assessment-card__status';
+            const published = String(item?.status || '').toLowerCase() === 'published';
+            const locked = item?.attempt_status === 'retake_locked';
+            status.classList.add(published && !locked ? 'is-experimental' : 'is-unpublished');
+            status.textContent = locked ? 'Chưa đến ngày làm lại' : (published ? 'Bản thử nghiệm' : 'Chưa có phiên bản được duyệt');
+            article.appendChild(status);
+            const title = createTextElement(doc, 'h2', item?.name || item?.test_name || meta.name);
+            const description = createTextElement(doc, 'p', item?.description || meta.description);
+            article.appendChild(title);
+            article.appendChild(description);
+            const action = doc.createElement(published && !locked ? 'a' : 'button');
+            action.className = `learner-btn learner-btn--${published && !locked ? 'primary' : 'secondary'} learner-btn--block`;
+            action.textContent = locked ? 'Chưa thể làm lại' : (published ? (item?.attempt_status === 'in_progress' ? 'Tiếp tục bài test' : 'Bắt đầu bài test') : 'Chưa có phiên bản được duyệt');
+            if (action.tagName === 'A') action.href = `assessment.php?code=${encodeURIComponent(code)}`;
+            else { action.type = 'button'; action.disabled = true; }
+            article.appendChild(action);
+            cards.appendChild(article);
+        });
+    }
+
+    function renderResult(root, payload) {
+        setHidden(root.querySelector('[data-assessment-result-loading]'), true);
+        setHidden(root.querySelector('[data-assessment-result-error]'), true);
+        const content = root.querySelector('[data-assessment-result-content]');
+        const empty = root.querySelector('[data-assessment-result-empty]');
+        const result = payload?.result || payload?.selectedAttempt?.result || null;
+        const scores = result?.dimension_scores || result?.scores || result?.dimensionScores || {};
+        if (!result || Object.keys(scores).length === 0) {
+            setHidden(content, true);
+            setHidden(empty, false);
+            return;
+        }
+        setHidden(empty, true);
+        setHidden(content, false);
+        const codeNode = root.querySelector('[data-result-code]');
+        const summaryNode = root.querySelector('[data-result-primary-summary]');
+        if (codeNode) codeNode.textContent = result.result_code || result.code || '—';
+        if (summaryNode) summaryNode.textContent = result.summary || 'Kết quả đã được lưu trên hệ thống.';
+        const list = root.querySelector('[data-result-dimension-list]');
+        if (list) {
+            while (list.firstChild) list.removeChild(list.firstChild);
+            Object.entries(scores).forEach(([dimension, score]) => {
+                const row = document.createElement('div');
+                row.className = 'learner-result-score';
+                const label = createTextElement(document, 'strong', dimension);
+                const value = createTextElement(document, 'b', Number(score) || 0);
+                row.appendChild(label);
+                row.appendChild(value);
+                list.appendChild(row);
+            });
+        }
+        const historyList = root.querySelector('[data-assessment-history-list]');
+        if (historyList) {
+            while (historyList.firstChild) historyList.removeChild(historyList.firstChild);
+            (Array.isArray(payload?.history) ? payload.history : []).forEach((item) => {
+                const row = document.createElement('article');
+                row.dataset.historyAttemptId = String(item?.id || '');
+                row.appendChild(createTextElement(document, 'strong', item?.result_code || item?.result?.code || '—'));
+                row.appendChild(createTextElement(document, 'span', item?.submitted_at || 'Đã hoàn thành'));
+                historyList.appendChild(row);
+            });
+        }
+    }
+
+    function bootRunner(root) {
+        const api = createApiClient();
+        if (!api) return;
+        const boot = parseBoot('learner-assessment-boot');
+        const code = String(root.dataset.assessmentCode || boot.assessmentCode || 'holland');
+        const view = createDomView(root);
+        const controller = createAssessmentController({ api, view });
+        let selectedBand = '';
+        let currentAttempt = null;
+        const resultUrl = boot.result_url || `assessment-result.php?code=${encodeURIComponent(code)}`;
+
+        const start = async (band) => {
+            selectedBand = band || selectedBand;
+            view.hideBandModal();
+            const attempt = await controller.startOrResume(code, selectedBand || 'high');
+            if (attempt?.id) {
+                currentAttempt = attempt;
+                view.render('ready', attempt);
+            }
+        };
+        const loadDetail = async (band) => {
+            const detail = await controller.loadDetail(code, band);
+            if (detail?.assessment) {
+                selectedBand = detail.education_band || band || selectedBand;
+                view.renderDetail(detail);
+            }
+            return detail;
+        };
+
+        root.querySelector('[data-assessment-start]')?.addEventListener('click', () => start(selectedBand));
+        root.querySelector('[data-assessment-resume]')?.addEventListener('click', () => start(selectedBand));
+        root.querySelector('[data-assessment-restart]')?.addEventListener('click', () => start(selectedBand));
+        document.querySelector('[data-confirm-band]')?.addEventListener('click', () => {
+            const selected = root.querySelector('[name="education_band"]:checked');
+            start(selected?.value || 'high');
+        });
+        root.querySelector('[data-assessment-retry]')?.addEventListener('click', () => controller.retry());
+        root.querySelector('[data-assessment-retry-save]')?.addEventListener('click', () => controller.retry());
+        root.querySelector('[data-assessment-back-to-questions]')?.addEventListener('click', () => {
+            if (currentAttempt) view.render('ready', currentAttempt);
+        });
+        root.querySelector('[data-assessment-previous]')?.addEventListener('click', () => {
+            if (!currentAttempt) return;
+            view.setQuestionIndex(view.getQuestionIndex() - 1);
+            view.renderQuestion(currentAttempt);
+        });
+        root.querySelector('[data-assessment-next]')?.addEventListener('click', () => {
+            if (!currentAttempt) return;
+            const question = currentAttempt.questions?.[view.getQuestionIndex()];
+            if (!question || !Object.prototype.hasOwnProperty.call(currentAttempt.answers || {}, question.id)) {
+                const error = root.querySelector('[data-assessment-question-error]');
+                if (error) error.hidden = false;
+                return;
+            }
+            view.setQuestionIndex(view.getQuestionIndex() + 1);
+            view.renderQuestion(currentAttempt);
+        });
+        view.nodes.options?.addEventListener('change', (event) => {
+            const input = event.target;
+            if (!input || input.type !== 'radio' || !currentAttempt?.questions) return;
+            const question = currentAttempt.questions[view.getQuestionIndex()];
+            if (!question) return;
+            controller.saveAnswer(question.id, input.value).catch(() => {});
+        });
+        view.nodes.navigator?.addEventListener('click', (event) => {
+            const button = event.target.closest?.('[data-question-index]');
+            if (!button || !currentAttempt) return;
+            view.setQuestionIndex(button.dataset.questionIndex);
+            view.renderQuestion(currentAttempt);
+        });
+        view.nodes.openSubmit?.addEventListener('click', () => {
+            const answers = currentAttempt?.answers || {};
+            const total = currentAttempt?.questions?.length || 0;
+            if (view.nodes.submitAnswered) view.nodes.submitAnswered.textContent = `${Object.keys(answers).length}/${total}`;
+            if (view.nodes.submitUnanswered) view.nodes.submitUnanswered.textContent = String(Math.max(0, total - Object.keys(answers).length));
+            setHidden(view.nodes.submitModal, false);
+        });
+        view.nodes.submitButton?.addEventListener('click', async () => {
+            const response = await controller.submit();
+            if (response?.status === 'submitted' || response?.result || response?.result_id) {
+                const attemptId = response.id || currentAttempt?.id;
+                global.location.href = `${resultUrl}${resultUrl.includes('?') ? '&' : '?'}attempt=${encodeURIComponent(attemptId || '')}`;
+            }
+        });
+        document.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', () => {
+            const modal = button.closest('.learner-modal');
+            setHidden(modal, true);
+        }));
+
+        loadDetail().then((detail) => {
+            if (!detail?.assessment) view.showBandModal();
+        });
+    }
+
+    function bootCatalog(root) {
+        const api = createApiClient();
+        if (!api) return;
+        const controller = createAssessmentController({ api, view: { render() {} } });
+        controller.loadCatalog().then((payload) => renderCatalog(root, payload));
+    }
+
+    function bootResult(root) {
+        const api = createApiClient();
+        if (!api) return;
+        const code = String(root.dataset.assessmentCode || 'holland');
+        const attemptId = new URLSearchParams(global.location?.search || '').get('attempt') || '';
+        const resultView = {
+            render: (state, payload) => {
+                if (state === 'complete' || state === 'ready') renderResult(root, payload);
+                if (state === 'source-error') {
+                    setHidden(root.querySelector('[data-assessment-result-loading]'), true);
+                    setHidden(root.querySelector('[data-assessment-result-content]'), true);
+                    setHidden(root.querySelector('[data-assessment-result-error]'), false);
+                }
+            },
+        };
+        const controller = createAssessmentController({ api, view: resultView });
+        controller.loadResult(code, '', attemptId).catch(() => {
+            setHidden(root.querySelector('[data-assessment-result-content]'), true);
+            setHidden(root.querySelector('[data-assessment-result-empty]'), false);
+        });
     }
 
     function boot() {
         if (typeof document === 'undefined') return;
         const runnerRoot = document.querySelector('[data-assessment-runner]');
-        if (!runnerRoot || !global.TalentHubLearnerApi) return;
-
-        const bootNode = document.getElementById('learner-session-boot');
-        let csrfToken = '';
-        try {
-            csrfToken = JSON.parse(bootNode?.textContent || '{}').csrfToken || '';
-        } catch {
-            csrfToken = '';
-        }
-
-        let api;
-        try {
-            api = global.TalentHubLearnerApi.createLearnerApiClient({
-                baseUrl: '/app/learner/api/v1',
-                csrfToken,
-            });
-        } catch {
-            return;
-        }
-
-        const controller = createAssessmentController({
-            api,
-            view: createDomView(runnerRoot),
-        });
-
-        runnerRoot.querySelector('[data-assessment-retry]')?.addEventListener('click', () => controller.retry());
+        const catalogRoot = document.querySelector('[data-assessment-catalog]');
+        const resultRoot = document.querySelector('[data-assessment-result-page]');
+        if (runnerRoot) bootRunner(runnerRoot);
+        if (catalogRoot) bootCatalog(catalogRoot);
+        if (resultRoot) bootResult(resultRoot);
     }
 
     const exported = {

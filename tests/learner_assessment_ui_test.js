@@ -338,3 +338,32 @@ test('controller maps validation errors on submit to validation-error', async ()
   await controller.submit();
   assert.equal(view.states.at(-1), 'validation-error');
 });
+
+test('controller loads the latest server result without browser scoring', async () => {
+  const { createAssessmentController } = require(modulePath);
+  const view = createMockView();
+  const api = {
+    async get(endpoint) {
+      assert.equal(endpoint, '/assessments.php?code=disc');
+      return {
+        assessment: { code: 'disc', name: 'DISC' },
+        questions: [],
+        history: [
+          {
+            id: 'attempt-disc-1',
+            status: 'submitted',
+            result_code: 'DISC',
+            summary: 'Server result',
+            dimension_scores: { D: 80, I: 60, S: 40, C: 20 },
+          },
+        ],
+      };
+    },
+    async send() {},
+  };
+  const controller = createAssessmentController({ api, view });
+  const payload = await controller.loadResult('disc', '', 'attempt-disc-1');
+  assert.equal(payload.result.result_code, 'DISC');
+  assert.deepEqual(controller.getResult().dimension_scores, { D: 80, I: 60, S: 40, C: 20 });
+  assert.equal(view.states.at(-1), 'complete');
+});
