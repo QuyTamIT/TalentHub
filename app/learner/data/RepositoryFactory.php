@@ -6,6 +6,7 @@ namespace TalentHub\Learner\Data;
 
 use PDO;
 use TalentHub\Learner\Assessment\Scoring\HollandScorer;
+use TalentHub\Learner\Assessment\Scoring\MbtiScorer;
 use TalentHub\Learner\Assessment\Scoring\ScorerRegistry;
 use TalentHub\Learner\Data\Contracts\ActivityRepository;
 use TalentHub\Learner\Data\Contracts\ApplicationRepository;
@@ -81,6 +82,7 @@ final class RepositoryFactory
     {
         return new ScorerRegistry([
             'holland-riasec-1.0' => new HollandScorer(),
+            'mbti-education-1.0' => new MbtiScorer(),
         ]);
     }
 
