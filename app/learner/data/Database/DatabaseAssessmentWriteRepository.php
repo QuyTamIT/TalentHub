@@ -7,15 +7,14 @@ namespace TalentHub\Learner\Data\Database;
 use JsonException;
 use PDO;
 use RuntimeException;
+use TalentHub\Learner\Assessment\Scoring\ScorerRegistry;
 use TalentHub\Learner\Data\Contracts\AssessmentWriteRepository;
 use TalentHub\Learner\Data\Support\Uuid;
 use Throwable;
 
 final class DatabaseAssessmentWriteRepository implements AssessmentWriteRepository
 {
-    private const HOLLAND_DIMENSIONS = ['R', 'I', 'A', 'S', 'E', 'C'];
-
-    public function __construct(private readonly PDO $pdo)
+    public function __construct(private readonly PDO $pdo, private readonly ScorerRegistry $scorers)
     {
     }
 
@@ -186,7 +185,10 @@ SQL,
             }
 
             $inputHash = $this->inputHash($attempt, $answers);
-            $scored = $this->score($attempt['scoring_version'], $questions, $answers);
+            $scored = $this->scorers
+                ->forVersion($attempt['scoring_version'])
+                ->score($questions, $answers)
+                ->toArray();
             $now = $this->now();
             $this->execute(
                 'INSERT INTO test_results (id, attemptId, resultCode, summary, dimensionScoresJson, scoringVersion, createdAt) VALUES (:id, :attempt_id, :result_code, :summary, :dimension_scores_json, :scoring_version, :created_at)',
@@ -370,58 +372,6 @@ SQL,
             'schema_hash' => $attempt['schema_hash'],
             'answers' => $answers,
         ]));
-    }
-
-    private function score(string $scoringVersion, array $questions, array $answers): array
-    {
-        if ($scoringVersion !== 'holland-riasec-1.0') {
-            throw new RuntimeException('Assessment scoring version is not approved.');
-        }
-
-        $totals = array_fill_keys(self::HOLLAND_DIMENSIONS, 0.0);
-        $counts = array_fill_keys(self::HOLLAND_DIMENSIONS, 0);
-        foreach ($questions as $question) {
-            $dimension = strtoupper(trim((string) $question['dimension_code']));
-            if (!in_array($dimension, self::HOLLAND_DIMENSIONS, true)) {
-                throw new RuntimeException('Assessment version contains an unsupported Holland dimension.');
-            }
-            if (!array_key_exists($question['question_id'], $answers)) {
-                if ((int) $question['required'] === 1) {
-                    throw new RuntimeException('All required assessment questions must be answered before submission.');
-                }
-                continue;
-            }
-            $answer = $answers[$question['question_id']];
-            if (!is_int($answer) && !is_float($answer) && !(is_string($answer) && is_numeric($answer))) {
-                throw new RuntimeException('Holland answers must be numeric values.');
-            }
-            $value = (float) $answer;
-            if ($value < 1 || $value > 5) {
-                throw new RuntimeException('Holland answers must be between 1 and 5.');
-            }
-            $totals[$dimension] += $value;
-            $counts[$dimension]++;
-        }
-
-        $scores = [];
-        foreach (self::HOLLAND_DIMENSIONS as $dimension) {
-            if ($counts[$dimension] === 0) {
-                $scores[$dimension] = 0;
-                continue;
-            }
-            $scores[$dimension] = (int) round((($totals[$dimension] - $counts[$dimension]) / ($counts[$dimension] * 4)) * 100);
-        }
-        $ranked = self::HOLLAND_DIMENSIONS;
-        usort($ranked, static function (string $left, string $right) use ($scores): int {
-            return $scores[$right] <=> $scores[$left]
-                ?: array_search($left, self::HOLLAND_DIMENSIONS, true) <=> array_search($right, self::HOLLAND_DIMENSIONS, true);
-        });
-
-        return [
-            'result_code' => implode('', array_slice($ranked, 0, 3)),
-            'summary' => 'Holland RIASEC assessment submitted.',
-            'dimension_scores' => $scores,
-        ];
     }
 
     private function assertInProgress(array $attempt): void

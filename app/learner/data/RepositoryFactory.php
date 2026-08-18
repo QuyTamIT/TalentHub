@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace TalentHub\Learner\Data;
 
 use PDO;
+use TalentHub\Learner\Assessment\Scoring\HollandScorer;
+use TalentHub\Learner\Assessment\Scoring\ScorerRegistry;
 use TalentHub\Learner\Data\Contracts\ActivityRepository;
 use TalentHub\Learner\Data\Contracts\ApplicationRepository;
 use TalentHub\Learner\Data\Contracts\AssessmentRepository;
@@ -72,7 +74,14 @@ final class RepositoryFactory
             );
         }
 
-        return new Database\DatabaseAssessmentWriteRepository($this->pdo);
+        return new Database\DatabaseAssessmentWriteRepository($this->pdo, $this->scorerRegistry());
+    }
+
+    private function scorerRegistry(): ScorerRegistry
+    {
+        return new ScorerRegistry([
+            'holland-riasec-1.0' => new HollandScorer(),
+        ]);
     }
 
     public function activity(array $activities = [], array $registrations = []): ActivityRepository

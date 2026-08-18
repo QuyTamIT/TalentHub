@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use TalentHub\Learner\Assessment\Scoring\HollandScorer;
+use TalentHub\Learner\Assessment\Scoring\ScorerRegistry;
 use TalentHub\Learner\Data\Database\DatabaseAssessmentWriteRepository;
 use TalentHub\Learner\Data\RepositoryFactory;
 use TalentHub\Learner\Data\Service\LearnerAssessmentService;
@@ -66,7 +68,10 @@ function assessment_write_fixture(): PDO
 assessment_write_assert(interface_exists(\TalentHub\Learner\Data\Contracts\AssessmentWriteRepository::class), 'assessment write contract exists');
 
 $pdo = assessment_write_fixture();
-$repository = new DatabaseAssessmentWriteRepository($pdo);
+$scorers = new ScorerRegistry([
+    'holland-riasec-1.0' => new HollandScorer(),
+]);
+$repository = new DatabaseAssessmentWriteRepository($pdo, $scorers);
 $service = new LearnerAssessmentService($repository);
 
 $attempt = $service->start(ASSESSMENT_STUDENT_A, ASSESSMENT_TEST_ID, '1.0.0');
