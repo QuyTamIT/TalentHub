@@ -37,7 +37,7 @@ test('untrusted text is rendered with textContent and not innerHTML', () => {
 test('presentation states include all required states', () => {
   const mod = require(modulePath);
   assert.equal(typeof mod.presentationState, 'function', 'presentationState helper should be available');
-  
+
   assert.equal(mod.presentationState({ status: 'loading' }), 'loading');
   assert.equal(mod.presentationState({ status: 'ready' }), 'ready');
   assert.equal(mod.presentationState({ status: 'saving' }), 'saving');
