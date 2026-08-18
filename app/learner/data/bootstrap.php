@@ -42,6 +42,8 @@ require_once dirname($learnerDataRoot) . '/assessment/Scoring/HollandScorer.php'
 require_once dirname($learnerDataRoot) . '/assessment/Scoring/MbtiScorer.php';
 require_once dirname($learnerDataRoot) . '/assessment/Scoring/DiscScorer.php';
 require_once dirname($learnerDataRoot) . '/assessment/Scoring/MultipleIntelligenceScorer.php';
+require_once dirname($learnerDataRoot) . '/assessment/Service/EducationBandResolver.php';
+require_once dirname($learnerDataRoot) . '/assessment/Service/AssessmentCatalogService.php';
 require_once $learnerDataRoot . '/Database/DatabaseAssessmentRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseAssessmentWriteRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseActivityRepository.php';

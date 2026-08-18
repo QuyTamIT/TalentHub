@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace TalentHub\Learner\Data\Database;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use JsonException;
 use PDO;
 use RuntimeException;
@@ -18,36 +20,140 @@ final class DatabaseAssessmentWriteRepository implements AssessmentWriteReposito
     {
     }
 
-    public function startAttempt(string $studentId, string $testId, string $version): array
+    public function startOrResumeAttempt(string $studentId, string $assessmentCode, string $educationBand): array
     {
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
-        $testId = Uuid::normalizeDatabase($testId, 'test_id');
-        $version = trim($version);
-        if ($version === '') {
-            throw new RuntimeException('Assessment version is required.');
-        }
+        $educationBand = strtolower(trim($educationBand));
+        $bandedCode = $assessmentCode . '_' . $educationBand;
 
-        return $this->transaction(function () use ($studentId, $testId, $version): array {
+        return $this->transaction(function () use ($studentId, $assessmentCode, $educationBand, $bandedCode): array {
             $definition = $this->fetchOne(
                 <<<'SQL'
-SELECT v.id AS version_id, v.version AS assessment_version, v.scoringVersion AS scoring_version, v.schemaHash AS schema_hash
+SELECT
+    t.id AS test_id,
+    t.code AS test_code,
+    t.type AS test_type,
+    v.id AS version_id,
+    v.version AS assessment_version,
+    v.scoringVersion AS scoring_version,
+    v.schemaHash AS schema_hash
 FROM learner_assessment_versions v
 INNER JOIN talent_tests t ON t.id = v.testId
-WHERE v.testId = :test_id
-  AND v.version = :version
+WHERE t.code = :banded_code
   AND v.status = 'published'
   AND t.status = 'published'
+ORDER BY v.createdAt DESC
 LIMIT 1
 SQL,
-                ['test_id' => $testId, 'version' => $version]
+                ['banded_code' => $bandedCode]
             );
             if ($definition === null) {
-                throw new RuntimeException('Requested assessment version is unavailable.');
+                throw new RuntimeException('Requested assessment is unavailable for this education band.');
+            }
+
+            $testId = (string) $definition['test_id'];
+            $testType = (string) ($definition['test_type'] ?? '');
+            $baseCode = (string) $definition['test_code'];
+            if (str_ends_with(strtolower($baseCode), '_' . $educationBand)) {
+                $baseCode = substr($baseCode, 0, -strlen('_' . $educationBand));
+            }
+
+            $nowUtc = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+
+            $inProgress = $this->fetchOne(
+                <<<'SQL'
+SELECT a.id, m.expiresAt AS expires_at
+FROM test_attempts a
+INNER JOIN learner_assessment_attempt_metadata m ON m.attemptId = a.id
+WHERE a.studentId = :student_id
+  AND a.testId = :test_id
+  AND a.status = 'in_progress'
+  AND m.status = 'in_progress'
+ORDER BY a.startedAt DESC, a.id DESC
+LIMIT 1
+SQL,
+                [
+                    'student_id' => $studentId,
+                    'test_id' => $testId,
+                ]
+            );
+
+            if ($inProgress !== null) {
+                $expiresAtStr = (string) ($inProgress['expires_at'] ?? $inProgress['expiresAt'] ?? '');
+                $isExpired = false;
+                if ($expiresAtStr !== '') {
+                    $expiresAt = new DateTimeImmutable($expiresAtStr, new DateTimeZone('UTC'));
+                    if ($nowUtc > $expiresAt) {
+                        $isExpired = true;
+                    }
+                }
+
+                if (!$isExpired) {
+                    return $this->attemptView($this->findOwnedAttempt($studentId, (string) $inProgress['id']));
+                }
+
+                $expiredAt = $this->now();
+                $this->execute(
+                    'UPDATE test_attempts SET status = :expired_status, updatedAt = :updated_at WHERE id = :attempt_id AND studentId = :student_id AND status = :in_progress_status',
+                    [
+                        'expired_status' => 'expired',
+                        'updated_at' => $expiredAt,
+                        'attempt_id' => $inProgress['id'],
+                        'student_id' => $studentId,
+                        'in_progress_status' => 'in_progress',
+                    ]
+                );
+                $this->execute(
+                    'UPDATE learner_assessment_attempt_metadata SET status = :expired_status, updatedAt = :updated_at WHERE attemptId = :attempt_id AND status = :in_progress_status',
+                    [
+                        'expired_status' => 'expired',
+                        'updated_at' => $expiredAt,
+                        'attempt_id' => $inProgress['id'],
+                        'in_progress_status' => 'in_progress',
+                    ]
+                );
+            }
+
+            $latestSubmitted = $this->fetchOne(
+                <<<'SQL'
+SELECT a.id, a.submittedAt AS submitted_at
+FROM test_attempts a
+INNER JOIN talent_tests t ON t.id = a.testId
+WHERE a.studentId = :student_id
+  AND a.status = 'submitted'
+  AND a.submittedAt IS NOT NULL
+  AND (
+      t.id = :test_id
+      OR t.code = :middle_code
+      OR t.code = :high_code
+      OR t.code = :college_code
+  )
+ORDER BY a.submittedAt DESC, a.id DESC
+LIMIT 1
+SQL,
+                [
+                    'student_id' => $studentId,
+                    'test_id' => $testId,
+                    'middle_code' => $baseCode . '_middle',
+                    'high_code' => $baseCode . '_high',
+                    'college_code' => $baseCode . '_college',
+                ]
+            );
+
+            $submittedAtVal = $latestSubmitted['submitted_at'] ?? $latestSubmitted['submittedAt'] ?? null;
+            if ($latestSubmitted !== null && $submittedAtVal !== null) {
+                $submittedAt = new DateTimeImmutable((string) $submittedAtVal, new DateTimeZone('UTC'));
+                $retakeAllowedAt = $submittedAt->modify('+90 days');
+                if ($nowUtc < $retakeAllowedAt) {
+                    throw new RuntimeException('Retake is not allowed within 90 days of the last submitted assessment.');
+                }
             }
 
             $now = $this->now();
             $attemptId = $this->newUuid();
             $metadataId = $this->newUuid();
+            $expiresAt = $nowUtc->modify('+30 days')->format('Y-m-d H:i:s.u');
+
             $this->execute(
                 'INSERT INTO test_attempts (id, testId, studentId, status, startedAt, submittedAt, createdAt, updatedAt) VALUES (:id, :test_id, :student_id, :status, :started_at, NULL, :created_at, :updated_at)',
                 [
@@ -61,12 +167,13 @@ SQL,
                 ]
             );
             $this->execute(
-                'INSERT INTO learner_assessment_attempt_metadata (id, attemptId, versionId, status, expiresAt, submittedAt, inputHash, createdAt, updatedAt) VALUES (:id, :attempt_id, :version_id, :status, NULL, NULL, NULL, :created_at, :updated_at)',
+                'INSERT INTO learner_assessment_attempt_metadata (id, attemptId, versionId, status, expiresAt, submittedAt, inputHash, createdAt, updatedAt) VALUES (:id, :attempt_id, :version_id, :status, :expires_at, NULL, NULL, :created_at, :updated_at)',
                 [
                     'id' => $metadataId,
                     'attempt_id' => $attemptId,
                     'version_id' => $definition['version_id'],
                     'status' => 'in_progress',
+                    'expires_at' => $expiresAt,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]
@@ -254,7 +361,8 @@ SQL,
             <<<'SQL'
 SELECT a.id AS attempt_id, a.testId AS test_id, a.studentId AS student_id, a.status AS attempt_status,
        a.startedAt AS started_at, a.submittedAt AS attempt_submitted_at,
-       m.versionId AS version_id, m.status AS metadata_status, m.submittedAt AS metadata_submitted_at,
+        m.versionId AS version_id, m.status AS metadata_status, m.expiresAt AS expires_at,
+        m.submittedAt AS metadata_submitted_at,
        m.inputHash AS input_hash, v.version AS assessment_version, v.scoringVersion AS scoring_version,
        v.schemaHash AS schema_hash
 FROM test_attempts a
@@ -283,6 +391,7 @@ SQL,
             'scoring_version' => $attempt['scoring_version'],
             'status' => $attempt['metadata_status'],
             'started_at' => $attempt['started_at'],
+            'expires_at' => $attempt['expires_at'] !== null ? (string) $attempt['expires_at'] : null,
             'submitted_at' => $attempt['metadata_submitted_at'] ?? $attempt['attempt_submitted_at'],
             'input_hash' => $attempt['input_hash'],
             'answers' => $this->answersForAttempt($attempt['student_id'], $attempt['attempt_id']),
@@ -378,6 +487,13 @@ SQL,
     {
         if ($attempt['attempt_status'] !== 'in_progress' || $attempt['metadata_status'] !== 'in_progress') {
             throw new RuntimeException('Assessment attempt is immutable after submission or closure.');
+        }
+
+        if (($attempt['expires_at'] ?? null) !== null) {
+            $expiresAt = new DateTimeImmutable((string) $attempt['expires_at'], new DateTimeZone('UTC'));
+            if (new DateTimeImmutable('now', new DateTimeZone('UTC')) > $expiresAt) {
+                throw new RuntimeException('Assessment attempt has expired.');
+            }
         }
     }
 

@@ -73,6 +73,131 @@ final class MockAssessmentRepository implements AssessmentRepository
         ));
     }
 
+    public function publishedCatalog(string $studentId, string $educationBand): array
+    {
+        $canonicalStudentId = MockRecordNormalizer::lookupId('student', $studentId);
+        $catalog = [];
+
+        foreach ($this->definitions as $definition) {
+            $status = (string) ($definition['status'] ?? 'published');
+            if ($status !== 'published') {
+                continue;
+            }
+
+            $band = (string) ($definition['education_band'] ?? $educationBand);
+            if ($band !== $educationBand) {
+                continue;
+            }
+
+            $code = (string) ($definition['code'] ?? $definition['id'] ?? '');
+            $assessmentId = (string) ($definition['id'] ?? '');
+            $version = (string) ($definition['version'] ?? '1.0.0');
+            $scoringVersion = (string) ($definition['scoring_version'] ?? 'holland-riasec-1.0');
+
+            $matchingQuestions = array_filter(
+                $this->questions,
+                static fn (array $q): bool => ($q['assessment_id'] ?? '') === $assessmentId
+            );
+            $questionCount = count($matchingQuestions);
+
+            $attempts = array_values(array_filter(
+                $this->attempts,
+                static fn (array $a): bool => ($a['student_id'] ?? '') === $canonicalStudentId
+                    && (($a['assessment_id'] ?? '') === $assessmentId || ($a['assessment_code'] ?? '') === $code)
+            ));
+
+            $attemptStatus = 'not_started';
+            $progress = 0;
+            $nextRetakeAt = null;
+
+            foreach ($attempts as $a) {
+                if (($a['status'] ?? '') === 'in_progress') {
+                    $attemptStatus = 'in_progress';
+                    $answers = (array) ($a['answers'] ?? []);
+                    $progress = $questionCount > 0 ? (int) round((count($answers) / $questionCount) * 100) : 0;
+                    break;
+                }
+                if (($a['status'] ?? '') === 'submitted') {
+                    $attemptStatus = 'submitted';
+                }
+            }
+
+            $catalog[] = [
+                'code' => $code,
+                'education_band' => $educationBand,
+                'version' => $version,
+                'scoring_version' => $scoringVersion,
+                'question_count' => $questionCount,
+                'status' => 'published',
+                'attempt_status' => $attemptStatus,
+                'progress' => $progress,
+                'next_retake_at' => $nextRetakeAt,
+            ];
+        }
+
+        return $catalog;
+    }
+
+    public function publishedAssessment(string $assessmentCode, string $educationBand): ?array
+    {
+        foreach ($this->definitions as $definition) {
+            $status = (string) ($definition['status'] ?? 'published');
+            if ($status !== 'published') {
+                continue;
+            }
+
+            $code = (string) ($definition['code'] ?? $definition['id'] ?? '');
+            $bandedCode = $assessmentCode . '_' . $educationBand;
+            if ($code === $assessmentCode || $code === $bandedCode || MockRecordNormalizer::matches($definition, $assessmentCode)) {
+                return $definition;
+            }
+        }
+
+        return null;
+    }
+
+    public function questionsForVersion(string $versionId): array
+    {
+        return array_values(array_filter(
+            $this->questions,
+            static fn (array $question): bool => ($question['version_id'] ?? '') === $versionId
+        ));
+    }
+
+    public function ownedAttempt(string $studentId, string $attemptId): ?array
+    {
+        $canonicalStudentId = MockRecordNormalizer::lookupId('student', $studentId);
+        foreach ($this->attempts as $attempt) {
+            if (MockRecordNormalizer::matches($attempt, $attemptId)) {
+                if (($attempt['student_id'] ?? '') !== $canonicalStudentId) {
+                    return null;
+                }
+
+                return $attempt;
+            }
+        }
+
+        return null;
+    }
+
+    public function history(string $studentId, string $assessmentCode): array
+    {
+        $canonicalStudentId = MockRecordNormalizer::lookupId('student', $studentId);
+        return array_values(array_filter(
+            $this->attempts,
+            static function (array $attempt) use ($canonicalStudentId, $assessmentCode): bool {
+                if (($attempt['student_id'] ?? '') !== $canonicalStudentId) {
+                    return false;
+                }
+                if (($attempt['status'] ?? '') !== 'submitted') {
+                    return false;
+                }
+                $code = (string) ($attempt['assessment_code'] ?? $attempt['assessment_id'] ?? '');
+                return $code === $assessmentCode || str_starts_with($code, $assessmentCode . '_');
+            }
+        ));
+    }
+
     private function normalizeQuestion(array $question): array
     {
         $question = MockRecordNormalizer::primary($question, 'assessment_question');
