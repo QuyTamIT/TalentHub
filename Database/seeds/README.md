@@ -16,4 +16,16 @@ Các email fixture cố định:
 - `school@test.talenthub.local`
 - `business@test.talenthub.local`
 
-Hai seeder nhắm tới schema clean baseline MySQL 8.4, không tương thích với dump legacy chưa migration.
+Các seeder nhắm tới schema clean baseline MySQL 8.4, không tương thích với dump legacy chưa migration.
+
+## Complete portal demo
+
+`Demo/CompletePortalDemoSeeder.php` tạo scope đầy đủ cho bốn tài khoản canonical `@talenthub.local`. Seeder chỉ được chạy trong `local` hoặc `test`, không xóa dữ liệu, dùng transaction và chạy bên trong seed lock hiện có:
+
+```powershell
+$env:TALENTHUB_DEMO_PASSWORD = 'mat-khau-toi-thieu-12-ky-tu'
+php bin/seed.php --complete-demo
+Remove-Item Env:TALENTHUB_DEMO_PASSWORD
+```
+
+Password chỉ được cập nhật cho bốn tài khoản demo. Seeder có thể chạy lại; conflict fixed ID/email hoặc scope sẽ rollback toàn bộ transaction. Complete demo không tạo activity, registration, assessment, QR hoặc check-in data.
