@@ -12,6 +12,7 @@ use TalentHub\Http\ApiException;
 use TalentHub\Support\Id\RequestId;
 
 $session=new SessionManager(require __DIR__.'/config/session.php');$session->start();
+$loginCsrfToken=$session->csrfToken();
 $requestedNext=is_string($_GET['next']??null)?$_GET['next']:null;
 
 $errorMessage=null;$emailValue='';$fieldErrors=[];$flash=$_SESSION['authFlash']??null;unset($_SESSION['authFlash']);
@@ -21,11 +22,12 @@ if($registrationSucceeded){$emailValue=(string)($flash['email']??'');}
 if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
     $emailValue=trim((string)($_POST['email']??''));$password=(string)($_POST['password']??'');$requestedNext=is_string($_POST['next']??null)?$_POST['next']:$requestedNext;
     try{
+        $session->assertCsrf(is_string($_POST['csrfToken']??null)?$_POST['csrfToken']:null);
         $pdo=(new Connection(require __DIR__.'/config/database.php'))->connect();$repository=new AuthRepository($pdo);$auth=new AuthService($repository);$limiter=new LoginRateLimiter($pdo);$ip=$_SERVER['REMOTE_ADDR']??null;$requestId=RequestId::make(null);
         $limiter->assertAllowed($emailValue,$ip);$session->assertLoginAllowed();
         try{$user=$auth->login(['email'=>$emailValue,'password'=>$password],$requestId,$ip);}catch(ApiException $exception){if($exception->errorCode==='INVALID_CREDENTIALS'){$limiter->recordFailure($emailValue,$ip);$session->recordLoginFailure();}throw $exception;}
         $limiter->clearIdentity($emailValue,$ip);$session->clearLoginFailures();$session->login($user);header('Location: '.app_href(AuthPortalRouter::destination($user['role'],$requestedNext)));exit;
-    }catch(ApiException $exception){$errorMessage=$exception->getMessage();foreach($exception->details as $detail){$fieldErrors[$detail['field']]=$detail['message'];}if(isset($exception->headers['Retry-After'])){header('Retry-After: '.$exception->headers['Retry-After']);}}
+    }catch(ApiException $exception){http_response_code($exception->status);$errorMessage=$exception->getMessage();foreach($exception->details as $detail){$fieldErrors[$detail['field']]=$detail['message'];}if(isset($exception->headers['Retry-After'])){header('Retry-After: '.$exception->headers['Retry-After']);}}
     catch(Throwable){$errorMessage='Không thể kết nối dịch vụ đăng nhập. Vui lòng thử lại sau.';}
 }
 
@@ -34,6 +36,7 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+    <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Đăng nhập TalentHub để tiếp tục vào không gian học tập và quản lý của bạn.">
@@ -65,6 +68,7 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
             <?php if(is_array($flash)): ?><div class="auth-alert auth-alert--success" role="status"><strong>Đăng ký thành công.</strong> Bạn có thể đăng nhập bằng tài khoản vừa tạo.</div><?php endif; ?>
             <?php if($errorMessage!==null): ?><div class="auth-alert auth-alert--error" role="alert"><?=authEscape($errorMessage)?></div><?php endif; ?>
             <form class="auth-form" method="post" action="./login.php" data-auth-form>
+                <input type="hidden" name="csrfToken" value="<?=authEscape($loginCsrfToken)?>">
                 <?php if($requestedNext!==null): ?><input type="hidden" name="next" value="<?=authEscape($requestedNext)?>"><?php endif; ?>
                 <div class="auth-field"><label for="email">Email</label><input id="email" name="email" type="email" value="<?=authEscape($emailValue)?>" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" maxlength="255" required autofocus aria-describedby="email-hint<?php if(isset($fieldErrors['email'])): ?> email-error<?php endif; ?>" <?php if(isset($fieldErrors['email'])): ?>aria-invalid="true"<?php endif; ?>><span id="email-hint" class="auth-field__hint">Email cá nhân hoặc email do tổ chức cấp.</span><?php if(isset($fieldErrors['email'])): ?><span class="auth-field__error" id="email-error"><?=authEscape($fieldErrors['email'])?></span><?php endif; ?></div>
                 <div class="auth-field"><div class="auth-field__label-row"><label for="password">Mật khẩu</label></div><div class="auth-password"><input id="password" name="password" type="password" autocomplete="current-password" maxlength="255" required <?php if(isset($fieldErrors['password'])): ?>aria-invalid="true" aria-describedby="password-error"<?php endif; ?>><button type="button" class="auth-password__toggle" data-password-toggle aria-controls="password" aria-pressed="false">Hiện</button></div><?php if(isset($fieldErrors['password'])): ?><span class="auth-field__error" id="password-error"><?=authEscape($fieldErrors['password'])?></span><?php endif; ?></div>
