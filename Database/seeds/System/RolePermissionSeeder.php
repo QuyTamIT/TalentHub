@@ -48,7 +48,12 @@ final class RolePermissionSeeder
             'teacher_profile.update_own',
             'teacher_dashboard.read_own',
             'activity.read_managed',
+            'activity.create_managed',
+            'activity.update_managed',
             'activity_registration.read_managed',
+            'qr_session.create_managed',
+            'qr_session.read_managed',
+            'qr_session.revoke_managed',
             'assessment.read_managed',
             'assessment.update_managed',
         ],
@@ -164,12 +169,13 @@ final class RolePermissionSeeder
             $id = self::roleId($code);
             $select->execute(['code' => $code]);
             $existingId = $select->fetchColumn();
-            if ($existingId !== false && $existingId !== $id) {
-                throw new RuntimeException("Role code {$code} exists with a different immutable ID.");
-            }
-
             $params = ['id' => $id, 'code' => $code, 'name' => $role['name'], 'description' => $role['description']];
-            $existingId === false ? $insert->execute($params) : $update->execute($params);
+            if ($existingId === false) {
+                $insert->execute($params);
+            } else {
+                $params['id'] = (string) $existingId;
+                $update->execute($params);
+            }
         }
     }
 
@@ -184,12 +190,13 @@ final class RolePermissionSeeder
             $id = self::stableId("permission:{$code}");
             $select->execute(['code' => $code]);
             $existingId = $select->fetchColumn();
-            if ($existingId !== false && $existingId !== $id) {
-                throw new RuntimeException("Permission code {$code} exists with a different immutable ID.");
-            }
-
             $params = ['id' => $id, 'code' => $code, 'description' => self::description($code)];
-            $existingId === false ? $insert->execute($params) : $update->execute($params);
+            if ($existingId === false) {
+                $insert->execute($params);
+            } else {
+                $params['id'] = (string) $existingId;
+                $update->execute($params);
+            }
         }
     }
 
@@ -199,13 +206,14 @@ final class RolePermissionSeeder
             'INSERT IGNORE INTO role_permissions (roleId, permissionId) VALUES (:roleId, :permissionId)'
         );
         foreach (array_keys(self::ROLES) as $roleCode) {
-            $roleId = self::roleId($roleCode);
+            $roleId = $this->pdoSelectId($pdo, 'roles', $roleCode);
             $codes = array_values(array_unique(array_merge(self::COMMON_PERMISSIONS, self::ROLE_PERMISSIONS[$roleCode])));
             foreach ($codes as $code) {
-                $insert->execute(['roleId' => $roleId, 'permissionId' => self::stableId("permission:{$code}")]);
+                $permissionId = $this->pdoSelectId($pdo, 'permissions', $code);
+                $insert->execute(['roleId' => $roleId, 'permissionId' => $permissionId]);
             }
 
-            $allowedIds = array_map(static fn (string $code): string => self::stableId("permission:{$code}"), $codes);
+            $allowedIds = array_map(fn (string $code): string => $this->pdoSelectId($pdo, 'permissions', $code), $codes);
             $deleteForRole = $pdo->prepare('DELETE FROM role_permissions WHERE roleId = ? AND permissionId NOT IN ('
                 . implode(', ', array_fill(0, count($allowedIds), '?')) . ')');
             $deleteForRole->execute([$roleId, ...$allowedIds]);
@@ -257,5 +265,16 @@ final class RolePermissionSeeder
             $statement = $pdo->prepare("UPDATE roles SET code = 'enterprise', name = 'Enterprise' WHERE id = ? AND code = 'business'");
             $statement->execute([$business]);
         }
+    }
+
+    private function pdoSelectId(PDO $pdo, string $table, string $code): string
+    {
+        $statement = $pdo->prepare("SELECT id FROM {$table} WHERE code = ?");
+        $statement->execute([$code]);
+        $id = $statement->fetchColumn();
+        if (!is_string($id) || $id === '') {
+            throw new RuntimeException("Missing {$table} row for code {$code}.");
+        }
+        return $id;
     }
 }
