@@ -2,6 +2,28 @@
 
 declare(strict_types=1);
 
+namespace TalentHub\Bootstrap {
+    final class PortalGuard
+    {
+        /** @return array{id:string,email:string,fullName:string,role:string,status:string} */
+        public static function requireRole(string $role, string $fallbackPath): array
+        {
+            if ($role !== 'student' || $fallbackPath !== '/app/learner/index.php') {
+                throw new \RuntimeException('Unexpected learner render authorization contract.');
+            }
+
+            return [
+                'id' => 'user-demo-nguyen-van-a',
+                'email' => 'a.nguyen@school.edu.vn',
+                'fullName' => 'Nguyễn Văn A',
+                'role' => 'student',
+                'status' => 'active',
+            ];
+        }
+    }
+}
+
+namespace {
 $root = dirname(__DIR__);
 putenv('APP_ENV=test');
 putenv('TALENTHUB_LEARNER_SOURCE=mock');
@@ -11,18 +33,6 @@ $_SERVER['APP_ENV'] = 'test';
 $_SERVER['TALENTHUB_LEARNER_SOURCE'] = 'mock';
 
 require_once $root . '/bin/bootstrap.php';
-
-use TalentHub\Auth\Session\SessionManager;
-
-$session = new SessionManager(require $root . '/config/session.php');
-$session->start();
-$session->login([
-    'id' => 'user-demo-nguyen-van-a',
-    'email' => 'a.nguyen@school.edu.vn',
-    'fullName' => 'Nguyễn Văn A',
-    'role' => 'student',
-    'status' => 'active',
-]);
 
 function holland_render(string $path, array $query = []): string
 {
@@ -97,3 +107,4 @@ holland_render_assert(str_contains($javascript, "'/app/learner/assessment.php'")
 holland_render_assert(str_contains($javascript, "'/app/learner/assessment-result.php'"), 'result route is whitelisted');
 
 echo "learner_holland_render_test: OK\n";
+}
