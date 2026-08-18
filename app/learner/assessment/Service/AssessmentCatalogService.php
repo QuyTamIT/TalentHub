@@ -25,4 +25,23 @@ final class AssessmentCatalogService
             'assessments' => $assessments,
         ];
     }
+
+    public function assessmentDetail(string $studentId, string $assessmentCode, ?string $confirmedBand): array
+    {
+        $band = $this->bands->resolve($studentId, $confirmedBand);
+        $assessment = $this->repository->publishedAssessment($assessmentCode, $band);
+        if ($assessment === null) {
+            throw new \RuntimeException('Assessment definition was not found or is not published.');
+        }
+        $assessment['code'] = $assessmentCode;
+        $assessment['education_band'] = $band;
+        $questions = $this->repository->questionsForVersion($assessment['version_id']);
+        $history = $this->repository->history($studentId, $assessmentCode);
+
+        return [
+            'assessment' => $assessment,
+            'questions' => $questions,
+            'history' => $history,
+        ];
+    }
 }

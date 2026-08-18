@@ -41,6 +41,19 @@ final class LearnerAssessmentService
         return $attempt;
     }
 
+    public function ownedAttemptWithQuestions(string $studentId, string $attemptId): array
+    {
+        $attempt = $this->reads->ownedAttempt($studentId, $attemptId);
+        if ($attempt === null) {
+            throw new RuntimeException('Assessment attempt was not found for this learner.');
+        }
+
+        $questions = $this->reads->questionsForVersion($attempt['version_id']);
+        $attempt['questions'] = $questions;
+
+        return $attempt;
+    }
+
     public function history(string $studentId, string $assessmentCode): array
     {
         return $this->reads->history($studentId, $assessmentCode);

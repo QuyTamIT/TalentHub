@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace TalentHub\Learner\Api;
 
 require_once dirname(__DIR__) . '/ai/bootstrap.php';
+require_once dirname(__DIR__) . '/data/bootstrap.php';
 
 use DateTimeImmutable;
 use DateTimeZone;
@@ -28,6 +29,10 @@ use TalentHub\Learner\Ai\Sources\Database\DatabasePublishedEvaluationSource;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseSkillSource;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseStudentProfileSource;
 use TalentHub\Learner\Ai\Validation\RecommendationResultValidator;
+use TalentHub\Learner\Assessment\Service\AssessmentCatalogService;
+use TalentHub\Learner\Assessment\Service\EducationBandResolver;
+use TalentHub\Learner\Data\RepositoryFactory;
+use TalentHub\Learner\Data\Service\LearnerAssessmentService;
 use TalentHub\Rbac\Service\PermissionService;
 use TalentHub\Support\Id\RequestId;
 use TalentHub\Support\Uuid;
@@ -47,7 +52,12 @@ final class LearnerApiContext
         $request = Request::fromGlobals();
         $session = new SessionManager(require dirname(__DIR__, 3) . '/config/session.php');
         $session->start();
-        $pdo = (new Connection(require dirname(__DIR__, 3) . '/config/database.php'))->connect();
+        if (isset($GLOBALS['__TALENTHUB_TEST_SESSION__']) && is_array($GLOBALS['__TALENTHUB_TEST_SESSION__'])) {
+            $_SESSION = $GLOBALS['__TALENTHUB_TEST_SESSION__'];
+        }
+        $pdo = isset($GLOBALS['__TALENTHUB_TEST_PDO__']) && $GLOBALS['__TALENTHUB_TEST_PDO__'] instanceof PDO
+            ? $GLOBALS['__TALENTHUB_TEST_PDO__']
+            : (new Connection(require dirname(__DIR__, 3) . '/config/database.php'))->connect();
         return new self($pdo, $session, new PermissionService($pdo), RequestId::make($request->header('x-request-id')));
     }
 
@@ -168,5 +178,25 @@ final class LearnerApiContext
             'requestId' => $this->requestId,
         ]);
         return ['event_id' => $eventId, 'scope' => $scope, 'action' => $action];
+    }
+
+    public function assessmentCatalogService(): AssessmentCatalogService
+    {
+        $factory = new RepositoryFactory('database', $this->pdo);
+
+        return new AssessmentCatalogService(
+            $factory->assessment(),
+            new EducationBandResolver($this->pdo)
+        );
+    }
+
+    public function assessmentService(): LearnerAssessmentService
+    {
+        $factory = new RepositoryFactory('database', $this->pdo);
+
+        return new LearnerAssessmentService(
+            $factory->assessment(),
+            $factory->assessmentWrite()
+        );
     }
 }
