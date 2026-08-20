@@ -36,7 +36,14 @@ final class RecommendationSnapshotBuilder
         $assessments = $has('assessment') ? $this->assessments($this->assessmentSource->forStudent($studentId)) : [];
         $activities = $has('activity') ? $this->activities($this->activityExperienceSource->forStudent($studentId)) : [];
         $evaluations = $has('evaluation') ? $this->evaluations($this->publishedEvaluationSource->forStudent($studentId)) : [];
-        $opportunities = $this->opportunities($this->opportunitySource->forStudent($studentId));
+        $opportunityRecords = $this->opportunitySource->forStudent($studentId);
+        if (!$has('activity')) {
+            $opportunityRecords = array_values(array_filter(
+                $opportunityRecords,
+                static fn (array $record): bool => ($record['opportunity_type'] ?? null) !== 'activity'
+            ));
+        }
+        $opportunities = $this->opportunities($opportunityRecords);
 
         $payload = [
             'profile' => $profile,
@@ -206,12 +213,19 @@ final class RecommendationSnapshotBuilder
             if ($id === '' || $deadline === null) {
                 continue;
             }
-            $opportunities[] = [
+            $item = [
                 '_source_id' => $id,
                 'title' => trim((string) ($record['title'] ?? '')),
                 'location' => trim((string) ($record['location'] ?? '')),
                 'deadline_at' => $deadline,
             ];
+            if (isset($record['category']) && trim((string) $record['category']) !== '') {
+                $item['category'] = trim((string) $record['category']);
+            }
+            if (isset($record['opportunity_type']) && trim((string) $record['opportunity_type']) !== '') {
+                $item['opportunity_type'] = trim((string) $record['opportunity_type']);
+            }
+            $opportunities[] = $item;
         }
         return $this->sortRecords($opportunities);
     }

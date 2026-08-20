@@ -57,9 +57,13 @@ function pilot_counts_outside_reserved_prefix(PDO $pdo, array $tables): array
 /** @return list<string> */
 function pilot_evidence_source_ids(TalentHub\Learner\Ai\Domain\RecommendationInput $input): array
 {
-    $ids = array_map(static fn (array $reference): string => (string) $reference['source_id'], $input->evidenceReferences());
+    $references = array_filter(
+        $input->evidenceReferences(),
+        static fn (array $reference): bool => ($reference['source_type'] ?? '') !== 'opportunity'
+    );
+    $ids = array_map(static fn (array $reference): string => (string) $reference['source_id'], $references);
     sort($ids, SORT_STRING);
-    return $ids;
+    return array_values($ids);
 }
 
 function pilot_rule_signature(TalentHub\Learner\Ai\Domain\RecommendationResult $result): string

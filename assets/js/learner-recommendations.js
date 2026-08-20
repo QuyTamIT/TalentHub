@@ -206,6 +206,17 @@
             summary.textContent = text(item.summary, 'Gợi ý được xây dựng từ dữ liệu bạn đã cho phép.');
             article.append(title, summary);
 
+            const action = item.action && typeof item.action === 'object' ? item.action : null;
+            if (action?.type === 'register_activity'
+                && typeof action.activity_source_id === 'string'
+                && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(action.activity_source_id)) {
+                const link = document.createElement('a');
+                link.className = 'learner-btn learner-btn--primary';
+                link.href = `activity-detail.php?id=${encodeURIComponent(action.activity_source_id)}`;
+                link.textContent = 'Xem hoạt động và đăng ký';
+                article.appendChild(link);
+            }
+
             const itemId = text(item.item_id, '');
             const evidence = Array.isArray(item.evidence) ? item.evidence : [];
             if (itemId !== '' && evidence.length > 0) {

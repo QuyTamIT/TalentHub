@@ -29,6 +29,26 @@ final class RecommendationExplainer
         return 'Dựa trên các đánh giá giáo viên đã công bố có điểm thuyết trình cần cải thiện, hãy luyện trình bày theo từng tuần.';
     }
 
+    /** @param array<string,mixed> $assessment @param array{code:string,label:string,score:float,contributing_dimensions:list<string>} $careerGroup */
+    public function careerGroupStrength(array $assessment, array $careerGroup): string
+    {
+        $version = trim((string) ($assessment['assessment_version'] ?? ''));
+        $date = $this->date((string) ($assessment['observed_at'] ?? ''));
+        $label = $careerGroup['label'];
+        $score = round((float) $careerGroup['score'], 1);
+
+        return "Dựa trên kết quả đánh giá Holland phiên bản {$version} ngày {$date}, bạn có thiên hướng nổi bật thuộc nhóm {$label} (điểm {$score}).";
+    }
+
+    /** @param array<string,mixed> $activity @param array{code:string,label:string,score:float,contributing_dimensions:list<string>} $careerGroup */
+    public function careerGroupActivity(array $activity, array $careerGroup): string
+    {
+        $title = trim((string) ($activity['title'] ?? ''));
+        $label = $careerGroup['label'];
+
+        return "Hoạt động {$title} đang mở đăng ký, phù hợp với định hướng phát triển nhóm {$label} của bạn.";
+    }
+
     private function date(string $value): string
     {
         try {

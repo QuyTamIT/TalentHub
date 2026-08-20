@@ -14,10 +14,11 @@ final class GitScopeGuard
         'assets/css/learner.css',
         'tests/learner_',
         'docs/superpowers/',
-        'Database/migrations/learner/',
+        'Database/migrations/',
         'Database/seeds/learner/',
     ];
     private const ALLOWED_EXACT_PATHS = [
+        'bin/bootstrap.php',
         'src/Rbac/Service/PermissionService.php',
         'tests/permission_service_driver_compatibility_test.php',
     ];

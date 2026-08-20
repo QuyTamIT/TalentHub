@@ -18,7 +18,7 @@ declare(strict_types=1);
         return;
     }
     foreach ($lines as $line) {
-        $trim = trim($line);
+        $trim = ltrim(trim($line), "\xEF\xBB\xBF");
         if ($trim === '' || str_starts_with($trim, '#')) {
             continue;
         }

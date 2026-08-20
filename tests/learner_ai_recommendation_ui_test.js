@@ -144,3 +144,10 @@ test('recommendation client renders untrusted response strings with textContent 
   assert.equal(source.includes('.textContent'), true);
   assert.equal(source.includes('dataset.aiReportUnsafe'), true);
 });
+
+test('recommendation client renders a registration link for career activities', () => {
+  const source = fs.readFileSync(modulePath, 'utf8');
+  assert.equal(source.includes("register_activity"), true);
+  assert.equal(source.includes("activity-detail.php?id="), true);
+  assert.equal(source.includes("activity_source_id"), true);
+});

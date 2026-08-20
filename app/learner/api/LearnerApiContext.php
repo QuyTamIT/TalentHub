@@ -14,9 +14,18 @@ use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
 use TalentHub\Http\Request;
+use TalentHub\Learner\Ai\Config\RecommendationConfig;
 use TalentHub\Learner\Ai\Consent\ConsentPolicy;
+use TalentHub\Learner\Ai\Contracts\RecommendationEngine;
+use TalentHub\Learner\Ai\Evaluation\RecommendationEvaluator;
+use TalentHub\Learner\Ai\Evaluation\ShadowRunService;
+use TalentHub\Learner\Ai\Model\ModelRecommendationEngine;
+use TalentHub\Learner\Ai\Model\PromptRegistry;
 use TalentHub\Learner\Ai\Persistence\DatabaseRecommendationRepository;
+use TalentHub\Learner\Ai\Provider\HttpRecommendationProvider;
 use TalentHub\Learner\Ai\Quality\DataQualityGate;
+use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
+use TalentHub\Learner\Ai\Rollout\RecommendationRolloutSelector;
 use TalentHub\Learner\Ai\Rules\RuleRecommendationEngine;
 use TalentHub\Learner\Ai\Service\RecommendationResponseMapper;
 use TalentHub\Learner\Ai\Service\RecommendationService;
@@ -131,6 +140,44 @@ final class LearnerApiContext
         );
         $repository = new DatabaseRecommendationRepository($this->pdo);
 
+        $modelEngine = null;
+        $modelConfig = null;
+        $rolloutSelector = null;
+
+        try {
+            $env = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
+                ? $GLOBALS['__TALENTHUB_TEST_ENV__']
+                : $_ENV;
+            $config = RecommendationConfig::fromEnvironment($env);
+            if ($config->enabled()) {
+                $modelConfig = $config;
+                $rolloutSelector = new RecommendationRolloutSelector();
+                $httpTransport = $GLOBALS['__TALENTHUB_TEST_HTTP__'] ?? null;
+                $provider = new HttpRecommendationProvider(
+                    $config,
+                    is_callable($httpTransport) ? $httpTransport : null,
+                );
+                $fallbackEngine = new RuleRecommendationEngine();
+                $modelEngine = new ModelRecommendationEngine(
+                    $provider,
+                    $fallbackEngine,
+                    new PromptRegistry(),
+                    new RecommendationRateLimiter(
+                        $config->perStudentLimit(),
+                        $config->globalLimit(),
+                        60,
+                        static fn (): int => (new DateTimeImmutable('now', new DateTimeZone('UTC')))->getTimestamp(),
+                    ),
+                    $config,
+                    new RecommendationResultValidator(),
+                );
+            }
+        } catch (\Throwable) {
+            $modelEngine = null;
+            $modelConfig = null;
+            $rolloutSelector = null;
+        }
+
         return new RecommendationService(
             $repository,
             new RuleRecommendationEngine(),
@@ -141,7 +188,49 @@ final class LearnerApiContext
             static fn (string $candidate, array $scopes) => $snapshotBuilder->build($candidate, $scopes),
             static fn ($input) => (new DataQualityGate())->evaluate($input),
             static fn ($input): bool => true,
+            $modelEngine,
+            $modelConfig,
+            $rolloutSelector,
         );
+    }
+
+    public function shadowRunService(?RecommendationEngine $modelEngine = null): ?ShadowRunService
+    {
+        $repository = new DatabaseRecommendationRepository($this->pdo);
+        if ($modelEngine !== null) {
+            return new ShadowRunService($repository, $modelEngine, new RecommendationEvaluator());
+        }
+        try {
+            $env = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
+                ? $GLOBALS['__TALENTHUB_TEST_ENV__']
+                : $_ENV;
+            $config = RecommendationConfig::fromEnvironment($env);
+            if (!$config->enabled() || !$config->shadowEnabled()) {
+                return null;
+            }
+            $httpTransport = $GLOBALS['__TALENTHUB_TEST_HTTP__'] ?? null;
+            $provider = new HttpRecommendationProvider(
+                $config,
+                is_callable($httpTransport) ? $httpTransport : null,
+            );
+            $fallbackEngine = new RuleRecommendationEngine();
+            $engine = new ModelRecommendationEngine(
+                $provider,
+                $fallbackEngine,
+                new PromptRegistry(),
+                new RecommendationRateLimiter(
+                    $config->perStudentLimit(),
+                    $config->globalLimit(),
+                    60,
+                    static fn (): int => (new DateTimeImmutable('now', new DateTimeZone('UTC')))->getTimestamp(),
+                ),
+                $config,
+                new RecommendationResultValidator(),
+            );
+            return new ShadowRunService($repository, $engine, new RecommendationEvaluator());
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /** @return array<string,mixed> */

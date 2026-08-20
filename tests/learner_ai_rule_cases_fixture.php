@@ -9,8 +9,9 @@ use TalentHub\Learner\Ai\Domain\RecommendationInput;
  * @param list<array<string,mixed>> $assessments
  * @param list<array<string,mixed>> $activities
  * @param list<array<string,mixed>> $evaluations
+ * @param list<array<string,mixed>> $opportunities
  */
-function learner_rule_input(array $skills, array $assessments, array $activities, array $evaluations, array $scopes = ['assessment', 'skills', 'activity', 'evaluation']): RecommendationInput
+function learner_rule_input(array $skills, array $assessments, array $activities, array $evaluations, array $scopes = ['assessment', 'skills', 'activity', 'evaluation'], array $opportunities = []): RecommendationInput
 {
     $evidence = [];
     foreach ([
@@ -18,6 +19,7 @@ function learner_rule_input(array $skills, array $assessments, array $activities
         'assessment' => [$assessments, 'submitted_at'],
         'activity_experience' => [$activities, 'confirmed_at'],
         'evaluation' => [$evaluations, 'published_at'],
+        'opportunity' => [$opportunities, 'deadline_at'],
     ] as $sourceType => [$records, $timestampField]) {
         foreach ($records as $record) {
             $sourceId = (string) ($record['_source_id'] ?? '');
@@ -51,7 +53,10 @@ function learner_rule_input(array $skills, array $assessments, array $activities
                 unset($record['_source_id']);
                 return $record;
             }, $evaluations),
-            'opportunities' => [],
+            'opportunities' => array_map(static function (array $record): array {
+                unset($record['_source_id']);
+                return $record;
+            }, $opportunities),
         ],
         [],
         [
@@ -63,15 +68,27 @@ function learner_rule_input(array $skills, array $assessments, array $activities
 }
 
 /** @return array<string,mixed> */
-function learner_rule_holland(string $sourceId = 'assessment-1'): array
+function learner_rule_holland(string $sourceId = 'assessment-1', string $testCode = 'holland', ?array $dimensionScores = null): array
 {
     return [
         '_source_id' => $sourceId,
-        'test_code' => 'holland',
+        'test_code' => $testCode,
         'assessment_version' => '1.0',
         'scoring_version' => 'holland-riasec-1.0',
-        'dimension_scores' => ['R' => 82, 'I' => 78],
+        'dimension_scores' => $dimensionScores ?? ['R' => 82, 'I' => 78, 'A' => 55, 'S' => 45, 'E' => 60, 'C' => 50],
         'submitted_at' => '2026-06-15T09:00:00.000000+00:00',
+    ];
+}
+
+/** @return array<string,mixed> */
+function learner_rule_opportunity(string $sourceId, string $category, string $status = 'published'): array
+{
+    return [
+        '_source_id' => $sourceId,
+        'title' => 'Opportunity ' . $sourceId,
+        'category' => $category,
+        'status' => $status,
+        'deadline_at' => '2026-09-30T17:00:00.000000+00:00',
     ];
 }
 

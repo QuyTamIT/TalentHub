@@ -39,6 +39,7 @@ require_once $learnerAiRoot . '/RateLimit/RecommendationRateLimiter.php';
 require_once $learnerAiRoot . '/Model/PromptRegistry.php';
 require_once $learnerAiRoot . '/Rollout/RecommendationRolloutSelector.php';
 require_once $learnerAiRoot . '/Explanation/RecommendationExplainer.php';
+require_once $learnerAiRoot . '/Rules/CareerGroupClassifier.php';
 require_once $learnerAiRoot . '/Rules/RuleDefinition.php';
 require_once $learnerAiRoot . '/Rules/RuleSetV1.php';
 require_once $learnerAiRoot . '/Rules/RuleRecommendationEngine.php';

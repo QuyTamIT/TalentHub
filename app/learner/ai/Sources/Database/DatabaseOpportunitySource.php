@@ -12,13 +12,24 @@ use Throwable;
 
 final class DatabaseOpportunitySource implements OpportunitySource
 {
-    private const REQUIRED_COLUMNS = [
+    private const REQUIRED_INTERNSHIP_COLUMNS = [
         'student_profiles' => ['id'],
         'internship_posts' => ['id', 'enterpriseId', 'title', 'location', 'deadline', 'status'],
         'enterprises' => ['id', 'status', 'verificationStatus'],
     ];
 
-    private const SQL = <<<'SQL'
+    private const REQUIRED_ACTIVITY_COLUMNS = [
+        'student_profiles' => ['id', 'classId'],
+        'classes' => ['id', 'schoolId'],
+        'schools' => ['id', 'name'],
+        'activities' => ['id', 'schoolId', 'title', 'category', 'startAt', 'capacity', 'status'],
+    ];
+
+    private const REQUIRED_REGISTRATION_COLUMNS = [
+        'activity_registrations' => ['id', 'activityId', 'studentId', 'status'],
+    ];
+
+    private const INTERNSHIP_SQL = <<<'SQL'
 SELECT
     post.id AS opportunity_id,
     enterprise.id AS enterprise_id,
@@ -34,47 +45,152 @@ WHERE EXISTS (SELECT 1 FROM student_profiles student WHERE student.id = :student
 ORDER BY post.deadline ASC, post.id ASC
 SQL;
 
+    private const ACTIVITY_SQL_WITH_REGISTRATIONS = <<<'SQL'
+SELECT
+    activity.id AS opportunity_id,
+    activity.title,
+    activity.category,
+    school.name AS location,
+    COALESCE(activity.endAt, activity.startAt) AS deadline,
+    activity.status
+FROM activities activity
+INNER JOIN schools school ON school.id = activity.schoolId
+INNER JOIN classes class ON class.schoolId = school.id
+INNER JOIN student_profiles student ON student.classId = class.id
+WHERE student.id = :student_id
+  AND activity.status IN ('published', 'ongoing')
+  AND (activity.endAt IS NULL OR activity.endAt >= :current_time)
+  AND (SELECT COUNT(1) FROM activity_registrations reg WHERE reg.activityId = activity.id AND reg.status IN ('pending', 'approved', 'attended')) < activity.capacity
+  AND NOT EXISTS (SELECT 1 FROM activity_registrations reg WHERE reg.activityId = activity.id AND reg.studentId = :reg_student_id AND reg.status IN ('pending', 'approved', 'attended'))
+ORDER BY activity.startAt ASC, activity.id ASC
+SQL;
+
+    private const ACTIVITY_SQL_SIMPLE = <<<'SQL'
+SELECT
+    activity.id AS opportunity_id,
+    activity.title,
+    activity.category,
+    school.name AS location,
+    COALESCE(activity.endAt, activity.startAt) AS deadline,
+    activity.status
+FROM activities activity
+INNER JOIN schools school ON school.id = activity.schoolId
+INNER JOIN classes class ON class.schoolId = school.id
+INNER JOIN student_profiles student ON student.classId = class.id
+WHERE student.id = :student_id
+  AND activity.status IN ('published', 'ongoing')
+  AND (activity.endAt IS NULL OR activity.endAt >= :current_time)
+ORDER BY activity.startAt ASC, activity.id ASC
+SQL;
+
     public function __construct(private readonly PDO $pdo)
     {
     }
 
     public function forStudent(string $studentId): array
     {
-        if (!$this->hasOpportunityContract()) {
+        $studentId = trim($studentId);
+        if ($studentId === '') {
             return [];
         }
 
-        try {
-            $statement = $this->pdo->prepare(self::SQL);
-            if ($statement === false || !$statement->execute(['student_id' => trim($studentId)])) {
-                return [];
-            }
+        $opportunities = [];
 
-            $opportunities = [];
-            foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-                $deadline = self::timestamp($row['deadline'] ?? null);
-                if ($deadline === null) {
-                    continue;
+        // 1. Fetch internship posts if contract available
+        if ($this->hasInternshipContract()) {
+            try {
+                $statement = $this->pdo->prepare(self::INTERNSHIP_SQL);
+                if ($statement !== false && $statement->execute(['student_id' => $studentId])) {
+                    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                        $deadline = self::timestamp($row['deadline'] ?? null);
+                        if ($deadline === null) {
+                            continue;
+                        }
+
+                        $opportunities[] = [
+                            'opportunity_id' => (string) $row['opportunity_id'],
+                            'enterprise_id' => (string) $row['enterprise_id'],
+                            'title' => (string) $row['title'],
+                            'location' => (string) $row['location'],
+                            'deadline_at' => $deadline,
+                            'opportunity_type' => 'internship',
+                            'status' => 'active',
+                        ];
+                    }
                 }
-
-                $opportunities[] = [
-                    'opportunity_id' => (string) $row['opportunity_id'],
-                    'enterprise_id' => (string) $row['enterprise_id'],
-                    'title' => (string) $row['title'],
-                    'location' => (string) $row['location'],
-                    'deadline_at' => $deadline,
-                ];
+            } catch (Throwable) {
+                // Ignore and continue
             }
-
-            return $opportunities;
-        } catch (Throwable) {
-            return [];
         }
+
+        // 2. Fetch school activities if contract available
+        if ($this->hasActivityContract()) {
+            try {
+                $currentTime = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s');
+                $hasReg = $this->hasRegistrationsContract();
+                $sql = $hasReg ? self::ACTIVITY_SQL_WITH_REGISTRATIONS : self::ACTIVITY_SQL_SIMPLE;
+                $params = ['student_id' => $studentId, 'current_time' => $currentTime];
+                if ($hasReg) {
+                    $params['reg_student_id'] = $studentId;
+                }
+                $statement = $this->pdo->prepare($sql);
+                if ($statement !== false && $statement->execute($params)) {
+                    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                        $deadline = self::timestamp($row['deadline'] ?? null);
+                        if ($deadline === null) {
+                            continue;
+                        }
+
+                        $opportunities[] = [
+                            'opportunity_id' => (string) $row['opportunity_id'],
+                            'title' => (string) $row['title'],
+                            'category' => (string) $row['category'],
+                            'location' => (string) ($row['location'] ?? 'Trường học'),
+                            'deadline_at' => $deadline,
+                            'opportunity_type' => 'activity',
+                            'status' => (string) $row['status'],
+                        ];
+                    }
+                }
+            } catch (Throwable) {
+                // Ignore and continue
+            }
+        }
+
+        usort($opportunities, static fn (array $left, array $right): int => [
+            $left['deadline_at'], $left['opportunity_id'],
+        ] <=> [
+            $right['deadline_at'], $right['opportunity_id'],
+        ]);
+
+        return $opportunities;
     }
 
-    private function hasOpportunityContract(): bool
+    private function hasInternshipContract(): bool
     {
-        foreach (self::REQUIRED_COLUMNS as $table => $requiredColumns) {
+        foreach (self::REQUIRED_INTERNSHIP_COLUMNS as $table => $requiredColumns) {
+            if (array_diff($requiredColumns, $this->columnsFor($table)) !== []) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function hasActivityContract(): bool
+    {
+        foreach (self::REQUIRED_ACTIVITY_COLUMNS as $table => $requiredColumns) {
+            if (array_diff($requiredColumns, $this->columnsFor($table)) !== []) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function hasRegistrationsContract(): bool
+    {
+        foreach (self::REQUIRED_REGISTRATION_COLUMNS as $table => $requiredColumns) {
             if (array_diff($requiredColumns, $this->columnsFor($table)) !== []) {
                 return false;
             }
@@ -86,21 +202,15 @@ SQL;
     /** @return list<string> */
     private function columnsFor(string $table): array
     {
+        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $table) !== 1) {
+            return [];
+        }
+
         try {
             $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
             $sql = match ($driver) {
-                'sqlite' => match ($table) {
-                    'student_profiles' => 'PRAGMA table_info(student_profiles)',
-                    'internship_posts' => 'PRAGMA table_info(internship_posts)',
-                    'enterprises' => 'PRAGMA table_info(enterprises)',
-                    default => null,
-                },
-                'mysql' => match ($table) {
-                    'student_profiles' => 'SHOW COLUMNS FROM student_profiles',
-                    'internship_posts' => 'SHOW COLUMNS FROM internship_posts',
-                    'enterprises' => 'SHOW COLUMNS FROM enterprises',
-                    default => null,
-                },
+                'sqlite' => "PRAGMA table_info({$table})",
+                'mysql' => "SHOW COLUMNS FROM `{$table}`",
                 default => null,
             };
             if ($sql === null) {
