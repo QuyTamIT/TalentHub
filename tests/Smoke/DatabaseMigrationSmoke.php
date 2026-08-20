@@ -14,11 +14,11 @@ final class DatabaseMigrationSmoke
         $this->assertSafeTarget($pdo,$database);$results=['connection: OK'];
         foreach(self::TABLES as $table){if($this->tableExists($pdo,$table)){throw new RuntimeException("Fresh test database required; found {$table}.");}}
         $runner->validate();$results[]='validate: OK';
-        if(count($runner->migrate())!==13){throw new RuntimeException('First migrate must apply thirteen migrations.');}$results[]='migrate: OK';
+        if(count($runner->migrate())!==14){throw new RuntimeException('First migrate must apply fourteen migrations.');}$results[]='migrate: OK';
         $seeder=new RolePermissionSeeder();$seeder->run($pdo);$seeder->run($pdo);$this->assertRolePermissionMatrix($pdo,$seeder);$results[]='system seed idempotency + exact role matrix: OK';
         if($runner->migrate()!==[]){throw new RuntimeException('Second migrate must be a no-op.');}$results[]='migrate no-op: OK';
         try{$runner->rollbackLastBatch();throw new RuntimeException('QR session migration rollback must be rejected.');}
-        catch(RuntimeException $exception){if(!str_contains($exception->getMessage(),'Migration is irreversible: 20260818000100')){throw $exception;}}$results[]='irreversible QR migration guard: OK';
+        catch(RuntimeException $exception){if(!str_contains($exception->getMessage(),'Migration is irreversible: 20260820000100')){throw $exception;}}$results[]='irreversible check-in migration guard: OK';
         $this->assertFingerprint($pdo);$this->assertRolePermissionMatrix($pdo,$seeder);$results[]='fingerprint + exact role matrix: OK';return $results;
     }
     private function assertSafeTarget(PDO $pdo,string $database): void
@@ -30,7 +30,7 @@ final class DatabaseMigrationSmoke
     }
     private function tableExists(PDO $pdo,string $table): bool{$s=$pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=:table');$s->execute(['table'=>$table]);return(int)$s->fetchColumn()===1;}
     private function assertFingerprint(PDO $pdo): void
-    {foreach(self::TABLES as $table){if(!$this->tableExists($pdo,$table)){throw new RuntimeException("Missing baseline table {$table}.");}}foreach(['roles'=>4,'permissions'=>99,'role_permissions'=>117] as $table=>$expected){$actual=(int)$pdo->query("SELECT COUNT(*) FROM `{$table}`")->fetchColumn();if($actual!==$expected){throw new RuntimeException("Unexpected {$table} count: {$actual}.");}}}
+    {foreach(self::TABLES as $table){if(!$this->tableExists($pdo,$table)){throw new RuntimeException("Missing baseline table {$table}.");}}foreach(['roles'=>4,'permissions'=>100,'role_permissions'=>118] as $table=>$expected){$actual=(int)$pdo->query("SELECT COUNT(*) FROM `{$table}`")->fetchColumn();if($actual!==$expected){throw new RuntimeException("Unexpected {$table} count: {$actual}.");}}}
 
     private function assertRolePermissionMatrix(PDO $pdo,RolePermissionSeeder $seeder): void
     {

@@ -54,6 +54,7 @@ final class RolePermissionSeeder
             'qr_session.create_managed',
             'qr_session.read_managed',
             'qr_session.revoke_managed',
+            'checkin.read_managed',
             'assessment.read_managed',
             'assessment.update_managed',
         ],
