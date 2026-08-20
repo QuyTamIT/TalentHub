@@ -37,13 +37,14 @@ final class RecommendationConfig
         $apiUrl = self::required($environment, 'TALENTHUB_AI_API_URL');
         $apiKey = self::required($environment, 'TALENTHUB_AI_API_KEY');
         $allowedHosts = array_values(array_unique(array_filter(array_map(
-            static fn (string $host): string => strtolower(trim($host)),
+            static fn (string $host): string => self::normalizeHost($host),
             explode(',', self::required($environment, 'TALENTHUB_AI_ALLOWED_HOSTS')),
         ), static fn (string $host): bool => $host !== '')));
         $parts = parse_url($apiUrl);
-        if (!is_array($parts) || ($parts['scheme'] ?? '') !== 'https' || !isset($parts['host'])
-            || !in_array(strtolower((string) $parts['host']), $allowedHosts, true)) {
-            throw new \InvalidArgumentException('AI provider URL must use an approved HTTPS host.');
+        if (!is_array($parts) || !self::isApprovedApiUrl($parts, $allowedHosts, $environment)) {
+            throw new \InvalidArgumentException(
+                'AI provider URL must use an approved HTTPS host or an approved local loopback endpoint.',
+            );
         }
 
         return new self(
@@ -85,6 +86,36 @@ final class RecommendationConfig
             'model' => $this->model,
             'timeout_seconds' => $this->timeoutSeconds,
         ];
+    }
+
+    /**
+     * @param array<string,mixed> $parts
+     * @param list<string> $allowedHosts
+     * @param array<string,string> $environment
+     */
+    private static function isApprovedApiUrl(array $parts, array $allowedHosts, array $environment): bool
+    {
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = self::normalizeHost((string) ($parts['host'] ?? ''));
+        if ($host === '' || !in_array($host, $allowedHosts, true)) {
+            return false;
+        }
+        if ($scheme === 'https') {
+            return true;
+        }
+
+        $appEnv = strtolower(self::value($environment, 'APP_ENV', 'production'));
+        return $scheme === 'http'
+            && in_array($appEnv, ['local', 'test'], true)
+            && in_array($host, ['localhost', '127.0.0.1', '::1'], true)
+            && ($parts['port'] ?? null) === 20128
+            && !isset($parts['user'])
+            && !isset($parts['pass']);
+    }
+
+    private static function normalizeHost(string $host): string
+    {
+        return strtolower(trim(trim($host), '[]'));
     }
 
     /** @param array<string,string> $environment */

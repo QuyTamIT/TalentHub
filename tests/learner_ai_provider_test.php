@@ -47,6 +47,57 @@ provider_expect(
     'enabled provider rejects incomplete configuration',
 );
 
+$localEnvironment = [
+    'APP_ENV' => 'local',
+    'TALENTHUB_AI_ENABLED' => 'true',
+    'TALENTHUB_AI_PROVIDER' => '9router_gemini',
+    'TALENTHUB_AI_MODEL' => 'ag/gemini-3.7-flash-high',
+    'TALENTHUB_AI_API_URL' => 'http://localhost:20128/v1/chat/completions',
+    'TALENTHUB_AI_ALLOWED_HOSTS' => 'localhost',
+    'TALENTHUB_AI_API_KEY' => 'local-test-key',
+];
+$localConfig = RecommendationConfig::fromEnvironment($localEnvironment);
+provider_assert($localConfig->enabled(), 'local 9Router loopback is accepted');
+
+$testLoopbackConfig = RecommendationConfig::fromEnvironment(array_replace($localEnvironment, [
+    'APP_ENV' => 'test',
+    'TALENTHUB_AI_API_URL' => 'http://127.0.0.1:20128/v1/chat/completions',
+    'TALENTHUB_AI_ALLOWED_HOSTS' => '127.0.0.1',
+]));
+provider_assert($testLoopbackConfig->enabled(), 'test 9Router loopback is accepted');
+
+provider_expect(
+    static fn (): RecommendationConfig => RecommendationConfig::fromEnvironment(array_replace($localEnvironment, [
+        'APP_ENV' => 'production',
+    ])),
+    'production rejects HTTP loopback',
+);
+provider_expect(
+    static fn (): RecommendationConfig => RecommendationConfig::fromEnvironment(array_replace($localEnvironment, [
+        'TALENTHUB_AI_API_URL' => 'http://192.168.1.20:20128/v1/chat/completions',
+        'TALENTHUB_AI_ALLOWED_HOSTS' => '192.168.1.20',
+    ])),
+    'local environment rejects non-loopback HTTP hosts',
+);
+provider_expect(
+    static fn (): RecommendationConfig => RecommendationConfig::fromEnvironment(array_replace($localEnvironment, [
+        'TALENTHUB_AI_API_URL' => 'http://localhost:8080/v1/chat/completions',
+    ])),
+    'local loopback rejects an unapproved port',
+);
+provider_expect(
+    static fn (): RecommendationConfig => RecommendationConfig::fromEnvironment(array_replace($localEnvironment, [
+        'TALENTHUB_AI_API_URL' => 'http://user:pass@localhost:20128/v1/chat/completions',
+    ])),
+    'local loopback rejects URL credentials',
+);
+provider_expect(
+    static fn (): RecommendationConfig => RecommendationConfig::fromEnvironment(array_replace($localEnvironment, [
+        'TALENTHUB_AI_ALLOWED_HOSTS' => '127.0.0.1',
+    ])),
+    'local loopback requires an exact hostname allowlist match',
+);
+
 $config = RecommendationConfig::fromEnvironment([
     'TALENTHUB_AI_ENABLED' => 'true',
     'TALENTHUB_AI_PROVIDER' => 'fake',
