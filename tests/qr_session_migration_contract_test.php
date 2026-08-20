@@ -9,7 +9,7 @@ use TalentHub\Database\Migration\Migration;
 use TalentHub\Database\Seeds\System\RolePermissionSeeder;
 
 $root = dirname(__DIR__);
-$migrationFile = $root . '/Database/migrations/20260818000100_create_activity_qr_sessions.php';
+$migrationFile = $root . '/Database/migrations/20260818000200_create_activity_qr_sessions.php';
 $reconciliationFile = $root . '/Database/migrations/20260820000100_reconcile_checkins_schema.php';
 $migrationSource = file_get_contents($migrationFile);
 $reconciliationSource = file_get_contents($reconciliationFile);

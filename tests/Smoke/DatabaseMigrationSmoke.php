@@ -14,7 +14,7 @@ final class DatabaseMigrationSmoke
         $this->assertSafeTarget($pdo,$database);$results=['connection: OK'];
         foreach(self::TABLES as $table){if($this->tableExists($pdo,$table)){throw new RuntimeException("Fresh test database required; found {$table}.");}}
         $runner->validate();$results[]='validate: OK';
-        if(count($runner->migrate())!==14){throw new RuntimeException('First migrate must apply fourteen migrations.');}$results[]='migrate: OK';
+        if(count($runner->migrate())!==15){throw new RuntimeException('First migrate must apply fifteen migrations.');}$results[]='migrate: OK';
         $seeder=new RolePermissionSeeder();$seeder->run($pdo);$seeder->run($pdo);$this->assertRolePermissionMatrix($pdo,$seeder);$results[]='system seed idempotency + exact role matrix: OK';
         if($runner->migrate()!==[]){throw new RuntimeException('Second migrate must be a no-op.');}$results[]='migrate no-op: OK';
         try{$runner->rollbackLastBatch();throw new RuntimeException('QR session migration rollback must be rejected.');}
@@ -36,6 +36,9 @@ final class DatabaseMigrationSmoke
     {
         $statement=$pdo->query('SELECT r.code AS roleCode,p.code AS permissionCode FROM role_permissions rp JOIN roles r ON r.id=rp.roleId JOIN permissions p ON p.id=rp.permissionId ORDER BY r.code,p.code');
         $actual=[];foreach($statement->fetchAll() as $row){$actual[(string)$row['roleCode']][]=(string)$row['permissionCode'];}
+        ksort($actual);
+        foreach($actual as &$permissions){sort($permissions);}
+        unset($permissions);
         $expected=$seeder->expectedPermissionsByRole();
         if(array_keys($actual)!==array_keys($expected)){throw new RuntimeException('Role codes in permission mappings do not match the canonical matrix.');}
         foreach($expected as $role=>$permissions){if(($actual[$role]??[])!==$permissions){$missing=array_values(array_diff($permissions,$actual[$role]??[]));$extra=array_values(array_diff($actual[$role]??[],$permissions));throw new RuntimeException("Permission mapping mismatch for {$role}; missing=".implode(',',$missing).'; extra='.implode(',',$extra));}}
