@@ -59,6 +59,10 @@ spl_autoload_register(static function(string $class): void {
     if(is_file($path)){require $path;}
 });
 
+if (PHP_SAPI !== 'cli') {
+    \TalentHub\Http\UnhandledExceptionHandler::register();
+}
+
 /**
  * Convert an app-relative path (e.g. "/app/enterprise/index.php" or "login.php") into
  * a robust, base-prefixed URL path (e.g. "/TalentHub/app/enterprise/index.php" when mounted
