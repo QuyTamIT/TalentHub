@@ -71,6 +71,8 @@ return new class extends AbstractMigration {
             return;
         }
 
+        $this->reconcileCheckinColumns($context);
+
         if (!$this->columnExists($context, 'checkins', 'qrSessionId')) {
             $context->execute('ALTER TABLE checkins ADD COLUMN qrSessionId CHAR(36) NULL AFTER registrationId');
         }
@@ -99,6 +101,8 @@ return new class extends AbstractMigration {
             $context->execute('ALTER TABLE checkins ADD CONSTRAINT fk_checkins_qr_session FOREIGN KEY (qrSessionId) REFERENCES activity_qr_sessions(id) ON DELETE RESTRICT ON UPDATE CASCADE');
         }
 
+        $this->reconcileCheckinKeysAndConstraints($context);
+
         if ($this->columnExists($context, 'checkins', 'qrTokenId')) {
             foreach ($this->foreignKeysForColumn($context, 'checkins', 'qrTokenId') as $constraint) {
                 $context->execute('ALTER TABLE checkins DROP FOREIGN KEY `' . str_replace('`', '``', $constraint) . '`');
@@ -117,6 +121,41 @@ return new class extends AbstractMigration {
     public function isReversible(): bool
     {
         return false;
+    }
+
+    private function reconcileCheckinColumns(MigrationContext $context): void
+    {
+        if (!$this->columnExists($context, 'checkins', 'status')) {
+            $context->execute("ALTER TABLE checkins ADD COLUMN status VARCHAR(50) NOT NULL DEFAULT 'pending' AFTER qrSessionId");
+        }
+        if (!$this->columnExists($context, 'checkins', 'checkedInAt')) {
+            $context->execute('ALTER TABLE checkins ADD COLUMN checkedInAt DATETIME(6) NULL AFTER status');
+        }
+        if (!$this->columnExists($context, 'checkins', 'confirmedAt')) {
+            $context->execute('ALTER TABLE checkins ADD COLUMN confirmedAt DATETIME(6) NULL AFTER checkedInAt');
+        }
+        if (!$this->columnExists($context, 'checkins', 'createdAt')) {
+            $context->execute('ALTER TABLE checkins ADD COLUMN createdAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) AFTER confirmedAt');
+        }
+    }
+
+    private function reconcileCheckinKeysAndConstraints(MigrationContext $context): void
+    {
+        if (!$this->indexExists($context, 'checkins', 'uq_checkins_registration')) {
+            $context->execute('ALTER TABLE checkins ADD UNIQUE KEY uq_checkins_registration (registrationId)');
+        }
+        if (!$this->foreignKeyExists($context, 'checkins', 'fk_checkins_registration')) {
+            $context->execute('ALTER TABLE checkins ADD CONSTRAINT fk_checkins_registration FOREIGN KEY (registrationId) REFERENCES activity_registrations(id) ON DELETE RESTRICT ON UPDATE CASCADE');
+        }
+        if (!$this->constraintExists($context, 'checkins', 'chk_checkins_status')) {
+            $context->execute("ALTER TABLE checkins ADD CONSTRAINT chk_checkins_status CHECK (status IN ('pending', 'checked_in', 'confirmed', 'rejected'))");
+        }
+        if (!$this->constraintExists($context, 'checkins', 'chk_checkins_checked_in_at')) {
+            $context->execute("ALTER TABLE checkins ADD CONSTRAINT chk_checkins_checked_in_at CHECK ((status IN ('checked_in', 'confirmed') AND checkedInAt IS NOT NULL) OR (status IN ('pending', 'rejected') AND checkedInAt IS NULL))");
+        }
+        if (!$this->constraintExists($context, 'checkins', 'chk_checkins_confirmed_at')) {
+            $context->execute("ALTER TABLE checkins ADD CONSTRAINT chk_checkins_confirmed_at CHECK ((status = 'confirmed' AND confirmedAt IS NOT NULL) OR (status <> 'confirmed' AND confirmedAt IS NULL))");
+        }
     }
 
     private function backfillLegacyTokens(MigrationContext $context): void
@@ -169,6 +208,13 @@ return new class extends AbstractMigration {
     private function foreignKeyExists(MigrationContext $context, string $table, string $constraint): bool
     {
         $statement = $context->pdo()->prepare("SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_schema=DATABASE() AND table_name=? AND constraint_name=? AND constraint_type='FOREIGN KEY'");
+        $statement->execute([$table, $constraint]);
+        return (int) $statement->fetchColumn() === 1;
+    }
+
+    private function constraintExists(MigrationContext $context, string $table, string $constraint): bool
+    {
+        $statement = $context->pdo()->prepare('SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_schema=DATABASE() AND table_name=? AND constraint_name=?');
         $statement->execute([$table, $constraint]);
         return (int) $statement->fetchColumn() === 1;
     }
