@@ -54,7 +54,7 @@ final class RecommendationConfig
             $apiUrl,
             $apiKey,
             $allowedHosts,
-            self::boundedInt($environment, 'TALENTHUB_AI_TIMEOUT_SECONDS', 2, 1, 10),
+            self::boundedInt($environment, 'TALENTHUB_AI_TIMEOUT_SECONDS', 2, 1, 30),
             self::boundedInt($environment, 'TALENTHUB_AI_MAX_ATTEMPTS', 1, 1, 2),
             self::boundedInt($environment, 'TALENTHUB_AI_PER_STUDENT_LIMIT', 2, 1, 60),
             self::boundedInt($environment, 'TALENTHUB_AI_GLOBAL_LIMIT', 20, 1, 600),

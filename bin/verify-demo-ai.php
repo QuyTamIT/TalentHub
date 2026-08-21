@@ -25,7 +25,7 @@ try {
             STDOUT,
             'hero=' . $hero
             . ' state=' . self_value($result['state'] ?? 'unknown')
-            . ' engine_type=none'
+            . ' engine_type=' . self_value($result['engine_type'] ?? 'none')
             . ' sources=skills:' . (int) ($sources['skills'] ?? 0)
             . ',assessments:' . (int) ($sources['assessments'] ?? 0)
             . ',activities:' . (int) ($sources['activities'] ?? 0)

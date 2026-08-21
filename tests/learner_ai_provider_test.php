@@ -58,6 +58,16 @@ $localEnvironment = [
 ];
 $localConfig = RecommendationConfig::fromEnvironment($localEnvironment);
 provider_assert($localConfig->enabled(), 'local 9Router loopback is accepted');
+$slowLocalConfig = RecommendationConfig::fromEnvironment(array_replace($localEnvironment, [
+    'TALENTHUB_AI_TIMEOUT_SECONDS' => '30',
+]));
+provider_assert($slowLocalConfig->timeoutSeconds() === 30, 'local model inference supports a bounded 30-second timeout');
+provider_expect(
+    static fn (): RecommendationConfig => RecommendationConfig::fromEnvironment(array_replace($localEnvironment, [
+        'TALENTHUB_AI_TIMEOUT_SECONDS' => '31',
+    ])),
+    'provider timeout remains capped above 30 seconds',
+);
 
 $testLoopbackConfig = RecommendationConfig::fromEnvironment(array_replace($localEnvironment, [
     'APP_ENV' => 'test',
@@ -170,6 +180,20 @@ $unsafeEngine = new ModelRecommendationEngine(
     new RecommendationRateLimiter(2, 3, 60, static fn (): int => 1_000), $config, new RecommendationResultValidator(),
 );
 provider_assert($unsafeEngine->generate($input, $context)->engineType() === 'rule', 'unsafe provider output falls back to rules');
+
+$emptyEngine = new ModelRecommendationEngine(
+    new FakeRecommendationProvider(ProviderResponse::success([])),
+    $fallback,
+    $promptRegistry,
+    new RecommendationRateLimiter(2, 3, 60, static fn (): int => 1_000),
+    $config,
+    new RecommendationResultValidator(),
+);
+$emptyResult = $emptyEngine->generate($input, $context);
+provider_assert(
+    $emptyResult->engineType() === 'rule' && $emptyResult->fallbackReason() === 'invalid_model_response',
+    'empty provider output falls back to rules instead of completing an itemless model run',
+);
 
 $httpCalls = [];
 $http = new HttpRecommendationProvider($config, static function (string $url, array $headers, string $body, int $timeout) use (&$httpCalls): array {

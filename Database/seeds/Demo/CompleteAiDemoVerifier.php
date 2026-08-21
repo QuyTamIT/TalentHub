@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
 use TalentHub\Learner\Ai\Consent\ConsentPolicy;
+use TalentHub\Learner\Ai\Persistence\DatabaseRecommendationRepository;
 use TalentHub\Learner\Ai\Quality\DataQualityGate;
 use TalentHub\Learner\Ai\Snapshot\RecommendationSnapshotBuilder;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseActivityExperienceSource;
@@ -127,6 +128,7 @@ SQL) !== 0) {
             new DatabaseOpportunitySource($pdo, $clock),
         );
         $qualityGate = new DataQualityGate($clock);
+        $recommendations = new DatabaseRecommendationRepository($pdo);
         $results = [];
 
         foreach (CompleteAiDemoDataset::heroStudentIds() as $hero => $studentId) {
@@ -148,8 +150,22 @@ SQL) !== 0) {
             if ($quality->state() !== 'ready') {
                 $violations[] = 'hero_' . $hero . '_quality_' . $quality->state();
             }
+            $visibleRun = $recommendations->latestForStudent($studentId);
+            $visibleEngine = 'none';
+            if ($visibleRun !== null) {
+                $visibleEngine = is_string($visibleRun['engineType'] ?? null)
+                    ? $visibleRun['engineType']
+                    : 'unknown';
+                if ($visibleEngine !== 'rule'
+                    || ($visibleRun['status'] ?? null) !== 'completed'
+                    || !is_array($visibleRun['items'] ?? null)
+                    || $visibleRun['items'] === []) {
+                    $violations[] = 'hero_' . $hero . '_visible_recommendation';
+                }
+            }
             $results[$hero] = [
                 'state' => $quality->state(),
+                'engine_type' => $visibleEngine,
                 'consent_scopes' => count($allowedScopes),
                 'source_counts' => $normalizedCounts,
             ];

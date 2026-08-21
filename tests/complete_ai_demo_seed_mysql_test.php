@@ -740,6 +740,7 @@ SQL)->fetchColumn();
         $heroResult = $verification['heroes'][$hero] ?? null;
         demo_mysql_assert(is_array($heroResult), 'verifier returns the ' . $hero . ' hero');
         demo_mysql_assert(($heroResult['state'] ?? null) === 'ready', $hero . ' hero is quality-ready');
+        demo_mysql_assert(($heroResult['engine_type'] ?? null) === 'none', $hero . ' hero has no visible recommendation before the AI runner');
         demo_mysql_assert(($heroResult['consent_scopes'] ?? 0) === 4, $hero . ' hero has four consent scopes');
         demo_mysql_assert(($heroResult['source_counts']['skills'] ?? 0) >= 5, $hero . ' hero has at least five skill sources');
         demo_mysql_assert(($heroResult['source_counts']['assessments'] ?? 0) >= 4, $hero . ' hero has at least four assessment sources');

@@ -225,6 +225,18 @@ test_assert(($sentHeaders['Authorization'] ?? '') === 'Bearer test-shadow-key-ne
 test_assert(($sentHeaders['X-Model-Name'] ?? '') === 'gemini-1.5-flash-test', 'X-Model-Name header passed');
 $decodedBody = json_decode($sentBody, true, 512, JSON_THROW_ON_ERROR);
 test_assert(($decodedBody['model'] ?? '') === 'gemini-1.5-flash-test', 'model specified in JSON payload');
+test_assert(!isset($decodedBody['input']) && !isset($decodedBody['evidence']), '9Router transport does not send custom fields at the top level');
+test_assert(($decodedBody['messages'][0]['role'] ?? null) === 'system', '9Router transport includes a system message');
+test_assert(($decodedBody['messages'][1]['role'] ?? null) === 'user', '9Router transport includes a user message');
+$systemPrompt = (string) ($decodedBody['messages'][0]['content'] ?? '');
+test_assert(str_contains($systemPrompt, '"strength"') && str_contains($systemPrompt, '"roadmap"'), '9Router system message constrains item type enums');
+test_assert(str_contains($systemPrompt, '"register_activity"') && str_contains($systemPrompt, 'integer from 1 to 100'), '9Router system message constrains actions and priority types');
+$transportContent = (string) ($decodedBody['messages'][1]['content'] ?? '');
+$expectedTransportContent = json_encode($request->payload(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+test_assert($transportContent === $expectedTransportContent, '9Router user message preserves the exact serialized provider payload');
+$transportPrompt = json_decode($transportContent, true, 512, JSON_THROW_ON_ERROR);
+test_assert(($transportPrompt['prompt_version'] ?? null) === PromptRegistry::VERSION, '9Router user message preserves the versioned provider payload');
+test_assert(($transportPrompt['evidence'][0]['reference_id'] ?? null) === $firstRefId, '9Router user message preserves opaque evidence references');
 
 $modelEngine = new ModelRecommendationEngine(
     $provider,

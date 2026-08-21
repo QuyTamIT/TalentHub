@@ -22,12 +22,14 @@ require_once $projectRoot . '/app/learner/data/bootstrap.php';
 require_once $projectRoot . '/app/learner/ai/bootstrap.php';
 require_once $projectRoot . '/Database/seeds/Demo/CompleteAiDemoDataset.php';
 require_once $projectRoot . '/Database/seeds/Demo/CompleteAiDemoSeeder.php';
+require_once $projectRoot . '/Database/seeds/Demo/CompleteAiDemoVerifier.php';
 require_once $runnerFile;
 
 use TalentHub\Database\Connection;
 use TalentHub\Database\Seeds\Demo\CompleteAiDemoAiRunner;
 use TalentHub\Database\Seeds\Demo\CompleteAiDemoDataset;
 use TalentHub\Database\Seeds\Demo\CompleteAiDemoSeeder;
+use TalentHub\Database\Seeds\Demo\CompleteAiDemoVerifier;
 use TalentHub\Learner\Ai\Config\RecommendationConfig;
 use TalentHub\Learner\Ai\Model\ModelRecommendationEngine;
 use TalentHub\Learner\Ai\Model\PromptRegistry;
@@ -385,6 +387,37 @@ SQL);
     $shadowEvidence = (int) $pdo->query("SELECT COUNT(*) FROM learner_recommendation_evidence evidence INNER JOIN learner_recommendation_items items ON items.id=evidence.itemId INNER JOIN learner_recommendation_runs runs ON runs.id=items.runId WHERE runs.idempotencyKey LIKE 'shadow-%' AND runs.engineType='model' AND runs.status='completed'")->fetchColumn();
     runner_assert($shadowItems === 2, 'completed shadow runs persist one safe item per hero');
     runner_assert($shadowEvidence === 2, 'completed shadow runs persist evidence for every safe item');
+
+    $verificationAfterRuns = CompleteAiDemoVerifier::verify($pdo, $clock);
+    runner_assert($verificationAfterRuns['ok'] === true, 'verifier accepts completed visible Rule runs');
+    foreach (['high', 'college'] as $hero) {
+        runner_assert(
+            ($verificationAfterRuns['heroes'][$hero]['engine_type'] ?? null) === 'rule',
+            $hero . ' verifier reports the learner-visible Rule run and excludes its Model shadow run',
+        );
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $invalidHeroId = CompleteAiDemoDataset::heroStudentIds()['high'];
+        $invalidateVisibleRun = $pdo->prepare(<<<'SQL'
+UPDATE learner_recommendation_runs
+SET status = 'fallback'
+WHERE studentId = :studentId
+  AND engineType = 'rule'
+  AND idempotencyKey NOT LIKE 'shadow-%'
+SQL);
+        $invalidateVisibleRun->execute(['studentId' => $invalidHeroId]);
+        runner_assert($invalidateVisibleRun->rowCount() === 1, 'negative verifier case changes exactly one visible run');
+        $invalidVisibleVerification = CompleteAiDemoVerifier::verify($pdo, $clock);
+        runner_assert($invalidVisibleVerification['ok'] === false, 'verifier rejects an invalid learner-visible run');
+        runner_assert(
+            in_array('hero_high_visible_recommendation', $invalidVisibleVerification['violations'], true),
+            'verifier reports the redacted visible-recommendation violation code',
+        );
+    } finally {
+        $pdo->rollBack();
+    }
 
     $secondReport = CompleteAiDemoAiRunner::run($pdo, $modelEngine, $heroIds, $clock);
     runner_assert($secondReport === $firstReport, 'completed stable runs are loaded and reported consistently');

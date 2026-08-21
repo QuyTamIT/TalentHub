@@ -27,11 +27,8 @@ final class HttpRecommendationProvider implements RecommendationProvider
         if (!$this->config->enabled() || $this->config->apiUrl() === null || $this->config->apiKey() === null) {
             return ProviderResponse::failure('provider_disabled');
         }
-        $payload = $request->payload();
-        if ($this->config->model() !== null && !isset($payload['model'])) {
-            $payload['model'] = $this->config->model();
-        }
         try {
+            $payload = $this->transportPayload($request);
             $body = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         } catch (JsonException) {
             return ProviderResponse::failure('invalid_request');
@@ -63,6 +60,43 @@ final class HttpRecommendationProvider implements RecommendationProvider
             return ProviderResponse::failure($status >= 500 ? 'provider_unavailable' : 'provider_rejected');
         }
         return ProviderResponse::failure('provider_unavailable');
+    }
+
+    /** @return array<string,mixed> */
+    private function transportPayload(ProviderRequest $request): array
+    {
+        $payload = $request->payload();
+        if (str_starts_with(strtolower((string) $this->config->provider()), '9router')) {
+            $payload = [
+                'messages' => [
+                    [
+                        'role' => 'system',
+                        'content' => implode(' ', [
+                            'Return one JSON object only: {"items":[...]}. Do not use Markdown.',
+                            'Every item must contain exactly item_type, title, summary, priority, confidence_band, action, and evidence_ref_ids.',
+                            'item_type must be one of "strength", "improvement", "development", "activity", or "roadmap".',
+                            'priority must be a JSON integer from 1 to 100. confidence_band must be "low", "medium", or "high".',
+                            'action must be exactly one supported object: {"type":"develop_skill","skill_code":"..."}; {"type":"continue_technical_activity","activity_source_id":"..."}; {"type":"practice_presentation","weeks":4}; {"type":"explore_career_group","career_group":"arts"}; or {"type":"register_activity","career_group":"arts","activity_source_id":"UUID"}.',
+                            'career_group must be one of "technical", "business", "arts", or "sports_academic". Do not add unsupported action keys.',
+                            'evidence_ref_ids must be a non-empty JSON array containing only supplied evidence reference IDs.',
+                            'title and summary must be non-empty and must not promise admissions, employment, or guaranteed outcomes.',
+                        ]),
+                    ],
+                    [
+                        'role' => 'user',
+                        'content' => json_encode(
+                            $payload,
+                            JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+                        ),
+                    ],
+                ],
+            ];
+        }
+        if ($this->config->model() !== null && !isset($payload['model'])) {
+            $payload['model'] = $this->config->model();
+        }
+
+        return $payload;
     }
 
     private function success(mixed $body): ProviderResponse

@@ -17,6 +17,9 @@ final class RecommendationResultValidator
     public function validate(RecommendationResult $result): void
     {
         $items = $result->items();
+        if ($items === []) {
+            throw new \RuntimeException('Recommendation result must contain at least one item.');
+        }
         if (count($items) > self::MAX_ITEMS) {
             throw new \RuntimeException('Recommendation result has too many items.');
         }
