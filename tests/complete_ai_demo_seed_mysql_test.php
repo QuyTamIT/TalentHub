@@ -98,12 +98,100 @@ function demo_owned_count(PDO $pdo, string $table): int
     return (int) $pdo->query("SELECT COUNT(*) FROM `" . str_replace('`', '``', $table) . "` WHERE id LIKE '21000000-%' OR id LIKE '22000000-%'")->fetchColumn();
 }
 
+/** @return list<string> */
+function demo_expected_thpt_student_ids(): array
+{
+    $ids = array_column(
+        array_filter(CompleteAiDemoDataset::learners(), static fn (array $learner): bool => $learner['band'] === 'high'),
+        'student_id',
+    );
+    sort($ids, SORT_STRING);
+    return $ids;
+}
+
+/** @return list<string> */
+function demo_expected_thpt_teacher_ids(): array
+{
+    return [
+        '20000000-0000-4000-8000-000000000050',
+        '20000000-0000-4000-8000-000000000051',
+        '20000000-0000-4000-8000-000000000052',
+        '20000000-0000-4000-8000-000000000053',
+        '20000000-0000-4000-8000-000000000054',
+        '20000000-0000-4000-8000-000000000055',
+    ];
+}
+
+/** @param list<string> $expectedIds */
+function demo_assert_exact_thpt_ids(PDO $pdo, string $table, array $expectedIds, string $label): void
+{
+    $statement = $pdo->query("SELECT id FROM `" . str_replace('`', '``', $table) . "` WHERE id LIKE '20000000-%' ORDER BY id");
+    $actualIds = array_map('strval', $statement->fetchAll(PDO::FETCH_COLUMN));
+    demo_mysql_assert($actualIds === $expectedIds, $label . ' IDs exactly match their source fixture');
+}
+
+function demo_expect_fixture_preflight_failure(PDO $pdo, CompleteAiDemoSeeder $seeder, string $password, DateTimeImmutable $clock, string $expectedMessage): void
+{
+    try {
+        $seeder->run($pdo, 'test', $password, $clock);
+        throw new RuntimeException('Expected exact THPT fixture preflight failure.');
+    } catch (RuntimeException $exception) {
+        demo_mysql_assert(str_contains($exception->getMessage(), $expectedMessage), 'exact THPT fixture preflight failure is raised');
+    }
+    demo_mysql_assert(!$pdo->inTransaction(), 'THPT fixture preflight fails before the seed transaction remains open');
+}
+
+function demo_assert_assessment_plan(PDO $pdo): void
+{
+    foreach (CompleteAiDemoDataset::assessmentPlan() as $studentId => $expectedCodes) {
+        sort($expectedCodes, SORT_STRING);
+        $attempts = $pdo->prepare(<<<'SQL'
+SELECT attempts.id, tests.code
+FROM test_attempts attempts
+JOIN talent_tests tests ON tests.id = attempts.testId
+WHERE attempts.studentId = :studentId AND attempts.status = 'submitted'
+ORDER BY tests.code
+SQL);
+        $attempts->execute(['studentId' => $studentId]);
+        $rows = $attempts->fetchAll(PDO::FETCH_ASSOC);
+        $actualCodes = array_map(static fn (array $row): string => (string) $row['code'], $rows);
+        demo_mysql_assert($actualCodes === $expectedCodes, 'learner submitted attempts exactly match assessment plan: ' . $studentId);
+
+        foreach ($rows as $row) {
+            $attemptId = (string) $row['id'];
+            $metadata = $pdo->prepare('SELECT versionId, status FROM learner_assessment_attempt_metadata WHERE attemptId=:attemptId');
+            $metadata->execute(['attemptId' => $attemptId]);
+            $metadataRows = $metadata->fetchAll(PDO::FETCH_ASSOC);
+            demo_mysql_assert(count($metadataRows) === 1, 'submitted attempt has exactly one metadata row: ' . $attemptId);
+            demo_mysql_assert((string) $metadataRows[0]['status'] === 'submitted', 'attempt metadata is submitted: ' . $attemptId);
+
+            $results = $pdo->prepare('SELECT COUNT(*) FROM test_results WHERE attemptId=:attemptId');
+            $results->execute(['attemptId' => $attemptId]);
+            demo_mysql_assert((int) $results->fetchColumn() === 1, 'submitted attempt has exactly one result: ' . $attemptId);
+
+            $publishedRequired = $pdo->prepare(<<<'SQL'
+SELECT COUNT(*)
+FROM learner_assessment_question_versions questions
+JOIN learner_assessment_versions versions ON versions.id = questions.versionId
+WHERE questions.versionId = :versionId AND questions.required = 1 AND versions.status = 'published'
+SQL);
+            $publishedRequired->execute(['versionId' => $metadataRows[0]['versionId']]);
+            $answers = $pdo->prepare('SELECT COUNT(*) FROM learner_assessment_answers WHERE attemptId=:attemptId');
+            $answers->execute(['attemptId' => $attemptId]);
+            demo_mysql_assert(
+                (int) $answers->fetchColumn() === (int) $publishedRequired->fetchColumn(),
+                'submitted attempt answer count matches published required questions: ' . $attemptId,
+            );
+        }
+    }
+}
+
 $schema = (string) getenv('COMPLETE_AI_DEMO_TEST_SCHEMA');
 demo_mysql_assert($schema !== '' && preg_match('/^talenthub_complete_demo_test_[a-z0-9_]+$/', $schema) === 1, 'COMPLETE_AI_DEMO_TEST_SCHEMA must match ^talenthub_complete_demo_test_[a-z0-9_]+$');
 demo_mysql_assert($schema !== 'talenthub_local', 'Refusing to run disposable test on talenthub_local');
 $collisionCase = (string) (getenv('COMPLETE_AI_DEMO_COLLISION_CASE') ?: '');
 demo_mysql_assert(
-    in_array($collisionCase, ['', 'shared_skill', 'user_email', 'student_skills', 'assessment_answers', 'assessment_criteria', 'duplicate_role'], true),
+    in_array($collisionCase, ['', 'shared_skill', 'user_email', 'student_skills', 'assessment_answers', 'assessment_criteria', 'duplicate_role', 'fixture_student', 'fixture_teacher', 'fixture_school'], true),
     'COMPLETE_AI_DEMO_COLLISION_CASE is unsupported',
 );
 
@@ -146,6 +234,8 @@ $config = [
 ];
 $pdo = null;
 $adminPdo = null;
+$primaryFailure = null;
+$cleanupFailure = null;
 try {
     $adminPdo = new PDO(
         sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $adminHost, (int) $adminPort),
@@ -217,7 +307,22 @@ try {
     $seeder = new CompleteAiDemoSeeder();
     $clock = new DateTimeImmutable('2026-08-20 00:00:00.000000', new DateTimeZone('UTC'));
 
-    if ($collisionCase === 'shared_skill') {
+    if (in_array($collisionCase, ['fixture_student', 'fixture_teacher', 'fixture_school'], true)) {
+        $fixture = match ($collisionCase) {
+            'fixture_student' => ['student_profiles', '20000000-0000-4000-8000-000000000060', '30000000-0000-4000-8000-000000000201', 'THPT student profile fixture IDs'],
+            'fixture_teacher' => ['teacher_profiles', '20000000-0000-4000-8000-000000000050', '30000000-0000-4000-8000-000000000202', 'THPT teacher profile fixture IDs'],
+            'fixture_school' => ['schools', '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000203', 'THPT school fixture ID'],
+        };
+        $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
+        try {
+            $statement = $pdo->prepare('UPDATE `' . $fixture[0] . '` SET id=:replacementId WHERE id=:expectedId');
+            $statement->execute(['replacementId' => $fixture[2], 'expectedId' => $fixture[1]]);
+        } finally {
+            $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
+        }
+        demo_expect_fixture_preflight_failure($pdo, $seeder, $password, $clock, $fixture[3]);
+        echo "complete_ai_demo_seed_mysql_test: {$collisionCase} OK\n";
+    } elseif ($collisionCase === 'shared_skill') {
         $foreignId = '30000000-0000-4000-8000-000000000100';
         $statement = $pdo->prepare('INSERT INTO skills (id, code, name, category, status, createdAt, updatedAt) VALUES (:id, :code, :name, :category, :status, :createdAt, :updatedAt)');
         $statement->execute([
@@ -308,6 +413,9 @@ try {
             demo_mysql_assert($firstCounts === $secondCounts, 'second seed has zero count drift');
             demo_mysql_assert(demo_outside_namespace_snapshots($pdo, $seeder->touchedTables()) === $baselineOutside, 'unrelated row content is unchanged');
     demo_mysql_assert((int) $pdo->query("SELECT COUNT(*) FROM schools WHERE id LIKE '22000000-%' AND name='Đại học FPT'")->fetchColumn() === 1, 'FPT school exists');
+    demo_assert_exact_thpt_ids($pdo, 'schools', ['20000000-0000-4000-8000-000000000001'], 'THPT school fixture');
+    demo_assert_exact_thpt_ids($pdo, 'teacher_profiles', demo_expected_thpt_teacher_ids(), 'THPT teacher profile fixture');
+    demo_assert_exact_thpt_ids($pdo, 'student_profiles', demo_expected_thpt_student_ids(), 'THPT student profile fixture');
     demo_mysql_assert(
         $pdo->query("SELECT website FROM schools WHERE id LIKE '22000000-%' AND name='Đại học FPT'")->fetchColumn() === 'https://fpt.demo.talenthub.local',
         'FPT website is explicitly synthetic',
@@ -332,6 +440,24 @@ JOIN classes c ON c.id = sp.classId
 WHERE c.schoolId = '20000000-0000-4000-8000-000000000001'
   AND evidence.id NOT LIKE '21000000-%'
 SQL)->fetchColumn() === 0, 'THPT skill evidence uses the 21000000 namespace');
+    $invalidEvidence = (int) $pdo->query(<<<'SQL'
+SELECT COUNT(*)
+FROM (
+    SELECT student_skill.id
+    FROM student_skills student_skill
+    LEFT JOIN learner_skill_evidence evidence ON evidence.studentSkillId = student_skill.id
+    WHERE student_skill.id LIKE '21000000-%' OR student_skill.id LIKE '22000000-%'
+    GROUP BY student_skill.id
+    HAVING COUNT(evidence.id) <> 1
+        OR SUM(
+            evidence.evidenceType = 'teacher_observation'
+            AND evidence.evidenceRef = CONCAT('demo://verified/', student_skill.id)
+            AND evidence.verificationStatus = 'verified'
+            AND evidence.observedAt IS NOT NULL
+        ) <> 1
+) AS invalid_evidence
+SQL)->fetchColumn();
+    demo_mysql_assert($invalidEvidence === 0, 'every seeded student skill has exactly one verified teacher-observation evidence row');
 
     // Assessment band checks
     $wrongBands = (int) $pdo->query(<<<'SQL'
@@ -345,39 +471,7 @@ WHERE (c.schoolId='20000000-0000-4000-8000-000000000001' AND t.code NOT LIKE '%\
 SQL)->fetchColumn();
     demo_mysql_assert($wrongBands === 0, 'assessment bands never cross');
 
-    foreach (CompleteAiDemoDataset::heroStudentIds() as $studentId) {
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM test_attempts WHERE studentId=? AND status='submitted'");
-        $stmt->execute([$studentId]);
-        demo_mysql_assert((int) $stmt->fetchColumn() === 4, 'hero has four submitted attempts: ' . $studentId);
-    }
-
-    $submittedPerLearner = (int) $pdo->query(<<<'SQL'
-SELECT COUNT(*)
-FROM (
-    SELECT studentId
-    FROM test_attempts
-    WHERE status = 'submitted'
-    GROUP BY studentId
-    HAVING COUNT(*) < 2
-) AS incomplete_learners
-SQL)->fetchColumn();
-    demo_mysql_assert($submittedPerLearner === 0, 'every learner has at least two submitted attempts');
-
-    $answerCountMismatch = (int) $pdo->query(<<<'SQL'
-SELECT COUNT(*)
-FROM (
-    SELECT attempts.id
-    FROM test_attempts AS attempts
-    JOIN learner_assessment_attempt_metadata AS metadata ON metadata.attemptId = attempts.id
-    JOIN learner_assessment_question_versions AS questions ON questions.versionId = metadata.versionId
-    LEFT JOIN learner_assessment_answers AS answers
-      ON answers.attemptId = attempts.id AND answers.questionId = questions.questionId
-    WHERE attempts.status = 'submitted'
-    GROUP BY attempts.id
-    HAVING COUNT(answers.id) <> SUM(questions.required)
-) AS invalid_answers
-SQL)->fetchColumn();
-    demo_mysql_assert($answerCountMismatch === 0, 'submitted attempts answer every required published question');
+    demo_assert_assessment_plan($pdo);
 
     $inputHashes = $pdo->query('SELECT inputHash FROM learner_assessment_attempt_metadata WHERE status = \'submitted\'')->fetchAll(PDO::FETCH_COLUMN);
     foreach ($inputHashes as $inputHash) {
@@ -464,15 +558,38 @@ SQL)->fetchColumn();
     echo "complete_ai_demo_seed_mysql_test: OK\n";
         }
     }
+} catch (Throwable $exception) {
+    $primaryFailure = $exception;
 } finally {
-    if ($adminPdo instanceof PDO) {
-        try {
-            $adminPdo->exec('DROP DATABASE IF EXISTS `' . str_replace('`', '``', $schema) . '`');
-            demo_assert_schema_dropped($adminPdo, $schema);
-            echo "complete_ai_demo_seed_mysql_test: schema dropped {$schema}\n";
-        } catch (Throwable) {
-        }
+    try {
+        $cleanupPdo = $adminPdo instanceof PDO
+            ? $adminPdo
+            : new PDO(
+                sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $adminHost, (int) $adminPort),
+                $adminUsername,
+                $adminPassword,
+                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION],
+            );
+        $cleanupPdo->exec('DROP DATABASE IF EXISTS `' . str_replace('`', '``', $schema) . '`');
+        demo_assert_schema_dropped($cleanupPdo, $schema);
+        echo "complete_ai_demo_seed_mysql_test: schema dropped {$schema}\n";
+    } catch (Throwable $exception) {
+        $cleanupFailure = $exception;
     }
     putenv('COMPLETE_AI_DEMO_TEST_SCHEMA');
     unset($_ENV['COMPLETE_AI_DEMO_TEST_SCHEMA']);
+}
+
+if ($primaryFailure instanceof Throwable) {
+    if ($cleanupFailure instanceof Throwable) {
+        throw new RuntimeException(
+            'Primary test failure: ' . $primaryFailure->getMessage() . '; cleanup failure: ' . $cleanupFailure->getMessage(),
+            0,
+            $primaryFailure,
+        );
+    }
+    throw $primaryFailure;
+}
+if ($cleanupFailure instanceof Throwable) {
+    throw $cleanupFailure;
 }

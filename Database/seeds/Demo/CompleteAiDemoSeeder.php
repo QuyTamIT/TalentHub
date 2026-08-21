@@ -49,6 +49,18 @@ final class CompleteAiDemoSeeder
         'schools' => [['name']],
     ];
 
+    private const THPT_SCHOOL_ID = '20000000-0000-4000-8000-000000000001';
+
+    /** @var list<string> */
+    private const THPT_TEACHER_PROFILE_IDS = [
+        '20000000-0000-4000-8000-000000000050',
+        '20000000-0000-4000-8000-000000000051',
+        '20000000-0000-4000-8000-000000000052',
+        '20000000-0000-4000-8000-000000000053',
+        '20000000-0000-4000-8000-000000000054',
+        '20000000-0000-4000-8000-000000000055',
+    ];
+
     /** @return list<string> */
     public function touchedTables(): array
     {
@@ -125,22 +137,13 @@ final class CompleteAiDemoSeeder
 
     private function assertParentsAndCatalog(PDO $pdo): void
     {
-        // THPT school
-        $stmt = $pdo->prepare('SELECT id FROM schools WHERE id = :id');
-        $stmt->execute(['id' => '20000000-0000-4000-8000-000000000001']);
-        if ($stmt->fetchColumn() === false) {
-            throw new RuntimeException('Missing THPT parent school 20000000-0000-4000-8000-000000000001.');
-        }
-        // 6 teacher profiles
-        $count = (int) $pdo->query("SELECT COUNT(*) FROM teacher_profiles WHERE id LIKE '20000000-%'")->fetchColumn();
-        if ($count !== 6) {
-            throw new RuntimeException('Expected 6 THPT teacher profiles, got ' . $count . '.');
-        }
-        // 11 student profiles
-        $count = (int) $pdo->query("SELECT COUNT(*) FROM student_profiles WHERE id LIKE '20000000-%'")->fetchColumn();
-        if ($count !== 11) {
-            throw new RuntimeException('Expected 11 THPT student profiles, got ' . $count . '.');
-        }
+        $this->assertExactFixtureIds($pdo, 'schools', [self::THPT_SCHOOL_ID], 'THPT school fixture ID');
+        $this->assertExactFixtureIds($pdo, 'teacher_profiles', self::THPT_TEACHER_PROFILE_IDS, 'THPT teacher profile fixture IDs');
+        $studentIds = array_column(
+            array_filter(CompleteAiDemoDataset::learners(), static fn (array $learner): bool => $learner['band'] === 'high'),
+            'student_id',
+        );
+        $this->assertExactFixtureIds($pdo, 'student_profiles', $studentIds, 'THPT student profile fixture IDs');
         // Roles
         foreach (['school', 'teacher', 'student'] as $code) {
             $stmt = $pdo->prepare('SELECT COUNT(*) FROM roles WHERE code = :code');
@@ -158,6 +161,17 @@ final class CompleteAiDemoSeeder
             if ($cnt !== 1) {
                 throw new RuntimeException('Catalog ' . $code . ' must have exactly one published version, got ' . $cnt . '.');
             }
+        }
+    }
+
+    /** @param list<string> $expectedIds */
+    private function assertExactFixtureIds(PDO $pdo, string $table, array $expectedIds, string $label): void
+    {
+        sort($expectedIds, SORT_STRING);
+        $statement = $pdo->query('SELECT id FROM `' . str_replace('`', '``', $table) . "` WHERE id LIKE '20000000-%' ORDER BY id");
+        $actualIds = array_map('strval', $statement->fetchAll(PDO::FETCH_COLUMN));
+        if ($actualIds !== $expectedIds) {
+            throw new RuntimeException($label . ' do not exactly match the required SchoolDemoSeeder/CompleteAiDemoDataset IDs.');
         }
     }
 
