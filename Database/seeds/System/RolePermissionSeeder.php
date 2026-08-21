@@ -18,6 +18,7 @@ final class RolePermissionSeeder
         'teacher' => ['name' => 'Teacher', 'description' => 'Giáo viên hoặc huấn luyện viên'],
         'school' => ['name' => 'School', 'description' => 'Nhân sự quản trị nhà trường'],
         'enterprise' => ['name' => 'Enterprise', 'description' => 'Nhân sự doanh nghiệp'],
+        'platform_admin' => ['name' => 'Platform Admin', 'description' => 'TalentHub platform administrator'],
     ];
 
     private const COMMON_PERMISSIONS = [
@@ -84,6 +85,14 @@ final class RolePermissionSeeder
             'internship_application.read_cv_own_business', 'project.read_sponsorable',
             'sponsorship.create_own_business', 'sponsorship.read_own_business',
             'sponsorship.update_own_business', 'sponsorship.cancel_own_business',
+            'payment.create_own_business', 'payment.read_own_business',
+        ],
+        'platform_admin' => [
+            'admin.dashboard.read', 'admin.user.read', 'admin.user.create', 'admin.user.update', 'admin.user.delete', 'admin.user.suspend', 'admin.user.restore',
+            'admin.organization.read', 'admin.organization.verify', 'admin.organization.suspend',
+            'admin.rbac.read', 'admin.rbac.update', 'admin.audit.read', 'admin.audit.export',
+            'admin.incident.manage', 'admin.payment.read', 'admin.payment.reconcile',
+            'admin.system.health.read',
         ],
     ];
 
