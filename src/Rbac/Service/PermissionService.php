@@ -18,12 +18,13 @@ final class PermissionService
                 'teacher'=>str_starts_with($permission,'teacher_'),
                 'school'=>str_starts_with($permission,'school_')||str_starts_with($permission,'class.')||str_ends_with($permission,'_own_school'),
                 'student'=>str_starts_with($permission,'student_'),
+                'platform_admin'=>str_starts_with($permission,'admin.'),
                 default=>false,
             };
             if(!$allowed){throw new ApiException(403,'PERMISSION_DENIED','Bạn không có quyền thực hiện thao tác này.');}
             return;
         }
-        $s=$this->pdo->prepare("SELECT COUNT(*) FROM users u JOIN role_permissions rp ON rp.roleId=u.roleId JOIN permissions p ON p.id=rp.permissionId JOIN roles r ON r.id=u.roleId WHERE u.id=? AND u.status='active' AND r.code IN ('student','teacher','school','enterprise','business') AND p.code=?");$s->execute([$userId,$permission]);
+        $s=$this->pdo->prepare("SELECT COUNT(*) FROM users u JOIN role_permissions rp ON rp.roleId=u.roleId JOIN permissions p ON p.id=rp.permissionId JOIN roles r ON r.id=u.roleId WHERE u.id=? AND u.status='active' AND r.code IN ('student','teacher','school','enterprise','business','platform_admin') AND p.code=?");$s->execute([$userId,$permission]);
         if((int)$s->fetchColumn()!==1){throw new ApiException(403,'PERMISSION_DENIED','Bạn không có quyền thực hiện thao tác này.');}
     }
 

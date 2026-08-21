@@ -75,6 +75,7 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
                 <button class="auth-submit" type="submit" data-submit><span>Đăng nhập</span><span aria-hidden="true">→</span></button>
             </form>
             <p class="auth-switch">Chưa có tài khoản học viên? <a href="./register.php">Đăng ký ngay</a></p>
+            <p class="auth-switch">Là đại diện tổ chức? <a href="./register-organization.php">Đăng ký xác minh nhà trường/doanh nghiệp</a></p>
             <a class="auth-back" href="./index.php">← Về trang chủ</a>
         </div>
     </section>

@@ -9,11 +9,12 @@ final class RoleCodes
     public const TEACHER = 'teacher';
     public const SCHOOL = 'school';
     public const ENTERPRISE = 'enterprise';
+    public const PLATFORM_ADMIN = 'platform_admin';
 
     /** @return list<string> */
     public static function all(): array
     {
-        return [self::STUDENT, self::TEACHER, self::SCHOOL, self::ENTERPRISE];
+        return [self::STUDENT, self::TEACHER, self::SCHOOL, self::ENTERPRISE, self::PLATFORM_ADMIN];
     }
 
     public static function canonical(string $role): string

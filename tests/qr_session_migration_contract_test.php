@@ -55,6 +55,6 @@ foreach ([
 }
 
 $counts = (new RolePermissionSeeder())->expectedCounts();
-$assert($counts === ['roles' => 4, 'permissions' => 100, 'mappings' => 118], 'Canonical RBAC counts changed unexpectedly: ' . json_encode($counts));
+$assert($counts === ['roles' => 5, 'permissions' => 120, 'mappings' => 144], 'Canonical RBAC counts changed unexpectedly: ' . json_encode($counts));
 
 echo "qr_session_migration_contract_test: OK\n";
