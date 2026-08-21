@@ -32,10 +32,13 @@ final class CompleteAiDemoVerifier
     ];
 
     /** @return array{ok:bool,counts:array<string,int>,violations:list<string>,heroes:array<string,array<string,mixed>>} */
-    public static function verify(PDO $pdo): array
+    public static function verify(PDO $pdo, ?DateTimeImmutable $clock = null): array
     {
+        $clock = ($clock ?? new DateTimeImmutable('now', new DateTimeZone('UTC')))
+            ->setTimezone(new DateTimeZone('UTC'));
         $counts = self::counts($pdo);
         $violations = [];
+        $consentPolicy = new ConsentPolicy(new DatabaseConsentSource($pdo));
 
         foreach ([
             'organizations' => 2,
@@ -53,7 +56,7 @@ final class CompleteAiDemoVerifier
             }
         }
 
-        if (self::invalidConsentScopes($pdo) !== 0) {
+        if (self::invalidConsentScopes($consentPolicy) !== 0) {
             $violations[] = 'consent_scope_closure';
         }
         if (self::scalar($pdo, <<<'SQL'
@@ -74,14 +77,14 @@ SQL) !== 0) {
         if (self::invalidJourneyClosure($pdo) !== 0) {
             $violations[] = 'journey_closure';
         }
-        if (self::invalidQrSessions($pdo) !== 0) {
+        if (self::invalidQrHashes($pdo) !== 0) {
             $violations[] = 'qr_hash_closure';
         }
-        if (self::rawQrTokenColumns($pdo) !== 0) {
-            $violations[] = 'qr_raw_token_column';
+        if (self::hasRawQrTokenStorage($pdo)) {
+            $violations[] = 'qr_raw_token_storage';
         }
 
-        $heroes = self::heroes($pdo, $violations);
+        $heroes = self::heroes($pdo, $clock, $consentPolicy, $violations);
         $violations = array_values(array_unique($violations));
         sort($violations, SORT_STRING);
 
@@ -113,10 +116,8 @@ SQL) !== 0) {
     }
 
     /** @param list<string> $violations @return array<string,array<string,mixed>> */
-    private static function heroes(PDO $pdo, array &$violations): array
+    private static function heroes(PDO $pdo, DateTimeImmutable $clock, ConsentPolicy $consent, array &$violations): array
     {
-        $clock = new DateTimeImmutable('2026-08-20 23:59:59.999999', new DateTimeZone('UTC'));
-        $consent = new ConsentPolicy(new DatabaseConsentSource($pdo));
         $snapshot = new RecommendationSnapshotBuilder(
             new DatabaseStudentProfileSource($pdo),
             new DatabaseSkillSource($pdo),
@@ -157,19 +158,12 @@ SQL) !== 0) {
         return $results;
     }
 
-    private static function invalidConsentScopes(PDO $pdo): int
+    private static function invalidConsentScopes(ConsentPolicy $consent): int
     {
-        $statement = $pdo->prepare(<<<'SQL'
-SELECT COUNT(*), COUNT(DISTINCT scope)
-FROM learner_ai_consent_events
-WHERE studentId = :studentId AND action = 'granted'
-  AND scope IN ('assessment', 'skills', 'activity', 'evaluation')
-SQL);
+        $expectedScopes = ['activity', 'assessment', 'evaluation', 'skills'];
         $invalid = 0;
         foreach (CompleteAiDemoDataset::learners() as $learner) {
-            $statement->execute(['studentId' => $learner['student_id']]);
-            $row = $statement->fetch(PDO::FETCH_NUM);
-            if (!is_array($row) || (int) $row[0] !== 4 || (int) $row[1] !== 4) {
+            if ($consent->allowedScopes($learner['student_id']) !== $expectedScopes) {
                 $invalid++;
             }
         }
@@ -235,44 +229,107 @@ FROM (
 ) AS invalid_attended
 SQL) + self::scalar($pdo, <<<'SQL'
 SELECT COUNT(*)
-FROM activity_registrations registration
-LEFT JOIN checkins checkin_record ON checkin_record.registrationId = registration.id
-LEFT JOIN experience_logs experience ON experience.checkinId = checkin_record.id
-LEFT JOIN assessments evaluation ON evaluation.studentId = registration.studentId AND evaluation.activityId = registration.activityId
-WHERE (registration.id LIKE '21000000-%' OR registration.id LIKE '22000000-%')
-  AND registration.status = 'cancelled'
-  AND (checkin_record.id IS NOT NULL OR experience.id IS NOT NULL OR evaluation.id IS NOT NULL)
-SQL);
-    }
-
-    private static function invalidQrSessions(PDO $pdo): int
-    {
-        return self::scalar($pdo, <<<'SQL'
-SELECT COUNT(*)
-FROM activity_qr_sessions
-WHERE (id LIKE '21000000-%' OR id LIKE '22000000-%')
-  AND (tokenHash NOT REGEXP '^[a-f0-9]{64}$')
+FROM checkins checkin_record
+LEFT JOIN activity_registrations registration ON registration.id = checkin_record.registrationId
+  AND registration.status = 'attended'
+WHERE (checkin_record.id LIKE '21000000-%' OR checkin_record.id LIKE '22000000-%')
+  AND checkin_record.status = 'confirmed'
+  AND registration.id IS NULL
 SQL) + self::scalar($pdo, <<<'SQL'
 SELECT COUNT(*)
-FROM (
-    SELECT tokenHash
-    FROM activity_qr_sessions
-    WHERE id LIKE '21000000-%' OR id LIKE '22000000-%'
-    GROUP BY tokenHash
-    HAVING COUNT(*) <> 1
-) AS duplicate_hashes
+FROM experience_logs experience
+LEFT JOIN checkins checkin_record ON checkin_record.id = experience.checkinId
+LEFT JOIN activity_registrations registration ON registration.id = checkin_record.registrationId
+  AND registration.status = 'attended'
+  AND registration.studentId = experience.studentId
+  AND registration.activityId = experience.activityId
+WHERE (experience.id LIKE '21000000-%' OR experience.id LIKE '22000000-%')
+  AND experience.status = 'confirmed'
+  AND registration.id IS NULL
+SQL) + self::scalar($pdo, <<<'SQL'
+SELECT COUNT(*)
+FROM assessments evaluation
+LEFT JOIN activity_registrations registration ON registration.studentId = evaluation.studentId
+  AND registration.activityId = evaluation.activityId
+  AND registration.status = 'attended'
+WHERE (evaluation.id LIKE '21000000-%' OR evaluation.id LIKE '22000000-%')
+  AND evaluation.status = 'published'
+  AND registration.id IS NULL
 SQL);
     }
 
-    private static function rawQrTokenColumns(PDO $pdo): int
+    private static function invalidQrHashes(PDO $pdo): int
     {
-        return self::scalar($pdo, <<<'SQL'
-SELECT COUNT(*)
+        $invalid = 0;
+        foreach (['activity_qr_sessions', 'activity_qr_tokens'] as $table) {
+            if (!self::tableExists($pdo, $table)) {
+                continue;
+            }
+            if (!self::tableHasColumn($pdo, $table, 'tokenHash')) {
+                $invalid++;
+                continue;
+            }
+            $escapedTable = str_replace('`', '``', $table);
+            $invalid += self::scalar(
+                $pdo,
+                "SELECT COUNT(*) FROM `{$escapedTable}` WHERE tokenHash IS NULL OR tokenHash NOT REGEXP '^[a-f0-9]{64}$'",
+            );
+            $invalid += self::scalar(
+                $pdo,
+                "SELECT COUNT(*) FROM (SELECT tokenHash FROM `{$escapedTable}` GROUP BY tokenHash HAVING COUNT(*) <> 1) AS duplicate_hashes",
+            );
+        }
+        return $invalid;
+    }
+
+    private static function hasRawQrTokenStorage(PDO $pdo): bool
+    {
+        $columns = $pdo->query(<<<'SQL'
+SELECT table_name, column_name
 FROM information_schema.columns
 WHERE table_schema = DATABASE()
-  AND table_name = 'activity_qr_sessions'
-  AND LOWER(column_name) IN ('token', 'rawtoken', 'raw_token', 'plaintexttoken', 'plaintext_token')
+  AND table_name IN ('activity_qr_sessions', 'activity_qr_tokens')
+  AND LOWER(REPLACE(column_name, '_', '')) IN ('token', 'rawtoken', 'plaintexttoken', 'qrtoken')
+ORDER BY table_name, column_name
+SQL)->fetchAll(PDO::FETCH_ASSOC);
+        $rawColumnFound = false;
+        foreach ($columns as $column) {
+            $rawColumnFound = true;
+            $table = (string) ($column['table_name'] ?? '');
+            $name = (string) ($column['column_name'] ?? '');
+            if (!in_array($table, ['activity_qr_sessions', 'activity_qr_tokens'], true)
+                || preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name) !== 1) {
+                return true;
+            }
+            $escapedTable = str_replace('`', '``', $table);
+            $escapedColumn = str_replace('`', '``', $name);
+            if (self::scalar($pdo, "SELECT COUNT(*) FROM `{$escapedTable}` WHERE `{$escapedColumn}` IS NOT NULL AND `{$escapedColumn}` <> ''") > 0) {
+                return true;
+            }
+        }
+        return $rawColumnFound;
+    }
+
+    private static function tableHasColumn(PDO $pdo, string $table, string $column): bool
+    {
+        $statement = $pdo->prepare(<<<'SQL'
+SELECT COUNT(*)
+FROM information_schema.columns
+WHERE table_schema = DATABASE() AND table_name = :table AND column_name = :column
 SQL);
+        $statement->execute(['table' => $table, 'column' => $column]);
+        return (int) $statement->fetchColumn() === 1;
+    }
+
+    private static function tableExists(PDO $pdo, string $table): bool
+    {
+        $statement = $pdo->prepare(<<<'SQL'
+SELECT COUNT(*)
+FROM information_schema.tables
+WHERE table_schema = DATABASE() AND table_name = :table
+SQL);
+        $statement->execute(['table' => $table]);
+        return (int) $statement->fetchColumn() === 1;
     }
 
     private static function ownedCount(PDO $pdo, string $table): int

@@ -52,6 +52,28 @@ function demo_table_counts(PDO $pdo, array $tables): array
     return $result;
 }
 
+/** @return array<string,string> */
+function demo_canonical_table_snapshots(PDO $pdo, array $tables): array
+{
+    $result = [];
+    foreach ($tables as $table) {
+        $escapedTable = str_replace('`', '``', $table);
+        $columns = $pdo->prepare('SELECT column_name FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=:table ORDER BY ordinal_position');
+        $columns->execute(['table' => $table]);
+        $columnNames = array_map('strval', $columns->fetchAll(PDO::FETCH_COLUMN));
+        demo_mysql_assert($columnNames !== [], 'canonical snapshot table exists: ' . $table);
+        $quotedColumns = array_map(static fn (string $column): string => '`' . str_replace('`', '``', $column) . '`', $columnNames);
+        $orderBy = in_array('id', $columnNames, true) ? ' ORDER BY `id`' : ' ORDER BY ' . implode(', ', $quotedColumns);
+        $rows = $pdo->query('SELECT ' . implode(', ', $quotedColumns) . ' FROM `' . $escapedTable . '`' . $orderBy)->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as &$row) {
+            ksort($row, SORT_STRING);
+        }
+        unset($row);
+        $result[$table] = hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+    return $result;
+}
+
 /** @return array{code:int,output:string} */
 function demo_run_cli(string $phpBin, string $script, array $arguments = []): array
 {
@@ -406,6 +428,7 @@ try {
         );
         $pdo->prepare('UPDATE schools SET name=:name WHERE id=:id')->execute(['name' => $schoolName, 'id' => $thptSchoolId]);
         $baselineOutside = demo_outside_namespace_snapshots($pdo, $seeder->touchedTables());
+        $verificationClock = new DateTimeImmutable('today', new DateTimeZone('UTC'));
         if ($collisionCase === '') {
             $firstCliSeed = demo_run_cli($phpBin, $projectRoot . '/bin/seed.php', ['--demo-ai']);
             demo_mysql_assert($firstCliSeed['code'] === 0, 'first --demo-ai seed exits zero: ' . $firstCliSeed['output']);
@@ -591,9 +614,9 @@ WHERE activity.schoolId <> teacher.schoolId
 SQL)->fetchColumn();
     demo_mysql_assert($crossOrganizationActivities === 0, 'activities never use a teacher from another organization');
 
-    $verifierTables = array_merge($seeder->touchedTables(), ['learner_recommendation_runs']);
-    $beforeVerification = demo_table_counts($pdo, $verifierTables);
-    $verification = CompleteAiDemoVerifier::verify($pdo);
+    $verifierTables = array_values(array_unique(array_merge($seeder->touchedTables(), ['activity_qr_tokens', 'learner_recommendation_runs'])));
+    $beforeVerification = demo_canonical_table_snapshots($pdo, $verifierTables);
+    $verification = CompleteAiDemoVerifier::verify($pdo, $verificationClock);
     demo_mysql_assert($verification['ok'] === true, 'complete AI demo verifier reports OK: ' . implode(',', $verification['violations']));
     demo_mysql_assert($verification['violations'] === [], 'complete AI demo verifier has no violations');
     demo_mysql_assert($verification['counts']['organizations'] === 2, 'verifier has exactly two demo organizations');
@@ -614,7 +637,86 @@ SQL)->fetchColumn();
         demo_mysql_assert(($heroResult['source_counts']['evaluations'] ?? 0) >= 2, $hero . ' hero has at least two evaluation sources');
         demo_mysql_assert(($heroResult['source_counts']['opportunities'] ?? 0) >= 1, $hero . ' hero has an open matching opportunity');
     }
-    demo_mysql_assert(demo_table_counts($pdo, $verifierTables) === $beforeVerification, 'verifier is read-only');
+    demo_mysql_assert(demo_canonical_table_snapshots($pdo, $verifierTables) === $beforeVerification, 'verifier preserves canonical row content');
+
+    $futureVerification = CompleteAiDemoVerifier::verify($pdo, $verificationClock->modify('+366 days'));
+    foreach (['high', 'college'] as $hero) {
+        demo_mysql_assert(($futureVerification['heroes'][$hero]['state'] ?? null) === 'insufficient_data', $hero . ' hero quality gate uses the injected verifier clock');
+        demo_mysql_assert(($futureVerification['heroes'][$hero]['source_counts']['opportunities'] ?? -1) === 0, $hero . ' hero opportunity source uses the injected verifier clock');
+    }
+
+    $revokedLearnerId = '20000000-0000-4000-8000-000000000061';
+    $revokedConsentId = '21000000-0000-4000-8000-00000000f501';
+    $revokedRequestId = '21000000-0000-4000-8000-00000000f502';
+    $revokeConsent = $pdo->prepare(<<<'SQL'
+INSERT INTO learner_ai_consent_events (id, studentId, scope, action, policyVersion, occurredAt, requestId)
+VALUES (:id, :studentId, 'skills', 'revoked', 'learner-ai-consent-1.0', :occurredAt, :requestId)
+SQL);
+    $pdo->beginTransaction();
+    try {
+        $revokeConsent->execute([
+            'id' => $revokedConsentId,
+            'studentId' => $revokedLearnerId,
+            'occurredAt' => $verificationClock->modify('+1 second')->format('Y-m-d H:i:s.u'),
+            'requestId' => $revokedRequestId,
+        ]);
+        $revokedVerification = CompleteAiDemoVerifier::verify($pdo, $verificationClock);
+        demo_mysql_assert(in_array('consent_scope_closure', $revokedVerification['violations'], true), 'latest consent revocation for a non-hero learner is rejected');
+    } finally {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+    }
+
+    $registrationId = (string) $pdo->query("SELECT registration.id FROM activity_registrations registration INNER JOIN checkins checkin_record ON checkin_record.registrationId=registration.id INNER JOIN experience_logs experience ON experience.checkinId=checkin_record.id INNER JOIN assessments evaluation ON evaluation.studentId=registration.studentId AND evaluation.activityId=registration.activityId WHERE registration.status='attended' AND checkin_record.status='confirmed' AND experience.status='confirmed' AND evaluation.status='published' ORDER BY registration.id LIMIT 1")->fetchColumn();
+    demo_mysql_assert($registrationId !== '', 'attended registration exists for strict journey closure review');
+    $setRegistrationStatus = $pdo->prepare('UPDATE activity_registrations SET status=:status WHERE id=:id');
+    foreach (['pending', 'approved'] as $invalidStatus) {
+        $setRegistrationStatus->execute(['status' => $invalidStatus, 'id' => $registrationId]);
+        $invalidJourney = CompleteAiDemoVerifier::verify($pdo, $verificationClock);
+        demo_mysql_assert(in_array('journey_closure', $invalidJourney['violations'], true), $invalidStatus . ' registration with confirmed journey rows is rejected');
+    }
+    $setRegistrationStatus->execute(['status' => 'attended', 'id' => $registrationId]);
+
+    $legacyActivityId = (string) $pdo->query("SELECT id FROM activities WHERE id LIKE '21000000-%' ORDER BY id LIMIT 1")->fetchColumn();
+    demo_mysql_assert($legacyActivityId !== '', 'owned activity exists for legacy QR review');
+    $insertLegacyQr = $pdo->prepare(<<<'SQL'
+INSERT INTO activity_qr_tokens (id, activityId, tokenHash, validFrom, validUntil, status)
+VALUES (:id, :activityId, :tokenHash, :validFrom, :validUntil, 'active')
+SQL);
+    $legacyQrId = '21000000-0000-4000-8000-00000000f503';
+    $insertLegacyQr->execute([
+        'id' => $legacyQrId,
+        'activityId' => $legacyActivityId,
+        'tokenHash' => 'not-a-canonical-sha256',
+        'validFrom' => $verificationClock->format('Y-m-d H:i:s.u'),
+        'validUntil' => $verificationClock->modify('+1 day')->format('Y-m-d H:i:s.u'),
+    ]);
+    $invalidLegacyHash = CompleteAiDemoVerifier::verify($pdo, $verificationClock);
+    demo_mysql_assert(in_array('qr_hash_closure', $invalidLegacyHash['violations'], true), 'legacy QR hash format is verified');
+    $pdo->prepare('DELETE FROM activity_qr_tokens WHERE id=:id')->execute(['id' => $legacyQrId]);
+
+    $pdo->exec('ALTER TABLE activity_qr_tokens ADD COLUMN token VARCHAR(255) NULL');
+    $rawLegacyQrId = '21000000-0000-4000-8000-00000000f504';
+    $insertRawLegacyQr = $pdo->prepare(<<<'SQL'
+INSERT INTO activity_qr_tokens (id, activityId, tokenHash, token, validFrom, validUntil, status)
+VALUES (:id, :activityId, :tokenHash, :token, :validFrom, :validUntil, 'active')
+SQL);
+    $insertRawLegacyQr->execute([
+        'id' => $rawLegacyQrId,
+        'activityId' => $legacyActivityId,
+        'tokenHash' => hash('sha256', 'review-raw-token'),
+        'token' => 'review-raw-token',
+        'validFrom' => $verificationClock->format('Y-m-d H:i:s.u'),
+        'validUntil' => $verificationClock->modify('+1 day')->format('Y-m-d H:i:s.u'),
+    ]);
+    $rawTokenVerification = CompleteAiDemoVerifier::verify($pdo, $verificationClock);
+    demo_mysql_assert(in_array('qr_raw_token_storage', $rawTokenVerification['violations'], true), 'legacy raw QR token storage is rejected with a redacted violation code');
+    $pdo->prepare('DELETE FROM activity_qr_tokens WHERE id=:id')->execute(['id' => $rawLegacyQrId]);
+    $pdo->exec('ALTER TABLE activity_qr_tokens DROP COLUMN token');
+
+    $restoredVerification = CompleteAiDemoVerifier::verify($pdo, $verificationClock);
+    demo_mysql_assert($restoredVerification['ok'] === true, 'verifier returns to OK after negative scenarios are restored');
 
     $verifyCli = demo_run_cli($phpBin, $projectRoot . '/bin/verify-demo-ai.php');
     demo_mysql_assert($verifyCli['code'] === 0, 'verify-demo-ai CLI exits zero: ' . $verifyCli['output']);
