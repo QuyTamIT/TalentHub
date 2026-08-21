@@ -44,6 +44,11 @@ final class CompleteAiDemoSeeder
         'sports_discipline' => ['name' => 'Rèn luyện thể chất', 'category' => 'sports'],
     ];
 
+    /** @var array<string,list<list<string>>> */
+    private const EXPLICIT_NATURAL_KEYS = [
+        'schools' => [['name']],
+    ];
+
     /** @return list<string> */
     public function touchedTables(): array
     {
@@ -138,10 +143,11 @@ final class CompleteAiDemoSeeder
         }
         // Roles
         foreach (['school', 'teacher', 'student'] as $code) {
-            $stmt = $pdo->prepare('SELECT id FROM roles WHERE code = :code');
+            $stmt = $pdo->prepare('SELECT COUNT(*) FROM roles WHERE code = :code');
             $stmt->execute(['code' => $code]);
-            if ($stmt->fetchColumn() === false) {
-                throw new RuntimeException('Missing role: ' . $code);
+            $count = (int) $stmt->fetchColumn();
+            if ($count !== 1) {
+                throw new RuntimeException('Role must exist exactly once: ' . $code . '.');
             }
         }
         // Catalog: exactly one published per code
@@ -277,26 +283,27 @@ final class CompleteAiDemoSeeder
     {
         $now = $clock->format('Y-m-d H:i:s.u');
         foreach (self::SKILL_DEFS as $code => $def) {
-            $stmt = $pdo->prepare('SELECT id FROM skills WHERE code = :code');
-            $stmt->execute(['code' => $code]);
-            $existing = $stmt->fetchColumn();
-            if ($existing !== false) {
-                // Verify active, but don't overwrite foreign skill row
+            $id = CompleteAiDemoDataset::uuid('fpt', 'skill', $code);
+            $existing = $pdo->prepare('SELECT id, status FROM skills WHERE code = :code ORDER BY id');
+            $existing->execute(['code' => $code]);
+            $existingSkill = $existing->fetch(PDO::FETCH_NUM);
+            if (
+                is_array($existingSkill)
+                && (string) $existingSkill[0] !== $id
+                && (string) $existingSkill[1] === 'active'
+            ) {
+                // Task 2 explicitly permits active shared skills to be reused by code.
                 continue;
             }
-            $id = CompleteAiDemoDataset::uuid('fpt', 'skill', $code);
-            // Check namespace collision
-            $chk = $pdo->prepare('SELECT id FROM skills WHERE id = :id');
-            $chk->execute(['id' => $id]);
-            if ($chk->fetchColumn() !== false) {
-                // Already exists as owned
-                $upd = $pdo->prepare('UPDATE skills SET code=:code, name=:name, category=:cat, status=:st, updatedAt=:upd WHERE id=:id');
-                $upd->execute(['code' => $code, 'name' => $def['name'], 'cat' => $def['category'], 'st' => 'active', 'upd' => $now, 'id' => $id]);
-            } else {
-                $ins = $pdo->prepare('INSERT INTO skills (id, code, name, category, status, createdAt, updatedAt) VALUES (:id, :code, :name, :cat, :st, :cr, :upd)');
-                $ins->execute(['id' => $id, 'code' => $code, 'name' => $def['name'], 'cat' => $def['category'], 'st' => 'active', 'cr' => $now, 'upd' => $now]);
-                $counts['skills'] = ($counts['skills'] ?? 0) + 1;
-            }
+            $this->upsertOwned($pdo, 'skills', $id, [
+                'id' => $id,
+                'code' => $code,
+                'name' => $def['name'],
+                'category' => $def['category'],
+                'status' => 'active',
+                'createdAt' => $now,
+                'updatedAt' => $now,
+            ], $counts, 'skills');
         }
     }
 
@@ -352,31 +359,7 @@ final class CompleteAiDemoSeeder
                 $hash = hexdec(substr(hash('sha256', $sid . ':' . $code), 0, 4));
                 $score = 65 + ($hash % 28);
                 $verifiedAt = $clock->modify('-18 days')->format('Y-m-d H:i:s.u');
-                // Need to handle thpt namespace separately - check if exists
-                $chk = $pdo->prepare('SELECT id FROM student_skills WHERE id = :id');
-                $chk->execute(['id' => $ssId]);
-                if ($chk->fetchColumn() !== false) {
-                    $upd = $pdo->prepare('UPDATE student_skills SET studentId=:sid, skillId=:skid, levelScore=:sc, sourceType=:st, verificationStatus=:vs, verifiedAt=:va, updatedAt=:upd WHERE id=:id');
-                    $upd->execute(['sid' => $sid, 'skid' => $skillId, 'sc' => $score, 'st' => 'teacher', 'vs' => 'verified', 'va' => $verifiedAt, 'upd' => $now, 'id' => $ssId]);
-                } else {
-                    // Also check unique constraint (studentId, skillId, sourceType)
-                    $chk2 = $pdo->prepare('SELECT id FROM student_skills WHERE studentId=:sid AND skillId=:skid AND sourceType=:st');
-                    $chk2->execute(['sid' => $sid, 'skid' => $skillId, 'st' => 'teacher']);
-                    $existingId = $chk2->fetchColumn();
-                    if ($existingId !== false && !str_starts_with((string) $existingId, '21000000-') && !str_starts_with((string) $existingId, '22000000-')) {
-                        // Don't overwrite foreign row
-                        continue;
-                    }
-                    if ($existingId !== false) {
-                        $ssId = (string) $existingId;
-                        $upd = $pdo->prepare('UPDATE student_skills SET levelScore=:sc, verificationStatus=:vs, verifiedAt=:va, updatedAt=:upd WHERE id=:id');
-                        $upd->execute(['sc' => $score, 'vs' => 'verified', 'va' => $verifiedAt, 'upd' => $now, 'id' => $ssId]);
-                    } else {
-                        $ins = $pdo->prepare('INSERT INTO student_skills (id, studentId, skillId, levelScore, sourceType, verificationStatus, verifiedAt, createdAt, updatedAt) VALUES (:id, :sid, :skid, :sc, :st, :vs, :va, :cr, :upd)');
-                        $ins->execute(['id' => $ssId, 'sid' => $sid, 'skid' => $skillId, 'sc' => $score, 'st' => 'teacher', 'vs' => 'verified', 'va' => $verifiedAt, 'cr' => $now, 'upd' => $now]);
-                        $counts['student_skills'] = ($counts['student_skills'] ?? 0) + 1;
-                    }
-                }
+                $this->upsertStudentSkill($pdo, $ssId, $sid, $skillId, $score, $verifiedAt, $now, $counts);
                 $evId = CompleteAiDemoDataset::uuid('thpt', 'skill-evidence', $ssId);
                 $this->upsertOwned($pdo, 'learner_skill_evidence', $evId, [
                     'id' => $evId,
@@ -392,28 +375,17 @@ final class CompleteAiDemoSeeder
 
     private function upsertStudentSkill(PDO $pdo, string $id, string $studentId, string $skillId, int $score, string $verifiedAt, string $now, array &$counts): void
     {
-        $chk = $pdo->prepare('SELECT id FROM student_skills WHERE id = :id');
-        $chk->execute(['id' => $id]);
-        if ($chk->fetchColumn() !== false) {
-            $upd = $pdo->prepare('UPDATE student_skills SET studentId=:sid, skillId=:skid, levelScore=:sc, sourceType=:st, verificationStatus=:vs, verifiedAt=:va, updatedAt=:upd WHERE id=:id');
-            $upd->execute(['sid' => $studentId, 'skid' => $skillId, 'sc' => $score, 'st' => 'teacher', 'vs' => 'verified', 'va' => $verifiedAt, 'upd' => $now, 'id' => $id]);
-            return;
-        }
-        $chk2 = $pdo->prepare('SELECT id FROM student_skills WHERE studentId=:sid AND skillId=:skid AND sourceType=:st');
-        $chk2->execute(['sid' => $studentId, 'skid' => $skillId, 'st' => 'teacher']);
-        $existingId = $chk2->fetchColumn();
-        if ($existingId !== false) {
-            if (!str_starts_with((string) $existingId, '21000000-') && !str_starts_with((string) $existingId, '22000000-')) {
-                return;
-            }
-            $id = (string) $existingId;
-            $upd = $pdo->prepare('UPDATE student_skills SET levelScore=:sc, verificationStatus=:vs, verifiedAt=:va, updatedAt=:upd WHERE id=:id');
-            $upd->execute(['sc' => $score, 'vs' => 'verified', 'va' => $verifiedAt, 'upd' => $now, 'id' => $id]);
-            return;
-        }
-        $ins = $pdo->prepare('INSERT INTO student_skills (id, studentId, skillId, levelScore, sourceType, verificationStatus, verifiedAt, createdAt, updatedAt) VALUES (:id, :sid, :skid, :sc, :st, :vs, :va, :cr, :upd)');
-        $ins->execute(['id' => $id, 'sid' => $studentId, 'skid' => $skillId, 'sc' => $score, 'st' => 'teacher', 'vs' => 'verified', 'va' => $verifiedAt, 'cr' => $now, 'upd' => $now]);
-        $counts['student_skills'] = ($counts['student_skills'] ?? 0) + 1;
+        $this->upsertOwned($pdo, 'student_skills', $id, [
+            'id' => $id,
+            'studentId' => $studentId,
+            'skillId' => $skillId,
+            'levelScore' => $score,
+            'sourceType' => 'teacher',
+            'verificationStatus' => 'verified',
+            'verifiedAt' => $verifiedAt,
+            'createdAt' => $now,
+            'updatedAt' => $now,
+        ], $counts, 'student_skills');
     }
 
     /** @param array<string,int> $counts */
@@ -430,6 +402,15 @@ final class CompleteAiDemoSeeder
                 // learner_ai_consent_events has uq on (studentId, scope, occurredAt, requestId) - we use fixed occurredAt per scope offset
                 $offset = ['assessment' => 0, 'skills' => 1, 'activity' => 2, 'evaluation' => 3][$scope];
                 $occurredAt = $clock->modify('-10 days')->modify('+' . $offset . ' seconds')->format('Y-m-d H:i:s.u');
+                $this->assertNaturalKeysOwned($pdo, 'learner_ai_consent_events', $id, [
+                    'id' => $id,
+                    'studentId' => $sid,
+                    'scope' => $scope,
+                    'action' => 'granted',
+                    'policyVersion' => 'learner-ai-consent-1.0',
+                    'occurredAt' => $occurredAt,
+                    'requestId' => $reqId,
+                ]);
                 $chk = $pdo->prepare('SELECT studentId, scope, action, policyVersion, occurredAt, requestId FROM learner_ai_consent_events WHERE id = :id');
                 $chk->execute(['id' => $id]);
                 $existing = $chk->fetch(PDO::FETCH_ASSOC);
@@ -524,7 +505,7 @@ final class CompleteAiDemoSeeder
                 ['active', 'stem-lab', 'qr-thpt-active', 2, null, 'stem-lab'],
                 ['expired', 'robotics', 'qr-thpt-exp-a', -74, null, 'robotics'],
                 ['expired', 'finance', 'qr-thpt-exp-b', -60, null, 'finance'],
-                ['revoked', 'debate', 'qr-thpt-revoked', 1, -1, 'debate'],
+                ['revoked', 'design', 'qr-thpt-revoked', 1, -1, 'design'],
             ],
             'fpt' => [
                 ['active', 'ai-club', 'qr-fpt-active', 2, null, 'ai-club'],
@@ -677,28 +658,18 @@ final class CompleteAiDemoSeeder
         $criteriaIds = [];
         foreach ($criteriaDefs as [$code, $name, $desc, $min, $max, $order]) {
             $id = CompleteAiDemoDataset::uuid('fpt', 'criteria', $code);
-            $chk = $pdo->prepare('SELECT id FROM assessment_criteria WHERE id = :id');
-            $chk->execute(['id' => $id]);
-            if ($chk->fetchColumn() !== false) {
-                $upd = $pdo->prepare('UPDATE assessment_criteria SET code=:code, name=:name, description=:desc, minScore=:mn, maxScore=:mx, displayOrder=:ord, status=:st, updatedAt=:upd WHERE id=:id');
-                $upd->execute(['code' => $code, 'name' => $name, 'desc' => $desc, 'mn' => $min, 'mx' => $max, 'ord' => $order, 'st' => 'active', 'upd' => $now, 'id' => $id]);
-            } else {
-                // Check code uniqueness
-                $chk2 = $pdo->prepare('SELECT id FROM assessment_criteria WHERE code = :code');
-                $chk2->execute(['code' => $code]);
-                if ($chk2->fetchColumn() !== false) {
-                    $id = (string) $chk2->fetchColumn();
-                    // Already exists as foreign row, keep it
-                    // Need to re-query to get actual id
-                    $chk3 = $pdo->prepare('SELECT id FROM assessment_criteria WHERE code = :code');
-                    $chk3->execute(['code' => $code]);
-                    $id = (string) $chk3->fetchColumn();
-                } else {
-                    $ins = $pdo->prepare('INSERT INTO assessment_criteria (id, code, name, description, minScore, maxScore, displayOrder, status, createdAt, updatedAt) VALUES (:id, :code, :name, :desc, :mn, :mx, :ord, :st, :cr, :upd)');
-                    $ins->execute(['id' => $id, 'code' => $code, 'name' => $name, 'desc' => $desc, 'mn' => $min, 'mx' => $max, 'ord' => $order, 'st' => 'active', 'cr' => $now, 'upd' => $now]);
-                    $counts['assessment_criteria'] = ($counts['assessment_criteria'] ?? 0) + 1;
-                }
-            }
+            $this->upsertOwned($pdo, 'assessment_criteria', $id, [
+                'id' => $id,
+                'code' => $code,
+                'name' => $name,
+                'description' => $desc,
+                'minScore' => $min,
+                'maxScore' => $max,
+                'displayOrder' => $order,
+                'status' => 'active',
+                'createdAt' => $now,
+                'updatedAt' => $now,
+            ], $counts, 'assessment_criteria');
             $criteriaIds[$code] = $id;
         }
 
@@ -936,33 +907,18 @@ final class CompleteAiDemoSeeder
 
     private function upsertAnswer(PDO $pdo, string $id, string $attemptId, string $questionId, int $value, string $answeredAt, array &$counts): void
     {
-        $chk = $pdo->prepare('SELECT id FROM learner_assessment_answers WHERE id = :id');
-        $chk->execute(['id' => $id]);
-        if ($chk->fetchColumn() !== false) {
-            $upd = $pdo->prepare('UPDATE learner_assessment_answers SET attemptId=:aid, questionId=:qid, answerJson=:aj, answeredAt=:at WHERE id=:id');
-            $upd->execute(['aid' => $attemptId, 'qid' => $questionId, 'aj' => json_encode($value), 'at' => $answeredAt, 'id' => $id]);
-            return;
-        }
-        // Check unique (attemptId, questionId)
-        $chk2 = $pdo->prepare('SELECT id FROM learner_assessment_answers WHERE attemptId=:aid AND questionId=:qid');
-        $chk2->execute(['aid' => $attemptId, 'qid' => $questionId]);
-        $existing = $chk2->fetchColumn();
-        if ($existing !== false) {
-            if (!str_starts_with((string) $existing, '21000000-') && !str_starts_with((string) $existing, '22000000-')) {
-                return;
-            }
-            $id = (string) $existing;
-            $upd = $pdo->prepare('UPDATE learner_assessment_answers SET answerJson=:aj, answeredAt=:at WHERE id=:id');
-            $upd->execute(['aj' => json_encode($value), 'at' => $answeredAt, 'id' => $id]);
-            return;
-        }
-        $ins = $pdo->prepare('INSERT INTO learner_assessment_answers (id, attemptId, questionId, answerJson, answeredAt) VALUES (:id, :aid, :qid, :aj, :at)');
-        $ins->execute(['id' => $id, 'aid' => $attemptId, 'qid' => $questionId, 'aj' => json_encode($value), 'at' => $answeredAt]);
-        $counts['learner_assessment_answers'] = ($counts['learner_assessment_answers'] ?? 0) + 1;
+        $this->upsertOwned($pdo, 'learner_assessment_answers', $id, [
+            'id' => $id,
+            'attemptId' => $attemptId,
+            'questionId' => $questionId,
+            'answerJson' => json_encode($value, JSON_THROW_ON_ERROR),
+            'answeredAt' => $answeredAt,
+        ], $counts, 'learner_assessment_answers');
     }
 
     private function upsertOwned(PDO $pdo, string $table, string $id, array $values, array &$counts, string $countKey): void
     {
+        $this->assertNaturalKeysOwned($pdo, $table, $id, $values);
         $chk = $pdo->prepare('SELECT id FROM `' . str_replace('`', '``', $table) . '` WHERE id = :id');
         $chk->execute(['id' => $id]);
         $existingId = $chk->fetchColumn();
@@ -988,15 +944,55 @@ final class CompleteAiDemoSeeder
         }
     }
 
+    /** @param array<string,mixed> $values */
+    private function assertNaturalKeysOwned(PDO $pdo, string $table, string $expectedId, array $values): void
+    {
+        $escapedTable = '`' . str_replace('`', '``', $table) . '`';
+        $indexes = $pdo->prepare(
+            'SELECT index_name, column_name, seq_in_index FROM information_schema.statistics '
+            . 'WHERE table_schema=DATABASE() AND table_name=:table AND non_unique=0 AND index_name<>\'PRIMARY\' '
+            . 'ORDER BY index_name, seq_in_index',
+        );
+        $indexes->execute(['table' => $table]);
+        $naturalKeys = self::EXPLICIT_NATURAL_KEYS[$table] ?? [];
+        foreach ($indexes->fetchAll(PDO::FETCH_NUM) as $index) {
+            $name = (string) $index[0];
+            $naturalKeys[$name][] = (string) $index[1];
+        }
+
+        foreach ($naturalKeys as $keyName => $columns) {
+            if (in_array('id', $columns, true)) {
+                continue;
+            }
+            $params = [];
+            $conditions = [];
+            foreach ($columns as $position => $column) {
+                if (!array_key_exists($column, $values) || $values[$column] === null) {
+                    continue 2;
+                }
+                $parameter = 'natural_' . $position;
+                $conditions[] = '`' . str_replace('`', '``', $column) . '` <=> :' . $parameter;
+                $params[$parameter] = $values[$column];
+            }
+            $statement = $pdo->prepare('SELECT id FROM ' . $escapedTable . ' WHERE ' . implode(' AND ', $conditions) . ' ORDER BY id');
+            $statement->execute($params);
+            foreach ($statement->fetchAll(PDO::FETCH_COLUMN) as $existingId) {
+                if ((string) $existingId !== $expectedId) {
+                    throw new RuntimeException('Foreign natural-key collision in ' . $table . ' via ' . (is_string($keyName) ? $keyName : 'explicit key') . '.');
+                }
+            }
+        }
+    }
+
     private function roleId(PDO $pdo, string $code): string
     {
         $stmt = $pdo->prepare('SELECT id FROM roles WHERE code = :code');
         $stmt->execute(['code' => $code]);
-        $id = $stmt->fetchColumn();
-        if (!is_string($id)) {
-            throw new RuntimeException('Role missing: ' . $code);
+        $ids = array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        if (count($ids) !== 1) {
+            throw new RuntimeException('Role must exist exactly once: ' . $code . '.');
         }
-        return $id;
+        return $ids[0];
     }
 
     private function scorers(): ScorerRegistry

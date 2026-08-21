@@ -38,23 +38,59 @@ function demo_table_counts(PDO $pdo, array $tables): array
     return $result;
 }
 
-function demo_outside_namespace_counts(PDO $pdo, array $tables): array
+function demo_outside_namespace_snapshots(PDO $pdo, array $tables): array
 {
     $result = [];
     foreach ($tables as $table) {
-        // For tables with id column, count outside demo namespaces; otherwise global count
-        try {
-            $hasId = (int) $pdo->query("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=" . $pdo->quote($table) . " AND column_name='id'")->fetchColumn();
-            if ($hasId === 1) {
-                $result[$table] = (int) $pdo->query("SELECT COUNT(*) FROM `" . str_replace('`', '``', $table) . "` WHERE id NOT LIKE '21000000-%' AND id NOT LIKE '22000000-%'")->fetchColumn();
-            } else {
-                $result[$table] = (int) $pdo->query('SELECT COUNT(*) FROM `' . str_replace('`', '``', $table) . '`')->fetchColumn();
-            }
-        } catch (Throwable) {
-            $result[$table] = -1;
+        $escapedTable = str_replace('`', '``', $table);
+        $columns = $pdo->prepare('SELECT column_name FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=:table ORDER BY ordinal_position');
+        $columns->execute(['table' => $table]);
+        $columnNames = array_map('strval', $columns->fetchAll(PDO::FETCH_COLUMN));
+        demo_mysql_assert($columnNames !== [], 'snapshot table exists: ' . $table);
+        $quotedColumns = array_map(static fn (string $column): string => '`' . str_replace('`', '``', $column) . '`', $columnNames);
+        $hasId = in_array('id', $columnNames, true);
+        $where = $hasId ? " WHERE `id` NOT LIKE '21000000-%' AND `id` NOT LIKE '22000000-%'" : '';
+        $orderBy = $hasId ? ' ORDER BY `id`' : ' ORDER BY ' . implode(', ', $quotedColumns);
+        $rows = $pdo->query('SELECT ' . implode(', ', $quotedColumns) . ' FROM `' . $escapedTable . '`' . $where . $orderBy)->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as &$row) {
+            ksort($row, SORT_STRING);
         }
+        unset($row);
+        $result[$table] = hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
     return $result;
+}
+
+function demo_row_snapshot(PDO $pdo, string $table, string $id): string
+{
+    $statement = $pdo->prepare('SELECT * FROM `' . str_replace('`', '``', $table) . '` WHERE id=:id');
+    $statement->execute(['id' => $id]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    demo_mysql_assert(is_array($row), 'foreign collision row exists: ' . $table);
+    ksort($row, SORT_STRING);
+    return hash('sha256', json_encode($row, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
+
+function demo_expect_foreign_collision(PDO $pdo, CompleteAiDemoSeeder $seeder, string $password, DateTimeImmutable $clock, string $table, string $foreignId, string $expectedMessage = 'Foreign natural-key collision'): void
+{
+    $before = demo_row_snapshot($pdo, $table, $foreignId);
+    try {
+        $seeder->run($pdo, 'test', $password, $clock);
+        throw new RuntimeException('Expected foreign natural-key collision for ' . $table . '.');
+    } catch (RuntimeException $exception) {
+        demo_mysql_assert(
+            str_contains($exception->getMessage(), $expectedMessage),
+            'expected failure is raised for ' . $table,
+        );
+    }
+    demo_mysql_assert(demo_row_snapshot($pdo, $table, $foreignId) === $before, 'foreign row remains unchanged: ' . $table);
+}
+
+function demo_assert_schema_dropped(PDO $adminPdo, string $schema): void
+{
+    $statement = $adminPdo->prepare('SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name=:schema');
+    $statement->execute(['schema' => $schema]);
+    demo_mysql_assert((int) $statement->fetchColumn() === 0, 'disposable schema was dropped');
 }
 
 function demo_owned_count(PDO $pdo, string $table): int
@@ -65,6 +101,11 @@ function demo_owned_count(PDO $pdo, string $table): int
 $schema = (string) getenv('COMPLETE_AI_DEMO_TEST_SCHEMA');
 demo_mysql_assert($schema !== '' && preg_match('/^talenthub_complete_demo_test_[a-z0-9_]+$/', $schema) === 1, 'COMPLETE_AI_DEMO_TEST_SCHEMA must match ^talenthub_complete_demo_test_[a-z0-9_]+$');
 demo_mysql_assert($schema !== 'talenthub_local', 'Refusing to run disposable test on talenthub_local');
+$collisionCase = (string) (getenv('COMPLETE_AI_DEMO_COLLISION_CASE') ?: '');
+demo_mysql_assert(
+    in_array($collisionCase, ['', 'shared_skill', 'user_email', 'student_skills', 'assessment_answers', 'assessment_criteria', 'duplicate_role'], true),
+    'COMPLETE_AI_DEMO_COLLISION_CASE is unsupported',
+);
 
 $projectRoot = dirname(__DIR__);
 $adminHost = (string) (getenv('COMPLETE_AI_DEMO_TEST_ADMIN_HOST') ?: '127.0.0.1');
@@ -176,16 +217,96 @@ try {
     $seeder = new CompleteAiDemoSeeder();
     $clock = new DateTimeImmutable('2026-08-20 00:00:00.000000', new DateTimeZone('UTC'));
 
-    // Baseline outside namespace
-    $baselineOutside = demo_outside_namespace_counts($pdo, $seeder->touchedTables());
+    if ($collisionCase === 'shared_skill') {
+        $foreignId = '30000000-0000-4000-8000-000000000100';
+        $statement = $pdo->prepare('INSERT INTO skills (id, code, name, category, status, createdAt, updatedAt) VALUES (:id, :code, :name, :category, :status, :createdAt, :updatedAt)');
+        $statement->execute([
+            'id' => $foreignId,
+            'code' => 'communication',
+            'name' => 'Shared communication skill',
+            'category' => 'shared',
+            'status' => 'active',
+            'createdAt' => '2020-01-01 00:00:00.000000',
+            'updatedAt' => '2020-01-01 00:00:00.000000',
+        ]);
+        $before = demo_row_snapshot($pdo, 'skills', $foreignId);
+        $seeder->run($pdo, 'test', $password, $clock);
+        demo_mysql_assert(demo_row_snapshot($pdo, 'skills', $foreignId) === $before, 'active shared skill remains unchanged');
+        demo_mysql_assert((int) $pdo->query("SELECT COUNT(*) FROM skills WHERE code='communication'")->fetchColumn() === 1, 'active shared skill is reused by code');
+        echo "complete_ai_demo_seed_mysql_test: shared_skill OK\n";
+    } elseif ($collisionCase === 'user_email') {
+        $foreignId = '30000000-0000-4000-8000-000000000101';
+        $roleId = (string) $pdo->query("SELECT id FROM roles WHERE code='school'")->fetchColumn();
+        $statement = $pdo->prepare('INSERT INTO users (id, roleId, email, passwordHash, fullName, status) VALUES (:id, :roleId, :email, :passwordHash, :fullName, :status)');
+        $statement->execute([
+            'id' => $foreignId,
+            'roleId' => $roleId,
+            'email' => 'fpt.admin@talenthub.vn',
+            'passwordHash' => password_hash('foreign-user-only', PASSWORD_DEFAULT),
+            'fullName' => 'Foreign fixture user',
+            'status' => 'active',
+        ]);
+        demo_expect_foreign_collision($pdo, $seeder, $password, $clock, 'users', $foreignId);
+        echo "complete_ai_demo_seed_mysql_test: collision user_email OK\n";
+    } elseif ($collisionCase === 'duplicate_role') {
+        $pdo->exec('ALTER TABLE roles DROP INDEX uq_roles_code');
+        foreach (['school', 'teacher', 'student'] as $offset => $code) {
+            $role = $pdo->query("SELECT name, description, isSystem FROM roles WHERE code=" . $pdo->quote($code) . ' LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+            demo_mysql_assert(is_array($role), $code . ' role exists for duplicate-role preflight');
+            $foreignId = sprintf('30000000-0000-4000-8000-%012d', 102 + $offset);
+            $statement = $pdo->prepare('INSERT INTO roles (id, code, name, description, isSystem) VALUES (:id, :code, :name, :description, :isSystem)');
+            $statement->execute(['id' => $foreignId, 'code' => $code, ...$role]);
+            demo_expect_foreign_collision($pdo, $seeder, $password, $clock, 'roles', $foreignId, 'Role must exist exactly once');
+            $pdo->prepare('DELETE FROM roles WHERE id=:id')->execute(['id' => $foreignId]);
+        }
+        echo "complete_ai_demo_seed_mysql_test: collision duplicate_role OK\n";
+    } else {
+        $probeBaseline = demo_outside_namespace_snapshots($pdo, $seeder->touchedTables());
+        $thptSchoolId = '20000000-0000-4000-8000-000000000001';
+        $originalSchoolName = $pdo->prepare('SELECT name FROM schools WHERE id=:id');
+        $originalSchoolName->execute(['id' => $thptSchoolId]);
+        $schoolName = $originalSchoolName->fetchColumn();
+        demo_mysql_assert(is_string($schoolName), 'THPT school exists for snapshot probe');
+        $pdo->prepare('UPDATE schools SET name=:name WHERE id=:id')->execute(['name' => 'Snapshot mutation probe', 'id' => $thptSchoolId]);
+        demo_mysql_assert(
+            demo_outside_namespace_snapshots($pdo, $seeder->touchedTables()) !== $probeBaseline,
+            'outside-namespace snapshots detect row-content changes without count drift',
+        );
+        $pdo->prepare('UPDATE schools SET name=:name WHERE id=:id')->execute(['name' => $schoolName, 'id' => $thptSchoolId]);
+        $baselineOutside = demo_outside_namespace_snapshots($pdo, $seeder->touchedTables());
+        $first = $seeder->run($pdo, 'test', $password, $clock);
+        $firstCounts = demo_table_counts($pdo, $seeder->touchedTables());
 
-    $first = $seeder->run($pdo, 'test', $password, $clock);
-    $firstCounts = demo_table_counts($pdo, $seeder->touchedTables());
-    $second = $seeder->run($pdo, 'test', $password, $clock);
-    $secondCounts = demo_table_counts($pdo, $seeder->touchedTables());
+        if ($collisionCase === 'student_skills') {
+            $ownedId = (string) $pdo->query("SELECT id FROM student_skills WHERE id LIKE '22000000-%' ORDER BY id LIMIT 1")->fetchColumn();
+            $foreignId = '30000000-0000-4000-8000-000000000103';
+            demo_mysql_assert($ownedId !== '', 'owned student skill exists for collision test');
+            $statement = $pdo->prepare('UPDATE student_skills SET id=:foreignId WHERE id=:ownedId');
+            $statement->execute(['foreignId' => $foreignId, 'ownedId' => $ownedId]);
+            demo_expect_foreign_collision($pdo, $seeder, $password, $clock, 'student_skills', $foreignId);
+            echo "complete_ai_demo_seed_mysql_test: collision student_skills OK\n";
+        } elseif ($collisionCase === 'assessment_answers') {
+            $ownedId = (string) $pdo->query("SELECT id FROM learner_assessment_answers WHERE id LIKE '22000000-%' ORDER BY id LIMIT 1")->fetchColumn();
+            $foreignId = '30000000-0000-4000-8000-000000000104';
+            demo_mysql_assert($ownedId !== '', 'owned assessment answer exists for collision test');
+            $statement = $pdo->prepare('UPDATE learner_assessment_answers SET id=:foreignId WHERE id=:ownedId');
+            $statement->execute(['foreignId' => $foreignId, 'ownedId' => $ownedId]);
+            demo_expect_foreign_collision($pdo, $seeder, $password, $clock, 'learner_assessment_answers', $foreignId);
+            echo "complete_ai_demo_seed_mysql_test: collision assessment_answers OK\n";
+        } elseif ($collisionCase === 'assessment_criteria') {
+            $ownedId = (string) $pdo->query("SELECT id FROM assessment_criteria WHERE id LIKE '22000000-%' ORDER BY id LIMIT 1")->fetchColumn();
+            $foreignId = '30000000-0000-4000-8000-000000000105';
+            demo_mysql_assert($ownedId !== '', 'owned assessment criterion exists for collision test');
+            $statement = $pdo->prepare('UPDATE assessment_criteria SET id=:foreignId WHERE id=:ownedId');
+            $statement->execute(['foreignId' => $foreignId, 'ownedId' => $ownedId]);
+            demo_expect_foreign_collision($pdo, $seeder, $password, $clock, 'assessment_criteria', $foreignId);
+            echo "complete_ai_demo_seed_mysql_test: collision assessment_criteria OK\n";
+        } else {
+            $second = $seeder->run($pdo, 'test', $password, $clock);
+            $secondCounts = demo_table_counts($pdo, $seeder->touchedTables());
 
-    demo_mysql_assert($firstCounts === $secondCounts, 'second seed has zero count drift');
-    demo_mysql_assert(demo_outside_namespace_counts($pdo, $seeder->touchedTables()) === $baselineOutside, 'unrelated rows unchanged');
+            demo_mysql_assert($firstCounts === $secondCounts, 'second seed has zero count drift');
+            demo_mysql_assert(demo_outside_namespace_snapshots($pdo, $seeder->touchedTables()) === $baselineOutside, 'unrelated row content is unchanged');
     demo_mysql_assert((int) $pdo->query("SELECT COUNT(*) FROM schools WHERE id LIKE '22000000-%' AND name='Đại học FPT'")->fetchColumn() === 1, 'FPT school exists');
     demo_mysql_assert(
         $pdo->query("SELECT website FROM schools WHERE id LIKE '22000000-%' AND name='Đại học FPT'")->fetchColumn() === 'https://fpt.demo.talenthub.local',
@@ -279,6 +400,14 @@ SQL)->fetchColumn();
     demo_mysql_assert(demo_owned_count($pdo, 'assessments') === 20, '20 published evaluations');
     demo_mysql_assert(demo_owned_count($pdo, 'assessment_scores') === 60, 'three scores per evaluation');
     demo_mysql_assert(demo_owned_count($pdo, 'activity_qr_sessions') === 8, 'four QR sessions per organization');
+    demo_mysql_assert((int) $pdo->query(<<<'SQL'
+SELECT COUNT(*)
+FROM activity_qr_sessions session
+JOIN activities activity ON activity.id = session.activityId
+WHERE session.id LIKE '21000000-%'
+  AND session.status = 'revoked'
+  AND activity.title = 'Triển lãm Thiết kế sáng tạo'
+SQL)->fetchColumn() === 1, 'THPT revoked QR session targets the second ongoing activity');
 
     $invalid = (int) $pdo->query(<<<'SQL'
 SELECT COUNT(*)
@@ -333,10 +462,14 @@ SQL)->fetchColumn();
     demo_mysql_assert($crossOrganizationActivities === 0, 'activities never use a teacher from another organization');
 
     echo "complete_ai_demo_seed_mysql_test: OK\n";
+        }
+    }
 } finally {
     if ($adminPdo instanceof PDO) {
         try {
             $adminPdo->exec('DROP DATABASE IF EXISTS `' . str_replace('`', '``', $schema) . '`');
+            demo_assert_schema_dropped($adminPdo, $schema);
+            echo "complete_ai_demo_seed_mysql_test: schema dropped {$schema}\n";
         } catch (Throwable) {
         }
     }
