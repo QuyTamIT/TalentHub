@@ -46,6 +46,46 @@ function runner_command(string $command): array
     return ['code' => $code, 'output' => implode("\n", $output)];
 }
 
+/** @param array<string,string> $overrides @return array{code:int,output:string} */
+function runner_cli_guard_probe(string $php, string $cliFile, string $projectRoot, array $overrides): array
+{
+    $environment = getenv();
+    runner_assert(is_array($environment), 'process environment is available for CLI guard probe');
+    $environment = array_merge($environment, [
+        'APP_ENV' => 'test',
+        'DB_HOST' => 'guard-must-not-connect.invalid',
+        'DB_PORT' => '3306',
+        'DB_DATABASE' => 'guard_must_not_connect',
+        'DB_USERNAME' => 'guard_must_not_connect',
+        'DB_PASSWORD' => 'guard-secret-never-printed',
+        'TALENTHUB_AI_ENABLED' => 'true',
+        'TALENTHUB_AI_PROVIDER' => 'guard-provider',
+        'TALENTHUB_AI_MODEL' => 'guard-model',
+        'TALENTHUB_AI_API_URL' => 'http://127.0.0.1:20128/v1',
+        'TALENTHUB_AI_API_KEY' => 'guard-api-secret-never-printed',
+        'TALENTHUB_AI_ALLOWED_HOSTS' => '127.0.0.1',
+        'TALENTHUB_AI_SHADOW' => 'true',
+        'TALENTHUB_AI_VISIBLE_PERCENT' => '0',
+    ], $overrides);
+    $descriptors = [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+    $process = proc_open([$php, $cliFile], $descriptors, $pipes, $projectRoot, $environment);
+    runner_assert(is_resource($process), 'runner CLI guard subprocess starts');
+    fclose($pipes[0]);
+    $stdout = stream_get_contents($pipes[1]);
+    $stderr = stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    $code = proc_close($process);
+    $output = trim((is_string($stdout) ? $stdout : '') . "\n" . (is_string($stderr) ? $stderr : ''));
+    runner_assert(!str_contains($output, 'guard-api-secret-never-printed'), 'runner guard never prints API key');
+    runner_assert(!str_contains($output, 'guard-secret-never-printed'), 'runner guard never prints database secret');
+    return ['code' => $code, 'output' => $output];
+}
+
 function runner_assert_schema_dropped(PDO $adminPdo, string $schema): void
 {
     $statement = $adminPdo->prepare('SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name=:schema');
@@ -63,6 +103,18 @@ runner_assert(is_string($cliSource) && !str_contains($cliSource, 'apiKey()'), 'r
 runner_assert(is_string($cliSource) && !str_contains($cliSource, 'json_encode'), 'runner CLI prints scalar output rather than payload JSON');
 foreach (['provider_unavailable', 'provider_fallback', 'shadow_invalid'] as $safeCode) {
     runner_assert(str_contains($cliSource, $safeCode), 'runner CLI maps safe failure code ' . $safeCode);
+}
+
+$php = 'D:/laragon/bin/php/php-8.3.30-Win32-vs16-x64/php.exe';
+foreach ([
+    'production' => [['APP_ENV' => 'production'], 'status=environment_forbidden'],
+    'disabled' => [['TALENTHUB_AI_ENABLED' => 'false'], 'status=configuration_invalid'],
+    'shadow_disabled' => [['TALENTHUB_AI_SHADOW' => 'false'], 'status=configuration_invalid'],
+    'visible_enabled' => [['TALENTHUB_AI_VISIBLE_PERCENT' => '1'], 'status=configuration_invalid'],
+] as $case => [$environment, $expectedOutput]) {
+    $probe = runner_cli_guard_probe($php, $cliFile, $projectRoot, $environment);
+    runner_assert($probe['code'] !== 0, 'runner CLI guard rejects ' . $case);
+    runner_assert($probe['output'] === $expectedOutput, 'runner CLI guard returns redacted code for ' . $case . ': ' . $probe['output']);
 }
 
 $schema = 'talenthub_complete_demo_test_runner_' . bin2hex(random_bytes(6));
@@ -124,7 +176,6 @@ try {
     $pdo->exec("SET time_zone = '+00:00'");
     runner_assert((string) $pdo->query('SELECT DATABASE()')->fetchColumn() === $schema, 'runner PDO is pinned to the disposable schema');
 
-    $php = 'D:/laragon/bin/php/php-8.3.30-Win32-vs16-x64/php.exe';
     $migration = runner_command(escapeshellarg($php) . ' ' . escapeshellarg($projectRoot . '/bin/migrate.php') . ' migrate --step=12 2>&1');
     runner_assert($migration['code'] === 0, 'base migrations succeed: ' . $migration['output']);
 
@@ -223,11 +274,15 @@ try {
     $shadowRuns = (int) $pdo->query("SELECT COUNT(*) FROM learner_recommendation_runs WHERE engineType='model' AND status='completed'")->fetchColumn();
     runner_assert($visibleRuns === 2, 'two persisted rule runs');
     runner_assert($shadowRuns === 2, 'two persisted shadow model runs');
+    $shadowItems = (int) $pdo->query("SELECT COUNT(*) FROM learner_recommendation_items items INNER JOIN learner_recommendation_runs runs ON runs.id=items.runId WHERE runs.idempotencyKey LIKE 'shadow-%' AND runs.engineType='model' AND runs.status='completed'")->fetchColumn();
+    $shadowEvidence = (int) $pdo->query("SELECT COUNT(*) FROM learner_recommendation_evidence evidence INNER JOIN learner_recommendation_items items ON items.id=evidence.itemId INNER JOIN learner_recommendation_runs runs ON runs.id=items.runId WHERE runs.idempotencyKey LIKE 'shadow-%' AND runs.engineType='model' AND runs.status='completed'")->fetchColumn();
+    runner_assert($shadowItems === 2, 'completed shadow runs persist one safe item per hero');
+    runner_assert($shadowEvidence === 2, 'completed shadow runs persist evidence for every safe item');
 
     $secondReport = CompleteAiDemoAiRunner::run($pdo, $modelEngine, $heroIds);
     runner_assert($secondReport === $firstReport, 'completed stable runs are loaded and reported consistently');
     runner_assert((int) $pdo->query('SELECT COUNT(*) FROM learner_recommendation_runs')->fetchColumn() === 4, 'second run creates no additional recommendation runs');
-    runner_assert(count($provider->requests()) === 4, 'fake provider receives both heroes on both runner invocations');
+    runner_assert(count($provider->requests()) === 2, 'completed stable shadow runs avoid repeated provider invocation');
 
     echo "complete_ai_demo_runner_test: OK\n";
 } catch (Throwable $exception) {

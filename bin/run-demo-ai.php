@@ -21,11 +21,13 @@ use TalentHub\Learner\Ai\Rules\RuleRecommendationEngine;
 use TalentHub\Learner\Ai\Validation\RecommendationResultValidator;
 
 try {
+    $failureCode = 'environment_forbidden';
     $environment = Environment::appEnvironment();
     if (!in_array($environment, ['local', 'test'], true)) {
         throw new RuntimeException('Complete AI demo runner is allowed only in local/test.');
     }
 
+    $failureCode = 'configuration_invalid';
     $recommendationConfig = RecommendationConfig::fromEnvironment($_ENV);
     if (!$recommendationConfig->enabled()
         || !$recommendationConfig->shadowEnabled()
@@ -33,6 +35,7 @@ try {
         throw new RuntimeException('Complete AI demo runner requires enabled shadow AI with visible percentage zero.');
     }
 
+    $failureCode = 'provider_unavailable';
     $databaseConfig = require dirname(__DIR__) . '/config/database.php';
     $pdo = (new Connection($databaseConfig))->connect();
     $provider = new HttpRecommendationProvider($recommendationConfig);
@@ -84,7 +87,7 @@ try {
     }
     exit($failed ? 1 : 0);
 } catch (Throwable) {
-    fwrite(STDERR, "status=provider_unavailable\n");
+    fwrite(STDERR, 'status=' . ($failureCode ?? 'provider_unavailable') . PHP_EOL);
     exit(1);
 }
 

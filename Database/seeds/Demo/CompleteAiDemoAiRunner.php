@@ -96,14 +96,22 @@ final class CompleteAiDemoAiRunner
             );
             self::assertVisibleRun($pdo, $studentId, $visibleRun);
 
+            $visibleReport = [
+                'quality_state' => 'ready',
+                'visible_engine' => 'rule',
+                'visible_item_count' => count($visibleResult->items()),
+            ];
+            $persistedShadow = self::completedShadowReport($pdo, $studentId, $input->contentHash());
+            if ($persistedShadow !== null) {
+                $report[$studentId] = $visibleReport + $persistedShadow;
+                continue;
+            }
+
             $shadowExecution = $shadowService->run($studentId, $input, $context, $visibleResult);
             $shadowResult = $shadowExecution['shadow_result'];
             $evaluation = $shadowExecution['evaluation'];
 
-            $report[$studentId] = [
-                'quality_state' => 'ready',
-                'visible_engine' => 'rule',
-                'visible_item_count' => count($visibleResult->items()),
+            $report[$studentId] = $visibleReport + [
                 'shadow_engine' => $shadowResult->engineType(),
                 'shadow_valid' => $evaluation['valid'] === true,
                 'shadow_violation_codes' => is_array($evaluation['violations'])
@@ -144,5 +152,51 @@ final class CompleteAiDemoAiRunner
             || ($persisted['status'] ?? null) !== 'completed') {
             throw new RuntimeException('Demo visible completed run could not be loaded.');
         }
+    }
+
+    /** @return array{shadow_engine:string,shadow_valid:bool,shadow_violation_codes:list<string>}|null */
+    private static function completedShadowReport(PDO $pdo, string $studentId, string $contentHash): ?array
+    {
+        $statement = $pdo->prepare(<<<'SQL'
+SELECT
+    runs.engineType,
+    runs.provider,
+    runs.modelVersion,
+    runs.promptVersion,
+    runs.fallbackReason,
+    COUNT(DISTINCT items.id) AS itemCount,
+    COUNT(DISTINCT CASE WHEN evidence.id IS NOT NULL THEN items.id END) AS evidencedItemCount
+FROM learner_recommendation_runs runs
+LEFT JOIN learner_recommendation_items items ON items.runId = runs.id
+LEFT JOIN learner_recommendation_evidence evidence ON evidence.itemId = items.id
+WHERE runs.studentId = :studentId
+  AND runs.idempotencyKey = :idempotencyKey
+  AND runs.status = 'completed'
+  AND runs.engineType = 'model'
+GROUP BY runs.id, runs.engineType, runs.provider, runs.modelVersion, runs.promptVersion, runs.fallbackReason
+SQL);
+        $statement->execute([
+            'studentId' => $studentId,
+            'idempotencyKey' => 'shadow-' . hash('sha256', $contentHash),
+        ]);
+        $run = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($run)) {
+            return null;
+        }
+
+        $itemCount = (int) ($run['itemCount'] ?? 0);
+        $valid = ($run['engineType'] ?? null) === 'model'
+            && is_string($run['provider'] ?? null) && trim($run['provider']) !== ''
+            && is_string($run['modelVersion'] ?? null) && trim($run['modelVersion']) !== ''
+            && is_string($run['promptVersion'] ?? null) && trim($run['promptVersion']) !== ''
+            && ($run['fallbackReason'] ?? null) === null
+            && $itemCount > 0
+            && (int) ($run['evidencedItemCount'] ?? 0) === $itemCount;
+
+        return [
+            'shadow_engine' => 'model',
+            'shadow_valid' => $valid,
+            'shadow_violation_codes' => $valid ? [] : ['persisted_shadow_incomplete'],
+        ];
     }
 }

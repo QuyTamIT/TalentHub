@@ -7,8 +7,13 @@ use TalentHub\Learner\Ai\Domain\RecommendationEvidence;
 use TalentHub\Learner\Ai\Domain\RecommendationInput;
 use TalentHub\Learner\Ai\Domain\RecommendationItem;
 use TalentHub\Learner\Ai\Domain\RecommendationResult;
+use TalentHub\Learner\Ai\Contracts\RecommendationEngine;
 use TalentHub\Learner\Ai\Persistence\DatabaseRecommendationRepository;
 use TalentHub\Learner\Ai\Persistence\RecommendationRepository;
+use TalentHub\Learner\Ai\Quality\DataQualityResult;
+use TalentHub\Learner\Ai\Service\RecommendationResponseMapper;
+use TalentHub\Learner\Ai\Service\RecommendationService;
+use TalentHub\Learner\Ai\Validation\RecommendationResultValidator;
 
 require_once dirname(__DIR__) . '/app/learner/ai/Domain/RecommendationInput.php';
 require_once dirname(__DIR__) . '/app/learner/ai/Domain/RecommendationContext.php';
@@ -17,6 +22,11 @@ require_once dirname(__DIR__) . '/app/learner/ai/Domain/RecommendationItem.php';
 require_once dirname(__DIR__) . '/app/learner/ai/Domain/RecommendationResult.php';
 require_once dirname(__DIR__) . '/app/learner/ai/Persistence/RecommendationRepository.php';
 require_once dirname(__DIR__) . '/app/learner/ai/Persistence/DatabaseRecommendationRepository.php';
+require_once dirname(__DIR__) . '/app/learner/ai/Contracts/RecommendationEngine.php';
+require_once dirname(__DIR__) . '/app/learner/ai/Quality/DataQualityResult.php';
+require_once dirname(__DIR__) . '/app/learner/ai/Validation/RecommendationResultValidator.php';
+require_once dirname(__DIR__) . '/app/learner/ai/Service/RecommendationResponseMapper.php';
+require_once dirname(__DIR__) . '/app/learner/ai/Service/RecommendationService.php';
 require_once dirname(__DIR__) . '/app/learner/data/bootstrap.php';
 
 function recommendation_repository_assert(bool $condition, string $message): void
@@ -92,13 +102,48 @@ function recommendation_repository_result(string $skillId, string $assessmentId,
     );
 }
 
+function recommendation_repository_model_result(string $skillId): RecommendationResult
+{
+    return new RecommendationResult(
+        'model',
+        null,
+        'fake-provider',
+        'fake-model',
+        'fake-prompt',
+        null,
+        [new RecommendationItem(
+            'development',
+            'Model development step',
+            'Practice a development step supported by current evidence.',
+            60,
+            'medium',
+            ['type' => 'develop_skill', 'skill_code' => 'iot'],
+            [new RecommendationEvidence('skill', $skillId, '2026-08-16T00:00:00.000000+00:00', 'model_source', [])],
+        )],
+    );
+}
+
+final class RecommendationRepositoryUnusedEngine implements RecommendationEngine
+{
+    public function generate(RecommendationInput $input, RecommendationContext $context): RecommendationResult
+    {
+        throw new RuntimeException('Latest reads must not invoke an engine.');
+    }
+}
+
 $studentA = 'student-000000000000000000000000000001';
 $studentB = 'student-000000000000000000000000000002';
 $skillA = 'student-skill-000000000000000000000001';
 $assessmentA = 'result-00000000000000000000000000000001';
 $pdo = recommendation_repository_fixture();
 $pdo->exec("INSERT INTO student_profiles (id) VALUES ('{$studentA}'), ('{$studentB}')");
-$repository = new DatabaseRecommendationRepository($pdo, static fn (): string => '2026-08-16T12:00:00.000000+00:00');
+$repositoryNow = '2026-08-16T12:00:00.000000+00:00';
+$repository = new DatabaseRecommendationRepository(
+    $pdo,
+    static function () use (&$repositoryNow): string {
+        return $repositoryNow;
+    },
+);
 recommendation_repository_assert($repository instanceof RecommendationRepository, 'database repository implements the recommendation contract');
 
 $inputA = recommendation_repository_input($skillA, $assessmentA);
@@ -147,10 +192,49 @@ $itemA = $completedA['items'][0];
 recommendation_repository_assert((int) $pdo->query("SELECT COUNT(*) FROM learner_recommendation_evidence WHERE itemId = '" . $itemA['itemId'] . "'")->fetchColumn() === 1, 'completion persists an evidence link to the immutable input snapshot');
 $itemEvidence = $pdo->query("SELECT observedAt, safeValueJson FROM learner_recommendation_evidence WHERE itemId = '" . $itemA['itemId'] . "'")->fetch(PDO::FETCH_ASSOC);
 recommendation_repository_assert(($itemEvidence['observedAt'] ?? null) === '2026-08-16 00:00:00.000000' && ($itemEvidence['safeValueJson'] ?? null) === '{"level_score":82,"verification_status":"verified"}', 'completion copies canonical snapshot evidence instead of engine-supplied stale values');
+$repositoryNow = '2026-08-16T12:01:00.000000+00:00';
+$shadowContext = new RecommendationContext(
+    ['skills', 'assessment'],
+    'request-00000000000000000000000000000005',
+    'shadow-' . hash('sha256', $inputA->contentHash()),
+    $studentA,
+);
+$pendingShadow = $repository->createPendingRun($studentA, $inputA, $shadowContext);
+$repository->completeRun($studentA, $pendingShadow['runId'], recommendation_repository_model_result($skillA));
 $latestA = $repository->latestForStudent($studentA);
 $latestB = $repository->latestForStudent($studentB);
-recommendation_repository_assert($latestA !== null && $latestA['runId'] === $pendingA['runId'], 'learner A can load only its latest completed run');
+recommendation_repository_assert($latestA !== null && $latestA['runId'] === $pendingA['runId'], 'learner A latest excludes a newer stable shadow run');
 recommendation_repository_assert($latestB !== null && $latestB['runId'] === $pendingB['runId'], 'learner B cannot load learner A run through its latest query');
+$latestService = new RecommendationService(
+    $repository,
+    new RecommendationRepositoryUnusedEngine(),
+    new RecommendationResultValidator(),
+    new RecommendationResponseMapper(),
+    static fn (string $candidate): bool => hash_equals($studentA, $candidate),
+    static fn (string $candidate): array => [],
+    static fn (string $candidate, array $scopes): RecommendationInput => $inputA,
+    static fn (RecommendationInput $input): DataQualityResult => new DataQualityResult('ready'),
+    static fn (RecommendationInput $input): bool => true,
+);
+$latestServiceResult = $latestService->latest($studentA);
+recommendation_repository_assert(
+    $latestServiceResult !== null && $latestServiceResult['state'] === 'ready_rule' && $latestServiceResult['run_id'] === $pendingA['runId'],
+    'RecommendationService latest remains the visible rule run after shadow completion',
+);
+$repositoryNow = '2026-08-16T12:02:00.000000+00:00';
+$visibleModelContext = new RecommendationContext(
+    ['skills', 'assessment'],
+    'request-00000000000000000000000000000006',
+    'model-' . hash('sha256', $inputA->contentHash() . ':visible'),
+    $studentA,
+);
+$pendingVisibleModel = $repository->createPendingRun($studentA, $inputA, $visibleModelContext);
+$repository->completeRun($studentA, $pendingVisibleModel['runId'], recommendation_repository_model_result($skillA));
+$latestVisibleModel = $repository->latestForStudent($studentA);
+recommendation_repository_assert(
+    $latestVisibleModel !== null && $latestVisibleModel['runId'] === $pendingVisibleModel['runId'] && $latestVisibleModel['engineType'] === 'model',
+    'latest preserves a newer future visible model run in the model namespace',
+);
 recommendation_repository_expect_exception(
     static fn (): array => $repository->completeRun($studentB, $pendingA['runId'], recommendation_repository_result($skillA, $assessmentA)),
     'Recommendation run not found for learner'
