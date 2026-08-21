@@ -11,11 +11,17 @@ require_once dirname(__DIR__) . '/app/learner/data/Migrations/ForwardMigrationDe
 require_once dirname(__DIR__) . '/app/learner/data/Migrations/LearnerMigrationChecksum.php';
 require_once dirname(__DIR__) . '/app/learner/data/Readiness/AiScopePolicy.php';
 require_once dirname(__DIR__) . '/app/learner/data/Migrations/LearnerForwardMigrationRunner.php';
+require_once dirname(__DIR__) . '/src/Modules/Teacher/Repository/TeacherQrSessionRepository.php';
+require_once dirname(__DIR__) . '/src/Modules/Teacher/Service/TeacherQrSessionService.php';
+require_once dirname(__DIR__) . '/Database/seeds/Testing/MinimalAuthRbacSeeder.php';
 
 use TalentHub\Database\Connection;
 use TalentHub\Database\Seeds\Demo\CompleteAiDemoDataset;
 use TalentHub\Database\Seeds\Demo\CompleteAiDemoSeeder;
 use TalentHub\Database\Seeds\Demo\CompleteAiDemoVerifier;
+use TalentHub\Modules\Teacher\Repository\TeacherQrSessionRepository;
+use TalentHub\Modules\Teacher\Service\TeacherQrSessionService;
+use TalentHub\Database\Seeds\Testing\MinimalAuthRbacSeeder;
 
 $demoVerifierFile = dirname(__DIR__) . '/Database/seeds/Demo/CompleteAiDemoVerifier.php';
 demo_mysql_assert(is_file($demoVerifierFile), 'Complete AI demo verifier exists');
@@ -110,6 +116,26 @@ function demo_outside_namespace_snapshots(PDO $pdo, array $tables): array
     return $result;
 }
 
+function demo_owned_namespace_snapshots(PDO $pdo, array $tables): array
+{
+    $result = [];
+    foreach ($tables as $table) {
+        $escapedTable = str_replace('`', '``', $table);
+        $columns = $pdo->prepare('SELECT column_name FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=:table ORDER BY ordinal_position');
+        $columns->execute(['table' => $table]);
+        $columnNames = array_map('strval', $columns->fetchAll(PDO::FETCH_COLUMN));
+        demo_mysql_assert(in_array('id', $columnNames, true), 'owned snapshot table has an id: ' . $table);
+        $quotedColumns = array_map(static fn (string $column): string => '`' . str_replace('`', '``', $column) . '`', $columnNames);
+        $rows = $pdo->query('SELECT ' . implode(', ', $quotedColumns) . ' FROM `' . $escapedTable . "` WHERE `id` LIKE '21000000-%' OR `id` LIKE '22000000-%' ORDER BY `id`")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as &$row) {
+            ksort($row, SORT_STRING);
+        }
+        unset($row);
+        $result[$table] = hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+    return $result;
+}
+
 function demo_row_snapshot(PDO $pdo, string $table, string $id): string
 {
     $statement = $pdo->prepare('SELECT * FROM `' . str_replace('`', '``', $table) . '` WHERE id=:id');
@@ -118,6 +144,19 @@ function demo_row_snapshot(PDO $pdo, string $table, string $id): string
     demo_mysql_assert(is_array($row), 'foreign collision row exists: ' . $table);
     ksort($row, SORT_STRING);
     return hash('sha256', json_encode($row, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
+
+/** @param array<string,mixed> $parameters */
+function demo_query_snapshot(PDO $pdo, string $sql, array $parameters = []): string
+{
+    $statement = $pdo->prepare($sql);
+    $statement->execute($parameters);
+    $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as &$row) {
+        ksort($row, SORT_STRING);
+    }
+    unset($row);
+    return hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 }
 
 function demo_expect_foreign_collision(PDO $pdo, CompleteAiDemoSeeder $seeder, string $password, DateTimeImmutable $clock, string $table, string $foreignId, string $expectedMessage = 'Foreign natural-key collision'): void
@@ -344,6 +383,7 @@ try {
     $_ENV['APP_ENV'] = 'test';
     $env = 'test';
     (new TalentHub\Database\Seeds\Demo\SchoolDemoSeeder())->run($pdo, $env, $password);
+    (new MinimalAuthRbacSeeder())->run($pdo, $env, $password);
 
     // Seed catalogs into disposable schema
     $catalogSeederFile = $projectRoot . '/Database/seeds/learner/AssessmentCatalogMasterSeeder.php';
@@ -428,17 +468,48 @@ try {
         );
         $pdo->prepare('UPDATE schools SET name=:name WHERE id=:id')->execute(['name' => $schoolName, 'id' => $thptSchoolId]);
         $baselineOutside = demo_outside_namespace_snapshots($pdo, $seeder->touchedTables());
+        $immutableIsolationTables = [
+            'roles',
+            'permissions',
+            'role_permissions',
+            'enterprises',
+            'enterprise_members',
+            'talent_tests',
+            'test_questions',
+            'learner_assessment_versions',
+            'learner_assessment_question_versions',
+        ];
+        $baselineImmutableIsolation = demo_canonical_table_snapshots($pdo, $immutableIsolationTables);
+        $baselineProtectedDemoUsers = demo_query_snapshot(
+            $pdo,
+            "SELECT * FROM users WHERE email IN ('student@test.talenthub.local', 'teacher@test.talenthub.local') ORDER BY email",
+        );
+        demo_mysql_assert(
+            (int) $pdo->query("SELECT COUNT(*) FROM users WHERE email IN ('student@test.talenthub.local', 'teacher@test.talenthub.local')")->fetchColumn() === 2,
+            'protected student and teacher test accounts exist before complete demo seeding',
+        );
         $verificationClock = new DateTimeImmutable('today', new DateTimeZone('UTC'));
         if ($collisionCase === '') {
             $firstCliSeed = demo_run_cli($phpBin, $projectRoot . '/bin/seed.php', ['--demo-ai']);
             demo_mysql_assert($firstCliSeed['code'] === 0, 'first --demo-ai seed exits zero: ' . $firstCliSeed['output']);
             demo_mysql_assert(str_contains($firstCliSeed['output'], '[OK] complete AI demo seed'), 'first --demo-ai seed reports success');
             $firstCounts = demo_table_counts($pdo, $seeder->touchedTables());
+            $firstOwnedSnapshots = demo_owned_namespace_snapshots($pdo, $seeder->touchedTables());
             $secondCliSeed = demo_run_cli($phpBin, $projectRoot . '/bin/seed.php', ['--demo-ai']);
             demo_mysql_assert($secondCliSeed['code'] === 0, 'second --demo-ai seed exits zero: ' . $secondCliSeed['output']);
             demo_mysql_assert(str_contains($secondCliSeed['output'], '[OK] complete AI demo seed'), 'second --demo-ai seed reports success');
             $secondCounts = demo_table_counts($pdo, $seeder->touchedTables());
             demo_mysql_assert($firstCounts === $secondCounts, 'second --demo-ai seed has zero count drift');
+            $secondOwnedSnapshots = demo_owned_namespace_snapshots($pdo, $seeder->touchedTables());
+            $driftedOwnedTables = array_keys(array_filter(
+                $secondOwnedSnapshots,
+                static fn (string $hash, string $table): bool => ($firstOwnedSnapshots[$table] ?? null) !== $hash,
+                ARRAY_FILTER_USE_BOTH,
+            ));
+            demo_mysql_assert(
+                $driftedOwnedTables === [],
+                'second --demo-ai seed has zero owned-row content drift: ' . implode(',', $driftedOwnedTables),
+            );
         } else {
             $seeder->run($pdo, 'test', $password, $clock);
             $firstCounts = demo_table_counts($pdo, $seeder->touchedTables());
@@ -471,6 +542,14 @@ try {
         } else {
             demo_mysql_assert($firstCounts === $secondCounts, 'second seed has zero count drift');
             demo_mysql_assert(demo_outside_namespace_snapshots($pdo, $seeder->touchedTables()) === $baselineOutside, 'unrelated row content is unchanged');
+    demo_mysql_assert(
+        demo_canonical_table_snapshots($pdo, $immutableIsolationTables) === $baselineImmutableIsolation,
+        'roles, permissions, enterprises, and canonical assessment catalogs remain byte-identical',
+    );
+    demo_mysql_assert(
+        demo_query_snapshot($pdo, "SELECT * FROM users WHERE email IN ('student@test.talenthub.local', 'teacher@test.talenthub.local') ORDER BY email") === $baselineProtectedDemoUsers,
+        'pre-existing student and teacher demo accounts remain byte-identical',
+    );
     demo_mysql_assert((int) $pdo->query("SELECT COUNT(*) FROM schools WHERE id LIKE '22000000-%' AND name='Đại học FPT'")->fetchColumn() === 1, 'FPT school exists');
     demo_assert_exact_thpt_ids($pdo, 'schools', ['20000000-0000-4000-8000-000000000001'], 'THPT school fixture');
     demo_assert_exact_thpt_ids($pdo, 'teacher_profiles', demo_expected_thpt_teacher_ids(), 'THPT teacher profile fixture');
@@ -481,6 +560,13 @@ try {
     );
     demo_mysql_assert((int) $pdo->query("SELECT COUNT(*) FROM student_profiles WHERE id LIKE '22000000-%'")->fetchColumn() === 8, '8 FPT students exist');
     demo_mysql_assert((int) $pdo->query("SELECT COUNT(*) FROM teacher_profiles WHERE id LIKE '22000000-%'")->fetchColumn() === 4, '4 FPT lecturers exist');
+    $futureAuditTimestamps = (int) $pdo->query(<<<'SQL'
+SELECT
+    (SELECT COUNT(*) FROM skills WHERE id LIKE '22000000-%' AND createdAt > UTC_TIMESTAMP(6))
+  + (SELECT COUNT(*) FROM student_skills WHERE (id LIKE '21000000-%' OR id LIKE '22000000-%') AND createdAt > UTC_TIMESTAMP(6))
+  + (SELECT COUNT(*) FROM assessment_criteria WHERE id LIKE '22000000-%' AND createdAt > UTC_TIMESTAMP(6))
+SQL)->fetchColumn();
+    demo_mysql_assert($futureAuditTimestamps === 0, 'seed does not future-date owned audit timestamps');
     demo_mysql_assert((int) $pdo->query("SELECT COUNT(*) FROM learner_ai_consent_events WHERE id LIKE '21000000-%' OR id LIKE '22000000-%'")->fetchColumn() === 76, 'four consent scopes for 19 learners');
     demo_mysql_assert((int) $pdo->query(<<<'SQL'
 SELECT COUNT(*)
@@ -553,6 +639,30 @@ SQL)->fetchColumn();
     demo_mysql_assert(demo_owned_count($pdo, 'assessments') === 20, '20 published evaluations');
     demo_mysql_assert(demo_owned_count($pdo, 'assessment_scores') === 60, 'three scores per evaluation');
     demo_mysql_assert(demo_owned_count($pdo, 'activity_qr_sessions') === 8, 'four QR sessions per organization');
+    $qrService = new TeacherQrSessionService(new TeacherQrSessionRepository($pdo));
+    foreach ([
+        'THPT' => '20000000-0000-4000-8000-000000000001',
+        'FPT' => CompleteAiDemoDataset::uuid('fpt', 'school', 'fpt-university'),
+    ] as $organization => $schoolId) {
+        $manager = $pdo->prepare(<<<'SQL'
+SELECT teacher.userId
+FROM teacher_profiles teacher
+JOIN activity_qr_sessions session ON session.createdByTeacherId = teacher.id
+WHERE teacher.schoolId = :schoolId
+GROUP BY teacher.id, teacher.userId
+HAVING COUNT(DISTINCT session.status) = 3
+ORDER BY teacher.id
+LIMIT 1
+SQL);
+        $manager->execute(['schoolId' => $schoolId]);
+        $teacherUserId = $manager->fetchColumn();
+        demo_mysql_assert(is_string($teacherUserId) && $teacherUserId !== '', $organization . ' QR manager owns active, expired, and revoked sessions');
+        $pageData = $qrService->pageData($teacherUserId);
+        demo_mysql_assert($pageData['activities'] !== [], $organization . ' QR page lists an ongoing managed activity');
+        $statuses = array_values(array_unique(array_column($pageData['sessions'], 'status')));
+        sort($statuses, SORT_STRING);
+        demo_mysql_assert($statuses === ['active', 'expired', 'revoked'], $organization . ' QR page presents all three session states');
+    }
     demo_mysql_assert((int) $pdo->query(<<<'SQL'
 SELECT COUNT(*)
 FROM activity_qr_sessions session

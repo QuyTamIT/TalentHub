@@ -207,7 +207,7 @@ try {
     (new TalentHub\Database\Seeds\Demo\SchoolDemoSeeder())->run($pdo, 'test', $password);
     (new TalentHub\Learner\Seeds\AssessmentCatalogMasterSeeder($pdo, $schema))->seedAll();
 
-    $clock = new DateTimeImmutable('2026-08-20 00:00:00.000000', new DateTimeZone('UTC'));
+    $clock = new DateTimeImmutable('2024-08-20 00:00:00.000000', new DateTimeZone('UTC'));
     (new CompleteAiDemoSeeder())->run($pdo, 'test', $password, $clock);
 
     $modelConfig = RecommendationConfig::fromEnvironment([
@@ -251,7 +251,7 @@ try {
     );
 
     $heroIds = array_values(CompleteAiDemoDataset::heroStudentIds());
-    $firstReport = CompleteAiDemoAiRunner::run($pdo, $modelEngine, $heroIds);
+    $firstReport = CompleteAiDemoAiRunner::run($pdo, $modelEngine, $heroIds, $clock);
     runner_assert(array_keys($firstReport) === $heroIds, 'runner reports exactly both supplied hero IDs');
     foreach ($firstReport as $studentId => $row) {
         runner_assert(array_keys($row) === [
@@ -268,6 +268,113 @@ try {
         runner_assert($row['shadow_engine'] === 'model', 'shadow model executed');
         runner_assert($row['shadow_valid'] === true, 'shadow evaluation valid');
         runner_assert($row['shadow_violation_codes'] === [], 'shadow evaluation has no violation codes');
+
+        $profile = $pdo->prepare('SELECT COUNT(*) FROM student_profiles WHERE id=:studentId');
+        $profile->execute(['studentId' => $studentId]);
+        runner_assert((int) $profile->fetchColumn() === 1, 'stage 1 has a learner profile for ' . $studentId);
+
+        $assessmentResults = $pdo->prepare('SELECT COUNT(*) FROM test_results result INNER JOIN test_attempts attempt ON attempt.id=result.attemptId WHERE attempt.studentId=:studentId AND attempt.status=\'submitted\'');
+        $assessmentResults->execute(['studentId' => $studentId]);
+        runner_assert((int) $assessmentResults->fetchColumn() === 4, 'stage 2 has all four assessment results for ' . $studentId);
+        $hollandResult = $pdo->prepare(<<<'SQL'
+SELECT result.dimensionScoresJson
+FROM test_results result
+JOIN test_attempts attempt ON attempt.id = result.attemptId
+JOIN talent_tests test ON test.id = attempt.testId
+WHERE attempt.studentId = :studentId AND test.code LIKE 'holland\_%'
+LIMIT 1
+SQL);
+        $hollandResult->execute(['studentId' => $studentId]);
+        $hollandScores = json_decode((string) $hollandResult->fetchColumn(), true, 512, JSON_THROW_ON_ERROR);
+        runner_assert(is_array($hollandScores) && isset($hollandScores['A']), 'stage 2 has Holland artistic score for ' . $studentId);
+        $topHollandScore = max(array_map('intval', $hollandScores));
+        runner_assert((int) $hollandScores['A'] === $topHollandScore, 'Holland A is the top hero dimension for ' . $studentId);
+        runner_assert(count(array_filter($hollandScores, static fn (mixed $score): bool => (int) $score === $topHollandScore)) === 1, 'Holland A is uniquely highest for ' . $studentId);
+
+        $visibleJourney = $pdo->prepare(<<<'SQL'
+SELECT items.actionJson, COUNT(evidence.id) AS evidenceCount
+FROM learner_recommendation_runs runs
+JOIN learner_recommendation_items items ON items.runId = runs.id
+LEFT JOIN learner_recommendation_evidence evidence ON evidence.itemId = items.id
+WHERE runs.studentId = :studentId
+  AND runs.engineType = 'rule'
+  AND runs.status = 'completed'
+GROUP BY items.id, items.actionJson
+ORDER BY items.id
+SQL);
+        $visibleJourney->execute(['studentId' => $studentId]);
+        $visibleItems = $visibleJourney->fetchAll(PDO::FETCH_ASSOC);
+        runner_assert($visibleItems !== [], 'stage 3 persists quality-ready recommendation items for ' . $studentId);
+        $actionTypes = [];
+        $registerActivityIds = [];
+        $careerGroupsByAction = [];
+        foreach ($visibleItems as $item) {
+            runner_assert((int) $item['evidenceCount'] > 0, 'stage 3 recommendation item has evidence for ' . $studentId);
+            $action = json_decode((string) $item['actionJson'], true, 512, JSON_THROW_ON_ERROR);
+            if (is_array($action) && is_string($action['type'] ?? null)) {
+                $actionTypes[] = $action['type'];
+                if (in_array($action['type'], ['explore_career_group', 'register_activity'], true)) {
+                    $careerGroupsByAction[$action['type']][] = $action['career_group'] ?? null;
+                }
+                if ($action['type'] === 'register_activity' && is_string($action['activity_source_id'] ?? null)) {
+                    $registerActivityIds[] = $action['activity_source_id'];
+                }
+            }
+        }
+        runner_assert(in_array('explore_career_group', $actionTypes, true), 'stage 4 has a career-group recommendation for ' . $studentId);
+        runner_assert(in_array('register_activity', $actionTypes, true), 'stage 5 has an open activity recommendation for ' . $studentId);
+        runner_assert(($careerGroupsByAction['explore_career_group'] ?? []) !== [] && array_unique($careerGroupsByAction['explore_career_group']) === ['arts'], 'stage 4 recommendation derives from the artistic Holland group for ' . $studentId);
+        runner_assert(($careerGroupsByAction['register_activity'] ?? []) !== [] && array_unique($careerGroupsByAction['register_activity']) === ['arts'], 'stage 5 recommendation derives from the artistic Holland group for ' . $studentId);
+        runner_assert($registerActivityIds !== [], 'stage 5 register action includes a concrete activity source for ' . $studentId);
+        foreach ($registerActivityIds as $activityId) {
+            $openActivity = $pdo->prepare(<<<'SQL'
+SELECT COUNT(*)
+FROM activities activity
+JOIN classes class ON class.schoolId = activity.schoolId
+JOIN student_profiles student ON student.classId = class.id
+WHERE student.id = :studentId
+  AND activity.id = :activityId
+  AND activity.status IN ('published', 'ongoing')
+  AND activity.endAt >= :currentTime
+  AND NOT EXISTS (
+      SELECT 1 FROM activity_registrations registration
+      WHERE registration.activityId = activity.id
+        AND registration.studentId = student.id
+        AND registration.status IN ('pending', 'approved', 'attended')
+  )
+SQL);
+            $openActivity->execute([
+                'studentId' => $studentId,
+                'activityId' => $activityId,
+                'currentTime' => $clock->format('Y-m-d H:i:s.u'),
+            ]);
+            runner_assert((int) $openActivity->fetchColumn() === 1, 'stage 5 action references an open same-organization unregistered activity for ' . $studentId);
+        }
+
+        $experiences = $pdo->prepare(<<<'SQL'
+SELECT COUNT(*)
+FROM activity_registrations registration
+JOIN checkins checkin_record ON checkin_record.registrationId = registration.id AND checkin_record.status = 'confirmed'
+JOIN experience_logs experience ON experience.checkinId = checkin_record.id AND experience.status = 'confirmed'
+WHERE registration.studentId = :studentId AND registration.status = 'attended'
+SQL);
+        $experiences->execute(['studentId' => $studentId]);
+        runner_assert((int) $experiences->fetchColumn() >= 2, 'stage 6 has confirmed check-ins and experiences for ' . $studentId);
+
+        $evaluations = $pdo->prepare("SELECT COUNT(*) FROM assessments WHERE studentId=:studentId AND status='published'");
+        $evaluations->execute(['studentId' => $studentId]);
+        runner_assert((int) $evaluations->fetchColumn() >= 2, 'stage 7 has published educator evaluations for ' . $studentId);
+
+        $history = $pdo->prepare(<<<'SQL'
+SELECT COUNT(DISTINCT runs.id), COUNT(DISTINCT items.id), COUNT(DISTINCT evidence.id)
+FROM learner_recommendation_runs runs
+JOIN learner_recommendation_items items ON items.runId = runs.id
+JOIN learner_recommendation_evidence evidence ON evidence.itemId = items.id
+WHERE runs.studentId = :studentId AND runs.status = 'completed'
+SQL);
+        $history->execute(['studentId' => $studentId]);
+        $historyCounts = array_map('intval', $history->fetch(PDO::FETCH_NUM));
+        runner_assert($historyCounts[0] >= 2 && $historyCounts[1] >= 2 && $historyCounts[2] >= 2, 'stage 8 persists recommendation run, item, and evidence history for ' . $studentId);
     }
 
     $visibleRuns = (int) $pdo->query("SELECT COUNT(*) FROM learner_recommendation_runs WHERE engineType='rule' AND status='completed'")->fetchColumn();
@@ -279,7 +386,7 @@ try {
     runner_assert($shadowItems === 2, 'completed shadow runs persist one safe item per hero');
     runner_assert($shadowEvidence === 2, 'completed shadow runs persist evidence for every safe item');
 
-    $secondReport = CompleteAiDemoAiRunner::run($pdo, $modelEngine, $heroIds);
+    $secondReport = CompleteAiDemoAiRunner::run($pdo, $modelEngine, $heroIds, $clock);
     runner_assert($secondReport === $firstReport, 'completed stable runs are loaded and reported consistently');
     runner_assert((int) $pdo->query('SELECT COUNT(*) FROM learner_recommendation_runs')->fetchColumn() === 4, 'second run creates no additional recommendation runs');
     runner_assert(count($provider->requests()) === 2, 'completed stable shadow runs avoid repeated provider invocation');

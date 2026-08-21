@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace TalentHub\Database\Seeds\Demo;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use PDO;
 use RuntimeException;
 use TalentHub\Learner\Ai\Consent\ConsentPolicy;
@@ -35,8 +37,10 @@ final class CompleteAiDemoAiRunner
      * @param list<string> $studentIds
      * @return array<string,array<string,mixed>>
      */
-    public static function run(PDO $pdo, RecommendationEngine $modelEngine, array $studentIds): array
+    public static function run(PDO $pdo, RecommendationEngine $modelEngine, array $studentIds, ?DateTimeImmutable $clock = null): array
     {
+        $clock = ($clock ?? new DateTimeImmutable('now', new DateTimeZone('UTC')))
+            ->setTimezone(new DateTimeZone('UTC'));
         $consentPolicy = new ConsentPolicy(new DatabaseConsentSource($pdo));
         $snapshotBuilder = new RecommendationSnapshotBuilder(
             new DatabaseStudentProfileSource($pdo),
@@ -44,9 +48,9 @@ final class CompleteAiDemoAiRunner
             new DatabaseAssessmentSource($pdo),
             new DatabaseActivityExperienceSource($pdo),
             new DatabasePublishedEvaluationSource($pdo),
-            new DatabaseOpportunitySource($pdo),
+            new DatabaseOpportunitySource($pdo, $clock),
         );
-        $qualityGate = new DataQualityGate();
+        $qualityGate = new DataQualityGate($clock);
         $ruleEngine = new RuleRecommendationEngine();
         $validator = new RecommendationResultValidator();
         $repository = new DatabaseRecommendationRepository($pdo);

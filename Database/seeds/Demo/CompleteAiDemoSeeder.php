@@ -115,7 +115,7 @@ final class CompleteAiDemoSeeder
         $pdo->beginTransaction();
         try {
             $counts = [];
-            $this->seedFptOrganization($pdo, $hash, $clock, $counts);
+            $this->seedFptOrganization($pdo, $hash, $password, $clock, $counts);
             $this->seedSkills($pdo, $clock, $counts);
             $this->seedStudentSkillsAndEvidence($pdo, $clock, $counts);
             $this->seedConsent($pdo, $clock, $counts);
@@ -176,7 +176,7 @@ final class CompleteAiDemoSeeder
     }
 
     /** @param array<string,int> $counts */
-    private function seedFptOrganization(PDO $pdo, string $hash, DateTimeImmutable $clock, array &$counts): void
+    private function seedFptOrganization(PDO $pdo, string $hash, string $password, DateTimeImmutable $clock, array &$counts): void
     {
         $now = $clock->format('Y-m-d H:i:s.u');
         $fptSchoolId = CompleteAiDemoDataset::uuid('fpt', 'school', 'fpt-university');
@@ -203,7 +203,7 @@ final class CompleteAiDemoSeeder
             'id' => $fptAdminUserId,
             'roleId' => $schoolRoleId,
             'email' => 'fpt.admin@talenthub.vn',
-            'passwordHash' => $hash,
+            'passwordHash' => $this->stableOwnedPasswordHash($pdo, $fptAdminUserId, $password, $hash),
             'fullName' => 'Ban Đào tạo Đại học FPT (Demo)',
             'status' => 'active',
         ], $counts, 'users');
@@ -227,7 +227,7 @@ final class CompleteAiDemoSeeder
                 'id' => $userId,
                 'roleId' => $teacherRoleId,
                 'email' => $t['email'],
-                'passwordHash' => $hash,
+                'passwordHash' => $this->stableOwnedPasswordHash($pdo, $userId, $password, $hash),
                 'fullName' => $t['name'],
                 'status' => 'active',
             ], $counts, 'users');
@@ -267,7 +267,7 @@ final class CompleteAiDemoSeeder
                 'id' => $userId,
                 'roleId' => $studentRoleId,
                 'email' => $s['email'],
-                'passwordHash' => $hash,
+                'passwordHash' => $this->stableOwnedPasswordHash($pdo, $userId, $password, $hash),
                 'fullName' => $s['name'],
                 'status' => 'active',
             ], $counts, 'users');
@@ -402,6 +402,18 @@ final class CompleteAiDemoSeeder
         ], $counts, 'student_skills');
     }
 
+    private function stableOwnedPasswordHash(PDO $pdo, string $userId, string $password, string $fallbackHash): string
+    {
+        $statement = $pdo->prepare('SELECT passwordHash FROM users WHERE id = :id');
+        $statement->execute(['id' => $userId]);
+        $existingHash = $statement->fetchColumn();
+        if (is_string($existingHash) && $existingHash !== '' && password_verify($password, $existingHash)) {
+            return $existingHash;
+        }
+
+        return $fallbackHash;
+    }
+
     /** @param array<string,int> $counts */
     private function seedConsent(PDO $pdo, DateTimeImmutable $clock, array &$counts): void
     {
@@ -457,13 +469,16 @@ final class CompleteAiDemoSeeder
         $thptSchoolId = '20000000-0000-4000-8000-000000000001';
         $fptSchoolId = CompleteAiDemoDataset::uuid('fpt', 'school', 'fpt-university');
         $allActivities = CompleteAiDemoDataset::activities($clock);
+        $qrManagedActivityKeys = ['stem-lab', 'robotics', 'finance', 'design', 'ai-club', 'hackathon', 'marketing', 'ux'];
         $nowStr = $clock->format('Y-m-d H:i:s.u');
         foreach ($allActivities as $idx => $act) {
             $owner = $act['owner'];
             $activityId = CompleteAiDemoDataset::uuid($owner, 'activity', $act['key']);
             $teacherPool = $owner === 'thpt' ? $thptTeacherIds : $fptTeacherIds;
             $schoolId = $owner === 'thpt' ? $thptSchoolId : $fptSchoolId;
-            $teacherId = $teacherPool[$idx % count($teacherPool)];
+            $teacherId = in_array($act['key'], $qrManagedActivityKeys, true)
+                ? $teacherPool[0]
+                : $teacherPool[$idx % count($teacherPool)];
             $startAt = $clock->modify($act['start_offset'] . ' days')->setTime(8, 0, 0)->format('Y-m-d H:i:s.u');
             $endAt = $clock->modify($act['end_offset'] . ' days')->setTime(17, 0, 0)->format('Y-m-d H:i:s.u');
             $this->upsertOwned($pdo, 'activities', $activityId, [
@@ -532,19 +547,25 @@ final class CompleteAiDemoSeeder
         $qrSessionIds = [];
         foreach (['thpt', 'fpt'] as $owner) {
             $teacherPool = $owner === 'thpt' ? $thptTeacherIds : $fptTeacherIds;
-            foreach ($qrDefs[$owner] as $idx => [$status, $actKey, $sessionKey, $expireOff, $revokeOff, $linkedActKey]) {
+            foreach ($qrDefs[$owner] as [$status, $actKey, $sessionKey, $expireOff, $revokeOff, $linkedActKey]) {
                 $activityId = $activityIds[$actKey];
                 $qrId = CompleteAiDemoDataset::uuid($owner, 'qr-session', $sessionKey);
                 $qrSessionIds[$sessionKey] = $qrId;
-                $teacherId = $teacherPool[$idx % count($teacherPool)];
+                $teacherId = $teacherPool[0];
                 $expiresAt = $clock->modify($expireOff . ' hours')->format('Y-m-d H:i:s.u');
-                // For expired sessions linked to completed activities, use endAt+1h
-                if ($status === 'expired' && $linkedActKey !== null) {
+                // Keep the demo's active session usable through its ongoing activity.
+                if ($status === 'active' && $linkedActKey !== null) {
+                    $act = array_values(array_filter($allActs, static fn (array $a): bool => $a['key'] === $linkedActKey))[0];
+                    $expiresAt = $clock->modify($act['end_offset'] . ' days')->setTime(17, 0, 0)->format('Y-m-d H:i:s.u');
+                } elseif ($status === 'expired' && $linkedActKey !== null) {
                     $act = array_values(array_filter($allActs, static fn (array $a): bool => $a['key'] === $linkedActKey))[0];
                     $expiresAt = $clock->modify($act['end_offset'] . ' days')->setTime(18, 0, 0)->format('Y-m-d H:i:s.u');
                 }
                 $revokedAt = $revokeOff !== null ? $clock->modify($revokeOff . ' hours')->format('Y-m-d H:i:s.u') : null;
                 $tokenHash = hash('sha256', 'talenthub-demo-qr-v1:' . $owner . ':' . $sessionKey);
+                $existingUsedScans = $pdo->prepare('SELECT usedScans FROM activity_qr_sessions WHERE id = :id');
+                $existingUsedScans->execute(['id' => $qrId]);
+                $usedScans = $existingUsedScans->fetchColumn();
                 $this->upsertOwned($pdo, 'activity_qr_sessions', $qrId, [
                     'id' => $qrId,
                     'activityId' => $activityId,
@@ -553,7 +574,7 @@ final class CompleteAiDemoSeeder
                     'status' => $status,
                     'expiresAt' => $expiresAt,
                     'maxScans' => 100,
-                    'usedScans' => 0, // will update after checkins
+                    'usedScans' => $usedScans === false ? 0 : (int) $usedScans,
                     'revokedAt' => $revokedAt,
                 ], $counts, 'activity_qr_sessions');
             }
@@ -852,7 +873,7 @@ final class CompleteAiDemoSeeder
         $answers = [];
         if (str_starts_with($code, 'holland_')) {
             $dims = ['R', 'I', 'A', 'S', 'E', 'C'];
-            $primary = $isHero ? 'I' : $dims[$learnerIdx % 6];
+            $primary = $isHero ? 'A' : $dims[$learnerIdx % 6];
             foreach ($questions as $q) {
                 $dimCode = $q['dimensionCode'];
                 $m = [];
