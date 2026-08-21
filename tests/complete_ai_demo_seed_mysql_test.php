@@ -15,6 +15,20 @@ require_once dirname(__DIR__) . '/app/learner/data/Migrations/LearnerForwardMigr
 use TalentHub\Database\Connection;
 use TalentHub\Database\Seeds\Demo\CompleteAiDemoDataset;
 use TalentHub\Database\Seeds\Demo\CompleteAiDemoSeeder;
+use TalentHub\Database\Seeds\Demo\CompleteAiDemoVerifier;
+
+$demoVerifierFile = dirname(__DIR__) . '/Database/seeds/Demo/CompleteAiDemoVerifier.php';
+demo_mysql_assert(is_file($demoVerifierFile), 'Complete AI demo verifier exists');
+require_once $demoVerifierFile;
+
+$demoSeedCliSource = file_get_contents(dirname(__DIR__) . '/bin/seed.php');
+demo_mysql_assert(is_string($demoSeedCliSource) && str_contains($demoSeedCliSource, "'--demo-ai'"), 'seed CLI recognizes --demo-ai');
+demo_mysql_assert(is_string($demoSeedCliSource) && str_contains($demoSeedCliSource, 'CompleteAiDemoSeeder.php'), 'seed CLI requires CompleteAiDemoSeeder');
+demo_mysql_assert(is_string($demoSeedCliSource) && !str_contains($demoSeedCliSource, 'run-demo-ai.php'), 'seed CLI does not invoke the demo AI runner');
+demo_mysql_assert(is_string($demoSeedCliSource) && !str_contains($demoSeedCliSource, 'HttpRecommendationProvider'), 'seed CLI does not invoke an HTTP recommendation provider');
+
+$demoVerifyCliFile = dirname(__DIR__) . '/bin/verify-demo-ai.php';
+demo_mysql_assert(is_file($demoVerifyCliFile), 'Complete AI demo verifier CLI exists');
 
 function demo_mysql_assert(bool $condition, string $message): void
 {
@@ -36,6 +50,19 @@ function demo_table_counts(PDO $pdo, array $tables): array
         $result[$table] = (int) $pdo->query('SELECT COUNT(*) FROM `' . str_replace('`', '``', $table) . '`')->fetchColumn();
     }
     return $result;
+}
+
+/** @return array{code:int,output:string} */
+function demo_run_cli(string $phpBin, string $script, array $arguments = []): array
+{
+    $command = escapeshellarg($phpBin) . ' ' . escapeshellarg($script);
+    foreach ($arguments as $argument) {
+        $command .= ' ' . escapeshellarg($argument);
+    }
+    $output = [];
+    $code = 0;
+    exec($command . ' 2>&1', $output, $code);
+    return ['code' => $code, 'output' => implode("\n", $output)];
 }
 
 function demo_outside_namespace_snapshots(PDO $pdo, array $tables): array
@@ -379,8 +406,20 @@ try {
         );
         $pdo->prepare('UPDATE schools SET name=:name WHERE id=:id')->execute(['name' => $schoolName, 'id' => $thptSchoolId]);
         $baselineOutside = demo_outside_namespace_snapshots($pdo, $seeder->touchedTables());
-        $first = $seeder->run($pdo, 'test', $password, $clock);
-        $firstCounts = demo_table_counts($pdo, $seeder->touchedTables());
+        if ($collisionCase === '') {
+            $firstCliSeed = demo_run_cli($phpBin, $projectRoot . '/bin/seed.php', ['--demo-ai']);
+            demo_mysql_assert($firstCliSeed['code'] === 0, 'first --demo-ai seed exits zero: ' . $firstCliSeed['output']);
+            demo_mysql_assert(str_contains($firstCliSeed['output'], '[OK] complete AI demo seed'), 'first --demo-ai seed reports success');
+            $firstCounts = demo_table_counts($pdo, $seeder->touchedTables());
+            $secondCliSeed = demo_run_cli($phpBin, $projectRoot . '/bin/seed.php', ['--demo-ai']);
+            demo_mysql_assert($secondCliSeed['code'] === 0, 'second --demo-ai seed exits zero: ' . $secondCliSeed['output']);
+            demo_mysql_assert(str_contains($secondCliSeed['output'], '[OK] complete AI demo seed'), 'second --demo-ai seed reports success');
+            $secondCounts = demo_table_counts($pdo, $seeder->touchedTables());
+            demo_mysql_assert($firstCounts === $secondCounts, 'second --demo-ai seed has zero count drift');
+        } else {
+            $seeder->run($pdo, 'test', $password, $clock);
+            $firstCounts = demo_table_counts($pdo, $seeder->touchedTables());
+        }
 
         if ($collisionCase === 'student_skills') {
             $ownedId = (string) $pdo->query("SELECT id FROM student_skills WHERE id LIKE '22000000-%' ORDER BY id LIMIT 1")->fetchColumn();
@@ -407,9 +446,6 @@ try {
             demo_expect_foreign_collision($pdo, $seeder, $password, $clock, 'assessment_criteria', $foreignId);
             echo "complete_ai_demo_seed_mysql_test: collision assessment_criteria OK\n";
         } else {
-            $second = $seeder->run($pdo, 'test', $password, $clock);
-            $secondCounts = demo_table_counts($pdo, $seeder->touchedTables());
-
             demo_mysql_assert($firstCounts === $secondCounts, 'second seed has zero count drift');
             demo_mysql_assert(demo_outside_namespace_snapshots($pdo, $seeder->touchedTables()) === $baselineOutside, 'unrelated row content is unchanged');
     demo_mysql_assert((int) $pdo->query("SELECT COUNT(*) FROM schools WHERE id LIKE '22000000-%' AND name='Đại học FPT'")->fetchColumn() === 1, 'FPT school exists');
@@ -554,6 +590,38 @@ JOIN teacher_profiles teacher ON teacher.id = activity.createdByTeacherId
 WHERE activity.schoolId <> teacher.schoolId
 SQL)->fetchColumn();
     demo_mysql_assert($crossOrganizationActivities === 0, 'activities never use a teacher from another organization');
+
+    $verifierTables = array_merge($seeder->touchedTables(), ['learner_recommendation_runs']);
+    $beforeVerification = demo_table_counts($pdo, $verifierTables);
+    $verification = CompleteAiDemoVerifier::verify($pdo);
+    demo_mysql_assert($verification['ok'] === true, 'complete AI demo verifier reports OK: ' . implode(',', $verification['violations']));
+    demo_mysql_assert($verification['violations'] === [], 'complete AI demo verifier has no violations');
+    demo_mysql_assert($verification['counts']['organizations'] === 2, 'verifier has exactly two demo organizations');
+    demo_mysql_assert($verification['counts']['users'] === 31, 'verifier has exactly 31 demo users');
+    demo_mysql_assert($verification['counts']['teacher_profiles'] === 10, 'verifier has exactly 10 demo teacher profiles');
+    demo_mysql_assert($verification['counts']['learner_profiles'] === 19, 'verifier has exactly 19 demo learner profiles');
+    foreach (CompleteAiDemoDataset::expectedMinimums() as $name => $minimum) {
+        demo_mysql_assert(($verification['counts'][$name] ?? 0) >= $minimum, 'verifier meets expected minimum: ' . $name);
+    }
+    foreach (['high', 'college'] as $hero) {
+        $heroResult = $verification['heroes'][$hero] ?? null;
+        demo_mysql_assert(is_array($heroResult), 'verifier returns the ' . $hero . ' hero');
+        demo_mysql_assert(($heroResult['state'] ?? null) === 'ready', $hero . ' hero is quality-ready');
+        demo_mysql_assert(($heroResult['consent_scopes'] ?? 0) === 4, $hero . ' hero has four consent scopes');
+        demo_mysql_assert(($heroResult['source_counts']['skills'] ?? 0) >= 5, $hero . ' hero has at least five skill sources');
+        demo_mysql_assert(($heroResult['source_counts']['assessments'] ?? 0) >= 4, $hero . ' hero has at least four assessment sources');
+        demo_mysql_assert(($heroResult['source_counts']['activities'] ?? 0) >= 2, $hero . ' hero has at least two experience sources');
+        demo_mysql_assert(($heroResult['source_counts']['evaluations'] ?? 0) >= 2, $hero . ' hero has at least two evaluation sources');
+        demo_mysql_assert(($heroResult['source_counts']['opportunities'] ?? 0) >= 1, $hero . ' hero has an open matching opportunity');
+    }
+    demo_mysql_assert(demo_table_counts($pdo, $verifierTables) === $beforeVerification, 'verifier is read-only');
+
+    $verifyCli = demo_run_cli($phpBin, $projectRoot . '/bin/verify-demo-ai.php');
+    demo_mysql_assert($verifyCli['code'] === 0, 'verify-demo-ai CLI exits zero: ' . $verifyCli['output']);
+    demo_mysql_assert(str_contains($verifyCli['output'], 'engine_type=none'), 'verify-demo-ai CLI does not treat model output as visible');
+    foreach (['{', 'Nguyễn', 'CompleteDemoPass', 'answer', 'comment', 'payload', 'password', 'authorization'] as $forbidden) {
+        demo_mysql_assert(!str_contains(strtolower($verifyCli['output']), strtolower($forbidden)), 'verify-demo-ai CLI redacts ' . $forbidden);
+    }
 
     echo "complete_ai_demo_seed_mysql_test: OK\n";
         }

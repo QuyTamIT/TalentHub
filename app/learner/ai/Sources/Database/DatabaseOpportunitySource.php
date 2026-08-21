@@ -83,8 +83,12 @@ WHERE student.id = :student_id
 ORDER BY activity.startAt ASC, activity.id ASC
 SQL;
 
-    public function __construct(private readonly PDO $pdo)
+    private readonly DateTimeImmutable $clock;
+
+    public function __construct(private readonly PDO $pdo, ?DateTimeImmutable $clock = null)
     {
+        $this->clock = ($clock ?? new DateTimeImmutable('now', new DateTimeZone('UTC')))
+            ->setTimezone(new DateTimeZone('UTC'));
     }
 
     public function forStudent(string $studentId): array
@@ -126,7 +130,7 @@ SQL;
         // 2. Fetch school activities if contract available
         if ($this->hasActivityContract()) {
             try {
-                $currentTime = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s');
+                $currentTime = $this->clock->format('Y-m-d H:i:s');
                 $hasReg = $this->hasRegistrationsContract();
                 $sql = $hasReg ? self::ACTIVITY_SQL_WITH_REGISTRATIONS : self::ACTIVITY_SQL_SIMPLE;
                 $params = ['student_id' => $studentId, 'current_time' => $currentTime];
