@@ -1,7 +1,11 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 require('../assets/js/learner-activities.js');
+const activitySource = fs.readFileSync(path.join(__dirname, '..', 'assets/js/learner-activities.js'), 'utf8');
+assert.doesNotMatch(activitySource, /innerHTML|outerHTML|insertAdjacentHTML/, 'activity history renders server values without HTML parsing');
 const {
   canRegisterActivity,
   resolveRegistrationStatus,

@@ -221,7 +221,6 @@
         let toastTimer = null;
         let activeModal = null;
         let returnFocusTarget = null;
-        let activeAssessment = null;
 
         const getFocusableElements = (container) => Array.from(container.querySelectorAll(
             'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -307,17 +306,6 @@
             const input = document.getElementById('learner-search-input');
             const query = input?.value.trim() || '';
             showToast(query ? `Đang tìm kiếm “${query}” trong TalentHub.` : 'Nhập từ khóa để tìm hoạt động hoặc kỹ năng.', 'info');
-        });
-
-        document.querySelectorAll('[data-register-activity]').forEach((button) => {
-            button.addEventListener('click', () => {
-                if (button.disabled) return;
-
-                button.textContent = 'Đã đăng ký';
-                button.disabled = true;
-                button.classList.add('is-complete');
-                showToast('Đăng ký hoạt động thành công.');
-            });
         });
 
         const openModal = (modal, trigger) => {
@@ -545,25 +533,12 @@
             }
         });
 
-        document.querySelector('[data-save-opportunity]')?.addEventListener('click', (event) => {
-            const button = event.currentTarget;
-            button.classList.toggle('is-saved');
-            button.textContent = button.classList.contains('is-saved')
-                ? 'Đã lưu cơ hội'
-                : 'Lưu cơ hội';
-            showToast(button.classList.contains('is-saved') ? 'Đã lưu cơ hội.' : 'Đã bỏ lưu cơ hội.', 'info');
-        });
-
         const activityCards = Array.from(document.querySelectorAll('[data-activity-card]'));
         const activityFilters = Array.from(document.querySelectorAll('[data-activity-filter]'));
         const activityEmpty = document.querySelector('[data-activity-empty]');
         const activityResultStatus = document.querySelector('[data-activity-result-status]');
         const activitySearch = document.getElementById('learner-search-input');
-        const registrationModal = document.getElementById('learner-registration-modal');
-        const registrationName = registrationModal?.querySelector('[data-registration-name]');
-        const registrationConfirm = registrationModal?.querySelector('[data-confirm-registration]');
         let activeActivityCategory = 'Tất cả';
-        let pendingRegistrationButton = null;
 
         const updateActivityResults = () => {
             let visibleCount = 0;
@@ -592,32 +567,6 @@
                     });
                     updateActivityResults();
                 });
-            });
-
-            document.querySelectorAll('[data-activity-register]').forEach((button) => {
-                button.addEventListener('click', () => {
-                    pendingRegistrationButton = button;
-                    if (registrationName) {
-                        registrationName.textContent = button.dataset.activityName || 'hoạt động này';
-                    }
-                    openModal(registrationModal, button);
-                });
-            });
-
-            registrationConfirm?.addEventListener('click', () => {
-                if (!pendingRegistrationButton) return;
-
-                const completedButton = pendingRegistrationButton;
-                const fallbackFocusTarget = Array.from(document.querySelectorAll('[data-activity-register]:not(:disabled)'))
-                    .find((button) => button !== completedButton && !button.closest('[hidden]'))
-                    || activitySearch;
-
-                completedButton.textContent = 'Đã đăng ký';
-                completedButton.disabled = true;
-                completedButton.classList.add('is-complete');
-                pendingRegistrationButton = null;
-                closeModal(registrationModal, fallbackFocusTarget);
-                showToast('Đăng ký hoạt động thành công.');
             });
 
             updateActivityResults();
@@ -1188,50 +1137,5 @@
             showToast(copied ? 'Đã sao chép liên kết hồ sơ.' : 'Hãy chọn và sao chép liên kết thủ công.', copied ? 'success' : 'warning');
         });
 
-        const assessmentModal = document.getElementById('learner-assessment-modal');
-        const assessmentTitle = assessmentModal?.querySelector('[data-assessment-modal-title]');
-        const assessmentCopy = assessmentModal?.querySelector('[data-assessment-modal-copy]');
-        const assessmentConfirm = assessmentModal?.querySelector('[data-confirm-assessment]');
-
-        document.querySelectorAll('[data-assessment-action]').forEach((button) => {
-            button.addEventListener('click', () => {
-                activeAssessment = { button, card: button.closest('[data-assessment-card]') };
-                if (assessmentTitle) assessmentTitle.textContent = button.dataset.assessmentName || 'Bài đánh giá';
-                if (assessmentCopy) assessmentCopy.textContent = button.dataset.assessmentResult || '';
-
-                const state = button.dataset.assessmentAction;
-                if (assessmentConfirm) {
-                    assessmentConfirm.textContent = state === 'start' ? 'Bắt đầu ngay' : state === 'continue' ? 'Tiếp tục bài test' : 'Đã hiểu';
-                }
-                openModal(assessmentModal, button);
-            });
-        });
-
-        assessmentConfirm?.addEventListener('click', () => {
-            if (!activeAssessment) {
-                closeModal(assessmentModal);
-                return;
-            }
-
-            const { button, card } = activeAssessment;
-            const state = button.dataset.assessmentAction || 'result';
-            const nextState = nextAssessmentState(state);
-
-            if (state === 'start') {
-                button.dataset.assessmentAction = nextState;
-                button.textContent = 'Tiếp tục';
-                button.classList.remove('learner-btn--primary');
-                button.classList.add('learner-btn--secondary');
-                if (card) card.dataset.state = nextState;
-                showToast(`Đã bắt đầu bài test ${button.dataset.assessmentName}.`);
-            } else if (state === 'continue') {
-                showToast(`Đang tiếp tục bài test ${button.dataset.assessmentName}.`, 'info');
-            } else {
-                showToast(`Đã xem kết quả ${button.dataset.assessmentName}.`, 'info');
-            }
-
-            activeAssessment = null;
-            closeModal(assessmentModal);
-        });
     });
 })(typeof window !== 'undefined' ? window : globalThis);

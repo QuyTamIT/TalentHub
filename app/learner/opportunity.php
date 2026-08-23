@@ -95,7 +95,7 @@ $deadlineLabel = $opportunity ? (new DateTimeImmutable($opportunity['deadline'])
                             <h2 id="apply-card-title"><?= learner_escape($canApply ? 'Sẵn sàng ứng tuyển?' : 'Cơ hội đã đóng'); ?></h2>
                             <p><?= learner_escape($canApply ? 'Dùng hồ sơ TalentHub hiện tại và gửi lời nhắn ngắn tới đối tác.' : 'Bạn vẫn có thể xem thông tin, nhưng không thể gửi hồ sơ mới.'); ?></p>
                             <button class="learner-btn learner-btn--primary learner-btn--block" type="button" data-open-modal="learner-application-modal" <?= !$canApply ? 'disabled' : ''; ?>><?= learner_icon('send', 17); ?> Ứng tuyển ngay</button>
-                            <button class="learner-btn learner-btn--outline learner-btn--block" type="button" data-save-opportunity><?= learner_icon('bookmark', 17); ?> Lưu cơ hội</button>
+                            <button class="learner-btn learner-btn--outline learner-btn--block" type="button" disabled title="Tính năng lưu cơ hội chưa khả dụng"><?= learner_icon('bookmark', 17); ?> Lưu cơ hội — chưa hỗ trợ</button>
                             <div class="learner-apply-card__deadline"><span>Hạn đăng ký</span><strong><?= learner_escape($deadlineLabel); ?></strong></div>
                             <p class="learner-apply-card__privacy"><?= learner_icon('info', 15); ?> Chỉ thông tin trong hồ sơ ứng tuyển được chia sẻ với đối tác.</p>
                         </aside>
@@ -133,7 +133,7 @@ $deadlineLabel = $opportunity ? (new DateTimeImmutable($opportunity['deadline'])
                         <input type="checkbox" name="consent" value="yes" data-application-consent>
                         <span>Tôi đồng ý chia sẻ hồ sơ TalentHub và thông tin liên hệ với <?= learner_escape($opportunity['partner_name']); ?> để phục vụ quá trình xét duyệt.</span>
                     </label>
-                    <p class="learner-form-error" hidden data-application-error></p>
+                    <p class="learner-form-error" role="alert" tabindex="-1" hidden data-application-error></p>
                     <div class="learner-data-note">
                         <?= learner_icon('info', 17); ?>
                         <p>Hệ thống chỉ gửi ảnh chụp hồ sơ tối thiểu sau khi bạn xác nhận đồng ý.</p>

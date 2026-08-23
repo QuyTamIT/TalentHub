@@ -4970,6 +4970,47 @@ body.learner-sidebar-open {
     color: var(--text-muted, #94a3b8);
     margin-top: 2px;
 }
+
+/* Phase 10 interaction and breakpoint hardening -------------------------- */
+.learner-app :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid var(--primary);
+    outline: 3px solid color-mix(in srgb, var(--primary) 58%, white);
+    outline-offset: 3px;
+}
+
+.learner-app :where(button, .learner-btn, .learner-icon-button) {
+    min-height: 44px;
+}
+
+@media (max-width: 1024px) {
+    .learner-content {
+        scroll-margin-top: 16px;
+    }
+}
+
+@media (max-width: 768px) {
+    .learner-modal__dialog {
+        max-height: calc(100dvh - 24px);
+        overflow-y: auto;
+    }
+}
+
+@media (max-width: 360px) {
+    .learner-content {
+        padding-inline: 12px;
+    }
+
+    .learner-modal__actions,
+    .learner-welcome__actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .learner-modal__actions .learner-btn,
+    .learner-welcome__actions .learner-btn {
+        width: 100%;
+    }
+}
 .learner-notification-card__link-hint {
     color: var(--primary);
     font-weight: 650;

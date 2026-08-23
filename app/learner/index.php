@@ -145,11 +145,7 @@ $dashboardSkills = array_slice($skills, 0, 4);
                                 <span class="learner-badge learner-badge--<?= learner_escape($activity['tone']); ?>"><?= learner_escape($activity['category']); ?></span>
                                 <h3><?= learner_escape($activity['title']); ?></h3>
                                 <p><?= learner_escape($activity['time']); ?> <span aria-hidden="true">•</span> <?= learner_escape($activity['location']); ?></p>
-                                <?php if ($isDatabaseMode ?? false): ?>
-                                    <a class="learner-btn learner-btn--outline learner-btn--block" href="activities.php">Xem chi tiết</a>
-                                <?php else: ?>
-                                    <button class="learner-btn learner-btn--primary learner-btn--block" type="button" data-register-activity="<?= learner_escape($activity['id']); ?>">Đăng ký</button>
-                                <?php endif; ?>
+                                <a class="learner-btn learner-btn--outline learner-btn--block" href="activities.php">Xem chi tiết</a>
                             </article>
                         <?php endforeach; ?>
                     </div>

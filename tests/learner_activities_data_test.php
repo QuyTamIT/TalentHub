@@ -24,11 +24,13 @@ activity_assert(
     'browser storage is initialized only when explicit mock mutations are enabled'
 );
 activity_assert(
-    str_contains($activityJavascript, 'const cancel=(localMutationsEnabled||serverMutationsEnabled)&&isEligibleCancel?'),
+    str_contains($activityJavascript, 'if((localMutationsEnabled||serverMutationsEnabled)&&isEligibleCancel){')
+        && str_contains($activityJavascript, 'cancelButton.dataset.cancelRegistration='),
     'database mode renders cancellation only through the authenticated server gateway'
 );
 activity_assert(
-    str_contains($activityJavascript, 'const feedback=localMutationsEnabled&&isEligibleFeedback?'),
+    str_contains($activityJavascript, 'if(localMutationsEnabled&&isEligibleFeedback){')
+        && str_contains($activityJavascript, 'feedbackButton.dataset.feedbackRegistration='),
     'database mode does not render local feedback actions'
 );
 

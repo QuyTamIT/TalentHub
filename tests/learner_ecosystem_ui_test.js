@@ -2,8 +2,15 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 require('../assets/js/learner.js');
+
+const learnerSource = fs.readFileSync(path.join(__dirname, '..', 'assets/js/learner.js'), 'utf8');
+const opportunityPage = fs.readFileSync(path.join(__dirname, '..', 'app/learner/opportunity.php'), 'utf8');
+assert.doesNotMatch(learnerSource, /data-save-opportunity/, 'learner shell has no UI-only saved-opportunity mutation');
+assert.doesNotMatch(opportunityPage, /data-save-opportunity/, 'opportunity page does not expose fake persistence without an endpoint');
 
 const {
     ecosystemItemMatches,

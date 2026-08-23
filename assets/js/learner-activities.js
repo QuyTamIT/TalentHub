@@ -233,17 +233,49 @@ document.addEventListener('DOMContentLoaded',()=>{
     const render=()=>{
       const registrations=all(),container=mine.querySelector('[data-my-registration-list]');
       if(!container)return;
-      container.innerHTML=registrations.map(r=>{
+      const cards=registrations.map(r=>{
         const a=boot.catalog.find(x=>x.id===r.activity_id);
-        if(!a)return'';
+        if(!a)return null;
+        const safeStatus=Object.prototype.hasOwnProperty.call(statusLabels,r.status)?r.status:'unknown';
         const isEligibleCancel=['approved','registered','pending','waitlisted'].includes(r.status);
-        const cancel=(localMutationsEnabled||serverMutationsEnabled)&&isEligibleCancel?`<button type="button" data-cancel-registration="${r.id}">Hủy đăng ký</button>`:'';
         const isEligibleFeedback=(r.status==='attended'||r.status==='completed')&&!r.feedback;
-        const feedback=localMutationsEnabled&&isEligibleFeedback?`<button type="button" data-feedback-registration="${r.id}">Gửi phản hồi 5★</button>`:'';
         const isEligibleCheckin=(r.status==='approved'||r.status==='registered');
-        const checkinLink=isEligibleCheckin?`<a class="learner-btn learner-btn--primary" href="checkin.php?activity=${a.id}">Đi tới check-in</a>`:'';
-        return`<article class="learner-card learner-my-activity" data-status="${r.status}"><span class="learner-registration-status learner-registration-status--${r.status}">${getStatusLabel(r.status)}</span><div><h2>${a.title}</h2><p>${new Date(a.start_at).toLocaleString('vi-VN')} · ${a.location}</p></div><a class="learner-btn learner-btn--outline" href="activity-detail.php?id=${a.id}">Chi tiết</a>${checkinLink}${cancel}${feedback}</article>`;
-      }).join('');
+        const card=document.createElement('article');
+        card.className='learner-card learner-my-activity';
+        card.dataset.status=safeStatus;
+        const status=document.createElement('span');
+        status.className=`learner-registration-status learner-registration-status--${safeStatus}`;
+        status.textContent=getStatusLabel(r.status);
+        const content=document.createElement('div');
+        const title=document.createElement('h2');title.textContent=String(a.title||'Hoạt động');
+        const meta=document.createElement('p');
+        meta.textContent=`${new Date(a.start_at).toLocaleString('vi-VN')} · ${String(a.location||'Chưa cập nhật')}`;
+        content.append(title,meta);
+        const detailLink=document.createElement('a');
+        detailLink.className='learner-btn learner-btn--outline';
+        detailLink.href=`activity-detail.php?id=${encodeURIComponent(String(a.id||''))}`;
+        detailLink.textContent='Chi tiết';
+        card.append(status,content,detailLink);
+        if(isEligibleCheckin){
+          const checkinLink=document.createElement('a');
+          checkinLink.className='learner-btn learner-btn--primary';
+          checkinLink.href=`checkin.php?activity=${encodeURIComponent(String(a.id||''))}`;
+          checkinLink.textContent='Đi tới check-in';
+          card.appendChild(checkinLink);
+        }
+        if((localMutationsEnabled||serverMutationsEnabled)&&isEligibleCancel){
+          const cancelButton=document.createElement('button');
+          cancelButton.type='button';cancelButton.dataset.cancelRegistration=String(r.id||'');cancelButton.textContent='Hủy đăng ký';
+          card.appendChild(cancelButton);
+        }
+        if(localMutationsEnabled&&isEligibleFeedback){
+          const feedbackButton=document.createElement('button');
+          feedbackButton.type='button';feedbackButton.dataset.feedbackRegistration=String(r.id||'');feedbackButton.textContent='Gửi phản hồi 5★';
+          card.appendChild(feedbackButton);
+        }
+        return card;
+      }).filter(Boolean);
+      container.replaceChildren(...cards);
 
       container.querySelectorAll('[data-cancel-registration]').forEach(b=>b.addEventListener('click',async()=>{
         const current=registrations.find(r=>r.id===b.dataset.cancelRegistration);
