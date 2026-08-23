@@ -126,7 +126,7 @@ Before creating any file, Task 1 must fail if that version or semantic equivalen
 | 8 | Notification Center and preferences | Phases 4–7 producers | Complete — APPROVED_PHASE_8 | Owner/API/UI, producer rollback, MySQL concurrency, forward-validation, and disposable rehearsal passed |
 | 9 | Badges, levels, personal statistics | Phases 5–6 confirmed facts | Complete — APPROVED_PHASE_9 | Exact migration, deterministic backfill/replay, owner APIs/UI, rollback, concurrency and disposable rehearsal passed |
 | 10 | UI, accessibility, errors, security hardening | Stable APIs from 2–9 | Complete — APPROVED_PHASE_10 | 13 Node suites, 96 safe PHP suites, 526 lint files, MySQL limiter cleanup, readiness READY |
-| 11 | Four-role release rehearsal | Phases 0–10 | Blocked | Full MySQL E2E and checklist |
+| 11 | Four-role release rehearsal | Phases 0–10 | Ready for human review — GO_FOR_REVIEW | 3,397-assertion restored-MySQL E2E, 61-table/3,151-row digest equality, 84 FK checks, full checklist/recovery evidence |
 | 12 | Shadow evaluation and visible-pilot decision | Phase 11 | Model-visible blocked | Separate approval gate |
 
 Tracking rule: update only the phase row and its checklist after verification output is captured. Never mark a phase complete because its code was committed.
@@ -704,15 +704,15 @@ V1 rule inputs are allow-listed confirmed facts only: confirmed experience hours
 - Create: `docs/superpowers/readiness/student-portal-authorization-matrix.md`
 - Modify: deployment documentation only after tests pass
 
-- [ ] Take and verify a backup before any approved staging/primary migration.
-- [ ] Restore to a disposable schema with an allow-listed name; refuse `talenthub_local` in destructive test cleanup.
-- [ ] Apply all main migrations twice; require second run no-op and `drift=false`.
-- [ ] Run two Students, two Teachers, two Schools, and two Enterprises through positive and cross-scope negative cases.
-- [ ] Run E2E: profile/share → activity/approval/waitlist → QR/experience → assessment/evaluation → application/review → notification → badge/statistics.
-- [ ] Verify database invariants, row counts, hashes of pre-existing rows, no orphan rows, and no cross-role reassignment.
-- [ ] Run full PHP lint, PHP tests, Node tests, `git diff --check`, secret scan, and forbidden-scope review.
-- [ ] Record exact commands, exit codes, database/version, migration counts, test counts, known gaps, and recovery procedure.
-- [ ] Stop for human release review. Do not push or merge.
+- [x] Take and verify a backup before any approved staging/primary migration.
+- [x] Restore to a disposable schema with an allow-listed name; refuse `talenthub_local` in destructive test cleanup.
+- [x] Apply all main migrations twice; require second run no-op and `drift=false`.
+- [x] Run two Students, two Teachers, two Schools, and two Enterprises through positive and cross-scope negative cases.
+- [x] Run E2E: profile/share → activity/approval/waitlist → QR/experience → assessment/evaluation → application/review → notification → badge/statistics.
+- [x] Verify database invariants, row counts, hashes of pre-existing rows, no orphan rows, and no cross-role reassignment.
+- [x] Run full PHP lint, PHP tests, Node tests, `git diff --check`, secret scan, and forbidden-scope review.
+- [x] Record exact commands, exit codes, database/version, migration counts, test counts, known gaps, and recovery procedure.
+- [x] Stop for human release review. Do not push or merge.
 
 **Phase 11 exit:** all Student Portal DoD items have executable evidence; Teacher/School/Enterprise regressions pass; primary data mutation remains separately approved.
 

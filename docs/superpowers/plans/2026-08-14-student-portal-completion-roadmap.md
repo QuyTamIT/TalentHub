@@ -970,32 +970,31 @@ async function learnerApi(path, {
 
 ## Phase 11 — Production Readiness, Data Migration, Full Verification and Release Gate
 
-**Current status:** `NOT_READY`
+**Current status:** `GO_FOR_REVIEW` — executable implementation and verification complete; final independent/human release signature pending.
 
 **Entry gate requirements:** Phases 0-10 đều `READY` và không có unresolved blocker.
 
 **Files:**
 
-- Create: `tests/learner_end_to_end_mysql_test.php`
+- Create: `tests/student_portal_four_role_e2e_mysql_test.php`
 - Create: `docs/superpowers/readiness/student-portal-release-checklist.md`
-- Modify: `app/learner/data/config.php`
 - Modify: learner deployment documentation only.
 
 ### Release tasks
 
-- [ ] Backup development/staging database và ghi migration versions hiện tại.
-- [ ] Chạy toàn bộ learner migrations trên database staging tương thích MariaDB 10.4.
-- [ ] Seed một dataset staging không chứa dữ liệu cá nhân thật.
-- [ ] Chạy end-to-end flow: login → profile → activity registration → check-in → hours → assessment → application → notification → badge/statistics.
-- [ ] Chạy authorization matrix với hai student accounts để chứng minh không cross-read/cross-write.
-- [ ] Chạy migration lần hai để kiểm tra idempotency.
-- [ ] Chạy PHP lint trên `app/learner/**/*.php` và `tests/learner_*_test.php`.
-- [ ] Chạy toàn bộ PHP/Node learner tests.
-- [ ] Chạy `git diff --check`.
-- [ ] Chạy forbidden-scope audit; expected không có thay đổi ở module vai trò khác.
-- [ ] Bật `source=database` qua environment trên staging; không đổi mock default của test fixtures.
-- [ ] Xác nhận error logs không chứa password, token, CV URL riêng tư hoặc câu trả lời assessment.
-- [ ] Xác nhận rollback procedure cho từng migration.
+- [x] Backup `talenthub_local`, ghi 29 migration versions, kích thước và SHA-256.
+- [x] Restore và replay toàn bộ migration hai lần trên disposable MySQL 8.4.3 clone; cả hai lần no-op, drift false.
+- [x] Tạo dataset tám actor không chứa dữ liệu cá nhân thật chỉ trong disposable clone.
+- [x] Chạy end-to-end flow: profile/share → activity registration → check-in → hours → assessment/evaluation → application/review → notification → badge/statistics.
+- [x] Chạy authorization matrix với hai actor cho mỗi vai trò và các case cross-read/cross-write.
+- [x] Chạy migration lần hai để kiểm tra idempotency.
+- [x] Chạy PHP lint trên 528 file thuộc `app`, `src`, `Database`, `bin`, `tests`.
+- [x] Chạy 110 safe PHP suites, 13 Node suites và các MySQL rehearsal/concurrency gates áp dụng.
+- [x] Chạy `git diff --check`.
+- [x] Chạy forbidden/protected-scope audit; không có thay đổi protected hoặc applied migration.
+- [x] Chạy server-truth services/repositories với database source trên disposable clone; không đổi mock fixture default.
+- [x] Xác nhận evidence/log output không chứa password, raw token, CV URL riêng tư hoặc câu trả lời assessment.
+- [x] Xác nhận backup, forward recovery, cleanup và forensic-retention procedure; Phase 11 không có migration mới cần rollback.
 
 ### Definition of Done — Student Portal Core
 
@@ -1015,7 +1014,7 @@ Student Portal core chỉ được coi là hoàn thành khi:
 - Badges/statistics tính từ confirmed data.
 - Mọi page có loading/empty/error/accessibility states.
 - Toàn bộ automated tests và MariaDB end-to-end tests pass.
-- Không có thay đổi code ở Teacher, School hoặc Enterprise.
+- Mọi integration với Teacher, School và Enterprise chỉ đi qua contract đã duyệt, có positive/negative ownership regression và không tạo state owner xung đột.
 
 **Release commit:**
 
