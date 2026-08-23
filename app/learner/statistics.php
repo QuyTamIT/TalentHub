@@ -5,37 +5,39 @@ require_once __DIR__ . '/includes/icons.php';
 
 $pageTitle = 'Thống kê cá nhân';
 $currentRoute = '/app/learner/statistics.php';
-$currentStatistics = $learnerStatisticsPeriods[$defaultStatisticsPeriod];
-$experience = $currentStatistics['experience'];
-$chartMaximum = max(20, ...$experience['hours'], ...$experience['comparison']);
-$chartLeft = 46;
-$chartTop = 24;
-$chartWidth = 550;
-$chartHeight = 170;
-$chartStep = $chartWidth / max(1, count($experience['hours']));
-$barWidth = min(36, $chartStep * 0.42);
-$linePoints = [];
-$experienceSeriesDescription = 'Giờ trải nghiệm của bạn: ' . implode(', ', array_map(
-    static fn ($label, $hours) => "{$label}: {$hours} giờ",
-    $experience['labels'],
-    $experience['hours']
-));
-$comparisonSeriesDescription = 'Xu hướng tham chiếu: ' . implode(', ', array_map(
-    static fn ($label, $hours) => "{$label}: {$hours} giờ",
-    $experience['labels'],
-    $experience['comparison']
-));
+if (!($isDatabaseMode ?? false)) {
+    $currentStatistics = $learnerStatisticsPeriods[$defaultStatisticsPeriod];
+    $experience = $currentStatistics['experience'];
+    $chartMaximum = max(20, ...$experience['hours'], ...$experience['comparison']);
+    $chartLeft = 46;
+    $chartTop = 24;
+    $chartWidth = 550;
+    $chartHeight = 170;
+    $chartStep = $chartWidth / max(1, count($experience['hours']));
+    $barWidth = min(36, $chartStep * 0.42);
+    $linePoints = [];
+    $experienceSeriesDescription = 'Giờ trải nghiệm của bạn: ' . implode(', ', array_map(
+        static fn ($label, $hours) => "{$label}: {$hours} giờ",
+        $experience['labels'],
+        $experience['hours']
+    ));
+    $comparisonSeriesDescription = 'Xu hướng tham chiếu: ' . implode(', ', array_map(
+        static fn ($label, $hours) => "{$label}: {$hours} giờ",
+        $experience['labels'],
+        $experience['comparison']
+    ));
 
-foreach ($experience['comparison'] as $index => $value) {
-    $x = $chartLeft + ($index + 0.5) * $chartStep;
-    $y = $chartTop + $chartHeight - ($value / $chartMaximum * $chartHeight);
-    $linePoints[] = round($x, 2) . ',' . round($y, 2);
+    foreach ($experience['comparison'] as $index => $value) {
+        $x = $chartLeft + ($index + 0.5) * $chartStep;
+        $y = $chartTop + $chartHeight - ($value / $chartMaximum * $chartHeight);
+        $linePoints[] = round($x, 2) . ',' . round($y, 2);
+    }
+
+    $fieldTotal = array_sum(array_column($currentStatistics['fields'], 'hours'));
+    $donutRadius = 70;
+    $donutCircumference = 2 * M_PI * $donutRadius;
+    $donutOffset = 0.0;
 }
-
-$fieldTotal = array_sum(array_column($currentStatistics['fields'], 'hours'));
-$donutRadius = 70;
-$donutCircumference = 2 * M_PI * $donutRadius;
-$donutOffset = 0.0;
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -65,6 +67,13 @@ $donutOffset = 0.0;
                 ];
                 include __DIR__ . '/includes/page-banner.php';
                 ?>
+                <?php if ($isDatabaseMode ?? false): ?>
+                    <section class="learner-card learner-empty-state" role="status">
+                        <span class="learner-empty-state__icon"><?= learner_icon('chart', 30); ?></span>
+                        <h2>Chưa có dữ liệu thống kê</h2>
+                        <p>Thống kê xu hướng và cấp độ sẽ hiển thị khi dữ liệu tổng hợp được kích hoạt.</p>
+                    </section>
+                <?php else: ?>
                 <div class="learner-statistics-heading learner-statistics-heading--actions">
                     <label class="learner-statistics-period" for="learner-statistics-period">
                         <?= learner_icon('calendar', 19); ?>
@@ -224,13 +233,14 @@ $donutOffset = 0.0;
                     <h2>Chưa có dữ liệu trong khoảng thời gian này</h2>
                     <p>Hãy chọn một khoảng thời gian khác để xem tiến trình cá nhân.</p>
                 </section>
+                <?php endif; ?>
             </main>
         </div>
     </div>
 
     <script type="application/json" id="learner-statistics-data"><?=
         json_encode(
-            $learnerStatisticsPeriods,
+            ($isDatabaseMode ?? false) ? [] : $learnerStatisticsPeriods,
             JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
         );
     ?></script>

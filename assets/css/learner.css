@@ -374,13 +374,20 @@
 
 .learner-notification-dot {
     position: absolute;
-    top: 7px;
-    right: 7px;
-    width: 7px;
-    height: 7px;
+    top: 1px;
+    right: 1px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    align-items: center;
+    justify-content: center;
     background: var(--primary);
     border: 2px solid var(--surface);
-    border-radius: 50%;
+    border-radius: 999px;
+    color: #ffffff;
+    font-size: 0.625rem;
+    font-weight: 700;
+    line-height: 1;
 }
 
 .learner-avatar {
@@ -4885,4 +4892,167 @@ body.learner-sidebar-open {
         padding: 22px;
         align-items: flex-start;
     }
+}
+
+/* Learner Notifications Center -------------------------------------------- */
+.learner-notification-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+.learner-notification-heading__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.learner-notification-list {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+.learner-notification-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 12px);
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+.learner-notification-card:hover {
+    border-color: var(--primary-light, #bfdbfe);
+    background: var(--surface-hover, #f8fafc);
+}
+.learner-notification-card.is-unread {
+    border-left: 4px solid var(--primary);
+    background: #f0f7ff;
+}
+.learner-notification-card__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--primary-light, #e0f2fe);
+    color: var(--primary, #0284c7);
+}
+.learner-notification-card.is-unread .learner-notification-card__icon {
+    background: var(--primary, #0284c7);
+    color: #ffffff;
+}
+.learner-notification-card__body {
+    display: grid;
+    gap: 4px;
+}
+.learner-notification-card__title {
+    font-size: 0.95rem;
+    font-weight: 650;
+    color: var(--text-primary);
+    margin: 0;
+}
+.learner-notification-card__message {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.4;
+}
+.learner-notification-card__meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.75rem;
+    color: var(--text-muted, #94a3b8);
+    margin-top: 2px;
+}
+.learner-notification-card__link-hint {
+    color: var(--primary);
+    font-weight: 650;
+}
+.learner-notification-card__link-hint:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: 3px;
+}
+.learner-notification-card__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.learner-notification-empty {
+    padding: 48px 24px;
+    text-align: center;
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md, 12px);
+    color: var(--text-secondary);
+}
+.learner-notification-empty svg {
+    margin-bottom: 12px;
+    color: var(--text-muted);
+}
+.learner-notification-pagination {
+    display: flex;
+    justify-content: center;
+    margin: -8px 0 24px;
+}
+.learner-notification-modal {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+}
+.learner-notification-modal.is-open {
+    opacity: 1;
+    visibility: visible;
+}
+.learner-notification-modal__content {
+    background: var(--surface);
+    border-radius: var(--radius-lg, 16px);
+    padding: 28px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+.learner-pref-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 16px;
+}
+.learner-pref-row:last-child {
+    border-bottom: none;
+}
+.learner-pref-toggles {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.learner-pref-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+.learner-pref-toggle input[type="checkbox"] {
+    accent-color: var(--primary);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
 }

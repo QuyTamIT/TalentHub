@@ -5,19 +5,19 @@ require_once __DIR__ . '/includes/icons.php';
 
 $pageTitle = 'Tổng quan';
 $currentRoute = '/app/learner/index.php';
-$dashboardSkills = [$skills[0], $skills[1], $skills[2], $skills[4]];
+$dashboardSkills = array_slice($skills, 0, 4);
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Tổng quan hành trình phát triển năng lực của Nguyễn Văn A trên TalentHub.">
+    <meta name="description" content="Tổng quan hành trình phát triển năng lực của <?= learner_escape($student['name']); ?> trên TalentHub.">
     <title>Tổng quan Học sinh | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
 </head>
-<body class="learner-app learner-page-overview">
+<body class="learner-app learner-page-overview" data-learner-source="<?= ($isDatabaseMode ?? false) ? 'database' : 'mock'; ?>">
     <div class="learner-layout">
         <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
@@ -32,7 +32,11 @@ $dashboardSkills = [$skills[0], $skills[1], $skills[2], $skills[4]];
                             Chuỗi <?= learner_escape($student['streak_days']); ?> ngày liên tiếp
                         </p>
                         <h1 id="welcome-title">Chào mừng trở lại, <?= learner_escape($student['name']); ?> <span aria-hidden="true">👋</span></h1>
-                        <p>Bạn đã hoàn thành <?= learner_escape($student['experience_hours']); ?> giờ trải nghiệm tháng này — vượt 28% so với tháng trước.</p>
+                        <?php if ($isDatabaseMode ?? false): ?>
+                            <p>Bạn đã ghi nhận <?= learner_escape($dashboardKpis[2]['value'] ?? '0h'); ?> giờ trải nghiệm xác thực trên hệ thống.</p>
+                        <?php else: ?>
+                            <p>Bạn đã hoàn thành <?= learner_escape($student['experience_hours']); ?> giờ trải nghiệm tháng này — vượt 28% so với tháng trước.</p>
+                        <?php endif; ?>
                         <div class="learner-welcome__actions">
                             <a class="learner-btn learner-btn--primary" href="./activities.php">
                                 Khám phá hoạt động <?= learner_icon('arrow-right', 18); ?>
@@ -87,16 +91,21 @@ $dashboardSkills = [$skills[0], $skills[1], $skills[2], $skills[4]];
                             <a href="profile.php">Xem tất cả</a>
                         </div>
                         <div class="learner-skill-list">
-                            <?php foreach ($dashboardSkills as $skill): ?>
-                                <div class="learner-skill-row">
-                                    <span class="learner-skill-row__icon learner-tone--<?= learner_escape($skill['tone']); ?>"><?= learner_icon($skill['icon'], 16); ?></span>
-                                    <span class="learner-skill-row__name"><?= learner_escape($skill['short_name'] ?? $skill['name']); ?></span>
-                                    <div class="learner-progress" role="progressbar" aria-label="<?= learner_escape($skill['name']); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($skill['score']); ?>">
-                                        <span class="learner-progress--<?= learner_escape($skill['tone']); ?>" style="--learner-progress: <?= learner_escape($skill['score']); ?>%;"></span>
+                            <?php if (empty($dashboardSkills)): ?>
+                                <p class="learner-empty-state">Chưa có dữ liệu kỹ năng.</p>
+                            <?php else: ?>
+                                <?php foreach ($dashboardSkills as $skill): ?>
+                                    <?php $skillScoreClamped = max(0, min(100, (int) ($skill['score'] ?? 0))); ?>
+                                    <div class="learner-skill-row">
+                                        <span class="learner-skill-row__icon learner-tone--<?= learner_escape($skill['tone']); ?>"><?= learner_icon($skill['icon'], 16); ?></span>
+                                        <span class="learner-skill-row__name"><?= learner_escape($skill['short_name'] ?? $skill['name']); ?></span>
+                                        <div class="learner-progress" role="progressbar" aria-label="<?= learner_escape($skill['name']); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= $skillScoreClamped; ?>">
+                                            <span class="learner-progress--<?= learner_escape($skill['tone']); ?>" style="--learner-progress: <?= $skillScoreClamped; ?>%;"></span>
+                                        </div>
+                                        <span class="learner-skill-row__score"><?= $skillScoreClamped; ?>/100</span>
                                     </div>
-                                    <span class="learner-skill-row__score"><?= learner_escape($skill['score']); ?>/100</span>
-                                </div>
-                            <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </div>
                     </section>
 
@@ -105,24 +114,37 @@ $dashboardSkills = [$skills[0], $skills[1], $skills[2], $skills[4]];
                             <span class="learner-icon-tile learner-icon-tile--secondary"><?= learner_icon('bot', 22); ?></span>
                             <span>AI gợi ý cho bạn</span>
                         </div>
-                        <h2 id="ai-title">Năng khiếu nổi bật: IoT &amp; Drone</h2>
-                        <p>Khuyến nghị tham gia nhóm nghiên cứu tự động hóa và cuộc thi sáng tạo kỹ thuật trong tháng tới.</p>
-                        <a class="learner-btn learner-btn--outline" href="discover.php">Xem phân tích đầy đủ <?= learner_icon('arrow-right', 17); ?></a>
+                        <?php if ($isDatabaseMode ?? false): ?>
+                            <h2 id="ai-title">Gợi ý AI chưa có dữ liệu</h2>
+                            <p>Kết quả chỉ hiển thị khi dữ liệu đã được xác minh và chính sách hiển thị AI cho phép.</p>
+                            <a class="learner-btn learner-btn--outline" href="ai-recommendations.php">Xem trạng thái AI <?= learner_icon('arrow-right', 17); ?></a>
+                        <?php else: ?>
+                            <h2 id="ai-title">Năng khiếu nổi bật: IoT &amp; Drone</h2>
+                            <p>Khuyến nghị tham gia nhóm nghiên cứu tự động hóa và cuộc thi sáng tạo kỹ thuật trong tháng tới.</p>
+                            <a class="learner-btn learner-btn--outline" href="discover.php">Xem phân tích đầy đủ <?= learner_icon('arrow-right', 17); ?></a>
+                        <?php endif; ?>
                     </aside>
                 </div>
 
                 <section class="learner-card learner-activities" aria-labelledby="activities-title">
                     <div class="learner-section-heading">
-                        <h2 id="activities-title">Hoạt động sắp diễn ra</h2>
+                        <h2 id="activities-title"><?= ($isDatabaseMode ?? false) ? 'Hoạt động đã xác nhận' : 'Hoạt động sắp diễn ra'; ?></h2>
                         <a href="./activities.php">Tất cả hoạt động</a>
                     </div>
                     <div class="learner-activity-grid">
+                        <?php if ($activities === []): ?>
+                            <p class="learner-empty-state">Chưa có hoạt động đã xác nhận.</p>
+                        <?php endif; ?>
                         <?php foreach ($activities as $activity): ?>
                             <article class="learner-activity-card">
                                 <span class="learner-badge learner-badge--<?= learner_escape($activity['tone']); ?>"><?= learner_escape($activity['category']); ?></span>
                                 <h3><?= learner_escape($activity['title']); ?></h3>
                                 <p><?= learner_escape($activity['time']); ?> <span aria-hidden="true">•</span> <?= learner_escape($activity['location']); ?></p>
-                                <button class="learner-btn learner-btn--primary learner-btn--block" type="button" data-register-activity="<?= learner_escape($activity['id']); ?>">Đăng ký</button>
+                                <?php if ($isDatabaseMode ?? false): ?>
+                                    <a class="learner-btn learner-btn--outline learner-btn--block" href="activities.php">Xem chi tiết</a>
+                                <?php else: ?>
+                                    <button class="learner-btn learner-btn--primary learner-btn--block" type="button" data-register-activity="<?= learner_escape($activity['id']); ?>">Đăng ký</button>
+                                <?php endif; ?>
                             </article>
                         <?php endforeach; ?>
                     </div>

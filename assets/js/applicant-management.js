@@ -13,48 +13,25 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
         applicants = JSON.parse(applicantsDataEl.textContent || '[]');
     } catch (e) {
-        console.error('Failed to parse applicant mock data:', e);
+        console.error('Failed to parse applicant server data:', e);
         applicants = [];
     }
 
-    const talentsDataEl = document.getElementById('talents-raw-data');
-    let talentsList = [];
-    if (talentsDataEl) {
-        try {
-            talentsList = JSON.parse(talentsDataEl.textContent || '[]');
-        } catch (e) {
-            console.warn('Could not parse talents data:', e);
-            talentsList = [];
-        }
-    }
+    const currentPostId = applicantsDataEl.getAttribute('data-post-id') || '';
+    const bootNode = document.getElementById('enterprise-session-boot');
+    let enterpriseBoot = {};
+    try { enterpriseBoot = JSON.parse(bootNode?.textContent || '{}'); } catch { enterpriseBoot = {}; }
 
-    const currentPostId = applicantsDataEl.getAttribute('data-post-id') || '1';
-    const storageKey = `talenthub_applicant_reviews_${currentPostId}`;
-
-    function resolveCandidateDetailUrl(id) {
-        const basePrefix = window.location.pathname.includes('/TalentHub') ? '/TalentHub' : '';
-        return `${basePrefix}/app/enterprise/talents/detail.php?id=${encodeURIComponent(id)}`;
-    }
-
-    // Load persisted mock reviews from localStorage if available
-    const savedReviews = localStorage.getItem(storageKey);
-    if (savedReviews) {
-        try {
-            const parsedReviews = JSON.parse(savedReviews);
-            applicants = applicants.map(app => {
-                if (parsedReviews[app.id]) {
-                    return {
-                        ...app,
-                        status: parsedReviews[app.id].status || app.status,
-                        status_label: parsedReviews[app.id].status_label || app.status_label,
-                        reviewer_note: parsedReviews[app.id].reviewer_note !== undefined ? parsedReviews[app.id].reviewer_note : app.reviewer_note
-                    };
-                }
-                return app;
-            });
-        } catch (e) {
-            console.warn('Could not parse local mock reviews:', e);
-        }
+    async function enterpriseRequest(method, path, body) {
+        const response = await fetch(`${enterpriseBoot.apiBase || '/api/v1'}${path}`, {
+            method,
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': enterpriseBoot.csrfToken || '' },
+            body: JSON.stringify(body),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.data) throw new Error(payload?.error?.message || 'Không thể cập nhật hồ sơ ứng viên.');
+        return payload.data;
     }
 
     // DOM Elements
@@ -105,11 +82,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Helper: Map status to Vietnamese label
     function getStatusLabel(status) {
         switch (status) {
-            case 'new': return 'Mới';
+            case 'submitted': return 'Đã nộp';
             case 'reviewing': return 'Đang xem xét';
-            case 'interviewing': return 'Phỏng vấn';
+            case 'interview': return 'Phỏng vấn';
             case 'accepted': return 'Đã nhận';
-            case 'rejected': return 'Từ chối';
+            case 'declined': return 'Từ chối';
+            case 'withdrawn': return 'Đã rút';
             default: return 'Tất cả';
         }
     }
@@ -124,6 +102,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper: Render Single-Line Job Match Score tag
     function renderMatchScoreBadge(score) {
+        if (score === null || score === undefined || score === '' || !Number.isFinite(Number(score))) {
+            return '<span class="ent-job-match-tag ent-job-match-tag--unavailable">Chưa có dữ liệu phù hợp</span>';
+        }
+        score = Number(score);
         let modifier = 'high';
         if (score < 80) modifier = 'low';
         else if (score < 90) modifier = 'medium';
@@ -164,11 +146,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateTabCounters() {
         const counts = {
             all: applicants.length,
-            new: 0,
+            submitted: 0,
             reviewing: 0,
-            interviewing: 0,
+            interview: 0,
             accepted: 0,
-            rejected: 0
+            declined: 0,
+            withdrawn: 0
         };
 
         applicants.forEach(app => {
@@ -215,15 +198,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Score Range Check
-            if (selectedScore === '90_plus' && app.match_score < 90) return false;
-            if (selectedScore === '80_89' && (app.match_score < 80 || app.match_score >= 90)) return false;
-            if (selectedScore === 'under_80' && app.match_score >= 80) return false;
+            // Score filters never classify a missing score as a real zero.
+            const hasScore = app.match_score !== null && app.match_score !== undefined && app.match_score !== '' && Number.isFinite(Number(app.match_score));
+            if (selectedScore !== 'all' && !hasScore) return false;
+            if (selectedScore === '90_plus' && Number(app.match_score) < 90) return false;
+            if (selectedScore === '80_89' && (Number(app.match_score) < 80 || Number(app.match_score) >= 90)) return false;
+            if (selectedScore === 'under_80' && Number(app.match_score) >= 80) return false;
 
             return true;
         }).sort((a, b) => {
             if (selectedSort === 'score_desc') {
-                return b.match_score - a.match_score;
+                const scoreA = Number.isFinite(Number(a.match_score)) && a.match_score !== null ? Number(a.match_score) : -1;
+                const scoreB = Number.isFinite(Number(b.match_score)) && b.match_score !== null ? Number(b.match_score) : -1;
+                return scoreB - scoreA;
             } else if (selectedSort === 'date_desc') {
                 return new Date(b.applied_at) - new Date(a.applied_at);
             } else if (selectedSort === 'date_asc') {
@@ -250,11 +237,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Render Desktop Table Rows
         if (tableBody) {
             tableBody.innerHTML = filtered.map(app => {
-                const isDecisionMade = (app.status === 'accepted' || app.status === 'rejected');
+                const isDecisionMade = (app.status === 'accepted' || app.status === 'declined' || app.status === 'withdrawn');
                 const primaryBtnText = isDecisionMade ? 'Chi tiết' : 'Duyệt';
                 const primaryBtnClass = isDecisionMade ? 'btn-secondary' : 'btn-primary';
-
-                const detailUrl = resolveCandidateDetailUrl(app.student_id);
 
                 return `
                     <tr data-applicant-id="${app.id}">
@@ -262,11 +247,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="ent-applicant-identity">
                                 <div class="ent-applicant-avatar">${escapeHtml(app.avatar_initials)}</div>
                                 <div class="ent-applicant-info">
-                                    <a href="${detailUrl}" 
-                                       class="ent-applicant-info__name"
-                                       title="Xem Talent Passport của ${escapeHtml(app.name)}">
+                                    <button type="button" class="ent-applicant-info__name btn-review-app" data-app-id="${app.id}" title="Xem hồ sơ đã chụp khi ứng tuyển">
                                         ${escapeHtml(app.name)}
-                                    </a>
+                                    </button>
                                     <div class="ent-applicant-info__sub" title="${escapeHtml(app.school)} · ${escapeHtml(app.class_code || app.education_level)}">
                                         ${escapeHtml(app.school)} &middot; ${escapeHtml(app.class_code || app.education_level)}
                                     </div>
@@ -287,11 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </td>
                         <td class="text-right">
                             <div class="ent-action-group">
-                                <a href="${detailUrl}" 
-                                   class="btn btn-secondary btn-sm"
-                                   title="Xem Talent Passport">
-                                    Xem hồ sơ
-                                </a>
+                                <button type="button" class="btn btn-secondary btn-sm btn-view-cv" data-app-id="${app.id}" title="Xem hồ sơ bất biến đã chụp khi ứng tuyển">Xem hồ sơ</button>
                                 <button type="button" 
                                         class="btn ${primaryBtnClass} btn-sm btn-review-app" 
                                         data-app-id="${app.id}">
@@ -334,11 +313,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Render Mobile Stacked Cards
         if (mobileCardsContainer) {
             mobileCardsContainer.innerHTML = filtered.map(app => {
-                const isDecisionMade = (app.status === 'accepted' || app.status === 'rejected');
+                const isDecisionMade = (app.status === 'accepted' || app.status === 'declined' || app.status === 'withdrawn');
                 const primaryBtnText = isDecisionMade ? 'Chi tiết' : 'Duyệt hồ sơ';
                 const primaryBtnClass = isDecisionMade ? 'btn-secondary' : 'btn-primary';
-
-                const detailUrl = resolveCandidateDetailUrl(app.student_id);
 
                 return `
                     <article class="ent-applicant-mobile-card" data-applicant-id="${app.id}">
@@ -348,9 +325,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     ${escapeHtml(app.avatar_initials)}
                                 </div>
                                 <div class="ent-applicant-info">
-                                    <a href="${detailUrl}" class="ent-applicant-info__name">
+                                    <button type="button" class="ent-applicant-info__name btn-review-app" data-app-id="${app.id}">
                                         ${escapeHtml(app.name)}
-                                    </a>
+                                    </button>
                                     <div class="ent-applicant-info__sub">${escapeHtml(app.school)} &middot; ${escapeHtml(app.class_code || app.education_level)}</div>
                                 </div>
                             </div>
@@ -430,12 +407,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    let currentActiveDrawerStatus = 'new';
+    let currentActiveDrawerStatus = 'submitted';
 
     // Helper: Update ATS Recruiter Pipeline visual states
     function updateDrawerPipelineUI(status) {
         currentActiveDrawerStatus = status;
-        const steps = ['new', 'reviewing', 'interviewing', 'accepted'];
+        const steps = ['submitted', 'reviewing', 'interview', 'accepted'];
         const targetIdx = steps.indexOf(status);
 
         document.querySelectorAll('.ats-pipeline-step').forEach(stepBtn => {
@@ -445,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
             stepBtn.classList.remove('is-active', 'is-completed');
             stepBtn.setAttribute('aria-checked', 'false');
 
-            if (status === 'rejected') {
+            if (status === 'declined') {
                 // When rejected, positive stages are neutral
             } else if (stepStatus === status) {
                 stepBtn.classList.add('is-active');
@@ -457,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const rejectBtn = document.getElementById('btn-status-reject');
         if (rejectBtn) {
-            if (status === 'rejected') {
+            if (status === 'declined') {
                 rejectBtn.classList.add('is-active');
                 rejectBtn.setAttribute('aria-checked', 'true');
             } else {
@@ -492,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (rejectBtnEl) {
         rejectBtnEl.addEventListener('click', (e) => {
             e.preventDefault();
-            updateDrawerPipelineUI('rejected');
+            updateDrawerPipelineUI('declined');
         });
     }
 
@@ -519,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const locTextEl = document.getElementById('drawer-app-location-text');
         if (locTextEl) {
-            locTextEl.textContent = app.location || 'Hà Nội';
+            locTextEl.textContent = app.location || 'Chưa có dữ liệu';
         }
 
         // Score Tag in Header
@@ -536,12 +513,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const expEl = document.getElementById('drawer-snapshot-exp');
         if (expEl) {
-            expEl.textContent = `${app.experience_hours || 120}h thực án`;
+            const hours = Number(app.experience_hours);
+            expEl.textContent = Number.isFinite(hours) ? `${hours}h đã xác nhận` : 'Chưa có dữ liệu';
         }
 
         const scoreValEl = document.getElementById('drawer-snapshot-score');
         if (scoreValEl) {
-            scoreValEl.textContent = `${app.match_score}%`;
+            scoreValEl.textContent = app.match_score === null || app.match_score === undefined
+                ? 'Chưa có dữ liệu phù hợp'
+                : `${Number(app.match_score)}%`;
         }
 
         const snapshotStatus = document.getElementById('drawer-snapshot-status');
@@ -552,22 +532,26 @@ document.addEventListener('DOMContentLoaded', () => {
         // 3. Role Fit Analysis Section
         const fitPercentageEl = document.getElementById('drawer-fit-percentage');
         if (fitPercentageEl) {
-            fitPercentageEl.textContent = `${app.match_score}% phù hợp`;
+            fitPercentageEl.textContent = app.match_score === null || app.match_score === undefined
+                ? 'Chưa có dữ liệu phù hợp'
+                : `${Number(app.match_score)}% phù hợp`;
         }
 
         const progressFillEl = document.getElementById('drawer-fit-progress-fill');
         if (progressFillEl) {
-            progressFillEl.style.width = `${app.match_score}%`;
+            progressFillEl.style.width = `${Number.isFinite(Number(app.match_score)) ? Number(app.match_score) : 0}%`;
         }
 
         const progressAriaEl = document.getElementById('drawer-fit-progress-aria');
         if (progressAriaEl) {
-            progressAriaEl.setAttribute('aria-valuenow', app.match_score);
+            progressAriaEl.setAttribute('aria-valuenow', Number.isFinite(Number(app.match_score)) ? Number(app.match_score) : 0);
         }
 
         const fitSummaryEl = document.getElementById('drawer-fit-summary');
         if (fitSummaryEl) {
-            if (app.match_score >= 92) {
+            if (app.match_score === null || app.match_score === undefined) {
+                fitSummaryEl.textContent = 'Chưa có dữ liệu phù hợp từ nguồn đánh giá.';
+            } else if (app.match_score >= 92) {
                 fitSummaryEl.textContent = `Hồ sơ đáp ứng xuất sắc ${(app.matching_skills || []).length} kỹ năng cốt lõi theo yêu cầu của tin tuyển dụng.`;
             } else if (app.match_score >= 80) {
                 fitSummaryEl.textContent = `Hồ sơ đáp ứng tốt phần lớn yêu cầu chuyên môn, cần đánh giá bổ sung trong buổi phỏng vấn.`;
@@ -599,15 +583,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `).join('');
             } else {
-                missingContainer.innerHTML = '<div class="ats-missing-item" style="color:#16A34A; font-weight:500;">✓ Đáp ứng đầy đủ tiêu chí năng lực yêu cầu</div>';
+                missingContainer.innerHTML = '<div class="ats-missing-item text-muted">Chưa có dữ liệu yêu cầu còn thiếu.</div>';
             }
         }
 
         // 4. Quick Action Links
         const passportBtn = document.getElementById('btn-drawer-passport');
-        if (passportBtn) {
-            passportBtn.href = resolveCandidateDetailUrl(app.student_id);
-        }
+        if (passportBtn) passportBtn.onclick = (event) => { event.preventDefault(); openCvModal(app.id); };
 
         const cvBtn = document.getElementById('btn-drawer-cv');
         if (cvBtn) {
@@ -649,42 +631,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Save Review Action
     if (saveReviewBtn) {
-        saveReviewBtn.addEventListener('click', () => {
+        saveReviewBtn.addEventListener('click', async () => {
             if (!currentActiveAppId) return;
 
-            const newStatus = currentActiveDrawerStatus || 'new';
+            const newStatus = currentActiveDrawerStatus || '';
             const newStatusLabel = getStatusLabel(newStatus);
             const noteInput = document.getElementById('drawer-reviewer-note');
             const newNote = noteInput ? noteInput.value.trim() : '';
 
-            // Update in-memory applicant record
             const appIndex = applicants.findIndex(a => a.id === currentActiveAppId);
             if (appIndex !== -1) {
-                applicants[appIndex].status = newStatus;
-                applicants[appIndex].status_label = newStatusLabel;
-                applicants[appIndex].reviewer_note = newNote;
-
-                // Sync with localStorage
                 try {
-                    let reviewsObj = {};
-                    const existing = localStorage.getItem(storageKey);
-                    if (existing) reviewsObj = JSON.parse(existing);
-
-                    reviewsObj[currentActiveAppId] = {
-                        status: newStatus,
-                        status_label: newStatusLabel,
-                        reviewer_note: newNote,
-                        updated_at: new Date().toISOString()
-                    };
-
-                    localStorage.setItem(storageKey, JSON.stringify(reviewsObj));
-                } catch (e) {
-                    console.warn('Failed to save review in localStorage:', e);
+                    if (newStatus === applicants[appIndex].status) throw new Error('Vui lòng chọn bước xử lý tiếp theo.');
+                    saveReviewBtn.disabled = true;
+                    const data = await enterpriseRequest('PATCH', `/businesses/me/internship-applications/${encodeURIComponent(currentActiveAppId)}`, {
+                        expectedCurrentStatus: applicants[appIndex].status,
+                        targetStatus: newStatus,
+                        reviewerNote: newNote,
+                    });
+                    applicants[appIndex].status = data.application.status;
+                    applicants[appIndex].status_label = getStatusLabel(data.application.status);
+                    applicants[appIndex].reviewer_note = data.application.reviewerNote || '';
+                    showToast(`Đã cập nhật trạng thái ứng viên thành "${applicants[appIndex].status_label}"!`);
+                    closeReviewDrawer();
+                    renderList();
+                } catch (error) {
+                    showToast(error?.message || 'Không thể cập nhật hồ sơ ứng viên.');
+                } finally {
+                    saveReviewBtn.disabled = false;
                 }
-
-                showToast(`Đã cập nhật trạng thái ứng viên thành "${newStatusLabel}"!`);
-                closeReviewDrawer();
-                renderList();
             }
         });
     }
@@ -695,7 +670,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!app) return;
 
         currentActiveAppId = appId;
-        const student = talentsList.find(t => t.id === app.student_id) || {};
+        const snapshot = app.snapshot && typeof app.snapshot === 'object' ? app.snapshot : {};
+        const student = {
+            ...(snapshot.student || {}),
+            bio: snapshot.student?.bio || '',
+            skills: snapshot.skills || [],
+            certificates: snapshot.certificates || [],
+            projects: snapshot.projects || [],
+            experience_logs: snapshot.experience || {},
+        };
 
         // 1. Pinned Modal Header
         if (cvModalName) cvModalName.textContent = app.name;
@@ -707,13 +690,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const passportModalBtn = document.getElementById('btn-cv-modal-passport');
         if (passportModalBtn) {
-            passportModalBtn.href = resolveCandidateDetailUrl(app.student_id);
+            passportModalBtn.onclick = (event) => event.preventDefault();
         }
 
         // 2. Recruiter Context Bar
         const matchScoreEl = document.getElementById('cv-modal-match-score');
         if (matchScoreEl) {
-            matchScoreEl.textContent = `${app.match_score}% phù hợp`;
+            matchScoreEl.textContent = app.match_score === null || app.match_score === undefined
+                ? 'Chưa có dữ liệu phù hợp'
+                : `${Number(app.match_score)}% phù hợp`;
         }
 
         const statusPillEl = document.getElementById('cv-modal-status-pill');
@@ -723,17 +708,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const filenameEl = document.getElementById('cv-modal-filename');
         if (filenameEl) {
-            filenameEl.textContent = app.resume_file || `CV_${escapeHtml(app.name.replace(/\s+/g, ''))}.pdf`;
+            filenameEl.textContent = `Snapshot ${escapeHtml(snapshot.schemaVersion || '1.0.0')}`;
         }
 
         // 3. Render Authentic Resume Paper
         if (cvModalBody) {
-            const headline = student.readiness_summary?.preferred_field || student.major_field || 'Ứng viên thực tập tiềm năng';
-            const bioText = student.bio || 'Mong muốn ứng tuyển vị trí Thực tập sinh tại doanh nghiệp nhằm trau dồi kinh nghiệm thực tế, áp dụng các kiến thức đã tích lũy trong môi trường làm việc chuyên nghiệp và đóng góp giá trị cho dự án của công ty.';
+            const headline = student.headline || '';
+            const bioText = student.bio || '';
             
             // Skills tags
-            const skills = app.main_skills || student.skills || [];
-            const skillsHtml = skills.map(s => `<span class="ats-resume-skill-tag">${escapeHtml(s)}</span>`).join('');
+            const skills = student.skills || [];
+            const skillsHtml = skills.length > 0
+                ? skills.map(s => `<span class="ats-resume-skill-tag">${escapeHtml(s.skillName)} · ${escapeHtml(s.level)}</span>`).join('')
+                : '<span class="text-muted">Chưa có kỹ năng trong snapshot</span>';
 
             // Certificates
             let certsHtml = '';
@@ -742,9 +729,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="ats-resume-item mt-2">
                         <div class="ats-resume-item__header">
                             <h4 class="ats-resume-item__title" style="font-size:0.8125rem;">📜 ${escapeHtml(c.name)}</h4>
-                            <span class="ats-resume-item__date">${escapeHtml(c.issue_date || '')}</span>
+                            <span class="ats-resume-item__date">${escapeHtml(c.issueDate || '')}</span>
                         </div>
-                        <div class="ats-resume-item__desc">Tổ chức cấp: ${escapeHtml(c.issuer)} ${c.verified ? '<span class="text-success font-medium">(Đã xác thực)</span>' : ''}</div>
+                        <div class="ats-resume-item__desc">Tổ chức cấp: ${escapeHtml(c.issuingOrganization || '')}</div>
                     </div>
                 `).join('');
             }
@@ -755,34 +742,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 projectsHtml = student.projects.map(p => `
                     <div class="ats-resume-item">
                         <div class="ats-resume-item__header">
-                            <h3 class="ats-resume-item__title">${escapeHtml(p.name)}</h3>
-                            <span class="ats-resume-item__date">${escapeHtml(p.role || 'Thành viên')}</span>
+                            <h3 class="ats-resume-item__title">${escapeHtml(p.title)}</h3>
+                            <span class="ats-resume-item__date">${escapeHtml(p.role || '')}</span>
                         </div>
-                        <div class="ats-resume-item__desc">${escapeHtml(p.description || '')}</div>
-                        ${p.technologies ? `<div class="text-muted mt-1" style="font-size:0.75rem;">Công nghệ: <strong>${p.technologies.join(', ')}</strong> &bull; Kết quả: <span class="text-dark font-medium">${escapeHtml(p.result || '')}</span></div>` : ''}
-                    </div>
-                `).join('');
-            } else if (student.experience_logs && student.experience_logs.length > 0) {
-                projectsHtml = student.experience_logs.map(exp => `
-                    <div class="ats-resume-item">
-                        <div class="ats-resume-item__header">
-                            <h3 class="ats-resume-item__title">${escapeHtml(exp.title)}</h3>
-                            <span class="ats-resume-item__date">${escapeHtml(exp.duration || '')}</span>
-                        </div>
-                        <div class="ats-resume-item__subtitle">${escapeHtml(exp.role)} &bull; ${exp.hours}h thực tế</div>
-                        <div class="ats-resume-item__desc">${escapeHtml(exp.description || '')}</div>
+                        <div class="ats-resume-item__desc">${escapeHtml(p.summary || '')}</div>
                     </div>
                 `).join('');
             } else {
-                projectsHtml = `
-                    <div class="ats-resume-item">
-                        <div class="ats-resume-item__header">
-                            <h3 class="ats-resume-item__title">Dự án Đồ án Chuyên ngành</h3>
-                            <span class="ats-resume-item__date">01/2026 - 06/2026</span>
-                        </div>
-                        <div class="ats-resume-item__desc">Ứng dụng kiến thức chuyên ngành vào giải quyết bài toán thực tế của doanh nghiệp, làm việc nhóm theo mô hình Agile/Scrum.</div>
-                    </div>
-                `;
+                projectsHtml = '<p class="text-muted">Chưa có dự án trong snapshot.</p>';
             }
 
             cvModalBody.innerHTML = `
@@ -798,7 +765,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="ats-meta-divider">&bull;</span>
                             <span>📚 ${escapeHtml(app.class_code || app.education_level)}</span>
                             <span class="ats-meta-divider">&bull;</span>
-                            <span>📍 ${escapeHtml(app.location || 'Hà Nội')}</span>
+                            <span>📍 ${escapeHtml(student.location || '')}</span>
                         </div>
                     </header>
 
@@ -825,9 +792,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="ats-resume-item">
                                 <div class="ats-resume-item__header">
                                     <h3 class="ats-resume-item__title">${escapeHtml(app.school)}</h3>
-                                    <span class="ats-resume-item__date">2022 - Hiện tại</span>
+                                    <span class="ats-resume-item__date">${escapeHtml(student.studyStatus || '')}</span>
                                 </div>
-                                <div class="ats-resume-item__desc">Chuyên ngành: <strong>${escapeHtml(student.major_field || 'Công nghệ Thông tin')}</strong> &bull; Trình độ: ${escapeHtml(app.education_level || 'Đại học')}</div>
+                                <div class="ats-resume-item__desc">Lớp: <strong>${escapeHtml(student.className || '')}</strong></div>
                             </div>
                             ${certsHtml}
                         </div>
@@ -841,16 +808,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </section>
 
-                    <!-- Footer Verification Stamp -->
+                    <!-- Immutable snapshot provenance -->
                     <footer class="ats-resume-footer">
                         <div class="ats-resume-cert-row">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" aria-hidden="true">
                                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
                             </svg>
-                            <span>Tài liệu đính kèm: <strong>${escapeHtml(app.resume_file || 'CV_Applicant.pdf')}</strong></span>
+                            <span>Hồ sơ bất biến chụp lúc ứng tuyển</span>
                             <span class="ats-meta-divider">&bull;</span>
-                            <span style="color:#16A34A; font-weight:600;">Đã xác thực bởi TalentHub</span>
+                            <span style="color:#16A34A; font-weight:600;">Có đồng ý chia sẻ tại thời điểm ứng tuyển</span>
                         </div>
                     </footer>
                 </article>
@@ -879,13 +846,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentId) {
                 openReviewDrawer(currentId);
             }
-        });
-    }
-
-    const downloadCvBtn = document.getElementById('btn-download-cv-file');
-    if (downloadCvBtn) {
-        downloadCvBtn.addEventListener('click', () => {
-            showToast('Đang tạo bản PDF chính thức của ứng viên để tải xuống...');
         });
     }
 

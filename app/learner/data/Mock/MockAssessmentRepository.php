@@ -198,6 +198,52 @@ final class MockAssessmentRepository implements AssessmentRepository
         ));
     }
 
+    public function completeHistory(string $studentId): array
+    {
+        $canonicalStudentId = MockRecordNormalizer::lookupId('student', $studentId);
+        $history = array_values(array_filter(
+            $this->attempts,
+            static function (array $attempt) use ($canonicalStudentId): bool {
+                if (($attempt['student_id'] ?? '') !== $canonicalStudentId) {
+                    return false;
+                }
+                if (($attempt['status'] ?? '') !== 'submitted') {
+                    return false;
+                }
+                return ($attempt['result'] ?? null) !== null || ($attempt['result_id'] ?? null) !== null;
+            }
+        ));
+
+        usort($history, static function (array $left, array $right): int {
+            return strcmp((string) ($right['submitted_at'] ?? ''), (string) ($left['submitted_at'] ?? ''));
+        });
+
+        return $history;
+    }
+
+    public function publishedEvaluationsForStudent(string $studentId): array
+    {
+        $canonicalStudentId = MockRecordNormalizer::lookupId('student', $studentId);
+        $published = array_values(array_filter(
+            $this->evaluations,
+            static function (array $evaluation) use ($canonicalStudentId): bool {
+                if (($evaluation['student_id'] ?? '') !== $canonicalStudentId) {
+                    return false;
+                }
+                if (($evaluation['status'] ?? '') !== 'published') {
+                    return false;
+                }
+                return trim((string) ($evaluation['published_at'] ?? '')) !== '';
+            }
+        ));
+
+        usort($published, static function (array $left, array $right): int {
+            return strcmp((string) ($right['published_at'] ?? ''), (string) ($left['published_at'] ?? ''));
+        });
+
+        return $published;
+    }
+
     private function normalizeQuestion(array $question): array
     {
         $question = MockRecordNormalizer::primary($question, 'assessment_question');

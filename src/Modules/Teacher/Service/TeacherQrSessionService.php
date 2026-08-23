@@ -17,6 +17,7 @@ final class TeacherQrSessionService
     public const DEFAULT_MAX_SCANS = 100;
     public const MIN_MAX_SCANS = 1;
     public const MAX_MAX_SCANS = 10000;
+    public const DEFAULT_CONFIRMED_HOURS = '1.00';
 
     public function __construct(private readonly TeacherQrSessionRepository $repository) {}
 
@@ -31,11 +32,15 @@ final class TeacherQrSessionService
                 fn (array $row): array => $this->presentSession($row),
                 $this->repository->listSessions($teacherId)
             ),
+            'managedCheckins' => array_map(
+                fn (array $row): array => $this->presentManagedCheckin($row),
+                $this->repository->listManagedCheckins($teacherId)
+            ),
         ];
     }
 
     /** @return array{sessionId:string,rawToken:string} */
-    public function create(string $userId, mixed $activityId, mixed $durationMinutes, mixed $maxScans): array
+    public function create(string $userId, mixed $activityId, mixed $durationMinutes, mixed $maxScans, mixed $confirmedHours = self::DEFAULT_CONFIRMED_HOURS): array
     {
         $activityId = $this->validateUuid($activityId, 'activity_id', 'Mã hoạt động không hợp lệ.');
         $durationMinutes = $this->validateInteger(
@@ -50,6 +55,7 @@ final class TeacherQrSessionService
             self::MAX_MAX_SCANS,
             'Số lượt quét phải là số nguyên từ 1 đến 10.000.'
         );
+        $confirmedHours = $this->validateHours($confirmedHours);
 
         $teacherId = $this->teacherId($userId);
         $rawToken = $this->base64Url(random_bytes(32));
@@ -59,7 +65,7 @@ final class TeacherQrSessionService
             ->modify("+{$durationMinutes} minutes")
             ->format('Y-m-d H:i:s.u');
 
-        if (!$this->repository->createSession($teacherId, $activityId, $sessionId, $tokenHash, $expiresAt, $maxScans)) {
+        if (!$this->repository->createSession($teacherId, $activityId, $sessionId, $tokenHash, $expiresAt, $maxScans, $confirmedHours)) {
             throw new ApiException(422, 'INVALID_ACTIVITY', 'Chỉ có thể tạo QR cho hoạt động đang diễn ra do bạn quản lý.');
         }
 
@@ -117,6 +123,25 @@ final class TeacherQrSessionService
         return $validated;
     }
 
+    private function validateHours(mixed $value): string
+    {
+        if (!is_string($value) && !is_int($value) && !is_float($value)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Confirmed hours are invalid.');
+        }
+
+        $raw = trim((string) $value);
+        if (preg_match('/\A\d{1,2}(?:\.\d{1,2})?\z/', $raw) !== 1) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Confirmed hours must be between 0 and 24.');
+        }
+
+        $hours = (float) $raw;
+        if ($hours < 0 || $hours > 24) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Confirmed hours must be between 0 and 24.');
+        }
+
+        return number_format($hours, 2, '.', '');
+    }
+
     /** @param array<string,mixed> $row */
     private function presentSession(array $row): array
     {
@@ -136,6 +161,21 @@ final class TeacherQrSessionService
             'expiresAtIso' => $expiresAt?->format(DateTimeImmutable::ATOM),
             'maxScans' => (int) ($row['maxScans'] ?? 0),
             'usedScans' => (int) ($row['usedScans'] ?? 0),
+            'confirmedHours' => number_format((float) ($row['confirmedHours'] ?? 0), 2, '.', ''),
+        ];
+    }
+
+    /** @param array<string,mixed> $row @return array<string,mixed> */
+    private function presentManagedCheckin(array $row): array
+    {
+        return [
+            'checkinId' => (string) ($row['checkinId'] ?? ''),
+            'activityId' => (string) ($row['activityId'] ?? ''),
+            'activityTitle' => (string) ($row['activityTitle'] ?? 'Hoạt động không tên'),
+            'status' => (string) ($row['checkinStatus'] ?? ''),
+            'checkedInAt' => (string) ($row['checkedInAt'] ?? ''),
+            'confirmedHours' => number_format((float) ($row['confirmedHours'] ?? 0), 2, '.', ''),
+            'experienceStatus' => (string) ($row['experienceStatus'] ?? ''),
         ];
     }
 

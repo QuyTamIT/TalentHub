@@ -79,6 +79,20 @@ test('client accepts the learner-local API base without escaping it', async () =
   assert.equal(requestUrl, '/app/learner/api/v1/recommendations.php');
 });
 
+test('activity registration mutation stays under learner-local API and carries CSRF', async () => {
+  let request;
+  const client = createLearnerApiClient({
+    baseUrl: '/app/learner/api/v1', csrfToken: 'csrf-phase-4',
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: true, status: 201, json: async () => ({ data: { registration: { status: 'approved' } } }) };
+    },
+  });
+  await client.send('POST', '/activity-registrations.php', { action: 'register', activityId: 'activity-1' });
+  assert.equal(request.url, '/app/learner/api/v1/activity-registrations.php');
+  assert.equal(request.options.headers['X-CSRF-Token'], 'csrf-phase-4');
+});
+
 test('client rejects traversal paths before making a request', async () => {
   let calls = 0;
   const client = createLearnerApiClient({

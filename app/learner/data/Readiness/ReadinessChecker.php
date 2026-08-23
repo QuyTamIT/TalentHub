@@ -24,6 +24,9 @@ final class ReadinessChecker
                 $result->addFailure('scope', "Protected role path changed: {$path}");
             }
         }
+        foreach ($scope['reviewed_paths'] ?? [] as $path) {
+            $result->addPass('scope.reviewed', "Reviewed protected path is unchanged: {$path}");
+        }
 
         if (!$definition['requires_database']) {
             $result->addPass('phase', 'Phase 0 does not require a live database.');
@@ -61,6 +64,26 @@ final class ReadinessChecker
                         $result->addFailure('schema.index', "Missing index: {$table}.{$index}");
                     }
                 }
+            }
+            foreach ($definition['foreign_keys'] ?? [] as $table => $foreignKeys) {
+                foreach ($foreignKeys as $foreignKey) {
+                    if (!$inspector->hasForeignKey($table, $foreignKey['table'], $foreignKey['from'], $foreignKey['to'])) {
+                        $result->addFailure(
+                            'schema.foreign_key',
+                            "Missing foreign key: {$table}.{$foreignKey['from']} -> {$foreignKey['table']}.{$foreignKey['to']}",
+                        );
+                    }
+                }
+            }
+            foreach (array_keys($definition['optional_table_groups'] ?? []) as $group) {
+                $status = TalentPassportOptionalSchema::status($inspector, $group);
+                $message = match ($status) {
+                    'available' => "Optional capability {$group} is available.",
+                    'absent' => "Optional capability {$group} is unavailable (cleanly absent).",
+                    'partial' => "Optional capability {$group} is unavailable (partially present).",
+                    default => "Optional capability {$group} is unavailable (incompatible schema).",
+                };
+                $result->addPass('schema.optional', $message);
             }
         } catch (\Throwable) {
             $result->addFailure('database.schema', 'Shared database schema inspection is unavailable.', true);

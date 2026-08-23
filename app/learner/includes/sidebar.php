@@ -42,6 +42,13 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
         </ul>
     </nav>
 
+    <?php if ($isDatabaseMode ?? false): ?>
+    <div class="learner-level-card" aria-label="Trạng thái cấp độ">
+        <span class="learner-level-card__eyebrow">Cấp độ</span>
+        <strong>Chưa có dữ liệu cấp độ</strong>
+        <p>Cấp độ sẽ hiển thị khi hệ thống quy tắc huy hiệu được kích hoạt.</p>
+    </div>
+    <?php else: ?>
     <div class="learner-level-card" aria-label="Cấp độ hiện tại">
         <span class="learner-level-card__eyebrow">Cấp độ hiện tại</span>
         <div class="learner-level-card__title">
@@ -54,6 +61,7 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
         </div>
         <p><?= learner_escape($level['progress']); ?>/<?= learner_escape($level['target']); ?> giờ đến <?= learner_escape($level['next_level']); ?></p>
     </div>
+    <?php endif; ?>
 
     <div class="learner-sidebar__footer">
         <a class="learner-sidebar__link learner-sidebar__link--switch" href="/role-selection.php">

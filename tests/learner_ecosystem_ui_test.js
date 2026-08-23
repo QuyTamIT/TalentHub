@@ -43,7 +43,8 @@ test('application validation requires consent and enforces message length', () =
         field: 'consent',
         message: 'Bạn cần đồng ý chia sẻ hồ sơ trước khi ứng tuyển.',
     });
-    assert.equal(validateApplication({ consent: true, message: 'a'.repeat(301) }).valid, false);
+    assert.equal(validateApplication({ consent: true, message: 'a'.repeat(500) }).valid, true);
+    assert.equal(validateApplication({ consent: true, message: 'a'.repeat(501) }).valid, false);
     assert.deepEqual(validateApplication({ consent: true, message: 'Tôi rất quan tâm.' }), {
         valid: true,
         field: '',

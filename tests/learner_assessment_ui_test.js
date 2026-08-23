@@ -367,3 +367,41 @@ test('controller loads the latest server result without browser scoring', async 
   assert.deepEqual(controller.getResult().dimension_scores, { D: 80, I: 60, S: 40, C: 20 });
   assert.equal(view.states.at(-1), 'complete');
 });
+
+test('history loading uses the dedicated read endpoint without changing the primary result state', async () => {
+  const { createAssessmentController } = require(modulePath);
+  const view = createMockView();
+  const calls = [];
+  const response = {
+    assessment_history: { source: 'assessment_engine', items: [{ id: 'attempt-1' }] },
+    teacher_evaluations: { source: 'teacher_published_evaluation', items: [{ id: 'evaluation-1' }] },
+  };
+  const controller = createAssessmentController({
+    api: {
+      async get(endpoint) { calls.push(endpoint); return response; },
+      async send() {},
+    },
+    view,
+  });
+
+  const payload = await controller.loadHistory();
+  assert.deepEqual(calls, ['/assessments.php?view=history']);
+  assert.equal(payload, response);
+  assert.deepEqual(view.states, [], 'history loading must not overwrite the primary result presentation state');
+});
+
+test('history source failure rejects so its own error sections render instead of empty collections', async () => {
+  const { createAssessmentController } = require(modulePath);
+  const view = createMockView();
+  const sourceFailure = Object.assign(new Error('history unavailable'), { code: 'SOURCE_FAILURE' });
+  const controller = createAssessmentController({
+    api: {
+      async get() { throw sourceFailure; },
+      async send() {},
+    },
+    view,
+  });
+
+  await assert.rejects(controller.loadHistory(), sourceFailure);
+  assert.deepEqual(view.states, [], 'history failure must not hide or replace the primary assessment result');
+});

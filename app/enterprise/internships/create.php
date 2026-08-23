@@ -38,8 +38,19 @@ $enterpriseInfo = [
     'total_talents'     => 1247,
 ];
 
-$postId = isset($_GET['id']) ? intval($_GET['id']) : null;
-$editingPost = $postId ? getMockInternshipById($postId) : null;
+$internshipService = $context['internships'];
+$postId = isset($_GET['id']) ? trim((string) $_GET['id']) : null;
+$context['permissions']->require((string) $user['id'], $postId ? 'internship_post.update_own_business' : 'internship_post.create_own_business');
+$editingPost = $postId ? $internshipService->post((string) $user['id'], $postId) : null;
+if ($editingPost) {
+    $decodedSkills = json_decode((string) ($editingPost['skillsJson'] ?? '[]'), true);
+    $editingPost += [
+        'status_label' => ['draft' => 'Bản nháp', 'active' => 'Đang tuyển', 'closed' => 'Đã đóng', 'cancelled' => 'Đã hủy'][$editingPost['status']] ?? $editingPost['status'],
+        'work_type' => $editingPost['workType'] ?? '',
+        'education_level' => $editingPost['educationLevel'] ?? '',
+        'skills' => array_map(static fn ($skill): array => ['name' => (string) $skill, 'category' => 'Yêu cầu', 'type' => 'required'], is_array($decodedSkills) ? $decodedSkills : []),
+    ];
+}
 
 $isEdit = !empty($editingPost);
 $pageTitle = $isEdit ? ('Chỉnh sửa: ' . $editingPost['title']) : 'Đăng tin tuyển dụng mới';
@@ -98,7 +109,7 @@ $popularSkills = ['React', 'Node.js', 'TypeScript', 'Python', 'PyTorch', 'Figma'
     <link rel="stylesheet" href="../../../assets/css/home.css">
     <link rel="stylesheet" href="../../../assets/css/enterprise.css">
 </head>
-<body class="enterprise-dashboard">
+<body class="enterprise-dashboard" data-post-status="<?= htmlspecialchars((string) ($editingPost['status'] ?? '')); ?>">
 
     <!-- Layout Wrapper -->
     <div class="ent-layout">
@@ -188,6 +199,17 @@ $popularSkills = ['React', 'Node.js', 'TypeScript', 'Python', 'PyTorch', 'Figma'
                                            max="50" 
                                            placeholder="Ví dụ: 5"
                                            value="<?= $isEdit ? htmlspecialchars($editingPost['slots']) : '3'; ?>" 
+                                           required>
+                                </div>
+
+                                <div class="ent-form-group col-12">
+                                    <label for="form-location" class="ent-form-label required">Địa điểm làm việc</label>
+                                    <input type="text"
+                                           id="form-location"
+                                           class="ent-form-input"
+                                           maxlength="255"
+                                           placeholder="Ví dụ: Hà Nội hoặc Làm việc từ xa"
+                                           value="<?= $isEdit ? htmlspecialchars((string) $editingPost['location']) : ''; ?>"
                                            required>
                                 </div>
 
@@ -369,6 +391,7 @@ $popularSkills = ['React', 'Node.js', 'TypeScript', 'Python', 'PyTorch', 'Figma'
     </div>
 
     <!-- JavaScript Assets -->
+    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => '/api/v1'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
     <script src="../../../assets/js/enterprise.js"></script>
     <script src="../../../assets/js/internship-management.js"></script>
 </body>

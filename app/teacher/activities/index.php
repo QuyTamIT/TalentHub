@@ -43,6 +43,7 @@ $session = $dashboardContext['session'] ?? null;
 $csrfToken = $session instanceof \TalentHub\Auth\Session\SessionManager ? $session->csrfToken() : '';
 $teacherInfo = $dashboardData['teacherInfo'];
 $teacherId = (string) ($teacherInfo['id'] ?? '');
+$teacherUserId = (string) ($dashboardContext['user']['id'] ?? '');
 $pdo = $teacherId !== '' ? teacherDashboardConnect() : null;
 $schoolId = $pdo && $teacherId !== '' ? teacherActivitiesSchoolId($pdo, $teacherId) : null;
 $activityService = $pdo ? teacherActivitiesService($pdo) : null;
@@ -103,6 +104,7 @@ if (isset($_GET['saved'])) {
         'created' => 'Đã tạo hoạt động mới.',
         'updated' => 'Đã cập nhật hoạt động.',
         'advanced' => 'Đã chuyển hoạt động sang trạng thái mới.',
+        'registration' => 'Đã cập nhật trạng thái đăng ký.',
     ];
     $notice = $noticeMessages[(string) $_GET['saved']] ?? 'Đã lưu thay đổi hoạt động.';
 }
@@ -148,6 +150,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $formAction = (string) ($_POST['form_action'] ?? 'create');
         $postedActivityId = trim((string) ($_POST['activity_id'] ?? ''));
 
+    if ($formAction === 'registration_transition') {
+        $postedRegistrationId = trim((string) ($_POST['registration_id'] ?? ''));
+        $registrationAction = trim((string) ($_POST['registration_action'] ?? ''));
+        $expectedStatus = trim((string) ($_POST['expected_status'] ?? ''));
+        if (!$pdo || !$activityService || $teacherId === '' || $teacherUserId === '') {
+            $errors[] = 'Chưa kết nối được hồ sơ giáo viên để xử lý đăng ký.';
+        }
+        if ($postedActivityId === '' || $postedRegistrationId === '') {
+            $errors[] = 'Thiếu mã hoạt động hoặc mã đăng ký.';
+        }
+        if (!$errors) {
+            try {
+                (new \TalentHub\Rbac\Service\PermissionService($pdo))->require(
+                    $teacherUserId,
+                    'activity_registration.update_managed'
+                );
+                $activityService->transitionRegistration(
+                    $teacherId,
+                    $teacherUserId,
+                    \TalentHub\Support\Id\RequestId::make(null),
+                    $postedActivityId,
+                    $postedRegistrationId,
+                    ['expectedStatus' => $expectedStatus, 'action' => $registrationAction],
+                );
+                header('Location: index.php?action=registrations&id=' . rawurlencode($postedActivityId) . '&saved=registration');
+                exit;
+            } catch (Throwable $exception) {
+                $errors[] = $exception->getMessage() ?: 'Không thể xử lý đăng ký hoạt động.';
+            }
+        }
+    }
+
     if ($formAction === 'advance_status') {
         if (!$pdo || $teacherId === '') {
             $errors[] = 'Chưa kết nối được hồ sơ giáo viên để cập nhật trạng thái hoạt động.';
@@ -167,7 +201,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($formAction === 'advance_status') {
+    if ($formAction === 'registration_transition') {
+        $action = 'registrations';
+        $activityId = $postedActivityId;
+        $selectedActivity = $pdo && $teacherId !== '' ? teacherActivitiesFind($pdo, $teacherId, $activityId) : null;
+    } elseif ($formAction === 'advance_status') {
         $action = '';
         if ($postedActivityId !== '') {
             $activityId = $postedActivityId;
@@ -410,13 +448,37 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                             <?php else: ?>
                                 <div class="teacher-activities-table-wrap">
                                     <table class="teacher-activities-table teacher-registrations-table">
-                                        <thead><tr><th>Học viên</th><th>Email</th><th>Trạng thái</th></tr></thead>
+                                        <thead><tr><th>Học viên</th><th>Email</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
                                         <tbody>
                                             <?php foreach ($registrationRows as $registration): ?>
                                                 <tr>
                                                     <td data-label="Học viên"><?= teacherActivitiesEscape($registration['student_name'] ?: 'Học viên'); ?></td>
                                                     <td data-label="Email"><?= teacherActivitiesEscape($registration['student_email'] ?: 'Chưa có email'); ?></td>
                                                     <td data-label="Trạng thái"><span class="teacher-registration-pill teacher-registration-pill--status"><?= teacherActivitiesEscape($registration['status'] ?: 'Đã đăng ký'); ?></span></td>
+                                                    <td data-label="Thao tác">
+                                                        <?php if (($registration['status'] ?? '') === 'pending'): ?>
+                                                            <div class="teacher-activities-row-actions">
+                                                                <form method="post" class="teacher-activities-inline-form">
+                                                                    <input type="hidden" name="csrfToken" value="<?= teacherActivitiesEscape($csrfToken); ?>">
+                                                                    <input type="hidden" name="form_action" value="registration_transition">
+                                                                    <input type="hidden" name="activity_id" value="<?= teacherActivitiesEscape($selectedActivity['id']); ?>">
+                                                                    <input type="hidden" name="registration_id" value="<?= teacherActivitiesEscape($registration['id']); ?>">
+                                                                    <input type="hidden" name="expected_status" value="pending">
+                                                                    <button type="submit" name="registration_action" value="approve" class="teacher-activity-action teacher-activity-action--button">Duyệt</button>
+                                                                </form>
+                                                                <form method="post" class="teacher-activities-inline-form">
+                                                                    <input type="hidden" name="csrfToken" value="<?= teacherActivitiesEscape($csrfToken); ?>">
+                                                                    <input type="hidden" name="form_action" value="registration_transition">
+                                                                    <input type="hidden" name="activity_id" value="<?= teacherActivitiesEscape($selectedActivity['id']); ?>">
+                                                                    <input type="hidden" name="registration_id" value="<?= teacherActivitiesEscape($registration['id']); ?>">
+                                                                    <input type="hidden" name="expected_status" value="pending">
+                                                                    <button type="submit" name="registration_action" value="reject" class="teacher-activity-action teacher-activity-action--button">Từ chối</button>
+                                                                </form>
+                                                            </div>
+                                                        <?php else: ?>
+                                                            <span class="teacher-text-muted">Đã xử lý</span>
+                                                        <?php endif; ?>
+                                                    </td>
                                                 </tr>
                                             <?php endforeach; ?>
                                         </tbody>

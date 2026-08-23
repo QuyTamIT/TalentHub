@@ -55,6 +55,8 @@ function api_test_create_db(string $dbPath): PDO
     $pdo->exec('CREATE TABLE schools (id CHAR(36) NOT NULL PRIMARY KEY, name TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE classes (id CHAR(36) NOT NULL PRIMARY KEY, schoolId CHAR(36) NOT NULL, name TEXT NOT NULL, gradeLevel INTEGER NOT NULL, academicYear TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE student_profiles (id CHAR(36) NOT NULL PRIMARY KEY, userId TEXT NOT NULL, classId CHAR(36) NULL)');
+    $pdo->exec('CREATE TABLE notifications (id TEXT PRIMARY KEY, userId TEXT NOT NULL, eventKey TEXT NULL, notificationType TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, deepLink TEXT NULL, readAt TEXT NULL, createdAt TEXT NOT NULL, UNIQUE(userId,eventKey))');
+    $pdo->exec('CREATE TABLE learner_notification_preferences (studentId TEXT NOT NULL, notificationType TEXT NOT NULL, inAppEnabled INTEGER NOT NULL DEFAULT 1, emailEnabled INTEGER NOT NULL DEFAULT 0, updatedAt TEXT NOT NULL, PRIMARY KEY(studentId,notificationType))');
 
     // Seed roles, permissions, users
     $pdo->exec("INSERT INTO roles (id, code) VALUES ('role-student', 'student'), ('role-teacher', 'teacher')");
@@ -78,6 +80,11 @@ function api_test_create_db(string $dbPath): PDO
     $pdo->exec('CREATE TABLE learner_assessment_attempt_metadata (id CHAR(36) NOT NULL PRIMARY KEY, attemptId CHAR(36) NOT NULL UNIQUE, versionId CHAR(36) NOT NULL, status TEXT NOT NULL, expiresAt TEXT NULL, submittedAt TEXT NULL, inputHash CHAR(64) NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, FOREIGN KEY (attemptId) REFERENCES test_attempts(id), FOREIGN KEY (versionId) REFERENCES learner_assessment_versions(id))');
     $pdo->exec('CREATE TABLE learner_assessment_answers (id CHAR(36) NOT NULL PRIMARY KEY, attemptId CHAR(36) NOT NULL, questionId CHAR(36) NOT NULL, answerJson TEXT NOT NULL, answeredAt TEXT NOT NULL, UNIQUE (attemptId, questionId), FOREIGN KEY (attemptId) REFERENCES learner_assessment_attempt_metadata(attemptId), FOREIGN KEY (questionId) REFERENCES test_questions(id))');
     $pdo->exec('CREATE TABLE test_results (id CHAR(36) NOT NULL PRIMARY KEY, attemptId CHAR(36) NOT NULL UNIQUE, resultCode TEXT NOT NULL, summary TEXT NOT NULL, dimensionScoresJson TEXT NOT NULL, scoringVersion TEXT NOT NULL, createdAt TEXT NOT NULL, FOREIGN KEY (attemptId) REFERENCES test_attempts(id))');
+    $pdo->exec('CREATE TABLE teacher_profiles (id CHAR(36) NOT NULL PRIMARY KEY, userId TEXT NOT NULL)');
+    $pdo->exec('CREATE TABLE activities (id CHAR(36) NOT NULL PRIMARY KEY, title TEXT NOT NULL, category TEXT NOT NULL, status TEXT NOT NULL)');
+    $pdo->exec('CREATE TABLE assessment_criteria (id CHAR(36) NOT NULL PRIMARY KEY, code TEXT NOT NULL, name TEXT NOT NULL, minScore NUMERIC, maxScore NUMERIC)');
+    $pdo->exec('CREATE TABLE assessments (id CHAR(36) NOT NULL PRIMARY KEY, teacherId CHAR(36) NOT NULL, studentId CHAR(36) NOT NULL, activityId CHAR(36) NOT NULL, overallScore NUMERIC, comment TEXT, status TEXT NOT NULL, publishedAt TEXT NULL)');
+    $pdo->exec('CREATE TABLE assessment_scores (id CHAR(36) NOT NULL PRIMARY KEY, assessmentId CHAR(36) NOT NULL, criteriaId CHAR(36) NOT NULL, score NUMERIC)');
 
     // Seed 4 published tests for 'high' band
     $now = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s');
@@ -242,6 +249,10 @@ $catalogRes = execute_endpoint($assessmentsEndpoint, ['REQUEST_METHOD' => 'GET']
 api_test_assert($catalogRes['status'] === 200, 'Catalog request returns 200: ' . json_encode($catalogRes));
 api_test_assert(count($catalogRes['body']['data']['assessments'] ?? []) === 4, 'Catalog returns 4 published assessments');
 
+$explicitCatalogRes = execute_endpoint($assessmentsEndpoint, ['REQUEST_METHOD' => 'GET'], ['view' => 'catalog', 'band' => 'high'], [], ['user' => $userStudentA], $dbPath);
+api_test_assert($explicitCatalogRes['status'] === 200, 'Explicit catalog view returns 200: ' . json_encode($explicitCatalogRes));
+api_test_assert(count($explicitCatalogRes['body']['data']['assessments'] ?? []) === 4, 'Explicit catalog view returns the published catalog');
+
 // D. GET with invalid band returns 422 / VALIDATION_FAILED
 $invalidBandRes = execute_endpoint($assessmentsEndpoint, ['REQUEST_METHOD' => 'GET'], ['band' => 'invalid_band'], [], ['user' => $userStudentA], $dbPath);
 api_test_assert($invalidBandRes['status'] === 422, 'Invalid band returns 422');
@@ -254,6 +265,30 @@ api_test_assert(isset($detailRes['body']['data']['assessment']), 'Detail has ass
 api_test_assert(($detailRes['body']['data']['assessment']['code'] ?? '') === 'holland', 'Detail exposes the public assessment code');
 api_test_assert(count($detailRes['body']['data']['questions'] ?? []) === 6, 'Detail has 6 questions for Holland version');
 api_test_assert(is_array($detailRes['body']['data']['history']), 'Detail has history array');
+
+// E2. History mode is contract-locked to view only.
+$historyRes = execute_endpoint($assessmentsEndpoint, ['REQUEST_METHOD' => 'GET'], ['view' => 'history'], [], ['user' => $userStudentA], $dbPath);
+api_test_assert($historyRes['status'] === 200, 'History request returns 200');
+api_test_assert(($historyRes['body']['data']['assessment_history']['source'] ?? '') === 'assessment_engine', 'History uses assessment_engine source');
+api_test_assert(($historyRes['body']['data']['teacher_evaluations']['source'] ?? '') === 'teacher_published_evaluation', 'Teacher evaluations use their own source');
+
+$historyCodeRes = execute_endpoint($assessmentsEndpoint, ['REQUEST_METHOD' => 'GET'], ['view' => 'history', 'code' => 'garbage'], [], ['user' => $userStudentA], $dbPath);
+api_test_assert($historyCodeRes['status'] === 422, 'History rejects code parameter');
+api_test_assert(($historyCodeRes['body']['error']['code'] ?? '') === 'VALIDATION_FAILED', 'History code rejection is VALIDATION_FAILED');
+api_test_assert(($historyCodeRes['body']['error']['details'][0]['code'] ?? '') === 'FIELD_NOT_ALLOWED', 'History code rejection uses FIELD_NOT_ALLOWED');
+
+$historyBandRes = execute_endpoint($assessmentsEndpoint, ['REQUEST_METHOD' => 'GET'], ['view' => 'history', 'band' => 'high'], [], ['user' => $userStudentA], $dbPath);
+api_test_assert($historyBandRes['status'] === 422, 'History rejects band parameter');
+
+$historyStudentRes = execute_endpoint($assessmentsEndpoint, ['REQUEST_METHOD' => 'GET'], ['view' => 'history', 'studentId' => API_STUDENT_B], [], ['user' => $userStudentA], $dbPath);
+api_test_assert($historyStudentRes['status'] === 422, 'History rejects studentId parameter');
+
+$historyUnknownView = execute_endpoint($assessmentsEndpoint, ['REQUEST_METHOD' => 'GET'], ['view' => 'bogus'], [], ['user' => $userStudentA], $dbPath);
+api_test_assert($historyUnknownView['status'] === 422, 'Unknown view returns 422');
+api_test_assert(($historyUnknownView['body']['error']['code'] ?? '') === 'VALIDATION_FAILED', 'Unknown view returns VALIDATION_FAILED');
+
+$historyPost = execute_endpoint($assessmentsEndpoint, ['REQUEST_METHOD' => 'POST'], ['view' => 'history'], [], ['user' => $userStudentA], $dbPath);
+api_test_assert($historyPost['status'] === 405, 'POST history returns 405');
 
 // F. POST start/resume without CSRF returns 403 / CSRF_INVALID
 $noCsrfRes = execute_endpoint($attemptsEndpoint, [

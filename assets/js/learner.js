@@ -143,11 +143,11 @@
 
     function validateApplication(data) {
         const message = String(data?.message || '');
-        if (message.length > 300) {
+        if (message.length > 500) {
             return {
                 valid: false,
                 field: 'message',
-                message: 'Lời nhắn không được vượt quá 300 ký tự.',
+                message: 'Lời nhắn không được vượt quá 500 ký tự.',
             };
         }
         if (data?.consent !== true) {
@@ -159,6 +159,13 @@
         }
         return { valid: true, field: '', message: '' };
     }
+
+    function resolveMutationBackend(source, hasApiClient) {
+        if (hasApiClient) return 'server';
+        return source === 'mock' ? 'mock' : 'unavailable';
+    }
+
+    global.LearnerProfileUiContract = Object.freeze({ resolveMutationBackend });
 
     global.LearnerUI = {
         validateProfile,
@@ -177,7 +184,7 @@
         validateApplication,
     };
 
-    function createPageApiClient() {
+    function createPageApiClient(baseOverride = '') {
         if (typeof document === 'undefined') return null;
 
         const node = document.getElementById('learner-session-boot');
@@ -192,7 +199,7 @@
 
         try {
             return global.TalentHubLearnerApi.createLearnerApiClient({
-                baseUrl: boot.apiBase || '/api/v1',
+                baseUrl: baseOverride || boot.apiBase || '/api/v1',
                 csrfToken: boot.csrfToken || '',
                 onUnauthorized: () => {
                     if (typeof global.location?.assign !== 'function') return;
@@ -209,6 +216,7 @@
     if (typeof document === 'undefined') return;
 
     document.addEventListener('DOMContentLoaded', () => {
+        const applicationApiClient = createPageApiClient('/app/learner/api/v1');
         const toast = document.getElementById('learner-toast');
         let toastTimer = null;
         let activeModal = null;
@@ -288,10 +296,6 @@
                 showToast(`Tính năng “${label}” đang được phát triển.`, 'info');
                 setSidebarOpen(false);
             });
-        });
-
-        document.getElementById('learner-notification-button')?.addEventListener('click', () => {
-            showToast('Bạn có 3 thông báo mới về hoạt động và hồ sơ năng lực.', 'info');
         });
 
         document.querySelector('.learner-avatar')?.addEventListener('click', () => {
@@ -466,16 +470,30 @@
                 toggle.setAttribute('aria-expanded', String(!expanded));
                 if (details) details.hidden = expanded;
             });
-            item.querySelector('[data-withdraw-application]')?.addEventListener('click', (event) => {
-                event.currentTarget.remove();
-                item.dataset.status = 'withdrawn';
-                const status = item.querySelector('.learner-application-status');
-                if (status) {
-                    status.className = 'learner-application-status learner-application-status--withdrawn';
-                    status.textContent = 'Đã rút hồ sơ';
+            item.querySelector('[data-withdraw-application]')?.addEventListener('click', async (event) => {
+                const button = event.currentTarget;
+                const applicationId = item.dataset.applicationId || '';
+                if (!applicationApiClient || !applicationId || button.disabled) return;
+                button.disabled = true;
+                try {
+                    const response = await applicationApiClient.send('PATCH', '/applications.php', {
+                        action: 'withdraw', applicationId, reason: 'Học viên chủ động rút hồ sơ',
+                    });
+                    const application = response?.application;
+                    if (!application || application.status !== 'withdrawn') throw new Error('Invalid application response');
+                    item.dataset.status = 'withdrawn';
+                    const status = item.querySelector('.learner-application-status');
+                    if (status) {
+                        status.className = 'learner-application-status learner-application-status--withdrawn';
+                        status.textContent = 'Đã rút hồ sơ';
+                    }
+                    button.remove();
+                    showToast('Đã rút hồ sơ.', 'warning');
+                    updateApplications();
+                } catch (error) {
+                    button.disabled = false;
+                    showToast(error?.message || 'Không thể rút hồ sơ.', 'error');
                 }
-                showToast('Đã rút hồ sơ trên giao diện demo.', 'warning');
-                updateApplications();
             });
         });
 
@@ -486,7 +504,7 @@
         applicationMessage?.addEventListener('input', () => {
             if (applicationMessageCount) applicationMessageCount.textContent = String(applicationMessage.value.length);
         });
-        applicationForm?.addEventListener('submit', (event) => {
+        applicationForm?.addEventListener('submit', async (event) => {
             event.preventDefault();
             const consent = applicationForm.querySelector('[data-application-consent]');
             const validation = validateApplication({
@@ -503,10 +521,28 @@
                 return;
             }
             if (applicationError) applicationError.hidden = true;
-            closeModal(applicationForm.closest('.learner-modal'));
-            showToast('Hồ sơ ứng tuyển đã được ghi nhận trên giao diện demo.');
-            applicationForm.reset();
-            if (applicationMessageCount) applicationMessageCount.textContent = '0';
+            const submitButton = applicationForm.querySelector('[type="submit"]');
+            const opportunityId = document.body.dataset.opportunityId || '';
+            if (!applicationApiClient || !opportunityId) {
+                if (applicationError) { applicationError.hidden = false; applicationError.textContent = 'Không thể kết nối dịch vụ ứng tuyển.'; }
+                return;
+            }
+            if (submitButton) submitButton.disabled = true;
+            try {
+                await applicationApiClient.send('POST', '/applications.php', { action: 'grant-consent', confirmed: true });
+                const response = await applicationApiClient.send('POST', '/applications.php', {
+                    action: 'submit', postId: opportunityId, message: applicationMessage?.value || '',
+                });
+                if (!response?.application || response.application.status !== 'submitted') throw new Error('Phản hồi ứng tuyển không hợp lệ.');
+                closeModal(applicationForm.closest('.learner-modal'));
+                showToast('Hồ sơ ứng tuyển đã được gửi thành công.');
+                applicationForm.reset();
+                if (applicationMessageCount) applicationMessageCount.textContent = '0';
+            } catch (error) {
+                if (applicationError) { applicationError.hidden = false; applicationError.textContent = error?.message || 'Không thể gửi hồ sơ ứng tuyển.'; }
+            } finally {
+                if (submitButton) submitButton.disabled = false;
+            }
         });
 
         document.querySelector('[data-save-opportunity]')?.addEventListener('click', (event) => {
@@ -644,7 +680,11 @@
 
                     const bar = document.createElement('span');
                     bar.className = `learner-progress--${criterion.tone}`;
-                    bar.style.setProperty('--learner-progress', `${criterion.score / criterion.max * 100}%`);
+                    const maximum = Number(criterion.max);
+                    const percentage = maximum > 0
+                        ? Math.max(0, Math.min(100, Number(criterion.score) / maximum * 100))
+                        : 0;
+                    bar.style.setProperty('--learner-progress', `${percentage}%`);
                     progress.append(bar);
                     row.append(heading, progress);
                     return row;
@@ -966,10 +1006,18 @@
         });
 
         const profileForm = document.getElementById('learner-profile-form');
-        profileForm?.addEventListener('submit', (event) => {
+        profileForm?.addEventListener('submit', async (event) => {
             event.preventDefault();
-            const formData = Object.fromEntries(new FormData(profileForm).entries());
-            const validation = validateProfile(formData);
+            const submitBtn = profileForm.querySelector('button[type="submit"]');
+            const formData = new FormData(profileForm);
+            const payload = {
+                fullName: String(formData.get('fullName') || '').trim(),
+                dateOfBirth: String(formData.get('dateOfBirth') || '').trim() || undefined,
+                phone: String(formData.get('phone') || '').trim() || undefined,
+                location: String(formData.get('location') || '').trim() || undefined,
+                headline: String(formData.get('headline') || '').trim() || undefined,
+                bio: String(formData.get('bio') || '').trim() || undefined,
+            };
 
             profileForm.querySelectorAll('.learner-field__error').forEach((error) => {
                 error.textContent = '';
@@ -978,28 +1026,149 @@
                 input.removeAttribute('aria-invalid');
             });
 
-            if (!validation.valid) {
-                const field = profileForm.elements.namedItem(validation.field);
-                const error = profileForm.querySelector(`[data-error-for="${validation.field}"]`);
-                if (error) error.textContent = validation.message;
+            if (!payload.fullName) {
+                const field = profileForm.elements.namedItem('fullName');
+                const error = profileForm.querySelector('[data-error-for="fullName"]');
+                if (error) error.textContent = 'Vui lòng nhập họ và tên.';
                 field?.setAttribute('aria-invalid', 'true');
                 field?.focus();
                 return;
             }
 
-            Object.entries(formData).forEach(([field, value]) => {
-                const target = document.querySelector(`[data-profile-${field}]`);
-                if (target) target.textContent = String(value).trim();
-            });
+            const mutationBackend = resolveMutationBackend(
+                document.body?.dataset?.learnerSource || '',
+                Boolean(global.TalentHubLearnerApi),
+            );
+            if (mutationBackend === 'server') {
+                if (submitBtn) submitBtn.disabled = true;
+                try {
+                    const client = global.TalentHubLearnerApi.createLearnerApiClient({ baseUrl: '/api/v1' });
+                    const res = await client.send('PATCH', '/students/me', payload);
+                    if (res) {
+                        const nameTarget = document.querySelector('[data-profile-name]');
+                        if (nameTarget) nameTarget.textContent = payload.fullName;
+                        const locTarget = document.querySelector('[data-profile-location]');
+                        if (locTarget && payload.location) locTarget.textContent = payload.location;
+                        closeModal(profileForm.closest('.learner-modal'));
+                        showToast('Hồ sơ đã được cập nhật thành công.');
+                    }
+                } catch (err) {
+                    showToast(err?.message || 'Không thể cập nhật hồ sơ.', 'error');
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+                return;
+            }
 
+            if (mutationBackend === 'unavailable') {
+                showToast('Không thể cập nhật hồ sơ vì API chưa sẵn sàng.', 'error');
+                return;
+            }
+
+            // Explicit mock mode only.
+            const nameTarget = document.querySelector('[data-profile-name]');
+            if (nameTarget) nameTarget.textContent = payload.fullName;
+            const locTarget = document.querySelector('[data-profile-location]');
+            if (locTarget && payload.location) locTarget.textContent = payload.location;
             closeModal(profileForm.closest('.learner-modal'));
             showToast('Hồ sơ đã được cập nhật trên giao diện.');
+        });
+
+        const shareForm = document.getElementById('learner-share-form');
+        shareForm?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const submitBtn = shareForm.querySelector('button[type="submit"]');
+            const formData = new FormData(shareForm);
+            const sharedFields = formData.getAll('sharedFields[]');
+            if (!sharedFields.includes('fullName')) {
+                sharedFields.unshift('fullName');
+            }
+            const expiresInDays = Number(formData.get('expiresInDays')) || 30;
+
+            if (submitBtn) submitBtn.disabled = true;
+            try {
+                const mutationBackend = resolveMutationBackend(
+                    document.body?.dataset?.learnerSource || '',
+                    Boolean(global.TalentHubLearnerApi),
+                );
+                if (mutationBackend === 'server') {
+                    const client = global.TalentHubLearnerApi.createLearnerApiClient({ baseUrl: '/app/learner/api/v1' });
+                    const res = await client.send('POST', '/profile-shares.php', { sharedFields, expiresInDays });
+                    if (res && res.share) {
+                        const resultBox = document.getElementById('learner-share-result');
+                        const linkInput = document.getElementById('learner-share-link');
+                        if (linkInput) {
+                            linkInput.value = `${window.location.origin}${res.share.shareUrl}`;
+                        }
+                        if (resultBox) resultBox.style.display = 'block';
+                        showToast('Đã tạo liên kết chia sẻ hồ sơ.');
+                    }
+                } else if (mutationBackend === 'mock') {
+                    const resultBox = document.getElementById('learner-share-result');
+                    const linkInput = document.getElementById('learner-share-link');
+                    if (linkInput) {
+                        const mockToken = global.crypto?.randomUUID?.() || String(Date.now());
+                        linkInput.value = `${window.location.origin}/app/learner/shared-profile.php?token=mock-${mockToken}`;
+                    }
+                    if (resultBox) resultBox.style.display = 'block';
+                    showToast('Đã tạo liên kết chia sẻ hồ sơ demo.');
+                } else {
+                    throw new Error('Không thể tạo liên kết vì API chưa sẵn sàng.');
+                }
+            } catch (err) {
+                showToast(err?.message || 'Không thể tạo liên kết chia sẻ.', 'error');
+            } finally {
+                if (submitBtn) submitBtn.disabled = false;
+            }
+        });
+
+        const certForm = document.getElementById('learner-certificate-form');
+        certForm?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const submitBtn = certForm.querySelector('button[type="submit"]');
+            const formData = new FormData(certForm);
+            const payload = {
+                title: String(formData.get('title') || '').trim(),
+                issuingOrganization: String(formData.get('issuingOrganization') || '').trim(),
+                issueDate: String(formData.get('issueDate') || '').trim(),
+                expiryDate: String(formData.get('expiryDate') || '').trim() || undefined,
+                credentialId: String(formData.get('credentialId') || '').trim() || undefined,
+                credentialUrl: String(formData.get('credentialUrl') || '').trim() || undefined,
+            };
+
+            if (!payload.title || !payload.issuingOrganization || !payload.issueDate) {
+                showToast('Vui lòng điền đầy đủ các thông tin bắt buộc.', 'error');
+                return;
+            }
+
+            if (submitBtn) submitBtn.disabled = true;
+            try {
+                const mutationBackend = resolveMutationBackend(
+                    document.body?.dataset?.learnerSource || '',
+                    Boolean(global.TalentHubLearnerApi),
+                );
+                if (mutationBackend === 'server') {
+                    const client = global.TalentHubLearnerApi.createLearnerApiClient({ baseUrl: '/app/learner/api/v1' });
+                    await client.send('POST', '/certificates.php', payload);
+                    closeModal(certForm.closest('.learner-modal'));
+                    showToast('Chứng chỉ đã được thêm thành công.');
+                } else if (mutationBackend === 'mock') {
+                    closeModal(certForm.closest('.learner-modal'));
+                    showToast('Chứng chỉ demo đã được thêm.');
+                } else {
+                    throw new Error('Không thể lưu chứng chỉ vì API chưa sẵn sàng.');
+                }
+            } catch (err) {
+                showToast(err?.message || 'Không thể lưu chứng chỉ.', 'error');
+            } finally {
+                if (submitBtn) submitBtn.disabled = false;
+            }
         });
 
         document.querySelector('[data-copy-profile]')?.addEventListener('click', async (event) => {
             const button = event.currentTarget;
             const input = document.getElementById('learner-share-link');
-            if (!input) return;
+            if (!input || !input.value) return;
 
             let copied = false;
             try {

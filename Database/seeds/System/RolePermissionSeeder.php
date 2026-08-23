@@ -27,6 +27,7 @@ final class RolePermissionSeeder
         'session.logout_own',
         'notification.read_own',
         'notification.mark_read_own',
+        'notification.manage_preferences_own',
     ];
 
     private const ROLE_PERMISSIONS = [
@@ -39,6 +40,7 @@ final class RolePermissionSeeder
             'activity_registration.create_own', 'activity_registration.read_own',
             'activity_registration.cancel_own', 'checkin.create_own', 'experience_log.read_own',
             'badge.read_own', 'certificate.read_own', 'partner.read_public', 'project.read_available',
+            'certificate.manage_own',
             'internship_post.read_available', 'internship_application.create_own',
             'internship_application.read_own', 'internship_application.withdraw_own',
             'contact_request.read_own', 'contact_request.respond_own',
@@ -51,6 +53,7 @@ final class RolePermissionSeeder
             'activity.create_managed',
             'activity.update_managed',
             'activity_registration.read_managed',
+            'activity_registration.update_managed',
             'qr_session.create_managed',
             'qr_session.read_managed',
             'qr_session.revoke_managed',

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace TalentHub\Modules\Teacher\Repository;
 
 use PDO;
+use Throwable;
 
 final class TeacherQrSessionRepository
 {
@@ -52,9 +53,11 @@ final class TeacherQrSessionRepository
                 s.usedScans,
                 s.createdAt,
                 a.title AS activityTitle,
-                a.category AS activityCategory
+                a.category AS activityCategory,
+                policy.confirmedHours
              FROM activity_qr_sessions s
              INNER JOIN activities a ON a.id = s.activityId
+             LEFT JOIN activity_experience_policies policy ON policy.activityId = a.id
              WHERE s.createdByTeacherId = :teacherId
                AND a.createdByTeacherId = :activityTeacherId
              ORDER BY s.createdAt DESC'
@@ -74,35 +77,62 @@ final class TeacherQrSessionRepository
         string $tokenHash,
         string $expiresAt,
         int $maxScans,
+        string $confirmedHours,
     ): bool {
-        $statement = $this->pdo->prepare(
-            'INSERT INTO activity_qr_sessions
-                (id, activityId, createdByTeacherId, tokenHash, status, expiresAt, maxScans, usedScans)
-             SELECT
-                :sessionId,
-                a.id,
-                :teacherId,
-                :tokenHash,
-                \'active\',
-                :expiresAt,
-                :maxScans,
-                0
-             FROM activities a
-             WHERE a.id = :activityId
-               AND a.createdByTeacherId = :activityTeacherId
-               AND a.status = \'ongoing\''
-        );
-        $statement->execute([
-            'sessionId' => $sessionId,
-            'teacherId' => $teacherId,
-            'tokenHash' => $tokenHash,
-            'expiresAt' => $expiresAt,
-            'maxScans' => $maxScans,
-            'activityId' => $activityId,
-            'activityTeacherId' => $teacherId,
-        ]);
+        $this->pdo->beginTransaction();
+        try {
+            $policy = $this->pdo->prepare(
+                'INSERT INTO activity_experience_policies (activityId, confirmedHours, createdAt, updatedAt)
+                 SELECT a.id, :confirmedHours, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
+                 FROM activities a
+                 WHERE a.id = :activityId AND a.createdByTeacherId = :teacherId AND a.status = \'ongoing\'
+                 ON DUPLICATE KEY UPDATE confirmedHours = VALUES(confirmedHours), updatedAt = UTC_TIMESTAMP(6)'
+            );
+            $policy->execute([
+                'confirmedHours' => $confirmedHours,
+                'activityId' => $activityId,
+                'teacherId' => $teacherId,
+            ]);
 
-        return $statement->rowCount() === 1;
+            $statement = $this->pdo->prepare(
+                'INSERT INTO activity_qr_sessions
+                    (id, activityId, createdByTeacherId, tokenHash, status, expiresAt, maxScans, usedScans)
+                 SELECT
+                    :sessionId,
+                    a.id,
+                    :teacherId,
+                    :tokenHash,
+                    \'active\',
+                    :expiresAt,
+                    :maxScans,
+                    0
+                 FROM activities a
+                 WHERE a.id = :activityId
+                   AND a.createdByTeacherId = :activityTeacherId
+                   AND a.status = \'ongoing\''
+            );
+            $statement->execute([
+                'sessionId' => $sessionId,
+                'teacherId' => $teacherId,
+                'tokenHash' => $tokenHash,
+                'expiresAt' => $expiresAt,
+                'maxScans' => $maxScans,
+                'activityId' => $activityId,
+                'activityTeacherId' => $teacherId,
+            ]);
+
+            if ($statement->rowCount() !== 1) {
+                $this->pdo->rollBack();
+                return false;
+            }
+            $this->pdo->commit();
+            return true;
+        } catch (Throwable $exception) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
+        }
     }
 
     public function revokeSession(string $teacherId, string $sessionId): bool
@@ -122,5 +152,26 @@ final class TeacherQrSessionRepository
         ]);
 
         return $statement->rowCount() === 1;
+    }
+
+    /** @return list<array<string,mixed>> */
+    public function listManagedCheckins(string $teacherId, int $limit = 50): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT c.id checkinId, c.checkedInAt, c.confirmedAt, c.status checkinStatus,
+                    a.id activityId, a.title activityTitle,
+                    el.hours confirmedHours, el.status experienceStatus
+             FROM checkins c
+             INNER JOIN activity_registrations ar ON ar.id = c.registrationId
+             INNER JOIN activities a ON a.id = ar.activityId
+             INNER JOIN experience_logs el ON el.checkinId = c.id AND el.status = \'confirmed\'
+             WHERE a.createdByTeacherId = :teacherId
+               AND c.status = \'confirmed\'
+             ORDER BY c.checkedInAt DESC
+             LIMIT ' . max(1, min(100, $limit))
+        );
+        $statement->execute(['teacherId' => $teacherId]);
+
+        return $statement->fetchAll();
     }
 }

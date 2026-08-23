@@ -35,6 +35,14 @@ $currentRoute = '/app/learner/badges.php';
                 include __DIR__ . '/includes/page-banner.php';
                 ?>
 
+                <?php if ($isDatabaseMode ?? false): ?>
+                    <section class="learner-card learner-empty-state" role="status">
+                        <span class="learner-empty-state__icon"><?= learner_icon('award', 30); ?></span>
+                        <h2>Chưa có dữ liệu huy hiệu và cấp độ</h2>
+                        <p>Huy hiệu và cấp độ sẽ hiển thị khi dữ liệu và quy tắc trao huy hiệu được kích hoạt.</p>
+                    </section>
+                <?php else: ?>
+
                 <section class="learner-card learner-level-overview" aria-labelledby="learner-current-level-title">
                     <div class="learner-level-overview__current">
                         <p>Cấp độ hiện tại</p>
@@ -134,6 +142,7 @@ $currentRoute = '/app/learner/badges.php';
                     <?= learner_icon('activity', 18); ?>
                     <span>Huy hiệu được cập nhật khi hệ thống ghi nhận hoàn thành hoạt động hoặc khóa học.</span>
                 </p>
+                <?php endif; ?>
             </main>
         </div>
     </div>

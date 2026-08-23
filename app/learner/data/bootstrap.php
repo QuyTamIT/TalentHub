@@ -6,12 +6,19 @@ $learnerDataRoot = __DIR__;
 $GLOBALS['learner_data_defaults'] ??= require $learnerDataRoot . '/config.php';
 
 require_once $learnerDataRoot . '/Contracts/StudentRepository.php';
+require_once $learnerDataRoot . '/Contracts/TalentPassportRepository.php';
 require_once $learnerDataRoot . '/Contracts/AssessmentRepository.php';
 require_once $learnerDataRoot . '/Contracts/AssessmentWriteRepository.php';
 require_once $learnerDataRoot . '/Contracts/ActivityRepository.php';
+require_once $learnerDataRoot . '/Contracts/ActivityCommandRepository.php';
+require_once $learnerDataRoot . '/Contracts/CheckinRepository.php';
 require_once $learnerDataRoot . '/Contracts/EcosystemRepository.php';
 require_once $learnerDataRoot . '/Contracts/ApplicationRepository.php';
+require_once $learnerDataRoot . '/Contracts/InternshipApplicationCommandRepository.php';
+require_once $learnerDataRoot . '/Contracts/NotificationRepository.php';
+require_once $learnerDataRoot . '/Service/NotificationService.php';
 require_once $learnerDataRoot . '/Enums/Statuses.php';
+
 require_once $learnerDataRoot . '/Exceptions/LearnerDataConfigurationException.php';
 require_once $learnerDataRoot . '/Exceptions/LearnerDataMappingException.php';
 require_once $learnerDataRoot . '/Exceptions/LearnerDataQueryException.php';
@@ -22,18 +29,22 @@ require_once $learnerDataRoot . '/Support/LearnerViewAdapter.php';
 require_once $learnerDataRoot . '/Support/SharedStudentAdapter.php';
 require_once $learnerDataRoot . '/ReadModel/ReadModelDefaults.php';
 require_once $learnerDataRoot . '/ReadModel/StudentReadModel.php';
+require_once $learnerDataRoot . '/ReadModel/TalentPassportReadModel.php';
 require_once $learnerDataRoot . '/ReadModel/AssessmentReadModel.php';
 require_once $learnerDataRoot . '/ReadModel/ActivityReadModel.php';
 require_once $learnerDataRoot . '/ReadModel/EcosystemReadModel.php';
 require_once $learnerDataRoot . '/ReadModel/ApplicationReadModel.php';
 require_once $learnerDataRoot . '/Mock/MockStudentRepository.php';
+require_once $learnerDataRoot . '/Mock/MockTalentPassportRepository.php';
 require_once $learnerDataRoot . '/Mock/MockAssessmentRepository.php';
 require_once $learnerDataRoot . '/Mock/MockActivityRepository.php';
 require_once $learnerDataRoot . '/Mock/MockEcosystemRepository.php';
 require_once $learnerDataRoot . '/Mock/MockApplicationRepository.php';
+require_once $learnerDataRoot . '/Mock/MockNotificationRepository.php';
 require_once $learnerDataRoot . '/Database/AbstractDatabaseRepository.php';
 require_once $learnerDataRoot . '/Database/SchemaInspector.php';
 require_once $learnerDataRoot . '/Database/DatabaseStudentRepository.php';
+require_once $learnerDataRoot . '/Database/DatabaseTalentPassportRepository.php';
 require_once dirname($learnerDataRoot) . '/assessment/Scoring/AssessmentScorer.php';
 require_once dirname($learnerDataRoot) . '/assessment/Scoring/ScoringResult.php';
 require_once dirname($learnerDataRoot) . '/assessment/Scoring/LikertScore.php';
@@ -47,12 +58,18 @@ require_once dirname($learnerDataRoot) . '/assessment/Service/AssessmentCatalogS
 require_once $learnerDataRoot . '/Database/DatabaseAssessmentRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseAssessmentWriteRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseActivityRepository.php';
+require_once $learnerDataRoot . '/Database/DatabaseActivityCommandRepository.php';
+require_once $learnerDataRoot . '/Database/DatabaseCheckinRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseEcosystemRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseApplicationRepository.php';
+require_once $learnerDataRoot . '/Database/DatabaseApplicationCommandRepository.php';
+require_once $learnerDataRoot . '/Database/DatabaseInternshipApplicationCommandRepository.php';
+require_once $learnerDataRoot . '/Database/DatabaseNotificationRepository.php';
 require_once $learnerDataRoot . '/Readiness/AiScopePolicy.php';
 require_once $learnerDataRoot . '/Readiness/ReadinessResult.php';
 require_once $learnerDataRoot . '/Readiness/GitScopeGuard.php';
 require_once $learnerDataRoot . '/Readiness/LearnerMigrationRunner.php';
+require_once $learnerDataRoot . '/Readiness/TalentPassportOptionalSchema.php';
 require_once $learnerDataRoot . '/Readiness/PhaseRequirements.php';
 require_once $learnerDataRoot . '/Readiness/ReadinessChecker.php';
 require_once $learnerDataRoot . '/Migrations/LearnerForwardMigration.php';
@@ -60,9 +77,17 @@ require_once $learnerDataRoot . '/Migrations/LearnerMigrationPreflight.php';
 require_once $learnerDataRoot . '/Migrations/ForwardMigrationDefinition.php';
 require_once $learnerDataRoot . '/Migrations/LearnerMigrationChecksum.php';
 require_once $learnerDataRoot . '/Migrations/LearnerForwardMigrationRunner.php';
+require_once $learnerDataRoot . '/Database/DatabaseCertificateCommandRepository.php';
+require_once $learnerDataRoot . '/Service/CertificateCommandService.php';
+require_once $learnerDataRoot . '/Service/ProfileSharingService.php';
+require_once $learnerDataRoot . '/Service/ActivityRegistrationService.php';
+require_once $learnerDataRoot . '/Service/LearnerCheckinService.php';
 require_once $learnerDataRoot . '/Service/LearnerAssessmentService.php';
+require_once $learnerDataRoot . '/Service/ApplicationCommandService.php';
+require_once $learnerDataRoot . '/Service/NotificationService.php';
 require_once $learnerDataRoot . '/RepositoryFactory.php';
 require_once dirname($learnerDataRoot) . '/runtime/LearnerRuntime.php';
+
 
 unset($learnerDataRoot);
 
@@ -128,6 +153,26 @@ if (!function_exists('learner_safe_runtime_diagnostics')) {
             'source' => strtolower(trim((string) ($config['source'] ?? 'mock'))),
             'student_id' => $studentId === '' ? null : $studentId,
         ];
+    }
+}
+
+if (!function_exists('learner_configure_authenticated_student_context')) {
+    /** @param array{student?:array<string,mixed>,pdo?:mixed} $context */
+    function learner_configure_authenticated_student_context(array $context): void
+    {
+        $studentId = trim((string) ($context['student']['id'] ?? ''));
+        $pdo = $context['pdo'] ?? null;
+        if ($studentId === '' || !$pdo instanceof \PDO) {
+            throw new \TalentHub\Learner\Data\Exceptions\LearnerDataConfigurationException(
+                'Authenticated learner context requires a student id and PDO connection.'
+            );
+        }
+
+        learner_configure_data([
+            'source' => 'database',
+            'pdo' => $pdo,
+            'student_id' => $studentId,
+        ]);
     }
 }
 

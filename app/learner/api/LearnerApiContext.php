@@ -75,15 +75,46 @@ final class LearnerApiContext
         return $this->requestId;
     }
 
+    public function pdo(): PDO
+    {
+        return $this->pdo;
+    }
+
     public function studentId(string $permission): string
+    {
+        return $this->studentIdForPermissions([$permission]);
+    }
+
+    /** @param list<string> $permissions */
+    public function studentIdForPermissions(array $permissions): string
+    {
+        return $this->studentIdentityForPermissions($permissions)['student_id'];
+    }
+
+    /** @param list<string> $permissions @return array{student_id:string,user_id:string} */
+    public function studentIdentityForPermissions(array $permissions): array
     {
         $user = $this->session->requireUser();
         if (($user['role'] ?? null) !== 'student') {
             throw new ApiException(403, 'PERMISSION_DENIED', 'Endpoint chỉ dành cho học viên.');
         }
-        $this->permissions->require((string) $user['id'], $permission);
+        foreach (array_values(array_unique($permissions)) as $permission) {
+            if (!is_string($permission) || trim($permission) === '') {
+                throw new \InvalidArgumentException('Student permission code must be a non-empty string.');
+            }
+            $this->permissions->require((string) $user['id'], $permission);
+        }
+        $userId = (string) $user['id'];
+        return [
+            'student_id' => $this->resolveStudentId($userId),
+            'user_id' => $userId,
+        ];
+    }
+
+    private function resolveStudentId(string $userId): string
+    {
         $statement = $this->pdo->prepare('SELECT id FROM student_profiles WHERE userId = :userId LIMIT 1');
-        $statement->execute(['userId' => (string) $user['id']]);
+        $statement->execute(['userId' => $userId]);
         $studentId = $statement->fetchColumn();
         if ($studentId === false) {
             throw new ApiException(403, 'PERMISSION_DENIED', 'Không tìm thấy hồ sơ học viên hợp lệ.');

@@ -61,6 +61,61 @@ final class DatabaseAssessmentRepository extends AbstractDatabaseRepository impl
         ORDER BY a.id, sc.id
         SQL;
 
+    /**
+     * Published-only Teacher evaluation read. Drafts and rows without a publish timestamp
+     * are excluded in SQL, never in PHP, so a mapping change cannot leak a draft.
+     */
+    private const PUBLISHED_EVALUATIONS_SQL = <<<'SQL'
+        SELECT
+            a.id,
+            a.teacherId,
+            a.studentId,
+            a.activityId,
+            a.overallScore,
+            a.comment,
+            a.status,
+            a.publishedAt,
+            act.title AS activityTitle,
+            u.fullName AS reviewerName,
+            sc.id AS scoreId,
+            sc.criteriaId,
+            sc.score,
+            c.code AS criteriaCode,
+            c.name AS criteriaName,
+            c.minScore,
+            c.maxScore
+        FROM assessments a
+        LEFT JOIN activities act ON act.id = a.activityId
+        LEFT JOIN teacher_profiles tp ON tp.id = a.teacherId
+        LEFT JOIN users u ON u.id = tp.userId
+        LEFT JOIN assessment_scores sc ON sc.assessmentId = a.id
+        LEFT JOIN assessment_criteria c ON c.id = sc.criteriaId
+        WHERE a.studentId = :student_id
+          AND a.status = 'published'
+          AND a.publishedAt IS NOT NULL
+        ORDER BY a.publishedAt DESC, a.id DESC, sc.id ASC
+        SQL;
+
+    /** Canonical stable assessment codes: four frameworks, base plus three education bands. */
+    private const CANONICAL_ASSESSMENT_CODES = [
+        'holland',
+        'holland_middle',
+        'holland_high',
+        'holland_college',
+        'mbti',
+        'mbti_middle',
+        'mbti_high',
+        'mbti_college',
+        'disc',
+        'disc_middle',
+        'disc_high',
+        'disc_college',
+        'multiple_intelligence',
+        'multiple_intelligence_middle',
+        'multiple_intelligence_high',
+        'multiple_intelligence_college',
+    ];
+
     public function all(): array
     {
         return array_map([$this, 'normalizeDefinition'], $this->fetchAll('all', self::ALL_SQL));
@@ -130,6 +185,54 @@ final class DatabaseAssessmentRepository extends AbstractDatabaseRepository impl
                     ),
                     'score' => $row['score'],
                     'criteria_name' => $row['criteria_name'],
+                    'min_score' => $row['min_score'],
+                    'max_score' => $row['max_score'],
+                ];
+            }
+        }
+
+        return array_values($evaluations);
+    }
+
+    public function publishedEvaluationsForStudent(string $studentId): array
+    {
+        $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
+        $rows = $this->fetchAll(
+            'publishedEvaluationsForStudent',
+            self::PUBLISHED_EVALUATIONS_SQL,
+            ['student_id' => $studentId]
+        );
+        $evaluations = [];
+
+        foreach ($rows as $row) {
+            $evaluationId = Uuid::normalizeDatabase((string) $row['id'], 'assessments.id');
+            if (!isset($evaluations[$evaluationId])) {
+                $evaluations[$evaluationId] = [
+                    'id' => $evaluationId,
+                    'teacher_id' => Uuid::normalizeDatabase((string) $row['teacher_id'], 'assessments.teacherId'),
+                    'student_id' => Uuid::normalizeDatabase((string) $row['student_id'], 'assessments.studentId'),
+                    'activity_id' => Uuid::normalizeDatabase((string) $row['activity_id'], 'assessments.activityId'),
+                    'activity_title' => $row['activity_title'],
+                    'reviewer_name' => $row['reviewer_name'],
+                    'overall_score' => $row['overall_score'],
+                    'comment' => $row['comment'],
+                    'status' => EvaluationStatus::normalize($row['status'] ?? null)->value,
+                    'published_at' => $row['published_at'],
+                    'scores' => [],
+                    'id_origin' => 'database',
+                ];
+            }
+
+            if (($row['score_id'] ?? null) !== null) {
+                $evaluations[$evaluationId]['scores'][] = [
+                    'id' => Uuid::normalizeDatabase((string) $row['score_id'], 'assessment_scores.id'),
+                    'criteria_id' => Uuid::normalizeDatabase(
+                        (string) $row['criteria_id'],
+                        'assessment_scores.criteriaId'
+                    ),
+                    'criteria_code' => $row['criteria_code'],
+                    'criteria_name' => $row['criteria_name'],
+                    'score' => $row['score'],
                     'min_score' => $row['min_score'],
                     'max_score' => $row['max_score'],
                 ];
@@ -554,6 +657,92 @@ SQL,
                 'dimension_scores' => $this->decodeJson($row['dimension_scores_json'] ?? null, 'test_results.dimensionScoresJson'),
             ];
         }, $rows);
+    }
+
+    /**
+     * Complete own history across every framework and band.
+     *
+     * Filters on the canonical stable codes (base plus banded variants) exactly as
+     * publishedCatalog()/history() already do, so the read never depends on the free-form
+     * talent_tests.type column.
+     */
+    public function completeHistory(string $studentId): array
+    {
+        $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
+
+        $parameters = ['student_id' => $studentId];
+        $placeholders = [];
+        foreach (self::CANONICAL_ASSESSMENT_CODES as $position => $code) {
+            $placeholder = 'code_' . $position;
+            $placeholders[] = ':' . $placeholder;
+            $parameters[$placeholder] = $code;
+        }
+
+        $rows = $this->fetchAll(
+            'completeHistory',
+            <<<SQL
+SELECT
+    a.id AS attempt_id,
+    a.studentId AS student_id,
+    a.testId AS test_id,
+    t.code AS test_code,
+    t.name AS test_name,
+    t.type AS test_type,
+    a.startedAt AS started_at,
+    a.submittedAt AS submitted_at,
+    v.id AS version_id,
+    v.version AS assessment_version,
+    v.scoringVersion AS scoring_version,
+    r.id AS result_id,
+    r.resultCode AS result_code,
+    r.summary AS result_summary,
+    r.dimensionScoresJson AS dimension_scores_json,
+    r.createdAt AS result_created_at
+FROM test_attempts a
+INNER JOIN talent_tests t ON t.id = a.testId
+INNER JOIN learner_assessment_attempt_metadata m ON m.attemptId = a.id
+INNER JOIN learner_assessment_versions v ON v.id = m.versionId
+INNER JOIN test_results r ON r.attemptId = a.id
+WHERE a.studentId = :student_id
+  AND a.status = 'submitted'
+  AND t.code IN (
+SQL
+            . implode(', ', $placeholders)
+            . ")\nORDER BY a.submittedAt DESC, a.id DESC",
+            $parameters
+        );
+
+        return array_map([$this, 'normalizeHistoryRow'], $rows);
+    }
+
+    private function normalizeHistoryRow(array $row): array
+    {
+        return [
+            'id' => $this->normalizeOptionalUuid($row['attempt_id'] ?? null, 'test_attempts.id'),
+            'student_id' => $this->normalizeOptionalUuid($row['student_id'] ?? null, 'test_attempts.studentId'),
+            'assessment_id' => $this->normalizeOptionalUuid($row['test_id'] ?? null, 'test_attempts.testId'),
+            'assessment_code' => (string) $row['test_code'],
+            'assessment_name' => (string) $row['test_name'],
+            'assessment_type' => (string) $row['test_type'],
+            'version_id' => $this->normalizeOptionalUuid($row['version_id'] ?? null, 'learner_assessment_versions.id'),
+            'assessment_version' => (string) $row['assessment_version'],
+            'scoring_version' => (string) $row['scoring_version'],
+            'status' => 'submitted',
+            'started_at' => (string) $row['started_at'],
+            'submitted_at' => (string) $row['submitted_at'],
+            'result_id' => $this->normalizeOptionalUuid($row['result_id'] ?? null, 'test_results.id'),
+            'result_code' => (string) $row['result_code'],
+            'summary' => (string) $row['result_summary'],
+            'result_created_at' => (string) $row['result_created_at'],
+            'dimension_scores' => $this->decodeJson($row['dimension_scores_json'] ?? null, 'test_results.dimensionScoresJson'),
+            'id_origin' => 'database',
+        ];
+    }
+
+    private function normalizeOptionalUuid(mixed $value, string $context): string
+    {
+        $value = (string) $value;
+        return Uuid::isValid($value) ? Uuid::normalizeDatabase($value, $context) : $value;
     }
 
     private function normalizeDefinition(array $definition): array

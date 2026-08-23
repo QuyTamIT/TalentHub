@@ -10,14 +10,20 @@ use JsonException;
 use PDO;
 use RuntimeException;
 use TalentHub\Learner\Assessment\Scoring\ScorerRegistry;
+use TalentHub\Learner\Assessment\Scoring\ScoringResult;
 use TalentHub\Learner\Data\Contracts\AssessmentWriteRepository;
+use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
+use TalentHub\Learner\Data\Service\NotificationService;
 use TalentHub\Learner\Data\Support\Uuid;
 use Throwable;
 
 final class DatabaseAssessmentWriteRepository implements AssessmentWriteRepository
 {
-    public function __construct(private readonly PDO $pdo, private readonly ScorerRegistry $scorers)
-    {
+    public function __construct(
+        private readonly PDO $pdo,
+        private readonly ScorerRegistry $scorers,
+        private readonly ?NotificationService $notifications = null
+    ) {
     }
 
     public function startOrResumeAttempt(string $studentId, string $assessmentCode, string $educationBand): array
@@ -40,8 +46,9 @@ SELECT
 FROM learner_assessment_versions v
 INNER JOIN talent_tests t ON t.id = v.testId
 WHERE t.code = :banded_code
-  AND v.status = 'published'
   AND t.status = 'published'
+  AND v.status = 'published'
+  AND v.publishedAt IS NOT NULL
 ORDER BY v.createdAt DESC
 LIMIT 1
 SQL,
@@ -351,6 +358,17 @@ SQL,
                 throw new RuntimeException('Assessment attempt changed before submission could complete.');
             }
 
+            $userId = $this->userIdForStudent($studentId);
+            $this->getNotificationService()->publish(
+                $userId,
+                'assessment_submitted',
+                'Nộp bài đánh giá thành công',
+                'Bạn đã hoàn thành và nộp bài đánh giá.',
+                '/app/learner/assessment-result.php',
+                'assessment_attempt:' . $attemptId,
+                $studentId
+            );
+
             return $this->resultView($studentId, $attemptId);
         });
     }
@@ -361,8 +379,8 @@ SQL,
             <<<'SQL'
 SELECT a.id AS attempt_id, a.testId AS test_id, a.studentId AS student_id, a.status AS attempt_status,
        a.startedAt AS started_at, a.submittedAt AS attempt_submitted_at,
-        m.versionId AS version_id, m.status AS metadata_status, m.expiresAt AS expires_at,
-        m.submittedAt AS metadata_submitted_at,
+       m.versionId AS version_id, m.status AS metadata_status, m.expiresAt AS expires_at,
+       m.submittedAt AS metadata_submitted_at,
        m.inputHash AS input_hash, v.version AS assessment_version, v.scoringVersion AS scoring_version,
        v.schemaHash AS schema_hash
 FROM test_attempts a
@@ -386,6 +404,7 @@ SQL,
         return [
             'id' => $attempt['attempt_id'],
             'student_id' => $attempt['student_id'],
+
             'assessment_id' => $attempt['test_id'],
             'assessment_version' => $attempt['assessment_version'],
             'scoring_version' => $attempt['scoring_version'],
@@ -545,6 +564,7 @@ SQL,
         }
     }
 
+
     private function encodeJson(mixed $value): string
     {
         try {
@@ -575,5 +595,27 @@ SQL,
     private function now(): string
     {
         return (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s.u');
+    }
+
+    private function getNotificationService(): NotificationService
+    {
+        if (!class_exists('TalentHub\Learner\Data\Service\NotificationService', false)) {
+            require_once dirname(__DIR__) . '/Contracts/NotificationRepository.php';
+            require_once dirname(__DIR__) . '/Service/NotificationService.php';
+            require_once dirname(__DIR__) . '/Database/DatabaseNotificationRepository.php';
+        }
+        return $this->notifications ?? new NotificationService(new DatabaseNotificationRepository($this->pdo));
+    }
+
+
+    private function userIdForStudent(string $studentId): string
+    {
+        $stmt = $this->pdo->prepare('SELECT userId FROM student_profiles WHERE id = :id LIMIT 1');
+        $stmt->execute(['id' => $studentId]);
+        $userId = $stmt->fetchColumn();
+        if (!is_string($userId) || $userId === '') {
+            throw new \RuntimeException('Notification recipient is missing for the assessment attempt.');
+        }
+        return $userId;
     }
 }

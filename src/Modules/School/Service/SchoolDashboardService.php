@@ -609,6 +609,7 @@ final class SchoolDashboardService
             'monthly'     => $monthly,
             'actions'     => $actions,
             'totalEvents' => $total,
+            'checkinExperience' => (new SchoolCheckinAggregateService($this->pdo))->confirmedForSchool($school['id']),
         ];
     }
 

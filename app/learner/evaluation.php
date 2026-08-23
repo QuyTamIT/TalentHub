@@ -5,8 +5,77 @@ require_once __DIR__ . '/includes/icons.php';
 
 $pageTitle = 'Đánh giá năng lực';
 $currentRoute = '/app/learner/evaluation.php';
-$currentTerm = $evaluationTerms[$defaultEvaluationTerm];
-$currentEvaluation = $currentTerm['evaluation'];
+$evaluationSourceState = 'ready';
+
+if ($isDatabaseMode) {
+    try {
+        $studentIdForEval = learner_current_student_id();
+        $publishedEvaluations = learner_repository_factory()->assessment()->publishedEvaluationsForStudent($studentIdForEval);
+
+        $evaluationTerms = [];
+        $defaultEvaluationTerm = '';
+
+        foreach ($publishedEvaluations as $eval) {
+            $evaluationId = trim((string) ($eval['id'] ?? ''));
+            if ($evaluationId === '') {
+                continue;
+            }
+
+            $publishedAt = trim((string) ($eval['published_at'] ?? ''));
+            $publishedDate = $publishedAt;
+            if ($publishedAt !== '') {
+                $parsedPublishedAt = date_create_immutable($publishedAt);
+                $publishedDate = $parsedPublishedAt === false ? $publishedAt : $parsedPublishedAt->format('d/m/Y');
+            }
+            $activityTitle = trim((string) ($eval['activity_title'] ?? ''));
+            $evaluationLabel = $activityTitle !== '' ? $activityTitle : 'Đánh giá';
+            if ($publishedDate !== '') {
+                $evaluationLabel .= ' · ' . $publishedDate;
+            }
+
+            $criteria = [];
+            $toneMap = ['primary', 'secondary', 'secondary', 'primary', 'success', 'warning'];
+            foreach ($eval['scores'] ?? [] as $idx => $score) {
+                $criteria[] = [
+                    'name' => (string) ($score['criteria_name'] ?? 'Tiêu chí'),
+                    'score' => (float) ($score['score'] ?? 0),
+                    'max' => (float) ($score['max_score'] ?? 100),
+                    'tone' => $toneMap[$idx % count($toneMap)],
+                ];
+            }
+
+            $evaluationTerms[$evaluationId] = [
+                'label' => $evaluationLabel,
+                'status' => 'Đã công bố',
+                'evaluation' => [
+                    'criteria' => $criteria,
+                    'total' => $eval['overall_score'] ?? 'Chưa có dữ liệu',
+                    'classification' => 'Chưa có dữ liệu',
+                    'ranking' => 'Chưa có dữ liệu',
+                    'comment' => (string) ($eval['comment'] ?? 'Chưa có nhận xét'),
+                    'reviewer' => (string) ($eval['reviewer_name'] ?? 'Giáo viên'),
+                ],
+            ];
+
+            if ($defaultEvaluationTerm === '') {
+                $defaultEvaluationTerm = $evaluationId;
+            }
+        }
+
+        $evaluationSourceState = $evaluationTerms === [] ? 'empty' : 'ready';
+    } catch (\Throwable) {
+        $evaluationSourceState = 'source-error';
+        $evaluationTerms = [];
+        $defaultEvaluationTerm = '';
+    }
+} elseif ($evaluationTerms === []) {
+    $evaluationSourceState = 'empty';
+}
+
+$currentTerm = $evaluationTerms[$defaultEvaluationTerm]
+    ?? ['label' => 'Chưa có dữ liệu', 'status' => 'Chưa có dữ liệu', 'evaluation' => null];
+$currentEvaluation = $currentTerm['evaluation'] ?? null;
+$hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluation);
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -42,6 +111,9 @@ $currentEvaluation = $currentTerm['evaluation'];
                             <?= learner_icon('calendar', 18); ?>
                             <span class="learner-visually-hidden">Chọn học kỳ</span>
                             <select id="learner-evaluation-term" name="term">
+                                <?php if ($evaluationTerms === []): ?>
+                                    <option value="">Chưa có dữ liệu</option>
+                                <?php endif; ?>
                                 <?php foreach ($evaluationTerms as $termId => $term): ?>
                                     <option value="<?= learner_escape($termId); ?>" <?= $termId === $defaultEvaluationTerm ? 'selected' : ''; ?>>
                                         <?= learner_escape($term['label']); ?>
@@ -49,18 +121,23 @@ $currentEvaluation = $currentTerm['evaluation'];
                                 <?php endforeach; ?>
                             </select>
                         </label>
-                        <span class="learner-publication-status" data-evaluation-status data-state="published" role="status" aria-live="polite" aria-atomic="true">
+                        <span class="learner-publication-status" data-evaluation-status data-state="<?= $hasEvaluation ? 'published' : 'empty'; ?>" role="status" aria-live="polite" aria-atomic="true">
                             <span aria-hidden="true"></span><?= learner_escape($currentTerm['status']); ?>
                         </span>
                     </div>
                 </div>
 
                 <div class="learner-evaluation-grid">
-                    <section class="learner-card learner-evaluation-criteria" data-evaluation-content aria-labelledby="learner-criteria-title">
+                    <section class="learner-card learner-evaluation-criteria" data-evaluation-content aria-labelledby="learner-criteria-title" <?= $hasEvaluation ? '' : 'hidden'; ?>>
                         <h2 id="learner-criteria-title">Bảng tiêu chí</h2>
                         <div class="learner-evaluation-criteria__list" data-evaluation-criteria>
-                            <?php foreach ($currentEvaluation['criteria'] as $criterion): ?>
-                                <?php $percentage = (float) $criterion['score'] / (float) $criterion['max'] * 100; ?>
+                            <?php foreach (($currentEvaluation['criteria'] ?? []) as $criterion): ?>
+                                <?php
+                                $maximum = (float) $criterion['max'];
+                                $percentage = $maximum > 0
+                                    ? max(0.0, min(100.0, (float) $criterion['score'] / $maximum * 100))
+                                    : 0.0;
+                                ?>
                                 <article class="learner-evaluation-criterion" data-evaluation-criterion="">
                                     <div class="learner-evaluation-criterion__heading">
                                         <span><?= learner_escape($criterion['name']); ?></span>
@@ -85,29 +162,35 @@ $currentEvaluation = $currentTerm['evaluation'];
                                 <?= learner_icon('message-circle', 20); ?>
                                 <strong>Nhận xét gần nhất từ HLV</strong>
                             </div>
-                            <blockquote data-evaluation-comment><?= learner_escape($currentEvaluation['comment']); ?></blockquote>
-                            <p>— <span data-evaluation-reviewer><?= learner_escape($currentEvaluation['reviewer']); ?></span></p>
+                            <blockquote data-evaluation-comment><?= learner_escape($currentEvaluation['comment'] ?? 'Chưa có dữ liệu'); ?></blockquote>
+                            <p>— <span data-evaluation-reviewer><?= learner_escape($currentEvaluation['reviewer'] ?? 'Chưa có dữ liệu'); ?></span></p>
                         </article>
                     </section>
 
-                    <aside class="learner-card learner-evaluation-score" data-evaluation-summary aria-labelledby="learner-total-title">
+                    <aside class="learner-card learner-evaluation-score" data-evaluation-summary aria-labelledby="learner-total-title" <?= $hasEvaluation ? '' : 'hidden'; ?>>
                         <p id="learner-total-title">Tổng điểm</p>
-                        <strong data-evaluation-total><?= learner_escape($currentEvaluation['total']); ?></strong>
+                        <strong data-evaluation-total><?= learner_escape($currentEvaluation['total'] ?? 'Chưa có dữ liệu'); ?></strong>
                         <span>/ 100</span>
                         <div class="learner-evaluation-classification">
                             <?= learner_icon('star', 21); ?>
-                            <strong data-evaluation-classification><?= learner_escape($currentEvaluation['classification']); ?></strong>
+                            <strong data-evaluation-classification><?= learner_escape($currentEvaluation['classification'] ?? 'Chưa có dữ liệu'); ?></strong>
                         </div>
                         <div class="learner-evaluation-ranking">
                             <?= learner_icon('chart', 22); ?>
-                            <span data-evaluation-ranking><?= learner_escape($currentEvaluation['ranking']); ?></span>
+                            <span data-evaluation-ranking><?= learner_escape($currentEvaluation['ranking'] ?? 'Chưa có dữ liệu'); ?></span>
                         </div>
                     </aside>
 
-                    <section class="learner-card learner-empty-state learner-evaluation-empty" data-evaluation-empty role="status" aria-live="polite" hidden>
+                    <section class="learner-card learner-empty-state learner-evaluation-empty" data-evaluation-empty role="status" aria-live="polite" <?= $evaluationSourceState === 'empty' ? '' : 'hidden'; ?>>
                         <span class="learner-empty-state__icon"><?= learner_icon('clipboard', 30); ?></span>
-                        <h2>Học kỳ này chưa có đánh giá</h2>
+                        <h2>Chưa có đánh giá được công bố</h2>
                         <p>Kết quả sẽ xuất hiện sau khi giáo viên hoặc huấn luyện viên công bố.</p>
+                    </section>
+
+                    <section class="learner-card learner-empty-state learner-evaluation-error" data-evaluation-error role="alert" <?= $evaluationSourceState === 'source-error' ? '' : 'hidden'; ?>>
+                        <span class="learner-empty-state__icon"><?= learner_icon('alert-triangle', 30); ?></span>
+                        <h2>Không thể tải dữ liệu đánh giá</h2>
+                        <p>Hệ thống gặp lỗi khi truy xuất đánh giá. Vui lòng thử lại sau.</p>
                     </section>
                 </div>
             </main>

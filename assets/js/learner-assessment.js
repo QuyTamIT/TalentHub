@@ -169,6 +169,10 @@
             }
         }
 
+        async function loadHistory() {
+            return api.get('/assessments.php?view=history');
+        }
+
         function saveAnswer(questionId, answer) {
             if (!currentAttempt?.id) {
                 const error = new Error('No active assessment attempt to save answers.');
@@ -306,6 +310,7 @@
         return {
             loadCatalog,
             loadDetail,
+            loadHistory,
             startOrResume,
             loadAttempt,
             loadResult,
@@ -728,6 +733,107 @@
         controller.loadResult(code, '', attemptId).catch(() => {
             setHidden(root.querySelector('[data-assessment-result-content]'), true);
             setHidden(root.querySelector('[data-assessment-result-empty]'), false);
+        });
+        controller.loadHistory().then((payload) => {
+            const automated = Array.isArray(payload?.assessment_history?.items) ? payload.assessment_history.items : null;
+            const teacher = Array.isArray(payload?.teacher_evaluations?.items) ? payload.teacher_evaluations.items : null;
+            const renderCollection = (loadingSel, emptySel, errorSel, listSel, items, renderItem) => {
+                const loading = root.querySelector(loadingSel);
+                const empty = root.querySelector(emptySel);
+                const error = root.querySelector(errorSel);
+                const list = root.querySelector(listSel);
+                setHidden(loading, true);
+                setHidden(error, true);
+                if (!Array.isArray(items)) {
+                    setHidden(empty, false);
+                    setHidden(list, true);
+                    return;
+                }
+                if (list) while (list.firstChild) list.removeChild(list.firstChild);
+                if (items.length === 0) {
+                    setHidden(empty, false);
+                    setHidden(list, true);
+                    return;
+                }
+                setHidden(empty, true);
+                setHidden(list, false);
+                items.forEach((item) => {
+                    const node = renderItem(item);
+                    if (node) list.appendChild(node);
+                });
+            };
+            renderCollection('[data-assessment-complete-history-loading]', '[data-assessment-complete-history-empty]', '[data-assessment-complete-history-error]', '[data-assessment-complete-history-list]', automated, (item) => {
+                const article = document.createElement('article');
+                article.className = 'learner-assessment-history__item';
+                const meta = document.createElement('div');
+                meta.className = 'learner-assessment-history__meta';
+                const title = document.createElement('strong');
+                title.textContent = item?.assessment_name || 'Chưa có dữ liệu';
+                const when = document.createElement('span');
+                when.textContent = item?.submitted_at || 'Chưa có dữ liệu';
+                meta.appendChild(title);
+                meta.appendChild(when);
+                const result = document.createElement('div');
+                result.className = 'learner-assessment-history__result';
+                const badge = document.createElement('span');
+                badge.className = 'learner-badge';
+                badge.textContent = item?.result_code || 'Chưa có dữ liệu';
+                result.appendChild(badge);
+                const version = document.createElement('span');
+                version.textContent = 'Phiên bản ' + (item?.assessment_version || 'Chưa có dữ liệu') + ' · Thang điểm ' + (item?.scoring_version || 'Chưa có dữ liệu');
+                result.appendChild(version);
+                const summary = document.createElement('p');
+                summary.textContent = item?.summary || 'Chưa có dữ liệu';
+                article.appendChild(meta);
+                article.appendChild(result);
+                article.appendChild(summary);
+                return article;
+            });
+            renderCollection('[data-teacher-published-evaluation-loading]', '[data-teacher-published-evaluation-empty]', '[data-teacher-published-evaluation-error]', '[data-teacher-published-evaluation-list]', teacher, (item) => {
+                const article = document.createElement('article');
+                article.className = 'learner-assessment-history__item';
+                const meta = document.createElement('div');
+                meta.className = 'learner-assessment-history__meta';
+                const title = document.createElement('strong');
+                title.textContent = item?.activity_title || 'Chưa có dữ liệu';
+                const when = document.createElement('span');
+                when.textContent = item?.published_at || 'Chưa có dữ liệu';
+                meta.appendChild(title);
+                meta.appendChild(when);
+                const result = document.createElement('div');
+                result.className = 'learner-assessment-history__result';
+                const badge = document.createElement('span');
+                badge.className = 'learner-badge';
+                badge.textContent = String(item?.overall_score ?? 'Chưa có dữ liệu') + '/100';
+                result.appendChild(badge);
+                const reviewer = document.createElement('span');
+                reviewer.textContent = '— ' + (item?.reviewer_name || 'Chưa có dữ liệu');
+                result.appendChild(reviewer);
+                article.appendChild(meta);
+                article.appendChild(result);
+                if (Array.isArray(item?.scores) && item.scores.length > 0) {
+                    const list = document.createElement('ul');
+                    item.scores.forEach((scoreItem) => {
+                        const li = document.createElement('li');
+                        li.textContent = `${scoreItem?.criteria_name || 'Chưa có dữ liệu'}: ${scoreItem?.score ?? 'Chưa có dữ liệu'}/${scoreItem?.max_score ?? 'Chưa có dữ liệu'}`;
+                        list.appendChild(li);
+                    });
+                    article.appendChild(list);
+                }
+                const comment = document.createElement('p');
+                comment.textContent = item?.comment || 'Chưa có dữ liệu';
+                article.appendChild(comment);
+                return article;
+            });
+        }).catch(() => {
+            setHidden(root.querySelector('[data-assessment-complete-history-loading]'), true);
+            setHidden(root.querySelector('[data-assessment-complete-history-list]'), true);
+            setHidden(root.querySelector('[data-assessment-complete-history-empty]'), true);
+            setHidden(root.querySelector('[data-assessment-complete-history-error]'), false);
+            setHidden(root.querySelector('[data-teacher-published-evaluation-loading]'), true);
+            setHidden(root.querySelector('[data-teacher-published-evaluation-list]'), true);
+            setHidden(root.querySelector('[data-teacher-published-evaluation-empty]'), true);
+            setHidden(root.querySelector('[data-teacher-published-evaluation-error]'), false);
         });
     }
 

@@ -25,4 +25,16 @@ interface AssessmentRepository
     public function ownedAttempt(string $studentId, string $attemptId): ?array;
 
     public function history(string $studentId, string $assessmentCode): array;
+
+    /**
+     * Every submitted-and-scored attempt the Student owns, across all frameworks and bands,
+     * ordered submittedAt DESC. Read-only.
+     */
+    public function completeHistory(string $studentId): array;
+
+    /**
+     * Teacher evaluations the Student is allowed to see: published with a publish timestamp,
+     * ordered publishedAt DESC. Drafts are never returned.
+     */
+    public function publishedEvaluationsForStudent(string $studentId): array;
 }

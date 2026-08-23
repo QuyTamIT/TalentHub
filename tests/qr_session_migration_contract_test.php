@@ -50,11 +50,18 @@ foreach ([
     'qr_session.read_managed',
     'qr_session.revoke_managed',
     'checkin.read_managed',
+    'notification.manage_preferences_own',
+    'certificate.manage_own',
+    'activity_registration.update_managed',
 ] as $permission) {
-    $assert(str_contains($seederSource, "'{$permission}'"), "Teacher permission is missing: {$permission}");
+    $assert(str_contains($seederSource, "'{$permission}'"), "Permission is missing: {$permission}");
 }
 
+// Canonical RBAC counts increased intentionally from 4/100/118 to 4/103/124 due to three reviewed permissions:
+// 1. notification.manage_preferences_own is common to 4 roles (+1 unique permission, +4 mappings)
+// 2. certificate.manage_own belongs to Student (+1 permission, +1 mapping)
+// 3. activity_registration.update_managed belongs to Teacher (+1 permission, +1 mapping)
 $counts = (new RolePermissionSeeder())->expectedCounts();
-$assert($counts === ['roles' => 4, 'permissions' => 100, 'mappings' => 118], 'Canonical RBAC counts changed unexpectedly: ' . json_encode($counts));
+$assert($counts === ['roles' => 4, 'permissions' => 103, 'mappings' => 124], 'Canonical RBAC counts changed unexpectedly: ' . json_encode($counts));
 
 echo "qr_session_migration_contract_test: OK\n";

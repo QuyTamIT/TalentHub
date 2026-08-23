@@ -9,6 +9,7 @@ use TalentHub\Learner\Data\Database\DatabaseAssessmentWriteRepository;
 use TalentHub\Learner\Data\RepositoryFactory;
 use TalentHub\Learner\Data\Service\LearnerAssessmentService;
 
+require_once dirname(__DIR__) . '/bin/bootstrap.php';
 require_once dirname(__DIR__) . '/app/learner/data/bootstrap.php';
 require_once dirname(__DIR__) . '/app/learner/includes/assessment-data.php';
 
@@ -44,7 +45,7 @@ function assessment_write_fixture(): PDO
     $pdo = new PDO('sqlite::memory:');
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->exec('PRAGMA foreign_keys = ON');
-    $pdo->exec('CREATE TABLE student_profiles (id CHAR(36) NOT NULL PRIMARY KEY)');
+    $pdo->exec('CREATE TABLE student_profiles (id CHAR(36) NOT NULL PRIMARY KEY, userId CHAR(36) NOT NULL UNIQUE)');
     $pdo->exec('CREATE TABLE talent_tests (id CHAR(36) NOT NULL PRIMARY KEY, code TEXT NOT NULL, name TEXT NOT NULL, type TEXT NOT NULL, status TEXT NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE test_questions (id CHAR(36) NOT NULL PRIMARY KEY, testId CHAR(36) NOT NULL, code TEXT NOT NULL, content TEXT NOT NULL, optionsJson TEXT NOT NULL, status TEXT NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, FOREIGN KEY (testId) REFERENCES talent_tests(id))');
     $pdo->exec('CREATE TABLE test_attempts (id CHAR(36) NOT NULL PRIMARY KEY, testId CHAR(36) NOT NULL, studentId CHAR(36) NOT NULL, status TEXT NOT NULL, startedAt TEXT NOT NULL, submittedAt TEXT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, FOREIGN KEY (testId) REFERENCES talent_tests(id), FOREIGN KEY (studentId) REFERENCES student_profiles(id))');
@@ -53,8 +54,10 @@ function assessment_write_fixture(): PDO
     $pdo->exec('CREATE TABLE learner_assessment_question_versions (id CHAR(36) NOT NULL PRIMARY KEY, versionId CHAR(36) NOT NULL, questionId CHAR(36) NOT NULL, position INTEGER NOT NULL, dimensionCode TEXT NOT NULL, required INTEGER NOT NULL, createdAt TEXT NOT NULL, UNIQUE (versionId, questionId), UNIQUE (versionId, position), FOREIGN KEY (versionId) REFERENCES learner_assessment_versions(id), FOREIGN KEY (questionId) REFERENCES test_questions(id))');
     $pdo->exec('CREATE TABLE learner_assessment_attempt_metadata (id CHAR(36) NOT NULL PRIMARY KEY, attemptId CHAR(36) NOT NULL UNIQUE, versionId CHAR(36) NOT NULL, status TEXT NOT NULL, expiresAt TEXT NULL, submittedAt TEXT NULL, inputHash CHAR(64) NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, FOREIGN KEY (attemptId) REFERENCES test_attempts(id), FOREIGN KEY (versionId) REFERENCES learner_assessment_versions(id))');
     $pdo->exec('CREATE TABLE learner_assessment_answers (id CHAR(36) NOT NULL PRIMARY KEY, attemptId CHAR(36) NOT NULL, questionId CHAR(36) NOT NULL, answerJson TEXT NOT NULL, answeredAt TEXT NOT NULL, UNIQUE (attemptId, questionId), FOREIGN KEY (attemptId) REFERENCES learner_assessment_attempt_metadata(attemptId), FOREIGN KEY (questionId) REFERENCES test_questions(id))');
+    $pdo->exec('CREATE TABLE notifications (id CHAR(36) NOT NULL PRIMARY KEY, userId CHAR(36) NOT NULL, eventKey TEXT NULL, notificationType TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, deepLink TEXT NULL, readAt TEXT NULL, createdAt TEXT NOT NULL, UNIQUE (userId, eventKey))');
+    $pdo->exec('CREATE TABLE learner_notification_preferences (studentId CHAR(36) NOT NULL, notificationType TEXT NOT NULL, inAppEnabled INTEGER NOT NULL DEFAULT 1, emailEnabled INTEGER NOT NULL DEFAULT 0, updatedAt TEXT NOT NULL, PRIMARY KEY (studentId, notificationType))');
 
-    $pdo->exec("INSERT INTO student_profiles (id) VALUES ('" . ASSESSMENT_STUDENT_A . "'), ('" . ASSESSMENT_STUDENT_B . "'), ('" . ASSESSMENT_STUDENT_C . "'), ('" . ASSESSMENT_STUDENT_D . "'), ('" . ASSESSMENT_STUDENT_E . "')");
+    $pdo->exec("INSERT INTO student_profiles (id, userId) VALUES ('" . ASSESSMENT_STUDENT_A . "', 'aaaaaaaa-aaaa-4aaa-8aaa-000000000001'), ('" . ASSESSMENT_STUDENT_B . "', 'aaaaaaaa-aaaa-4aaa-8aaa-000000000002'), ('" . ASSESSMENT_STUDENT_C . "', 'aaaaaaaa-aaaa-4aaa-8aaa-000000000003'), ('" . ASSESSMENT_STUDENT_D . "', 'aaaaaaaa-aaaa-4aaa-8aaa-000000000004'), ('" . ASSESSMENT_STUDENT_E . "', 'aaaaaaaa-aaaa-4aaa-8aaa-000000000005')");
     $pdo->exec("INSERT INTO talent_tests (id, code, name, type, status, createdAt, updatedAt) VALUES ('" . ASSESSMENT_TEST_ID . "', 'holland_high', 'Holland High', 'holland', 'published', '2026-08-16T00:00:00+00:00', '2026-08-16T00:00:00+00:00')");
     $pdo->exec("INSERT INTO learner_assessment_versions (id, testId, version, scoringVersion, schemaHash, status, publishedAt, createdAt) VALUES ('" . ASSESSMENT_VERSION_ID . "', '" . ASSESSMENT_TEST_ID . "', '1.0.0', 'holland-riasec-1.0', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'published', '2026-08-16T00:00:00+00:00', '2026-08-16T00:00:00+00:00')");
 

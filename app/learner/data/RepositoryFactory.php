@@ -56,6 +56,15 @@ final class RepositoryFactory
         return new MockStudentRepository($students);
     }
 
+    public function talentPassport(array $fixture = []): Contracts\TalentPassportRepository
+    {
+        if ($this->source === 'database') {
+            return new Database\DatabaseTalentPassportRepository($this->pdo);
+        }
+
+        return new Mock\MockTalentPassportRepository($fixture);
+    }
+
     public function assessment(
         array $definitions = [],
         array $questions = [],
@@ -115,5 +124,19 @@ final class RepositoryFactory
         }
 
         return new MockApplicationRepository($applications);
+    }
+
+    public function notification(array $notifications = []): Contracts\NotificationRepository
+    {
+        if ($this->source === 'database') {
+            return new Database\DatabaseNotificationRepository($this->pdo);
+        }
+
+        return new Mock\MockNotificationRepository($notifications);
+    }
+
+    public function notificationService(array $notifications = []): Service\NotificationService
+    {
+        return new Service\NotificationService($this->notification($notifications));
     }
 }

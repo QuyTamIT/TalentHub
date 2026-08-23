@@ -5,19 +5,19 @@ require_once __DIR__ . '/includes/icons.php';
 
 $pageTitle = 'Hồ sơ năng lực';
 $currentRoute = '/app/learner/profile.php';
-$shareUrl = 'http://localhost/TalentHub/app/learner/profile.php?student=nguyen-van-a';
+$shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/learner/profile.php?student=nguyen-van-a';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Hồ sơ năng lực đã xác minh của Nguyễn Văn A trên TalentHub.">
+    <meta name="description" content="Hồ sơ năng lực đã xác minh của <?= learner_escape($student['name']); ?> trên TalentHub.">
     <title>Hồ sơ năng lực | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
 </head>
-<body class="learner-app learner-page-profile">
+<body class="learner-app learner-page-profile" data-learner-source="<?= ($isDatabaseMode ?? false) ? 'database' : 'mock'; ?>">
     <div class="learner-layout">
         <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
@@ -83,41 +83,57 @@ $shareUrl = 'http://localhost/TalentHub/app/learner/profile.php?student=nguyen-v
                             <span class="learner-section-heading__icon"><?= learner_icon('book', 22); ?></span>
                             <h2 id="profile-skills-title">Kỹ năng</h2>
                         </div>
-                        <div class="learner-profile-skills__grid">
-                            <?php foreach ($skills as $skill): ?>
-                                <article class="learner-profile-skill">
-                                    <div class="learner-profile-skill__heading">
-                                        <span><?= learner_escape($skill['name']); ?></span>
-                                        <strong><?= learner_escape($skill['score']); ?></strong>
-                                        <span class="learner-skill-level learner-skill-level--<?= learner_escape($skill['level'] === 'Trung bình' ? 'warning' : 'success'); ?>"><?= learner_escape($skill['level']); ?></span>
-                                    </div>
-                                    <div class="learner-progress" role="progressbar" aria-label="<?= learner_escape($skill['name']); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($skill['score']); ?>">
-                                        <span class="learner-progress--secondary" style="--learner-progress: <?= learner_escape($skill['score']); ?>%;"></span>
-                                    </div>
-                                </article>
-                            <?php endforeach; ?>
-                        </div>
+                        <?php if (empty($skills)): ?>
+                            <p class="learner-empty-state">Chưa có dữ liệu kỹ năng.</p>
+                        <?php else: ?>
+                            <div class="learner-profile-skills__grid">
+                                <?php foreach ($skills as $skill):
+                                    $skillScoreClamped = max(0, min(100, (int) round((float) ($skill['score'] ?? 0))));
+                                ?>
+                                    <article class="learner-skill-bar">
+                                        <div class="learner-skill-bar__header">
+                                            <span><?= learner_escape($skill['name']); ?></span>
+                                            <strong><?= $skillScoreClamped; ?>/100</strong>
+                                        </div>
+                                        <div class="learner-progress" role="progressbar" aria-valuenow="<?= $skillScoreClamped; ?>" aria-valuemin="0" aria-valuemax="100">
+                                            <span class="learner-progress--secondary" style="--learner-progress: <?= $skillScoreClamped; ?>%;"></span>
+                                        </div>
+                                    </article>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
                     </section>
 
                     <section class="learner-card learner-certificates" aria-labelledby="certificates-title">
-                        <div class="learner-section-heading learner-section-heading--icon">
-                            <span class="learner-section-heading__icon"><?= learner_icon('award', 22); ?></span>
-                            <h2 id="certificates-title">Chứng chỉ</h2>
+                        <div class="learner-section-heading learner-section-heading--icon" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span class="learner-section-heading__icon"><?= learner_icon('award', 22); ?></span>
+                                <h2 id="certificates-title">Chứng chỉ</h2>
+                            </div>
+                            <button class="learner-btn learner-btn--outline" type="button" data-open-modal="learner-certificate-modal" style="font-size: 0.875rem; padding: 0.35rem 0.75rem;">
+                                + Thêm chứng chỉ
+                            </button>
                         </div>
-                        <div class="learner-certificate-list">
-                            <?php foreach ($certificates as $certificate): ?>
-                                <article class="learner-certificate">
-                                    <span class="learner-certificate__icon"><?= learner_icon('award', 20); ?></span>
-                                    <div>
-                                        <h3><?= learner_escape($certificate['name']); ?></h3>
-                                        <p><?= learner_escape($certificate['issuer']); ?> <span aria-hidden="true">•</span> <?= learner_escape($certificate['year']); ?></p>
-                                    </div>
-                                    <?php if ($certificate['verified']): ?>
-                                        <span class="learner-verified-badge">Đã xác minh</span>
-                                    <?php endif; ?>
-                                </article>
-                            <?php endforeach; ?>
-                        </div>
+                        <?php if (empty($certificates)): ?>
+                            <div class="learner-empty-state">
+                                <p>Chưa có chứng chỉ nào được ghi nhận.</p>
+                            </div>
+                        <?php else: ?>
+                            <div class="learner-certificate-list">
+                                <?php foreach ($certificates as $certificate): ?>
+                                    <article class="learner-certificate">
+                                        <span class="learner-certificate__icon"><?= learner_icon('award', 20); ?></span>
+                                        <div>
+                                            <h3><?= learner_escape($certificate['name'] ?? $certificate['title'] ?? ''); ?></h3>
+                                            <p><?= learner_escape($certificate['issuer'] ?? $certificate['issuing_organization'] ?? ''); ?> <span aria-hidden="true">•</span> <?= learner_escape($certificate['year'] ?? $certificate['issue_date'] ?? ''); ?></p>
+                                        </div>
+                                        <?php if (!empty($certificate['verified']) || ($certificate['verification_status'] ?? '') === 'verified'): ?>
+                                            <span class="learner-verified-badge">Đã xác minh</span>
+                                        <?php endif; ?>
+                                    </article>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
                     </section>
                 </div>
 
@@ -126,25 +142,32 @@ $shareUrl = 'http://localhost/TalentHub/app/learner/profile.php?student=nguyen-v
                         <span class="learner-section-heading__icon"><?= learner_icon('briefcase', 22); ?></span>
                         <h2 id="projects-title">Dự án đã tham gia</h2>
                     </div>
-                    <div class="learner-project-grid">
-                        <?php foreach ($projects as $project): ?>
-                            <article class="learner-project-card">
-                                <div>
-                                    <h3><?= learner_escape($project['name']); ?></h3>
-                                    <p><?= learner_escape($project['description']); ?></p>
-                                </div>
-                                <div class="learner-project-card__badges">
-                                    <span class="learner-badge learner-badge--<?= learner_escape($project['tone']); ?>"><?= learner_escape($project['role']); ?></span>
-                                    <span class="learner-badge learner-badge--<?= learner_escape($project['tone']); ?>"><?= learner_escape($project['status']); ?></span>
-                                </div>
-                            </article>
-                        <?php endforeach; ?>
-                    </div>
+                    <?php if (empty($projects)): ?>
+                        <div class="learner-empty-state">
+                            <p>Chưa có dự án nào được ghi nhận.</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="learner-project-grid">
+                            <?php foreach ($projects as $project): ?>
+                                <article class="learner-project-card">
+                                    <div>
+                                        <h3><?= learner_escape($project['name'] ?? $project['title'] ?? ''); ?></h3>
+                                        <p><?= learner_escape($project['description'] ?? ''); ?></p>
+                                    </div>
+                                    <div class="learner-project-card__badges">
+                                        <span class="learner-badge learner-badge--<?= learner_escape($project['tone'] ?? 'primary'); ?>"><?= learner_escape($project['role'] ?? 'Thành viên'); ?></span>
+                                        <span class="learner-badge learner-badge--<?= learner_escape($project['tone'] ?? 'primary'); ?>"><?= learner_escape($project['status'] ?? 'Đang tiến hành'); ?></span>
+                                    </div>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                 </section>
             </main>
         </div>
     </div>
 
+    <!-- Edit Profile Modal -->
     <div class="learner-modal" id="learner-edit-modal" role="dialog" aria-modal="true" aria-labelledby="learner-edit-title" hidden>
         <div class="learner-modal__backdrop" data-close-modal></div>
         <div class="learner-modal__dialog" tabindex="-1">
@@ -158,29 +181,34 @@ $shareUrl = 'http://localhost/TalentHub/app/learner/profile.php?student=nguyen-v
             <form class="learner-form" id="learner-profile-form" novalidate>
                 <div class="learner-form__grid">
                     <label class="learner-field">
-                        <span>Họ và tên</span>
-                        <input id="learner-field-name" name="name" type="text" value="<?= learner_escape($student['name']); ?>" aria-describedby="learner-error-name" required>
-                        <small class="learner-field__error" id="learner-error-name" data-error-for="name" role="alert"></small>
+                        <span>Họ và tên *</span>
+                        <input id="learner-field-name" name="fullName" type="text" value="<?= learner_escape($student['name']); ?>" aria-describedby="learner-error-name" required>
+                        <small class="learner-field__error" id="learner-error-name" data-error-for="fullName" role="alert"></small>
                     </label>
                     <label class="learner-field">
-                        <span>Lớp</span>
-                        <input id="learner-field-class" name="class" type="text" value="<?= learner_escape($student['class']); ?>" aria-describedby="learner-error-class" required>
-                        <small class="learner-field__error" id="learner-error-class" data-error-for="class" role="alert"></small>
-                    </label>
-                    <label class="learner-field learner-field--wide">
-                        <span>Trường</span>
-                        <input id="learner-field-school" name="school" type="text" value="<?= learner_escape($student['school']); ?>" aria-describedby="learner-error-school" required>
-                        <small class="learner-field__error" id="learner-error-school" data-error-for="school" role="alert"></small>
+                        <span>Ngày sinh</span>
+                        <input id="learner-field-dob" name="dateOfBirth" type="date" value="<?= learner_escape($student['dateOfBirth'] ?? ''); ?>">
+                        <small class="learner-field__error" data-error-for="dateOfBirth" role="alert"></small>
                     </label>
                     <label class="learner-field">
-                        <span>Email</span>
-                        <input id="learner-field-email" name="email" type="email" value="<?= learner_escape($student['email']); ?>" aria-describedby="learner-error-email" required>
-                        <small class="learner-field__error" id="learner-error-email" data-error-for="email" role="alert"></small>
+                        <span>Số điện thoại</span>
+                        <input id="learner-field-phone" name="phone" type="tel" value="<?= learner_escape($student['phone'] ?? ''); ?>">
+                        <small class="learner-field__error" data-error-for="phone" role="alert"></small>
                     </label>
                     <label class="learner-field">
                         <span>Địa điểm</span>
-                        <input id="learner-field-location" name="location" type="text" value="<?= learner_escape($student['location']); ?>" aria-describedby="learner-error-location" required>
+                        <input id="learner-field-location" name="location" type="text" value="<?= learner_escape($student['location']); ?>">
                         <small class="learner-field__error" id="learner-error-location" data-error-for="location" role="alert"></small>
+                    </label>
+                    <label class="learner-field learner-field--wide">
+                        <span>Chức danh / Headline</span>
+                        <input id="learner-field-headline" name="headline" type="text" value="<?= learner_escape($student['headline'] ?? ''); ?>" placeholder="Ví dụ: Học sinh chuyên Tin, Đam mê AI">
+                        <small class="learner-field__error" data-error-for="headline" role="alert"></small>
+                    </label>
+                    <label class="learner-field learner-field--wide">
+                        <span>Giới thiệu bản thân (Bio)</span>
+                        <textarea id="learner-field-bio" name="bio" rows="3" placeholder="Chia sẻ mục tiêu học tập và định hướng của bạn..."><?= learner_escape($student['bio'] ?? ''); ?></textarea>
+                        <small class="learner-field__error" data-error-for="bio" role="alert"></small>
                     </label>
                 </div>
                 <div class="learner-modal__actions">
@@ -191,23 +219,113 @@ $shareUrl = 'http://localhost/TalentHub/app/learner/profile.php?student=nguyen-v
         </div>
     </div>
 
+    <!-- Share Profile Modal -->
     <div class="learner-modal" id="learner-share-modal" role="dialog" aria-modal="true" aria-labelledby="learner-share-title" hidden>
         <div class="learner-modal__backdrop" data-close-modal></div>
-        <div class="learner-modal__dialog learner-modal__dialog--compact" tabindex="-1">
+        <div class="learner-modal__dialog" tabindex="-1">
             <div class="learner-modal__header">
                 <div>
-                    <h2 id="learner-share-title">Chia sẻ hồ sơ</h2>
-                    <p>Gửi liên kết công khai này cho giáo viên hoặc nhà tuyển dụng.</p>
+                    <h2 id="learner-share-title">Chia sẻ hồ sơ năng lực</h2>
+                    <p>Chọn các thông tin bạn đồng ý chia sẻ và thời hạn của liên kết.</p>
                 </div>
                 <button class="learner-icon-button" type="button" data-close-modal aria-label="Đóng cửa sổ chia sẻ"><?= learner_icon('x', 22); ?></button>
             </div>
-            <label class="learner-field" for="learner-share-link">
-                <span>Liên kết hồ sơ</span>
-                <span class="learner-copy-field">
-                    <input id="learner-share-link" type="text" value="<?= learner_escape($shareUrl); ?>" readonly>
-                    <button class="learner-btn learner-btn--primary" type="button" data-copy-profile><?= learner_icon('copy', 17); ?> Sao chép</button>
-                </span>
-            </label>
+            <form id="learner-share-form">
+                <fieldset style="border: none; padding: 0; margin-bottom: 1rem;">
+                    <legend style="font-weight: 600; margin-bottom: 0.5rem;">Thông tin cho phép chia sẻ:</legend>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                        <label><input type="checkbox" name="sharedFields[]" value="fullName" checked disabled> Họ và tên (cơ bản)</label>
+                        <label><input type="checkbox" name="sharedFields[]" value="headline" checked> Chức danh / Headline</label>
+                        <label><input type="checkbox" name="sharedFields[]" value="bio" checked> Giới thiệu bản thân</label>
+                        <label><input type="checkbox" name="sharedFields[]" value="location" checked> Địa điểm</label>
+                        <label><input type="checkbox" name="sharedFields[]" value="school" checked> Trường học</label>
+                        <label><input type="checkbox" name="sharedFields[]" value="class" checked> Lớp học</label>
+                        <label><input type="checkbox" name="sharedFields[]" value="skills" checked> Kỹ năng</label>
+                        <label><input type="checkbox" name="sharedFields[]" value="certificates" checked> Chứng chỉ</label>
+                        <label><input type="checkbox" name="sharedFields[]" value="projects" checked> Dự án</label>
+                        <label><input type="checkbox" name="sharedFields[]" value="experience" checked> Trải nghiệm & Giờ hoạt động</label>
+                        <label><input type="checkbox" name="sharedFields[]" value="email"> Email (nhạy cảm)</label>
+                        <label><input type="checkbox" name="sharedFields[]" value="phone"> Số điện thoại (nhạy cảm)</label>
+                    </div>
+                </fieldset>
+
+                <label class="learner-field" style="margin-bottom: 1rem;">
+                    <span>Thời hạn chia sẻ:</span>
+                    <select name="expiresInDays" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; width: 100%;">
+                        <option value="7">7 ngày</option>
+                        <option value="14">14 ngày</option>
+                        <option value="30" selected>30 ngày</option>
+                        <option value="90">90 ngày</option>
+                    </select>
+                </label>
+
+                <div class="learner-modal__actions" style="margin-bottom: 1rem;">
+                    <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Hủy</button>
+                    <button class="learner-btn learner-btn--primary" type="submit">Tạo liên kết chia sẻ</button>
+                </div>
+            </form>
+
+            <div id="learner-share-result" style="display: none; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+                <label class="learner-field" for="learner-share-link">
+                    <span>Liên kết chia sẻ đã tạo (chỉ hiển thị một lần):</span>
+                    <span class="learner-copy-field">
+                        <input id="learner-share-link" type="text" readonly>
+                        <button class="learner-btn learner-btn--primary" type="button" data-copy-profile><?= learner_icon('copy', 17); ?> Sao chép</button>
+                    </span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Certificate Modal -->
+    <div class="learner-modal" id="learner-certificate-modal" role="dialog" aria-modal="true" aria-labelledby="learner-certificate-title" hidden>
+        <div class="learner-modal__backdrop" data-close-modal></div>
+        <div class="learner-modal__dialog" tabindex="-1">
+            <div class="learner-modal__header">
+                <div>
+                    <h2 id="learner-certificate-title">Thêm chứng chỉ</h2>
+                    <p>Khai báo chứng chỉ của bạn để lưu vào hồ sơ năng lực.</p>
+                </div>
+                <button class="learner-icon-button" type="button" data-close-modal aria-label="Đóng cửa sổ thêm chứng chỉ"><?= learner_icon('x', 22); ?></button>
+            </div>
+            <form class="learner-form" id="learner-certificate-form" novalidate>
+                <div class="learner-form__grid">
+                    <label class="learner-field learner-field--wide">
+                        <span>Tên chứng chỉ / Chứng nhận *</span>
+                        <input id="cert-field-title" name="title" type="text" required placeholder="Ví dụ: Chứng chỉ Tin học văn phòng, AWS Certified Practitioner">
+                        <small class="learner-field__error" data-error-for="title" role="alert"></small>
+                    </label>
+                    <label class="learner-field learner-field--wide">
+                        <span>Tổ chức cấp *</span>
+                        <input id="cert-field-org" name="issuingOrganization" type="text" required placeholder="Ví dụ: British Council, Amazon Web Services">
+                        <small class="learner-field__error" data-error-for="issuingOrganization" role="alert"></small>
+                    </label>
+                    <label class="learner-field">
+                        <span>Ngày cấp *</span>
+                        <input id="cert-field-issue-date" name="issueDate" type="date" required>
+                        <small class="learner-field__error" data-error-for="issueDate" role="alert"></small>
+                    </label>
+                    <label class="learner-field">
+                        <span>Ngày hết hạn (nếu có)</span>
+                        <input id="cert-field-expiry-date" name="expiryDate" type="date">
+                        <small class="learner-field__error" data-error-for="expiryDate" role="alert"></small>
+                    </label>
+                    <label class="learner-field">
+                        <span>Mã chứng chỉ (Credential ID)</span>
+                        <input id="cert-field-cred-id" name="credentialId" type="text">
+                        <small class="learner-field__error" data-error-for="credentialId" role="alert"></small>
+                    </label>
+                    <label class="learner-field">
+                        <span>Đường dẫn xác minh (URL)</span>
+                        <input id="cert-field-cred-url" name="credentialUrl" type="url" placeholder="https://...">
+                        <small class="learner-field__error" data-error-for="credentialUrl" role="alert"></small>
+                    </label>
+                </div>
+                <div class="learner-modal__actions">
+                    <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Hủy</button>
+                    <button class="learner-btn learner-btn--primary" type="submit">Lưu chứng chỉ</button>
+                </div>
+            </form>
         </div>
     </div>
 

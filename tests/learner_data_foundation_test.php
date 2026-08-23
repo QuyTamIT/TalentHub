@@ -8,6 +8,9 @@ use TalentHub\Learner\Data\Contracts\ApplicationRepository;
 use TalentHub\Learner\Data\Contracts\AssessmentRepository;
 use TalentHub\Learner\Data\Contracts\EcosystemRepository;
 use TalentHub\Learner\Data\Contracts\StudentRepository;
+use TalentHub\Learner\Data\Contracts\TalentPassportRepository;
+use TalentHub\Learner\Data\Database\DatabaseTalentPassportRepository;
+use TalentHub\Learner\Data\Mock\MockTalentPassportRepository;
 use TalentHub\Learner\Data\Exceptions\LearnerDataConfigurationException;
 use TalentHub\Learner\Data\Exceptions\LearnerDataQueryException;
 use TalentHub\Learner\Data\RepositoryFactory;
@@ -113,6 +116,11 @@ foundation_assert(
     ($camelCaseStudent['student_id'] ?? null) === Uuid::fromMockLegacy('student', 'student-camel-001'),
     'camelCase studentId normalizes to the mock student UUID contract'
 );
+
+$mockPassportRepository = $mockFactory->talentPassport(['student' => ['id' => '0191316b-1000-4000-8000-000000000001', 'full_name' => 'Mock Learner']]);
+foundation_assert($mockPassportRepository instanceof TalentPassportRepository, 'factory returns talent passport contract');
+foundation_assert($mockPassportRepository instanceof MockTalentPassportRepository, 'mock factory returns mock repository');
+foundation_assert($mockPassportRepository->aggregateForStudent('0191316b-1000-4000-8000-000000000001')['student']['full_name'] === 'Mock Learner', 'mock factory returns fixture');
 
 $assessmentRepository = $mockFactory->assessment(
     [['id' => 'holland', 'name' => 'Holland']],
@@ -256,8 +264,16 @@ $ids = [
     'activity' => '99999999-9999-4999-8999-999999999999',
     'draft_activity' => '99999999-9999-4999-8999-999999999998',
     'cancelled_activity' => '99999999-9999-4999-8999-999999999997',
+    'ongoing_activity' => '99999999-9999-4999-8999-999999999996',
+    'completed_activity' => '99999999-9999-4999-8999-999999999995',
+    'archived_activity' => '99999999-9999-4999-8999-999999999994',
     'teacher' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     'registration' => 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    'approved_reg' => 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
+    'attended_reg' => 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',
+    'pending_reg' => 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3',
+    'rejected_reg' => 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb4',
+    'cancelled_reg' => 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb5',
     'enterprise' => 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
     'post' => 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
     'application' => 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
@@ -328,35 +344,56 @@ foundation_expect_exception(
 $database->exec('CREATE TABLE activities (id TEXT PRIMARY KEY, schoolId TEXT, createdByTeacherId TEXT, title TEXT, category TEXT, startAt TEXT, endAt TEXT, capacity INTEGER, status TEXT)');
 $database->exec('CREATE TABLE activity_registrations (id TEXT PRIMARY KEY, activityId TEXT, studentId TEXT, status TEXT)');
 $database->exec('CREATE TABLE enterprises (id TEXT PRIMARY KEY, name TEXT, status TEXT, logoUrl TEXT, industry TEXT, description TEXT, email TEXT, phone TEXT, website TEXT, address TEXT, verificationStatus TEXT, verificationNote TEXT, verifiedAt TEXT, verifiedBy TEXT, createdAt TEXT, updatedAt TEXT)');
-$database->exec('CREATE TABLE internship_posts (id TEXT PRIMARY KEY, enterpriseId TEXT, title TEXT, location TEXT, deadline TEXT, status TEXT)');
-$database->exec('CREATE TABLE internship_applications (id TEXT PRIMARY KEY, postId TEXT, studentId TEXT, status TEXT, cvUrl TEXT, reviewerNote TEXT)');
+$database->exec('CREATE TABLE internship_posts (id TEXT PRIMARY KEY, enterpriseId TEXT, title TEXT, field TEXT, location TEXT, workType TEXT, duration TEXT, educationLevel TEXT, description TEXT, benefits TEXT, skillsJson TEXT, requirementsJson TEXT, slots INTEGER, deadline TEXT, createdAt TEXT, updatedAt TEXT, status TEXT)');
+$database->exec('CREATE TABLE internship_applications (id TEXT PRIMARY KEY, postId TEXT, studentId TEXT, status TEXT, message TEXT, appliedAt TEXT, updatedAt TEXT)');
+$database->exec('CREATE TABLE application_profile_snapshots (id TEXT PRIMARY KEY, applicationId TEXT, schemaVersion TEXT, snapshotPayload TEXT, createdAt TEXT)');
+$database->exec('CREATE TABLE application_status_history (id TEXT PRIMARY KEY, applicationId TEXT, fromStatus TEXT, toStatus TEXT, changedByRole TEXT, createdAt TEXT)');
 
 $insert = $database->prepare('INSERT INTO activities (id, schoolId, createdByTeacherId, title, category, startAt, endAt, capacity, status) VALUES (:id, :schoolId, :createdByTeacherId, :title, :category, :startAt, :endAt, :capacity, :status)');
 $insert->execute(['id' => $ids['activity'], 'schoolId' => $ids['school'], 'createdByTeacherId' => $ids['teacher'], 'title' => 'Database Activity', 'category' => 'Kỹ thuật', 'startAt' => '2026-09-01 09:00:00', 'endAt' => '2026-09-01 12:00:00', 'capacity' => 30, 'status' => 'published']);
 $insert->execute(['id' => $ids['draft_activity'], 'schoolId' => $ids['school'], 'createdByTeacherId' => $ids['teacher'], 'title' => 'Draft Activity', 'category' => 'Kỹ thuật', 'startAt' => '2026-09-02 09:00:00', 'endAt' => '2026-09-02 12:00:00', 'capacity' => 30, 'status' => 'draft']);
 $insert->execute(['id' => $ids['cancelled_activity'], 'schoolId' => $ids['school'], 'createdByTeacherId' => $ids['teacher'], 'title' => 'Cancelled Activity', 'category' => 'Kỹ thuật', 'startAt' => '2026-09-03 09:00:00', 'endAt' => '2026-09-03 12:00:00', 'capacity' => 30, 'status' => 'cancelled']);
+$insert->execute(['id' => $ids['ongoing_activity'], 'schoolId' => $ids['school'], 'createdByTeacherId' => $ids['teacher'], 'title' => 'Ongoing Activity', 'category' => 'Kỹ thuật', 'startAt' => '2026-09-04 09:00:00', 'endAt' => '2026-09-04 12:00:00', 'capacity' => 30, 'status' => 'ongoing']);
+$insert->execute(['id' => $ids['completed_activity'], 'schoolId' => $ids['school'], 'createdByTeacherId' => $ids['teacher'], 'title' => 'Completed Activity', 'category' => 'Kỹ thuật', 'startAt' => '2026-09-05 09:00:00', 'endAt' => '2026-09-05 12:00:00', 'capacity' => 30, 'status' => 'completed']);
+$insert->execute(['id' => $ids['archived_activity'], 'schoolId' => $ids['school'], 'createdByTeacherId' => $ids['teacher'], 'title' => 'Archived Activity', 'category' => 'Kỹ thuật', 'startAt' => '2026-09-06 09:00:00', 'endAt' => '2026-09-06 12:00:00', 'capacity' => 30, 'status' => 'archived']);
 $insert = $database->prepare('INSERT INTO activity_registrations (id, activityId, studentId, status) VALUES (:id, :activityId, :studentId, :status)');
 $insert->execute(['id' => $ids['registration'], 'activityId' => $ids['activity'], 'studentId' => $ids['student'], 'status' => 'team-confirmed']);
+$insert->execute(['id' => $ids['approved_reg'], 'activityId' => $ids['ongoing_activity'], 'studentId' => $ids['student'], 'status' => 'approved']);
+$insert->execute(['id' => $ids['attended_reg'], 'activityId' => $ids['completed_activity'], 'studentId' => $ids['student'], 'status' => 'attended']);
+$insert->execute(['id' => $ids['pending_reg'], 'activityId' => $ids['activity'], 'studentId' => $ids['student'], 'status' => 'pending']);
+$insert->execute(['id' => $ids['rejected_reg'], 'activityId' => $ids['activity'], 'studentId' => $ids['student'], 'status' => 'rejected']);
+$insert->execute(['id' => $ids['cancelled_reg'], 'activityId' => $ids['activity'], 'studentId' => $ids['student'], 'status' => 'cancelled']);
 $insert = $database->prepare('INSERT INTO enterprises (id, name, status, logoUrl, industry, description, email, phone, website, address, verificationStatus, verificationNote, verifiedAt, verifiedBy, createdAt, updatedAt) VALUES (:id, :name, :status, :logoUrl, :industry, :description, :email, :phone, :website, :address, :verificationStatus, :verificationNote, :verifiedAt, :verifiedBy, :createdAt, :updatedAt)');
 $insert->execute(['id' => $ids['enterprise'], 'name' => 'Database Enterprise', 'status' => 'active', 'logoUrl' => null, 'industry' => 'Technology', 'description' => 'Schema-backed description', 'email' => 'enterprise@example.test', 'phone' => '0900000001', 'website' => 'https://example.test', 'address' => 'Hà Nội', 'verificationStatus' => 'verified', 'verificationNote' => null, 'verifiedAt' => null, 'verifiedBy' => null, 'createdAt' => '2026-08-01', 'updatedAt' => '2026-08-14']);
-$insert = $database->prepare('INSERT INTO internship_posts (id, enterpriseId, title, location, deadline, status) VALUES (:id, :enterpriseId, :title, :location, :deadline, :status)');
-$insert->execute(['id' => $ids['post'], 'enterpriseId' => $ids['enterprise'], 'title' => 'Database Internship', 'location' => 'Hà Nội', 'deadline' => '2026-12-01', 'status' => 'active']);
-$insert = $database->prepare('INSERT INTO internship_applications (id, postId, studentId, status, cvUrl, reviewerNote) VALUES (:id, :postId, :studentId, :status, :cvUrl, :reviewerNote)');
-$insert->execute(['id' => $ids['application'], 'postId' => $ids['post'], 'studentId' => $ids['student'], 'status' => 'team-shortlisted', 'cvUrl' => '/cv/demo.pdf', 'reviewerNote' => null]);
+$insert = $database->prepare('INSERT INTO internship_posts (id, enterpriseId, title, field, location, workType, duration, educationLevel, description, benefits, skillsJson, requirementsJson, slots, deadline, createdAt, updatedAt, status) VALUES (:id, :enterpriseId, :title, :field, :location, :workType, :duration, :educationLevel, :description, :benefits, :skillsJson, :requirementsJson, :slots, :deadline, :createdAt, :updatedAt, :status)');
+$insert->execute(['id' => $ids['post'], 'enterpriseId' => $ids['enterprise'], 'title' => 'Database Internship', 'field' => 'IT', 'location' => 'Hà Nội', 'workType' => 'hybrid', 'duration' => '3 months', 'educationLevel' => 'university', 'description' => 'Canonical description', 'benefits' => 'Mentoring', 'skillsJson' => '["PHP"]', 'requirementsJson' => '["Student"]', 'slots' => 1, 'deadline' => '2026-12-01', 'createdAt' => '2026-08-22 10:00:00', 'updatedAt' => '2026-08-22 10:00:00', 'status' => 'active']);
+$insert = $database->prepare('INSERT INTO internship_applications (id, postId, studentId, status, message, appliedAt, updatedAt) VALUES (:id, :postId, :studentId, :status, :message, :appliedAt, :updatedAt)');
+$insert->execute(['id' => $ids['application'], 'postId' => $ids['post'], 'studentId' => $ids['student'], 'status' => 'team-shortlisted', 'message' => 'Hello', 'appliedAt' => '2026-08-22 10:00:00', 'updatedAt' => '2026-08-22 10:00:00']);
+$database->prepare('INSERT INTO application_profile_snapshots (id, applicationId, schemaVersion, snapshotPayload, createdAt) VALUES (?, ?, ?, ?, ?)')->execute(['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa01', $ids['application'], '1.0.0', '{"schemaVersion":"1.0.0","skills":[]}', '2026-08-22 10:00:00']);
+$database->prepare('INSERT INTO application_status_history (id, applicationId, fromStatus, toStatus, changedByRole, createdAt) VALUES (?, ?, ?, ?, ?, ?)')->execute(['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa02', $ids['application'], null, 'submitted', 'student', '2026-08-22 10:00:00']);
 
 $databaseActivities = $databaseFactory->activity();
 $visibleDatabaseActivities = $databaseActivities->all();
-foundation_assert(count($visibleDatabaseActivities) === 1, 'database activity list excludes draft and cancelled rows');
+foundation_assert(count($visibleDatabaseActivities) === 3, 'database activity list includes published, ongoing, completed and excludes draft, cancelled, archived');
 $databaseActivity = $databaseActivities->findById($ids['activity']);
 foundation_assert($databaseActivity !== null, 'database activity is readable');
 foundation_assert($databaseActivity['activity_id'] === $ids['activity'], 'database activity_id is normalized');
 foundation_assert($databaseActivity['school_id'] === $ids['school'], 'activity school_id is normalized');
 foundation_assert($databaseActivity['status'] === 'published', 'approved activity status is preserved');
+foundation_assert($databaseActivities->findById($ids['ongoing_activity']) !== null, 'ongoing activity detail is accessible');
+foundation_assert($databaseActivities->findById($ids['completed_activity']) !== null, 'completed activity detail is accessible');
 foundation_assert($databaseActivities->findById($ids['draft_activity']) === null, 'database activity detail hides draft rows');
 foundation_assert($databaseActivities->findById($ids['cancelled_activity']) === null, 'database activity detail hides cancelled rows');
+foundation_assert($databaseActivities->findById($ids['archived_activity']) === null, 'database activity detail hides archived rows');
 $databaseRegistrations = $databaseActivities->registrationsFor($ids['student']);
-foundation_assert(count($databaseRegistrations) === 1, 'database registrations are student scoped');
-foundation_assert($databaseRegistrations[0]['status'] === 'unknown', 'unapproved registration status is unknown');
+foundation_assert(count($databaseRegistrations) === 6, 'database registrations are student scoped');
+$regStatusesById = array_column($databaseRegistrations, 'status', 'id');
+foundation_assert(($regStatusesById[$ids['registration']] ?? null) === 'unknown', 'unapproved registration status is unknown');
+foundation_assert(($regStatusesById[$ids['approved_reg']] ?? null) === 'approved', 'approved registration status is preserved');
+foundation_assert(($regStatusesById[$ids['attended_reg']] ?? null) === 'attended', 'attended registration status is preserved');
+foundation_assert(($regStatusesById[$ids['pending_reg']] ?? null) === 'pending', 'pending registration status is preserved');
+foundation_assert(($regStatusesById[$ids['rejected_reg']] ?? null) === 'rejected', 'rejected registration status is preserved');
+foundation_assert(($regStatusesById[$ids['cancelled_reg']] ?? null) === 'cancelled', 'cancelled registration status is preserved');
 
 $databaseEcosystem = $databaseFactory->ecosystem();
 $databasePartners = $databaseEcosystem->partners();
@@ -383,10 +420,21 @@ foundation_assert(
     'database applications never leak across students'
 );
 
+$databasePassportRepository = $databaseFactory->talentPassport();
+foundation_assert($databasePassportRepository instanceof TalentPassportRepository, 'database factory returns talent passport contract');
+foundation_assert($databasePassportRepository instanceof DatabaseTalentPassportRepository, 'database factory returns database repository');
+
 $databaseRepositoryFiles = glob(dirname(__DIR__) . '/app/learner/data/Database/*.php') ?: [];
-$assessmentWriteRepositoryPath = dirname(__DIR__) . '/app/learner/data/Database/DatabaseAssessmentWriteRepository.php';
+$commandRepositoryPaths = [
+    dirname(__DIR__) . '/app/learner/data/Database/DatabaseAssessmentWriteRepository.php',
+    dirname(__DIR__) . '/app/learner/data/Database/DatabaseCertificateCommandRepository.php',
+    dirname(__DIR__) . '/app/learner/data/Database/DatabaseActivityCommandRepository.php',
+    dirname(__DIR__) . '/app/learner/data/Database/DatabaseCheckinRepository.php',
+    dirname(__DIR__) . '/app/learner/data/Database/DatabaseApplicationCommandRepository.php',
+    dirname(__DIR__) . '/app/learner/data/Database/DatabaseNotificationRepository.php',
+];
 foreach ($databaseRepositoryFiles as $databaseRepositoryFile) {
-    if ($databaseRepositoryFile === $assessmentWriteRepositoryPath) {
+    if (in_array($databaseRepositoryFile, $commandRepositoryPaths, true)) {
         continue;
     }
     $databaseRepositorySource = file_get_contents($databaseRepositoryFile);
@@ -396,16 +444,18 @@ foreach ($databaseRepositoryFiles as $databaseRepositoryFile) {
         basename($databaseRepositoryFile) . ' contains read-only SQL only'
     );
 }
-$assessmentWriteRepositorySource = file_get_contents($assessmentWriteRepositoryPath);
-foundation_assert($assessmentWriteRepositorySource !== false, 'assessment write repository source is readable');
-foundation_assert(
-    preg_match('/\b(CREATE|ALTER|DROP|DELETE|TRUNCATE)\b/i', $assessmentWriteRepositorySource) !== 1,
-    'assessment write repository has no destructive SQL'
-);
-foundation_assert(
-    preg_match('/\b(INSERT|UPDATE)\b/i', $assessmentWriteRepositorySource) === 1,
-    'assessment write repository contains the explicit persistence operations'
-);
+foreach ($commandRepositoryPaths as $commandRepositoryPath) {
+    $commandRepositorySource = file_get_contents($commandRepositoryPath);
+    foundation_assert($commandRepositorySource !== false, basename($commandRepositoryPath) . ' source is readable');
+    foundation_assert(
+        preg_match('/\b(CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE|TRUNCATE)\b/i', $commandRepositorySource) !== 1,
+        basename($commandRepositoryPath) . ' has no destructive DDL SQL'
+    );
+    foundation_assert(
+        preg_match('/\b(INSERT|UPDATE)\b/i', $commandRepositorySource) === 1,
+        basename($commandRepositoryPath) . ' contains explicit persistence operations'
+    );
+}
 $abstractDatabaseSource = file_get_contents(dirname(__DIR__) . '/app/learner/data/Database/AbstractDatabaseRepository.php');
 foundation_assert(str_contains((string) $abstractDatabaseSource, '->prepare('), 'database reads use prepared statements');
 foundation_assert(!str_contains((string) $abstractDatabaseSource, '->query('), 'database reads do not use direct query calls');

@@ -23,7 +23,7 @@ $deadlineLabel = $opportunity ? (new DateTimeImmutable($opportunity['deadline'])
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
 </head>
-<body class="learner-app learner-page-opportunity" data-opportunity-page>
+<body class="learner-app learner-page-opportunity" data-opportunity-page data-opportunity-id="<?= learner_escape((string) ($opportunity['id'] ?? '')); ?>">
     <div class="learner-layout">
         <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
@@ -126,8 +126,8 @@ $deadlineLabel = $opportunity ? (new DateTimeImmutable($opportunity['deadline'])
                     </div>
                     <div class="learner-form-field">
                         <label for="application-message">Lời nhắn tới đối tác <span>Không bắt buộc</span></label>
-                        <textarea id="application-message" name="message" rows="5" maxlength="300" placeholder="Giới thiệu ngắn về động lực và điểm phù hợp của bạn..." data-application-message></textarea>
-                        <small><span data-application-message-count>0</span>/300 ký tự</small>
+                        <textarea id="application-message" name="message" rows="5" maxlength="500" placeholder="Giới thiệu ngắn về động lực và điểm phù hợp của bạn..." data-application-message></textarea>
+                        <small><span data-application-message-count>0</span>/500 ký tự</small>
                     </div>
                     <label class="learner-consent-field">
                         <input type="checkbox" name="consent" value="yes" data-application-consent>
@@ -136,7 +136,7 @@ $deadlineLabel = $opportunity ? (new DateTimeImmutable($opportunity['deadline'])
                     <p class="learner-form-error" hidden data-application-error></p>
                     <div class="learner-data-note">
                         <?= learner_icon('info', 17); ?>
-                        <p>Đây là thao tác mô phỏng giao diện. Hồ sơ chưa được gửi tới hệ thống doanh nghiệp.</p>
+                        <p>Hệ thống chỉ gửi ảnh chụp hồ sơ tối thiểu sau khi bạn xác nhận đồng ý.</p>
                     </div>
                     <div class="learner-modal__actions">
                         <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Hủy</button>

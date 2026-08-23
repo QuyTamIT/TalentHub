@@ -25,6 +25,7 @@ $bootData = [
     'endpoints' => [
         'detail' => '/app/learner/api/v1/assessments.php',
         'attempts' => '/app/learner/api/v1/assessment-attempts.php',
+        'history' => '/app/learner/api/v1/assessments.php?view=history',
     ],
 ];
 ?>
@@ -109,18 +110,45 @@ $bootData = [
                         <?= learner_icon('info', 17); ?>
                         <p>Kết quả bài đánh giá chỉ phục vụ định hướng giáo dục và tham khảo học tập, không phải chẩn đoán tâm lý y khoa hay quyết định tuyển sinh bắt buộc.</p>
                     </div>
-
-                    <section class="learner-card learner-assessment-history" data-assessment-history aria-labelledby="assessment-history-title">
-                        <div class="learner-section-heading">
-                            <div>
-                                <h2 id="assessment-history-title">Lịch sử đánh giá</h2>
-                                <p>Lịch sử các lần thực hiện bài đánh giá được lưu trữ trên tài khoản của bạn.</p>
-                            </div>
-                        </div>
-                        <div class="learner-assessment-history__list" data-assessment-history-list>
-                        </div>
-                    </section>
                 </div>
+
+                <section
+                    class="learner-card learner-assessment-history"
+                    data-assessment-complete-history
+                    data-source="assessment_engine"
+                    aria-labelledby="assessment-complete-history-title"
+                >
+                    <div class="learner-section-heading">
+                        <div>
+                            <h2 id="assessment-complete-history-title">Toàn bộ lịch sử đánh giá</h2>
+                            <p>Mọi lần làm bài đã nộp và đã có kết quả, thuộc mọi bộ công cụ đánh giá.</p>
+                        </div>
+                        <span class="learner-demo-pill">Nguồn: hệ thống đánh giá tự động</span>
+                    </div>
+                    <p class="learner-empty-state__text" data-assessment-complete-history-loading>Đang tải lịch sử đánh giá...</p>
+                    <p class="learner-empty-state__text" data-assessment-complete-history-empty hidden>Chưa có dữ liệu</p>
+                    <p class="learner-empty-state__text" data-assessment-complete-history-error hidden>Không thể tải lịch sử đánh giá.</p>
+                    <div class="learner-assessment-history__list" data-assessment-complete-history-list hidden></div>
+                </section>
+
+                <section
+                    class="learner-card learner-assessment-history"
+                    data-teacher-published-evaluations
+                    data-source="teacher_published_evaluation"
+                    aria-labelledby="teacher-published-evaluations-title"
+                >
+                    <div class="learner-section-heading">
+                        <div>
+                            <h2 id="teacher-published-evaluations-title">Đánh giá đã công bố từ giáo viên</h2>
+                            <p>Chỉ hiển thị các đánh giá đã được giáo viên công bố.</p>
+                        </div>
+                        <span class="learner-demo-pill">Nguồn: giáo viên công bố</span>
+                    </div>
+                    <p class="learner-empty-state__text" data-teacher-published-evaluation-loading>Đang tải đánh giá đã công bố...</p>
+                    <p class="learner-empty-state__text" data-teacher-published-evaluation-empty hidden>Chưa có dữ liệu</p>
+                    <p class="learner-empty-state__text" data-teacher-published-evaluation-error hidden>Không thể tải đánh giá đã công bố.</p>
+                    <div class="learner-assessment-history__list" data-teacher-published-evaluation-list hidden></div>
+                </section>
             </main>
         </div>
     </div>

@@ -22,8 +22,32 @@ try {
 
     $studentId = $context->studentId('student_profile.read_own');
 
-    // Whitelist query params
-    $allowedParams = ['band', 'code'];
+    $view = $request->queryParam('view');
+    if ($view !== null) {
+        $view = strtolower(trim((string) $view));
+        if (!in_array($view, ['catalog', 'history'], true)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Chế độ xem không hợp lệ.', [
+                ['field' => 'view', 'code' => 'INVALID_VIEW', 'message' => 'Chế độ xem phải là catalog hoặc history.'],
+            ]);
+        }
+    }
+
+    if ($view === 'history') {
+        foreach (array_keys($_GET) as $key) {
+            if ($key !== 'view') {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Tham số truy vấn không hợp lệ.', [
+                    ['field' => (string) $key, 'code' => 'FIELD_NOT_ALLOWED', 'message' => 'Không được phép gửi tham số này.'],
+                ]);
+            }
+        }
+
+        // Read-only history view. Submit, start/resume and scoring contracts are untouched.
+        $historyView = $context->assessmentCatalogService()->historyView($studentId);
+        JsonResponder::sendSuccess($historyView, $context->requestId());
+    }
+
+    // Whitelist query params for catalog/detail mode.
+    $allowedParams = ['view', 'band', 'code'];
     foreach (array_keys($_GET) as $key) {
         if (!in_array($key, $allowedParams, true)) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Tham số truy vấn không hợp lệ.', [

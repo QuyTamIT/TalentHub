@@ -6,9 +6,13 @@ declare(strict_types=1);
  * Verification test suite for assessment catalog seed in the primary database (talenthub_local).
  *
  * Contract:
- * - Read-only assertions against live database.
+ * - Read-only assertions against live database. Never mutates, deletes, or truncates demo data.
  * - Verifies row counts: 12 talent_tests, 366 test_questions, 12 published versions, 366 question bindings.
- * - Verifies 0 rows in attempt, metadata, answer, and result tables.
+ * - Verifies referential integrity of whatever attempt/metadata/answer/result rows already exist.
+ *   Transactional emptiness is NOT asserted here: talenthub_local is a legitimate demo database.
+ *   The "catalog seed creates no attempts/results/answers" contract lives in
+ *   tests/learner_assessment_catalog_seed_isolation_test.php on a disposable schema.
+ *   See plan Amendment A3 (2026-08-22).
  * - Verifies UUID and stable code global uniqueness.
  * - Verifies schemaHash matches declared canonical source hashes for all 12 catalogs.
  * - Verifies per-question bindings and content fidelity.
@@ -59,10 +63,42 @@ $assert($counts['test_questions'] === 366, "test_questions count must be 366, go
 $assert($counts['learner_assessment_versions'] === 12, "learner_assessment_versions count must be 12, got {$counts['learner_assessment_versions']}");
 $assert($counts['learner_assessment_question_versions'] === 366, "learner_assessment_question_versions count must be 366, got {$counts['learner_assessment_question_versions']}");
 
-$assert($counts['test_attempts'] === 0, 'test_attempts must be 0 after catalog seed');
-$assert($counts['learner_assessment_attempt_metadata'] === 0, 'learner_assessment_attempt_metadata must be 0 after catalog seed');
-$assert($counts['learner_assessment_answers'] === 0, 'learner_assessment_answers must be 0 after catalog seed');
-$assert($counts['test_results'] === 0, 'test_results must be 0 after catalog seed');
+// 2b. Referential integrity of pre-existing transactional rows.
+// Demo attempts are legitimate data. Assert they are consistent, never that they are absent.
+$integrity = [
+    'attempts_without_test' => 'SELECT COUNT(*) FROM test_attempts a LEFT JOIN talent_tests t ON t.id = a.testId WHERE t.id IS NULL',
+    'attempts_without_student' => 'SELECT COUNT(*) FROM test_attempts a LEFT JOIN student_profiles s ON s.id = a.studentId WHERE s.id IS NULL',
+    'metadata_without_attempt' => 'SELECT COUNT(*) FROM learner_assessment_attempt_metadata m LEFT JOIN test_attempts a ON a.id = m.attemptId WHERE a.id IS NULL',
+    'metadata_without_version' => 'SELECT COUNT(*) FROM learner_assessment_attempt_metadata m LEFT JOIN learner_assessment_versions v ON v.id = m.versionId WHERE v.id IS NULL',
+    'answers_without_attempt' => 'SELECT COUNT(*) FROM learner_assessment_answers ans LEFT JOIN test_attempts a ON a.id = ans.attemptId WHERE a.id IS NULL',
+    'answers_without_question' => 'SELECT COUNT(*) FROM learner_assessment_answers ans LEFT JOIN test_questions q ON q.id = ans.questionId WHERE q.id IS NULL',
+    'results_without_attempt' => 'SELECT COUNT(*) FROM test_results r LEFT JOIN test_attempts a ON a.id = r.attemptId WHERE a.id IS NULL',
+    'submitted_without_metadata' => 'SELECT COUNT(*) FROM test_attempts a LEFT JOIN learner_assessment_attempt_metadata m ON m.attemptId = a.id WHERE a.status = \'submitted\' AND m.attemptId IS NULL',
+    'submitted_without_result' => 'SELECT COUNT(*) FROM test_attempts a LEFT JOIN test_results r ON r.attemptId = a.id WHERE a.status = \'submitted\' AND r.attemptId IS NULL',
+    'submitted_without_timestamp' => 'SELECT COUNT(*) FROM test_attempts WHERE status = \'submitted\' AND submittedAt IS NULL',
+];
+
+foreach ($integrity as $label => $sql) {
+    $orphans = (int) $pdo->query($sql)->fetchColumn();
+    $assert($orphans === 0, "Referential integrity: {$label} must be 0, got {$orphans}");
+}
+
+$assert(
+    $counts['test_results'] <= $counts['test_attempts'],
+    "test_results ({$counts['test_results']}) cannot exceed test_attempts ({$counts['test_attempts']})"
+);
+$assert(
+    $counts['learner_assessment_attempt_metadata'] <= $counts['test_attempts'],
+    'Attempt metadata cannot exceed attempts'
+);
+$duplicateResults = (int) $pdo->query(
+    'SELECT COUNT(*) FROM (SELECT attemptId FROM test_results GROUP BY attemptId HAVING COUNT(*) > 1) dupes'
+)->fetchColumn();
+$assert($duplicateResults === 0, "No attempt may carry more than one result, got {$duplicateResults}");
+
+echo "Pre-existing transactional rows verified consistent: "
+    . "{$counts['test_attempts']} attempts, {$counts['test_results']} results, "
+    . "{$counts['learner_assessment_answers']} answers\n";
 
 // 3. Expected catalog definitions
 $expectedCatalogs = [
