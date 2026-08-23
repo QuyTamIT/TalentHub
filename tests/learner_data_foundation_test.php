@@ -432,6 +432,7 @@ $commandRepositoryPaths = [
     dirname(__DIR__) . '/app/learner/data/Database/DatabaseCheckinRepository.php',
     dirname(__DIR__) . '/app/learner/data/Database/DatabaseApplicationCommandRepository.php',
     dirname(__DIR__) . '/app/learner/data/Database/DatabaseNotificationRepository.php',
+    dirname(__DIR__) . '/app/learner/data/Database/DatabaseBadgeRepository.php',
 ];
 foreach ($databaseRepositoryFiles as $databaseRepositoryFile) {
     if (in_array($databaseRepositoryFile, $commandRepositoryPaths, true)) {

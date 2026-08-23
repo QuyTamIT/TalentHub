@@ -5,6 +5,48 @@ require_once __DIR__ . '/includes/icons.php';
 
 $pageTitle = 'Huy hiệu và cấp độ';
 $currentRoute = '/app/learner/badges.php';
+
+$badgeData = null;
+$badgeLoadError = false;
+if ($isDatabaseMode ?? false) {
+    try {
+        $studentId = (string) ($student['id'] ?? learner_current_student_id());
+        $badgeData = learner_repository_factory()->badgeReadService()->forStudent($studentId);
+    } catch (Throwable $e) {
+        $badgeData = null;
+        $badgeLoadError = true;
+    }
+}
+
+$level = $badgeData['level'] ?? $level ?? [
+    'name' => 'Explorer',
+    'number' => 1,
+    'currentHours' => 0.0,
+    'targetHours' => 10.0,
+    'nextLevel' => 'Innovator',
+    'remainingHours' => 10.0,
+    'progressPercent' => 0,
+];
+
+$levelProgressPercent = (int) ($level['progressPercent'] ?? 0);
+$levelCurrentHours = (float) ($level['currentHours'] ?? 0.0);
+$levelTargetHours = (float) ($level['targetHours'] ?? 10.0);
+$levelNext = $level['nextLevel'] ?? null;
+$levelRemaining = (float) ($level['remainingHours'] ?? 0.0);
+
+$learnerLevels = [
+    ['id' => 'explorer', 'name' => 'Explorer', 'number' => 1, 'hours' => 0, 'target' => 10, 'state' => $level['name'] === 'Explorer' ? 'current' : ($levelCurrentHours >= 10 ? 'achieved' : 'next'), 'status' => $level['name'] === 'Explorer' ? 'Đang thực hiện' : ($levelCurrentHours >= 10 ? 'Đã đạt' : 'Chưa mở')],
+    ['id' => 'innovator', 'name' => 'Innovator', 'number' => 2, 'hours' => 10, 'target' => 100, 'state' => $level['name'] === 'Innovator' ? 'current' : ($levelCurrentHours >= 100 ? 'achieved' : ($level['name'] === 'Explorer' ? 'next' : 'locked')), 'status' => $level['name'] === 'Innovator' ? 'Đang thực hiện' : ($levelCurrentHours >= 100 ? 'Đã đạt' : 'Chưa mở')],
+    ['id' => 'expert', 'name' => 'Expert', 'number' => 3, 'hours' => 100, 'target' => 200, 'state' => $level['name'] === 'Expert' ? 'current' : ($levelCurrentHours >= 200 ? 'achieved' : ($level['name'] === 'Innovator' ? 'next' : 'locked')), 'status' => $level['name'] === 'Expert' ? 'Đang thực hiện' : ($levelCurrentHours >= 200 ? 'Đã đạt' : 'Chưa mở')],
+    ['id' => 'master', 'name' => 'Master', 'number' => 4, 'hours' => 200, 'target' => 200, 'state' => $level['name'] === 'Master' ? 'current' : ($level['name'] === 'Expert' ? 'next' : 'locked'), 'status' => $level['name'] === 'Master' ? 'Đã đạt cấp tối đa' : 'Chưa mở'],
+];
+
+$learnerBadgeFilters = [
+    ['id' => 'all', 'label' => 'Tất cả'],
+    ['id' => 'achieved', 'label' => 'Đã đạt'],
+    ['id' => 'in_progress', 'label' => 'Đang tiến hành'],
+    ['id' => 'locked', 'label' => 'Chưa mở'],
+];
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -29,19 +71,20 @@ $currentRoute = '/app/learner/badges.php';
                     'id' => 'learner-badges-page-title',
                     'eyebrow' => 'Ghi nhận nỗ lực',
                     'title' => 'Huy hiệu và cấp độ',
-                    'description' => 'Theo dõi các cột mốc học tập và trải nghiệm của bạn.',
+                    'description' => 'Theo dõi các cột mốc học tập và trải nghiệm thực tế của bạn.',
                     'icon' => 'award',
                 ];
                 include __DIR__ . '/includes/page-banner.php';
                 ?>
 
-                <?php if ($isDatabaseMode ?? false): ?>
-                    <section class="learner-card learner-empty-state" role="status">
+                <?php if ($badgeLoadError): ?>
+                    <section class="learner-card learner-empty-state" role="alert" data-badge-load-error>
                         <span class="learner-empty-state__icon"><?= learner_icon('award', 30); ?></span>
                         <h2>Chưa có dữ liệu huy hiệu và cấp độ</h2>
-                        <p>Huy hiệu và cấp độ sẽ hiển thị khi dữ liệu và quy tắc trao huy hiệu được kích hoạt.</p>
+                        <p>Không thể tải dữ liệu đã xác nhận ở thời điểm này.</p>
+                        <a class="learner-btn learner-btn--outline" href="badges.php">Thử tải lại</a>
                     </section>
-                <?php else: ?>
+                <?php endif; ?>
 
                 <section class="learner-card learner-level-overview" aria-labelledby="learner-current-level-title">
                     <div class="learner-level-overview__current">
@@ -53,10 +96,15 @@ $currentRoute = '/app/learner/badges.php';
                                 <span>Cấp <?= learner_escape($level['number']); ?></span>
                             </div>
                         </div>
-                        <strong class="learner-level-overview__hours"><?= learner_escape($level['progress']); ?>/<?= learner_escape($level['target']); ?> giờ</strong>
-                        <span>đến cấp <?= learner_escape($level['next_level']); ?></span>
-                        <div class="learner-progress" role="progressbar" aria-label="Tiến độ đến cấp <?= learner_escape($level['next_level']); ?>" aria-valuemin="0" aria-valuemax="<?= learner_escape($level['target']); ?>" aria-valuenow="<?= learner_escape($level['progress']); ?>">
-                            <span style="--learner-progress: <?= learner_escape($level['progress']); ?>%;"></span>
+                        <?php if ($levelNext !== null): ?>
+                            <strong class="learner-level-overview__hours"><?= learner_escape($levelCurrentHours); ?>/<?= learner_escape($levelTargetHours); ?> giờ</strong>
+                            <span>Cần thêm <?= learner_escape($levelRemaining); ?> giờ để lên cấp <?= learner_escape($levelNext); ?></span>
+                        <?php else: ?>
+                            <strong class="learner-level-overview__hours"><?= learner_escape($levelCurrentHours); ?> giờ</strong>
+                            <span>Bạn đã đạt cấp độ cao nhất!</span>
+                        <?php endif; ?>
+                        <div class="learner-progress" role="progressbar" aria-label="Tiến độ cấp độ <?= learner_escape($level['name']); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($levelProgressPercent); ?>">
+                            <span style="--learner-progress: <?= learner_escape($levelProgressPercent); ?>%;"></span>
                         </div>
                     </div>
 
@@ -69,10 +117,9 @@ $currentRoute = '/app/learner/badges.php';
                                 </span>
                                 <strong><?= learner_escape($levelItem['name']); ?></strong>
                                 <small>
-                                    <?php if ($levelItem['state'] === 'achieved'): ?>Hoàn thành <?= learner_escape($levelItem['hours']); ?> giờ
-                                    <?php elseif ($levelItem['state'] === 'current'): ?>Hoàn thành <?= learner_escape($levelItem['hours']); ?>/<?= learner_escape($levelItem['target']); ?> giờ
-                                    <?php elseif ($levelItem['state'] === 'next'): ?>Cần thêm <?= learner_escape($levelItem['hours']); ?> giờ
-                                    <?php else: ?>Cần <?= learner_escape($levelItem['hours']); ?> giờ<?php endif; ?>
+                                    <?php if ($levelItem['state'] === 'achieved'): ?>Từ <?= learner_escape($levelItem['hours']); ?> giờ
+                                    <?php elseif ($levelItem['state'] === 'current'): ?><?= learner_escape($levelCurrentHours); ?>/<?= learner_escape($levelItem['target']); ?> giờ
+                                    <?php else: ?>Yêu cầu <?= learner_escape($levelItem['hours']); ?> giờ<?php endif; ?>
                                 </small>
                                 <span class="learner-level-path__status"><?= learner_escape($levelItem['status']); ?></span>
                             </li>
@@ -84,7 +131,7 @@ $currentRoute = '/app/learner/badges.php';
                     <div class="learner-badge-section__heading">
                         <div>
                             <h2 id="learner-badge-collection-title">Bộ sưu tập huy hiệu</h2>
-                            <p>Tiếp tục trải nghiệm để mở khóa thêm các dấu mốc mới.</p>
+                            <p>Tiếp tục trải nghiệm, tham gia hoạt động và làm bài đánh giá để mở khóa huy hiệu.</p>
                         </div>
                         <div class="learner-filter-list" aria-label="Lọc huy hiệu theo trạng thái">
                             <?php foreach ($learnerBadgeFilters as $index => $filter): ?>
@@ -100,33 +147,62 @@ $currentRoute = '/app/learner/badges.php';
                         </div>
                     </div>
 
-                    <p class="learner-visually-hidden" data-badge-result-status role="status" aria-live="polite">6 huy hiệu phù hợp</p>
+                    <?php
+                    $displayBadges = [];
+                    if ($badgeData !== null && isset($badgeData['progress'])) {
+                        foreach ($badgeData['progress'] as $p) {
+                            $tone = $p['status'] === 'achieved' ? 'success' : ($p['status'] === 'in_progress' ? 'primary' : 'neutral');
+                            $statusLabel = $p['status'] === 'achieved' ? 'Đạt được' : ($p['status'] === 'in_progress' ? 'Đang thực hiện' : 'Chưa mở');
+                            $displayBadges[] = [
+                                'id' => $p['badgeId'],
+                                'code' => $p['badgeCode'],
+                                'name' => $p['badgeName'],
+                                'category' => $p['badgeCategory'],
+                                'description' => $p['badgeDescription'],
+                                'status' => $p['status'],
+                                'status_label' => $statusLabel,
+                                'tone' => $tone,
+                                'current' => $p['current'],
+                                'target' => $p['target'],
+                                'progress' => $p['progressPercent'],
+                                'icon' => 'award',
+                                'awardedAt' => $p['awardedAt'] ?? null,
+                            ];
+                        }
+                    } elseif (!($isDatabaseMode ?? false)) {
+                        $displayBadges = $learnerBadges ?? [];
+                    }
+                    ?>
+
+                    <p class="learner-visually-hidden" data-badge-result-status role="status" aria-live="polite"><?= count($displayBadges); ?> huy hiệu phù hợp</p>
 
                     <div class="learner-badge-grid" aria-label="Danh sách huy hiệu cá nhân">
-                        <?php foreach ($learnerBadges as $badge): ?>
+                        <?php foreach ($displayBadges as $badge): ?>
                             <?php
-                            $badgeProgress = $badge['target'] > 0
-                                ? min(100, (int) round($badge['current'] / $badge['target'] * 100))
-                                : 0;
-                            $badgeTone = $badge['status'] === 'achieved'
-                                ? 'success'
-                                : ($badge['status'] === 'in_progress' ? 'primary' : 'neutral');
+                            $badgeProgress = (int) ($badge['progress'] ?? 0);
+                            $badgeTone = $badge['tone'] ?? ($badge['status'] === 'achieved' ? 'success' : ($badge['status'] === 'in_progress' ? 'primary' : 'neutral'));
+                            $statusLabel = $badge['status_label'] ?? ($badge['status'] === 'achieved' ? 'Đạt được' : ($badge['status'] === 'in_progress' ? 'Đang thực hiện' : 'Chưa mở'));
                             ?>
                             <article class="learner-card learner-badge-card learner-badge-card--<?= learner_escape($badge['status']); ?>" data-badge-card data-badge-status="<?= learner_escape($badge['status']); ?>">
                                 <span class="learner-badge-card__icon learner-badge-card__icon--<?= learner_escape($badgeTone); ?>" aria-hidden="true">
-                                    <?= learner_icon($badge['icon'], 38); ?>
+                                    <?= learner_icon($badge['icon'] ?? 'award', 38); ?>
                                 </span>
                                 <h3><?= learner_escape($badge['name']); ?></h3>
                                 <p><?= learner_escape($badge['description']); ?></p>
                                 <span class="learner-badge-card__status learner-badge-card__status--<?= learner_escape($badgeTone); ?>">
-                                    <?= learner_escape($badge['status_label']); ?>
+                                    <?= learner_escape($statusLabel); ?>
                                 </span>
                                 <div class="learner-badge-card__progress">
-                                    <div class="learner-progress" role="progressbar" aria-label="Tiến độ huy hiệu <?= learner_escape($badge['name']); ?>" aria-valuemin="0" aria-valuemax="<?= learner_escape($badge['target']); ?>" aria-valuenow="<?= learner_escape($badge['current']); ?>">
+                                    <div class="learner-progress" role="progressbar" aria-label="Tiến độ huy hiệu <?= learner_escape($badge['name']); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($badgeProgress); ?>">
                                         <span class="learner-progress--<?= learner_escape($badgeTone); ?>" style="--learner-progress: <?= learner_escape($badgeProgress); ?>%;"></span>
                                     </div>
                                     <strong><?= learner_escape($badge['current']); ?>/<?= learner_escape($badge['target']); ?></strong>
                                 </div>
+                                <?php if (!empty($badge['awardedAt'])): ?>
+                                    <small style="display: block; margin-top: 8px; color: #64748b; font-size: 0.75rem;">
+                                        Ngày nhận: <?= learner_escape(date('d/m/Y', strtotime((string)$badge['awardedAt']))); ?>
+                                    </small>
+                                <?php endif; ?>
                             </article>
                         <?php endforeach; ?>
                     </div>
@@ -140,14 +216,20 @@ $currentRoute = '/app/learner/badges.php';
 
                 <p class="learner-badge-note">
                     <?= learner_icon('activity', 18); ?>
-                    <span>Huy hiệu được cập nhật khi hệ thống ghi nhận hoàn thành hoạt động hoặc khóa học.</span>
+                    <span>Huy hiệu được tự động cập nhật khi hệ thống ghi nhận bạn đạt các mốc trải nghiệm và đánh giá.</span>
                 </p>
-                <?php endif; ?>
             </main>
         </div>
     </div>
 
+    <script type="application/json" id="learner-badges-data"><?=
+        json_encode(
+            $badgeData ?? [],
+            JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+        );
+    ?></script>
     <script src="../../assets/js/learner-api.js"></script>
+    <script src="../../assets/js/learner-badges.js"></script>
     <script src="../../assets/js/learner.js"></script>
 </body>
 </html>

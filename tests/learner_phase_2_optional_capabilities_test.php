@@ -43,13 +43,17 @@ phase_2_assert(($optionalContracts['projects']['indexes']['project_members'] ?? 
     'uq_project_members_student',
 ], 'project contract requires the approved membership index');
 phase_2_assert(($optionalContracts['badges']['columns']['badges'] ?? []) === [
-    'id', 'code', 'name', 'category', 'description', 'iconUrl', 'level', 'status', 'createdAt',
+    'id', 'code', 'name', 'category', 'description', 'iconUrl', 'level', 'status', 'createdAt', 'updatedAt',
 ], 'badge contract matches the approved Phase 9 schema');
+phase_2_assert(($optionalContracts['badges']['columns']['badge_rule_definitions'] ?? []) === [
+    'id', 'badgeId', 'ruleType', 'thresholdCriteria', 'version', 'isActive', 'createdAt', 'updatedAt',
+], 'badge rule contract matches the approved Phase 9 schema');
 phase_2_assert(($optionalContracts['badges']['columns']['student_badges'] ?? []) === [
-    'id', 'studentId', 'badgeId', 'awardedAt', 'awardedBy', 'awardContext',
+    'id', 'studentId', 'badgeId', 'ruleDefinitionId', 'awardedAt', 'awardedBy', 'awardContext',
 ], 'student badge contract matches the approved Phase 9 schema');
 phase_2_assert(($optionalContracts['badges']['indexes'] ?? []) === [
     'badges' => ['uq_badges_code'],
+    'badge_rule_definitions' => ['uq_badge_rules_badge_version', 'idx_badge_rules_active'],
     'student_badges' => ['uq_student_badges_award'],
 ], 'badge contract requires the approved indexes');
 
@@ -63,7 +67,7 @@ phase_2_assert(!in_array('student_badges', $phase2['tables'], true), 'student_ba
 phase_2_assert(($phase2['optional_table_groups'] ?? null) === [
     'certificates' => ['certificates'],
     'projects' => ['projects', 'project_members'],
-    'badges' => ['badges', 'student_badges'],
+    'badges' => ['badges', 'badge_rule_definitions', 'student_badges'],
 ], 'Phase 2 optional groups are explicit');
 
 $expectedRequiredTables = [

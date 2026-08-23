@@ -83,6 +83,11 @@ $dashboardSkills = array_slice($skills, 0, 4);
                         </article>
                     <?php endforeach; ?>
                 </section>
+                <?php if (($isDatabaseMode ?? false) && ($phase9DashboardError ?? false)): ?>
+                    <p class="learner-empty-state" role="status" data-dashboard-badge-error>
+                        Dữ liệu huy hiệu tạm thời chưa thể tải; các chỉ số trải nghiệm còn lại vẫn lấy từ hồ sơ đã xác nhận.
+                    </p>
+                <?php endif; ?>
 
                 <div class="learner-dashboard-grid">
                     <section class="learner-card learner-skills-card" aria-labelledby="skills-title">

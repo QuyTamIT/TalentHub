@@ -42,7 +42,24 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
         </ul>
     </nav>
 
-    <?php if ($isDatabaseMode ?? false): ?>
+    <?php if (($isDatabaseMode ?? false) && isset($level['progressPercent'])): ?>
+    <div class="learner-level-card" aria-label="Cấp độ hiện tại">
+        <span class="learner-level-card__eyebrow">Cấp độ hiện tại</span>
+        <div class="learner-level-card__title">
+            <span class="learner-level-card__medal"><?= learner_escape($level['number']); ?></span>
+            <strong><?= learner_escape($level['name']); ?></strong>
+            <span class="learner-level-card__verified" aria-label="Dữ liệu đã xác nhận"><?= learner_icon('check', 14); ?></span>
+        </div>
+        <div class="learner-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($level['progressPercent']); ?>">
+            <span style="--learner-progress: <?= learner_escape($level['progressPercent']); ?>%;"></span>
+        </div>
+        <?php if (($level['nextLevel'] ?? null) !== null): ?>
+            <p>Còn <?= learner_escape($level['remainingHours']); ?> giờ đến <?= learner_escape($level['nextLevel']); ?></p>
+        <?php else: ?>
+            <p>Đã đạt cấp độ cao nhất</p>
+        <?php endif; ?>
+    </div>
+    <?php elseif ($isDatabaseMode ?? false): ?>
     <div class="learner-level-card" aria-label="Trạng thái cấp độ">
         <span class="learner-level-card__eyebrow">Cấp độ</span>
         <strong>Chưa có dữ liệu cấp độ</strong>

@@ -83,11 +83,16 @@ $learnerNav = [
 ];
 
 $level = [
-    'name' => 'Innovator',
-    'number' => 2,
-    'progress' => 64,
-    'target' => 100,
-    'next_level' => 'Expert',
+    'name' => 'Explorer',
+    'number' => 1,
+    'currentHours' => 0.0,
+    'targetHours' => 10.0,
+    'nextLevel' => 'Innovator',
+    'remainingHours' => 10.0,
+    'progressPercent' => 0,
+    'progress' => 0,
+    'target' => 10,
+    'next_level' => 'Innovator',
 ];
 
 $isDatabaseMode = !$useMock && learner_repository_factory()->source() === 'database';
@@ -103,11 +108,27 @@ if ($isDatabaseMode) {
     $confirmedHours = (float) ($tp['experience']['confirmed_hours'] ?? 0.0);
     $hoursValue = $confirmedHours > 0 ? (rtrim(rtrim((string) $confirmedHours, '0'), '.') . 'h') : '0h';
 
+    $phase9DashboardError = false;
+    $badgeOverview = null;
+    try {
+        $badgeOverview = learner_repository_factory()->badgeReadService()->forStudent($authenticatedStudentId);
+    } catch (Throwable) {
+        $phase9DashboardError = true;
+    }
+    $level = $badgeOverview['level'] ?? \TalentHub\Learner\Data\Domain\LevelProgression::fromHours($confirmedHours);
+    $lifetimeFacts = $badgeOverview['facts'] ?? [
+        'confirmed_experience_hours' => $confirmedHours,
+        'attended_activity_count' => count($tp['experience']['confirmed_entries'] ?? []),
+        'submitted_assessment_type_count' => count($tp['assessment_results'] ?? []),
+        'published_teacher_evaluation_count' => count($tp['teacher_evaluations'] ?? []),
+    ];
+    $awardedBadgeCount = count($badgeOverview['badges'] ?? $tp['badges']);
+
     $dashboardKpis = [
-        ['label' => 'Điểm năng lực', 'value' => 'Chưa có dữ liệu', 'change' => '', 'icon' => 'star'],
-        ['label' => 'Huy hiệu đạt được', 'value' => (string) count($tp['badges']), 'change' => '', 'icon' => 'trophy'],
+        ['label' => 'Cấp độ hiện tại', 'value' => (string) ($level['name'] ?? 'Explorer'), 'change' => '', 'icon' => 'star'],
+        ['label' => 'Huy hiệu đạt được', 'value' => (string) $awardedBadgeCount, 'change' => '', 'icon' => 'trophy'],
         ['label' => 'Giờ trải nghiệm', 'value' => $hoursValue, 'change' => '', 'icon' => 'clock'],
-        ['label' => 'Xếp hạng lớp', 'value' => 'Chưa có dữ liệu', 'change' => '', 'icon' => 'chart'],
+        ['label' => 'Hoạt động đã tham gia', 'value' => (string) ($lifetimeFacts['attended_activity_count'] ?? 0), 'change' => '', 'icon' => 'chart'],
     ];
 
     $profileKpis = [
@@ -145,7 +166,7 @@ if ($isDatabaseMode) {
 
     $certificates = $tp['certificates'];
     $projects = $tp['projects'];
-    $learnerBadges = $tp['badges'];
+    $learnerBadges = $badgeOverview['badges'] ?? $tp['badges'];
 } else {
         $dashboardKpis = [
         ['label' => 'Điểm năng lực', 'value' => '92', 'change' => '+8', 'icon' => 'star'],

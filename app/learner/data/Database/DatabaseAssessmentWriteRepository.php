@@ -12,6 +12,10 @@ use RuntimeException;
 use TalentHub\Learner\Assessment\Scoring\ScorerRegistry;
 use TalentHub\Learner\Assessment\Scoring\ScoringResult;
 use TalentHub\Learner\Data\Contracts\AssessmentWriteRepository;
+use TalentHub\Learner\Data\Database\DatabaseBadgeRepository;
+use TalentHub\Learner\Data\Database\DatabaseStatisticsRepository;
+use TalentHub\Learner\Data\Service\BadgeAwardService;
+use TalentHub\Learner\Data\Service\BadgeRuleEngine;
 use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
 use TalentHub\Learner\Data\Service\NotificationService;
 use TalentHub\Learner\Data\Support\Uuid;
@@ -22,7 +26,8 @@ final class DatabaseAssessmentWriteRepository implements AssessmentWriteReposito
     public function __construct(
         private readonly PDO $pdo,
         private readonly ScorerRegistry $scorers,
-        private readonly ?NotificationService $notifications = null
+        private readonly ?NotificationService $notifications = null,
+        private readonly ?BadgeAwardService $badgeAwardService = null
     ) {
     }
 
@@ -369,6 +374,10 @@ SQL,
                 $studentId
             );
 
+            if ($this->hasBadgesTable()) {
+                $this->getBadgeAwardService()->evaluateAndAward($studentId, 'system');
+            }
+
             return $this->resultView($studentId, $attemptId);
         });
     }
@@ -617,5 +626,40 @@ SQL,
             throw new \RuntimeException('Notification recipient is missing for the assessment attempt.');
         }
         return $userId;
+    }
+
+    private function getBadgeAwardService(): BadgeAwardService
+    {
+        if ($this->badgeAwardService !== null) {
+            return $this->badgeAwardService;
+        }
+
+        if (!class_exists('TalentHub\Learner\Data\Service\BadgeAwardService', false)) {
+            require_once dirname(__DIR__) . '/Contracts/BadgeRepository.php';
+            require_once dirname(__DIR__) . '/Contracts/StatisticsRepository.php';
+            require_once dirname(__DIR__) . '/Domain/LevelProgression.php';
+            require_once dirname(__DIR__) . '/Service/BadgeRuleEngine.php';
+            require_once dirname(__DIR__) . '/Service/BadgeAwardService.php';
+            require_once dirname(__DIR__) . '/Database/DatabaseBadgeRepository.php';
+            require_once dirname(__DIR__) . '/Database/DatabaseStatisticsRepository.php';
+        }
+
+        return new BadgeAwardService(
+            new DatabaseBadgeRepository($this->pdo),
+            new DatabaseStatisticsRepository($this->pdo),
+            new BadgeRuleEngine(),
+            $this->getNotificationService()
+        );
+    }
+
+    private function hasBadgesTable(): bool
+    {
+        $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $stmt = $this->pdo->query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'badges' LIMIT 1");
+            return (bool) $stmt->fetchColumn();
+        }
+        $stmt = $this->pdo->query("SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'badges' LIMIT 1");
+        return (bool) $stmt->fetchColumn();
     }
 }

@@ -97,11 +97,16 @@ foreach ($phase8MigrationIds as $id) {
     contract_assert(count(glob($root . '/Database/migrations/' . $id . '_*.php')) === 1, "Phase 8 migration {$id} exists");
 }
 
-$futureMigrationIds = ['20260821000700'];
-foreach ($futureMigrationIds as $id) {
-    contract_assert(glob($root . '/Database/migrations/' . $id . '_*.php') === [], "future migration {$id} remains unclaimed before Phase 9");
+$phase9MigrationIds = ['20260821000700'];
+foreach ($phase9MigrationIds as $id) {
+    contract_assert(count(glob($root . '/Database/migrations/' . $id . '_*.php')) === 1, "Phase 9 migration {$id} exists");
 }
-$plannedMigrationIds = array_merge($phase3MigrationIds, $phase4MigrationIds, $phase5MigrationIds, $phase7MigrationIds, $phase8MigrationIds, $futureMigrationIds);
+
+$futureMigrationIds = [];
+foreach ($futureMigrationIds as $id) {
+    contract_assert(glob($root . '/Database/migrations/' . $id . '_*.php') === [], "future migration {$id} remains unclaimed before Phase 10");
+}
+$plannedMigrationIds = array_merge($phase3MigrationIds, $phase4MigrationIds, $phase5MigrationIds, $phase7MigrationIds, $phase8MigrationIds, $phase9MigrationIds, $futureMigrationIds);
 
 $planContent = file_get_contents($root . '/docs/superpowers/plans/2026-08-21-student-portal-four-role-completion-revised.md');
 contract_assert(is_string($planContent), 'Revised plan file must exist and be readable');

@@ -179,9 +179,13 @@ passport_render_assert(str_contains($dashboardHtml, 'Hoạt động đã xác nh
 passport_render_assert(!str_contains($dashboardHtml, 'data-register-activity'), 'database dashboard never renders the mock-only fake registration button');
 passport_render_assert(str_contains($dashboardHtml, '>Xem chi tiết</a>'), 'database dashboard routes activity actions to the server-backed detail flow');
 passport_render_assert(str_contains($dashboardHtml, 'Gợi ý AI chưa có dữ liệu'), 'database dashboard renders a truthful AI unavailable state');
-foreach (['IoT Lab — Cảm biến thông minh', 'Drone Workshop', 'Năng khiếu nổi bật: IoT &amp; Drone', '64/100 giờ', 'Innovator'] as $demoSentinel) {
+foreach (['IoT Lab — Cảm biến thông minh', 'Drone Workshop', 'Năng khiếu nổi bật: IoT &amp; Drone', '64/100 giờ'] as $demoSentinel) {
     passport_render_assert(!str_contains($dashboardHtml, $demoSentinel), "database dashboard excludes demo sentinel {$demoSentinel}");
 }
+passport_render_assert(str_contains($dashboardHtml, 'Cấp độ hiện tại'), 'database dashboard labels the real level KPI');
+passport_render_assert(str_contains($dashboardHtml, 'Innovator'), '12.5 confirmed hours derives the real Innovator level');
+passport_render_assert(!str_contains($dashboardHtml, 'Xếp hạng lớp'), 'database dashboard removes the unsupported class-rank concept');
+passport_render_assert(!str_contains($dashboardHtml, 'Điểm năng lực'), 'database dashboard removes the unsupported competency-score concept');
 
 // Assert skill scores and aria-valuenow do not exceed 100
 preg_match_all('/aria-valuenow="([^"]+)"/', $dashboardHtml, $dashboardValuenowMatches);
@@ -203,10 +207,10 @@ passport_render_assert(!str_contains($profileHtml, 'Smart Garden IoT'), 'demo pr
 passport_render_assert(!str_contains($profileHtml, 'IELTS 7.5'), 'demo IELTS certificate is absent from database profile');
 passport_render_assert(!str_contains($profileHtml, 'nguyen-van-a'), 'demo public share URL is absent from database profile');
 passport_render_assert(str_contains($badgesHtml, 'Chưa có dữ liệu huy hiệu và cấp độ'), 'badges database page renders an explicit unavailable state');
-passport_render_assert(str_contains($statisticsHtml, 'Chưa có dữ liệu thống kê'), 'statistics database page renders an explicit unavailable state');
+passport_render_assert(str_contains($statisticsHtml, 'Dữ liệu tổng hợp từ hồ sơ cá nhân của bạn'), 'statistics database page renders an owner-scoped real-data view');
 passport_render_assert(!str_contains($badgesHtml, 'Phase 9'), 'badges page does not expose internal roadmap language');
 passport_render_assert(!str_contains($statisticsHtml, 'Phase 9'), 'statistics page does not expose internal roadmap language');
-foreach (['Innovator', 'Người khám phá', '64/100 giờ', '92'] as $demoSentinel) {
+foreach (['Người khám phá', '64/100 giờ', '92'] as $demoSentinel) {
     passport_render_assert(!str_contains($badgesHtml, $demoSentinel), "badges database page excludes demo sentinel {$demoSentinel}");
     passport_render_assert(!str_contains($statisticsHtml, $demoSentinel), "statistics database page excludes demo sentinel {$demoSentinel}");
 }

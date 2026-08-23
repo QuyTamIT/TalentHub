@@ -176,4 +176,28 @@ passport_data_assert(count($passportWithCertificate['certificates']) === 1, 'Onl
 passport_data_assert(($passportWithCertificate['certificates'][0]['title'] ?? null) === 'Canonical Certificate', 'Canonical certificate is mapped');
 passport_data_assert(!str_contains(json_encode($passportWithCertificate), 'Student B Secret Certificate'), 'Foreign certificate does not leak');
 
+// 8. Canonical Phase 9 badges are owner-scoped and mapped through explicit columns.
+$pdo->exec('CREATE TABLE badges (id TEXT PRIMARY KEY, code TEXT NOT NULL, name TEXT NOT NULL, category TEXT NOT NULL, description TEXT NOT NULL, iconUrl TEXT, level INTEGER NOT NULL, status TEXT NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL)');
+$pdo->exec('CREATE UNIQUE INDEX uq_badges_code ON badges(code)');
+$pdo->exec('CREATE TABLE badge_rule_definitions (id TEXT PRIMARY KEY, badgeId TEXT NOT NULL, ruleType TEXT NOT NULL, thresholdCriteria TEXT NOT NULL, version INTEGER NOT NULL, isActive INTEGER NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL)');
+$pdo->exec('CREATE UNIQUE INDEX uq_badge_rules_badge_version ON badge_rule_definitions(badgeId, version)');
+$pdo->exec('CREATE INDEX idx_badge_rules_active ON badge_rule_definitions(isActive, badgeId, version)');
+$pdo->exec('CREATE TABLE student_badges (id TEXT PRIMARY KEY, studentId TEXT NOT NULL, badgeId TEXT NOT NULL, ruleDefinitionId TEXT NOT NULL, awardedAt TEXT NOT NULL, awardedBy TEXT NOT NULL, awardContext TEXT NOT NULL)');
+$pdo->exec('CREATE UNIQUE INDEX uq_student_badges_award ON student_badges(studentId, badgeId)');
+$pdo->exec("INSERT INTO badges VALUES ('badge-a', 'first_experience', 'First Experience', 'experience', 'A badge', '/badge.svg', 1, 'active', '2026-08-01', '2026-08-01')");
+$pdo->exec("INSERT INTO badge_rule_definitions VALUES ('rule-a', 'badge-a', 'threshold', '{\"fact\":\"confirmed_experience_hours\",\"operator\":\"gte\",\"value\":1}', 1, 1, '2026-08-01', '2026-08-01')");
+$pdo->exec("INSERT INTO student_badges VALUES ('award-a', '{$studentA}', 'badge-a', 'rule-a', '2026-08-20', 'system', '{}')");
+$pdo->exec("INSERT INTO student_badges VALUES ('award-b', '{$studentB}', 'badge-a', 'rule-a', '2026-08-21', 'system', '{}')");
+$passportWithBadge = $repo->aggregateForStudent($studentA);
+passport_data_assert($passportWithBadge['capabilities']['badges'] === true, 'Canonical badge capability is available');
+passport_data_assert(count($passportWithBadge['badges']) === 1, 'Only authenticated student badge is returned');
+passport_data_assert(($passportWithBadge['badges'][0]['code'] ?? null) === 'first_experience', 'Canonical badge code is mapped');
+passport_data_assert(($passportWithBadge['badges'][0]['icon_url'] ?? null) === '/badge.svg', 'Canonical badge icon alias is mapped');
+passport_data_assert(($passportWithBadge['badges'][0]['awarded_at'] ?? null) === '2026-08-20', 'Canonical award timestamp is mapped');
+passport_data_assert(!str_contains(json_encode($passportWithBadge), '2026-08-21'), 'Foreign learner badge metadata does not leak');
+
+$passportSource = file_get_contents(dirname(__DIR__) . '/app/learner/data/Database/DatabaseTalentPassportRepository.php') ?: '';
+passport_data_assert(!str_contains($passportSource, 'SELECT b.*'), 'Badge passport query lists explicit canonical columns');
+passport_data_assert(!preg_match('/status\(\$inspector, \'badges\'\).*?catch \(Throwable\)/s', $passportSource), 'Available badge capability does not catch-and-empty database failures');
+
 echo "learner_talent_passport_data_test: OK\n";

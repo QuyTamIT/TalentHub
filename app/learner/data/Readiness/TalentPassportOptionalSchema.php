@@ -44,17 +44,21 @@ final class TalentPassportOptionalSchema
                 ],
             ],
             'badges' => [
-                'tables' => ['badges', 'student_badges'],
+                'tables' => ['badges', 'badge_rule_definitions', 'student_badges'],
                 'columns' => [
                     'badges' => [
-                        'id', 'code', 'name', 'category', 'description', 'iconUrl', 'level', 'status', 'createdAt',
+                        'id', 'code', 'name', 'category', 'description', 'iconUrl', 'level', 'status', 'createdAt', 'updatedAt',
+                    ],
+                    'badge_rule_definitions' => [
+                        'id', 'badgeId', 'ruleType', 'thresholdCriteria', 'version', 'isActive', 'createdAt', 'updatedAt',
                     ],
                     'student_badges' => [
-                        'id', 'studentId', 'badgeId', 'awardedAt', 'awardedBy', 'awardContext',
+                        'id', 'studentId', 'badgeId', 'ruleDefinitionId', 'awardedAt', 'awardedBy', 'awardContext',
                     ],
                 ],
                 'indexes' => [
                     'badges' => ['uq_badges_code'],
+                    'badge_rule_definitions' => ['uq_badge_rules_badge_version', 'idx_badge_rules_active'],
                     'student_badges' => ['uq_student_badges_award'],
                 ],
             ],

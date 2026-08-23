@@ -5,13 +5,22 @@ declare(strict_types=1);
 namespace TalentHub\Modules\Teacher\Repository;
 
 use PDO;
-use PDOException;
+use TalentHub\Learner\Data\Database\DatabaseBadgeRepository;
+use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
+use TalentHub\Learner\Data\Database\DatabaseStatisticsRepository;
+use TalentHub\Learner\Data\Service\BadgeAwardService;
+use TalentHub\Learner\Data\Service\BadgeRuleEngine;
+use TalentHub\Learner\Data\Service\NotificationService;
 use TalentHub\Modules\Teacher\Exception\TeacherGradingConflictException;
 use TalentHub\Support\Uuid;
+use Throwable;
 
 final class TeacherGradingRepository
 {
-    public function __construct(private readonly PDO $pdo) {}
+    public function __construct(
+        private readonly PDO $pdo,
+        private readonly ?BadgeAwardService $badgeAwardService = null
+    ) {}
 
     /** @return array<string,mixed>|null */
     public function findTeacherByUserId(string $userId): ?array
@@ -214,11 +223,11 @@ final class TeacherGradingRepository
             }
 
             // Keep VALUES(score) for MariaDB compatibility; newer MySQL versions deprecate this syntax.
-            $scoreStatement = $this->pdo->prepare(
-                'INSERT INTO assessment_scores (id, assessmentId, criteriaId, score)
-                 VALUES (?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE score = VALUES(score)'
-            );
+            $isSqlite = ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite');
+            $scoreSql = $isSqlite
+                ? 'INSERT INTO assessment_scores (id, assessmentId, criteriaId, score) VALUES (?, ?, ?, ?) ON CONFLICT(assessmentId, criteriaId) DO UPDATE SET score = excluded.score'
+                : 'INSERT INTO assessment_scores (id, assessmentId, criteriaId, score) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE score = VALUES(score)';
+            $scoreStatement = $this->pdo->prepare($scoreSql);
             foreach ($criteriaScores as $criteriaScore) {
                 $scoreStatement->execute([
                     Uuid::v4(),
@@ -226,6 +235,10 @@ final class TeacherGradingRepository
                     $criteriaScore['criteriaId'],
                     $criteriaScore['score'],
                 ]);
+            }
+
+            if ($status === 'published' && $publishedAt !== null && $this->hasBadgesTable()) {
+                $this->getBadgeAwardService()->evaluateAndAward($studentId, 'system');
             }
 
             $this->pdo->commit();
@@ -261,7 +274,11 @@ final class TeacherGradingRepository
             $parameters[] = $assessmentId;
         }
 
-        $sql .= ' LIMIT 1 FOR UPDATE';
+        if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'sqlite') {
+            $sql .= ' LIMIT 1 FOR UPDATE';
+        } else {
+            $sql .= ' LIMIT 1';
+        }
         $statement = $this->pdo->prepare($sql);
         $statement->execute($parameters);
         $row = $statement->fetch();
@@ -282,7 +299,7 @@ final class TeacherGradingRepository
                AND registration.studentId = ?
                AND registration.status IN (\'approved\', \'attended\')
              LIMIT 1';
-        if ($forUpdate) {
+        if ($forUpdate && $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'sqlite') {
             $sql .= ' FOR UPDATE';
         }
 
@@ -293,8 +310,48 @@ final class TeacherGradingRepository
         return is_array($row) ? $row : null;
     }
 
-    private function isDuplicateKey(PDOException $exception): bool
+    private function isDuplicateKey(\PDOException $exception): bool
     {
         return (int) ($exception->errorInfo[1] ?? 0) === 1062;
+    }
+
+    private function getBadgeAwardService(): BadgeAwardService
+    {
+        if ($this->badgeAwardService !== null) {
+            return $this->badgeAwardService;
+        }
+
+        if (!class_exists('TalentHub\Learner\Data\Service\BadgeAwardService', false)) {
+            $root = dirname(__DIR__, 4);
+            require_once $root . '/app/learner/data/Contracts/BadgeRepository.php';
+            require_once $root . '/app/learner/data/Contracts/StatisticsRepository.php';
+            require_once $root . '/app/learner/data/Contracts/NotificationRepository.php';
+            require_once $root . '/app/learner/data/Domain/LevelProgression.php';
+            require_once $root . '/app/learner/data/Service/BadgeRuleEngine.php';
+            require_once $root . '/app/learner/data/Service/BadgeAwardService.php';
+            require_once $root . '/app/learner/data/Service/NotificationService.php';
+            require_once $root . '/app/learner/data/Database/AbstractDatabaseRepository.php';
+            require_once $root . '/app/learner/data/Database/DatabaseBadgeRepository.php';
+            require_once $root . '/app/learner/data/Database/DatabaseStatisticsRepository.php';
+            require_once $root . '/app/learner/data/Database/DatabaseNotificationRepository.php';
+        }
+
+        return new BadgeAwardService(
+            new DatabaseBadgeRepository($this->pdo),
+            new DatabaseStatisticsRepository($this->pdo),
+            new BadgeRuleEngine(),
+            new NotificationService(new DatabaseNotificationRepository($this->pdo))
+        );
+    }
+
+    private function hasBadgesTable(): bool
+    {
+        $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $stmt = $this->pdo->query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'badges' LIMIT 1");
+            return (bool) $stmt->fetchColumn();
+        }
+        $stmt = $this->pdo->query("SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'badges' LIMIT 1");
+        return (bool) $stmt->fetchColumn();
     }
 }

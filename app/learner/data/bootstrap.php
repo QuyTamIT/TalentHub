@@ -84,7 +84,15 @@ require_once $learnerDataRoot . '/Service/ActivityRegistrationService.php';
 require_once $learnerDataRoot . '/Service/LearnerCheckinService.php';
 require_once $learnerDataRoot . '/Service/LearnerAssessmentService.php';
 require_once $learnerDataRoot . '/Service/ApplicationCommandService.php';
-require_once $learnerDataRoot . '/Service/NotificationService.php';
+require_once $learnerDataRoot . '/Contracts/StatisticsRepository.php';
+require_once $learnerDataRoot . '/Contracts/BadgeRepository.php';
+require_once $learnerDataRoot . '/Domain/LevelProgression.php';
+require_once $learnerDataRoot . '/Service/BadgeRuleEngine.php';
+require_once $learnerDataRoot . '/Service/StatisticsService.php';
+require_once $learnerDataRoot . '/Service/BadgeAwardService.php';
+require_once $learnerDataRoot . '/Service/BadgeReadService.php';
+require_once $learnerDataRoot . '/Database/DatabaseStatisticsRepository.php';
+require_once $learnerDataRoot . '/Database/DatabaseBadgeRepository.php';
 require_once $learnerDataRoot . '/RepositoryFactory.php';
 require_once dirname($learnerDataRoot) . '/runtime/LearnerRuntime.php';
 

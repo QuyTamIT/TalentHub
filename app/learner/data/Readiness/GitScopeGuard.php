@@ -21,6 +21,7 @@ final class GitScopeGuard
         'tests/student_',
         'tests/phase_3_',
         'tests/phase_4_',
+        'tests/phase9_',
         'docs/superpowers/',
         'Database/migrations/',
         'Database/seeds/learner/',
@@ -43,6 +44,9 @@ final class GitScopeGuard
         'tests/teacher_activity_registration_page_contract_test.php',
         'tests/teacher_activity_registration_route_contract_test.php',
         'tests/teacher_activity_registration_transition_test.php',
+        'bin/run-badge-awards.php',
+        'src/Modules/School/Service/SchoolDashboardService.php',
+        'src/Modules/Teacher/Repository/TeacherGradingRepository.php',
     ];
     private const PROTECTED_PREFIXES = ['app/teacher/', 'app/school/', 'app/enterprise/', 'src/', 'api/'];
     private const ALWAYS_DENIED_EXACT_PATHS = ['.env'];

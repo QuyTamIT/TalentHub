@@ -124,7 +124,7 @@ Before creating any file, Task 1 must fail if that version or semantic equivalen
 | 6 | Assessment gaps and published evaluations | Phase 2 | Complete — APPROVED_PHASE_6 | History/evaluation tests passed |
 | 7 | Opportunity and application lifecycle | Phase 3 | Complete — APPROVED_PHASE_7 | Student/Enterprise MySQL lifecycle, ownership, rollback and final independent review passed |
 | 8 | Notification Center and preferences | Phases 4–7 producers | Complete — APPROVED_PHASE_8 | Owner/API/UI, producer rollback, MySQL concurrency, forward-validation, and disposable rehearsal passed |
-| 9 | Badges, levels, personal statistics | Phases 5–6 confirmed facts | Missing | Idempotency/aggregate tests |
+| 9 | Badges, levels, personal statistics | Phases 5–6 confirmed facts | Complete — APPROVED_PHASE_9 | Exact migration, deterministic backfill/replay, owner APIs/UI, rollback, concurrency and disposable rehearsal passed |
 | 10 | UI, accessibility, errors, security hardening | Stable APIs from 2–9 | Partial | UI/a11y/security matrix |
 | 11 | Four-role release rehearsal | Phases 0–10 | Blocked | Full MySQL E2E and checklist |
 | 12 | Shadow evaluation and visible-pilot decision | Phase 11 | Model-visible blocked | Separate approval gate |
@@ -654,13 +654,13 @@ Supported v1 producer events: registration created/cancelled/promoted/approved/r
 
 V1 rule inputs are allow-listed confirmed facts only: confirmed experience hours, attended activity count, submitted assessment-type count, and published Teacher evaluation count. The engine cannot execute SQL or arbitrary expressions from rule JSON.
 
-- [ ] Write failing valid/invalid rule schema, duplicate award, cross-student, confirmed-only, boundary, and aggregate-date tests.
-- [ ] Apply rule-definition migration after rehearsal; preserve existing `badges` and `student_badges`.
-- [ ] Award with unique `(studentId,badgeId)` inside a transaction and publish notification once.
-- [ ] Calculate levels from a versioned configuration; do not infer from UI clicks.
-- [ ] Provide weekly/monthly personal statistics using current `studentId`; no default school ranking.
-- [ ] Run Dashboard, AI sources, School analytics, and notification regressions.
-- [ ] Commit engine/award separately from statistics/UI.
+- [x] Write failing valid/invalid rule schema, duplicate award, cross-student, confirmed-only, boundary, and aggregate-date tests.
+- [x] Apply rule-definition migration after rehearsal; preserve all pre-existing tables and rows.
+- [x] Award with unique `(studentId,badgeId)` inside a transaction and publish notification once.
+- [x] Calculate levels from a versioned configuration; do not infer from UI clicks.
+- [x] Provide weekly/monthly personal statistics using current `studentId`; no default school ranking.
+- [x] Run Dashboard, AI sources, School analytics, and notification regressions.
+- [x] Preserve the requested no-commit handoff; Phase 9 remains reviewable as one worktree delta.
 
 **Phase 9 exit:** reruns cannot duplicate awards; only confirmed facts contribute; all statistics are owner-scoped.
 
@@ -892,9 +892,9 @@ Status: Phase 0 runtime audit found the live database authoritative schema diffe
 - **Owning Service / Phase:** `BadgeAwardService` / Phase 9
 - **Dependency Order:** Depends on confirmed activity, assessment, and evidence events from Phases 3–6.
 - **Tables and Columns:**
-  - `badges`: `id` CHAR(36) PK, `code` VARCHAR(64) NOT NULL, `name` VARCHAR(255) NOT NULL, `category` VARCHAR(64) NOT NULL, `description` TEXT NOT NULL, `iconUrl` VARCHAR(500) NULL, `level` INT NOT NULL DEFAULT 1, `status` VARCHAR(32) NOT NULL DEFAULT 'active', `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP.
-  - `student_badges`: `id` CHAR(36) PK, `studentId` CHAR(36) NOT NULL, `badgeId` CHAR(36) NOT NULL, `awardedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, `awardedBy` VARCHAR(64) NOT NULL DEFAULT 'system', `awardContext` JSON NULL.
-  - `badge_rule_definitions`: `id` CHAR(36) PK, `badgeId` CHAR(36) NOT NULL, `ruleType` VARCHAR(64) NOT NULL, `thresholdCriteria` JSON NOT NULL, `version` INT NOT NULL DEFAULT 1, `isActive` TINYINT(1) NOT NULL DEFAULT 1.
+  - `badges`: canonical catalog columns through `updatedAt`, unique `code`, exact level/status checks.
+  - `student_badges`: unique `(studentId,badgeId)`, required `ruleDefinitionId`, `awardedAt`, `awardedBy`, and non-null JSON `awardContext`.
+  - `badge_rule_definitions`: versioned threshold JSON, one unique `(badgeId,version)`, active-rule index, and exact FK/check contracts.
 - **Essential Foreign Keys:**
   - `student_badges.studentId` -> `student_profiles(id)` ON DELETE RESTRICT
   - `student_badges.badgeId` -> `badges(id)` ON DELETE RESTRICT

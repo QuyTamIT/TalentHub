@@ -341,16 +341,22 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
 
         if (TalentPassportOptionalSchema::status($inspector, 'badges') === 'available') {
             $capabilities['badges'] = true;
-            try {
-                $badges = $this->fetchAll(
-                    'badges',
-                    'SELECT b.*, sb.awardedAt FROM badges b INNER JOIN student_badges sb ON sb.badgeId = b.id WHERE sb.studentId = :student_id ORDER BY sb.awardedAt DESC',
-                    ['student_id' => $studentId]
-                );
-            } catch (Throwable) {
-                $capabilities['badges'] = false;
-                $badges = [];
-            }
+            $badges = $this->fetchAll(
+                'badges',
+                <<<'SQL'
+                    SELECT b.id, b.code, b.name, b.category, b.description,
+                           b.iconUrl AS icon_url, b.level, b.status,
+                           sb.ruleDefinitionId AS rule_definition_id,
+                           sb.awardedAt AS awarded_at,
+                           sb.awardedBy AS awarded_by,
+                           sb.awardContext AS award_context
+                    FROM badges b
+                    INNER JOIN student_badges sb ON sb.badgeId = b.id
+                    WHERE sb.studentId = :student_id
+                    ORDER BY sb.awardedAt DESC, b.code ASC
+                SQL,
+                ['student_id' => $studentId]
+            );
         }
 
         return [

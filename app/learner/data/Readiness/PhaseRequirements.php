@@ -95,7 +95,7 @@ final class PhaseRequirements
                 'certificates' => ['idx_certificates_student_status'],
                 'project_members' => ['uq_project_members_student'],
             ], [
-                'badges' => ['badges', 'student_badges'],
+                'badges' => ['badges', 'badge_rule_definitions', 'student_badges'],
             ], [
                 'student_profile_shares' => [[
                     'from' => 'consentId',
@@ -136,9 +136,9 @@ final class PhaseRequirements
             8 => $this->definition(true, [], ['notifications', 'learner_notification_preferences'], [
                 'notifications' => ['id', 'userId'], 'learner_notification_preferences' => ['studentId', 'notificationType'],
             ]),
-            9 => $this->definition(true, [], ['badges', 'student_badges', 'experience_logs'], [
-                'badges' => ['id'], 'student_badges' => ['studentId', 'badgeId'], 'experience_logs' => ['studentId'],
-            ], ['student_badges' => ['uq_student_badges_student_badge']]),
+            9 => $this->definition(true, [], ['badges', 'badge_rule_definitions', 'student_badges', 'experience_logs'], [
+                'badges' => ['id'], 'badge_rule_definitions' => ['id', 'badgeId'], 'student_badges' => ['studentId', 'badgeId'], 'experience_logs' => ['studentId'],
+            ], ['student_badges' => ['uq_student_badges_award']]),
             10 => $this->definition(true, [], ['learner_forward_migrations'], ['learner_forward_migrations' => ['version', 'name', 'checksum', 'description', 'appliedAt']]),
             11 => $this->definition(true, [], ['learner_forward_migrations'], ['learner_forward_migrations' => ['version', 'name', 'checksum', 'description', 'appliedAt']]),
         ];

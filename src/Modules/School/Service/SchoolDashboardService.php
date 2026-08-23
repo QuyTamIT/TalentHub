@@ -1037,8 +1037,9 @@ final class SchoolDashboardService
     private function buildAwardsRows(string $schoolId): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT u.fullName, sb.sourceEvent, sb.awardedAt
+            'SELECT u.fullName, COALESCE(b.name, b.code, \'Huy hiệu\') AS badgeName, sb.awardedAt
              FROM student_badges sb
+             LEFT JOIN badges b ON b.id = sb.badgeId
              JOIN student_profiles sp ON sp.id = sb.studentId
              JOIN users u ON u.id = sp.userId
              JOIN classes c ON c.id = sp.classId
@@ -1047,11 +1048,11 @@ final class SchoolDashboardService
         );
         $stmt->execute(['schoolId' => $schoolId]);
         $rows = [];
-        $rows[] = ['student', 'sourceEvent', 'awardedAt'];
+        $rows[] = ['student', 'badge', 'awardedAt'];
         foreach ($stmt->fetchAll() as $row) {
             $rows[] = [
                 (string) $row['fullName'],
-                (string) $row['sourceEvent'],
+                (string) $row['badgeName'],
                 (string) $row['awardedAt'],
             ];
         }
