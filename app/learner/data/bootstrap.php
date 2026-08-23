@@ -22,6 +22,7 @@ require_once $learnerDataRoot . '/Enums/Statuses.php';
 require_once $learnerDataRoot . '/Exceptions/LearnerDataConfigurationException.php';
 require_once $learnerDataRoot . '/Exceptions/LearnerDataMappingException.php';
 require_once $learnerDataRoot . '/Exceptions/LearnerDataQueryException.php';
+require_once $learnerDataRoot . '/Security/PersistentActionRateLimiter.php';
 require_once $learnerDataRoot . '/Support/KeyMapper.php';
 require_once $learnerDataRoot . '/Support/Uuid.php';
 require_once $learnerDataRoot . '/Support/MockRecordNormalizer.php';

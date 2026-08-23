@@ -11,6 +11,7 @@ use TalentHub\Http\ApiException;
 use TalentHub\Http\Request;
 use TalentHub\Learner\Api\JsonResponder;
 use TalentHub\Learner\Api\LearnerApiContext;
+use TalentHub\Learner\Data\Security\PersistentActionRateLimiter;
 use TalentHub\Learner\Data\Database\DatabaseApplicationCommandRepository;
 use TalentHub\Learner\Data\Service\ApplicationCommandService;
 
@@ -40,6 +41,11 @@ try {
         if ($action === 'submit') {
             $identity = $context->studentIdentityForPermissions(['internship_application.create_own']);
             $input = $context->allowedInput($raw, ['action', 'postId', 'message']);
+            (new PersistentActionRateLimiter($context->pdo()))->consume(
+                'learner.application',
+                $identity['student_id'],
+                is_string($_SERVER['REMOTE_ADDR'] ?? null) ? $_SERVER['REMOTE_ADDR'] : null,
+            );
             $application = $service->submit($identity['student_id'], $identity['user_id'], $context->requestId(), (string) ($input['postId'] ?? ''), (string) ($input['message'] ?? ''));
             JsonResponder::sendSuccess(['application' => $application], $context->requestId(), 201);
         }

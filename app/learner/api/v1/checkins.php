@@ -11,6 +11,7 @@ use TalentHub\Http\Request;
 use TalentHub\Learner\Api\JsonResponder;
 use TalentHub\Learner\Api\LearnerApiContext;
 use TalentHub\Learner\Data\Database\DatabaseCheckinRepository;
+use TalentHub\Learner\Data\Security\PersistentActionRateLimiter;
 use TalentHub\Learner\Data\Service\LearnerCheckinService;
 
 $context = null;
@@ -23,6 +24,11 @@ try {
     if ($method === 'POST') {
         $context->mutation($request->header('x-csrf-token'));
         $identity = $context->studentIdentityForPermissions(['checkin.create_own']);
+        (new PersistentActionRateLimiter($context->pdo()))->consume(
+            'learner.checkin',
+            $identity['student_id'],
+            is_string($_SERVER['REMOTE_ADDR'] ?? null) ? $_SERVER['REMOTE_ADDR'] : null,
+        );
         $input = $context->allowedInput($request->json(), ['token']);
         $rawToken = $input['token'] ?? null;
         unset($input['token'], $input, $request);
