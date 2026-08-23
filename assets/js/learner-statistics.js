@@ -5,6 +5,21 @@
     let activeController = null;
     let requestSequence = 0;
 
+    function createStatisticsClient() {
+        if (!global.TalentHubLearnerApi) return null;
+        const bootNode = document.getElementById('learner-session-boot');
+        let csrfToken = '';
+        try {
+            csrfToken = JSON.parse(bootNode?.textContent || '{}').csrfToken || '';
+        } catch {
+            csrfToken = '';
+        }
+        return global.TalentHubLearnerApi.createLearnerApiClient({
+            baseUrl: '/app/learner/api/v1',
+            csrfToken,
+        });
+    }
+
     function setStatus(message) {
         const status = document.querySelector('[data-statistics-status]');
         if (status) status.textContent = message;
@@ -68,7 +83,7 @@
         setStatus(`Đang hiển thị thống kê ${label}.`);
     }
 
-    async function loadPeriod(period) {
+    async function loadPeriod(period, client = null) {
         if (!['week', 'month'].includes(period)) return;
         if (activeController) activeController.abort();
         const controller = new AbortController();
@@ -77,23 +92,19 @@
         setStatus('Đang tải thống kê đã xác nhận…');
 
         try {
-            const response = await global.fetch(`/app/learner/api/v1/statistics.php?period=${encodeURIComponent(period)}`, {
-                method: 'GET',
-                credentials: 'same-origin',
-                headers: { Accept: 'application/json' },
+            const api = client || createStatisticsClient();
+            if (!api) throw new Error('STATISTICS_API_UNAVAILABLE');
+            const data = await api.get(`/statistics.php?period=${encodeURIComponent(period)}`, {
                 signal: controller.signal,
             });
-            const payload = await response.json();
-            if (!response.ok || !payload || typeof payload.data !== 'object') {
-                throw new Error('INVALID_STATISTICS_RESPONSE');
-            }
+            if (!data || typeof data !== 'object') throw new Error('INVALID_STATISTICS_RESPONSE');
             if (sequence !== requestSequence) return;
-            renderStatistics(payload.data);
+            renderStatistics(data);
             const url = new URL(global.location.href);
             url.searchParams.set('period', period);
             global.history.replaceState({}, '', url.toString());
         } catch (error) {
-            if (error?.name === 'AbortError' || sequence !== requestSequence) return;
+            if (error?.code === 'REQUEST_ABORTED' || sequence !== requestSequence) return;
             setStatus('Không thể tải thống kê. Vui lòng chọn lại khoảng thời gian để thử lại.');
         } finally {
             if (activeController === controller) activeController = null;
@@ -117,6 +128,6 @@
         }
     }
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { loadPeriod, renderStatistics };
+        module.exports = { createStatisticsClient, loadPeriod, renderStatistics };
     }
 })(typeof window !== 'undefined' ? window : globalThis);

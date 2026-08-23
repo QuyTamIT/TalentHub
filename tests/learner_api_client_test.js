@@ -17,6 +17,23 @@ test('GET returns response data and sends same-origin credentials', async () => 
   assert.equal(calls[0].options.headers.Accept, 'application/json');
 });
 
+test('one safe request ID is preserved across retries of the same logical GET', async () => {
+  const requestIds = [];
+  const client = createLearnerApiClient({
+    retryDelayMs: 0,
+    fetchImpl: async (url, options) => {
+      requestIds.push(options.headers['X-Request-ID']);
+      if (requestIds.length === 1) throw new Error('temporary network failure');
+      return { ok: true, status: 200, json: async () => ({ data: { ok: true } }) };
+    },
+  });
+
+  await client.get('/students/me');
+  assert.equal(requestIds.length, 2);
+  assert.match(requestIds[0], /^[A-Za-z0-9_-]{16,64}$/);
+  assert.equal(requestIds[1], requestIds[0]);
+});
+
 test('PATCH sends JSON and CSRF token', async () => {
   let request;
   const client = createLearnerApiClient({
@@ -210,4 +227,139 @@ test('malformed successful envelopes produce safe client errors', async () => {
       return true;
     });
   }
+});
+
+test('caller abort cancels the request and returns a normalized abort error', async () => {
+  const caller = new AbortController();
+  const client = createLearnerApiClient({
+    fetchImpl: async (url, options) => new Promise((resolve, reject) => {
+      options.signal.addEventListener('abort', () => {
+        const error = new Error('aborted');
+        error.name = 'AbortError';
+        reject(error);
+      }, { once: true });
+    }),
+  });
+
+  const request = client.get('/students/me', { signal: caller.signal });
+  caller.abort();
+  await assert.rejects(request, error => {
+    assert.ok(error instanceof LearnerApiError);
+    assert.equal(error.code, 'REQUEST_ABORTED');
+    return true;
+  });
+});
+
+test('request timeout aborts a hanging request with a recoverable timeout error', async () => {
+  const client = createLearnerApiClient({
+    timeoutMs: 5,
+    getRetryCount: 0,
+    fetchImpl: async (url, options) => new Promise((resolve, reject) => {
+      options.signal.addEventListener('abort', () => {
+        const error = new Error('aborted');
+        error.name = 'AbortError';
+        reject(error);
+      }, { once: true });
+    }),
+  });
+
+  await assert.rejects(client.get('/students/me'), error => {
+    assert.ok(error instanceof LearnerApiError);
+    assert.equal(error.code, 'REQUEST_TIMEOUT');
+    return true;
+  });
+});
+
+test('request timeout remains active while the response body is being decoded', async () => {
+  const client = createLearnerApiClient({
+    timeoutMs: 5,
+    getRetryCount: 0,
+    fetchImpl: async (url, options) => ({
+      ok: true,
+      status: 200,
+      json: async () => new Promise((resolve, reject) => {
+        options.signal.addEventListener('abort', () => {
+          const error = new Error('aborted');
+          error.name = 'AbortError';
+          reject(error);
+        }, { once: true });
+      }),
+    }),
+  });
+
+  const guarded = Promise.race([
+    client.get('/students/me'),
+    new Promise((resolve, reject) => setTimeout(() => reject(new Error('BODY_TIMEOUT_NOT_ENFORCED')), 40)),
+  ]);
+  await assert.rejects(guarded, error => {
+    assert.equal(error.code, 'REQUEST_TIMEOUT');
+    return true;
+  });
+});
+
+test('GET retries one temporary network failure but mutations are never retried', async () => {
+  let getCalls = 0;
+  const getClient = createLearnerApiClient({
+    retryDelayMs: 0,
+    fetchImpl: async () => {
+      getCalls += 1;
+      if (getCalls === 1) throw new Error('network down');
+      return { ok: true, status: 200, json: async () => ({ data: { recovered: true } }) };
+    },
+  });
+  assert.deepEqual(await getClient.get('/students/me'), { recovered: true });
+  assert.equal(getCalls, 2);
+
+  let mutationCalls = 0;
+  const mutationClient = createLearnerApiClient({
+    retryDelayMs: 0,
+    fetchImpl: async () => {
+      mutationCalls += 1;
+      throw new Error('network down');
+    },
+  });
+  await assert.rejects(mutationClient.send('PATCH', '/students/me', { fullName: 'A' }), error => {
+    assert.equal(error.code, 'NETWORK_ERROR');
+    return true;
+  });
+  assert.equal(mutationCalls, 1);
+});
+
+test('429 responses expose a safe numeric retry-after value without auto retry', async () => {
+  let calls = 0;
+  const client = createLearnerApiClient({
+    fetchImpl: async () => {
+      calls += 1;
+      return {
+        ok: false,
+        status: 429,
+        headers: { get: name => name.toLowerCase() === 'retry-after' ? '30' : null },
+        json: async () => ({ error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Vui lòng thử lại sau.' } }),
+      };
+    },
+  });
+
+  await assert.rejects(client.get('/students/me'), error => {
+    assert.ok(error instanceof LearnerApiError);
+    assert.equal(error.status, 429);
+    assert.equal(error.retryAfter, 30);
+    return true;
+  });
+  assert.equal(calls, 1);
+});
+
+test('a caller can explicitly disable GET retry for freshness-sensitive reads', async () => {
+  let calls = 0;
+  const client = createLearnerApiClient({
+    retryDelayMs: 0,
+    fetchImpl: async () => {
+      calls += 1;
+      throw new Error('network down');
+    },
+  });
+  await assert.rejects(client.get('/students/me', { retryCount: 0 }), error => {
+    assert.equal(error.code, 'NETWORK_ERROR');
+    return true;
+  });
+  assert.equal(calls, 1);
 });

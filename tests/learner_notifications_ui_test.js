@@ -33,6 +33,11 @@ for (const pattern of dangerousPatterns) {
 }
 console.log('  [PASS] Static security audit: Zero unsafe innerHTML or dynamic execution patterns found.');
 assert.strictEqual(jsCode.includes('.innerHTML'), false, 'Notification UI uses DOM replacement APIs, not innerHTML');
+assert.strictEqual(jsCode.includes('TalentHubLearnerApi.createLearnerApiClient'), true, 'Notification UI uses the shared learner API client');
+assert.strictEqual(/\bfetch\s*\(/.test(jsCode), false, 'Notification UI does not bypass the shared learner API client');
+assert.strictEqual(jsCode.includes('new AbortController()'), true, 'Notification list requests are cancellable');
+assert.strictEqual(jsCode.includes('listRequestSequence'), true, 'Stale notification responses cannot overwrite the active filter');
+assert.strictEqual(jsCode.includes("error?.code === 'REQUEST_ABORTED'"), true, 'Aborted notification requests do not render an error state');
 assert.strictEqual(learnerShellCode.includes('Bạn có 3 thông báo mới'), false, 'Global learner shell contains no fake unread notification');
 assert.strictEqual(headerCode.includes('learner-notifications.js'), true, 'Notification badge controller is loaded on every learner page through the shared header');
 assert.strictEqual(pageCode.includes('chưa gửi email trong v1'), true, 'Preference UI discloses that Phase 8 does not send email');
@@ -172,32 +177,26 @@ assert.strictEqual(
 
 (async () => {
     let captured = null;
-    global.fetch = async (endpoint, options) => {
-        captured = { endpoint, options };
-        return {
-            ok: true,
-            status: 200,
-            async json() {
-                return { success: true, data: { unreadCount: 0 } };
-            },
-        };
+    const client = {
+        async send(method, endpoint, body) {
+            captured = { method, endpoint, body };
+            return { unreadCount: 0 };
+        },
+        async get(endpoint) {
+            captured = { method: 'GET', endpoint };
+            return { unreadCount: 0 };
+        },
     };
     await apiRequest('/app/learner/api/v1/notifications.php', 'PATCH', {
         action: 'mark-read',
         notificationId: '11111111-1111-4111-8111-111111111111',
-    });
-    assert.strictEqual(captured.endpoint, '/app/learner/api/v1/notifications.php');
-    assert.strictEqual(JSON.parse(captured.options.body).action, 'mark-read', 'PATCH action is sent in JSON body');
+    }, client);
+    assert.strictEqual(captured.endpoint, '/notifications.php');
+    assert.strictEqual(captured.body.action, 'mark-read', 'PATCH action is sent in JSON body');
 
-    global.fetch = async () => ({
-        ok: false,
-        status: 422,
-        async json() {
-            return { success: false, error: { code: 'VALIDATION_FAILED', message: 'bad request' } };
-        },
-    });
+    const failingClient = { async send() { throw new Error('VALIDATION_FAILED'); } };
     await assert.rejects(
-        () => apiRequest('/app/learner/api/v1/notifications.php', 'PATCH', { action: 'mark-all-read' }),
+        () => apiRequest('/app/learner/api/v1/notifications.php', 'PATCH', { action: 'mark-all-read' }, failingClient),
         /VALIDATION_FAILED/,
         'API error envelopes reject instead of silently succeeding'
     );

@@ -68,31 +68,27 @@
         return element;
     }
 
-    async function apiRequest(endpoint, method = 'GET', data = null) {
-        const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+    function createNotificationClient() {
+        if (!globalThis.TalentHubLearnerApi) return null;
         const csrfToken = getBootContext().csrfToken || '';
-        if (csrfToken !== '') headers['X-CSRF-Token'] = csrfToken;
+        return globalThis.TalentHubLearnerApi.createLearnerApiClient({
+            baseUrl: '/app/learner/api/v1',
+            csrfToken,
+        });
+    }
 
-        const options = { method, headers };
-        if (data !== null && ['POST', 'PATCH', 'PUT'].includes(method)) {
-            headers['Content-Type'] = 'application/json';
-            options.body = JSON.stringify(data);
+    async function apiRequest(endpoint, method = 'GET', data = null, client = null, requestOptions = {}) {
+        const prefix = '/app/learner/api/v1';
+        if (typeof endpoint !== 'string' || !endpoint.startsWith(`${prefix}/`)) {
+            throw new Error('INVALID_NOTIFICATION_ENDPOINT');
         }
-
-        const response = await fetch(endpoint, options);
-        let payload;
-        try {
-            payload = await response.json();
-        } catch (error) {
-            throw new Error(`HTTP_${response.status}`);
-        }
-        if (!response.ok || !payload || payload.success === false || payload.error) {
-            const code = payload && payload.error && payload.error.code
-                ? payload.error.code
-                : `HTTP_${response.status}`;
-            throw new Error(code);
-        }
-        return payload;
+        const api = client || createNotificationClient();
+        if (!api) throw new Error('NOTIFICATION_API_UNAVAILABLE');
+        const path = endpoint.slice(prefix.length);
+        const responseData = method === 'GET'
+            ? await api.get(path, requestOptions)
+            : await api.send(method, path, data, requestOptions);
+        return { data: responseData };
     }
 
     function formatTime(value) {
@@ -132,6 +128,8 @@
             this.preferenceModal = document.getElementById('learner-notification-prefs-modal');
             this.preferenceTrigger = document.getElementById('learner-open-prefs');
             this.lastFocusedElement = null;
+            this.listController = null;
+            this.listRequestSequence = 0;
             this.init();
         }
 
@@ -185,7 +183,12 @@
 
         async loadNotifications(append) {
             if (!this.list) return;
+            this.listController?.abort();
+            const controller = new AbortController();
+            this.listController = controller;
+            const sequence = ++this.listRequestSequence;
             const requestedOffset = append ? this.offset : 0;
+            const requestedFilter = this.filter;
             if (!append) {
                 this.list.replaceChildren(el('div', {
                     className: 'learner-notification-loading',
@@ -195,7 +198,14 @@
             if (this.loadMoreButton) this.loadMoreButton.disabled = true;
 
             try {
-                const response = await apiRequest(buildNotificationQuery(this.filter, this.limit, requestedOffset));
+                const response = await apiRequest(
+                    buildNotificationQuery(requestedFilter, this.limit, requestedOffset),
+                    'GET',
+                    null,
+                    null,
+                    { signal: controller.signal },
+                );
+                if (sequence !== this.listRequestSequence) return;
                 const data = response.data || {};
                 if (!Array.isArray(data.notifications) || !data.pagination) {
                     throw new Error('INVALID_RESPONSE');
@@ -210,9 +220,12 @@
                 this.renderBadge();
                 this.renderLoadMore();
             } catch (error) {
+                if (error?.code === 'REQUEST_ABORTED' || sequence !== this.listRequestSequence) return;
                 if (!append) this.renderListError();
                 else showToast('Không thể tải thêm thông báo.');
                 this.renderLoadMore();
+            } finally {
+                if (this.listController === controller) this.listController = null;
             }
         }
 
@@ -483,6 +496,7 @@
             isSafeDeepLink,
             normalizePreferences,
             buildNotificationQuery,
+            createNotificationClient,
             apiRequest,
             el,
             formatTime,

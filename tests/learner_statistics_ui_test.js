@@ -15,6 +15,8 @@ assert.doesNotMatch(page, /Xu hướng tham chiếu|Xếp hạng lớp|Điểm n
 assert.match(source, /new AbortController\(\)/, 'period requests are cancellable');
 assert.match(source, /sequence !== requestSequence/, 'stale period responses cannot overwrite newer data');
 assert.match(source, /activeController\.abort\(\)/, 'the previous period request is aborted');
+assert.match(source, /TalentHubLearnerApi\.createLearnerApiClient/, 'statistics uses the shared learner API client');
+assert.doesNotMatch(source, /global\.fetch\(|\bfetch\(/, 'statistics does not bypass the shared learner API client');
 assert.match(source, /Không thể tải thống kê/, 'request failures have a visible retry instruction');
 assert.match(source, /replaceChildren\(\)/, 'charts replace server-derived nodes safely');
 assert.doesNotMatch(source, /innerHTML|outerHTML|insertAdjacentHTML/, 'statistics never writes untrusted HTML');
