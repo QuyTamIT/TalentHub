@@ -9,13 +9,14 @@ require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
 require_once dirname(__DIR__, 3) . '/src/Bootstrap/EnterpriseAppContext.php';
 require_once __DIR__ . '/../includes/internships-data.php';
 require_once __DIR__ . '/../includes/applicants-data.php';
-require_once __DIR__ . '/../includes/talents-data.php';
 
 use TalentHub\Bootstrap\EnterpriseAppContext;
 
 $context = (new EnterpriseAppContext())->boot();
 $user       = $context['user'];
 $enterprise = $context['enterprise'];
+$context['permissions']->require((string) $user['id'], 'internship_application.read_own_business');
+$context['permissions']->require((string) $user['id'], 'internship_application.read_cv_own_business');
 
 if (!function_exists('getInitials')) {
     function getInitials(string $name): string {
@@ -40,10 +41,44 @@ $enterpriseInfo = [
     'total_talents'     => 1247,
 ];
 
-$postId = isset($_GET['postId']) ? intval($_GET['postId']) : 1;
-$post = getMockInternshipById($postId);
-$applicants = getMockApplicantsByPostId($postId);
-$pipelineCounts = getApplicantPipelineCounts($postId);
+$internshipService = $context['internships'];
+$postId = isset($_GET['postId']) ? trim((string) $_GET['postId']) : '';
+$validPostId = \TalentHub\Support\Uuid::isValid($postId);
+$postRaw = $validPostId
+    ? $internshipService->post((string) $user['id'], $postId)
+    : ['id' => '', 'title' => 'Chưa chọn tin tuyển dụng', 'status' => 'closed', 'field' => '', 'workType' => '', 'deadline' => '', 'slots' => 0];
+$post = $postRaw + [
+    'status_label' => ['draft' => 'Bản nháp', 'active' => 'Đang tuyển', 'closed' => 'Đã đóng', 'cancelled' => 'Đã hủy'][$postRaw['status']] ?? $postRaw['status'],
+    'work_type' => $postRaw['workType'] ?? '',
+];
+$applicants = [];
+foreach ($validPostId ? $internshipService->listApplications((string) $user['id'])['items'] : [] as $item) {
+    if ((string) $item['postId'] !== $postId) { continue; }
+    $detail = $internshipService->application((string) $user['id'], (string) $item['id']);
+    $snapshot = is_array($detail['snapshot'] ?? null) ? $detail['snapshot'] : [];
+    $studentSnapshot = is_array($snapshot['student'] ?? null) ? $snapshot['student'] : [];
+    $skillRows = is_array($snapshot['skills'] ?? null) ? $snapshot['skills'] : [];
+    $skillNames = array_values(array_filter(array_map(static fn ($skill): string => is_array($skill) ? (string) ($skill['skillName'] ?? '') : '', $skillRows)));
+    $name = (string) ($studentSnapshot['fullName'] ?? 'Ứng viên');
+    $parts = preg_split('/\s+/u', trim($name)) ?: [];
+    $initials = $parts === [] ? 'UV' : mb_strtoupper(mb_substr($parts[0], 0, 1) . mb_substr($parts[count($parts) - 1], 0, 1));
+    $statusLabels = ['submitted' => 'Đã nộp', 'reviewing' => 'Đang xem xét', 'interview' => 'Phỏng vấn', 'accepted' => 'Đã nhận', 'declined' => 'Từ chối', 'withdrawn' => 'Đã rút'];
+    $applicants[] = [
+        'id' => $detail['id'], 'post_id' => $detail['postId'], 'student_id' => $detail['studentId'],
+        'name' => $name, 'avatar_initials' => $initials, 'school' => $studentSnapshot['schoolName'] ?? '',
+        'class_code' => $studentSnapshot['className'] ?? '', 'education_level' => $studentSnapshot['studyStatus'] ?? '',
+        'location' => $studentSnapshot['location'] ?? '', 'status' => $detail['status'],
+        'status_label' => $statusLabels[$detail['status']] ?? $detail['status'], 'applied_at' => $detail['appliedAt'],
+        'reviewer_note' => $detail['reviewerNote'] ?? '', 'experience_hours' => $snapshot['experience']['totalConfirmedHours'] ?? 0,
+        'main_skills' => $skillNames, 'matching_skills' => [], 'missing_requirements' => [], 'match_score' => null,
+        'snapshot' => $snapshot,
+    ];
+}
+$pipelineCounts = ['all' => count($applicants), 'submitted' => 0, 'reviewing' => 0, 'interview' => 0, 'accepted' => 0, 'declined' => 0];
+foreach ($applicants as $applicant) {
+    $bucket = in_array($applicant['status'], ['submitted', 'reviewing', 'interview', 'accepted', 'declined'], true) ? $applicant['status'] : null;
+    if ($bucket !== null) { $pipelineCounts[$bucket]++; }
+}
 
 $pageTitle = 'Quản lý ứng viên';
 $currentRoute = '/app/enterprise/internships/';
@@ -221,9 +256,9 @@ $sidebarNav = [
                                         </button>
                                     </li>
                                     <li>
-                                        <button type="button" class="ent-pipeline-tab" data-status-filter="new">
+                                        <button type="button" class="ent-pipeline-tab" data-status-filter="submitted">
                                             <span>Mới</span>
-                                            <span class="ent-pipeline-tab__count"><?= $pipelineCounts['new']; ?></span>
+                                            <span class="ent-pipeline-tab__count"><?= $pipelineCounts['submitted']; ?></span>
                                         </button>
                                     </li>
                                     <li>
@@ -233,9 +268,9 @@ $sidebarNav = [
                                         </button>
                                     </li>
                                     <li>
-                                        <button type="button" class="ent-pipeline-tab" data-status-filter="interviewing">
+                                        <button type="button" class="ent-pipeline-tab" data-status-filter="interview">
                                             <span>Phỏng vấn</span>
-                                            <span class="ent-pipeline-tab__count"><?= $pipelineCounts['interviewing']; ?></span>
+                                            <span class="ent-pipeline-tab__count"><?= $pipelineCounts['interview']; ?></span>
                                         </button>
                                     </li>
                                     <li>
@@ -245,9 +280,9 @@ $sidebarNav = [
                                         </button>
                                     </li>
                                     <li>
-                                        <button type="button" class="ent-pipeline-tab" data-status-filter="rejected">
+                                        <button type="button" class="ent-pipeline-tab" data-status-filter="declined">
                                             <span>Từ chối</span>
-                                            <span class="ent-pipeline-tab__count"><?= $pipelineCounts['rejected']; ?></span>
+                                            <span class="ent-pipeline-tab__count"><?= $pipelineCounts['declined']; ?></span>
                                         </button>
                                     </li>
                                 </ul>
@@ -274,11 +309,11 @@ $sidebarNav = [
                                     <div class="ent-filter-select-wrapper">
                                         <select id="filter-app-status-select" class="ent-filter-select">
                                             <option value="">Tất cả trạng thái</option>
-                                            <option value="new">Mới</option>
+                                            <option value="submitted">Mới</option>
                                             <option value="reviewing">Đang xem xét</option>
-                                            <option value="interviewing">Phỏng vấn</option>
+                                            <option value="interview">Phỏng vấn</option>
                                             <option value="accepted">Đã nhận</option>
-                                            <option value="rejected">Từ chối</option>
+                                            <option value="declined">Từ chối</option>
                                         </select>
                                     </div>
 
@@ -374,28 +409,28 @@ $sidebarNav = [
                         <div class="ats-drawer-submeta" id="drawer-app-school">
                             <span id="drawer-app-school-text"></span>
                             <span class="ats-meta-divider" id="drawer-app-loc-divider">&bull;</span>
-                            <span id="drawer-app-location-text">Hà Nội</span>
+                            <span id="drawer-app-location-text">Chưa có dữ liệu</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="ats-drawer-header-actions">
                     <div class="ats-header-links">
-                        <a href="#" id="btn-drawer-passport" class="ats-action-btn ats-action-btn--passport" target="_blank" title="Xem hồ sơ Talent Passport đầy đủ">
+                        <a href="#" id="btn-drawer-passport" class="ats-action-btn ats-action-btn--passport" title="Xem hồ sơ bất biến đã chụp khi ứng tuyển">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <rect x="3" y="4" width="18" height="16" rx="2"></rect>
                                 <circle cx="9" cy="10" r="2"></circle>
                                 <line x1="15" y1="8" x2="17" y2="8"></line>
                                 <line x1="15" y1="12" x2="17" y2="12"></line>
                             </svg>
-                            <span>Talent Passport</span>
+                            <span>Hồ sơ đã chụp</span>
                         </a>
                         <button type="button" id="btn-drawer-cv" class="ats-action-btn ats-action-btn--cv" title="Xem bản CV đính kèm">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                                 <polyline points="14 2 14 8 20 8"></polyline>
                             </svg>
-                            <span>Xem CV</span>
+                            <span>Xem hồ sơ</span>
                         </button>
                     </div>
                     <button type="button" class="ent-drawer-close ats-close-btn" id="ent-drawer-close" aria-label="Đóng bảng chi tiết">&times;</button>
@@ -414,12 +449,12 @@ $sidebarNav = [
                     <div class="ats-snapshot-divider"></div>
                     <div class="ats-snapshot-item">
                         <span class="ats-snapshot-label">Kinh nghiệm</span>
-                        <span class="ats-snapshot-value" id="drawer-snapshot-exp">120h thực án</span>
+                        <span class="ats-snapshot-value" id="drawer-snapshot-exp">Chưa có dữ liệu</span>
                     </div>
                     <div class="ats-snapshot-divider"></div>
                     <div class="ats-snapshot-item">
                         <span class="ats-snapshot-label">Độ phù hợp</span>
-                        <span class="ats-snapshot-value ats-snapshot-value--score" id="drawer-snapshot-score">95%</span>
+                        <span class="ats-snapshot-value ats-snapshot-value--score" id="drawer-snapshot-score">Chưa có dữ liệu phù hợp</span>
                     </div>
                     <div class="ats-snapshot-divider"></div>
                     <div class="ats-snapshot-item">
@@ -443,19 +478,19 @@ $sidebarNav = [
                             </svg>
                             <h4 class="ats-section-title">Độ phù hợp với vị trí</h4>
                         </div>
-                        <span class="ats-fit-score-text" id="drawer-fit-percentage">95% phù hợp</span>
+                        <span class="ats-fit-score-text" id="drawer-fit-percentage">Chưa có dữ liệu phù hợp</span>
                     </div>
 
                     <!-- Progress Indicator -->
-                    <div class="ats-fit-progress-wrapper" role="progressbar" aria-valuenow="95" aria-valuemin="0" aria-valuemax="100" id="drawer-fit-progress-aria">
+                    <div class="ats-fit-progress-wrapper" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="drawer-fit-progress-aria">
                         <div class="ats-fit-progress-bar">
-                            <div class="ats-fit-progress-fill" id="drawer-fit-progress-fill" style="width: 95%;"></div>
+                            <div class="ats-fit-progress-fill" id="drawer-fit-progress-fill" style="width: 0;"></div>
                         </div>
                     </div>
 
                     <!-- Concise Fit Summary Sentence -->
                     <p class="ats-fit-summary-text" id="drawer-fit-summary">
-                        Hồ sơ đáp ứng các kỹ năng trọng tâm theo yêu cầu của tin tuyển dụng.
+                        Chưa có dữ liệu phù hợp từ nguồn đánh giá.
                     </p>
 
                     <!-- Skills Categorization -->
@@ -487,7 +522,7 @@ $sidebarNav = [
 
                     <!-- Linear Positive Pipeline Stepper -->
                     <div class="ats-pipeline-stepper" role="radiogroup" aria-label="Quy trình tuyển dụng">
-                        <button type="button" class="ats-pipeline-step is-active" data-status="new" role="radio" aria-checked="true">
+                        <button type="button" class="ats-pipeline-step is-active" data-status="submitted" role="radio" aria-checked="true">
                             <span class="ats-pipeline-step__num">1</span>
                             <span class="ats-pipeline-step__label">Mới</span>
                         </button>
@@ -497,7 +532,7 @@ $sidebarNav = [
                             <span class="ats-pipeline-step__label">Đang xem xét</span>
                         </button>
                         <div class="ats-pipeline-connector"></div>
-                        <button type="button" class="ats-pipeline-step" data-status="interviewing" role="radio" aria-checked="false">
+                        <button type="button" class="ats-pipeline-step" data-status="interview" role="radio" aria-checked="false">
                             <span class="ats-pipeline-step__num">3</span>
                             <span class="ats-pipeline-step__label">Phỏng vấn</span>
                         </button>
@@ -510,7 +545,7 @@ $sidebarNav = [
 
                     <!-- Distinct Negative Reject Action -->
                     <div class="ats-reject-row">
-                        <button type="button" class="ats-reject-btn" id="btn-status-reject" data-status="rejected" role="radio" aria-checked="false">
+                        <button type="button" class="ats-reject-btn" id="btn-status-reject" data-status="declined" role="radio" aria-checked="false">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <line x1="15" y1="9" x2="9" y2="15"></line>
@@ -523,11 +558,11 @@ $sidebarNav = [
 
                     <!-- Hidden inputs for backward-compatible form sync -->
                     <div style="display: none;" id="ats-hidden-radios">
-                        <input type="radio" name="drawer_status" value="new" checked>
+                        <input type="radio" name="drawer_status" value="submitted" checked>
                         <input type="radio" name="drawer_status" value="reviewing">
-                        <input type="radio" name="drawer_status" value="interviewing">
+                        <input type="radio" name="drawer_status" value="interview">
                         <input type="radio" name="drawer_status" value="accepted">
-                        <input type="radio" name="drawer_status" value="rejected">
+                        <input type="radio" name="drawer_status" value="declined">
                     </div>
                 </section>
 
@@ -585,23 +620,15 @@ $sidebarNav = [
                 </div>
 
                 <div class="ats-cv-header__actions">
-                    <a href="#" id="btn-cv-modal-passport" class="ats-action-btn ats-action-btn--passport" target="_blank" title="Xem Talent Passport">
+                    <a href="#" id="btn-cv-modal-passport" class="ats-action-btn ats-action-btn--passport" title="Hồ sơ bất biến đã chụp khi ứng tuyển">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                             <rect x="3" y="4" width="18" height="16" rx="2"></rect>
                             <circle cx="9" cy="10" r="2"></circle>
                             <line x1="15" y1="8" x2="17" y2="8"></line>
                             <line x1="15" y1="12" x2="17" y2="12"></line>
                         </svg>
-                        <span>Talent Passport</span>
+                        <span>Hồ sơ đã chụp</span>
                     </a>
-                    <button type="button" class="ats-action-btn ats-action-btn--download" id="btn-download-cv-file" title="Tải xuống bản PDF">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        <span>Tải CV</span>
-                    </button>
                     <button type="button" class="ats-close-btn" id="ent-cv-modal-close" aria-label="Đóng CV">&times;</button>
                 </div>
             </div>
@@ -610,7 +637,7 @@ $sidebarNav = [
             <div class="ats-cv-recruiter-bar" id="cv-modal-recruiter-bar">
                 <div class="ats-cv-recruiter-item">
                     <span class="ats-cv-recruiter-label">Độ tương thích</span>
-                    <span class="ats-cv-recruiter-value" id="cv-modal-match-score">95% phù hợp</span>
+                    <span class="ats-cv-recruiter-value" id="cv-modal-match-score">Chưa có dữ liệu phù hợp</span>
                 </div>
                 <div class="ats-cv-recruiter-divider"></div>
                 <div class="ats-cv-recruiter-item">
@@ -624,7 +651,7 @@ $sidebarNav = [
                 <div class="ats-cv-recruiter-divider"></div>
                 <div class="ats-cv-recruiter-item">
                     <span class="ats-cv-recruiter-label">Hồ sơ đính kèm</span>
-                    <span class="ats-cv-recruiter-value ats-cv-filename" id="cv-modal-filename">CV_NguyenVanAn_Frontend.pdf</span>
+                    <span class="ats-cv-recruiter-value ats-cv-filename" id="cv-modal-filename">Snapshot 1.0.0</span>
                 </div>
             </div>
 
@@ -639,7 +666,7 @@ $sidebarNav = [
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" aria-hidden="true">
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                     </svg>
-                    <span>Hồ sơ đã được xác thực danh tính bởi TalentHub</span>
+                    <span>Hồ sơ được chụp theo đồng ý chia sẻ tại thời điểm ứng tuyển</span>
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <button type="button" class="ats-footer-btn ats-footer-btn--secondary" id="btn-cv-close-bottom">Đóng</button>
@@ -667,14 +694,11 @@ $sidebarNav = [
         </div>
     </div>
 
-    <!-- Raw JSON Mock Data Pass-through -->
+    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => '/api/v1'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
+    <!-- Server-backed application snapshot data -->
     <script id="applicants-raw-data" type="application/json" data-post-id="<?= $postId; ?>">
         <?= json_encode($applicants, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
     </script>
-    <script id="talents-raw-data" type="application/json">
-        <?= isset($mockTalents) ? json_encode($mockTalents, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) : '[]'; ?>
-    </script>
-
     <!-- JavaScript Assets -->
     <script src="../../../assets/js/enterprise.js"></script>
     <script src="../../../assets/js/applicant-management.js"></script>

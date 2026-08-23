@@ -21,22 +21,42 @@ function readiness_cli_error(string $message, string $format): never
     exit(2);
 }
 
-$options = getopt('', ['phase:', 'format:']);
+$options = getopt('', ['phase:', 'format:', 'reviewed-hash:']);
 $format = strtolower((string) ($options['format'] ?? 'text'));
 if (!in_array($format, ['text', 'json'], true)) {
     readiness_cli_error('Format must be text or json.', 'text');
 }
 if (!isset($options['phase']) || filter_var($options['phase'], FILTER_VALIDATE_INT) === false) {
-    readiness_cli_error('Phase must be an integer between 0 and 11.', $format);
+    readiness_cli_error('Phase must be an integer between 0 and 12.', $format);
 }
 
 $phase = (int) $options['phase'];
-if ($phase < 0 || $phase > 11) {
-    readiness_cli_error('Phase must be between 0 and 11.', $format);
+if ($phase < 0 || $phase > 12) {
+    readiness_cli_error('Phase must be between 0 and 12.', $format);
 }
 
 try {
-    $checker = new ReadinessChecker(new PhaseRequirements(), new GitScopeGuard());
+    $reviewedProtectedHashes = [];
+    $reviewedHashArguments = $options['reviewed-hash'] ?? [];
+    if (is_string($reviewedHashArguments)) {
+        $reviewedHashArguments = [$reviewedHashArguments];
+    }
+    if (!is_array($reviewedHashArguments)) {
+        readiness_cli_error('Reviewed hashes must use path=sha256.', $format);
+    }
+    foreach ($reviewedHashArguments as $argument) {
+        if (!is_string($argument) || !str_contains($argument, '=')) {
+            readiness_cli_error('Reviewed hashes must use path=sha256.', $format);
+        }
+        [$path, $hash] = explode('=', $argument, 2);
+        $path = str_replace('\\', '/', trim($path));
+        if (!in_array($path, GitScopeGuard::REVIEWABLE_PROTECTED_PATHS, true)
+            || preg_match('/\A[0-9a-f]{64}\z/i', $hash) !== 1) {
+            readiness_cli_error('Reviewed hash path or SHA-256 is not allowed.', $format);
+        }
+        $reviewedProtectedHashes[$path] = strtolower($hash);
+    }
+    $checker = new ReadinessChecker(new PhaseRequirements(), new GitScopeGuard($reviewedProtectedHashes));
     $result = $checker->check(
         $phase,
         $repositoryRoot,

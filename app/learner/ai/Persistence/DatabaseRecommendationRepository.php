@@ -201,7 +201,7 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
     {
         $studentId = $this->required($studentId, 'Student id is required.');
         $statement = $this->pdo->prepare(
-            'SELECT id FROM learner_recommendation_runs WHERE studentId = :studentId ORDER BY createdAt DESC, id DESC LIMIT 1'
+            "SELECT id FROM learner_recommendation_runs WHERE studentId = :studentId AND idempotencyKey NOT LIKE 'shadow-%' ORDER BY createdAt DESC, id DESC LIMIT 1"
         );
         $statement->execute(['studentId' => $studentId]);
         $runId = $statement->fetchColumn();

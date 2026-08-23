@@ -60,6 +60,14 @@ if ($useMock) {
         $context['dashboard']
     );
     $GLOBALS['learner_page_context'] = $context;
+
+    learner_configure_authenticated_student_context($context);
+    $authenticatedStudentId = learner_current_student_id();
+
+    $passportRepo = learner_repository_factory()->talentPassport();
+    $rawPassport = $passportRepo->aggregateForStudent($authenticatedStudentId);
+    $talentPassport = \TalentHub\Learner\Data\ReadModel\TalentPassportReadModel::fromAggregate($rawPassport);
+    $GLOBALS['learner_talent_passport'] = $talentPassport;
 }
 $learnerNav = [
     ['label' => 'Tổng quan', 'route' => '/app/learner/index.php', 'icon' => 'grid', 'implemented' => true],
@@ -75,34 +83,146 @@ $learnerNav = [
 ];
 
 $level = [
-    'name' => 'Innovator',
-    'number' => 2,
-    'progress' => 64,
-    'target' => 100,
-    'next_level' => 'Expert',
+    'name' => 'Explorer',
+    'number' => 1,
+    'currentHours' => 0.0,
+    'targetHours' => 10.0,
+    'nextLevel' => 'Innovator',
+    'remainingHours' => 10.0,
+    'progressPercent' => 0,
+    'progress' => 0,
+    'target' => 10,
+    'next_level' => 'Innovator',
 ];
 
-$dashboardKpis = [
-    ['label' => 'Điểm năng lực', 'value' => '92', 'change' => '+8', 'icon' => 'star'],
-    ['label' => 'Huy hiệu đạt được', 'value' => '12', 'change' => '+2', 'icon' => 'trophy'],
-    ['label' => 'Giờ trải nghiệm', 'value' => '64h', 'change' => '+18h', 'icon' => 'clock'],
-    ['label' => 'Xếp hạng lớp', 'value' => '#7', 'change' => '↑3', 'icon' => 'chart'],
-];
+$isDatabaseMode = !$useMock && learner_repository_factory()->source() === 'database';
 
-$profileKpis = [
-    ['label' => 'Điểm năng lực', 'value' => '92'],
-    ['label' => 'Huy hiệu', 'value' => '12'],
-    ['label' => 'Dự án', 'value' => '8'],
-];
+if ($isDatabaseMode) {
+    $tp = $GLOBALS['learner_talent_passport'] ?? \TalentHub\Learner\Data\ReadModel\TalentPassportReadModel::fromAggregate(
+        learner_repository_factory()->talentPassport()->aggregateForStudent((string) ($student['id'] ?? learner_current_student_id()))
+    );
+    $GLOBALS['learner_talent_passport'] = $tp;
+    if (!empty($tp['student']['full_name'])) {
+        $student['name'] = $tp['student']['full_name'];
+    }
+    $confirmedHours = (float) ($tp['experience']['confirmed_hours'] ?? 0.0);
+    $hoursValue = $confirmedHours > 0 ? (rtrim(rtrim((string) $confirmedHours, '0'), '.') . 'h') : '0h';
 
-$skills = [
-    ['name' => 'IoT', 'score' => 85, 'level' => 'Tốt', 'tone' => 'primary', 'icon' => 'sparkles'],
-    ['name' => 'Lập trình Python', 'short_name' => 'Lập trình', 'score' => 90, 'level' => 'Rất tốt', 'tone' => 'secondary', 'icon' => 'trophy'],
-    ['name' => 'Làm việc nhóm', 'score' => 88, 'level' => 'Tốt', 'tone' => 'success', 'icon' => 'users'],
-    ['name' => 'Thiết kế UI', 'score' => 70, 'level' => 'Tốt', 'tone' => 'secondary', 'icon' => 'palette'],
-    ['name' => 'Thuyết trình', 'score' => 72, 'level' => 'Trung bình', 'tone' => 'warning', 'icon' => 'trophy'],
-    ['name' => 'Tiếng Anh', 'score' => 80, 'level' => 'Tốt', 'tone' => 'secondary', 'icon' => 'message-circle'],
-];
+    $phase9DashboardError = false;
+    $badgeOverview = null;
+    try {
+        $badgeOverview = learner_repository_factory()->badgeReadService()->forStudent($authenticatedStudentId);
+    } catch (Throwable) {
+        $phase9DashboardError = true;
+    }
+    $level = $badgeOverview['level'] ?? \TalentHub\Learner\Data\Domain\LevelProgression::fromHours($confirmedHours);
+    $lifetimeFacts = $badgeOverview['facts'] ?? [
+        'confirmed_experience_hours' => $confirmedHours,
+        'attended_activity_count' => count($tp['experience']['confirmed_entries'] ?? []),
+        'submitted_assessment_type_count' => count($tp['assessment_results'] ?? []),
+        'published_teacher_evaluation_count' => count($tp['teacher_evaluations'] ?? []),
+    ];
+    $awardedBadgeCount = count($badgeOverview['badges'] ?? $tp['badges']);
+
+    $dashboardKpis = [
+        ['label' => 'Cấp độ hiện tại', 'value' => (string) ($level['name'] ?? 'Explorer'), 'change' => '', 'icon' => 'star'],
+        ['label' => 'Huy hiệu đạt được', 'value' => (string) $awardedBadgeCount, 'change' => '', 'icon' => 'trophy'],
+        ['label' => 'Giờ trải nghiệm', 'value' => $hoursValue, 'change' => '', 'icon' => 'clock'],
+        ['label' => 'Hoạt động đã tham gia', 'value' => (string) ($lifetimeFacts['attended_activity_count'] ?? 0), 'change' => '', 'icon' => 'chart'],
+    ];
+
+    $profileKpis = [
+        ['label' => 'Điểm năng lực', 'value' => 'Chưa có dữ liệu'],
+        ['label' => 'Huy hiệu', 'value' => (string) count($tp['badges'])],
+        ['label' => 'Dự án', 'value' => (string) count($tp['projects'])],
+    ];
+
+    $skills = [];
+    foreach ($tp['skills'] as $dbSkill) {
+        $rawScore = (float) ($dbSkill['level_score'] ?? 0);
+        $score = max(0, min(100, (int) round($rawScore)));
+        $levelLabel = match (true) {
+            $score >= 85 => 'Rất tốt',
+            $score >= 70 => 'Tốt',
+            $score >= 50 => 'Trung bình',
+            default => 'Cơ bản',
+        };
+        $tone = match ($dbSkill['category'] ?? '') {
+            'technical' => 'primary',
+            'soft' => 'success',
+            'creative' => 'secondary',
+            default => 'secondary',
+        };
+        $skills[] = [
+            'name' => (string) ($dbSkill['name'] ?? ''),
+            'short_name' => (string) ($dbSkill['code'] ?? $dbSkill['name'] ?? ''),
+            'score' => $score,
+            'level' => $levelLabel,
+            'tone' => $tone,
+            'icon' => 'sparkles',
+            'verified' => ($dbSkill['verification_status'] ?? '') === 'verified',
+        ];
+    }
+
+    $certificates = $tp['certificates'];
+    $projects = $tp['projects'];
+    $learnerBadges = $badgeOverview['badges'] ?? $tp['badges'];
+} else {
+        $dashboardKpis = [
+        ['label' => 'Điểm năng lực', 'value' => '92', 'change' => '+8', 'icon' => 'star'],
+        ['label' => 'Huy hiệu đạt được', 'value' => '12', 'change' => '+2', 'icon' => 'trophy'],
+        ['label' => 'Giờ trải nghiệm', 'value' => '64h', 'change' => '+18h', 'icon' => 'clock'],
+        ['label' => 'Xếp hạng lớp', 'value' => '#7', 'change' => '↑3', 'icon' => 'chart'],
+    ];
+
+    $profileKpis = [
+        ['label' => 'Điểm năng lực', 'value' => '92'],
+        ['label' => 'Huy hiệu', 'value' => '12'],
+        ['label' => 'Dự án', 'value' => '8'],
+    ];
+
+    $skills = [
+        ['name' => 'IoT', 'score' => 85, 'level' => 'Tốt', 'tone' => 'primary', 'icon' => 'sparkles'],
+        ['name' => 'Lập trình Python', 'short_name' => 'Lập trình', 'score' => 90, 'level' => 'Rất tốt', 'tone' => 'secondary', 'icon' => 'trophy'],
+        ['name' => 'Làm việc nhóm', 'score' => 88, 'level' => 'Tốt', 'tone' => 'success', 'icon' => 'users'],
+        ['name' => 'Thiết kế UI', 'score' => 70, 'level' => 'Tốt', 'tone' => 'secondary', 'icon' => 'palette'],
+        ['name' => 'Thuyết trình', 'score' => 72, 'level' => 'Trung bình', 'tone' => 'warning', 'icon' => 'trophy'],
+        ['name' => 'Tiếng Anh', 'score' => 80, 'level' => 'Tốt', 'tone' => 'secondary', 'icon' => 'message-circle'],
+    ];
+
+
+    $certificates = [
+        ['name' => 'Google IT Automation', 'issuer' => 'Coursera', 'year' => '2025', 'verified' => true],
+        ['name' => 'IELTS 7.5', 'issuer' => 'British Council', 'year' => '2024', 'verified' => true],
+        ['name' => 'Cisco IoT Fundamentals', 'issuer' => 'Cisco', 'year' => '2025', 'verified' => true],
+    ];
+
+    $projects = [
+        [
+            'name' => 'Smart Garden IoT',
+            'description' => 'Hệ thống tưới tự động dùng ESP32 + cảm biến độ ẩm.',
+            'role' => 'Trưởng nhóm',
+            'status' => 'Đã hoàn thành',
+            'tone' => 'success',
+        ],
+        [
+            'name' => 'EduTalent Hackathon 2025',
+            'description' => 'Top 5 toàn quốc – ứng dụng quản lý hoạt động học sinh.',
+            'role' => 'Lập trình viên',
+            'status' => 'Đang triển khai',
+            'tone' => 'warning',
+        ],
+    ];
+
+    $learnerBadges = [
+        ['id' => 'explorer', 'name' => 'Người khám phá', 'description' => 'Tham gia 3 hoạt động khám phá năng khiếu', 'icon' => 'compass', 'status' => 'achieved', 'status_label' => 'Đã đạt', 'current' => 3, 'target' => 3],
+        ['id' => 'creator', 'name' => 'Nhà sáng tạo', 'description' => 'Hoàn thành 1 dự án sáng tạo', 'icon' => 'lightbulb', 'status' => 'in_progress', 'status_label' => 'Đang tiến hành', 'current' => 1, 'target' => 2],
+        ['id' => 'team-player', 'name' => 'Đồng đội xuất sắc', 'description' => 'Hợp tác trong 3 hoạt động nhóm', 'icon' => 'users', 'status' => 'achieved', 'status_label' => 'Đã đạt', 'current' => 3, 'target' => 3],
+        ['id' => 'young-leader', 'name' => 'Thủ lĩnh trẻ', 'description' => 'Đảm nhận vai trò trưởng nhóm 2 lần', 'icon' => 'trophy', 'status' => 'in_progress', 'status_label' => 'Đang tiến hành', 'current' => 1, 'target' => 2],
+        ['id' => 'iot-expert', 'name' => 'Chuyên gia IoT', 'description' => 'Hoàn thành 2 khóa học liên quan đến IoT', 'icon' => 'bot', 'status' => 'locked', 'status_label' => 'Chưa đạt', 'current' => 0, 'target' => 2],
+        ['id' => 'community', 'name' => 'Vì cộng đồng', 'description' => 'Tham gia 1 hoạt động tình nguyện', 'icon' => 'leaf', 'status' => 'locked', 'status_label' => 'Chưa đạt', 'current' => 0, 'target' => 1],
+    ];
+}
 
 $activityCategories = ['Tất cả', 'Kỹ thuật', 'Kinh doanh', 'Sáng tạo', 'Cộng đồng'];
 
@@ -116,6 +236,19 @@ $activityCatalog = [
 ];
 
 $activities = array_slice($activityCatalog, 0, 3);
+if ($isDatabaseMode) {
+    $activities = array_map(
+        static fn (array $entry): array => [
+            'id' => (string) ($entry['activity_id'] ?? ''),
+            'category' => (string) ($entry['activity_category'] ?? 'Chưa phân loại'),
+            'tone' => 'neutral',
+            'title' => (string) ($entry['activity_title'] ?? 'Hoạt động đã xác nhận'),
+            'time' => (string) ($entry['confirmed_at'] ?? 'Đã xác nhận'),
+            'location' => 'Địa điểm chưa có dữ liệu',
+        ],
+        array_slice($tp['experience']['confirmed_entries'] ?? [], 0, 3)
+    );
+}
 
 $checkinHistory = [
     ['activity' => 'IoT Lab', 'time' => 'Hôm nay, 14:02', 'location' => 'Phòng B305', 'hours' => 2, 'confirmed' => true],
@@ -124,71 +257,53 @@ $checkinHistory = [
     ['activity' => 'AI Bootcamp', 'time' => '10/06, 09:05', 'location' => 'Phòng IT', 'hours' => 2, 'confirmed' => true],
 ];
 
-$defaultEvaluationTerm = '2025-2026-2';
-$evaluationTerms = [
-    '2025-2026-2' => [
-        'label' => 'Học kỳ II · 2025–2026',
-        'status' => 'Đã công bố',
-        'evaluation' => [
-            'criteria' => [
-                ['name' => 'Chuyên môn', 'score' => 36, 'max' => 40, 'tone' => 'primary'],
-                ['name' => 'Sáng tạo', 'score' => 17, 'max' => 20, 'tone' => 'secondary'],
-                ['name' => 'Kỷ luật', 'score' => 19, 'max' => 20, 'tone' => 'secondary'],
-                ['name' => 'Làm việc nhóm', 'score' => 18, 'max' => 20, 'tone' => 'primary'],
+if ($isDatabaseMode) {
+    $evaluationTerms = [];
+    $defaultEvaluationTerm = '';
+} else {
+    $defaultEvaluationTerm = '2025-2026-2';
+    $evaluationTerms = [
+        '2025-2026-2' => [
+            'label' => 'Học kỳ II · 2025–2026',
+            'status' => 'Đã công bố',
+            'evaluation' => [
+                'criteria' => [
+                    ['name' => 'Chuyên môn', 'score' => 36, 'max' => 40, 'tone' => 'primary'],
+                    ['name' => 'Sáng tạo', 'score' => 17, 'max' => 20, 'tone' => 'secondary'],
+                    ['name' => 'Kỷ luật', 'score' => 19, 'max' => 20, 'tone' => 'secondary'],
+                    ['name' => 'Làm việc nhóm', 'score' => 18, 'max' => 20, 'tone' => 'primary'],
+                ],
+                'total' => 90,
+                'classification' => 'Xuất sắc',
+                'ranking' => 'Top 12% học sinh khối 11',
+                'comment' => 'A thể hiện khả năng tư duy hệ thống tốt, chủ động dẫn dắt nhóm trong dự án Smart Garden. Cần luyện thêm kỹ năng thuyết trình trước đám đông.',
+                'reviewer' => 'Cô Lê Thị Hương, IoT Lab',
             ],
-            'total' => 90,
-            'classification' => 'Xuất sắc',
-            'ranking' => 'Top 12% học sinh khối 11',
-            'comment' => 'A thể hiện khả năng tư duy hệ thống tốt, chủ động dẫn dắt nhóm trong dự án Smart Garden. Cần luyện thêm kỹ năng thuyết trình trước đám đông.',
-            'reviewer' => 'Cô Lê Thị Hương, IoT Lab',
         ],
-    ],
-    '2025-2026-1' => [
-        'label' => 'Học kỳ I · 2025–2026',
-        'status' => 'Đã công bố',
-        'evaluation' => [
-            'criteria' => [
-                ['name' => 'Chuyên môn', 'score' => 33, 'max' => 40, 'tone' => 'primary'],
-                ['name' => 'Sáng tạo', 'score' => 16, 'max' => 20, 'tone' => 'secondary'],
-                ['name' => 'Kỷ luật', 'score' => 18, 'max' => 20, 'tone' => 'secondary'],
-                ['name' => 'Làm việc nhóm', 'score' => 17, 'max' => 20, 'tone' => 'primary'],
+        '2025-2026-1' => [
+            'label' => 'Học kỳ I · 2025–2026',
+            'status' => 'Đã công bố',
+            'evaluation' => [
+                'criteria' => [
+                    ['name' => 'Chuyên môn', 'score' => 33, 'max' => 40, 'tone' => 'primary'],
+                    ['name' => 'Sáng tạo', 'score' => 16, 'max' => 20, 'tone' => 'secondary'],
+                    ['name' => 'Kỷ luật', 'score' => 18, 'max' => 20, 'tone' => 'secondary'],
+                    ['name' => 'Làm việc nhóm', 'score' => 17, 'max' => 20, 'tone' => 'primary'],
+                ],
+                'total' => 84,
+                'classification' => 'Tốt',
+                'ranking' => 'Top 20% học sinh khối 11',
+                'comment' => 'A có nền tảng chuyên môn tốt và phối hợp nhóm tích cực. Hãy tiếp tục tăng tính chủ động trong phần trình bày.',
+                'reviewer' => 'Thầy Trần Minh Anh, CLB Công nghệ',
             ],
-            'total' => 84,
-            'classification' => 'Tốt',
-            'ranking' => 'Top 20% học sinh khối 11',
-            'comment' => 'A có nền tảng chuyên môn tốt và phối hợp nhóm tích cực. Hãy tiếp tục tăng tính chủ động trong phần trình bày.',
-            'reviewer' => 'Thầy Trần Minh Anh, CLB Công nghệ',
         ],
-    ],
-    '2024-2025-2' => [
-        'label' => 'Học kỳ II · 2024–2025',
-        'status' => 'Chưa có dữ liệu',
-        'evaluation' => null,
-    ],
-];
-
-$certificates = [
-    ['name' => 'Google IT Automation', 'issuer' => 'Coursera', 'year' => '2025', 'verified' => true],
-    ['name' => 'IELTS 7.5', 'issuer' => 'British Council', 'year' => '2024', 'verified' => true],
-    ['name' => 'Cisco IoT Fundamentals', 'issuer' => 'Cisco', 'year' => '2025', 'verified' => true],
-];
-
-$projects = [
-    [
-        'name' => 'Smart Garden IoT',
-        'description' => 'Hệ thống tưới tự động dùng ESP32 + cảm biến độ ẩm.',
-        'role' => 'Trưởng nhóm',
-        'status' => 'Đã hoàn thành',
-        'tone' => 'success',
-    ],
-    [
-        'name' => 'EduTalent Hackathon 2025',
-        'description' => 'Top 5 toàn quốc – ứng dụng quản lý hoạt động học sinh.',
-        'role' => 'Lập trình viên',
-        'status' => 'Đang triển khai',
-        'tone' => 'warning',
-    ],
-];
+        '2024-2025-2' => [
+            'label' => 'Học kỳ II · 2024–2025',
+            'status' => 'Chưa có dữ liệu',
+            'evaluation' => null,
+        ],
+    ];
+}
 
 $assessments = [
     ['id' => 'holland', 'name' => 'Holland', 'description' => 'Khám phá định hướng nghề nghiệp', 'icon' => 'compass', 'tone' => 'primary', 'state' => 'result', 'progress' => 100],
@@ -232,15 +347,6 @@ $learnerBadgeFilters = [
     ['id' => 'achieved', 'label' => 'Đã đạt'],
     ['id' => 'in_progress', 'label' => 'Đang tiến hành'],
     ['id' => 'locked', 'label' => 'Chưa đạt'],
-];
-
-$learnerBadges = [
-    ['id' => 'explorer', 'name' => 'Người khám phá', 'description' => 'Tham gia 3 hoạt động khám phá năng khiếu', 'icon' => 'compass', 'status' => 'achieved', 'status_label' => 'Đã đạt', 'current' => 3, 'target' => 3],
-    ['id' => 'creator', 'name' => 'Nhà sáng tạo', 'description' => 'Hoàn thành 1 dự án sáng tạo', 'icon' => 'lightbulb', 'status' => 'in_progress', 'status_label' => 'Đang tiến hành', 'current' => 1, 'target' => 2],
-    ['id' => 'team-player', 'name' => 'Đồng đội xuất sắc', 'description' => 'Hợp tác trong 3 hoạt động nhóm', 'icon' => 'users', 'status' => 'achieved', 'status_label' => 'Đã đạt', 'current' => 3, 'target' => 3],
-    ['id' => 'young-leader', 'name' => 'Thủ lĩnh trẻ', 'description' => 'Đảm nhận vai trò trưởng nhóm 2 lần', 'icon' => 'trophy', 'status' => 'in_progress', 'status_label' => 'Đang tiến hành', 'current' => 1, 'target' => 2],
-    ['id' => 'iot-expert', 'name' => 'Chuyên gia IoT', 'description' => 'Hoàn thành 2 khóa học liên quan đến IoT', 'icon' => 'bot', 'status' => 'locked', 'status_label' => 'Chưa đạt', 'current' => 0, 'target' => 2],
-    ['id' => 'community', 'name' => 'Vì cộng đồng', 'description' => 'Tham gia 1 hoạt động tình nguyện', 'icon' => 'leaf', 'status' => 'locked', 'status_label' => 'Chưa đạt', 'current' => 0, 'target' => 1],
 ];
 
 $defaultStatisticsPeriod = 'six-months';

@@ -21,6 +21,8 @@ final class RecommendationConfig
         private readonly bool $shadowEnabled,
         private readonly bool $shadowGateApproved,
         private readonly int $visiblePercent,
+        private readonly ?string $pilotApprovalReference,
+        private readonly bool $pilotPaused,
     ) {
     }
 
@@ -29,7 +31,7 @@ final class RecommendationConfig
     {
         $enabled = strtolower(self::value($environment, 'TALENTHUB_AI_ENABLED', 'false')) === 'true';
         if (!$enabled) {
-            return new self(false, null, null, null, null, [], 2, 1, 1, 1, false, false, 0);
+            return new self(false, null, null, null, null, [], 2, 1, 1, 1, false, false, 0, null, true);
         }
 
         $provider = self::required($environment, 'TALENTHUB_AI_PROVIDER');
@@ -37,13 +39,14 @@ final class RecommendationConfig
         $apiUrl = self::required($environment, 'TALENTHUB_AI_API_URL');
         $apiKey = self::required($environment, 'TALENTHUB_AI_API_KEY');
         $allowedHosts = array_values(array_unique(array_filter(array_map(
-            static fn (string $host): string => strtolower(trim($host)),
+            static fn (string $host): string => self::normalizeHost($host),
             explode(',', self::required($environment, 'TALENTHUB_AI_ALLOWED_HOSTS')),
         ), static fn (string $host): bool => $host !== '')));
         $parts = parse_url($apiUrl);
-        if (!is_array($parts) || ($parts['scheme'] ?? '') !== 'https' || !isset($parts['host'])
-            || !in_array(strtolower((string) $parts['host']), $allowedHosts, true)) {
-            throw new \InvalidArgumentException('AI provider URL must use an approved HTTPS host.');
+        if (!is_array($parts) || !self::isApprovedApiUrl($parts, $allowedHosts, $environment)) {
+            throw new \InvalidArgumentException(
+                'AI provider URL must use an approved HTTPS host or an approved local loopback endpoint.',
+            );
         }
 
         return new self(
@@ -53,13 +56,15 @@ final class RecommendationConfig
             $apiUrl,
             $apiKey,
             $allowedHosts,
-            self::boundedInt($environment, 'TALENTHUB_AI_TIMEOUT_SECONDS', 2, 1, 10),
+            self::boundedInt($environment, 'TALENTHUB_AI_TIMEOUT_SECONDS', 2, 1, 30),
             self::boundedInt($environment, 'TALENTHUB_AI_MAX_ATTEMPTS', 1, 1, 2),
             self::boundedInt($environment, 'TALENTHUB_AI_PER_STUDENT_LIMIT', 2, 1, 60),
             self::boundedInt($environment, 'TALENTHUB_AI_GLOBAL_LIMIT', 20, 1, 600),
             strtolower(self::value($environment, 'TALENTHUB_AI_SHADOW', 'false')) === 'true',
             strtolower(self::value($environment, 'TALENTHUB_AI_SHADOW_GATE_APPROVED', 'false')) === 'true',
             self::boundedInt($environment, 'TALENTHUB_AI_VISIBLE_PERCENT', 0, 0, 100),
+            self::optional($environment, 'TALENTHUB_AI_PILOT_APPROVAL_REFERENCE'),
+            self::strictBoolean($environment, 'TALENTHUB_AI_PILOT_PAUSED', true),
         );
     }
 
@@ -75,6 +80,8 @@ final class RecommendationConfig
     public function shadowEnabled(): bool { return $this->shadowEnabled; }
     public function shadowGateApproved(): bool { return $this->shadowGateApproved; }
     public function visiblePercent(): int { return $this->visiblePercent; }
+    public function pilotApprovalReference(): ?string { return $this->pilotApprovalReference; }
+    public function pilotPaused(): bool { return $this->pilotPaused; }
 
     /** @return array{enabled:bool,provider:?string,model:?string,timeout_seconds:int} */
     public function diagnostics(): array
@@ -85,6 +92,36 @@ final class RecommendationConfig
             'model' => $this->model,
             'timeout_seconds' => $this->timeoutSeconds,
         ];
+    }
+
+    /**
+     * @param array<string,mixed> $parts
+     * @param list<string> $allowedHosts
+     * @param array<string,string> $environment
+     */
+    private static function isApprovedApiUrl(array $parts, array $allowedHosts, array $environment): bool
+    {
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = self::normalizeHost((string) ($parts['host'] ?? ''));
+        if ($host === '' || !in_array($host, $allowedHosts, true)) {
+            return false;
+        }
+        if ($scheme === 'https') {
+            return true;
+        }
+
+        $appEnv = strtolower(self::value($environment, 'APP_ENV', 'production'));
+        return $scheme === 'http'
+            && in_array($appEnv, ['local', 'test'], true)
+            && in_array($host, ['localhost', '127.0.0.1', '::1'], true)
+            && ($parts['port'] ?? null) === 20128
+            && !isset($parts['user'])
+            && !isset($parts['pass']);
+    }
+
+    private static function normalizeHost(string $host): string
+    {
+        return strtolower(trim(trim($host), '[]'));
     }
 
     /** @param array<string,string> $environment */
@@ -105,6 +142,21 @@ final class RecommendationConfig
             throw new \InvalidArgumentException("{$key} is required when AI is enabled.");
         }
         return $value;
+    }
+
+    /** @param array<string,string> $environment */
+    private static function optional(array $environment, string $key): ?string
+    {
+        $value = self::value($environment, $key);
+        return $value === '' ? null : $value;
+    }
+
+    /** @param array<string,string> $environment */
+    private static function strictBoolean(array $environment, string $key, bool $default): bool
+    {
+        $raw = strtolower(self::value($environment, $key, $default ? 'true' : 'false'));
+        if (!in_array($raw, ['true', 'false'], true)) throw new \InvalidArgumentException("{$key} must be true or false.");
+        return $raw === 'true';
     }
 
     /** @param array<string,string> $environment */

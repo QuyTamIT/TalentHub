@@ -64,13 +64,14 @@ $sidebarNav = [
 
 $csrfToken = $session->csrfToken();
 $service = null;
-$data = ['activities' => [], 'sessions' => []];
+$data = ['activities' => [], 'sessions' => [], 'managedCheckins' => []];
 $errors = [];
 $bootError = null;
 $formValues = [
     'activity_id' => '',
     'duration_minutes' => (string) TeacherQrSessionService::DEFAULT_DURATION_MINUTES,
     'max_scans' => (string) TeacherQrSessionService::DEFAULT_MAX_SCANS,
+    'confirmed_hours' => TeacherQrSessionService::DEFAULT_CONFIRMED_HOURS,
 ];
 $oneTimeToken = null;
 $flash = is_array($storedFlash) ? $storedFlash : null;
@@ -82,16 +83,19 @@ try {
     $pdo = (new Connection(require dirname(__DIR__, 3) . '/config/database.php'))->connect();
     $permissions = new PermissionService($pdo);
     $permissions->require((string) $user['id'], 'qr_session.read_managed');
+    $permissions->require((string) $user['id'], 'checkin.read_managed');
     $service = new TeacherQrSessionService(new TeacherQrSessionRepository($pdo));
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $rawActivityId = $_POST['activity_id'] ?? null;
         $rawDurationMinutes = $_POST['duration_minutes'] ?? null;
         $rawMaxScans = $_POST['max_scans'] ?? null;
+        $rawConfirmedHours = $_POST['confirmed_hours'] ?? null;
         $formValues = [
             'activity_id' => is_string($rawActivityId) ? $rawActivityId : '',
             'duration_minutes' => is_string($rawDurationMinutes) ? $rawDurationMinutes : '',
             'max_scans' => is_string($rawMaxScans) ? $rawMaxScans : '',
+            'confirmed_hours' => is_string($rawConfirmedHours) ? $rawConfirmedHours : '',
         ];
 
         $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
@@ -104,6 +108,7 @@ try {
                 $rawActivityId,
                 $rawDurationMinutes,
                 $rawMaxScans,
+                $rawConfirmedHours,
             );
 
             $_SESSION['teacherQrFlash'] = [
@@ -271,9 +276,14 @@ $statusClasses = [
                                     <input id="teacher-qr-max-scans" type="number" name="max_scans" min="1" max="10000" step="1" value="<?= teacherQrEscape($formValues['max_scans']); ?>" required>
                                     <small>Số nguyên dương, tối đa 10.000 lượt.</small>
                                 </label>
+                                <label class="teacher-form-field" for="teacher-qr-confirmed-hours">
+                                    <span>Giờ trải nghiệm xác nhận</span>
+                                    <input id="teacher-qr-confirmed-hours" type="number" name="confirmed_hours" min="0" max="24" step="0.25" value="<?= teacherQrEscape($formValues['confirmed_hours']); ?>" required>
+                                    <small>Áp dụng cho các lượt check-in hợp lệ của hoạt động này.</small>
+                                </label>
                             </div>
                             <div class="teacher-qr-form__actions">
-                                <p class="teacher-qr-form__note">Mã QR chỉ là token tạm thời. Phase 1 chưa xử lý việc quét hoặc ghi nhận điểm danh.</p>
+                                <p class="teacher-qr-form__note">Mã QR là token opaque tạm thời. Giờ trải nghiệm được lưu theo chính sách của hoạt động và dùng cho check-in tương lai.</p>
                                 <button type="submit" class="btn btn-primary">Tạo phiên QR</button>
                             </div>
                         </form>
@@ -333,6 +343,7 @@ $statusClasses = [
                                                 </td>
                                                 <td data-label="Lượt quét">
                                                     <strong><?= number_format((int) $qrSession['usedScans']); ?></strong> / <?= number_format((int) $qrSession['maxScans']); ?>
+                                                    <span class="teacher-text-muted"> · <?= teacherQrEscape((string) ($qrSession['confirmedHours'] ?? '0.00')); ?>h</span>
                                                 </td>
                                                 <td data-label="Thao tác">
                                                     <?php if ($status === 'active'): ?>
@@ -348,6 +359,35 @@ $statusClasses = [
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </section>
+
+                    <section class="teacher-section-box teacher-qr-managed-panel" aria-labelledby="teacher-managed-checkins-title">
+                        <div class="teacher-section-box__header">
+                            <div>
+                                <h2 id="teacher-managed-checkins-title" class="teacher-section-box__title">Lượt check-in đã xác nhận</h2>
+                                <p class="teacher-section-box__subtitle">Chỉ hiển thị lượt check-in thuộc hoạt động do bạn quản lý.</p>
+                            </div>
+                            <span class="teacher-section-box__count"><?= number_format(count($data['managedCheckins'] ?? [])); ?> lượt</span>
+                        </div>
+                        <?php if (($data['managedCheckins'] ?? []) === []): ?>
+                            <div class="teacher-qr-empty"><h3>Chưa có lượt check-in</h3><p>Lượt check-in hợp lệ sẽ xuất hiện sau khi học viên quét QR.</p></div>
+                        <?php else: ?>
+                            <div class="teacher-qr-table-wrap">
+                                <table class="teacher-qr-table">
+                                    <thead><tr><th>Hoạt động</th><th>Trạng thái</th><th>Thời gian</th><th>Giờ xác nhận</th></tr></thead>
+                                    <tbody>
+                                    <?php foreach ($data['managedCheckins'] as $managedCheckin): ?>
+                                        <tr>
+                                            <td data-label="Hoạt động"><strong><?= teacherQrEscape($managedCheckin['activityTitle']); ?></strong></td>
+                                            <td data-label="Trạng thái"><?= teacherQrEscape($managedCheckin['status']); ?></td>
+                                            <td data-label="Thời gian"><?= teacherQrEscape($managedCheckin['checkedInAt']); ?></td>
+                                            <td data-label="Giờ xác nhận"><strong><?= teacherQrEscape($managedCheckin['confirmedHours']); ?>h</strong></td>
+                                        </tr>
+                                    <?php endforeach; ?>
                                     </tbody>
                                 </table>
                             </div>

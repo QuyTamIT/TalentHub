@@ -51,10 +51,9 @@ enum ActivityStatus: string
 {
     case Draft = 'draft';
     case Published = 'published';
-    case Active = 'active';
-    case Closed = 'closed';
-    case Cancelled = 'cancelled';
+    case Ongoing = 'ongoing';
     case Completed = 'completed';
+    case Archived = 'archived';
     case Unknown = 'unknown';
 
     public static function normalize(?string $value): self
@@ -65,12 +64,12 @@ enum ActivityStatus: string
 
 enum ActivityRegistrationStatus: string
 {
-    case Registered = 'registered';
     case Pending = 'pending';
-    case Waitlisted = 'waitlisted';
-    case CheckedIn = 'checked_in';
-    case Completed = 'completed';
+    case Approved = 'approved';
+    case Rejected = 'rejected';
     case Cancelled = 'cancelled';
+    case Attended = 'attended';
+    case Waitlisted = 'waitlisted';
     case Unknown = 'unknown';
 
     public static function normalize(?string $value): self
@@ -106,5 +105,37 @@ enum ApplicationStatus: string
     public static function normalize(?string $value): self
     {
         return self::tryFrom(strtolower(trim((string) $value))) ?? self::Unknown;
+    }
+}
+
+final class StudentPortalStatusContract
+{
+    /** @return list<string> */
+    public static function canonicalActivityStatuses(): array
+    {
+        return ['draft', 'published', 'ongoing', 'completed', 'archived'];
+    }
+
+    /** @return array<string,list<string>> */
+    public static function activityAliases(): array
+    {
+        return ['active' => ['published', 'ongoing'], 'closed' => ['completed', 'archived']];
+    }
+
+    /** @return list<string> */
+    public static function canonicalActivityRegistrationStatuses(): array
+    {
+        return ['pending', 'approved', 'rejected', 'cancelled', 'attended', 'waitlisted'];
+    }
+
+    /** @return array<string,string> */
+    public static function activityRegistrationAliases(): array
+    {
+        return ['registered' => 'approved', 'checked_in' => 'attended', 'completed' => 'attended'];
+    }
+
+    public static function aiVisiblePercent(): string
+    {
+        return (string) (getenv('TALENTHUB_AI_VISIBLE_PERCENT') === false ? '0' : getenv('TALENTHUB_AI_VISIBLE_PERCENT'));
     }
 }

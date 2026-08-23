@@ -66,6 +66,37 @@ final class RuleSetV1
                 $evidenceMapper,
             ),
             new RuleDefinition(
+                'holland-career-group-strength',
+                self::VERSION,
+                ['assessment'],
+                25,
+                static fn (array $facts): bool => ($facts['holland_career_groups'] ?? []) !== [],
+                static function (array $facts) use ($explainer): array {
+                    $items = [];
+                    foreach ($facts['holland_career_groups'] as $assessment) {
+                        $topGroup = $assessment['career_groups'][0] ?? null;
+                        if ($topGroup === null) {
+                            continue;
+                        }
+                        $items[] = [
+                            'item_type' => 'strength',
+                            'title' => 'Định hướng nghề nghiệp: ' . $topGroup['label'],
+                            'summary' => $explainer->careerGroupStrength($assessment, $topGroup),
+                            'confidence_band' => 'high',
+                            'action' => [
+                                'type' => 'explore_career_group',
+                                'career_group' => $topGroup['code'],
+                            ],
+                            'source_id' => $assessment['source_id'],
+                            'sort_source_id' => $assessment['source_id'] . ':' . $topGroup['code'],
+                            'evidence_facts' => [$assessment],
+                        ];
+                    }
+                    return $items;
+                },
+                $evidenceMapper,
+            ),
+            new RuleDefinition(
                 'eligible-technical-activity',
                 self::VERSION,
                 ['assessment', 'skills', 'activity'],
@@ -84,6 +115,43 @@ final class RuleSetV1
                                 'source_id' => $activity['source_id'],
                                 'sort_source_id' => $activity['source_id'] . ':' . $match['skill']['source_id'] . ':' . $match['assessment']['source_id'],
                                 'evidence_facts' => [$match['assessment'], $match['skill'], $activity],
+                            ];
+                        }
+                    }
+                    return $items;
+                },
+                $evidenceMapper,
+            ),
+            new RuleDefinition(
+                'holland-career-group-activity',
+                self::VERSION,
+                ['assessment', 'activity'],
+                35,
+                static fn (array $facts): bool => ($facts['holland_career_groups'] ?? []) !== [] && ($facts['open_career_activities'] ?? []) !== [],
+                static function (array $facts) use ($explainer): array {
+                    $items = [];
+                    foreach ($facts['holland_career_groups'] as $assessment) {
+                        $topGroup = $assessment['career_groups'][0] ?? null;
+                        if ($topGroup === null) {
+                            continue;
+                        }
+                        foreach ($facts['open_career_activities'] as $activity) {
+                            if (($activity['career_group'] ?? null) !== $topGroup['code']) {
+                                continue;
+                            }
+                            $items[] = [
+                                'item_type' => 'activity',
+                                'title' => $activity['title'],
+                                'summary' => $explainer->careerGroupActivity($activity, $topGroup),
+                                'confidence_band' => 'medium',
+                                'action' => [
+                                    'type' => 'register_activity',
+                                    'career_group' => $topGroup['code'],
+                                    'activity_source_id' => $activity['source_id'],
+                                ],
+                                'source_id' => $activity['source_id'],
+                                'sort_source_id' => $activity['source_id'] . ':' . $assessment['source_id'],
+                                'evidence_facts' => [$assessment, $activity],
                             ];
                         }
                     }

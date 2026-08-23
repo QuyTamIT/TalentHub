@@ -4,51 +4,168 @@ declare(strict_types=1);
 
 namespace TalentHub\Learner\Data\Database;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use JsonException;
 use PDO;
 use RuntimeException;
+use TalentHub\Learner\Assessment\Scoring\ScorerRegistry;
+use TalentHub\Learner\Assessment\Scoring\ScoringResult;
 use TalentHub\Learner\Data\Contracts\AssessmentWriteRepository;
+use TalentHub\Learner\Data\Database\DatabaseBadgeRepository;
+use TalentHub\Learner\Data\Database\DatabaseStatisticsRepository;
+use TalentHub\Learner\Data\Service\BadgeAwardService;
+use TalentHub\Learner\Data\Service\BadgeRuleEngine;
+use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
+use TalentHub\Learner\Data\Service\NotificationService;
 use TalentHub\Learner\Data\Support\Uuid;
 use Throwable;
 
 final class DatabaseAssessmentWriteRepository implements AssessmentWriteRepository
 {
-    private const HOLLAND_DIMENSIONS = ['R', 'I', 'A', 'S', 'E', 'C'];
-
-    public function __construct(private readonly PDO $pdo)
-    {
+    public function __construct(
+        private readonly PDO $pdo,
+        private readonly ScorerRegistry $scorers,
+        private readonly ?NotificationService $notifications = null,
+        private readonly ?BadgeAwardService $badgeAwardService = null
+    ) {
     }
 
-    public function startAttempt(string $studentId, string $testId, string $version): array
+    public function startOrResumeAttempt(string $studentId, string $assessmentCode, string $educationBand): array
     {
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
-        $testId = Uuid::normalizeDatabase($testId, 'test_id');
-        $version = trim($version);
-        if ($version === '') {
-            throw new RuntimeException('Assessment version is required.');
-        }
+        $educationBand = strtolower(trim($educationBand));
+        $bandedCode = $assessmentCode . '_' . $educationBand;
 
-        return $this->transaction(function () use ($studentId, $testId, $version): array {
+        return $this->transaction(function () use ($studentId, $assessmentCode, $educationBand, $bandedCode): array {
             $definition = $this->fetchOne(
                 <<<'SQL'
-SELECT v.id AS version_id, v.version AS assessment_version, v.scoringVersion AS scoring_version, v.schemaHash AS schema_hash
+SELECT
+    t.id AS test_id,
+    t.code AS test_code,
+    t.type AS test_type,
+    v.id AS version_id,
+    v.version AS assessment_version,
+    v.scoringVersion AS scoring_version,
+    v.schemaHash AS schema_hash
 FROM learner_assessment_versions v
 INNER JOIN talent_tests t ON t.id = v.testId
-WHERE v.testId = :test_id
-  AND v.version = :version
-  AND v.status = 'published'
+WHERE t.code = :banded_code
   AND t.status = 'published'
+  AND v.status = 'published'
+  AND v.publishedAt IS NOT NULL
+ORDER BY v.createdAt DESC
 LIMIT 1
 SQL,
-                ['test_id' => $testId, 'version' => $version]
+                ['banded_code' => $bandedCode]
             );
             if ($definition === null) {
-                throw new RuntimeException('Requested assessment version is unavailable.');
+                throw new RuntimeException('Requested assessment is unavailable for this education band.');
+            }
+
+            $testId = (string) $definition['test_id'];
+            $testType = (string) ($definition['test_type'] ?? '');
+            $baseCode = (string) $definition['test_code'];
+            if (str_ends_with(strtolower($baseCode), '_' . $educationBand)) {
+                $baseCode = substr($baseCode, 0, -strlen('_' . $educationBand));
+            }
+
+            $nowUtc = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+
+            $inProgress = $this->fetchOne(
+                <<<'SQL'
+SELECT a.id, m.expiresAt AS expires_at
+FROM test_attempts a
+INNER JOIN learner_assessment_attempt_metadata m ON m.attemptId = a.id
+WHERE a.studentId = :student_id
+  AND a.testId = :test_id
+  AND a.status = 'in_progress'
+  AND m.status = 'in_progress'
+ORDER BY a.startedAt DESC, a.id DESC
+LIMIT 1
+SQL,
+                [
+                    'student_id' => $studentId,
+                    'test_id' => $testId,
+                ]
+            );
+
+            if ($inProgress !== null) {
+                $expiresAtStr = (string) ($inProgress['expires_at'] ?? $inProgress['expiresAt'] ?? '');
+                $isExpired = false;
+                if ($expiresAtStr !== '') {
+                    $expiresAt = new DateTimeImmutable($expiresAtStr, new DateTimeZone('UTC'));
+                    if ($nowUtc > $expiresAt) {
+                        $isExpired = true;
+                    }
+                }
+
+                if (!$isExpired) {
+                    return $this->attemptView($this->findOwnedAttempt($studentId, (string) $inProgress['id']));
+                }
+
+                $expiredAt = $this->now();
+                $this->execute(
+                    'UPDATE test_attempts SET status = :expired_status, updatedAt = :updated_at WHERE id = :attempt_id AND studentId = :student_id AND status = :in_progress_status',
+                    [
+                        'expired_status' => 'expired',
+                        'updated_at' => $expiredAt,
+                        'attempt_id' => $inProgress['id'],
+                        'student_id' => $studentId,
+                        'in_progress_status' => 'in_progress',
+                    ]
+                );
+                $this->execute(
+                    'UPDATE learner_assessment_attempt_metadata SET status = :expired_status, updatedAt = :updated_at WHERE attemptId = :attempt_id AND status = :in_progress_status',
+                    [
+                        'expired_status' => 'expired',
+                        'updated_at' => $expiredAt,
+                        'attempt_id' => $inProgress['id'],
+                        'in_progress_status' => 'in_progress',
+                    ]
+                );
+            }
+
+            $latestSubmitted = $this->fetchOne(
+                <<<'SQL'
+SELECT a.id, a.submittedAt AS submitted_at
+FROM test_attempts a
+INNER JOIN talent_tests t ON t.id = a.testId
+WHERE a.studentId = :student_id
+  AND a.status = 'submitted'
+  AND a.submittedAt IS NOT NULL
+  AND (
+      t.id = :test_id
+      OR t.code = :middle_code
+      OR t.code = :high_code
+      OR t.code = :college_code
+  )
+ORDER BY a.submittedAt DESC, a.id DESC
+LIMIT 1
+SQL,
+                [
+                    'student_id' => $studentId,
+                    'test_id' => $testId,
+                    'middle_code' => $baseCode . '_middle',
+                    'high_code' => $baseCode . '_high',
+                    'college_code' => $baseCode . '_college',
+                ]
+            );
+
+            $submittedAtVal = $latestSubmitted['submitted_at'] ?? $latestSubmitted['submittedAt'] ?? null;
+            if ($latestSubmitted !== null && $submittedAtVal !== null) {
+                $submittedAt = new DateTimeImmutable((string) $submittedAtVal, new DateTimeZone('UTC'));
+                $retakeAllowedAt = $submittedAt->modify('+90 days');
+                if ($nowUtc < $retakeAllowedAt) {
+                    throw new RuntimeException('Retake is not allowed within 90 days of the last submitted assessment.');
+                }
             }
 
             $now = $this->now();
             $attemptId = $this->newUuid();
             $metadataId = $this->newUuid();
+            $expiresAt = $nowUtc->modify('+30 days')->format('Y-m-d H:i:s.u');
+
             $this->execute(
                 'INSERT INTO test_attempts (id, testId, studentId, status, startedAt, submittedAt, createdAt, updatedAt) VALUES (:id, :test_id, :student_id, :status, :started_at, NULL, :created_at, :updated_at)',
                 [
@@ -62,12 +179,13 @@ SQL,
                 ]
             );
             $this->execute(
-                'INSERT INTO learner_assessment_attempt_metadata (id, attemptId, versionId, status, expiresAt, submittedAt, inputHash, createdAt, updatedAt) VALUES (:id, :attempt_id, :version_id, :status, NULL, NULL, NULL, :created_at, :updated_at)',
+                'INSERT INTO learner_assessment_attempt_metadata (id, attemptId, versionId, status, expiresAt, submittedAt, inputHash, createdAt, updatedAt) VALUES (:id, :attempt_id, :version_id, :status, :expires_at, NULL, NULL, :created_at, :updated_at)',
                 [
                     'id' => $metadataId,
                     'attempt_id' => $attemptId,
                     'version_id' => $definition['version_id'],
                     'status' => 'in_progress',
+                    'expires_at' => $expiresAt,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]
@@ -186,7 +304,10 @@ SQL,
             }
 
             $inputHash = $this->inputHash($attempt, $answers);
-            $scored = $this->score($attempt['scoring_version'], $questions, $answers);
+            $scored = $this->scorers
+                ->forVersion($attempt['scoring_version'])
+                ->score($questions, $answers)
+                ->toArray();
             $now = $this->now();
             $this->execute(
                 'INSERT INTO test_results (id, attemptId, resultCode, summary, dimensionScoresJson, scoringVersion, createdAt) VALUES (:id, :attempt_id, :result_code, :summary, :dimension_scores_json, :scoring_version, :created_at)',
@@ -242,6 +363,21 @@ SQL,
                 throw new RuntimeException('Assessment attempt changed before submission could complete.');
             }
 
+            $userId = $this->userIdForStudent($studentId);
+            $this->getNotificationService()->publish(
+                $userId,
+                'assessment_submitted',
+                'Nộp bài đánh giá thành công',
+                'Bạn đã hoàn thành và nộp bài đánh giá.',
+                '/app/learner/assessment-result.php',
+                'assessment_attempt:' . $attemptId,
+                $studentId
+            );
+
+            if ($this->hasBadgesTable()) {
+                $this->getBadgeAwardService()->evaluateAndAward($studentId, 'system');
+            }
+
             return $this->resultView($studentId, $attemptId);
         });
     }
@@ -252,7 +388,8 @@ SQL,
             <<<'SQL'
 SELECT a.id AS attempt_id, a.testId AS test_id, a.studentId AS student_id, a.status AS attempt_status,
        a.startedAt AS started_at, a.submittedAt AS attempt_submitted_at,
-       m.versionId AS version_id, m.status AS metadata_status, m.submittedAt AS metadata_submitted_at,
+       m.versionId AS version_id, m.status AS metadata_status, m.expiresAt AS expires_at,
+       m.submittedAt AS metadata_submitted_at,
        m.inputHash AS input_hash, v.version AS assessment_version, v.scoringVersion AS scoring_version,
        v.schemaHash AS schema_hash
 FROM test_attempts a
@@ -276,11 +413,13 @@ SQL,
         return [
             'id' => $attempt['attempt_id'],
             'student_id' => $attempt['student_id'],
+
             'assessment_id' => $attempt['test_id'],
             'assessment_version' => $attempt['assessment_version'],
             'scoring_version' => $attempt['scoring_version'],
             'status' => $attempt['metadata_status'],
             'started_at' => $attempt['started_at'],
+            'expires_at' => $attempt['expires_at'] !== null ? (string) $attempt['expires_at'] : null,
             'submitted_at' => $attempt['metadata_submitted_at'] ?? $attempt['attempt_submitted_at'],
             'input_hash' => $attempt['input_hash'],
             'answers' => $this->answersForAttempt($attempt['student_id'], $attempt['attempt_id']),
@@ -372,62 +511,17 @@ SQL,
         ]));
     }
 
-    private function score(string $scoringVersion, array $questions, array $answers): array
-    {
-        if ($scoringVersion !== 'holland-riasec-1.0') {
-            throw new RuntimeException('Assessment scoring version is not approved.');
-        }
-
-        $totals = array_fill_keys(self::HOLLAND_DIMENSIONS, 0.0);
-        $counts = array_fill_keys(self::HOLLAND_DIMENSIONS, 0);
-        foreach ($questions as $question) {
-            $dimension = strtoupper(trim((string) $question['dimension_code']));
-            if (!in_array($dimension, self::HOLLAND_DIMENSIONS, true)) {
-                throw new RuntimeException('Assessment version contains an unsupported Holland dimension.');
-            }
-            if (!array_key_exists($question['question_id'], $answers)) {
-                if ((int) $question['required'] === 1) {
-                    throw new RuntimeException('All required assessment questions must be answered before submission.');
-                }
-                continue;
-            }
-            $answer = $answers[$question['question_id']];
-            if (!is_int($answer) && !is_float($answer) && !(is_string($answer) && is_numeric($answer))) {
-                throw new RuntimeException('Holland answers must be numeric values.');
-            }
-            $value = (float) $answer;
-            if ($value < 1 || $value > 5) {
-                throw new RuntimeException('Holland answers must be between 1 and 5.');
-            }
-            $totals[$dimension] += $value;
-            $counts[$dimension]++;
-        }
-
-        $scores = [];
-        foreach (self::HOLLAND_DIMENSIONS as $dimension) {
-            if ($counts[$dimension] === 0) {
-                $scores[$dimension] = 0;
-                continue;
-            }
-            $scores[$dimension] = (int) round((($totals[$dimension] - $counts[$dimension]) / ($counts[$dimension] * 4)) * 100);
-        }
-        $ranked = self::HOLLAND_DIMENSIONS;
-        usort($ranked, static function (string $left, string $right) use ($scores): int {
-            return $scores[$right] <=> $scores[$left]
-                ?: array_search($left, self::HOLLAND_DIMENSIONS, true) <=> array_search($right, self::HOLLAND_DIMENSIONS, true);
-        });
-
-        return [
-            'result_code' => implode('', array_slice($ranked, 0, 3)),
-            'summary' => 'Holland RIASEC assessment submitted.',
-            'dimension_scores' => $scores,
-        ];
-    }
-
     private function assertInProgress(array $attempt): void
     {
         if ($attempt['attempt_status'] !== 'in_progress' || $attempt['metadata_status'] !== 'in_progress') {
             throw new RuntimeException('Assessment attempt is immutable after submission or closure.');
+        }
+
+        if (($attempt['expires_at'] ?? null) !== null) {
+            $expiresAt = new DateTimeImmutable((string) $attempt['expires_at'], new DateTimeZone('UTC'));
+            if (new DateTimeImmutable('now', new DateTimeZone('UTC')) > $expiresAt) {
+                throw new RuntimeException('Assessment attempt has expired.');
+            }
         }
     }
 
@@ -479,6 +573,7 @@ SQL,
         }
     }
 
+
     private function encodeJson(mixed $value): string
     {
         try {
@@ -509,5 +604,62 @@ SQL,
     private function now(): string
     {
         return (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s.u');
+    }
+
+    private function getNotificationService(): NotificationService
+    {
+        if (!class_exists('TalentHub\Learner\Data\Service\NotificationService', false)) {
+            require_once dirname(__DIR__) . '/Contracts/NotificationRepository.php';
+            require_once dirname(__DIR__) . '/Service/NotificationService.php';
+            require_once dirname(__DIR__) . '/Database/DatabaseNotificationRepository.php';
+        }
+        return $this->notifications ?? new NotificationService(new DatabaseNotificationRepository($this->pdo));
+    }
+
+
+    private function userIdForStudent(string $studentId): string
+    {
+        $stmt = $this->pdo->prepare('SELECT userId FROM student_profiles WHERE id = :id LIMIT 1');
+        $stmt->execute(['id' => $studentId]);
+        $userId = $stmt->fetchColumn();
+        if (!is_string($userId) || $userId === '') {
+            throw new \RuntimeException('Notification recipient is missing for the assessment attempt.');
+        }
+        return $userId;
+    }
+
+    private function getBadgeAwardService(): BadgeAwardService
+    {
+        if ($this->badgeAwardService !== null) {
+            return $this->badgeAwardService;
+        }
+
+        if (!class_exists('TalentHub\Learner\Data\Service\BadgeAwardService', false)) {
+            require_once dirname(__DIR__) . '/Contracts/BadgeRepository.php';
+            require_once dirname(__DIR__) . '/Contracts/StatisticsRepository.php';
+            require_once dirname(__DIR__) . '/Domain/LevelProgression.php';
+            require_once dirname(__DIR__) . '/Service/BadgeRuleEngine.php';
+            require_once dirname(__DIR__) . '/Service/BadgeAwardService.php';
+            require_once dirname(__DIR__) . '/Database/DatabaseBadgeRepository.php';
+            require_once dirname(__DIR__) . '/Database/DatabaseStatisticsRepository.php';
+        }
+
+        return new BadgeAwardService(
+            new DatabaseBadgeRepository($this->pdo),
+            new DatabaseStatisticsRepository($this->pdo),
+            new BadgeRuleEngine(),
+            $this->getNotificationService()
+        );
+    }
+
+    private function hasBadgesTable(): bool
+    {
+        $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $stmt = $this->pdo->query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'badges' LIMIT 1");
+            return (bool) $stmt->fetchColumn();
+        }
+        $stmt = $this->pdo->query("SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'badges' LIMIT 1");
+        return (bool) $stmt->fetchColumn();
     }
 }

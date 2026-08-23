@@ -32,6 +32,16 @@ final class JsonResponder
 
     public static function sendError(ApiException $exception, string $requestId): never
     {
+        $allowedHeaders = ['Retry-After'];
+        foreach ($exception->headers as $name => $value) {
+            if (!in_array($name, $allowedHeaders, true)) {
+                continue;
+            }
+            if ($name === 'Retry-After' && preg_match('/\A[1-9][0-9]{0,5}\z/', $value) !== 1) {
+                continue;
+            }
+            header($name . ': ' . $value);
+        }
         self::send(self::error($exception, $requestId));
     }
 

@@ -10,6 +10,7 @@ use TalentHub\Http\ApiException;
 use TalentHub\Http\Request;
 use TalentHub\Learner\Api\JsonResponder;
 use TalentHub\Learner\Api\LearnerApiContext;
+use TalentHub\Learner\Data\Security\PersistentActionRateLimiter;
 
 $context = null;
 try {
@@ -25,6 +26,11 @@ try {
         $context->mutation($request->header('x-csrf-token'));
         $context->allowedInput($request->json(), []);
         $idempotencyKey = $context->idempotencyKey($request->header('x-idempotency-key'));
+        (new PersistentActionRateLimiter($context->pdo()))->consume(
+            'learner.ai',
+            $studentId,
+            is_string($_SERVER['REMOTE_ADDR'] ?? null) ? $_SERVER['REMOTE_ADDR'] : null,
+        );
         JsonResponder::sendSuccess(
             $context->recommendationService($studentId)->generate($studentId, $context->requestId(), $idempotencyKey),
             $context->requestId(),

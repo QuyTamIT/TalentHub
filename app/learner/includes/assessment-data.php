@@ -189,6 +189,7 @@ if (!function_exists('learner_assessment_write_service')) {
     function learner_assessment_write_service(): \TalentHub\Learner\Data\Service\LearnerAssessmentService
     {
         return new \TalentHub\Learner\Data\Service\LearnerAssessmentService(
+            learner_assessment_repository(),
             learner_repository_factory()->assessmentWrite()
         );
     }

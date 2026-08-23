@@ -15,6 +15,8 @@ final class RecommendationContext
         private readonly ?string $requestId = null,
         private readonly ?string $idempotencyKey = null,
         private readonly ?string $studentId = null,
+        private readonly ?string $consentDecisionHash = null,
+        private readonly ?string $consentPolicyVersion = null,
     )
     {
         $allowed = array_values(array_unique(array_filter(
@@ -44,5 +46,15 @@ final class RecommendationContext
     public function studentId(): ?string
     {
         return $this->studentId;
+    }
+
+    public function consentDecisionHash(): ?string
+    {
+        return $this->consentDecisionHash;
+    }
+
+    public function consentPolicyVersion(): ?string
+    {
+        return $this->consentPolicyVersion;
     }
 }
