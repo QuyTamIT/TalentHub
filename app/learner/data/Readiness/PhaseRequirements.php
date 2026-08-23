@@ -142,6 +142,20 @@ final class PhaseRequirements
             10 => $this->definition(true, [], ['learner_forward_migrations'], ['learner_forward_migrations' => ['version', 'name', 'checksum', 'description', 'appliedAt']]),
         ];
         $this->requirements[11] = $this->mergeDefinitions(array_slice($this->requirements, 1, 10, true));
+        $phase12Telemetry = $this->definition(true, [], ['learner_ai_evaluation_runs'], [
+            'learner_ai_evaluation_runs' => [
+                'id', 'studentId', 'subjectRef', 'attemptKey', 'ruleRunId', 'modelRunId',
+                'snapshotId', 'educationBand', 'schemaValid', 'evidenceCoverage',
+                'unsupportedClaimCount', 'unsafeOutputCount', 'resultType', 'status',
+                'evaluatedAt', 'createdAt',
+            ],
+        ], [
+            'learner_ai_evaluation_runs' => [
+                'uq_learner_ai_evaluation_attempt_revision',
+                'uq_learner_ai_evaluation_model_revision',
+            ],
+        ]);
+        $this->requirements[12] = $this->mergeDefinitions([$this->requirements[11], $phase12Telemetry]);
     }
 
     public function all(): array
@@ -152,7 +166,7 @@ final class PhaseRequirements
     public function forPhase(int $phase): array
     {
         if (!isset($this->requirements[$phase])) {
-            throw new InvalidArgumentException('Phase must be between 0 and 11.');
+            throw new InvalidArgumentException('Phase must be between 0 and 12.');
         }
 
         return $this->requirements[$phase];

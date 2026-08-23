@@ -509,6 +509,8 @@ final class CompleteAiDemoSeeder
                 'activityId' => $activityId,
                 'studentId' => $reg['student_id'],
                 'status' => $reg['status'],
+                'cancelledAt' => $reg['status'] === 'cancelled' ? $now : null,
+                'cancellationReason' => $reg['status'] === 'cancelled' ? 'demo_cancelled' : null,
             ], $counts, 'activity_registrations');
         }
     }

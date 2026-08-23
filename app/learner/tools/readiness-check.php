@@ -27,12 +27,12 @@ if (!in_array($format, ['text', 'json'], true)) {
     readiness_cli_error('Format must be text or json.', 'text');
 }
 if (!isset($options['phase']) || filter_var($options['phase'], FILTER_VALIDATE_INT) === false) {
-    readiness_cli_error('Phase must be an integer between 0 and 11.', $format);
+    readiness_cli_error('Phase must be an integer between 0 and 12.', $format);
 }
 
 $phase = (int) $options['phase'];
-if ($phase < 0 || $phase > 11) {
-    readiness_cli_error('Phase must be between 0 and 11.', $format);
+if ($phase < 0 || $phase > 12) {
+    readiness_cli_error('Phase must be between 0 and 12.', $format);
 }
 
 try {

@@ -13,11 +13,14 @@ use TalentHub\Database\Connection;
 use TalentHub\Database\Seeds\Demo\CompleteAiDemoAiRunner;
 use TalentHub\Database\Seeds\Demo\CompleteAiDemoDataset;
 use TalentHub\Learner\Ai\Config\RecommendationConfig;
+use TalentHub\Learner\Ai\Consent\ConsentPolicy;
+use TalentHub\Learner\Ai\Consent\ProviderConsentGate;
 use TalentHub\Learner\Ai\Model\ModelRecommendationEngine;
 use TalentHub\Learner\Ai\Model\PromptRegistry;
 use TalentHub\Learner\Ai\Provider\HttpRecommendationProvider;
 use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
 use TalentHub\Learner\Ai\Rules\RuleRecommendationEngine;
+use TalentHub\Learner\Ai\Sources\Database\DatabaseConsentSource;
 use TalentHub\Learner\Ai\Validation\RecommendationResultValidator;
 
 try {
@@ -51,6 +54,7 @@ try {
         ),
         $recommendationConfig,
         new RecommendationResultValidator(),
+        new ProviderConsentGate(new ConsentPolicy(new DatabaseConsentSource($pdo))),
     );
 
     $heroes = CompleteAiDemoDataset::heroStudentIds();

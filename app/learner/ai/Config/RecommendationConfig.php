@@ -21,6 +21,8 @@ final class RecommendationConfig
         private readonly bool $shadowEnabled,
         private readonly bool $shadowGateApproved,
         private readonly int $visiblePercent,
+        private readonly ?string $pilotApprovalReference,
+        private readonly bool $pilotPaused,
     ) {
     }
 
@@ -29,7 +31,7 @@ final class RecommendationConfig
     {
         $enabled = strtolower(self::value($environment, 'TALENTHUB_AI_ENABLED', 'false')) === 'true';
         if (!$enabled) {
-            return new self(false, null, null, null, null, [], 2, 1, 1, 1, false, false, 0);
+            return new self(false, null, null, null, null, [], 2, 1, 1, 1, false, false, 0, null, true);
         }
 
         $provider = self::required($environment, 'TALENTHUB_AI_PROVIDER');
@@ -61,6 +63,8 @@ final class RecommendationConfig
             strtolower(self::value($environment, 'TALENTHUB_AI_SHADOW', 'false')) === 'true',
             strtolower(self::value($environment, 'TALENTHUB_AI_SHADOW_GATE_APPROVED', 'false')) === 'true',
             self::boundedInt($environment, 'TALENTHUB_AI_VISIBLE_PERCENT', 0, 0, 100),
+            self::optional($environment, 'TALENTHUB_AI_PILOT_APPROVAL_REFERENCE'),
+            self::strictBoolean($environment, 'TALENTHUB_AI_PILOT_PAUSED', true),
         );
     }
 
@@ -76,6 +80,8 @@ final class RecommendationConfig
     public function shadowEnabled(): bool { return $this->shadowEnabled; }
     public function shadowGateApproved(): bool { return $this->shadowGateApproved; }
     public function visiblePercent(): int { return $this->visiblePercent; }
+    public function pilotApprovalReference(): ?string { return $this->pilotApprovalReference; }
+    public function pilotPaused(): bool { return $this->pilotPaused; }
 
     /** @return array{enabled:bool,provider:?string,model:?string,timeout_seconds:int} */
     public function diagnostics(): array
@@ -136,6 +142,21 @@ final class RecommendationConfig
             throw new \InvalidArgumentException("{$key} is required when AI is enabled.");
         }
         return $value;
+    }
+
+    /** @param array<string,string> $environment */
+    private static function optional(array $environment, string $key): ?string
+    {
+        $value = self::value($environment, $key);
+        return $value === '' ? null : $value;
+    }
+
+    /** @param array<string,string> $environment */
+    private static function strictBoolean(array $environment, string $key, bool $default): bool
+    {
+        $raw = strtolower(self::value($environment, $key, $default ? 'true' : 'false'));
+        if (!in_array($raw, ['true', 'false'], true)) throw new \InvalidArgumentException("{$key} must be true or false.");
+        return $raw === 'true';
     }
 
     /** @param array<string,string> $environment */

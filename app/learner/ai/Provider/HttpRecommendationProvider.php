@@ -7,6 +7,8 @@ namespace TalentHub\Learner\Ai\Provider;
 use Closure;
 use JsonException;
 use TalentHub\Learner\Ai\Config\RecommendationConfig;
+use TalentHub\Learner\Ai\Consent\ProviderAttemptAuthorizer;
+use TalentHub\Learner\Ai\Consent\ProviderConsentDenied;
 use TalentHub\Learner\Ai\Contracts\RecommendationProvider;
 
 final class HttpRecommendationProvider implements RecommendationProvider
@@ -22,16 +24,16 @@ final class HttpRecommendationProvider implements RecommendationProvider
             : Closure::fromCallable([$this, 'defaultHttpTransport']);
     }
 
-    public function generate(ProviderRequest $request): ProviderResponse
+    public function generate(ProviderRequest $request, ProviderAttemptAuthorizer $authorizer): ProviderResponse
     {
         if (!$this->config->enabled() || $this->config->apiUrl() === null || $this->config->apiKey() === null) {
-            return ProviderResponse::failure('provider_disabled');
+            return ProviderResponse::failure('provider_disabled', null, 'config');
         }
         try {
             $payload = $this->transportPayload($request);
             $body = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         } catch (JsonException) {
-            return ProviderResponse::failure('invalid_request');
+            return ProviderResponse::failure('invalid_request', null, 'request');
         }
         $headers = [
             'Accept' => 'application/json',
@@ -43,23 +45,28 @@ final class HttpRecommendationProvider implements RecommendationProvider
         }
         for ($attempt = 1; $attempt <= $this->config->maxAttempts(); $attempt++) {
             try {
+                $authorizer->beforeAttempt($attempt);
+            } catch (ProviderConsentDenied $exception) {
+                return ProviderResponse::failure($exception->reason(), null, 'consent');
+            }
+            try {
                 $response = ($this->http)($this->config->apiUrl(), $headers, $body, $this->config->timeoutSeconds());
             } catch (\Throwable) {
-                return ProviderResponse::failure('provider_unavailable');
+                return ProviderResponse::failure('provider_unavailable', null, 'network');
             }
             $status = is_numeric($response['status'] ?? null) ? (int) $response['status'] : 0;
             if ($status === 200) {
                 return $this->success($response['body'] ?? null);
             }
             if ($status === 429) {
-                return ProviderResponse::failure('rate_limited', $this->retryAfter($response['headers'] ?? []));
+                return ProviderResponse::failure('rate_limited', $this->retryAfter($response['headers'] ?? []), '4xx');
             }
             if (in_array($status, [502, 503], true) && $attempt < $this->config->maxAttempts()) {
                 continue;
             }
-            return ProviderResponse::failure($status >= 500 ? 'provider_unavailable' : 'provider_rejected');
+            return ProviderResponse::failure($status >= 500 ? 'provider_unavailable' : 'provider_rejected', null, $status >= 500 ? '5xx' : '4xx');
         }
-        return ProviderResponse::failure('provider_unavailable');
+        return ProviderResponse::failure('provider_unavailable', null, '5xx');
     }
 
     /** @return array<string,mixed> */
@@ -102,23 +109,23 @@ final class HttpRecommendationProvider implements RecommendationProvider
     private function success(mixed $body): ProviderResponse
     {
         if (!is_string($body)) {
-            return ProviderResponse::failure('malformed_response');
+            return ProviderResponse::failure('malformed_response', null, '2xx');
         }
         try {
             $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
-            return ProviderResponse::failure('malformed_response');
+            return ProviderResponse::failure('malformed_response', null, '2xx');
         }
         if (!is_array($decoded)) {
-            return ProviderResponse::failure('malformed_response');
+            return ProviderResponse::failure('malformed_response', null, '2xx');
         }
 
         // Direct structured payload: {"items": [...]}
         if (isset($decoded['items']) && is_array($decoded['items'])) {
             try {
-                return ProviderResponse::success($decoded['items']);
+                return ProviderResponse::success($decoded['items'], is_array($decoded['usage'] ?? null) ? $decoded['usage'] : null);
             } catch (\InvalidArgumentException) {
-                return ProviderResponse::failure('malformed_response');
+                return ProviderResponse::failure('malformed_response', null, '2xx');
             }
         }
 
@@ -132,7 +139,7 @@ final class HttpRecommendationProvider implements RecommendationProvider
             return $this->parseContentString($decoded['candidates'][0]['content']['parts'][0]['text']);
         }
 
-        return ProviderResponse::failure('malformed_response');
+        return ProviderResponse::failure('malformed_response', null, '2xx');
     }
 
     private function parseContentString(string $content): ProviderResponse

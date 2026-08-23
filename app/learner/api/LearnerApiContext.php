@@ -16,6 +16,7 @@ use TalentHub\Http\ApiException;
 use TalentHub\Http\Request;
 use TalentHub\Learner\Ai\Config\RecommendationConfig;
 use TalentHub\Learner\Ai\Consent\ConsentPolicy;
+use TalentHub\Learner\Ai\Consent\ProviderConsentGate;
 use TalentHub\Learner\Ai\Contracts\RecommendationEngine;
 use TalentHub\Learner\Ai\Evaluation\RecommendationEvaluator;
 use TalentHub\Learner\Ai\Evaluation\ShadowRunService;
@@ -201,6 +202,7 @@ final class LearnerApiContext
                     ),
                     $config,
                     new RecommendationResultValidator(),
+                    new ProviderConsentGate($consent),
                 );
             }
         } catch (\Throwable) {
@@ -215,7 +217,7 @@ final class LearnerApiContext
             new RecommendationResultValidator(),
             new RecommendationResponseMapper(),
             static fn (string $candidate): bool => hash_equals($studentId, $candidate),
-            static fn (string $candidate): array => $consent->allowedScopes($candidate),
+            static fn (string $candidate) => $consent->decision($candidate),
             static fn (string $candidate, array $scopes) => $snapshotBuilder->build($candidate, $scopes),
             static fn ($input) => (new DataQualityGate())->evaluate($input),
             static fn ($input): bool => true,
@@ -245,6 +247,7 @@ final class LearnerApiContext
                 is_callable($httpTransport) ? $httpTransport : null,
             );
             $fallbackEngine = new RuleRecommendationEngine();
+            $consent = new ConsentPolicy(new DatabaseConsentSource($this->pdo));
             $engine = new ModelRecommendationEngine(
                 $provider,
                 $fallbackEngine,
@@ -257,6 +260,7 @@ final class LearnerApiContext
                 ),
                 $config,
                 new RecommendationResultValidator(),
+                new ProviderConsentGate($consent),
             );
             return new ShadowRunService($repository, $engine, new RecommendationEvaluator());
         } catch (\Throwable) {
