@@ -3,12 +3,46 @@
 declare(strict_types=1);
 
 require dirname(__DIR__) . '/bin/bootstrap.php';
+require dirname(__DIR__) . '/app/learner/data/bootstrap.php';
 
 use TalentHub\Config\Environment;
 use TalentHub\Database\Connection;
 use TalentHub\Database\Migration\MigrationRunner;
 use TalentHub\Http\ApiException;
+use TalentHub\Learner\Assessment\Scoring\DiscScorer;
+use TalentHub\Learner\Assessment\Scoring\HollandScorer;
+use TalentHub\Learner\Assessment\Scoring\MbtiScorer;
+use TalentHub\Learner\Assessment\Scoring\MultipleIntelligenceScorer;
+use TalentHub\Learner\Assessment\Scoring\ScorerRegistry;
+use TalentHub\Learner\Data\Database\DatabaseActivityCommandRepository;
+use TalentHub\Learner\Data\Database\DatabaseAssessmentRepository;
+use TalentHub\Learner\Data\Database\DatabaseAssessmentWriteRepository;
+use TalentHub\Learner\Data\Database\DatabaseBadgeRepository;
+use TalentHub\Learner\Data\Database\DatabaseCheckinRepository;
+use TalentHub\Learner\Data\Database\DatabaseInternshipApplicationCommandRepository;
+use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
+use TalentHub\Learner\Data\Database\DatabaseStatisticsRepository;
+use TalentHub\Learner\Data\Service\ActivityRegistrationService;
+use TalentHub\Learner\Data\Service\ApplicationCommandService;
+use TalentHub\Learner\Data\Service\BadgeAwardService;
+use TalentHub\Learner\Data\Service\BadgeReadService;
+use TalentHub\Learner\Data\Service\BadgeRuleEngine;
+use TalentHub\Learner\Data\Service\LearnerAssessmentService;
+use TalentHub\Learner\Data\Service\LearnerCheckinService;
+use TalentHub\Learner\Data\Service\NotificationService;
+use TalentHub\Learner\Data\Service\ProfileSharingService;
+use TalentHub\Learner\Data\Service\StatisticsService;
+use TalentHub\Modules\Business\Repository\InternshipRepository;
+use TalentHub\Modules\Business\Service\InternshipService;
 use TalentHub\Modules\School\Service\SchoolAuthorization;
+use TalentHub\Modules\Student\Repository\StudentRepository;
+use TalentHub\Modules\Student\Service\StudentProfileService;
+use TalentHub\Modules\Teacher\Repository\TeacherActivityRepository;
+use TalentHub\Modules\Teacher\Repository\TeacherGradingRepository;
+use TalentHub\Modules\Teacher\Repository\TeacherQrSessionRepository;
+use TalentHub\Modules\Teacher\Service\TeacherActivityService;
+use TalentHub\Modules\Teacher\Service\TeacherGradingService;
+use TalentHub\Modules\Teacher\Service\TeacherQrSessionService;
 use TalentHub\Rbac\Service\PermissionService;
 
 $assertions = 0;
@@ -188,6 +222,370 @@ function phase11VerifyAuthorization(PDO $pdo, array $actors, callable $assert): 
     return ['positive' => count($positive) + 1, 'denied' => count($denied) + 1];
 }
 
+/** @param callable():mixed $operation */
+function phase11ExpectApi(callable $operation, int $status, string $code): bool
+{
+    try {
+        $operation();
+    } catch (ApiException $error) {
+        return $error->status === $status && $error->errorCode === $code;
+    }
+
+    return false;
+}
+
+/** @param callable():mixed $operation */
+function phase11ExpectFailure(callable $operation): bool
+{
+    try {
+        $operation();
+    } catch (Throwable) {
+        return true;
+    }
+
+    return false;
+}
+
+/** @param callable(bool,string):void $assert */
+function phase11RunProfileJourney(PDO $pdo, array $actors, callable $assert): array
+{
+    $studentA = $actors['students'][0];
+    $studentB = $actors['students'][1];
+    $profiles = new StudentProfileService(new StudentRepository($pdo));
+    $updated = $profiles->update($studentA['user_id'], [
+        'fullName' => 'Phase 11 Learner Owner',
+        'phone' => '+84910000001',
+        'location' => 'Da Nang',
+        'headline' => 'Release rehearsal learner',
+        'bio' => 'Deidentified Phase 11 disposable profile.',
+    ]);
+    $assert($updated['id'] === $studentA['student_id'], 'student updates only the profile resolved from own session user');
+    $assert($profiles->get($studentB['user_id'])['fullName'] === 'Phase 11 Student 2', 'student B profile remains unchanged');
+
+    $sharing = new ProfileSharingService($pdo);
+    $share = $sharing->createShare($studentA['student_id'], ['fullName', 'headline', 'school'], 1);
+    $projection = $sharing->resolveShare($share['rawToken']);
+    $assert(is_array($projection) && ($projection['student']['fullName'] ?? null) === 'Phase 11 Learner Owner', 'consented profile projection resolves from opaque token');
+    $assert($sharing->listShares($studentB['student_id']) === [], 'another student cannot enumerate owner shares');
+    $assert(phase11ExpectApi(
+        static fn () => $sharing->revokeShare($studentB['student_id'], $share['id']),
+        404,
+        'RESOURCE_NOT_FOUND',
+    ), 'another student cannot revoke owner share');
+    $sharing->revokeShare($studentA['student_id'], $share['id']);
+    $assert($sharing->resolveShare($share['rawToken']) === null, 'revoked share fails closed');
+
+    return ['updated' => true, 'shared' => true, 'revoked' => true, 'cross_owner_denied' => true];
+}
+
+/** @param callable(bool,string):void $assert */
+function phase11RunActivityJourney(PDO $pdo, array $actors, string $runId, callable $assert): array
+{
+    $studentA = $actors['students'][0];
+    $studentB = $actors['students'][1];
+    $teacherA = $actors['teachers'][0];
+    $teacherB = $actors['teachers'][1];
+    $notifications = new NotificationService(new DatabaseNotificationRepository($pdo));
+    $activityRepository = new TeacherActivityRepository($pdo, $notifications);
+    $teacherActivities = new TeacherActivityService($activityRepository);
+    $title = "Phase 11 release activity {$runId}";
+    $teacherActivities->create($teacherA['teacher_id'], $teacherA['school_id'], [
+        'title' => $title,
+        'category' => 'career',
+        'startAt' => new DateTimeImmutable('+1 day'),
+        'endAt' => new DateTimeImmutable('+1 day +2 hours'),
+        'capacity' => 1,
+    ]);
+    $findActivity = $pdo->prepare('SELECT id FROM activities WHERE title = :title AND createdByTeacherId = :teacherId LIMIT 1');
+    $findActivity->execute(['title' => $title, 'teacherId' => $teacherA['teacher_id']]);
+    $activityId = (string) $findActivity->fetchColumn();
+    $assert($activityId !== '', 'teacher-created activity is persisted');
+    $teacherActivities->advanceStatus($teacherA['teacher_id'], $activityId);
+
+    $policy = $pdo->prepare(<<<'SQL'
+        INSERT INTO activity_registration_policies
+            (activityId, registrationOpensAt, registrationClosesAt, cancellationClosesAt, approvalMode)
+        VALUES (:activityId, CURRENT_TIMESTAMP(6) - INTERVAL 1 DAY, CURRENT_TIMESTAMP(6) + INTERVAL 12 HOUR,
+                CURRENT_TIMESTAMP(6) + INTERVAL 18 HOUR, 'teacher_review')
+    SQL);
+    $policy->execute(['activityId' => $activityId]);
+
+    $registrationService = new ActivityRegistrationService(new DatabaseActivityCommandRepository($pdo, $notifications));
+    $registeredA = $registrationService->register($studentA['student_id'], $studentA['user_id'], "p11rega{$runId}", ['activityId' => $activityId]);
+    $assert(($registeredA['registration']['status'] ?? null) === 'pending', 'teacher-review registration starts pending');
+    $approved = $teacherActivities->transitionRegistration(
+        $teacherA['teacher_id'],
+        $teacherA['user_id'],
+        "p11apra{$runId}",
+        $activityId,
+        (string) $registeredA['registration']['id'],
+        ['expectedStatus' => 'pending', 'action' => 'approve'],
+    );
+    $assert($approved['status'] === 'approved', 'owner teacher approves registration');
+    $registeredB = $registrationService->register($studentB['student_id'], $studentB['user_id'], "p11regb{$runId}", ['activityId' => $activityId]);
+    $assert(($registeredB['registration']['status'] ?? null) === 'waitlisted', 'second student is waitlisted at capacity');
+    $assert(phase11ExpectApi(
+        static fn () => $teacherActivities->update($teacherB['teacher_id'], $activityId, [
+            'title' => 'Cross-owner mutation',
+            'category' => 'career',
+            'startAt' => new DateTimeImmutable('+1 day'),
+            'endAt' => new DateTimeImmutable('+1 day +2 hours'),
+            'capacity' => 1,
+        ]),
+        404,
+        'RESOURCE_NOT_FOUND',
+    ), 'another teacher cannot update the activity');
+
+    $teacherActivities->advanceStatus($teacherA['teacher_id'], $activityId);
+    $qr = new TeacherQrSessionService(new TeacherQrSessionRepository($pdo));
+    $createdQr = $qr->create($teacherA['user_id'], $activityId, '15', '10', '1.50');
+    $assert(isset($createdQr['rawToken']) && !isset($createdQr['tokenHash']), 'teacher receives raw QR token exactly once');
+    $assert(phase11ExpectApi(
+        static fn () => $qr->create($teacherB['user_id'], $activityId, '15', '10', '2.00'),
+        422,
+        'INVALID_ACTIVITY',
+    ), 'another teacher cannot create QR for the activity');
+
+    $checkins = new LearnerCheckinService(new DatabaseCheckinRepository($pdo, $notifications));
+    $rawToken = (string) $createdQr['rawToken'];
+    $replayToken = $rawToken;
+    $confirmed = $checkins->submit($studentA['student_id'], $studentA['user_id'], "p11checka{$runId}", $rawToken);
+    $assert(($confirmed['status'] ?? null) === 'confirmed', 'learner QR check-in is confirmed');
+    $assert($rawToken === null, 'learner service erases raw QR token after use');
+    $assert(phase11ExpectApi(
+        static function () use ($checkins, $studentA, $runId, &$replayToken): void {
+            $checkins->submit($studentA['student_id'], $studentA['user_id'], "p11replay{$runId}", $replayToken);
+        },
+        409,
+        'CHECKIN_ALREADY_EXISTS',
+    ), 'replayed QR check-in is rejected idempotently');
+
+    $checkinCount = $pdo->prepare('SELECT COUNT(*) FROM checkins WHERE registrationId = :registrationId AND status = \'confirmed\'');
+    $checkinCount->execute(['registrationId' => $registeredA['registration']['id']]);
+    $experienceCount = $pdo->prepare('SELECT COUNT(*) FROM experience_logs WHERE studentId = :studentId AND activityId = :activityId AND status = \'confirmed\'');
+    $experienceCount->execute(['studentId' => $studentA['student_id'], 'activityId' => $activityId]);
+    $assert((int) $checkinCount->fetchColumn() === 1, 'QR replay creates no duplicate check-in');
+    $assert((int) $experienceCount->fetchColumn() === 1, 'QR replay creates one confirmed experience fact');
+
+    return [
+        'activity_id' => $activityId,
+        'registration_id' => (string) $registeredA['registration']['id'],
+        'approved' => 1,
+        'waitlisted' => 1,
+        'confirmed_checkins' => 1,
+        'confirmed_experiences' => 1,
+        'replay_duplicates' => 0,
+    ];
+}
+
+/** @param callable(bool,string):void $assert */
+function phase11RunAssessmentJourney(PDO $pdo, array $actors, array $activity, callable $assert): array
+{
+    $studentA = $actors['students'][0];
+    $studentB = $actors['students'][1];
+    $teacherA = $actors['teachers'][0];
+    $teacherB = $actors['teachers'][1];
+    $notifications = new NotificationService(new DatabaseNotificationRepository($pdo));
+    $readRepository = new DatabaseAssessmentRepository($pdo);
+    $writeRepository = new DatabaseAssessmentWriteRepository($pdo, new ScorerRegistry([
+        'holland-riasec-1.0' => new HollandScorer(),
+        'mbti-education-1.0' => new MbtiScorer(),
+        'disc-education-1.0' => new DiscScorer(),
+        'multiple-intelligence-1.0' => new MultipleIntelligenceScorer(),
+    ]), $notifications);
+    $assessments = new LearnerAssessmentService($readRepository, $writeRepository);
+    $attempt = $assessments->startOrResume($studentA['student_id'], 'holland', 'high');
+    $attemptWithQuestions = $assessments->ownedAttemptWithQuestions($studentA['student_id'], (string) $attempt['id']);
+    $questions = $attemptWithQuestions['questions'] ?? [];
+    $assert(is_array($questions) && count($questions) > 0, 'student starts a published catalog assessment');
+    foreach ($questions as $question) {
+        $assessments->saveAnswer($studentA['student_id'], (string) $attempt['id'], (string) $question['id'], 5);
+    }
+    $assert(phase11ExpectFailure(
+        static fn () => $assessments->ownedAttempt($studentB['student_id'], (string) $attempt['id']),
+    ), 'another student cannot read the owned assessment attempt');
+    $submitted = $assessments->submit($studentA['student_id'], (string) $attempt['id']);
+    $assert(isset($submitted['result_code']) && $submitted['result_code'] !== '', 'student submits a deterministic assessment result');
+    $resultCount = $pdo->prepare('SELECT COUNT(*) FROM test_results WHERE attemptId = :attemptId');
+    $resultCount->execute(['attemptId' => $attempt['id']]);
+    $assert((int) $resultCount->fetchColumn() === 1, 'assessment submission persists one immutable result');
+
+    $grading = new TeacherGradingService(new TeacherGradingRepository($pdo));
+    $page = $grading->pageData($teacherA['user_id'], $activity['activity_id']);
+    $criteriaInput = [];
+    foreach ($page['criteria'] as $criterion) {
+        $criteriaInput[(string) $criterion['id']] = number_format((float) $criterion['maxScore'], 2, '.', '');
+    }
+    $assert($criteriaInput !== [], 'teacher grading uses active canonical criteria');
+    $gradingInput = [
+        'activityId' => $activity['activity_id'],
+        'studentId' => $studentA['student_id'],
+        'assessmentId' => null,
+        'expectedVersion' => '0',
+        'overallScore' => '88.00',
+        'comment' => 'Phase 11 published evaluation',
+        'assessmentStatus' => 'published',
+        'criteria' => $criteriaInput,
+    ];
+    $assert(phase11ExpectApi(
+        static fn () => $grading->save($teacherB['user_id'], $gradingInput),
+        404,
+        'RESOURCE_NOT_FOUND',
+    ), 'another teacher cannot grade the owned activity');
+    $grading->save($teacherA['user_id'], $gradingInput);
+    $publishedA = $readRepository->publishedEvaluationsForStudent($studentA['student_id']);
+    $publishedB = $readRepository->publishedEvaluationsForStudent($studentB['student_id']);
+    $assert(count($publishedA) === 1 && ($publishedA[0]['status'] ?? null) === 'published', 'student sees the published owned teacher evaluation');
+    $assert($publishedB === [], 'another student sees no foreign evaluation');
+
+    return ['submitted_results' => 1, 'published_evaluations' => 1];
+}
+
+/** @param callable(bool,string):void $assert */
+function phase11RunApplicationJourney(PDO $pdo, array $actors, string $runId, callable $assert): array
+{
+    $studentA = $actors['students'][0];
+    $studentB = $actors['students'][1];
+    $enterpriseA = $actors['enterprises'][0];
+    $enterpriseB = $actors['enterprises'][1];
+    $notifications = new NotificationService(new DatabaseNotificationRepository($pdo));
+    $internships = new InternshipService(new InternshipRepository($pdo, $notifications));
+    $post = $internships->createPost($enterpriseA['user_id'], [
+        'title' => "Phase 11 Internship {$runId}",
+        'field' => 'Technology',
+        'location' => 'Remote',
+        'workType' => 'hybrid',
+        'duration' => '3 months',
+        'educationLevel' => 'THPT',
+        'description' => 'Deidentified release rehearsal opportunity.',
+        'benefits' => 'Mentoring',
+        'skills' => ['Collaboration', 'Problem solving'],
+        'requirements' => ['Active learner'],
+        'slots' => 1,
+        'deadline' => (new DateTimeImmutable('+30 days'))->format('Y-m-d H:i:s'),
+    ]);
+    $postId = (string) $post['id'];
+    $internships->publish($enterpriseA['user_id'], $postId, 'draft');
+    $assert(phase11ExpectApi(
+        static fn () => $internships->post($enterpriseB['user_id'], $postId),
+        404,
+        'RESOURCE_NOT_FOUND',
+    ), 'another enterprise cannot read the foreign owned post');
+
+    $applications = new ApplicationCommandService(new DatabaseInternshipApplicationCommandRepository($pdo, $notifications));
+    $consent = $applications->grantConsent($studentA['student_id'], $studentA['user_id'], "p11cons{$runId}", true);
+    $assert(($consent['isGranted'] ?? null) === true, 'student grants explicit application profile consent');
+    $application = $applications->submit(
+        $studentA['student_id'],
+        $studentA['user_id'],
+        "p11apply{$runId}",
+        $postId,
+        'Phase 11 disposable application',
+    );
+    $applicationId = (string) $application['id'];
+    $detail = $applications->detail($studentA['student_id'], $applicationId);
+    $assert(isset($detail['snapshot']) && count($detail['history'] ?? []) === 1, 'application stores immutable profile snapshot and submitted history');
+    $assert(phase11ExpectApi(
+        static fn () => $applications->detail($studentB['student_id'], $applicationId),
+        404,
+        'RESOURCE_NOT_FOUND',
+    ), 'another student cannot read the owned application');
+    $assert(phase11ExpectApi(
+        static fn () => $internships->review($enterpriseB['user_id'], $applicationId, [
+            'expectedCurrentStatus' => 'submitted',
+            'targetStatus' => 'reviewing',
+            'reviewerNote' => 'Forbidden cross-owner review',
+        ]),
+        404,
+        'RESOURCE_NOT_FOUND',
+    ), 'another enterprise cannot review the application');
+    $reviewed = $internships->review($enterpriseA['user_id'], $applicationId, [
+        'expectedCurrentStatus' => 'submitted',
+        'targetStatus' => 'reviewing',
+        'reviewerNote' => 'Phase 11 owner review',
+    ]);
+    $assert(($reviewed['status'] ?? null) === 'reviewing' && count($reviewed['history'] ?? []) === 2, 'owner enterprise reviews through canonical transition history');
+
+    return ['applications' => 1, 'final_status' => 'reviewing'];
+}
+
+/** @param callable(bool,string):void $assert */
+function phase11RunFactsJourney(PDO $pdo, array $actors, string $runId, callable $assert): array
+{
+    $studentA = $actors['students'][0];
+    $studentB = $actors['students'][1];
+    $notifications = new NotificationService(new DatabaseNotificationRepository($pdo));
+    $firstEvent = $notifications->publish(
+        $studentA['user_id'],
+        'assessment_submitted',
+        'Phase 11 idempotency event',
+        'Release rehearsal event',
+        '/app/learner/assessment-result.php',
+        "phase11:event:{$runId}",
+        $studentA['student_id'],
+    );
+    $replayedEvent = $notifications->publish(
+        $studentA['user_id'],
+        'assessment_submitted',
+        'Phase 11 idempotency event',
+        'Release rehearsal event',
+        '/app/learner/assessment-result.php',
+        "phase11:event:{$runId}",
+        $studentA['student_id'],
+    );
+    $assert(is_array($firstEvent) && $replayedEvent === null, 'stable notification event key is idempotent');
+    $ownerNotifications = $notifications->listForUser($studentA['user_id']);
+    $otherNotifications = $notifications->listForUser($studentB['user_id']);
+    $assert(($ownerNotifications['total'] ?? 0) > 0, 'student notification inbox contains owner events');
+    $assert(count(array_filter($ownerNotifications['items'], static fn (array $item): bool => $item['userId'] !== $studentA['user_id'])) === 0, 'owner inbox contains no foreign rows');
+    $assert(count(array_filter($otherNotifications['items'], static fn (array $item): bool => $item['userId'] !== $studentB['user_id'])) === 0, 'other inbox contains no owner rows');
+    $assert(phase11ExpectApi(
+        static fn () => $notifications->markRead($studentB['user_id'], (string) $firstEvent['id']),
+        404,
+        'RESOURCE_NOT_FOUND',
+    ), 'another student cannot mark the owner notification');
+
+    $badgeRepository = new DatabaseBadgeRepository($pdo);
+    $statisticsRepository = new DatabaseStatisticsRepository($pdo);
+    $rules = new BadgeRuleEngine();
+    $awards = new BadgeAwardService($badgeRepository, $statisticsRepository, $rules, $notifications);
+    $badgeRead = new BadgeReadService($badgeRepository, $statisticsRepository, $rules);
+    $beforeReplay = $badgeRead->forStudent($studentA['student_id']);
+    $replayAwards = $awards->evaluateAndAward($studentA['student_id']);
+    $assert(count($beforeReplay['badges']) > 0 && $replayAwards === [], 'domain producers award badges once and explicit replay is empty');
+    $badgesA = $badgeRead->forStudent($studentA['student_id']);
+    $badgesB = $badgeRead->forStudent($studentB['student_id']);
+    $statistics = new StatisticsService($statisticsRepository);
+    $statsA = $statistics->forStudentPeriod($studentA['student_id'], 'month');
+    $statsB = $statistics->forStudentPeriod($studentB['student_id'], 'month');
+    $assert(($badgesA['facts']['confirmed_experience_hours'] ?? 0) > 0 && ($badgesB['facts']['confirmed_experience_hours'] ?? 0) === 0.0, 'badge facts are isolated to confirmed owner experience');
+    $assert(($statsA['facts']['attended_activity_count'] ?? 0) === 1 && ($statsB['facts']['attended_activity_count'] ?? 0) === 0, 'statistics are owner scoped and confirmed-only');
+
+    return [
+        'notifications' => ['owner_visible' => true, 'cross_owner_visible' => false],
+        'badges_statistics' => ['replay_awards' => 0, 'owner_scoped' => true],
+    ];
+}
+
+/** @param callable(bool,string):void $assert */
+function phase11RunJourney(PDO $pdo, array $actors, string $runId, callable $assert): array
+{
+    $profile = phase11RunProfileJourney($pdo, $actors, $assert);
+    $activity = phase11RunActivityJourney($pdo, $actors, $runId, $assert);
+    return [
+        'profile_share' => $profile['updated'] && $profile['shared'] && $profile['revoked'] && $profile['cross_owner_denied'],
+        'activity_registration' => ['approved' => $activity['approved'], 'waitlisted' => $activity['waitlisted']],
+        'checkin_experience' => [
+            'checkins' => $activity['confirmed_checkins'],
+            'confirmed_experiences' => $activity['confirmed_experiences'],
+            'replay_duplicates' => $activity['replay_duplicates'],
+        ],
+        'assessment_evaluation' => phase11RunAssessmentJourney($pdo, $actors, $activity, $assert),
+        'application_review' => phase11RunApplicationJourney($pdo, $actors, $runId, $assert),
+        ...phase11RunFactsJourney($pdo, $actors, $runId, $assert),
+    ];
+}
+
 $config = require dirname(__DIR__) . '/config/database.php';
 $sourceDatabase = (string) ($config['database'] ?? '');
 $assert($sourceDatabase === 'talenthub_local', 'source must be talenthub_local');
@@ -291,6 +689,7 @@ try {
     ], 'user_id');
     $assert(count(array_unique($actorUserIds)) === 8, 'all Phase 11 actor users are distinct');
     $authorization = phase11VerifyAuthorization($targetPdo, $actors, $assert);
+    $journey = phase11RunJourney($targetPdo, $actors, $timestamp, $assert);
 
     $primaryAfter = [
         'tables' => (int) $rootPdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'talenthub_local' AND table_type = 'BASE TABLE'")->fetchColumn(),
@@ -307,6 +706,7 @@ try {
         'migration_replay' => ['first' => $firstReplay, 'second' => $secondReplay, 'drift' => false],
         'actors' => ['student' => 2, 'teacher' => 2, 'school' => 2, 'enterprise' => 2],
         'authorization' => $authorization,
+        'journey' => $journey,
         'primary_before_after_equal' => true,
         'assertions' => $assertions,
     ];
