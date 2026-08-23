@@ -140,8 +140,8 @@ final class PhaseRequirements
                 'badges' => ['id'], 'badge_rule_definitions' => ['id', 'badgeId'], 'student_badges' => ['studentId', 'badgeId'], 'experience_logs' => ['studentId'],
             ], ['student_badges' => ['uq_student_badges_award']]),
             10 => $this->definition(true, [], ['learner_forward_migrations'], ['learner_forward_migrations' => ['version', 'name', 'checksum', 'description', 'appliedAt']]),
-            11 => $this->definition(true, [], ['learner_forward_migrations'], ['learner_forward_migrations' => ['version', 'name', 'checksum', 'description', 'appliedAt']]),
         ];
+        $this->requirements[11] = $this->mergeDefinitions(array_slice($this->requirements, 1, 10, true));
     }
 
     public function all(): array
@@ -185,5 +185,43 @@ final class PhaseRequirements
             'optional_table_groups' => $optionalTableGroups,
             'foreign_keys' => $foreignKeys,
         ];
+    }
+
+    /**
+     * @param array<int,array{requires_database:bool,config_keys:list<string>,tables:list<string>,columns:array<string,list<string>>,indexes:array<string,list<string>>,optional_table_groups:array<string,list<string>>,foreign_keys:array<string,list<array{from:string,table:string,to:string}>>}> $definitions
+     * @return array{requires_database:bool,config_keys:list<string>,tables:list<string>,columns:array<string,list<string>>,indexes:array<string,list<string>>,optional_table_groups:array<string,list<string>>,foreign_keys:array<string,list<array{from:string,table:string,to:string}>>}
+     */
+    private function mergeDefinitions(array $definitions): array
+    {
+        $merged = $this->definition(true);
+        foreach ($definitions as $definition) {
+            foreach (['config_keys', 'tables'] as $listKey) {
+                foreach ($definition[$listKey] as $value) {
+                    if (!in_array($value, $merged[$listKey], true)) {
+                        $merged[$listKey][] = $value;
+                    }
+                }
+            }
+            foreach (['columns', 'indexes', 'optional_table_groups'] as $mapKey) {
+                foreach ($definition[$mapKey] as $table => $values) {
+                    $merged[$mapKey][$table] ??= [];
+                    foreach ($values as $value) {
+                        if (!in_array($value, $merged[$mapKey][$table], true)) {
+                            $merged[$mapKey][$table][] = $value;
+                        }
+                    }
+                }
+            }
+            foreach ($definition['foreign_keys'] as $table => $foreignKeys) {
+                $merged['foreign_keys'][$table] ??= [];
+                foreach ($foreignKeys as $foreignKey) {
+                    if (!in_array($foreignKey, $merged['foreign_keys'][$table], true)) {
+                        $merged['foreign_keys'][$table][] = $foreignKey;
+                    }
+                }
+            }
+        }
+
+        return $merged;
     }
 }
