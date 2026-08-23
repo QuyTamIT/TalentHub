@@ -7,6 +7,9 @@ require dirname(__DIR__) . '/bin/bootstrap.php';
 use TalentHub\Config\Environment;
 use TalentHub\Database\Connection;
 use TalentHub\Database\Migration\MigrationRunner;
+use TalentHub\Http\ApiException;
+use TalentHub\Modules\School\Service\SchoolAuthorization;
+use TalentHub\Rbac\Service\PermissionService;
 
 $assertions = 0;
 $assert = static function (bool $condition, string $message) use (&$assertions): void {
@@ -45,6 +48,145 @@ $run = static function (array $command, ?string $stdinFile = null, ?string $stdo
 
     return ['code' => proc_close($process), 'stdout' => $stdout, 'stderr' => $stderr];
 };
+
+function phase11Id(string $seed): string
+{
+    $hex = substr(hash('sha256', $seed), 0, 32);
+    $hex[12] = '4';
+    $hex[16] = '8';
+
+    return sprintf(
+        '%s-%s-%s-%s-%s',
+        substr($hex, 0, 8),
+        substr($hex, 8, 4),
+        substr($hex, 12, 4),
+        substr($hex, 16, 4),
+        substr($hex, 20, 12),
+    );
+}
+
+/**
+ * @return array{
+ *   students:list<array{user_id:string,student_id:string,class_id:string,school_id:string}>,
+ *   teachers:list<array{user_id:string,teacher_id:string,school_id:string}>,
+ *   schools:list<array{user_id:string,school_id:string,class_id:string}>,
+ *   enterprises:list<array{user_id:string,enterprise_id:string}>
+ * }
+ */
+function phase11CreateActors(PDO $pdo, string $runId): array
+{
+    $roles = [];
+    foreach ($pdo->query("SELECT id, code FROM roles WHERE code IN ('student','teacher','school','enterprise')")->fetchAll() as $role) {
+        $roles[(string) $role['code']] = (string) $role['id'];
+    }
+    foreach (['student', 'teacher', 'school', 'enterprise'] as $roleCode) {
+        if (!isset($roles[$roleCode])) {
+            throw new RuntimeException("Missing canonical role {$roleCode}.");
+        }
+    }
+
+    $now = gmdate('Y-m-d H:i:s.u');
+    $passwordHash = password_hash('Phase11-disabled-' . $runId, PASSWORD_BCRYPT);
+    if (!is_string($passwordHash)) {
+        throw new RuntimeException('Unable to create disposable password hash.');
+    }
+    $insertSchool = $pdo->prepare('INSERT INTO schools (id,name,status,email,level,studentCount,teacherCount,academicYear,createdAt,updatedAt) VALUES (?,?,\'active\',?,\'THPT\',0,0,\'2026-2027\',?,?)');
+    $insertEnterprise = $pdo->prepare('INSERT INTO enterprises (id,name,status,industry,email,verificationStatus,createdAt,updatedAt) VALUES (?,?,\'active\',\'Technology\',?,\'verified\',?,?)');
+    $insertClass = $pdo->prepare('INSERT INTO classes (id,schoolId,name,gradeLevel,academicYear,status,createdAt,updatedAt) VALUES (?,?,?,12,\'2026-2027\',\'active\',?,?)');
+    $insertUser = $pdo->prepare('INSERT INTO users (id,roleId,email,passwordHash,fullName,status,createdAt,updatedAt) VALUES (?,?,?,?,?,\'active\',?,?)');
+    $insertStudent = $pdo->prepare('INSERT INTO student_profiles (id,userId,classId,dateOfBirth,phone,studyStatus,createdAt,updatedAt) VALUES (?,?,?,\'2008-01-01\',?,\'active\',?,?)');
+    $insertTeacher = $pdo->prepare('INSERT INTO teacher_profiles (id,userId,schoolId,isSchoolAdmin,phone,specialization,bio,createdAt,updatedAt) VALUES (?,?,?,0,?,\'Phase 11\',\'Disposable release actor\',?,?)');
+    $insertSchoolMember = $pdo->prepare('INSERT INTO school_members (id,schoolId,userId,memberRole,createdAt,updatedAt) VALUES (?,?,?,?,?,?)');
+    $insertEnterpriseMember = $pdo->prepare('INSERT INTO enterprise_members (id,enterpriseId,userId,memberRole,createdAt,updatedAt) VALUES (?,?,?,\'admin\',?,?)');
+
+    $actors = ['students' => [], 'teachers' => [], 'schools' => [], 'enterprises' => []];
+    for ($index = 1; $index <= 2; $index++) {
+        $suffix = (string) $index;
+        $schoolId = phase11Id("{$runId}:school:{$suffix}");
+        $classId = phase11Id("{$runId}:class:{$suffix}");
+        $enterpriseId = phase11Id("{$runId}:enterprise:{$suffix}");
+        $insertSchool->execute([$schoolId, "Phase 11 School {$suffix}", "phase11+school-org-{$runId}-{$suffix}@example.invalid", $now, $now]);
+        $insertClass->execute([$classId, $schoolId, "Phase 11 Class {$suffix}", $now, $now]);
+        $insertEnterprise->execute([$enterpriseId, "Phase 11 Enterprise {$suffix}", "phase11+enterprise-org-{$runId}-{$suffix}@example.invalid", $now, $now]);
+
+        $studentUserId = phase11Id("{$runId}:student-user:{$suffix}");
+        $studentId = phase11Id("{$runId}:student:{$suffix}");
+        $insertUser->execute([$studentUserId, $roles['student'], "phase11+student-{$runId}-{$suffix}@example.invalid", $passwordHash, "Phase 11 Student {$suffix}", $now, $now]);
+        $insertStudent->execute([$studentId, $studentUserId, $classId, "+84000001{$suffix}", $now, $now]);
+        $actors['students'][] = ['user_id' => $studentUserId, 'student_id' => $studentId, 'class_id' => $classId, 'school_id' => $schoolId];
+
+        $teacherUserId = phase11Id("{$runId}:teacher-user:{$suffix}");
+        $teacherId = phase11Id("{$runId}:teacher:{$suffix}");
+        $insertUser->execute([$teacherUserId, $roles['teacher'], "phase11+teacher-{$runId}-{$suffix}@example.invalid", $passwordHash, "Phase 11 Teacher {$suffix}", $now, $now]);
+        $insertTeacher->execute([$teacherId, $teacherUserId, $schoolId, "+84000002{$suffix}", $now, $now]);
+        $insertSchoolMember->execute([phase11Id("{$runId}:teacher-member:{$suffix}"), $schoolId, $teacherUserId, 'member', $now, $now]);
+        $actors['teachers'][] = ['user_id' => $teacherUserId, 'teacher_id' => $teacherId, 'school_id' => $schoolId];
+
+        $schoolUserId = phase11Id("{$runId}:school-user:{$suffix}");
+        $insertUser->execute([$schoolUserId, $roles['school'], "phase11+school-{$runId}-{$suffix}@example.invalid", $passwordHash, "Phase 11 School Admin {$suffix}", $now, $now]);
+        $insertSchoolMember->execute([phase11Id("{$runId}:school-member:{$suffix}"), $schoolId, $schoolUserId, 'admin', $now, $now]);
+        $actors['schools'][] = ['user_id' => $schoolUserId, 'school_id' => $schoolId, 'class_id' => $classId];
+
+        $enterpriseUserId = phase11Id("{$runId}:enterprise-user:{$suffix}");
+        $insertUser->execute([$enterpriseUserId, $roles['enterprise'], "phase11+enterprise-{$runId}-{$suffix}@example.invalid", $passwordHash, "Phase 11 Enterprise Admin {$suffix}", $now, $now]);
+        $insertEnterpriseMember->execute([phase11Id("{$runId}:enterprise-member:{$suffix}"), $enterpriseId, $enterpriseUserId, $now, $now]);
+        $actors['enterprises'][] = ['user_id' => $enterpriseUserId, 'enterprise_id' => $enterpriseId];
+    }
+
+    return $actors;
+}
+
+/** @param callable(bool,string):void $assert */
+function phase11VerifyAuthorization(PDO $pdo, array $actors, callable $assert): array
+{
+    $permissions = new PermissionService($pdo);
+    $positive = [
+        [$actors['students'][0]['user_id'], 'student_profile.read_own'],
+        [$actors['students'][1]['user_id'], 'checkin.create_own'],
+        [$actors['teachers'][0]['user_id'], 'activity.create_managed'],
+        [$actors['teachers'][1]['user_id'], 'assessment.update_managed'],
+        [$actors['schools'][0]['user_id'], 'school_dashboard.read_own'],
+        [$actors['schools'][1]['user_id'], 'student_profile.read_own_school'],
+        [$actors['enterprises'][0]['user_id'], 'internship_post.create_own_business'],
+        [$actors['enterprises'][1]['user_id'], 'internship_application.review_own_business'],
+    ];
+    foreach ($positive as [$userId, $permission]) {
+        $permissions->require($userId, $permission);
+        $assert(true, "positive permission {$permission}");
+    }
+
+    $denied = [
+        [$actors['students'][0]['user_id'], 'activity.create_managed'],
+        [$actors['students'][1]['user_id'], 'school_dashboard.read_own'],
+        [$actors['teachers'][0]['user_id'], 'internship_post.create_own_business'],
+        [$actors['teachers'][1]['user_id'], 'student_profile.update_own'],
+        [$actors['schools'][0]['user_id'], 'checkin.create_own'],
+        [$actors['schools'][1]['user_id'], 'internship_application.review_own_business'],
+        [$actors['enterprises'][0]['user_id'], 'assessment.update_managed'],
+        [$actors['enterprises'][1]['user_id'], 'school_dashboard.read_own'],
+    ];
+    foreach ($denied as [$userId, $permission]) {
+        $caught = false;
+        try {
+            $permissions->require($userId, $permission);
+        } catch (ApiException $error) {
+            $caught = $error->status === 403 && $error->errorCode === 'PERMISSION_DENIED';
+        }
+        $assert($caught, "forbidden permission {$permission}");
+    }
+
+    $schoolAuthorization = new SchoolAuthorization($pdo);
+    $schoolAuthorization->requireWriteAccess($actors['schools'][0]['user_id'], $actors['schools'][0]['school_id']);
+    $crossSchoolDenied = false;
+    try {
+        $schoolAuthorization->requireWriteAccess($actors['schools'][0]['user_id'], $actors['schools'][1]['school_id']);
+    } catch (ApiException $error) {
+        $crossSchoolDenied = $error->status === 403 && $error->errorCode === 'FORBIDDEN';
+    }
+    $assert($crossSchoolDenied, 'school admin cannot write another school');
+
+    return ['positive' => count($positive) + 1, 'denied' => count($denied) + 1];
+}
 
 $config = require dirname(__DIR__) . '/config/database.php';
 $sourceDatabase = (string) ($config['database'] ?? '');
@@ -136,6 +278,20 @@ try {
     $assert($secondReplay === [], 'second migration replay is a no-op');
     $runner->validate();
 
+    $actors = phase11CreateActors($targetPdo, $timestamp);
+    $assert(count($actors['students']) === 2, 'two disposable students exist');
+    $assert(count($actors['teachers']) === 2, 'two disposable teachers exist');
+    $assert(count($actors['schools']) === 2, 'two disposable schools exist');
+    $assert(count($actors['enterprises']) === 2, 'two disposable enterprises exist');
+    $actorUserIds = array_column([
+        ...$actors['students'],
+        ...$actors['teachers'],
+        ...$actors['schools'],
+        ...$actors['enterprises'],
+    ], 'user_id');
+    $assert(count(array_unique($actorUserIds)) === 8, 'all Phase 11 actor users are distinct');
+    $authorization = phase11VerifyAuthorization($targetPdo, $actors, $assert);
+
     $primaryAfter = [
         'tables' => (int) $rootPdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'talenthub_local' AND table_type = 'BASE TABLE'")->fetchColumn(),
         'migrations' => (int) $rootPdo->query('SELECT COUNT(*) FROM talenthub_local.schema_migrations')->fetchColumn(),
@@ -149,6 +305,8 @@ try {
         'backup' => ['path' => $backupPath, 'sha256' => $backupSha256, 'size' => filesize($backupPath)],
         'restored' => $restored,
         'migration_replay' => ['first' => $firstReplay, 'second' => $secondReplay, 'drift' => false],
+        'actors' => ['student' => 2, 'teacher' => 2, 'school' => 2, 'enterprise' => 2],
+        'authorization' => $authorization,
         'primary_before_after_equal' => true,
         'assertions' => $assertions,
     ];
@@ -183,4 +341,3 @@ if ($failure !== null) {
 
 echo json_encode($evidence, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL;
 echo "student_portal_four_role_e2e_mysql_test: OK; cleanup verified\n";
-
