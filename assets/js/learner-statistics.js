@@ -5,6 +5,25 @@
     let activeController = null;
     let requestSequence = 0;
 
+    function selectAxisLabelIndexes(count, maximumLabels = 7) {
+        const normalizedCount = Math.max(0, Math.floor(Number(count) || 0));
+        const normalizedMaximum = Math.max(0, Math.floor(Number(maximumLabels) || 0));
+        const selected = new Set();
+        if (normalizedCount === 0 || normalizedMaximum === 0) return selected;
+        if (normalizedCount <= normalizedMaximum) {
+            for (let index = 0; index < normalizedCount; index += 1) selected.add(index);
+            return selected;
+        }
+        if (normalizedMaximum === 1) {
+            selected.add(0);
+            return selected;
+        }
+        for (let slot = 0; slot < normalizedMaximum; slot += 1) {
+            selected.add(Math.round(slot * (normalizedCount - 1) / (normalizedMaximum - 1)));
+        }
+        return selected;
+    }
+
     function createStatisticsClient() {
         if (!global.TalentHubLearnerApi) return null;
         const bootNode = document.getElementById('learner-session-boot');
@@ -37,9 +56,10 @@
         });
     }
 
-    function replaceExperience(experience) {
+    function replaceExperience(experience, periodLabel = 'khoảng đã chọn') {
         const hours = Array.isArray(experience?.hours) ? experience.hours.map(Number) : [];
         const labels = Array.isArray(experience?.labels) ? experience.labels.map(String) : [];
+        const dates = Array.isArray(experience?.dates) ? experience.dates.map(String) : [];
         const bars = document.querySelector('[data-experience-bars]');
         const labelGroup = document.querySelector('[data-experience-labels]');
         if (!bars || !labelGroup) return;
@@ -52,9 +72,12 @@
         const step = width / Math.max(1, hours.length);
         const barWidth = Math.min(36, step * 0.55);
         const svgNamespace = 'http://www.w3.org/2000/svg';
+        const visibleLabelIndexes = selectAxisLabelIndexes(hours.length);
 
         hours.forEach((rawHours, index) => {
             const safeHours = Number.isFinite(rawHours) ? Math.max(0, rawHours) : 0;
+            const date = dates[index] || labels[index] || `Mốc ${index + 1}`;
+            const accessibleTitle = `Ngày ${date}: ${safeHours} giờ`;
             const barHeight = (safeHours / maximum) * height;
             const x = 46 + (index * step) + ((step - barWidth) / 2);
             const y = 24 + height - barHeight;
@@ -65,8 +88,14 @@
             rect.setAttribute('height', String(barHeight));
             rect.setAttribute('rx', '5');
             rect.setAttribute('class', 'learner-experience-chart__bar');
+            rect.setAttribute('role', 'listitem');
+            rect.setAttribute('aria-label', accessibleTitle);
+            const title = document.createElementNS(svgNamespace, 'title');
+            title.textContent = accessibleTitle;
+            rect.appendChild(title);
             bars.appendChild(rect);
 
+            if (!visibleLabelIndexes.has(index)) return;
             const text = document.createElementNS(svgNamespace, 'text');
             text.setAttribute('x', String(46 + (index * step) + (step / 2)));
             text.setAttribute('y', '222');
@@ -74,12 +103,33 @@
             text.textContent = labels[index] || '';
             labelGroup.appendChild(text);
         });
+
+        const chartTitle = document.querySelector('[data-experience-chart-title]');
+        if (chartTitle) chartTitle.textContent = `Biểu đồ giờ trải nghiệm cá nhân ${periodLabel}`;
+    }
+
+    function replaceLifetimeFacts(facts) {
+        const values = [
+            ['[data-lifetime-hours]', facts?.confirmed_experience_hours],
+            ['[data-lifetime-activities]', facts?.attended_activity_count],
+            ['[data-lifetime-assessments]', facts?.submitted_assessment_type_count],
+            ['[data-lifetime-evaluations]', facts?.published_teacher_evaluation_count],
+        ];
+        values.forEach(([selector, value]) => {
+            const node = document.querySelector(selector);
+            if (node) node.textContent = String(value ?? 0);
+        });
     }
 
     function renderStatistics(data) {
-        replaceKpis(data?.kpis);
-        replaceExperience(data?.experience);
         const label = String(data?.period?.label || 'khoảng đã chọn');
+        replaceKpis(data?.kpis);
+        replaceExperience(data?.experience, label);
+        replaceLifetimeFacts(data?.facts);
+        const periodTitle = document.querySelector('[data-period-kpi-title]');
+        if (periodTitle) periodTitle.textContent = `Chỉ số trong ${label}`;
+        const experienceTitle = document.querySelector('[data-experience-period-title]');
+        if (experienceTitle) experienceTitle.textContent = `Giờ trải nghiệm (${label})`;
         setStatus(`Đang hiển thị thống kê ${label}.`);
     }
 
@@ -128,6 +178,6 @@
         }
     }
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { createStatisticsClient, loadPeriod, renderStatistics };
+        module.exports = { createStatisticsClient, loadPeriod, renderStatistics, selectAxisLabelIndexes };
     }
 })(typeof window !== 'undefined' ? window : globalThis);

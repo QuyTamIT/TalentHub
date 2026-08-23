@@ -2743,7 +2743,19 @@ body.learner-sidebar-open {
 
 .learner-statistics-heading--actions {
     margin-top: 0;
-    justify-content: flex-end;
+    justify-content: space-between;
+}
+
+.learner-owner-badge {
+    display: inline-flex;
+    padding: 7px 12px;
+    align-items: center;
+    gap: 8px;
+    color: #0369a1;
+    background: #e0f2fe;
+    border-radius: var(--radius-full);
+    font-size: 0.82rem;
+    font-weight: 600;
 }
 
 .learner-my-activities-heading--actions {
@@ -2777,6 +2789,104 @@ body.learner-sidebar-open {
     font: inherit;
     font-size: 0.84rem;
     font-weight: 600;
+}
+
+.learner-statistics-lifetime {
+    padding: 20px;
+    border-color: color-mix(in srgb, var(--secondary) 28%, var(--border));
+}
+
+.learner-statistics-section-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.learner-statistics-section-heading h2,
+.learner-statistics-period-summary > h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.learner-statistics-section-heading__eyebrow {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--secondary);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.learner-statistics-section-heading > p {
+    max-width: 480px;
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    text-align: right;
+}
+
+.learner-statistics-lifetime__grid {
+    display: grid;
+    margin-top: 16px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.learner-statistics-lifetime__item {
+    display: grid;
+    min-width: 0;
+    padding: 14px;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.learner-statistics-lifetime__icon {
+    display: inline-flex;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.learner-statistics-lifetime__item > div {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.learner-statistics-lifetime__item strong {
+    color: var(--text-primary);
+    font-size: 1.35rem;
+    line-height: 1.1;
+}
+
+.learner-statistics-lifetime__item span:last-child {
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+}
+
+.learner-statistics-lifetime__item--teal .learner-statistics-lifetime__icon,
+.learner-statistics-kpi--teal .learner-statistics-kpi__icon { color: var(--primary); background: var(--primary-light); }
+.learner-statistics-lifetime__item--orange .learner-statistics-lifetime__icon,
+.learner-statistics-kpi--orange .learner-statistics-kpi__icon { color: var(--secondary); background: var(--secondary-light); }
+.learner-statistics-lifetime__item--purple .learner-statistics-lifetime__icon,
+.learner-statistics-kpi--purple .learner-statistics-kpi__icon { color: #7c3aed; background: #ede9fe; }
+.learner-statistics-lifetime__item--blue .learner-statistics-lifetime__icon,
+.learner-statistics-kpi--blue .learner-statistics-kpi__icon { color: #2563eb; background: #dbeafe; }
+
+.learner-statistics-period-summary {
+    margin-top: 22px;
+}
+
+.learner-statistics-period-summary > h2 {
+    margin-bottom: 12px;
 }
 
 .learner-statistics-kpis {
@@ -2997,6 +3107,57 @@ body.learner-sidebar-open {
 .learner-field-legend__dot--warning { background: var(--warning); }
 .learner-field-legend__dot--accent { background: var(--accent); }
 
+.learner-statistics-field-empty {
+    padding: 40px 16px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.learner-level-summary-card {
+    display: flex;
+    margin-top: 24px;
+    padding: 24px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 24px;
+}
+
+.learner-level-summary-card__identity {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.learner-level-summary-card__emblem {
+    font-size: 2rem;
+}
+
+.learner-level-summary-card__identity h3 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.learner-level-summary-card__identity p {
+    margin: 4px 0 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.learner-level-summary-card__progress {
+    min-width: 200px;
+    max-width: 400px;
+    flex-grow: 1;
+}
+
+.learner-level-summary-card__progress-heading {
+    display: flex;
+    margin-bottom: 4px;
+    justify-content: space-between;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
+
 .learner-statistics-skills__list {
     display: grid;
     margin-top: 22px;
@@ -3196,6 +3357,10 @@ body.learner-sidebar-open {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .learner-statistics-lifetime__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .learner-statistics-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -3327,6 +3492,16 @@ body.learner-sidebar-open {
     .learner-statistics-period,
     .learner-statistics-period select {
         width: 100%;
+    }
+
+    .learner-statistics-section-heading {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .learner-statistics-section-heading > p {
+        max-width: none;
+        text-align: left;
     }
 
     .learner-statistics-grid {
@@ -3658,6 +3833,7 @@ body.learner-sidebar-open {
     .learner-level-path,
     .learner-badge-grid,
     .learner-statistics-kpis,
+    .learner-statistics-lifetime__grid,
     .learner-field-legend {
         grid-template-columns: 1fr;
     }
