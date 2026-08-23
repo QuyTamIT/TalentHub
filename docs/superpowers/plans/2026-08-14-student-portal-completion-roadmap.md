@@ -332,7 +332,7 @@ git commit -m "feat(learner): add authenticated database runtime"
 
 ## Phase 2 — Dashboard and Talent Passport Read Model from Real Data
 
-**Current status:** `PARTIALLY_READY`
+**Current status:** `COMPLETE — APPROVED_PHASE_10`
 
 **Current blockers:**
 
@@ -955,14 +955,14 @@ async function learnerApi(path, {
 
 ### Tasks
 
-- [ ] Viết failing tests cho JSON success/error parsing, 401 redirect, 403 message, 409 conflict, 422 field errors, timeout/abort và double-submit guard.
-- [ ] Implement shared API client với CSRF header, request ID và safe error mapping.
-- [ ] Thay toàn bộ fake-success toast bằng API-confirmed state.
-- [ ] Thêm loading/disabled/retry/empty/offline states cho mọi action.
-- [ ] Đảm bảo focus management, keyboard navigation, `aria-live`, labels và reduced motion.
-- [ ] Kiểm tra responsive ở 360px, 768px, 1024px và desktop.
-- [ ] Escape server output; tránh `innerHTML` với dữ liệu không tin cậy.
-- [ ] Thêm rate limiting learner-only cho login, application submit và check-in attempts.
+- [x] Viết failing tests cho JSON success/error parsing, 401 redirect, 403 message, 409 conflict, 422 field errors, timeout/abort và double-submit guard.
+- [x] Implement shared API client với CSRF header, request ID và safe error mapping.
+- [x] Thay toàn bộ fake-success toast bằng API-confirmed state.
+- [x] Thêm loading/disabled/retry/empty/offline states cho mọi action.
+- [x] Đảm bảo focus management, keyboard navigation, `aria-live`, labels và reduced motion.
+- [x] Kiểm tra responsive ở 360px, 768px, 1024px và desktop.
+- [x] Escape server output; tránh `innerHTML` với dữ liệu không tin cậy.
+- [x] Thêm rate limiting learner-only cho login, application submit và check-in attempts.
 
 **Acceptance criteria:** không action nào báo thành công trước server; lỗi có thể phục hồi; keyboard-only flow hoàn thành được các nghiệp vụ chính.
 

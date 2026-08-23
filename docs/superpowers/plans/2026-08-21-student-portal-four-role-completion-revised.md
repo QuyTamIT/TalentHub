@@ -125,7 +125,7 @@ Before creating any file, Task 1 must fail if that version or semantic equivalen
 | 7 | Opportunity and application lifecycle | Phase 3 | Complete — APPROVED_PHASE_7 | Student/Enterprise MySQL lifecycle, ownership, rollback and final independent review passed |
 | 8 | Notification Center and preferences | Phases 4–7 producers | Complete — APPROVED_PHASE_8 | Owner/API/UI, producer rollback, MySQL concurrency, forward-validation, and disposable rehearsal passed |
 | 9 | Badges, levels, personal statistics | Phases 5–6 confirmed facts | Complete — APPROVED_PHASE_9 | Exact migration, deterministic backfill/replay, owner APIs/UI, rollback, concurrency and disposable rehearsal passed |
-| 10 | UI, accessibility, errors, security hardening | Stable APIs from 2–9 | Partial | UI/a11y/security matrix |
+| 10 | UI, accessibility, errors, security hardening | Stable APIs from 2–9 | Complete — APPROVED_PHASE_10 | 13 Node suites, 96 safe PHP suites, 526 lint files, MySQL limiter cleanup, readiness READY |
 | 11 | Four-role release rehearsal | Phases 0–10 | Blocked | Full MySQL E2E and checklist |
 | 12 | Shadow evaluation and visible-pilot decision | Phase 11 | Model-visible blocked | Separate approval gate |
 
@@ -681,14 +681,14 @@ V1 rule inputs are allow-listed confirmed facts only: confirmed experience hours
 - Create: `tests/learner_accessibility_render_test.php`
 - Create: `tests/learner_security_contract_test.php`
 
-- [ ] Inventory every button/form that mutates visible state and map it to a server endpoint.
-- [ ] Write failing tests proving no success message or state transition occurs before a successful response.
-- [ ] Add abort, timeout, double-submit, retry, and stale-response handling through existing `learner-api.js`.
-- [ ] Add focus return, visible labels, `aria-live`, keyboard-only dialogs, reduced motion, and 360/768/1024/desktop checks.
-- [ ] Replace unsafe dynamic `innerHTML` for untrusted fields with DOM text APIs or server escaping.
-- [ ] Add/check rate limits for login, check-in, application, and AI with safe `429` responses.
-- [ ] Run all learner Node tests and PHP render/security tests.
-- [ ] Commit per screen/domain, not as one broad UI commit.
+- [x] Inventory every button/form that mutates visible state and map it to a server endpoint.
+- [x] Write failing tests proving no success message or state transition occurs before a successful response.
+- [x] Add abort, timeout, double-submit, retry, and stale-response handling through existing `learner-api.js`.
+- [x] Add focus return, visible labels, `aria-live`, keyboard-only dialogs, reduced motion, and 360/768/1024/desktop checks.
+- [x] Replace unsafe dynamic `innerHTML` for untrusted fields with DOM text APIs or server escaping.
+- [x] Add/check rate limits for login, check-in, application, and AI with safe `429` responses.
+- [x] Run all learner Node tests and PHP render/security tests.
+- [x] Commit per screen/domain, not as one broad UI commit.
 
 **Phase 10 exit:** every mutation is server-confirmed; keyboard flow works; no untrusted data is inserted unsafely; errors are recoverable.
 
