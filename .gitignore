@@ -22,6 +22,8 @@ Thumbs.db
 # Local-only planning, QA, and coding-agent material.
 /tests/
 /docs/
+/design/
+/Document/
 /.agents/
 /.superpowers/
 /.claude/
