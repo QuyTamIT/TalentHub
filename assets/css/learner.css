@@ -3113,6 +3113,11 @@ body.learner-sidebar-open {
     text-align: center;
 }
 
+.learner-field-chart-wrap[hidden],
+.learner-statistics-field-empty[hidden] {
+    display: none !important;
+}
+
 .learner-level-summary-card {
     display: flex;
     margin-top: 24px;

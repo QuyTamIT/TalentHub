@@ -74,11 +74,18 @@ $donutCircumference = 2 * M_PI * $donutRadius;
 $donutOffset = 0.0;
 
 $fieldColorMap = [
-    'technology' => 'teal',
-    'career' => 'orange',
-    'personal' => 'purple',
-    'academic' => 'blue',
+    'technology' => 'primary',
+    'career' => 'secondary',
+    'personal' => 'warning',
+    'academic' => 'accent',
     'general' => 'neutral',
+];
+$fieldLabelMap = [
+    'technology' => 'Công nghệ',
+    'career' => 'Hướng nghiệp',
+    'personal' => 'Phát triển cá nhân',
+    'academic' => 'Học thuật',
+    'general' => 'Khác',
 ];
 ?>
 <!DOCTYPE html>
@@ -200,7 +207,7 @@ $fieldColorMap = [
                                     <line x1="46" y1="109" x2="596" y2="109"></line>
                                     <line x1="46" y1="24" x2="596" y2="24"></line>
                                 </g>
-                                <g data-experience-bars role="list" aria-label="Giờ trải nghiệm theo ngày">
+                                <g data-experience-bars aria-hidden="true">
                                     <?php foreach ($hoursList as $index => $hours): ?>
                                         <?php
                                         $height = $chartMaximum > 0 ? ($hours / $chartMaximum * $chartHeight) : 0;
@@ -209,7 +216,7 @@ $fieldColorMap = [
                                         $barDate = (string) ($datesList[$index] ?? $labelsList[$index] ?? ('Mốc ' . ($index + 1)));
                                         $barTitle = 'Ngày ' . $barDate . ': ' . $hours . ' giờ';
                                         ?>
-                                        <rect x="<?= learner_escape(round($x, 2)); ?>" y="<?= learner_escape(round($y, 2)); ?>" width="<?= learner_escape(round($barWidth, 2)); ?>" height="<?= learner_escape(round($height, 2)); ?>" rx="4" role="listitem" aria-label="<?= learner_escape($barTitle); ?>">
+                                        <rect x="<?= learner_escape(round($x, 2)); ?>" y="<?= learner_escape(round($y, 2)); ?>" width="<?= learner_escape(round($barWidth, 2)); ?>" height="<?= learner_escape(round($height, 2)); ?>" rx="4">
                                             <title><?= learner_escape($barTitle); ?></title>
                                         </rect>
                                     <?php endforeach; ?>
@@ -222,50 +229,60 @@ $fieldColorMap = [
                                     <?php endforeach; ?>
                                 </g>
                             </svg>
+                            <ol class="learner-visually-hidden" data-experience-accessible-list aria-label="Dữ liệu giờ trải nghiệm theo ngày">
+                                <?php foreach ($hoursList as $index => $hours): ?>
+                                    <?php
+                                    $accessibleDate = (string) ($datesList[$index] ?? $labelsList[$index] ?? ('Mốc ' . ($index + 1)));
+                                    $accessibleTitle = 'Ngày ' . $accessibleDate . ': ' . $hours . ' giờ';
+                                    ?>
+                                    <li><?= learner_escape($accessibleTitle); ?></li>
+                                <?php endforeach; ?>
+                            </ol>
                         </section>
 
                         <section class="learner-card learner-statistics-panel learner-field-panel" aria-labelledby="learner-field-title">
                             <h2 id="learner-field-title">Phân bổ lĩnh vực trải nghiệm</h2>
-                            <?php if ($fields !== []): ?>
-                                <div class="learner-field-chart-wrap">
-                                    <svg class="learner-field-chart" data-field-chart viewBox="0 0 200 200" role="img" aria-labelledby="learner-field-chart-title">
-                                        <title id="learner-field-chart-title">Phân bổ giờ trải nghiệm cá nhân theo lĩnh vực</title>
-                                        <circle class="learner-statistics-donut__track" cx="100" cy="100" r="<?= learner_escape($donutRadius); ?>"></circle>
-                                        <g data-field-segments>
-                                            <?php foreach ($fields as $field): ?>
-                                                <?php
-                                                $catTone = $fieldColorMap[$field['category']] ?? 'teal';
-                                                $segmentLength = $donutCircumference * ($field['percentage'] ?? 0) / 100;
-                                                ?>
-                                                <circle
-                                                    class="learner-statistics-donut__segment learner-statistics-donut__segment--<?= learner_escape($catTone); ?>"
-                                                    cx="100"
-                                                    cy="100"
-                                                    r="<?= learner_escape($donutRadius); ?>"
-                                                    stroke-dasharray="<?= learner_escape(round($segmentLength, 2)); ?> <?= learner_escape(round($donutCircumference - $segmentLength, 2)); ?>"
-                                                    stroke-dashoffset="<?= learner_escape(round(-$donutOffset, 2)); ?>"
-                                                ></circle>
-                                                <?php $donutOffset += $segmentLength; ?>
-                                            <?php endforeach; ?>
-                                        </g>
-                                        <text class="learner-field-chart__total" x="100" y="96" text-anchor="middle" data-field-total><?= learner_escape($fieldTotal); ?></text>
-                                        <text class="learner-field-chart__unit" x="100" y="119" text-anchor="middle">giờ</text>
-                                    </svg>
-                                    <div class="learner-field-legend" data-field-legend>
+                            <div class="learner-field-chart-wrap" data-field-content <?= $fields === [] ? 'hidden' : ''; ?>>
+                                <svg class="learner-field-chart" data-field-chart viewBox="0 0 200 200" role="img" aria-labelledby="learner-field-chart-title">
+                                    <title id="learner-field-chart-title">Phân bổ giờ trải nghiệm cá nhân theo lĩnh vực</title>
+                                    <circle class="learner-statistics-donut__track" cx="100" cy="100" r="<?= learner_escape($donutRadius); ?>"></circle>
+                                    <g data-field-segments>
                                         <?php foreach ($fields as $field): ?>
-                                            <?php $catTone = $fieldColorMap[$field['category']] ?? 'teal'; ?>
-                                            <div class="learner-field-legend__item">
-                                                <span class="learner-field-legend__dot learner-field-legend__dot--<?= learner_escape($catTone); ?>" aria-hidden="true"></span>
-                                                <span><strong><?= learner_escape(ucfirst($field['category'])); ?></strong><small><?= learner_escape($field['hours']); ?> giờ (<?= learner_escape($field['percentage']); ?>%)</small></span>
-                                            </div>
+                                            <?php
+                                            $catTone = $fieldColorMap[$field['category']] ?? 'teal';
+                                            $segmentLength = $donutCircumference * ($field['percentage'] ?? 0) / 100;
+                                            ?>
+                                            <circle
+                                                class="learner-statistics-donut__segment learner-statistics-donut__segment--<?= learner_escape($catTone); ?>"
+                                                cx="100"
+                                                cy="100"
+                                                r="<?= learner_escape($donutRadius); ?>"
+                                                stroke-dasharray="<?= learner_escape(round($segmentLength, 2)); ?> <?= learner_escape(round($donutCircumference - $segmentLength, 2)); ?>"
+                                                stroke-dashoffset="<?= learner_escape(round(-$donutOffset, 2)); ?>"
+                                            ></circle>
+                                            <?php $donutOffset += $segmentLength; ?>
                                         <?php endforeach; ?>
-                                    </div>
+                                    </g>
+                                    <text class="learner-field-chart__total" x="100" y="96" text-anchor="middle" data-field-total><?= learner_escape($fieldTotal); ?></text>
+                                    <text class="learner-field-chart__unit" x="100" y="119" text-anchor="middle">giờ</text>
+                                </svg>
+                                <div class="learner-field-legend" data-field-legend>
+                                    <?php foreach ($fields as $field): ?>
+                                        <?php
+                                        $category = (string) ($field['category'] ?? 'general');
+                                        $catTone = $fieldColorMap[$category] ?? 'teal';
+                                        $catLabel = $fieldLabelMap[$category] ?? ucfirst($category);
+                                        ?>
+                                        <div class="learner-field-legend__item">
+                                            <span class="learner-field-legend__dot learner-field-legend__dot--<?= learner_escape($catTone); ?>" aria-hidden="true"></span>
+                                            <span><strong><?= learner_escape($catLabel); ?></strong><small><?= learner_escape($field['hours']); ?> giờ (<?= learner_escape($field['percentage']); ?>%)</small></span>
+                                        </div>
+                                    <?php endforeach; ?>
                                 </div>
-                            <?php else: ?>
-                                <div class="learner-statistics-field-empty">
-                                    <p>Chưa có dữ liệu phân bổ lĩnh vực trong khoảng thời gian này.</p>
-                                </div>
-                            <?php endif; ?>
+                            </div>
+                            <div class="learner-statistics-field-empty" data-field-empty <?= $fields !== [] ? 'hidden' : ''; ?>>
+                                <p>Chưa có dữ liệu phân bổ lĩnh vực trong khoảng thời gian này.</p>
+                            </div>
                         </section>
                     </div>
 
