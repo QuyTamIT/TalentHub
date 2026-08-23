@@ -25,6 +25,24 @@ function canRegisterActivity(activity,now){
   const opens=new Date(opensValue).getTime();
   return Number.isFinite(opens)&&current>=opens&&current<=closes;
 }
+function activityCtaState(activity,registration,now){
+  if(registration){
+    const label=getStatusLabel(registration.status);
+    return{label,disabled:true,tone:'outline',explanation:`Trạng thái đăng ký: ${label}.`};
+  }
+  if(canRegisterActivity(activity,now)){
+    return{label:'Đăng ký hoạt động',disabled:false,tone:'primary',explanation:'Đăng ký sẽ được ghi trực tiếp vào hệ thống.'};
+  }
+  const current=new Date(now||Date.now()).getTime();
+  const opens=new Date(activity?.registration_opens_at||'').getTime();
+  const closes=new Date(activity?.registration_closes_at||activity?.start_at||'').getTime();
+  const explanation=Number.isFinite(opens)&&Number.isFinite(current)&&current<opens
+    ?'Chưa đến thời gian mở đăng ký.'
+    :Number.isFinite(closes)&&Number.isFinite(current)&&current>closes
+      ?'Đã hết hạn đăng ký.'
+      :'Hoạt động hiện không nhận đăng ký.';
+  return{label:'Đã đóng đăng ký',disabled:true,tone:'outline',explanation};
+}
 function resolveRegistrationStatus(a){
   if(Number(a.participants)>=Number(a.capacity))return'waitlisted';
   return a.approval_mode==='teacher_review'?'pending':'approved';
@@ -131,6 +149,7 @@ function resolveRegistrationCollection(serverRegistrations,localRegistrations,so
 }
 global.LearnerActivities={
   canRegisterActivity,
+  activityCtaState,
   resolveRegistrationStatus,
   hasScheduleConflict,
   createActivityStorage,
@@ -173,22 +192,21 @@ document.addEventListener('DOMContentLoaded',()=>{
     let registration=all().find(r=>r.activity_id===activity.id);
     const button=detail.querySelector('[data-register-current]');
     const message=detail.querySelector('[data-registration-message]');
+    const setButtonTone=tone=>{
+      if(!button)return;
+      button.classList.remove('learner-btn--primary','learner-btn--secondary','learner-btn--outline');
+      button.classList.add(`learner-btn--${['primary','secondary','outline'].includes(tone)?tone:'outline'}`);
+    };
     const render=()=>{
       registration=all().find(r=>r.activity_id===activity.id);
       if(!button)return;
-      if(registration){
-        button.textContent=getStatusLabel(registration.status);
-        button.disabled=true;
-      }else if(!canRegisterActivity(activity)){
-        button.textContent='Đã đóng đăng ký';
-        button.disabled=true;
-      }else if(!localMutationsEnabled&&!serverMutationsEnabled){
-        button.textContent='Đăng ký trực tuyến chưa khả dụng';button.disabled=true;
-      }else{
-        const nextStatus=resolveRegistrationStatus(activity);
-        button.textContent=nextStatus==='waitlisted'?'Vào danh sách chờ':activity.approval_mode==='teacher_review'?'Gửi yêu cầu đăng ký':'Đăng ký hoạt động';
-        button.disabled=false;
-      }
+      const cta=!localMutationsEnabled&&!serverMutationsEnabled&&!registration&&canRegisterActivity(activity)
+        ?{label:'Đăng ký trực tuyến chưa khả dụng',disabled:true,tone:'outline',explanation:'Kết nối đăng ký trực tuyến hiện chưa khả dụng.'}
+        :activityCtaState(activity,registration);
+      button.textContent=cta.label;
+      button.disabled=cta.disabled;
+      setButtonTone(cta.tone);
+      if(message){message.textContent=cta.explanation;message.dataset.tone=cta.tone;}
     };
     render();
     button?.addEventListener('click',async()=>{

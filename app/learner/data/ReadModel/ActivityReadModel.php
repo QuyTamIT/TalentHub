@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace TalentHub\Learner\Data\ReadModel;
 
 use TalentHub\Learner\Data\Contracts\ActivityRepository;
+use TalentHub\Learner\Data\Support\LearnerViewAdapter;
 use TalentHub\Learner\Data\Support\Uuid;
 
 final class ActivityReadModel
 {
     public static function activity(array $record): array
     {
+        $metadata = LearnerViewAdapter::record($record);
         $record['activity_id'] ??= $record['id'] ?? null;
         $record['route_id'] ??= $record['id'] ?? null;
         $record['filter_category'] ??= $record['category'] ?? null;
@@ -50,6 +52,13 @@ final class ActivityReadModel
             $view['data_notes'][] = 'activity.capacity uses 1 to keep the current progress UI safe from division by zero.';
         }
 
+        $view['has_description'] = self::hasText($metadata['description'] ?? null);
+        $view['has_skills'] = self::hasList($metadata['skills'] ?? null);
+        $view['has_requirements'] = self::hasList($metadata['requirements'] ?? null);
+        $view['has_benefits'] = self::hasList($metadata['benefits'] ?? null);
+        $view['has_format'] = self::hasText($metadata['format'] ?? null);
+        $view['has_cost'] = self::hasText($metadata['cost'] ?? null);
+        $view['has_location'] = self::hasText($metadata['location'] ?? null);
         $view['can_register'] = self::canRegister($view);
 
         return $view;
@@ -132,5 +141,34 @@ final class ActivityReadModel
         $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
         $normalized = strtolower($ascii === false ? $value : $ascii);
         return trim((string) preg_replace('/[^a-z0-9]+/', '-', $normalized), '-');
+    }
+
+    private static function hasText(mixed $value): bool
+    {
+        if (!is_string($value)) {
+            return false;
+        }
+
+        $text = trim($value);
+        return $text !== '' && !in_array($text, [
+            'Chưa cập nhật',
+            'Mô tả hoạt động chưa có trong schema hiện tại.',
+            'Thông tin tóm tắt chưa có trong schema hiện tại.',
+        ], true);
+    }
+
+    private static function hasList(mixed $value): bool
+    {
+        if (!is_array($value)) {
+            return false;
+        }
+
+        foreach ($value as $item) {
+            if (self::hasText($item)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
