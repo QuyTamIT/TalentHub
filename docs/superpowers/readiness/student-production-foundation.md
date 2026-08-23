@@ -29,3 +29,18 @@
 - legacy `users.roles`: absent in the fresh runtime database created from the canonical migration set.
 - `uq_users_email`: present (verified by Phase 1 readiness).
 - `uq_student_profiles_user`: present (verified by Phase 1 readiness).
+
+## Phase 11 verified recovery gate
+
+The Phase 11 release rehearsal adds a non-destructive recovery proof without changing the canonical database:
+
+1. Create a transaction-consistent physical `mysqldump` backup and record its byte size and SHA-256.
+2. Restore only into an allow-listed `talenthub_phase11_rehearsal_YYYYMMDDHHMMSS` schema.
+3. Validate the migration registry and require two migration replay calls to be no-ops.
+4. Verify every restored baseline row, all discovered foreign keys, uniqueness constraints, ownership, and the complete four-role journey.
+5. Compare primary table count, total row count, and deterministic per-table digest before and after the rehearsal.
+6. Revoke disposable grants and drop only the exact allow-listed rehearsal schema in `finally`.
+
+For an operational recovery, stop writes, verify the approved backup digest, restore into a new recovery schema, validate invariants there, and switch configuration only with separate human approval. Never overwrite `talenthub_local` in place. Retain a failed schema for forensic review until explicitly released.
+
+Executable commands and human signature fields are maintained in [student-portal-release-checklist.md](./student-portal-release-checklist.md).

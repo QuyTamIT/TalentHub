@@ -34,6 +34,7 @@ use TalentHub\Learner\Data\Service\ProfileSharingService;
 use TalentHub\Learner\Data\Service\StatisticsService;
 use TalentHub\Modules\Business\Repository\InternshipRepository;
 use TalentHub\Modules\Business\Service\InternshipService;
+use TalentHub\Modules\School\Service\SchoolCheckinAggregateService;
 use TalentHub\Modules\School\Service\SchoolAuthorization;
 use TalentHub\Modules\Student\Repository\StudentRepository;
 use TalentHub\Modules\Student\Service\StudentProfileService;
@@ -586,6 +587,193 @@ function phase11RunJourney(PDO $pdo, array $actors, string $runId, callable $ass
     ];
 }
 
+/**
+ * @return array{tables:array<string,array{primary_keys:list<string>,count:int,hash:string,rows:array<string,array<string,mixed>>}>,table_count:int,row_count:int,digest:string}
+ */
+function phase11DatabaseSnapshot(PDO $pdo): array
+{
+    $tableNames = $pdo->query(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE' ORDER BY table_name"
+    )->fetchAll(PDO::FETCH_COLUMN) ?: [];
+    $tables = [];
+    $totalRows = 0;
+    foreach ($tableNames as $tableNameRaw) {
+        $tableName = (string) $tableNameRaw;
+        if (preg_match('/\A[a-zA-Z0-9_]+\z/', $tableName) !== 1) {
+            throw new RuntimeException("Unsafe table name in Phase 11 snapshot: {$tableName}");
+        }
+        $columnsStatement = $pdo->prepare(<<<'SQL'
+            SELECT column_name AS name, column_key AS key_type
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE() AND table_name = :table
+            ORDER BY ordinal_position
+        SQL);
+        $columnsStatement->execute(['table' => $tableName]);
+        $columnRows = $columnsStatement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $columns = array_map(static fn (array $row): string => (string) $row['name'], $columnRows);
+        $primaryKeys = array_values(array_map(
+            static fn (array $row): string => (string) $row['name'],
+            array_filter($columnRows, static fn (array $row): bool => (string) $row['key_type'] === 'PRI'),
+        ));
+        $orderColumns = $primaryKeys !== [] ? $primaryKeys : $columns;
+        $quotedColumns = array_map(static fn (string $column): string => "`{$column}`", $columns);
+        $quotedOrder = array_map(static fn (string $column): string => "`{$column}`", $orderColumns);
+        $rows = $pdo->query(
+            'SELECT ' . implode(',', $quotedColumns) . " FROM `{$tableName}` ORDER BY " . implode(',', $quotedOrder)
+        )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $rowMap = [];
+        foreach ($rows as $index => $row) {
+            $identity = $primaryKeys === []
+                ? sprintf('row:%08d:%s', $index, hash('sha256', json_encode($row, JSON_THROW_ON_ERROR)))
+                : json_encode(array_map(static fn (string $column): mixed => $row[$column] ?? null, $primaryKeys), JSON_THROW_ON_ERROR);
+            $rowMap[$identity] = $row;
+        }
+        $encodedRows = json_encode($rowMap, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $tables[$tableName] = [
+            'primary_keys' => $primaryKeys,
+            'count' => count($rows),
+            'hash' => hash('sha256', $encodedRows),
+            'rows' => $rowMap,
+        ];
+        $totalRows += count($rows);
+    }
+    $digestMaterial = [];
+    foreach ($tables as $table => $snapshot) {
+        $digestMaterial[$table] = ['count' => $snapshot['count'], 'hash' => $snapshot['hash']];
+    }
+
+    return [
+        'tables' => $tables,
+        'table_count' => count($tables),
+        'row_count' => $totalRows,
+        'digest' => hash('sha256', json_encode($digestMaterial, JSON_THROW_ON_ERROR)),
+    ];
+}
+
+/** @return array{table_count:int,row_count:int,digest:string} */
+function phase11SnapshotEvidence(array $snapshot): array
+{
+    return [
+        'table_count' => (int) $snapshot['table_count'],
+        'row_count' => (int) $snapshot['row_count'],
+        'digest' => (string) $snapshot['digest'],
+    ];
+}
+
+/** @return array{constraints:int,orphans:int} */
+function phase11VerifyForeignKeys(PDO $pdo, callable $assert): array
+{
+    $rows = $pdo->query(<<<'SQL'
+        SELECT constraint_name AS constraint_id, table_name AS child_table, column_name AS child_column,
+               referenced_table_name AS parent_table, referenced_column_name AS parent_column,
+               ordinal_position AS position
+        FROM information_schema.key_column_usage
+        WHERE constraint_schema = DATABASE() AND referenced_table_name IS NOT NULL
+        ORDER BY table_name, constraint_name, ordinal_position
+    SQL)->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $constraints = [];
+    foreach ($rows as $row) {
+        $key = (string) $row['child_table'] . '|' . (string) $row['constraint_id'];
+        $constraints[$key]['table'] = (string) $row['child_table'];
+        $constraints[$key]['referenced_table'] = (string) $row['parent_table'];
+        $constraints[$key]['columns'][] = [(string) $row['child_column'], (string) $row['parent_column']];
+    }
+    $orphanTotal = 0;
+    foreach ($constraints as $key => $constraint) {
+        foreach ([$constraint['table'], $constraint['referenced_table']] as $identifier) {
+            if (preg_match('/\A[a-zA-Z0-9_]+\z/', $identifier) !== 1) {
+                throw new RuntimeException("Unsafe FK table identifier: {$identifier}");
+            }
+        }
+        $joins = [];
+        $nonnull = [];
+        foreach ($constraint['columns'] as [$column, $referencedColumn]) {
+            if (preg_match('/\A[a-zA-Z0-9_]+\z/', $column) !== 1 || preg_match('/\A[a-zA-Z0-9_]+\z/', $referencedColumn) !== 1) {
+                throw new RuntimeException('Unsafe FK column identifier.');
+            }
+            $joins[] = "child.`{$column}` = parent.`{$referencedColumn}`";
+            $nonnull[] = "child.`{$column}` IS NOT NULL";
+        }
+        $firstReferencedColumn = $constraint['columns'][0][1];
+        $sql = "SELECT COUNT(*) FROM `{$constraint['table']}` child LEFT JOIN `{$constraint['referenced_table']}` parent ON "
+            . implode(' AND ', $joins)
+            . ' WHERE ' . implode(' AND ', $nonnull)
+            . " AND parent.`{$firstReferencedColumn}` IS NULL";
+        $orphans = (int) $pdo->query($sql)->fetchColumn();
+        $assert($orphans === 0, "foreign key {$key} has zero orphan rows");
+        $orphanTotal += $orphans;
+    }
+
+    return ['constraints' => count($constraints), 'orphans' => $orphanTotal];
+}
+
+/** @param callable(bool,string):void $assert */
+function phase11VerifyInvariants(PDO $pdo, array $baseline, array $actors, callable $assert): array
+{
+    $current = phase11DatabaseSnapshot($pdo);
+    $verifiedRows = 0;
+    foreach ($baseline['tables'] as $tableName => $baselineTable) {
+        $currentTable = $current['tables'][$tableName] ?? null;
+        $assert(is_array($currentTable), "restored baseline table {$tableName} still exists");
+        foreach ($baselineTable['rows'] as $identity => $baselineRow) {
+            $currentRow = $currentTable['rows'][$identity] ?? null;
+            $assert(is_array($currentRow) && $currentRow === $baselineRow, "pre-existing row remains unchanged in {$tableName}");
+            $verifiedRows++;
+        }
+    }
+
+    $foreignKeys = phase11VerifyForeignKeys($pdo, $assert);
+    $uniqueQueries = [
+        'registration' => "SELECT COUNT(*) FROM (SELECT activityId,studentId FROM activity_registrations GROUP BY activityId,studentId HAVING COUNT(*)>1) duplicates",
+        'checkin' => "SELECT COUNT(*) FROM (SELECT registrationId FROM checkins GROUP BY registrationId HAVING COUNT(*)>1) duplicates",
+        'experience' => "SELECT COUNT(*) FROM (SELECT checkinId FROM experience_logs GROUP BY checkinId HAVING COUNT(*)>1) duplicates",
+        'application' => "SELECT COUNT(*) FROM (SELECT postId,studentId FROM internship_applications GROUP BY postId,studentId HAVING COUNT(*)>1) duplicates",
+        'notification_event' => "SELECT COUNT(*) FROM (SELECT userId,eventKey FROM notifications WHERE eventKey IS NOT NULL GROUP BY userId,eventKey HAVING COUNT(*)>1) duplicates",
+        'profile_share_token' => "SELECT COUNT(*) FROM (SELECT tokenHash FROM student_profile_shares GROUP BY tokenHash HAVING COUNT(*)>1) duplicates",
+        'badge_award' => "SELECT COUNT(*) FROM (SELECT studentId,badgeId FROM student_badges GROUP BY studentId,badgeId HAVING COUNT(*)>1) duplicates",
+    ];
+    foreach ($uniqueQueries as $name => $sql) {
+        $assert((int) $pdo->query($sql)->fetchColumn() === 0, "{$name} uniqueness invariant holds");
+    }
+
+    foreach ($actors['students'] as $actor) {
+        $statement = $pdo->prepare('SELECT COUNT(*) FROM student_profiles WHERE id=:profileId AND userId=:userId AND classId=:classId');
+        $statement->execute(['profileId' => $actor['student_id'], 'userId' => $actor['user_id'], 'classId' => $actor['class_id']]);
+        $assert((int) $statement->fetchColumn() === 1, 'student actor keeps one profile/class ownership');
+    }
+    foreach ($actors['teachers'] as $actor) {
+        $statement = $pdo->prepare('SELECT COUNT(*) FROM teacher_profiles WHERE id=:profileId AND userId=:userId AND schoolId=:schoolId');
+        $statement->execute(['profileId' => $actor['teacher_id'], 'userId' => $actor['user_id'], 'schoolId' => $actor['school_id']]);
+        $assert((int) $statement->fetchColumn() === 1, 'teacher actor keeps one profile/school ownership');
+    }
+    foreach ($actors['schools'] as $actor) {
+        $statement = $pdo->prepare('SELECT COUNT(*) FROM school_members WHERE userId=:userId AND schoolId=:schoolId');
+        $statement->execute(['userId' => $actor['user_id'], 'schoolId' => $actor['school_id']]);
+        $assert((int) $statement->fetchColumn() === 1, 'school actor keeps one organization membership');
+    }
+    foreach ($actors['enterprises'] as $actor) {
+        $statement = $pdo->prepare('SELECT COUNT(*) FROM enterprise_members WHERE userId=:userId AND enterpriseId=:enterpriseId');
+        $statement->execute(['userId' => $actor['user_id'], 'enterpriseId' => $actor['enterprise_id']]);
+        $assert((int) $statement->fetchColumn() === 1, 'enterprise actor keeps one organization membership');
+    }
+
+    $schoolAggregates = new SchoolCheckinAggregateService($pdo);
+    $schoolA = $schoolAggregates->confirmedForSchool($actors['schools'][0]['school_id']);
+    $schoolB = $schoolAggregates->confirmedForSchool($actors['schools'][1]['school_id']);
+    $assert($schoolA['confirmedCheckins'] === 1 && $schoolA['confirmedHours'] === '1.50', 'school A sees its own confirmed aggregate');
+    $assert($schoolB['confirmedCheckins'] === 0 && $schoolB['confirmedHours'] === '0.00', 'school B aggregate excludes school A facts');
+
+    return [
+        'baseline_tables' => count($baseline['tables']),
+        'baseline_rows_verified' => $verifiedRows,
+        'baseline_digest' => $baseline['digest'],
+        'foreign_keys' => $foreignKeys,
+        'uniqueness_checks' => count($uniqueQueries),
+        'actor_ownership_checks' => 8,
+        'school_scope' => ['school_a_checkins' => 1, 'school_b_checkins' => 0],
+    ];
+}
+
 $config = require dirname(__DIR__) . '/config/database.php';
 $sourceDatabase = (string) ($config['database'] ?? '');
 $assert($sourceDatabase === 'talenthub_local', 'source must be talenthub_local');
@@ -611,6 +799,8 @@ $rootPdo = new PDO(
         PDO::ATTR_EMULATE_PREPARES => false,
     ],
 );
+$primaryPdo = (new Connection($config))->connect();
+$primaryDataBefore = phase11DatabaseSnapshot($primaryPdo);
 $primaryBefore = [
     'tables' => (int) $rootPdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'talenthub_local' AND table_type = 'BASE TABLE'")->fetchColumn(),
     'migrations' => (int) $rootPdo->query('SELECT COUNT(*) FROM talenthub_local.schema_migrations')->fetchColumn(),
@@ -675,6 +865,7 @@ try {
     $assert($firstReplay === [], 'first migration replay is a no-op');
     $assert($secondReplay === [], 'second migration replay is a no-op');
     $runner->validate();
+    $restoredSnapshot = phase11DatabaseSnapshot($targetPdo);
 
     $actors = phase11CreateActors($targetPdo, $timestamp);
     $assert(count($actors['students']) === 2, 'two disposable students exist');
@@ -690,12 +881,18 @@ try {
     $assert(count(array_unique($actorUserIds)) === 8, 'all Phase 11 actor users are distinct');
     $authorization = phase11VerifyAuthorization($targetPdo, $actors, $assert);
     $journey = phase11RunJourney($targetPdo, $actors, $timestamp, $assert);
+    $invariants = phase11VerifyInvariants($targetPdo, $restoredSnapshot, $actors, $assert);
 
     $primaryAfter = [
         'tables' => (int) $rootPdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'talenthub_local' AND table_type = 'BASE TABLE'")->fetchColumn(),
         'migrations' => (int) $rootPdo->query('SELECT COUNT(*) FROM talenthub_local.schema_migrations')->fetchColumn(),
     ];
     $assert($primaryAfter === $primaryBefore, 'disposable restore/replay did not mutate primary');
+    $primaryDataAfter = phase11DatabaseSnapshot($primaryPdo);
+    $assert(
+        phase11SnapshotEvidence($primaryDataAfter) === phase11SnapshotEvidence($primaryDataBefore),
+        'primary row counts and deterministic table hashes remain unchanged',
+    );
 
     $evidence = [
         'result' => 'PASS',
@@ -707,6 +904,11 @@ try {
         'actors' => ['student' => 2, 'teacher' => 2, 'school' => 2, 'enterprise' => 2],
         'authorization' => $authorization,
         'journey' => $journey,
+        'invariants' => $invariants,
+        'primary_snapshot' => [
+            'before' => phase11SnapshotEvidence($primaryDataBefore),
+            'after' => phase11SnapshotEvidence($primaryDataAfter),
+        ],
         'primary_before_after_equal' => true,
         'assertions' => $assertions,
     ];
