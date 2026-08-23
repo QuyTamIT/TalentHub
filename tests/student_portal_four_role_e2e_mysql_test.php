@@ -314,6 +314,18 @@ function phase11RunActivityJourney(PDO $pdo, array $actors, string $runId, calla
     $registrationService = new ActivityRegistrationService(new DatabaseActivityCommandRepository($pdo, $notifications));
     $registeredA = $registrationService->register($studentA['student_id'], $studentA['user_id'], "p11rega{$runId}", ['activityId' => $activityId]);
     $assert(($registeredA['registration']['status'] ?? null) === 'pending', 'teacher-review registration starts pending');
+    $assert(phase11ExpectApi(
+        static fn () => $teacherActivities->transitionRegistration(
+            $teacherB['teacher_id'],
+            $teacherB['user_id'],
+            "p11xappr{$runId}",
+            $activityId,
+            (string) $registeredA['registration']['id'],
+            ['expectedStatus' => 'pending', 'action' => 'approve'],
+        ),
+        404,
+        'RESOURCE_NOT_FOUND',
+    ), 'another teacher cannot transition the owned registration');
     $approved = $teacherActivities->transitionRegistration(
         $teacherA['teacher_id'],
         $teacherA['user_id'],
@@ -350,6 +362,7 @@ function phase11RunActivityJourney(PDO $pdo, array $actors, string $runId, calla
     $checkins = new LearnerCheckinService(new DatabaseCheckinRepository($pdo, $notifications));
     $rawToken = (string) $createdQr['rawToken'];
     $replayToken = $rawToken;
+    $crossStudentToken = $rawToken;
     $confirmed = $checkins->submit($studentA['student_id'], $studentA['user_id'], "p11checka{$runId}", $rawToken);
     $assert(($confirmed['status'] ?? null) === 'confirmed', 'learner QR check-in is confirmed');
     $assert($rawToken === null, 'learner service erases raw QR token after use');
@@ -360,6 +373,13 @@ function phase11RunActivityJourney(PDO $pdo, array $actors, string $runId, calla
         409,
         'CHECKIN_ALREADY_EXISTS',
     ), 'replayed QR check-in is rejected idempotently');
+    $assert(phase11ExpectApi(
+        static function () use ($checkins, $studentB, $runId, &$crossStudentToken): void {
+            $checkins->submit($studentB['student_id'], $studentB['user_id'], "p11cross{$runId}", $crossStudentToken);
+        },
+        409,
+        'REGISTRATION_NOT_ELIGIBLE',
+    ), 'waitlisted student cannot consume another learner check-in flow');
 
     $checkinCount = $pdo->prepare('SELECT COUNT(*) FROM checkins WHERE registrationId = :registrationId AND status = \'confirmed\'');
     $checkinCount->execute(['registrationId' => $registeredA['registration']['id']]);
@@ -402,6 +422,14 @@ function phase11RunAssessmentJourney(PDO $pdo, array $actors, array $activity, c
     foreach ($questions as $question) {
         $assessments->saveAnswer($studentA['student_id'], (string) $attempt['id'], (string) $question['id'], 5);
     }
+    $assert(phase11ExpectFailure(
+        static fn () => $assessments->saveAnswer(
+            $studentB['student_id'],
+            (string) $attempt['id'],
+            (string) $questions[0]['id'],
+            5,
+        ),
+    ), 'another student cannot mutate the owned assessment attempt');
     $assert(phase11ExpectFailure(
         static fn () => $assessments->ownedAttempt($studentB['student_id'], (string) $attempt['id']),
     ), 'another student cannot read the owned assessment attempt');
@@ -491,6 +519,18 @@ function phase11RunApplicationJourney(PDO $pdo, array $actors, string $runId, ca
         404,
         'RESOURCE_NOT_FOUND',
     ), 'another student cannot read the owned application');
+    $assert(phase11ExpectApi(
+        static fn () => $applications->withdraw(
+            $studentB['student_id'],
+            $studentB['user_id'],
+            "p11xwith{$runId}",
+            $applicationId,
+            'Forbidden cross-owner withdrawal',
+        ),
+        404,
+        'RESOURCE_NOT_FOUND',
+    ), 'another student cannot withdraw the owned application');
+    $assert(($internships->listApplications($enterpriseB['user_id'])['items'] ?? []) === [], 'another enterprise list excludes the foreign application');
     $assert(phase11ExpectApi(
         static fn () => $internships->review($enterpriseB['user_id'], $applicationId, [
             'expectedCurrentStatus' => 'submitted',
