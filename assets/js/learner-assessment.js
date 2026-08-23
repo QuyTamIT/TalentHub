@@ -374,6 +374,90 @@
         },
     });
 
+    const DISCOVERY_DIMENSIONS = Object.freeze({
+        holland: Object.freeze([
+            { code: 'R', label: 'Kỹ thuật — Thực tế', tone: 'secondary' },
+            { code: 'I', label: 'Nghiên cứu — Phân tích', tone: 'primary' },
+            { code: 'A', label: 'Nghệ thuật — Sáng tạo', tone: 'warning' },
+            { code: 'S', label: 'Xã hội — Hỗ trợ', tone: 'success' },
+            { code: 'E', label: 'Quản lý — Thuyết phục', tone: 'secondary' },
+            { code: 'C', label: 'Nghiệp vụ — Tổ chức', tone: 'primary' },
+        ]),
+        multiple_intelligence: Object.freeze([
+            { code: 'LING', label: 'Ngôn ngữ', tone: 'primary' },
+            { code: 'LOGI', label: 'Logic — Toán học', tone: 'secondary' },
+            { code: 'SPAT', label: 'Không gian — Hình ảnh', tone: 'warning' },
+            { code: 'BODY', label: 'Vận động — Cơ thể', tone: 'success' },
+            { code: 'MUSIC', label: 'Âm nhạc', tone: 'warning' },
+            { code: 'INTER', label: 'Tương tác xã hội', tone: 'success' },
+            { code: 'INTRA', label: 'Nội tâm', tone: 'primary' },
+            { code: 'NAT', label: 'Tự nhiên', tone: 'success' },
+        ]),
+    });
+
+    function normalizeAssessmentType(item) {
+        const declaredType = String(item?.assessment_type || '').trim().toLowerCase();
+        if (Object.prototype.hasOwnProperty.call(ASSESSMENT_META, declaredType)) return declaredType;
+        const rawCode = String(item?.assessment_code || item?.code || '').trim().toLowerCase();
+        const baseCode = rawCode.replace(/_(middle|high|college)$/, '');
+        if (Object.prototype.hasOwnProperty.call(ASSESSMENT_META, baseCode)) return baseCode;
+        return declaredType || baseCode;
+    }
+
+    function latestSubmittedHistory(historyPayload) {
+        const items = Array.isArray(historyPayload?.assessment_history?.items)
+            ? historyPayload.assessment_history.items
+            : [];
+        const latestByType = new Map();
+        items.forEach((item) => {
+            if (!item || typeof item !== 'object') return;
+            const status = String(item.status || '').toLowerCase();
+            if (status && status !== 'submitted') return;
+            const type = normalizeAssessmentType(item);
+            if (!type) return;
+            const timestamp = Date.parse(item.submitted_at || item.result_created_at || item.created_at || '') || 0;
+            const existing = latestByType.get(type);
+            const existingTimestamp = Date.parse(existing?.submitted_at || existing?.result_created_at || existing?.created_at || '') || 0;
+            if (!existing || timestamp > existingTimestamp) latestByType.set(type, item);
+        });
+        return latestByType;
+    }
+
+    function mergeCatalogWithHistory(catalog, historyPayload) {
+        const source = catalog && typeof catalog === 'object' ? catalog : {};
+        const latestByType = latestSubmittedHistory(historyPayload);
+        const assessments = Array.isArray(source.assessments) ? source.assessments : [];
+        return {
+            ...source,
+            assessments: assessments.map((item) => {
+                const latestResult = latestByType.get(normalizeAssessmentType(item)) || null;
+                return {
+                    ...item,
+                    latest_result: latestResult,
+                    can_view_result: Boolean(latestResult?.id),
+                };
+            }),
+        };
+    }
+
+    function deriveDiscoverySummary(historyPayload) {
+        const latestByType = latestSubmittedHistory(historyPayload);
+        const present = (assessmentType) => {
+            const item = latestByType.get(assessmentType);
+            const scores = item?.dimension_scores && typeof item.dimension_scores === 'object'
+                ? item.dimension_scores
+                : {};
+            return (DISCOVERY_DIMENSIONS[assessmentType] || []).map((dimension) => ({
+                ...dimension,
+                score: Number(scores[dimension.code]) || 0,
+            }));
+        };
+        return {
+            career: latestByType.has('holland') ? present('holland') : [],
+            talents: latestByType.has('multiple_intelligence') ? present('multiple_intelligence') : [],
+        };
+    }
+
     function setHidden(node, hidden) {
         if (node) node.hidden = hidden;
     }
@@ -565,8 +649,69 @@
             if (action.tagName === 'A') action.href = `assessment.php?code=${encodeURIComponent(code)}`;
             else { action.type = 'button'; action.disabled = true; }
             article.appendChild(action);
+            const complete = ['submitted', 'retake_locked'].includes(String(item?.attempt_status || '').toLowerCase());
+            if (complete && item?.can_view_result && item?.latest_result?.id) {
+                const resultLink = doc.createElement('a');
+                resultLink.className = 'learner-btn learner-btn--outline learner-btn--block';
+                resultLink.href = `assessment-result.php?code=${encodeURIComponent(code)}&attempt=${encodeURIComponent(item.latest_result.id)}`;
+                resultLink.textContent = `Xem kết quả ${item.latest_result.result_code || ''}`.trim();
+                article.appendChild(resultLink);
+            }
             cards.appendChild(article);
         });
+    }
+
+    function renderDiscoverySummary(root, summary) {
+        const doc = root.ownerDocument || document;
+        const renderEmpty = (container, message) => {
+            container.appendChild(createTextElement(doc, 'p', message, 'learner-discovery-empty'));
+        };
+        const talents = root.querySelector('[data-discovery-talents]');
+        if (talents) {
+            while (talents.firstChild) talents.removeChild(talents.firstChild);
+            if (!Array.isArray(summary?.talents) || summary.talents.length === 0) {
+                renderEmpty(talents, 'Hoàn thành bài Đa trí thông minh để xem bản đồ năng khiếu.');
+            } else {
+                summary.talents.forEach((item) => {
+                    const row = doc.createElement('span');
+                    row.appendChild(createTextElement(doc, 'span', item.label));
+                    row.appendChild(createTextElement(doc, 'strong', item.score));
+                    talents.appendChild(row);
+                });
+            }
+        }
+        const career = root.querySelector('[data-discovery-career]');
+        if (career) {
+            while (career.firstChild) career.removeChild(career.firstChild);
+            if (!Array.isArray(summary?.career) || summary.career.length === 0) {
+                renderEmpty(career, 'Hoàn thành bài Holland để xem định hướng phù hợp.');
+            } else {
+                summary.career.forEach((item) => {
+                    const article = doc.createElement('article');
+                    article.className = 'learner-direction-row';
+                    const content = doc.createElement('div');
+                    content.className = 'learner-direction-row__content';
+                    const heading = doc.createElement('div');
+                    heading.appendChild(createTextElement(doc, 'span', item.label));
+                    heading.appendChild(createTextElement(doc, 'strong', `${item.score}%`));
+                    const progress = doc.createElement('div');
+                    progress.className = 'learner-progress';
+                    progress.setAttribute('role', 'progressbar');
+                    progress.setAttribute('aria-label', item.label);
+                    progress.setAttribute('aria-valuemin', '0');
+                    progress.setAttribute('aria-valuemax', '100');
+                    progress.setAttribute('aria-valuenow', String(item.score));
+                    const bar = doc.createElement('span');
+                    bar.className = `learner-progress--${item.tone}`;
+                    bar.style.setProperty('--learner-progress', `${item.score}%`);
+                    progress.appendChild(bar);
+                    content.appendChild(heading);
+                    content.appendChild(progress);
+                    article.appendChild(content);
+                    career.appendChild(article);
+                });
+            }
+        }
     }
 
     function renderResult(root, payload) {
@@ -710,8 +855,16 @@
     function bootCatalog(root) {
         const api = createApiClient();
         if (!api) return;
-        const controller = createAssessmentController({ api, view: { render() {} } });
-        controller.loadCatalog().then((payload) => renderCatalog(root, payload));
+        Promise.all([
+            api.get('/assessments.php'),
+            api.get('/assessments.php?view=history'),
+        ]).then(([catalog, historyPayload]) => {
+            renderCatalog(root, mergeCatalogWithHistory(catalog, historyPayload));
+            renderDiscoverySummary(root.ownerDocument || document, deriveDiscoverySummary(historyPayload));
+        }).catch(() => {
+            setHidden(root.querySelector('[data-catalog-loading]'), true);
+            setHidden(root.querySelector('[data-empty-catalog]'), false);
+        });
     }
 
     function bootResult(root) {
@@ -851,6 +1004,8 @@
         presentationState,
         createAssessmentController,
         createDomView,
+        mergeCatalogWithHistory,
+        deriveDiscoverySummary,
     };
 
     if (typeof module !== 'undefined' && module.exports) {

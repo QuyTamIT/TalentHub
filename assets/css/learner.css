@@ -1316,6 +1316,35 @@
     font-size: 0.86rem;
 }
 
+.learner-discovery-talent-list {
+    display: grid;
+    margin-top: 20px;
+    gap: 10px;
+}
+
+.learner-discovery-talent-list > span {
+    display: flex;
+    padding: 12px 14px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--background);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.learner-discovery-talent-list strong {
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+.learner-discovery-empty {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    line-height: 1.6;
+}
+
 /* Activities -------------------------------------------------------------- */
 
 .learner-activity-toolbar {
@@ -4452,6 +4481,11 @@ body.learner-sidebar-open {
 .learner-assessment-state h1 {
     color: var(--text-primary);
     font-size: 1.5rem;
+}
+
+.learner-assessment-state[hidden],
+.learner-empty-catalog[hidden] {
+    display: none !important;
 }
 
 .learner-assessment-state--error > svg,
