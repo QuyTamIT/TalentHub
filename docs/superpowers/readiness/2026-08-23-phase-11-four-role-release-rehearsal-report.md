@@ -1,6 +1,6 @@
 # Phase 11 Four-Role Release Rehearsal Report
 
-**Decision:** `GO_FOR_REVIEW`  
+**Decision:** `APPROVED_PHASE_11`
 **Workspace:** `D:\TalentHub`  
 **Branch:** `feature/student`  
 **Date:** 2026-08-23  
@@ -9,7 +9,26 @@
 **Database:** `talenthub_local`, MySQL 8.4.3  
 **Primary mutation:** none
 
-Phase 11 has complete executable implementation evidence and is ready for the required human release review. It is not marked `APPROVED_PHASE_11` in this report because the final independent/human release signature is a separate gate. Phase 12 has not started.
+Phase 11 has complete executable implementation evidence. The user/Product Owner supplied the required human release approval on 2026-08-23, and the approval was recorded after a fresh read-only verification against the real `talenthub_local` database and the production HTTP front controller. The release artifact is approved for a separately authorized production deployment. No production deployment was performed by this approval step, and Phase 12 has not started.
+
+## Real runtime approval evidence
+
+The approval did not rely only on backup or disposable-test evidence. On 2026-08-23 at 19:00 ICT, the production application composition was started locally through `api/v1/index.php` and connected to the real `talenthub_local` database without inserting, updating, or deleting primary data.
+
+| Runtime gate | Fresh result |
+|---|---|
+| Database connection | `talenthub_local`, MySQL 8.4.3, connection OK |
+| Schema | 61 base tables, 3,151 exact rows |
+| Migrations | validation OK, 29 applied, 0 pending |
+| Phase 11 readiness | `READY`, exit 0 |
+| Production HTTP health | `GET /api/v1/health` = 200, database available |
+| Anonymous ownership boundary | Student, Teacher, School, and Enterprise protected reads = 401 `AUTHENTICATION_REQUIRED` |
+| Real role data | 20 Student, 11 Teacher, 3 School, 1 Enterprise users |
+| Real learner facts | 40 registrations, 20 check-ins, 20 experiences, 42 attempts/results, 20 assessments |
+| Real downstream facts | 54 notifications, 5 badge definitions, 54 student badge awards |
+| AI visibility | `TALENTHUB_AI_VISIBLE_PERCENT=0` |
+
+The shared HTTP router constructs real PDO repositories and production services for authentication, Student, Teacher, School, and Enterprise routes. Mutation routes enforce session authentication, RBAC and CSRF according to their contracts. Authenticated write journeys were previously executed on the restored full-data clone to protect primary data; the approval verification deliberately used only read-only calls against `talenthub_local`.
 
 ## Delivered scope
 
@@ -117,4 +136,6 @@ During the full matrix, `learner_checkin_endpoint_runtime_test.php` exposed a Ph
 
 ## Review gate
 
-No unresolved Critical or Important issue was found in the final requirements/code self-review. The remaining action is the mandated independent/human release review and signature in `student-portal-release-checklist.md`. Until that decision is recorded, the truthful state is `GO_FOR_REVIEW`, not `APPROVED_PHASE_11`. Phase 12 remains locked and learner-visible model output remains disabled.
+No unresolved Critical or Important issue was found in the final requirements/code review. Human release approval was received from the user/Product Owner and recorded in `student-portal-release-checklist.md`; the truthful Phase 11 state is now `APPROVED_PHASE_11`.
+
+This approval means the database schema/data, application code, and real API composition are accepted as a production-deployable release artifact. It does not claim that a production host was changed: target infrastructure, production secrets, TLS/domain configuration, maintenance window, and the actual deployment command remain a separate operational authorization. Phase 12 may now enter its own gate, while learner-visible model output remains disabled until Phase 12 explicitly approves it.

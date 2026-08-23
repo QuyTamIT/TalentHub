@@ -970,7 +970,7 @@ async function learnerApi(path, {
 
 ## Phase 11 — Production Readiness, Data Migration, Full Verification and Release Gate
 
-**Current status:** `GO_FOR_REVIEW` — executable implementation and verification complete; final independent/human release signature pending.
+**Current status:** `APPROVED_PHASE_11` — executable implementation and verification complete; human release approval recorded on 2026-08-23 after fresh real-database and production HTTP/API verification. The release artifact is approved for separately authorized production deployment.
 
 **Entry gate requirements:** Phases 0-10 đều `READY` và không có unresolved blocker.
 

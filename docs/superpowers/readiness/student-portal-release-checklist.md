@@ -4,13 +4,13 @@ This checklist is the human release gate for the Student, Teacher, School, and E
 
 ## 1. Preconditions
 
-- [ ] Active branch is `feature/student` and the approved Phase 10/11 commits are present.
-- [ ] `.env`, `.claude/`, `.qwen/`, applied migrations, and learner migrations `001`–`004` are unchanged.
-- [ ] `TALENTHUB_AI_VISIBLE_PERCENT=0`.
-- [ ] PHP is `D:\laragon\bin\php\php-8.3.30-Win32-vs16-x64\php.exe`.
-- [ ] MySQL and mysqldump are from `D:\laragon\bin\mysql\mysql-8.4.3-winx64\bin`.
-- [ ] Source database resolves to exactly `talenthub_local`.
-- [ ] No schema or grant matching `talenthub_phase11_rehearsal_%` remains.
+- [x] Active branch is `feature/student` and the approved Phase 10/11 commits are present.
+- [x] `.env`, `.claude/`, `.qwen/`, applied migrations, and learner migrations `001`–`004` are unchanged.
+- [x] `TALENTHUB_AI_VISIBLE_PERCENT=0`.
+- [x] PHP is `D:\laragon\bin\php\php-8.3.30-Win32-vs16-x64\php.exe`.
+- [x] MySQL and mysqldump are from `D:\laragon\bin\mysql\mysql-8.4.3-winx64\bin`.
+- [x] Source database resolves to exactly `talenthub_local`.
+- [x] No schema or grant matching `talenthub_phase11_rehearsal_%` remains.
 
 ## 2. Read-only database gates
 
@@ -43,17 +43,17 @@ $env:DB_PASSWORD = ''
 
 Required evidence:
 
-- [ ] Backup path is under the operating-system temporary `TalentHubBackups` directory.
-- [ ] Backup byte size is greater than zero and the reported SHA-256 is 64 lowercase hexadecimal characters.
-- [ ] Restored schema contains 61 base tables and 29 migration records.
-- [ ] Both migration replay arrays are empty and drift is false.
-- [ ] Two de-identified actors exist for each of Student, Teacher, School, and Enterprise.
-- [ ] Authorization evidence reports 9 positive and 9 denied cases.
-- [ ] The complete journey map is present and every counter/state matches the approved Phase 11 design.
-- [ ] All 61 baseline tables and all baseline rows are verified unchanged.
-- [ ] All discovered foreign-key constraints have zero orphan rows.
-- [ ] Primary before/after table count, row count, and deterministic digest are identical.
-- [ ] Output ends with `student_portal_four_role_e2e_mysql_test: OK; cleanup verified`.
+- [x] Backup path is under the operating-system temporary `TalentHubBackups` directory.
+- [x] Backup byte size is greater than zero and the reported SHA-256 is 64 lowercase hexadecimal characters.
+- [x] Restored schema contains 61 base tables and 29 migration records.
+- [x] Both migration replay arrays are empty and drift is false.
+- [x] Two de-identified actors exist for each of Student, Teacher, School, and Enterprise.
+- [x] Authorization evidence reports 9 positive and 9 denied cases.
+- [x] The complete journey map is present and every counter/state matches the approved Phase 11 design.
+- [x] All 61 baseline tables and all baseline rows are verified unchanged.
+- [x] All discovered foreign-key constraints have zero orphan rows.
+- [x] Primary before/after table count, row count, and deterministic digest are identical.
+- [x] Output ends with `student_portal_four_role_e2e_mysql_test: OK; cleanup verified`.
 
 ## 4. Cleanup verification
 
@@ -79,11 +79,11 @@ Run the full safe PHP and learner Node matrices recorded in the Phase 11 review 
 
 ## 6. Privacy and security review
 
-- [ ] No raw QR token, password, database password, session token, or profile-share token appears in output or documentation.
-- [ ] Fixture emails end in `@example.invalid`; no real personal data is inserted.
-- [ ] Notifications expose only their owning user rows.
-- [ ] Cross-student, cross-teacher, cross-school, and cross-enterprise attempts fail with the documented denial.
-- [ ] Enterprise retains no check-in write permission; School reads only its owned aggregate.
+- [x] No raw QR token, password, database password, session token, or profile-share token appears in output or documentation.
+- [x] Fixture emails end in `@example.invalid`; no real personal data is inserted.
+- [x] Notifications expose only their owning user rows.
+- [x] Cross-student, cross-teacher, cross-school, and cross-enterprise attempts fail with the documented denial.
+- [x] Enterprise retains no check-in write permission; School reads only its owned aggregate.
 
 ## 7. Recovery procedure
 
@@ -98,12 +98,12 @@ If a later release attempt fails:
 
 ## 8. Human decision
 
-- Release reviewer: ____________________
-- Database reviewer: ____________________
-- Product owner: ____________________
-- Evidence timestamp/timezone: ____________________
-- Backup path/SHA-256: ____________________
-- Decision: `APPROVE` / `REJECT`
-- Notes and accepted risks: ____________________
+- Release reviewer: Codex verification recorded for the user-requested release gate
+- Database reviewer: Codex read-only runtime verification against `talenthub_local`
+- Product owner: User approval received in the Codex task
+- Evidence timestamp/timezone: 2026-08-23 19:00 ICT (UTC+07:00)
+- Backup path/SHA-256: `C:\Users\CHINGU~1\AppData\Local\Temp\TalentHubBackups\talenthub_local_pre_phase11_20260823114934.sql` / `362cc457b0ed4fbbc3db4101838050b5cda6c61639bc5d56ae602fdf7438bd81`
+- Decision: `APPROVE` — `APPROVED_PHASE_11`
+- Notes and accepted risks: Release artifact approved for deployment. No production host deployment is implied; target infrastructure, secrets, TLS/domain, maintenance window, and execution require separate operational authorization. Learner-visible AI remains disabled.
 
-Phase 12 remains out of scope until this checklist, the Phase 11 report, and the tracker have an explicit human approval.
+The Phase 11 human approval gate is satisfied. Phase 12 may start under its own scope and approval rules.

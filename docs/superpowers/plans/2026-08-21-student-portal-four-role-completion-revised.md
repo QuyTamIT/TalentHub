@@ -126,7 +126,7 @@ Before creating any file, Task 1 must fail if that version or semantic equivalen
 | 8 | Notification Center and preferences | Phases 4–7 producers | Complete — APPROVED_PHASE_8 | Owner/API/UI, producer rollback, MySQL concurrency, forward-validation, and disposable rehearsal passed |
 | 9 | Badges, levels, personal statistics | Phases 5–6 confirmed facts | Complete — APPROVED_PHASE_9 | Exact migration, deterministic backfill/replay, owner APIs/UI, rollback, concurrency and disposable rehearsal passed |
 | 10 | UI, accessibility, errors, security hardening | Stable APIs from 2–9 | Complete — APPROVED_PHASE_10 | 13 Node suites, 96 safe PHP suites, 526 lint files, MySQL limiter cleanup, readiness READY |
-| 11 | Four-role release rehearsal | Phases 0–10 | Ready for human review — GO_FOR_REVIEW | 3,397-assertion restored-MySQL E2E, 61-table/3,151-row digest equality, 84 FK checks, full checklist/recovery evidence |
+| 11 | Four-role release rehearsal | Phases 0–10 | Complete — APPROVED_PHASE_11 | Human release approval recorded after real `talenthub_local` and production HTTP/API verification; 3,397-assertion restored-MySQL E2E, 61-table/3,151-row equality, 84 FK checks |
 | 12 | Shadow evaluation and visible-pilot decision | Phase 11 | Model-visible blocked | Separate approval gate |
 
 Tracking rule: update only the phase row and its checklist after verification output is captured. Never mark a phase complete because its code was committed.
