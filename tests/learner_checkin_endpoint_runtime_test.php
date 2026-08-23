@@ -67,6 +67,14 @@ CREATE TABLE experience_logs (id TEXT PRIMARY KEY, studentId TEXT, activityId TE
 CREATE TABLE audit_logs (id TEXT PRIMARY KEY, userId TEXT, action TEXT, entityType TEXT, entityId TEXT, requestId TEXT, ipAddress TEXT, metadata TEXT, createdAt TEXT);
 CREATE TABLE notifications (id TEXT PRIMARY KEY, userId TEXT NOT NULL, eventKey TEXT NULL, notificationType TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, deepLink TEXT NULL, readAt TEXT NULL, createdAt TEXT NOT NULL, UNIQUE(userId,eventKey));
 CREATE TABLE learner_notification_preferences (studentId TEXT NOT NULL, notificationType TEXT NOT NULL, inAppEnabled INTEGER NOT NULL DEFAULT 1, emailEnabled INTEGER NOT NULL DEFAULT 0, updatedAt TEXT NOT NULL, PRIMARY KEY(studentId,notificationType));
+CREATE TABLE auth_rate_limits (
+    bucketKey TEXT PRIMARY KEY,
+    scope TEXT NOT NULL CHECK (scope IN ('identity', 'ip')),
+    failureCount INTEGER NOT NULL DEFAULT 0,
+    windowStartedAt TEXT NOT NULL,
+    blockedUntil TEXT NULL,
+    updatedAt TEXT NOT NULL
+);
 
 INSERT INTO roles VALUES ('role-student','student'),('role-student-denied','student');
 INSERT INTO permissions VALUES ('permission-create','checkin.create_own'),('permission-read','experience_log.read_own');
@@ -141,6 +149,11 @@ SQL
         $assert($exit === 0, "Endpoint worker exits cleanly: {$stderr}");
         $decoded = json_decode((string) $stdout, true, 512, JSON_THROW_ON_ERROR);
         $assert(is_array($decoded), 'Endpoint returns JSON.');
+        // Rate-limit behavior has its own clock-controlled suite. Keep each endpoint
+        // contract case isolated so accumulated buckets cannot mask its domain error.
+        $rateLimitFixture = new PDO('sqlite:' . $databasePath);
+        $rateLimitFixture->exec('DELETE FROM auth_rate_limits');
+        unset($rateLimitFixture);
         return ['payload' => $decoded, 'raw' => (string) $stdout];
     };
 
