@@ -16,7 +16,8 @@ $loginCsrfToken=$session->csrfToken();
 $requestedNext=is_string($_GET['next']??null)?$_GET['next']:null;
 
 $errorMessage=null;$emailValue='';$fieldErrors=[];$flash=$_SESSION['authFlash']??null;unset($_SESSION['authFlash']);
-$registrationSucceeded=is_array($flash)&&($flash['type']??null)==='registered';
+$registrationSucceeded=is_array($flash)&&in_array(($flash['type']??null),['registered','registered-pending'],true);
+$registrationPending=is_array($flash)&&($flash['type']??null)==='registered-pending';
 if($registrationSucceeded){$emailValue=(string)($flash['email']??'');}
 
 if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
@@ -65,7 +66,7 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
         <div class="auth-panel__inner">
             <a class="auth-mobile-logo" href="./index.php"><img src="./assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
             <div class="auth-heading"><p class="auth-kicker">Chào mừng trở lại</p><h2 id="login-title">Đăng nhập tài khoản</h2><p>Nhập thông tin đã đăng ký hoặc được tổ chức cấp.</p></div>
-            <?php if(is_array($flash)): ?><div class="auth-alert auth-alert--success" role="status"><strong>Đăng ký thành công.</strong> Bạn có thể đăng nhập bằng tài khoản vừa tạo.</div><?php endif; ?>
+            <?php if($registrationSucceeded): ?><div class="auth-alert auth-alert--success" role="status"><strong>Đăng ký thành công.</strong> <?= $registrationPending ? 'Yêu cầu đã được gửi đến Admin. Tài khoản chỉ được tạo sau khi hồ sơ được duyệt và yêu cầu chưa xử lý sẽ hết hạn sau 3 ngày.' : 'Bạn có thể đăng nhập bằng tài khoản vừa tạo.' ?></div><?php endif; ?>
             <?php if($errorMessage!==null): ?><div class="auth-alert auth-alert--error" role="alert"><?=authEscape($errorMessage)?></div><?php endif; ?>
             <form class="auth-form" method="post" action="./login.php" data-auth-form>
                 <input type="hidden" name="csrfToken" value="<?=authEscape($loginCsrfToken)?>">
@@ -74,8 +75,7 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
                 <div class="auth-field"><div class="auth-field__label-row"><label for="password">Mật khẩu</label></div><div class="auth-password"><input id="password" name="password" type="password" autocomplete="current-password" maxlength="255" required <?php if(isset($fieldErrors['password'])): ?>aria-invalid="true" aria-describedby="password-error"<?php endif; ?>><button type="button" class="auth-password__toggle" data-password-toggle aria-controls="password" aria-pressed="false">Hiện</button></div><?php if(isset($fieldErrors['password'])): ?><span class="auth-field__error" id="password-error"><?=authEscape($fieldErrors['password'])?></span><?php endif; ?></div>
                 <button class="auth-submit" type="submit" data-submit><span>Đăng nhập</span><span aria-hidden="true">→</span></button>
             </form>
-            <p class="auth-switch">Chưa có tài khoản học viên? <a href="./register.php">Đăng ký ngay</a></p>
-            <p class="auth-switch">Là đại diện tổ chức? <a href="./register-organization.php">Đăng ký xác minh nhà trường/doanh nghiệp</a></p>
+            <p class="auth-switch">Chưa có tài khoản? <a href="./role-selection.php">Chọn vai trò để đăng ký</a></p>
             <a class="auth-back" href="./index.php">← Về trang chủ</a>
         </div>
     </section>
