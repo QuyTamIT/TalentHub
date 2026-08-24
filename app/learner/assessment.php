@@ -105,7 +105,7 @@ $bootData = [
                             <h1 data-assessment-intro-name><?= learner_escape($assessmentName); ?></h1>
                             <p data-assessment-intro-desc>Khám phá năng khiếu và định hướng học tập qua các câu hỏi trắc nghiệm khách quan.</p>
                             <div class="learner-assessment-intro__facts">
-                                <span><?= learner_icon('file-text', 18); ?><strong data-assessment-intro-count>24 câu</strong></span>
+                                <span><?= learner_icon('file-text', 18); ?><strong data-assessment-intro-count>Đang tải số câu</strong></span>
                                 <span><?= learner_icon('clock', 18); ?><strong data-assessment-intro-duration>12 phút</strong></span>
                                 <span><?= learner_icon('check', 18); ?><strong>Tự động lưu câu trả lời</strong></span>
                             </div>

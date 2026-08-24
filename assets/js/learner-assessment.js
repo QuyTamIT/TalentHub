@@ -1023,13 +1023,17 @@
         });
         view.nodes.submitButton?.addEventListener('click', async () => {
             const response = await controller.submit();
-            if (response?.status === 'submitted' || response?.result || response?.result_id) {
+            const isSubmittedResult = response?.status === 'submitted'
+                || response?.result
+                || response?.result_id
+                || (response?.attempt_id && response?.result_code);
+            if (isSubmittedResult) {
                 const onboardingDestination = safeOnboardingDestination(response?.next_url);
                 if (onboardingDestination) {
                     global.location.href = onboardingDestination;
                     return;
                 }
-                const attemptId = response.id || currentAttempt?.id;
+                const attemptId = response.attempt_id || currentAttempt?.id || response.id;
                 const attemptQuery = `${resultUrl.includes('?') ? '&' : '?'}attempt=${encodeURIComponent(attemptId || '')}`;
                 const bandQuery = selectedBand ? `&band=${encodeURIComponent(selectedBand)}` : '';
                 global.location.href = `${resultUrl}${attemptQuery}${bandQuery}`;

@@ -54,3 +54,34 @@ test('dialog focus is contained and Escape is suppressed', () => {
   assert.equal(escapePrevented, true);
   assert.equal(stopped, true);
 });
+
+test('assessment intro never advertises a stale hard-coded question count', () => {
+  const pageSource = fs.readFileSync(path.join(root, 'app', 'learner', 'assessment.php'), 'utf8');
+  const controllerSource = fs.readFileSync(path.join(root, 'assets', 'js', 'learner-assessment.js'), 'utf8');
+
+  assert.doesNotMatch(pageSource, /data-assessment-intro-count>\s*24 câu/);
+  assert.match(controllerSource, /assessment\.question_count \|\| detail\?\.questions\?\.length/);
+});
+
+test('restricted onboarding pages do not expose or poll notifications', () => {
+  const headerSource = fs.readFileSync(path.join(root, 'app', 'learner', 'includes', 'header.php'), 'utf8');
+  const notificationSource = fs.readFileSync(path.join(root, 'assets', 'js', 'learner-notifications.js'), 'utf8');
+
+  assert.match(headerSource, /\$learnerOnboardingRestricted/);
+  assert.match(headerSource, /'onboardingRestricted'\s*=>\s*\$learnerOnboardingRestricted/);
+  assert.match(headerSource, /if\s*\(!\$learnerOnboardingRestricted\)/);
+  assert.match(notificationSource, /getBootContext\(\)\.onboardingRestricted === true/);
+});
+
+test('student registration phone pattern compiles with the browser v flag', () => {
+  const source = fs.readFileSync(path.join(root, 'register.php'), 'utf8');
+  const match = source.match(/id="phone"[^\r\n]*?pattern="([^"]+)"/);
+  assert.ok(match, 'phone input pattern must exist');
+
+  let pattern;
+  assert.doesNotThrow(() => {
+    pattern = new RegExp(`^(?:${match[1]})$`, 'v');
+  });
+  assert.equal(pattern.test('+84 (28) 1234-5678'), true);
+  assert.equal(pattern.test('invalid_phone'), false);
+});

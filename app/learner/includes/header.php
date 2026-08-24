@@ -2,6 +2,9 @@
 require_once __DIR__ . '/icons.php';
 $headerSearchLabel = $headerSearchLabel ?? 'Tìm hoạt động hoặc kỹ năng';
 $headerSearchPlaceholder = $headerSearchPlaceholder ?? 'Tìm hoạt động, kỹ năng...';
+$learnerOnboarding = $GLOBALS['learner_page_context']['onboarding'] ?? [];
+$learnerOnboardingRestricted = ($learnerOnboarding['required'] ?? false) === true
+    && ($learnerOnboarding['status'] ?? null) !== 'completed';
 ?>
 <header class="learner-header">
     <div class="learner-header__left">
@@ -24,11 +27,12 @@ $headerSearchPlaceholder = $headerSearchPlaceholder ?? 'Tìm hoạt động, k�
             <input id="learner-search-input" name="q" type="search" placeholder="<?= learner_escape($headerSearchPlaceholder); ?>" autocomplete="off">
         </form>
 
+        <?php if (!$learnerOnboardingRestricted): ?>
         <a class="learner-icon-button" id="learner-notification-button" href="notifications.php" aria-label="Xem thông báo">
             <?= learner_icon('bell', 21); ?>
             <span class="learner-notification-dot" id="learner-unread-badge" aria-hidden="true" style="display: none;"></span>
         </a>
-
+        <?php endif; ?>
 
         <button class="learner-avatar" type="button" aria-label="Mở tài khoản <?= learner_escape($student['name']); ?>" data-learner-account>
             <?= learner_escape($student['initials']); ?>
@@ -45,6 +49,7 @@ $headerSearchPlaceholder = $headerSearchPlaceholder ?? 'Tìm hoạt động, k�
 <script id="learner-session-boot" type="application/json"><?= json_encode([
     'csrfToken' => $GLOBALS['learner_page_context']['csrfToken'],
     'apiBase' => '/api/v1',
+    'onboardingRestricted' => $learnerOnboardingRestricted,
 ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
 <?php endif; ?>
 <script src="../../assets/js/learner-notifications.js" defer></script>

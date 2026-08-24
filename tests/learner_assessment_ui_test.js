@@ -1085,3 +1085,70 @@ test('runner follows a valid onboarding next_url and ignores an external one', a
     global.location = originalLocation;
   }
 });
+
+test('runner redirects after the production result-view submission payload', async () => {
+  const { bootRunner } = require(modulePath);
+  const { root, nodes, doc } = createRunnerHarness();
+  const originalLocation = global.location;
+  global.location = { href: '', search: '' };
+
+  try {
+    await bootRunner(root, {
+      async get() {
+        return { assessment: { code: 'holland', education_band: 'high' }, questions: [], history: [] };
+      },
+      async send(_method, endpoint) {
+        if (endpoint === '/assessment-attempts.php') {
+          return { id: 'attempt-production', status: 'in_progress', questions: [], answers: {} };
+        }
+        return {
+          id: 'result-production',
+          attempt_id: 'attempt-production',
+          result_code: 'RIA',
+          dimension_scores: { R: 80, I: 70, A: 60, S: 50, E: 40, C: 30 },
+          next_url: '/app/learner/assessment.php?code=mbti',
+        };
+      },
+    }, doc);
+
+    await nodes.start.dispatch('click');
+    await nodes.submit.dispatch('click');
+    assert.equal(global.location.href, '/app/learner/assessment.php?code=mbti');
+  } finally {
+    global.location = originalLocation;
+  }
+});
+
+test('runner opens the submitted attempt when a production result has no onboarding destination', async () => {
+  const { bootRunner } = require(modulePath);
+  const { root, nodes, doc } = createRunnerHarness();
+  const originalLocation = global.location;
+  global.location = { href: '', search: '' };
+
+  try {
+    await bootRunner(root, {
+      async get() {
+        return { assessment: { code: 'holland', education_band: 'high' }, questions: [], history: [] };
+      },
+      async send(_method, endpoint) {
+        if (endpoint === '/assessment-attempts.php') {
+          return { id: 'attempt-production', status: 'in_progress', questions: [], answers: {} };
+        }
+        return {
+          id: 'result-production',
+          attempt_id: 'attempt-production',
+          result_code: 'RIA',
+          dimension_scores: { R: 80, I: 70, A: 60, S: 50, E: 40, C: 30 },
+          next_url: null,
+        };
+      },
+    }, doc);
+
+    await nodes.start.dispatch('click');
+    await nodes.submit.dispatch('click');
+    assert.match(global.location.href, /assessment-result\.php\?.*[?&]attempt=attempt-production(?:&|$)/);
+    assert.doesNotMatch(global.location.href, /attempt=result-production/);
+  } finally {
+    global.location = originalLocation;
+  }
+});
