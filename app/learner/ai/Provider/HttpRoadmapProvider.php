@@ -42,7 +42,7 @@ final class HttpRoadmapProvider implements RoadmapProvider
                 return RoadmapProviderResponse::failure($exception->reason(), null, 'consent');
             }
             try {
-                $response = ($this->http)($this->config->apiUrl(), $headers, $body, $this->config->timeoutSeconds());
+                $response = ($this->http)($this->config->apiUrl(), $headers, $body, $this->config->roadmapTimeoutSeconds());
             } catch (\Throwable) {
                 return RoadmapProviderResponse::failure('provider_unavailable', null, 'network');
             }

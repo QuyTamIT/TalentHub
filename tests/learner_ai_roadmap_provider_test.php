@@ -25,6 +25,7 @@ function roadmap_provider_config(int $attempts = 2): RecommendationConfig
         'TALENTHUB_AI_MODEL' => 'ag/gemini-3.7-flash-high', 'TALENTHUB_AI_API_URL' => 'http://127.0.0.1:20128/v1/chat/completions',
         'TALENTHUB_AI_API_KEY' => 'test-key-never-log', 'TALENTHUB_AI_ALLOWED_HOSTS' => '127.0.0.1',
         'TALENTHUB_AI_TIMEOUT_SECONDS' => '3', 'TALENTHUB_AI_MAX_ATTEMPTS' => (string) $attempts,
+        'TALENTHUB_AI_ROADMAP_TIMEOUT_SECONDS' => '3',
     ]);
 }
 

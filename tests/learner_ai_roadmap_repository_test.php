@@ -91,6 +91,7 @@ $auditA = ['provider_request_id' => 'router_req_repo', 'response_hash' => str_re
 $savedA = $repository->saveCompleted($studentA, $runA, $analysisA, $auditA);
 roadmap_repository_assert($savedA['version'] === 1 && $savedA['status'] === 'active', 'first roadmap is active version one');
 roadmap_repository_assert($savedA['analysis_origin'] === 'model', 'model provenance is returned truthfully');
+roadmap_repository_assert($savedA['input_hash'] === $fixtureA['input']->contentHash(), 'roadmap exposes its immutable snapshot hash for refresh reuse');
 roadmap_repository_assert(count($savedA['phases']) === 3 && count($savedA['phases'][0]['tasks']) === 3, 'roadmap phases and tasks are persisted');
 $reusedA = $repository->saveCompleted($studentA, $runA, $analysisA, $auditA);
 roadmap_repository_assert($reusedA['roadmap_id'] === $savedA['roadmap_id'] && $reusedA['reused'] === true, 'same completed run is idempotently reused');

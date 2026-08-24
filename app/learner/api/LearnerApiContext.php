@@ -22,14 +22,21 @@ use TalentHub\Learner\Ai\Evaluation\RecommendationEvaluator;
 use TalentHub\Learner\Ai\Evaluation\ShadowRunService;
 use TalentHub\Learner\Ai\Model\ModelRecommendationEngine;
 use TalentHub\Learner\Ai\Model\PromptRegistry;
+use TalentHub\Learner\Ai\Model\RoadmapPromptRegistry;
+use TalentHub\Learner\Ai\Model\ModelRoadmapEngine;
 use TalentHub\Learner\Ai\Persistence\DatabaseRecommendationRepository;
+use TalentHub\Learner\Ai\Persistence\DatabaseRoadmapRepository;
 use TalentHub\Learner\Ai\Provider\HttpRecommendationProvider;
+use TalentHub\Learner\Ai\Provider\HttpRoadmapProvider;
 use TalentHub\Learner\Ai\Quality\DataQualityGate;
+use TalentHub\Learner\Ai\Quality\RoadmapQualityGate;
 use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
 use TalentHub\Learner\Ai\Rollout\RecommendationRolloutSelector;
 use TalentHub\Learner\Ai\Rules\RuleRecommendationEngine;
+use TalentHub\Learner\Ai\Rules\RuleRoadmapEngine;
 use TalentHub\Learner\Ai\Service\RecommendationResponseMapper;
 use TalentHub\Learner\Ai\Service\RecommendationService;
+use TalentHub\Learner\Ai\Service\RoadmapService;
 use TalentHub\Learner\Ai\Snapshot\RecommendationSnapshotBuilder;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseActivityExperienceSource;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseAssessmentSource;
@@ -239,6 +246,56 @@ final class LearnerApiContext
             $modelEngine,
             $modelConfig,
             $rolloutSelector,
+        );
+    }
+
+    public function roadmapService(string $studentId): RoadmapService
+    {
+        $consent = new ConsentPolicy(new DatabaseConsentSource($this->pdo));
+        $snapshotBuilder = new RecommendationSnapshotBuilder(
+            new DatabaseStudentProfileSource($this->pdo),
+            new DatabaseSkillSource($this->pdo),
+            new DatabaseAssessmentSource($this->pdo),
+            new DatabaseActivityExperienceSource($this->pdo),
+            new DatabasePublishedEvaluationSource($this->pdo),
+            new DatabaseOpportunitySource($this->pdo),
+        );
+        $runs = new DatabaseRecommendationRepository($this->pdo);
+        $roadmaps = new DatabaseRoadmapRepository($this->pdo);
+        try {
+            $env = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
+                ? $GLOBALS['__TALENTHUB_TEST_ENV__']
+                : $_ENV;
+            $config = RecommendationConfig::fromEnvironment($env);
+        } catch (\Throwable) {
+            $config = RecommendationConfig::fromEnvironment(['TALENTHUB_AI_ENABLED' => 'false']);
+        }
+        $httpTransport = $GLOBALS['__TALENTHUB_TEST_HTTP__'] ?? null;
+        $provider = new HttpRoadmapProvider($config, is_callable($httpTransport) ? $httpTransport : null);
+        $engine = new ModelRoadmapEngine(
+            $provider,
+            new RuleRoadmapEngine(),
+            new RoadmapPromptRegistry(),
+            new RecommendationRateLimiter(
+                $config->roadmapPerStudentLimit(),
+                $config->roadmapGlobalLimit(),
+                60,
+                static fn (): int => (new DateTimeImmutable('now', new DateTimeZone('UTC')))->getTimestamp(),
+            ),
+            $config,
+            new ProviderConsentGate($consent, ['assessment']),
+        );
+
+        return new RoadmapService(
+            $roadmaps,
+            $engine,
+            static fn (string $candidate): bool => hash_equals($studentId, $candidate),
+            static fn (string $candidate) => $consent->decision($candidate),
+            static fn (string $candidate, array $scopes) => $snapshotBuilder->buildForRoadmap($candidate, $scopes),
+            static fn ($input) => (new RoadmapQualityGate())->evaluate($input),
+            static fn (string $candidate, $input, $context) => $runs->createPendingRun($candidate, $input, $context),
+            static fn (string $candidate, string $runId, $analysis) => $runs->completeRoadmapRun($candidate, $runId, $analysis),
+            static fn (string $candidate, string $runId, string $code) => $runs->failRun($candidate, $runId, $code),
         );
     }
 
