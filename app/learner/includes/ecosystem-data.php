@@ -2,8 +2,8 @@
 /**
  * Learner ecosystem read model.
  *
- * Enterprise opportunities are adapted from the Enterprise mock provider.
- * School and application records are learner-owned demo data until APIs exist.
+ * Authenticated runtime reads canonical TalentHub repositories only. Mock
+ * adapters below are isolated to the explicit APP_ENV=test fixture path.
  */
 
 require_once dirname(__DIR__) . '/data/bootstrap.php';
