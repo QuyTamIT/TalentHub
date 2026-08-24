@@ -9,6 +9,10 @@ use PDO;
 use RuntimeException;
 use TalentHub\Learner\Data\Support\Uuid;
 
+final class EducationBandRequired extends RuntimeException
+{
+}
+
 final class EducationBandResolver
 {
     private const VALID_BANDS = ['middle', 'high', 'college'];
@@ -50,6 +54,6 @@ final class EducationBandResolver
             return $band;
         }
 
-        throw new RuntimeException('Explicit education band confirmation is required.');
+        throw new EducationBandRequired('Explicit education band confirmation is required.');
     }
 }

@@ -51,6 +51,30 @@ $currentRoute = '/app/learner/discover.php';
                             <button class="learner-btn learner-btn--outline" type="button" data-catalog-retry>Thử tải lại</button>
                         </div>
                     </div>
+                    <div class="learner-card learner-assessment-state" data-catalog-band-confirmation role="group" aria-labelledby="catalog-band-title" hidden>
+                        <?= learner_icon('graduation-cap', 22); ?>
+                        <div>
+                            <h2 id="catalog-band-title">Chọn cấp học của bạn</h2>
+                            <p>Hãy xác nhận cấp học để tải đúng bộ bài đánh giá.</p>
+                            <span id="catalog-band-options-title" class="learner-visually-hidden">Cấp học hiện tại</span>
+                            <div class="learner-band-options" role="radiogroup" aria-labelledby="catalog-band-options-title">
+                                <label class="learner-band-option">
+                                    <input type="radio" name="catalog_education_band" value="middle">
+                                    <span><strong>Trung học cơ sở</strong> (Lớp 6 – 9)</span>
+                                </label>
+                                <label class="learner-band-option">
+                                    <input type="radio" name="catalog_education_band" value="high">
+                                    <span><strong>Trung học phổ thông</strong> (Lớp 10 – 12)</span>
+                                </label>
+                                <label class="learner-band-option">
+                                    <input type="radio" name="catalog_education_band" value="college">
+                                    <span><strong>Đại học / Cao đẳng</strong></span>
+                                </label>
+                            </div>
+                            <p class="learner-form-error" role="alert" data-catalog-band-error hidden>Vui lòng chọn một cấp học để tiếp tục.</p>
+                            <button class="learner-btn learner-btn--primary" type="button" data-catalog-band-confirm>Xác nhận cấp học</button>
+                        </div>
+                    </div>
                     <div class="learner-card learner-assessment-state" data-catalog-history-warning role="status" hidden>
                         <?= learner_icon('info', 22); ?>
                         <div>

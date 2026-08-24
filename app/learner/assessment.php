@@ -176,7 +176,7 @@ $bootData = [
                     <span><strong>Trung học cơ sở</strong> (Lớp 6 – 9)</span>
                 </label>
                 <label class="learner-band-option">
-                    <input type="radio" name="education_band" value="high" checked>
+                    <input type="radio" name="education_band" value="high">
                     <span><strong>Trung học phổ thông</strong> (Lớp 10 – 12)</span>
                 </label>
                 <label class="learner-band-option">
@@ -184,6 +184,7 @@ $bootData = [
                     <span><strong>Đại học / Cao đẳng</strong></span>
                 </label>
             </div>
+            <p class="learner-form-error" role="alert" data-assessment-band-error hidden>Vui lòng chọn một cấp học để tiếp tục.</p>
             <div class="learner-modal__actions">
                 <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Hủy</button>
                 <button class="learner-btn learner-btn--primary" type="button" data-confirm-band>Xác nhận và tiếp tục</button>

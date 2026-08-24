@@ -463,6 +463,11 @@
         if (node) node.hidden = hidden;
     }
 
+    function normalizeEducationBand(value) {
+        const band = String(value || '').trim().toLowerCase();
+        return ['middle', 'high', 'college'].includes(band) ? band : '';
+    }
+
     function createTextElement(doc, tag, text, className = '') {
         const element = doc.createElement(tag);
         if (className) element.className = className;
@@ -505,6 +510,7 @@
             submitError: doc.querySelector('[data-assessment-submit-error]'),
             submitButton: doc.querySelector('[data-assessment-submit]'),
             bandModal: doc.querySelector('[data-assessment-band-confirmation]'),
+            bandError: doc.querySelector('[data-assessment-band-error]'),
         };
         let questionIndex = 0;
 
@@ -611,8 +617,13 @@
             renderQuestion,
             setQuestionIndex: (index) => { questionIndex = Number(index) || 0; },
             getQuestionIndex: () => questionIndex,
-            showBandModal: () => setHidden(nodes.bandModal, false),
+            showBandModal: () => {
+                setHidden(nodes.bandModal, false);
+                setHidden(nodes.bandError, true);
+            },
             hideBandModal: () => setHidden(nodes.bandModal, true),
+            showBandError: () => setHidden(nodes.bandError, false),
+            hideBandError: () => setHidden(nodes.bandError, true),
             nodes,
         };
     }
@@ -775,9 +786,16 @@
         const resultUrl = boot.result_url || `assessment-result.php?code=${encodeURIComponent(code)}`;
 
         const start = async (band) => {
-            selectedBand = band || selectedBand;
+            const confirmedBand = normalizeEducationBand(band || selectedBand);
+            if (confirmedBand === '') {
+                view.showBandModal();
+                view.showBandError();
+                return { code: 'EDUCATION_BAND_REQUIRED', requires_education_band: true };
+            }
+            selectedBand = confirmedBand;
+            view.hideBandError();
             view.hideBandModal();
-            const attempt = await controller.startOrResume(code, selectedBand || 'high');
+            const attempt = await controller.startOrResume(code, selectedBand);
             if (attempt?.id) {
                 currentAttempt = attempt;
                 view.render('ready', attempt);
@@ -790,7 +808,15 @@
                 return detail;
             }
             if (detail?.assessment) {
-                selectedBand = detail.education_band || band || selectedBand;
+                selectedBand = normalizeEducationBand(
+                    detail.assessment.education_band || detail.education_band
+                );
+                if (selectedBand === '') {
+                    const error = new Error('Assessment response is missing its education band.');
+                    view.render('source-error', { status: 'source-error', error });
+                    view.hideBandModal();
+                    return { status: 'source-error', error };
+                }
                 view.renderDetail(detail);
                 view.hideBandModal();
             } else if (detail?.requires_education_band === true) {
@@ -805,8 +831,8 @@
         root.querySelector('[data-assessment-resume]')?.addEventListener('click', () => start(selectedBand));
         root.querySelector('[data-assessment-restart]')?.addEventListener('click', () => start(selectedBand));
         doc.querySelector('[data-confirm-band]')?.addEventListener('click', () => {
-            const selected = root.querySelector('[name="education_band"]:checked');
-            start(selected?.value || 'high');
+            const selected = doc.querySelector('[name="education_band"]:checked');
+            return start(selected?.value || '');
         });
         root.querySelector('[data-assessment-retry]')?.addEventListener('click', () => loadDetail(selectedBand));
         root.querySelector('[data-assessment-retry-save]')?.addEventListener('click', () => controller.retry());
@@ -872,7 +898,10 @@
         const error = root.querySelector('[data-catalog-error]');
         const cards = root.querySelector('[data-catalog-cards]');
         const historyWarning = root.querySelector('[data-catalog-history-warning]');
+        const bandConfirmation = root.querySelector('[data-catalog-band-confirmation]');
+        const bandError = root.querySelector('[data-catalog-band-error]');
         let currentCatalog = null;
+        let selectedBand = '';
 
         const renderCatalogError = (sourceError) => {
             setHidden(loading, true);
@@ -880,13 +909,28 @@
             setHidden(error, false);
             setHidden(cards, true);
             setHidden(historyWarning, true);
+            setHidden(bandConfirmation, true);
+            setHidden(bandError, true);
             return { status: 'source-error', error: sourceError };
+        };
+
+        const renderBandRequired = (payload) => {
+            currentCatalog = null;
+            setHidden(loading, true);
+            setHidden(empty, true);
+            setHidden(error, true);
+            setHidden(cards, true);
+            setHidden(historyWarning, true);
+            setHidden(bandConfirmation, false);
+            setHidden(bandError, true);
+            return payload;
         };
 
         const renderHistory = (historyPayload) => {
             renderCatalog(root, mergeCatalogWithHistory(currentCatalog, historyPayload));
             renderDiscoverySummary(doc, deriveDiscoverySummary(historyPayload));
             setHidden(historyWarning, true);
+            setHidden(bandConfirmation, true);
             return historyPayload;
         };
 
@@ -903,16 +947,22 @@
             }
         };
 
-        const loadCatalog = async () => {
+        const loadCatalog = async (band = selectedBand) => {
+            selectedBand = normalizeEducationBand(band);
             setHidden(loading, false);
             setHidden(empty, true);
             setHidden(error, true);
             setHidden(cards, true);
             setHidden(historyWarning, true);
+            setHidden(bandConfirmation, true);
+            setHidden(bandError, true);
             if (!api) return renderCatalogError(new Error('Assessment API client is unavailable.'));
 
+            const catalogEndpoint = selectedBand
+                ? `/assessments.php?band=${encodeURIComponent(selectedBand)}`
+                : '/assessments.php';
             const [catalogResult, historyResult] = await Promise.allSettled([
-                api.get('/assessments.php'),
+                api.get(catalogEndpoint),
                 api.get('/assessments.php?view=history'),
             ]);
             if (catalogResult.status === 'rejected') {
@@ -920,6 +970,9 @@
             }
 
             currentCatalog = catalogResult.value;
+            if (currentCatalog?.requires_education_band === true) {
+                return renderBandRequired(currentCatalog);
+            }
             if (historyResult.status === 'fulfilled') {
                 renderHistory(historyResult.value);
                 return { catalog: currentCatalog, history: historyResult.value };
@@ -931,8 +984,17 @@
             return { catalog: currentCatalog, history: { status: 'source-error', error: historyResult.reason } };
         };
 
-        root.querySelector('[data-catalog-retry]')?.addEventListener('click', () => loadCatalog());
+        root.querySelector('[data-catalog-retry]')?.addEventListener('click', () => loadCatalog(selectedBand));
         root.querySelector('[data-catalog-history-retry]')?.addEventListener('click', () => loadHistory());
+        root.querySelector('[data-catalog-band-confirm]')?.addEventListener('click', () => {
+            const selected = root.querySelector('[name="catalog_education_band"]:checked');
+            const confirmedBand = normalizeEducationBand(selected?.value);
+            if (confirmedBand === '') {
+                setHidden(bandError, false);
+                return { status: 'validation-error', code: 'EDUCATION_BAND_REQUIRED' };
+            }
+            return loadCatalog(confirmedBand);
+        });
         return loadCatalog();
     }
 

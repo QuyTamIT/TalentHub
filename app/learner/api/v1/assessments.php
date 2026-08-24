@@ -10,6 +10,7 @@ use TalentHub\Http\ApiException;
 use TalentHub\Http\Request;
 use TalentHub\Learner\Api\JsonResponder;
 use TalentHub\Learner\Api\LearnerApiContext;
+use TalentHub\Learner\Assessment\Service\EducationBandRequired;
 
 $context = null;
 try {
@@ -75,11 +76,34 @@ try {
             ]);
         }
 
-        $detail = $context->assessmentCatalogService()->assessmentDetail($studentId, $code, $band);
+        try {
+            $detail = $context->assessmentCatalogService()->assessmentDetail($studentId, $code, $band);
+        } catch (EducationBandRequired) {
+            JsonResponder::sendSuccess([
+                'code' => 'EDUCATION_BAND_REQUIRED',
+                'requires_education_band' => true,
+                'student_id' => $studentId,
+                'assessment_code' => $code,
+                'education_band' => null,
+                'assessment' => null,
+                'questions' => [],
+                'history' => [],
+            ], $context->requestId());
+        }
         JsonResponder::sendSuccess($detail, $context->requestId());
     }
 
-    $catalog = $context->assessmentCatalogService()->catalog($studentId, $band);
+    try {
+        $catalog = $context->assessmentCatalogService()->catalog($studentId, $band);
+    } catch (EducationBandRequired) {
+        JsonResponder::sendSuccess([
+            'code' => 'EDUCATION_BAND_REQUIRED',
+            'requires_education_band' => true,
+            'student_id' => $studentId,
+            'education_band' => null,
+            'assessments' => [],
+        ], $context->requestId());
+    }
     JsonResponder::sendSuccess($catalog, $context->requestId());
 } catch (ApiException $exception) {
     if ($exception->errorCode === 'AUTHENTICATION_REQUIRED') {
