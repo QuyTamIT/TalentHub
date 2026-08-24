@@ -307,13 +307,35 @@ body.ent-sidebar-open {
     border-top: 1px solid var(--border);
 }
 
-.ent-sidebar__link--switch {
-    color: var(--text-muted);
+.ent-sidebar__link--logout {
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
 }
 
-.ent-sidebar__link--switch:hover {
-    background-color: var(--background);
-    color: var(--text-primary);
+.ent-sidebar__link--logout .ent-sidebar__icon {
+    color: var(--text-secondary);
+    transition: color 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.ent-sidebar__link--logout:hover {
+    background-color: #fef2f2;
+    color: #ef4444;
+}
+
+.ent-sidebar__link--logout:hover .ent-sidebar__icon {
+    color: #ef4444;
+    transform: translateX(3px);
+}
+
+.ent-sidebar__link--logout:active {
+    background-color: #fee2e2;
+    transform: scale(0.98);
+}
+
+.ent-sidebar__link--logout:focus-visible {
+    outline: 2px solid rgba(239, 68, 68, 0.4);
+    outline-offset: 2px;
 }
 
 /* --------------------------------------------------------------------------

@@ -25,6 +25,18 @@ final class InternshipRepository
         $statement = $this->pdo->prepare('SELECT enterpriseId FROM enterprise_members WHERE userId = :userId ORDER BY id');
         $statement->execute(['userId' => $userId]);
         $ids = $statement->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        if (count($ids) === 0) {
+            $fallback = $this->pdo->prepare('SELECT e.id FROM enterprises e JOIN users u ON u.email = e.email WHERE u.id = :userId LIMIT 1');
+            $fallback->execute(['userId' => $userId]);
+            $candidateId = $fallback->fetchColumn();
+            if (is_string($candidateId)) {
+                try {
+                    $healStmt = $this->pdo->prepare('INSERT IGNORE INTO enterprise_members (id, enterpriseId, userId, memberRole) VALUES (?, ?, ?, ?)');
+                    $healStmt->execute([\TalentHub\Support\Uuid::v4(), $candidateId, $userId, 'admin']);
+                } catch (\Throwable) {}
+                return $candidateId;
+            }
+        }
         if (count($ids) !== 1) {
             throw new ApiException(403, 'PERMISSION_DENIED', 'Tài khoản phải thuộc đúng một doanh nghiệp.');
         }

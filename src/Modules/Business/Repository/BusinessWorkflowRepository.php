@@ -19,7 +19,22 @@ final class BusinessWorkflowRepository
         $statement = $this->pdo->prepare('SELECT enterpriseId FROM enterprise_members WHERE userId=? LIMIT 1');
         $statement->execute([$userId]);
         $id = $statement->fetchColumn();
-        return is_string($id) ? $id : null;
+        if (is_string($id)) {
+            return $id;
+        }
+
+        $fallback = $this->pdo->prepare('SELECT e.id FROM enterprises e JOIN users u ON u.email = e.email WHERE u.id=? LIMIT 1');
+        $fallback->execute([$userId]);
+        $candidateId = $fallback->fetchColumn();
+        if (is_string($candidateId)) {
+            try {
+                $healStmt = $this->pdo->prepare('INSERT IGNORE INTO enterprise_members (id, enterpriseId, userId, memberRole) VALUES (?, ?, ?, ?)');
+                $healStmt->execute([\TalentHub\Support\Uuid::v4(), $candidateId, $userId, 'admin']);
+            } catch (\Throwable) {}
+            return $candidateId;
+        }
+
+        return null;
     }
 
     public function studentId(string $userId): ?string
