@@ -1,12 +1,12 @@
 <#
 .SYNOPSIS
-    Sync the TalentHub local MariaDB/MySQL database from the canonical
+    Sync the TalentHub primary local MySQL database from the canonical
     migrations + seeds in the repo.
 
 .DESCRIPTION
     This script is the TL;DR of docs/SYNC_DB.md. It runs:
 
-      1. CREATE DATABASE IF NOT EXISTS talenthub_local + talenthub_test
+      1. CREATE DATABASE IF NOT EXISTS talenthub + talenthub_test
       2. php bin/migrate.php migrate  (applies all 7 migrations)
       3. php bin/seed.php             (RBAC: 4 roles, 84 perms, 99 mappings)
       4. php bin/seed.php --demo      (only if -WithDemo switch)
@@ -74,6 +74,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot  = Resolve-Path (Join-Path $ScriptDir '..')
+$PrimaryDatabase = 'talenthub'
 Set-Location -LiteralPath $RepoRoot
 
 # Ensure the script is run from inside the TalentHub folder.
@@ -107,6 +108,7 @@ Write-Host "TalentHub DB sync" -ForegroundColor Green
 Write-Host "  Host:     $DbHost`:$DbPort"
 Write-Host "  User:     $DbUser"
 Write-Host "  Repo:     $RepoRoot"
+Write-Host "  Database: $PrimaryDatabase"
 Write-Host "  APP_ENV:  $AppEnv"
 Write-Host "  WithDemo: $WithDemo"
 Write-Host "  SkipMig:  $SkipMigrate"
@@ -123,9 +125,13 @@ foreach ($cmd in @('mysql', 'php')) {
 
 # ---- Step 2: ensure databases ----
 Write-Step 'Ensuring databases exist (CREATE DATABASE IF NOT EXISTS)'
-Invoke-Mysql "CREATE DATABASE IF NOT EXISTS talenthub_local CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+Invoke-Mysql "CREATE DATABASE IF NOT EXISTS ``$PrimaryDatabase`` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 Invoke-Mysql "CREATE DATABASE IF NOT EXISTS talenthub_test  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-Invoke-Mysql "SHOW DATABASES LIKE 'talenthub_%';"
+Invoke-Mysql "SHOW DATABASES LIKE '$PrimaryDatabase';"
+Invoke-Mysql "SHOW DATABASES LIKE 'talenthub_test';"
+
+# Pin every child PHP command to the repository's canonical local database.
+$env:DB_DATABASE = $PrimaryDatabase
 
 # ---- Step 3: migrations ----
 if (-not $SkipMigrate) {
@@ -156,7 +162,7 @@ if ($WithDemo) {
 
 # ---- Step 6: verify ----
 Write-Step 'Verifying counts (expect: roles=4, perms=84, mappings=99)'
-$verify = & mysql --user=$DbUser --host=$DbHost --port=$DbPort talenthub_local -e @"
+$verify = & mysql --user=$DbUser --host=$DbHost --port=$DbPort --database=$PrimaryDatabase -e @"
 SELECT 'roles'    AS metric, COUNT(*) AS value FROM roles
 UNION ALL SELECT 'perms',    COUNT(*) FROM permissions
 UNION ALL SELECT 'mappings', COUNT(*) FROM role_permissions
