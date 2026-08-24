@@ -367,7 +367,8 @@
                 filters.query = ecosystemSearch?.value || headerEcosystemSearch?.value || '';
 
                 let visibleCount = 0;
-                activePanel.querySelectorAll('[data-ecosystem-item]').forEach((card) => {
+                const ecosystemItems = Array.from(activePanel.querySelectorAll('[data-ecosystem-item]'));
+                ecosystemItems.forEach((card) => {
                     const visible = ecosystemItemMatches({
                         search: card.dataset.search,
                         field: card.dataset.field,
@@ -378,7 +379,10 @@
                 });
 
                 const emptyState = activePanel.querySelector('[data-ecosystem-empty]');
-                if (emptyState) emptyState.hidden = visibleCount !== 0;
+                if (emptyState) {
+                    emptyState.hidden = visibleCount !== 0;
+                    emptyState.dataset.emptyReason = ecosystemItems.length === 0 ? 'source' : 'filter';
+                }
             };
 
             const activateEcosystemTab = (tabId, focusTab = false) => {

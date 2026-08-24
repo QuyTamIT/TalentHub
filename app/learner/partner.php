@@ -11,6 +11,11 @@ $partnerId = $_GET['id'] ?? '';
 $partner = learner_ecosystem_partner($partnerType, $partnerId);
 $partnerOpportunities = $partner ? learner_ecosystem_partner_opportunities($partner['id'], true) : [];
 $isEnterprise = $partner && $partner['type'] === 'enterprise';
+$isDatabaseSource = learner_repository_factory()->source() === 'database';
+$partnerVerificationStatus = (string) ($partner['verification_status'] ?? '');
+$partnerTypeLabel = $isEnterprise
+    ? 'Doanh nghiệp'
+    : ((string) ($partner['school_type'] ?? '') !== 'Chưa cập nhật' ? (string) $partner['school_type'] : 'Trường học');
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -48,23 +53,28 @@ $isEnterprise = $partner && $partner['type'] === 'enterprise';
                         <span class="learner-partner-logo learner-partner-logo--hero <?= $isEnterprise ? 'learner-partner-logo--enterprise' : 'learner-partner-logo--school'; ?>"><?= learner_escape($partner['logo_text']); ?></span>
                         <div class="learner-partner-hero__content">
                             <div class="learner-partner-hero__badges">
-                                <span class="learner-badge <?= $isEnterprise ? 'learner-badge--primary' : 'learner-badge--secondary'; ?>"><?= learner_escape($isEnterprise ? 'Doanh nghiệp' : $partner['school_type']); ?></span>
-                                <?php if ($isEnterprise): ?>
-                                    <span class="learner-verified-pill"><?= learner_icon('check', 14); ?> Đã xác minh</span>
-                                <?php else: ?>
-                                    <span class="learner-demo-pill">Dữ liệu demo</span>
+                                <span class="learner-badge <?= $isEnterprise ? 'learner-badge--primary' : 'learner-badge--secondary'; ?>"><?= learner_escape($partnerTypeLabel); ?></span>
+                                <?php if ($isEnterprise && (($partner['verified'] ?? false) || in_array($partnerVerificationStatus, ['verified', 'approved'], true))): ?>
+                                    <span class="learner-verified-pill"><?= learner_icon('check', 14); ?> <?= $partnerVerificationStatus === 'approved' ? 'Đã phê duyệt' : 'Đã xác minh'; ?></span>
                                 <?php endif; ?>
                             </div>
                             <h1><?= learner_escape($partner['name']); ?></h1>
                             <p><?= learner_escape($partner['description']); ?></p>
                             <div class="learner-meta-list learner-meta-list--inline">
-                                <span><?= learner_icon('map-pin', 17); ?> <?= learner_escape($partner['location']); ?></span>
-                                <span><?= learner_icon($isEnterprise ? 'briefcase' : 'graduation-cap', 17); ?> <?= learner_escape($isEnterprise ? $partner['industry'] : $partner['school_type']); ?></span>
+                                <?php if (!empty($partner['location']) && $partner['location'] !== 'Chưa cập nhật'): ?>
+                                    <span><?= learner_icon('map-pin', 17); ?> <?= learner_escape($partner['location']); ?></span>
+                                <?php endif; ?>
+                                <?php $partnerCategory = $isEnterprise ? ($partner['industry'] ?? '') : ($partner['school_type'] ?? ''); ?>
+                                <?php if ($partnerCategory !== '' && $partnerCategory !== 'Chưa cập nhật'): ?>
+                                    <span><?= learner_icon($isEnterprise ? 'briefcase' : 'graduation-cap', 17); ?> <?= learner_escape($partnerCategory); ?></span>
+                                <?php endif; ?>
                             </div>
                         </div>
                         <div class="learner-partner-hero__actions">
                             <a class="learner-btn learner-btn--primary" href="#partner-opportunities">Xem cơ hội <?= learner_icon('arrow-right', 17); ?></a>
-                            <a class="learner-btn learner-btn--outline" href="<?= learner_escape($partner['website']); ?>" target="_blank" rel="noopener noreferrer">Website <?= learner_icon('external-link', 16); ?></a>
+                            <?php if (!empty($partner['website']) && $partner['website'] !== '#'): ?>
+                                <a class="learner-btn learner-btn--outline" href="<?= learner_escape($partner['website']); ?>" target="_blank" rel="noopener noreferrer">Website <?= learner_icon('external-link', 16); ?></a>
+                            <?php endif; ?>
                         </div>
                     </section>
 
@@ -76,30 +86,42 @@ $isEnterprise = $partner && $partner['type'] === 'enterprise';
                                 </div>
                                 <p><?= learner_escape($partner['description']); ?></p>
                                 <?php if ($isEnterprise): ?>
-                                    <div class="learner-fact-grid">
-                                        <div><span>Quy mô</span><strong><?= learner_escape($partner['size']); ?></strong></div>
-                                        <div><span>Thành lập</span><strong><?= learner_escape($partner['founded']); ?></strong></div>
+                                    <?php if ((!empty($partner['size']) && $partner['size'] !== 'Chưa cập nhật') || (!empty($partner['founded']) && $partner['founded'] !== 'Chưa cập nhật') || isset($partner['opportunity_count'])): ?>
+                                        <div class="learner-fact-grid">
+                                        <?php if (!empty($partner['size']) && $partner['size'] !== 'Chưa cập nhật'): ?>
+                                            <div><span>Quy mô</span><strong><?= learner_escape($partner['size']); ?></strong></div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($partner['founded']) && $partner['founded'] !== 'Chưa cập nhật'): ?>
+                                            <div><span>Thành lập</span><strong><?= learner_escape($partner['founded']); ?></strong></div>
+                                        <?php endif; ?>
                                         <div><span>Vị trí đang mở</span><strong><?= learner_escape($partner['opportunity_count']); ?></strong></div>
-                                    </div>
-                                    <h3>Điểm nổi bật</h3>
-                                    <ul class="learner-check-list">
-                                        <?php foreach ($partner['highlights'] as $highlight): ?>
-                                            <li><?= learner_icon('check', 16); ?> <?= learner_escape($highlight); ?></li>
-                                        <?php endforeach; ?>
-                                    </ul>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($partner['highlights'])): ?>
+                                        <h3>Điểm nổi bật</h3>
+                                        <ul class="learner-check-list">
+                                            <?php foreach ($partner['highlights'] as $highlight): ?>
+                                                <li><?= learner_icon('check', 16); ?> <?= learner_escape($highlight); ?></li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    <?php endif; ?>
                                 <?php else: ?>
-                                    <h3>Ngành đào tạo nổi bật</h3>
-                                    <div class="learner-program-grid">
-                                        <?php foreach ($partner['programs'] as $program): ?>
-                                            <span><?= learner_icon('book', 17); ?> <?= learner_escape($program); ?></span>
-                                        <?php endforeach; ?>
-                                    </div>
-                                    <h3>Cơ sở vật chất</h3>
-                                    <ul class="learner-check-list">
-                                        <?php foreach ($partner['facilities'] as $facility): ?>
-                                            <li><?= learner_icon('check', 16); ?> <?= learner_escape($facility); ?></li>
-                                        <?php endforeach; ?>
-                                    </ul>
+                                    <?php if (!empty($partner['programs'])): ?>
+                                        <h3>Ngành đào tạo nổi bật</h3>
+                                        <div class="learner-program-grid">
+                                            <?php foreach ($partner['programs'] as $program): ?>
+                                                <span><?= learner_icon('book', 17); ?> <?= learner_escape($program); ?></span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($partner['facilities'])): ?>
+                                        <h3>Cơ sở vật chất</h3>
+                                        <ul class="learner-check-list">
+                                            <?php foreach ($partner['facilities'] as $facility): ?>
+                                                <li><?= learner_icon('check', 16); ?> <?= learner_escape($facility); ?></li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </section>
 
@@ -133,14 +155,22 @@ $isEnterprise = $partner && $partner['type'] === 'enterprise';
                         <aside class="learner-card learner-partner-contact" aria-labelledby="partner-contact-title">
                             <h2 id="partner-contact-title">Thông tin liên hệ</h2>
                             <dl>
-                                <div><dt><?= learner_icon('map-pin', 18); ?> Địa chỉ</dt><dd><?= learner_escape($partner['address']); ?></dd></div>
-                                <div><dt><?= learner_icon('mail', 18); ?> Email</dt><dd><a href="mailto:<?= learner_escape($partner['email']); ?>"><?= learner_escape($partner['email']); ?></a></dd></div>
-                                <div><dt><?= learner_icon('phone', 18); ?> Điện thoại</dt><dd><a href="tel:<?= learner_escape(preg_replace('/\s+/', '', $partner['phone'])); ?>"><?= learner_escape($partner['phone']); ?></a></dd></div>
-                                <div><dt><?= learner_icon('globe', 18); ?> Website</dt><dd><a href="<?= learner_escape($partner['website']); ?>" target="_blank" rel="noopener noreferrer">Truy cập website</a></dd></div>
+                                <?php if (!empty($partner['address']) && $partner['address'] !== 'Chưa cập nhật'): ?>
+                                    <div><dt><?= learner_icon('map-pin', 18); ?> Địa chỉ</dt><dd><?= learner_escape($partner['address']); ?></dd></div>
+                                <?php endif; ?>
+                                <?php if (!empty($partner['email'])): ?>
+                                    <div><dt><?= learner_icon('mail', 18); ?> Email</dt><dd><a href="mailto:<?= learner_escape($partner['email']); ?>"><?= learner_escape($partner['email']); ?></a></dd></div>
+                                <?php endif; ?>
+                                <?php if (!empty($partner['phone'])): ?>
+                                    <div><dt><?= learner_icon('phone', 18); ?> Điện thoại</dt><dd><a href="tel:<?= learner_escape(preg_replace('/\s+/', '', $partner['phone'])); ?>"><?= learner_escape($partner['phone']); ?></a></dd></div>
+                                <?php endif; ?>
+                                <?php if (!empty($partner['website']) && $partner['website'] !== '#'): ?>
+                                    <div><dt><?= learner_icon('globe', 18); ?> Website</dt><dd><a href="<?= learner_escape($partner['website']); ?>" target="_blank" rel="noopener noreferrer">Truy cập website</a></dd></div>
+                                <?php endif; ?>
                             </dl>
                             <div class="learner-data-note">
                                 <?= learner_icon('info', 17); ?>
-                                <p><?= learner_escape($isEnterprise ? 'Cơ hội được đọc trực tiếp từ mock data doanh nghiệp, không thay đổi dữ liệu nguồn.' : 'Thông tin trường học hiện là dữ liệu demo và sẽ được thay bằng API chính thức khi sẵn sàng.'); ?></p>
+                                <p><?= learner_escape($isDatabaseSource ? 'Thông tin được đọc trực tiếp từ dữ liệu TalentHub hiện có.' : 'Thông tin đang hiển thị theo nguồn dữ liệu được cấu hình cho môi trường này.'); ?></p>
                             </div>
                         </aside>
                     </div>

@@ -1493,6 +1493,15 @@
     border-radius: 50%;
 }
 
+.learner-empty-state[data-empty-reason="source"] {
+    border-style: solid;
+}
+
+.learner-empty-state[data-empty-reason="source"] .learner-empty-state__icon {
+    color: var(--primary);
+    background: var(--primary-light);
+}
+
 .learner-empty-state h2 {
     margin-top: 14px;
     color: var(--text-primary);

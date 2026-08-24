@@ -8,17 +8,25 @@
 
 require_once dirname(__DIR__) . '/data/bootstrap.php';
 
-require_once dirname(__DIR__, 2) . '/enterprise/includes/internships-data.php';
-
-$GLOBALS['learnerEnterpriseMockPosts'] = is_array($mockInternships ?? null)
-    ? $mockInternships
-    : (is_array($GLOBALS['mockInternships'] ?? null) ? $GLOBALS['mockInternships'] : []);
-
 if (!function_exists('learner_ecosystem_enterprise_posts')) {
     function learner_ecosystem_enterprise_posts(): array
     {
-        global $learnerEnterpriseMockPosts;
-        return is_array($learnerEnterpriseMockPosts) ? $learnerEnterpriseMockPosts : [];
+        static $posts = null;
+        if (is_array($posts)) {
+            return $posts;
+        }
+
+        if (is_array($GLOBALS['mockInternships'] ?? null)) {
+            $posts = $GLOBALS['mockInternships'];
+            return $posts;
+        }
+
+        $mockInternships = [];
+        require_once dirname(__DIR__, 2) . '/enterprise/includes/internships-data.php';
+        $posts = is_array($mockInternships) ? $mockInternships : [];
+        $GLOBALS['mockInternships'] = $posts;
+
+        return $posts;
     }
 }
 
@@ -370,7 +378,12 @@ if (!function_exists('learner_ecosystem_partner_opportunities')) {
 if (!function_exists('learner_ecosystem_repository')) {
     function learner_ecosystem_repository(): \TalentHub\Learner\Data\Contracts\EcosystemRepository
     {
-        return learner_repository_factory()->ecosystem(
+        $factory = learner_repository_factory();
+        if ($factory->source() === 'database') {
+            return $factory->ecosystem();
+        }
+
+        return $factory->ecosystem(
             array_merge(learner_ecosystem_mock_enterprises(), learner_ecosystem_mock_schools()),
             learner_ecosystem_mock_opportunities()
         );
@@ -380,6 +393,11 @@ if (!function_exists('learner_ecosystem_repository')) {
 if (!function_exists('learner_application_repository')) {
     function learner_application_repository(): \TalentHub\Learner\Data\Contracts\ApplicationRepository
     {
+        $factory = learner_repository_factory();
+        if ($factory->source() === 'database') {
+            return $factory->application();
+        }
+
         $opportunities = learner_ecosystem_mock_opportunities();
         $applications = array_map(
             static function (array $application) use ($opportunities): array {
@@ -403,7 +421,7 @@ if (!function_exists('learner_application_repository')) {
             learner_ecosystem_mock_applications()
         );
 
-        return learner_repository_factory()->application($applications);
+        return $factory->application($applications);
     }
 }
 

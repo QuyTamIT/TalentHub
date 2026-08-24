@@ -19,6 +19,8 @@ $activeOpportunities = array_values(array_filter(
     static fn (array $opportunity): bool => ($opportunity['status'] ?? '') === 'active'
 ));
 $applications = learner_ecosystem_applications();
+$ecosystemSource = learner_repository_factory()->source();
+$isDatabaseSource = $ecosystemSource === 'database';
 
 function learner_ecosystem_date(string $date): string
 {
@@ -107,11 +109,12 @@ function learner_ecosystem_date(string $date): string
                     </div>
                     <div class="learner-partner-grid" data-ecosystem-results>
                         <?php foreach ($enterprises as $enterprise): ?>
+                            <?php $enterpriseVerificationStatus = (string) ($enterprise['verification_status'] ?? ''); ?>
                             <article class="learner-partner-card learner-card" data-ecosystem-item data-search="<?= learner_escape($enterprise['name'] . ' ' . $enterprise['industry'] . ' ' . $enterprise['location']); ?>" data-field="<?= learner_escape($enterprise['industry']); ?>" data-location="<?= learner_escape($enterprise['location']); ?>">
                                 <div class="learner-partner-card__header">
                                     <span class="learner-partner-logo learner-partner-logo--enterprise"><?= learner_escape($enterprise['logo_text']); ?></span>
-                                    <?php if ($enterprise['verified']): ?>
-                                        <span class="learner-verified-pill"><?= learner_icon('check', 14); ?> Đã xác minh</span>
+                                    <?php if ($enterprise['verified'] || in_array($enterpriseVerificationStatus, ['verified', 'approved'], true)): ?>
+                                        <span class="learner-verified-pill"><?= learner_icon('check', 14); ?> <?= $enterpriseVerificationStatus === 'approved' ? 'Đã phê duyệt' : 'Đã xác minh'; ?></span>
                                     <?php endif; ?>
                                 </div>
                                 <div class="learner-partner-card__body">
@@ -130,10 +133,15 @@ function learner_ecosystem_date(string $date): string
                             </article>
                         <?php endforeach; ?>
                     </div>
-                    <div class="learner-empty-state learner-card" hidden data-ecosystem-empty>
+                    <div class="learner-empty-state learner-card" <?= $enterprises !== [] ? 'hidden' : ''; ?> data-ecosystem-empty>
                         <span class="learner-empty-state__icon"><?= learner_icon('search', 24); ?></span>
-                        <h2>Chưa tìm thấy doanh nghiệp phù hợp</h2>
-                        <p>Thử thay đổi từ khóa hoặc bộ lọc để xem thêm kết quả.</p>
+                        <?php if ($isDatabaseSource && $enterprises === []): ?>
+                            <h2>Chưa có doanh nghiệp đã xác minh</h2>
+                            <p>Danh sách chỉ hiển thị doanh nghiệp đang hoạt động đã được xác minh hoặc phê duyệt.</p>
+                        <?php else: ?>
+                            <h2>Chưa tìm thấy doanh nghiệp phù hợp</h2>
+                            <p>Thử thay đổi từ khóa hoặc bộ lọc để xem thêm kết quả.</p>
+                        <?php endif; ?>
                     </div>
                 </section>
 
@@ -141,7 +149,7 @@ function learner_ecosystem_date(string $date): string
                     <div class="learner-section-heading learner-ecosystem-panel__heading">
                         <div>
                             <h2>Trường học đối tác</h2>
-                            <p>Dữ liệu demo để hoàn thiện luồng; sẵn sàng thay bằng API chính thức.</p>
+                            <p>Danh sách trường học đang hoạt động trong hệ sinh thái TalentHub.</p>
                         </div>
                         <span><?= count($schools); ?> trường học</span>
                     </div>
@@ -150,7 +158,9 @@ function learner_ecosystem_date(string $date): string
                             <article class="learner-partner-card learner-card" data-ecosystem-item data-search="<?= learner_escape($school['name'] . ' ' . $school['school_type'] . ' ' . implode(' ', $school['programs']) . ' ' . $school['location']); ?>" data-field="<?= learner_escape(implode(' ', $school['programs'])); ?>" data-location="<?= learner_escape($school['location']); ?>">
                                 <div class="learner-partner-card__header">
                                     <span class="learner-partner-logo learner-partner-logo--school"><?= learner_escape($school['logo_text']); ?></span>
-                                    <span class="learner-demo-pill">Dữ liệu demo</span>
+                                    <?php if ($school['verified']): ?>
+                                        <span class="learner-verified-pill"><?= learner_icon('check', 14); ?> Đã xác minh</span>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="learner-partner-card__body">
                                     <p class="learner-card-kicker"><?= learner_escape($school['school_type']); ?></p>
@@ -169,7 +179,7 @@ function learner_ecosystem_date(string $date): string
                             </article>
                         <?php endforeach; ?>
                     </div>
-                    <div class="learner-empty-state learner-card" hidden data-ecosystem-empty>
+                    <div class="learner-empty-state learner-card" <?= $schools !== [] ? 'hidden' : ''; ?> data-ecosystem-empty>
                         <span class="learner-empty-state__icon"><?= learner_icon('search', 24); ?></span>
                         <h2>Chưa tìm thấy trường học phù hợp</h2>
                         <p>Thử thay đổi từ khóa hoặc bộ lọc để xem thêm kết quả.</p>
@@ -209,10 +219,15 @@ function learner_ecosystem_date(string $date): string
                             </article>
                         <?php endforeach; ?>
                     </div>
-                    <div class="learner-empty-state learner-card" hidden data-ecosystem-empty>
+                    <div class="learner-empty-state learner-card" <?= $activeOpportunities !== [] ? 'hidden' : ''; ?> data-ecosystem-empty>
                         <span class="learner-empty-state__icon"><?= learner_icon('search', 24); ?></span>
-                        <h2>Chưa tìm thấy cơ hội phù hợp</h2>
-                        <p>Thử thay đổi từ khóa hoặc bộ lọc để xem thêm kết quả.</p>
+                        <?php if ($isDatabaseSource && $activeOpportunities === []): ?>
+                            <h2>Chưa có cơ hội đang mở</h2>
+                            <p>Cơ hội sẽ xuất hiện tại đây khi được công bố, còn hạn và thuộc doanh nghiệp đủ điều kiện hiển thị.</p>
+                        <?php else: ?>
+                            <h2>Chưa tìm thấy cơ hội phù hợp</h2>
+                            <p>Thử thay đổi từ khóa hoặc bộ lọc để xem thêm kết quả.</p>
+                        <?php endif; ?>
                     </div>
                 </section>
             </main>
