@@ -9,6 +9,10 @@ $validCodes = ['holland', 'mbti', 'disc', 'multiple_intelligence'];
 if (!in_array($assessmentCode, $validCodes, true)) {
     $assessmentCode = 'holland';
 }
+$requestedBand = strtolower(trim((string) ($_GET['band'] ?? '')));
+$educationBand = in_array($requestedBand, ['middle', 'high', 'college'], true) ? $requestedBand : '';
+$historyResultUrl = 'assessment-result.php?code=' . urlencode($assessmentCode)
+    . ($educationBand !== '' ? '&band=' . urlencode($educationBand) : '');
 
 $assessmentNames = [
     'holland' => 'Holland — Sở thích nghề nghiệp',
@@ -108,7 +112,7 @@ $bootData = [
                             <div class="learner-data-note"><?= learner_icon('info', 17); ?><p>Kết quả chỉ phục vụ định hướng giáo dục và tham khảo học tập, không phải chẩn đoán tâm lý hay đánh giá tuyển sinh bắt buộc.</p></div>
                             <div class="learner-assessment-intro__actions">
                                 <button class="learner-btn learner-btn--primary" type="button" data-assessment-start>Bắt đầu làm bài <?= learner_icon('arrow-right', 17); ?></button>
-                                <a class="learner-btn learner-btn--secondary" href="assessment-result.php?code=<?= learner_escape($assessmentCode); ?>">Xem lịch sử kết quả</a>
+                                <a class="learner-btn learner-btn--secondary" href="<?= learner_escape($historyResultUrl); ?>">Xem lịch sử kết quả</a>
                             </div>
                             <button class="learner-text-button" type="button" data-assessment-resume hidden>Tiếp tục bản nháp hiện tại</button>
                         </div>

@@ -310,8 +310,13 @@ final class LearnerApiContext
 
         return new AssessmentCatalogService(
             $factory->assessment(),
-            new EducationBandResolver($this->pdo)
+            $this->educationBandResolver()
         );
+    }
+
+    public function educationBandResolver(): EducationBandResolver
+    {
+        return new EducationBandResolver($this->pdo);
     }
 
     public function assessmentService(): LearnerAssessmentService

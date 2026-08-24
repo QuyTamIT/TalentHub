@@ -336,6 +336,9 @@
             returnFocusTarget = null;
         };
 
+        global.LearnerUI.openModal = openModal;
+        global.LearnerUI.closeModal = closeModal;
+
         document.querySelectorAll('[data-open-modal]').forEach((trigger) => {
             trigger.addEventListener('click', () => {
                 openModal(document.getElementById(trigger.dataset.openModal), trigger);

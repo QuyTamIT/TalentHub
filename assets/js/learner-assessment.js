@@ -102,15 +102,11 @@
 
                 // If attempt doesn't contain full question details, fetch owned attempt with questions
                 if (!Array.isArray(currentAttempt?.questions) || currentAttempt.questions.length === 0) {
-                    try {
-                        const fullAttempt = await api.get(`/assessment-attempts.php?attemptId=${encodeURIComponent(response.id)}`);
-                        if (fullAttempt?.id) {
-                            setAttempt(fullAttempt);
-                        } else if (Array.isArray(fullAttempt?.questions)) {
-                            currentAttempt.questions = fullAttempt.questions;
-                        }
-                    } catch {
-                        // Fall back to existing attempt data
+                    const fullAttempt = await api.get(`/assessment-attempts.php?attemptId=${encodeURIComponent(response.id)}`);
+                    if (fullAttempt?.id) {
+                        setAttempt(fullAttempt);
+                    } else if (Array.isArray(fullAttempt?.questions)) {
+                        currentAttempt.questions = fullAttempt.questions;
                     }
                 }
 
@@ -618,10 +614,20 @@
             setQuestionIndex: (index) => { questionIndex = Number(index) || 0; },
             getQuestionIndex: () => questionIndex,
             showBandModal: () => {
-                setHidden(nodes.bandModal, false);
+                if (typeof global.LearnerUI?.openModal === 'function') {
+                    global.LearnerUI.openModal(nodes.bandModal);
+                } else {
+                    setHidden(nodes.bandModal, false);
+                }
                 setHidden(nodes.bandError, true);
             },
-            hideBandModal: () => setHidden(nodes.bandModal, true),
+            hideBandModal: () => {
+                if (typeof global.LearnerUI?.closeModal === 'function') {
+                    global.LearnerUI.closeModal(nodes.bandModal);
+                } else {
+                    setHidden(nodes.bandModal, true);
+                }
+            },
             showBandError: () => setHidden(nodes.bandError, false),
             hideBandError: () => setHidden(nodes.bandError, true),
             nodes,

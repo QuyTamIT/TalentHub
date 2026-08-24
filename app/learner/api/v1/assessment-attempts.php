@@ -37,6 +37,8 @@ try {
             ]);
         }
 
+        $band = $context->educationBandResolver()->resolve($studentId, $band);
+
         $attempt = $context->assessmentService()->startOrResume($studentId, $code, $band);
         JsonResponder::sendSuccess($attempt, $context->requestId(), 200);
     }
