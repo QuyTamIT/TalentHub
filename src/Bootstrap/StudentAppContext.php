@@ -58,8 +58,8 @@ final class StudentAppContext
             throw $exception;
         }
         if (($user['role'] ?? null) !== 'student') {
-            header('Location: ' . AuthPortalRouter::destination((string) ($user['role'] ?? '')));
-            exit;
+            $this->session->destroy();
+            $this->redirectToLoginWithRoleRequired('student');
         }
         $this->session->refreshUser($user);
         $this->permissions->require($user['id'], 'student_profile.read_own');
@@ -69,8 +69,7 @@ final class StudentAppContext
             $dashboard = $this->students->dashboard($user['id']);
         } catch (ApiException $exception) {
             if ($exception->status === 404) {
-                header('Location: /role-selection.php?error=student_profile_missing');
-                exit;
+                $this->redirectToIncompleteStudent($user['id']);
             }
             throw $exception;
         }
@@ -105,7 +104,26 @@ final class StudentAppContext
     private function redirectToLogin(): never
     {
         $next = $_SERVER['REQUEST_URI'] ?? '/app/learner/index.php';
-        header('Location: /login.php?next=' . urlencode($next));
+        header('Location: ' . app_href('/login.php') . '?next=' . urlencode($next));
+        exit;
+    }
+
+    private function redirectToLoginWithRoleRequired(string $requiredRole): never
+    {
+        $base = app_href('/login.php');
+        $target = app_href($_SERVER['REQUEST_URI'] ?? '/app/learner/');
+        $loginUrl = $base . '?next=' . urlencode($target) . '&role_required=' . urlencode($requiredRole);
+        header('Location: ' . $loginUrl);
+        exit;
+    }
+
+    private function redirectToIncompleteStudent(string $userId): never
+    {
+        $next = $_SERVER['REQUEST_URI'] ?? '/app/learner/index.php';
+        $url = app_href('/role-selection.php')
+            . '?error=student_profile_missing'
+            . '&hint=' . urlencode('Tài khoản student của bạn chưa có hồ sơ học viên (student_profiles). Vui lòng chạy seed testing: php bin/seed.php --testing');
+        header('Location: ' . $url);
         exit;
     }
 }

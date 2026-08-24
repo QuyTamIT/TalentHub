@@ -36,7 +36,8 @@ final class PortalGuard
         }
 
         if (!RoleCodes::matches($user['role'], $role)) {
-            self::redirect('/role-selection.php?error=forbidden');
+            $session->destroy();
+            self::redirect('/login.php?next=' . urlencode($_SERVER['REQUEST_URI'] ?? $fallbackPath) . '&role_required=' . urlencode($role));
         }
         return $user;
     }

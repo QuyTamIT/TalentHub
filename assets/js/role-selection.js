@@ -60,21 +60,14 @@ function selectCard(selectedCard) {
 
 /**
  * Handles navigation to destination module or displays fallback feedback if module isn't created yet.
+ * Routes always go through /login.php so credentials must match the chosen portal.
  */
 function handleRoleNavigation(route, roleName) {
-    // Navigate directly when the selected role module is available.
-    if (
-        route.includes('learner') ||
-        route.includes('teacher') ||
-        route.includes('enterprise') ||
-        route.includes('school')
-    ) {
-        window.location.href = route;
+    if (!route) {
+        showRoleToast(`Khu vực ${roleName} đang được phát triển!`);
         return;
     }
-
-    // Other backend modules use the fallback notice until they are available.
-    showRoleToast(`Khu vực ${roleName} đang được phát triển! (${route})`);
+    window.location.href = route;
 }
 
 /**
