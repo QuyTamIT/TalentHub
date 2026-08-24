@@ -142,7 +142,7 @@ The server determines onboarding progress using canonical submitted attempts and
 - the attempt belongs to the authenticated student's profile;
 - the attempt status is `submitted`;
 - a corresponding immutable result exists;
-- the associated canonical test type is one of `holland`, `mbti`, `disc`, or `multiple_intelligence`.
+- the associated canonical test code normalizes to one of `holland`, `mbti`, `disc`, or `multiple_intelligence`; banded codes such as `holland_high` normalize to their base code, while broad catalog types such as `interest`, `personality`, and `aptitude` are not used as completion identities.
 
 At most one completion credit is given per required type, regardless of retakes. The client receives a presentation read model containing required type, current state, progress count, next assessment, and safe URLs; it never receives authority to set completion.
 
