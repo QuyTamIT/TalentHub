@@ -455,6 +455,58 @@
         };
     }
 
+    function deriveDiscoveryProgress(historyPayload, total = 4) {
+        const latestByType = latestSubmittedHistory(historyPayload);
+        const completed = Math.min(Math.max(0, Number(total) || 0), latestByType.size);
+        let latestSubmittedAt = null;
+        latestByType.forEach((item) => {
+            const candidate = item?.submitted_at || item?.result_created_at || item?.created_at || null;
+            if (!candidate) return;
+            if (!latestSubmittedAt || (Date.parse(candidate) || 0) > (Date.parse(latestSubmittedAt) || 0)) {
+                latestSubmittedAt = candidate;
+            }
+        });
+        const normalizedTotal = Math.max(0, Number(total) || 0);
+        return {
+            completed,
+            total: normalizedTotal,
+            percent: normalizedTotal > 0 ? Math.round((completed / normalizedTotal) * 100) : 0,
+            latestSubmittedAt,
+        };
+    }
+
+    function formatDiscoveryDate(value) {
+        const parsed = normalizeDiscoveryDate(value);
+        if (Number.isNaN(parsed.getTime())) return 'Chưa có dữ liệu';
+        return new Intl.DateTimeFormat('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            timeZone: 'Asia/Ho_Chi_Minh',
+        }).format(parsed);
+    }
+
+    function normalizeDiscoveryDate(value) {
+        const raw = String(value || '').trim();
+        const offsetlessDatabaseTimestamp = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
+        const normalized = offsetlessDatabaseTimestamp.test(raw)
+            ? `${raw.replace(' ', 'T')}+07:00`
+            : raw;
+        return new Date(normalized);
+    }
+
+    function renderDiscoveryProgress(root, historyPayload) {
+        const progress = deriveDiscoveryProgress(historyPayload);
+        const completedCount = root.querySelector('[data-discovery-completed-count]');
+        const latestDate = root.querySelector('[data-discovery-latest-date]');
+        const progressMeter = root.querySelector('[data-discovery-progress]');
+        const progressBar = root.querySelector('[data-discovery-progress-bar]');
+        if (completedCount) completedCount.textContent = `${progress.completed}/${progress.total} bài đánh giá`;
+        if (latestDate) latestDate.textContent = formatDiscoveryDate(progress.latestSubmittedAt);
+        if (progressMeter) progressMeter.setAttribute('aria-valuenow', String(progress.percent));
+        if (progressBar) progressBar.style.setProperty('--learner-progress', `${progress.percent}%`);
+    }
+
     function setHidden(node, hidden) {
         if (node) node.hidden = hidden;
     }
@@ -655,24 +707,31 @@
             const article = doc.createElement('article');
             article.className = 'learner-card learner-assessment-card';
             article.dataset.assessmentCard = code;
+            const icon = createTextElement(doc, 'span', code === 'multiple_intelligence' ? 'MI' : code.slice(0, 1).toUpperCase(), 'learner-assessment-card__icon');
+            icon.setAttribute('aria-hidden', 'true');
+            article.appendChild(icon);
             const status = doc.createElement('span');
             status.className = 'learner-assessment-card__status';
             const published = String(item?.status || '').toLowerCase() === 'published';
             const locked = item?.attempt_status === 'retake_locked';
-            status.classList.add(published && !locked ? 'is-experimental' : 'is-unpublished');
-            status.textContent = locked ? 'Chưa đến ngày làm lại' : (published ? 'Bản thử nghiệm' : 'Chưa có phiên bản được duyệt');
+            const complete = ['submitted', 'retake_locked'].includes(String(item?.attempt_status || '').toLowerCase())
+                || Boolean(item?.latest_result?.id);
+            status.className += complete ? ' is-complete' : (published && !locked ? ' is-experimental' : ' is-unpublished');
+            status.textContent = complete ? 'Đã hoàn thành' : (locked ? 'Chưa đến ngày làm lại' : (published ? 'Sẵn sàng' : 'Chưa có phiên bản được duyệt'));
             article.appendChild(status);
             const title = createTextElement(doc, 'h2', item?.name || item?.test_name || meta.name);
             const description = createTextElement(doc, 'p', item?.description || meta.description);
             article.appendChild(title);
             article.appendChild(description);
+            if (complete && item?.latest_result?.result_code) {
+                article.appendChild(createTextElement(doc, 'span', item.latest_result.result_code, 'learner-assessment-card__result'));
+            }
             const action = doc.createElement(published && !locked ? 'a' : 'button');
             action.className = `learner-btn learner-btn--${published && !locked ? 'primary' : 'secondary'} learner-btn--block`;
             action.textContent = locked ? 'Chưa thể làm lại' : (published ? (item?.attempt_status === 'in_progress' ? 'Tiếp tục bài test' : 'Bắt đầu bài test') : 'Chưa có phiên bản được duyệt');
             if (action.tagName === 'A') action.href = `assessment.php?code=${encodeURIComponent(code)}${bandQuery}`;
             else { action.type = 'button'; action.disabled = true; }
             article.appendChild(action);
-            const complete = ['submitted', 'retake_locked'].includes(String(item?.attempt_status || '').toLowerCase());
             if (complete && item?.can_view_result && item?.latest_result?.id) {
                 const resultLink = doc.createElement('a');
                 resultLink.className = 'learner-btn learner-btn--outline learner-btn--block';
@@ -682,6 +741,77 @@
             }
             cards.appendChild(article);
         });
+    }
+
+    function createSvgElement(doc, tag, attributes = {}) {
+        const element = doc.createElementNS('http://www.w3.org/2000/svg', tag);
+        Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, value));
+        return element;
+    }
+
+    function renderTalentRadar(doc, container, talents) {
+        const width = 520;
+        const height = 320;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = 105;
+        const count = talents.length;
+        const pointAt = (index, scale = 1) => {
+            const angle = (-Math.PI / 2) + ((Math.PI * 2 * index) / count);
+            return [centerX + Math.cos(angle) * radius * scale, centerY + Math.sin(angle) * radius * scale];
+        };
+        const points = (scaleFor) => talents.map((item, index) => {
+            const [x, y] = pointAt(index, scaleFor(item));
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+
+        const svg = createSvgElement(doc, 'svg', {
+            class: 'learner-radar',
+            viewBox: `0 0 ${width} ${height}`,
+            role: 'img',
+            'aria-label': talents.map((item) => `${item.label} ${item.score}`).join(', '),
+        });
+        [0.25, 0.5, 0.75, 1].forEach((scale) => {
+            svg.appendChild(createSvgElement(doc, 'polygon', {
+                class: 'learner-radar__grid',
+                points: points(() => scale),
+            }));
+        });
+        talents.forEach((_item, index) => {
+            const [x, y] = pointAt(index);
+            svg.appendChild(createSvgElement(doc, 'line', {
+                class: 'learner-radar__axis',
+                x1: centerX,
+                y1: centerY,
+                x2: x,
+                y2: y,
+            }));
+        });
+        svg.appendChild(createSvgElement(doc, 'polygon', {
+            class: 'learner-radar-data',
+            points: points((item) => Math.max(0, Math.min(100, Number(item.score) || 0)) / 100),
+        }));
+        talents.forEach((item, index) => {
+            const scoreScale = Math.max(0, Math.min(100, Number(item.score) || 0)) / 100;
+            const [pointX, pointY] = pointAt(index, scoreScale);
+            svg.appendChild(createSvgElement(doc, 'circle', {
+                class: 'learner-radar__point',
+                cx: pointX,
+                cy: pointY,
+                r: 4,
+            }));
+            const [labelX, labelY] = pointAt(index, 1.28);
+            const label = createSvgElement(doc, 'text', {
+                class: 'learner-radar__labels',
+                x: labelX,
+                y: labelY,
+                'text-anchor': labelX < centerX - 8 ? 'end' : (labelX > centerX + 8 ? 'start' : 'middle'),
+                'dominant-baseline': 'middle',
+            });
+            label.textContent = `${item.label} ${item.score}`;
+            svg.appendChild(label);
+        });
+        container.appendChild(svg);
     }
 
     function renderDiscoverySummary(root, summary) {
@@ -695,12 +825,7 @@
             if (!Array.isArray(summary?.talents) || summary.talents.length === 0) {
                 renderEmpty(talents, 'Hoàn thành bài Đa trí thông minh để xem bản đồ năng khiếu.');
             } else {
-                summary.talents.forEach((item) => {
-                    const row = doc.createElement('span');
-                    row.appendChild(createTextElement(doc, 'span', item.label));
-                    row.appendChild(createTextElement(doc, 'strong', item.score));
-                    talents.appendChild(row);
-                });
+                renderTalentRadar(doc, talents, summary.talents);
             }
         }
         const career = root.querySelector('[data-discovery-career]');
@@ -944,6 +1069,7 @@
         const renderHistory = (historyPayload) => {
             renderCatalog(root, mergeCatalogWithHistory(currentCatalog, historyPayload));
             renderDiscoverySummary(doc, deriveDiscoverySummary(historyPayload));
+            renderDiscoveryProgress(doc, historyPayload);
             setHidden(historyWarning, true);
             setHidden(bandConfirmation, true);
             return historyPayload;
@@ -957,6 +1083,7 @@
             } catch (historyError) {
                 renderCatalog(root, currentCatalog);
                 renderDiscoverySummary(doc, deriveDiscoverySummary({}));
+                renderDiscoveryProgress(doc, {});
                 setHidden(historyWarning, false);
                 return { status: 'source-error', error: historyError };
             }
@@ -995,6 +1122,7 @@
 
             renderCatalog(root, currentCatalog);
             renderDiscoverySummary(doc, deriveDiscoverySummary({}));
+            renderDiscoveryProgress(doc, {});
             setHidden(historyWarning, false);
             return { catalog: currentCatalog, history: { status: 'source-error', error: historyResult.reason } };
         };
@@ -1155,6 +1283,8 @@
         createDomView,
         mergeCatalogWithHistory,
         deriveDiscoverySummary,
+        deriveDiscoveryProgress,
+        normalizeDiscoveryDate,
         bootCatalog,
         bootRunner,
         bootResult,

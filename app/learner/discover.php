@@ -25,16 +25,32 @@ $currentRoute = '/app/learner/discover.php';
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content">
-                <?php
-                $learnerPageBanner = [
-                    'id' => 'learner-discover-page-title',
-                    'eyebrow' => 'Hiểu bản thân hơn',
-                    'title' => 'Khám phá năng khiếu',
-                    'description' => 'Bộ 4 bài đánh giá khoa học giúp bạn hiểu rõ điểm mạnh và định hướng phát triển toàn diện.',
-                    'icon' => 'compass',
-                ];
-                include __DIR__ . '/includes/page-banner.php';
-                ?>
+                <section class="learner-discover-hero" aria-labelledby="learner-discover-page-title">
+                    <div class="learner-discover-hero__copy">
+                        <span class="learner-discover-hero__eyebrow">Hiểu bản thân hơn</span>
+                        <h1 id="learner-discover-page-title">Khám phá năng khiếu</h1>
+                        <p>Bộ 4 bài đánh giá giúp bạn hiểu bản thân và định hướng tương lai.</p>
+                    </div>
+                    <div class="learner-discover-progress" aria-label="Tiến độ khám phá năng khiếu">
+                        <div class="learner-discover-progress__item">
+                            <span class="learner-discover-progress__icon learner-discover-progress__icon--success" aria-hidden="true"><?= learner_icon('check', 20); ?></span>
+                            <div>
+                                <span>Đã hoàn thành</span>
+                                <strong data-discovery-completed-count>0/4 bài đánh giá</strong>
+                            </div>
+                        </div>
+                        <div class="learner-discover-progress__item">
+                            <span class="learner-discover-progress__icon" aria-hidden="true"><?= learner_icon('calendar', 20); ?></span>
+                            <div>
+                                <span>Cập nhật gần nhất</span>
+                                <strong data-discovery-latest-date>Chưa có dữ liệu</strong>
+                            </div>
+                        </div>
+                        <div class="learner-progress learner-discover-progress__bar" role="progressbar" aria-label="Tỷ lệ hoàn thành bài đánh giá" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-discovery-progress>
+                            <span data-discovery-progress-bar style="--learner-progress: 0%;"></span>
+                        </div>
+                    </div>
+                </section>
 
                 <section class="learner-assessment-grid" aria-label="Các bài đánh giá năng khiếu" data-assessment-catalog data-catalog-endpoint="/app/learner/api/v1/assessments.php">
                     <div class="learner-card learner-assessment-state" data-catalog-loading>
@@ -82,29 +98,52 @@ $currentRoute = '/app/learner/discover.php';
                             <button class="learner-btn learner-btn--outline" type="button" data-catalog-history-retry>Thử tải lại kết quả</button>
                         </div>
                     </div>
-                    <div data-catalog-cards></div>
+                    <div class="learner-assessment-grid__cards" data-catalog-cards></div>
                 </section>
-
-                <div class="learner-data-note learner-discover-data-note"><?= learner_icon('info', 17); ?><p>Kết quả từ 4 bài đánh giá được sử dụng để cá nhân hóa gợi ý năng lực và trải nghiệm học tập.</p></div>
 
                 <div class="learner-discovery-grid">
                     <section class="learner-card learner-radar-card" aria-labelledby="radar-title">
-                        <div class="learner-section-heading learner-section-heading--stacked">
+                        <div class="learner-discover-section-heading">
                             <h2 id="radar-title">Bản đồ năng khiếu</h2>
-                            <p>Đa trí thông minh – Multiple Intelligence</p>
+                            <span><i aria-hidden="true"></i> Điểm nổi trội</span>
                         </div>
 
                         <div class="learner-discovery-talent-list" data-discovery-talents aria-label="Điểm đa trí thông minh" aria-live="polite"></div>
                     </section>
 
                     <section class="learner-card learner-directions" aria-labelledby="directions-title">
-                        <div class="learner-section-heading learner-section-heading--stacked">
-                            <p>Kết quả tổng hợp</p>
+                        <div class="learner-directions__heading">
+                            <span>Kết quả tổng hợp</span>
                             <h2 id="directions-title">Định hướng của bạn</h2>
                         </div>
                         <div class="learner-direction-list" data-discovery-career aria-live="polite"></div>
+                        <a class="learner-btn learner-btn--primary learner-directions__action" href="ecosystem.php">Khám phá cơ hội phù hợp <?= learner_icon('arrow-right', 17); ?></a>
                     </section>
                 </div>
+
+                <section class="learner-discover-next" aria-labelledby="discover-next-title">
+                    <div class="learner-discover-next__heading">
+                        <h2 id="discover-next-title">Gợi ý bước tiếp theo</h2>
+                        <p>Tiếp tục phát triển từ kết quả đánh giá đã lưu của bạn.</p>
+                    </div>
+                    <div class="learner-discover-next__grid">
+                        <a class="learner-card learner-discover-next__card" href="activities.php">
+                            <span class="learner-discover-next__icon learner-discover-next__icon--blue" aria-hidden="true"><?= learner_icon('users', 22); ?></span>
+                            <span><strong>Tham gia hoạt động</strong><small>Rèn luyện kỹ năng qua trải nghiệm thực tế.</small></span>
+                            <?= learner_icon('arrow-right', 19); ?>
+                        </a>
+                        <a class="learner-card learner-discover-next__card" href="ecosystem.php">
+                            <span class="learner-discover-next__icon" aria-hidden="true"><?= learner_icon('briefcase', 22); ?></span>
+                            <span><strong>Khám phá ngành học</strong><small>Xem trường học và cơ hội phù hợp.</small></span>
+                            <?= learner_icon('arrow-right', 19); ?>
+                        </a>
+                        <a class="learner-card learner-discover-next__card" href="profile.php">
+                            <span class="learner-discover-next__icon learner-discover-next__icon--green" aria-hidden="true"><?= learner_icon('user', 22); ?></span>
+                            <span><strong>Hoàn thiện hồ sơ</strong><small>Bổ sung điểm mạnh vào hồ sơ năng lực.</small></span>
+                            <?= learner_icon('arrow-right', 19); ?>
+                        </a>
+                    </div>
+                </section>
             </main>
         </div>
     </div>
