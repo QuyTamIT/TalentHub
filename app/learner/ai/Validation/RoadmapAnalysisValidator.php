@@ -196,7 +196,14 @@ final class RoadmapAnalysisValidator
     private function modelMetadata(array $metadata): array
     {
         $required = ['confidence_band', 'model_version', 'origin', 'prompt_version', 'provider'];
-        $this->assertExactFields($metadata, $required, 'Roadmap model metadata is invalid.');
+        $allowed = [...$required, 'provider_request_id', 'response_hash'];
+        $actual = array_keys($metadata);
+        sort($actual, SORT_STRING);
+        sort($allowed, SORT_STRING);
+        foreach ($required as $field) {
+            if (!array_key_exists($field, $metadata)) throw new \InvalidArgumentException('Roadmap model metadata is invalid.');
+        }
+        if (array_diff($actual, $allowed) !== []) throw new \InvalidArgumentException('Roadmap model metadata is invalid.');
         if (($metadata['origin'] ?? null) !== 'model') {
             throw new \InvalidArgumentException('Roadmap model metadata is invalid.');
         }
@@ -213,6 +220,9 @@ final class RoadmapAnalysisValidator
             'model_version' => trim($metadata['model_version']),
             'prompt_version' => trim($metadata['prompt_version']),
             'rule_version' => null,
+            'fallback_reason' => null,
+            'provider_request_id' => is_string($metadata['provider_request_id'] ?? null) ? trim($metadata['provider_request_id']) : null,
+            'response_hash' => is_string($metadata['response_hash'] ?? null) ? trim($metadata['response_hash']) : null,
             'confidence_band' => $metadata['confidence_band'],
         ];
     }

@@ -65,11 +65,19 @@ final class RoadmapAnalysis
         $model = trim((string) ($engineMetadata['model_version'] ?? ''));
         $prompt = trim((string) ($engineMetadata['prompt_version'] ?? ''));
         $rule = trim((string) ($engineMetadata['rule_version'] ?? ''));
-        if ($origin === 'model' && ($provider === '' || $model === '' || $prompt === '' || $rule !== '')) {
+        $fallbackReason = trim((string) ($engineMetadata['fallback_reason'] ?? ''));
+        $providerRequestId = trim((string) ($engineMetadata['provider_request_id'] ?? ''));
+        $responseHash = trim((string) ($engineMetadata['response_hash'] ?? ''));
+        if ($origin === 'model' && ($provider === '' || $model === '' || $prompt === '' || $rule !== '' || $fallbackReason !== '')) {
             throw new \InvalidArgumentException('Roadmap model metadata is required.');
         }
-        if ($origin === 'rule_fallback' && ($rule === '' || $provider !== '' || $model !== '' || $prompt !== '')) {
+        if ($origin === 'rule_fallback' && ($rule === '' || $provider !== '' || $model !== '' || $prompt !== '' || $fallbackReason === '')) {
             throw new \InvalidArgumentException('Roadmap fallback metadata is required.');
+        }
+        if (($providerRequestId !== '' && preg_match('/\A[A-Za-z0-9._:-]{1,128}\z/', $providerRequestId) !== 1)
+            || ($responseHash !== '' && preg_match('/\A[a-f0-9]{64}\z/', $responseHash) !== 1)
+            || ($fallbackReason !== '' && preg_match('/\A[a-z][a-z0-9_]{1,63}\z/', $fallbackReason) !== 1)) {
+            throw new \InvalidArgumentException('Roadmap engine audit metadata is invalid.');
         }
         $this->alternativeDirections = array_values($alternativeDirections);
         $this->insights = array_values($insights);
@@ -80,6 +88,9 @@ final class RoadmapAnalysis
             'model_version' => $model === '' ? null : $model,
             'prompt_version' => $prompt === '' ? null : $prompt,
             'rule_version' => $rule === '' ? null : $rule,
+            'fallback_reason' => $fallbackReason === '' ? null : $fallbackReason,
+            'provider_request_id' => $providerRequestId === '' ? null : $providerRequestId,
+            'response_hash' => $responseHash === '' ? null : $responseHash,
         ];
     }
 
@@ -92,6 +103,29 @@ final class RoadmapAnalysis
     public function confidenceBand(): string { return $this->confidenceBand; }
     /** @return list<string> */ public function recommendedActivitySourceIds(): array { return $this->recommendedActivitySourceIds; }
     /** @return array<string,string|null> */ public function engineMetadata(): array { return $this->engineMetadata; }
+    public function fallbackReason(): ?string { return $this->engineMetadata['fallback_reason']; }
+    public function providerRequestId(): ?string { return $this->engineMetadata['provider_request_id']; }
+    public function responseHash(): ?string { return $this->engineMetadata['response_hash']; }
+
+    public function withFallbackReason(string $reason): self
+    {
+        if ($this->origin !== 'rule_fallback') {
+            throw new \LogicException('Only fallback roadmaps can receive a fallback reason.');
+        }
+        $metadata = $this->engineMetadata;
+        $metadata['fallback_reason'] = $reason;
+        return new self(
+            $this->origin,
+            $this->executiveSummary,
+            $this->primaryDirection,
+            $this->alternativeDirections,
+            $this->insights,
+            $this->phases,
+            $this->confidenceBand,
+            $this->recommendedActivitySourceIds,
+            $metadata,
+        );
+    }
 
     /** @return list<string> */
     public function evidenceReferenceIds(): array
@@ -124,7 +158,13 @@ final class RoadmapAnalysis
             'insights' => array_map(static fn (RoadmapInsight $insight): array => $insight->toArray(), $this->insights),
             'phases' => array_map(static fn (RoadmapPhase $phase): array => $phase->toArray(), $this->phases),
             'recommended_activity_source_ids' => $this->recommendedActivitySourceIds,
-            'engine' => $this->engineMetadata,
+            'engine' => [
+                'provider' => $this->engineMetadata['provider'],
+                'model_version' => $this->engineMetadata['model_version'],
+                'prompt_version' => $this->engineMetadata['prompt_version'],
+                'rule_version' => $this->engineMetadata['rule_version'],
+                'fallback_reason' => $this->engineMetadata['fallback_reason'],
+            ],
         ];
     }
 }
