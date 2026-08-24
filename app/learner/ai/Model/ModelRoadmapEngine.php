@@ -12,6 +12,7 @@ use TalentHub\Learner\Ai\Contracts\RoadmapProvider;
 use TalentHub\Learner\Ai\Domain\RecommendationContext;
 use TalentHub\Learner\Ai\Domain\RecommendationInput;
 use TalentHub\Learner\Ai\Domain\RoadmapAnalysis;
+use TalentHub\Learner\Ai\Evaluation\RecommendationEvaluator;
 use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
 use TalentHub\Learner\Ai\Validation\RoadmapAnalysisValidator;
 
@@ -30,6 +31,7 @@ final class ModelRoadmapEngine implements RoadmapEngine
         private readonly RecommendationRateLimiter $rateLimiter,
         private readonly RecommendationConfig $config,
         private readonly ProviderConsentGate $consentGate,
+        private readonly RecommendationEvaluator $evaluator = new RecommendationEvaluator(),
     ) {}
 
     public function generate(RecommendationInput $input, RecommendationContext $context): RoadmapAnalysis
@@ -65,6 +67,9 @@ final class ModelRoadmapEngine implements RoadmapEngine
                 'response_hash' => $response->responseHash(),
             ]);
             $validator->validate($analysis);
+            if (($this->evaluator->evaluateRoadmap($analysis, $input)['valid'] ?? false) !== true) {
+                throw new \RuntimeException('Roadmap safety evaluation failed.');
+            }
             return $analysis;
         } catch (\Throwable) {
             return $this->fallback($input, $context, 'invalid_model_response');

@@ -12,7 +12,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
 
 final class RoadmapPromptRegistry
 {
-    public const VERSION = 'learner-roadmap-prompt-1.1.0';
+    public const VERSION = 'learner-roadmap-prompt-1.2.0';
 
     private const SAFE_FIELDS = [
         'assessment' => ['test_type', 'result_code', 'dimension_scores', 'submitted_at'],
@@ -61,6 +61,7 @@ final class RoadmapPromptRegistry
             'contract_version' => RoadmapAnalysis::CONTRACT_VERSION,
             'instructions' => [
                 'Trả về duy nhất một JSON object hợp lệ theo learner-roadmap-1.0.0.',
+                'Tuân thủ chính xác output_schema được cung cấp. Không thêm trường ngoài schema.',
                 'Viết toàn bộ nội dung dành cho học viên bằng tiếng Việt tự nhiên.',
                 'Tạo đúng ba giai đoạn 0–30, 31–60 và 61–90 ngày; mỗi giai đoạn có từ 3 đến 5 task cụ thể.',
                 'Không nhắc lại mã MBTI, điểm Holland, biểu đồ DISC hoặc điểm Multiple Intelligence.',
@@ -73,9 +74,120 @@ final class RoadmapPromptRegistry
             ],
             'allowed_scopes' => $this->allowedScopes($input, $context),
             'allowed_activity_ids' => $allowedActivityIds,
+            'output_schema' => $this->outputSchema(array_keys($byReference), $allowedActivityIds),
             'input' => $this->safeInput($input->payload()),
             'evidence' => $evidence,
         ], $byReference);
+    }
+
+    /** @param list<string> $evidenceIds @param list<string> $activityIds @return array<string,mixed> */
+    private function outputSchema(array $evidenceIds, array $activityIds): array
+    {
+        $text = ['type' => 'string', 'minLength' => 1];
+        $evidence = [
+            'type' => 'array',
+            'items' => ['type' => 'string', 'enum' => $evidenceIds],
+            'minItems' => 1,
+            'uniqueItems' => true,
+        ];
+        $direction = [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'required' => ['code', 'label', 'rationale'],
+            'properties' => ['code' => $text, 'label' => $text, 'rationale' => $text],
+        ];
+        $actionVariants = [[
+            'type' => 'object',
+            'additionalProperties' => false,
+            'required' => ['type'],
+            'properties' => ['type' => ['const' => 'self_task']],
+        ]];
+        if ($activityIds !== []) {
+            $actionVariants[] = [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'required' => ['type', 'activity_source_id'],
+                'properties' => [
+                    'type' => ['const' => 'register_activity'],
+                    'activity_source_id' => ['type' => 'string', 'enum' => $activityIds],
+                ],
+            ];
+        }
+        $task = [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'required' => ['position', 'title', 'description', 'estimated_minutes', 'action', 'evidence_ref_ids'],
+            'properties' => [
+                'position' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 5],
+                'title' => $text,
+                'description' => $text,
+                'estimated_minutes' => ['type' => 'integer', 'minimum' => 5, 'maximum' => 1440],
+                'action' => ['oneOf' => $actionVariants],
+                'evidence_ref_ids' => $evidence,
+            ],
+        ];
+        $phase = [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'required' => [
+                'position', 'start_day', 'end_day', 'code', 'title', 'goal', 'skill_focus',
+                'deliverable', 'effort_label', 'metric_label', 'evidence_ref_ids', 'tasks',
+            ],
+            'properties' => [
+                'position' => ['type' => 'integer', 'enum' => [1, 2, 3]],
+                'start_day' => ['type' => 'integer', 'enum' => [0, 31, 61]],
+                'end_day' => ['type' => 'integer', 'enum' => [30, 60, 90]],
+                'code' => ['type' => 'string', 'enum' => ['discover', 'practice', 'breakthrough']],
+                'title' => $text,
+                'goal' => $text,
+                'skill_focus' => $text,
+                'deliverable' => $text,
+                'effort_label' => $text,
+                'metric_label' => $text,
+                'evidence_ref_ids' => $evidence,
+                'tasks' => ['type' => 'array', 'items' => $task, 'minItems' => 3, 'maxItems' => 5],
+            ],
+        ];
+        $activityItems = $activityIds === []
+            ? ['type' => 'string', 'pattern' => 'a^']
+            : ['type' => 'string', 'enum' => $activityIds];
+
+        return [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'required' => [
+                'executive_summary', 'primary_direction', 'alternative_directions', 'insights',
+                'phases', 'recommended_activity_source_ids',
+            ],
+            'properties' => [
+                'executive_summary' => $text,
+                'primary_direction' => $direction,
+                'alternative_directions' => ['type' => 'array', 'items' => $direction, 'minItems' => 2, 'maxItems' => 2],
+                'insights' => [
+                    'type' => 'array',
+                    'minItems' => 3,
+                    'maxItems' => 3,
+                    'items' => [
+                        'type' => 'object',
+                        'additionalProperties' => false,
+                        'required' => ['category', 'title', 'summary', 'evidence_ref_ids'],
+                        'properties' => [
+                            'category' => ['type' => 'string', 'enum' => ['strength', 'improvement', 'potential']],
+                            'title' => $text,
+                            'summary' => $text,
+                            'evidence_ref_ids' => $evidence,
+                        ],
+                    ],
+                ],
+                'phases' => ['type' => 'array', 'items' => $phase, 'minItems' => 3, 'maxItems' => 3],
+                'recommended_activity_source_ids' => [
+                    'type' => 'array',
+                    'items' => $activityItems,
+                    'maxItems' => count($activityIds),
+                    'uniqueItems' => true,
+                ],
+            ],
+        ];
     }
 
     /** @param array<string,mixed> $payload @return array<string,mixed> */

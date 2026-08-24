@@ -67,6 +67,8 @@ final class HttpRoadmapProvider implements RoadmapProvider
                 ['role' => 'user', 'content' => json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)],
             ],
             'response_format' => ['type' => 'json_object'],
+            'temperature' => 0.1,
+            'max_tokens' => 4096,
         ];
         if ($this->config->model() !== null) $transport['model'] = $this->config->model();
         return $transport;

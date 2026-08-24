@@ -22,7 +22,7 @@ function roadmap_provider_config(int $attempts = 2): RecommendationConfig
 {
     return RecommendationConfig::fromEnvironment([
         'APP_ENV' => 'test', 'TALENTHUB_AI_ENABLED' => 'true', 'TALENTHUB_AI_PROVIDER' => '9router_gemini',
-        'TALENTHUB_AI_MODEL' => 'ag/gemini-3.7-flash-high', 'TALENTHUB_AI_API_URL' => 'http://127.0.0.1:20128/v1/chat/completions',
+        'TALENTHUB_AI_MODEL' => 'ag/gemini-3.7-flash-low', 'TALENTHUB_AI_API_URL' => 'http://127.0.0.1:20128/v1/chat/completions',
         'TALENTHUB_AI_API_KEY' => 'test-key-never-log', 'TALENTHUB_AI_ALLOWED_HOSTS' => '127.0.0.1',
         'TALENTHUB_AI_TIMEOUT_SECONDS' => '3', 'TALENTHUB_AI_MAX_ATTEMPTS' => (string) $attempts,
         'TALENTHUB_AI_ROADMAP_TIMEOUT_SECONDS' => '3',
@@ -34,6 +34,7 @@ function roadmap_provider_request(): ProviderRequest
     return new ProviderRequest('learner-roadmap-prompt-1.0.0', [
         'instructions' => ['Chỉ trả về JSON hợp lệ.'],
         'contract_version' => 'learner-roadmap-1.0.0',
+        'output_schema' => ['type' => 'object', 'additionalProperties' => false],
         'input' => ['assessments' => [['test_type' => 'holland', 'dimension_scores' => ['R' => 80]]]],
         'evidence' => [['reference_id' => 'evidence-001']],
     ], [
@@ -73,11 +74,16 @@ roadmap_provider_assert($directResponse->payload() === $fixture, 'direct payload
 roadmap_provider_assert($directResponse->providerRequestId() === 'router_req_123', 'safe provider request id is retained');
 roadmap_provider_assert($directResponse->responseHash() === hash('sha256', $rawDirect), 'only deterministic response hash is retained');
 roadmap_provider_assert(($captured['headers']['Authorization'] ?? '') === 'Bearer test-key-never-log', 'Bearer credential is sent');
-roadmap_provider_assert(($captured['headers']['X-Model-Name'] ?? '') === 'ag/gemini-3.7-flash-high', 'model header is sent');
+roadmap_provider_assert(($captured['headers']['X-Model-Name'] ?? '') === 'ag/gemini-3.7-flash-low', 'low-latency model header is sent');
 roadmap_provider_assert($captured['timeout'] === 3, 'configured timeout is used');
 $transportBody = json_decode($captured['body'], true, 512, JSON_THROW_ON_ERROR);
-roadmap_provider_assert(($transportBody['model'] ?? '') === 'ag/gemini-3.7-flash-high', 'model is included in 9Router body');
+roadmap_provider_assert(($transportBody['model'] ?? '') === 'ag/gemini-3.7-flash-low', 'low-latency model is included in 9Router body');
 roadmap_provider_assert(isset($transportBody['messages'][0]['content'], $transportBody['messages'][1]['content']), '9Router chat envelope is used');
+roadmap_provider_assert(($transportBody['response_format']['type'] ?? null) === 'json_object', '9Router JSON-object mode is required');
+roadmap_provider_assert(($transportBody['temperature'] ?? null) === 0.1, 'low-variance generation is required');
+roadmap_provider_assert(($transportBody['max_tokens'] ?? null) === 4096, 'roadmap output is bounded for predictable latency');
+$modelInput = json_decode($transportBody['messages'][1]['content'], true, 512, JSON_THROW_ON_ERROR);
+roadmap_provider_assert(($modelInput['output_schema']['additionalProperties'] ?? null) === false, 'exact output schema reaches the model');
 
 $fenced = "```json\n{$rawDirect}\n```";
 $envelopeBody = json_encode(['id' => 'body_req_456', 'choices' => [['message' => ['content' => $fenced]]]], JSON_THROW_ON_ERROR);

@@ -41,12 +41,16 @@ final class RoadmapAnalysisValidator
         $summary = $this->requiredText($payload['executive_summary'], 'Roadmap executive summary is required.');
         $this->assertVietnamese($summary);
 
-        $primary = $this->direction($payload['primary_direction']);
+        $primary = $this->direction($payload['primary_direction'], 'primary_direction');
         $alternatives = $this->list($payload['alternative_directions'], 'Roadmap alternatives are invalid.');
         if (count($alternatives) !== 2) {
             throw new \InvalidArgumentException('Roadmap requires exactly two alternative directions.');
         }
-        $alternativeDirections = array_map(fn (mixed $value): RoadmapDirection => $this->direction($value), $alternatives);
+        $alternativeDirections = array_map(
+            fn (mixed $value, int $index): RoadmapDirection => $this->direction($value, 'alternative_direction_' . ($index + 1)),
+            $alternatives,
+            array_keys($alternatives),
+        );
 
         $insightRecords = $this->list($payload['insights'], 'Roadmap insights are invalid.');
         if (count($insightRecords) !== 3) {
@@ -67,6 +71,10 @@ final class RoadmapAnalysisValidator
         $positions = array_map(static fn (RoadmapPhase $phase): int => $phase->position(), $phases);
         if ($positions !== [1, 2, 3]) {
             throw new \InvalidArgumentException('Roadmap phase positions are invalid.');
+        }
+        $codes = array_map(static fn (RoadmapPhase $phase): string => $phase->code(), $phases);
+        if ($codes !== ['discover', 'practice', 'breakthrough']) {
+            throw new \InvalidArgumentException('Roadmap phase codes are invalid.');
         }
         for ($index = 1; $index < count($phases); $index++) {
             if ($phases[$index]->startDay() <= $phases[$index - 1]->endDay()) {
@@ -107,7 +115,7 @@ final class RoadmapAnalysisValidator
     }
 
     /** @param mixed $value */
-    private function direction(mixed $value): RoadmapDirection
+    private function direction(mixed $value, string $fallbackCode): RoadmapDirection
     {
         if (!is_array($value)) throw new \InvalidArgumentException('Roadmap direction is invalid.');
         $this->assertExactFields($value, ['code', 'label', 'rationale'], 'Roadmap direction fields are invalid.');
@@ -115,10 +123,20 @@ final class RoadmapAnalysisValidator
         $rationale = $this->requiredText($value['rationale'], 'Roadmap direction rationale is required.');
         $this->assertVietnamese($label . ' ' . $rationale);
         return new RoadmapDirection(
-            $this->requiredText($value['code'], 'Roadmap direction code is required.'),
+            $this->directionCode($value['code'], $fallbackCode),
             $label,
             $rationale,
         );
+    }
+
+    private function directionCode(mixed $value, string $fallback): string
+    {
+        if (!is_string($value) || trim($value) === '') return $fallback;
+        $normalized = strtolower(trim($value));
+        $normalized = trim((string) preg_replace('/[^a-z0-9_]+/', '_', $normalized), '_');
+        if ($normalized === '' || preg_match('/^[a-z]/', $normalized) !== 1) return $fallback;
+        $normalized = rtrim(substr($normalized, 0, 64), '_');
+        return preg_match('/\A[a-z][a-z0-9_]{1,63}\z/', $normalized) === 1 ? $normalized : $fallback;
     }
 
     /** @param mixed $value */

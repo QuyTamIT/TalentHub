@@ -13,19 +13,34 @@ final class ConsentDecision
     private readonly array $latestByScope;
     /** @var list<string> */
     private readonly array $allowedScopes;
+    /** @var list<string> */
+    private readonly array $serviceScopes;
     private readonly string $decisionHash;
 
-    /** @param array<string,array{action:string,policy_version:string,occurred_at:string,request_id:string}> $latestByScope */
-    public function __construct(array $latestByScope, private readonly string $evaluatedAt)
+    /**
+     * @param array<string,array{action:string,policy_version:string,occurred_at:string,request_id:string}> $latestByScope
+     * @param list<string> $serviceScopes
+     */
+    public function __construct(array $latestByScope, private readonly string $evaluatedAt, array $serviceScopes = [])
     {
+        $normalizedServiceScopes = [];
+        foreach ($serviceScopes as $scope) {
+            if (!is_string($scope) || !in_array($scope, self::REQUIRED_SCOPES, true)) {
+                throw new \InvalidArgumentException('Unknown service data scope.');
+            }
+            $normalizedServiceScopes[$scope] = true;
+        }
+        $serviceScopeList = array_keys($normalizedServiceScopes);
+        sort($serviceScopeList, SORT_STRING);
+        $this->serviceScopes = $serviceScopeList;
         ksort($latestByScope, SORT_STRING);
         $this->latestByScope = $latestByScope;
-        $allowed = [];
+        $allowed = array_fill_keys($this->serviceScopes, true);
         $canonical = [];
         foreach (self::REQUIRED_SCOPES as $scope) {
             $event = $latestByScope[$scope] ?? null;
             if ($event !== null && $event['action'] === 'granted') {
-                $allowed[] = $scope;
+                $allowed[$scope] = true;
             }
             $canonical[$scope] = $event ?? [
                 'action' => 'missing',
@@ -34,9 +49,15 @@ final class ConsentDecision
                 'request_id' => '',
             ];
         }
-        $this->allowedScopes = $allowed;
+        $allowedScopeList = array_keys($allowed);
+        sort($allowedScopeList, SORT_STRING);
+        $this->allowedScopes = $allowedScopeList;
         $encoded = json_encode(
-            ['decision_policy' => self::POLICY_VERSION, 'scopes' => $canonical],
+            [
+                'decision_policy' => self::POLICY_VERSION,
+                'service_scopes' => $this->serviceScopes,
+                'scopes' => $canonical,
+            ],
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES,
         );
         $this->decisionHash = hash('sha256', $encoded);
@@ -47,6 +68,13 @@ final class ConsentDecision
     public function policyVersion(): string { return self::POLICY_VERSION; }
     public function decisionHash(): string { return $this->decisionHash; }
     public function evaluatedAt(): string { return $this->evaluatedAt; }
+
+    /** @param list<string> $scopes */
+    public function withServiceScopes(array $scopes): self
+    {
+        return new self($this->latestByScope, $this->evaluatedAt, [...$this->serviceScopes, ...$scopes]);
+    }
+
     /** @param list<string> $requiredScopes */
     public function permitsScopes(array $requiredScopes): bool
     {
@@ -67,7 +95,8 @@ final class ConsentDecision
     public function denialReason(): ?string
     {
         foreach (self::REQUIRED_SCOPES as $scope) {
-            if (($this->latestByScope[$scope]['action'] ?? 'missing') === 'revoked') {
+            if (!in_array($scope, $this->serviceScopes, true)
+                && ($this->latestByScope[$scope]['action'] ?? 'missing') === 'revoked') {
                 return 'consent_revoked';
             }
         }

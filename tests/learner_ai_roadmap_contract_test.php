@@ -50,6 +50,22 @@ roadmap_contract_assert(
 );
 roadmap_contract_assert($analysis->evidenceReferenceIds() === ['evidence-001', 'evidence-002', 'evidence-003'], 'evidence references are normalized');
 
+$nonCanonicalDirectionCodes = learner_ai_roadmap_provider_fixture();
+$nonCanonicalDirectionCodes['primary_direction']['code'] = 'product-technology';
+$nonCanonicalDirectionCodes['alternative_directions'][0]['code'] = '1';
+$normalizedDirections = $validator->fromProviderPayload(
+    $nonCanonicalDirectionCodes,
+    learner_ai_roadmap_model_metadata(),
+);
+roadmap_contract_assert(
+    $normalizedDirections->primaryDirection()->code() === 'product_technology',
+    'a safe model direction code is normalized to the internal code format',
+);
+roadmap_contract_assert(
+    $normalizedDirections->alternativeDirections()[0]->code() === 'alternative_direction_1',
+    'an unusable model direction code receives a stable internal fallback',
+);
+
 $missing = learner_ai_roadmap_provider_fixture();
 unset($missing['executive_summary']);
 roadmap_contract_expect(
@@ -76,6 +92,13 @@ $duplicate['phases'][1]['position'] = 1;
 roadmap_contract_expect(
     static fn () => $validator->fromProviderPayload($duplicate, learner_ai_roadmap_model_metadata()),
     'phase positions',
+);
+
+$wrongPhaseCode = learner_ai_roadmap_provider_fixture();
+$wrongPhaseCode['phases'][1]['code'] = 'discover';
+roadmap_contract_expect(
+    static fn () => $validator->fromProviderPayload($wrongPhaseCode, learner_ai_roadmap_model_metadata()),
+    'phase codes',
 );
 
 $overlap = learner_ai_roadmap_provider_fixture();

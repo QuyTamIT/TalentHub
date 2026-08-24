@@ -99,8 +99,9 @@ $payload = $request->payload();
 $instructions = implode("\n", $payload['instructions'] ?? []);
 $json = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-roadmap_prompt_assert($request->promptVersion() === 'learner-roadmap-prompt-1.1.0', 'prompt version is immutable');
+roadmap_prompt_assert($request->promptVersion() === 'learner-roadmap-prompt-1.2.0', 'prompt version is immutable');
 roadmap_prompt_assert(str_contains($instructions, 'learner-roadmap-1.0.0'), 'contract version is required');
+roadmap_prompt_assert(str_contains($instructions, 'Không thêm trường ngoài schema'), 'extra JSON fields are explicitly prohibited');
 roadmap_prompt_assert(str_contains($instructions, 'tiếng Việt tự nhiên'), 'learner-facing content must be Vietnamese');
 roadmap_prompt_assert(str_contains($instructions, '0–30, 31–60 và 61–90'), 'three exact phases are required');
 roadmap_prompt_assert(str_contains($instructions, 'Mỗi insight, phase và task phải trích dẫn evidence_ref_ids'), 'every generated block requires evidence');
@@ -108,6 +109,23 @@ roadmap_prompt_assert(str_contains($instructions, 'Không nhắc lại mã MBTI,
 roadmap_prompt_assert(str_contains($instructions, 'Không chẩn đoán'), 'diagnosis is prohibited');
 roadmap_prompt_assert(str_contains($instructions, 'không khẳng định chắc chắn nghề nghiệp, tuyển sinh hoặc việc làm'), 'guaranteed outcomes are prohibited');
 roadmap_prompt_assert(str_contains($instructions, 'Chỉ dùng activity_source_id có trong allowed_activity_ids'), 'activity IDs are allow-listed');
+
+$schema = $payload['output_schema'] ?? null;
+roadmap_prompt_assert(is_array($schema) && ($schema['type'] ?? null) === 'object', 'an explicit JSON output schema is supplied');
+roadmap_prompt_assert(($schema['additionalProperties'] ?? null) === false, 'top-level output rejects additional fields');
+$required = $schema['required'] ?? [];
+sort($required, SORT_STRING);
+$expectedTopLevel = ['alternative_directions', 'executive_summary', 'insights', 'phases', 'primary_direction', 'recommended_activity_source_ids'];
+sort($expectedTopLevel, SORT_STRING);
+roadmap_prompt_assert($required === $expectedTopLevel, 'schema requires every validator top-level field');
+$phaseSchema = $schema['properties']['phases']['items'] ?? [];
+roadmap_prompt_assert(($phaseSchema['properties']['start_day']['enum'] ?? null) === [0, 31, 61], 'phase starts are constrained to three exact ranges');
+roadmap_prompt_assert(($phaseSchema['properties']['end_day']['enum'] ?? null) === [30, 60, 90], 'phase ends are constrained to three exact ranges');
+roadmap_prompt_assert(($phaseSchema['properties']['tasks']['minItems'] ?? null) === 3, 'every phase requires at least three tasks');
+roadmap_prompt_assert(($phaseSchema['properties']['tasks']['maxItems'] ?? null) === 5, 'every phase permits at most five tasks');
+$actionVariants = $phaseSchema['properties']['tasks']['items']['properties']['action']['oneOf'] ?? [];
+roadmap_prompt_assert(($actionVariants[0]['properties']['type']['const'] ?? null) === 'self_task', 'self-task action contract is explicit');
+roadmap_prompt_assert(($schema['properties']['recommended_activity_source_ids']['items']['enum'] ?? null) === [$activityId], 'activity output is constrained to the server allow-list');
 
 roadmap_prompt_assert(($payload['allowed_scopes'] ?? null) === ['assessment', 'skills'], 'only current consent scopes are disclosed');
 roadmap_prompt_assert(($payload['allowed_activity_ids'] ?? null) === [$activityId], 'only eligible activity UUID is allow-listed');

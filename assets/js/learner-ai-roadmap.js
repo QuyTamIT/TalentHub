@@ -64,6 +64,14 @@
         return `roadmap-page-${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
     }
 
+    function createRoadmapApiClient(factory, suppliedDocument = null) {
+        const targetDocument = suppliedDocument || global.document;
+        let csrfToken = '';
+        try { csrfToken = JSON.parse(targetDocument?.getElementById('learner-session-boot')?.textContent || '{}').csrfToken || ''; }
+        catch { csrfToken = ''; }
+        return factory({ baseUrl: '/app/learner/api/v1', csrfToken, timeoutMs: 45000 });
+    }
+
     function createRoadmapController({ api, view, createIdempotencyKey = defaultIdempotencyKey }) {
         if (!api || typeof api.get !== 'function' || typeof api.send !== 'function') throw new TypeError('A roadmap API client is required.');
         if (!view || typeof view.render !== 'function') throw new TypeError('A roadmap view is required.');
@@ -413,10 +421,7 @@
         const root = global.document?.querySelector('[data-ai-roadmap-page]');
         const factory = global.TalentHubLearnerApi?.createLearnerApiClient;
         if (!root || typeof factory !== 'function') return;
-        let csrfToken = '';
-        try { csrfToken = JSON.parse(global.document.getElementById('learner-session-boot')?.textContent || '{}').csrfToken || ''; }
-        catch { csrfToken = ''; }
-        const controller = createRoadmapController({ api: factory({ baseUrl: '/app/learner/api/v1', csrfToken }), view: createDomView(root) });
+        const controller = createRoadmapController({ api: createRoadmapApiClient(factory, global.document), view: createDomView(root) });
         root.addEventListener('click', (event) => {
             const target = event.target instanceof global.Element ? event.target.closest('button') : null;
             if (!target || !root.contains(target)) return;
@@ -430,7 +435,7 @@
         controller.load();
     }
 
-    const exported = { presentationState, buildRoadmapViewModel, createRoadmapController, createDomView, confidenceLabel };
+    const exported = { presentationState, buildRoadmapViewModel, createRoadmapApiClient, createRoadmapController, createDomView, confidenceLabel };
     global.TalentHubLearnerAiRoadmap = exported;
     if (typeof module !== 'undefined' && module.exports) module.exports = exported;
     if (global.document && typeof global.document.addEventListener === 'function') {

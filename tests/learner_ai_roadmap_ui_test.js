@@ -77,6 +77,25 @@ test('roadmap module maps all stable API states', () => {
   ]);
 });
 
+test('roadmap API client receives session CSRF and the dedicated model timeout', () => {
+  const { createRoadmapApiClient } = require(modulePath);
+  assert.equal(typeof createRoadmapApiClient, 'function');
+  let options = null;
+  const client = { get() {}, send() {} };
+  const suppliedDocument = {
+    getElementById(id) {
+      assert.equal(id, 'learner-session-boot');
+      return { textContent: JSON.stringify({ csrfToken: 'csrf-roadmap-page-123' }) };
+    },
+  };
+  assert.equal(createRoadmapApiClient((received) => { options = received; return client; }, suppliedDocument), client);
+  assert.deepEqual(options, {
+    baseUrl: '/app/learner/api/v1',
+    csrfToken: 'csrf-roadmap-page-123',
+    timeoutMs: 45000,
+  });
+});
+
 test('view model keeps exactly three roadmap phases and derives real next actions', () => {
   const { buildRoadmapViewModel } = require(modulePath);
   const model = buildRoadmapViewModel(payload());

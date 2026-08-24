@@ -107,6 +107,15 @@ roadmap_engine_assert($model->providerRequestId() === 'router_req_model', 'safe 
 roadmap_engine_assert($model->responseHash() === str_repeat('a', 64), 'response hash is retained for audit');
 roadmap_engine_assert($model->fallbackReason() === null, 'model result has no fallback reason');
 
+$unsafe = $fixture;
+$unsafe['executive_summary'] = 'Lộ trình này đảm bảo bạn đỗ đại học 100%.';
+$unsafeModel = roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::success($unsafe, null, str_repeat('d', 64))))
+    ->generate(roadmap_engine_input(), roadmap_engine_context());
+roadmap_engine_assert(
+    $unsafeModel->origin() === 'rule_fallback' && $unsafeModel->fallbackReason() === 'invalid_model_response',
+    'deterministic safety violations are rejected before a model roadmap can be persisted',
+);
+
 $unknown = $fixture;
 $unknown['unexpected_model_field'] = 'must fail';
 $invalid = roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::success($unknown, null, str_repeat('b', 64))))

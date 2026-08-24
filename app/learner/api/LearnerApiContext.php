@@ -273,7 +273,7 @@ final class LearnerApiContext
         $ruleEngine = new RuleRoadmapEngine();
         $engine = $ruleEngine;
         try {
-            $decision = $consent->decision($studentId);
+            $decision = $consent->decision($studentId)->withServiceScopes(['assessment']);
             $showModel = (new RecommendationRolloutSelector())->canShowRoadmapModel(
                 $studentId,
                 $config,
@@ -297,7 +297,7 @@ final class LearnerApiContext
                     static fn (): int => (new DateTimeImmutable('now', new DateTimeZone('UTC')))->getTimestamp(),
                 ),
                 $config,
-                new ProviderConsentGate($consent, ['assessment']),
+                new ProviderConsentGate($consent, ['assessment'], ['assessment']),
             );
         }
 
@@ -305,7 +305,7 @@ final class LearnerApiContext
             $roadmaps,
             $engine,
             static fn (string $candidate): bool => hash_equals($studentId, $candidate),
-            static fn (string $candidate) => $consent->decision($candidate),
+            static fn (string $candidate) => $consent->decision($candidate)->withServiceScopes(['assessment']),
             static fn (string $candidate, array $scopes) => $snapshotBuilder->buildForRoadmap($candidate, $scopes),
             static fn ($input) => (new RoadmapQualityGate())->evaluate($input),
             static fn (string $candidate, $input, $context) => $runs->createPendingRoadmapRun($candidate, $input, $context),

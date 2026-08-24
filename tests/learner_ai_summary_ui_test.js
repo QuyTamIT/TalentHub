@@ -32,6 +32,30 @@ test('auto analysis is activated only by the fixed query value', () => {
   assert.equal(shouldAutoAnalyze('https://evil.example/?ai=analyze'), false);
 });
 
+test('summary API client receives the session CSRF token for generation', () => {
+  const { createSummaryApiClient } = require(modulePath);
+  assert.equal(typeof createSummaryApiClient, 'function');
+  const client = { get() {}, send() {} };
+  let options = null;
+  const factory = (received) => {
+    options = received;
+    return client;
+  };
+  const suppliedDocument = {
+    getElementById(id) {
+      assert.equal(id, 'learner-session-boot');
+      return { textContent: JSON.stringify({ csrfToken: 'csrf-browser-e2e-123' }) };
+    },
+  };
+
+  assert.equal(createSummaryApiClient(factory, suppliedDocument), client);
+  assert.deepEqual(options, {
+    baseUrl: '/app/learner/api/v1',
+    csrfToken: 'csrf-browser-e2e-123',
+    timeoutMs: 45000,
+  });
+});
+
 test('not-generated roadmap causes one in-flight POST with a stable idempotency key', async () => {
   const { createAiSummaryController } = require(modulePath);
   const calls = [];

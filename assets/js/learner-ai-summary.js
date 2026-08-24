@@ -20,6 +20,17 @@
         return `roadmap-summary-${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
     }
 
+    function createSummaryApiClient(factory, suppliedDocument = null) {
+        const targetDocument = suppliedDocument || global.document;
+        let csrfToken = '';
+        try {
+            csrfToken = JSON.parse(targetDocument?.getElementById('learner-session-boot')?.textContent || '{}').csrfToken || '';
+        } catch {
+            csrfToken = '';
+        }
+        return factory({ baseUrl: '/app/learner/api/v1', csrfToken, timeoutMs: 45000 });
+    }
+
     function createAiSummaryController({ api, view, storage, createIdempotencyKey = defaultIdempotencyKey }) {
         if (!api || typeof api.get !== 'function' || typeof api.send !== 'function') {
             throw new TypeError('A learner roadmap API client is required.');
@@ -165,7 +176,7 @@
         const apiFactory = global.TalentHubLearnerApi?.createLearnerApiClient;
         if (!modal || typeof apiFactory !== 'function') return;
         const controller = createAiSummaryController({
-            api: apiFactory({ baseUrl: '/app/learner/api/v1' }),
+            api: createSummaryApiClient(apiFactory, global.document),
             view: createDomAiSummaryView(modal),
             storage: global.sessionStorage,
         });
@@ -176,7 +187,7 @@
         controller.run();
     }
 
-    const exported = { shouldAutoAnalyze, createAiSummaryController, createDomAiSummaryView, boot };
+    const exported = { shouldAutoAnalyze, createSummaryApiClient, createAiSummaryController, createDomAiSummaryView, boot };
     global.TalentHubLearnerAiSummary = exported;
     if (typeof module !== 'undefined' && module.exports) module.exports = exported;
     if (global.document && typeof global.document.addEventListener === 'function') {
