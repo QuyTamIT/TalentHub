@@ -532,6 +532,29 @@ if (!function_exists('learner_ecosystem_opportunities')) {
     }
 }
 
+if (!function_exists('learner_ecosystem_school_activities')) {
+    function learner_ecosystem_school_activities(?string $schoolId = null): array
+    {
+        $factory = learner_repository_factory();
+        if ($factory->source() !== 'database') {
+            return [];
+        }
+
+        $activities = \TalentHub\Learner\Data\ReadModel\ActivityReadModel::activities(
+            $factory->activity()->all()
+        );
+
+        return array_values(array_filter(
+            $activities,
+            static fn (array $activity): bool => in_array(
+                (string) ($activity['status'] ?? ''),
+                ['published', 'ongoing'],
+                true
+            ) && ($schoolId === null || (string) ($activity['school_id'] ?? '') === $schoolId)
+        ));
+    }
+}
+
 if (!function_exists('learner_ecosystem_applications')) {
     function learner_ecosystem_applications(): array
     {
