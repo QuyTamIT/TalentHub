@@ -8,6 +8,8 @@ use PDO;
 use RuntimeException;
 use TalentHub\Database\ProtectedDatabasePolicy;
 
+require_once dirname(__DIR__, 4) . '/src/Database/ProtectedDatabasePolicy.php';
+
 final class LearnerCareerActivitySeeder
 {
     private const SCHEMA_PATTERN = '/^talenthub_ai_(?:backup_verify|career_group_verify)_[A-Za-z0-9_]+$/';

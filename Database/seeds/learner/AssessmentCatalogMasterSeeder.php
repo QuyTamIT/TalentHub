@@ -33,6 +33,7 @@ use RuntimeException;
 use TalentHub\Database\ProtectedDatabasePolicy;
 use TalentHub\Learner\Seeds\Assessment\AbstractCatalogSeeder;
 
+require_once dirname(__DIR__, 3) . '/src/Database/ProtectedDatabasePolicy.php';
 require_once __DIR__ . '/Assessment/AbstractCatalogSeeder.php';
 
 final class AssessmentCatalogMasterSeeder

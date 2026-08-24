@@ -11,6 +11,8 @@ use RuntimeException;
 use TalentHub\Database\ProtectedDatabasePolicy;
 use TalentHub\Learner\Data\Migrations\LearnerMigrationChecksum;
 
+require_once dirname(__DIR__, 4) . '/src/Database/ProtectedDatabasePolicy.php';
+
 final class LearnerAiSyntheticDatasetV2Seeder
 {
     public const DCR_RELATIVE_PATH = 'docs/superpowers/database-change-requests/2026-08-17-learner-ai-synthetic-dataset-v2.md';
