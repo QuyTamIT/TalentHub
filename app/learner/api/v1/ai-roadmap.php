@@ -19,7 +19,13 @@ try {
 
     if ($request->method === 'GET') {
         $studentId = $context->studentId('student_profile.read_own');
-        $roadmap = $context->roadmapService($studentId)->latest($studentId);
+        $versionRaw = $_GET['version'] ?? null;
+        if ($versionRaw !== null && (!is_string($versionRaw) || preg_match('/^[1-9][0-9]{0,5}$/', $versionRaw) !== 1)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Phiên bản lộ trình không hợp lệ.');
+        }
+        $roadmap = $versionRaw === null
+            ? $context->roadmapService($studentId)->latest($studentId)
+            : $context->roadmapService($studentId)->version($studentId, (int) $versionRaw);
         JsonResponder::sendSuccess($roadmap ?? ['state' => 'not_generated'], $context->requestId());
     }
 

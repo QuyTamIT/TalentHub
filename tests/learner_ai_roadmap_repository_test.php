@@ -64,7 +64,7 @@ function roadmap_repository_seed_run(PDO $pdo, string $studentId, string $snapsh
         $pdo->prepare('INSERT INTO learner_recommendation_snapshot_evidence (id,snapshotId,sourceType,sourceId,observedAt,safeValueJson) VALUES (?,?,?,?,?,?)')->execute([sprintf('evidence-row-%s-%02d', substr($runId, 0, 8), $index),$snapshotId,$reference['source_type'],$reference['source_id'],$reference['observed_at'],json_encode($reference['safe_value'])]);
     }
     if ($origin === 'model') {
-        $pdo->prepare("INSERT INTO learner_recommendation_runs (id,studentId,snapshotId,idempotencyKey,engineType,status,provider,modelVersion,promptVersion,startedAt,completedAt) VALUES (?,?,?,?,?,'completed',?,?,?,'2026-08-24','2026-08-24')")->execute([$runId,$studentId,$snapshotId,'idem-'.$runId,'model','9router_gemini','ag/gemini-3.7-flash-high','learner-roadmap-prompt-1.0.0']);
+        $pdo->prepare("INSERT INTO learner_recommendation_runs (id,studentId,snapshotId,idempotencyKey,engineType,status,provider,modelVersion,promptVersion,startedAt,completedAt) VALUES (?,?,?,?,?,'completed',?,?,?,'2026-08-24','2026-08-24')")->execute([$runId,$studentId,$snapshotId,'idem-'.$runId,'model','9router_gemini','ag/gemini-3.7-flash-high','learner-roadmap-prompt-1.1.0']);
     } else {
         $pdo->prepare("INSERT INTO learner_recommendation_runs (id,studentId,snapshotId,idempotencyKey,engineType,status,ruleVersion,fallbackReason,startedAt,completedAt) VALUES (?,?,?,?,?,'fallback',?,?,'2026-08-24','2026-08-24')")->execute([$runId,$studentId,$snapshotId,'idem-'.$runId,'rule',RuleRoadmapEngine::VERSION,'provider_unavailable']);
     }
@@ -81,7 +81,7 @@ roadmap_repository_seed_run($pdo, $studentA, $snapshotA, $runA, $fixtureA, 'mode
 $validator = new RoadmapAnalysisValidator(array_keys($fixtureA['map']), []);
 $analysisA = $validator->fromProviderPayload(learner_ai_roadmap_provider_fixture(), [
     'origin' => 'model', 'provider' => '9router_gemini', 'model_version' => 'ag/gemini-3.7-flash-high',
-    'prompt_version' => 'learner-roadmap-prompt-1.0.0', 'confidence_band' => 'high',
+    'prompt_version' => 'learner-roadmap-prompt-1.1.0', 'confidence_band' => 'high',
     'provider_request_id' => 'router_req_repo', 'response_hash' => str_repeat('a', 64),
 ]);
 $clockValues = ['2026-08-24T01:00:00.000000+00:00','2026-08-24T01:01:00.000000+00:00','2026-08-24T01:02:00.000000+00:00','2026-08-24T01:03:00.000000+00:00','2026-08-24T01:04:00.000000+00:00'];
@@ -129,7 +129,7 @@ $badFixture['recommended_activity_source_ids'] = [$badActivityId];
 $badValidator = new RoadmapAnalysisValidator(array_keys($fixtureA['map']), [$badActivityId]);
 $badAnalysis = $badValidator->fromProviderPayload($badFixture, [
     'origin' => 'model', 'provider' => '9router_gemini', 'model_version' => 'ag/gemini-3.7-flash-high',
-    'prompt_version' => 'learner-roadmap-prompt-1.0.0', 'confidence_band' => 'high',
+    'prompt_version' => 'learner-roadmap-prompt-1.1.0', 'confidence_band' => 'high',
     'provider_request_id' => 'router_req_bad', 'response_hash' => str_repeat('d', 64),
 ]);
 $snapshotC = '55555555-5555-4555-8555-555555555555';
@@ -151,7 +151,7 @@ roadmap_repository_assert(($repository->latestPendingForStudent($studentD)['stat
 $validatorD = new RoadmapAnalysisValidator(array_keys($fixtureD['map']), []);
 $analysisD = $validatorD->fromProviderPayload(learner_ai_roadmap_provider_fixture(), [
     'origin' => 'model', 'provider' => '9router_gemini', 'model_version' => 'ag/gemini-3.7-flash-high',
-    'prompt_version' => 'learner-roadmap-prompt-1.0.0', 'confidence_band' => 'high',
+    'prompt_version' => 'learner-roadmap-prompt-1.1.0', 'confidence_band' => 'high',
     'provider_request_id' => 'router_req_d', 'response_hash' => str_repeat('e', 64),
 ]);
 $completedRunD = $recommendations->completeRoadmapRun($studentD, $pendingD['runId'], $analysisD);

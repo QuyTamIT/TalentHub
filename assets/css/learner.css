@@ -5922,6 +5922,12 @@ body.learner-sidebar-open {
     gap: 14px;
 }
 
+.learner-page-ai .learner-roadmap-version { display: grid; gap: 3px; color: #64748B; font-size: 12px; }
+.learner-page-ai .learner-roadmap-version select { min-height: 44px; max-width: 230px; border: 1px solid #E2E8F0; border-radius: 8px; background: #FFFFFF; color: #0F172A; padding: 0 34px 0 12px; }
+.learner-page-ai .learner-roadmap-version__changes { margin: 0; border-left: 3px solid #2563EB; border-radius: 8px; background: #EFF6FF; color: #1E3A8A; padding: 10px 14px; font-size: 13px; }
+.learner-page-ai .learner-roadmap-activity__unavailable { color: #64748B; font-size: 12px; }
+.learner-page-ai .learner-roadmap-feedback [data-roadmap-feedback-status] { flex-basis: 100%; color: #64748B; }
+
 .learner-page-ai .learner-roadmap__freshness {
     display: inline-flex;
     align-items: center;

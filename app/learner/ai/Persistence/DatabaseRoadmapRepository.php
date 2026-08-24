@@ -11,6 +11,7 @@ use RuntimeException;
 use TalentHub\Learner\Ai\Domain\RoadmapAnalysis;
 use TalentHub\Learner\Ai\Domain\RoadmapPhase;
 use TalentHub\Learner\Ai\Domain\RoadmapTask;
+use TalentHub\Learner\Ai\Sources\Database\DatabaseOpportunitySource;
 
 final class DatabaseRoadmapRepository implements RoadmapRepository
 {
@@ -108,6 +109,59 @@ SQL);
         return $startedAt === false ? null : ['state' => 'pending', 'started_at' => (string) $startedAt];
     }
 
+    public function historyForStudent(string $studentId): array
+    {
+        $studentId = $this->required($studentId, 'Roadmap student id is required.');
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT roadmaps.id, roadmaps.versionNumber, roadmaps.status, roadmaps.generatedAt,
+       roadmaps.executiveSummary, roadmaps.primaryDirectionJson, roadmaps.alternativeDirectionsJson,
+       roadmaps.insightsJson, runs.engineType
+FROM learner_ai_roadmaps AS roadmaps
+INNER JOIN learner_recommendation_runs AS runs ON runs.id = roadmaps.runId
+WHERE roadmaps.studentId = :studentId
+ORDER BY roadmaps.versionNumber ASC
+SQL);
+        $statement->execute(['studentId' => $studentId]);
+        $history = [];
+        $previous = null;
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $comparable = [
+                'executive_summary' => (string) $row['executiveSummary'],
+                'primary_direction' => self::decode((string) $row['primaryDirectionJson']),
+                'alternative_directions' => self::decode((string) $row['alternativeDirectionsJson']),
+                'insights' => self::decode((string) $row['insightsJson']),
+                'analysis_origin' => $row['engineType'] === 'model' ? 'model' : 'rule_fallback',
+                'roadmap_plan' => $this->roadmapPlanFingerprint((string) $row['id']),
+            ];
+            $changed = [];
+            if ($previous !== null) {
+                foreach ($comparable as $section => $value) {
+                    if ($value !== $previous[$section]) $changed[] = $section;
+                }
+            }
+            $history[] = [
+                'roadmap_id' => (string) $row['id'],
+                'version' => (int) $row['versionNumber'],
+                'status' => (string) $row['status'],
+                'generated_at' => (string) $row['generatedAt'],
+                'analysis_origin' => $comparable['analysis_origin'],
+                'changed_sections' => $changed,
+            ];
+            $previous = $comparable;
+        }
+        return array_reverse($history);
+    }
+
+    public function versionForStudent(string $studentId, int $version): ?array
+    {
+        $studentId = $this->required($studentId, 'Roadmap student id is required.');
+        if ($version < 1) throw new \InvalidArgumentException('Roadmap version must be positive.');
+        $statement = $this->pdo->prepare('SELECT id FROM learner_ai_roadmaps WHERE studentId = :studentId AND versionNumber = :versionNumber LIMIT 1');
+        $statement->execute(['studentId' => $studentId, 'versionNumber' => $version]);
+        $id = $statement->fetchColumn();
+        return $id === false ? null : $this->hydrate($studentId, (string) $id);
+    }
+
     public function appendTaskEvent(string $studentId, string $taskId, string $status, string $requestId): array
     {
         $studentId = $this->required($studentId, 'Roadmap student id is required.');
@@ -134,6 +188,49 @@ SQL);
             unset($owned);
             return $this->eventResponse($event, false);
         });
+    }
+
+    public function appendRoadmapFeedback(string $studentId, string $roadmapId, string $verdict, string $reasonCode, string $requestId): array
+    {
+        $studentId = $this->required($studentId, 'Roadmap student id is required.');
+        $roadmapId = $this->required($roadmapId, 'Roadmap id is required.');
+        $requestId = $this->required($requestId, 'Roadmap feedback request id is required.');
+        $reasons = ['useful_direction','not_relevant','too_generic','too_difficult'];
+        if (!in_array($verdict, ['helpful','not_helpful'], true) || !in_array($reasonCode, $reasons, true)) {
+            throw new \InvalidArgumentException('Roadmap feedback is invalid.');
+        }
+        return $this->transaction(function () use ($studentId, $roadmapId, $verdict, $reasonCode, $requestId): array {
+            $owned = $this->pdo->prepare('SELECT runId FROM learner_ai_roadmaps WHERE id = :roadmapId AND studentId = :studentId');
+            $owned->execute(['roadmapId'=>$roadmapId,'studentId'=>$studentId]);
+            $runId = $owned->fetchColumn();
+            if ($runId === false) throw new RuntimeException('Roadmap not found for learner');
+            $existing = $this->pdo->prepare("SELECT id, createdAt FROM learner_recommendation_audit_events WHERE runId = :runId AND studentId = :studentId AND requestId = :requestId AND action = 'roadmap_feedback' LIMIT 1");
+            $existing->execute(['runId'=>$runId,'studentId'=>$studentId,'requestId'=>$requestId]);
+            $row = $existing->fetch(PDO::FETCH_ASSOC);
+            if ($row !== false) return ['state'=>'feedback_saved','feedback_id'=>$row['id'],'roadmap_id'=>$roadmapId,'reused'=>true,'created_at'=>$row['createdAt']];
+            $id = self::uuid(); $now = $this->now();
+            $insert = $this->pdo->prepare('INSERT INTO learner_recommendation_audit_events (id,runId,studentId,requestId,actorType,action,engineMetadataJson,status,createdAt) VALUES (:id,:runId,:studentId,:requestId,:actorType,:action,:metadata,:status,:createdAt)');
+            $insert->execute(['id'=>$id,'runId'=>$runId,'studentId'=>$studentId,'requestId'=>$requestId,'actorType'=>'learner','action'=>'roadmap_feedback','metadata'=>self::json(['verdict'=>$verdict,'reason_code'=>$reasonCode]),'status'=>'completed','createdAt'=>$now]);
+            return ['state'=>'feedback_saved','feedback_id'=>$id,'roadmap_id'=>$roadmapId,'verdict'=>$verdict,'reason_code'=>$reasonCode,'reused'=>false,'created_at'=>$now];
+        });
+    }
+
+    public function feedbackSignalsForStudent(string $studentId): array
+    {
+        $studentId = $this->required($studentId, 'Roadmap student id is required.');
+        $statement = $this->pdo->prepare("SELECT engineMetadataJson FROM learner_recommendation_audit_events WHERE studentId = :studentId AND action = 'roadmap_feedback' AND status = 'completed' ORDER BY createdAt DESC LIMIT 100");
+        $statement->execute(['studentId'=>$studentId]);
+        $counts = [];
+        foreach ($statement->fetchAll(PDO::FETCH_COLUMN) as $json) {
+            if (!is_string($json)) continue;
+            $metadata = self::decode($json);
+            $verdict = $metadata['verdict'] ?? null; $reason = $metadata['reason_code'] ?? null;
+            if (!in_array($verdict, ['helpful','not_helpful'], true) || !in_array($reason, ['useful_direction','not_relevant','too_generic','too_difficult'], true)) continue;
+            $key = $verdict . ':' . $reason;
+            $counts[$key] = ['verdict'=>$verdict,'reason_code'=>$reason,'count'=>(($counts[$key]['count'] ?? 0) + 1)];
+        }
+        ksort($counts, SORT_STRING);
+        return array_values($counts);
     }
 
     /** @param array<string,mixed> $providerAudit */
@@ -222,6 +319,14 @@ SQL);
         if ($row === false) throw new RuntimeException('Roadmap not found for learner');
         $phases = $this->pdo->prepare('SELECT * FROM learner_ai_roadmap_phases WHERE roadmapId = :roadmapId ORDER BY position ASC');
         $phases->execute(['roadmapId' => $roadmapId]);
+        $eligibleActivityIds = [];
+        try {
+            foreach ((new DatabaseOpportunitySource($this->pdo))->forStudent($studentId) as $opportunity) {
+                if (($opportunity['opportunity_type'] ?? null) === 'activity' && is_string($opportunity['opportunity_id'] ?? null)) {
+                    $eligibleActivityIds[(string) $opportunity['opportunity_id']] = true;
+                }
+            }
+        } catch (\Throwable) {}
         $phaseData = []; $total = 0; $completed = 0;
         foreach ($phases->fetchAll(PDO::FETCH_ASSOC) as $phase) {
             $tasks = $this->pdo->prepare('SELECT * FROM learner_ai_roadmap_tasks WHERE phaseId = :phaseId ORDER BY position ASC');
@@ -231,7 +336,15 @@ SQL);
                 $status = $this->latestTaskStatus((string) $task['id']);
                 $total++; if ($status === 'completed') { $completed++; $phaseCompleted++; }
                 $action = ['type' => $task['actionType']];
-                if ($task['actionType'] === 'register_activity') $action['activity_source_id'] = $task['targetId'];
+                if ($task['actionType'] === 'register_activity') {
+                    $action['activity_source_id'] = $task['targetId'];
+                    if (isset($eligibleActivityIds[(string) $task['targetId']])) {
+                        $action['registration_path'] = '/app/learner/activity-detail.php?id=' . rawurlencode((string) $task['targetId']);
+                        $action['availability'] = 'available';
+                    } else {
+                        $action['availability'] = 'unavailable';
+                    }
+                }
                 $taskData[] = ['task_id'=>$task['id'],'position'=>(int)$task['position'],'title'=>$task['title'],'description'=>$task['description'],'estimated_minutes'=>(int)$task['estimatedMinutes'],'action'=>$action,'evidence_ref_ids'=>self::decode((string)$task['evidenceJson']),'status'=>$status];
             }
             $phaseData[] = ['phase_id'=>$phase['id'],'position'=>(int)$phase['position'],'start_day'=>(int)$phase['startDay'],'end_day'=>(int)$phase['endDay'],'code'=>$phase['code'],'title'=>$phase['title'],'goal'=>$phase['goal'],'skill_focus'=>$phase['skillFocus'],'deliverable'=>$phase['deliverable'],'effort_label'=>$phase['effortLabel'],'metric_label'=>$phase['metricLabel'],'evidence_ref_ids'=>self::decode((string)$phase['evidenceJson']),'tasks'=>$taskData,'progress'=>['completed_tasks'=>$phaseCompleted,'total_tasks'=>count($taskData)]];
@@ -264,6 +377,23 @@ SQL);
         $statement = $this->pdo->prepare('SELECT COALESCE(MAX(versionNumber),0) + 1 FROM learner_ai_roadmaps WHERE studentId = :studentId');
         $statement->execute(['studentId'=>$studentId]);
         return (int) $statement->fetchColumn();
+    }
+
+    /** @return list<array<string,mixed>> */
+    private function roadmapPlanFingerprint(string $roadmapId): array
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT phases.position AS phasePosition, phases.startDay, phases.endDay, phases.code, phases.title,
+       phases.goal, phases.skillFocus, phases.deliverable, phases.effortLabel, phases.metricLabel,
+       tasks.position AS taskPosition, tasks.title AS taskTitle, tasks.description AS taskDescription,
+       tasks.estimatedMinutes, tasks.actionType, tasks.targetType, tasks.targetId
+FROM learner_ai_roadmap_phases AS phases
+LEFT JOIN learner_ai_roadmap_tasks AS tasks ON tasks.phaseId = phases.id
+WHERE phases.roadmapId = :roadmapId
+ORDER BY phases.position ASC, tasks.position ASC
+SQL);
+        $statement->execute(['roadmapId'=>$roadmapId]);
+        return array_values($statement->fetchAll(PDO::FETCH_ASSOC));
     }
 
     /** @return array<string,int> */

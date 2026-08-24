@@ -49,8 +49,20 @@ final class RoadmapService
         try {
             if (!(($this->authorizer)($studentId))) return null;
             $roadmap = $this->roadmaps->latestForStudent($studentId);
-            if ($roadmap !== null) return $this->ready($roadmap);
+            if ($roadmap !== null) return $this->readyWithHistory($studentId, $roadmap);
             return $this->roadmaps->latestPendingForStudent($studentId);
+        } catch (\Throwable) {
+            return ['state' => 'source_unavailable'];
+        }
+    }
+
+    /** @return array<string,mixed>|null */
+    public function version(string $studentId, int $version): ?array
+    {
+        try {
+            if (!(($this->authorizer)($studentId))) return null;
+            $roadmap = $this->roadmaps->versionForStudent($studentId, $version);
+            return $roadmap === null ? null : $this->readyWithHistory($studentId, $roadmap);
         } catch (\Throwable) {
             return ['state' => 'source_unavailable'];
         }
@@ -70,6 +82,7 @@ final class RoadmapService
             $scopes = $this->scopes($decision);
             $input = ($this->snapshotBuilder)($studentId, $scopes);
             if (!$input instanceof RecommendationInput) throw new \RuntimeException('Roadmap snapshot is unavailable.');
+            $input = $this->withPreferenceSignals($input, $this->roadmaps->feedbackSignalsForStudent($studentId));
             $quality = ($this->qualityGate)($input);
             if (!$quality instanceof DataQualityResult) throw new \RuntimeException('Roadmap quality state is unavailable.');
         } catch (\Throwable) {
@@ -83,7 +96,7 @@ final class RoadmapService
             $active = null;
         }
         if ($active !== null && is_string($active['input_hash'] ?? null) && hash_equals($active['input_hash'], $input->contentHash())) {
-            $response = $this->ready($active); $response['reused'] = true; return $response;
+            $response = $this->readyWithHistory($studentId, $active); $response['reused'] = true; return $response;
         }
 
         $context = new RecommendationContext(
@@ -95,7 +108,7 @@ final class RoadmapService
             $pending = ($this->pendingRunCreator)($studentId, $input, $context);
             if (!is_array($pending)) throw new \RuntimeException('Roadmap pending run is unavailable.');
         } catch (\Throwable) {
-            return $active === null ? ['state'=>'source_unavailable'] : $this->retained($active, 'persistence_unavailable');
+            return $active === null ? ['state'=>'source_unavailable'] : $this->retained($studentId, $active, 'persistence_unavailable');
         }
         if (($pending['reused'] ?? false) === true) {
             return ['state'=>'pending','run_id'=>$pending['runId']??null,'snapshot_id'=>$pending['snapshotId']??null,'reused'=>true];
@@ -105,7 +118,7 @@ final class RoadmapService
             $analysis = $this->engine->generate($input, $context);
             ($this->runCompleter)($studentId, (string) ($pending['runId'] ?? ''), $analysis);
             if ($analysis->origin() === 'rule_fallback' && $active !== null) {
-                return $this->retained($active, $analysis->fallbackReason() ?? 'provider_unavailable');
+                return $this->retained($studentId, $active, $analysis->fallbackReason() ?? 'provider_unavailable');
             }
             $saved = $this->roadmaps->saveCompleted(
                 $studentId,
@@ -113,10 +126,10 @@ final class RoadmapService
                 $analysis,
                 $this->providerAudit($input, $analysis),
             );
-            return $this->ready($saved);
+            return $this->readyWithHistory($studentId, $saved);
         } catch (\Throwable) {
             try { ($this->runFailer)($studentId, (string) ($pending['runId'] ?? ''), 'roadmap_engine_failure'); } catch (\Throwable) {}
-            return $active === null ? ['state'=>'engine_failure'] : $this->retained($active, 'engine_failure');
+            return $active === null ? ['state'=>'engine_failure'] : $this->retained($studentId, $active, 'engine_failure');
         }
     }
 
@@ -136,6 +149,19 @@ final class RoadmapService
             ];
         } catch (\InvalidArgumentException|\RuntimeException) {
             return ['state'=>'invalid_task_transition'];
+        } catch (\Throwable) {
+            return ['state'=>'source_unavailable'];
+        }
+    }
+
+    /** @return array<string,mixed> */
+    public function feedback(string $studentId, string $roadmapId, string $verdict, string $reasonCode, string $requestId): array
+    {
+        try {
+            if (!(($this->authorizer)($studentId))) return ['state'=>'forbidden'];
+            return $this->roadmaps->appendRoadmapFeedback($studentId, $roadmapId, $verdict, $reasonCode, $requestId);
+        } catch (\InvalidArgumentException|\RuntimeException) {
+            return ['state'=>'invalid_feedback'];
         } catch (\Throwable) {
             return ['state'=>'source_unavailable'];
         }
@@ -186,10 +212,34 @@ final class RoadmapService
         return $response;
     }
 
-    /** @param array<string,mixed> $active @return array<string,mixed> */
-    private function retained(array $active, string $reason): array
+    /** @param array<string,mixed> $roadmap @return array<string,mixed> */
+    private function readyWithHistory(string $studentId, array $roadmap): array
     {
-        $response = $this->ready($active);
+        $response = $this->ready($roadmap);
+        $history = $this->roadmaps->historyForStudent($studentId);
+        $response['version_history'] = $history;
+        foreach ($history as $entry) {
+            if (($entry['roadmap_id'] ?? null) === ($roadmap['roadmap_id'] ?? null)) {
+                $response['changed_sections_from_previous'] = $entry['changed_sections'] ?? [];
+                break;
+            }
+        }
+        return $response;
+    }
+
+    /** @param list<array{verdict:string,reason_code:string,count:int}> $signals */
+    private function withPreferenceSignals(RecommendationInput $input, array $signals): RecommendationInput
+    {
+        if ($signals === []) return $input;
+        $payload = $input->payload();
+        $payload['preference_signals'] = array_slice($signals, 0, 8);
+        return new RecommendationInput($payload, $input->sourceUpdatedAt(), $input->qualityFlags(), $input->evidenceReferences());
+    }
+
+    /** @param array<string,mixed> $active @return array<string,mixed> */
+    private function retained(string $studentId, array $active, string $reason): array
+    {
+        $response = $this->readyWithHistory($studentId, $active);
         $response['refresh_state'] = 'fallback_not_applied';
         $response['fallback_reason'] = $reason;
         return $response;

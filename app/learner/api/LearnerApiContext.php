@@ -346,6 +346,12 @@ final class LearnerApiContext
         return (new DatabaseRecommendationRepository($this->pdo))->appendFeedback($studentId, $itemId, $verdict, $reasonCode, $safeComment);
     }
 
+    /** @return array<string,mixed> */
+    public function appendRoadmapFeedback(string $studentId, string $roadmapId, string $verdict, string $reasonCode, string $requestId): array
+    {
+        return $this->roadmapService($studentId)->feedback($studentId, $roadmapId, $verdict, $reasonCode, $requestId);
+    }
+
     /** @return list<string> */
     public function consentScopes(string $studentId): array
     {

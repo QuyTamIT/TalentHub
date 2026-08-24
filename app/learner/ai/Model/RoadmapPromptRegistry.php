@@ -12,7 +12,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
 
 final class RoadmapPromptRegistry
 {
-    public const VERSION = 'learner-roadmap-prompt-1.0.0';
+    public const VERSION = 'learner-roadmap-prompt-1.1.0';
 
     private const SAFE_FIELDS = [
         'assessment' => ['test_type', 'result_code', 'dimension_scores', 'submitted_at'],
@@ -68,6 +68,7 @@ final class RoadmapPromptRegistry
                 'Không chẩn đoán, không khẳng định chắc chắn nghề nghiệp, tuyển sinh hoặc việc làm.',
                 'Chỉ dùng activity_source_id có trong allowed_activity_ids; nếu danh sách rỗng thì chỉ tạo self_task.',
                 'Không đưa tên, thông tin liên hệ, mã học viên, mã nguồn dữ liệu hoặc nội dung ngoài JSON vào kết quả.',
+                'Xem preference_signals là phản hồi tổng hợp để điều chỉnh mức độ cụ thể và độ khó; không suy diễn thêm dữ liệu cá nhân.',
             ],
             'allowed_scopes' => $this->allowedScopes($input, $context),
             'allowed_activity_ids' => $allowedActivityIds,
@@ -90,7 +91,24 @@ final class RoadmapPromptRegistry
             'activities' => $this->safeRecords($payload['activities'] ?? [], self::SAFE_FIELDS['activity_experience']),
             'evaluations' => $this->safeRecords($payload['evaluations'] ?? [], self::SAFE_FIELDS['evaluation']),
             'opportunities' => $this->safeRecords($payload['opportunities'] ?? [], self::SAFE_FIELDS['opportunity']),
+            'preference_signals' => $this->safePreferenceSignals($payload['preference_signals'] ?? []),
         ];
+    }
+
+    /** @return list<array{verdict:string,reason_code:string,count:int}> */
+    private function safePreferenceSignals(mixed $signals): array
+    {
+        if (!is_array($signals)) return [];
+        $safe = [];
+        foreach (array_slice($signals, 0, 8) as $signal) {
+            if (!is_array($signal)) continue;
+            $verdict = $signal['verdict'] ?? null; $reason = $signal['reason_code'] ?? null; $count = $signal['count'] ?? null;
+            if (!in_array($verdict, ['helpful','not_helpful'], true)
+                || !in_array($reason, ['useful_direction','not_relevant','too_generic','too_difficult'], true)
+                || !is_int($count) || $count < 1 || $count > 100) continue;
+            $safe[] = ['verdict'=>$verdict,'reason_code'=>$reason,'count'=>$count];
+        }
+        return $safe;
     }
 
     /** @param mixed $records @param list<string> $allowedFields @return list<array<string,mixed>> */

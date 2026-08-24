@@ -44,23 +44,27 @@ function roadmap_service_model(RecommendationInput $input): RoadmapAnalysis
     return (new RoadmapAnalysisValidator($ids, []))->fromProviderPayload(learner_ai_roadmap_provider_fixture(), ['origin'=>'model','provider'=>'9router_gemini','model_version'=>'model-test','prompt_version'=>'learner-roadmap-prompt-1.0.0','confidence_band'=>'high','provider_request_id'=>'router_service','response_hash'=>str_repeat('a',64)]);
 }
 
-function roadmap_service_repository(?array $latest = null, ?array $pending = null): RoadmapRepository
+function roadmap_service_repository(?array $latest = null, ?array $pending = null, array $signals = []): RoadmapRepository
 {
-    return new class($latest, $pending) implements RoadmapRepository {
+    return new class($latest, $pending, $signals) implements RoadmapRepository {
         public int $saveCalls=0; public array $events=[];
-        public function __construct(public ?array $latest, public ?array $pending) {}
+        public function __construct(public ?array $latest, public ?array $pending, public array $signals) {}
         public function saveCompleted(string $studentId,string $runId,RoadmapAnalysis $analysis,array $providerAudit): array {
             $this->saveCalls++; $this->latest=['roadmap_id'=>'roadmap-'.$this->saveCalls,'run_id'=>$runId,'version'=>$this->saveCalls,'status'=>'active','analysis_origin'=>$analysis->origin(),'executive_summary'=>$analysis->executiveSummary(),'confidence_band'=>$analysis->confidenceBand(),'primary_direction'=>$analysis->primaryDirection()->toArray(),'alternative_directions'=>array_map(fn($x)=>$x->toArray(),$analysis->alternativeDirections()),'insights'=>array_map(fn($x)=>$x->toArray(),$analysis->insights()),'evidence_summary'=>['assessment_count'=>4],'generated_at'=>'2026-08-24','engine'=>$analysis->engineMetadata(),'phases'=>array_map(fn($x)=>$x->toArray(),$analysis->phases()),'progress'=>['completed_tasks'=>0,'total_tasks'=>9],'input_hash'=>$providerAudit['input_hash']??null]; return $this->latest;
         }
         public function latestForStudent(string $studentId): ?array { return $this->latest; }
         public function latestPendingForStudent(string $studentId): ?array { return $this->pending; }
+        public function historyForStudent(string $studentId): array { return $this->latest === null ? [] : [['roadmap_id'=>$this->latest['roadmap_id'],'version'=>$this->latest['version']??1,'changed_sections'=>[]]]; }
+        public function versionForStudent(string $studentId,int $version): ?array { return (($this->latest['version']??null)===$version) ? $this->latest : null; }
         public function appendTaskEvent(string $studentId,string $taskId,string $status,string $requestId): array { $event=['event_id'=>'event-1','task_id'=>$taskId,'student_id'=>$studentId,'status'=>$status,'request_id'=>$requestId,'reused'=>false]; $this->events[]=$event; return $event; }
+        public function appendRoadmapFeedback(string $studentId,string $roadmapId,string $verdict,string $reasonCode,string $requestId): array { return ['state'=>'feedback_saved','roadmap_id'=>$roadmapId]; }
+        public function feedbackSignalsForStudent(string $studentId): array { return $this->signals; }
     };
 }
 
 function roadmap_service_engine(RoadmapAnalysis $analysis): RoadmapEngine
 {
-    return new class($analysis) implements RoadmapEngine { public int $calls=0; public function __construct(private RoadmapAnalysis $analysis){} public function generate(RecommendationInput $input,RecommendationContext $context):RoadmapAnalysis{$this->calls++;return $this->analysis;} };
+    return new class($analysis) implements RoadmapEngine { public int $calls=0; public ?RecommendationInput $lastInput=null; public function __construct(private RoadmapAnalysis $analysis){} public function generate(RecommendationInput $input,RecommendationContext $context):RoadmapAnalysis{$this->calls++;$this->lastInput=$input;return $this->analysis;} };
 }
 
 function roadmap_service_build(RoadmapRepository $repository,RoadmapEngine $engine,RecommendationInput $input,ConsentDecision $consent,bool $authorized=true,bool $pendingReused=false): RoadmapService
@@ -96,6 +100,11 @@ roadmap_service_assert($ready['state']==='ready_model' && $engine->calls===1 && 
 foreach (['input_hash','provider_request_id','response_hash','raw_snapshot','api_url','run_id'] as $privateField) {
     roadmap_service_assert(!array_key_exists($privateField, $ready), "public roadmap response strips {$privateField}");
 }
+
+$preferenceRepository=roadmap_service_repository(null,null,[['verdict'=>'not_helpful','reason_code'=>'too_generic','count'=>2]]);
+$preferenceEngine=roadmap_service_engine($modelA);
+roadmap_service_build($preferenceRepository,$preferenceEngine,$inputA,roadmap_service_consent())->generate('student-a','request-pref','idempotency-pref');
+roadmap_service_assert(($preferenceEngine->lastInput?->payload()['preference_signals'] ?? null) == [['verdict'=>'not_helpful','reason_code'=>'too_generic','count'=>2]], 'aggregate allowlisted feedback is part of the next immutable roadmap snapshot');
 
 $sameRepository=roadmap_service_repository(array_merge($repository->latest,['input_hash'=>$inputA->contentHash()])); $sameEngine=roadmap_service_engine($modelA);
 $same=roadmap_service_build($sameRepository,$sameEngine,$inputA,roadmap_service_consent())->generate('student-a','request-b','different-idempotency');

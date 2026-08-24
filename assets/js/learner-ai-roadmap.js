@@ -68,9 +68,11 @@
         if (!api || typeof api.get !== 'function' || typeof api.send !== 'function') throw new TypeError('A roadmap API client is required.');
         if (!view || typeof view.render !== 'function') throw new TypeError('A roadmap view is required.');
         let generation = null;
+        let currentRoadmapId = '';
 
         function render(payload) {
             const state = presentationState(payload);
+            if (READY_STATES.has(state)) currentRoadmapId = text(payload?.roadmap_id);
             view.render(state, READY_STATES.has(state) ? buildRoadmapViewModel(payload) : payload);
             return payload;
         }
@@ -79,6 +81,49 @@
             view.render('loading', {});
             try { return render(await api.get('/ai-roadmap.php')); }
             catch (error) { return render({ state: 'source_unavailable', message: error?.message }); }
+        }
+
+        async function loadVersion(version) {
+            const safeVersion = Number.parseInt(version, 10);
+            if (!Number.isInteger(safeVersion) || safeVersion < 1) throw new TypeError('Roadmap version is invalid.');
+            view.render('loading', {});
+            try { return render(await api.get(`/ai-roadmap.php?version=${safeVersion}`)); }
+            catch (error) { return render({ state: 'source_unavailable', message: error?.message }); }
+        }
+
+        async function updateTask(taskId, currentStatus = 'not_started') {
+            const id = text(taskId);
+            if (!id) throw new TypeError('Roadmap task id is required.');
+            const previous = text(currentStatus, 'not_started');
+            view.updateTask?.(id, 'completed');
+            try {
+                const response = await api.send('POST', '/ai-roadmap-task.php', { taskId: id, status: 'completed' }, { idempotencyKey: createIdempotencyKey() });
+                view.feedback?.('task-saved');
+                return response;
+            } catch (error) {
+                view.updateTask?.(id, previous);
+                view.feedback?.('task-error');
+                throw error;
+            }
+        }
+
+        async function submitFeedback(roadmapId, verdict) {
+            const id = text(roadmapId || currentRoadmapId);
+            const safeVerdict = verdict === 'helpful' ? 'helpful' : verdict === 'not_helpful' ? 'not_helpful' : '';
+            if (!id || !safeVerdict) throw new TypeError('Roadmap feedback is invalid.');
+            view.feedback?.('feedback-saving');
+            try {
+                const response = await api.send('POST', '/recommendation-feedback.php', {
+                    roadmapId: id,
+                    verdict: safeVerdict,
+                    reasonCode: safeVerdict === 'helpful' ? 'useful_direction' : 'not_relevant',
+                }, { idempotencyKey: createIdempotencyKey() });
+                view.feedback?.('feedback-saved');
+                return response;
+            } catch (error) {
+                view.feedback?.('feedback-error');
+                throw error;
+            }
         }
 
         function generate(action = 'generate') {
@@ -93,7 +138,7 @@
             return generation;
         }
 
-        return { load, generate, retry: load };
+        return { load, loadVersion, generate, retry: load, updateTask, submitFeedback };
     }
 
     function createDomView(root) {
@@ -123,6 +168,9 @@
             activities: root.querySelector('[data-roadmap-activities]'),
             evidence: root.querySelector('[data-roadmap-evidence-content]'),
             engine: root.querySelector('[data-roadmap-engine-content]'),
+            version: root.querySelector('[data-roadmap-version-select]'),
+            changed: root.querySelector('[data-roadmap-version-changes]'),
+            feedbackStatus: root.querySelector('[data-roadmap-feedback-status]'),
         };
 
         function hide(node, value) { if (node) node.hidden = value; }
@@ -171,6 +219,7 @@
             renderActivities(model.activities);
             renderEvidence(model.evidence_summary);
             renderEngine(model.engine, state);
+            renderHistory(model.version_history, model.version, model.changed_sections_from_previous);
             const complete = integer(model?.progress?.completed_tasks);
             const total = integer(model?.progress?.total_tasks);
             set(nodes.overallProgress, `${complete}/${total} nhiệm vụ hoàn thành`);
@@ -271,8 +320,30 @@
             for (const task of tasks.slice(0, 3)) {
                 const article = element('article', 'learner-roadmap-activity');
                 article.append(element('span', 'learner-roadmap-activity__badge', 'Hoạt động'), element('strong', '', text(task.title, 'Hoạt động phù hợp')), element('p', '', text(task.description, 'Hoạt động giúp thực hành kỹ năng trong lộ trình.')));
+                const registrationPath = text(task?.action?.registration_path);
+                if (/^\/app\/learner\/activity-detail\.php\?id=[0-9a-f-]{36}$/i.test(registrationPath)) {
+                    const link = element('a', 'learner-btn learner-btn--outline', 'Xem và đăng ký');
+                    link.href = registrationPath;
+                    article.appendChild(link);
+                } else {
+                    article.appendChild(element('span', 'learner-roadmap-activity__unavailable', 'Hoạt động hiện không còn nhận đăng ký'));
+                }
                 nodes.activities?.appendChild(article);
             }
+        }
+
+        function renderHistory(history, selectedVersion, changedSections) {
+            clear(nodes.version);
+            const versions = Array.isArray(history) ? history : [];
+            for (const entry of versions) {
+                const option = element('option', '', `Phiên bản ${integer(entry?.version)} · ${displayDate(entry?.generated_at)}`);
+                option.value = String(integer(entry?.version));
+                option.selected = integer(entry?.version) === integer(selectedVersion);
+                nodes.version?.appendChild(option);
+            }
+            const labels = { executive_summary: 'tóm tắt', primary_direction: 'hướng ưu tiên', alternative_directions: 'hướng bổ sung', insights: 'nhận định', analysis_origin: 'nguồn phân tích', roadmap_plan: 'kế hoạch 90 ngày' };
+            const changes = (Array.isArray(changedSections) ? changedSections : []).map((key) => labels[key]).filter(Boolean);
+            set(nodes.changed, changes.length > 0 ? `Dữ liệu mới đã làm thay đổi: ${changes.join(', ')}.` : 'Đây là phiên bản đầu tiên hoặc không có thay đổi nội dung chính.');
         }
 
         function renderEvidence(summary) {
@@ -297,7 +368,32 @@
             }
         }
 
-        return { render };
+        function updateTask(taskId, status) {
+            const controls = Array.from(root.querySelectorAll?.('[data-roadmap-task-id]') || []);
+            const control = controls.find((item) => item.dataset.roadmapTaskId === taskId);
+            if (!control) return;
+            control.dataset.roadmapTaskStatus = status;
+            control.textContent = status === 'completed' ? '✓' : '';
+            control.closest?.('.learner-roadmap-task')?.classList?.toggle('is-completed', status === 'completed');
+            const all = Array.from(root.querySelectorAll?.('[data-roadmap-task-id]') || []);
+            const completed = all.filter((item) => item.dataset.roadmapTaskStatus === 'completed').length;
+            set(nodes.overallProgress, `${completed}/${all.length} nhiệm vụ hoàn thành`);
+            for (const phase of Array.from(root.querySelectorAll?.('.learner-roadmap-phase') || [])) {
+                const phaseTasks = Array.from(phase.querySelectorAll?.('[data-roadmap-task-id]') || []);
+                const phaseCompleted = phaseTasks.filter((item) => item.dataset.roadmapTaskStatus === 'completed').length;
+                set(phase.querySelector?.('.learner-roadmap-phase__progress'), `${phaseCompleted}/${phaseTasks.length}`);
+            }
+        }
+
+        function feedback(state) {
+            set(nodes.feedbackStatus, {
+                'task-saved': 'Đã lưu tiến độ.', 'task-error': 'Chưa thể lưu tiến độ; thay đổi đã được hoàn tác.',
+                'feedback-saving': 'Đang lưu phản hồi...', 'feedback-saved': 'Cảm ơn bạn. Phản hồi sẽ giúp lần phân tích sau phù hợp hơn.',
+                'feedback-error': 'Chưa thể lưu phản hồi. Vui lòng thử lại.',
+            }[state] || '');
+        }
+
+        return { render, updateTask, feedback };
     }
 
     function displayDate(value) {
@@ -321,7 +417,10 @@
             if (target.matches('[data-roadmap-generate]')) controller.generate(target.dataset.roadmapGenerate);
             else if (target.matches('[data-roadmap-retry]')) controller.retry();
             else if (target.matches('[data-roadmap-continue]')) root.querySelector('.learner-roadmap-task:not(.is-completed) .learner-roadmap-task__control')?.focus();
+            else if (target.matches('[data-roadmap-task-id]') && target.dataset.roadmapTaskStatus !== 'completed') controller.updateTask(target.dataset.roadmapTaskId, target.dataset.roadmapTaskStatus).catch(() => {});
+            else if (target.matches('[data-roadmap-feedback-value]')) controller.submitFeedback('', target.dataset.roadmapFeedbackValue).catch(() => {});
         });
+        root.querySelector('[data-roadmap-version-select]')?.addEventListener('change', (event) => controller.loadVersion(event.target.value));
         controller.load();
     }
 
