@@ -49,9 +49,10 @@ final class RoadmapService
         try {
             if (!(($this->authorizer)($studentId))) return null;
             $roadmap = $this->roadmaps->latestForStudent($studentId);
-            return $roadmap === null ? null : $this->ready($roadmap);
+            if ($roadmap !== null) return $this->ready($roadmap);
+            return $this->roadmaps->latestPendingForStudent($studentId);
         } catch (\Throwable) {
-            return null;
+            return ['state' => 'source_unavailable'];
         }
     }
 
@@ -86,7 +87,7 @@ final class RoadmapService
         }
 
         $context = new RecommendationContext(
-            $scopes, $requestId, $idempotencyKey, $studentId,
+            $scopes, $requestId, 'roadmap-' . hash('sha256', $idempotencyKey), $studentId,
             $decision instanceof ConsentDecision ? $decision->decisionHash() : null,
             $decision instanceof ConsentDecision ? $decision->policyVersion() : null,
         );
@@ -124,7 +125,15 @@ final class RoadmapService
     {
         try {
             if (!(($this->authorizer)($studentId))) return ['state'=>'forbidden'];
-            return ['state'=>'task_updated'] + $this->roadmaps->appendTaskEvent($studentId, $taskId, $status, $requestId);
+            $event = $this->roadmaps->appendTaskEvent($studentId, $taskId, $status, $requestId);
+            return [
+                'state' => 'task_updated',
+                'event_id' => $event['event_id'] ?? null,
+                'task_id' => $event['task_id'] ?? null,
+                'status' => $event['status'] ?? null,
+                'occurred_at' => $event['occurred_at'] ?? null,
+                'reused' => ($event['reused'] ?? false) === true,
+            ];
         } catch (\InvalidArgumentException|\RuntimeException) {
             return ['state'=>'invalid_task_transition'];
         } catch (\Throwable) {
@@ -151,8 +160,30 @@ final class RoadmapService
     /** @param array<string,mixed> $roadmap @return array<string,mixed> */
     private function ready(array $roadmap): array
     {
-        $roadmap['state'] = ($roadmap['analysis_origin'] ?? null) === 'model' ? 'ready_model' : 'fallback_rule';
-        return $roadmap;
+        $engine = is_array($roadmap['engine'] ?? null) ? $roadmap['engine'] : [];
+        $publicEngine = ($roadmap['analysis_origin'] ?? null) === 'model'
+            ? array_filter([
+                'provider' => $engine['provider'] ?? null,
+                'model_version' => $engine['model_version'] ?? null,
+                'prompt_version' => $engine['prompt_version'] ?? null,
+            ], static fn (mixed $value): bool => is_string($value) && $value !== '')
+            : array_filter([
+                'rule_version' => $engine['rule_version'] ?? null,
+                'fallback_reason' => $engine['fallback_reason'] ?? null,
+            ], static fn (mixed $value): bool => is_string($value) && $value !== '');
+
+        $response = [];
+        foreach ([
+            'roadmap_id', 'version', 'contract_version', 'status', 'analysis_origin',
+            'executive_summary', 'confidence_band', 'primary_direction',
+            'alternative_directions', 'insights', 'evidence_summary',
+            'generated_at', 'phases', 'progress', 'reused',
+        ] as $field) {
+            if (array_key_exists($field, $roadmap)) $response[$field] = $roadmap[$field];
+        }
+        $response['engine'] = $publicEngine;
+        $response['state'] = ($roadmap['analysis_origin'] ?? null) === 'model' ? 'ready_model' : 'fallback_rule';
+        return $response;
     }
 
     /** @param array<string,mixed> $active @return array<string,mixed> */

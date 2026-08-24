@@ -12,6 +12,8 @@ interface RoadmapRepository
     public function saveCompleted(string $studentId, string $runId, RoadmapAnalysis $analysis, array $providerAudit): array;
     /** @return array<string,mixed>|null */
     public function latestForStudent(string $studentId): ?array;
+    /** @return array{state:string,started_at:string}|null */
+    public function latestPendingForStudent(string $studentId): ?array;
     /** @return array<string,mixed> */
     public function appendTaskEvent(string $studentId, string $taskId, string $status, string $requestId): array;
 }

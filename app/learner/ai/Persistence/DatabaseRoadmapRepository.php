@@ -88,6 +88,26 @@ final class DatabaseRoadmapRepository implements RoadmapRepository
         return $id === false ? null : $this->hydrate($studentId, (string) $id);
     }
 
+    public function latestPendingForStudent(string $studentId): ?array
+    {
+        $studentId = $this->required($studentId, 'Roadmap student id is required.');
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT runs.startedAt
+FROM learner_recommendation_runs AS runs
+INNER JOIN learner_recommendation_audit_events AS events
+  ON events.runId = runs.id
+ AND events.studentId = runs.studentId
+ AND events.action = 'roadmap_run_created'
+WHERE runs.studentId = :studentId
+  AND runs.status = 'pending'
+ORDER BY runs.startedAt DESC, runs.createdAt DESC
+LIMIT 1
+SQL);
+        $statement->execute(['studentId' => $studentId]);
+        $startedAt = $statement->fetchColumn();
+        return $startedAt === false ? null : ['state' => 'pending', 'started_at' => (string) $startedAt];
+    }
+
     public function appendTaskEvent(string $studentId, string $taskId, string $status, string $requestId): array
     {
         $studentId = $this->required($studentId, 'Roadmap student id is required.');

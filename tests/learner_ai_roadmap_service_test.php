@@ -44,15 +44,16 @@ function roadmap_service_model(RecommendationInput $input): RoadmapAnalysis
     return (new RoadmapAnalysisValidator($ids, []))->fromProviderPayload(learner_ai_roadmap_provider_fixture(), ['origin'=>'model','provider'=>'9router_gemini','model_version'=>'model-test','prompt_version'=>'learner-roadmap-prompt-1.0.0','confidence_band'=>'high','provider_request_id'=>'router_service','response_hash'=>str_repeat('a',64)]);
 }
 
-function roadmap_service_repository(?array $latest = null): RoadmapRepository
+function roadmap_service_repository(?array $latest = null, ?array $pending = null): RoadmapRepository
 {
-    return new class($latest) implements RoadmapRepository {
+    return new class($latest, $pending) implements RoadmapRepository {
         public int $saveCalls=0; public array $events=[];
-        public function __construct(public ?array $latest) {}
+        public function __construct(public ?array $latest, public ?array $pending) {}
         public function saveCompleted(string $studentId,string $runId,RoadmapAnalysis $analysis,array $providerAudit): array {
             $this->saveCalls++; $this->latest=['roadmap_id'=>'roadmap-'.$this->saveCalls,'run_id'=>$runId,'version'=>$this->saveCalls,'status'=>'active','analysis_origin'=>$analysis->origin(),'executive_summary'=>$analysis->executiveSummary(),'confidence_band'=>$analysis->confidenceBand(),'primary_direction'=>$analysis->primaryDirection()->toArray(),'alternative_directions'=>array_map(fn($x)=>$x->toArray(),$analysis->alternativeDirections()),'insights'=>array_map(fn($x)=>$x->toArray(),$analysis->insights()),'evidence_summary'=>['assessment_count'=>4],'generated_at'=>'2026-08-24','engine'=>$analysis->engineMetadata(),'phases'=>array_map(fn($x)=>$x->toArray(),$analysis->phases()),'progress'=>['completed_tasks'=>0,'total_tasks'=>9],'input_hash'=>$providerAudit['input_hash']??null]; return $this->latest;
         }
         public function latestForStudent(string $studentId): ?array { return $this->latest; }
+        public function latestPendingForStudent(string $studentId): ?array { return $this->pending; }
         public function appendTaskEvent(string $studentId,string $taskId,string $status,string $requestId): array { $event=['event_id'=>'event-1','task_id'=>$taskId,'student_id'=>$studentId,'status'=>$status,'request_id'=>$requestId,'reused'=>false]; $this->events[]=$event; return $event; }
     };
 }
@@ -80,6 +81,8 @@ roadmap_service_assert(class_exists(RoadmapService::class), 'roadmap service is 
 $roadmapConfig=RecommendationConfig::fromEnvironment(['APP_ENV'=>'test','TALENTHUB_AI_ENABLED'=>'true','TALENTHUB_AI_PROVIDER'=>'9router','TALENTHUB_AI_MODEL'=>'model-test','TALENTHUB_AI_API_URL'=>'http://127.0.0.1:20128/v1/chat/completions','TALENTHUB_AI_API_KEY'=>'test-key','TALENTHUB_AI_ALLOWED_HOSTS'=>'127.0.0.1','TALENTHUB_AI_ROADMAP_TIMEOUT_SECONDS'=>'30','TALENTHUB_AI_ROADMAP_PER_STUDENT_LIMIT'=>'2','TALENTHUB_AI_ROADMAP_GLOBAL_LIMIT'=>'20']);
 roadmap_service_assert($roadmapConfig->roadmapTimeoutSeconds()===30 && $roadmapConfig->roadmapPerStudentLimit()===2 && $roadmapConfig->roadmapGlobalLimit()===20,'roadmap provider limits are explicit and non-secret');
 $inputA=roadmap_service_input('a'); $modelA=roadmap_service_model($inputA);
+$pendingLatest = roadmap_service_build(roadmap_service_repository(null, ['state'=>'pending','started_at'=>'2026-08-24T00:00:00Z']),roadmap_service_engine($modelA),$inputA,roadmap_service_consent())->latest('student-a');
+roadmap_service_assert(($pendingLatest['state'] ?? null)==='pending' && isset($pendingLatest['started_at']),'latest exposes a roadmap-specific pending run');
 $forbidden=roadmap_service_build(roadmap_service_repository(),roadmap_service_engine($modelA),$inputA,roadmap_service_consent(),false)->generate('student-a','request-a','idempotency-key-a');
 roadmap_service_assert($forbidden['state']==='forbidden','owner authorization runs first');
 
@@ -90,6 +93,9 @@ roadmap_service_assert($noConsent['state']==='consent_required' && $noConsent['m
 $repository=roadmap_service_repository(); $engine=roadmap_service_engine($modelA);
 $ready=roadmap_service_build($repository,$engine,$inputA,roadmap_service_consent())->generate('student-a','request-a','idempotency-key-a');
 roadmap_service_assert($ready['state']==='ready_model' && $engine->calls===1 && $repository->saveCalls===1,'four assessments generate and persist a real model roadmap');
+foreach (['input_hash','provider_request_id','response_hash','raw_snapshot','api_url','run_id'] as $privateField) {
+    roadmap_service_assert(!array_key_exists($privateField, $ready), "public roadmap response strips {$privateField}");
+}
 
 $sameRepository=roadmap_service_repository(array_merge($repository->latest,['input_hash'=>$inputA->contentHash()])); $sameEngine=roadmap_service_engine($modelA);
 $same=roadmap_service_build($sameRepository,$sameEngine,$inputA,roadmap_service_consent())->generate('student-a','request-b','different-idempotency');
@@ -111,5 +117,6 @@ roadmap_service_assert($rate['fallback_reason']==='rate_limited' && $rate['roadm
 
 $event=roadmap_service_build($repository,$engine,$inputA,roadmap_service_consent())->updateTask('student-a','task-1','completed','task-request-1');
 roadmap_service_assert($event['state']==='task_updated' && $event['status']==='completed','task progress is mapped');
+roadmap_service_assert(!isset($event['student_id'], $event['request_id']), 'public task response strips owner and idempotency internals');
 
 echo "learner_ai_roadmap_service_test: OK\n";

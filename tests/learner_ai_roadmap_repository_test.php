@@ -146,7 +146,8 @@ $pdo->prepare('INSERT INTO student_profiles (id) VALUES (?)')->execute([$student
 $fixtureD = roadmap_repository_input('d');
 $recommendations = new DatabaseRecommendationRepository($pdo, static fn (): string => '2026-08-24T02:00:00.000000+00:00');
 $contextD = new RecommendationContext(['assessment'], 'request-roadmap-d', 'idempotency-roadmap-d', $studentD);
-$pendingD = $recommendations->createPendingRun($studentD, $fixtureD['input'], $contextD);
+$pendingD = $recommendations->createPendingRoadmapRun($studentD, $fixtureD['input'], $contextD);
+roadmap_repository_assert(($repository->latestPendingForStudent($studentD)['state'] ?? null) === 'pending', 'roadmap run marker makes pending state owner-readable');
 $validatorD = new RoadmapAnalysisValidator(array_keys($fixtureD['map']), []);
 $analysisD = $validatorD->fromProviderPayload(learner_ai_roadmap_provider_fixture(), [
     'origin' => 'model', 'provider' => '9router_gemini', 'model_version' => 'ag/gemini-3.7-flash-high',
@@ -155,6 +156,7 @@ $analysisD = $validatorD->fromProviderPayload(learner_ai_roadmap_provider_fixtur
 ]);
 $completedRunD = $recommendations->completeRoadmapRun($studentD, $pendingD['runId'], $analysisD);
 roadmap_repository_assert($completedRunD['status'] === 'completed' && $completedRunD['engineType'] === 'model', 'recommendation repository completes a roadmap model run without recommendation items');
+roadmap_repository_assert($repository->latestPendingForStudent($studentD) === null, 'completed roadmap run is no longer pending');
 $savedD = $repository->saveCompleted($studentD, $pendingD['runId'], $analysisD, ['provider_request_id'=>'router_req_d','response_hash'=>str_repeat('e',64),'evidence_reference_map'=>$fixtureD['map']]);
 roadmap_repository_assert($savedD['version'] === 1, 'completed roadmap run can be atomically persisted');
 

@@ -293,7 +293,7 @@ final class LearnerApiContext
             static fn (string $candidate) => $consent->decision($candidate),
             static fn (string $candidate, array $scopes) => $snapshotBuilder->buildForRoadmap($candidate, $scopes),
             static fn ($input) => (new RoadmapQualityGate())->evaluate($input),
-            static fn (string $candidate, $input, $context) => $runs->createPendingRun($candidate, $input, $context),
+            static fn (string $candidate, $input, $context) => $runs->createPendingRoadmapRun($candidate, $input, $context),
             static fn (string $candidate, string $runId, $analysis) => $runs->completeRoadmapRun($candidate, $runId, $analysis),
             static fn (string $candidate, string $runId, string $code) => $runs->failRun($candidate, $runId, $code),
         );

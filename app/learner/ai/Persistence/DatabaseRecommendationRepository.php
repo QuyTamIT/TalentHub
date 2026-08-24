@@ -111,6 +111,28 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
     }
 
     /** @return array<string,mixed> */
+    public function createPendingRoadmapRun(string $studentId, RecommendationInput $input, RecommendationContext $context): array
+    {
+        $pending = $this->createPendingRun($studentId, $input, $context);
+        $runId = (string) ($pending['runId'] ?? '');
+        $marker = $this->pdo->prepare(
+            "SELECT 1 FROM learner_recommendation_audit_events WHERE runId = :runId AND studentId = :studentId AND action = 'roadmap_run_created' LIMIT 1"
+        );
+        $marker->execute(['runId' => $runId, 'studentId' => $studentId]);
+        if ($marker->fetchColumn() === false) {
+            $this->insertAuditEvent(
+                $runId,
+                $studentId,
+                $context->requestId() ?? self::uuid(),
+                'roadmap_run_created',
+                ['purpose' => 'learner_roadmap'],
+                'pending',
+            );
+        }
+        return $pending;
+    }
+
+    /** @return array<string,mixed> */
     public function completeRun(string $studentId, string $runId, RecommendationResult $result): array
     {
         $studentId = $this->required($studentId, 'Student id is required.');
