@@ -13,6 +13,7 @@ test('pending dialog is mandatory and posts only fixed decisions', () => {
   assert.match(source, /name="action" value="decline"/);
   assert.doesNotMatch(source, /data-onboarding-dialog[^]*data-close-modal/);
   assert.match(source, /Hoàn thành đánh giá ban đầu/);
+  assert.match(source, /inert aria-hidden=/, 'background content is removed from focus and accessibility navigation');
 });
 
 test('progress hub renders four server-owned states', () => {

@@ -1,7 +1,7 @@
 # Database Change Request: Learner Onboarding State
 
-Date: 2026-08-24  
-Owner: TalentHub Student Portal  
+Date: 2026-08-24
+Owner: TalentHub Student Portal
 Migration: `20260824000100_create_learner_onboarding_states.php`
 
 ## Purpose

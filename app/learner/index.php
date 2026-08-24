@@ -21,7 +21,7 @@ $onboardingPending = ($onboarding['required'] ?? false) === true
     <link rel="stylesheet" href="../../assets/css/learner.css">
 </head>
 <body class="learner-app learner-page-overview" data-learner-source="<?= ($isDatabaseMode ?? false) ? 'database' : 'mock'; ?>">
-    <div class="learner-layout">
+    <div class="learner-layout"<?= $onboardingPending ? ' inert aria-hidden="true"' : ''; ?>>
         <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
         <div class="learner-main">
