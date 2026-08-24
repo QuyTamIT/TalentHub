@@ -18,8 +18,6 @@ $activeOpportunities = array_values(array_filter(
     $opportunities,
     static fn (array $opportunity): bool => ($opportunity['status'] ?? '') === 'active'
 ));
-$schoolActivities = learner_ecosystem_school_activities();
-$activeEcosystemCount = count($activeOpportunities) + count($schoolActivities);
 $applications = learner_ecosystem_applications();
 $ecosystemSource = learner_repository_factory()->source();
 $isDatabaseSource = $ecosystemSource === 'database';
@@ -69,7 +67,7 @@ function learner_ecosystem_date(string $date): string
                     </button>
                     <button class="learner-ecosystem-tab" id="tab-opportunities" type="button" role="tab" aria-controls="panel-opportunities" aria-selected="<?= $initialTab === 'opportunities' ? 'true' : 'false'; ?>" data-ecosystem-tab="opportunities">
                         <?= learner_icon('sparkles', 19); ?> Cơ hội
-                        <span class="learner-count-badge"><?= $activeEcosystemCount; ?></span>
+                        <span class="learner-count-badge"><?= count($activeOpportunities); ?></span>
                     </button>
                 </nav>
 
@@ -213,9 +211,9 @@ function learner_ecosystem_date(string $date): string
                     <div class="learner-section-heading learner-ecosystem-panel__heading">
                         <div>
                             <h2>Cơ hội dành cho bạn</h2>
-                            <p>Thực tập doanh nghiệp, học bổng và hoạt động trải nghiệm trường học.</p>
+                            <p>Cơ hội tuyển dụng và thực tập do doanh nghiệp công bố.</p>
                         </div>
-                        <span><?= $activeEcosystemCount; ?> cơ hội đang mở</span>
+                        <span><?= count($activeOpportunities); ?> cơ hội đang mở</span>
                     </div>
                     <div class="learner-opportunity-grid" data-ecosystem-results>
                         <?php foreach ($activeOpportunities as $opportunity): ?>
@@ -241,47 +239,12 @@ function learner_ecosystem_date(string $date): string
                                 <a class="learner-btn learner-btn--primary learner-btn--block" href="opportunity.php?type=<?= learner_escape($opportunity['type']); ?>&amp;id=<?= learner_escape($opportunity['id']); ?>">Xem chi tiết</a>
                             </article>
                         <?php endforeach; ?>
-                        <?php foreach ($schoolActivities as $activity): ?>
-                            <?php
-                            $activitySchool = null;
-                            foreach ($schools as $school) {
-                                if ((string) ($school['id'] ?? '') === (string) ($activity['school_id'] ?? '')) {
-                                    $activitySchool = $school;
-                                    break;
-                                }
-                            }
-                            $activitySchoolName = trim((string) ($activitySchool['name'] ?? 'Trường học TalentHub'));
-                            $activityLocation = is_array($activitySchool) && learner_ecosystem_partner_has_value($activitySchool, 'location')
-                                ? trim((string) $activitySchool['location'])
-                                : '';
-                            $activitySearch = implode(' ', array_filter([
-                                (string) ($activity['title'] ?? ''),
-                                $activitySchoolName,
-                                (string) ($activity['category'] ?? ''),
-                                $activityLocation,
-                            ]));
-                            ?>
-                            <article class="learner-opportunity-card learner-card" data-ecosystem-item data-ecosystem-item-type="school-activity" data-search="<?= learner_escape($activitySearch); ?>" data-field="<?= learner_escape($activity['category']); ?>" data-location="<?= learner_escape($activityLocation); ?>">
-                                <div class="learner-opportunity-card__top">
-                                    <span class="learner-badge learner-badge--secondary">Trường học</span>
-                                    <span class="learner-status-dot learner-status-dot--active"><?= learner_escape(($activity['status'] ?? '') === 'ongoing' ? 'Đang diễn ra' : 'Đã công bố'); ?></span>
-                                </div>
-                                <h3><?= learner_escape($activity['title']); ?></h3>
-                                <a class="learner-opportunity-card__partner" href="partner.php?type=school&amp;id=<?= learner_escape($activity['school_id']); ?>"><?= learner_escape($activitySchoolName); ?></a>
-                                <div class="learner-meta-list">
-                                    <span><?= learner_icon('calendar', 16); ?> <?= learner_escape((new DateTimeImmutable((string) $activity['start_at']))->format('d/m/Y H:i')); ?></span>
-                                    <span><?= learner_icon('users', 16); ?> <?= learner_escape((string) $activity['capacity']); ?> chỗ</span>
-                                </div>
-                                <div class="learner-chip-list"><span><?= learner_escape($activity['category']); ?></span></div>
-                                <a class="learner-btn learner-btn--primary learner-btn--block" href="activity-detail.php?id=<?= learner_escape($activity['id']); ?>">Xem chi tiết</a>
-                            </article>
-                        <?php endforeach; ?>
                     </div>
-                    <div class="learner-empty-state learner-card" <?= $activeEcosystemCount > 0 ? 'hidden' : ''; ?> data-ecosystem-empty>
+                    <div class="learner-empty-state learner-card" <?= $activeOpportunities !== [] ? 'hidden' : ''; ?> data-ecosystem-empty>
                         <span class="learner-empty-state__icon"><?= learner_icon('search', 24); ?></span>
-                        <?php if ($isDatabaseSource && $activeEcosystemCount === 0): ?>
+                        <?php if ($isDatabaseSource && $activeOpportunities === []): ?>
                             <h2>Chưa có cơ hội đang mở</h2>
-                            <p>Cơ hội sẽ xuất hiện khi doanh nghiệp công bố vị trí hợp lệ hoặc trường học công bố hoạt động đang mở.</p>
+                            <p>Cơ hội sẽ xuất hiện khi doanh nghiệp công bố vị trí tuyển dụng hoặc thực tập hợp lệ.</p>
                         <?php else: ?>
                             <h2>Chưa tìm thấy cơ hội phù hợp</h2>
                             <p>Thử thay đổi từ khóa hoặc bộ lọc để xem thêm kết quả.</p>
