@@ -164,6 +164,37 @@ test('learner-assessment module exists and exports createAssessmentController', 
   assert.equal(typeof mod.createAssessmentController, 'function', 'createAssessmentController must be exported');
 });
 
+test('Likert answers render separate value, readable label, and selected-state affordance', () => {
+  const { renderLikertOption } = require(modulePath);
+  assert.equal(typeof renderLikertOption, 'function', 'renderLikertOption must be exported for DOM contract tests');
+
+  const doc = { createElement: (tag) => createDomNode(tag) };
+  const option = renderLikertOption(doc, { value: 5, label: 'Hoàn toàn đồng ý với mô tả này' }, 5);
+  const [input, shell] = option.children;
+  const [badge, label, check] = shell.children;
+
+  assert.equal(option.className, 'learner-likert-option');
+  assert.equal(input.type, 'radio');
+  assert.equal(input.name, 'assessment-answer');
+  assert.equal(input.value, '5');
+  assert.equal(input.checked, true);
+  assert.equal(shell.className, 'learner-likert-option__surface');
+  assert.equal(badge.className, 'learner-likert-option__value');
+  assert.equal(badge.textContent, '5');
+  assert.equal(label.className, 'learner-likert-option__label');
+  assert.equal(label.textContent, 'Hoàn toàn đồng ý với mô tả này');
+  assert.equal(check.className, 'learner-likert-option__check');
+  assert.equal(check.textContent, '✓');
+  assert.equal(check['aria-hidden'], 'true');
+});
+
+test('Likert styles reserve flexible space for answer text on desktop and mobile', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'assets', 'css', 'learner.css'), 'utf8');
+  assert.match(source, /\.learner-likert-option__surface\s*\{[^}]*grid-template-columns:\s*42px minmax\(0,\s*1fr\) 24px/s);
+  assert.match(source, /\.learner-likert-option__label\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*break-word/s);
+  assert.match(source, /@media\s*\(max-width:\s*620px\)[\s\S]*?\.learner-likert-option__surface\s*\{[^}]*grid-template-columns:\s*36px minmax\(0,\s*1fr\) 22px/s);
+});
+
 test('authoritative scores and storage are never managed in the browser', () => {
   const source = fs.readFileSync(modulePath, 'utf8');
   assert.equal(source.includes('scoreHolland'), false, 'scoreHolland must be removed');

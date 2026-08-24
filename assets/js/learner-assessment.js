@@ -35,6 +35,37 @@
         return `assessment-submit-${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
     }
 
+    function renderLikertOption(doc, option, selectedValue) {
+        const value = typeof option === 'object' && option !== null ? option.value : option;
+        const labelText = typeof option === 'object' && option !== null ? (option.label ?? option.value) : option;
+        const label = doc.createElement('label');
+        label.className = 'learner-likert-option';
+
+        const input = doc.createElement('input');
+        input.type = 'radio';
+        input.name = 'assessment-answer';
+        input.value = String(value ?? '');
+        input.checked = String(selectedValue ?? '') === String(value ?? '');
+
+        const surface = doc.createElement('span');
+        surface.className = 'learner-likert-option__surface';
+        const badge = doc.createElement('b');
+        badge.className = 'learner-likert-option__value';
+        badge.textContent = String(value ?? '');
+        badge.setAttribute('aria-hidden', 'true');
+        const text = doc.createElement('span');
+        text.className = 'learner-likert-option__label';
+        text.textContent = String(labelText ?? '');
+        const check = doc.createElement('span');
+        check.className = 'learner-likert-option__check';
+        check.textContent = '✓';
+        check.setAttribute('aria-hidden', 'true');
+
+        surface.append(badge, text, check);
+        label.append(input, surface);
+        return label;
+    }
+
     function createAssessmentController({ api, view, createIdempotencyKey = defaultIdempotencyKey }) {
         if (!api || typeof api.get !== 'function' || typeof api.send !== 'function') {
             throw new TypeError('A learner assessment API client is required.');
@@ -588,20 +619,7 @@
                 while (nodes.options.firstChild) nodes.options.removeChild(nodes.options.firstChild);
                 const options = Array.isArray(question.options) ? question.options : [];
                 options.forEach((option) => {
-                    const value = typeof option === 'object' ? option.value : option;
-                    const labelText = typeof option === 'object' ? (option.label ?? option.value) : option;
-                    const label = doc.createElement('label');
-                    label.className = 'learner-likert-option';
-                    const input = doc.createElement('input');
-                    input.type = 'radio';
-                    input.name = 'assessment-answer';
-                    input.value = String(value ?? '');
-                    input.checked = String(answers[question.id] ?? '') === String(value ?? '');
-                    const span = doc.createElement('span');
-                    span.textContent = `${String(value ?? '')} ${String(labelText ?? '')}`.trim();
-                    label.appendChild(input);
-                    label.appendChild(span);
-                    nodes.options.appendChild(label);
+                    nodes.options.appendChild(renderLikertOption(doc, option, answers[question.id]));
                 });
             }
             if (nodes.previous) nodes.previous.disabled = questionIndex === 0;
@@ -1298,6 +1316,7 @@
         presentationState,
         createAssessmentController,
         createDomView,
+        renderLikertOption,
         mergeCatalogWithHistory,
         deriveDiscoverySummary,
         deriveDiscoveryProgress,
