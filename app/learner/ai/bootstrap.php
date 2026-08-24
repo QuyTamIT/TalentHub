@@ -49,6 +49,7 @@ require_once $learnerAiRoot . '/Provider/HttpRecommendationProvider.php';
 require_once $learnerAiRoot . '/RateLimit/RecommendationRateLimitDecision.php';
 require_once $learnerAiRoot . '/RateLimit/RecommendationRateLimiter.php';
 require_once $learnerAiRoot . '/Model/PromptRegistry.php';
+require_once $learnerAiRoot . '/Model/RoadmapPromptRegistry.php';
 require_once $learnerAiRoot . '/Rollout/RecommendationRolloutSelector.php';
 require_once $learnerAiRoot . '/Rollout/PilotEligibility.php';
 require_once $learnerAiRoot . '/Rollout/AiPilotPolicy.php';
