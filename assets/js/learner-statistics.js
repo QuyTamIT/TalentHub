@@ -156,7 +156,7 @@
             const percentage = Number(field?.percentage);
             const safePercentage = Number.isFinite(percentage) ? Math.max(0, Math.min(100, percentage)) : 0;
             const length = circumference * safePercentage / 100;
-            const tone = toneByCategory[category] || 'teal';
+            const tone = toneByCategory[category] || 'neutral';
             const label = labelByCategory[category] || category;
             totalHours += safeHours;
 

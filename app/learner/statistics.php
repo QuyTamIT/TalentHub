@@ -249,7 +249,8 @@ $fieldLabelMap = [
                                     <g data-field-segments>
                                         <?php foreach ($fields as $field): ?>
                                             <?php
-                                            $catTone = $fieldColorMap[$field['category']] ?? 'teal';
+                                            $category = (string) ($field['category'] ?? 'general');
+                                            $catTone = $fieldColorMap[$category] ?? 'neutral';
                                             $segmentLength = $donutCircumference * ($field['percentage'] ?? 0) / 100;
                                             ?>
                                             <circle
@@ -270,7 +271,7 @@ $fieldLabelMap = [
                                     <?php foreach ($fields as $field): ?>
                                         <?php
                                         $category = (string) ($field['category'] ?? 'general');
-                                        $catTone = $fieldColorMap[$category] ?? 'teal';
+                                        $catTone = $fieldColorMap[$category] ?? 'neutral';
                                         $catLabel = $fieldLabelMap[$category] ?? ucfirst($category);
                                         ?>
                                         <div class="learner-field-legend__item">
