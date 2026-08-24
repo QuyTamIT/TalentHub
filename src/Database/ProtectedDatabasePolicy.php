@@ -15,7 +15,9 @@ final class ProtectedDatabasePolicy
 
     public static function isProtected(string $database): bool
     {
-        return in_array($database, [self::PRIMARY, self::LEGACY_BACKUP], true);
+        $normalized = strtolower(trim($database));
+
+        return in_array($normalized, [self::PRIMARY, self::LEGACY_BACKUP], true);
     }
 
     public static function allowsExplicitPrimaryWrite(string $database, bool $approved): bool

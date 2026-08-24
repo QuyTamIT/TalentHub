@@ -26,10 +26,10 @@
     MySQL password. Defaults to empty string (Laragon default).
 
 .PARAMETER DbHost
-    MySQL host. Defaults to '127.0.0.1'.
+    MySQL host. Must be exactly '127.0.0.1'.
 
 .PARAMETER DbPort
-    MySQL port. Defaults to '3306'.
+    MySQL port. Must be exactly '3306'.
 
 .PARAMETER WithDemo
     Also runs `php bin/seed.php --demo` to populate the THPT Nguyễn Trãi
@@ -81,37 +81,56 @@ Set-Location -LiteralPath $RepoRoot
 if (-not (Test-Path (Join-Path $RepoRoot 'bin/migrate.php'))) {
     throw "bin/migrate.php not found in $RepoRoot. Run this script from TalentHub/bin/."
 }
+if ($DbHost -ne '127.0.0.1' -or $DbPort -ne '3306') {
+    throw 'sync-db.ps1 is restricted to local MySQL at 127.0.0.1:3306.'
+}
+if ($AppEnv -ne 'local') {
+    throw 'sync-db.ps1 requires APP_ENV=local.'
+}
+if ($DbUser -notmatch '^[A-Za-z0-9_]+$') {
+    throw 'DbUser contains unsupported characters.'
+}
 
 function Write-Step($msg) {
     Write-Host ''
     Write-Host "==> $msg" -ForegroundColor Cyan
 }
 
-function Invoke-MysqlNoPassword {
+function Invoke-Mysql {
     param([string]$Sql)
     & mysql --user=$DbUser --host=$DbHost --port=$DbPort -e $Sql
+    if ($LASTEXITCODE -ne 0) {
+        throw "mysql command failed with exit code $LASTEXITCODE."
+    }
 }
 
-function Invoke-MysqlWithPassword {
-    param([string]$Sql)
-    & mysql --user=$DbUser --password=$DbPassword --host=$DbHost --port=$DbPort -e $Sql
+$ManagedEnvironmentNames = @('MYSQL_PWD', 'APP_ENV', 'DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD')
+$PreviousProcessEnvironment = [ordered]@{}
+foreach ($name in $ManagedEnvironmentNames) {
+    $PreviousProcessEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
 }
 
-$mysqlArgs = @{ Sql = $null }
-if ($DbPassword -eq '') {
-    function Invoke-Mysql { param([string]$Sql) & mysql --user=$DbUser --host=$DbHost --port=$DbPort -e $Sql }
-} else {
-    function Invoke-Mysql { param([string]$Sql) & mysql --user=$DbUser --password=$DbPassword --host=$DbHost --port=$DbPort -e $Sql }
-}
+try {
+    if ($DbPassword -eq '') {
+        Remove-Item Env:MYSQL_PWD -ErrorAction SilentlyContinue
+    } else {
+        $env:MYSQL_PWD = $DbPassword
+    }
+    $env:APP_ENV = $AppEnv
+    $env:DB_HOST = $DbHost
+    $env:DB_PORT = $DbPort
+    $env:DB_DATABASE = $PrimaryDatabase
+    $env:DB_USERNAME = $DbUser
+    $env:DB_PASSWORD = $DbPassword
 
-Write-Host "TalentHub DB sync" -ForegroundColor Green
-Write-Host "  Host:     $DbHost`:$DbPort"
-Write-Host "  User:     $DbUser"
-Write-Host "  Repo:     $RepoRoot"
-Write-Host "  Database: $PrimaryDatabase"
-Write-Host "  APP_ENV:  $AppEnv"
-Write-Host "  WithDemo: $WithDemo"
-Write-Host "  SkipMig:  $SkipMigrate"
+    Write-Host "TalentHub DB sync" -ForegroundColor Green
+    Write-Host "  Host:     $DbHost`:$DbPort"
+    Write-Host "  User:     $DbUser"
+    Write-Host "  Repo:     $RepoRoot"
+    Write-Host "  Database: $PrimaryDatabase"
+    Write-Host "  APP_ENV:  $AppEnv"
+    Write-Host "  WithDemo: $WithDemo"
+    Write-Host "  SkipMig:  $SkipMigrate"
 
 # ---- Step 1: preflight ----
 Write-Step 'Preflight: checking mysql + php on PATH'
@@ -129,9 +148,6 @@ Invoke-Mysql "CREATE DATABASE IF NOT EXISTS ``$PrimaryDatabase`` CHARACTER SET u
 Invoke-Mysql "CREATE DATABASE IF NOT EXISTS talenthub_test  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 Invoke-Mysql "SHOW DATABASES LIKE '$PrimaryDatabase';"
 Invoke-Mysql "SHOW DATABASES LIKE 'talenthub_test';"
-
-# Pin every child PHP command to the repository's canonical local database.
-$env:DB_DATABASE = $PrimaryDatabase
 
 # ---- Step 3: migrations ----
 if (-not $SkipMigrate) {
@@ -176,4 +192,9 @@ $verify | ForEach-Object { Write-Host "  $_" }
 Write-Step 'Done.'
 if (-not $WithDemo) {
     Write-Host '  Tip: re-run with -WithDemo to populate THPT Nguyễn Trãi.' -ForegroundColor Yellow
+}
+} finally {
+    foreach ($name in $ManagedEnvironmentNames) {
+        [Environment]::SetEnvironmentVariable($name, $PreviousProcessEnvironment[$name], 'Process')
+    }
 }

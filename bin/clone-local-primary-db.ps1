@@ -44,6 +44,8 @@ $BackupRoot = Join-Path $WorkspaceRoot '.tmp\db-backups'
 $Timestamp = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssZ')
 $BackupDirectory = Join-Path $BackupRoot $Timestamp
 $FullDump = Join-Path $BackupDirectory 'talenthub_local.sql'
+$SourceSchemaDump = Join-Path $BackupDirectory 'source-schema.sql'
+$TargetSchemaDump = Join-Path $BackupDirectory 'target-schema.sql'
 $SourceDataDump = Join-Path $BackupDirectory 'source-data.sql'
 $TargetDataDump = Join-Path $BackupDirectory 'target-data.sql'
 $RestoreStdout = Join-Path $BackupDirectory 'restore.stdout.log'
@@ -101,8 +103,13 @@ function Invoke-LogicalDump {
     param(
         [Parameter(Mandatory = $true)][string]$Database,
         [Parameter(Mandatory = $true)][string]$OutputPath,
-        [switch]$DataOnly
+        [switch]$DataOnly,
+        [switch]$SchemaOnly
     )
+
+    if ($DataOnly -and $SchemaOnly) {
+        throw 'A logical dump cannot be both data-only and schema-only.'
+    }
 
     $arguments = @(
         @(Get-ConnectionArguments)
@@ -115,6 +122,8 @@ function Invoke-LogicalDump {
 
     if ($DataOnly) {
         $arguments += @('--no-create-info', '--skip-triggers', '--compact', '--order-by-primary')
+    } elseif ($SchemaOnly) {
+        $arguments += @('--no-data', '--routines', '--events', '--triggers', '--compact')
     } else {
         $arguments += @('--routines', '--events', '--triggers')
     }
@@ -155,6 +164,18 @@ function Get-ExactRowCounts {
     return $counts
 }
 
+function Get-SchemaObjectCounts {
+    param([Parameter(Mandatory = $true)][string]$Database)
+
+    return [ordered]@{
+        base_tables = [int64](Invoke-MySqlScalar -Sql "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='$Database' AND TABLE_TYPE='BASE TABLE'")
+        views = [int64](Invoke-MySqlScalar -Sql "SELECT COUNT(*) FROM information_schema.VIEWS WHERE TABLE_SCHEMA='$Database'")
+        triggers = [int64](Invoke-MySqlScalar -Sql "SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA='$Database'")
+        routines = [int64](Invoke-MySqlScalar -Sql "SELECT COUNT(*) FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA='$Database'")
+        events = [int64](Invoke-MySqlScalar -Sql "SELECT COUNT(*) FROM information_schema.EVENTS WHERE EVENT_SCHEMA='$Database'")
+    }
+}
+
 function Assert-SameJson {
     param(
         [Parameter(Mandatory = $true)]$Expected,
@@ -167,6 +188,35 @@ function Assert-SameJson {
     if ($expectedJson -cne $actualJson) {
         throw $Message
     }
+}
+
+function Get-StringSha256 {
+    param([Parameter(Mandatory = $true)][string]$Value)
+
+    $algorithm = [Security.Cryptography.SHA256]::Create()
+    try {
+        $hashBytes = $algorithm.ComputeHash([Text.Encoding]::UTF8.GetBytes($Value))
+        return -join ($hashBytes | ForEach-Object { $_.ToString('x2') })
+    } finally {
+        $algorithm.Dispose()
+    }
+}
+
+function Get-CanonicalSchemaSha256 {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $schema = Get-Content -Raw -LiteralPath $Path
+    # MySQL 8 may add a redundant explicit CHARACTER SET after restoring a
+    # column that already declares its COLLATE.  COLLATE uniquely implies the
+    # character set, so remove only that no-op spelling difference before the
+    # semantic schema comparison.  Raw dump hashes remain in the evidence.
+    $canonical = [regex]::Replace(
+        $schema,
+        ' CHARACTER SET [A-Za-z0-9_]+(?= COLLATE [A-Za-z0-9_]+)',
+        '',
+        [Text.RegularExpressions.RegexOptions]::CultureInvariant
+    )
+    return Get-StringSha256 -Value $canonical
 }
 
 if ($DbHost -ne '127.0.0.1' -or $DbPort -ne '3306') {
@@ -265,6 +315,20 @@ try {
     $targetMigrations = @(Invoke-MySqlLines -Sql 'SELECT * FROM schema_migrations ORDER BY version' -Database $TargetDatabase)
     Assert-SameJson -Expected $sourceMigrationsBefore -Actual $targetMigrations -Message 'Target migration registry differs from source.'
 
+    $sourceSchemaObjects = Get-SchemaObjectCounts -Database $SourceDatabase
+    $targetSchemaObjects = Get-SchemaObjectCounts -Database $TargetDatabase
+    Assert-SameJson -Expected $sourceSchemaObjects -Actual $targetSchemaObjects -Message 'Target schema object counts differ from source.'
+
+    Invoke-LogicalDump -Database $SourceDatabase -OutputPath $SourceSchemaDump -SchemaOnly
+    Invoke-LogicalDump -Database $TargetDatabase -OutputPath $TargetSchemaDump -SchemaOnly
+    $sourceRawSchemaHash = (Get-FileHash -LiteralPath $SourceSchemaDump -Algorithm SHA256).Hash.ToLowerInvariant()
+    $targetRawSchemaHash = (Get-FileHash -LiteralPath $TargetSchemaDump -Algorithm SHA256).Hash.ToLowerInvariant()
+    $sourceSchemaHash = Get-CanonicalSchemaSha256 -Path $SourceSchemaDump
+    $targetSchemaHash = Get-CanonicalSchemaSha256 -Path $TargetSchemaDump
+    if (-not [string]::Equals($sourceSchemaHash, $targetSchemaHash, [StringComparison]::Ordinal)) {
+        throw 'Deterministic source and target schema SHA256 hashes differ.'
+    }
+
     Invoke-LogicalDump -Database $SourceDatabase -OutputPath $SourceDataDump -DataOnly
     Invoke-LogicalDump -Database $TargetDatabase -OutputPath $TargetDataDump -DataOnly
     $sourceDataHash = (Get-FileHash -LiteralPath $SourceDataDump -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -300,10 +364,18 @@ try {
         source_database = $SourceDatabase
         target_database = $TargetDatabase
         source_unchanged = $true
+        source_table_inventory_sha256 = Get-StringSha256 -Value (ConvertTo-Json $sourceTablesAfter -Compress)
+        source_row_counts_sha256 = Get-StringSha256 -Value (ConvertTo-Json $sourceCountsAfter -Compress)
         table_count = $sourceTablesBefore.Count
         exact_row_counts_match = $true
         migration_registry_match = $true
+        schema_objects_match = $true
+        schema_object_counts = $sourceSchemaObjects
         full_dump_sha256 = $fullDumpHash
+        source_schema_sha256 = $sourceSchemaHash
+        target_schema_sha256 = $targetSchemaHash
+        source_schema_dump_sha256 = $sourceRawSchemaHash
+        target_schema_dump_sha256 = $targetRawSchemaHash
         source_data_sha256 = $sourceDataHash
         target_data_sha256 = $targetDataHash
         student_ai_counts = $businessCounts
