@@ -12,10 +12,27 @@ $partner = learner_ecosystem_partner($partnerType, $partnerId);
 $partnerOpportunities = $partner ? learner_ecosystem_partner_opportunities($partner['id'], true) : [];
 $isEnterprise = $partner && $partner['type'] === 'enterprise';
 $isDatabaseSource = learner_repository_factory()->source() === 'database';
+$partnerRecord = $partner ?? [];
 $partnerVerificationStatus = (string) ($partner['verification_status'] ?? '');
+$partnerHasDescription = learner_ecosystem_partner_has_value($partnerRecord, 'description');
+$partnerHasLocation = learner_ecosystem_partner_has_value($partnerRecord, 'location');
+$partnerHasIndustry = learner_ecosystem_partner_has_value($partnerRecord, 'industry');
+$partnerHasSchoolType = learner_ecosystem_partner_has_value($partnerRecord, 'school_type');
+$partnerHasSize = learner_ecosystem_partner_has_value($partnerRecord, 'size');
+$partnerHasFounded = learner_ecosystem_partner_has_value($partnerRecord, 'founded');
+$partnerHasOpportunityCount = learner_ecosystem_partner_has_value($partnerRecord, 'opportunity_count');
+$partnerHasAddress = learner_ecosystem_partner_has_value($partnerRecord, 'address');
+$partnerHasEmail = learner_ecosystem_partner_has_value($partnerRecord, 'email');
+$partnerHasPhone = learner_ecosystem_partner_has_value($partnerRecord, 'phone');
+$partnerHighlights = learner_ecosystem_partner_list($partnerRecord, 'highlights');
+$partnerPrograms = learner_ecosystem_partner_list($partnerRecord, 'programs');
+$partnerFacilities = learner_ecosystem_partner_list($partnerRecord, 'facilities');
+$partnerWebsiteUrl = learner_ecosystem_partner_has_value($partnerRecord, 'website')
+    ? learner_ecosystem_http_url($partner['website'] ?? null)
+    : null;
 $partnerTypeLabel = $isEnterprise
     ? 'Doanh nghiệp'
-    : ((string) ($partner['school_type'] ?? '') !== 'Chưa cập nhật' ? (string) $partner['school_type'] : 'Trường học');
+    : ($partnerHasSchoolType ? trim((string) $partner['school_type']) : 'Trường học');
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -59,21 +76,22 @@ $partnerTypeLabel = $isEnterprise
                                 <?php endif; ?>
                             </div>
                             <h1><?= learner_escape($partner['name']); ?></h1>
-                            <p><?= learner_escape($partner['description']); ?></p>
+                            <?php if ($partnerHasDescription): ?><p><?= learner_escape(trim((string) $partner['description'])); ?></p><?php endif; ?>
                             <div class="learner-meta-list learner-meta-list--inline">
-                                <?php if (!empty($partner['location']) && $partner['location'] !== 'Chưa cập nhật'): ?>
-                                    <span><?= learner_icon('map-pin', 17); ?> <?= learner_escape($partner['location']); ?></span>
+                                <?php if ($partnerHasLocation): ?>
+                                    <span><?= learner_icon('map-pin', 17); ?> <?= learner_escape(trim((string) $partner['location'])); ?></span>
                                 <?php endif; ?>
-                                <?php $partnerCategory = $isEnterprise ? ($partner['industry'] ?? '') : ($partner['school_type'] ?? ''); ?>
-                                <?php if ($partnerCategory !== '' && $partnerCategory !== 'Chưa cập nhật'): ?>
+                                <?php $partnerHasCategory = $isEnterprise ? $partnerHasIndustry : $partnerHasSchoolType; ?>
+                                <?php if ($partnerHasCategory): ?>
+                                    <?php $partnerCategory = trim((string) ($isEnterprise ? $partner['industry'] : $partner['school_type'])); ?>
                                     <span><?= learner_icon($isEnterprise ? 'briefcase' : 'graduation-cap', 17); ?> <?= learner_escape($partnerCategory); ?></span>
                                 <?php endif; ?>
                             </div>
                         </div>
                         <div class="learner-partner-hero__actions">
                             <a class="learner-btn learner-btn--primary" href="#partner-opportunities">Xem cơ hội <?= learner_icon('arrow-right', 17); ?></a>
-                            <?php if (!empty($partner['website']) && $partner['website'] !== '#'): ?>
-                                <a class="learner-btn learner-btn--outline" href="<?= learner_escape($partner['website']); ?>" target="_blank" rel="noopener noreferrer">Website <?= learner_icon('external-link', 16); ?></a>
+                            <?php if ($partnerWebsiteUrl !== null): ?>
+                                <a class="learner-btn learner-btn--outline" href="<?= learner_escape($partnerWebsiteUrl); ?>" target="_blank" rel="noopener noreferrer">Website <?= learner_icon('external-link', 16); ?></a>
                             <?php endif; ?>
                         </div>
                     </section>
@@ -84,40 +102,40 @@ $partnerTypeLabel = $isEnterprise
                                 <div class="learner-section-heading">
                                     <h2 id="partner-about-title">Giới thiệu <?= learner_escape($isEnterprise ? 'doanh nghiệp' : 'trường học'); ?></h2>
                                 </div>
-                                <p><?= learner_escape($partner['description']); ?></p>
+                                <?php if ($partnerHasDescription): ?><p><?= learner_escape(trim((string) $partner['description'])); ?></p><?php endif; ?>
                                 <?php if ($isEnterprise): ?>
-                                    <?php if ((!empty($partner['size']) && $partner['size'] !== 'Chưa cập nhật') || (!empty($partner['founded']) && $partner['founded'] !== 'Chưa cập nhật') || isset($partner['opportunity_count'])): ?>
+                                    <?php if ($partnerHasSize || $partnerHasFounded || $partnerHasOpportunityCount): ?>
                                         <div class="learner-fact-grid">
-                                        <?php if (!empty($partner['size']) && $partner['size'] !== 'Chưa cập nhật'): ?>
-                                            <div><span>Quy mô</span><strong><?= learner_escape($partner['size']); ?></strong></div>
+                                        <?php if ($partnerHasSize): ?>
+                                            <div><span>Quy mô</span><strong><?= learner_escape(trim((string) $partner['size'])); ?></strong></div>
                                         <?php endif; ?>
-                                        <?php if (!empty($partner['founded']) && $partner['founded'] !== 'Chưa cập nhật'): ?>
-                                            <div><span>Thành lập</span><strong><?= learner_escape($partner['founded']); ?></strong></div>
+                                        <?php if ($partnerHasFounded): ?>
+                                            <div><span>Thành lập</span><strong><?= learner_escape(trim((string) $partner['founded'])); ?></strong></div>
                                         <?php endif; ?>
-                                        <div><span>Vị trí đang mở</span><strong><?= learner_escape($partner['opportunity_count']); ?></strong></div>
+                                        <?php if ($partnerHasOpportunityCount): ?><div><span>Vị trí đang mở</span><strong><?= learner_escape($partner['opportunity_count']); ?></strong></div><?php endif; ?>
                                         </div>
                                     <?php endif; ?>
-                                    <?php if (!empty($partner['highlights'])): ?>
+                                    <?php if ($partnerHighlights !== []): ?>
                                         <h3>Điểm nổi bật</h3>
                                         <ul class="learner-check-list">
-                                            <?php foreach ($partner['highlights'] as $highlight): ?>
+                                            <?php foreach ($partnerHighlights as $highlight): ?>
                                                 <li><?= learner_icon('check', 16); ?> <?= learner_escape($highlight); ?></li>
                                             <?php endforeach; ?>
                                         </ul>
                                     <?php endif; ?>
                                 <?php else: ?>
-                                    <?php if (!empty($partner['programs'])): ?>
+                                    <?php if ($partnerPrograms !== []): ?>
                                         <h3>Ngành đào tạo nổi bật</h3>
                                         <div class="learner-program-grid">
-                                            <?php foreach ($partner['programs'] as $program): ?>
+                                            <?php foreach ($partnerPrograms as $program): ?>
                                                 <span><?= learner_icon('book', 17); ?> <?= learner_escape($program); ?></span>
                                             <?php endforeach; ?>
                                         </div>
                                     <?php endif; ?>
-                                    <?php if (!empty($partner['facilities'])): ?>
+                                    <?php if ($partnerFacilities !== []): ?>
                                         <h3>Cơ sở vật chất</h3>
                                         <ul class="learner-check-list">
-                                            <?php foreach ($partner['facilities'] as $facility): ?>
+                                            <?php foreach ($partnerFacilities as $facility): ?>
                                                 <li><?= learner_icon('check', 16); ?> <?= learner_escape($facility); ?></li>
                                             <?php endforeach; ?>
                                         </ul>
@@ -155,17 +173,19 @@ $partnerTypeLabel = $isEnterprise
                         <aside class="learner-card learner-partner-contact" aria-labelledby="partner-contact-title">
                             <h2 id="partner-contact-title">Thông tin liên hệ</h2>
                             <dl>
-                                <?php if (!empty($partner['address']) && $partner['address'] !== 'Chưa cập nhật'): ?>
-                                    <div><dt><?= learner_icon('map-pin', 18); ?> Địa chỉ</dt><dd><?= learner_escape($partner['address']); ?></dd></div>
+                                <?php if ($partnerHasAddress): ?>
+                                    <div><dt><?= learner_icon('map-pin', 18); ?> Địa chỉ</dt><dd><?= learner_escape(trim((string) $partner['address'])); ?></dd></div>
                                 <?php endif; ?>
-                                <?php if (!empty($partner['email'])): ?>
-                                    <div><dt><?= learner_icon('mail', 18); ?> Email</dt><dd><a href="mailto:<?= learner_escape($partner['email']); ?>"><?= learner_escape($partner['email']); ?></a></dd></div>
+                                <?php if ($partnerHasEmail): ?>
+                                    <?php $partnerEmail = trim((string) $partner['email']); ?>
+                                    <div><dt><?= learner_icon('mail', 18); ?> Email</dt><dd><a href="mailto:<?= learner_escape($partnerEmail); ?>"><?= learner_escape($partnerEmail); ?></a></dd></div>
                                 <?php endif; ?>
-                                <?php if (!empty($partner['phone'])): ?>
-                                    <div><dt><?= learner_icon('phone', 18); ?> Điện thoại</dt><dd><a href="tel:<?= learner_escape(preg_replace('/\s+/', '', $partner['phone'])); ?>"><?= learner_escape($partner['phone']); ?></a></dd></div>
+                                <?php if ($partnerHasPhone): ?>
+                                    <?php $partnerPhone = trim((string) $partner['phone']); ?>
+                                    <div><dt><?= learner_icon('phone', 18); ?> Điện thoại</dt><dd><a href="tel:<?= learner_escape(preg_replace('/\s+/', '', $partnerPhone)); ?>"><?= learner_escape($partnerPhone); ?></a></dd></div>
                                 <?php endif; ?>
-                                <?php if (!empty($partner['website']) && $partner['website'] !== '#'): ?>
-                                    <div><dt><?= learner_icon('globe', 18); ?> Website</dt><dd><a href="<?= learner_escape($partner['website']); ?>" target="_blank" rel="noopener noreferrer">Truy cập website</a></dd></div>
+                                <?php if ($partnerWebsiteUrl !== null): ?>
+                                    <div><dt><?= learner_icon('globe', 18); ?> Website</dt><dd><a href="<?= learner_escape($partnerWebsiteUrl); ?>" target="_blank" rel="noopener noreferrer">Truy cập website</a></dd></div>
                                 <?php endif; ?>
                             </dl>
                             <div class="learner-data-note">

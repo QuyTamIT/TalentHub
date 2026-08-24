@@ -8,6 +8,99 @@
 
 require_once dirname(__DIR__) . '/data/bootstrap.php';
 
+if (!function_exists('learner_ecosystem_http_url')) {
+    function learner_ecosystem_http_url(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $url = trim($value);
+        if ($url === '' || filter_var($url, FILTER_VALIDATE_URL) === false) {
+            return null;
+        }
+
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        return in_array($scheme, ['http', 'https'], true) ? $url : null;
+    }
+}
+
+if (!function_exists('learner_ecosystem_partner_uses_default')) {
+    function learner_ecosystem_partner_uses_default(array $partner, string $field): bool
+    {
+        $notes = is_array($partner['data_notes'] ?? null) ? $partner['data_notes'] : [];
+        foreach ($notes as $note) {
+            if (is_string($note) && str_starts_with($note, "ecosystem_partner.{$field} uses a safe compatibility default")) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('learner_ecosystem_partner_list')) {
+    function learner_ecosystem_partner_list(array $partner, string $field): array
+    {
+        if (learner_ecosystem_partner_uses_default($partner, $field)) {
+            return [];
+        }
+
+        $value = $partner[$field] ?? null;
+        if (!is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_map(static fn (mixed $item): string => is_scalar($item) ? trim((string) $item) : '', $value),
+            static fn (string $item): bool => $item !== '' && $item !== 'Chưa cập nhật'
+        ));
+    }
+}
+
+if (!function_exists('learner_ecosystem_partner_has_value')) {
+    function learner_ecosystem_partner_has_value(array $partner, string $field): bool
+    {
+        if (learner_ecosystem_partner_uses_default($partner, $field)) {
+            return false;
+        }
+
+        if (($partner['id_origin'] ?? '') === 'database') {
+            $databaseFields = ($partner['type'] ?? '') === 'school'
+                ? ['id', 'name', 'status', 'type', 'logo_text']
+                : [
+                    'id', 'name', 'status', 'type', 'logo_text', 'industry', 'description',
+                    'email', 'phone', 'website', 'address', 'location', 'verification_status',
+                    'verification_note', 'verified_at', 'verified_by', 'verified',
+                ];
+            if (!in_array($field, $databaseFields, true)) {
+                return false;
+            }
+        }
+
+        $value = $partner[$field] ?? null;
+        if (is_array($value)) {
+            return learner_ecosystem_partner_list($partner, $field) !== [];
+        }
+        if (is_string($value)) {
+            $value = trim($value);
+            if ($value === '' || in_array($value, [
+                '#',
+                'Chưa cập nhật',
+                'Thông tin giới thiệu chưa có trong schema hiện tại.',
+            ], true)) {
+                return false;
+            }
+            if ($field === 'website') {
+                return learner_ecosystem_http_url($value) !== null;
+            }
+            return true;
+        }
+
+        return is_int($value) || is_float($value) || $value === true;
+    }
+}
+
 if (!function_exists('learner_ecosystem_enterprise_posts')) {
     function learner_ecosystem_enterprise_posts(): array
     {
