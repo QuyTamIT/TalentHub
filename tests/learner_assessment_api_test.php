@@ -6,6 +6,8 @@ use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Http\ApiException;
 use TalentHub\Learner\Api\JsonResponder;
 use TalentHub\Learner\Api\LearnerApiContext;
+use TalentHub\Learner\Assessment\Service\EducationBandRequired;
+use TalentHub\Learner\Assessment\Service\EducationBandResolver;
 use TalentHub\Rbac\Service\PermissionService;
 
 require_once dirname(__DIR__) . '/bin/bootstrap.php';
@@ -35,6 +37,21 @@ function api_test_assert(bool $condition, string $message): void
         fwrite(STDERR, "Assertion failed: {$message}\n");
         exit(1);
     }
+}
+
+function api_test_expect_band_required(callable $callback, string $message): void
+{
+    try {
+        $callback();
+    } catch (EducationBandRequired) {
+        return;
+    } catch (Throwable $exception) {
+        fwrite(STDERR, "Unexpected exception for {$message}: {$exception->getMessage()}\n");
+        exit(1);
+    }
+
+    fwrite(STDERR, "Expected EducationBandRequired: {$message}\n");
+    exit(1);
 }
 
 function api_test_create_db(string $dbPath): PDO
@@ -226,10 +243,30 @@ $pdo = api_test_create_db($dbPath);
 // University/college school level is authoritative even when the study-year grade is 1-4.
 $pdo->exec("INSERT INTO schools (id, name, level) VALUES ('school-university-001', 'Đại học FPT', 'Đại học')");
 $pdo->exec("INSERT INTO classes (id, schoolId, name, gradeLevel, academicYear) VALUES ('class-university-year-1', 'school-university-001', 'Năm 1', 1, '2026-2027')");
+$pdo->exec("INSERT INTO classes (id, schoolId, name, gradeLevel, academicYear) VALUES ('class-university-year-4', 'school-university-001', 'Năm 4', 4, '2026-2027')");
 $pdo->exec("UPDATE student_profiles SET classId = 'class-university-year-1' WHERE id = '" . API_STUDENT_B . "'");
-$bandResolver = new \TalentHub\Learner\Assessment\Service\EducationBandResolver($pdo);
+$bandResolver = new EducationBandResolver($pdo);
 api_test_assert($bandResolver->resolve(API_STUDENT_B, null) === 'college', 'University year 1 resolves to college without a confirmation prompt');
 api_test_assert($bandResolver->resolve(API_STUDENT_B, 'high') === 'college', 'University level cannot be overridden by a stale client band');
+$pdo->exec("UPDATE student_profiles SET classId = 'class-university-year-4' WHERE id = '" . API_STUDENT_B . "'");
+api_test_assert($bandResolver->resolve(API_STUDENT_B, null) === 'college', 'University year 4 boundary resolves to college');
+
+// Primary grades and unknown school levels remain on the explicit confirmation path.
+$pdo->exec("INSERT INTO schools (id, name, level) VALUES ('school-primary-001', 'Primary School', 'Tiểu học')");
+$pdo->exec("INSERT INTO schools (id, name, level) VALUES ('school-unknown-001', 'Unknown School', NULL)");
+$pdo->exec("INSERT INTO classes (id, schoolId, name, gradeLevel, academicYear) VALUES ('class-primary-grade-5', 'school-primary-001', '5A', 5, '2026-2027')");
+$pdo->exec("INSERT INTO classes (id, schoolId, name, gradeLevel, academicYear) VALUES ('class-unknown-grade-1', 'school-unknown-001', 'Year 1', 1, '2026-2027')");
+$pdo->exec("UPDATE student_profiles SET classId = 'class-primary-grade-5' WHERE id = '" . API_STUDENT_B . "'");
+api_test_expect_band_required(
+    static fn () => $bandResolver->resolve(API_STUDENT_B, null),
+    'Primary grade 5 requires explicit confirmation'
+);
+api_test_assert($bandResolver->resolve(API_STUDENT_B, 'middle') === 'middle', 'Primary grade 5 accepts an explicit valid confirmation');
+$pdo->exec("UPDATE student_profiles SET classId = 'class-unknown-grade-1' WHERE id = '" . API_STUDENT_B . "'");
+api_test_expect_band_required(
+    static fn () => $bandResolver->resolve(API_STUDENT_B, null),
+    'Unknown-school grade 1 requires explicit confirmation'
+);
 $pdo->exec("UPDATE student_profiles SET classId = 'class-high-001' WHERE id = '" . API_STUDENT_B . "'");
 
 // Verify LearnerApiContext exposes required service methods
