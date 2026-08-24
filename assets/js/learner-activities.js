@@ -15,6 +15,9 @@ const statusLabels={
 function getStatusLabel(status){
   return (status && statusLabels[status]) || status || 'Không xác định';
 }
+function resolveRegistrationMessage(explanation,commandFeedback=''){
+  return String(commandFeedback||'').trim()||String(explanation||'');
+}
 function canRegisterActivity(activity,now){
   if(!activity||activity.can_register===false||!['published','ongoing','active'].includes(activity.status))return false;
   const current=new Date(now||Date.now()).getTime();
@@ -160,6 +163,7 @@ global.LearnerActivities={
   resolveRegistrationCollection,
   canUseLocalActivityMutations,
   createActivityRegistrationGateway,
+  resolveRegistrationMessage,
   normalizeServerRegistration,
   getStatusLabel,
   statusLabels
@@ -197,7 +201,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       button.classList.remove('learner-btn--primary','learner-btn--secondary','learner-btn--outline');
       button.classList.add(`learner-btn--${['primary','secondary','outline'].includes(tone)?tone:'outline'}`);
     };
-    const render=()=>{
+    const render=(commandFeedback='')=>{
       registration=all().find(r=>r.activity_id===activity.id);
       if(!button)return;
       const cta=!localMutationsEnabled&&!serverMutationsEnabled&&!registration&&canRegisterActivity(activity)
@@ -206,21 +210,22 @@ document.addEventListener('DOMContentLoaded',()=>{
       button.textContent=cta.label;
       button.disabled=cta.disabled;
       setButtonTone(cta.tone);
-      if(message){message.textContent=cta.explanation;message.dataset.tone=cta.tone;}
+      if(message){message.textContent=resolveRegistrationMessage(cta.explanation,commandFeedback);message.dataset.tone=cta.tone;}
     };
     render();
     button?.addEventListener('click',async()=>{
       if(serverMutationsEnabled){
         button.disabled=true;
         if(message)message.textContent='Đang ghi nhận đăng ký...';
+        let commandFeedback='';
         try{
           const result=await gateway.register(activity.id);
           const created=upsertServerRegistration(result.registration);
-          if(message)message.textContent=`Đã ghi nhận: ${getStatusLabel(created?.status)}.`;
+          commandFeedback=`Đã ghi nhận: ${getStatusLabel(created?.status)}.`;
         }catch(error){
-          if(message)message.textContent=error?.message||'Không thể đăng ký hoạt động.';
+          commandFeedback=error?.message||'Không thể đăng ký hoạt động.';
         }
-        render();return;
+        render(commandFeedback);return;
       }
       if(!localMutationsEnabled){
         if(message)message.textContent='Đăng ký trực tuyến chưa khả dụng.';render();return;

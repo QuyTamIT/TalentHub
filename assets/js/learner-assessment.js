@@ -792,6 +792,7 @@
         let selectedBand = normalizeEducationBand(new URLSearchParams(global.location?.search || '').get('band'));
         let currentAttempt = null;
         const resultUrl = boot.result_url || `assessment-result.php?code=${encodeURIComponent(code)}`;
+        let retryRunnerAction = null;
 
         const start = async (band) => {
             const confirmedBand = normalizeEducationBand(band || selectedBand);
@@ -801,6 +802,7 @@
                 return { code: 'EDUCATION_BAND_REQUIRED', requires_education_band: true };
             }
             selectedBand = confirmedBand;
+            retryRunnerAction = () => start(selectedBand);
             view.hideBandError();
             view.hideBandModal();
             const attempt = await controller.startOrResume(code, selectedBand);
@@ -810,6 +812,7 @@
             }
         };
         const loadDetail = async (band) => {
+            retryRunnerAction = () => loadDetail(selectedBand);
             const detail = await controller.loadDetail(code, band);
             if (detail?.status === 'source-error') {
                 view.hideBandModal();
@@ -842,7 +845,9 @@
             const selected = doc.querySelector('[name="education_band"]:checked');
             return start(selected?.value || '');
         });
-        root.querySelector('[data-assessment-retry]')?.addEventListener('click', () => loadDetail(selectedBand));
+        root.querySelector('[data-assessment-retry]')?.addEventListener('click', () => (
+            typeof retryRunnerAction === 'function' ? retryRunnerAction() : loadDetail(selectedBand)
+        ));
         root.querySelector('[data-assessment-retry-save]')?.addEventListener('click', () => controller.retry());
         root.querySelector('[data-assessment-back-to-questions]')?.addEventListener('click', () => {
             if (currentAttempt) view.render('ready', currentAttempt);
