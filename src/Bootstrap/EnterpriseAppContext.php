@@ -76,7 +76,8 @@ final class EnterpriseAppContext
             throw $exception;
         }
         if (!RoleCodes::matches((string) ($user['role'] ?? ''), RoleCodes::ENTERPRISE)) {
-            $this->redirectToRoleSelection();
+            $this->session->destroy();
+            $this->redirectToLoginWithRoleRequired('enterprise');
         }
         $this->permissions->require($user['id'], 'business_dashboard.read_own');
 
@@ -85,7 +86,8 @@ final class EnterpriseAppContext
             $dashboard  = $this->service->dashboard($user['id']);
         } catch (ApiException $exception) {
             if ($exception->status === 404) {
-                $this->redirectToRoleSelection('?error=enterprise_missing');
+                $hint = 'Tài khoản enterprise của bạn chưa liên kết với doanh nghiệp nào trong hệ thống. Vui lòng chạy seed testing: php bin/seed.php --testing';
+                $this->redirectToRoleSelection('?error=enterprise_missing&hint=' . urlencode($hint));
             }
             throw $exception;
         }
@@ -113,6 +115,15 @@ final class EnterpriseAppContext
     {
         $target = app_href('/role-selection.php') . $query;
         header('Location: ' . $target);
+        exit;
+    }
+
+    public function redirectToLoginWithRoleRequired(string $requiredRole): never
+    {
+        $base = app_href('/login.php');
+        $target = app_href($_SERVER['REQUEST_URI'] ?? '/app/enterprise/');
+        $loginUrl = $base . '?next=' . urlencode($target) . '&role_required=' . urlencode($requiredRole);
+        header('Location: ' . $loginUrl);
         exit;
     }
 

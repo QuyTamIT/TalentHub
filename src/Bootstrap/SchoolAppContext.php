@@ -74,7 +74,8 @@ final class SchoolAppContext
             throw $exception;
         }
         if (($user['role'] ?? null) !== 'school') {
-            $this->redirectToRoleSelection();
+            $this->session->destroy();
+            $this->redirectToLoginWithRoleRequired('school');
         }
         $this->permissions->require($user['id'], 'school_dashboard.read_own');
 
@@ -82,7 +83,8 @@ final class SchoolAppContext
             $dashboard = $this->service->dashboard($user['id']);
         } catch (ApiException $exception) {
             if ($exception->status === 404) {
-                $this->redirectToRoleSelection('?error=school_missing');
+                $hint = 'Tài khoản school của bạn chưa liên kết với nhà trường nào trong hệ thống. Vui lòng chạy seed testing: php bin/seed.php --testing';
+                $this->redirectToRoleSelection('?error=school_missing&hint=' . urlencode($hint));
             }
             throw $exception;
         }
@@ -107,6 +109,15 @@ final class SchoolAppContext
     {
         $target = app_href('/role-selection.php') . $query;
         header('Location: ' . $target);
+        exit;
+    }
+
+    public function redirectToLoginWithRoleRequired(string $requiredRole): never
+    {
+        $base = app_href('/login.php');
+        $target = app_href($_SERVER['REQUEST_URI'] ?? '/app/school/');
+        $loginUrl = $base . '?next=' . urlencode($target) . '&role_required=' . urlencode($requiredRole);
+        header('Location: ' . $loginUrl);
         exit;
     }
 

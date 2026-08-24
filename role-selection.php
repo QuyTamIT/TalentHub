@@ -2,13 +2,41 @@
 /**
  * TalentHub - Role Selection Page
  * Allows visitors to choose their area (Learner, Teacher, School, Enterprise).
- * 
- * Note for Junior Developers:
- * - This page is accessed after clicking "Vào app" or "Trải nghiệm ngay" from Home.
- * - Shared CSS design tokens are loaded from assets/css/home.css
- * - Scoped role selection styles are defined in assets/css/role-selection.css
- * - Interaction and fallback handlers are in assets/js/role-selection.js
+ *
+ * Clicking a card always routes through /login.php with role_required=...
+ * so the visitor must re-authenticate with credentials that match the chosen
+ * portal. If they are already authenticated with the matching role the login
+ * page skips the form and forwards them straight to the area.
  */
+require __DIR__ . '/bin/bootstrap.php';
+
+use TalentHub\Auth\Session\SessionManager;
+
+$session = new SessionManager(require __DIR__ . '/config/session.php');
+$session->start();
+
+$roleSelectionError = isset($_GET['error']) ? (string) $_GET['error'] : null;
+$roleSelectionHint = isset($_GET['hint']) ? (string) $_GET['hint'] : null;
+$roleSelectionErrorMessages = [
+    'student_profile_missing' => [
+        'title' => 'Tài khoản chưa có hồ sơ học viên',
+        'description' => 'Hệ thống nhận diện tài khoản của bạn là Học viên nhưng chưa có hồ sơ trong bảng student_profiles. Vui lòng chạy seed testing hoặc liên hệ quản trị viên.',
+    ],
+    'school_missing' => [
+        'title' => 'Tài khoản chưa liên kết nhà trường',
+        'description' => 'Hệ thống nhận diện tài khoản của bạn thuộc nhóm Nhà trường nhưng chưa liên kết với trường nào. Vui lòng chạy seed testing hoặc liên hệ quản trị viên.',
+    ],
+    'enterprise_missing' => [
+        'title' => 'Tài khoản chưa liên kết doanh nghiệp',
+        'description' => 'Hệ thống nhận diện tài khoản của bạn thuộc nhóm Doanh nghiệp nhưng chưa liên kết với doanh nghiệp nào. Vui lòng chạy seed testing hoặc liên hệ quản trị viên.',
+    ],
+];
+$roleSelectionErrorMessage = $roleSelectionError !== null
+    ? ($roleSelectionErrorMessages[$roleSelectionError] ?? [
+        'title' => 'Không thể truy cập khu vực này',
+        'description' => 'Đã xảy ra lỗi khi vào khu vực bạn yêu cầu.',
+    ])
+    : null;
 
 $roles = [
     [
@@ -19,7 +47,8 @@ $roles = [
         'route' => 'app/learner/index.php',
         'is_popular' => true,
         'badge' => 'Phổ biến nhất',
-        'icon_type' => 'student'
+        'icon_type' => 'student',
+        'role_code' => 'student',
     ],
     [
         'id' => 'teacher',
@@ -28,7 +57,8 @@ $roles = [
         'cta' => 'Vào khu vực này',
         'route' => 'app/teacher/index.php',
         'is_popular' => false,
-        'icon_type' => 'teacher'
+        'icon_type' => 'teacher',
+        'role_code' => 'teacher',
     ],
     [
         'id' => 'school',
@@ -37,7 +67,8 @@ $roles = [
         'cta' => 'Vào khu vực này',
         'route' => 'app/school/index.php',
         'is_popular' => false,
-        'icon_type' => 'school'
+        'icon_type' => 'school',
+        'role_code' => 'school',
     ],
     [
         'id' => 'enterprise',
@@ -46,9 +77,18 @@ $roles = [
         'cta' => 'Vào khu vực này',
         'route' => 'app/enterprise/index.php',
         'is_popular' => false,
-        'icon_type' => 'enterprise'
-    ]
+        'icon_type' => 'enterprise',
+        'role_code' => 'enterprise',
+    ],
 ];
+
+// Always route through login so credentials match the chosen portal
+foreach ($roles as &$role) {
+    $role['auth_href'] = app_href('/login.php')
+        . '?next=' . urlencode(app_href('/' . $role['route']))
+        . '&role_required=' . urlencode($role['role_code']);
+}
+unset($role);
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -100,16 +140,26 @@ $roles = [
                 </p>
             </div>
 
+            <?php if ($roleSelectionErrorMessage !== null): ?>
+                <div class="role-selection-alert role-selection-alert--warning" role="alert">
+                    <strong><?= htmlspecialchars($roleSelectionErrorMessage['title']); ?></strong>
+                    <span><?= htmlspecialchars($roleSelectionErrorMessage['description']); ?></span>
+                    <?php if ($roleSelectionHint !== null): ?>
+                        <code class="role-selection-alert__hint"><?= htmlspecialchars($roleSelectionHint); ?></code>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
             <!-- Role Cards Grid -->
             <div class="role-cards-grid">
                 <?php foreach ($roles as $role): ?>
-                    <div class="role-card <?= $role['is_popular'] ? 'role-card--popular' : ''; ?>" 
-                         data-route="<?= htmlspecialchars($role['route']); ?>" 
+                    <div class="role-card <?= $role['is_popular'] ? 'role-card--popular' : ''; ?>"
+                         data-route="<?= htmlspecialchars($role['auth_href']); ?>"
                          data-role-name="<?= htmlspecialchars($role['title']); ?>"
                          tabindex="0"
                          role="button"
                          aria-label="Chọn vai trò <?= htmlspecialchars($role['title']); ?>">
-                        
+
                         <?php if ($role['is_popular']): ?>
                             <span class="role-card__badge"><?= htmlspecialchars($role['badge']); ?></span>
                         <?php endif; ?>
@@ -144,8 +194,8 @@ $roles = [
                         <h2 class="role-card__title"><?= htmlspecialchars($role['title']); ?></h2>
                         <p class="role-card__description"><?= htmlspecialchars($role['description']); ?></p>
 
-                        <!-- TODO: Future route navigation target: <?= htmlspecialchars($role['route']); ?> -->
-                        <a href="<?= htmlspecialchars($role['route']); ?>" class="btn <?= $role['is_popular'] ? 'btn-primary' : 'btn-secondary'; ?> role-card__cta">
+                        <!-- Routes through /login.php with role_required=... to enforce re-auth -->
+                        <a href="<?= htmlspecialchars($role['auth_href']); ?>" class="btn <?= $role['is_popular'] ? 'btn-primary' : 'btn-secondary'; ?> role-card__cta">
                             <?= htmlspecialchars($role['cta']); ?>
                             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M5 12h14M12 5l7 7-7 7"/>

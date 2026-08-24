@@ -14,6 +14,28 @@ use TalentHub\Support\Id\RequestId;
 $session=new SessionManager(require __DIR__.'/config/session.php');$session->start();
 $loginCsrfToken=$session->csrfToken();
 $requestedNext=is_string($_GET['next']??null)?$_GET['next']:null;
+$requiredRole=is_string($_GET['role_required']??null)?$_GET['role_required']:null;
+
+// Role-based access message
+$roleMessages=[
+    'student'=>['label'=>'Học viên','icon'=>'student','desc'=>'Vui lòng đăng nhập tài khoản Học viên để truy cập khu vực này.'],
+    'teacher'=>['label'=>'Giáo viên','icon'=>'teacher','desc'=>'Vui lòng đăng nhập tài khoản Giáo viên để truy cập khu vực này.'],
+    'school'=>['label'=>'Nhà trường','icon'=>'school','desc'=>'Vui lòng đăng nhập tài khoản Nhà trường để truy cập khu vực này.'],
+    'enterprise'=>['label'=>'Doanh nghiệp','icon'=>'business','desc'=>'Vui lòng đăng nhập tài khoản Doanh nghiệp để truy cập khu vực này.'],
+    'admin'=>['label'=>'Quản trị viên','icon'=>'admin','desc'=>'Vui lòng đăng nhập tài khoản Quản trị viên để truy cập khu vực này.'],
+];
+$roleAlert=null;
+if($requiredRole!==null&&isset($roleMessages[$requiredRole])){
+    $currentUser=$session->user();
+    $currentRole=$currentUser['role']??null;
+    if($currentRole===$requiredRole){
+        // Already logged in with correct role - redirect to destination
+        $destinations=['student'=>'/app/learner/index.php','teacher'=>'/app/teacher/index.php','school'=>'/app/school/index.php','enterprise'=>'/app/enterprise/index.php','admin'=>'/app/admin/index.php'];
+        $destination=$destinations[$currentRole]??'/';
+        header('Location: '.app_href($requestedNext??$destination));exit;
+    }
+    $roleAlert=$roleMessages[$requiredRole];
+}
 
 $errorMessage=null;$emailValue='';$fieldErrors=[];$flash=$_SESSION['authFlash']??null;unset($_SESSION['authFlash']);
 $registrationSucceeded=is_array($flash)&&($flash['type']??null)==='registered';
@@ -66,6 +88,7 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
             <a class="auth-mobile-logo" href="./index.php"><img src="./assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
             <div class="auth-heading"><p class="auth-kicker">Chào mừng trở lại</p><h2 id="login-title">Đăng nhập tài khoản</h2><p>Nhập thông tin đã đăng ký hoặc được tổ chức cấp.</p></div>
             <?php if(is_array($flash)): ?><div class="auth-alert auth-alert--success" role="status"><strong>Đăng ký thành công.</strong> Bạn có thể đăng nhập bằng tài khoản vừa tạo.</div><?php endif; ?>
+            <?php if(is_array($roleAlert)): ?><div class="auth-alert auth-alert--warning" role="alert"><strong>Yêu cầu đăng nhập <?=authEscape($roleAlert['label'])?>:</strong> <?=authEscape($roleAlert['desc'])?></div><?php endif; ?>
             <?php if($errorMessage!==null): ?><div class="auth-alert auth-alert--error" role="alert"><?=authEscape($errorMessage)?></div><?php endif; ?>
             <form class="auth-form" method="post" action="./login.php" data-auth-form>
                 <input type="hidden" name="csrfToken" value="<?=authEscape($loginCsrfToken)?>">
