@@ -13,7 +13,10 @@ use TalentHub\Learner\Ai\Validation\RoadmapAnalysisValidator;
 
 require_once dirname(__DIR__) . '/app/learner/ai/bootstrap.php';
 
-$appEnv = strtolower(trim((string) (getenv('APP_ENV') ?: '')));
+$root = dirname(__DIR__);
+require_once $root . '/bin/bootstrap.php';
+
+$appEnv = TalentHub\Config\Environment::appEnvironment();
 if (!in_array($appEnv, ['local', 'test'], true)) {
     fwrite(STDERR, "Roadmap provider smoke test is restricted to APP_ENV=local|test.\n");
     exit(2);
