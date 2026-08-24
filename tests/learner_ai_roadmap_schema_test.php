@@ -82,6 +82,7 @@ roadmap_schema_reject($pdo, "INSERT INTO learner_ai_roadmap_task_events (id,task
 roadmap_schema_reject($pdo, "INSERT INTO learner_ai_roadmap_task_events (id,taskId,studentId,status,requestId,occurredAt) VALUES ('88888888-8888-4888-8888-888888888888','{$taskA}','{$studentA}','completed','request-1','2026-08-24')", 'task events are idempotent per request');
 roadmap_schema_reject($pdo, "UPDATE learner_ai_roadmap_task_events SET status='reopened' WHERE requestId='request-1'", 'task events reject updates');
 roadmap_schema_reject($pdo, "DELETE FROM learner_ai_roadmap_task_events WHERE requestId='request-1'", 'task events reject deletes');
+roadmap_schema_reject($pdo, "INSERT INTO learner_ai_roadmap_task_events (id,taskId,studentId,status,requestId,occurredAt) VALUES ('aaaaaaaa-1111-4111-8111-111111111111','{$taskA}','{$studentA}','reopened','request-invalid-status','2026-08-24')", 'task events reject unsupported statuses');
 roadmap_schema_reject($pdo, "INSERT INTO learner_ai_roadmap_phases (id,roadmapId,position,startDay,endDay,code,title,goal,skillFocus,deliverable,effortLabel,metricLabel,evidenceJson) VALUES ('99999999-9999-4999-8999-999999999999','{$roadmapA}',2,30,60,'bad','Sai','Sai','Sai','Sai','Sai','Sai','[]')", 'phase ranges must be exact');
 
 echo "learner_ai_roadmap_schema_test: OK\n";
