@@ -29,11 +29,26 @@ final class RecommendationSnapshotBuilder
     /** @param list<string> $allowedScopes */
     public function build(string $studentId, array $allowedScopes): RecommendationInput
     {
+        return $this->buildInternal($studentId, $allowedScopes, false);
+    }
+
+    /** @param list<string> $allowedScopes */
+    public function buildForRoadmap(string $studentId, array $allowedScopes): RecommendationInput
+    {
+        return $this->buildInternal($studentId, $allowedScopes, true);
+    }
+
+    /** @param list<string> $allowedScopes */
+    private function buildInternal(string $studentId, array $allowedScopes, bool $roadmapOnly): RecommendationInput
+    {
         $allowedScopes = $this->normalizeScopes($allowedScopes);
         $has = static fn (string $scope): bool => in_array($scope, $allowedScopes, true);
         $profile = $this->profile($this->studentProfileSource->forStudent($studentId));
         $skills = $has('skills') ? $this->skills($this->skillSource->forStudent($studentId)) : [];
         $assessments = $has('assessment') ? $this->assessments($this->assessmentSource->forStudent($studentId)) : [];
+        if ($roadmapOnly) {
+            $assessments = $this->latestRoadmapAssessments($assessments);
+        }
         $activities = $has('activity') ? $this->activities($this->activityExperienceSource->forStudent($studentId)) : [];
         $evaluations = $has('evaluation') ? $this->evaluations($this->publishedEvaluationSource->forStudent($studentId)) : [];
         $opportunityRecords = $this->opportunitySource->forStudent($studentId);
@@ -72,6 +87,46 @@ final class RecommendationSnapshotBuilder
             ],
             $this->evidenceReferences($skills, $assessments, $activities, $evaluations, $opportunities)
         );
+    }
+
+    /** @param list<array<string,mixed>> $assessments @return list<array<string,mixed>> */
+    private function latestRoadmapAssessments(array $assessments): array
+    {
+        $latest = [];
+        foreach ($assessments as $assessment) {
+            $family = $this->assessmentFamily($assessment);
+            if ($family === null) {
+                continue;
+            }
+            $current = $latest[$family] ?? null;
+            if ($current === null || [
+                (string) ($assessment['submitted_at'] ?? ''),
+                (string) ($assessment['_source_id'] ?? ''),
+            ] > [
+                (string) ($current['submitted_at'] ?? ''),
+                (string) ($current['_source_id'] ?? ''),
+            ]) {
+                $latest[$family] = $assessment;
+            }
+        }
+        return $this->sortRecords(array_values($latest));
+    }
+
+    /** @param array<string,mixed> $assessment */
+    private function assessmentFamily(array $assessment): ?string
+    {
+        $families = ['holland', 'mbti', 'disc', 'multiple_intelligence'];
+        $type = strtolower(trim((string) ($assessment['test_type'] ?? '')));
+        if (in_array($type, $families, true)) {
+            return $type;
+        }
+        $code = strtolower(trim((string) ($assessment['test_code'] ?? '')));
+        foreach ($families as $family) {
+            if ($code === $family || str_starts_with($code, $family . '_')) {
+                return $family;
+            }
+        }
+        return null;
     }
 
     /** @param list<string> $scopes @return list<string> */

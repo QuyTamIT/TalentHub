@@ -47,7 +47,22 @@ final class ConsentDecision
     public function policyVersion(): string { return self::POLICY_VERSION; }
     public function decisionHash(): string { return $this->decisionHash; }
     public function evaluatedAt(): string { return $this->evaluatedAt; }
-    public function permitsAllRequiredScopes(): bool { return $this->allowedScopes === self::REQUIRED_SCOPES; }
+    /** @param list<string> $requiredScopes */
+    public function permitsScopes(array $requiredScopes): bool
+    {
+        $normalized = [];
+        foreach ($requiredScopes as $scope) {
+            if (!is_string($scope) || !in_array($scope, self::REQUIRED_SCOPES, true)) {
+                return false;
+            }
+            $normalized[$scope] = true;
+        }
+        $normalized = array_keys($normalized);
+        sort($normalized, SORT_STRING);
+        return $normalized !== [] && array_diff($normalized, $this->allowedScopes) === [];
+    }
+
+    public function permitsAllRequiredScopes(): bool { return $this->permitsScopes(self::REQUIRED_SCOPES); }
 
     public function denialReason(): ?string
     {

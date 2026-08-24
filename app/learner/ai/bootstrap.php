@@ -36,6 +36,7 @@ require_once $learnerAiRoot . '/Domain/RoadmapPhase.php';
 require_once $learnerAiRoot . '/Domain/RoadmapAnalysis.php';
 require_once $learnerAiRoot . '/Quality/DataQualityResult.php';
 require_once $learnerAiRoot . '/Quality/DataQualityGate.php';
+require_once $learnerAiRoot . '/Quality/RoadmapQualityGate.php';
 require_once $learnerAiRoot . '/Snapshot/RecommendationSnapshotBuilder.php';
 require_once $learnerAiRoot . '/Contracts/RecommendationEngine.php';
 require_once $learnerAiRoot . '/Contracts/RecommendationProvider.php';
