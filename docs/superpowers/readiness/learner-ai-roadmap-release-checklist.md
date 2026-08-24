@@ -14,6 +14,7 @@ This checklist records only safe metrics and hashes. Never paste a learner promp
 - [x] Deterministic safety cases cover diagnosis, protected traits, guaranteed outcomes, fabricated activities, unsupported links, prompt injection, English-only output, uncited claims, and discovery-result duplication.
 - [x] Model and rule-fallback origins are labelled separately.
 - [x] Progress, feedback, and roadmap versions are owner-scoped and persisted.
+- [x] Roadmap model execution is fail-closed behind shadow-gate approval, pilot reference, cohort percentage and an immediate pause switch; `0%` cannot call the model.
 
 Commands:
 

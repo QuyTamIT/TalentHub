@@ -153,6 +153,7 @@
             error: root.querySelector('[data-roadmap-error]'),
             ready: root.querySelector('[data-roadmap-ready]'),
             fallback: root.querySelector('[data-roadmap-fallback]'),
+            fallbackCopy: root.querySelector('[data-roadmap-fallback-copy]'),
             freshness: root.querySelector('[data-roadmap-freshness]'),
             summaryLabel: root.querySelector('[data-roadmap-summary-label]'),
             summary: root.querySelector('[data-roadmap-summary-text]'),
@@ -219,6 +220,11 @@
             renderActivities(model.activities);
             renderEvidence(model.evidence_summary);
             renderEngine(model.engine, state);
+            if (state === 'fallback-rule') {
+                set(nodes.fallbackCopy, model?.engine?.fallback_reason === 'rule_only'
+                    ? 'AI chưa được bật cho tài khoản này; nội dung đang hiển thị là lộ trình theo quy tắc.'
+                    : 'AI tạm thời chưa phản hồi; nội dung này không được gắn nhãn là kết quả từ mô hình.');
+            }
             renderHistory(model.version_history, model.version, model.changed_sections_from_previous);
             const complete = integer(model?.progress?.completed_tasks);
             const total = integer(model?.progress?.total_tasks);

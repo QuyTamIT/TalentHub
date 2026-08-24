@@ -270,21 +270,36 @@ final class LearnerApiContext
         } catch (\Throwable) {
             $config = RecommendationConfig::fromEnvironment(['TALENTHUB_AI_ENABLED' => 'false']);
         }
-        $httpTransport = $GLOBALS['__TALENTHUB_TEST_HTTP__'] ?? null;
-        $provider = new HttpRoadmapProvider($config, is_callable($httpTransport) ? $httpTransport : null);
-        $engine = new ModelRoadmapEngine(
-            $provider,
-            new RuleRoadmapEngine(),
-            new RoadmapPromptRegistry(),
-            new RecommendationRateLimiter(
-                $config->roadmapPerStudentLimit(),
-                $config->roadmapGlobalLimit(),
-                60,
-                static fn (): int => (new DateTimeImmutable('now', new DateTimeZone('UTC')))->getTimestamp(),
-            ),
-            $config,
-            new ProviderConsentGate($consent, ['assessment']),
-        );
+        $ruleEngine = new RuleRoadmapEngine();
+        $engine = $ruleEngine;
+        try {
+            $decision = $consent->decision($studentId);
+            $showModel = (new RecommendationRolloutSelector())->canShowRoadmapModel(
+                $studentId,
+                $config,
+                $decision->allowedScopes(),
+                true,
+            );
+        } catch (\Throwable) {
+            $showModel = false;
+        }
+        if ($showModel) {
+            $httpTransport = $GLOBALS['__TALENTHUB_TEST_HTTP__'] ?? null;
+            $provider = new HttpRoadmapProvider($config, is_callable($httpTransport) ? $httpTransport : null);
+            $engine = new ModelRoadmapEngine(
+                $provider,
+                $ruleEngine,
+                new RoadmapPromptRegistry(),
+                new RecommendationRateLimiter(
+                    $config->roadmapPerStudentLimit(),
+                    $config->roadmapGlobalLimit(),
+                    60,
+                    static fn (): int => (new DateTimeImmutable('now', new DateTimeZone('UTC')))->getTimestamp(),
+                ),
+                $config,
+                new ProviderConsentGate($consent, ['assessment']),
+            );
+        }
 
         return new RoadmapService(
             $roadmaps,

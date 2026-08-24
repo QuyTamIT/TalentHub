@@ -160,6 +160,7 @@ test('renderer uses safe text nodes and never duplicates assessment result conte
   }
   assert.match(source, /Tóm tắt từ AI/);
   assert.match(source, /Gợi ý dự phòng theo quy tắc/);
+  assert.match(source, /AI chưa được bật cho tài khoản này/);
   assert.match(source, /(?:document|doc)\.createElement\('details'\)/);
 });
 

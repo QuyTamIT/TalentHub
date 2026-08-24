@@ -5,7 +5,9 @@ declare(strict_types=1);
 use TalentHub\Learner\Ai\Domain\RecommendationContext;
 use TalentHub\Learner\Ai\Domain\RecommendationInput;
 use TalentHub\Learner\Ai\Evaluation\RecommendationEvaluator;
+use TalentHub\Learner\Ai\Config\RecommendationConfig;
 use TalentHub\Learner\Ai\Model\RoadmapPromptRegistry;
+use TalentHub\Learner\Ai\Rollout\RecommendationRolloutSelector;
 use TalentHub\Learner\Ai\Validation\RoadmapAnalysisValidator;
 
 require_once dirname(__DIR__) . '/app/learner/ai/bootstrap.php';
@@ -81,5 +83,18 @@ $injectedInput = new RecommendationInput($input->payload(), $input->sourceUpdate
 $promptJson = json_encode((new RoadmapPromptRegistry())->create($injectedInput, new RecommendationContext(['assessment'],'request','idempotency','student'))->payload(), JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE);
 roadmap_safety_assert(!str_contains(strtolower($promptJson), 'ignore previous instructions'), 'prompt injection inside evidence is filtered');
 roadmap_safety_assert(str_contains($promptJson, 'dữ liệu không đáng tin cậy'), 'prompt explicitly treats source content as untrusted data');
+
+$rolloutEnv = [
+    'APP_ENV'=>'test','TALENTHUB_AI_ENABLED'=>'true','TALENTHUB_AI_PROVIDER'=>'9router_gemini','TALENTHUB_AI_MODEL'=>'model-test',
+    'TALENTHUB_AI_API_URL'=>'http://127.0.0.1:20128/v1/chat/completions','TALENTHUB_AI_API_KEY'=>'test-key','TALENTHUB_AI_ALLOWED_HOSTS'=>'127.0.0.1',
+    'TALENTHUB_AI_SHADOW_GATE_APPROVED'=>'true','TALENTHUB_AI_VISIBLE_PERCENT'=>'100','TALENTHUB_AI_PILOT_APPROVAL_REFERENCE'=>'pilot-approved','TALENTHUB_AI_PILOT_PAUSED'=>'false',
+];
+$selector = new RecommendationRolloutSelector();
+roadmap_safety_assert(method_exists($selector, 'canShowRoadmapModel'), 'roadmap has an explicit controlled-visibility gate');
+roadmap_safety_assert($selector->canShowRoadmapModel('student-pilot', RecommendationConfig::fromEnvironment($rolloutEnv), ['assessment'], true) === true, 'approved roadmap pilot requires assessment consent');
+$paused = $rolloutEnv; $paused['TALENTHUB_AI_PILOT_PAUSED']='true';
+roadmap_safety_assert($selector->canShowRoadmapModel('student-pilot', RecommendationConfig::fromEnvironment($paused), ['assessment'], true) === false, 'pause switch fails closed');
+$zero = $rolloutEnv; $zero['TALENTHUB_AI_VISIBLE_PERCENT']='0';
+roadmap_safety_assert($selector->canShowRoadmapModel('student-pilot', RecommendationConfig::fromEnvironment($zero), ['assessment'], true) === false, 'zero visibility prevents roadmap model use');
 
 echo "learner_ai_roadmap_safety_evaluation_test: OK\n";

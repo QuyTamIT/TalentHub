@@ -38,4 +38,17 @@ final class RecommendationRolloutSelector
         $bucket = hexdec(substr(hash('sha256', strtolower(trim($studentId))), 0, 8)) % 100;
         return $bucket < $config->visiblePercent();
     }
+
+    /** @param list<string> $allowedScopes */
+    public function canShowRoadmapModel(string $studentId, RecommendationConfig $config, array $allowedScopes, bool $snapshotCurrent): bool
+    {
+        return in_array('assessment', $allowedScopes, true)
+            && $config->enabled()
+            && $config->shadowGateApproved()
+            && $config->visiblePercent() > 0
+            && !$config->pilotPaused()
+            && $config->pilotApprovalReference() !== null
+            && $snapshotCurrent
+            && $this->isAssigned($studentId, $config);
+    }
 }
