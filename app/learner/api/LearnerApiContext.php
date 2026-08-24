@@ -43,6 +43,9 @@ use TalentHub\Learner\Assessment\Service\AssessmentCatalogService;
 use TalentHub\Learner\Assessment\Service\EducationBandResolver;
 use TalentHub\Learner\Data\RepositoryFactory;
 use TalentHub\Learner\Data\Service\LearnerAssessmentService;
+use TalentHub\Modules\Student\Repository\LearnerOnboardingRepository;
+use TalentHub\Modules\Student\Service\LearnerOnboardingGate;
+use TalentHub\Modules\Student\Service\LearnerOnboardingService;
 use TalentHub\Rbac\Service\PermissionService;
 use TalentHub\Support\Id\RequestId;
 use TalentHub\Support\Uuid;
@@ -106,10 +109,22 @@ final class LearnerApiContext
             $this->permissions->require((string) $user['id'], $permission);
         }
         $userId = (string) $user['id'];
-        return [
+        $identity = [
             'student_id' => $this->resolveStudentId($userId),
             'user_id' => $userId,
         ];
+        $progress = (new LearnerOnboardingService(new LearnerOnboardingRepository($this->pdo)))->reconcile(
+            $identity['student_id'],
+            $identity['user_id'],
+            $this->requestId,
+            isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
+        );
+        (new LearnerOnboardingGate())->assertApiAllowed(
+            $progress,
+            basename((string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?: '')),
+        );
+
+        return $identity;
     }
 
     private function resolveStudentId(string $userId): string

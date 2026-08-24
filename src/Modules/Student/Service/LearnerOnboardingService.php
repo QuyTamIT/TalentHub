@@ -36,6 +36,13 @@ final class LearnerOnboardingService
             return $this->readModel(false, 'not_required', []);
         }
 
+        if ($state['status'] === 'pending') {
+            return $this->readModel(true, 'pending', []);
+        }
+        if ($state['status'] === 'completed') {
+            return $this->readModel(true, 'completed', self::REQUIRED_CODES);
+        }
+
         return $this->readModel(true, $state['status'], $this->completedCodes($studentId));
     }
 

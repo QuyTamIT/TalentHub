@@ -16,6 +16,11 @@ final class LearnerOnboardingRepository
     /** @return array{studentId:string,status:string,acceptedAt:?string,completedAt:?string}|null */
     public function find(string $studentId): ?array
     {
+        // Local SQLite fixtures created before this feature represent legacy accounts.
+        // Production MySQL deliberately fails fast if migration-before-code was violated.
+        if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite' && !$this->sqliteTableExists()) {
+            return null;
+        }
         $statement = $this->pdo->prepare(
             'SELECT studentId, status, acceptedAt, completedAt '
             . 'FROM learner_onboarding_states WHERE studentId = :studentId LIMIT 1',
@@ -109,5 +114,13 @@ SQL);
         return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite'
             ? 'CURRENT_TIMESTAMP'
             : 'UTC_TIMESTAMP(6)';
+    }
+
+    private function sqliteTableExists(): bool
+    {
+        $statement = $this->pdo->query(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'learner_onboarding_states'",
+        );
+        return $statement !== false && $statement->fetchColumn() !== false;
     }
 }

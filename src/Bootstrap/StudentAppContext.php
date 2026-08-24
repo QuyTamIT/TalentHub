@@ -9,9 +9,13 @@ use TalentHub\Auth\Service\AuthService;
 use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
+use TalentHub\Modules\Student\Repository\LearnerOnboardingRepository;
 use TalentHub\Modules\Student\Repository\StudentRepository;
+use TalentHub\Modules\Student\Service\LearnerOnboardingGate;
+use TalentHub\Modules\Student\Service\LearnerOnboardingService;
 use TalentHub\Modules\Student\Service\StudentProfileService;
 use TalentHub\Rbac\Service\PermissionService;
+use TalentHub\Support\Id\RequestId;
 
 final class StudentAppContext
 {
@@ -32,7 +36,7 @@ final class StudentAppContext
         $this->students = new StudentProfileService(new StudentRepository($this->pdo));
     }
 
-    /** @return array{user:array<string,mixed>,student:array<string,mixed>,dashboard:array<string,mixed>,csrfToken:string,pdo:\PDO} */
+    /** @return array{user:array<string,mixed>,student:array<string,mixed>,dashboard:array<string,mixed>,onboarding:array<string,mixed>,csrfToken:string,pdo:\PDO} */
     public function boot(): array
     {
         $cached = $this->session->user();
@@ -71,10 +75,28 @@ final class StudentAppContext
             throw $exception;
         }
 
+        $onboardingService = new LearnerOnboardingService(new LearnerOnboardingRepository($this->pdo));
+        $onboarding = $onboardingService->reconcile(
+            (string) $student['id'],
+            (string) $user['id'],
+            RequestId::make(null),
+            isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
+        );
+        $path = (string) (parse_url(
+            (string) ($_SERVER['REQUEST_URI'] ?? '/app/learner/index.php'),
+            PHP_URL_PATH,
+        ) ?: '/app/learner/index.php');
+        $destination = (new LearnerOnboardingGate())->pageDestination($onboarding, $path);
+        if ($destination !== null) {
+            header('Location: ' . app_href($destination));
+            exit;
+        }
+
         return [
             'user' => $user,
             'student' => $student,
             'dashboard' => $dashboard,
+            'onboarding' => $onboarding,
             'csrfToken' => $this->session->csrfToken(),
             'pdo' => $this->pdo,
         ];
