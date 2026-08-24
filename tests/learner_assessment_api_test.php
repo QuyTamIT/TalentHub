@@ -52,7 +52,7 @@ function api_test_create_db(string $dbPath): PDO
     $pdo->exec('CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT NOT NULL, fullName TEXT NOT NULL, roleId TEXT NOT NULL, status TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE role_permissions (roleId TEXT NOT NULL, permissionId TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE permissions (id TEXT PRIMARY KEY, code TEXT NOT NULL)');
-    $pdo->exec('CREATE TABLE schools (id CHAR(36) NOT NULL PRIMARY KEY, name TEXT NOT NULL)');
+    $pdo->exec('CREATE TABLE schools (id CHAR(36) NOT NULL PRIMARY KEY, name TEXT NOT NULL, level TEXT NULL)');
     $pdo->exec('CREATE TABLE classes (id CHAR(36) NOT NULL PRIMARY KEY, schoolId CHAR(36) NOT NULL, name TEXT NOT NULL, gradeLevel INTEGER NOT NULL, academicYear TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE student_profiles (id CHAR(36) NOT NULL PRIMARY KEY, userId TEXT NOT NULL, classId CHAR(36) NULL)');
     $pdo->exec('CREATE TABLE notifications (id TEXT PRIMARY KEY, userId TEXT NOT NULL, eventKey TEXT NULL, notificationType TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, deepLink TEXT NULL, readAt TEXT NULL, createdAt TEXT NOT NULL, UNIQUE(userId,eventKey))');
@@ -69,7 +69,7 @@ function api_test_create_db(string $dbPath): PDO
 
     $classId = 'class-high-001';
     $schoolId = 'school-001';
-    $pdo->exec("INSERT INTO schools (id, name) VALUES ('{$schoolId}', 'High School')");
+    $pdo->exec("INSERT INTO schools (id, name, level) VALUES ('{$schoolId}', 'High School', 'Trung học Phổ thông')");
     $pdo->exec("INSERT INTO classes (id, schoolId, name, gradeLevel, academicYear) VALUES ('{$classId}', '{$schoolId}', '11A', 11, '2026-2027')");
     $pdo->exec("INSERT INTO student_profiles (id, userId, classId) VALUES ('" . API_STUDENT_A . "', '" . API_USER_STUDENT_A . "', '{$classId}'), ('" . API_STUDENT_B . "', '" . API_USER_STUDENT_B . "', '{$classId}')");
     $pdo->exec("INSERT INTO learner_onboarding_states(studentId, status, acceptedAt) VALUES ('" . API_STUDENT_A . "', 'accepted', CURRENT_TIMESTAMP)");
@@ -222,6 +222,15 @@ foreach ($endpointFiles as $file) {
 // 2. Setup SQLite test database
 $dbPath = sys_get_temp_dir() . '/talent_test_assessment_api_' . uniqid() . '.sqlite';
 $pdo = api_test_create_db($dbPath);
+
+// University/college school level is authoritative even when the study-year grade is 1-4.
+$pdo->exec("INSERT INTO schools (id, name, level) VALUES ('school-university-001', 'Đại học FPT', 'Đại học')");
+$pdo->exec("INSERT INTO classes (id, schoolId, name, gradeLevel, academicYear) VALUES ('class-university-year-1', 'school-university-001', 'Năm 1', 1, '2026-2027')");
+$pdo->exec("UPDATE student_profiles SET classId = 'class-university-year-1' WHERE id = '" . API_STUDENT_B . "'");
+$bandResolver = new \TalentHub\Learner\Assessment\Service\EducationBandResolver($pdo);
+api_test_assert($bandResolver->resolve(API_STUDENT_B, null) === 'college', 'University year 1 resolves to college without a confirmation prompt');
+api_test_assert($bandResolver->resolve(API_STUDENT_B, 'high') === 'college', 'University level cannot be overridden by a stale client band');
+$pdo->exec("UPDATE student_profiles SET classId = 'class-high-001' WHERE id = '" . API_STUDENT_B . "'");
 
 // Verify LearnerApiContext exposes required service methods
 $session = new SessionManager(['name' => 'LEARNER_API_TEST', 'lifetime' => 3600, 'secure' => false, 'sameSite' => 'Lax']);
