@@ -41,12 +41,14 @@ final class AuthRepository
                 if(!is_string($role)||$role===''){throw new \RuntimeException('Student role is missing from a non-empty roles table. Run the system RBAC seed.');}
             }
             $classCondition=$legacy?"s.status='active'":"c.status='active' AND s.status='active'";
-            $class=$this->pdo->prepare("SELECT c.id FROM classes c JOIN schools s ON s.id=c.schoolId WHERE c.id=? AND {$classCondition} LIMIT 1 FOR UPDATE");$class->execute([$data['classId']]);
+            $lockSuffix=$this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)==='sqlite'?'':' FOR UPDATE';
+            $class=$this->pdo->prepare("SELECT c.id FROM classes c JOIN schools s ON s.id=c.schoolId WHERE c.id=? AND {$classCondition} LIMIT 1{$lockSuffix}");$class->execute([$data['classId']]);
             if($class->fetchColumn()===false){$this->pdo->rollBack();return '';}
             $userId=Uuid::v4();$profileId=Uuid::v4();
             if($legacy){$statement=$this->pdo->prepare("INSERT INTO users(id,email,passwordHash,fullName,roles,status) VALUES(?,?,?,?,'student','active')");$statement->execute([$userId,$data['email'],$data['passwordHash'],$data['fullName']]);}
             else{$statement=$this->pdo->prepare("INSERT INTO users(id,roleId,email,passwordHash,fullName,status) VALUES(?,?,?,?,?,'active')");$statement->execute([$userId,$role,$data['email'],$data['passwordHash'],$data['fullName']]);}
             $statement=$this->pdo->prepare("INSERT INTO student_profiles(id,userId,classId,dateOfBirth,phone,studyStatus) VALUES(?,?,?,?,?,'active')");$statement->execute([$profileId,$userId,$data['classId'],$data['dateOfBirth'],$data['phone']]);
+            $statement=$this->pdo->prepare("INSERT INTO learner_onboarding_states(studentId,status) VALUES(?,'pending')");$statement->execute([$profileId]);
             if($legacy){$statement=$this->pdo->prepare("INSERT INTO audit_logs(id,userId,action,entityType,entityId) VALUES(?,?,'auth.student_registered','user',?)");$statement->execute([Uuid::v4(),$userId,$userId]);}
             else{$statement=$this->pdo->prepare("INSERT INTO audit_logs(id,userId,action,entityType,entityId,requestId,ipAddress,metadata) VALUES(?,?,'auth.student_registered','user',?,?,?,?)");$statement->execute([Uuid::v4(),$userId,$userId,$requestId,$ip,json_encode(['role'=>'student'],JSON_THROW_ON_ERROR)]);}
             $this->pdo->commit();return $userId;
@@ -62,6 +64,11 @@ final class AuthRepository
     private function isLegacySchema(): bool
     {
         if($this->legacySchema!==null){return $this->legacySchema;}
+        if($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)==='sqlite'){
+            $columns=$this->pdo->query("PRAGMA table_info('users')")->fetchAll(PDO::FETCH_ASSOC);
+            foreach($columns as $column){if(($column['name']??null)==='roles'){return $this->legacySchema=true;}}
+            return $this->legacySchema=false;
+        }
         $s=$this->pdo->prepare("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='users' AND column_name='roles'");$s->execute();
         return $this->legacySchema=(int)$s->fetchColumn()===1;
     }
