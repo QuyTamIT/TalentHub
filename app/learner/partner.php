@@ -9,8 +9,13 @@ $currentRoute = '/app/learner/ecosystem.php';
 $partnerType = $_GET['type'] ?? '';
 $partnerId = $_GET['id'] ?? '';
 $partner = learner_ecosystem_partner($partnerType, $partnerId);
-$partnerOpportunities = $partner ? learner_ecosystem_partner_opportunities($partner['id'], true) : [];
 $isEnterprise = $partner && $partner['type'] === 'enterprise';
+$partnerOpportunities = $partner && $isEnterprise
+    ? learner_ecosystem_partner_opportunities((string) $partner['id'], true)
+    : [];
+$schoolActivities = $partner && !$isEnterprise
+    ? learner_ecosystem_school_activities((string) $partner['id'])
+    : [];
 $isDatabaseSource = learner_repository_factory()->source() === 'database';
 $partnerRecord = $partner ?? [];
 $partnerVerificationStatus = (string) ($partner['verification_status'] ?? '');
@@ -24,6 +29,10 @@ $partnerHasOpportunityCount = learner_ecosystem_partner_has_value($partnerRecord
 $partnerHasAddress = learner_ecosystem_partner_has_value($partnerRecord, 'address');
 $partnerHasEmail = learner_ecosystem_partner_has_value($partnerRecord, 'email');
 $partnerHasPhone = learner_ecosystem_partner_has_value($partnerRecord, 'phone');
+$partnerHasLevel = learner_ecosystem_partner_has_value($partnerRecord, 'level');
+$partnerHasAcademicYear = learner_ecosystem_partner_has_value($partnerRecord, 'academic_year');
+$partnerHasStudentCount = learner_ecosystem_partner_has_value($partnerRecord, 'student_count');
+$partnerHasTeacherCount = learner_ecosystem_partner_has_value($partnerRecord, 'teacher_count');
 $partnerHighlights = learner_ecosystem_partner_list($partnerRecord, 'highlights');
 $partnerPrograms = learner_ecosystem_partner_list($partnerRecord, 'programs');
 $partnerFacilities = learner_ecosystem_partner_list($partnerRecord, 'facilities');
@@ -124,6 +133,14 @@ $partnerTypeLabel = $isEnterprise
                                         </ul>
                                     <?php endif; ?>
                                 <?php else: ?>
+                                    <?php if ($partnerHasLevel || $partnerHasAcademicYear || $partnerHasStudentCount || $partnerHasTeacherCount): ?>
+                                        <div class="learner-fact-grid">
+                                            <?php if ($partnerHasLevel): ?><div><span>Cấp học</span><strong><?= learner_escape(trim((string) $partner['level'])); ?></strong></div><?php endif; ?>
+                                            <?php if ($partnerHasAcademicYear): ?><div><span>Năm học</span><strong><?= learner_escape(trim((string) $partner['academic_year'])); ?></strong></div><?php endif; ?>
+                                            <?php if ($partnerHasStudentCount): ?><div><span>Học sinh</span><strong><?= learner_escape((string) $partner['student_count']); ?></strong></div><?php endif; ?>
+                                            <?php if ($partnerHasTeacherCount): ?><div><span>Giáo viên</span><strong><?= learner_escape((string) $partner['teacher_count']); ?></strong></div><?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
                                     <?php if ($partnerPrograms !== []): ?>
                                         <h3>Ngành đào tạo nổi bật</h3>
                                         <div class="learner-program-grid">
@@ -147,7 +164,7 @@ $partnerTypeLabel = $isEnterprise
                                 <div class="learner-section-heading">
                                     <div>
                                         <h2 id="partner-opportunities-title"><?= learner_escape($isEnterprise ? 'Vị trí đang tuyển' : 'Chương trình & sự kiện'); ?></h2>
-                                        <p><?= count($partnerOpportunities); ?> cơ hội đang mở</p>
+                                        <p><?= count($isEnterprise ? $partnerOpportunities : $schoolActivities); ?> cơ hội đang mở</p>
                                     </div>
                                     <a href="ecosystem.php?tab=opportunities">Xem tất cả</a>
                                 </div>
@@ -164,6 +181,17 @@ $partnerTypeLabel = $isEnterprise
                                                 </div>
                                             </div>
                                             <a class="learner-btn learner-btn--outline" href="opportunity.php?type=<?= learner_escape($opportunity['type']); ?>&amp;id=<?= learner_escape($opportunity['id']); ?>">Chi tiết <?= learner_icon('arrow-right', 16); ?></a>
+                                        </article>
+                                    <?php endforeach; ?>
+                                    <?php foreach ($schoolActivities as $activity): ?>
+                                        <article class="learner-opportunity-row learner-card" data-ecosystem-item-type="school-activity">
+                                            <span class="learner-icon-tile learner-icon-tile--secondary"><?= learner_icon('graduation-cap', 21); ?></span>
+                                            <div>
+                                                <span class="learner-status-dot learner-status-dot--active"><?= learner_escape(($activity['status'] ?? '') === 'ongoing' ? 'Đang diễn ra' : 'Đã công bố'); ?></span>
+                                                <h3><?= learner_escape($activity['title']); ?></h3>
+                                                <p><?= learner_escape($activity['category']); ?> · <?= learner_escape((new DateTimeImmutable((string) $activity['start_at']))->format('d/m/Y H:i')); ?></p>
+                                            </div>
+                                            <a class="learner-btn learner-btn--outline" href="activity-detail.php?id=<?= learner_escape($activity['id']); ?>">Chi tiết <?= learner_icon('arrow-right', 16); ?></a>
                                         </article>
                                     <?php endforeach; ?>
                                 </div>
