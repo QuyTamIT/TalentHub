@@ -2236,7 +2236,18 @@ body.learner-sidebar-open {
 
 .learner-ai-result-list {
     display: grid;
+    gap: 24px;
+}
+
+.learner-ai-result-group,
+.learner-ai-result-group__cards {
+    display: grid;
     gap: 14px;
+}
+
+.learner-ai-result-group__title {
+    color: var(--text-primary);
+    font-size: 1.05rem;
 }
 
 .learner-ai-result {
@@ -2245,8 +2256,35 @@ body.learner-sidebar-open {
     padding: 22px;
 }
 
-.learner-ai-result h3 {
+.learner-ai-result h4 {
     font-size: 1rem;
+}
+
+.learner-ai-engine-details {
+    margin-top: 8px;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+}
+
+.learner-ai-engine-details summary {
+    width: fit-content;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.learner-ai-engine-details dl {
+    display: grid;
+    margin-top: 10px;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 6px 12px;
+}
+
+.learner-ai-engine-details dt {
+    font-weight: 600;
+}
+
+.learner-ai-engine-details dd {
+    overflow-wrap: anywhere;
 }
 
 .learner-ai-result__summary {

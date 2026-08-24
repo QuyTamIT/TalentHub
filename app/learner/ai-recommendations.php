@@ -11,7 +11,7 @@ $currentRoute = '/app/learner/ai-recommendations.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Gợi ý lộ trình phát triển năng lực cá nhân cho học sinh, sinh viên trên TalentHub.">
+    <meta name="description" content="Gợi ý phát triển năng lực cá nhân cho học sinh, sinh viên trên TalentHub.">
     <title>AI phân tích năng lực | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
@@ -29,7 +29,7 @@ $currentRoute = '/app/learner/ai-recommendations.php';
                     'id' => 'learner-ai-page-title',
                     'eyebrow' => 'Gợi ý cá nhân hóa',
                     'title' => 'AI phân tích năng lực',
-                    'description' => 'Hiểu rõ điểm mạnh, điểm cần cải thiện và lộ trình phát triển của bạn.',
+                    'description' => 'Hiểu rõ điểm mạnh và những hoạt động phù hợp với dữ liệu của bạn.',
                     'icon' => 'sparkles',
                 ];
                 include __DIR__ . '/includes/page-banner.php';
@@ -74,9 +74,10 @@ $currentRoute = '/app/learner/ai-recommendations.php';
                 <section class="learner-ai-results" data-ai-results hidden aria-label="Gợi ý năng lực cá nhân">
                     <div class="learner-ai-results__heading">
                         <div>
-                            <p class="learner-ai-results__eyebrow" data-ai-engine-label>Rule baseline</p>
+                            <p class="learner-ai-results__eyebrow" data-ai-engine-label>Gợi ý theo quy tắc</p>
                             <h2>Gợi ý dành cho bạn</h2>
                             <p class="learner-ai-results__generated" data-ai-generated-at></p>
+                            <div data-ai-engine-details></div>
                         </div>
                         <button class="learner-btn learner-btn--secondary" type="button" data-ai-generate>Tạo lại</button>
                     </div>
