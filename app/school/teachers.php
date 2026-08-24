@@ -60,18 +60,10 @@ $pageTitle    = 'Giáo viên';
 
 ob_start();
 ?>
-<div class="school-section-box" style="margin-bottom: 1.5rem;">
-    <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-        <div>
-            <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">
-                Giáo viên của trường
-            </h2>
-            <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0;">
-                <?= count($teachers); ?> giáo viên đang thuộc trường.
-            </p>
-        </div>
-    </div>
-</div>
+<?php
+$pageDescription = 'Mời giáo viên mới và quản lý hồ sơ giáo viên trong trường.';
+include __DIR__ . '/includes/page-banner.php';
+?>
 
 <?php if ($flash): ?>
     <div class="school-flash school-flash--success"><?= htmlspecialchars($flash); ?></div>
@@ -80,7 +72,7 @@ ob_start();
     <div class="school-flash school-flash--error"><?= htmlspecialchars($error); ?></div>
 <?php endif; ?>
 
-<div class="school-grid-2col">
+<div class="school-grid-2col school-grid-2col--teachers">
     <div class="school-section-box">
         <div class="school-section-box__header">
             <h3 class="school-section-box__title">Mời giáo viên mới</h3>
@@ -96,11 +88,9 @@ ob_start();
                     <span>Email <em>*</em></span>
                     <input type="email" name="email" maxlength="255" required placeholder="gv.a@talenthub.vn">
                 </label>
-                <label class="school-form__field">
-                    <span style="display:flex; align-items:center; gap: 0.5rem;">
-                        <input type="checkbox" name="isSchoolAdmin" value="1">
-                        Cấp quyền quản trị trường
-                    </span>
+                <label class="school-form__field school-form__field--checkbox">
+                    <input type="checkbox" name="isSchoolAdmin" value="1">
+                    <span>Cấp quyền quản trị trường</span>
                 </label>
             </div>
             <div class="school-form__actions">
@@ -188,20 +178,8 @@ $pageBody = ob_get_clean();
 
 $extraStyles = <<<'HTML'
 <style>
-.school-grid-2col { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 1.5rem; }
-.school-form__grid { display: grid; gap: 1rem; margin-top: 1rem; }
-.school-form__field { display: flex; flex-direction: column; gap: 0.375rem; font-size: 0.875rem; color: var(--text-secondary); }
-.school-form__field input,
-.school-form__field select { width: 100%; padding: 0.625rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); font-size: 0.9375rem; }
-.school-form__field input:focus { outline: 2px solid #2563EB; outline-offset: 1px; }
-.school-form__field em { color: #DC2626; font-style: normal; margin-left: 2px; }
-.school-form__actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; }
-.school-flash { padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: 0.875rem; }
-.school-flash--success { background: #ECFDF5; color: #047857; border: 1px solid #6EE7B7; }
-.school-flash--error { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
-.school-pagination { display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; justify-content: flex-end; }
-.school-pagination__info { font-size: 0.8125rem; color: var(--text-muted); }
-@media (max-width: 900px) { .school-grid-2col { grid-template-columns: 1fr; } }
+.school-grid-2col.school-grid-2col--teachers { grid-template-columns: minmax(0, 320px) minmax(0, 1fr); }
+@media (max-width: 900px) { .school-grid-2col--teachers { grid-template-columns: 1fr; } }
 </style>
 HTML;
 

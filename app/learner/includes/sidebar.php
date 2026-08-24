@@ -1,5 +1,9 @@
 <?php
 require_once __DIR__ . '/icons.php';
+// Ensure app_href() is available regardless of whether the caller loaded bootstrap.
+if (!function_exists('app_href') && is_file(__DIR__ . '/../../../bin/bootstrap.php')) {
+    require_once __DIR__ . '/../../../bin/bootstrap.php';
+}
 $activeRoute = $currentRoute ?? '/app/learner/index.php';
 ?>
 <div class="learner-sidebar-backdrop" id="learner-sidebar-backdrop" aria-hidden="true"></div>
@@ -11,9 +15,12 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
 
     <div class="learner-sidebar__brand">
         <a class="learner-brand" href="../../index.php" aria-label="Về trang chủ TalentHub">
-            <img src="../../assets/images/logo.svg" alt="TalentHub Logo" height="32" class="learner-brand__logo" />
+            <span class="learner-brand__mark" aria-hidden="true"><?= learner_icon('star', 20); ?></span>
+            <div class="learner-brand__text">
+                <span class="learner-brand__name">Talent<span>Hub</span></span>
+                <span class="learner-brand__subtitle">Khu vực sinh viên</span>
+            </div>
         </a>
-        <p>Khu vực Học sinh</p>
     </div>
 
     <nav class="learner-sidebar__nav" aria-label="Danh mục Học sinh/Sinh viên">
@@ -23,7 +30,7 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
                 <li>
                     <a
                         class="learner-sidebar__link<?= $isActive ? ' is-active' : ''; ?>"
-                        href="<?= learner_escape($item['route']); ?>"
+                        href="<?= learner_escape(app_href($item['route'])); ?>"
                         <?= $isActive ? 'aria-current="page"' : ''; ?>
                         <?= !$item['implemented'] ? 'data-pending-route="true"' : ''; ?>
                     >
@@ -35,6 +42,30 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
         </ul>
     </nav>
 
+    <?php if (($isDatabaseMode ?? false) && isset($level['progressPercent'])): ?>
+    <div class="learner-level-card" aria-label="Cấp độ hiện tại">
+        <span class="learner-level-card__eyebrow">Cấp độ hiện tại</span>
+        <div class="learner-level-card__title">
+            <span class="learner-level-card__medal"><?= learner_escape($level['number']); ?></span>
+            <strong><?= learner_escape($level['name']); ?></strong>
+            <span class="learner-level-card__verified" aria-label="Dữ liệu đã xác nhận"><?= learner_icon('check', 14); ?></span>
+        </div>
+        <div class="learner-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($level['progressPercent']); ?>">
+            <span style="--learner-progress: <?= learner_escape($level['progressPercent']); ?>%;"></span>
+        </div>
+        <?php if (($level['nextLevel'] ?? null) !== null): ?>
+            <p>Còn <?= learner_escape($level['remainingHours']); ?> giờ đến <?= learner_escape($level['nextLevel']); ?></p>
+        <?php else: ?>
+            <p>Đã đạt cấp độ cao nhất</p>
+        <?php endif; ?>
+    </div>
+    <?php elseif ($isDatabaseMode ?? false): ?>
+    <div class="learner-level-card" aria-label="Trạng thái cấp độ">
+        <span class="learner-level-card__eyebrow">Cấp độ</span>
+        <strong>Chưa có dữ liệu cấp độ</strong>
+        <p>Cấp độ sẽ hiển thị khi hệ thống quy tắc huy hiệu được kích hoạt.</p>
+    </div>
+    <?php else: ?>
     <div class="learner-level-card" aria-label="Cấp độ hiện tại">
         <span class="learner-level-card__eyebrow">Cấp độ hiện tại</span>
         <div class="learner-level-card__title">
@@ -46,5 +77,17 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
             <span style="--learner-progress: <?= learner_escape($level['progress']); ?>%;"></span>
         </div>
         <p><?= learner_escape($level['progress']); ?>/<?= learner_escape($level['target']); ?> giờ đến <?= learner_escape($level['next_level']); ?></p>
+    </div>
+    <?php endif; ?>
+
+    <div class="learner-sidebar__footer">
+        <a class="learner-sidebar__link learner-sidebar__link--switch" href="/role-selection.php">
+            <span class="learner-sidebar__icon" aria-hidden="true"><?= learner_icon('arrow-left', 18); ?></span>
+            <span>Đổi vai trò</span>
+        </a>
+        <a class="learner-sidebar__link learner-sidebar__link--logout" href="/logout.php">
+            <span class="learner-sidebar__icon" aria-hidden="true"><?= learner_icon('log-out', 18); ?></span>
+            <span>Đăng xuất</span>
+        </a>
     </div>
 </aside>

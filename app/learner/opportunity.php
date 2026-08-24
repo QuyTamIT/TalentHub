@@ -23,7 +23,7 @@ $deadlineLabel = $opportunity ? (new DateTimeImmutable($opportunity['deadline'])
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
 </head>
-<body class="learner-app learner-page-opportunity" data-opportunity-page>
+<body class="learner-app learner-page-opportunity" data-opportunity-page data-opportunity-id="<?= learner_escape((string) ($opportunity['id'] ?? '')); ?>">
     <div class="learner-layout">
         <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
@@ -95,7 +95,7 @@ $deadlineLabel = $opportunity ? (new DateTimeImmutable($opportunity['deadline'])
                             <h2 id="apply-card-title"><?= learner_escape($canApply ? 'Sẵn sàng ứng tuyển?' : 'Cơ hội đã đóng'); ?></h2>
                             <p><?= learner_escape($canApply ? 'Dùng hồ sơ TalentHub hiện tại và gửi lời nhắn ngắn tới đối tác.' : 'Bạn vẫn có thể xem thông tin, nhưng không thể gửi hồ sơ mới.'); ?></p>
                             <button class="learner-btn learner-btn--primary learner-btn--block" type="button" data-open-modal="learner-application-modal" <?= !$canApply ? 'disabled' : ''; ?>><?= learner_icon('send', 17); ?> Ứng tuyển ngay</button>
-                            <button class="learner-btn learner-btn--outline learner-btn--block" type="button" data-save-opportunity><?= learner_icon('bookmark', 17); ?> Lưu cơ hội</button>
+                            <button class="learner-btn learner-btn--outline learner-btn--block" type="button" disabled title="Tính năng lưu cơ hội chưa khả dụng"><?= learner_icon('bookmark', 17); ?> Lưu cơ hội — chưa hỗ trợ</button>
                             <div class="learner-apply-card__deadline"><span>Hạn đăng ký</span><strong><?= learner_escape($deadlineLabel); ?></strong></div>
                             <p class="learner-apply-card__privacy"><?= learner_icon('info', 15); ?> Chỉ thông tin trong hồ sơ ứng tuyển được chia sẻ với đối tác.</p>
                         </aside>
@@ -126,17 +126,17 @@ $deadlineLabel = $opportunity ? (new DateTimeImmutable($opportunity['deadline'])
                     </div>
                     <div class="learner-form-field">
                         <label for="application-message">Lời nhắn tới đối tác <span>Không bắt buộc</span></label>
-                        <textarea id="application-message" name="message" rows="5" maxlength="300" placeholder="Giới thiệu ngắn về động lực và điểm phù hợp của bạn..." data-application-message></textarea>
-                        <small><span data-application-message-count>0</span>/300 ký tự</small>
+                        <textarea id="application-message" name="message" rows="5" maxlength="500" placeholder="Giới thiệu ngắn về động lực và điểm phù hợp của bạn..." data-application-message></textarea>
+                        <small><span data-application-message-count>0</span>/500 ký tự</small>
                     </div>
                     <label class="learner-consent-field">
                         <input type="checkbox" name="consent" value="yes" data-application-consent>
                         <span>Tôi đồng ý chia sẻ hồ sơ TalentHub và thông tin liên hệ với <?= learner_escape($opportunity['partner_name']); ?> để phục vụ quá trình xét duyệt.</span>
                     </label>
-                    <p class="learner-form-error" hidden data-application-error></p>
+                    <p class="learner-form-error" role="alert" tabindex="-1" hidden data-application-error></p>
                     <div class="learner-data-note">
                         <?= learner_icon('info', 17); ?>
-                        <p>Đây là thao tác mô phỏng giao diện. Hồ sơ chưa được gửi tới hệ thống doanh nghiệp.</p>
+                        <p>Hệ thống chỉ gửi ảnh chụp hồ sơ tối thiểu sau khi bạn xác nhận đồng ý.</p>
                     </div>
                     <div class="learner-modal__actions">
                         <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Hủy</button>
@@ -147,6 +147,7 @@ $deadlineLabel = $opportunity ? (new DateTimeImmutable($opportunity['deadline'])
         </div>
     <?php endif; ?>
 
+    <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
 </body>
 </html>

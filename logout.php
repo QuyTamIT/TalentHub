@@ -8,5 +8,5 @@ $session = new SessionManager(require __DIR__ . '/config/session.php');
 $session->start();
 $session->destroy();
 
-header('Location: /login.php');
+header('Location: ./login.php');
 exit;

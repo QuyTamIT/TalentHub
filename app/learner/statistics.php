@@ -5,37 +5,71 @@ require_once __DIR__ . '/includes/icons.php';
 
 $pageTitle = 'Thống kê cá nhân';
 $currentRoute = '/app/learner/statistics.php';
-$currentStatistics = $learnerStatisticsPeriods[$defaultStatisticsPeriod];
-$experience = $currentStatistics['experience'];
-$chartMaximum = max(20, ...$experience['hours'], ...$experience['comparison']);
+
+$selectedPeriod = $_GET['period'] ?? 'month';
+$selectedPeriod = in_array(strtolower(trim((string) $selectedPeriod)), ['week', 'month'], true)
+    ? strtolower(trim((string) $selectedPeriod))
+    : 'month';
+
+$statsData = null;
+$statisticsLoadError = false;
+if ($isDatabaseMode ?? false) {
+    try {
+        $studentId = (string) ($student['id'] ?? learner_current_student_id());
+        $statsData = learner_repository_factory()->statisticsService()->forStudentPeriod($studentId, $selectedPeriod);
+    } catch (Throwable $e) {
+        $statsData = null;
+        $statisticsLoadError = true;
+    }
+}
+
+if ($statsData !== null) {
+    $kpis = $statsData['kpis'];
+    $experience = $statsData['experience'];
+    $fields = $statsData['fields'];
+    $facts = $statsData['facts'];
+    $level = $statsData['level'];
+    $periodLabel = $statsData['period']['label'];
+} else {
+    // Fallback
+    $kpis = [
+        ['id' => 'hours', 'label' => 'Giờ trải nghiệm', 'value' => 0, 'suffix' => 'giờ', 'tone' => 'teal', 'icon' => 'clock'],
+        ['id' => 'activities', 'label' => 'Hoạt động tham gia', 'value' => 0, 'suffix' => 'hoạt động', 'tone' => 'orange', 'icon' => 'activity'],
+        ['id' => 'assessments', 'label' => 'Đánh giá hoàn thành', 'value' => 0, 'suffix' => 'bài', 'tone' => 'purple', 'icon' => 'award'],
+        ['id' => 'badges', 'label' => 'Huy hiệu đạt được', 'value' => 0, 'suffix' => 'huy hiệu', 'tone' => 'blue', 'icon' => 'star'],
+    ];
+    $experience = ['hours' => [0, 0, 0, 0, 0, 0, 0], 'labels' => ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']];
+    $fields = [];
+    $facts = ['confirmed_experience_hours' => 0, 'attended_activity_count' => 0, 'submitted_assessment_type_count' => 0, 'published_teacher_evaluation_count' => 0];
+    $level = ['name' => 'Explorer', 'number' => 1, 'currentHours' => 0, 'targetHours' => 10, 'progressPercent' => 0];
+    $periodLabel = $selectedPeriod === 'week' ? 'Tuần này' : 'Tháng này';
+}
+
+// Chart calculations
+$hoursList = $experience['hours'] ?? [];
+$labelsList = $experience['labels'] ?? [];
+$chartMaximum = max(10, ...($hoursList !== [] ? $hoursList : [10]));
 $chartLeft = 46;
 $chartTop = 24;
 $chartWidth = 550;
 $chartHeight = 170;
-$chartStep = $chartWidth / max(1, count($experience['hours']));
-$barWidth = min(36, $chartStep * 0.42);
-$linePoints = [];
-$experienceSeriesDescription = 'Giờ trải nghiệm của bạn: ' . implode(', ', array_map(
-    static fn ($label, $hours) => "{$label}: {$hours} giờ",
-    $experience['labels'],
-    $experience['hours']
-));
-$comparisonSeriesDescription = 'Xu hướng tham chiếu: ' . implode(', ', array_map(
-    static fn ($label, $hours) => "{$label}: {$hours} giờ",
-    $experience['labels'],
-    $experience['comparison']
-));
+$pointCount = max(1, count($hoursList));
+$chartStep = $chartWidth / $pointCount;
+$barWidth = min(36, $chartStep * 0.55);
 
-foreach ($experience['comparison'] as $index => $value) {
-    $x = $chartLeft + ($index + 0.5) * $chartStep;
-    $y = $chartTop + $chartHeight - ($value / $chartMaximum * $chartHeight);
-    $linePoints[] = round($x, 2) . ',' . round($y, 2);
-}
-
-$fieldTotal = array_sum(array_column($currentStatistics['fields'], 'hours'));
+// Field donut calculations
+$fieldTotal = array_sum(array_column($fields, 'hours'));
 $donutRadius = 70;
 $donutCircumference = 2 * M_PI * $donutRadius;
 $donutOffset = 0.0;
+
+$fieldColorMap = [
+    'technology' => 'teal',
+    'career' => 'orange',
+    'personal' => 'purple',
+    'academic' => 'blue',
+    'general' => 'neutral',
+];
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -55,39 +89,56 @@ $donutOffset = 0.0;
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content">
-                <div class="learner-statistics-heading">
-                    <div class="learner-page-heading">
-                        <h1>Thống kê cá nhân</h1>
-                        <p>Theo dõi tiến bộ học tập và trải nghiệm của bạn theo thời gian.</p>
+                <?php
+                $learnerPageBanner = [
+                    'id' => 'learner-statistics-page-title',
+                    'eyebrow' => 'Nhìn lại hành trình',
+                    'title' => 'Thống kê cá nhân',
+                    'description' => 'Theo dõi tiến bộ học tập và giờ trải nghiệm thực tế của riêng bạn.',
+                    'icon' => 'chart',
+                ];
+                include __DIR__ . '/includes/page-banner.php';
+                ?>
+
+                <?php if ($statisticsLoadError): ?>
+                    <section class="learner-card learner-empty-state" role="alert" data-statistics-load-error>
+                        <span class="learner-empty-state__icon"><?= learner_icon('chart', 30); ?></span>
+                        <h2>Chưa có dữ liệu thống kê</h2>
+                        <p>Không thể tải dữ liệu đã xác nhận ở thời điểm này.</p>
+                        <a class="learner-btn learner-btn--outline" href="statistics.php?period=<?= learner_escape($selectedPeriod); ?>">Thử tải lại</a>
+                    </section>
+                <?php endif; ?>
+
+                <div class="learner-statistics-heading learner-statistics-heading--actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <div class="learner-owner-badge" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.875rem; color: #0284c7; background: #e0f2fe; padding: 6px 12px; border-radius: 9999px;">
+                        <?= learner_icon('user', 16); ?>
+                        <span>Dữ liệu tổng hợp từ hồ sơ cá nhân của bạn</span>
                     </div>
 
                     <label class="learner-statistics-period" for="learner-statistics-period">
                         <?= learner_icon('calendar', 19); ?>
                         <span class="learner-visually-hidden">Chọn khoảng thời gian thống kê</span>
                         <select id="learner-statistics-period" name="period">
-                            <?php foreach ($learnerStatisticsPeriods as $periodId => $period): ?>
-                                <option value="<?= learner_escape($periodId); ?>" <?= $periodId === $defaultStatisticsPeriod ? 'selected' : ''; ?>>
-                                    <?= learner_escape($period['label']); ?>
-                                </option>
-                            <?php endforeach; ?>
+                            <option value="month" <?= $selectedPeriod === 'month' ? 'selected' : ''; ?>>Tháng này</option>
+                            <option value="week" <?= $selectedPeriod === 'week' ? 'selected' : ''; ?>>Tuần này</option>
                         </select>
                     </label>
                 </div>
 
                 <p class="learner-visually-hidden" data-statistics-status role="status" aria-live="polite" aria-atomic="true">
-                    Đang hiển thị thống kê <?= learner_escape($currentStatistics['label']); ?>.
+                    Đang hiển thị thống kê <?= learner_escape($periodLabel); ?>.
                 </p>
 
                 <div data-statistics-content>
                     <section class="learner-statistics-kpis" aria-label="Chỉ số cá nhân">
-                        <?php foreach ($currentStatistics['kpis'] as $kpi): ?>
-                            <article class="learner-card learner-statistics-kpi learner-statistics-kpi--<?= learner_escape($kpi['tone']); ?>" data-statistics-kpi data-kpi-id="<?= learner_escape($kpi['id']); ?>">
-                                <span class="learner-statistics-kpi__icon" aria-hidden="true"><?= learner_icon($kpi['icon'], 27); ?></span>
+                        <?php foreach ($kpis as $kpi): ?>
+                            <article class="learner-card learner-statistics-kpi learner-statistics-kpi--<?= learner_escape($kpi['tone'] ?? 'teal'); ?>" data-statistics-kpi data-kpi-id="<?= learner_escape($kpi['id']); ?>">
+                                <span class="learner-statistics-kpi__icon" aria-hidden="true"><?= learner_icon($kpi['icon'] ?? 'clock', 27); ?></span>
                                 <div>
                                     <strong data-kpi-value><?= learner_escape($kpi['value']); ?></strong>
                                     <span data-kpi-suffix><?= learner_escape($kpi['suffix']); ?></span>
                                 </div>
-                                <p data-kpi-change><?= learner_escape($kpi['change']); ?></p>
+                                <p><?= learner_escape($kpi['label']); ?></p>
                             </article>
                         <?php endforeach; ?>
                     </section>
@@ -95,15 +146,13 @@ $donutOffset = 0.0;
                     <div class="learner-statistics-grid">
                         <section class="learner-card learner-statistics-panel learner-statistics-experience" aria-labelledby="learner-experience-title">
                             <div class="learner-statistics-panel__heading">
-                                <h2 id="learner-experience-title">Giờ trải nghiệm theo tháng</h2>
+                                <h2 id="learner-experience-title">Giờ trải nghiệm (<?= learner_escape($periodLabel); ?>)</h2>
                                 <div class="learner-chart-legend" aria-hidden="true">
-                                    <span><i class="learner-chart-legend__bar"></i> Thời gian của bạn</span>
-                                    <span><i class="learner-chart-legend__line"></i> Xu hướng tham chiếu</span>
+                                    <span><i class="learner-chart-legend__bar"></i> Giờ thực tế tích lũy</span>
                                 </div>
                             </div>
-                            <svg class="learner-experience-chart" data-experience-chart viewBox="0 0 640 250" role="img" aria-labelledby="learner-experience-chart-title learner-experience-chart-description">
-                                <title id="learner-experience-chart-title">Biểu đồ giờ trải nghiệm cá nhân theo tháng</title>
-                                <desc id="learner-experience-chart-description" data-experience-description><?= learner_escape($experienceSeriesDescription . '. ' . $comparisonSeriesDescription . '.'); ?></desc>
+                            <svg class="learner-experience-chart" data-experience-chart viewBox="0 0 640 250" role="img" aria-labelledby="learner-experience-chart-title">
+                                <title id="learner-experience-chart-title">Biểu đồ giờ trải nghiệm cá nhân <?= learner_escape($periodLabel); ?></title>
                                 <g class="learner-experience-chart__grid" aria-hidden="true">
                                     <line x1="46" y1="24" x2="46" y2="194"></line>
                                     <line x1="46" y1="194" x2="596" y2="194"></line>
@@ -111,124 +160,99 @@ $donutOffset = 0.0;
                                     <line x1="46" y1="24" x2="596" y2="24"></line>
                                 </g>
                                 <g data-experience-bars aria-hidden="true">
-                                    <?php foreach ($experience['hours'] as $index => $hours): ?>
+                                    <?php foreach ($hoursList as $index => $hours): ?>
                                         <?php
-                                        $height = $hours / $chartMaximum * $chartHeight;
+                                        $height = $chartMaximum > 0 ? ($hours / $chartMaximum * $chartHeight) : 0;
                                         $x = $chartLeft + ($index + 0.5) * $chartStep - $barWidth / 2;
                                         $y = $chartTop + $chartHeight - $height;
                                         ?>
-                                        <rect x="<?= learner_escape(round($x, 2)); ?>" y="<?= learner_escape(round($y, 2)); ?>" width="<?= learner_escape(round($barWidth, 2)); ?>" height="<?= learner_escape(round($height, 2)); ?>" rx="5"></rect>
-                                    <?php endforeach; ?>
-                                </g>
-                                <g data-experience-line aria-hidden="true">
-                                    <polyline points="<?= learner_escape(implode(' ', $linePoints)); ?>"></polyline>
-                                    <?php foreach ($experience['comparison'] as $index => $value): ?>
-                                        <?php
-                                        $x = $chartLeft + ($index + 0.5) * $chartStep;
-                                        $y = $chartTop + $chartHeight - ($value / $chartMaximum * $chartHeight);
-                                        ?>
-                                        <circle cx="<?= learner_escape(round($x, 2)); ?>" cy="<?= learner_escape(round($y, 2)); ?>" r="4"></circle>
+                                        <rect x="<?= learner_escape(round($x, 2)); ?>" y="<?= learner_escape(round($y, 2)); ?>" width="<?= learner_escape(round($barWidth, 2)); ?>" height="<?= learner_escape(round($height, 2)); ?>" rx="4" fill="#0d9488"></rect>
                                     <?php endforeach; ?>
                                 </g>
                                 <g class="learner-experience-chart__labels" data-experience-labels aria-hidden="true">
-                                    <?php foreach ($experience['labels'] as $index => $label): ?>
-                                        <text x="<?= learner_escape(round($chartLeft + ($index + 0.5) * $chartStep, 2)); ?>" y="224" text-anchor="middle"><?= learner_escape($label); ?></text>
+                                    <?php foreach ($labelsList as $index => $label): ?>
+                                        <text x="<?= learner_escape(round($chartLeft + ($index + 0.5) * $chartStep, 2)); ?>" y="220" text-anchor="middle" font-size="11" fill="#64748b"><?= learner_escape($label); ?></text>
                                     <?php endforeach; ?>
                                 </g>
                             </svg>
                         </section>
 
                         <section class="learner-card learner-statistics-panel learner-field-panel" aria-labelledby="learner-field-title">
-                            <h2 id="learner-field-title">Phân bổ lĩnh vực</h2>
-                            <div class="learner-field-chart-wrap">
-                                <svg class="learner-field-chart" data-field-chart viewBox="0 0 200 200" role="img" aria-labelledby="learner-field-chart-title learner-field-chart-description">
-                                    <title id="learner-field-chart-title">Phân bổ giờ trải nghiệm cá nhân theo lĩnh vực</title>
-                                    <desc id="learner-field-chart-description" data-field-description><?= learner_escape(implode(', ', array_map(static fn ($field) => $field['label'] . ': ' . $field['hours'] . ' giờ', $currentStatistics['fields']))); ?></desc>
-                                    <circle class="learner-statistics-donut__track" cx="100" cy="100" r="<?= learner_escape($donutRadius); ?>"></circle>
-                                    <g data-field-segments>
-                                        <?php foreach ($currentStatistics['fields'] as $field): ?>
-                                            <?php
-                                            $segmentLength = $donutCircumference * $field['percentage'] / 100;
-                                            ?>
-                                            <circle
-                                                class="learner-statistics-donut__segment learner-statistics-donut__segment--<?= learner_escape($field['tone']); ?>"
-                                                cx="100"
-                                                cy="100"
-                                                r="<?= learner_escape($donutRadius); ?>"
-                                                stroke-dasharray="<?= learner_escape(round($segmentLength, 2)); ?> <?= learner_escape(round($donutCircumference - $segmentLength, 2)); ?>"
-                                                stroke-dashoffset="<?= learner_escape(round(-$donutOffset, 2)); ?>"
-                                            ></circle>
-                                            <?php $donutOffset += $segmentLength; ?>
+                            <h2 id="learner-field-title">Phân bổ lĩnh vực trải nghiệm</h2>
+                            <?php if ($fields !== []): ?>
+                                <div class="learner-field-chart-wrap">
+                                    <svg class="learner-field-chart" data-field-chart viewBox="0 0 200 200" role="img" aria-labelledby="learner-field-chart-title">
+                                        <title id="learner-field-chart-title">Phân bổ giờ trải nghiệm cá nhân theo lĩnh vực</title>
+                                        <circle class="learner-statistics-donut__track" cx="100" cy="100" r="<?= learner_escape($donutRadius); ?>"></circle>
+                                        <g data-field-segments>
+                                            <?php foreach ($fields as $field): ?>
+                                                <?php
+                                                $catTone = $fieldColorMap[$field['category']] ?? 'teal';
+                                                $segmentLength = $donutCircumference * ($field['percentage'] ?? 0) / 100;
+                                                ?>
+                                                <circle
+                                                    class="learner-statistics-donut__segment learner-statistics-donut__segment--<?= learner_escape($catTone); ?>"
+                                                    cx="100"
+                                                    cy="100"
+                                                    r="<?= learner_escape($donutRadius); ?>"
+                                                    stroke-dasharray="<?= learner_escape(round($segmentLength, 2)); ?> <?= learner_escape(round($donutCircumference - $segmentLength, 2)); ?>"
+                                                    stroke-dashoffset="<?= learner_escape(round(-$donutOffset, 2)); ?>"
+                                                ></circle>
+                                                <?php $donutOffset += $segmentLength; ?>
+                                            <?php endforeach; ?>
+                                        </g>
+                                        <text class="learner-field-chart__total" x="100" y="96" text-anchor="middle" data-field-total><?= learner_escape($fieldTotal); ?></text>
+                                        <text class="learner-field-chart__unit" x="100" y="119" text-anchor="middle">giờ</text>
+                                    </svg>
+                                    <div class="learner-field-legend" data-field-legend>
+                                        <?php foreach ($fields as $field): ?>
+                                            <?php $catTone = $fieldColorMap[$field['category']] ?? 'teal'; ?>
+                                            <div class="learner-field-legend__item">
+                                                <span class="learner-field-legend__dot learner-field-legend__dot--<?= learner_escape($catTone); ?>" aria-hidden="true"></span>
+                                                <span><strong><?= learner_escape(ucfirst($field['category'])); ?></strong><small><?= learner_escape($field['hours']); ?> giờ (<?= learner_escape($field['percentage']); ?>%)</small></span>
+                                            </div>
                                         <?php endforeach; ?>
-                                    </g>
-                                    <text class="learner-field-chart__total" x="100" y="96" text-anchor="middle" data-field-total><?= learner_escape($fieldTotal); ?></text>
-                                    <text class="learner-field-chart__unit" x="100" y="119" text-anchor="middle">giờ</text>
-                                </svg>
-                                <div class="learner-field-legend" data-field-legend>
-                                    <?php foreach ($currentStatistics['fields'] as $field): ?>
-                                        <div class="learner-field-legend__item">
-                                            <span class="learner-field-legend__dot learner-field-legend__dot--<?= learner_escape($field['tone']); ?>" aria-hidden="true"></span>
-                                            <span><strong><?= learner_escape($field['label']); ?></strong><small><?= learner_escape($field['hours']); ?> giờ (<?= learner_escape($field['percentage']); ?>%)</small></span>
-                                        </div>
-                                    <?php endforeach; ?>
+                                    </div>
                                 </div>
-                            </div>
-                        </section>
-
-                        <section class="learner-card learner-statistics-panel learner-statistics-skills" aria-labelledby="learner-progress-title">
-                            <h2 id="learner-progress-title">Kỹ năng tiến bộ</h2>
-                            <div class="learner-statistics-skills__list">
-                                <?php foreach ($currentStatistics['skills'] as $skill): ?>
-                                    <article class="learner-statistics-skill" data-statistics-skill>
-                                        <span class="learner-statistics-skill__icon learner-statistics-skill__icon--<?= learner_escape($skill['tone']); ?>" aria-hidden="true"><?= learner_icon($skill['icon'], 21); ?></span>
-                                        <div>
-                                            <div class="learner-statistics-skill__heading">
-                                                <strong data-skill-name><?= learner_escape($skill['name']); ?></strong>
-                                                <b data-skill-score><?= learner_escape($skill['score']); ?>%</b>
-                                            </div>
-                                            <div class="learner-progress" role="progressbar" aria-label="<?= learner_escape($skill['name']); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($skill['score']); ?>">
-                                                <span class="learner-progress--<?= learner_escape($skill['tone']); ?>" style="--learner-progress: <?= learner_escape($skill['score']); ?>%;"></span>
-                                            </div>
-                                            <small data-skill-level><?= learner_escape($skill['level']); ?></small>
-                                        </div>
-                                    </article>
-                                <?php endforeach; ?>
-                            </div>
+                            <?php else: ?>
+                                <div style="text-align: center; padding: 40px 16px; color: #64748b;">
+                                    <p>Chưa có dữ liệu phân bổ lĩnh vực trong khoảng thời gian này.</p>
+                                </div>
+                            <?php endif; ?>
                         </section>
                     </div>
 
-                    <section class="learner-card learner-activity-summary-section" aria-labelledby="learner-activity-summary-title">
-                        <h2 id="learner-activity-summary-title">Hoạt động và hoàn thành</h2>
-                        <div class="learner-activity-summary-grid">
-                            <?php foreach ($currentStatistics['activities'] as $activity): ?>
-                                <article class="learner-activity-summary learner-activity-summary--<?= learner_escape($activity['tone']); ?>" data-activity-summary data-activity-id="<?= learner_escape($activity['id']); ?>">
-                                    <span class="learner-activity-summary__icon" aria-hidden="true"><?= learner_icon($activity['icon'], 26); ?></span>
-                                    <div>
-                                        <span data-activity-label><?= learner_escape($activity['label']); ?></span>
-                                        <strong data-activity-value><?= learner_escape($activity['value']); ?></strong>
-                                        <small data-activity-change><?= learner_escape($activity['change']); ?></small>
-                                    </div>
-                                </article>
-                            <?php endforeach; ?>
+                    <section class="learner-card learner-level-summary-card" style="margin-top: 24px; padding: 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <span class="learner-level-emblem" aria-hidden="true" style="font-size: 2rem;"><?= learner_icon('award', 40); ?></span>
+                            <div>
+                                <h3 style="margin: 0; font-size: 1.25rem;">Cấp độ: <?= learner_escape($level['name']); ?> (Cấp <?= learner_escape($level['number']); ?>)</h3>
+                                <p style="margin: 4px 0 0; color: #64748b; font-size: 0.875rem;">Tổng số giờ tích lũy trọn đời: <strong><?= learner_escape($facts['confirmed_experience_hours'] ?? 0); ?> giờ</strong></p>
+                            </div>
+                        </div>
+                        <div style="min-width: 200px; flex-grow: 1; max-width: 400px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #64748b; margin-bottom: 4px;">
+                                <span>Tiến độ cấp độ</span>
+                                <span><?= learner_escape($level['progressPercent'] ?? 0); ?>%</span>
+                            </div>
+                            <div class="learner-progress" role="progressbar" aria-label="Tiến độ cấp độ" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($level['progressPercent'] ?? 0); ?>">
+                                <span style="--learner-progress: <?= learner_escape($level['progressPercent'] ?? 0); ?>%;"></span>
+                            </div>
                         </div>
                     </section>
                 </div>
-
-                <section class="learner-card learner-empty-state learner-statistics-empty" data-statistics-empty role="status" aria-live="polite" hidden>
-                    <span class="learner-empty-state__icon"><?= learner_icon('chart', 30); ?></span>
-                    <h2>Chưa có dữ liệu trong khoảng thời gian này</h2>
-                    <p>Hãy chọn một khoảng thời gian khác để xem tiến trình cá nhân.</p>
-                </section>
             </main>
         </div>
     </div>
 
     <script type="application/json" id="learner-statistics-data"><?=
         json_encode(
-            $learnerStatisticsPeriods,
+            $statsData ?? [],
             JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
         );
     ?></script>
+    <script src="../../assets/js/learner-api.js"></script>
+    <script src="../../assets/js/learner-statistics.js"></script>
     <script src="../../assets/js/learner.js"></script>
 </body>
 </html>

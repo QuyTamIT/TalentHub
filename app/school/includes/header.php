@@ -46,10 +46,11 @@ $initials    = $schoolInfo['logo_initials'] ?? 'TH';
             </div>
         </div>
 
-        <a href="/logout.php" class="school-header__logout" title="Đăng xuất">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <a href="../../logout.php" class="school-header__logout" title="Đăng xuất">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M16 17l5-5-5-5M19.8 12H9M13 22a10 10 0 1 1 0-20"></path>
             </svg>
+            <span>Đăng xuất</span>
         </a>
     </div>
 </header>

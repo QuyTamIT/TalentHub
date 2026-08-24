@@ -69,7 +69,7 @@ final class MinimalAuthRbacSeeder
             [self::IDS['studentUser'], $roleIds['student'], 'student@test.talenthub.local', $hash, 'Test Student'],
             [self::IDS['teacherUser'], $roleIds['teacher'], 'teacher@test.talenthub.local', $hash, 'Test Teacher'],
             [self::IDS['schoolUser'], $roleIds['school'], 'school@test.talenthub.local', $hash, 'Test School User'],
-            [self::IDS['businessUser'], $roleIds['business'], 'business@test.talenthub.local', $hash, 'Test Business User'],
+            [self::IDS['businessUser'], $roleIds['enterprise'], 'business@test.talenthub.local', $hash, 'Test Enterprise User'],
         ];
         foreach ($users as $user) {
             $this->insertIgnore($pdo,
@@ -78,8 +78,58 @@ final class MinimalAuthRbacSeeder
         }
 
         $this->insertIgnore($pdo,
-            'INSERT IGNORE INTO enterprises (id, name, status, email, verificationStatus) VALUES (?, ?, ?, ?, ?)',
-            [self::IDS['enterprise'], 'TalentHub Test Business', 'active', 'business@test.talenthub.local', 'pending']);
+            'INSERT IGNORE INTO enterprises (id, name, status, logoUrl, industry, companySize, foundedYear, description, email, phone, website, taxCode, address, verificationStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                self::IDS['enterprise'],
+                'FPT Software',
+                'active',
+                '/assets/images/fpt-software-logo.svg',
+                'Công nghệ thông tin & Dịch vụ phần mềm',
+                '10,000+ nhân viên',
+                1999,
+                'FPT Software là công ty công nghệ và dịch vụ CNTT hàng đầu thế giới có trụ sở chính tại Việt Nam, tiên phong trong chuyển đổi số, AI và đào tạo phát triển tài năng trẻ.',
+                'business@test.talenthub.local',
+                '024 7300 7575',
+                'https://fptsoftware.com',
+                '0101234567',
+                'Tòa nhà FPT, Phố Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+                'verified'
+            ]
+        );
+
+        $updateEnterprise = $pdo->prepare(
+            'UPDATE enterprises SET 
+                name = :name,
+                status = :status,
+                logoUrl = :logoUrl,
+                industry = :industry,
+                companySize = :companySize,
+                foundedYear = :foundedYear,
+                description = :description,
+                email = :email,
+                phone = :phone,
+                website = :website,
+                taxCode = :taxCode,
+                address = :address,
+                verificationStatus = :verificationStatus
+             WHERE id = :id'
+        );
+        $updateEnterprise->execute([
+            'id'                 => self::IDS['enterprise'],
+            'name'               => 'FPT Software',
+            'status'             => 'active',
+            'logoUrl'            => '/assets/images/fpt-software-logo.svg',
+            'industry'           => 'Công nghệ thông tin & Dịch vụ phần mềm',
+            'companySize'        => '10,000+ nhân viên',
+            'foundedYear'        => 1999,
+            'description'        => 'FPT Software là công ty công nghệ và dịch vụ CNTT hàng đầu thế giới có trụ sở chính tại Việt Nam, tiên phong trong chuyển đổi số, AI và đào tạo phát triển tài năng trẻ.',
+            'email'              => 'business@test.talenthub.local',
+            'phone'              => '024 7300 7575',
+            'website'            => 'https://fptsoftware.com',
+            'taxCode'            => '0101234567',
+            'address'            => 'Tòa nhà FPT, Phố Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+            'verificationStatus' => 'verified',
+        ]);
     }
 
     private function insertScopes(PDO $pdo): void
@@ -92,7 +142,7 @@ final class MinimalAuthRbacSeeder
             [self::IDS['teacherProfile'], self::IDS['teacherUser'], self::IDS['school'], 0]);
         $this->insertIgnore($pdo,
             'INSERT IGNORE INTO school_members (id, schoolId, userId, memberRole) VALUES (?, ?, ?, ?)',
-            [self::IDS['schoolMember'], self::IDS['school'], self::IDS['schoolUser'], 'member']);
+            [self::IDS['schoolMember'], self::IDS['school'], self::IDS['schoolUser'], 'admin']);
         $this->insertIgnore($pdo,
             'INSERT IGNORE INTO enterprise_members (id, enterpriseId, userId, memberRole) VALUES (?, ?, ?, ?)',
             [self::IDS['enterpriseMember'], self::IDS['enterprise'], self::IDS['businessUser'], 'member']);
@@ -101,7 +151,7 @@ final class MinimalAuthRbacSeeder
     /** @return array<string, string> */
     private function roleIds(PDO $pdo): array
     {
-        $statement = $pdo->query("SELECT code, id FROM roles WHERE code IN ('student', 'teacher', 'school', 'business')");
+        $statement = $pdo->query("SELECT code, id FROM roles WHERE code IN ('student', 'teacher', 'school', 'enterprise')");
         $roles = $statement->fetchAll(PDO::FETCH_KEY_PAIR);
         if (count($roles) !== 4) {
             throw new RuntimeException('Run RolePermissionSeeder before MinimalAuthRbacSeeder.');

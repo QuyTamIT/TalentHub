@@ -15,3 +15,20 @@ Thumbs.db
 
 # Runtime-generated uploads and reports
 /src/storage/
+
+# Local audit artifacts, backups, and linked Codex worktrees.
+/.tmp/
+
+# Local-only planning, QA, and coding-agent material.
+/tests/
+/docs/
+/design/
+/Document/
+/.agents/
+/.superpowers/
+/.claude/
+/.qwen/
+/.codex/
+/.codex-*/
+/.docx_review/
+/.worktrees/

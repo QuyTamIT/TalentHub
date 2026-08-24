@@ -7,6 +7,15 @@
  * warnings or SQL details to users.
  */
 
+require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
+
+use TalentHub\Auth\Session\SessionManager;
+use TalentHub\Database\Connection;
+use TalentHub\Http\ApiException;
+use TalentHub\Modules\Teacher\Repository\TeacherRepository;
+use TalentHub\Modules\Teacher\Service\TeacherProfileService;
+use TalentHub\Rbac\Service\PermissionService;
+
 function teacherDashboardDefaults(): array
 {
     return [
@@ -41,29 +50,51 @@ function teacherDashboardDefaults(): array
     ];
 }
 
-function teacherDashboardConnect(): ?PDO
+function teacherDashboardBackendContext(): array
 {
-    if (!extension_loaded('pdo_mysql')) {
-        return null;
+    static $context = null;
+
+    if (is_array($context)) {
+        return $context;
     }
-
-    $host = getenv('TALENTHUB_DB_HOST') ?: getenv('DB_HOST') ?: '127.0.0.1';
-    $port = getenv('TALENTHUB_DB_PORT') ?: getenv('DB_PORT') ?: '3306';
-    $database = getenv('TALENTHUB_DB_NAME') ?: getenv('DB_DATABASE') ?: 'talenthub';
-    $username = getenv('TALENTHUB_DB_USER') ?: getenv('DB_USERNAME') ?: 'root';
-    $password = getenv('TALENTHUB_DB_PASS') ?: getenv('DB_PASSWORD') ?: '';
-
-    $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4', $host, $port, $database);
 
     try {
-        return new PDO($dsn, $username, $password, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ]);
+        $pdo = (new Connection(require dirname(__DIR__, 3) . '/config/database.php'))->connect();
+        $session = new SessionManager(require dirname(__DIR__, 3) . '/config/session.php');
+        $session->start();
+        $user = $session->requireUser();
+
+        if (($user['role'] ?? '') !== 'teacher') {
+            throw new ApiException(403, 'PERMISSION_DENIED', 'Chức năng này chỉ dành cho giáo viên.');
+        }
+
+        (new PermissionService($pdo))->require($user['id'], 'teacher_dashboard.read_own');
+        $profile = (new TeacherProfileService(new TeacherRepository($pdo)))->get($user['id']);
+
+        $context = [
+            'pdo' => $pdo,
+            'session' => $session,
+            'user' => $user,
+            'profile' => $profile,
+            'error' => null,
+        ];
     } catch (Throwable $exception) {
-        return null;
+        $context = [
+            'pdo' => null,
+            'session' => null,
+            'user' => null,
+            'profile' => null,
+            'error' => $exception instanceof ApiException ? $exception->getMessage() : 'Chưa thể kết nối backend xác thực mới.',
+        ];
     }
+
+    return $context;
+}
+
+function teacherDashboardConnect(): ?PDO
+{
+    $context = teacherDashboardBackendContext();
+    return $context['pdo'] instanceof PDO ? $context['pdo'] : null;
 }
 
 function teacherDashboardScalar(PDO $pdo, string $sql, array $params = []): int|float|null
@@ -97,9 +128,14 @@ function teacherDashboardRows(PDO $pdo, string $sql, array $params = []): array
 function teacherDashboardReadData(): array
 {
     $data = teacherDashboardDefaults();
-    $pdo = teacherDashboardConnect();
+    $context = teacherDashboardBackendContext();
+    $pdo = $context['pdo'] instanceof PDO ? $context['pdo'] : null;
 
     if (!$pdo) {
+        if (is_string($context['error']) && $context['error'] !== '') {
+            $data['dbStatus']['label'] = 'Chưa sẵn sàng';
+            $data['dbStatus']['message'] = $context['error'];
+        }
         return $data;
     }
 
@@ -109,43 +145,30 @@ function teacherDashboardReadData(): array
         'message' => 'Đã kết nối MySQL và chỉ sử dụng SELECT trong phạm vi Giáo viên.',
     ];
 
-    $teacher = teacherDashboardRows($pdo, "
-        SELECT
-            tp.id AS teacher_id,
-            tp.userId AS user_id,
-            tp.schoolId AS school_id,
-            tp.isSchoolAdmin,
-            u.fullName,
-            s.name AS school_name
-        FROM teacher_profiles tp
-        INNER JOIN users u ON u.id = tp.userId
-        INNER JOIN schools s ON s.id = tp.schoolId
-        ORDER BY u.createdAt ASC
-        LIMIT 1
-    ");
+    $profile = is_array($context['profile']) ? $context['profile'] : null;
 
-    if (empty($teacher)) {
+    if (!$profile) {
         $data['dbStatus']['label'] = 'Chưa có hồ sơ giáo viên';
-        $data['dbStatus']['message'] = 'Database kết nối thành công nhưng bảng teacher_profiles chưa có bản ghi phù hợp.';
+        $data['dbStatus']['message'] = 'Database kết nối thành công nhưng chưa tìm thấy hồ sơ giáo viên theo phiên đăng nhập.';
         return $data;
     }
 
-    $teacher = $teacher[0];
-    $teacherName = trim((string) ($teacher['fullName'] ?? 'Giáo viên TalentHub'));
+    $teacherName = trim((string) ($profile['fullName'] ?? 'Giáo viên TalentHub'));
+    $school = is_array($profile['school'] ?? null) ? $profile['school'] : [];
 
     $data['teacherInfo'] = [
-        'id' => $teacher['teacher_id'],
-        'user_id' => $teacher['user_id'],
+        'id' => $profile['id'] ?? null,
+        'user_id' => $profile['userId'] ?? null,
         'full_name' => $teacherName !== '' ? $teacherName : 'Giáo viên TalentHub',
-        'role_label' => !empty($teacher['isSchoolAdmin']) ? 'Giáo viên / Quản trị trường' : 'Giáo viên / Hướng dẫn viên',
-        'school_name' => $teacher['school_name'] ?: 'Chưa kết nối trường',
+        'role_label' => !empty($profile['isSchoolAdmin']) ? 'Giáo viên / Quản trị trường' : 'Giáo viên / Hướng dẫn viên',
+        'school_name' => ($school['name'] ?? '') ?: 'Chưa kết nối trường',
         'avatar_initials' => teacherDashboardInitials($teacherName),
         'notification_count' => 0,
     ];
 
-    $teacherId = (string) $teacher['teacher_id'];
-    $schoolId = (string) $teacher['school_id'];
-    $userId = (string) $teacher['user_id'];
+    $teacherId = (string) ($profile['id'] ?? '');
+    $schoolId = (string) ($school['id'] ?? '');
+    $userId = (string) ($profile['userId'] ?? '');
 
     $data['metrics']['total_students'] = (int) (teacherDashboardScalar($pdo, "
         SELECT COUNT(DISTINCT sp.id)
@@ -164,7 +187,7 @@ function teacherDashboardReadData(): array
         SELECT COUNT(*)
         FROM activities
         WHERE createdByTeacherId = :teacherId
-          AND LOWER(status) IN ('open', 'active', 'published', 'ongoing', 'in_progress', 'dang_mo', 'mo')
+          AND status IN ('published', 'ongoing')
     ", ['teacherId' => $teacherId]) ?? 0);
 
     $data['metrics']['pending_assessments'] = (int) (teacherDashboardScalar($pdo, "
@@ -216,18 +239,13 @@ function teacherDashboardReadData(): array
         SELECT COUNT(*)
         FROM activities
         WHERE createdByTeacherId = :teacherId
+          AND status = 'published'
           AND startAt >= NOW()
           AND startAt < DATE_ADD(NOW(), INTERVAL 7 DAY)
     ", ['teacherId' => $teacherId]) ?? 0);
 
-    $data['metrics']['qr_tokens_expiring'] = (int) (teacherDashboardScalar($pdo, "
-        SELECT COUNT(*)
-        FROM activity_qr_tokens qt
-        INNER JOIN activities a ON a.id = qt.activityId
-        WHERE a.createdByTeacherId = :teacherId
-          AND qt.expiresAt >= NOW()
-          AND qt.expiresAt < DATE_ADD(NOW(), INTERVAL 1 DAY)
-    ", ['teacherId' => $teacherId]) ?? 0);
+    // QR tables are not part of the current migration contract.
+    $data['metrics']['qr_tokens_expiring'] = 0;
 
     $data['teacherInfo']['notification_count'] = (int) (teacherDashboardScalar($pdo, "
         SELECT COUNT(*)

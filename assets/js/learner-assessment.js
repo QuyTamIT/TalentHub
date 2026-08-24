@@ -1,398 +1,868 @@
-/** TalentHub learner Holland assessment domain, storage and page controller. */
+/**
+ * TalentHub learner assessment API state controller and UI view.
+ * Connects assessment flows (catalog, start/resume, autosave, submit, result)
+ * to the authoritative learner API endpoints.
+ */
 (function initLearnerAssessment(global) {
     'use strict';
 
-    const DEFAULT_STORAGE_KEY = 'talenthub.learner.assessments.v1';
-    const SCHEMA_VERSION = 1;
+    function presentationState(payload) {
+        const status = typeof payload?.status === 'string' ? payload.status : '';
+        if (status === 'loading') return 'loading';
+        if (status === 'saving') return 'saving';
+        if (status === 'save-error') return 'save-error';
+        if (status === 'submitting') return 'submitting';
+        if (status === 'validation-error') return 'validation-error';
+        if (status === 'expired') return 'expired';
+        if (status === 'source-error' || status === 'source_unavailable') return 'source-error';
+        if (status === 'complete' || status === 'submitted') return 'complete';
+        if (status === 'ready' || status === 'in_progress' || status === 'not_started' || status === 'retake_locked') return 'ready';
+        return 'source-error';
+    }
 
-    function scoreHolland(questions, answers) {
-        const dimensions = ['R', 'I', 'A', 'S', 'E', 'C'];
-        const totals = Object.fromEntries(dimensions.map((dimension) => [dimension, 0]));
-        const counts = Object.fromEntries(dimensions.map((dimension) => [dimension, 0]));
-        questions.forEach((question) => {
-            const dimension = question.dimension;
-            if (!dimensions.includes(dimension)) return;
-            const value = Number(answers?.[question.id]);
-            if (!Number.isFinite(value)) return;
-            totals[dimension] += Math.max(1, Math.min(5, value));
-            counts[dimension] += 1;
-        });
-        const scores = Object.fromEntries(dimensions.map((dimension) => {
-            const count = counts[dimension];
-            if (count === 0) return [dimension, 0];
-            return [dimension, Math.round((totals[dimension] - count) / (count * 4) * 100)];
-        }));
-        const ranked = [...dimensions].sort((left, right) => scores[right] - scores[left]
-            || dimensions.indexOf(left) - dimensions.indexOf(right));
+    function defaultIdempotencyKey() {
+        if (global.crypto && typeof global.crypto.randomUUID === 'function') {
+            return `assessment-submit-${global.crypto.randomUUID()}`;
+        }
+        return `assessment-submit-${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
+    }
+
+    function createAssessmentController({ api, view, createIdempotencyKey = defaultIdempotencyKey }) {
+        if (!api || typeof api.get !== 'function' || typeof api.send !== 'function') {
+            throw new TypeError('A learner assessment API client is required.');
+        }
+        if (!view || typeof view.render !== 'function') {
+            throw new TypeError('A learner assessment view is required.');
+        }
+
+        let currentAttempt = null;
+        let currentCatalog = null;
+        let currentQuestions = [];
+        let currentResult = null;
+        let lastAction = null;
+        let inFlightSubmit = null;
+        const inFlightSaves = new Map();
+
+        function setAttempt(attempt) {
+            currentAttempt = attempt && typeof attempt === 'object' ? attempt : null;
+            if (Array.isArray(currentAttempt?.questions)) {
+                currentQuestions = currentAttempt.questions;
+            }
+        }
+
+        function getAttempt() {
+            return currentAttempt;
+        }
+
+        function renderState(state, payload) {
+            view.render(state, payload);
+            return payload;
+        }
+
+        function renderSourceError(error) {
+            return renderState('source-error', { error, attempt: currentAttempt });
+        }
+
+        async function loadCatalog(band) {
+            lastAction = () => loadCatalog(band);
+            view.render('loading', { band });
+            try {
+                const endpoint = band ? `/assessments.php?band=${encodeURIComponent(band)}` : '/assessments.php';
+                const response = await api.get(endpoint);
+                currentCatalog = response;
+                return renderState('ready', currentCatalog);
+            } catch (error) {
+                return renderSourceError(error);
+            }
+        }
+
+        async function loadDetail(code, band) {
+            lastAction = () => loadDetail(code, band);
+            view.render('loading', { code, band });
+            try {
+                let endpoint = `/assessments.php?code=${encodeURIComponent(code)}`;
+                if (band) endpoint += `&band=${encodeURIComponent(band)}`;
+                const response = await api.get(endpoint);
+                currentQuestions = Array.isArray(response.questions) ? response.questions : [];
+                return renderState('ready', response);
+            } catch (error) {
+                return renderSourceError(error);
+            }
+        }
+
+        async function startOrResume(assessmentCode, educationBand) {
+            lastAction = () => startOrResume(assessmentCode, educationBand);
+            view.render('loading', { assessmentCode, educationBand });
+            try {
+                const response = await api.send('POST', '/assessment-attempts.php', {
+                    assessmentCode,
+                    educationBand,
+                });
+                setAttempt(response);
+
+                // If attempt doesn't contain full question details, fetch owned attempt with questions
+                if (!Array.isArray(currentAttempt?.questions) || currentAttempt.questions.length === 0) {
+                    try {
+                        const fullAttempt = await api.get(`/assessment-attempts.php?attemptId=${encodeURIComponent(response.id)}`);
+                        if (fullAttempt?.id) {
+                            setAttempt(fullAttempt);
+                        } else if (Array.isArray(fullAttempt?.questions)) {
+                            currentAttempt.questions = fullAttempt.questions;
+                        }
+                    } catch {
+                        // Fall back to existing attempt data
+                    }
+                }
+
+                if (currentAttempt?.status === 'expired') {
+                    return renderState('expired', currentAttempt);
+                }
+                if (currentAttempt?.status === 'submitted') {
+                    return renderState('complete', currentAttempt);
+                }
+                return renderState('ready', currentAttempt);
+            } catch (error) {
+                if (error?.status === 422 || error?.code === 'VALIDATION_FAILED' || error?.code === 'RETAKE_LOCKED') {
+                    return renderState('validation-error', { error, assessmentCode, educationBand });
+                }
+                return renderSourceError(error);
+            }
+        }
+
+        async function loadAttempt(attemptId) {
+            lastAction = () => loadAttempt(attemptId);
+            view.render('loading', { attemptId });
+            try {
+                const response = await api.get(`/assessment-attempts.php?attemptId=${encodeURIComponent(attemptId)}`);
+                setAttempt(response);
+
+                if (response.status === 'expired') {
+                    return renderState('expired', response);
+                }
+                if (response.status === 'submitted') {
+                    return renderState('complete', response);
+                }
+                return renderState('ready', response);
+            } catch (error) {
+                return renderSourceError(error);
+            }
+        }
+
+        async function loadResult(assessmentCode, educationBand, attemptId = '') {
+            lastAction = () => loadResult(assessmentCode, educationBand, attemptId);
+            view.render('loading', { assessmentCode, educationBand, attemptId });
+            try {
+                let endpoint = `/assessments.php?code=${encodeURIComponent(assessmentCode)}`;
+                if (educationBand) endpoint += `&band=${encodeURIComponent(educationBand)}`;
+                const detail = await api.get(endpoint);
+                const history = Array.isArray(detail?.history) ? detail.history : [];
+                const selected = history.find((item) => String(item?.id || '') === String(attemptId))
+                    || history.find((item) => ['submitted', 'completed'].includes(item?.status));
+                currentResult = selected?.result || selected || null;
+                return renderState(currentResult ? 'complete' : 'ready', {
+                    ...detail,
+                    result: currentResult,
+                    selectedAttempt: selected || null,
+                });
+            } catch (error) {
+                return renderSourceError(error);
+            }
+        }
+
+        async function loadHistory() {
+            return api.get('/assessments.php?view=history');
+        }
+
+        function saveAnswer(questionId, answer) {
+            if (!currentAttempt?.id) {
+                const error = new Error('No active assessment attempt to save answers.');
+                renderState('save-error', { error });
+                return Promise.reject(error);
+            }
+
+            if (!currentAttempt.answers) {
+                currentAttempt.answers = {};
+            }
+            currentAttempt.answers[questionId] = answer;
+
+            const existingEntry = inFlightSaves.get(questionId);
+            if (existingEntry) {
+                existingEntry.latestAnswer = answer;
+                return existingEntry.promise;
+            }
+
+            const attemptId = currentAttempt.id;
+            view.render('saving', { questionId, answer, attempt: currentAttempt });
+
+            const entry = { latestAnswer: answer, promise: null };
+            const sendLatest = async (sentAnswer, response) => {
+                let latestResponse = response;
+                let latestSentAnswer = sentAnswer;
+                while (entry.latestAnswer !== latestSentAnswer) {
+                    latestSentAnswer = entry.latestAnswer;
+                    latestResponse = await api.send('PATCH', '/assessment-answers.php', {
+                        attemptId,
+                        questionId,
+                        answer: latestSentAnswer,
+                    });
+                }
+                if (latestResponse?.answers) {
+                    currentAttempt.answers = latestResponse.answers;
+                }
+                view.render('ready', currentAttempt);
+                inFlightSaves.delete(questionId);
+                return latestResponse;
+            };
+
+            entry.promise = Promise.resolve(
+                api.send('PATCH', '/assessment-answers.php', {
+                    attemptId,
+                    questionId,
+                    answer,
+                })
+            )
+                .then((response) => {
+                    if (entry.latestAnswer !== answer) {
+                        // Keep the public in-flight promise compatible with the
+                        // coalescing contract while flushing the newest answer.
+                        view.render('ready', currentAttempt);
+                        void sendLatest(answer, response).catch((error) => {
+                            view.render('save-error', {
+                                error,
+                                questionId,
+                                answer: entry.latestAnswer,
+                                attempt: currentAttempt,
+                            });
+                            inFlightSaves.delete(questionId);
+                        });
+                        return response;
+                    }
+                    if (response?.answers) {
+                        currentAttempt.answers = response.answers;
+                    }
+                    view.render('ready', currentAttempt);
+                    inFlightSaves.delete(questionId);
+                    return response;
+                })
+                .catch((error) => {
+                    view.render('save-error', { error, questionId, answer: entry.latestAnswer, attempt: currentAttempt });
+                    inFlightSaves.delete(questionId);
+                    throw error;
+                });
+
+            inFlightSaves.set(questionId, entry);
+            return entry.promise;
+        }
+
+        function submit() {
+            if (inFlightSubmit !== null) {
+                return inFlightSubmit;
+            }
+
+            if (!currentAttempt?.id) {
+                const error = new Error('No active assessment attempt to submit.');
+                renderState('validation-error', { error });
+                return Promise.resolve({ status: 'error', error });
+            }
+
+            const idempotencyKey = createIdempotencyKey();
+            view.render('submitting', currentAttempt);
+
+            inFlightSubmit = Promise.resolve(
+                api.send(
+                    'POST',
+                    '/assessment-submit.php',
+                    { attemptId: currentAttempt.id },
+                    { idempotencyKey }
+                )
+            )
+                .then((response) => {
+                    setAttempt(response);
+                    currentResult = response.result || response;
+                    view.render('complete', response);
+                    return response;
+                })
+                .catch((error) => {
+                    if (error?.status === 422 || error?.code === 'VALIDATION_FAILED') {
+                        view.render('validation-error', { error, attempt: currentAttempt });
+                    } else {
+                        view.render('source-error', { error, attempt: currentAttempt });
+                    }
+                    return { status: 'error', error };
+                })
+                .finally(() => {
+                    inFlightSubmit = null;
+                });
+
+            return inFlightSubmit;
+        }
+
+        function retry() {
+            if (typeof lastAction === 'function') {
+                return lastAction();
+            }
+            if (currentAttempt?.id) {
+                return loadAttempt(currentAttempt.id);
+            }
+            return loadCatalog();
+        }
+
         return {
-            code: ranked.slice(0, 3).join(''),
-            scores,
-            primary_dimension: ranked[0],
-            ranked_dimensions: ranked,
+            loadCatalog,
+            loadDetail,
+            loadHistory,
+            startOrResume,
+            loadAttempt,
+            loadResult,
+            saveAnswer,
+            submit,
+            retry,
+            setAttempt,
+            getAttempt,
+            getCatalog: () => currentCatalog,
+            getQuestions: () => currentQuestions,
+            getResult: () => currentResult,
         };
     }
 
-    function getUnansweredQuestionIds(questions, answers) {
-        return questions
-            .filter((question) => !Object.prototype.hasOwnProperty.call(answers || {}, question.id)
-                || !Number.isFinite(Number(answers[question.id])))
-            .map((question) => question.id);
+    function parseBoot(id) {
+        if (typeof document === 'undefined') return {};
+        try {
+            const node = document.getElementById(id);
+            const value = JSON.parse(node?.textContent || '{}');
+            return value && typeof value === 'object' ? value : {};
+        } catch {
+            return {};
+        }
     }
 
-    function getRemainingSeconds(expiresAt, now = new Date().toISOString()) {
-        const difference = new Date(expiresAt).getTime() - new Date(now).getTime();
-        if (!Number.isFinite(difference)) return 0;
-        return Math.max(0, Math.floor(difference / 1000));
+    function createApiClient() {
+        if (!global.TalentHubLearnerApi || typeof global.TalentHubLearnerApi.createLearnerApiClient !== 'function') {
+            return null;
+        }
+        const session = parseBoot('learner-session-boot');
+        try {
+            return global.TalentHubLearnerApi.createLearnerApiClient({
+                baseUrl: '/app/learner/api/v1',
+                csrfToken: session.csrfToken || '',
+            });
+        } catch {
+            return null;
+        }
     }
 
-    function createAssessmentStorage(storage = global.localStorage, key = DEFAULT_STORAGE_KEY) {
-        const read = () => {
-            try {
-                const parsed = JSON.parse(storage?.getItem(key) || 'null');
-                if (!parsed || parsed.schema_version !== SCHEMA_VERSION || !Array.isArray(parsed.attempts)) {
-                    return { schema_version: SCHEMA_VERSION, attempts: [] };
-                }
-                return parsed;
-            } catch (error) {
-                return { schema_version: SCHEMA_VERSION, attempts: [] };
+    const ASSESSMENT_META = Object.freeze({
+        holland: {
+            name: 'Holland — Sở thích nghề nghiệp',
+            description: 'Khám phá nhóm sở thích nghề nghiệp để định hướng môi trường học tập phù hợp.',
+            tone: 'primary',
+        },
+        mbti: {
+            name: 'MBTI — Xu hướng tính cách',
+            description: 'Tìm hiểu cách bạn tiếp nhận thông tin, học tập và phối hợp với người khác.',
+            tone: 'secondary',
+        },
+        disc: {
+            name: 'DISC — Hành vi học tập',
+            description: 'Nhận diện xu hướng hành vi, giao tiếp và làm việc nhóm trong học tập.',
+            tone: 'success',
+        },
+        multiple_intelligence: {
+            name: 'Đa trí thông minh — Đa diện năng khiếu',
+            description: 'Khám phá các dạng trí thông minh để chọn trải nghiệm phát triển phù hợp.',
+            tone: 'warning',
+        },
+    });
+
+    function setHidden(node, hidden) {
+        if (node) node.hidden = hidden;
+    }
+
+    function createTextElement(doc, tag, text, className = '') {
+        const element = doc.createElement(tag);
+        if (className) element.className = className;
+        element.textContent = String(text ?? '');
+        return element;
+    }
+
+    function createDomView(root) {
+        const doc = root.ownerDocument || document;
+        const nodes = {
+            loading: root.querySelector('[data-assessment-loading]'),
+            errorState: root.querySelector('[data-assessment-error]'),
+            errorMessage: root.querySelector('[data-assessment-error-message]'),
+            saveError: root.querySelector('[data-assessment-save-error]'),
+            saveErrorMessage: root.querySelector('[data-assessment-save-error-message]'),
+            validationError: root.querySelector('[data-assessment-validation-error]'),
+            validationMessage: root.querySelector('[data-assessment-validation-message]'),
+            intro: root.querySelector('[data-assessment-intro]'),
+            introName: root.querySelector('[data-assessment-intro-name]'),
+            introDescription: root.querySelector('[data-assessment-intro-desc]'),
+            introCount: root.querySelector('[data-assessment-intro-count]'),
+            introDuration: root.querySelector('[data-assessment-intro-duration]'),
+            active: root.querySelector('[data-assessment-active]'),
+            expired: root.querySelector('[data-assessment-expired]'),
+            saveStatus: root.querySelector('[data-assessment-save-status]'),
+            questionHeading: root.querySelector('[data-assessment-question]'),
+            position: root.querySelector('[data-assessment-position]'),
+            options: root.querySelector('[data-assessment-options]'),
+            previous: root.querySelector('[data-assessment-previous]'),
+            next: root.querySelector('[data-assessment-next]'),
+            openSubmit: root.querySelector('[data-assessment-open-submit]'),
+            answeredCount: root.querySelector('[data-assessment-answered-count]'),
+            progress: root.querySelector('[data-assessment-progress]'),
+            timer: root.querySelector('[data-assessment-timer]'),
+            questionError: root.querySelector('[data-assessment-question-error]'),
+            navigator: root.querySelector('[data-assessment-navigator]'),
+            submitModal: document.querySelector('[data-assessment-submit-modal]'),
+            submitAnswered: document.querySelector('[data-submit-answered]'),
+            submitUnanswered: document.querySelector('[data-submit-unanswered]'),
+            submitError: document.querySelector('[data-assessment-submit-error]'),
+            submitButton: document.querySelector('[data-assessment-submit]'),
+            bandModal: document.querySelector('[data-assessment-band-confirmation]'),
+        };
+        let questionIndex = 0;
+
+        function currentQuestion(attempt) {
+            const questions = Array.isArray(attempt?.questions) ? attempt.questions : [];
+            if (questions.length === 0) return null;
+            questionIndex = Math.max(0, Math.min(questionIndex, questions.length - 1));
+            return questions[questionIndex];
+        }
+
+        function renderQuestion(attempt) {
+            const questions = Array.isArray(attempt?.questions) ? attempt.questions : [];
+            const question = currentQuestion(attempt);
+            if (!question) return;
+            const answers = attempt.answers && typeof attempt.answers === 'object' ? attempt.answers : {};
+            if (nodes.questionHeading) nodes.questionHeading.textContent = String(question.prompt || question.content || '');
+            if (nodes.position) nodes.position.textContent = String(questionIndex + 1);
+            if (nodes.options) {
+                while (nodes.options.firstChild) nodes.options.removeChild(nodes.options.firstChild);
+                const options = Array.isArray(question.options) ? question.options : [];
+                options.forEach((option) => {
+                    const value = typeof option === 'object' ? option.value : option;
+                    const labelText = typeof option === 'object' ? (option.label ?? option.value) : option;
+                    const label = doc.createElement('label');
+                    label.className = 'learner-likert-option';
+                    const input = doc.createElement('input');
+                    input.type = 'radio';
+                    input.name = 'assessment-answer';
+                    input.value = String(value ?? '');
+                    input.checked = String(answers[question.id] ?? '') === String(value ?? '');
+                    const span = doc.createElement('span');
+                    span.textContent = `${String(value ?? '')} ${String(labelText ?? '')}`.trim();
+                    label.appendChild(input);
+                    label.appendChild(span);
+                    nodes.options.appendChild(label);
+                });
+            }
+            if (nodes.previous) nodes.previous.disabled = questionIndex === 0;
+            if (nodes.next) setHidden(nodes.next, questionIndex >= questions.length - 1);
+            if (nodes.openSubmit) setHidden(nodes.openSubmit, questionIndex < questions.length - 1);
+            if (nodes.questionError) nodes.questionError.hidden = true;
+            if (nodes.answeredCount) nodes.answeredCount.textContent = String(Object.keys(answers).length);
+            if (nodes.progress) {
+                const percent = questions.length > 0 ? Math.round((Object.keys(answers).length / questions.length) * 100) : 0;
+                nodes.progress.setAttribute('aria-valuenow', String(percent));
+                const bar = nodes.progress.querySelector('span');
+                if (bar) bar.style.setProperty('--learner-progress', `${percent}%`);
+            }
+            if (nodes.navigator) {
+                while (nodes.navigator.firstChild) nodes.navigator.removeChild(nodes.navigator.firstChild);
+                questions.forEach((item, index) => {
+                    const button = doc.createElement('button');
+                    button.type = 'button';
+                    button.className = 'learner-question-navigator__item';
+                    button.dataset.questionIndex = String(index);
+                    button.textContent = String(index + 1);
+                    button.classList.toggle('is-current', index === questionIndex);
+                    button.classList.toggle('is-answered', Object.prototype.hasOwnProperty.call(answers, item.id));
+                    button.setAttribute('aria-label', `Câu ${index + 1}`);
+                    nodes.navigator.appendChild(button);
+                });
+            }
+        }
+
+        function renderDetail(detail) {
+            const assessment = detail?.assessment || {};
+            if (nodes.introName) nodes.introName.textContent = assessment.name || 'Bài đánh giá năng khiếu';
+            if (nodes.introDescription) nodes.introDescription.textContent = assessment.description || 'Khám phá năng khiếu qua các câu hỏi được phê duyệt trên hệ thống.';
+            if (nodes.introCount) nodes.introCount.textContent = `${Number(assessment.question_count || detail?.questions?.length || 0)} câu`;
+            if (nodes.introDuration) nodes.introDuration.textContent = `${Number(assessment.duration_minutes || 12)} phút`;
+        }
+
+        function render(state, payload) {
+            setHidden(nodes.loading, !['loading', 'submitting'].includes(state));
+            setHidden(nodes.errorState, state !== 'source-error');
+            setHidden(nodes.saveError, state !== 'save-error');
+            setHidden(nodes.validationError, state !== 'validation-error');
+            setHidden(nodes.expired, state !== 'expired');
+            if (state === 'loading' || state === 'submitting') {
+                setHidden(nodes.intro, true);
+                setHidden(nodes.active, true);
+            }
+            if (state === 'source-error' && nodes.errorMessage) nodes.errorMessage.textContent = payload?.error?.message || 'Đã xảy ra lỗi kết nối với máy chủ.';
+            if (state === 'save-error' && nodes.saveErrorMessage) nodes.saveErrorMessage.textContent = payload?.error?.message || 'Không thể lưu câu trả lời. Vui lòng thử lại.';
+            if (state === 'validation-error' && nodes.validationMessage) nodes.validationMessage.textContent = payload?.error?.message || 'Vui lòng hoàn thành các câu hỏi bắt buộc.';
+            if (state === 'saving' && nodes.saveStatus) nodes.saveStatus.textContent = 'Đang lưu câu trả lời...';
+            if (state === 'ready') {
+                const isAttempt = Boolean(payload?.id && Array.isArray(payload?.questions));
+                setHidden(nodes.intro, isAttempt);
+                setHidden(nodes.active, !isAttempt);
+                if (isAttempt) renderQuestion(payload);
+                if (nodes.saveStatus) nodes.saveStatus.textContent = 'Đã sẵn sàng.';
+            }
+            if (state === 'complete') {
+                if (nodes.saveStatus) nodes.saveStatus.textContent = 'Bài đánh giá đã hoàn thành.';
+                setHidden(nodes.intro, true);
+                setHidden(nodes.active, true);
+            }
+        }
+
+        return {
+            render,
+            renderDetail,
+            renderQuestion,
+            setQuestionIndex: (index) => { questionIndex = Number(index) || 0; },
+            getQuestionIndex: () => questionIndex,
+            showBandModal: () => setHidden(nodes.bandModal, false),
+            hideBandModal: () => setHidden(nodes.bandModal, true),
+            nodes,
+        };
+    }
+
+    function renderCatalog(root, payload) {
+        const doc = root.ownerDocument || document;
+        const loading = root.querySelector('[data-catalog-loading]');
+        const empty = root.querySelector('[data-empty-catalog]');
+        const cards = root.querySelector('[data-catalog-cards]');
+        setHidden(loading, true);
+        if (cards) while (cards.firstChild) cards.removeChild(cards.firstChild);
+        const items = Array.isArray(payload?.assessments) ? payload.assessments : [];
+        setHidden(empty, items.length !== 0);
+        if (!cards) return;
+        items.forEach((item) => {
+            const code = String(item?.code || '').toLowerCase();
+            const meta = ASSESSMENT_META[code] || { name: code, description: 'Bài đánh giá năng khiếu.', tone: 'primary' };
+            const article = doc.createElement('article');
+            article.className = 'learner-card learner-assessment-card';
+            article.dataset.assessmentCard = code;
+            const status = doc.createElement('span');
+            status.className = 'learner-assessment-card__status';
+            const published = String(item?.status || '').toLowerCase() === 'published';
+            const locked = item?.attempt_status === 'retake_locked';
+            status.classList.add(published && !locked ? 'is-experimental' : 'is-unpublished');
+            status.textContent = locked ? 'Chưa đến ngày làm lại' : (published ? 'Bản thử nghiệm' : 'Chưa có phiên bản được duyệt');
+            article.appendChild(status);
+            const title = createTextElement(doc, 'h2', item?.name || item?.test_name || meta.name);
+            const description = createTextElement(doc, 'p', item?.description || meta.description);
+            article.appendChild(title);
+            article.appendChild(description);
+            const action = doc.createElement(published && !locked ? 'a' : 'button');
+            action.className = `learner-btn learner-btn--${published && !locked ? 'primary' : 'secondary'} learner-btn--block`;
+            action.textContent = locked ? 'Chưa thể làm lại' : (published ? (item?.attempt_status === 'in_progress' ? 'Tiếp tục bài test' : 'Bắt đầu bài test') : 'Chưa có phiên bản được duyệt');
+            if (action.tagName === 'A') action.href = `assessment.php?code=${encodeURIComponent(code)}`;
+            else { action.type = 'button'; action.disabled = true; }
+            article.appendChild(action);
+            cards.appendChild(article);
+        });
+    }
+
+    function renderResult(root, payload) {
+        setHidden(root.querySelector('[data-assessment-result-loading]'), true);
+        setHidden(root.querySelector('[data-assessment-result-error]'), true);
+        const content = root.querySelector('[data-assessment-result-content]');
+        const empty = root.querySelector('[data-assessment-result-empty]');
+        const result = payload?.result || payload?.selectedAttempt?.result || null;
+        const scores = result?.dimension_scores || result?.scores || result?.dimensionScores || {};
+        if (!result || Object.keys(scores).length === 0) {
+            setHidden(content, true);
+            setHidden(empty, false);
+            return;
+        }
+        setHidden(empty, true);
+        setHidden(content, false);
+        const codeNode = root.querySelector('[data-result-code]');
+        const summaryNode = root.querySelector('[data-result-primary-summary]');
+        if (codeNode) codeNode.textContent = result.result_code || result.code || '—';
+        if (summaryNode) summaryNode.textContent = result.summary || 'Kết quả đã được lưu trên hệ thống.';
+        const list = root.querySelector('[data-result-dimension-list]');
+        if (list) {
+            while (list.firstChild) list.removeChild(list.firstChild);
+            Object.entries(scores).forEach(([dimension, score]) => {
+                const row = document.createElement('div');
+                row.className = 'learner-result-score';
+                const label = createTextElement(document, 'strong', dimension);
+                const value = createTextElement(document, 'b', Number(score) || 0);
+                row.appendChild(label);
+                row.appendChild(value);
+                list.appendChild(row);
+            });
+        }
+        const historyList = root.querySelector('[data-assessment-history-list]');
+        if (historyList) {
+            while (historyList.firstChild) historyList.removeChild(historyList.firstChild);
+            (Array.isArray(payload?.history) ? payload.history : []).forEach((item) => {
+                const row = document.createElement('article');
+                row.dataset.historyAttemptId = String(item?.id || '');
+                row.appendChild(createTextElement(document, 'strong', item?.result_code || item?.result?.code || '—'));
+                row.appendChild(createTextElement(document, 'span', item?.submitted_at || 'Đã hoàn thành'));
+                historyList.appendChild(row);
+            });
+        }
+    }
+
+    function bootRunner(root) {
+        const api = createApiClient();
+        if (!api) return;
+        const boot = parseBoot('learner-assessment-boot');
+        const code = String(root.dataset.assessmentCode || boot.assessmentCode || 'holland');
+        const view = createDomView(root);
+        const controller = createAssessmentController({ api, view });
+        let selectedBand = '';
+        let currentAttempt = null;
+        const resultUrl = boot.result_url || `assessment-result.php?code=${encodeURIComponent(code)}`;
+
+        const start = async (band) => {
+            selectedBand = band || selectedBand;
+            view.hideBandModal();
+            const attempt = await controller.startOrResume(code, selectedBand || 'high');
+            if (attempt?.id) {
+                currentAttempt = attempt;
+                view.render('ready', attempt);
             }
         };
-        const write = (state) => {
-            storage?.setItem(key, JSON.stringify(state));
+        const loadDetail = async (band) => {
+            const detail = await controller.loadDetail(code, band);
+            if (detail?.assessment) {
+                selectedBand = detail.education_band || band || selectedBand;
+                view.renderDetail(detail);
+            }
+            return detail;
         };
-        return {
-            getAttempts() { return read().attempts; },
-            getAttempt(id) { return read().attempts.find((attempt) => attempt.id === id) || null; },
-            getLatestAttempt(studentId, assessmentId, statuses = []) {
-                return read().attempts
-                    .filter((attempt) => attempt.student_id === studentId
-                        && attempt.assessment_id === assessmentId
-                        && (statuses.length === 0 || statuses.includes(attempt.status)))
-                    .sort((left, right) => String(right.updated_at || '').localeCompare(String(left.updated_at || '')))[0] || null;
+
+        root.querySelector('[data-assessment-start]')?.addEventListener('click', () => start(selectedBand));
+        root.querySelector('[data-assessment-resume]')?.addEventListener('click', () => start(selectedBand));
+        root.querySelector('[data-assessment-restart]')?.addEventListener('click', () => start(selectedBand));
+        document.querySelector('[data-confirm-band]')?.addEventListener('click', () => {
+            const selected = root.querySelector('[name="education_band"]:checked');
+            start(selected?.value || 'high');
+        });
+        root.querySelector('[data-assessment-retry]')?.addEventListener('click', () => controller.retry());
+        root.querySelector('[data-assessment-retry-save]')?.addEventListener('click', () => controller.retry());
+        root.querySelector('[data-assessment-back-to-questions]')?.addEventListener('click', () => {
+            if (currentAttempt) view.render('ready', currentAttempt);
+        });
+        root.querySelector('[data-assessment-previous]')?.addEventListener('click', () => {
+            if (!currentAttempt) return;
+            view.setQuestionIndex(view.getQuestionIndex() - 1);
+            view.renderQuestion(currentAttempt);
+        });
+        root.querySelector('[data-assessment-next]')?.addEventListener('click', () => {
+            if (!currentAttempt) return;
+            const question = currentAttempt.questions?.[view.getQuestionIndex()];
+            if (!question || !Object.prototype.hasOwnProperty.call(currentAttempt.answers || {}, question.id)) {
+                const error = root.querySelector('[data-assessment-question-error]');
+                if (error) error.hidden = false;
+                return;
+            }
+            view.setQuestionIndex(view.getQuestionIndex() + 1);
+            view.renderQuestion(currentAttempt);
+        });
+        view.nodes.options?.addEventListener('change', (event) => {
+            const input = event.target;
+            if (!input || input.type !== 'radio' || !currentAttempt?.questions) return;
+            const question = currentAttempt.questions[view.getQuestionIndex()];
+            if (!question) return;
+            controller.saveAnswer(question.id, input.value).catch(() => {});
+        });
+        view.nodes.navigator?.addEventListener('click', (event) => {
+            const button = event.target.closest?.('[data-question-index]');
+            if (!button || !currentAttempt) return;
+            view.setQuestionIndex(button.dataset.questionIndex);
+            view.renderQuestion(currentAttempt);
+        });
+        view.nodes.openSubmit?.addEventListener('click', () => {
+            const answers = currentAttempt?.answers || {};
+            const total = currentAttempt?.questions?.length || 0;
+            if (view.nodes.submitAnswered) view.nodes.submitAnswered.textContent = `${Object.keys(answers).length}/${total}`;
+            if (view.nodes.submitUnanswered) view.nodes.submitUnanswered.textContent = String(Math.max(0, total - Object.keys(answers).length));
+            setHidden(view.nodes.submitModal, false);
+        });
+        view.nodes.submitButton?.addEventListener('click', async () => {
+            const response = await controller.submit();
+            if (response?.status === 'submitted' || response?.result || response?.result_id) {
+                const attemptId = response.id || currentAttempt?.id;
+                global.location.href = `${resultUrl}${resultUrl.includes('?') ? '&' : '?'}attempt=${encodeURIComponent(attemptId || '')}`;
+            }
+        });
+        document.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', () => {
+            const modal = button.closest('.learner-modal');
+            setHidden(modal, true);
+        }));
+
+        loadDetail().then((detail) => {
+            if (!detail?.assessment) view.showBandModal();
+        });
+    }
+
+    function bootCatalog(root) {
+        const api = createApiClient();
+        if (!api) return;
+        const controller = createAssessmentController({ api, view: { render() {} } });
+        controller.loadCatalog().then((payload) => renderCatalog(root, payload));
+    }
+
+    function bootResult(root) {
+        const api = createApiClient();
+        if (!api) return;
+        const code = String(root.dataset.assessmentCode || 'holland');
+        const attemptId = new URLSearchParams(global.location?.search || '').get('attempt') || '';
+        const resultView = {
+            render: (state, payload) => {
+                if (state === 'complete' || state === 'ready') renderResult(root, payload);
+                if (state === 'source-error') {
+                    setHidden(root.querySelector('[data-assessment-result-loading]'), true);
+                    setHidden(root.querySelector('[data-assessment-result-content]'), true);
+                    setHidden(root.querySelector('[data-assessment-result-error]'), false);
+                }
             },
-            saveAttempt(attempt) {
-                const state = read();
-                const index = state.attempts.findIndex((item) => item.id === attempt.id);
-                if (index >= 0) state.attempts[index] = attempt;
-                else state.attempts.push(attempt);
-                write(state);
-                return attempt;
-            },
-            removeAttempt(id) {
-                const state = read();
-                state.attempts = state.attempts.filter((attempt) => attempt.id !== id);
-                write(state);
-            },
         };
+        const controller = createAssessmentController({ api, view: resultView });
+        controller.loadResult(code, '', attemptId).catch(() => {
+            setHidden(root.querySelector('[data-assessment-result-content]'), true);
+            setHidden(root.querySelector('[data-assessment-result-empty]'), false);
+        });
+        controller.loadHistory().then((payload) => {
+            const automated = Array.isArray(payload?.assessment_history?.items) ? payload.assessment_history.items : null;
+            const teacher = Array.isArray(payload?.teacher_evaluations?.items) ? payload.teacher_evaluations.items : null;
+            const renderCollection = (loadingSel, emptySel, errorSel, listSel, items, renderItem) => {
+                const loading = root.querySelector(loadingSel);
+                const empty = root.querySelector(emptySel);
+                const error = root.querySelector(errorSel);
+                const list = root.querySelector(listSel);
+                setHidden(loading, true);
+                setHidden(error, true);
+                if (!Array.isArray(items)) {
+                    setHidden(empty, false);
+                    setHidden(list, true);
+                    return;
+                }
+                if (list) while (list.firstChild) list.removeChild(list.firstChild);
+                if (items.length === 0) {
+                    setHidden(empty, false);
+                    setHidden(list, true);
+                    return;
+                }
+                setHidden(empty, true);
+                setHidden(list, false);
+                items.forEach((item) => {
+                    const node = renderItem(item);
+                    if (node) list.appendChild(node);
+                });
+            };
+            renderCollection('[data-assessment-complete-history-loading]', '[data-assessment-complete-history-empty]', '[data-assessment-complete-history-error]', '[data-assessment-complete-history-list]', automated, (item) => {
+                const article = document.createElement('article');
+                article.className = 'learner-assessment-history__item';
+                const meta = document.createElement('div');
+                meta.className = 'learner-assessment-history__meta';
+                const title = document.createElement('strong');
+                title.textContent = item?.assessment_name || 'Chưa có dữ liệu';
+                const when = document.createElement('span');
+                when.textContent = item?.submitted_at || 'Chưa có dữ liệu';
+                meta.appendChild(title);
+                meta.appendChild(when);
+                const result = document.createElement('div');
+                result.className = 'learner-assessment-history__result';
+                const badge = document.createElement('span');
+                badge.className = 'learner-badge';
+                badge.textContent = item?.result_code || 'Chưa có dữ liệu';
+                result.appendChild(badge);
+                const version = document.createElement('span');
+                version.textContent = 'Phiên bản ' + (item?.assessment_version || 'Chưa có dữ liệu') + ' · Thang điểm ' + (item?.scoring_version || 'Chưa có dữ liệu');
+                result.appendChild(version);
+                const summary = document.createElement('p');
+                summary.textContent = item?.summary || 'Chưa có dữ liệu';
+                article.appendChild(meta);
+                article.appendChild(result);
+                article.appendChild(summary);
+                return article;
+            });
+            renderCollection('[data-teacher-published-evaluation-loading]', '[data-teacher-published-evaluation-empty]', '[data-teacher-published-evaluation-error]', '[data-teacher-published-evaluation-list]', teacher, (item) => {
+                const article = document.createElement('article');
+                article.className = 'learner-assessment-history__item';
+                const meta = document.createElement('div');
+                meta.className = 'learner-assessment-history__meta';
+                const title = document.createElement('strong');
+                title.textContent = item?.activity_title || 'Chưa có dữ liệu';
+                const when = document.createElement('span');
+                when.textContent = item?.published_at || 'Chưa có dữ liệu';
+                meta.appendChild(title);
+                meta.appendChild(when);
+                const result = document.createElement('div');
+                result.className = 'learner-assessment-history__result';
+                const badge = document.createElement('span');
+                badge.className = 'learner-badge';
+                badge.textContent = String(item?.overall_score ?? 'Chưa có dữ liệu') + '/100';
+                result.appendChild(badge);
+                const reviewer = document.createElement('span');
+                reviewer.textContent = '— ' + (item?.reviewer_name || 'Chưa có dữ liệu');
+                result.appendChild(reviewer);
+                article.appendChild(meta);
+                article.appendChild(result);
+                if (Array.isArray(item?.scores) && item.scores.length > 0) {
+                    const list = document.createElement('ul');
+                    item.scores.forEach((scoreItem) => {
+                        const li = document.createElement('li');
+                        li.textContent = `${scoreItem?.criteria_name || 'Chưa có dữ liệu'}: ${scoreItem?.score ?? 'Chưa có dữ liệu'}/${scoreItem?.max_score ?? 'Chưa có dữ liệu'}`;
+                        list.appendChild(li);
+                    });
+                    article.appendChild(list);
+                }
+                const comment = document.createElement('p');
+                comment.textContent = item?.comment || 'Chưa có dữ liệu';
+                article.appendChild(comment);
+                return article;
+            });
+        }).catch(() => {
+            setHidden(root.querySelector('[data-assessment-complete-history-loading]'), true);
+            setHidden(root.querySelector('[data-assessment-complete-history-list]'), true);
+            setHidden(root.querySelector('[data-assessment-complete-history-empty]'), true);
+            setHidden(root.querySelector('[data-assessment-complete-history-error]'), false);
+            setHidden(root.querySelector('[data-teacher-published-evaluation-loading]'), true);
+            setHidden(root.querySelector('[data-teacher-published-evaluation-list]'), true);
+            setHidden(root.querySelector('[data-teacher-published-evaluation-empty]'), true);
+            setHidden(root.querySelector('[data-teacher-published-evaluation-error]'), false);
+        });
     }
 
-    function createAttempt({ studentId, assessmentId, assessmentVersion, durationMinutes, now, id }) {
-        const started = new Date(now || Date.now());
-        const attemptId = id || `attempt-${assessmentId}-${started.getTime()}-${Math.random().toString(36).slice(2, 8)}`;
-        return {
-            id: attemptId,
-            student_id: studentId,
-            assessment_id: assessmentId,
-            assessment_version: assessmentVersion,
-            status: 'in_progress',
-            started_at: started.toISOString(),
-            updated_at: started.toISOString(),
-            expires_at: new Date(started.getTime() + Number(durationMinutes) * 60000).toISOString(),
-            submitted_at: null,
-            answers: {},
-            result: null,
-            current_question_index: 0,
-        };
+    function boot() {
+        if (typeof document === 'undefined') return;
+        const runnerRoot = document.querySelector('[data-assessment-runner]');
+        const catalogRoot = document.querySelector('[data-assessment-catalog]');
+        const resultRoot = document.querySelector('[data-assessment-result-page]');
+        if (runnerRoot) bootRunner(runnerRoot);
+        if (catalogRoot) bootCatalog(catalogRoot);
+        if (resultRoot) bootResult(resultRoot);
     }
 
-    function canSubmitAttempt(questions, attempt) {
-        return attempt?.status === 'in_progress'
-            && getUnansweredQuestionIds(questions, attempt.answers).length === 0;
-    }
-
-    function answerAttempt(attempt, questionId, value, currentQuestionIndex, now = new Date().toISOString()) {
-        return {
-            ...attempt,
-            answers: { ...(attempt?.answers || {}), [questionId]: Number(value) },
-            current_question_index: Number(currentQuestionIndex) || 0,
-            updated_at: new Date(now).toISOString(),
-        };
-    }
-
-    function submitAttempt(questions, attempt, now = new Date().toISOString()) {
-        if (!canSubmitAttempt(questions, attempt)) return null;
-        const submittedAt = new Date(now).toISOString();
-        return {
-            ...attempt,
-            status: 'submitted',
-            updated_at: submittedAt,
-            submitted_at: submittedAt,
-            result: {
-                ...scoreHolland(questions, attempt.answers),
-                scoring_version: 'holland-riasec-1.0',
-            },
-        };
-    }
-
-    function mergeAssessmentHistory(mockHistory, localHistory) {
-        const byId = new Map();
-        [...(mockHistory || []), ...(localHistory || [])].forEach((attempt) => byId.set(attempt.id, attempt));
-        return Array.from(byId.values()).sort((left, right) => String(right.submitted_at || '')
-            .localeCompare(String(left.submitted_at || '')));
-    }
-
-    global.LearnerAssessment = {
-        scoreHolland,
-        getUnansweredQuestionIds,
-        getRemainingSeconds,
-        createAssessmentStorage,
-        createAttempt,
-        canSubmitAttempt,
-        answerAttempt,
-        submitAttempt,
-        mergeAssessmentHistory,
+    const exported = {
+        presentationState,
+        createAssessmentController,
+        createDomView,
     };
 
-    if (typeof document === 'undefined') return;
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = exported;
+    }
+    global.TalentHubLearnerAssessment = exported;
 
-    document.addEventListener('DOMContentLoaded', () => {
-        const runnerRoot = document.querySelector('[data-assessment-runner]');
-        const resultRoot = document.querySelector('[data-assessment-result-page]');
-        const parseBoot = (id) => {
-            const element = document.getElementById(id);
-            if (!element) return null;
-            try { return JSON.parse(element.textContent || 'null'); } catch (error) { return null; }
-        };
-        const setHidden = (element, hidden) => { if (element) element.hidden = hidden; };
-
-        if (runnerRoot) {
-            const boot = parseBoot('learner-assessment-boot');
-            const loading = runnerRoot.querySelector('[data-assessment-loading]');
-            const errorState = runnerRoot.querySelector('[data-assessment-error]');
-            const errorMessage = runnerRoot.querySelector('[data-assessment-error-message]');
-            const intro = runnerRoot.querySelector('[data-assessment-intro]');
-            const active = runnerRoot.querySelector('[data-assessment-active]');
-            const expired = runnerRoot.querySelector('[data-assessment-expired]');
-            const storage = createAssessmentStorage();
-            let attempt = null;
-            let currentIndex = 0;
-            let timerId = null;
-
-            const fail = (message) => {
-                setHidden(loading, true); setHidden(intro, true); setHidden(active, true); setHidden(expired, true);
-                if (errorMessage) errorMessage.textContent = message;
-                setHidden(errorState, false);
-            };
-
-            const expireAttempt = () => {
-                if (!attempt || attempt.status !== 'in_progress') return;
-                attempt = { ...attempt, status: 'expired', updated_at: new Date().toISOString() };
-                storage.saveAttempt(attempt);
-                global.clearInterval(timerId);
-                setHidden(active, true); setHidden(intro, true); setHidden(expired, false);
-            };
-
-            const updateTimer = () => {
-                if (!attempt) return;
-                const seconds = getRemainingSeconds(attempt.expires_at);
-                const timer = runnerRoot.querySelector('[data-assessment-timer]');
-                if (timer) {
-                    timer.textContent = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
-                    timer.parentElement?.classList.toggle('is-warning', seconds > 0 && seconds <= 120);
-                }
-                if (seconds === 0) expireAttempt();
-            };
-
-            const save = () => {
-                if (!attempt) return;
-                storage.saveAttempt(attempt);
-                const status = runnerRoot.querySelector('[data-assessment-save-status]');
-                if (status) status.textContent = `Đã lưu bản nháp lúc ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}.`;
-            };
-
-            const renderQuestion = () => {
-                if (!attempt || !boot?.questions?.length) return;
-                const question = boot.questions[currentIndex];
-                const questionHeading = runnerRoot.querySelector('[data-assessment-question]');
-                const position = runnerRoot.querySelector('[data-assessment-position]');
-                const options = runnerRoot.querySelector('[data-assessment-options]');
-                const previous = runnerRoot.querySelector('[data-assessment-previous]');
-                const next = runnerRoot.querySelector('[data-assessment-next]');
-                const openSubmit = runnerRoot.querySelector('[data-assessment-open-submit]');
-                const unanswered = getUnansweredQuestionIds(boot.questions, attempt.answers);
-                const answeredCount = boot.questions.length - unanswered.length;
-                if (questionHeading) questionHeading.textContent = question.prompt;
-                if (position) position.textContent = String(currentIndex + 1);
-                if (options) {
-                    options.innerHTML = question.options.map((option) => {
-                        const checked = Number(attempt.answers[question.id]) === Number(option.value) ? ' checked' : '';
-                        return `<label class="learner-likert-option"><input type="radio" name="assessment-answer" value="${option.value}"${checked}><span><b>${option.value}</b>${option.label}</span></label>`;
-                    }).join('');
-                    options.querySelectorAll('input').forEach((input) => input.addEventListener('change', () => {
-                        attempt = answerAttempt(attempt, question.id, input.value, currentIndex);
-                        save(); renderQuestion();
-                    }));
-                }
-                if (previous) previous.disabled = currentIndex === 0;
-                setHidden(next, currentIndex === boot.questions.length - 1);
-                setHidden(openSubmit, currentIndex !== boot.questions.length - 1);
-                const count = runnerRoot.querySelector('[data-assessment-answered-count]');
-                if (count) count.textContent = String(answeredCount);
-                const progress = runnerRoot.querySelector('[data-assessment-progress]');
-                if (progress) {
-                    progress.setAttribute('aria-valuenow', String(answeredCount));
-                    const bar = progress.querySelector('span');
-                    if (bar) bar.style.setProperty('--learner-progress', `${answeredCount / boot.questions.length * 100}%`);
-                }
-                runnerRoot.querySelectorAll('[data-question-index]').forEach((button, index) => {
-                    button.classList.toggle('is-current', index === currentIndex);
-                    button.classList.toggle('is-answered', Object.prototype.hasOwnProperty.call(attempt.answers, boot.questions[index].id));
-                    button.setAttribute('aria-current', index === currentIndex ? 'step' : 'false');
-                });
-                const questionError = runnerRoot.querySelector('[data-assessment-question-error]');
-                if (questionError) questionError.hidden = true;
-            };
-
-            const startRunner = (existingAttempt) => {
-                attempt = existingAttempt || createAttempt({
-                    studentId: boot.student.id,
-                    assessmentId: boot.definition.id,
-                    assessmentVersion: boot.definition.version,
-                    durationMinutes: boot.definition.duration_minutes,
-                });
-                currentIndex = Math.max(0, Math.min(boot.questions.length - 1, Number(attempt.current_question_index) || 0));
-                save();
-                setHidden(loading, true); setHidden(errorState, true); setHidden(intro, true); setHidden(expired, true); setHidden(active, false);
-                renderQuestion(); updateTimer();
-                global.clearInterval(timerId);
-                timerId = global.setInterval(updateTimer, 1000);
-                runnerRoot.querySelector('#assessment-question-heading')?.focus();
-            };
-
-            global.setTimeout(() => {
-                if (!boot?.definition || !Array.isArray(boot.questions) || boot.questions.length !== 24) {
-                    fail('Bộ câu hỏi Holland không đầy đủ hoặc sai phiên bản.');
-                    return;
-                }
-                try {
-                    const draft = storage.getLatestAttempt(boot.student.id, boot.definition.id, ['in_progress']);
-                    const expiredDraft = storage.getLatestAttempt(boot.student.id, boot.definition.id, ['expired']);
-                    setHidden(loading, true);
-                    if (draft && getRemainingSeconds(draft.expires_at) === 0) {
-                        attempt = draft; expireAttempt(); return;
-                    }
-                    setHidden(intro, false);
-                    const resume = runnerRoot.querySelector('[data-assessment-resume]');
-                    if (resume) {
-                        resume.hidden = !draft;
-                        resume.textContent = draft ? `Tiếp tục bản nháp · ${Object.keys(draft.answers || {}).length}/24 câu` : '';
-                        resume.addEventListener('click', () => startRunner(draft));
-                    }
-                    if (expiredDraft) setHidden(expired, true);
-                } catch (error) {
-                    fail('Trình duyệt không cho phép lưu bản nháp. Hãy kiểm tra quyền lưu trữ và thử lại.');
-                }
-            }, 250);
-
-            runnerRoot.querySelector('[data-assessment-start]')?.addEventListener('click', () => startRunner(null));
-            runnerRoot.querySelector('[data-assessment-retry]')?.addEventListener('click', () => global.location.reload());
-            runnerRoot.querySelector('[data-assessment-restart]')?.addEventListener('click', () => startRunner(null));
-            runnerRoot.querySelector('[data-assessment-previous]')?.addEventListener('click', () => {
-                if (currentIndex > 0) { currentIndex -= 1; attempt.current_question_index = currentIndex; save(); renderQuestion(); runnerRoot.querySelector('#assessment-question-heading')?.focus(); }
-            });
-            runnerRoot.querySelector('[data-assessment-next]')?.addEventListener('click', () => {
-                const question = boot.questions[currentIndex];
-                if (!Object.prototype.hasOwnProperty.call(attempt?.answers || {}, question.id)) {
-                    const message = runnerRoot.querySelector('[data-assessment-question-error]');
-                    if (message) message.hidden = false;
-                    runnerRoot.querySelector('[name="assessment-answer"]')?.focus();
-                    return;
-                }
-                if (currentIndex < boot.questions.length - 1) { currentIndex += 1; attempt.current_question_index = currentIndex; save(); renderQuestion(); runnerRoot.querySelector('#assessment-question-heading')?.focus(); }
-            });
-            runnerRoot.querySelectorAll('[data-question-index]').forEach((button) => button.addEventListener('click', () => {
-                currentIndex = Number(button.dataset.questionIndex) || 0;
-                attempt.current_question_index = currentIndex; save(); renderQuestion(); runnerRoot.querySelector('#assessment-question-heading')?.focus();
-            }));
-
-            const submitModal = document.querySelector('[data-assessment-submit-modal]');
-            runnerRoot.querySelector('[data-assessment-open-submit]')?.addEventListener('click', () => {
-                const unanswered = getUnansweredQuestionIds(boot.questions, attempt?.answers || {});
-                const answered = submitModal?.querySelector('[data-submit-answered]');
-                const missing = submitModal?.querySelector('[data-submit-unanswered]');
-                if (answered) answered.textContent = `${boot.questions.length - unanswered.length}/${boot.questions.length}`;
-                if (missing) missing.textContent = String(unanswered.length);
-                const error = submitModal?.querySelector('[data-assessment-submit-error]');
-                if (error) error.hidden = unanswered.length === 0;
-            });
-            submitModal?.querySelector('[data-assessment-submit]')?.addEventListener('click', () => {
-                const submitted = submitAttempt(boot.questions, attempt);
-                if (!submitted) {
-                    const missing = getUnansweredQuestionIds(boot.questions, attempt?.answers || {});
-                    currentIndex = Math.max(0, boot.questions.findIndex((question) => question.id === missing[0]));
-                    renderQuestion();
-                    submitModal.querySelector('[data-assessment-submit-error]').hidden = false;
-                    return;
-                }
-                attempt = submitted; storage.saveAttempt(attempt); global.clearInterval(timerId);
-                global.location.href = `${boot.result_url}&attempt=${encodeURIComponent(attempt.id)}`;
-            });
+    if (typeof document !== 'undefined') {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', boot, { once: true });
+        } else {
+            boot();
         }
-
-        if (resultRoot) {
-            const boot = parseBoot('learner-assessment-result-boot');
-            if (!boot) return;
-            const storage = createAssessmentStorage();
-            const localHistory = storage.getAttempts().filter((attempt) => attempt.student_id === boot.student_id
-                && attempt.assessment_id === boot.assessment_id && attempt.status === 'submitted');
-            const history = mergeAssessmentHistory(boot.mock_history, localHistory);
-            const requestedAttemptId = new URLSearchParams(global.location.search).get('attempt');
-            const current = history.find((attempt) => attempt.id === requestedAttemptId) || history[0];
-            if (!current?.result) return;
-            const dimension = boot.dimensions[current.result.primary_dimension];
-            const code = resultRoot.querySelector('[data-result-code]');
-            const name = resultRoot.querySelector('[data-result-primary-name]');
-            const summary = resultRoot.querySelector('[data-result-primary-summary]');
-            const source = resultRoot.querySelector('[data-result-source]');
-            if (code) code.textContent = current.result.code;
-            if (name) name.textContent = dimension.name;
-            if (summary) summary.textContent = dimension.summary;
-            if (source) source.textContent = localHistory.some((attempt) => attempt.id === current.id) ? 'Kết quả lưu trên trình duyệt này' : 'Lịch sử mẫu dùng chung';
-            resultRoot.querySelectorAll('[data-result-dimension]').forEach((row) => {
-                const score = Number(current.result.scores[row.dataset.resultDimension] || 0);
-                const bar = row.querySelector('.learner-progress span');
-                if (bar) bar.style.setProperty('--learner-progress', `${score}%`);
-                const value = row.querySelector('b:last-child');
-                if (value) value.textContent = String(score);
-            });
-            const suggestions = resultRoot.querySelector('[data-result-suggestions]');
-            if (suggestions) suggestions.innerHTML = dimension.suggestions.map((item) => `<li>${item}</li>`).join('');
-            const list = resultRoot.querySelector('[data-assessment-history-list]');
-            if (list && localHistory.length) {
-                localHistory.forEach((item) => {
-                    if (list.querySelector(`[data-history-attempt-id="${item.id}"]`)) return;
-                    const itemDimension = boot.dimensions[item.result.primary_dimension];
-                    const article = document.createElement('article');
-                    article.dataset.historyAttemptId = item.id;
-                    article.innerHTML = `<span class="learner-result-mini-code">${item.result.code}</span><div><strong>${itemDimension.name}</strong><span>${new Date(item.submitted_at).toLocaleString('vi-VN')} · Phiên bản ${item.assessment_version}</span></div><span class="learner-verified-pill">Đã hoàn thành</span>`;
-                    list.prepend(article);
-                });
-            }
-        }
-
-        const latestHolland = document.querySelector('[data-holland-latest]');
-        if (latestHolland) {
-            const storage = createAssessmentStorage();
-            const latest = storage.getLatestAttempt('student-demo-001', 'holland', ['submitted']);
-            if (latest?.result) {
-                latestHolland.hidden = false;
-                const code = latestHolland.querySelector('[data-holland-latest-code]');
-                const date = latestHolland.querySelector('[data-holland-latest-date]');
-                const link = latestHolland.querySelector('[data-holland-latest-link]');
-                if (code) code.textContent = latest.result.code;
-                if (date) date.textContent = `Hoàn thành lúc ${new Date(latest.submitted_at).toLocaleString('vi-VN')}.`;
-                if (link) link.href = `assessment-result.php?id=holland&attempt=${encodeURIComponent(latest.id)}`;
-            }
-        }
-    });
+    }
 })(typeof window !== 'undefined' ? window : globalThis);

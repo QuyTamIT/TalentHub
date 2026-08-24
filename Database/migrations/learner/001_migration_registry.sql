@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS learner_schema_migrations (
+  version VARCHAR(100) NOT NULL,
+  appliedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (version)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

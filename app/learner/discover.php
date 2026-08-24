@@ -6,18 +6,13 @@ require_once __DIR__ . '/includes/assessment-data.php';
 
 $pageTitle = 'Khám phá năng khiếu';
 $currentRoute = '/app/learner/discover.php';
-$assessmentLabels = [
-    'result' => 'Xem kết quả',
-    'continue' => 'Tiếp tục',
-    'start' => 'Bắt đầu bài test',
-];
-$hollandDefinition = learner_assessment_definition('holland');
+
+$assessmentCodes = ['holland', 'mbti', 'disc', 'multiple_intelligence'];
 
 $radarCenterX = 260;
 $radarCenterY = 180;
 $radarRadius = 120;
 $radarAngles = [-90, -30, 30, 90, 150, 210];
-$radarPoints = [];
 $radarGrids = [];
 
 foreach ([0.25, 0.5, 0.75, 1] as $scale) {
@@ -30,6 +25,7 @@ foreach ([0.25, 0.5, 0.75, 1] as $scale) {
     $radarGrids[] = implode(' ', $gridPoints);
 }
 
+$radarPoints = [];
 foreach ($radarScores as $index => $score) {
     $radians = deg2rad($radarAngles[$index]);
     $scaledRadius = $radarRadius * ((float) $score['score'] / 100);
@@ -62,52 +58,34 @@ $radarPolygon = implode(' ', array_map(
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content">
-                <div class="learner-page-heading">
-                    <h1>Khám phá năng khiếu</h1>
-                    <p>Bộ bài đánh giá giúp bạn hiểu chính mình hơn.</p>
-                </div>
+                <?php
+                $learnerPageBanner = [
+                    'id' => 'learner-discover-page-title',
+                    'eyebrow' => 'Hiểu bản thân hơn',
+                    'title' => 'Khám phá năng khiếu',
+                    'description' => 'Bộ 4 bài đánh giá khoa học giúp bạn hiểu rõ điểm mạnh và định hướng phát triển toàn diện.',
+                    'icon' => 'compass',
+                ];
+                include __DIR__ . '/includes/page-banner.php';
+                ?>
 
-                <section class="learner-assessment-grid" aria-label="Các bài đánh giá năng khiếu">
-                    <?php foreach ($assessments as $assessment): ?>
-                        <article class="learner-card learner-assessment-card" data-assessment-card="<?= learner_escape($assessment['id']); ?>" data-state="<?= learner_escape($assessment['state']); ?>">
-                            <span class="learner-assessment-card__status <?= $assessment['id'] === 'holland' ? 'is-experimental' : 'is-coming-soon'; ?>">
-                                <?= $assessment['id'] === 'holland' ? 'Bản thử nghiệm' : 'Sắp triển khai'; ?>
-                            </span>
-                            <span class="learner-assessment-card__icon learner-icon-tile learner-icon-tile--<?= learner_escape($assessment['tone']); ?>"><?= learner_icon($assessment['icon'], 28); ?></span>
-                            <h2><?= learner_escape($assessment['name']); ?></h2>
-                            <p><?= learner_escape($assessment['description']); ?></p>
-                            <?php if ($assessment['state'] === 'continue'): ?>
-                                <div class="learner-assessment-progress" aria-label="Tiến độ <?= learner_escape($assessment['name']); ?>">
-                                    <span><?= learner_escape($assessment['progress']); ?>% hoàn thành</span>
-                                    <div class="learner-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($assessment['progress']); ?>">
-                                        <span class="learner-progress--warning" style="--learner-progress: <?= learner_escape($assessment['progress']); ?>%;"></span>
-                                    </div>
-                                </div>
-                            <?php endif; ?>
-                            <?php if ($assessment['id'] === 'holland'): ?>
-                                <a class="learner-btn learner-btn--primary learner-btn--block" href="assessment.php?id=holland">Mở bài test Holland</a>
-                            <?php else: ?>
-                                <button
-                                    class="learner-btn <?= $assessment['state'] === 'start' ? 'learner-btn--primary' : 'learner-btn--secondary'; ?> learner-btn--block"
-                                    type="button"
-                                    data-assessment-action="<?= learner_escape($assessment['state']); ?>"
-                                    data-assessment-id="<?= learner_escape($assessment['id']); ?>"
-                                    data-assessment-name="<?= learner_escape($assessment['name']); ?>"
-                                    data-assessment-result="<?= learner_escape($assessmentResults[$assessment['id']]); ?>"
-                                >
-                                    Xem dữ liệu demo
-                                </button>
-                            <?php endif; ?>
-                        </article>
-                    <?php endforeach; ?>
+                <section class="learner-assessment-grid" aria-label="Các bài đánh giá năng khiếu" data-assessment-catalog data-catalog-endpoint="/app/learner/api/v1/assessments.php">
+                    <div class="learner-card learner-assessment-state" data-catalog-loading>
+                        <span class="learner-assessment-spinner" aria-hidden="true"></span>
+                        <p>Đang tải danh mục bài đánh giá...</p>
+                    </div>
+                    <div class="learner-card learner-empty-catalog" data-empty-catalog hidden>
+                        <p>Chưa có phiên bản được duyệt. Vui lòng quay lại sau.</p>
+                    </div>
+                    <div data-catalog-cards></div>
+                    <div data-assessment-card-templates hidden aria-hidden="true">
+                        <?php foreach ($assessmentCodes as $assessmentCode): ?>
+                            <template data-assessment-card-template="<?= learner_escape($assessmentCode); ?>"></template>
+                        <?php endforeach; ?>
+                    </div>
                 </section>
 
-                <section class="learner-card learner-holland-latest" data-holland-latest hidden>
-                    <div><span class="learner-eyebrow">Kết quả Holland trên trình duyệt này</span><h2>Mã Holland gần nhất: <strong data-holland-latest-code></strong></h2><p data-holland-latest-date></p></div>
-                    <a class="learner-btn learner-btn--outline" data-holland-latest-link href="assessment-result.php?id=holland">Xem kết quả chi tiết</a>
-                </section>
-
-                <div class="learner-data-note learner-discover-data-note"><?= learner_icon('info', 17); ?><p>Biểu đồ “Bản đồ năng khiếu” bên dưới là dữ liệu demo của bài Đa trí thông minh, không tự thay đổi theo kết quả Holland.</p></div>
+                <div class="learner-data-note learner-discover-data-note"><?= learner_icon('info', 17); ?><p>Kết quả từ 4 bài đánh giá được sử dụng để cá nhân hóa gợi ý năng lực và trải nghiệm học tập.</p></div>
 
                 <div class="learner-discovery-grid">
                     <section class="learner-card learner-radar-card" aria-labelledby="radar-title">
@@ -118,7 +96,7 @@ $radarPolygon = implode(' ', array_map(
 
                         <div class="learner-radar-wrap">
                             <svg class="learner-radar" viewBox="0 0 520 360" role="img" aria-labelledby="radar-svg-title radar-svg-desc">
-                                <title id="radar-svg-title">Biểu đồ radar năng khiếu của Nguyễn Văn A</title>
+                                <title id="radar-svg-title">Biểu đồ radar năng khiếu tổng hợp</title>
                                 <desc id="radar-svg-desc">Sáu trục gồm Logic 72, Sáng tạo 66, Vận động 58, Giao tiếp 78, Âm nhạc 62 và Tự nhiên 70 điểm.</desc>
 
                                 <?php foreach ($radarGrids as $grid): ?>
@@ -185,24 +163,8 @@ $radarPolygon = implode(' ', array_map(
         </div>
     </div>
 
-    <div class="learner-modal" id="learner-assessment-modal" role="dialog" aria-modal="true" aria-labelledby="learner-assessment-modal-title" hidden>
-        <div class="learner-modal__backdrop" data-close-modal></div>
-        <div class="learner-modal__dialog learner-modal__dialog--compact" tabindex="-1">
-            <div class="learner-modal__header">
-                <div>
-                    <span class="learner-modal__eyebrow">Khám phá năng khiếu</span>
-                    <h2 id="learner-assessment-modal-title" data-assessment-modal-title>Bài đánh giá</h2>
-                </div>
-                <button class="learner-icon-button" type="button" data-close-modal aria-label="Đóng thông tin bài đánh giá"><?= learner_icon('x', 22); ?></button>
-            </div>
-            <p class="learner-modal__copy" data-assessment-modal-copy></p>
-            <div class="learner-modal__actions">
-                <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Đóng</button>
-                <button class="learner-btn learner-btn--primary" type="button" data-confirm-assessment>Tiếp tục</button>
-            </div>
-        </div>
-    </div>
-
+    <script id="learner-session-boot" type="application/json"><?= json_encode(['csrfToken' => $GLOBALS['learner_page_context']['csrfToken'] ?? ''], JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
+    <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
     <script src="../../assets/js/learner-assessment.js"></script>
 </body>

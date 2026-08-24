@@ -85,14 +85,10 @@ $pageTitle = 'Phân tích dữ liệu';
 
 ob_start();
 ?>
-<div class="school-section-box" style="margin-bottom: 1.5rem;">
-    <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0 0 0.25rem;">
-        Thống kê theo năm học <?= htmlspecialchars($currentAcademicYear); ?>
-    </h2>
-    <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0;">
-        Dữ liệu cập nhật đến <?= date('m/Y'); ?>
-    </p>
-</div>
+<?php
+$pageDescription = 'Tổng quan số liệu theo tháng, phân bố năng khiếu và hoàn thiện theo khối.';
+include __DIR__ . '/includes/page-banner.php';
+?>
 
 <div class="school-chart-container">
     <div class="school-chart-header">

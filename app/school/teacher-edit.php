@@ -21,7 +21,7 @@ $userId  = $context['user']['id'];
 
 $profileId = isset($_GET['id']) ? (string) $_GET['id'] : null;
 if ($profileId === null || !Uuid::isValid($profileId)) {
-    header('Location: /app/school/teachers.php');
+    header('Location: ./teachers.php');
     exit;
 }
 
@@ -89,7 +89,7 @@ ob_start();
 ?>
 <div class="school-section-box" style="margin-bottom: 1.5rem;">
     <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0 0 1rem;">
-        <a href="/app/school/teachers.php">← Quay lại danh sách giáo viên</a>
+        <a href="./teachers.php">← Quay lại danh sách giáo viên</a>
     </p>
 
     <?php if ($error): ?>
@@ -111,7 +111,7 @@ ob_start();
         </p>
 
         <form method="post" class="school-form" novalidate>
-            <div class="school-form__grid">
+            <div class="school-form__grid school-form__grid--2col">
                 <label class="school-form__field">
                     <span>Số điện thoại</span>
                     <input type="text" name="phone" maxlength="30" value="<?= htmlspecialchars((string) ($row['phone'] ?? '')); ?>">
@@ -127,7 +127,7 @@ ob_start();
             </div>
 
             <div class="school-form__actions">
-                <a href="/app/school/teachers.php" class="btn btn-outline">Huỷ</a>
+                <a href="./teachers.php" class="btn btn-outline">Huỷ</a>
                 <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
             </div>
         </form>
@@ -136,21 +136,6 @@ ob_start();
 <?php
 $pageBody = ob_get_clean();
 
-$extraStyles = <<<'HTML'
-<style>
-.school-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1rem; }
-.school-form__field { display: flex; flex-direction: column; gap: 0.375rem; font-size: 0.875rem; color: var(--text-secondary); }
-.school-form__field--full { grid-column: 1 / -1; }
-.school-form__field input,
-.school-form__field textarea { width: 100%; padding: 0.625rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); font-size: 0.9375rem; font-family: inherit; }
-.school-form__field input:focus,
-.school-form__field textarea:focus { outline: 2px solid #2563EB; outline-offset: 1px; }
-.school-form__actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; }
-.school-flash { padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: 0.875rem; }
-.school-flash--success { background: #ECFDF5; color: #047857; border: 1px solid #6EE7B7; }
-.school-flash--error { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
-@media (max-width: 720px) { .school-form__grid { grid-template-columns: 1fr; } }
-</style>
-HTML;
+$extraStyles = '';
 
 require __DIR__ . '/includes/layout.php';

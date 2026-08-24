@@ -1,8 +1,10 @@
 <?php
 /** Learner activity read model. Teacher-owned catalog, learner-owned registrations. */
 
-if (!function_exists('learner_activity_catalog')) {
-    function learner_activity_catalog(): array
+require_once dirname(__DIR__) . '/data/bootstrap.php';
+
+if (!function_exists('learner_activity_mock_catalog')) {
+    function learner_activity_mock_catalog(): array
     {
         $common = [
             'source' => 'learner_mock', 'source_role' => 'teacher', 'school_id' => 'school-demo-nguyen-du',
@@ -23,21 +25,55 @@ if (!function_exists('learner_activity_catalog')) {
 }
 
 if (!function_exists('learner_activity_find')) {
-    function learner_activity_find(string $id): ?array { foreach (learner_activity_catalog() as $activity) if ($activity['id'] === $id) return $activity; return null; }
+    function learner_activity_find(string $id): ?array
+    {
+        return \TalentHub\Learner\Data\ReadModel\ActivityReadModel::resolve(
+            learner_activity_repository(),
+            $id
+        );
+    }
+}
+
+if (!function_exists('learner_activity_mock_registration_history')) {
+    function learner_activity_mock_registration_history(string $studentId): array
+    {
+        if ($studentId !== 'student-demo-001') return [];
+        $base = ['student_id'=>$studentId,'source'=>'learner_mock','created_at'=>'2026-08-10T09:00:00+07:00','updated_at'=>'2026-08-10T09:00:00+07:00','cancelled_at'=>null,'checkin_id'=>null,'experience_hours'=>null,'feedback'=>null];
+        return [
+            array_merge($base,['id'=>'registration-demo-registered','activity_id'=>'iot-lab','status'=>'approved']),
+            array_merge($base,['id'=>'registration-demo-pending','activity_id'=>'startup-pitch','status'=>'pending']),
+            array_merge($base,['id'=>'registration-demo-waitlisted','activity_id'=>'drone-workshop','status'=>'pending']),
+            array_merge($base,['id'=>'registration-demo-checked','activity_id'=>'ai-bootcamp','status'=>'attended','checkin_id'=>'checkin-demo-ai']),
+            array_merge($base,['id'=>'registration-demo-completed','activity_id'=>'design-thinking','status'=>'attended','checkin_id'=>'checkin-demo-design','experience_hours'=>3,'feedback'=>['rating'=>5,'comment'=>'Hoạt động hữu ích và dễ áp dụng.']]),
+            array_merge($base,['id'=>'registration-demo-cancelled','activity_id'=>'charity-marathon','status'=>'cancelled','cancelled_at'=>'2026-08-11T10:00:00+07:00']),
+        ];
+    }
+}
+
+if (!function_exists('learner_activity_repository')) {
+    function learner_activity_repository(): \TalentHub\Learner\Data\Contracts\ActivityRepository
+    {
+        return learner_repository_factory()->activity(
+            learner_activity_mock_catalog(),
+            learner_activity_mock_registration_history('student-demo-001')
+        );
+    }
+}
+
+if (!function_exists('learner_activity_catalog')) {
+    function learner_activity_catalog(): array
+    {
+        return \TalentHub\Learner\Data\ReadModel\ActivityReadModel::activities(
+            learner_activity_repository()->all()
+        );
+    }
 }
 
 if (!function_exists('learner_activity_registration_history')) {
     function learner_activity_registration_history(string $studentId): array
     {
-        if ($studentId !== 'student-demo-001') return [];
-        $base = ['student_id'=>$studentId,'source'=>'learner_mock','created_at'=>'2026-08-10T09:00:00+07:00','updated_at'=>'2026-08-10T09:00:00+07:00','cancelled_at'=>null,'checkin_id'=>null,'experience_hours'=>null,'feedback'=>null];
-        return [
-            array_merge($base,['id'=>'registration-demo-registered','activity_id'=>'iot-lab','status'=>'registered']),
-            array_merge($base,['id'=>'registration-demo-pending','activity_id'=>'startup-pitch','status'=>'pending']),
-            array_merge($base,['id'=>'registration-demo-waitlisted','activity_id'=>'drone-workshop','status'=>'waitlisted']),
-            array_merge($base,['id'=>'registration-demo-checked','activity_id'=>'ai-bootcamp','status'=>'checked_in','checkin_id'=>'checkin-demo-ai']),
-            array_merge($base,['id'=>'registration-demo-completed','activity_id'=>'design-thinking','status'=>'completed','checkin_id'=>'checkin-demo-design','experience_hours'=>3,'feedback'=>['rating'=>5,'comment'=>'Hoạt động hữu ích và dễ áp dụng.']]),
-            array_merge($base,['id'=>'registration-demo-cancelled','activity_id'=>'charity-marathon','status'=>'cancelled','cancelled_at'=>'2026-08-11T10:00:00+07:00']),
-        ];
+        return \TalentHub\Learner\Data\ReadModel\ActivityReadModel::registrations(
+            learner_activity_repository()->registrationsFor($studentId)
+        );
     }
 }

@@ -15,10 +15,6 @@ $headerSearchPlaceholder = $headerSearchPlaceholder ?? 'Tìm hoạt động, k�
         >
             <?= learner_icon('menu', 24); ?>
         </button>
-        <a class="learner-role-switch" href="/role-selection.php">
-            <?= learner_icon('arrow-left', 18); ?>
-            <span>Đổi vai trò</span>
-        </a>
     </div>
 
     <div class="learner-header__right">
@@ -28,12 +24,13 @@ $headerSearchPlaceholder = $headerSearchPlaceholder ?? 'Tìm hoạt động, k�
             <input id="learner-search-input" name="q" type="search" placeholder="<?= learner_escape($headerSearchPlaceholder); ?>" autocomplete="off">
         </form>
 
-        <button class="learner-icon-button" id="learner-notification-button" type="button" aria-label="Xem thông báo">
+        <a class="learner-icon-button" id="learner-notification-button" href="notifications.php" aria-label="Xem thông báo">
             <?= learner_icon('bell', 21); ?>
-            <span class="learner-notification-dot" aria-hidden="true"></span>
-        </button>
+            <span class="learner-notification-dot" id="learner-unread-badge" aria-hidden="true" style="display: none;"></span>
+        </a>
 
-        <button class="learner-avatar" type="button" aria-label="Mở tài khoản Nguyễn Văn A">
+
+        <button class="learner-avatar" type="button" aria-label="Mở tài khoản <?= learner_escape($student['name']); ?>" data-learner-account>
             <?= learner_escape($student['initials']); ?>
         </button>
     </div>
@@ -43,3 +40,11 @@ $headerSearchPlaceholder = $headerSearchPlaceholder ?? 'Tìm hoạt động, k�
     <span class="learner-toast__icon"><?= learner_icon('check', 18); ?></span>
     <span class="learner-toast__message">Đã cập nhật.</span>
 </div>
+
+<?php if (isset($GLOBALS['learner_page_context'])): ?>
+<script id="learner-session-boot" type="application/json"><?= json_encode([
+    'csrfToken' => $GLOBALS['learner_page_context']['csrfToken'],
+    'apiBase' => '/api/v1',
+], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
+<?php endif; ?>
+<script src="../../assets/js/learner-notifications.js" defer></script>

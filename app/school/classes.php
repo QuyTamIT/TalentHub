@@ -55,30 +55,16 @@ $pageTitle    = 'Lớp & Khối';
 
 ob_start();
 ?>
-<div class="school-section-box" style="margin-bottom: 1.5rem;">
-    <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-        <div>
-            <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">
-                Quản lý Lớp & Khối
-            </h2>
-            <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0;">
-                <?= count($classes); ?> lớp học <?= $showArchived ? '(bao gồm lưu trữ)' : '(đang hoạt động)'; ?> •
-                <?= number_format($totalStudents); ?> học sinh
-            </p>
-        </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <a href="?<?= $showArchived ? '' : 'archived=1'; ?>" class="btn btn-sm btn-outline">
-                <?= $showArchived ? 'Chỉ lớp đang hoạt động' : 'Hiển thị cả lớp lưu trữ'; ?>
-            </a>
-            <a href="/app/school/class-edit.php" class="btn btn-primary btn-sm">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                Thêm lớp mới
-            </a>
-        </div>
-    </div>
+<?php
+$pageDescription = 'Quản lý các lớp theo khối, xem sĩ số và tỷ lệ hoàn thiện hồ sơ.';
+$pageActions = '<a href="./class-edit.php" class="btn btn-primary">+ Thêm lớp mới</a>';
+include __DIR__ . '/includes/page-banner.php';
+?>
+
+<div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+    <a href="?<?= $showArchived ? '' : 'archived=1'; ?>" class="btn btn-sm btn-outline">
+        <?= $showArchived ? 'Chỉ lớp đang hoạt động' : 'Hiển thị cả lớp lưu trữ'; ?>
+    </a>
 </div>
 
 <div class="school-grade-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 1.75rem;">
@@ -146,14 +132,14 @@ ob_start();
                         <div style="height: 100%; width: <?= $class['completion'] ?>%; background: <?= $class['completion'] >= 80 ? '#22C55E' : ($class['completion'] >= 70 ? '#F59E0B' : '#EF4444'); ?>; border-radius: 3px;"></div>
                     </div>
                     <div style="display: flex; gap: 0.5rem;">
-                        <a href="/app/school/students.php?classId=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="flex: 1; text-decoration:none;">
+                        <a href="./students.php?classId=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="flex: 1; text-decoration:none;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
                             </svg>
                             Học sinh
                         </a>
-                        <a href="/app/school/class-edit.php?id=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="text-decoration:none;">
+                        <a href="./class-edit.php?id=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="text-decoration:none;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -170,7 +156,7 @@ ob_start();
 <?php if ($classes === []): ?>
     <div class="school-section-box" style="text-align:center;padding:3rem 1.5rem;">
         <p style="color: var(--text-muted); margin-bottom:1rem;">Trường chưa có lớp học nào.</p>
-        <a href="/app/school/class-edit.php" class="btn btn-primary">Tạo lớp đầu tiên</a>
+        <a href="./class-edit.php" class="btn btn-primary">Tạo lớp đầu tiên</a>
     </div>
 <?php endif; ?>
 <?php

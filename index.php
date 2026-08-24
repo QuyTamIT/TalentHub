@@ -120,6 +120,7 @@ $audiences = [
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+    <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="TalentHub - Nền tảng phát triển và kết nối năng khiếu hàng đầu dành cho Học sinh, Giáo viên, Nhà trường và Doanh nghiệp.">
@@ -159,8 +160,8 @@ $audiences = [
                     Đăng nhập
                 </a>
                 
-                <a href="/role-selection.php" class="btn btn-primary site-header__app-btn" data-cta="app">
-                    Vào app
+                <a href="./register.php" class="btn btn-primary site-header__app-btn">
+                    Đăng ký
                     <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M5 12h14M12 5l7 7-7 7"/>
                     </svg>
@@ -187,8 +188,8 @@ $audiences = [
                 
                 <div class="mobile-menu__actions">
                     <a href="login.php" class="btn btn-secondary mobile-menu__btn" data-cta="login">Đăng nhập</a>
-                    <a href="/role-selection.php" class="btn btn-primary mobile-menu__btn" data-cta="app">
-                        Vào app
+                    <a href="./register.php" class="btn btn-primary mobile-menu__btn">
+                        Đăng ký
                         <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M5 12h14M12 5l7 7-7 7"/>
                         </svg>
@@ -221,7 +222,7 @@ $audiences = [
                             TalentHub giúp học sinh ghi nhận hồ sơ năng lực 360°, kết nối nhà trường, giáo viên và doanh nghiệp nhằm định hướng và tối ưu hóa tiềm năng của thế hệ trẻ.
                         </p>
                         <div class="hero-cta-group">
-                            <a href="/role-selection.php" class="btn btn-primary" data-cta="app">
+                            <a href="./role-selection.php" class="btn btn-primary" data-cta="app">
                                 Trải nghiệm ngay
                                 <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -440,7 +441,7 @@ $audiences = [
                                 </div>
                             </div>
 
-                            <a href="/role-selection.php" class="module-footer-link">
+                            <a href="./role-selection.php" class="module-footer-link">
                                 Trải nghiệm module
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -460,7 +461,7 @@ $audiences = [
                                 Đội ngũ TalentHub đang phát triển và hoàn thiện 2 module tiếp theo nhằm mở rộng thêm khả năng định hướng sự nghiệp và kết nối quỹ tài trợ chuyên sâu.
                             </p>
                         </div>
-                        <a href="/role-selection.php" class="btn btn-primary expansion-btn" data-cta="app">
+                        <a href="./role-selection.php" class="btn btn-primary expansion-btn" data-cta="app">
                             Đăng ký nhận thông báo
                         </a>
                     </div>
@@ -534,7 +535,7 @@ $audiences = [
                                 </div>
 
                                 <div class="panel-footer">
-                                    <a href="/role-selection.php" class="btn btn-primary" data-cta="app">
+                                    <a href="./role-selection.php" class="btn btn-primary" data-cta="app">
                                         <?= htmlspecialchars($aud['cta_text']); ?>
                                         <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                                     </a>
@@ -557,7 +558,7 @@ $audiences = [
                         Gia nhập nền tảng ngay hôm nay để khai phá tiềm năng, xây dựng hồ sơ năng lực 360° và kết nối hàng ngàn cơ hội phát triển đột phá.
                     </p>
                     <div class="cta-buttons">
-                        <a href="/role-selection.php" class="btn btn-white" data-cta="app">
+                        <a href="./role-selection.php" class="btn btn-white" data-cta="app">
                             Trải nghiệm ngay
                             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M5 12h14M12 5l7 7-7 7"/>

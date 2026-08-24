@@ -309,14 +309,32 @@ $mockTalents = [
     ]
 ];
 
-// Provide helper to find candidate by ID (or default fallback to candidate 1)
-function getMockTalentById($id) {
+/**
+ * Phase 3 keeps Enterprise Talent Explorer on its explicit mock dataset.
+ * Consent-bound database lookup is reserved for Phase 7.
+ */
+function getTalentById(string|int|null $id): ?array {
+    if ($id === null || $id === '') {
+        return null;
+    }
+
+    $strId = trim((string)$id);
+
     global $mockTalents;
-    $id = intval($id);
-    foreach ($mockTalents as $talent) {
-        if ($talent['id'] === $id) {
-            return $talent;
+    if (is_array($mockTalents)) {
+        foreach ($mockTalents as $talent) {
+            if ((string)$talent['id'] === $strId) {
+                return $talent;
+            }
         }
     }
+
     return null;
+}
+
+/**
+ * Backward compatibility wrapper
+ */
+function getMockTalentById($id) {
+    return getTalentById($id);
 }

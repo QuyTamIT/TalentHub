@@ -19,6 +19,7 @@ if (!function_exists('learner_icon')) {
             'search' => '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
             'arrow-left' => '<path d="m15 18-6-6 6-6M9 12h12"/>',
             'arrow-right' => '<path d="M5 12h14m-6-6 6 6-6 6"/>',
+            'log-out' => '<path d="M10 17l5-5-5-5M15 12H3"/><path d="M11 4h7a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-7"/>',
             'flame' => '<path d="M12 22c4 0 7-3 7-7 0-5-3-8-6-12 0 4-3 6-5 9-1-2-1-3-1-5-2 3-3 5-3 8 0 4 4 7 8 7Z"/>',
             'star' => '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>',
             'trophy' => '<path d="M8 4h8v5a4 4 0 0 1-8 0V4ZM12 13v5M8 21h8M5 5H3v2a4 4 0 0 0 5 4M19 5h2v2a4 4 0 0 1-5 4"/>',

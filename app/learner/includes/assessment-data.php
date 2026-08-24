@@ -1,6 +1,8 @@
 <?php
 /** Learner assessment mock provider with database-ready identifiers. */
 
+require_once dirname(__DIR__) . '/data/bootstrap.php';
+
 if (!function_exists('learner_assessment_likert_options')) {
     function learner_assessment_likert_options(): array
     {
@@ -14,8 +16,8 @@ if (!function_exists('learner_assessment_likert_options')) {
     }
 }
 
-if (!function_exists('learner_assessment_catalog')) {
-    function learner_assessment_catalog(): array
+if (!function_exists('learner_assessment_mock_catalog')) {
+    function learner_assessment_mock_catalog(): array
     {
         return [[
             'id' => 'holland',
@@ -38,17 +40,15 @@ if (!function_exists('learner_assessment_catalog')) {
 if (!function_exists('learner_assessment_definition')) {
     function learner_assessment_definition(string $assessmentId): ?array
     {
-        foreach (learner_assessment_catalog() as $assessment) {
-            if ($assessment['id'] === $assessmentId) {
-                return $assessment;
-            }
-        }
-        return null;
+        return \TalentHub\Learner\Data\ReadModel\AssessmentReadModel::resolve(
+            learner_assessment_repository(),
+            $assessmentId
+        );
     }
 }
 
-if (!function_exists('learner_assessment_questions')) {
-    function learner_assessment_questions(string $assessmentId): array
+if (!function_exists('learner_assessment_mock_questions')) {
+    function learner_assessment_mock_questions(string $assessmentId): array
     {
         if ($assessmentId !== 'holland') {
             return [];
@@ -124,8 +124,8 @@ if (!function_exists('learner_assessment_questions')) {
     }
 }
 
-if (!function_exists('learner_assessment_history')) {
-    function learner_assessment_history(string $studentId, string $assessmentId): array
+if (!function_exists('learner_assessment_mock_history')) {
+    function learner_assessment_mock_history(string $studentId, string $assessmentId): array
     {
         if ($studentId !== 'student-demo-001' || $assessmentId !== 'holland') {
             return [];
@@ -166,6 +166,69 @@ if (!function_exists('learner_assessment_history')) {
                 ],
             ],
         ];
+    }
+}
+
+if (!function_exists('learner_assessment_repository')) {
+    function learner_assessment_repository(): \TalentHub\Learner\Data\Contracts\AssessmentRepository
+    {
+        $definitions = learner_assessment_mock_catalog();
+        $questions = [];
+        $attempts = [];
+        foreach ($definitions as $definition) {
+            $assessmentId = (string) $definition['id'];
+            array_push($questions, ...learner_assessment_mock_questions($assessmentId));
+            array_push($attempts, ...learner_assessment_mock_history('student-demo-001', $assessmentId));
+        }
+
+        return learner_repository_factory()->assessment($definitions, $questions, $attempts);
+    }
+}
+
+if (!function_exists('learner_assessment_write_service')) {
+    function learner_assessment_write_service(): \TalentHub\Learner\Data\Service\LearnerAssessmentService
+    {
+        return new \TalentHub\Learner\Data\Service\LearnerAssessmentService(
+            learner_assessment_repository(),
+            learner_repository_factory()->assessmentWrite()
+        );
+    }
+}
+
+if (!function_exists('learner_assessment_catalog')) {
+    function learner_assessment_catalog(): array
+    {
+        return \TalentHub\Learner\Data\ReadModel\AssessmentReadModel::definitions(
+            learner_assessment_repository()->all()
+        );
+    }
+}
+
+if (!function_exists('learner_assessment_questions')) {
+    function learner_assessment_questions(string $assessmentId): array
+    {
+        $assessment = learner_assessment_definition($assessmentId);
+        if ($assessment === null) {
+            return [];
+        }
+
+        return \TalentHub\Learner\Data\ReadModel\AssessmentReadModel::questions(
+            learner_assessment_repository()->questionsFor((string) $assessment['id'])
+        );
+    }
+}
+
+if (!function_exists('learner_assessment_history')) {
+    function learner_assessment_history(string $studentId, string $assessmentId): array
+    {
+        $assessment = learner_assessment_definition($assessmentId);
+        if ($assessment === null) {
+            return [];
+        }
+
+        return \TalentHub\Learner\Data\ReadModel\AssessmentReadModel::completedAttempts(
+            learner_assessment_repository()->attemptsFor($studentId, (string) $assessment['id'])
+        );
     }
 }
 

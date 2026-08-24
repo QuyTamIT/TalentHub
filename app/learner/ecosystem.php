@@ -245,7 +245,7 @@ function learner_ecosystem_date(string $date): string
 
             <div class="learner-application-list" data-application-list>
                 <?php foreach ($applications as $index => $application): ?>
-                    <article class="learner-application-item" data-application-item data-status="<?= learner_escape($application['status']); ?>" data-search="<?= learner_escape($application['title'] . ' ' . $application['partner_name']); ?>">
+                    <article class="learner-application-item" data-application-item data-application-id="<?= learner_escape((string) $application['id']); ?>" data-status="<?= learner_escape($application['status']); ?>" data-search="<?= learner_escape($application['title'] . ' ' . $application['partner_name']); ?>">
                         <button class="learner-application-item__summary" type="button" aria-expanded="<?= $index === 0 ? 'true' : 'false'; ?>" data-application-toggle>
                             <span>
                                 <small><?= learner_escape($application['partner_name']); ?></small>
@@ -256,6 +256,17 @@ function learner_ecosystem_date(string $date): string
                             <?= learner_icon('chevron-down', 18); ?>
                         </button>
                         <div class="learner-application-item__details" <?= $index !== 0 ? 'hidden' : ''; ?> data-application-details>
+                            <?php $snapshotPayload = is_array($application['snapshot']['payload'] ?? null) ? $application['snapshot']['payload'] : []; ?>
+                            <?php if ($snapshotPayload !== []): ?>
+                                <section class="learner-application-snapshot" aria-label="Hồ sơ đã gửi">
+                                    <strong>Hồ sơ tại thời điểm ứng tuyển</strong>
+                                    <small>Chụp lúc <?= learner_escape((string) ($snapshotPayload['capturedAt'] ?? $application['snapshot']['captured_at'] ?? '')); ?></small>
+                                    <?php $snapshotSkills = is_array($snapshotPayload['skills'] ?? null) ? $snapshotPayload['skills'] : []; ?>
+                                    <?php if ($snapshotSkills !== []): ?>
+                                        <span><?= learner_escape(implode(', ', array_map(static fn (array $skill): string => (string) ($skill['skillName'] ?? ''), $snapshotSkills))); ?></span>
+                                    <?php endif; ?>
+                                </section>
+                            <?php endif; ?>
                             <ol class="learner-application-timeline">
                                 <?php foreach ($application['timeline'] as $timelineItem): ?>
                                     <li class="is-<?= learner_escape($timelineItem['state']); ?>">
@@ -282,6 +293,7 @@ function learner_ecosystem_date(string $date): string
         </aside>
     </div>
 
+    <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
 </body>
 </html>

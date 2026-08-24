@@ -55,10 +55,10 @@ $reportTypes = [
 
 ob_start();
 ?>
-<div class="school-section-box" style="margin-bottom: 1.5rem;">
-    <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0 0 0.25rem;">Quản lý Báo cáo</h2>
-    <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0;">Tạo và tải các báo cáo CSV của trường.</p>
-</div>
+<?php
+$pageDescription = 'Tạo và tải xuống các báo cáo CSV theo kỳ cho nhà trường.';
+include __DIR__ . '/includes/page-banner.php';
+?>
 
 <?php if ($flash): ?>
     <div class="school-flash school-flash--success"><?= $flash; ?></div>
@@ -67,7 +67,7 @@ ob_start();
     <div class="school-flash school-flash--error"><?= htmlspecialchars($error); ?></div>
 <?php endif; ?>
 
-<div class="school-grid-2col">
+<div class="school-grid-2col school-grid-2col--reports">
     <div class="school-section-box">
         <div class="school-section-box__header">
             <h3 class="school-section-box__title">Tạo báo cáo mới</h3>
@@ -154,20 +154,7 @@ $pageBody = ob_get_clean();
 
 $extraStyles = <<<'HTML'
 <style>
-.school-grid-2col { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 1.5rem; }
-.school-form__grid { display: grid; gap: 1rem; margin-top: 1rem; }
-.school-form__field { display: flex; flex-direction: column; gap: 0.375rem; font-size: 0.875rem; color: var(--text-secondary); }
-.school-form__field input,
-.school-form__field select { width: 100%; padding: 0.625rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); font-size: 0.9375rem; }
-.school-form__field input:focus,
-.school-form__field select:focus { outline: 2px solid #2563EB; outline-offset: 1px; }
-.school-form__field em { color: #DC2626; font-style: normal; margin-left: 2px; }
-.school-form__actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; }
-.school-flash { padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: 0.875rem; }
-.school-flash--success { background: #ECFDF5; color: #047857; border: 1px solid #6EE7B7; }
 .school-flash--success a { color: #047857; text-decoration: underline; margin-left: 0.25rem; }
-.school-flash--error { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
-@media (max-width: 900px) { .school-grid-2col { grid-template-columns: 1fr; } }
 </style>
 HTML;
 

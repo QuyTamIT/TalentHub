@@ -6,6 +6,8 @@
  * School and application records are learner-owned demo data until APIs exist.
  */
 
+require_once dirname(__DIR__) . '/data/bootstrap.php';
+
 require_once dirname(__DIR__, 2) . '/enterprise/includes/internships-data.php';
 
 $GLOBALS['learnerEnterpriseMockPosts'] = is_array($mockInternships ?? null)
@@ -20,8 +22,8 @@ if (!function_exists('learner_ecosystem_enterprise_posts')) {
     }
 }
 
-if (!function_exists('learner_ecosystem_enterprises')) {
-    function learner_ecosystem_enterprises(): array
+if (!function_exists('learner_ecosystem_mock_enterprises')) {
+    function learner_ecosystem_mock_enterprises(): array
     {
         $visiblePosts = array_values(array_filter(
             learner_ecosystem_enterprise_posts(),
@@ -56,8 +58,8 @@ if (!function_exists('learner_ecosystem_enterprises')) {
     }
 }
 
-if (!function_exists('learner_ecosystem_schools')) {
-    function learner_ecosystem_schools(): array
+if (!function_exists('learner_ecosystem_mock_schools')) {
+    function learner_ecosystem_mock_schools(): array
     {
         return [
             [
@@ -154,8 +156,8 @@ if (!function_exists('learner_ecosystem_normalize_internship')) {
     }
 }
 
-if (!function_exists('learner_ecosystem_school_opportunities')) {
-    function learner_ecosystem_school_opportunities(): array
+if (!function_exists('learner_ecosystem_mock_school_opportunities')) {
+    function learner_ecosystem_mock_school_opportunities(): array
     {
         return [
             [
@@ -258,8 +260,8 @@ if (!function_exists('learner_ecosystem_school_opportunities')) {
     }
 }
 
-if (!function_exists('learner_ecosystem_opportunities')) {
-    function learner_ecosystem_opportunities(): array
+if (!function_exists('learner_ecosystem_mock_opportunities')) {
+    function learner_ecosystem_mock_opportunities(): array
     {
         $internships = array_map(
             'learner_ecosystem_normalize_internship',
@@ -269,12 +271,12 @@ if (!function_exists('learner_ecosystem_opportunities')) {
             ))
         );
 
-        return array_merge($internships, learner_ecosystem_school_opportunities());
+        return array_merge($internships, learner_ecosystem_mock_school_opportunities());
     }
 }
 
-if (!function_exists('learner_ecosystem_applications')) {
-    function learner_ecosystem_applications(): array
+if (!function_exists('learner_ecosystem_mock_applications')) {
+    function learner_ecosystem_mock_applications(): array
     {
         return [
             [
@@ -337,41 +339,107 @@ if (!function_exists('learner_ecosystem_applications')) {
 if (!function_exists('learner_ecosystem_partner')) {
     function learner_ecosystem_partner(string $type, string $id): ?array
     {
-        $collection = $type === 'enterprise'
-            ? learner_ecosystem_enterprises()
-            : ($type === 'school' ? learner_ecosystem_schools() : []);
-
-        foreach ($collection as $partner) {
-            if (($partner['id'] ?? '') === $id) {
-                return $partner;
-            }
-        }
-
-        return null;
+        return \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::resolvePartner(
+            learner_ecosystem_repository(),
+            $type,
+            $id
+        );
     }
 }
 
 if (!function_exists('learner_ecosystem_opportunity')) {
     function learner_ecosystem_opportunity(string $type, string|int $id): ?array
     {
-        foreach (learner_ecosystem_opportunities() as $opportunity) {
-            if (($opportunity['type'] ?? '') === $type && (string) ($opportunity['id'] ?? '') === (string) $id) {
-                return $opportunity;
-            }
-        }
-
-        return null;
+        return \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::resolveOpportunity(
+            learner_ecosystem_repository(),
+            $type,
+            (string) $id
+        );
     }
 }
 
 if (!function_exists('learner_ecosystem_partner_opportunities')) {
     function learner_ecosystem_partner_opportunities(string $partnerId, bool $activeOnly = false): array
     {
-        return array_values(array_filter(
-            learner_ecosystem_opportunities(),
-            static fn (array $opportunity): bool => ($opportunity['partner_id'] ?? '') === $partnerId
-                && (!$activeOnly || ($opportunity['status'] ?? '') === 'active')
-        ));
+        return \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::opportunities(
+            learner_ecosystem_repository()->opportunitiesForPartner($partnerId, $activeOnly)
+        );
+    }
+}
+
+if (!function_exists('learner_ecosystem_repository')) {
+    function learner_ecosystem_repository(): \TalentHub\Learner\Data\Contracts\EcosystemRepository
+    {
+        return learner_repository_factory()->ecosystem(
+            array_merge(learner_ecosystem_mock_enterprises(), learner_ecosystem_mock_schools()),
+            learner_ecosystem_mock_opportunities()
+        );
+    }
+}
+
+if (!function_exists('learner_application_repository')) {
+    function learner_application_repository(): \TalentHub\Learner\Data\Contracts\ApplicationRepository
+    {
+        $opportunities = learner_ecosystem_mock_opportunities();
+        $applications = array_map(
+            static function (array $application) use ($opportunities): array {
+                $application['student_id'] = 'student-demo-001';
+                foreach ($opportunities as $opportunity) {
+                    if (($opportunity['type'] ?? '') !== ($application['opportunity_type'] ?? '')
+                        || (string) ($opportunity['id'] ?? '') !== (string) ($application['opportunity_id'] ?? '')) {
+                        continue;
+                    }
+
+                    if (($opportunity['partner_type'] ?? '') === 'enterprise') {
+                        $application['enterprise_id'] = $opportunity['partner_id'];
+                    } elseif (($opportunity['partner_type'] ?? '') === 'school') {
+                        $application['school_id'] = $opportunity['partner_id'];
+                    }
+                    break;
+                }
+
+                return $application;
+            },
+            learner_ecosystem_mock_applications()
+        );
+
+        return learner_repository_factory()->application($applications);
+    }
+}
+
+if (!function_exists('learner_ecosystem_enterprises')) {
+    function learner_ecosystem_enterprises(): array
+    {
+        return \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::partners(
+            learner_ecosystem_repository()->partners('enterprise')
+        );
+    }
+}
+
+if (!function_exists('learner_ecosystem_schools')) {
+    function learner_ecosystem_schools(): array
+    {
+        return \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::partners(
+            learner_ecosystem_repository()->partners('school')
+        );
+    }
+}
+
+if (!function_exists('learner_ecosystem_opportunities')) {
+    function learner_ecosystem_opportunities(): array
+    {
+        return \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::opportunities(
+            learner_ecosystem_repository()->opportunities()
+        );
+    }
+}
+
+if (!function_exists('learner_ecosystem_applications')) {
+    function learner_ecosystem_applications(): array
+    {
+        return \TalentHub\Learner\Data\ReadModel\ApplicationReadModel::applications(
+            learner_application_repository()->forStudent(learner_current_student_id())
+        );
     }
 }
 

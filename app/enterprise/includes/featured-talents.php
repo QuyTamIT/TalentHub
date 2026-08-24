@@ -10,23 +10,32 @@
             <h3 class="ent-section-box__title">Nhân tài nổi bật trong tuần</h3>
             <p class="ent-section-box__subtitle">Đề xuất dựa trên tiêu chí tuyển dụng và kỹ năng yêu cầu của doanh nghiệp</p>
         </div>
-        <a href="/app/enterprise/talents.php" class="ent-section-box__link" data-route="/app/enterprise/talents.php">
-            Xem tất cả (1,247) &rarr;
+        <a href="<?= app_href('/app/enterprise/talents.php'); ?>" class="ent-section-box__link" data-route="/app/enterprise/talents.php">
+            Xem tất cả &rarr;
         </a>
     </div>
 
     <div class="ent-talents-list">
-        <?php foreach ($featuredTalents as $talent): ?>
+        <?php foreach ($featuredTalents as $talent): 
+            $nameParts = explode(' ', $talent['name']);
+            $initials = count($nameParts) >= 2 
+                ? mb_substr($nameParts[count($nameParts) - 2], 0, 1, 'UTF-8') . mb_substr($nameParts[count($nameParts) - 1], 0, 1, 'UTF-8')
+                : mb_substr($nameParts[0], 0, 1, 'UTF-8');
+            $score = $talent['talent_score'] ?? $talent['match_score'];
+            $detailUrl = app_href('/app/enterprise/talents/detail.php?id=' . urlencode((string)$talent['id']));
+        ?>
             <article class="ent-talent-card">
                 <div class="ent-talent-card__left">
                     <div class="ent-talent-card__avatar">
-                        <?= mb_substr(explode(' ', $talent['name'])[count(explode(' ', $talent['name'])) - 1], 0, 1, 'UTF-8'); ?>
+                        <?= htmlspecialchars($initials); ?>
                     </div>
                     <div class="ent-talent-card__details">
                         <div class="ent-talent-card__name-row">
-                            <h4 class="ent-talent-card__name"><?= htmlspecialchars($talent['name']); ?></h4>
-                            <span class="ent-talent-card__score-badge">
-                                <?= htmlspecialchars($talent['talent_score'] ?? $talent['match_score']); ?> điểm
+                            <a href="<?= htmlspecialchars($detailUrl); ?>" class="ent-talent-card__name">
+                                <?= htmlspecialchars($talent['name']); ?>
+                            </a>
+                            <span class="ent-talent-card__score-badge" title="Độ tương thích năng lực">
+                                <?= htmlspecialchars($score); ?>% phù hợp
                             </span>
                         </div>
                         
@@ -53,7 +62,7 @@
                 </div>
 
                 <div class="ent-talent-card__actions">
-                    <a href="/app/enterprise/talents/detail.php?id=<?= htmlspecialchars($talent['id']); ?>" class="btn btn-secondary btn-sm" data-route="/app/enterprise/talents/detail.php?id=<?= htmlspecialchars($talent['id']); ?>">
+                    <a href="<?= htmlspecialchars($detailUrl); ?>" class="btn btn-secondary btn-sm" data-route="<?= htmlspecialchars($detailUrl); ?>">
                         Xem hồ sơ
                     </a>
                     <button class="btn btn-primary btn-sm ent-talent-btn" data-talent-id="<?= htmlspecialchars($talent['id']); ?>" data-action="contact">

@@ -65,29 +65,42 @@ body.school-sidebar-open {
     transition: transform var(--transition-base);
 }
 
+/* Keep brand→subtitle gap ≈ subtitle→nav gap (~12-14px).
+   Pinned to 0.5rem so the sidebar reads as one rhythm. */
 .school-sidebar__brand {
-    padding-bottom: 1rem;
+    padding-bottom: 0.5rem;
     border-bottom: 1px solid var(--border);
     margin-bottom: 1rem;
 }
 
+/* Left-aligned to match the brand text's left edge (sits inside the
+   sidebar's 1rem left padding, same as the TalentHub brand link).
+   Pinned to text-align: left so the subtitle reads as one column with the
+   brand above it. */
 .school-sidebar__subtitle {
     font-size: 0.75rem;
     font-weight: 500;
     color: var(--text-secondary);
-    margin-top: 0.375rem;
+    margin-top: -0.5rem;
     line-height: 1.2;
-    text-align: center;
+    text-align: left;
+    margin-left: 52px;
 }
 
+/* Drop the brand icon down inside the school sidebar without moving the
+   brand text — descendant selector keeps this scoped to school only, the
+   other 5 consumers of .site-header__brand-icon are untouched. */
+   .school-sidebar__brand .site-header__brand-icon {
+    margin-top: 1rem; /* tăng / giảm tu ý: 0.25rem – 1rem là dải dùng nhiều */
+}
 /* Sidebar School Card */
 .school-sidebar__school-card {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     padding: 0.875rem;
-    background: linear-gradient(135deg, #FFFFFF 0%, #EFF6FF 100%);
-    border: 1px solid rgba(37, 99, 235, 0.18);
+    background: linear-gradient(135deg, var(--surface) 0%, var(--primary-light) 100%);
+    border: 1px solid rgba(249, 115, 22, 0.18);
     border-radius: var(--radius-md);
     margin-bottom: 1.25rem;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
@@ -95,15 +108,15 @@ body.school-sidebar-open {
 }
 
 .school-sidebar__school-card:hover {
-    border-color: rgba(37, 99, 235, 0.3);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+    border-color: rgba(249, 115, 22, 0.3);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.08);
 }
 
 .school-sidebar__school-avatar {
     width: 2.625rem;
     height: 2.625rem;
     border-radius: 10px;
-    background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
     color: #FFFFFF;
     display: flex;
     align-items: center;
@@ -111,7 +124,7 @@ body.school-sidebar-open {
     font-weight: 800;
     font-size: 0.875rem;
     flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.25);
 }
 
 .school-sidebar__school-info {
@@ -143,8 +156,8 @@ body.school-sidebar-open {
     align-items: center;
     font-size: 0.6875rem;
     font-weight: 600;
-    color: #1D4ED8;
-    background-color: rgba(37, 99, 235, 0.12);
+    color: var(--primary-hover);
+    background-color: var(--primary-light);
     padding: 0.15rem 0.45rem;
     border-radius: 4px;
     line-height: 1.2;
@@ -184,13 +197,13 @@ body.school-sidebar-open {
 }
 
 .school-sidebar__link.is-active {
-    background-color: #EFF6FF;
-    color: #2563EB;
+    background-color: var(--primary-light);
+    color: var(--primary);
     font-weight: 600;
 }
 
 .school-sidebar__link.is-active .school-sidebar__icon {
-    color: #2563EB;
+    color: var(--primary);
 }
 
 .school-sidebar__icon {
@@ -331,7 +344,7 @@ body.school-sidebar-open {
     width: 2rem;
     height: 2rem;
     border-radius: 50%;
-    background: #3B82F6;
+    background: var(--primary);
     color: #FFFFFF;
     display: flex;
     align-items: center;
@@ -358,6 +371,31 @@ body.school-sidebar-open {
     color: var(--text-secondary);
 }
 
+.school-header__logout {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+}
+
+.school-header__logout:hover {
+    background: #FEF2F2;
+    color: #B91C1C;
+    border-color: #FCA5A5;
+}
+
+.school-header__logout:hover svg {
+    stroke: #B91C1C;
+}
+
 /* --------------------------------------------------------------------------
    4. Body & Welcome Banner
    -------------------------------------------------------------------------- */
@@ -377,26 +415,15 @@ body.school-sidebar-open {
 
 /* Welcome Banner Section */
 .school-welcome {
-    background: linear-gradient(120deg, #FFFFFF 0%, #EFF6FF 40%, #F1F5F9 100%);
-    border: 1px solid rgba(37, 99, 235, 0.18);
-    border-left: 4px solid #3B82F6;
+    background: linear-gradient(to right, var(--primary-light) 0%, #FFFAF0 100%);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--primary);
     border-radius: var(--radius-md);
     padding: 1.5rem 1.75rem;
     margin-bottom: 1.75rem;
     box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
     position: relative;
     overflow: hidden;
-}
-
-.school-welcome::before {
-    content: '';
-    position: absolute;
-    top: -50px;
-    right: 180px;
-    width: 180px;
-    height: 180px;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 70%);
-    pointer-events: none;
 }
 
 .school-welcome__body {
@@ -419,8 +446,8 @@ body.school-sidebar-open {
     gap: 0.375rem;
     font-size: 0.725rem;
     font-weight: 700;
-    color: #2563EB;
-    background: rgba(37, 99, 235, 0.09);
+    color: var(--primary);
+    background: var(--primary-light);
     padding: 0.2rem 0.6rem;
     border-radius: 4px;
     text-transform: uppercase;
@@ -458,6 +485,39 @@ body.school-sidebar-open {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.school-welcome--compact {
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.school-welcome--compact .school-welcome__title {
+    font-size: 1.25rem;
+    margin-bottom: 0.375rem;
+}
+
+.school-welcome--compact .school-welcome__description {
+    font-size: 0.875rem;
+    margin-bottom: 0.875rem;
+    max-width: 720px;
+}
+
+.school-grid-2col.school-grid-2col--reports {
+    grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+}
+
+.school-form__grid > *,
+.school-form__field {
+    min-width: 0;
+}
+
+.school-form__field select {
+    width: 100%;
+    min-width: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 /* --------------------------------------------------------------------------
@@ -500,7 +560,7 @@ body.school-sidebar-open {
 }
 
 .school-kpi-card__icon {
-    color: #2563EB;
+    color: var(--primary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -589,12 +649,12 @@ body.school-sidebar-open {
 .school-section-box__link {
     font-size: 0.8125rem;
     font-weight: 600;
-    color: #2563EB;
+    color: var(--primary);
     white-space: nowrap;
 }
 
 .school-section-box__link:hover {
-    color: #1D4ED8;
+    color: var(--primary-hover);
 }
 
 .school-section-box__count {
@@ -645,15 +705,15 @@ body.school-sidebar-open {
     width: 2.75rem;
     height: 2.75rem;
     border-radius: 50%;
-    background-color: #EFF6FF;
-    color: #2563EB;
+    background-color: var(--primary-light);
+    color: var(--primary);
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
     font-size: 1.0625rem;
     flex-shrink: 0;
-    border: 1px solid rgba(37, 99, 235, 0.15);
+    border: 1px solid rgba(249, 115, 22, 0.15);
 }
 
 .school-talent-card__details {
@@ -875,8 +935,8 @@ body.school-sidebar-open {
 }
 
 .school-class-badge--primary {
-    background-color: #EFF6FF;
-    color: #2563EB;
+    background-color: var(--primary-light);
+    color: var(--primary);
 }
 
 .school-class-badge--success {
@@ -952,6 +1012,131 @@ body.school-sidebar-open {
 }
 
 /* ==========================================================================
+   FORMS & FLASH MESSAGES & PAGINATION
+   Shared by app/school/*.php — extracted from inline <style> blocks to keep
+   the stylesheet the single source of truth (override inline no longer wins
+   the cascade). 2-column form grid is opt-in via inline style or a
+   page-specific override; the default below is 1-column.
+   ========================================================================== */
+
+.school-grid-2col {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.5rem;
+}
+
+.school-grid-2col--teachers {
+    grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+}
+
+.school-grid-2col--reports {
+    grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+}
+
+.school-form__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.school-form__grid--2col {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.school-form__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.school-form__field--full {
+    grid-column: 1 / -1;
+}
+
+.school-form__field input,
+.school-form__field select,
+.school-form__field textarea {
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.school-form__field input:focus,
+.school-form__field select:focus,
+.school-form__field textarea:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+}
+
+.school-form__field em {
+    color: #DC2626;
+    font-style: normal;
+    margin-left: 2px;
+}
+
+.school-form__field--checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+
+.school-form__field--checkbox input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    accent-color: var(--primary);
+}
+
+.school-form__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.school-flash {
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-sm);
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
+
+.school-flash--success {
+    background: #ECFDF5;
+    color: #047857;
+    border: 1px solid #6EE7B7;
+}
+
+.school-flash--error {
+    background: #FEF2F2;
+    color: #B91C1C;
+    border: 1px solid #FCA5A5;
+}
+
+.school-pagination {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    justify-content: flex-end;
+}
+
+.school-pagination__info {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+/* ==========================================================================
    13. RESPONSIVE BREAKPOINTS
    ========================================================================== */
 
@@ -1020,6 +1205,10 @@ body.school-sidebar-open {
 
 /* Mobile */
 @media (max-width: 767.98px) {
+    .school-header__logout span {
+        display: none;
+    }
+
     .school-header {
         padding: 0 1rem;
         height: 3.75rem;
@@ -1205,7 +1394,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-    outline: 2px solid #2563EB;
+    outline: 2px solid var(--primary);
     outline-offset: 2px;
     border-radius: 4px;
 }

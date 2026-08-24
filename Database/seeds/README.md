@@ -2,7 +2,8 @@
 
 Seed được chạy sau khi clean baseline migrations đã hoàn tất.
 
-- `System/RolePermissionSeeder.php`: dữ liệu hệ thống bắt buộc, an toàn để chạy lặp; tạo 4 role, 84 permission (gồm Teacher GĐ0–2) và 102 mapping chính xác.
+- `System/RolePermissionSeeder.php`: dữ liệu hệ thống bắt buộc, an toàn để chạy lặp; tạo 5 role, 120 permission và 144 mapping chính xác, gồm `platform_admin` và 18 quyền vận hành.
+- `Local/AdminAccountSeeder.php`: bootstrap tài khoản Admin chỉ trong local/test, tương thích cả schema legacy và schema migration; mật khẩu chỉ đọc từ `TALENTHUB_ADMIN_PASSWORD`.
 - `Testing/MinimalAuthRbacSeeder.php`: fixture local/test, tuyệt đối không chạy production; tạo một school, class, enterprise và một user cho mỗi role.
 
 Thứ tự chạy: system seed trước, test seed sau. CLI hiện tại: `php bin/seed.php` hoặc `php bin/seed.php --testing`; runner giữ advisory lock như quy định tại `document/MIGRATION_STANDARD.md`.

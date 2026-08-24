@@ -77,19 +77,6 @@ $sidebarNav = [
         <div class="school-sidebar__subtitle">Khu vực Nhà trường</div>
     </div>
 
-    <!-- School Card -->
-    <div class="school-sidebar__school-card">
-        <div class="school-sidebar__school-avatar">
-            <?= htmlspecialchars($schoolInfo['logo_initials']); ?>
-        </div>
-        <div class="school-sidebar__school-info">
-            <span class="school-sidebar__school-name"><?= htmlspecialchars($schoolInfo['name']); ?></span>
-            <div class="school-sidebar__school-meta">
-                <span class="school-sidebar__badge"><?= htmlspecialchars($schoolInfo['level']); ?></span>
-            </div>
-        </div>
-    </div>
-
     <!-- Navigation List -->
     <nav class="school-sidebar__nav" aria-label="Điều hướng Nhà trường">
         <div class="school-sidebar__nav-title">QUẢN LÝ TRƯỜNG HỌC</div>
@@ -103,7 +90,7 @@ $sidebarNav = [
                     || (isset($currentRoute) && $navItem['route'] === $currentRoute);
             ?>
                 <li>
-                    <a href="<?= htmlspecialchars($navItem['route']); ?>"
+                    <a href="<?= htmlspecialchars(app_href($navItem['route'])); ?>"
                        class="school-sidebar__link <?= $isActive ? 'is-active' : ''; ?>">
                         <span class="school-sidebar__icon">
                             <?php if ($navItem['icon'] === 'grid'): ?>
@@ -172,7 +159,7 @@ $sidebarNav = [
 
     <!-- Bottom Action -->
     <div class="school-sidebar__footer">
-        <a href="/role-selection.php" class="school-sidebar__link school-sidebar__link--switch">
+        <a href="../../role-selection.php" class="school-sidebar__link school-sidebar__link--switch">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M16 17l5-5-5-5M19.8 12H9M13 22a10 10 0 1 1 0-20"></path>
             </svg>

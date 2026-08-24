@@ -140,8 +140,8 @@ function initInternshipManagementModule() {
         const sortedRows = rows.filter(r => r.style.display !== 'none');
         sortedRows.sort((a, b) => {
             if (sortVal === 'applicants') {
-                const numA = parseInt(a.querySelector('.ent-applicant-count-badge')?.textContent || '0', 10);
-                const numB = parseInt(b.querySelector('.ent-applicant-count-badge')?.textContent || '0', 10);
+                const numA = parseInt(a.querySelector('.ent-applicant-num')?.textContent || a.querySelector('.ent-applicant-count-badge')?.textContent || a.querySelector('.ent-applicant-count-text')?.textContent || '0', 10);
+                const numB = parseInt(b.querySelector('.ent-applicant-num')?.textContent || b.querySelector('.ent-applicant-count-badge')?.textContent || b.querySelector('.ent-applicant-count-text')?.textContent || '0', 10);
                 return numB - numA;
             } else if (sortVal === 'deadline') {
                 const deadA = a.querySelectorAll('td')[3]?.textContent.trim() || '';
@@ -165,9 +165,33 @@ function initInternshipManagementModule() {
     /* --------------------------------------------------------------------------
      * 2. Status Transition Machine & Summary Metrics Recalculation
      * -------------------------------------------------------------------------- */
-    function handleStatusChange(postId, targetStatus) {
+    async function handleStatusChange(postId, targetStatus) {
         const row = tbody ? tbody.querySelector(`tr[data-post-id="${postId}"]`) : null;
         if (!row) return;
+
+        const expectedCurrentStatus = row.getAttribute('data-status') || '';
+        const action = targetStatus === 'active' && expectedCurrentStatus === 'draft'
+            ? 'publish'
+            : (targetStatus === 'closed' && expectedCurrentStatus === 'active' ? 'close' : '');
+        if (!action) {
+            (window.showEntToast || showToast)('Chuyển trạng thái tin không hợp lệ.');
+            return;
+        }
+        const bootNode = document.getElementById('enterprise-session-boot');
+        let boot = {};
+        try { boot = JSON.parse(bootNode?.textContent || '{}'); } catch { boot = {}; }
+        try {
+            const response = await fetch(`${boot.apiBase || '/api/v1'}/businesses/me/internships/${encodeURIComponent(postId)}/${action}`, {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': boot.csrfToken || '' },
+                body: JSON.stringify({ expectedCurrentStatus }),
+            });
+            const payload = await response.json();
+            if (!response.ok || payload?.data?.post?.status !== targetStatus) throw new Error(payload?.error?.message || 'Không thể đổi trạng thái tin.');
+        } catch (error) {
+            (window.showEntToast || showToast)(error?.message || 'Không thể đổi trạng thái tin.');
+            return;
+        }
 
         row.setAttribute('data-status', targetStatus);
         const statusCell = row.querySelectorAll('td')[1];
@@ -198,11 +222,7 @@ function initInternshipManagementModule() {
         } else if (targetStatus === 'closed') {
             statusLabel = 'Đã đóng';
             pillClass = 'ent-status-pill--closed';
-            actionMarkup = editLinkMarkup + `
-                <button type="button" class="ent-dropdown-item action-change-status" data-post-id="${postId}" data-target-status="active">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"></path><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-                    Mở lại
-                </button>`;
+            actionMarkup = editLinkMarkup;
             (window.showEntToast || showToast)(`Đã đóng tin tuyển dụng #${postId}. Ngừng tiếp nhận hồ sơ.`);
         } else {
             statusLabel = 'Bản nháp';
@@ -724,10 +744,11 @@ function initInternshipManagementModule() {
             btnPublishPost.addEventListener('click', () => submitForm('active'));
         }
 
-        function submitForm(targetStatus) {
+        async function submitForm(targetStatus) {
             const titleInput = id('form-title');
             const fieldInput = id('form-field');
             const descInput = id('form-description');
+            const locationInput = id('form-location');
 
             if (titleInput && !titleInput.value.trim()) {
                 titleInput.focus();
@@ -744,32 +765,66 @@ function initInternshipManagementModule() {
                 showToast('Vui lòng nhập mô tả công việc.');
                 return;
             }
+            if (locationInput && !locationInput.value.trim()) {
+                locationInput.focus();
+                showToast('Vui lòng nhập địa điểm làm việc.');
+                return;
+            }
             if (selectedSkills.length === 0) {
                 showToast('Vui lòng chọn ít nhất 1 kỹ năng yêu cầu cho vị trí tuyển dụng.');
                 return;
             }
 
             const postId = id('form-post-id') ? id('form-post-id').value : '';
-            
-            // Format mock data structure for `internship_requirements` DB insertion
-            const mockRequirementsPayload = selectedSkills.map((sk, index) => ({
-                id: 'req-' + (index + 1),
-                postId: postId || 'new-post',
-                skillId: sk.skillId || ('sk-gen-' + index),
-                skillName: sk.name,
-                category: sk.category,
-                type: sk.type,
-                minLevel: 'Intermediate'
-            }));
-
-            console.log('[TalentHub Enterprise] Submitting Internship Requirements:', mockRequirementsPayload);
-
-            const statusMsg = targetStatus === 'active' ? 'Đã phát hành tin tuyển dụng thành công!' : 'Đã lưu bản nháp tin tuyển dụng!';
-            showToast(statusMsg);
-
-            setTimeout(() => {
-                window.location.href = 'index.php';
-            }, 600);
+            const bootNode = document.getElementById('enterprise-session-boot');
+            let boot = {};
+            try { boot = JSON.parse(bootNode?.textContent || '{}'); } catch { boot = {}; }
+            const deadlineValue = id('form-deadline')?.value || '';
+            const payload = {
+                title: titleInput.value.trim(),
+                field: fieldInput.value,
+                slots: intval(id('form-slots')?.value),
+                workType: id('form-work-type')?.value || '',
+                duration: id('form-duration')?.value || '',
+                educationLevel: id('form-edu-level')?.value || '',
+                deadline: deadlineValue ? `${deadlineValue} 23:59:59.000000` : '',
+                location: locationInput?.value.trim() || '',
+                description: descInput.value.trim(),
+                benefits: id('form-benefits')?.value.trim() || '',
+                skills: selectedSkills.map((skill) => skill.name),
+                requirements: [],
+            };
+            const request = async (method, path, body) => {
+                const response = await fetch(`${boot.apiBase || '/api/v1'}${path}`, {
+                    method,
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': boot.csrfToken || '' },
+                    body: JSON.stringify(body),
+                });
+                const json = await response.json();
+                if (!response.ok || !json?.data) throw new Error(json?.error?.message || 'Không thể lưu tin tuyển dụng.');
+                return json.data;
+            };
+            btnSaveDraft && (btnSaveDraft.disabled = true);
+            btnPublishPost && (btnPublishPost.disabled = true);
+            try {
+                let post;
+                if (postId) {
+                    post = (await request('PATCH', `/businesses/me/internships/${encodeURIComponent(postId)}`, payload)).post;
+                } else {
+                    post = (await request('POST', '/businesses/me/internships', payload)).post;
+                }
+                if (targetStatus === 'active' && post.status === 'draft') {
+                    post = (await request('POST', `/businesses/me/internships/${encodeURIComponent(post.id)}/publish`, { expectedCurrentStatus: 'draft' })).post;
+                }
+                showToast(targetStatus === 'active' ? 'Đã phát hành tin tuyển dụng thành công!' : 'Đã lưu tin tuyển dụng!');
+                window.setTimeout(() => { window.location.href = 'index.php'; }, 600);
+            } catch (error) {
+                showToast(error?.message || 'Không thể lưu tin tuyển dụng.');
+            } finally {
+                btnSaveDraft && (btnSaveDraft.disabled = false);
+                btnPublishPost && (btnPublishPost.disabled = false);
+            }
         }
     }
 
