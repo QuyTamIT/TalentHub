@@ -639,6 +639,8 @@
         setHidden(cards, false);
         if (cards) while (cards.firstChild) cards.removeChild(cards.firstChild);
         const items = Array.isArray(payload?.assessments) ? payload.assessments : [];
+        const educationBand = normalizeEducationBand(payload?.education_band);
+        const bandQuery = educationBand ? `&band=${encodeURIComponent(educationBand)}` : '';
         setHidden(empty, items.length !== 0);
         if (!cards) return;
         items.forEach((item) => {
@@ -661,14 +663,14 @@
             const action = doc.createElement(published && !locked ? 'a' : 'button');
             action.className = `learner-btn learner-btn--${published && !locked ? 'primary' : 'secondary'} learner-btn--block`;
             action.textContent = locked ? 'Chưa thể làm lại' : (published ? (item?.attempt_status === 'in_progress' ? 'Tiếp tục bài test' : 'Bắt đầu bài test') : 'Chưa có phiên bản được duyệt');
-            if (action.tagName === 'A') action.href = `assessment.php?code=${encodeURIComponent(code)}`;
+            if (action.tagName === 'A') action.href = `assessment.php?code=${encodeURIComponent(code)}${bandQuery}`;
             else { action.type = 'button'; action.disabled = true; }
             article.appendChild(action);
             const complete = ['submitted', 'retake_locked'].includes(String(item?.attempt_status || '').toLowerCase());
             if (complete && item?.can_view_result && item?.latest_result?.id) {
                 const resultLink = doc.createElement('a');
                 resultLink.className = 'learner-btn learner-btn--outline learner-btn--block';
-                resultLink.href = `assessment-result.php?code=${encodeURIComponent(code)}&attempt=${encodeURIComponent(item.latest_result.id)}`;
+                resultLink.href = `assessment-result.php?code=${encodeURIComponent(code)}&attempt=${encodeURIComponent(item.latest_result.id)}${bandQuery}`;
                 resultLink.textContent = `Xem kết quả ${item.latest_result.result_code || ''}`.trim();
                 article.appendChild(resultLink);
             }
@@ -781,7 +783,7 @@
         const code = String(root.dataset.assessmentCode || boot.assessmentCode || 'holland');
         const view = createDomView(root);
         const controller = createAssessmentController({ api, view });
-        let selectedBand = '';
+        let selectedBand = normalizeEducationBand(new URLSearchParams(global.location?.search || '').get('band'));
         let currentAttempt = null;
         const resultUrl = boot.result_url || `assessment-result.php?code=${encodeURIComponent(code)}`;
 
@@ -879,7 +881,9 @@
             const response = await controller.submit();
             if (response?.status === 'submitted' || response?.result || response?.result_id) {
                 const attemptId = response.id || currentAttempt?.id;
-                global.location.href = `${resultUrl}${resultUrl.includes('?') ? '&' : '?'}attempt=${encodeURIComponent(attemptId || '')}`;
+                const attemptQuery = `${resultUrl.includes('?') ? '&' : '?'}attempt=${encodeURIComponent(attemptId || '')}`;
+                const bandQuery = selectedBand ? `&band=${encodeURIComponent(selectedBand)}` : '';
+                global.location.href = `${resultUrl}${attemptQuery}${bandQuery}`;
             }
         });
         doc.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', () => {
@@ -887,7 +891,7 @@
             setHidden(modal, true);
         }));
 
-        return loadDetail();
+        return loadDetail(selectedBand);
     }
 
     function bootCatalog(root, suppliedApi = null) {
@@ -998,11 +1002,13 @@
         return loadCatalog();
     }
 
-    function bootResult(root) {
-        const api = createApiClient();
-        if (!api) return;
+    function bootResult(root, suppliedApi = null) {
+        const api = suppliedApi || createApiClient();
+        if (!api) return Promise.resolve([]);
         const code = String(root.dataset.assessmentCode || 'holland');
-        const attemptId = new URLSearchParams(global.location?.search || '').get('attempt') || '';
+        const search = new URLSearchParams(global.location?.search || '');
+        const attemptId = search.get('attempt') || '';
+        const educationBand = normalizeEducationBand(search.get('band'));
         const resultView = {
             render: (state, payload) => {
                 if (state === 'complete' || state === 'ready') renderResult(root, payload);
@@ -1014,11 +1020,11 @@
             },
         };
         const controller = createAssessmentController({ api, view: resultView });
-        controller.loadResult(code, '', attemptId).catch(() => {
+        const resultPromise = controller.loadResult(code, educationBand, attemptId).catch(() => {
             setHidden(root.querySelector('[data-assessment-result-content]'), true);
             setHidden(root.querySelector('[data-assessment-result-empty]'), false);
         });
-        controller.loadHistory().then((payload) => {
+        const historyPromise = controller.loadHistory().then((payload) => {
             const automated = Array.isArray(payload?.assessment_history?.items) ? payload.assessment_history.items : null;
             const teacher = Array.isArray(payload?.teacher_evaluations?.items) ? payload.teacher_evaluations.items : null;
             const renderCollection = (loadingSel, emptySel, errorSel, listSel, items, renderItem) => {
@@ -1119,6 +1125,7 @@
             setHidden(root.querySelector('[data-teacher-published-evaluation-empty]'), true);
             setHidden(root.querySelector('[data-teacher-published-evaluation-error]'), false);
         });
+        return Promise.allSettled([resultPromise, historyPromise]);
     }
 
     function boot() {
@@ -1139,6 +1146,7 @@
         deriveDiscoverySummary,
         bootCatalog,
         bootRunner,
+        bootResult,
     };
 
     if (typeof module !== 'undefined' && module.exports) {
