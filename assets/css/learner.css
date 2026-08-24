@@ -1989,6 +1989,51 @@
     gap: 10px;
 }
 
+.learner-ai-summary-modal .learner-modal__dialog {
+    text-align: center;
+}
+
+.learner-ai-summary-modal__icon {
+    display: grid;
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    color: var(--primary);
+    background: var(--primary-light);
+    border-radius: 16px;
+    place-items: center;
+}
+
+.learner-ai-summary-modal .learner-modal__eyebrow {
+    text-align: center;
+}
+
+.learner-ai-summary-modal h2 {
+    font-size: clamp(1.3rem, 3vw, 1.7rem);
+}
+
+.learner-ai-summary-modal__live {
+    display: grid;
+    min-height: 112px;
+    margin-top: 16px;
+    padding: 18px;
+    color: var(--text-secondary);
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    line-height: 1.65;
+    place-items: center;
+}
+
+.learner-ai-summary-modal__live .learner-assessment-spinner {
+    margin-bottom: 4px;
+}
+
+.learner-ai-summary-modal__summary {
+    color: var(--text-primary);
+    font-weight: 650;
+}
+
 .learner-form__grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

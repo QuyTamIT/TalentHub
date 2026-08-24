@@ -1046,7 +1046,10 @@
                 || response?.result_id
                 || (response?.attempt_id && response?.result_code);
             if (isSubmittedResult) {
-                const onboardingDestination = safeOnboardingDestination(response?.next_url);
+                const aiSummaryDestination = response?.ai_analysis?.required === true
+                    ? '/app/learner/discover.php?onboarding=completed&ai=analyze'
+                    : null;
+                const onboardingDestination = safeOnboardingDestination(response?.next_url) || aiSummaryDestination;
                 if (onboardingDestination) {
                     global.location.href = onboardingDestination;
                     return;

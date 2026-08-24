@@ -97,5 +97,6 @@ require_once $learnerAiRoot . '/Evaluation/ShadowRunService.php';
 require_once $learnerAiRoot . '/Service/RecommendationResponseMapper.php';
 require_once $learnerAiRoot . '/Service/RecommendationService.php';
 require_once $learnerAiRoot . '/Service/RoadmapService.php';
+require_once $learnerAiRoot . '/Service/PostAssessmentAiTrigger.php';
 
 unset($learnerAiRoot);

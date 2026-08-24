@@ -701,7 +701,7 @@ test('catalog renders database result badge, completion status, and an accessibl
 });
 
 test('assessment state styles explicitly hide hidden catalog content', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'assets', 'css', 'learner.css'), 'utf8');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'assets', 'css', 'learner.css'), 'utf8').replace(/\r\n/g, '\n');
   assert.equal(source.includes('.learner-assessment-state[hidden],\n.learner-empty-catalog[hidden] {\n    display: none !important;\n}'), true);
 });
 
@@ -1112,6 +1112,34 @@ test('runner follows a valid onboarding next_url and ignores an external one', a
     const fallback = await submitWith('https://evil.example/steal');
     assert.match(fallback, /^(?:\/app\/learner\/)?assessment-result\.php\?/);
     assert.doesNotMatch(fallback, /evil\.example/);
+  } finally {
+    global.location = originalLocation;
+  }
+});
+
+test('runner uses the fixed AI summary route after the fourth assessment', async () => {
+  const { bootRunner } = require(modulePath);
+  const { root, nodes, doc } = createRunnerHarness();
+  const originalLocation = global.location;
+  global.location = { href: '', search: '' };
+  try {
+    await bootRunner(root, {
+      async get() {
+        return { assessment: { code: 'multiple_intelligence', education_band: 'high' }, questions: [], history: [] };
+      },
+      async send(_method, endpoint) {
+        if (endpoint === '/assessment-attempts.php') return { id: 'attempt-fourth', status: 'in_progress', questions: [], answers: {} };
+        return {
+          attempt_id: 'attempt-fourth',
+          result_code: 'LOGI',
+          ai_analysis: { required: true, state: 'not_generated' },
+          next_url: null,
+        };
+      },
+    }, doc);
+    await nodes.start.dispatch('click');
+    await nodes.submit.dispatch('click');
+    assert.equal(global.location.href, '/app/learner/discover.php?onboarding=completed&ai=analyze');
   } finally {
     global.location = originalLocation;
   }

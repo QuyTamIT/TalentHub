@@ -10,6 +10,7 @@ use TalentHub\Http\ApiException;
 use TalentHub\Http\Request;
 use TalentHub\Learner\Api\JsonResponder;
 use TalentHub\Learner\Api\LearnerApiContext;
+use TalentHub\Learner\Ai\Service\PostAssessmentAiTrigger;
 use TalentHub\Support\Uuid;
 
 $context = null;
@@ -41,6 +42,7 @@ try {
         (string) ($attempt['assessment_code'] ?? ''),
     );
 
+    $beforeOnboarding = $context->onboardingService()->progress($studentId);
     $result = $context->assessmentService()->submit($studentId, $attemptId);
     $onboarding = $context->onboardingService()->reconcile(
         $studentId,
@@ -49,9 +51,12 @@ try {
         isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
     );
     $result['onboarding'] = $onboarding;
-    $result['next_url'] = $onboarding['status'] === 'completed'
-        ? '/app/learner/discover.php?onboarding=completed'
-        : $onboarding['next_url'];
+    $result['ai_analysis'] = PostAssessmentAiTrigger::metadata($beforeOnboarding, $onboarding);
+    $result['next_url'] = ($result['ai_analysis']['required'] ?? false) === true
+        ? '/app/learner/discover.php?onboarding=completed&ai=analyze'
+        : ($onboarding['status'] === 'completed'
+            ? '/app/learner/discover.php?onboarding=completed'
+            : $onboarding['next_url']);
     JsonResponder::sendSuccess($result, $context->requestId(), 200);
 } catch (ApiException $exception) {
     if ($exception->errorCode === 'AUTHENTICATION_REQUIRED') {

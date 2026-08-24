@@ -221,9 +221,29 @@ $onboardingStateLabels = [
         </div>
     </div>
 
+    <div class="learner-modal learner-ai-summary-modal" data-ai-summary-modal hidden aria-hidden="true">
+        <button class="learner-modal__backdrop" type="button" data-ai-summary-defer aria-label="Để sau và đóng tóm tắt AI"></button>
+        <section class="learner-modal__dialog learner-modal__dialog--compact" role="dialog" aria-modal="true" aria-labelledby="learner-ai-summary-title" aria-describedby="learner-ai-summary-live" tabindex="-1">
+            <div class="learner-ai-summary-modal__icon" aria-hidden="true"><?= learner_icon('sparkles', 28); ?></div>
+            <span class="learner-modal__eyebrow" data-ai-summary-eyebrow>AI đang phân tích</span>
+            <h2 id="learner-ai-summary-title" data-ai-summary-title>Đang tạo lộ trình dành riêng cho bạn</h2>
+            <div id="learner-ai-summary-live" class="learner-ai-summary-modal__live" data-ai-summary-live aria-live="polite" aria-atomic="true">
+                <span class="learner-assessment-spinner" data-ai-summary-spinner aria-hidden="true"></span>
+                <p data-ai-summary-message>Quá trình này có thể mất khoảng 30 giây.</p>
+                <p class="learner-ai-summary-modal__summary" data-ai-summary-text></p>
+            </div>
+            <div class="learner-modal__actions">
+                <button class="learner-btn learner-btn--secondary" type="button" data-ai-summary-defer>Để sau</button>
+                <button class="learner-btn learner-btn--outline" type="button" data-ai-summary-retry hidden>Thử lại</button>
+                <a class="learner-btn learner-btn--primary" href="<?= learner_escape(app_href('/app/learner/ai-recommendations.php')); ?>" data-ai-summary-detail hidden>Xem phân tích chi tiết</a>
+            </div>
+        </section>
+    </div>
+
     <script id="learner-session-boot" type="application/json"><?= json_encode(['csrfToken' => $GLOBALS['learner_page_context']['csrfToken'] ?? ''], JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
     <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
     <script src="../../assets/js/learner-assessment.js"></script>
+    <script src="../../assets/js/learner-ai-summary.js"></script>
 </body>
 </html>
