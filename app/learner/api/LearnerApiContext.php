@@ -343,4 +343,9 @@ final class LearnerApiContext
             $factory->assessmentWrite()
         );
     }
+
+    public function onboardingService(): LearnerOnboardingService
+    {
+        return new LearnerOnboardingService(new LearnerOnboardingRepository($this->pdo));
+    }
 }
