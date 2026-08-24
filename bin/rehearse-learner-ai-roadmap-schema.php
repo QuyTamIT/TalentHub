@@ -26,7 +26,7 @@ $server->exec("SET SESSION time_zone = '+00:00'");
 $quoted = '`' . $database . '`';
 $created = false;
 $stage = 'connect_server';
-$result = ['success' => false, 'database_prefix' => 'talenthub_codex_roadmap_', 'used_local_admin' => false, 'first_apply' => [], 'second_apply' => [], 'new_table_count' => 0, 'sentinel_unchanged' => false, 'cleaned_up' => false];
+$result = ['success' => false, 'database_prefix' => 'talenthub_codex_roadmap_', 'used_local_admin' => false, 'first_apply' => [], 'second_apply' => [], 'new_table_count' => 0, 'sentinel_unchanged' => false, 'parent_contract_unchanged' => false, 'legacy_read_compatible' => false, 'cleaned_up' => false];
 
 try {
     $stage = 'create_database';
@@ -62,6 +62,7 @@ try {
     $record = $target->prepare('INSERT INTO learner_forward_migrations (version,name,checksum,description,appliedAt) VALUES (?,?,?,?,?)');
     $record->execute(['004_create_recommendation_store','Create learner recommendation store',$checksum,'Verified rehearsal dependency',gmdate('c')]);
     $before = hash('sha256', (string) $target->query("SELECT CONCAT(id,':',payload) FROM roadmap_rehearsal_sentinel ORDER BY id")->fetchColumn());
+    $parentBefore = hash('sha256', (string) $target->query('SHOW CREATE TABLE learner_recommendation_runs')->fetch(PDO::FETCH_NUM)[1]);
 
     $stage = 'apply_migration';
     $inspector = new SchemaInspector($target, $database);
@@ -73,10 +74,16 @@ try {
     $result['new_table_count'] = (int) $count;
     $after = hash('sha256', (string) $target->query("SELECT CONCAT(id,':',payload) FROM roadmap_rehearsal_sentinel ORDER BY id")->fetchColumn());
     $result['sentinel_unchanged'] = hash_equals($before, $after);
+    $parentAfter = hash('sha256', (string) $target->query('SHOW CREATE TABLE learner_recommendation_runs')->fetch(PDO::FETCH_NUM)[1]);
+    $result['parent_contract_unchanged'] = hash_equals($parentBefore, $parentAfter);
+    $legacyRead = $target->query('SELECT id, studentId FROM learner_recommendation_runs ORDER BY id LIMIT 1');
+    $result['legacy_read_compatible'] = $legacyRead !== false;
     $result['success'] = $result['first_apply'] === ['005_create_ai_roadmap_store']
         && $result['second_apply'] === []
         && $result['new_table_count'] === 4
-        && $result['sentinel_unchanged'];
+        && $result['sentinel_unchanged']
+        && $result['parent_contract_unchanged']
+        && $result['legacy_read_compatible'];
 } catch (Throwable $exception) {
     $result['error_code'] = 'roadmap_schema_rehearsal_failed';
     $result['failure_stage'] = $stage;

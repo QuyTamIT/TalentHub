@@ -155,4 +155,7 @@ This DCR and its migration source may be reviewed and committed without changing
 - Local MySQL disposable rehearsal used a database name restricted to prefix `talenthub_codex_roadmap_`. The application account lacked `CREATE DATABASE` (`SQLSTATE 42000`), so the script used Laragon's loopback-only local administrator after checking `APP_ENV=local` and a loopback host.
 - First MySQL apply returned `["005_create_ai_roadmap_store"]`; immediate second apply returned `[]`; exactly four new tables existed; the pre-existing sentinel row hash was unchanged.
 - The disposable MySQL database was removed successfully in the script's `finally` block.
+- Rehearsal was repeated at `2026-08-24T13:30:58Z` through `tests/learner_ai_roadmap_mysql_rehearsal_test.php`; script SHA-256 was `69BC025B7BD4E6802A98B01DCEE9056091800D29F23DDF1B567BCF0C11E72074`.
+- The repeat additionally proved `learner_recommendation_runs` parent metadata was byte-for-byte unchanged and a legacy `SELECT id, studentId` read still executed after the additive migration.
+- The model-outage regression retained the last completed roadmap and exposed a safe refresh fallback/error state; no stored roadmap content was overwritten.
 - No migration was applied to `talenthub`, staging, production or another shared database.
