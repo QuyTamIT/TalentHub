@@ -6,6 +6,14 @@
 (function initLearnerAssessment(global) {
     'use strict';
 
+    function safeOnboardingDestination(value) {
+        return typeof value === 'string'
+            && value.startsWith('/app/learner/')
+            && !value.startsWith('//')
+            ? value
+            : null;
+    }
+
     function presentationState(payload) {
         const status = typeof payload?.status === 'string' ? payload.status : '';
         if (status === 'loading') return 'loading';
@@ -1016,6 +1024,11 @@
         view.nodes.submitButton?.addEventListener('click', async () => {
             const response = await controller.submit();
             if (response?.status === 'submitted' || response?.result || response?.result_id) {
+                const onboardingDestination = safeOnboardingDestination(response?.next_url);
+                if (onboardingDestination) {
+                    global.location.href = onboardingDestination;
+                    return;
+                }
                 const attemptId = response.id || currentAttempt?.id;
                 const attemptQuery = `${resultUrl.includes('?') ? '&' : '?'}attempt=${encodeURIComponent(attemptId || '')}`;
                 const bandQuery = selectedBand ? `&band=${encodeURIComponent(selectedBand)}` : '';
@@ -1288,6 +1301,7 @@
         bootCatalog,
         bootRunner,
         bootResult,
+        safeOnboardingDestination,
     };
 
     if (typeof module !== 'undefined' && module.exports) {

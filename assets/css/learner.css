@@ -5854,3 +5854,260 @@ body.learner-sidebar-open {
     height: 16px;
     cursor: pointer;
 }
+
+/* Mandatory learner assessment onboarding */
+.learner-app .learner-onboarding {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.learner-app .learner-onboarding__backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.76);
+    backdrop-filter: blur(6px);
+}
+
+.learner-app .learner-onboarding__dialog {
+    position: relative;
+    width: min(100%, 620px);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    padding: clamp(24px, 5vw, 42px);
+    border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+    border-radius: 24px;
+    background: var(--surface);
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.32);
+}
+
+.learner-app .learner-onboarding__dialog:focus-visible,
+.learner-app .learner-onboarding__dialog :focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--primary) 68%, white);
+    outline-offset: 3px;
+}
+
+.learner-app .learner-onboarding__eyebrow,
+.learner-app .learner-onboarding-progress__eyebrow {
+    display: inline-block;
+    margin-bottom: 8px;
+    color: var(--primary);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.learner-app .learner-onboarding__dialog h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.55rem, 4vw, 2.15rem);
+}
+
+.learner-app .learner-onboarding__dialog p {
+    color: var(--text-secondary);
+    line-height: 1.65;
+}
+
+.learner-app .learner-onboarding__tests {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 22px 0;
+    padding: 0;
+    list-style: none;
+}
+
+.learner-app .learner-onboarding__tests li {
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--background);
+    font-weight: 700;
+}
+
+.learner-app .learner-onboarding__tests li::before {
+    content: "✓";
+    margin-right: 8px;
+    color: var(--primary);
+}
+
+.learner-app .learner-onboarding__save-note {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+}
+
+.learner-app .learner-onboarding__actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.learner-app .learner-onboarding__actions form,
+.learner-app .learner-onboarding__actions button {
+    flex: 1;
+}
+
+.learner-app .learner-btn--danger {
+    border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+    background: var(--surface);
+    color: var(--danger);
+}
+
+.learner-app .learner-btn--danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+}
+
+.learner-app .learner-onboarding-progress {
+    margin-bottom: 24px;
+    padding: clamp(20px, 4vw, 32px);
+    border-color: color-mix(in srgb, var(--primary) 25%, var(--border));
+}
+
+.learner-app .learner-onboarding-progress__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.learner-app .learner-onboarding-progress__heading h1 {
+    margin: 0 0 8px;
+    font-size: clamp(1.45rem, 3vw, 2rem);
+}
+
+.learner-app .learner-onboarding-progress__heading p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+.learner-app .learner-onboarding-progress__count {
+    display: grid;
+    place-items: center;
+    flex: 0 0 76px;
+    width: 76px;
+    height: 76px;
+    border: 8px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+    border-radius: 50%;
+    color: var(--primary);
+    font-size: 1.15rem;
+    font-weight: 900;
+}
+
+.learner-app .learner-onboarding-progress__list {
+    display: grid;
+    gap: 10px;
+    margin: 24px 0 16px;
+    padding: 0;
+    list-style: none;
+}
+
+.learner-app .learner-onboarding-progress__item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+}
+
+.learner-app .learner-onboarding-progress__item.is-next,
+.learner-app .learner-onboarding-progress__item.is-in_progress {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 6%, var(--surface));
+}
+
+.learner-app .learner-onboarding-progress__item.is-locked {
+    color: var(--text-secondary);
+    background: var(--background);
+}
+
+.learner-app .learner-onboarding-progress__position {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--primary-light);
+    color: var(--primary);
+    font-weight: 800;
+}
+
+.learner-app .learner-onboarding-progress__copy {
+    display: grid;
+    flex: 1;
+    gap: 3px;
+}
+
+.learner-app .learner-onboarding-progress__copy small,
+.learner-app .learner-onboarding-progress__locked,
+.learner-app .learner-onboarding-progress__logout {
+    color: var(--text-secondary);
+}
+
+.learner-app .learner-onboarding-progress__success {
+    display: grid;
+    gap: 8px;
+    margin-top: 22px;
+    padding: 18px;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--success) 10%, var(--surface));
+}
+
+.learner-app .learner-onboarding-progress__success .learner-btn {
+    justify-self: start;
+    margin-top: 4px;
+}
+
+.learner-app .learner-onboarding-progress__logout {
+    display: inline-block;
+    margin-top: 4px;
+    font-weight: 700;
+}
+
+@media (max-width: 640px) {
+    .learner-app .learner-onboarding {
+        align-items: end;
+        padding: 12px;
+    }
+
+    .learner-app .learner-onboarding__dialog {
+        max-height: calc(100vh - 24px);
+        border-radius: 20px;
+    }
+
+    .learner-app .learner-onboarding__tests {
+        grid-template-columns: 1fr;
+    }
+
+    .learner-app .learner-onboarding__actions,
+    .learner-app .learner-onboarding-progress__heading,
+    .learner-app .learner-onboarding-progress__item {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .learner-app .learner-onboarding-progress__count {
+        width: auto;
+        height: auto;
+        align-self: flex-start;
+        padding: 8px 14px;
+        border-width: 2px;
+        border-radius: 999px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .learner-app .learner-onboarding *,
+    .learner-app .learner-onboarding-progress * {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}

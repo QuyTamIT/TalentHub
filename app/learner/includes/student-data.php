@@ -81,6 +81,20 @@ $learnerNav = [
     ['label' => 'Huy hiệu', 'route' => '/app/learner/badges.php', 'icon' => 'award', 'implemented' => true],
     ['label' => 'Thống kê', 'route' => '/app/learner/statistics.php', 'icon' => 'chart', 'implemented' => true],
 ];
+$onboardingNavigation = $GLOBALS['learner_page_context']['onboarding'] ?? ['required' => false];
+if (($onboardingNavigation['required'] ?? false) === true) {
+    $allowedOnboardingRoutes = match ($onboardingNavigation['status'] ?? '') {
+        'pending' => ['/app/learner/index.php'],
+        'accepted' => ['/app/learner/index.php', '/app/learner/discover.php'],
+        default => null,
+    };
+    if (is_array($allowedOnboardingRoutes)) {
+        $learnerNav = array_values(array_filter(
+            $learnerNav,
+            static fn (array $item): bool => in_array($item['route'], $allowedOnboardingRoutes, true),
+        ));
+    }
+}
 
 $level = [
     'name' => 'Explorer',

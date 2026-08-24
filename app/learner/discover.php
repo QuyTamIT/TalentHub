@@ -5,6 +5,19 @@ require_once __DIR__ . '/includes/icons.php';
 
 $pageTitle = 'Khám phá năng khiếu';
 $currentRoute = '/app/learner/discover.php';
+$onboarding = $GLOBALS['learner_page_context']['onboarding'] ?? ['required' => false];
+$onboardingLabels = [
+    'holland' => 'Holland',
+    'mbti' => 'MBTI',
+    'disc' => 'DISC',
+    'multiple_intelligence' => 'Đa trí thông minh',
+];
+$onboardingStateLabels = [
+    'completed' => 'Đã hoàn thành',
+    'next' => 'Tiếp theo',
+    'in_progress' => 'Đang làm',
+    'locked' => 'Chưa mở',
+];
 
 ?>
 <!DOCTYPE html>
@@ -25,6 +38,66 @@ $currentRoute = '/app/learner/discover.php';
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content">
+                <?php if (($onboarding['required'] ?? false) === true): ?>
+                <section class="learner-card learner-onboarding-progress" data-onboarding-progress aria-labelledby="onboarding-progress-title">
+                    <div class="learner-onboarding-progress__heading">
+                        <div>
+                            <span class="learner-onboarding-progress__eyebrow">Đánh giá ban đầu bắt buộc</span>
+                            <h1 id="onboarding-progress-title">Tiến độ của bạn</h1>
+                            <p>
+                                Đã hoàn thành
+                                <strong><?= learner_escape($onboarding['completed_count'] ?? 0); ?>/<?= learner_escape($onboarding['required_count'] ?? 4); ?></strong>
+                                bài đánh giá. Mỗi câu trả lời được tự động lưu.
+                            </p>
+                        </div>
+                        <span class="learner-onboarding-progress__count" aria-label="Số bài đã hoàn thành">
+                            <?= learner_escape($onboarding['completed_count'] ?? 0); ?>/<?= learner_escape($onboarding['required_count'] ?? 4); ?>
+                        </span>
+                    </div>
+
+                    <?php if (($onboarding['status'] ?? '') === 'completed' && ($_GET['onboarding'] ?? '') === 'completed'): ?>
+                    <div class="learner-onboarding-progress__success" role="status">
+                        <strong>Bạn đã hoàn thành đủ 4/4 bài đánh giá.</strong>
+                        <span>TalentHub đã mở toàn bộ không gian sinh viên cho tài khoản của bạn.</span>
+                        <a class="learner-btn learner-btn--primary" href="<?= learner_escape(app_href('/app/learner/index.php')); ?>">Về tổng quan</a>
+                    </div>
+                    <?php endif; ?>
+
+                    <ol class="learner-onboarding-progress__list">
+                        <?php foreach (($onboarding['items'] ?? []) as $position => $item): ?>
+                            <?php
+                            $code = is_string($item['code'] ?? null) ? $item['code'] : '';
+                            $state = is_string($item['state'] ?? null) ? $item['state'] : 'locked';
+                            $label = $onboardingLabels[$code] ?? 'Bài đánh giá';
+                            $stateLabel = $onboardingStateLabels[$state] ?? 'Chưa mở';
+                            $isAvailable = in_array($state, ['completed', 'next', 'in_progress'], true);
+                            $itemUrl = $state === 'completed'
+                                ? '/app/learner/assessment-result.php?code=' . rawurlencode($code)
+                                : '/app/learner/assessment.php?code=' . rawurlencode($code);
+                            ?>
+                            <li class="learner-onboarding-progress__item is-<?= learner_escape($state); ?>">
+                                <span class="learner-onboarding-progress__position" aria-hidden="true"><?= learner_escape($position + 1); ?></span>
+                                <span class="learner-onboarding-progress__copy">
+                                    <strong><?= learner_escape($label); ?></strong>
+                                    <small><?= learner_escape($stateLabel); ?></small>
+                                </span>
+                                <?php if ($isAvailable): ?>
+                                    <a class="learner-btn learner-btn--outline" href="<?= learner_escape(app_href($itemUrl)); ?>">
+                                        <?= $state === 'completed' ? 'Xem kết quả' : 'Tiếp tục'; ?>
+                                    </a>
+                                <?php else: ?>
+                                    <span class="learner-onboarding-progress__locked" aria-label="Bài đánh giá chưa mở">Khóa</span>
+                                <?php endif; ?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ol>
+
+                    <?php if (($onboarding['status'] ?? '') === 'accepted'): ?>
+                    <a class="learner-onboarding-progress__logout" href="<?= learner_escape(app_href('/logout.php')); ?>">Đăng xuất và tiếp tục sau</a>
+                    <?php endif; ?>
+                </section>
+                <?php endif; ?>
+
                 <section class="learner-discover-hero" aria-labelledby="learner-discover-page-title">
                     <div class="learner-discover-hero__copy">
                         <span class="learner-discover-hero__eyebrow">Hiểu bản thân hơn</span>
