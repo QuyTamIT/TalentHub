@@ -27,7 +27,7 @@ final class ActivityReadModel
             'category' => 'Chưa phân loại',
             'filter_category' => 'Chưa phân loại',
             'tone' => 'neutral',
-            'summary' => 'Thông tin tóm tắt chưa có trong schema hiện tại.',
+            'summary' => '',
             'description' => 'Mô tả hoạt động chưa có trong schema hiện tại.',
             'start_at' => '1970-01-01 00:00:00',
             'end_at' => null,
@@ -52,10 +52,14 @@ final class ActivityReadModel
             $view['data_notes'][] = 'activity.capacity uses 1 to keep the current progress UI safe from division by zero.';
         }
 
+        $view['skills'] = self::normalizeTextList($metadata['skills'] ?? null);
+        $view['requirements'] = self::normalizeTextList($metadata['requirements'] ?? null);
+        $view['benefits'] = self::normalizeTextList($metadata['benefits'] ?? null);
+        $view['has_summary'] = self::hasText($metadata['summary'] ?? null);
         $view['has_description'] = self::hasText($metadata['description'] ?? null);
-        $view['has_skills'] = self::hasList($metadata['skills'] ?? null);
-        $view['has_requirements'] = self::hasList($metadata['requirements'] ?? null);
-        $view['has_benefits'] = self::hasList($metadata['benefits'] ?? null);
+        $view['has_skills'] = $view['skills'] !== [];
+        $view['has_requirements'] = $view['requirements'] !== [];
+        $view['has_benefits'] = $view['benefits'] !== [];
         $view['has_format'] = self::hasText($metadata['format'] ?? null);
         $view['has_cost'] = self::hasText($metadata['cost'] ?? null);
         $view['has_location'] = self::hasText($metadata['location'] ?? null);
@@ -157,18 +161,15 @@ final class ActivityReadModel
         ], true);
     }
 
-    private static function hasList(mixed $value): bool
+    private static function normalizeTextList(mixed $value): array
     {
         if (!is_array($value)) {
-            return false;
+            return [];
         }
 
-        foreach ($value as $item) {
-            if (self::hasText($item)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_values(array_filter(
+            array_map(static fn (mixed $item): string => is_scalar($item) ? trim((string) $item) : '', $value),
+            [self::class, 'hasText']
+        ));
     }
 }

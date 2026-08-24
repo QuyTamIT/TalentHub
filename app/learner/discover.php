@@ -44,6 +44,20 @@ $currentRoute = '/app/learner/discover.php';
                     <div class="learner-card learner-empty-catalog" data-empty-catalog hidden>
                         <p>Chưa có phiên bản được duyệt. Vui lòng quay lại sau.</p>
                     </div>
+                    <div class="learner-card learner-assessment-state learner-assessment-state--error" data-catalog-error role="alert" hidden>
+                        <?= learner_icon('alert-triangle', 22); ?>
+                        <div>
+                            <p>Không thể tải danh mục bài đánh giá từ máy chủ.</p>
+                            <button class="learner-btn learner-btn--outline" type="button" data-catalog-retry>Thử tải lại</button>
+                        </div>
+                    </div>
+                    <div class="learner-card learner-assessment-state" data-catalog-history-warning role="status" hidden>
+                        <?= learner_icon('info', 22); ?>
+                        <div>
+                            <p>Danh mục vẫn dùng được, nhưng kết quả trước đây tạm thời chưa tải được.</p>
+                            <button class="learner-btn learner-btn--outline" type="button" data-catalog-history-retry>Thử tải lại kết quả</button>
+                        </div>
+                    </div>
                     <div data-catalog-cards></div>
                 </section>
 

@@ -65,19 +65,6 @@ if (!function_exists('learner_ecosystem_partner_has_value')) {
             return false;
         }
 
-        if (($partner['id_origin'] ?? '') === 'database') {
-            $databaseFields = ($partner['type'] ?? '') === 'school'
-                ? ['id', 'name', 'status', 'type', 'logo_text']
-                : [
-                    'id', 'name', 'status', 'type', 'logo_text', 'industry', 'description',
-                    'email', 'phone', 'website', 'address', 'location', 'verification_status',
-                    'verification_note', 'verified_at', 'verified_by', 'verified',
-                ];
-            if (!in_array($field, $databaseFields, true)) {
-                return false;
-            }
-        }
-
         $value = $partner[$field] ?? null;
         if (is_array($value)) {
             return learner_ecosystem_partner_list($partner, $field) !== [];

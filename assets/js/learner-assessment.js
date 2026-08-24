@@ -60,7 +60,7 @@
         }
 
         function renderSourceError(error) {
-            return renderState('source-error', { error, attempt: currentAttempt });
+            return renderState('source-error', { status: 'source-error', error, attempt: currentAttempt });
         }
 
         async function loadCatalog(band) {
@@ -325,10 +325,11 @@
         };
     }
 
-    function parseBoot(id) {
-        if (typeof document === 'undefined') return {};
+    function parseBoot(id, suppliedDocument = null) {
+        const targetDocument = suppliedDocument || (typeof document !== 'undefined' ? document : null);
+        if (!targetDocument) return {};
         try {
-            const node = document.getElementById(id);
+            const node = targetDocument.getElementById(id);
             const value = JSON.parse(node?.textContent || '{}');
             return value && typeof value === 'object' ? value : {};
         } catch {
@@ -498,12 +499,12 @@
             timer: root.querySelector('[data-assessment-timer]'),
             questionError: root.querySelector('[data-assessment-question-error]'),
             navigator: root.querySelector('[data-assessment-navigator]'),
-            submitModal: document.querySelector('[data-assessment-submit-modal]'),
-            submitAnswered: document.querySelector('[data-submit-answered]'),
-            submitUnanswered: document.querySelector('[data-submit-unanswered]'),
-            submitError: document.querySelector('[data-assessment-submit-error]'),
-            submitButton: document.querySelector('[data-assessment-submit]'),
-            bandModal: document.querySelector('[data-assessment-band-confirmation]'),
+            submitModal: doc.querySelector('[data-assessment-submit-modal]'),
+            submitAnswered: doc.querySelector('[data-submit-answered]'),
+            submitUnanswered: doc.querySelector('[data-submit-unanswered]'),
+            submitError: doc.querySelector('[data-assessment-submit-error]'),
+            submitButton: doc.querySelector('[data-assessment-submit]'),
+            bandModal: doc.querySelector('[data-assessment-band-confirmation]'),
         };
         let questionIndex = 0;
 
@@ -620,8 +621,11 @@
         const doc = root.ownerDocument || document;
         const loading = root.querySelector('[data-catalog-loading]');
         const empty = root.querySelector('[data-empty-catalog]');
+        const error = root.querySelector('[data-catalog-error]');
         const cards = root.querySelector('[data-catalog-cards]');
         setHidden(loading, true);
+        setHidden(error, true);
+        setHidden(cards, false);
         if (cards) while (cards.firstChild) cards.removeChild(cards.firstChild);
         const items = Array.isArray(payload?.assessments) ? payload.assessments : [];
         setHidden(empty, items.length !== 0);
@@ -662,7 +666,7 @@
     }
 
     function renderDiscoverySummary(root, summary) {
-        const doc = root.ownerDocument || document;
+        const doc = root.ownerDocument || root;
         const renderEmpty = (container, message) => {
             container.appendChild(createTextElement(doc, 'p', message, 'learner-discovery-empty'));
         };
@@ -758,10 +762,11 @@
         }
     }
 
-    function bootRunner(root) {
-        const api = createApiClient();
-        if (!api) return;
-        const boot = parseBoot('learner-assessment-boot');
+    function bootRunner(root, suppliedApi = null, suppliedDocument = null) {
+        const api = suppliedApi || createApiClient();
+        if (!api) return Promise.resolve(null);
+        const doc = suppliedDocument || root.ownerDocument || document;
+        const boot = parseBoot('learner-assessment-boot', doc);
         const code = String(root.dataset.assessmentCode || boot.assessmentCode || 'holland');
         const view = createDomView(root);
         const controller = createAssessmentController({ api, view });
@@ -780,9 +785,18 @@
         };
         const loadDetail = async (band) => {
             const detail = await controller.loadDetail(code, band);
+            if (detail?.status === 'source-error') {
+                view.hideBandModal();
+                return detail;
+            }
             if (detail?.assessment) {
                 selectedBand = detail.education_band || band || selectedBand;
                 view.renderDetail(detail);
+                view.hideBandModal();
+            } else if (detail?.requires_education_band === true) {
+                view.showBandModal();
+            } else {
+                view.hideBandModal();
             }
             return detail;
         };
@@ -790,11 +804,11 @@
         root.querySelector('[data-assessment-start]')?.addEventListener('click', () => start(selectedBand));
         root.querySelector('[data-assessment-resume]')?.addEventListener('click', () => start(selectedBand));
         root.querySelector('[data-assessment-restart]')?.addEventListener('click', () => start(selectedBand));
-        document.querySelector('[data-confirm-band]')?.addEventListener('click', () => {
+        doc.querySelector('[data-confirm-band]')?.addEventListener('click', () => {
             const selected = root.querySelector('[name="education_band"]:checked');
             start(selected?.value || 'high');
         });
-        root.querySelector('[data-assessment-retry]')?.addEventListener('click', () => controller.retry());
+        root.querySelector('[data-assessment-retry]')?.addEventListener('click', () => loadDetail(selectedBand));
         root.querySelector('[data-assessment-retry-save]')?.addEventListener('click', () => controller.retry());
         root.querySelector('[data-assessment-back-to-questions]')?.addEventListener('click', () => {
             if (currentAttempt) view.render('ready', currentAttempt);
@@ -842,29 +856,84 @@
                 global.location.href = `${resultUrl}${resultUrl.includes('?') ? '&' : '?'}attempt=${encodeURIComponent(attemptId || '')}`;
             }
         });
-        document.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', () => {
+        doc.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', () => {
             const modal = button.closest('.learner-modal');
             setHidden(modal, true);
         }));
 
-        loadDetail().then((detail) => {
-            if (!detail?.assessment) view.showBandModal();
-        });
+        return loadDetail();
     }
 
-    function bootCatalog(root) {
-        const api = createApiClient();
-        if (!api) return;
-        Promise.all([
-            api.get('/assessments.php'),
-            api.get('/assessments.php?view=history'),
-        ]).then(([catalog, historyPayload]) => {
-            renderCatalog(root, mergeCatalogWithHistory(catalog, historyPayload));
-            renderDiscoverySummary(root.ownerDocument || document, deriveDiscoverySummary(historyPayload));
-        }).catch(() => {
-            setHidden(root.querySelector('[data-catalog-loading]'), true);
-            setHidden(root.querySelector('[data-empty-catalog]'), false);
-        });
+    function bootCatalog(root, suppliedApi = null) {
+        const api = suppliedApi || createApiClient();
+        const doc = root.ownerDocument || document;
+        const loading = root.querySelector('[data-catalog-loading]');
+        const empty = root.querySelector('[data-empty-catalog]');
+        const error = root.querySelector('[data-catalog-error]');
+        const cards = root.querySelector('[data-catalog-cards]');
+        const historyWarning = root.querySelector('[data-catalog-history-warning]');
+        let currentCatalog = null;
+
+        const renderCatalogError = (sourceError) => {
+            setHidden(loading, true);
+            setHidden(empty, true);
+            setHidden(error, false);
+            setHidden(cards, true);
+            setHidden(historyWarning, true);
+            return { status: 'source-error', error: sourceError };
+        };
+
+        const renderHistory = (historyPayload) => {
+            renderCatalog(root, mergeCatalogWithHistory(currentCatalog, historyPayload));
+            renderDiscoverySummary(doc, deriveDiscoverySummary(historyPayload));
+            setHidden(historyWarning, true);
+            return historyPayload;
+        };
+
+        const loadHistory = async () => {
+            if (!currentCatalog) return loadCatalog();
+            setHidden(historyWarning, true);
+            try {
+                return renderHistory(await api.get('/assessments.php?view=history'));
+            } catch (historyError) {
+                renderCatalog(root, currentCatalog);
+                renderDiscoverySummary(doc, deriveDiscoverySummary({}));
+                setHidden(historyWarning, false);
+                return { status: 'source-error', error: historyError };
+            }
+        };
+
+        const loadCatalog = async () => {
+            setHidden(loading, false);
+            setHidden(empty, true);
+            setHidden(error, true);
+            setHidden(cards, true);
+            setHidden(historyWarning, true);
+            if (!api) return renderCatalogError(new Error('Assessment API client is unavailable.'));
+
+            const [catalogResult, historyResult] = await Promise.allSettled([
+                api.get('/assessments.php'),
+                api.get('/assessments.php?view=history'),
+            ]);
+            if (catalogResult.status === 'rejected') {
+                return renderCatalogError(catalogResult.reason);
+            }
+
+            currentCatalog = catalogResult.value;
+            if (historyResult.status === 'fulfilled') {
+                renderHistory(historyResult.value);
+                return { catalog: currentCatalog, history: historyResult.value };
+            }
+
+            renderCatalog(root, currentCatalog);
+            renderDiscoverySummary(doc, deriveDiscoverySummary({}));
+            setHidden(historyWarning, false);
+            return { catalog: currentCatalog, history: { status: 'source-error', error: historyResult.reason } };
+        };
+
+        root.querySelector('[data-catalog-retry]')?.addEventListener('click', () => loadCatalog());
+        root.querySelector('[data-catalog-history-retry]')?.addEventListener('click', () => loadHistory());
+        return loadCatalog();
     }
 
     function bootResult(root) {
@@ -1006,6 +1075,8 @@
         createDomView,
         mergeCatalogWithHistory,
         deriveDiscoverySummary,
+        bootCatalog,
+        bootRunner,
     };
 
     if (typeof module !== 'undefined' && module.exports) {
