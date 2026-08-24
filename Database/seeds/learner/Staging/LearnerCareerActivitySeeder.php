@@ -6,6 +6,7 @@ namespace TalentHub\Learner\Seeds\Staging;
 
 use PDO;
 use RuntimeException;
+use TalentHub\Database\ProtectedDatabasePolicy;
 
 final class LearnerCareerActivitySeeder
 {
@@ -88,11 +89,15 @@ final class LearnerCareerActivitySeeder
 
     private function assertDisposableConnection(): void
     {
-        $isApprovedMainSchema = $this->expectedSchema === 'talenthub_local' && $this->allowMainSchema;
+        $isApprovedMainSchema = ProtectedDatabasePolicy::allowsExplicitPrimaryWrite(
+            $this->expectedSchema,
+            $this->allowMainSchema,
+        );
         $isDisposableSchema = preg_match(self::SCHEMA_PATTERN, $this->expectedSchema) === 1;
         if (!$isApprovedMainSchema && !$isDisposableSchema) {
             throw new RuntimeException(
-                'Career activity seed requires an approved disposable schema or explicit talenthub_local opt-in.'
+                'Career activity seed requires an approved disposable schema or explicit talenthub primary opt-in; '
+                . 'talenthub_local is read-only.'
             );
         }
 

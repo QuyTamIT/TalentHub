@@ -13,7 +13,8 @@ declare(strict_types=1);
  * - Insert-only via AbstractCatalogSeeder (no UPDATE/DELETE/TRUNCATE/DROP/REPLACE/ON DUPLICATE KEY UPDATE).
  * - Preflight of all 12 catalogs before the first write transaction.
  * - One transaction per catalog (delegated to AbstractCatalogSeeder).
- * - Default refusal on talenthub_local; shared execution requires explicit opt-in flag.
+ * - Default refusal on protected databases; explicit opt-in applies only to talenthub.
+ * - talenthub_local is a retained read-only backup and can never be opted into.
  * - DCR PENDING is never treated as approval; no synthetic approval is read or written.
  *
  * Catalog version:
@@ -29,6 +30,7 @@ namespace TalentHub\Learner\Seeds;
 
 use PDO;
 use RuntimeException;
+use TalentHub\Database\ProtectedDatabasePolicy;
 use TalentHub\Learner\Seeds\Assessment\AbstractCatalogSeeder;
 
 require_once __DIR__ . '/Assessment/AbstractCatalogSeeder.php';
@@ -38,7 +40,7 @@ final class AssessmentCatalogMasterSeeder
     public const CATALOG_VERSION = AbstractCatalogSeeder::CATALOG_VERSION;
     public const MIGRATION_VERSION = '20260818000100';
     public const MIGRATION_NAME = 'create_learner_assessment_schema';
-    public const PROTECTED_DATABASE = 'talenthub_local';
+    public const PROTECTED_DATABASE = ProtectedDatabasePolicy::PRIMARY;
 
     /**
      * Fixed orchestration order:
@@ -66,7 +68,7 @@ final class AssessmentCatalogMasterSeeder
 
     /**
      * @param string $expectedDatabase Expected DATABASE() name for this run.
-     * @param bool $allowProtectedDatabase Explicit opt-in for talenthub_local (Task 13 only, default false).
+     * @param bool $allowProtectedDatabase Explicit opt-in for talenthub only (default false).
      * @param callable(string):void|null $logger
      */
     public function __construct(
@@ -189,17 +191,20 @@ final class AssessmentCatalogMasterSeeder
             throw new RuntimeException('Preflight: expected database name is empty.');
         }
 
-        // Protected database gate — default refuse.
-        if ($expected === self::PROTECTED_DATABASE && $this->allowProtectedDatabase !== true) {
+        // Protected database gate: explicit approval applies only to the active primary.
+        if (ProtectedDatabasePolicy::isProtected($expected)
+            && !ProtectedDatabasePolicy::allowsExplicitPrimaryWrite($expected, $this->allowProtectedDatabase)) {
             throw new RuntimeException(
-                'Preflight: execution on ' . self::PROTECTED_DATABASE . ' is refused by default. '
-                . 'Pass explicit allowProtectedDatabase=true to authorize Task 13.',
+                'Preflight: protected database ' . $expected
+                . ' is refused; explicit approval applies only to ' . ProtectedDatabasePolicy::PRIMARY . '.',
             );
         }
 
-        // If allowProtectedDatabase is true, the expected name must still match exactly.
-        if ($this->allowProtectedDatabase && $expected !== self::PROTECTED_DATABASE) {
-            throw new RuntimeException('Preflight: allowProtectedDatabase is set but expected database does not match ' . self::PROTECTED_DATABASE . '.');
+        if ($this->allowProtectedDatabase && $expected !== ProtectedDatabasePolicy::PRIMARY) {
+            throw new RuntimeException(
+                'Preflight: protected-database approval is valid only for '
+                . ProtectedDatabasePolicy::PRIMARY . '.',
+            );
         }
 
         $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);

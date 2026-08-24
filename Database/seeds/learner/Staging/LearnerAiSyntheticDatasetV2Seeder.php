@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
 use RuntimeException;
+use TalentHub\Database\ProtectedDatabasePolicy;
 use TalentHub\Learner\Data\Migrations\LearnerMigrationChecksum;
 
 final class LearnerAiSyntheticDatasetV2Seeder
@@ -150,7 +151,7 @@ final class LearnerAiSyntheticDatasetV2Seeder
 
         if ($parsed['target_schema'] !== self::APPROVED_SCHEMA
             || $parsed['target_schema'] !== $expectedSchema
-            || $parsed['target_schema'] === 'talenthub_local') {
+            || ProtectedDatabasePolicy::isProtected($parsed['target_schema'])) {
             throw new RuntimeException(
                 'V2 seed DCR requires approved disposable schema ' . self::APPROVED_SCHEMA . '; got: ' . $parsed['target_schema']
             );
