@@ -11,8 +11,9 @@ use TalentHub\Learner\Data\Support\Uuid;
 final class DatabaseEcosystemRepository extends AbstractDatabaseRepository implements EcosystemRepository
 {
     private const SCHOOL_VISIBLE_SQL = 'status = :school_status';
-    private const SCHOOLS_SQL = 'SELECT id, name, status FROM schools WHERE ' . self::SCHOOL_VISIBLE_SQL . ' ORDER BY name, id';
-    private const SCHOOL_SQL = 'SELECT id, name, status FROM schools WHERE id = :partner_id AND ' . self::SCHOOL_VISIBLE_SQL . ' LIMIT 1';
+    private const SCHOOL_COLUMNS = 'id, name, status, logoUrl, address, phone, email, website, level, studentCount, teacherCount, academicYear';
+    private const SCHOOLS_SQL = 'SELECT ' . self::SCHOOL_COLUMNS . ' FROM schools WHERE ' . self::SCHOOL_VISIBLE_SQL . ' ORDER BY name, id';
+    private const SCHOOL_SQL = 'SELECT ' . self::SCHOOL_COLUMNS . ' FROM schools WHERE id = :partner_id AND ' . self::SCHOOL_VISIBLE_SQL . ' LIMIT 1';
     private const ENTERPRISE_COLUMNS = 'id, name, status, logoUrl, industry, description, email, phone, website, address, verificationStatus, verificationNote, verifiedAt, verifiedBy, createdAt, updatedAt';
     private const ENTERPRISE_VISIBLE_SQL = 'status = :enterprise_status AND verificationStatus IN (:verification_verified, :verification_approved)';
     private const ENTERPRISES_SQL = 'SELECT ' . self::ENTERPRISE_COLUMNS . ' FROM enterprises WHERE ' . self::ENTERPRISE_VISIBLE_SQL . ' ORDER BY name, id';
