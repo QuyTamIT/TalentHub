@@ -20,6 +20,8 @@ final class RecommendationRolloutSelector
         return $config->enabled()
             && $config->shadowGateApproved()
             && $config->visiblePercent() > 0
+            && !$config->pilotPaused()
+            && $config->pilotApprovalReference() !== null
             && $snapshotCurrent
             && $required === []
             && $this->isAssigned($studentId, $config);

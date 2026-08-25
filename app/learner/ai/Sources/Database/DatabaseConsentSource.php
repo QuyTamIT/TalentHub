@@ -13,7 +13,7 @@ use Throwable;
 final class DatabaseConsentSource implements ConsentSource
 {
     private const SQL = <<<'SQL'
-SELECT scope, action, occurredAt AS occurred_at, requestId AS request_id
+SELECT scope, action, policyVersion AS policy_version, occurredAt AS occurred_at, requestId AS request_id
 FROM learner_ai_consent_events
 WHERE studentId = :student_id
 ORDER BY occurredAt DESC, requestId DESC
@@ -40,6 +40,7 @@ SQL;
             $events[] = [
                 'scope' => (string) $row['scope'],
                 'action' => (string) $row['action'],
+                'policy_version' => (string) $row['policy_version'],
                 'occurred_at' => $occurredAt,
                 'request_id' => (string) $row['request_id'],
             ];

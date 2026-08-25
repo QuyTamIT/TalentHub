@@ -5,10 +5,13 @@ require_once __DIR__ . '/includes/activity-data.php';
 
 $pageTitle = 'Hoạt động của tôi';
 $currentRoute = '/app/learner/activities.php';
+$learnerDataSource = learner_safe_runtime_diagnostics()['source'];
 $boot = [
+    'source' => $learnerDataSource,
     'student_id' => learner_current_student_id(),
+    'csrf_token' => (string) ($GLOBALS['learner_page_context']['csrfToken'] ?? ''),
     'catalog' => learner_activity_catalog(),
-    'mock_registrations' => learner_activity_registration_history(learner_current_student_id()),
+    'registrations' => learner_activity_registration_history(learner_current_student_id()),
 ];
 ?>
 <!doctype html>
@@ -40,13 +43,14 @@ $boot = [
                     <a class="learner-btn learner-btn--primary" href="activities.php">Khám phá thêm</a>
                 </div>
                 <div class="learner-filter-list learner-registration-filters">
-                    <?php foreach (['all' => 'Tất cả', 'registered' => 'Đã đăng ký', 'pending' => 'Chờ duyệt', 'waitlisted' => 'Danh sách chờ', 'completed' => 'Hoàn thành', 'cancelled' => 'Đã hủy'] as $id => $label): ?>
+                    <?php foreach (['all' => 'Tất cả', 'approved' => 'Đã đăng ký', 'pending' => 'Chờ duyệt', 'waitlisted' => 'Danh sách chờ', 'attended' => 'Đã tham gia', 'cancelled' => 'Đã hủy', 'rejected' => 'Bị từ chối'] as $id => $label): ?>
                         <button class="learner-filter-button" type="button" data-registration-filter="<?= $id; ?>" aria-pressed="<?= $id === 'all' ? 'true' : 'false'; ?>">
                             <?= $label; ?>
                         </button>
                     <?php endforeach; ?>
                 </div>
                 <section class="learner-my-activities-list" data-my-registration-list aria-live="polite"></section>
+                <p class="learner-registration-message" data-registration-command-status role="status" aria-live="polite"></p>
             </main>
         </div>
     </div>

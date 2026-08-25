@@ -8,7 +8,9 @@ use TalentHub\Auth\Service\AuthService;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\Business\Repository\BusinessRepository;
+use TalentHub\Modules\Business\Repository\InternshipRepository;
 use TalentHub\Modules\Business\Service\BusinessProfileService;
+use TalentHub\Modules\Business\Service\InternshipService;
 use TalentHub\Rbac\RoleCodes;
 use TalentHub\Rbac\Service\PermissionService;
 
@@ -27,6 +29,7 @@ final class EnterpriseAppContext
     private BusinessProfileService $service;
     private AuthService $auth;
     private PermissionService $permissions;
+    private InternshipService $internships;
 
     public function __construct()
     {
@@ -39,6 +42,7 @@ final class EnterpriseAppContext
         $this->service = new BusinessProfileService($repository);
         $this->auth = new AuthService(new AuthRepository($pdo));
         $this->permissions = new PermissionService($pdo);
+        $this->internships = new InternshipService(new InternshipRepository($pdo));
     }
 
     /**
@@ -52,6 +56,7 @@ final class EnterpriseAppContext
      *   service: BusinessProfileService,
      *   session: SessionManager,
      *   csrfToken: string
+     *   permissions: PermissionService
      * }
      */
     public function boot(): array
@@ -92,6 +97,8 @@ final class EnterpriseAppContext
             'service'    => $this->service,
             'session'    => $this->session,
             'csrfToken'  => $this->session->csrfToken(),
+            'internships'=> $this->internships,
+            'permissions'=> $this->permissions,
         ];
     }
 

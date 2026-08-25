@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace TalentHub\Learner\Ai\Provider;
 
+use TalentHub\Learner\Ai\Consent\ProviderAttemptAuthorizer;
+use TalentHub\Learner\Ai\Consent\ProviderConsentDenied;
 use TalentHub\Learner\Ai\Contracts\RecommendationProvider;
 
 final class FakeRecommendationProvider implements RecommendationProvider
@@ -15,8 +17,13 @@ final class FakeRecommendationProvider implements RecommendationProvider
     {
     }
 
-    public function generate(ProviderRequest $request): ProviderResponse
+    public function generate(ProviderRequest $request, ProviderAttemptAuthorizer $authorizer): ProviderResponse
     {
+        try {
+            $authorizer->beforeAttempt(1);
+        } catch (ProviderConsentDenied $exception) {
+            return ProviderResponse::failure($exception->reason());
+        }
         $this->requests[] = $request;
         return $this->response;
     }

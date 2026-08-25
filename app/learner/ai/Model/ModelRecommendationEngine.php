@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace TalentHub\Learner\Ai\Model;
 
 use TalentHub\Learner\Ai\Config\RecommendationConfig;
+use TalentHub\Learner\Ai\Consent\BoundProviderAttemptAuthorizer;
+use TalentHub\Learner\Ai\Consent\ProviderConsentGate;
 use TalentHub\Learner\Ai\Contracts\RecommendationEngine;
 use TalentHub\Learner\Ai\Contracts\RecommendationProvider;
 use TalentHub\Learner\Ai\Domain\RecommendationContext;
@@ -25,6 +27,7 @@ final class ModelRecommendationEngine implements RecommendationEngine
         private readonly RecommendationRateLimiter $rateLimiter,
         private readonly RecommendationConfig $config,
         private readonly RecommendationResultValidator $validator,
+        private readonly ProviderConsentGate $consentGate,
     ) {
     }
 
@@ -37,7 +40,10 @@ final class ModelRecommendationEngine implements RecommendationEngine
             return $this->fallback($input, $context, 'rate_limited');
         }
         $request = $this->prompts->create($input, $context);
-        $response = $this->provider->generate($request);
+        $response = $this->provider->generate(
+            $request,
+            new BoundProviderAttemptAuthorizer($this->consentGate, $studentId, $input, $context),
+        );
         if (!$response->isSuccess()) {
             return $this->fallback($input, $context, (string) $response->errorCode());
         }

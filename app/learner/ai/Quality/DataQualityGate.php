@@ -12,8 +12,11 @@ final class DataQualityGate
 {
     private const MAX_ASSESSMENT_AGE_DAYS = 365;
 
-    public function __construct(private readonly DateTimeImmutable $now = new DateTimeImmutable('now', new DateTimeZone('UTC')))
+    private readonly DateTimeImmutable $now;
+
+    public function __construct(?DateTimeImmutable $now = null, private readonly bool $allowAssessmentOnly = false)
     {
+        $this->now = $now ?? new DateTimeImmutable('now', new DateTimeZone('UTC'));
     }
 
     public function evaluate(RecommendationInput $input): DataQualityResult
@@ -39,8 +42,21 @@ final class DataQualityGate
 
         $payload = $input->payload();
         $missing = [];
-        if (!$this->hasCurrentAssessment($payload['assessments'] ?? [])) {
+        $hasAssessment = $this->hasCurrentAssessment($payload['assessments'] ?? []);
+        if (!$hasAssessment) {
             $missing[] = 'assessment';
+        }
+        if ($this->allowAssessmentOnly) {
+            if ($missing === []) {
+                return new DataQualityResult('ready');
+            }
+
+            return new DataQualityResult(
+                'insufficient_data',
+                [],
+                $missing,
+                array_map(fn (string $category): array => $this->completionAction($category), $missing)
+            );
         }
         if (count($payload['skills'] ?? []) < 2) {
             $missing[] = 'skills';

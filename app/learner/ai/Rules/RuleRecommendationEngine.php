@@ -12,8 +12,13 @@ use TalentHub\Learner\Ai\Domain\RecommendationResult;
 
 final class RuleRecommendationEngine implements RecommendationEngine
 {
-    public function __construct(private readonly RuleSetV1 $ruleSet = new RuleSetV1())
-    {
+    private readonly CareerGroupClassifier $classifier;
+
+    public function __construct(
+        private readonly RuleSetV1 $ruleSet = new RuleSetV1(),
+        ?CareerGroupClassifier $classifier = null,
+    ) {
+        $this->classifier = $classifier ?? new CareerGroupClassifier();
     }
 
     public function generate(RecommendationInput $input, RecommendationContext $context): RecommendationResult
@@ -23,9 +28,6 @@ final class RuleRecommendationEngine implements RecommendationEngine
 
         if ($this->containsUnconsentedSourceData($facts, $allowedScopes)) {
             return $this->safeResult('consent_required');
-        }
-        if (($facts['evaluations'] ?? []) === []) {
-            return $this->safeResult(isset($allowedScopes['evaluation']) ? 'insufficient_data' : 'consent_required');
         }
 
         $candidates = [];
@@ -53,6 +55,10 @@ final class RuleRecommendationEngine implements RecommendationEngine
                     'rule_id' => $definition->id(),
                 ];
             }
+        }
+
+        if ($candidates === []) {
+            return $this->safeResult('insufficient_data');
         }
 
         usort($candidates, static fn (array $left, array $right): int => [
@@ -107,9 +113,12 @@ final class RuleRecommendationEngine implements RecommendationEngine
             'assessments' => [],
             'activities' => [],
             'evaluations' => [],
+            'opportunities' => [],
             'technical_matches' => [],
             'technical_activities' => [],
             'low_presentation_evaluations' => [],
+            'holland_career_groups' => [],
+            'open_career_activities' => [],
         ];
         foreach ($input->evidenceReferences() as $reference) {
             $fact = $this->fact($reference);
@@ -121,17 +130,22 @@ final class RuleRecommendationEngine implements RecommendationEngine
                 'assessment' => $facts['assessments'][] = $fact,
                 'activity_experience' => $facts['activities'][] = $fact,
                 'evaluation' => $facts['evaluations'][] = $fact,
+                'opportunity' => $facts['opportunities'][] = $fact,
                 default => null,
             };
         }
         foreach ($facts['assessments'] as $assessment) {
-            if ($assessment['test_code'] !== 'holland' || $assessment['holland_r'] < 70 || $assessment['holland_i'] < 70) {
-                continue;
-            }
-            foreach ($facts['skills'] as $skill) {
-                if ($skill['code'] === 'iot' && $skill['verification_status'] === 'verified') {
-                    $facts['technical_matches'][] = ['assessment' => $assessment, 'skill' => $skill];
+            $isHolland = $assessment['test_code'] === 'holland'
+                || preg_match('/\Aholland_(middle|high|college)\z/', $assessment['test_code']) === 1;
+            if ($isHolland && $assessment['holland_r'] >= 70 && $assessment['holland_i'] >= 70) {
+                foreach ($facts['skills'] as $skill) {
+                    if ($skill['code'] === 'iot' && $skill['verification_status'] === 'verified') {
+                        $facts['technical_matches'][] = ['assessment' => $assessment, 'skill' => $skill];
+                    }
                 }
+            }
+            if (($assessment['career_groups'] ?? []) !== []) {
+                $facts['holland_career_groups'][] = $assessment;
             }
         }
         foreach ($facts['activities'] as $activity) {
@@ -139,12 +153,18 @@ final class RuleRecommendationEngine implements RecommendationEngine
                 $facts['technical_activities'][] = $activity;
             }
         }
+        foreach ($facts['opportunities'] as $opportunity) {
+            if (!in_array($opportunity['status'], ['closed', 'inactive', 'cancelled', 'completed', 'archived'], true)
+                && ($opportunity['career_group'] ?? null) !== null) {
+                $facts['open_career_activities'][] = $opportunity;
+            }
+        }
         foreach ($facts['evaluations'] as $evaluation) {
             if ($evaluation['presentation_score'] !== null && $evaluation['presentation_score'] < 60) {
                 $facts['low_presentation_evaluations'][] = $evaluation;
             }
         }
-        foreach (['skills', 'assessments', 'activities', 'evaluations', 'technical_activities', 'low_presentation_evaluations'] as $key) {
+        foreach (['skills', 'assessments', 'activities', 'evaluations', 'opportunities', 'technical_activities', 'low_presentation_evaluations', 'holland_career_groups', 'open_career_activities'] as $key) {
             usort($facts[$key], static fn (array $left, array $right): int => $left['source_id'] <=> $right['source_id']);
         }
         usort($facts['technical_matches'], static fn (array $left, array $right): int => [$left['skill']['source_id'], $left['assessment']['source_id']] <=> [$right['skill']['source_id'], $right['assessment']['source_id']]);
@@ -157,7 +177,7 @@ final class RuleRecommendationEngine implements RecommendationEngine
         $sourceType = $reference['source_type'];
         $sourceId = trim($reference['source_id']);
         $safeValue = $reference['safe_value'];
-        if ($sourceId === '' || !in_array($sourceType, ['skill', 'assessment', 'activity_experience', 'evaluation'], true)) {
+        if ($sourceId === '' || !in_array($sourceType, ['skill', 'assessment', 'activity_experience', 'evaluation', 'opportunity'], true)) {
             return null;
         }
         $fact = [
@@ -180,19 +200,42 @@ final class RuleRecommendationEngine implements RecommendationEngine
             'evaluation' => $fact + [
                 'presentation_score' => is_numeric($safeValue['presentation_score'] ?? null) ? (float) $safeValue['presentation_score'] : null,
             ],
+            'opportunity' => $fact + [
+                'title' => trim((string) ($safeValue['title'] ?? '')),
+                'category' => strtolower(trim((string) ($safeValue['category'] ?? ''))),
+                'career_group' => self::categoryToCareerGroup((string) ($safeValue['category'] ?? '')),
+                'status' => strtolower(trim((string) ($safeValue['status'] ?? 'published'))),
+            ],
         };
     }
 
     /** @param array<string,mixed> $safeValue @return array<string,mixed> */
     private function assessmentFacts(array $safeValue): array
     {
+        $testCode = strtolower(trim((string) ($safeValue['test_code'] ?? '')));
         $scores = is_array($safeValue['dimension_scores'] ?? null) ? $safeValue['dimension_scores'] : [];
+        $careerGroups = $this->classifier->classify($scores, $testCode);
+
         return [
-            'test_code' => strtolower(trim((string) ($safeValue['test_code'] ?? ''))),
+            'test_code' => $testCode,
             'assessment_version' => trim((string) ($safeValue['assessment_version'] ?? '')),
             'holland_r' => is_numeric($scores['R'] ?? null) ? (float) $scores['R'] : 0.0,
             'holland_i' => is_numeric($scores['I'] ?? null) ? (float) $scores['I'] : 0.0,
+            'dimension_scores' => $scores,
+            'career_groups' => $careerGroups,
         ];
+    }
+
+    public static function categoryToCareerGroup(string $category): ?string
+    {
+        $cat = strtolower(trim($category));
+        return match ($cat) {
+            'career_technical' => 'technical',
+            'career_business' => 'business',
+            'career_arts' => 'arts',
+            'career_sports_academic' => 'sports_academic',
+            default => null,
+        };
     }
 
     private function isTechnicalCategory(string $category): bool

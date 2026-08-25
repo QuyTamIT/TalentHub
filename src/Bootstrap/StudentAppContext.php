@@ -15,6 +15,7 @@ use TalentHub\Rbac\Service\PermissionService;
 
 final class StudentAppContext
 {
+    private \PDO $pdo;
     private SessionManager $session;
     private AuthService $auth;
     private PermissionService $permissions;
@@ -23,15 +24,15 @@ final class StudentAppContext
     public function __construct()
     {
         $root = dirname(__DIR__, 2);
-        $pdo = (new Connection(require $root . '/config/database.php'))->connect();
+        $this->pdo = (new Connection(require $root . '/config/database.php'))->connect();
         $this->session = new SessionManager(require $root . '/config/session.php');
         $this->session->start();
-        $this->auth = new AuthService(new AuthRepository($pdo));
-        $this->permissions = new PermissionService($pdo);
-        $this->students = new StudentProfileService(new StudentRepository($pdo));
+        $this->auth = new AuthService(new AuthRepository($this->pdo));
+        $this->permissions = new PermissionService($this->pdo);
+        $this->students = new StudentProfileService(new StudentRepository($this->pdo));
     }
 
-    /** @return array{user:array<string,mixed>,student:array<string,mixed>,dashboard:array<string,mixed>,csrfToken:string} */
+    /** @return array{user:array<string,mixed>,student:array<string,mixed>,dashboard:array<string,mixed>,csrfToken:string,pdo:\PDO} */
     public function boot(): array
     {
         $cached = $this->session->user();
@@ -75,6 +76,7 @@ final class StudentAppContext
             'student' => $student,
             'dashboard' => $dashboard,
             'csrfToken' => $this->session->csrfToken(),
+            'pdo' => $this->pdo,
         ];
     }
 

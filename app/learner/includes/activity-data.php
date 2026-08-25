@@ -40,11 +40,11 @@ if (!function_exists('learner_activity_mock_registration_history')) {
         if ($studentId !== 'student-demo-001') return [];
         $base = ['student_id'=>$studentId,'source'=>'learner_mock','created_at'=>'2026-08-10T09:00:00+07:00','updated_at'=>'2026-08-10T09:00:00+07:00','cancelled_at'=>null,'checkin_id'=>null,'experience_hours'=>null,'feedback'=>null];
         return [
-            array_merge($base,['id'=>'registration-demo-registered','activity_id'=>'iot-lab','status'=>'registered']),
+            array_merge($base,['id'=>'registration-demo-registered','activity_id'=>'iot-lab','status'=>'approved']),
             array_merge($base,['id'=>'registration-demo-pending','activity_id'=>'startup-pitch','status'=>'pending']),
-            array_merge($base,['id'=>'registration-demo-waitlisted','activity_id'=>'drone-workshop','status'=>'waitlisted']),
-            array_merge($base,['id'=>'registration-demo-checked','activity_id'=>'ai-bootcamp','status'=>'checked_in','checkin_id'=>'checkin-demo-ai']),
-            array_merge($base,['id'=>'registration-demo-completed','activity_id'=>'design-thinking','status'=>'completed','checkin_id'=>'checkin-demo-design','experience_hours'=>3,'feedback'=>['rating'=>5,'comment'=>'Hoạt động hữu ích và dễ áp dụng.']]),
+            array_merge($base,['id'=>'registration-demo-waitlisted','activity_id'=>'drone-workshop','status'=>'pending']),
+            array_merge($base,['id'=>'registration-demo-checked','activity_id'=>'ai-bootcamp','status'=>'attended','checkin_id'=>'checkin-demo-ai']),
+            array_merge($base,['id'=>'registration-demo-completed','activity_id'=>'design-thinking','status'=>'attended','checkin_id'=>'checkin-demo-design','experience_hours'=>3,'feedback'=>['rating'=>5,'comment'=>'Hoạt động hữu ích và dễ áp dụng.']]),
             array_merge($base,['id'=>'registration-demo-cancelled','activity_id'=>'charity-marathon','status'=>'cancelled','cancelled_at'=>'2026-08-11T10:00:00+07:00']),
         ];
     }

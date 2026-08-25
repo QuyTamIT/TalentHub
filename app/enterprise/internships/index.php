@@ -18,6 +18,7 @@ use TalentHub\Bootstrap\EnterpriseAppContext;
 $context = (new EnterpriseAppContext())->boot();
 $user       = $context['user'];
 $enterprise = $context['enterprise'];
+$context['permissions']->require((string) $user['id'], 'internship_post.read_own_business');
 
 if (!function_exists('getInitials')) {
     function getInitials(string $name): string {
@@ -84,8 +85,27 @@ $sidebarNav = [
     ],
 ];
 
-$posts = getMockInternships();
-$metrics = getInternshipMetrics();
+$internshipService = $context['internships'];
+$statusLabels = ['draft' => 'Bản nháp', 'active' => 'Đang tuyển', 'closed' => 'Đã đóng', 'cancelled' => 'Đã hủy'];
+$postRows = [];
+try {
+    $postRows = $internshipService->listPosts((string) $user['id'])['items'];
+} catch (PDOException $exception) {
+    if ((string) $exception->getCode() !== '42S02') { throw $exception; }
+}
+$posts = array_map(static function (array $post) use ($statusLabels): array {
+    return $post + [
+        'status_label' => $statusLabels[$post['status']] ?? $post['status'],
+        'work_type' => $post['workType'] ?? '',
+        'created_at' => $post['createdAt'] ?? '',
+        'applicant_count' => (int) ($post['applicantCount'] ?? 0),
+    ];
+}, $postRows);
+$metrics = ['total' => count($posts), 'active' => 0, 'draft' => 0, 'closed' => 0, 'total_applicants' => 0];
+foreach ($posts as $post) {
+    if (isset($metrics[$post['status']])) { $metrics[$post['status']]++; }
+    $metrics['total_applicants'] += (int) $post['applicant_count'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -333,6 +353,7 @@ $metrics = getInternshipMetrics();
                                                        title="Xem danh sách ứng viên">
                                                         Xem ứng viên
                                                     </a>
+                                                    <?php if (in_array($post['status'], ['draft', 'active'], true)): ?>
                                                     <div class="ent-dropdown">
                                                         <button type="button" class="btn btn-secondary btn-sm ent-dropdown-toggle" aria-label="Tùy chọn thao tác">
                                                             &ctdot;
@@ -355,14 +376,10 @@ $metrics = getInternshipMetrics();
                                                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line></svg>
                                                                     Đóng tin
                                                                 </button>
-                                                            <?php else: ?>
-                                                                <button type="button" class="ent-dropdown-item action-change-status" data-post-id="<?= $post['id']; ?>" data-target-status="active">
-                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"></path><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-                                                                    Mở lại
-                                                                </button>
                                                             <?php endif; ?>
                                                         </div>
                                                     </div>
+                                                    <?php endif; ?>
                                                 </div>
                                             </td>
 
@@ -404,6 +421,7 @@ $metrics = getInternshipMetrics();
     </div>
 
     <!-- JavaScript Assets -->
+    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => '/api/v1'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
     <script src="../../../assets/js/enterprise.js"></script>
     <script src="../../../assets/js/internship-management.js"></script>
 </body>

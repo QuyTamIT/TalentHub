@@ -42,6 +42,30 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
         </ul>
     </nav>
 
+    <?php if (($isDatabaseMode ?? false) && isset($level['progressPercent'])): ?>
+    <div class="learner-level-card" aria-label="Cấp độ hiện tại">
+        <span class="learner-level-card__eyebrow">Cấp độ hiện tại</span>
+        <div class="learner-level-card__title">
+            <span class="learner-level-card__medal"><?= learner_escape($level['number']); ?></span>
+            <strong><?= learner_escape($level['name']); ?></strong>
+            <span class="learner-level-card__verified" aria-label="Dữ liệu đã xác nhận"><?= learner_icon('check', 14); ?></span>
+        </div>
+        <div class="learner-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($level['progressPercent']); ?>">
+            <span style="--learner-progress: <?= learner_escape($level['progressPercent']); ?>%;"></span>
+        </div>
+        <?php if (($level['nextLevel'] ?? null) !== null): ?>
+            <p>Còn <?= learner_escape($level['remainingHours']); ?> giờ đến <?= learner_escape($level['nextLevel']); ?></p>
+        <?php else: ?>
+            <p>Đã đạt cấp độ cao nhất</p>
+        <?php endif; ?>
+    </div>
+    <?php elseif ($isDatabaseMode ?? false): ?>
+    <div class="learner-level-card" aria-label="Trạng thái cấp độ">
+        <span class="learner-level-card__eyebrow">Cấp độ</span>
+        <strong>Chưa có dữ liệu cấp độ</strong>
+        <p>Cấp độ sẽ hiển thị khi hệ thống quy tắc huy hiệu được kích hoạt.</p>
+    </div>
+    <?php else: ?>
     <div class="learner-level-card" aria-label="Cấp độ hiện tại">
         <span class="learner-level-card__eyebrow">Cấp độ hiện tại</span>
         <div class="learner-level-card__title">
@@ -54,6 +78,7 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
         </div>
         <p><?= learner_escape($level['progress']); ?>/<?= learner_escape($level['target']); ?> giờ đến <?= learner_escape($level['next_level']); ?></p>
     </div>
+    <?php endif; ?>
 
     <div class="learner-sidebar__footer">
         <a class="learner-sidebar__link learner-sidebar__link--switch" href="/role-selection.php">

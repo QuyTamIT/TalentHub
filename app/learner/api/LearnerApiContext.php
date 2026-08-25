@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace TalentHub\Learner\Api;
 
 require_once dirname(__DIR__) . '/ai/bootstrap.php';
+require_once dirname(__DIR__) . '/data/bootstrap.php';
 
 use DateTimeImmutable;
 use DateTimeZone;
@@ -13,9 +14,19 @@ use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
 use TalentHub\Http\Request;
+use TalentHub\Learner\Ai\Config\RecommendationConfig;
 use TalentHub\Learner\Ai\Consent\ConsentPolicy;
+use TalentHub\Learner\Ai\Consent\ProviderConsentGate;
+use TalentHub\Learner\Ai\Contracts\RecommendationEngine;
+use TalentHub\Learner\Ai\Evaluation\RecommendationEvaluator;
+use TalentHub\Learner\Ai\Evaluation\ShadowRunService;
+use TalentHub\Learner\Ai\Model\ModelRecommendationEngine;
+use TalentHub\Learner\Ai\Model\PromptRegistry;
 use TalentHub\Learner\Ai\Persistence\DatabaseRecommendationRepository;
+use TalentHub\Learner\Ai\Provider\HttpRecommendationProvider;
 use TalentHub\Learner\Ai\Quality\DataQualityGate;
+use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
+use TalentHub\Learner\Ai\Rollout\RecommendationRolloutSelector;
 use TalentHub\Learner\Ai\Rules\RuleRecommendationEngine;
 use TalentHub\Learner\Ai\Service\RecommendationResponseMapper;
 use TalentHub\Learner\Ai\Service\RecommendationService;
@@ -28,6 +39,10 @@ use TalentHub\Learner\Ai\Sources\Database\DatabasePublishedEvaluationSource;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseSkillSource;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseStudentProfileSource;
 use TalentHub\Learner\Ai\Validation\RecommendationResultValidator;
+use TalentHub\Learner\Assessment\Service\AssessmentCatalogService;
+use TalentHub\Learner\Assessment\Service\EducationBandResolver;
+use TalentHub\Learner\Data\RepositoryFactory;
+use TalentHub\Learner\Data\Service\LearnerAssessmentService;
 use TalentHub\Rbac\Service\PermissionService;
 use TalentHub\Support\Id\RequestId;
 use TalentHub\Support\Uuid;
@@ -47,7 +62,12 @@ final class LearnerApiContext
         $request = Request::fromGlobals();
         $session = new SessionManager(require dirname(__DIR__, 3) . '/config/session.php');
         $session->start();
-        $pdo = (new Connection(require dirname(__DIR__, 3) . '/config/database.php'))->connect();
+        if (isset($GLOBALS['__TALENTHUB_TEST_SESSION__']) && is_array($GLOBALS['__TALENTHUB_TEST_SESSION__'])) {
+            $_SESSION = $GLOBALS['__TALENTHUB_TEST_SESSION__'];
+        }
+        $pdo = isset($GLOBALS['__TALENTHUB_TEST_PDO__']) && $GLOBALS['__TALENTHUB_TEST_PDO__'] instanceof PDO
+            ? $GLOBALS['__TALENTHUB_TEST_PDO__']
+            : (new Connection(require dirname(__DIR__, 3) . '/config/database.php'))->connect();
         return new self($pdo, $session, new PermissionService($pdo), RequestId::make($request->header('x-request-id')));
     }
 
@@ -56,15 +76,46 @@ final class LearnerApiContext
         return $this->requestId;
     }
 
+    public function pdo(): PDO
+    {
+        return $this->pdo;
+    }
+
     public function studentId(string $permission): string
+    {
+        return $this->studentIdForPermissions([$permission]);
+    }
+
+    /** @param list<string> $permissions */
+    public function studentIdForPermissions(array $permissions): string
+    {
+        return $this->studentIdentityForPermissions($permissions)['student_id'];
+    }
+
+    /** @param list<string> $permissions @return array{student_id:string,user_id:string} */
+    public function studentIdentityForPermissions(array $permissions): array
     {
         $user = $this->session->requireUser();
         if (($user['role'] ?? null) !== 'student') {
             throw new ApiException(403, 'PERMISSION_DENIED', 'Endpoint chỉ dành cho học viên.');
         }
-        $this->permissions->require((string) $user['id'], $permission);
+        foreach (array_values(array_unique($permissions)) as $permission) {
+            if (!is_string($permission) || trim($permission) === '') {
+                throw new \InvalidArgumentException('Student permission code must be a non-empty string.');
+            }
+            $this->permissions->require((string) $user['id'], $permission);
+        }
+        $userId = (string) $user['id'];
+        return [
+            'student_id' => $this->resolveStudentId($userId),
+            'user_id' => $userId,
+        ];
+    }
+
+    private function resolveStudentId(string $userId): string
+    {
         $statement = $this->pdo->prepare('SELECT id FROM student_profiles WHERE userId = :userId LIMIT 1');
-        $statement->execute(['userId' => (string) $user['id']]);
+        $statement->execute(['userId' => $userId]);
         $studentId = $statement->fetchColumn();
         if ($studentId === false) {
             throw new ApiException(403, 'PERMISSION_DENIED', 'Không tìm thấy hồ sơ học viên hợp lệ.');
@@ -121,17 +172,100 @@ final class LearnerApiContext
         );
         $repository = new DatabaseRecommendationRepository($this->pdo);
 
+        $modelEngine = null;
+        $modelConfig = null;
+        $rolloutSelector = null;
+
+        try {
+            $env = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
+                ? $GLOBALS['__TALENTHUB_TEST_ENV__']
+                : $_ENV;
+            $config = RecommendationConfig::fromEnvironment($env);
+            if ($config->enabled()) {
+                $modelConfig = $config;
+                $rolloutSelector = new RecommendationRolloutSelector();
+                $httpTransport = $GLOBALS['__TALENTHUB_TEST_HTTP__'] ?? null;
+                $provider = new HttpRecommendationProvider(
+                    $config,
+                    is_callable($httpTransport) ? $httpTransport : null,
+                );
+                $fallbackEngine = new RuleRecommendationEngine();
+                $modelEngine = new ModelRecommendationEngine(
+                    $provider,
+                    $fallbackEngine,
+                    new PromptRegistry(),
+                    new RecommendationRateLimiter(
+                        $config->perStudentLimit(),
+                        $config->globalLimit(),
+                        60,
+                        static fn (): int => (new DateTimeImmutable('now', new DateTimeZone('UTC')))->getTimestamp(),
+                    ),
+                    $config,
+                    new RecommendationResultValidator(),
+                    new ProviderConsentGate($consent),
+                );
+            }
+        } catch (\Throwable) {
+            $modelEngine = null;
+            $modelConfig = null;
+            $rolloutSelector = null;
+        }
+
         return new RecommendationService(
             $repository,
             new RuleRecommendationEngine(),
             new RecommendationResultValidator(),
             new RecommendationResponseMapper(),
             static fn (string $candidate): bool => hash_equals($studentId, $candidate),
-            static fn (string $candidate): array => $consent->allowedScopes($candidate),
+            static fn (string $candidate) => $consent->decision($candidate),
             static fn (string $candidate, array $scopes) => $snapshotBuilder->build($candidate, $scopes),
             static fn ($input) => (new DataQualityGate())->evaluate($input),
             static fn ($input): bool => true,
+            $modelEngine,
+            $modelConfig,
+            $rolloutSelector,
         );
+    }
+
+    public function shadowRunService(?RecommendationEngine $modelEngine = null): ?ShadowRunService
+    {
+        $repository = new DatabaseRecommendationRepository($this->pdo);
+        if ($modelEngine !== null) {
+            return new ShadowRunService($repository, $modelEngine, new RecommendationEvaluator());
+        }
+        try {
+            $env = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
+                ? $GLOBALS['__TALENTHUB_TEST_ENV__']
+                : $_ENV;
+            $config = RecommendationConfig::fromEnvironment($env);
+            if (!$config->enabled() || !$config->shadowEnabled()) {
+                return null;
+            }
+            $httpTransport = $GLOBALS['__TALENTHUB_TEST_HTTP__'] ?? null;
+            $provider = new HttpRecommendationProvider(
+                $config,
+                is_callable($httpTransport) ? $httpTransport : null,
+            );
+            $fallbackEngine = new RuleRecommendationEngine();
+            $consent = new ConsentPolicy(new DatabaseConsentSource($this->pdo));
+            $engine = new ModelRecommendationEngine(
+                $provider,
+                $fallbackEngine,
+                new PromptRegistry(),
+                new RecommendationRateLimiter(
+                    $config->perStudentLimit(),
+                    $config->globalLimit(),
+                    60,
+                    static fn (): int => (new DateTimeImmutable('now', new DateTimeZone('UTC')))->getTimestamp(),
+                ),
+                $config,
+                new RecommendationResultValidator(),
+                new ProviderConsentGate($consent),
+            );
+            return new ShadowRunService($repository, $engine, new RecommendationEvaluator());
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /** @return array<string,mixed> */
@@ -168,5 +302,25 @@ final class LearnerApiContext
             'requestId' => $this->requestId,
         ]);
         return ['event_id' => $eventId, 'scope' => $scope, 'action' => $action];
+    }
+
+    public function assessmentCatalogService(): AssessmentCatalogService
+    {
+        $factory = new RepositoryFactory('database', $this->pdo);
+
+        return new AssessmentCatalogService(
+            $factory->assessment(),
+            new EducationBandResolver($this->pdo)
+        );
+    }
+
+    public function assessmentService(): LearnerAssessmentService
+    {
+        $factory = new RepositoryFactory('database', $this->pdo);
+
+        return new LearnerAssessmentService(
+            $factory->assessment(),
+            $factory->assessmentWrite()
+        );
     }
 }

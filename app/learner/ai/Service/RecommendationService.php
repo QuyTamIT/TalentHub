@@ -6,6 +6,7 @@ namespace TalentHub\Learner\Ai\Service;
 
 use Closure;
 use TalentHub\Learner\Ai\Config\RecommendationConfig;
+use TalentHub\Learner\Ai\Consent\ConsentDecision;
 use TalentHub\Learner\Ai\Contracts\RecommendationEngine;
 use TalentHub\Learner\Ai\Domain\RecommendationContext;
 use TalentHub\Learner\Ai\Domain\RecommendationInput;
@@ -85,7 +86,8 @@ final class RecommendationService
         }
 
         try {
-            $scopes = $this->normalizeScopes(($this->scopeResolver)($studentId));
+            $resolvedConsent = ($this->scopeResolver)($studentId);
+            $scopes = $this->normalizeScopes($resolvedConsent);
             $input = ($this->snapshotBuilder)($studentId, $scopes);
             if (!(($this->snapshotFreshness)($input))) {
                 return $this->mapper->staleSnapshot();
@@ -102,7 +104,14 @@ final class RecommendationService
             return $this->mapper->quality($quality);
         }
 
-        $context = new RecommendationContext($scopes, $requestId, $idempotencyKey, $studentId);
+        $context = new RecommendationContext(
+            $scopes,
+            $requestId,
+            $idempotencyKey,
+            $studentId,
+            $resolvedConsent instanceof ConsentDecision ? $resolvedConsent->decisionHash() : null,
+            $resolvedConsent instanceof ConsentDecision ? $resolvedConsent->policyVersion() : null,
+        );
         try {
             $pending = $this->repository->createPendingRun($studentId, $input, $context);
         } catch (\Throwable) {
@@ -130,6 +139,9 @@ final class RecommendationService
     /** @param mixed $scopes @return list<string> */
     private function normalizeScopes(mixed $scopes): array
     {
+        if ($scopes instanceof ConsentDecision) {
+            $scopes = $scopes->allowedScopes();
+        }
         if (!is_array($scopes)) {
             throw new \RuntimeException('Recommendation consent scopes are unavailable.');
         }
@@ -156,6 +168,8 @@ final class RecommendationService
             $ruleContext->requestId(),
             'model-' . hash('sha256', $input->contentHash() . ':' . (string) $ruleContext->idempotencyKey()),
             $studentId,
+            $ruleContext->consentDecisionHash(),
+            $ruleContext->consentPolicyVersion(),
         );
         try {
             $modelResult = $this->modelEngine->generate($input, $modelContext);

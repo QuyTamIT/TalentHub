@@ -1,77 +1,162 @@
 <?php
-/** TalentHub Learner - Holland result and history */
+/** TalentHub Learner - Assessment result and history */
 require __DIR__ . '/includes/student-data.php';
 require_once __DIR__ . '/includes/icons.php';
 require_once __DIR__ . '/includes/assessment-data.php';
 
-$assessmentId = $_GET['id'] ?? 'holland';
-$definition = learner_assessment_definition($assessmentId);
-$history = learner_assessment_history(learner_current_student_id(), $assessmentId);
-$dimensionContent = learner_assessment_dimension_content();
-$latestMock = $history[0] ?? null;
-$primaryDimension = (string) ($latestMock['result']['primary_dimension'] ?? '');
-$primaryContent = $dimensionContent[$primaryDimension] ?? ['name' => '', 'summary' => '', 'suggestions' => []];
-$pageTitle = 'Kết quả Holland';
+$assessmentCode = $_GET['code'] ?? $_GET['id'] ?? 'holland';
+$validCodes = ['holland', 'mbti', 'disc', 'multiple_intelligence'];
+if (!in_array($assessmentCode, $validCodes, true)) {
+    $assessmentCode = 'holland';
+}
+
+$assessmentNames = [
+    'holland' => 'Holland — Sở thích nghề nghiệp',
+    'mbti' => 'MBTI — Xu hướng tính cách',
+    'disc' => 'DISC — Hành vi học tập',
+    'multiple_intelligence' => 'Đa trí thông minh — Đa diện năng khiếu',
+];
+$assessmentName = $assessmentNames[$assessmentCode] ?? 'Bài đánh giá';
+$pageTitle = 'Kết quả ' . $assessmentName;
 $currentRoute = '/app/learner/discover.php';
-$bootData = $definition ? [
-    'student_id' => learner_current_student_id(),
-    'assessment_id' => $definition['id'],
-    'mock_history' => $history,
-    'dimensions' => $dimensionContent,
-] : null;
+
+$bootData = [
+    'assessmentCode' => $assessmentCode,
+    'endpoints' => [
+        'detail' => '/app/learner/api/v1/assessments.php',
+        'attempts' => '/app/learner/api/v1/assessment-attempts.php',
+        'history' => '/app/learner/api/v1/assessments.php?view=history',
+    ],
+];
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Kết quả và lịch sử bài test Holland RIASEC.">
-    <title>Kết quả Holland | TalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css"><link rel="stylesheet" href="../../assets/css/learner.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Kết quả và lịch sử bài đánh giá năng khiếu trên TalentHub.">
+    <title>Kết quả <?= learner_escape($assessmentName); ?> | TalentHub</title>
+    <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/learner.css">
 </head>
 <body class="learner-app learner-page-assessment-result">
     <div class="learner-layout">
         <?php include __DIR__ . '/includes/sidebar.php'; ?>
         <div class="learner-main">
             <?php include __DIR__ . '/includes/header.php'; ?>
-            <main class="learner-content" id="main-content" data-assessment-result-page>
-                <nav class="learner-breadcrumbs" aria-label="Đường dẫn"><a href="discover.php">Khám phá năng khiếu</a><span>/</span><a href="assessment.php?id=holland">Holland</a><span>/</span><span>Kết quả</span></nav>
-                <?php if (!$definition): ?>
-                    <section class="learner-card learner-not-found"><h1>Không tìm thấy bài test</h1><p>Liên kết bài đánh giá không hợp lệ.</p><a class="learner-btn learner-btn--primary" href="discover.php">Quay lại khám phá</a></section>
-                <?php else: ?>
-                    <section class="learner-card learner-not-found" data-assessment-result-empty<?= $latestMock ? ' hidden' : ''; ?>><h1>Chưa có kết quả</h1><p>Hãy hoàn thành bài test để xem phân tích.</p><a class="learner-btn learner-btn--primary" href="assessment.php?id=holland">Làm bài test</a></section>
-                    <div data-assessment-result-content<?= $latestMock ? '' : ' hidden'; ?>>
+            <main class="learner-content" id="main-content" data-assessment-result-page data-assessment-code="<?= learner_escape($assessmentCode); ?>">
+                <nav class="learner-breadcrumbs" aria-label="Đường dẫn">
+                    <a href="discover.php">Khám phá năng khiếu</a>
+                    <span>/</span>
+                    <a href="assessment.php?code=<?= learner_escape($assessmentCode); ?>"><?= learner_escape($assessmentName); ?></a>
+                    <span>/</span>
+                    <span>Kết quả</span>
+                </nav>
+
+                <section class="learner-card learner-assessment-state" data-assessment-result-loading>
+                    <span class="learner-assessment-spinner" aria-hidden="true"></span>
+                    <h1>Đang tải kết quả...</h1>
+                    <p>TalentHub đang lấy kết quả và lịch sử bài đánh giá từ hệ thống.</p>
+                </section>
+
+                <section class="learner-card learner-assessment-state learner-assessment-state--error" data-assessment-result-error hidden>
+                    <h1>Không thể tải kết quả</h1>
+                    <p>Vui lòng thử lại sau.</p>
+                </section>
+
+                <section class="learner-card learner-not-found" data-assessment-result-empty hidden>
+                    <h1>Chưa có kết quả</h1>
+                    <p>Hãy hoàn thành bài đánh giá để xem phân tích chi tiết.</p>
+                    <a class="learner-btn learner-btn--primary" href="assessment.php?code=<?= learner_escape($assessmentCode); ?>">Làm bài đánh giá</a>
+                </section>
+
+                <div data-assessment-result-content hidden>
                     <section class="learner-card learner-result-hero" data-assessment-current-result>
-                        <div class="learner-result-hero__code" aria-label="Mã Holland" data-result-code><?= learner_escape($latestMock['result']['code'] ?? ''); ?></div>
-                        <div><span class="learner-eyebrow">Kết quả Holland gần nhất</span><h1>Nhóm nổi bật của bạn: <span data-result-primary-name><?= learner_escape($primaryContent['name']); ?></span></h1><p data-result-primary-summary><?= learner_escape($primaryContent['summary']); ?></p><span class="learner-demo-pill" data-result-source><?= $latestMock ? 'Lịch sử mẫu dùng chung' : ''; ?></span></div>
-                        <div class="learner-result-hero__actions"><a class="learner-btn learner-btn--primary" href="assessment.php?id=holland">Làm lại bài test</a><a class="learner-btn learner-btn--outline" href="discover.php">Về trang khám phá</a></div>
+                        <div class="learner-result-hero__code" aria-label="Mã kết quả" data-result-code>---</div>
+                        <div>
+                            <span class="learner-eyebrow">Kết quả đánh giá gần nhất</span>
+                            <h1>Đặc điểm nổi bật: <span data-result-primary-name>Đang tải...</span></h1>
+                            <p data-result-primary-summary></p>
+                            <span class="learner-demo-pill" data-result-source>Hệ thống TalentHub</span>
+                        </div>
+                        <div class="learner-result-hero__actions">
+                            <a class="learner-btn learner-btn--primary" href="assessment.php?code=<?= learner_escape($assessmentCode); ?>">Làm lại bài đánh giá</a>
+                            <a class="learner-btn learner-btn--outline" href="discover.php">Về trang khám phá</a>
+                        </div>
                     </section>
 
                     <div class="learner-result-layout">
                         <section class="learner-card learner-result-scores" aria-labelledby="result-scores-title">
-                            <div class="learner-section-heading"><div><h2 id="result-scores-title">Điểm sáu nhóm RIASEC</h2><p>Thang điểm chuẩn hóa 0–100</p></div></div>
-                            <div data-result-score-list>
-                                <?php foreach ($dimensionContent as $dimension => $content): $score = $latestMock['result']['scores'][$dimension] ?? 0; ?>
-                                    <div class="learner-result-score" data-result-dimension="<?= $dimension; ?>"><span class="learner-result-score__letter"><?= $dimension; ?></span><div><strong><?= learner_escape($content['name']); ?></strong><div class="learner-progress"><span style="--learner-progress: <?= $score; ?>%;"></span></div></div><b><?= $score; ?></b></div>
-                                <?php endforeach; ?>
+                            <div class="learner-section-heading">
+                                <div>
+                                    <h2 id="result-scores-title">Kết quả theo chiều đánh giá</h2>
+                                    <p>Thang điểm chuẩn hóa 0–100</p>
+                                </div>
+                            </div>
+                            <div class="learner-result-dimension-list" data-result-dimension-list>
                             </div>
                         </section>
-                        <aside class="learner-card learner-result-guidance"><h2>Gợi ý khám phá tiếp</h2><p>Ưu tiên trải nghiệm trước khi đưa ra quyết định ngành học hoặc nghề nghiệp.</p><ul data-result-suggestions><?php foreach ($primaryContent['suggestions'] as $suggestion): ?><li><?= learner_icon('arrow-right', 15); ?> <?= learner_escape($suggestion); ?></li><?php endforeach; ?></ul><a class="learner-btn learner-btn--outline learner-btn--block" href="ecosystem.php?tab=opportunities">Khám phá cơ hội phù hợp</a></aside>
+
+                        <aside class="learner-card learner-result-guidance">
+                            <h2>Gợi ý phát triển tiếp theo</h2>
+                            <p>Ưu tiên trải nghiệm thực tế và rèn luyện kỹ năng qua các hoạt động phù hợp.</p>
+                            <ul data-result-suggestions>
+                            </ul>
+                            <a class="learner-btn learner-btn--outline learner-btn--block" href="ecosystem.php?tab=opportunities">Khám phá cơ hội phù hợp</a>
+                        </aside>
                     </div>
 
-                    <section class="learner-card learner-result-explanation"><h2>Hiểu mã Holland của bạn</h2><div class="learner-result-dimension-grid" data-result-dimension-cards><?php foreach ($dimensionContent as $dimension => $content): ?><article><span><?= $dimension; ?></span><div><h3><?= learner_escape($content['name']); ?></h3><p><?= learner_escape($content['summary']); ?></p></div></article><?php endforeach; ?></div><div class="learner-data-note"><?= learner_icon('info', 17); ?><p><?= learner_escape($definition['disclaimer']); ?></p></div></section>
+                    <div class="learner-data-note" data-advisory-disclaimer>
+                        <?= learner_icon('info', 17); ?>
+                        <p>Kết quả bài đánh giá chỉ phục vụ định hướng giáo dục và tham khảo học tập, không phải chẩn đoán tâm lý y khoa hay quyết định tuyển sinh bắt buộc.</p>
+                    </div>
+                </div>
 
-                    <section class="learner-card learner-assessment-history" data-assessment-history aria-labelledby="assessment-history-title">
-                        <div class="learner-section-heading"><div><h2 id="assessment-history-title">Lịch sử thực hiện</h2><p>Lịch sử mẫu có trên mọi máy; kết quả mới chỉ lưu trên trình duyệt hiện tại.</p></div></div>
-                        <div class="learner-assessment-history__list" data-assessment-history-list>
-                            <?php foreach ($history as $attempt): ?><article data-history-attempt-id="<?= learner_escape($attempt['id']); ?>"><span class="learner-result-mini-code"><?= learner_escape($attempt['result']['code']); ?></span><div><strong><?= learner_escape($dimensionContent[$attempt['result']['primary_dimension']]['name']); ?></strong><span><?= learner_escape((new DateTimeImmutable($attempt['submitted_at']))->format('d/m/Y · H:i')); ?> · Phiên bản <?= learner_escape($attempt['assessment_version']); ?></span></div><span class="learner-verified-pill"><?= learner_icon('check', 14); ?> Đã hoàn thành</span></article><?php endforeach; ?>
+                <section
+                    class="learner-card learner-assessment-history"
+                    data-assessment-complete-history
+                    data-source="assessment_engine"
+                    aria-labelledby="assessment-complete-history-title"
+                >
+                    <div class="learner-section-heading">
+                        <div>
+                            <h2 id="assessment-complete-history-title">Toàn bộ lịch sử đánh giá</h2>
+                            <p>Mọi lần làm bài đã nộp và đã có kết quả, thuộc mọi bộ công cụ đánh giá.</p>
                         </div>
-                    </section>
+                        <span class="learner-demo-pill">Nguồn: hệ thống đánh giá tự động</span>
                     </div>
-                <?php endif; ?>
+                    <p class="learner-empty-state__text" data-assessment-complete-history-loading>Đang tải lịch sử đánh giá...</p>
+                    <p class="learner-empty-state__text" data-assessment-complete-history-empty hidden>Chưa có dữ liệu</p>
+                    <p class="learner-empty-state__text" data-assessment-complete-history-error hidden>Không thể tải lịch sử đánh giá.</p>
+                    <div class="learner-assessment-history__list" data-assessment-complete-history-list hidden></div>
+                </section>
+
+                <section
+                    class="learner-card learner-assessment-history"
+                    data-teacher-published-evaluations
+                    data-source="teacher_published_evaluation"
+                    aria-labelledby="teacher-published-evaluations-title"
+                >
+                    <div class="learner-section-heading">
+                        <div>
+                            <h2 id="teacher-published-evaluations-title">Đánh giá đã công bố từ giáo viên</h2>
+                            <p>Chỉ hiển thị các đánh giá đã được giáo viên công bố.</p>
+                        </div>
+                        <span class="learner-demo-pill">Nguồn: giáo viên công bố</span>
+                    </div>
+                    <p class="learner-empty-state__text" data-teacher-published-evaluation-loading>Đang tải đánh giá đã công bố...</p>
+                    <p class="learner-empty-state__text" data-teacher-published-evaluation-empty hidden>Chưa có dữ liệu</p>
+                    <p class="learner-empty-state__text" data-teacher-published-evaluation-error hidden>Không thể tải đánh giá đã công bố.</p>
+                    <div class="learner-assessment-history__list" data-teacher-published-evaluation-list hidden></div>
+                </section>
             </main>
         </div>
     </div>
-    <?php if ($bootData): ?><script id="learner-assessment-result-boot" type="application/json"><?= json_encode($bootData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script><?php endif; ?>
-    <script src="../../assets/js/learner-api.js"></script><script src="../../assets/js/learner.js"></script><script src="../../assets/js/learner-assessment.js"></script>
+
+    <script id="learner-session-boot" type="application/json"><?= json_encode(['csrfToken' => $GLOBALS['learner_page_context']['csrfToken'] ?? ''], JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
+    <script id="learner-assessment-result-boot" type="application/json"><?= json_encode($bootData, JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
+    <script src="../../assets/js/learner-api.js"></script>
+    <script src="../../assets/js/learner.js"></script>
+    <script src="../../assets/js/learner-assessment.js"></script>
 </body>
 </html>

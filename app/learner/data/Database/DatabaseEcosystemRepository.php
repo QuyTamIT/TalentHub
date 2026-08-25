@@ -17,8 +17,8 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
     private const ENTERPRISE_VISIBLE_SQL = 'status = :enterprise_status AND verificationStatus IN (:verification_verified, :verification_approved)';
     private const ENTERPRISES_SQL = 'SELECT ' . self::ENTERPRISE_COLUMNS . ' FROM enterprises WHERE ' . self::ENTERPRISE_VISIBLE_SQL . ' ORDER BY name, id';
     private const ENTERPRISE_SQL = 'SELECT ' . self::ENTERPRISE_COLUMNS . ' FROM enterprises WHERE id = :partner_id AND ' . self::ENTERPRISE_VISIBLE_SQL . ' LIMIT 1';
-    private const OPPORTUNITY_COLUMNS = 'ip.id, ip.enterpriseId, ip.title, ip.location, ip.deadline, ip.status, e.name AS enterpriseName';
-    private const OPPORTUNITY_VISIBLE_SQL = 'ip.status = :opportunity_status AND e.status = :enterprise_status AND e.verificationStatus IN (:verification_verified, :verification_approved)';
+    private const OPPORTUNITY_COLUMNS = 'ip.id, ip.enterpriseId, ip.title, ip.field, ip.location, ip.workType, ip.duration, ip.educationLevel, ip.description, ip.benefits, ip.skillsJson, ip.requirementsJson, ip.slots, ip.deadline, ip.createdAt, ip.updatedAt, ip.status, e.name AS enterpriseName';
+    private const OPPORTUNITY_VISIBLE_SQL = 'ip.status = :opportunity_status AND ip.deadline >= CURRENT_TIMESTAMP AND e.status = :enterprise_status AND e.verificationStatus IN (:verification_verified, :verification_approved)';
     private const OPPORTUNITIES_SQL = 'SELECT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId WHERE ' . self::OPPORTUNITY_VISIBLE_SQL . ' ORDER BY ip.deadline, ip.id';
     private const OPPORTUNITY_SQL = 'SELECT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId WHERE ip.id = :opportunity_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' LIMIT 1';
     private const PARTNER_OPPORTUNITIES_SQL = 'SELECT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId WHERE ip.enterpriseId = :enterprise_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' ORDER BY ip.deadline, ip.id';
@@ -162,6 +162,9 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
         $opportunity['partner_name'] = $opportunity['enterprise_name'];
         $opportunity['type'] = 'internship';
         $opportunity['status'] = OpportunityStatus::normalize($opportunity['status'] ?? null)->value;
+        $opportunity['skills'] = $this->decodeJson($opportunity['skills_json'] ?? null, 'internship_posts.skillsJson');
+        $opportunity['requirements'] = $this->decodeJson($opportunity['requirements_json'] ?? null, 'internship_posts.requirementsJson');
+        unset($opportunity['skills_json'], $opportunity['requirements_json']);
         $opportunity['id_origin'] = 'database';
 
         return $opportunity;
