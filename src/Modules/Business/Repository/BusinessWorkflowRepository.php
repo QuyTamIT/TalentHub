@@ -7,12 +7,21 @@ namespace TalentHub\Modules\Business\Repository;
 use PDO;
 use TalentHub\Http\ApiException;
 use TalentHub\Http\CollectionQuery;
+use TalentHub\Modules\Business\Repository\InternshipRepository;
 use TalentHub\Support\Uuid;
 use Throwable;
 
 final class BusinessWorkflowRepository
 {
-    public function __construct(private readonly PDO $pdo) {}
+    public function __construct(
+        private readonly PDO $pdo,
+        private readonly ?InternshipRepository $internships = null
+    ) {}
+
+    public function pdo(): PDO
+    {
+        return $this->pdo;
+    }
 
     public function enterpriseId(string $userId): ?string
     {
@@ -132,51 +141,31 @@ final class BusinessWorkflowRepository
         return array_values($statement->fetchAll());
     }
 
-    public function review(string $enterpriseId, string $userId, string $id, string $status, ?string $note): bool
+    public function applicationStatus(string $enterpriseId, string $id): ?string
     {
-        $this->pdo->beginTransaction();
-        try {
-            $select = $this->pdo->prepare(
-                'SELECT ia.status FROM internship_applications ia '
-                . 'INNER JOIN internship_posts ip ON ip.id=ia.postId '
-                . 'WHERE ia.id=? AND ip.enterpriseId=? LIMIT 1' . $this->lockSuffix()
-            );
-            $select->execute([$id, $enterpriseId]);
-            $current = $select->fetchColumn();
-            if (!is_string($current)) {
-                $this->pdo->rollBack();
-                return false;
-            }
-            $allowed = [
-                'submitted' => ['reviewing', 'declined'],
-                'reviewing' => ['interview', 'accepted', 'declined'],
-                'interview' => ['accepted', 'declined'],
-            ];
-            if (!in_array($status, $allowed[$current] ?? [], true)) {
-                throw new ApiException(422, 'ILLEGAL_STATUS_TRANSITION', 'Chuyển trạng thái hồ sơ không hợp lệ.');
-            }
-            $statement = $this->pdo->prepare(<<<'SQL'
-                UPDATE internship_applications ia
-                JOIN internship_posts ip ON ip.id=ia.postId
-                SET ia.status=?, ia.reviewedBy=?, ia.reviewerNote=?, ia.reviewedAt=UTC_TIMESTAMP(6), ia.updatedAt=UTC_TIMESTAMP(6)
-                WHERE ia.id=? AND ip.enterpriseId=? AND ia.status=?
-            SQL);
-            $statement->execute([$status, $userId, $note, $id, $enterpriseId, $current]);
-            if ($statement->rowCount() !== 1) {
-                throw new ApiException(409, 'CONCURRENT_MODIFICATION', 'Trạng thái hồ sơ đã thay đổi.');
-            }
-            $history = $this->pdo->prepare(
-                "INSERT INTO application_status_history(id,applicationId,fromStatus,toStatus,changedByUserId,changedByRole,note) VALUES(?,?,?,?,?,'enterprise',?)"
-            );
-            $history->execute([Uuid::v4(), $id, $current, $status, $userId, $note]);
-            $this->pdo->commit();
-            return true;
-        } catch (Throwable $exception) {
-            if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
-            throw $exception;
+        $statement = $this->pdo->prepare(
+            'SELECT ia.status FROM internship_applications ia '
+            . 'INNER JOIN internship_posts ip ON ip.id=ia.postId '
+            . 'WHERE ia.id=? AND ip.enterpriseId=? LIMIT 1'
+        );
+        $statement->execute([$id, $enterpriseId]);
+        $status = $statement->fetchColumn();
+        return is_string($status) ? $status : null;
+    }
+
+    public function review(string $enterpriseId, string $userId, string $id, string $status, ?string $note, ?string $expectedStatus = null): bool
+    {
+        $expected = $expectedStatus ?? $this->applicationStatus($enterpriseId, $id);
+        if ($expected === null) {
+            return false;
         }
+        $this->getInternshipRepository()->review($enterpriseId, $userId, $id, $expected, $status, $note ?? '');
+        return true;
+    }
+
+    private function getInternshipRepository(): InternshipRepository
+    {
+        return $this->internships ?? new InternshipRepository($this->pdo);
     }
 
     /** @return list<array<string,mixed>> */

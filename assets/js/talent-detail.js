@@ -1,11 +1,7 @@
 /**
  * TalentHub - Enterprise Talent Passport Detail Controller
  * Handles detail page interactions: bookmark save state toggle,
- * contact request modal open/close/submit mock, and toast feedback.
- * 
- * Note for Developers:
- * - When database/API is ready, replace mock submit with fetch() requests to
- *   `contact_requests` and `privacy_consents` tables.
+ * contact request modal open/close/submit via API, and toast feedback.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -23,6 +19,35 @@ function initTalentDetailModule() {
     const submitContactBtn = document.getElementById('submit-contact-btn');
     const messageInput = document.getElementById('contact-message-input');
 
+    // Read session configuration
+    let sessionBoot = {
+        csrfToken: '',
+        studentId: '',
+        apiBase: '/api/v1/businesses/me',
+        contactAllowed: false,
+        hasPendingContactRequest: false,
+    };
+    const bootEl = document.getElementById('enterprise-talent-detail-boot');
+    if (bootEl) {
+        try {
+            sessionBoot = Object.assign(sessionBoot, JSON.parse(bootEl.textContent));
+        } catch (e) {
+            console.error('Failed to parse talent detail boot data:', e);
+        }
+    }
+
+    // If candidate has pending contact request, update UI
+    if (sessionBoot.hasPendingContactRequest && contactBtn) {
+        contactBtn.classList.remove('btn-primary');
+        contactBtn.classList.add('btn-secondary');
+        contactBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>Đã gửi yêu cầu</span>
+        `;
+    }
+
     // 1. Bookmark / Save Profile Toggle Handler
     if (saveBtn) {
         saveBtn.addEventListener('click', () => {
@@ -34,12 +59,12 @@ function initTalentDetailModule() {
                 saveBtn.classList.remove('is-saved');
                 if (btnText) btnText.textContent = 'Lưu hồ sơ';
                 if (svgIcon) svgIcon.setAttribute('fill', 'none');
-                (window.showEntToast || showEntToast)('Đã bỏ lưu hồ sơ nhân tài.');
+                showToast('Đã bỏ lưu hồ sơ nhân tài.');
             } else {
                 saveBtn.classList.add('is-saved');
                 if (btnText) btnText.textContent = 'Đã lưu hồ sơ';
                 if (svgIcon) svgIcon.setAttribute('fill', 'currentColor');
-                (window.showEntToast || showEntToast)('Đã lưu hồ sơ vào danh sách quan tâm.');
+                showToast('Đã lưu hồ sơ vào danh sách quan tâm.');
             }
         });
     }
@@ -49,6 +74,7 @@ function initTalentDetailModule() {
         if (!contactModal) return;
         contactModal.style.display = 'block';
         contactModal.setAttribute('aria-hidden', 'false');
+        if (messageInput) messageInput.focus();
     }
 
     function closeContactModal() {
@@ -72,10 +98,82 @@ function initTalentDetailModule() {
     }
 
     if (submitContactBtn) {
-        submitContactBtn.addEventListener('click', () => {
-            const candidateName = submitContactBtn.getAttribute('data-talent-name') || 'người học';
-            closeContactModal();
-            (window.showEntToast || showEntToast)(`Đã gửi yêu cầu kết nối tới ${candidateName}. Thông báo sẽ được chuyển tới người học để nhận chấp thuận.`);
+        submitContactBtn.addEventListener('click', async () => {
+            const candidateName = submitContactBtn.getAttribute('data-talent-name') || 'ứng viên';
+            const message = messageInput ? messageInput.value.trim() : '';
+            const studentId = sessionBoot.studentId || new URLSearchParams(window.location.search).get('id');
+
+            if (!studentId) {
+                showToast('Không xác định được mã ứng viên.', 'error');
+                return;
+            }
+
+            // Generate UUID v4 for idempotency
+            const idempotencyKey = generateUuidV4();
+            submitContactBtn.disabled = true;
+            submitContactBtn.textContent = 'Đang gửi...';
+
+            try {
+                const endpoint = `${sessionBoot.apiBase}/talents/${encodeURIComponent(studentId)}/contact-requests`;
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-Token': sessionBoot.csrfToken,
+                    },
+                    body: JSON.stringify({
+                        idempotencyKey: idempotencyKey,
+                        message: message,
+                    }),
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok || (data.status && data.status !== 'success' && !data.data)) {
+                    const errorMsg = data.error?.message || data.message || 'Không thể gửi yêu cầu kết nối.';
+                    showToast(errorMsg, 'error');
+                    submitContactBtn.disabled = false;
+                    submitContactBtn.textContent = 'Gửi yêu cầu';
+                    return;
+                }
+
+                closeContactModal();
+                showToast(`Đã gửi yêu cầu kết nối tới ${candidateName}. Hệ thống đã gửi thông báo đến ứng viên.`);
+
+                if (contactBtn) {
+                    contactBtn.classList.remove('btn-primary');
+                    contactBtn.classList.add('btn-secondary');
+                    contactBtn.innerHTML = `
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Đã gửi yêu cầu</span>
+                    `;
+                }
+            } catch (err) {
+                console.error('Contact request error:', err);
+                showToast('Lỗi mạng hoặc kết nối máy chủ. Vui lòng thử lại.', 'error');
+                submitContactBtn.disabled = false;
+                submitContactBtn.textContent = 'Gửi yêu cầu';
+            }
+        });
+    }
+
+    function showToast(msg) {
+        if (typeof window.showEntToast === 'function') {
+            window.showEntToast(msg);
+        } else if (typeof showEntToast === 'function') {
+            showEntToast(msg);
+        } else {
+            alert(msg);
+        }
+    }
+
+    function generateUuidV4() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
         });
     }
 }
