@@ -13,6 +13,8 @@ use TalentHub\Modules\Business\Repository\InternshipRepository;
 use TalentHub\Modules\Business\Service\BusinessProfileService;
 use TalentHub\Modules\Business\Service\EnterpriseTalentService;
 use TalentHub\Modules\Business\Service\InternshipService;
+use TalentHub\Modules\School\Repository\SchoolPartnershipRepository;
+use TalentHub\Modules\School\Service\SchoolPartnershipService;
 use TalentHub\Rbac\RoleCodes;
 use TalentHub\Rbac\Service\PermissionService;
 
@@ -33,6 +35,7 @@ final class EnterpriseAppContext
     private PermissionService $permissions;
     private InternshipService $internships;
     private EnterpriseTalentService $talents;
+    private SchoolPartnershipService $partnerships;
 
     public function __construct()
     {
@@ -47,6 +50,7 @@ final class EnterpriseAppContext
         $this->permissions = new PermissionService($pdo);
         $this->internships = new InternshipService(new InternshipRepository($pdo));
         $this->talents = new EnterpriseTalentService(new EnterpriseTalentRepository($pdo));
+        $this->partnerships = new SchoolPartnershipService(new SchoolPartnershipRepository($pdo));
     }
 
     /**
@@ -105,6 +109,7 @@ final class EnterpriseAppContext
             'csrfToken'  => $this->session->csrfToken(),
             'internships'=> $this->internships,
             'talents'    => $this->talents,
+            'partnerships'=> $this->partnerships,
             'permissions'=> $this->permissions,
         ];
     }

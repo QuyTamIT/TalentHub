@@ -42,6 +42,36 @@ WHERE EXISTS (SELECT 1 FROM student_profiles student WHERE student.id = :student
   AND post.status = 'active'
   AND enterprise.status = 'active'
   AND enterprise.verificationStatus IN ('verified', 'approved')
+  AND (
+      post.audience = 'public'
+      OR (
+          post.audience = 'partner_schools'
+          AND EXISTS (
+              SELECT 1
+              FROM student_profiles sp
+              INNER JOIN classes c ON c.id = sp.classId
+              INNER JOIN internship_post_target_schools ipts ON ipts.schoolId = c.schoolId AND ipts.postId = post.id
+              INNER JOIN school_enterprise_partnerships sep ON sep.schoolId = c.schoolId AND sep.enterpriseId = enterprise.id
+              WHERE sp.id = :student_id_target AND sep.status = 'approved'
+          )
+      )
+  )
+ORDER BY post.deadline ASC, post.id ASC
+SQL;
+
+    private const INTERNSHIP_SQL_FALLBACK = <<<'SQL'
+SELECT
+    post.id AS opportunity_id,
+    enterprise.id AS enterprise_id,
+    post.title,
+    post.location,
+    post.deadline
+FROM internship_posts post
+INNER JOIN enterprises enterprise ON enterprise.id = post.enterpriseId
+WHERE EXISTS (SELECT 1 FROM student_profiles student WHERE student.id = :student_id)
+  AND post.status = 'active'
+  AND enterprise.status = 'active'
+  AND enterprise.verificationStatus IN ('verified', 'approved')
 ORDER BY post.deadline ASC, post.id ASC
 SQL;
 
@@ -104,7 +134,17 @@ SQL;
         if ($this->hasInternshipContract()) {
             try {
                 $statement = $this->pdo->prepare(self::INTERNSHIP_SQL);
-                if ($statement !== false && $statement->execute(['student_id' => $studentId])) {
+                $executed = $statement !== false && $statement->execute([
+                    'student_id' => $studentId,
+                    'student_id_target' => $studentId,
+                ]);
+
+                if (!$executed) {
+                    $statement = $this->pdo->prepare(self::INTERNSHIP_SQL_FALLBACK);
+                    $executed = $statement !== false && $statement->execute(['student_id' => $studentId]);
+                }
+
+                if ($executed) {
                     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
                         $deadline = self::timestamp($row['deadline'] ?? null);
                         if ($deadline === null) {

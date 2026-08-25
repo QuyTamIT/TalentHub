@@ -735,6 +735,39 @@ function initInternshipManagementModule() {
             if (searchResultsContainer) searchResultsContainer.style.display = 'none';
         }
 
+        // Audience & Target Schools Management
+        const audienceRadios = document.querySelectorAll('input[name="audience"]');
+        const targetSchoolsContainer = document.getElementById('target-schools-container');
+        const targetSchoolCheckboxes = document.querySelectorAll('.target-school-checkbox');
+        const targetSchoolsCountEl = document.getElementById('target-schools-count');
+
+        function updateTargetSchoolsCount() {
+            if (!targetSchoolsCountEl) return;
+            const count = document.querySelectorAll('.target-school-checkbox:checked').length;
+            targetSchoolsCountEl.textContent = count;
+        }
+
+        audienceRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                document.querySelectorAll('.ent-radio-card').forEach(card => {
+                    const cardRadio = card.querySelector('input[type="radio"]');
+                    if (cardRadio && cardRadio.checked) {
+                        card.classList.add('border-primary', 'bg-light');
+                    } else {
+                        card.classList.remove('border-primary', 'bg-light');
+                    }
+                });
+
+                if (targetSchoolsContainer) {
+                    targetSchoolsContainer.style.display = radio.value === 'partner_schools' && radio.checked ? 'block' : 'none';
+                }
+            });
+        });
+
+        targetSchoolCheckboxes.forEach(cb => {
+            cb.addEventListener('change', updateTargetSchoolsCount);
+        });
+
         // Form Submit Buttons
         if (btnSaveDraft) {
             btnSaveDraft.addEventListener('click', () => submitForm('draft'));
@@ -775,6 +808,18 @@ function initInternshipManagementModule() {
                 return;
             }
 
+            const audience = document.querySelector('input[name="audience"]:checked')?.value || 'public';
+            const targetSchoolIds = [];
+            if (audience === 'partner_schools') {
+                document.querySelectorAll('.target-school-checkbox:checked').forEach(cb => {
+                    targetSchoolIds.push(cb.value);
+                });
+                if (targetSchoolIds.length === 0) {
+                    showToast('Vui lòng chọn ít nhất 1 trường đối tác cho vị trí tuyển dụng.');
+                    return;
+                }
+            }
+
             const postId = id('form-post-id') ? id('form-post-id').value : '';
             const bootNode = document.getElementById('enterprise-session-boot');
             let boot = {};
@@ -793,6 +838,8 @@ function initInternshipManagementModule() {
                 benefits: id('form-benefits')?.value.trim() || '',
                 skills: selectedSkills.map((skill) => skill.name),
                 requirements: [],
+                audience: audience,
+                targetSchoolIds: targetSchoolIds,
             };
             const request = async (method, path, body) => {
                 const response = await fetch(`${boot.apiBase || '/api/v1'}${path}`, {

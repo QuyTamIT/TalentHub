@@ -14,9 +14,11 @@ use TalentHub\Http\CorsPolicy;
 use TalentHub\Http\JsonResponse;
 use TalentHub\Http\Request;
 use TalentHub\Http\Router;
+use TalentHub\Modules\School\Repository\SchoolPartnershipRepository;
 use TalentHub\Modules\School\Repository\SchoolRepository;
 use TalentHub\Modules\School\Service\SchoolAuthorization;
 use TalentHub\Modules\School\Service\SchoolDashboardService;
+use TalentHub\Modules\School\Service\SchoolPartnershipService;
 use TalentHub\Modules\Business\Repository\BusinessRepository;
 use TalentHub\Modules\Business\Repository\BusinessWorkflowRepository;
 use TalentHub\Modules\Business\Repository\EnterpriseTalentRepository;
@@ -41,12 +43,24 @@ use Throwable;
 
 final class Application
 {
-    public function run(): never
+    private function __construct(private readonly CorsPolicy $corsPolicy) {}
+
+    public static function create(): self
     {
-        $request=Request::fromGlobals();$requestId=RequestId::make($request->header('x-request-id'));
-        try{CorsPolicy::enforceSameOrigin($request,$_SERVER['HTTP_HOST']??null);$this->buildRouter($requestId)->dispatch($request)->send();}
-        catch(ApiException $e){JsonResponse::error($e,$requestId)->send();}
-        catch(\RuntimeException $e){JsonResponse::error(new ApiException(422,'VALIDATION_FAILED',$e->getMessage()),$requestId)->send();}
+        return new self(new CorsPolicy());
+    }
+
+    public function run(): void
+    {
+        $requestId = RequestId::generate();
+        try {
+            $router = $this->buildRouter($requestId);
+            $request = Request::fromGlobals();
+            $this->corsPolicy->apply($request)->send();
+            $response = $router->dispatch($request);
+            $response->send();
+        }
+        catch(ApiException $exception){JsonResponse::error($exception,$requestId)->send();}
         catch(DatabaseConnectionException){JsonResponse::error(new ApiException(503,'SERVICE_UNAVAILABLE','Dịch vụ dữ liệu tạm thời không khả dụng.'),$requestId)->send();}
         catch(Throwable){JsonResponse::error(new ApiException(500,'INTERNAL_ERROR','Đã xảy ra lỗi hệ thống.'),$requestId)->send();}
     }
@@ -60,7 +74,7 @@ final class Application
     {
         $config=require dirname(__DIR__,2).'/config/database.php';$pdo=(new Connection($config))->connect();
         $session=new SessionManager(require dirname(__DIR__,2).'/config/session.php');$session->start();
-        $auth=new AuthService(new AuthRepository($pdo));$loginLimiter=new LoginRateLimiter($pdo);$permissions=new PermissionService($pdo);$teachers=new TeacherProfileService(new TeacherRepository($pdo));$teacherActivities=new TeacherActivityService(new TeacherActivityRepository($pdo));$schools=new SchoolDashboardService(new SchoolRepository($pdo),$pdo,new SchoolAuthorization($pdo));$students=new StudentProfileService(new StudentRepository($pdo));$businesses=new BusinessProfileService(new BusinessRepository($pdo));$internships=new InternshipService(new InternshipRepository($pdo));$workflows=new BusinessWorkflowService(new BusinessWorkflowRepository($pdo),$internships);$talents=new EnterpriseTalentService(new EnterpriseTalentRepository($pdo));$notifications=new NotificationService(new NotificationRepository($pdo));$admin=new AdminRepository($pdo);$router=new Router();
+        $auth=new AuthService(new AuthRepository($pdo));$loginLimiter=new LoginRateLimiter($pdo);$permissions=new PermissionService($pdo);$teachers=new TeacherProfileService(new TeacherRepository($pdo));$teacherActivities=new TeacherActivityService(new TeacherActivityRepository($pdo));$schools=new SchoolDashboardService(new SchoolRepository($pdo),$pdo,new SchoolAuthorization($pdo));$students=new StudentProfileService(new StudentRepository($pdo));$businesses=new BusinessProfileService(new BusinessRepository($pdo));$internships=new InternshipService(new InternshipRepository($pdo));$workflows=new BusinessWorkflowService(new BusinessWorkflowRepository($pdo),$internships);$talents=new EnterpriseTalentService(new EnterpriseTalentRepository($pdo));$partnerships=new SchoolPartnershipService(new SchoolPartnershipRepository($pdo));$notifications=new NotificationService(new NotificationRepository($pdo));$admin=new AdminRepository($pdo);$router=new Router();
         $router->add('GET','/api/v1/health',fn()=>JsonResponse::success(['status'=>'ok','database'=>'available'],$requestId));
         $router->add('GET','/api/v1/auth/csrf',fn()=>JsonResponse::success(['csrfToken'=>$session->csrfToken()],$requestId));
         $router->add('POST','/api/v1/auth/register',function(Request $r)use($auth,$requestId){$user=$auth->registerStudent($r->json(),$requestId,$_SERVER['REMOTE_ADDR']??null);return JsonResponse::success(['user'=>$user],$requestId,201);});
@@ -104,6 +118,10 @@ final class Application
         $router->add('GET','/api/v1/businesses/me/internship-applications',function()use($session,$permissions,$internships,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'internship_application.read_own_business');return JsonResponse::success($internships->listApplications($user['id']),$requestId);});
         $router->add('GET','/api/v1/businesses/me/internship-applications/{applicationId}',function(Request $r)use($session,$permissions,$internships,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'internship_application.read_own_business');$permissions->require($user['id'],'internship_application.read_cv_own_business');return JsonResponse::success(['application'=>$internships->application($user['id'],(string)$r->pathParam('applicationId'))],$requestId);});
         $router->add('PATCH','/api/v1/businesses/me/internship-applications/{applicationId}',function(Request $r)use($session,$permissions,$internships,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'internship_application.review_own_business');return JsonResponse::success(['application'=>$internships->review($user['id'],(string)$r->pathParam('applicationId'),$r->json())],$requestId);});
+        $router->add('GET','/api/v1/businesses/me/partnerships',function(Request $r)use($session,$permissions,$partnerships,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'partnership.read_own_business');return JsonResponse::success($partnerships->listEnterprisePartnerships($user['id'],$r->queryParam('status')),$requestId);});
+        $router->add('POST','/api/v1/businesses/me/partnership-requests',function(Request $r)use($session,$permissions,$partnerships,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'partnership.create_own_business');return JsonResponse::success(['partnership'=>$partnerships->requestPartnership($user['id'],$r->json())],$requestId,201);});
+        $router->add('GET','/api/v1/schools/me/partnerships',function(Request $r)use($session,$permissions,$partnerships,$requestId){$user=$this->requireSchool($session);$permissions->require($user['id'],'partnership.read_own_school');return JsonResponse::success($partnerships->listSchoolPartnerships($user['id'],$r->queryParam('status')),$requestId);});
+        $router->add('PATCH','/api/v1/schools/me/partnerships/{partnershipId}',function(Request $r)use($session,$permissions,$partnerships,$requestId){$user=$this->requireSchool($session);$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'partnership.review_own_school');$partnershipId=(string)$r->pathParam('partnershipId');return JsonResponse::success(['partnership'=>$partnerships->reviewPartnership($user['id'],$partnershipId,$r->json())],$requestId);});
         $router->add('GET','/api/v1/businesses/me/talents',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'talent.search_consented');$params=['search'=>$r->queryParam('search'),'school'=>$r->queryParam('school'),'skills'=>$r->queryParam('skills'),'sort'=>$r->queryParam('sort'),'limit'=>$r->queryParam('limit'),'offset'=>$r->queryParam('offset')];return JsonResponse::success($talents->listTalents($user['id'],$params),$requestId);});
         $router->add('GET','/api/v1/businesses/me/talents/{studentId}',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'talent.read_consented');$studentId=(string)$r->pathParam('studentId');return JsonResponse::success(['talent'=>$talents->getTalent($user['id'],$studentId)],$requestId);});
         $router->add('POST','/api/v1/businesses/me/talents/{studentId}/contact-requests',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'contact_request.create_own_business');$studentId=(string)$r->pathParam('studentId');return JsonResponse::success($talents->requestContact($user['id'],$studentId,$r->json(),$requestId),$requestId,201);});
