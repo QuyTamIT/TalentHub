@@ -2,23 +2,111 @@
 /**
  * Learner ecosystem read model.
  *
- * Enterprise opportunities are adapted from the Enterprise mock provider.
- * School and application records are learner-owned demo data until APIs exist.
+ * Authenticated runtime reads canonical TalentHub repositories only. Mock
+ * adapters below are isolated to the explicit APP_ENV=test fixture path.
  */
 
 require_once dirname(__DIR__) . '/data/bootstrap.php';
 
-require_once dirname(__DIR__, 2) . '/enterprise/includes/internships-data.php';
+if (!function_exists('learner_ecosystem_http_url')) {
+    function learner_ecosystem_http_url(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
 
-$GLOBALS['learnerEnterpriseMockPosts'] = is_array($mockInternships ?? null)
-    ? $mockInternships
-    : (is_array($GLOBALS['mockInternships'] ?? null) ? $GLOBALS['mockInternships'] : []);
+        $url = trim($value);
+        if ($url === '' || filter_var($url, FILTER_VALIDATE_URL) === false) {
+            return null;
+        }
+
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        return in_array($scheme, ['http', 'https'], true) ? $url : null;
+    }
+}
+
+if (!function_exists('learner_ecosystem_partner_uses_default')) {
+    function learner_ecosystem_partner_uses_default(array $partner, string $field): bool
+    {
+        $notes = is_array($partner['data_notes'] ?? null) ? $partner['data_notes'] : [];
+        foreach ($notes as $note) {
+            if (is_string($note) && str_starts_with($note, "ecosystem_partner.{$field} uses a safe compatibility default")) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('learner_ecosystem_partner_list')) {
+    function learner_ecosystem_partner_list(array $partner, string $field): array
+    {
+        if (learner_ecosystem_partner_uses_default($partner, $field)) {
+            return [];
+        }
+
+        $value = $partner[$field] ?? null;
+        if (!is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_map(static fn (mixed $item): string => is_scalar($item) ? trim((string) $item) : '', $value),
+            static fn (string $item): bool => $item !== '' && $item !== 'Chưa cập nhật'
+        ));
+    }
+}
+
+if (!function_exists('learner_ecosystem_partner_has_value')) {
+    function learner_ecosystem_partner_has_value(array $partner, string $field): bool
+    {
+        if (learner_ecosystem_partner_uses_default($partner, $field)) {
+            return false;
+        }
+
+        $value = $partner[$field] ?? null;
+        if (is_array($value)) {
+            return learner_ecosystem_partner_list($partner, $field) !== [];
+        }
+        if (is_string($value)) {
+            $value = trim($value);
+            if ($value === '' || in_array($value, [
+                '#',
+                'Chưa cập nhật',
+                'Thông tin giới thiệu chưa có trong schema hiện tại.',
+            ], true)) {
+                return false;
+            }
+            if ($field === 'website') {
+                return learner_ecosystem_http_url($value) !== null;
+            }
+            return true;
+        }
+
+        return is_int($value) || is_float($value) || $value === true;
+    }
+}
 
 if (!function_exists('learner_ecosystem_enterprise_posts')) {
     function learner_ecosystem_enterprise_posts(): array
     {
-        global $learnerEnterpriseMockPosts;
-        return is_array($learnerEnterpriseMockPosts) ? $learnerEnterpriseMockPosts : [];
+        static $posts = null;
+        if (is_array($posts)) {
+            return $posts;
+        }
+
+        if (is_array($GLOBALS['mockInternships'] ?? null)) {
+            $posts = $GLOBALS['mockInternships'];
+            return $posts;
+        }
+
+        $mockInternships = [];
+        require_once dirname(__DIR__, 2) . '/enterprise/includes/internships-data.php';
+        $posts = is_array($mockInternships) ? $mockInternships : [];
+        $GLOBALS['mockInternships'] = $posts;
+
+        return $posts;
     }
 }
 
@@ -370,7 +458,12 @@ if (!function_exists('learner_ecosystem_partner_opportunities')) {
 if (!function_exists('learner_ecosystem_repository')) {
     function learner_ecosystem_repository(): \TalentHub\Learner\Data\Contracts\EcosystemRepository
     {
-        return learner_repository_factory()->ecosystem(
+        $factory = learner_repository_factory();
+        if ($factory->source() === 'database') {
+            return $factory->ecosystem();
+        }
+
+        return $factory->ecosystem(
             array_merge(learner_ecosystem_mock_enterprises(), learner_ecosystem_mock_schools()),
             learner_ecosystem_mock_opportunities()
         );
@@ -380,6 +473,11 @@ if (!function_exists('learner_ecosystem_repository')) {
 if (!function_exists('learner_application_repository')) {
     function learner_application_repository(): \TalentHub\Learner\Data\Contracts\ApplicationRepository
     {
+        $factory = learner_repository_factory();
+        if ($factory->source() === 'database') {
+            return $factory->application();
+        }
+
         $opportunities = learner_ecosystem_mock_opportunities();
         $applications = array_map(
             static function (array $application) use ($opportunities): array {
@@ -403,7 +501,7 @@ if (!function_exists('learner_application_repository')) {
             learner_ecosystem_mock_applications()
         );
 
-        return learner_repository_factory()->application($applications);
+        return $factory->application($applications);
     }
 }
 
@@ -434,6 +532,38 @@ if (!function_exists('learner_ecosystem_opportunities')) {
     }
 }
 
+if (!function_exists('learner_ecosystem_school_activities')) {
+    function learner_ecosystem_school_activities(?string $schoolId = null): array
+    {
+        $factory = learner_repository_factory();
+        if ($factory->source() !== 'database') {
+            return [];
+        }
+
+        $activities = \TalentHub\Learner\Data\ReadModel\ActivityReadModel::activities(
+            $factory->activity()->all()
+        );
+        $visibleSchoolIds = array_fill_keys(
+            array_map(
+                static fn (array $school): string => (string) ($school['id'] ?? ''),
+                $factory->ecosystem()->partners('school')
+            ),
+            true
+        );
+
+        return array_values(array_filter(
+            $activities,
+            static function (array $activity) use ($schoolId, $visibleSchoolIds): bool {
+                $activitySchoolId = (string) ($activity['school_id'] ?? '');
+
+                return isset($visibleSchoolIds[$activitySchoolId])
+                    && in_array((string) ($activity['status'] ?? ''), ['published', 'ongoing'], true)
+                    && ($schoolId === null || $activitySchoolId === $schoolId);
+            }
+        ));
+    }
+}
+
 if (!function_exists('learner_ecosystem_applications')) {
     function learner_ecosystem_applications(): array
     {
@@ -447,8 +577,9 @@ if (!function_exists('learner_ecosystem_can_apply')) {
     function learner_ecosystem_can_apply(array $opportunity, ?string $today = null): bool
     {
         $today ??= date('Y-m-d');
+        $status = (string) ($opportunity['status'] ?? '');
 
-        return ($opportunity['status'] ?? '') === 'active'
-            && ($opportunity['deadline'] ?? '') >= $today;
+        return in_array($status, ['active', 'published', 'open'], true)
+            && (($opportunity['deadline'] ?? '') === '' || ($opportunity['deadline'] ?? '') >= $today);
     }
 }

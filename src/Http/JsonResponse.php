@@ -11,8 +11,31 @@ final class JsonResponse
     public static function success(mixed $data,string $requestId,int $status=200): self
     { return new self($status,['data'=>$data,'meta'=>self::meta($requestId)],$requestId); }
 
-    public static function error(ApiException $e,string $requestId): self
-    { $error=['code'=>$e->errorCode,'message'=>$e->getMessage()];if($e->details!==[]){$error['details']=$e->details;}return new self($e->status,['error'=>$error,'meta'=>self::meta($requestId)],$requestId,$e->headers); }
+    public static function error(ApiException $e, string $requestId, ?\Throwable $debugException = null): self
+    {
+        $error = ['code' => $e->errorCode, 'message' => $e->getMessage()];
+        if ($e->details !== []) {
+            $error['details'] = $e->details;
+        }
+
+        $payload = [
+            'error' => $error,
+            'meta' => self::meta($requestId),
+        ];
+
+        $target = $debugException ?? ($e->getPrevious() ?: ($e->status >= 500 ? $e : null));
+        if ($target !== null) {
+            $payload['debug'] = [
+                'exception' => get_class($target),
+                'message' => $target->getMessage(),
+                'file' => $target->getFile(),
+                'line' => $target->getLine(),
+                'trace' => array_slice(explode("\n", $target->getTraceAsString()), 0, 15),
+            ];
+        }
+
+        return new self($e->status, $payload, $requestId, $e->headers);
+    }
 
     public function send(): never
     {

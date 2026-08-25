@@ -36,6 +36,22 @@ $session->login([
     'status' => 'active'
 ]);
 
+// Ensure privacy consent & talent grant for smoke test candidate
+$studentId = '20000000-0000-4000-8000-000000000060';
+$entId = '30000000-0000-4000-8000-000000000002';
+$consentId = '80000000-0000-4000-8000-000000000001';
+$grantId = '80000000-0000-4000-8000-000000000002';
+$now = gmdate('Y-m-d H:i:s.u');
+$exp = gmdate('Y-m-d H:i:s.u', time() + 30 * 86400);
+
+try {
+    $pdo->prepare("INSERT INTO privacy_consents (id, studentId, scope, isGranted, policyVersion, grantedAt, createdAt) VALUES (?, ?, 'enterprise_talent_discovery', 1, '1.0', ?, ?)")->execute([$consentId, $studentId, $now, $now]);
+} catch (\Throwable $e) {}
+
+try {
+    $pdo->prepare("INSERT INTO enterprise_talent_access_grants (id, studentId, enterpriseId, consentId, scope, grantedAt, expiresAt, createdAt, updatedAt) VALUES (?, ?, ?, ?, 'enterprise_talent_discovery', ?, ?, ?, ?)")->execute([$grantId, $studentId, $entId, $consentId, $now, $exp, $now, $now]);
+} catch (\Throwable $e) {}
+
 echo "=== Testing Talent Search Page Rendering ===\n";
 $_SERVER['REQUEST_METHOD'] = 'GET';
 $_SERVER['REQUEST_URI'] = '/app/enterprise/talents.php';
@@ -45,7 +61,7 @@ require dirname(__DIR__) . '/app/enterprise/talents.php';
 $output = ob_get_clean();
 
 assert(str_contains($output, 'Tìm nhân tài'), 'Page title "Tìm nhân tài" must be present');
-assert(str_contains($output, 'talents-mock-data'), 'Inline talents JSON must be present');
+assert(str_contains($output, 'enterprise-session-boot'), 'Inline enterprise session boot JSON must be present');
 assert(str_contains($output, 'talent-search.js'), 'talent-search.js must be loaded');
 echo " [PASS] Talent Search page rendered successfully.\n";
 

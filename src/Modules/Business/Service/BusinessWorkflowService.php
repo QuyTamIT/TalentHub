@@ -8,10 +8,14 @@ use DateTimeImmutable;
 use TalentHub\Http\ApiException;
 use TalentHub\Http\CollectionQuery;
 use TalentHub\Modules\Business\Repository\BusinessWorkflowRepository;
+use TalentHub\Modules\Business\Repository\InternshipRepository;
 
 final class BusinessWorkflowService
 {
-    public function __construct(private readonly BusinessWorkflowRepository $repository) {}
+    public function __construct(
+        private readonly BusinessWorkflowRepository $repository,
+        private readonly ?InternshipService $internships = null
+    ) {}
 
     public function enterprise(string $userId): string
     {
@@ -95,16 +99,34 @@ final class BusinessWorkflowService
 
     public function review(string $userId, string $id, array $input, string $requestId): array
     {
-        $status = (string) ($input['status'] ?? $input['targetStatus'] ?? '');
-        if (!in_array($status, ['reviewing', 'interview', 'accepted', 'declined'], true)) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Trạng thái review không hợp lệ.');
+        $enterpriseId = $this->enterprise($userId);
+        $expectedStatus = isset($input['expectedCurrentStatus']) && is_string($input['expectedCurrentStatus']) && trim($input['expectedCurrentStatus']) !== ''
+            ? trim($input['expectedCurrentStatus'])
+            : null;
+
+        if ($expectedStatus === null) {
+            $current = $this->repository->applicationStatus($enterpriseId, $id);
+            if ($current === null) {
+                throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy đơn ứng tuyển.');
+            }
+            $expectedStatus = $current;
         }
-        $note = isset($input['reviewerNote']) ? $this->text($input['reviewerNote'], 'reviewerNote', 0, 1000) : null;
-        if (!$this->repository->review($this->enterprise($userId), $userId, $id, $status, $note)) {
-            throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy đơn ứng tuyển.');
-        }
+
+        $canonicalPayload = [
+            'expectedCurrentStatus' => $expectedStatus,
+            'targetStatus' => (string) ($input['targetStatus'] ?? $input['status'] ?? ''),
+            'reviewerNote' => (string) ($input['reviewerNote'] ?? $input['note'] ?? ''),
+        ];
+
+        $reviewed = $this->getInternshipService()->review($userId, $id, $canonicalPayload);
         $this->repository->audit($userId, 'internship_application.reviewed', 'internship_application', $id, $requestId);
-        return ['id' => $id, 'status' => $status];
+
+        return ['id' => $id, 'status' => (string) ($reviewed['status'] ?? $canonicalPayload['targetStatus'])];
+    }
+
+    private function getInternshipService(): InternshipService
+    {
+        return $this->internships ?? new InternshipService(new InternshipRepository($this->repository->pdo()));
     }
 
     public function projects(CollectionQuery $query): array
@@ -161,9 +183,27 @@ final class BusinessWorkflowService
         return ['id' => $id, 'status' => 'pending'];
     }
 
+    public function confirmPayment(string $userId, string $orderId, array $input, string $requestId): array
+    {
+        $enterpriseId = $this->enterprise($userId);
+        $confirmationService = new PaymentConfirmationService($this->repository->pdo());
+        return $confirmationService->confirmPayment($enterpriseId, $orderId, $input, $requestId);
+    }
+
     public function payments(string $userId): array
     {
         return $this->repository->payments($this->enterprise($userId));
+    }
+
+    public function analytics(string $userId, array $params = []): array
+    {
+        $enterpriseId = $this->enterprise($userId);
+        return $this->repository->analytics($enterpriseId, $params);
+    }
+
+    public function getEnterpriseMetrics(string $enterpriseId): array
+    {
+        return $this->repository->analytics($enterpriseId)['summary'];
     }
 
     /** @return array<string,mixed> */
@@ -175,10 +215,8 @@ final class BusinessWorkflowService
         } catch (\Throwable) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Deadline không hợp lệ.');
         }
-        $workType = (string) ($input['workType'] ?? $input['workMode'] ?? 'onsite');
-        if (!in_array($workType, ['onsite', 'remote', 'hybrid'], true)) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Work type không hợp lệ.');
-        }
+        $rawWorkType = trim((string) ($input['workType'] ?? $input['workMode'] ?? 'onsite'));
+        $workType = $rawWorkType !== '' ? $rawWorkType : 'onsite';
         $slots = filter_var($input['slots'] ?? $input['openings'] ?? 1, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 1000]]);
         if ($slots === false) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Slots không hợp lệ.');

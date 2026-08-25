@@ -15,6 +15,7 @@ $context = (new EnterpriseAppContext())->boot();
 $user       = $context['user'];
 $enterprise = $context['enterprise'];
 $dashboard  = $context['dashboard'];
+$workflowService = $context['workflows'];
 
 if (!function_exists('getInitials')) {
     function getInitials(string $name): string {
@@ -29,14 +30,43 @@ $companyInitials = getInitials($enterprise['name']);
 $isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
 $accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
 
+$summary = [
+    'total_posts' => 0,
+    'active_posts' => 0,
+    'closed_posts' => 0,
+    'total_applicants' => 0,
+    'submitted_count' => 0,
+    'reviewing_count' => 0,
+    'qualified_candidates' => 0,
+    'qualified_percentage' => '0%',
+    'interviewing' => 0,
+    'passed_candidates' => 0,
+    'declined_candidates' => 0,
+    'pass_rate' => 0.0,
+    'pass_rate_formatted' => '0%',
+    'sponsored_projects_count' => 0,
+    'total_sponsored_amount' => '0.00',
+    'total_sponsored_formatted' => '0 VNĐ',
+    'matched_talents_count' => 0,
+];
+
+try {
+    $analyticsData = $workflowService->analytics((string) $user['id']);
+    if (!empty($analyticsData['summary'])) {
+        $summary = array_merge($summary, $analyticsData['summary']);
+    }
+} catch (\Throwable $e) {
+    error_log('Enterprise index analytics fetch failed: ' . $e->getMessage());
+}
+
 $enterpriseInfo = [
     'id'                => $enterprise['id'],
     'company_name'      => $enterprise['name'],
     'account_type'      => $accountType,
     'logo_initials'     => $companyInitials,
     'logo_url'          => $enterprise['logoUrl'] ?? null,
-    'new_matches_count' => 86,
-    'total_talents'     => 1247,
+    'new_matches_count' => $summary['qualified_candidates'],
+    'total_talents'     => $summary['matched_talents_count'],
 ];
 
 $sidebarNav = [
@@ -81,121 +111,162 @@ $sidebarNav = [
 $kpis = [
     [
         'id' => 'talents',
-        'label' => 'Hồ sơ phù hợp',
-        'value' => '1,247',
-        'change' => '+86 tuần này',
+        'label' => 'Hồ sơ ứng tuyển',
+        'value' => number_format($summary['total_applicants'], 0, ',', '.'),
+        'change' => "{$summary['submitted_count']} hồ sơ mới chờ xem",
         'change_type' => 'positive',
         'icon' => 'user-check'
     ],
     [
         'id' => 'jobs',
         'label' => 'Tin tuyển dụng',
-        'value' => '12',
-        'change' => '5 tin đang mở',
+        'value' => (string) $summary['total_posts'],
+        'change' => "{$summary['active_posts']} tin đang mở",
         'change_type' => 'positive',
         'icon' => 'file-text'
     ],
     [
         'id' => 'projects',
         'label' => 'Dự án đã tài trợ',
-        'value' => '3',
-        'change' => 'Tổng: 120 triệu VNĐ',
+        'value' => (string) $summary['sponsored_projects_count'],
+        'change' => "Tổng: " . $summary['total_sponsored_formatted'],
         'change_type' => 'positive',
         'icon' => 'gift'
     ],
     [
         'id' => 'pass_rate',
         'label' => 'Tỷ lệ qua phỏng vấn',
-        'value' => '94%',
-        'change' => '+8% so với tháng trước',
+        'value' => $summary['pass_rate_formatted'],
+        'change' => "{$summary['passed_candidates']} ứng viên trúng tuyển",
         'change_type' => 'positive',
         'icon' => 'trending-up'
     ]
 ];
 
-$featuredTalents = [
-    [
-        'id' => 1,
-        'name' => 'Nguyễn Văn An',
-        'school' => 'Đại học Bách Khoa Hà Nội',
-        'major' => 'Công nghệ Thông tin',
-        'talent_score' => 95,
-        'experience_hours' => '120h thực án',
-        'skills' => ['React', 'Node.js', 'TypeScript', 'UI/UX']
-    ],
-    [
-        'id' => 2,
-        'name' => 'Lê Thị Bích Ngọc',
-        'school' => 'Đại học Quốc Gia TP.HCM',
-        'major' => 'Khoa học Dữ liệu & AI',
-        'talent_score' => 92,
-        'experience_hours' => '95h thực án',
-        'skills' => ['Python', 'PyTorch', 'SQL', 'Data Analytics']
-    ],
-    [
-        'id' => 3,
-        'name' => 'Trần Minh Đức',
-        'school' => 'Đại học FPT',
-        'major' => 'Kỹ thuật Phần mềm',
-        'talent_score' => 88,
-        'experience_hours' => '150h thực án',
-        'skills' => ['PHP', 'Laravel', 'MySQL', 'Docker']
-    ]
-];
+$featuredTalents = [];
+$pdo = $context['pdo'] ?? null;
+$talentService = $context['talents'] ?? null;
 
-$pendingActions = [
-    [
-        'title' => '8 ứng viên mới cần xem',
-        'subtitle' => 'Hồ sơ tuyển dụng thực tập sinh tháng này',
+if ($isVerified && $talentService !== null) {
+    try {
+        $talentRes = $talentService->listTalents((string) $user['id'], ['limit' => 3]);
+        $items = $talentRes['items'] ?? [];
+        foreach ($items as $t) {
+            $skills = is_array($t['skills'] ?? null) ? $t['skills'] : [];
+            if (empty($skills) && !empty($t['skillsStr'])) {
+                $skills = array_filter(array_map('trim', explode(',', $t['skillsStr'])));
+            }
+            $featuredTalents[] = [
+                'id'               => (string) ($t['id'] ?? $t['student_id'] ?? ''),
+                'name'             => (string) ($t['name'] ?? $t['fullName'] ?? 'Ứng viên tiềm năng'),
+                'school'           => (string) ($t['school'] ?? $t['schoolName'] ?? 'Trường liên kết'),
+                'major'            => (string) ($t['major'] ?? 'Chuyên ngành kỹ thuật'),
+                'talent_score'     => (int) ($t['match_score'] ?? $t['talent_score'] ?? 90),
+                'experience_hours' => (string) ($t['experience_hours'] ?? '100+ giờ dự án'),
+                'skills'           => $skills,
+            ];
+        }
+    } catch (\Throwable $e) {
+        $featuredTalents = [];
+    }
+}
+
+if (empty($featuredTalents) && $pdo !== null) {
+    try {
+        $stmtTalent = $pdo->query(<<<'SQL'
+            SELECT sp.id, u.fullName AS name, COALESCE(s.name, 'Trường đại học') AS school,
+                   COALESCE(sp.major, 'Công nghệ thông tin') AS major,
+                   COALESCE((SELECT GROUP_CONCAT(sk.name SEPARATOR ', ') FROM student_skills sk WHERE sk.studentId = sp.id), '') AS skillsStr
+            FROM student_profiles sp
+            JOIN users u ON u.id = sp.userId
+            LEFT JOIN classes c ON c.id = sp.classId
+            LEFT JOIN schools s ON s.id = c.schoolId
+            WHERE u.status = 'active'
+            ORDER BY sp.createdAt DESC
+            LIMIT 3
+        SQL);
+        if ($stmtTalent !== false) {
+            $rows = $stmtTalent->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            foreach ($rows as $r) {
+                $skills = $r['skillsStr'] !== '' ? array_filter(array_map('trim', explode(',', $r['skillsStr']))) : ['Lập trình', 'Giải quyết vấn đề'];
+                $featuredTalents[] = [
+                    'id'               => (string) $r['id'],
+                    'name'             => (string) $r['name'],
+                    'school'           => (string) $r['school'],
+                    'major'            => (string) $r['major'],
+                    'talent_score'     => 90,
+                    'experience_hours' => '90+ giờ thực tế',
+                    'skills'           => $skills,
+                ];
+            }
+        }
+    } catch (\Throwable) {}
+}
+
+$pendingActions = [];
+if ($summary['submitted_count'] > 0) {
+    $pendingActions[] = [
+        'title' => "{$summary['submitted_count']} ứng viên mới cần xem",
+        'subtitle' => 'Hồ sơ tuyển dụng thực tập sinh cần được đánh giá',
         'type' => 'urgent',
         'action_label' => 'Xem danh sách',
-        'route' => '/app/enterprise/internships'
-    ],
-    [
-        'title' => '2 tin tuyển dụng sắp hết hạn',
-        'subtitle' => 'Vị trí Frontend Developer & AI Research',
-        'type' => 'warning',
-        'action_label' => 'Gia hạn tin',
-        'route' => '/app/enterprise/internships'
-    ],
-    [
-        'title' => '1 giao dịch tài trợ đang chờ xử lý',
-        'subtitle' => 'Dự án Sân chơi Năng khiếu Công nghệ 2026',
+        'route' => '/app/enterprise/internships/'
+    ];
+}
+if ($summary['active_posts'] > 0) {
+    $pendingActions[] = [
+        'title' => "{$summary['active_posts']} tin tuyển dụng đang hoạt động",
+        'subtitle' => 'Theo dõi và quản lý các đợt tiếp nhận hồ sơ',
         'type' => 'info',
-        'action_label' => 'Xác nhận tài trợ',
-        'route' => '/app/enterprise/sponsorships/'
-    ],
-    [
-        'title' => '3 yêu cầu liên hệ chưa xử lý',
-        'subtitle' => 'Yêu cầu kết nối từ Giảng viên Hướng dẫn ĐH Bách Khoa',
+        'action_label' => 'Quản lý tin',
+        'route' => '/app/enterprise/internships/'
+    ];
+}
+if ($summary['sponsored_projects_count'] > 0) {
+    $pendingActions[] = [
+        'title' => "{$summary['sponsored_projects_count']} dự án nhận tài trợ",
+        'subtitle' => 'Theo dõi tiến độ nghiên cứu & giải ngân',
         'type' => 'neutral',
-        'action_label' => 'Trả lời ngay',
-        'route' => '/app/enterprise/talents.php'
-    ]
-];
+        'action_label' => 'Xem tiến độ',
+        'route' => '/app/enterprise/sponsorships/'
+    ];
+}
+if (empty($pendingActions)) {
+    $pendingActions[] = [
+        'title' => 'Tất cả tác vụ đã được xử lý',
+        'subtitle' => 'Không có công việc tồn đọng cần giải quyết ngay',
+        'type' => 'neutral',
+        'action_label' => 'Đăng tin mới',
+        'route' => '/app/enterprise/internships/create.php'
+    ];
+}
 
-$recentActivities = [
-    [
-        'title' => 'Ứng viên Nguyễn Văn An vừa nộp hồ sơ vào vị trí thực tập Frontend',
-        'time' => '10 phút trước',
-        'type' => 'applicant'
-    ],
-    [
-        'title' => 'Đã lưu 3 hồ sơ tài năng từ ĐH Bách Khoa Hà Nội vào danh sách ưu tiên',
-        'time' => '2 giờ trước',
-        'type' => 'bookmark'
-    ],
-    [
-        'title' => 'Cập nhật nội dung tin tuyển dụng Thực tập sinh PHP/Laravel 2026',
-        'time' => 'Hôm qua',
-        'type' => 'edit'
-    ],
-    [
-        'title' => 'Hoàn tất thủ tục tài trợ 50.000.000 VNĐ cho Dự án Sân chơi Năng khiếu AI',
-        'time' => '2 ngày trước',
-        'type' => 'sponsorship'
-    ]
-];
+$recentActivities = [];
+if ($pdo !== null) {
+    try {
+        $stmtAct = $pdo->prepare(<<<'SQL'
+            SELECT ia.appliedAt AS act_time, CONCAT('Ứng viên nộp hồ sơ vào vị trí "', ip.title, '"') AS title, 'applicant' AS type
+            FROM internship_applications ia
+            JOIN internship_posts ip ON ip.id = ia.postId
+            WHERE ip.enterpriseId = :eId
+            ORDER BY ia.appliedAt DESC
+            LIMIT 4
+        SQL);
+        $stmtAct->execute(['eId' => $enterprise['id']]);
+        $acts = $stmtAct->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($acts as $act) {
+            $timeFormatted = 'Vừa xong';
+            try {
+                $timeFormatted = (new DateTimeImmutable($act['act_time']))->format('d/m/Y H:i');
+            } catch (\Throwable) {}
+            $recentActivities[] = [
+                'title' => (string) $act['title'],
+                'time' => $timeFormatted,
+                'type' => (string) $act['type'],
+            ];
+        }
+    } catch (\Throwable) {}
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">

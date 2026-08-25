@@ -9,6 +9,10 @@ $validCodes = ['holland', 'mbti', 'disc', 'multiple_intelligence'];
 if (!in_array($assessmentCode, $validCodes, true)) {
     $assessmentCode = 'holland';
 }
+$requestedBand = strtolower(trim((string) ($_GET['band'] ?? '')));
+$educationBand = in_array($requestedBand, ['middle', 'high', 'college'], true) ? $requestedBand : '';
+$historyResultUrl = 'assessment-result.php?code=' . urlencode($assessmentCode)
+    . ($educationBand !== '' ? '&band=' . urlencode($educationBand) : '');
 
 $assessmentNames = [
     'holland' => 'Holland — Sở thích nghề nghiệp',
@@ -101,14 +105,14 @@ $bootData = [
                             <h1 data-assessment-intro-name><?= learner_escape($assessmentName); ?></h1>
                             <p data-assessment-intro-desc>Khám phá năng khiếu và định hướng học tập qua các câu hỏi trắc nghiệm khách quan.</p>
                             <div class="learner-assessment-intro__facts">
-                                <span><?= learner_icon('file-text', 18); ?><strong data-assessment-intro-count>24 câu</strong></span>
+                                <span><?= learner_icon('file-text', 18); ?><strong data-assessment-intro-count>Đang tải số câu</strong></span>
                                 <span><?= learner_icon('clock', 18); ?><strong data-assessment-intro-duration>12 phút</strong></span>
                                 <span><?= learner_icon('check', 18); ?><strong>Tự động lưu câu trả lời</strong></span>
                             </div>
                             <div class="learner-data-note"><?= learner_icon('info', 17); ?><p>Kết quả chỉ phục vụ định hướng giáo dục và tham khảo học tập, không phải chẩn đoán tâm lý hay đánh giá tuyển sinh bắt buộc.</p></div>
                             <div class="learner-assessment-intro__actions">
                                 <button class="learner-btn learner-btn--primary" type="button" data-assessment-start>Bắt đầu làm bài <?= learner_icon('arrow-right', 17); ?></button>
-                                <a class="learner-btn learner-btn--secondary" href="assessment-result.php?code=<?= learner_escape($assessmentCode); ?>">Xem lịch sử kết quả</a>
+                                <a class="learner-btn learner-btn--secondary" href="<?= learner_escape($historyResultUrl); ?>">Xem lịch sử kết quả</a>
                             </div>
                             <button class="learner-text-button" type="button" data-assessment-resume hidden>Tiếp tục bản nháp hiện tại</button>
                         </div>
@@ -176,7 +180,7 @@ $bootData = [
                     <span><strong>Trung học cơ sở</strong> (Lớp 6 – 9)</span>
                 </label>
                 <label class="learner-band-option">
-                    <input type="radio" name="education_band" value="high" checked>
+                    <input type="radio" name="education_band" value="high">
                     <span><strong>Trung học phổ thông</strong> (Lớp 10 – 12)</span>
                 </label>
                 <label class="learner-band-option">
@@ -184,6 +188,7 @@ $bootData = [
                     <span><strong>Đại học / Cao đẳng</strong></span>
                 </label>
             </div>
+            <p class="learner-form-error" role="alert" data-assessment-band-error hidden>Vui lòng chọn một cấp học để tiếp tục.</p>
             <div class="learner-modal__actions">
                 <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Hủy</button>
                 <button class="learner-btn learner-btn--primary" type="button" data-confirm-band>Xác nhận và tiếp tục</button>

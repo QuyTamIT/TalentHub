@@ -25,7 +25,7 @@ final class StudentRepository
             : '';
 
         $statement = $this->pdo->prepare(
-            'SELECT sp.id,sp.userId,u.email,u.fullName,sp.classId,c.name AS className,c.gradeLevel,c.academicYear,c.schoolId,s.name AS schoolName,sp.dateOfBirth,sp.phone,sp.studyStatus,' . $timestamps . ',' . $detailFields . ' FROM student_profiles sp JOIN users u ON u.id=sp.userId JOIN classes c ON c.id=sp.classId JOIN schools s ON s.id=c.schoolId ' . $detailJoin . ' WHERE sp.userId=? LIMIT 1'
+            'SELECT sp.id,sp.userId,u.email,u.fullName,sp.classId,c.name AS className,c.gradeLevel,c.academicYear,c.schoolId,COALESCE(s.name, \'Trường học\') AS schoolName,sp.dateOfBirth,sp.phone,sp.studyStatus,' . $timestamps . ',' . $detailFields . ' FROM student_profiles sp JOIN users u ON u.id=sp.userId LEFT JOIN classes c ON c.id=sp.classId LEFT JOIN schools s ON s.id=c.schoolId ' . $detailJoin . ' WHERE sp.userId=? LIMIT 1'
         );
         $statement->execute([$userId]);
         $row = $statement->fetch();

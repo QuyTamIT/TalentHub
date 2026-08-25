@@ -6,6 +6,9 @@ require_once __DIR__ . '/includes/icons.php';
 $pageTitle = 'Tổng quan';
 $currentRoute = '/app/learner/index.php';
 $dashboardSkills = array_slice($skills, 0, 4);
+$onboarding = $GLOBALS['learner_page_context']['onboarding'] ?? ['required' => false];
+$onboardingPending = ($onboarding['required'] ?? false) === true
+    && ($onboarding['status'] ?? '') === 'pending';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -18,7 +21,7 @@ $dashboardSkills = array_slice($skills, 0, 4);
     <link rel="stylesheet" href="../../assets/css/learner.css">
 </head>
 <body class="learner-app learner-page-overview" data-learner-source="<?= ($isDatabaseMode ?? false) ? 'database' : 'mock'; ?>">
-    <div class="learner-layout">
+    <div class="learner-layout"<?= $onboardingPending ? ' inert aria-hidden="true"' : ''; ?>>
         <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
         <div class="learner-main">
@@ -154,7 +157,45 @@ $dashboardSkills = array_slice($skills, 0, 4);
         </div>
     </div>
 
+    <?php if ($onboardingPending): ?>
+    <div class="learner-onboarding" data-onboarding-dialog>
+        <div class="learner-onboarding__backdrop" aria-hidden="true"></div>
+        <section
+            class="learner-onboarding__dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="onboarding-title"
+            aria-describedby="onboarding-description"
+            tabindex="-1"
+        >
+            <span class="learner-onboarding__eyebrow">Bước bắt buộc cho tài khoản mới</span>
+            <h2 id="onboarding-title">Hoàn thành đánh giá ban đầu</h2>
+            <p id="onboarding-description">Hoàn thành bốn bài đánh giá để TalentHub hiểu sở thích, năng khiếu và cá nhân hóa lộ trình phát triển của bạn.</p>
+            <ul class="learner-onboarding__tests" aria-label="Bốn bài đánh giá bắt buộc">
+                <li>Holland</li>
+                <li>MBTI</li>
+                <li>DISC</li>
+                <li>Đa trí thông minh</li>
+            </ul>
+            <p class="learner-onboarding__save-note">Tiến độ được tự động lưu để bạn tiếp tục trong lần đăng nhập sau.</p>
+            <div class="learner-onboarding__actions">
+                <form method="post" action="<?= learner_escape(app_href('/app/learner/onboarding.php')); ?>">
+                    <input type="hidden" name="csrfToken" value="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ''); ?>">
+                    <button class="learner-btn learner-btn--primary" type="submit" name="action" value="accept">Đồng ý và bắt đầu</button>
+                </form>
+                <form method="post" action="<?= learner_escape(app_href('/app/learner/onboarding.php')); ?>">
+                    <input type="hidden" name="csrfToken" value="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ''); ?>">
+                    <button class="learner-btn learner-btn--danger" type="submit" name="action" value="decline">Từ chối và đăng xuất</button>
+                </form>
+            </div>
+        </section>
+    </div>
+    <?php endif; ?>
+
     <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
+    <?php if ($onboardingPending): ?>
+    <script src="../../assets/js/learner-onboarding.js"></script>
+    <?php endif; ?>
 </body>
 </html>

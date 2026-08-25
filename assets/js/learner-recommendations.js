@@ -1,6 +1,6 @@
 /**
  * Evidence-backed learner recommendation UI. The page receives only the
- * response-mapper contract and never renders raw snapshots or provider data.
+ * response-mapper contract and never renders raw snapshots or provider responses.
  */
 (function initLearnerRecommendations(global) {
     'use strict';
@@ -16,6 +16,12 @@
         if (state === 'fallback_rule') return 'fallback-rule';
         if (state === 'pending') return 'loading';
         return 'source-error';
+    }
+
+    function recommendationSection(itemType) {
+        if (itemType === 'strength') return 'strength';
+        if (itemType === 'activity') return 'activity';
+        return 'other';
     }
 
     function createRecommendationController({ api, view, createIdempotencyKey = defaultIdempotencyKey }) {
@@ -121,6 +127,7 @@
             results: root.querySelector('[data-ai-results]'),
             list: root.querySelector('[data-ai-result-list]'),
             engineLabel: root.querySelector('[data-ai-engine-label]'),
+            engineDetails: root.querySelector('[data-ai-engine-details]'),
             generatedAt: root.querySelector('[data-ai-generated-at]'),
             feedbackStatus: root.querySelector('[data-ai-feedback-status]'),
         };
@@ -184,22 +191,74 @@
             if (!nodes.list) return;
             while (nodes.list.firstChild) nodes.list.removeChild(nodes.list.firstChild);
             evidenceByItem.clear();
-            if (nodes.engineLabel) nodes.engineLabel.textContent = engineLabel(state);
+            if (nodes.engineLabel) nodes.engineLabel.textContent = engineLabel(state, payload);
+            renderEngineDetails(payload);
             if (nodes.generatedAt) {
                 const generatedAt = displayDate(payload?.generated_at);
                 nodes.generatedAt.textContent = generatedAt === 'Ngày nguồn không xác định' ? '' : `Tạo ngày ${generatedAt}`;
             }
-            const items = Array.isArray(payload?.items) ? payload.items : [];
-            for (const item of items) {
-                if (!item || typeof item !== 'object') continue;
-                nodes.list.appendChild(renderItem(item));
+            const items = Array.isArray(payload?.items)
+                ? payload.items.filter((item) => item && typeof item === 'object')
+                : [];
+            const groups = [
+                ['strength', 'Điểm mạnh nổi bật'],
+                ['activity', 'Hoạt động phù hợp'],
+                ['other', 'Gợi ý khác'],
+            ];
+            for (const [sectionName, heading] of groups) {
+                const sectionItems = items.filter((item) => recommendationSection(item.item_type) === sectionName);
+                if (sectionItems.length === 0) continue;
+                nodes.list.appendChild(renderGroup(sectionName, heading, sectionItems));
             }
+        }
+
+        function renderGroup(sectionName, heading, items) {
+            const section = document.createElement('section');
+            section.className = `learner-ai-result-group learner-ai-result-group--${sectionName}`;
+            const title = document.createElement('h3');
+            title.className = 'learner-ai-result-group__title';
+            title.textContent = heading;
+            const cards = document.createElement('div');
+            cards.className = 'learner-ai-result-group__cards';
+            for (const item of items) {
+                cards.appendChild(renderItem(item));
+            }
+            section.append(title, cards);
+            return section;
+        }
+
+        function renderEngineDetails(payload) {
+            if (!nodes.engineDetails) return;
+            while (nodes.engineDetails.firstChild) nodes.engineDetails.removeChild(nodes.engineDetails.firstChild);
+            const metadata = [
+                ['Nhà cung cấp', payload?.provider],
+                ['Phiên bản mô hình', payload?.model_version],
+                ['Phiên bản quy tắc', payload?.rule_version],
+                ['Phiên bản hướng dẫn', payload?.prompt_version],
+                ['Lý do dùng phương án dự phòng', payload?.fallback_reason],
+            ].filter((entry) => typeof entry[1] === 'string' && entry[1].trim() !== '');
+            if (metadata.length === 0) return;
+
+            const details = document.createElement('details');
+            details.className = 'learner-ai-engine-details';
+            const summary = document.createElement('summary');
+            summary.textContent = 'Thông tin kỹ thuật';
+            const list = document.createElement('dl');
+            for (const [label, value] of metadata) {
+                const term = document.createElement('dt');
+                term.textContent = label;
+                const description = document.createElement('dd');
+                description.textContent = value;
+                list.append(term, description);
+            }
+            details.append(summary, list);
+            nodes.engineDetails.appendChild(details);
         }
 
         function renderItem(item) {
             const article = document.createElement('article');
             article.className = 'learner-card learner-ai-result';
-            const title = document.createElement('h3');
+            const title = document.createElement('h4');
             title.textContent = text(item.title, 'Gợi ý phát triển');
             const summary = document.createElement('p');
             summary.className = 'learner-ai-result__summary';
@@ -285,10 +344,15 @@
         return button;
     }
 
-    function engineLabel(state) {
-        if (state === 'ready-model') return 'Mô hình AI đã được phê duyệt';
-        if (state === 'fallback-rule') return 'Rule baseline (dự phòng)';
-        return 'Rule baseline';
+    function engineLabel(state, payload = {}) {
+        const effectiveState = state !== 'feedback-saved'
+            ? state
+            : (typeof payload?.state === 'string'
+                ? presentationState(payload)
+                : (payload?.engine_type === 'model' ? 'ready-model' : 'ready-rule'));
+        if (effectiveState === 'ready-model') return 'Gợi ý từ mô hình AI';
+        if (effectiveState === 'fallback-rule') return 'Gợi ý dự phòng theo quy tắc';
+        return 'Gợi ý theo quy tắc';
     }
 
     function sourceLabel(sourceType) {
@@ -354,7 +418,7 @@
         controller.load();
     }
 
-    const api = { createRecommendationController, createDomView, presentationState };
+    const api = { createRecommendationController, createDomView, presentationState, recommendationSection, engineLabel };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     global.TalentHubLearnerRecommendations = api;
 

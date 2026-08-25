@@ -1,15 +1,26 @@
 <?php
 /**
  * Teacher Dashboard - Sidebar Component
+ *
+ * Synchronized with Enterprise Design System:
+ * - Clean stroke SVG icons
+ * - Proper active state styling
+ * - Seamless logout action at bottom with soft red warning transition
  */
-$teacherSidebarHomeHref = '../../index.php';
-$teacherSidebarRoleHref = '../../role-selection.php';
+
+if (!function_exists('app_href') && is_file(dirname(__DIR__, 3) . '/bin/bootstrap.php')) {
+    require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
+}
+
+$teacherSidebarHomeHref = function_exists('app_href') ? app_href('/app/teacher/index.php') : '../../index.php';
+$logoutUrl = function_exists('app_href') ? app_href('/logout.php') : '/logout.php';
+
 $teacherRouteHrefs = [
-    'grid' => app_href('/app/teacher/index.php'),
-    'trophy' => app_href('/app/teacher/activities/index.php'),
-    'clipboard-check' => app_href('/app/teacher/assessments/index.php'),
-    'users' => app_href('/app/teacher/students/index.php'),
-    'qr' => app_href('/app/teacher/checkins/index.php'),
+    'grid' => function_exists('app_href') ? app_href('/app/teacher/index.php') : '../index.php',
+    'trophy' => function_exists('app_href') ? app_href('/app/teacher/activities/index.php') : 'activities/',
+    'clipboard-check' => function_exists('app_href') ? app_href('/app/teacher/assessments/index.php') : 'assessments/',
+    'users' => function_exists('app_href') ? app_href('/app/teacher/students/index.php') : 'students/',
+    'qr' => function_exists('app_href') ? app_href('/app/teacher/checkins/index.php') : 'checkins/',
 ];
 ?>
 <div class="teacher-sidebar-backdrop" id="teacher-sidebar-backdrop" aria-hidden="true"></div>
@@ -31,8 +42,11 @@ $teacherRouteHrefs = [
         <div class="teacher-sidebar__nav-title">QUẢN LÝ GIÁO VIÊN</div>
         <ul>
             <?php foreach ($sidebarNav as $navItem):
-                $isActive = (isset($currentRoute) && $navItem['route'] === $currentRoute) || (!isset($currentRoute) && $navItem['active']);
-                $navHref = $teacherRouteHrefs[$navItem['icon']] ?? '#';
+                $isActive = (isset($currentRoute) && ($navItem['route'] === $currentRoute || strpos($currentRoute, strtok($navItem['route'], '.')) === 0)) || (!isset($currentRoute) && !empty($navItem['active']));
+                $navHref = $navItem['href'] ?? ($teacherRouteHrefs[$navItem['icon']] ?? '#');
+                if (function_exists('app_href') && str_starts_with((string)$navHref, '/app/teacher/')) {
+                    $navHref = app_href($navHref);
+                }
             ?>
                 <li>
                     <a href="<?= htmlspecialchars($navHref); ?>"
@@ -89,12 +103,19 @@ $teacherRouteHrefs = [
         </ul>
     </nav>
 
+    <!-- Bottom Action: Logout -->
     <div class="teacher-sidebar__footer">
-        <a href="<?= htmlspecialchars($teacherSidebarRoleHref); ?>" class="teacher-sidebar__link teacher-sidebar__link--switch">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M16 17l5-5-5-5M19.8 12H9M13 22a10 10 0 1 1 0-20"></path>
-            </svg>
-            <span>Đổi vai trò</span>
+        <a href="<?= htmlspecialchars($logoutUrl); ?>" 
+           class="teacher-sidebar__link teacher-sidebar__link--logout"
+           aria-label="Đăng xuất khỏi hệ thống">
+            <span class="teacher-sidebar__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </span>
+            <span>Đăng xuất</span>
         </a>
     </div>
 </aside>

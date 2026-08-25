@@ -65,7 +65,11 @@ function teacherDashboardBackendContext(): array
         $user = $session->requireUser();
 
         if (($user['role'] ?? '') !== 'teacher') {
-            throw new ApiException(403, 'PERMISSION_DENIED', 'Chức năng này chỉ dành cho giáo viên.');
+            $session->destroy();
+            $target = app_href($_SERVER['REQUEST_URI'] ?? '/app/teacher/');
+            $loginUrl = app_href('/login.php') . '?next=' . urlencode($target) . '&role_required=teacher';
+            header('Location: ' . $loginUrl);
+            exit;
         }
 
         (new PermissionService($pdo))->require($user['id'], 'teacher_dashboard.read_own');

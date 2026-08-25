@@ -5,20 +5,21 @@
  * Note for Developers:
  * - This detail page displays comprehensive learner profiles including skills,
  *   experience logs, featured projects, certificates, and internship readiness.
- * - Profile data is loaded dynamically by candidate ID (?id=1, ?id=2, etc.).
- * - Privacy rules strictly enforced: NO personal email or phone numbers rendered directly.
+ * - Profile data is loaded dynamically by candidate studentId (?id=uuid).
+ * - Privacy rules strictly enforced: NO personal email or phone numbers rendered directly without consent.
  * - Contact requests trigger a modal with privacy consent notices.
  */
 
 require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
 require_once dirname(__DIR__, 3) . '/src/Bootstrap/EnterpriseAppContext.php';
-require_once __DIR__ . '/../includes/talents-data.php';
 
 use TalentHub\Bootstrap\EnterpriseAppContext;
 
 $context = (new EnterpriseAppContext())->boot();
 $user       = $context['user'];
 $enterprise = $context['enterprise'];
+$csrfToken  = $context['csrfToken'];
+$talentService = $context['talents'];
 
 if (!function_exists('getInitials')) {
     function getInitials(string $name): string {
@@ -39,12 +40,56 @@ $enterpriseInfo = [
     'account_type'      => $accountType,
     'logo_initials'     => $companyInitials,
     'logo_url'          => $enterprise['logoUrl'] ?? null,
-    'new_matches_count' => 86,
-    'total_talents'     => 1247,
+    'new_matches_count' => 0,
+    'total_talents'     => 0,
 ];
 
-$talentId = isset($_GET['id']) ? trim((string)$_GET['id']) : '1';
-$talent = getTalentById($talentId);
+$talentId = isset($_GET['id']) ? trim((string)$_GET['id']) : '';
+$rawTalent = null;
+$talent = null;
+
+if ($talentId !== '' && $isVerified) {
+    try {
+        $rawTalent = $talentService->getTalent($user['id'], $talentId);
+    } catch (\Throwable $e) {
+        $rawTalent = null;
+    }
+}
+
+if ($rawTalent !== null) {
+    $skillsList = [];
+    foreach ($rawTalent['skills'] ?? [] as $sk) {
+        $skillsList[] = [
+            'name' => (string) ($sk['skillName'] ?? $sk['name'] ?? ''),
+            'level' => (string) ($sk['proficiencyLevel'] ?? $sk['level'] ?? 'Trung bình'),
+            'verified' => ($sk['verificationStatus'] ?? '') === 'verified' || !empty($sk['verified']),
+        ];
+    }
+
+    $talent = [
+        'id' => $rawTalent['studentId'],
+        'name' => $rawTalent['displayName'],
+        'avatar_initials' => getInitials($rawTalent['displayName']),
+        'talent_score' => 80 + count($skillsList) * 2,
+        'school' => $rawTalent['schoolName'] ?: 'Chưa cập nhật trường',
+        'class_year' => $rawTalent['className'] ?: '',
+        'education_level' => $rawTalent['studyStatus'] ?: 'Sinh viên',
+        'major_field' => $rawTalent['headline'] ?: 'Công nghệ & Kỹ thuật',
+        'internship_status_label' => 'Sẵn sàng thực tập',
+        'bio' => $rawTalent['bio'],
+        'location' => $rawTalent['location'],
+        'detailed_skills' => $skillsList,
+        'experience_entries' => $rawTalent['experience']['confirmed_entries'] ?? [],
+        'experience_hours' => $rawTalent['experience']['confirmed_hours'] ?? 0,
+        'certificates' => $rawTalent['certificates'] ?? [],
+        'projects' => $rawTalent['projects'] ?? [],
+        'contactAllowed' => $rawTalent['contactAllowed'] ?? false,
+        'hasPendingContactRequest' => $rawTalent['hasPendingContactRequest'] ?? false,
+        'email' => $rawTalent['email'] ?? null,
+        'phone' => $rawTalent['phone'] ?? null,
+        'saved' => false,
+    ];
+}
 
 $pageTitle = $talent ? ('Hồ sơ nhân tài - ' . $talent['name']) : 'Không tìm thấy hồ sơ';
 $currentRoute = '/app/enterprise/talents.php';
@@ -467,6 +512,17 @@ $sidebarNav = [
             <span class="ent-toast__message">Thông báo hệ thống</span>
         </div>
     </div>
+
+    <!-- Bootstrap session configuration for talent detail -->
+    <script id="enterprise-talent-detail-boot" type="application/json">
+        <?= json_encode([
+            'csrfToken' => $csrfToken,
+            'studentId' => $talentId,
+            'apiBase' => '/api/v1/businesses/me',
+            'contactAllowed' => $talent['contactAllowed'] ?? false,
+            'hasPendingContactRequest' => $talent['hasPendingContactRequest'] ?? false,
+        ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
+    </script>
 
     <!-- JavaScript Assets -->
     <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>

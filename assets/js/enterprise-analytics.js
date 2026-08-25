@@ -60,45 +60,59 @@ document.addEventListener('DOMContentLoaded', function () {
         const postVal = filterPost ? filterPost.value : 'all';
         const statusVal = filterStatus ? filterStatus.value : 'all';
 
-        let multiplier = 1.0;
-        if (timeVal === 'q3_2026') multiplier = 0.85;
-        if (timeVal === '6_months') multiplier = 2.4;
-        if (timeVal === 'y2026') multiplier = 4.2;
+        const analytics = window.ENTERPRISE_ANALYTICS_DATA || {};
+        const summary = analytics.summary || {};
+        const jobs = window.JOB_PERFORMANCE_DATA || [];
 
-        if (postVal !== 'all') multiplier *= 0.35;
+        let baseTotal = summary.total_applicants || 0;
+        let baseQualified = summary.qualified_candidates || 0;
+        let baseInterviewing = summary.interviewing || 0;
+        let basePassed = summary.passed_candidates || 0;
+        let passRateVal = summary.pass_rate || 0.0;
 
-        // Base Numbers
-        let baseTotal = Math.round(1482 * multiplier);
-        let baseQualified = Math.round(964 * multiplier);
-        let baseInterviewing = Math.round(142 * multiplier);
-        let passRateVal = 74.2;
+        if (postVal !== 'all') {
+            const matchedJob = jobs.find(j => String(j.id) === String(postVal));
+            if (matchedJob) {
+                baseTotal = matchedJob.applicants || 0;
+                baseQualified = matchedJob.qualified || 0;
+                baseInterviewing = matchedJob.interviewed || 0;
+                basePassed = matchedJob.passed || 0;
+                const reviewCount = baseInterviewing + basePassed;
+                passRateVal = reviewCount > 0 ? ((basePassed / reviewCount) * 100) : (baseTotal > 0 ? (basePassed / baseTotal) * 100 : 0);
+            } else {
+                baseTotal = 0;
+                baseQualified = 0;
+                baseInterviewing = 0;
+                basePassed = 0;
+                passRateVal = 0.0;
+            }
+        }
 
         if (statusVal === 'qualified') {
             baseTotal = baseQualified;
         } else if (statusVal === 'interviewing') {
             baseTotal = baseInterviewing;
+        } else if (statusVal === 'passed') {
+            baseTotal = basePassed;
         }
 
         // Update KPIs with smooth UI transition
         if (kpiTotal) kpiTotal.textContent = baseTotal.toLocaleString('vi-VN');
         if (kpiQualified) kpiQualified.textContent = baseQualified.toLocaleString('vi-VN');
         if (kpiInterviewing) kpiInterviewing.textContent = baseInterviewing.toLocaleString('vi-VN');
-        if (kpiPassRate) kpiPassRate.textContent = passRateVal.toFixed(1) + '%';
+        if (kpiPassRate) kpiPassRate.textContent = Number(passRateVal).toFixed(1) + '%';
 
         // Update Funnel Stage Counts
-        if (funnelAppliedCount) funnelAppliedCount.textContent = baseTotal.toLocaleString('vi-VN');
+        if (funnelAppliedCount) funnelAppliedCount.textContent = (postVal === 'all' ? (summary.total_applicants || 0) : baseTotal).toLocaleString('vi-VN');
         if (funnelQualifiedCount) funnelQualifiedCount.textContent = baseQualified.toLocaleString('vi-VN');
-        
-        let interviewedVal = Math.round(318 * multiplier);
-        let passedVal = Math.round(236 * multiplier);
-        
-        if (funnelInterviewedCount) funnelInterviewedCount.textContent = interviewedVal.toLocaleString('vi-VN');
-        if (funnelPassedCount) funnelPassedCount.textContent = passedVal.toLocaleString('vi-VN');
+        if (funnelInterviewedCount) funnelInterviewedCount.textContent = (baseInterviewing + basePassed).toLocaleString('vi-VN');
+        if (funnelPassedCount) funnelPassedCount.textContent = basePassed.toLocaleString('vi-VN');
 
         // Update Funnel Progress Bars
-        const qualPct = Math.min(100, Math.round((baseQualified / Math.max(1, baseTotal)) * 100));
-        const intPct = Math.min(100, Math.round((interviewedVal / Math.max(1, baseTotal)) * 100));
-        const passPct = Math.min(100, Math.round((passedVal / Math.max(1, baseTotal)) * 100));
+        const maxRef = Math.max(1, baseTotal);
+        const qualPct = Math.min(100, Math.round((baseQualified / maxRef) * 100));
+        const intPct = Math.min(100, Math.round(((baseInterviewing + basePassed) / maxRef) * 100));
+        const passPct = Math.min(100, Math.round((basePassed / maxRef) * 100));
 
         if (funnelQualifiedBar) funnelQualifiedBar.style.width = qualPct + '%';
         if (funnelInterviewedBar) funnelInterviewedBar.style.width = intPct + '%';
@@ -113,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const rows = window.JOB_PERFORMANCE_DATA.filter(item => {
             if (selectedPostKey === 'all') return true;
-            return item.post_key === selectedPostKey;
+            return String(item.id) === String(selectedPostKey);
         });
 
         tableTbody.innerHTML = '';
@@ -131,6 +145,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         rows.forEach(item => {
             const tr = document.createElement('tr');
+            const qualPct = item.applicants > 0 ? Math.round((item.qualified / item.applicants) * 100) : 0;
             tr.innerHTML = `
                 <td>
                     <div class="ana-job-title">${item.position}</div>
@@ -144,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 </td>
                 <td class="text-center">
                     <span class="font-semibold text-accent">${item.qualified.toLocaleString('vi-VN')}</span>
-                    <span class="ana-qual-pct">(${Math.round((item.qualified/item.applicants)*100)}%)</span>
+                    <span class="ana-qual-pct">(${qualPct}%)</span>
                 </td>
                 <td class="text-center">
                     <span class="font-medium text-secondary">${item.interviewed}</span>

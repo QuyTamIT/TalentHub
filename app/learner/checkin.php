@@ -72,6 +72,7 @@ $checkinBoot = ['csrfToken' => (string) ($GLOBALS['learner_page_context']['csrfT
     <script id="learner-checkin-boot" type="application/json"><?= json_encode($checkinBoot, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
     <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
+    <script src="../../assets/js/vendor/jsQR.js"></script>
     <script src="../../assets/js/learner-checkin.js"></script>
 </body>
 </html>

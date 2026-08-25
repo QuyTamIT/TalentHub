@@ -134,6 +134,7 @@
         }
 
         init() {
+            if (getBootContext().onboardingRestricted === true) return;
             this.updateUnreadCount();
             window.setInterval(() => this.updateUnreadCount(), 30000);
             if (!this.list) return;

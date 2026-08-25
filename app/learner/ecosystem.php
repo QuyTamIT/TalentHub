@@ -19,6 +19,8 @@ $activeOpportunities = array_values(array_filter(
     static fn (array $opportunity): bool => ($opportunity['status'] ?? '') === 'active'
 ));
 $applications = learner_ecosystem_applications();
+$ecosystemSource = learner_repository_factory()->source();
+$isDatabaseSource = $ecosystemSource === 'database';
 
 function learner_ecosystem_date(string $date): string
 {
@@ -107,33 +109,46 @@ function learner_ecosystem_date(string $date): string
                     </div>
                     <div class="learner-partner-grid" data-ecosystem-results>
                         <?php foreach ($enterprises as $enterprise): ?>
-                            <article class="learner-partner-card learner-card" data-ecosystem-item data-search="<?= learner_escape($enterprise['name'] . ' ' . $enterprise['industry'] . ' ' . $enterprise['location']); ?>" data-field="<?= learner_escape($enterprise['industry']); ?>" data-location="<?= learner_escape($enterprise['location']); ?>">
+                            <?php $enterpriseVerificationStatus = (string) ($enterprise['verification_status'] ?? ''); ?>
+                            <?php $enterpriseIndustry = learner_ecosystem_partner_has_value($enterprise, 'industry') ? trim((string) $enterprise['industry']) : ''; ?>
+                            <?php $enterpriseLocation = learner_ecosystem_partner_has_value($enterprise, 'location') ? trim((string) $enterprise['location']) : ''; ?>
+                            <?php $enterpriseHasDescription = learner_ecosystem_partner_has_value($enterprise, 'description'); ?>
+                            <?php $enterpriseHasOpportunityCount = learner_ecosystem_partner_has_value($enterprise, 'opportunity_count'); ?>
+                            <?php $enterpriseSearch = implode(' ', array_filter([(string) $enterprise['name'], $enterpriseIndustry, $enterpriseLocation])); ?>
+                            <article class="learner-partner-card learner-card" data-ecosystem-item data-search="<?= learner_escape($enterpriseSearch); ?>" data-field="<?= learner_escape($enterpriseIndustry); ?>" data-location="<?= learner_escape($enterpriseLocation); ?>">
                                 <div class="learner-partner-card__header">
                                     <span class="learner-partner-logo learner-partner-logo--enterprise"><?= learner_escape($enterprise['logo_text']); ?></span>
-                                    <?php if ($enterprise['verified']): ?>
-                                        <span class="learner-verified-pill"><?= learner_icon('check', 14); ?> Đã xác minh</span>
+                                    <?php if ($enterprise['verified'] || in_array($enterpriseVerificationStatus, ['verified', 'approved'], true)): ?>
+                                        <span class="learner-verified-pill"><?= learner_icon('check', 14); ?> <?= $enterpriseVerificationStatus === 'approved' ? 'Đã phê duyệt' : 'Đã xác minh'; ?></span>
                                     <?php endif; ?>
                                 </div>
                                 <div class="learner-partner-card__body">
-                                    <p class="learner-card-kicker">Doanh nghiệp công nghệ</p>
+                                    <?php if ($enterpriseIndustry !== ''): ?><p class="learner-card-kicker"><?= learner_escape($enterpriseIndustry); ?></p><?php endif; ?>
                                     <h3><?= learner_escape($enterprise['name']); ?></h3>
-                                    <p><?= learner_escape($enterprise['description']); ?></p>
+                                    <?php if ($enterpriseHasDescription): ?><p><?= learner_escape(trim((string) $enterprise['description'])); ?></p><?php endif; ?>
                                 </div>
-                                <div class="learner-meta-list">
-                                    <span><?= learner_icon('briefcase', 16); ?> <?= learner_escape($enterprise['industry']); ?></span>
-                                    <span><?= learner_icon('map-pin', 16); ?> <?= learner_escape($enterprise['location']); ?></span>
-                                </div>
+                                <?php if ($enterpriseIndustry !== '' || $enterpriseLocation !== ''): ?>
+                                    <div class="learner-meta-list">
+                                        <?php if ($enterpriseIndustry !== ''): ?><span><?= learner_icon('briefcase', 16); ?> <?= learner_escape($enterpriseIndustry); ?></span><?php endif; ?>
+                                        <?php if ($enterpriseLocation !== ''): ?><span><?= learner_icon('map-pin', 16); ?> <?= learner_escape($enterpriseLocation); ?></span><?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
                                 <div class="learner-partner-card__footer">
-                                    <span><strong><?= learner_escape($enterprise['opportunity_count']); ?></strong> cơ hội đang mở</span>
+                                    <?php if ($enterpriseHasOpportunityCount): ?><span><strong><?= learner_escape($enterprise['opportunity_count']); ?></strong> cơ hội đang mở</span><?php endif; ?>
                                     <a class="learner-btn learner-btn--outline" href="partner.php?type=enterprise&amp;id=<?= learner_escape($enterprise['id']); ?>">Xem doanh nghiệp <?= learner_icon('arrow-right', 16); ?></a>
                                 </div>
                             </article>
                         <?php endforeach; ?>
                     </div>
-                    <div class="learner-empty-state learner-card" hidden data-ecosystem-empty>
+                    <div class="learner-empty-state learner-card" <?= $enterprises !== [] ? 'hidden' : ''; ?> data-ecosystem-empty>
                         <span class="learner-empty-state__icon"><?= learner_icon('search', 24); ?></span>
-                        <h2>Chưa tìm thấy doanh nghiệp phù hợp</h2>
-                        <p>Thử thay đổi từ khóa hoặc bộ lọc để xem thêm kết quả.</p>
+                        <?php if ($isDatabaseSource && $enterprises === []): ?>
+                            <h2>Chưa có doanh nghiệp đã xác minh</h2>
+                            <p>Danh sách chỉ hiển thị doanh nghiệp đang hoạt động đã được xác minh hoặc phê duyệt.</p>
+                        <?php else: ?>
+                            <h2>Chưa tìm thấy doanh nghiệp phù hợp</h2>
+                            <p>Thử thay đổi từ khóa hoặc bộ lọc để xem thêm kết quả.</p>
+                        <?php endif; ?>
                     </div>
                 </section>
 
@@ -141,38 +156,54 @@ function learner_ecosystem_date(string $date): string
                     <div class="learner-section-heading learner-ecosystem-panel__heading">
                         <div>
                             <h2>Trường học đối tác</h2>
-                            <p>Dữ liệu demo để hoàn thiện luồng; sẵn sàng thay bằng API chính thức.</p>
+                            <p>Danh sách trường học đang hoạt động trong hệ sinh thái TalentHub.</p>
                         </div>
                         <span><?= count($schools); ?> trường học</span>
                     </div>
                     <div class="learner-partner-grid" data-ecosystem-results>
                         <?php foreach ($schools as $school): ?>
-                            <article class="learner-partner-card learner-card" data-ecosystem-item data-search="<?= learner_escape($school['name'] . ' ' . $school['school_type'] . ' ' . implode(' ', $school['programs']) . ' ' . $school['location']); ?>" data-field="<?= learner_escape(implode(' ', $school['programs'])); ?>" data-location="<?= learner_escape($school['location']); ?>">
+                            <?php $schoolType = learner_ecosystem_partner_has_value($school, 'school_type') ? trim((string) $school['school_type']) : ''; ?>
+                            <?php $schoolPrograms = learner_ecosystem_partner_list($school, 'programs'); ?>
+                            <?php $schoolLocation = learner_ecosystem_partner_has_value($school, 'location') ? trim((string) $school['location']) : ''; ?>
+                            <?php $schoolHasDescription = learner_ecosystem_partner_has_value($school, 'description'); ?>
+                            <?php $schoolHasOpportunityCount = learner_ecosystem_partner_has_value($school, 'opportunity_count'); ?>
+                            <?php $schoolField = implode(' ', $schoolPrograms); ?>
+                            <?php $schoolSearch = implode(' ', array_filter([(string) $school['name'], $schoolType, $schoolField, $schoolLocation])); ?>
+                            <article class="learner-partner-card learner-card" data-ecosystem-item data-search="<?= learner_escape($schoolSearch); ?>" data-field="<?= learner_escape($schoolField); ?>" data-location="<?= learner_escape($schoolLocation); ?>">
                                 <div class="learner-partner-card__header">
                                     <span class="learner-partner-logo learner-partner-logo--school"><?= learner_escape($school['logo_text']); ?></span>
-                                    <span class="learner-demo-pill">Dữ liệu demo</span>
+                                    <?php if ($school['verified']): ?>
+                                        <span class="learner-verified-pill"><?= learner_icon('check', 14); ?> Đã xác minh</span>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="learner-partner-card__body">
-                                    <p class="learner-card-kicker"><?= learner_escape($school['school_type']); ?></p>
+                                    <?php if ($schoolType !== ''): ?><p class="learner-card-kicker"><?= learner_escape($schoolType); ?></p><?php endif; ?>
                                     <h3><?= learner_escape($school['name']); ?></h3>
-                                    <p><?= learner_escape($school['description']); ?></p>
+                                    <?php if ($schoolHasDescription): ?><p><?= learner_escape(trim((string) $school['description'])); ?></p><?php endif; ?>
                                 </div>
-                                <div class="learner-chip-list" aria-label="Ngành đào tạo nổi bật">
-                                    <?php foreach (array_slice($school['programs'], 0, 3) as $program): ?>
-                                        <span><?= learner_escape($program); ?></span>
-                                    <?php endforeach; ?>
-                                </div>
+                                <?php if ($schoolPrograms !== []): ?>
+                                    <div class="learner-chip-list" aria-label="Ngành đào tạo nổi bật">
+                                        <?php foreach (array_slice($schoolPrograms, 0, 3) as $program): ?>
+                                            <span><?= learner_escape($program); ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
                                 <div class="learner-partner-card__footer">
-                                    <span><strong><?= learner_escape($school['opportunity_count']); ?></strong> chương trình nổi bật</span>
+                                    <?php if ($schoolHasOpportunityCount): ?><span><strong><?= learner_escape($school['opportunity_count']); ?></strong> chương trình nổi bật</span><?php endif; ?>
                                     <a class="learner-btn learner-btn--outline" href="partner.php?type=school&amp;id=<?= learner_escape($school['id']); ?>">Xem trường học <?= learner_icon('arrow-right', 16); ?></a>
                                 </div>
                             </article>
                         <?php endforeach; ?>
                     </div>
-                    <div class="learner-empty-state learner-card" hidden data-ecosystem-empty>
+                    <div class="learner-empty-state learner-card" <?= $schools !== [] ? 'hidden' : ''; ?> data-ecosystem-empty>
                         <span class="learner-empty-state__icon"><?= learner_icon('search', 24); ?></span>
-                        <h2>Chưa tìm thấy trường học phù hợp</h2>
-                        <p>Thử thay đổi từ khóa hoặc bộ lọc để xem thêm kết quả.</p>
+                        <?php if ($isDatabaseSource && $schools === []): ?>
+                            <h2>Chưa có trường học đang hoạt động</h2>
+                            <p>Trường học sẽ xuất hiện tại đây khi hồ sơ đang hoạt động được công bố trên TalentHub.</p>
+                        <?php else: ?>
+                            <h2>Chưa tìm thấy trường học phù hợp</h2>
+                            <p>Thử thay đổi từ khóa hoặc bộ lọc để xem thêm kết quả.</p>
+                        <?php endif; ?>
                     </div>
                 </section>
 
@@ -180,13 +211,13 @@ function learner_ecosystem_date(string $date): string
                     <div class="learner-section-heading learner-ecosystem-panel__heading">
                         <div>
                             <h2>Cơ hội dành cho bạn</h2>
-                            <p>Thực tập doanh nghiệp, học bổng và hoạt động trải nghiệm trường học.</p>
+                            <p>Cơ hội tuyển dụng và thực tập do doanh nghiệp công bố.</p>
                         </div>
                         <span><?= count($activeOpportunities); ?> cơ hội đang mở</span>
                     </div>
                     <div class="learner-opportunity-grid" data-ecosystem-results>
                         <?php foreach ($activeOpportunities as $opportunity): ?>
-                            <article class="learner-opportunity-card learner-card" data-ecosystem-item data-search="<?= learner_escape($opportunity['title'] . ' ' . $opportunity['partner_name'] . ' ' . $opportunity['field'] . ' ' . $opportunity['location']); ?>" data-field="<?= learner_escape($opportunity['field']); ?>" data-location="<?= learner_escape($opportunity['location']); ?>">
+                            <article class="learner-opportunity-card learner-card" data-ecosystem-item data-ecosystem-item-type="internship" data-search="<?= learner_escape($opportunity['title'] . ' ' . $opportunity['partner_name'] . ' ' . $opportunity['field'] . ' ' . $opportunity['location']); ?>" data-field="<?= learner_escape($opportunity['field']); ?>" data-location="<?= learner_escape($opportunity['location']); ?>">
                                 <div class="learner-opportunity-card__top">
                                     <span class="learner-badge <?= $opportunity['partner_type'] === 'enterprise' ? 'learner-badge--primary' : 'learner-badge--secondary'; ?>">
                                         <?= learner_escape($opportunity['partner_type'] === 'enterprise' ? 'Thực tập' : 'Trường học'); ?>
@@ -209,10 +240,15 @@ function learner_ecosystem_date(string $date): string
                             </article>
                         <?php endforeach; ?>
                     </div>
-                    <div class="learner-empty-state learner-card" hidden data-ecosystem-empty>
+                    <div class="learner-empty-state learner-card" <?= $activeOpportunities !== [] ? 'hidden' : ''; ?> data-ecosystem-empty>
                         <span class="learner-empty-state__icon"><?= learner_icon('search', 24); ?></span>
-                        <h2>Chưa tìm thấy cơ hội phù hợp</h2>
-                        <p>Thử thay đổi từ khóa hoặc bộ lọc để xem thêm kết quả.</p>
+                        <?php if ($isDatabaseSource && $activeOpportunities === []): ?>
+                            <h2>Chưa có cơ hội đang mở</h2>
+                            <p>Cơ hội sẽ xuất hiện khi doanh nghiệp công bố vị trí tuyển dụng hoặc thực tập hợp lệ.</p>
+                        <?php else: ?>
+                            <h2>Chưa tìm thấy cơ hội phù hợp</h2>
+                            <p>Thử thay đổi từ khóa hoặc bộ lọc để xem thêm kết quả.</p>
+                        <?php endif; ?>
                     </div>
                 </section>
             </main>

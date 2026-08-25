@@ -119,8 +119,35 @@ body.teacher-sidebar-open {
     border-top: 1px solid var(--border);
 }
 
-.teacher-sidebar__link--switch {
-    color: var(--text-muted);
+.teacher-sidebar__link--logout {
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}
+
+.teacher-sidebar__link--logout .teacher-sidebar__icon {
+    color: var(--text-secondary);
+    transition: color 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.teacher-sidebar__link--logout:hover {
+    background-color: #fef2f2;
+    color: #ef4444;
+}
+
+.teacher-sidebar__link--logout:hover .teacher-sidebar__icon {
+    color: #ef4444;
+    transform: translateX(3px);
+}
+
+.teacher-sidebar__link--logout:active {
+    background-color: #fee2e2;
+    transform: scale(0.98);
+}
+
+.teacher-sidebar__link--logout:focus-visible {
+    outline: 2px solid rgba(239, 68, 68, 0.4);
+    outline-offset: 2px;
 }
 
 .teacher-main-wrapper {
@@ -146,8 +173,7 @@ body.teacher-sidebar-open {
 }
 
 .teacher-header__left,
-.teacher-header__right,
-.teacher-header__account {
+.teacher-header__right {
     display: flex;
     align-items: center;
 }
@@ -230,15 +256,62 @@ body.teacher-sidebar-open {
     border: 2px solid var(--surface);
 }
 
+/* --------------------------------------------------------------------------
+   Teacher Header Account Area & Dropdown Menu (Synced with Enterprise)
+   -------------------------------------------------------------------------- */
+.teacher-header__account-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
 .teacher-header__account {
+    display: flex;
+    align-items: center;
     gap: 0.625rem;
-    padding-left: 0.875rem;
-    border-left: 1px solid var(--border);
+    padding: 0.375rem 0.625rem;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: all var(--transition-fast);
+    color: inherit;
+    font-family: inherit;
+}
+
+.teacher-header__account:hover {
+    background-color: var(--background);
+    border-color: var(--border);
+}
+
+.teacher-header__account[aria-expanded="true"] {
+    background-color: var(--background);
+    border-color: var(--border);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.teacher-header__chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: transform var(--transition-fast), color var(--transition-fast);
+    margin-left: 0.125rem;
+}
+
+.teacher-header__account:hover .teacher-header__chevron {
+    color: var(--text-secondary);
+}
+
+.teacher-header__account[aria-expanded="true"] .teacher-header__chevron {
+    transform: rotate(180deg);
+    color: var(--primary);
 }
 
 .teacher-header__avatar {
-    width: 2rem;
-    height: 2rem;
+    width: 2.125rem;
+    height: 2.125rem;
     border-radius: 50%;
     background: var(--primary);
     color: #FFFFFF;
@@ -246,8 +319,9 @@ body.teacher-sidebar-open {
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2);
 }
 
 .teacher-header__user-info {
@@ -265,6 +339,169 @@ body.teacher-sidebar-open {
 .teacher-header__role {
     font-size: 0.75rem;
     color: var(--text-secondary);
+}
+
+/* Dropdown Menu Container */
+.teacher-account-menu {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    width: 256px;
+    max-width: calc(100vw - 2rem);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+    padding: 0.5rem 0;
+    z-index: 1000;
+    display: none;
+}
+
+.teacher-account-menu.is-open {
+    display: block;
+    animation: teacherDropdownFadeIn 0.15s ease-out;
+}
+
+@keyframes teacherDropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.teacher-account-menu__identity {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.875rem 0.625rem;
+}
+
+.teacher-account-menu__avatar {
+    width: 2.375rem;
+    height: 2.375rem;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(249, 115, 22, 0.25);
+}
+
+.teacher-account-menu__details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.teacher-account-menu__name {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.teacher-account-menu__badge {
+    display: inline-block;
+    align-self: flex-start;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #C2410C;
+    background-color: var(--primary-light);
+    border: 1px solid rgba(249, 115, 22, 0.2);
+    border-radius: var(--radius-full);
+    line-height: 1.3;
+}
+
+.teacher-account-menu__school {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.teacher-account-menu__divider {
+    height: 1px;
+    background-color: var(--border);
+    margin: 0.375rem 0;
+}
+
+.teacher-account-menu__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.teacher-account-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-decoration: none;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.teacher-account-menu__item-icon {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: color var(--transition-fast);
+}
+
+.teacher-account-menu__item:hover,
+.teacher-account-menu__item:focus,
+.teacher-account-menu__item:focus-visible,
+.teacher-account-menu__item.is-focused {
+    background-color: #F1F5F9;
+    color: var(--text-primary);
+    outline: none;
+}
+
+.teacher-account-menu__item:hover .teacher-account-menu__item-icon,
+.teacher-account-menu__item:focus .teacher-account-menu__item-icon,
+.teacher-account-menu__item:focus-visible .teacher-account-menu__item-icon,
+.teacher-account-menu__item.is-focused .teacher-account-menu__item-icon {
+    color: var(--primary);
+}
+
+.teacher-account-menu__item--logout {
+    color: var(--text-secondary);
+}
+
+.teacher-account-menu__item--logout:hover,
+.teacher-account-menu__item--logout:focus,
+.teacher-account-menu__item--logout:focus-visible,
+.teacher-account-menu__item--logout.is-focused {
+    background-color: #FEF2F2 !important;
+    color: #DC2626 !important;
+}
+
+.teacher-account-menu__item--logout:hover .teacher-account-menu__item-icon,
+.teacher-account-menu__item--logout:focus .teacher-account-menu__item-icon,
+.teacher-account-menu__item--logout:focus-visible .teacher-account-menu__item-icon,
+.teacher-account-menu__item--logout.is-focused .teacher-account-menu__item-icon {
+    color: #DC2626 !important;
 }
 
 .teacher-body {

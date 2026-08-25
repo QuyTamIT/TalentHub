@@ -9,6 +9,10 @@ use PDO;
 use RuntimeException;
 use TalentHub\Learner\Data\Support\Uuid;
 
+final class EducationBandRequired extends RuntimeException
+{
+}
+
 final class EducationBandResolver
 {
     private const VALID_BANDS = ['middle', 'high', 'college'];
@@ -29,13 +33,21 @@ final class EducationBandResolver
 
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
         $statement = $this->pdo->prepare(
-            'SELECT c.gradeLevel FROM student_profiles sp LEFT JOIN classes c ON c.id = sp.classId WHERE sp.id = :student_id LIMIT 1'
+            'SELECT c.gradeLevel, s.level AS schoolLevel '
+            . 'FROM student_profiles sp '
+            . 'LEFT JOIN classes c ON c.id = sp.classId '
+            . 'LEFT JOIN schools s ON s.id = c.schoolId '
+            . 'WHERE sp.id = :student_id LIMIT 1'
         );
         if ($statement === false || !$statement->execute(['student_id' => $studentId])) {
             throw new RuntimeException('Failed to query student class information.');
         }
 
         $row = $statement->fetch(PDO::FETCH_ASSOC);
+        $schoolBand = $this->bandFromSchoolLevel(is_array($row) ? ($row['schoolLevel'] ?? null) : null);
+        if ($schoolBand === 'college') {
+            return 'college';
+        }
         if ($row !== false && ($row['gradeLevel'] ?? null) !== null) {
             $grade = (int) $row['gradeLevel'];
             if ($grade >= 6 && $grade <= 9) {
@@ -45,11 +57,41 @@ final class EducationBandResolver
                 return 'high';
             }
         }
+        if ($schoolBand !== null) {
+            return $schoolBand;
+        }
 
         if ($band !== null) {
             return $band;
         }
 
-        throw new RuntimeException('Explicit education band confirmation is required.');
+        throw new EducationBandRequired('Explicit education band confirmation is required.');
+    }
+
+    private function bandFromSchoolLevel(mixed $level): ?string
+    {
+        if (!is_string($level) || trim($level) === '') {
+            return null;
+        }
+
+        $normalized = mb_strtolower(trim($level), 'UTF-8');
+        if (
+            str_contains($normalized, 'đại học')
+            || str_contains($normalized, 'cao đẳng')
+            || str_contains($normalized, 'dai hoc')
+            || str_contains($normalized, 'cao dang')
+            || str_contains($normalized, 'university')
+            || str_contains($normalized, 'college')
+        ) {
+            return 'college';
+        }
+        if (str_contains($normalized, 'trung học cơ sở') || preg_match('/\bthcs\b/u', $normalized) === 1) {
+            return 'middle';
+        }
+        if (str_contains($normalized, 'trung học phổ thông') || preg_match('/\bthpt\b/u', $normalized) === 1) {
+            return 'high';
+        }
+
+        return null;
     }
 }

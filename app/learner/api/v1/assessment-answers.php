@@ -21,7 +21,8 @@ try {
         throw new ApiException(405, 'METHOD_NOT_ALLOWED', 'Phương thức không được hỗ trợ.');
     }
 
-    $studentId = $context->studentId('student_profile.update_own');
+    $identity = $context->studentIdentityForPermissions(['student_profile.update_own']);
+    $studentId = $identity['student_id'];
     $context->mutation($request->header('x-csrf-token'));
 
     $input = $context->allowedInput($request->json(), ['attemptId', 'questionId', 'answer']);
@@ -45,6 +46,12 @@ try {
             ['field' => 'answer', 'code' => 'REQUIRED_FIELD', 'message' => 'Cần cung cấp giá trị câu trả lời.'],
         ]);
     }
+
+    $attempt = $context->assessmentService()->ownedAttemptWithQuestions($studentId, $attemptId);
+    $context->onboardingService()->assertAssessmentAccessible(
+        $studentId,
+        (string) ($attempt['assessment_code'] ?? ''),
+    );
 
     $answer = $input['answer'];
     $saved = $context->assessmentService()->saveAnswer($studentId, $attemptId, $questionId, $answer);

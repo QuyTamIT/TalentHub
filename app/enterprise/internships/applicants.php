@@ -694,13 +694,13 @@ $sidebarNav = [
         </div>
     </div>
 
-    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => '/api/v1'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
+    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => app_href('/api/v1')], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
     <!-- Server-backed application snapshot data -->
     <script id="applicants-raw-data" type="application/json" data-post-id="<?= $postId; ?>">
         <?= json_encode($applicants, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
     </script>
     <!-- JavaScript Assets -->
-    <script src="../../../assets/js/enterprise.js"></script>
-    <script src="../../../assets/js/applicant-management.js"></script>
+    <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/applicant-management.js'); ?>"></script>
 </body>
 </html>

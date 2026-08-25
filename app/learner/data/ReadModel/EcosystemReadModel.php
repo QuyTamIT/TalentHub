@@ -11,6 +11,9 @@ final class EcosystemReadModel
 {
     public static function partner(array $record): array
     {
+        if (($record['type'] ?? '') === 'school') {
+            $record['school_type'] ??= $record['level'] ?? null;
+        }
         $record['location'] ??= $record['address'] ?? null;
         $record['verified'] ??= ($record['verification_status'] ?? '') === 'verified';
         $record['logo_text'] ??= self::initials((string) ($record['name'] ?? 'TH'));

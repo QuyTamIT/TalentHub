@@ -137,6 +137,14 @@ foreach ($posts as $post) {
             <main class="ent-body">
                 <div class="container-fluid">
                     
+                    <?php if (!empty($_SESSION['flash_message'])): ?>
+                        <div class="ent-alert ent-alert--success mb-4" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 0.875rem 1.25rem; border-radius: 8px; font-weight: 500; display: flex; align-items: center; justify-content: space-between;">
+                            <span><?= htmlspecialchars($_SESSION['flash_message']); ?></span>
+                            <button type="button" onclick="this.parentElement.remove()" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: #166534; line-height: 1;">&times;</button>
+                        </div>
+                        <?php unset($_SESSION['flash_message']); ?>
+                    <?php endif; ?>
+
                     <!-- Enterprise Internship Hero Banner -->
                     <div class="ent-internship-hero">
                         <div class="ent-internship-hero__content">
@@ -154,7 +162,7 @@ foreach ($posts as $post) {
                             </p>
                         </div>
                         <div class="ent-internship-hero__action">
-                            <a href="create.php" class="btn btn-primary ent-btn-create-hero" id="btn-create-internship">
+                            <a href="<?= function_exists('app_href') ? app_href('/app/enterprise/internships/create.php') : 'create.php'; ?>" class="btn btn-primary ent-btn-create-hero" id="btn-create-internship">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
                                     <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -296,7 +304,7 @@ foreach ($posts as $post) {
                                             data-title="<?= htmlspecialchars(mb_strtolower($post['title'])); ?>">
                                             
                                             <td>
-                                                <a href="create.php?id=<?= $post['id']; ?>" class="ent-post-title-link">
+                                                <a href="<?= function_exists('app_href') ? app_href('/app/enterprise/internships/create.php?id=' . urlencode((string) $post['id'])) : ('create.php?id=' . urlencode((string) $post['id'])); ?>" class="ent-post-title-link">
                                                     <?= htmlspecialchars($post['title']); ?>
                                                 </a>
                                                 <div class="ent-post-submeta">
@@ -348,7 +356,7 @@ foreach ($posts as $post) {
 
                                             <td class="text-center">
                                                 <div class="ent-table-actions">
-                                                    <a href="applicants.php?postId=<?= $post['id']; ?>" 
+                                                    <a href="<?= function_exists('app_href') ? app_href('/app/enterprise/internships/applicants.php?postId=' . urlencode((string) $post['id'])) : ('applicants.php?postId=' . urlencode((string) $post['id'])); ?>" 
                                                        class="btn btn-secondary btn-sm ent-btn-view-applicants" 
                                                        title="Xem danh sách ứng viên">
                                                         Xem ứng viên
@@ -359,7 +367,7 @@ foreach ($posts as $post) {
                                                             &ctdot;
                                                         </button>
                                                         <div class="ent-dropdown-menu">
-                                                            <a href="create.php?id=<?= $post['id']; ?>" class="ent-dropdown-item">
+                                                            <a href="<?= function_exists('app_href') ? app_href('/app/enterprise/internships/create.php?id=' . urlencode((string) $post['id'])) : ('create.php?id=' . urlencode((string) $post['id'])); ?>" class="ent-dropdown-item">
                                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -421,8 +429,8 @@ foreach ($posts as $post) {
     </div>
 
     <!-- JavaScript Assets -->
-    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => '/api/v1'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
-    <script src="../../../assets/js/enterprise.js"></script>
-    <script src="../../../assets/js/internship-management.js"></script>
+    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => app_href('/api/v1')], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
+    <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/internship-management.js'); ?>"></script>
 </body>
 </html>

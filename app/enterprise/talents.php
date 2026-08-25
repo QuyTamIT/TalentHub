@@ -5,22 +5,23 @@
  * Note for Developers:
  * - This page provides enterprise search, multi-criteria filtering, quick filters,
  *   sorting, and evaluation of potential talent profiles.
- * - Mock data is provided via includes/talents-data.php and passed to frontend script.
- * - Privacy rules strictly enforced: NO personal email, phone numbers or sensitive data exposed.
+ * - Dynamic data is fetched via /api/v1/businesses/me/talents based on privacy consent & talent access grants.
+ * - Privacy rules strictly enforced: NO personal email or phone numbers exposed without consent.
  */
 
 require_once dirname(__DIR__, 2) . '/bin/bootstrap.php';
 require_once dirname(__DIR__, 2) . '/src/Bootstrap/EnterpriseAppContext.php';
-require_once __DIR__ . '/includes/talents-data.php';
-
-$schoolsList = array_values(array_unique(array_column($mockTalents ?? [], 'school')));
-$majorFieldsList = array_values(array_unique(array_column($mockTalents ?? [], 'major_field')));
 
 use TalentHub\Bootstrap\EnterpriseAppContext;
 
 $context = (new EnterpriseAppContext())->boot();
 $user       = $context['user'];
 $enterprise = $context['enterprise'];
+$csrfToken  = $context['csrfToken'];
+$talentService = $context['talents'];
+
+$isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
+$accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
 
 if (!function_exists('getInitials')) {
     function getInitials(string $name): string {
@@ -32,8 +33,19 @@ if (!function_exists('getInitials')) {
 }
 
 $companyInitials = getInitials($enterprise['name']);
-$isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
-$accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
+
+// Dynamic talents listing
+$talentsData = ['items' => [], 'total' => 0];
+if ($isVerified) {
+    try {
+        $talentsData = $talentService->listTalents($user['id']);
+    } catch (\Throwable $e) {
+        $talentsData = ['items' => [], 'total' => 0];
+    }
+}
+
+$schoolsList = array_values(array_filter(array_unique(array_column($talentsData['items'] ?? [], 'schoolName'))));
+$majorFieldsList = ['Công nghệ thông tin', 'Thiết kế đồ họa & UI/UX', 'Khoa học dữ liệu & AI', 'Kinh doanh & Marketing'];
 
 $enterpriseInfo = [
     'id'                => $enterprise['id'],
@@ -41,8 +53,8 @@ $enterpriseInfo = [
     'account_type'      => $accountType,
     'logo_initials'     => $companyInitials,
     'logo_url'          => $enterprise['logoUrl'] ?? null,
-    'new_matches_count' => 86,
-    'total_talents'     => 1247,
+    'new_matches_count' => count($talentsData['items']),
+    'total_talents'     => $talentsData['total'],
 ];
 
 $pageTitle = 'Tìm nhân tài';
@@ -145,7 +157,7 @@ $sidebarNav = [
                                 </svg>
                             </div>
                             <div class="ent-result-card__content">
-                                <span class="ent-result-card__number" id="ent-count-num"><?= count($mockTalents); ?></span>
+                                <span class="ent-result-card__number" id="ent-count-num"><?= count($talentsData['items'] ?? []); ?></span>
                                 <span class="ent-result-card__label">Nhân tài phù hợp</span>
                             </div>
                         </div>
@@ -406,9 +418,16 @@ $sidebarNav = [
         </div>
     </div>
 
-    <!-- Pass PHP Mock Data safely to JavaScript -->
-    <script id="talents-mock-data" type="application/json">
-        <?= json_encode($mockTalents, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
+    <!-- Bootstrap enterprise session and data safely to JavaScript -->
+    <script id="enterprise-session-boot" type="application/json">
+        <?= json_encode([
+            'csrfToken' => $csrfToken,
+            'enterpriseId' => $enterprise['id'],
+            'isVerified' => $isVerified,
+            'apiBase' => app_href('/api/v1/businesses/me'),
+            'initialTalents' => $talentsData['items'],
+            'totalTalents' => $talentsData['total'],
+        ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
     </script>
 
     <!-- Expanded Skills Selector Modal -->
@@ -455,7 +474,7 @@ $sidebarNav = [
     </div>
 
     <!-- JavaScript Assets -->
-    <script src="../../assets/js/enterprise.js"></script>
-    <script src="../../assets/js/talent-search.js"></script>
+    <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/talent-search.js'); ?>"></script>
 </body>
 </html>

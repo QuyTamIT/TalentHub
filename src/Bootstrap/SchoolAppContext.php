@@ -4,6 +4,7 @@ namespace TalentHub\Bootstrap;
 
 use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Auth\Repository\AuthRepository;
+use TalentHub\Auth\Service\AuthPortalRouter;
 use TalentHub\Auth\Service\AuthService;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
@@ -63,6 +64,10 @@ final class SchoolAppContext
         if ($cached === null) {
             $this->redirectToLogin();
         }
+        if (($cached['role'] ?? null) !== 'school') {
+            header('Location: ' . app_href(AuthPortalRouter::destination((string) ($cached['role'] ?? ''))));
+            exit;
+        }
         try {
             $user = $this->auth->current((string) $cached['id']);
             $this->session->refreshUser($user);
@@ -74,7 +79,8 @@ final class SchoolAppContext
             throw $exception;
         }
         if (($user['role'] ?? null) !== 'school') {
-            $this->redirectToRoleSelection();
+            header('Location: ' . app_href(AuthPortalRouter::destination((string) ($user['role'] ?? ''))));
+            exit;
         }
         $this->permissions->require($user['id'], 'school_dashboard.read_own');
 
@@ -82,7 +88,8 @@ final class SchoolAppContext
             $dashboard = $this->service->dashboard($user['id']);
         } catch (ApiException $exception) {
             if ($exception->status === 404) {
-                $this->redirectToRoleSelection('?error=school_missing');
+                $hint = 'Tài khoản school của bạn chưa liên kết với nhà trường nào trong hệ thống. Vui lòng chạy seed testing: php bin/seed.php --testing';
+                $this->redirectToRoleSelection('?error=school_missing&hint=' . urlencode($hint));
             }
             throw $exception;
         }
@@ -107,6 +114,15 @@ final class SchoolAppContext
     {
         $target = app_href('/role-selection.php') . $query;
         header('Location: ' . $target);
+        exit;
+    }
+
+    public function redirectToLoginWithRoleRequired(string $requiredRole): never
+    {
+        $base = app_href('/login.php');
+        $target = app_href($_SERVER['REQUEST_URI'] ?? '/app/school/');
+        $loginUrl = $base . '?next=' . urlencode($target) . '&role_required=' . urlencode($requiredRole);
+        header('Location: ' . $loginUrl);
         exit;
     }
 

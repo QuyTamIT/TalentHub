@@ -54,8 +54,37 @@ function selectCard(selectedCard) {
 }
 
 /**
- * Handles navigation to destination module or displays fallback feedback if module isn't created yet.
+ * Handles navigation to the selected registration form or displays fallback feedback.
  */
 function handleRoleNavigation(route, roleName) {
+    if (!route) {
+        showRoleToast(`Khu vực ${roleName} đang được phát triển!`);
+        return;
+    }
     window.location.href = route;
+}
+
+/**
+ * Displays a non-disruptive feedback toast message.
+ */
+let toastTimeout = null;
+
+function showRoleToast(message) {
+    const toast = document.getElementById('role-toast');
+    if (!toast) return;
+
+    const messageEl = toast.querySelector('.role-toast__message');
+    if (messageEl) {
+        messageEl.textContent = message;
+    }
+
+    toast.classList.add('is-visible');
+
+    if (toastTimeout) {
+        clearTimeout(toastTimeout);
+    }
+
+    toastTimeout = setTimeout(() => {
+        toast.classList.remove('is-visible');
+    }, 4000);
 }

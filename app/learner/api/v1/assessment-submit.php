@@ -10,6 +10,7 @@ use TalentHub\Http\ApiException;
 use TalentHub\Http\Request;
 use TalentHub\Learner\Api\JsonResponder;
 use TalentHub\Learner\Api\LearnerApiContext;
+use TalentHub\Learner\Ai\Service\PostAssessmentAiTrigger;
 use TalentHub\Support\Uuid;
 
 $context = null;
@@ -21,7 +22,8 @@ try {
         throw new ApiException(405, 'METHOD_NOT_ALLOWED', 'Phương thức không được hỗ trợ.');
     }
 
-    $studentId = $context->studentId('student_profile.update_own');
+    $identity = $context->studentIdentityForPermissions(['student_profile.update_own']);
+    $studentId = $identity['student_id'];
     $context->mutation($request->header('x-csrf-token'));
     $idempotencyKey = $context->idempotencyKey($request->header('x-idempotency-key'));
 
@@ -34,7 +36,27 @@ try {
         ]);
     }
 
+    $attempt = $context->assessmentService()->ownedAttemptWithQuestions($studentId, $attemptId);
+    $context->onboardingService()->assertAssessmentAccessible(
+        $studentId,
+        (string) ($attempt['assessment_code'] ?? ''),
+    );
+
+    $beforeOnboarding = $context->onboardingService()->progress($studentId);
     $result = $context->assessmentService()->submit($studentId, $attemptId);
+    $onboarding = $context->onboardingService()->reconcile(
+        $studentId,
+        $identity['user_id'],
+        $context->requestId(),
+        isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
+    );
+    $result['onboarding'] = $onboarding;
+    $result['ai_analysis'] = PostAssessmentAiTrigger::metadata($beforeOnboarding, $onboarding);
+    $result['next_url'] = ($result['ai_analysis']['required'] ?? false) === true
+        ? '/app/learner/discover.php?onboarding=completed&ai=analyze'
+        : ($onboarding['status'] === 'completed'
+            ? '/app/learner/discover.php?onboarding=completed'
+            : $onboarding['next_url']);
     JsonResponder::sendSuccess($result, $context->requestId(), 200);
 } catch (ApiException $exception) {
     if ($exception->errorCode === 'AUTHENTICATION_REQUIRED') {

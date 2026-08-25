@@ -15,6 +15,7 @@ use TalentHub\Bootstrap\EnterpriseAppContext;
 $context = (new EnterpriseAppContext())->boot();
 $user       = $context['user'];
 $enterprise = $context['enterprise'];
+$workflowService = $context['workflows'];
 
 if (!function_exists('getInitials')) {
     function getInitials(string $name): string {
@@ -81,10 +82,147 @@ $sidebarNav = [
     ],
 ];
 
-$metrics = getSponsorshipMetrics();
-$filterOptions = getSponsorshipFilterOptions();
-$projects = getMockProjects();
-$mySponsorships = getMySponsorships();
+// Fetch real database projects and sponsorships
+$projectsQuery = \TalentHub\Http\CollectionQuery::fromRequest(
+    new \TalentHub\Http\Request('GET', '/api/v1/projects', [], '', [], ['limit' => '100']),
+    ['createdAt', 'title', 'fundingGoal']
+);
+$dbProjects = $workflowService->projects($projectsQuery);
+$dbSponsorships = $workflowService->sponsorships((string) $user['id']);
+
+$projects = [];
+$uniqueCategories = ['all' => 'Tất cả lĩnh vực'];
+$uniqueSchools = ['all' => 'Tất cả các trường'];
+
+foreach ($dbProjects as $p) {
+    $raised = (float) ($p['raisedAmount'] ?? 0);
+    $target = (float) ($p['fundingGoal'] ?? 0);
+    $pct = $target > 0 ? (int) min(100, round(($raised / $target) * 100)) : 0;
+    $cat = (string) ($p['category'] ?? 'Công nghệ & Đổi mới sáng tạo');
+    $schName = (string) ($p['schoolName'] ?? 'Đại học đối tác');
+    $schCode = (string) ($p['schoolLevel'] ?? $p['schoolCode'] ?? 'Đại học');
+
+    $uniqueCategories[$cat] = $cat;
+    $uniqueSchools[$schName] = $schName;
+
+    $members = $p['members'] ?? [];
+    $teamLeader = !empty($members) ? [
+        'name' => (string) $members[0]['name'],
+        'role' => (string) $members[0]['role'],
+        'school' => $schName,
+        'avatar_initial' => mb_strtoupper(mb_substr($members[0]['name'], 0, 2)),
+    ] : [
+        'name' => (string) ($p['mentorTeacherName'] ?? 'Giáo viên phụ trách'),
+        'role' => 'Project Mentor',
+        'school' => $schName,
+        'avatar_initial' => 'PM',
+    ];
+
+    $projects[] = [
+        'id' => (string) $p['id'],
+        'title' => (string) $p['title'],
+        'school_id' => (string) ($p['schoolId'] ?? ''),
+        'school_name' => $schName,
+        'school_badge' => $schCode,
+        'category' => $cat,
+        'status' => (string) ($p['status'] ?? 'calling'),
+        'status_label' => $pct >= 100 ? 'Đã đạt mục tiêu (100%)' : ($pct >= 80 ? 'Sắp đạt mục tiêu (≥ 80%)' : 'Đang gọi tài trợ'),
+        'raised_amount' => $raised,
+        'target_amount' => $target,
+        'percentage' => $pct,
+        'members_count' => (int) ($p['membersCount'] ?? count($members)),
+        'description' => (string) ($p['description'] ?? ''),
+        'problem_statement' => (string) ($p['description'] ?? 'Dự án nghiên cứu và phát triển giải pháp thực tiễn từ giảng đường.'),
+        'solution' => 'Giải pháp công nghệ kết hợp nghiên cứu thực tiễn do sinh viên và giảng viên hướng dẫn triển khai.',
+        'team_leader' => $teamLeader,
+        'team_members' => array_map(static fn($m): array => [
+            'name' => (string) $m['name'],
+            'role' => (string) $m['role'],
+            'skills' => ['Nghiên cứu', 'Thực hành', 'Công nghệ']
+        ], $members),
+        'milestones' => [
+            ['phase' => 'Giai đoạn 1', 'title' => 'Nghiên cứu & Thiết kế', 'date' => '06/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
+            ['phase' => 'Giai đoạn 2', 'title' => 'Thử nghiệm & Đánh giá', 'date' => '09/2026', 'status' => 'in_progress', 'status_label' => 'Đang triển khai'],
+            ['phase' => 'Giai đoạn 3', 'title' => 'Nghiệm thu & Ứng dụng', 'date' => '12/2026', 'status' => 'planned', 'status_label' => 'Kế hoạch']
+        ],
+        'expected_use_of_funds' => [
+            ['category' => 'Trang thiết bị & Linh kiện', 'amount' => number_format($target * 0.5, 0, ',', '.') . ' VNĐ', 'percentage' => 50],
+            ['category' => 'Thử nghiệm & Thu thập dữ liệu', 'amount' => number_format($target * 0.3, 0, ',', '.') . ' VNĐ', 'percentage' => 30],
+            ['category' => 'Học bổng & Hỗ trợ sinh viên', 'amount' => number_format($target * 0.2, 0, ',', '.') . ' VNĐ', 'percentage' => 20]
+        ]
+    ];
+}
+
+$mySponsorships = [];
+$totalSponsoredAmount = 0.0;
+$activeSponsorshipsCount = 0;
+
+foreach ($dbSponsorships as $s) {
+    $amount = (float) ($s['amount'] ?? 0);
+    $status = (string) ($s['status'] ?? 'pledged');
+    $paymentStatus = (string) ($s['paymentStatus'] ?? 'pending');
+
+    if ($status === 'paid' || $paymentStatus === 'paid') {
+        $totalSponsoredAmount += $amount;
+        $activeSponsorshipsCount++;
+    }
+
+    $statusLabel = match ($status) {
+        'paid' => 'Đã giải ngân',
+        'pending_payment' => 'Chờ thanh toán',
+        'pledged' => 'Đã cam kết',
+        'cancelled' => 'Đã hủy',
+        default => $status,
+    };
+
+    $mySponsorships[] = [
+        'id' => (string) $s['id'],
+        'project_id' => (string) $s['projectId'],
+        'project_title' => (string) ($s['projectTitle'] ?? 'Dự án'),
+        'school_name' => (string) ($s['schoolName'] ?? 'Trường đối tác'),
+        'category' => (string) ($s['projectCategory'] ?? 'Đổi mới sáng tạo'),
+        'sponsored_amount' => $amount,
+        'sponsored_amount_formatted' => number_format($amount, 0, ',', '.') . ' VNĐ',
+        'status' => $status,
+        'status_label' => $statusLabel,
+        'pledged_date' => substr((string) ($s['createdAt'] ?? ''), 0, 10),
+        'payment_status' => $paymentStatus,
+        'payment_order_id' => (string) ($s['paymentOrderId'] ?? ''),
+        'paid_at' => (string) ($s['paidAt'] ?? ''),
+        'latest_update' => [
+            'date' => substr((string) ($s['updatedAt'] ?? $s['createdAt'] ?? ''), 0, 10),
+            'title' => 'Cập nhật tiến độ dự án',
+            'author' => 'Ban chủ nhiệm dự án',
+            'summary' => 'Dự án đang triển khai theo đúng kế hoạch cam kết và đã tiếp nhận nguồn tài trợ.'
+        ]
+    ];
+}
+
+$metrics = [
+    'total_sponsored_amount' => $totalSponsoredAmount,
+    'total_sponsored_formatted' => number_format($totalSponsoredAmount, 0, ',', '.') . ' VNĐ',
+    'total_projects_sponsored' => count(array_unique(array_column($mySponsorships, 'project_id'))),
+    'total_learners_supported' => array_sum(array_column($projects, 'members_count')),
+    'active_sponsorships_count' => $activeSponsorshipsCount,
+    'completed_milestones_count' => count($mySponsorships) * 2,
+];
+
+$filterOptions = [
+    'categories' => $uniqueCategories,
+    'schools' => $uniqueSchools,
+    'target_ranges' => [
+        'all' => 'Mọi mức tài trợ',
+        'under_50m' => 'Dưới 50 triệu',
+        '50m_100m' => '50 - 100 triệu',
+        'above_100m' => 'Trên 100 triệu'
+    ],
+    'statuses' => [
+        'all' => 'Tất cả trạng thái',
+        'calling' => 'Đang gọi tài trợ',
+        'near_completion' => 'Sắp đạt mục tiêu (≥ 80%)',
+        'completed' => 'Đã đạt mục tiêu (100%)'
+    ]
+];
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -709,10 +847,14 @@ $mySponsorships = getMySponsorships();
 
     <!-- Pass JSON Data to Client-side JavaScript -->
     <script>
+        window.ENTERPRISE_BOOT = {
+            csrfToken: <?= json_encode($context['csrfToken']); ?>,
+            apiBase: <?= json_encode(app_href('/api/v1')); ?>
+        };
         window.ENTERPRISE_PROJECTS = <?= json_encode($projects); ?>;
         window.ENTERPRISE_SPONSORSHIPS = <?= json_encode($mySponsorships); ?>;
     </script>
-    <script src="../../../assets/js/enterprise.js"></script>
-    <script src="../../../assets/js/enterprise-sponsorships.js"></script>
+    <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/enterprise-sponsorships.js'); ?>"></script>
 </body>
 </html>
