@@ -39,7 +39,9 @@ final class SchoolAppContext
     {
         $config = require dirname(__DIR__, 2) . '/config/database.php';
         $this->connection = new Connection($config);
-        $this->session = new SessionManager(require dirname(__DIR__, 2) . '/config/session.php');
+        $sessionConfig = require dirname(__DIR__, 2) . '/config/session.php';
+        $sessionConfig['name'] = SessionManager::SESSION_SCHOOL;
+        $this->session = new SessionManager($sessionConfig);
         $this->session->start();
         $pdo = $this->connection->connect();
         $repository = new SchoolRepository($pdo);
