@@ -171,51 +171,110 @@ final class BusinessWorkflowRepository
     /** @return list<array<string,mixed>> */
     public function projects(CollectionQuery $query): array
     {
-        $order = ['createdAt' => 'createdAt', 'title' => 'title', 'fundingGoal' => 'fundingGoal'][$query->sort];
-        $statement = $this->pdo->prepare(
-            "SELECT id,schoolId,title,description,fundingGoal,status,createdAt,updatedAt FROM projects WHERE status='in_progress' AND fundingGoal IS NOT NULL ORDER BY {$order} "
-            . strtoupper($query->direction) . " LIMIT {$query->limit} OFFSET {$query->offset}"
-        );
+        $order = ['createdAt' => 'p.createdAt', 'title' => 'p.title', 'fundingGoal' => 'p.fundingGoal'][$query->sort];
+        $direction = strtoupper($query->direction);
+
+        $sql = "SELECT p.*,
+                       s.name AS schoolName,
+                       s.code AS schoolCode,
+                       COALESCE((SELECT SUM(ps.amount) FROM project_sponsorships ps WHERE ps.projectId = p.id AND ps.status = 'paid'), 0) AS raisedAmount,
+                       COALESCE((SELECT COUNT(DISTINCT ps.enterpriseId) FROM project_sponsorships ps WHERE ps.projectId = p.id AND ps.status = 'paid'), 0) AS sponsorsCount,
+                       COALESCE((SELECT COUNT(*) FROM project_members pm WHERE pm.projectId = p.id AND pm.status = 'active'), 0) AS membersCount
+                FROM projects p
+                LEFT JOIN schools s ON s.id = p.schoolId
+                WHERE p.status = 'in_progress' AND p.fundingGoal IS NOT NULL
+                ORDER BY {$order} {$direction}
+                LIMIT {$query->limit} OFFSET {$query->offset}";
+
+        $statement = $this->pdo->prepare($sql);
         $statement->execute();
-        return array_values($statement->fetchAll());
+        $items = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        foreach ($items as &$item) {
+            $item['fundingGoal'] = (string) $item['fundingGoal'];
+            $item['raisedAmount'] = (string) $item['raisedAmount'];
+            $item['percentage'] = (float) $item['fundingGoal'] > 0
+                ? (int) min(100, round(((float) $item['raisedAmount'] / (float) $item['fundingGoal']) * 100))
+                : 0;
+            $item['members'] = $this->projectMembers((string) $item['id']);
+        }
+        unset($item);
+
+        return array_values($items);
+    }
+
+    private function projectMembers(string $projectId): array
+    {
+        if (!$this->tableExists('project_members') || !$this->tableExists('student_profiles') || !$this->tableExists('users')) {
+            return [];
+        }
+        $stmt = $this->pdo->prepare(
+            "SELECT pm.id, pm.role, pm.joinedAt, u.fullName AS name, u.email
+             FROM project_members pm
+             INNER JOIN student_profiles sp ON sp.id = pm.studentId
+             INNER JOIN users u ON u.id = sp.userId
+             WHERE pm.projectId = ? AND pm.status = 'active'
+             ORDER BY pm.joinedAt ASC"
+        );
+        $stmt->execute([$projectId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
     public function sponsor(string $enterpriseId, string $projectId, string $amount, string $currency, ?string $note): string
     {
         $id = Uuid::v4();
-        $statement = $this->pdo->prepare("INSERT INTO project_sponsorships(id,enterpriseId,projectId,amount,currency,note) SELECT ?,?,id,?,?,? FROM projects WHERE id=? AND status='in_progress' AND fundingGoal IS NOT NULL");
-        $statement->execute([$id, $enterpriseId, $amount, $currency, $note, $projectId]);
+        $now = $this->now();
+        $statement = $this->pdo->prepare("INSERT INTO project_sponsorships(id,enterpriseId,projectId,amount,currency,status,note,createdAt,updatedAt) SELECT ?,?,id,?,?,'pledged',?,?,? FROM projects WHERE id=? AND status='in_progress' AND fundingGoal IS NOT NULL");
+        $statement->execute([$id, $enterpriseId, $amount, $currency, $note, $now, $now, $projectId]);
         return $statement->rowCount() === 1 ? $id : '';
     }
 
     /** @return list<array<string,mixed>> */
     public function sponsorships(string $enterpriseId): array
     {
-        $statement = $this->pdo->prepare('SELECT ps.*,p.title AS projectTitle FROM project_sponsorships ps JOIN projects p ON p.id=ps.projectId WHERE ps.enterpriseId=? ORDER BY ps.createdAt DESC');
+        $statement = $this->pdo->prepare(
+            "SELECT ps.*,
+                    p.title AS projectTitle,
+                    p.category AS projectCategory,
+                    p.fundingGoal,
+                    s.name AS schoolName,
+                    po.id AS paymentOrderId,
+                    po.paymentStatus,
+                    po.providerReference,
+                    po.paidAt
+             FROM project_sponsorships ps
+             INNER JOIN projects p ON p.id = ps.projectId
+             LEFT JOIN schools s ON s.id = p.schoolId
+             LEFT JOIN payment_orders po ON po.sponsorshipId = ps.id
+             WHERE ps.enterpriseId = ?
+             ORDER BY ps.createdAt DESC"
+        );
         $statement->execute([$enterpriseId]);
-        return array_values($statement->fetchAll());
+        return array_values($statement->fetchAll(PDO::FETCH_ASSOC) ?: []);
     }
 
     public function cancelSponsorship(string $enterpriseId, string $id): bool
     {
-        $statement = $this->pdo->prepare("UPDATE project_sponsorships SET status='cancelled',cancelledAt=UTC_TIMESTAMP(6) WHERE id=? AND enterpriseId=? AND status='pledged'");
-        $statement->execute([$id, $enterpriseId]);
+        $now = $this->now();
+        $statement = $this->pdo->prepare("UPDATE project_sponsorships SET status='cancelled',cancelledAt=:now,updatedAt=:now WHERE id=:id AND enterpriseId=:enterpriseId AND status='pledged'");
+        $statement->execute(['now' => $now, 'id' => $id, 'enterpriseId' => $enterpriseId]);
         return $statement->rowCount() === 1;
     }
 
     public function createPayment(string $enterpriseId, string $sponsorshipId, string $provider): string
     {
         $id = Uuid::v4();
+        $now = $this->now();
         $this->pdo->beginTransaction();
         try {
-            $statement = $this->pdo->prepare("INSERT INTO payment_orders(id,enterpriseId,sponsorshipId,amount,currency,provider) SELECT ?,enterpriseId,id,amount,currency,? FROM project_sponsorships WHERE id=? AND enterpriseId=? AND status='pledged'");
-            $statement->execute([$id, $provider, $sponsorshipId, $enterpriseId]);
+            $statement = $this->pdo->prepare("INSERT INTO payment_orders(id,enterpriseId,sponsorshipId,amount,currency,provider,paymentStatus,createdAt,updatedAt) SELECT ?,enterpriseId,id,amount,currency,?,'pending',?,? FROM project_sponsorships WHERE id=? AND enterpriseId=? AND status='pledged'");
+            $statement->execute([$id, $provider, $now, $now, $sponsorshipId, $enterpriseId]);
             if ($statement->rowCount() !== 1) {
                 $this->pdo->rollBack();
                 return '';
             }
-            $this->pdo->prepare("UPDATE project_sponsorships SET status='pending_payment' WHERE id=? AND enterpriseId=?")
-                ->execute([$sponsorshipId, $enterpriseId]);
+            $this->pdo->prepare("UPDATE project_sponsorships SET status='pending_payment',updatedAt=? WHERE id=? AND enterpriseId=?")
+                ->execute([$now, $sponsorshipId, $enterpriseId]);
             $this->pdo->commit();
             return $id;
         } catch (Throwable $exception) {
@@ -236,8 +295,8 @@ final class BusinessWorkflowRepository
 
     public function audit(string $userId, string $action, string $type, string $id, string $requestId): void
     {
-        $statement = $this->pdo->prepare('INSERT INTO audit_logs(id,userId,action,entityType,entityId,requestId,metadata) VALUES(?,?,?,?,?,?,?)');
-        $statement->execute([Uuid::v4(), $userId, $action, $type, $id, $requestId, '{}']);
+        $statement = $this->pdo->prepare('INSERT INTO audit_logs(id,userId,action,entityType,entityId,requestId,metadata,createdAt) VALUES(?,?,?,?,?,?,?,?)');
+        $statement->execute([Uuid::v4(), $userId, $action, $type, $id, $requestId, '{}', $this->now()]);
     }
 
     private function applicationCommandService(): \TalentHub\Learner\Data\Service\ApplicationCommandService
@@ -251,5 +310,23 @@ final class BusinessWorkflowRepository
     private function lockSuffix(): string
     {
         return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite' ? '' : ' FOR UPDATE';
+    }
+
+    private function tableExists(string $tableName): bool
+    {
+        $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $stmt = $this->pdo->prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name = ? LIMIT 1");
+            $stmt->execute([$tableName]);
+            return (bool) $stmt->fetchColumn();
+        }
+        $stmt = $this->pdo->prepare('SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ? LIMIT 1');
+        $stmt->execute([$tableName]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    private function now(): string
+    {
+        return (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s.u');
     }
 }

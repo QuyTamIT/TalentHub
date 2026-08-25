@@ -310,7 +310,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Submit Sponsorship Form
     if (sponsorshipForm) {
-        sponsorshipForm.addEventListener('submit', function (e) {
+        sponsorshipForm.addEventListener('submit', async function (e) {
             e.preventDefault();
 
             if (!activeSponsorProjectId) return;
@@ -324,16 +324,77 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            // Interactive Success Celebration Toast / Notification
-            closeFormModal();
+            const noteInput = document.getElementById('spon-note-input');
+            const noteText = noteInput ? noteInput.value.trim() : '';
 
-            showSuccessToast(`Tài trợ thành công ${(amountNum).toLocaleString('vi-VN')} VNĐ cho dự án "${project ? project.title : ''}". Nhóm dự án đã nhận được đề xuất đồng hành!`);
+            const boot = window.ENTERPRISE_BOOT || {};
+            const apiBase = boot.apiBase || '/api/v1';
+            const csrfToken = boot.csrfToken || '';
 
-            // Switch to "Đã tài trợ" tab visually to showcase the updated sponsorship status
-            setTimeout(() => {
-                const sponsoredTabBtn = document.querySelector('.spon-tab-btn[data-tab="my-sponsorships"]');
-                if (sponsoredTabBtn) sponsoredTabBtn.click();
-            }, 1200);
+            const request = async (method, path, body) => {
+                const response = await fetch(`${apiBase}${path}`, {
+                    method,
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken,
+                    },
+                    body: JSON.stringify(body),
+                });
+                const json = await response.json();
+                if (!response.ok || !json?.data) {
+                    throw new Error(json?.error?.message || 'Thao tác tài trợ không thành công.');
+                }
+                return json.data;
+            };
+
+            if (sponsorSubmitBtn) {
+                sponsorSubmitBtn.disabled = true;
+                sponsorSubmitBtn.textContent = 'Đang xử lý thanh toán...';
+            }
+
+            try {
+                // 1. Pledge sponsorship
+                const sponRes = await request('POST', '/businesses/me/sponsorships', {
+                    projectId: activeSponsorProjectId,
+                    amount: String(amountNum),
+                    currency: 'VND',
+                    note: noteText || 'Tài trợ phát triển dự án nghiên cứu sinh viên.',
+                });
+
+                const sponsorshipId = sponRes.id;
+
+                // 2. Create Payment Order
+                const paymentRes = await request('POST', '/businesses/me/payments', {
+                    sponsorshipId: sponsorshipId,
+                    provider: 'vnpay',
+                });
+
+                const orderId = paymentRes.id;
+
+                // 3. Confirm Payment (Simulated Provider Callback)
+                await request('POST', `/businesses/me/payments/${encodeURIComponent(orderId)}/confirm`, {
+                    providerReference: 'VNPAY_' + Date.now(),
+                });
+
+                closeFormModal();
+
+                showSuccessToast(`Tài trợ thành công ${(amountNum).toLocaleString('vi-VN')} VNĐ cho dự án "${project ? project.title : ''}". Giao dịch đã được xác nhận thanh toán!`);
+
+                // Reload page after a brief moment to show updated funding progress
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+
+            } catch (error) {
+                alert(error?.message || 'Có lỗi xảy ra trong quá trình tài trợ dự án.');
+            } finally {
+                if (sponsorSubmitBtn) {
+                    sponsorSubmitBtn.disabled = false;
+                    sponsorSubmitBtn.textContent = 'Xác nhận tài trợ ngay';
+                }
+            }
         });
     }
 

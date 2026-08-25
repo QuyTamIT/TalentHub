@@ -7,10 +7,9 @@ use TalentHub\Auth\Repository\AuthRepository;
 use TalentHub\Auth\Service\AuthService;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
-use TalentHub\Modules\Business\Repository\BusinessRepository;
-use TalentHub\Modules\Business\Repository\EnterpriseTalentRepository;
-use TalentHub\Modules\Business\Repository\InternshipRepository;
+use TalentHub\Modules\Business\Repository\BusinessWorkflowRepository;
 use TalentHub\Modules\Business\Service\BusinessProfileService;
+use TalentHub\Modules\Business\Service\BusinessWorkflowService;
 use TalentHub\Modules\Business\Service\EnterpriseTalentService;
 use TalentHub\Modules\Business\Service\InternshipService;
 use TalentHub\Modules\School\Repository\SchoolPartnershipRepository;
@@ -36,6 +35,7 @@ final class EnterpriseAppContext
     private InternshipService $internships;
     private EnterpriseTalentService $talents;
     private SchoolPartnershipService $partnerships;
+    private BusinessWorkflowService $workflows;
 
     public function __construct()
     {
@@ -51,6 +51,7 @@ final class EnterpriseAppContext
         $this->internships = new InternshipService(new InternshipRepository($pdo));
         $this->talents = new EnterpriseTalentService(new EnterpriseTalentRepository($pdo));
         $this->partnerships = new SchoolPartnershipService(new SchoolPartnershipRepository($pdo));
+        $this->workflows = new BusinessWorkflowService(new BusinessWorkflowRepository($pdo), $this->internships);
     }
 
     /**
@@ -110,6 +111,7 @@ final class EnterpriseAppContext
             'internships'=> $this->internships,
             'talents'    => $this->talents,
             'partnerships'=> $this->partnerships,
+            'workflows'  => $this->workflows,
             'permissions'=> $this->permissions,
         ];
     }

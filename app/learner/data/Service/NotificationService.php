@@ -24,6 +24,8 @@ final class NotificationService
         'internship_application_withdrawn',
         'internship_application_status_changed',
         'badge_awarded',
+        'project_sponsored',
+        'project_member_added',
     ];
 
     public const ALLOW_LISTED_DEEP_LINKS = [
@@ -32,6 +34,8 @@ final class NotificationService
         '/app/learner/assessment-result.php',
         '/app/learner/ecosystem.php',
         '/app/learner/badges.php',
+        '/app/learner/talent-passport.php',
+        '/app/teacher/projects/index.php',
     ];
 
     public function __construct(private readonly NotificationRepository $repo) {}
@@ -181,7 +185,8 @@ final class NotificationService
             throw new ApiException(422, 'INVALID_DEEP_LINK', 'Đường dẫn liên kết không an toàn.');
         }
 
-        if (!in_array($deepLink, self::ALLOW_LISTED_DEEP_LINKS, true)) {
+        $pathOnly = parse_url($deepLink, PHP_URL_PATH) ?? $deepLink;
+        if (!in_array($pathOnly, self::ALLOW_LISTED_DEEP_LINKS, true)) {
             throw new ApiException(422, 'INVALID_DEEP_LINK', 'Đường dẫn không thuộc danh sách cho phép.');
         }
 
