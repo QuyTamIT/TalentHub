@@ -45,10 +45,10 @@ final class InternshipService
 
     public function review(string $userId, string $applicationId, array $input): array
     {
-        $this->assertAllowed($input, ['expectedCurrentStatus', 'targetStatus', 'reviewerNote']);
+        $this->assertAllowed($input, ['expectedCurrentStatus', 'targetStatus', 'status', 'reviewerNote', 'note']);
         $expected = trim((string) ($input['expectedCurrentStatus'] ?? ''));
-        $target = trim((string) ($input['targetStatus'] ?? ''));
-        $note = trim((string) ($input['reviewerNote'] ?? ''));
+        $target = trim((string) ($input['targetStatus'] ?? $input['status'] ?? ''));
+        $note = trim((string) ($input['reviewerNote'] ?? $input['note'] ?? ''));
         if ($expected === '' || $target === '' || mb_strlen($note) > 2000) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Dữ liệu duyệt hồ sơ không hợp lệ.');
         }

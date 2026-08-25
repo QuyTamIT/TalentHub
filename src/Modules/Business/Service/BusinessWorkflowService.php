@@ -8,10 +8,14 @@ use DateTimeImmutable;
 use TalentHub\Http\ApiException;
 use TalentHub\Http\CollectionQuery;
 use TalentHub\Modules\Business\Repository\BusinessWorkflowRepository;
+use TalentHub\Modules\Business\Repository\InternshipRepository;
 
 final class BusinessWorkflowService
 {
-    public function __construct(private readonly BusinessWorkflowRepository $repository) {}
+    public function __construct(
+        private readonly BusinessWorkflowRepository $repository,
+        private readonly ?InternshipService $internships = null
+    ) {}
 
     public function enterprise(string $userId): string
     {
@@ -95,16 +99,34 @@ final class BusinessWorkflowService
 
     public function review(string $userId, string $id, array $input, string $requestId): array
     {
-        $status = (string) ($input['status'] ?? $input['targetStatus'] ?? '');
-        if (!in_array($status, ['reviewing', 'interview', 'accepted', 'declined'], true)) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Trạng thái review không hợp lệ.');
+        $enterpriseId = $this->enterprise($userId);
+        $expectedStatus = isset($input['expectedCurrentStatus']) && is_string($input['expectedCurrentStatus']) && trim($input['expectedCurrentStatus']) !== ''
+            ? trim($input['expectedCurrentStatus'])
+            : null;
+
+        if ($expectedStatus === null) {
+            $current = $this->repository->applicationStatus($enterpriseId, $id);
+            if ($current === null) {
+                throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy đơn ứng tuyển.');
+            }
+            $expectedStatus = $current;
         }
-        $note = isset($input['reviewerNote']) ? $this->text($input['reviewerNote'], 'reviewerNote', 0, 1000) : null;
-        if (!$this->repository->review($this->enterprise($userId), $userId, $id, $status, $note)) {
-            throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy đơn ứng tuyển.');
-        }
+
+        $canonicalPayload = [
+            'expectedCurrentStatus' => $expectedStatus,
+            'targetStatus' => (string) ($input['targetStatus'] ?? $input['status'] ?? ''),
+            'reviewerNote' => (string) ($input['reviewerNote'] ?? $input['note'] ?? ''),
+        ];
+
+        $reviewed = $this->getInternshipService()->review($userId, $id, $canonicalPayload);
         $this->repository->audit($userId, 'internship_application.reviewed', 'internship_application', $id, $requestId);
-        return ['id' => $id, 'status' => $status];
+
+        return ['id' => $id, 'status' => (string) ($reviewed['status'] ?? $canonicalPayload['targetStatus'])];
+    }
+
+    private function getInternshipService(): InternshipService
+    {
+        return $this->internships ?? new InternshipService(new InternshipRepository($this->repository->pdo()));
     }
 
     public function projects(CollectionQuery $query): array
