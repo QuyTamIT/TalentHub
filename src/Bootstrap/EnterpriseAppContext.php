@@ -88,7 +88,14 @@ final class EnterpriseAppContext
             $this->session->destroy();
             $this->redirectToLoginWithRoleRequired('enterprise');
         }
-        $this->permissions->require($user['id'], 'business_dashboard.read_own');
+        try {
+            $this->permissions->require($user['id'], 'business_dashboard.read_own');
+        } catch (ApiException $exception) {
+            if ($exception->status === 403) {
+                $this->redirectToRoleSelection('?error=unauthorized');
+            }
+            throw $exception;
+        }
 
         try {
             $enterprise = $this->service->get($user['id']);

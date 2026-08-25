@@ -24,8 +24,8 @@ final class PermissionService
             if(!$allowed){throw new ApiException(403,'PERMISSION_DENIED','Bạn không có quyền thực hiện thao tác này.');}
             return;
         }
-        $s=$this->pdo->prepare("SELECT COUNT(*) FROM users u JOIN role_permissions rp ON rp.roleId=u.roleId JOIN permissions p ON p.id=rp.permissionId JOIN roles r ON r.id=u.roleId WHERE u.id=? AND u.status='active' AND r.code IN ('student','teacher','school','enterprise','business','platform_admin') AND p.code=?");$s->execute([$userId,$permission]);
-        if((int)$s->fetchColumn()!==1){throw new ApiException(403,'PERMISSION_DENIED','Bạn không có quyền thực hiện thao tác này.');}
+        $s=$this->pdo->prepare("SELECT COUNT(*) FROM users u JOIN roles r ON r.id=u.roleId LEFT JOIN roles canonical_r ON canonical_r.code = (CASE WHEN r.code = 'business' THEN 'enterprise' ELSE r.code END) JOIN role_permissions rp ON (rp.roleId = u.roleId OR rp.roleId = canonical_r.id) JOIN permissions p ON p.id=rp.permissionId WHERE u.id=? AND u.status='active' AND r.code IN ('student','teacher','school','enterprise','business','platform_admin') AND p.code=?");$s->execute([$userId,$permission]);
+        if((int)$s->fetchColumn()<1){throw new ApiException(403,'PERMISSION_DENIED','Bạn không có quyền thực hiện thao tác này.');}
     }
 
     private function usesLegacyUsers(): bool
