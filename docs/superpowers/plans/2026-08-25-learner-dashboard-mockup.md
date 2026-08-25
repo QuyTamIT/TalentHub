@@ -33,15 +33,15 @@
 - Consumes: Hai ảnh reference và đặc tả thiết kế đã duyệt.
 - Produces: Một prompt `ui-mockup` duy nhất mô tả chính xác bố cục, nội dung và constraints.
 
-- [ ] **Step 1: Xác nhận hai ảnh reference có thể đọc được**
+- [x] **Step 1: Xác nhận hai ảnh reference có thể đọc được**
 
 Mở cả hai ảnh ở độ phân giải gốc và kiểm tra chúng thể hiện hero, KPI, kỹ năng, AI và hoạt động.
 
-- [ ] **Step 2: Khóa nội dung mockup**
+- [x] **Step 2: Khóa nội dung mockup**
 
-Prompt phải chứa các nhãn: “Tổng quan”, “Hồ sơ năng lực”, “Khám phá năng khiếu”, “Hoạt động”, “Check-in QR”, “Đánh giá”, “AI gợi ý”, “Huy hiệu”, “Thống kê”, “Hồ sơ kỹ năng”, “Chứng chỉ”, “Dự án đã tham gia”.
+Prompt phải chứa các nhãn: “Tổng quan”, “Hồ sơ năng lực”, “Khám phá năng khiếu”, “Hoạt động”, “Check-in QR”, “Đánh giá”, “AI gợi ý”, “Hệ sinh thái & Cơ hội”, “Huy hiệu”, “Thống kê”, “Hồ sơ kỹ năng”, “Chứng chỉ”, “Dự án đã tham gia”.
 
-- [ ] **Step 3: Khóa dữ liệu minh họa**
+- [x] **Step 3: Khóa dữ liệu minh họa**
 
 Dùng tên “Nguyễn Văn A”, các KPI `92`, `12`, `64h`, `#7`; kỹ năng `IoT 85/100`, `Lập trình 90/100`, `Làm việc nhóm 88/100`, `Thuyết trình 72/100`. Chứng chỉ và dự án chỉ dùng trường dữ liệu mà repository hiện có: tên, tổ chức cấp, ngày/năm, xác minh; tên dự án, mô tả, vai trò, trạng thái.
 
@@ -54,11 +54,11 @@ Dùng tên “Nguyễn Văn A”, các KPI `92`, `12`, `64h`, `#7`; kỹ năng `
 - Consumes: Prompt và reference từ Task 1.
 - Produces: Ảnh mockup PNG landscape độ trung thực cao.
 
-- [ ] **Step 1: Gọi built-in image generator**
+- [x] **Step 1: Gọi built-in image generator**
 
-Tạo một dashboard desktop landscape, dùng hai ảnh làm reference về bố cục. Yêu cầu sidebar 9 module, header, hero cam, 4 KPI, kỹ năng + AI, chứng chỉ + dự án, và hoạt động. Yêu cầu chữ tiếng Việt rõ, đúng dấu, không watermark.
+Tạo một dashboard desktop landscape, dùng hai ảnh làm reference về bố cục. Yêu cầu sidebar 10 module, header, hero cam, 4 KPI, kỹ năng + AI, chứng chỉ + dự án, và hoạt động. Yêu cầu chữ tiếng Việt rõ, đúng dấu, không watermark.
 
-- [ ] **Step 2: Lưu output vào workspace**
+- [x] **Step 2: Lưu output vào workspace**
 
 Sao chép ảnh được chọn từ thư mục output mặc định của built-in generator sang `docs/mockups/learner-dashboard-desktop-v1.png`; không ghi đè file khác.
 
@@ -71,18 +71,18 @@ Sao chép ảnh được chọn từ thư mục output mặc định của built
 - Consumes: Ảnh PNG từ Task 2.
 - Produces: Mockup đã kiểm tra và đường dẫn bàn giao.
 
-- [ ] **Step 1: Kiểm tra bố cục**
+- [x] **Step 1: Kiểm tra bố cục**
 
 Xác nhận ảnh có sidebar, header, hero, KPI, kỹ năng, AI, chứng chỉ, dự án và hoạt động; không có vùng bị cắt hoặc chồng lấn.
 
-- [ ] **Step 2: Kiểm tra nhận diện**
+- [x] **Step 2: Kiểm tra nhận diện**
 
 Xác nhận nền `#F8FAFC`, card trắng, hero cam, action phụ xanh, font mang đặc trưng Be Vietnam Pro, radius 8–12px và không có gradient hồng–tím.
 
-- [ ] **Step 3: Kiểm tra nội dung**
+- [x] **Step 3: Kiểm tra nội dung**
 
 Xác nhận các nhãn chính đúng tiếng Việt và mọi module đều thuộc TalentHub hiện có. Nếu lỗi chữ nhỏ không ảnh hưởng cấu trúc, ghi rõ đó là giới hạn của ảnh AI; nếu lỗi nội dung chính, tạo lại một lần với prompt sửa đúng phần đó.
 
-- [ ] **Step 4: Bàn giao**
+- [x] **Step 4: Bàn giao**
 
 Hiển thị ảnh trực tiếp trong phản hồi và cung cấp liên kết đến `docs/mockups/learner-dashboard-desktop-v1.png` cùng prompt cuối và thông tin đã dùng built-in image generator.

@@ -41,8 +41,9 @@ Sidebar rộng khoảng 248–272px, chứa logo TalentHub, nhãn “Khu vực H
 5. Check-in QR
 6. Đánh giá
 7. AI gợi ý
-8. Huy hiệu
-9. Thống kê
+8. Hệ sinh thái & Cơ hội
+9. Huy hiệu
+10. Thống kê
 
 Mục Tổng quan là trạng thái active với nền cam và chữ trắng. Cuối sidebar hiển thị cấp độ cùng tiến độ giờ trải nghiệm.
 
