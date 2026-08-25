@@ -15,6 +15,7 @@ $context = (new EnterpriseAppContext())->boot();
 $user       = $context['user'];
 $enterprise = $context['enterprise'];
 $dashboard  = $context['dashboard'];
+$workflowService = $context['workflows'];
 
 if (!function_exists('getInitials')) {
     function getInitials(string $name): string {
@@ -29,9 +30,34 @@ $companyInitials = getInitials($enterprise['name']);
 $isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
 $accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
 
-$workflowService = $context['workflows'];
-$analyticsData = $workflowService->analytics((string) $user['id']);
-$summary = $analyticsData['summary'];
+$summary = [
+    'total_posts' => 0,
+    'active_posts' => 0,
+    'closed_posts' => 0,
+    'total_applicants' => 0,
+    'submitted_count' => 0,
+    'reviewing_count' => 0,
+    'qualified_candidates' => 0,
+    'qualified_percentage' => '0%',
+    'interviewing' => 0,
+    'passed_candidates' => 0,
+    'declined_candidates' => 0,
+    'pass_rate' => 0.0,
+    'pass_rate_formatted' => '0%',
+    'sponsored_projects_count' => 0,
+    'total_sponsored_amount' => '0.00',
+    'total_sponsored_formatted' => '0 VNĐ',
+    'matched_talents_count' => 0,
+];
+
+try {
+    $analyticsData = $workflowService->analytics((string) $user['id']);
+    if (!empty($analyticsData['summary'])) {
+        $summary = array_merge($summary, $analyticsData['summary']);
+    }
+} catch (\Throwable $e) {
+    error_log('Enterprise index analytics fetch failed: ' . $e->getMessage());
+}
 
 $enterpriseInfo = [
     'id'                => $enterprise['id'],

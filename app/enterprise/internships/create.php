@@ -104,6 +104,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_internship']))
         }
 
         $deadlineFormatted = $deadlineInput . ' 23:59:59.000000';
+        $audience = trim((string) ($_POST['audience'] ?? 'public'));
+        $targetSchoolIds = isset($_POST['targetSchoolIds']) && is_array($_POST['targetSchoolIds'])
+            ? array_values(array_unique(array_filter(array_map('strval', $_POST['targetSchoolIds']))))
+            : [];
 
         $payload = [
             'title'          => $title,
@@ -118,6 +122,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_internship']))
             'benefits'       => $benefits,
             'skills'         => $skillsArray,
             'requirements'   => [],
+            'audience'       => in_array($audience, ['public', 'partner_schools'], true) ? $audience : 'public',
+            'targetSchoolIds'=> $targetSchoolIds,
         ];
 
         if ($postId) {
@@ -141,8 +147,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_internship']))
         exit;
     } catch (ApiException $e) {
         $errorMessage = $e->getMessage();
+        error_log('create.php ApiException: ' . $e->getMessage() . ' (' . $e->errorCode . ')');
     } catch (\Throwable $e) {
-        $errorMessage = $e->getMessage();
+        $errorMessage = $e->getMessage() ?: 'Không thể xử lý yêu cầu. Vui lòng thử lại sau.';
+        error_log('create.php Throwable: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());
     }
 }
 
@@ -581,8 +589,8 @@ $sidebarNav = [
     </div>
 
     <!-- JavaScript Assets -->
-    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => '/api/v1'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
-    <script src="../../../assets/js/enterprise.js"></script>
-    <script src="../../../assets/js/internship-management.js"></script>
+    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => app_href('/api/v1')], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
+    <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/internship-management.js'); ?>"></script>
 </body>
 </html>

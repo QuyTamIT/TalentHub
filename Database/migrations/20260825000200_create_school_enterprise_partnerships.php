@@ -85,6 +85,30 @@ SQL
         );
     }
 
+    public function down(MigrationContext $context): void
+    {
+        $pdo = $context->pdo();
+
+        // 1. Drop internship_post_target_schools table
+        $pdo->exec('DROP TABLE IF EXISTS internship_post_target_schools');
+
+        // 2. Drop audience column and index from internship_posts
+        if ($this->hasColumn($context, 'internship_posts', 'audience')) {
+            try {
+                $pdo->exec('ALTER TABLE internship_posts DROP INDEX idx_internship_post_audience_status');
+            } catch (\Throwable) {}
+
+            try {
+                $pdo->exec('ALTER TABLE internship_posts DROP CONSTRAINT chk_internship_post_audience');
+            } catch (\Throwable) {}
+
+            $pdo->exec('ALTER TABLE internship_posts DROP COLUMN audience');
+        }
+
+        // 3. Drop school_enterprise_partnerships table
+        $pdo->exec('DROP TABLE IF EXISTS school_enterprise_partnerships');
+    }
+
     private function hasColumn(MigrationContext $context, string $tableName, string $columnName): bool
     {
         $statement = $context->pdo()->prepare('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table_name AND COLUMN_NAME = :column_name LIMIT 1');

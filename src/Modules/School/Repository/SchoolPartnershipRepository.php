@@ -91,7 +91,7 @@ final class SchoolPartnershipRepository
 
         $sql = 'SELECT sep.id, sep.schoolId, sep.enterpriseId, sep.status, sep.requestedByUserId,
                        sep.reviewedByUserId, sep.reviewedAt, sep.createdAt, sep.updatedAt,
-                       s.code AS schoolCode, s.name AS schoolName, s.logoUrl AS schoolLogo,
+                       s.name AS schoolName, s.logoUrl AS schoolLogo,
                        s.level AS schoolLevel
                 FROM school_enterprise_partnerships sep
                 INNER JOIN schools s ON s.id = sep.schoolId
@@ -106,7 +106,7 @@ final class SchoolPartnershipRepository
     /** @return list<array<string,mixed>> */
     public function listApprovedSchoolsForEnterprise(string $enterpriseId): array
     {
-        $sql = 'SELECT s.id, s.code, s.name, s.logoUrl, s.level, sep.id AS partnershipId, sep.reviewedAt
+        $sql = 'SELECT s.id, s.name, s.logoUrl, s.level, sep.id AS partnershipId, sep.reviewedAt
                 FROM school_enterprise_partnerships sep
                 INNER JOIN schools s ON s.id = sep.schoolId
                 WHERE sep.enterpriseId = :enterpriseId
@@ -257,7 +257,7 @@ final class SchoolPartnershipRepository
     {
         $stmt = $this->pdo->prepare(<<<'SQL'
             SELECT sep.*,
-                   s.name AS schoolName, s.code AS schoolCode, s.logoUrl AS schoolLogo,
+                   s.name AS schoolName, s.logoUrl AS schoolLogo, s.level AS schoolLevel,
                    e.name AS enterpriseName, e.logoUrl AS enterpriseLogo, e.industry
             FROM school_enterprise_partnerships sep
             INNER JOIN schools s ON s.id = sep.schoolId

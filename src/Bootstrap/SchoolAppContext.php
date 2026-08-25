@@ -4,6 +4,7 @@ namespace TalentHub\Bootstrap;
 
 use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Auth\Repository\AuthRepository;
+use TalentHub\Auth\Service\AuthPortalRouter;
 use TalentHub\Auth\Service\AuthService;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
@@ -63,6 +64,10 @@ final class SchoolAppContext
         if ($cached === null) {
             $this->redirectToLogin();
         }
+        if (($cached['role'] ?? null) !== 'school') {
+            header('Location: ' . app_href(AuthPortalRouter::destination((string) ($cached['role'] ?? ''))));
+            exit;
+        }
         try {
             $user = $this->auth->current((string) $cached['id']);
             $this->session->refreshUser($user);
@@ -74,8 +79,8 @@ final class SchoolAppContext
             throw $exception;
         }
         if (($user['role'] ?? null) !== 'school') {
-            $this->session->destroy();
-            $this->redirectToLoginWithRoleRequired('school');
+            header('Location: ' . app_href(AuthPortalRouter::destination((string) ($user['role'] ?? ''))));
+            exit;
         }
         $this->permissions->require($user['id'], 'school_dashboard.read_own');
 

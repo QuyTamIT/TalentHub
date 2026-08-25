@@ -55,19 +55,39 @@ final class Application
         return new self(new CorsPolicy());
     }
 
+    public static function boot(): self
+    {
+        return self::create();
+    }
+
+    public static function getInstance(): self
+    {
+        return self::create();
+    }
+
     public function run(): void
     {
         $requestId = RequestId::generate();
         try {
-            $router = $this->buildRouter($requestId);
             $request = Request::fromGlobals();
-            $this->corsPolicy->apply($request)->send();
+            $this->corsPolicy->apply($request);
+            $router = $this->buildRouter($requestId);
             $response = $router->dispatch($request);
             $response->send();
         }
-        catch(ApiException $exception){JsonResponse::error($exception,$requestId)->send();}
-        catch(DatabaseConnectionException){JsonResponse::error(new ApiException(503,'SERVICE_UNAVAILABLE','Dịch vụ dữ liệu tạm thời không khả dụng.'),$requestId)->send();}
-        catch(Throwable){JsonResponse::error(new ApiException(500,'INTERNAL_ERROR','Đã xảy ra lỗi hệ thống.'),$requestId)->send();}
+        catch (ApiException $exception) {
+            error_log("[API {$requestId}] ApiException (" . $exception->errorCode . "): " . $exception->getMessage() . "\n" . $exception->getTraceAsString());
+            JsonResponse::error($exception, $requestId)->send();
+        }
+        catch (DatabaseConnectionException $exception) {
+            error_log("[API {$requestId}] DatabaseConnectionException: " . $exception->getMessage() . "\n" . $exception->getTraceAsString());
+            JsonResponse::error(new ApiException(503, 'SERVICE_UNAVAILABLE', 'Dịch vụ dữ liệu tạm thời không khả dụng.', [], [], $exception), $requestId, $exception)->send();
+        }
+        catch (Throwable $exception) {
+            error_log("[API {$requestId}] Uncaught Throwable: " . $exception->getMessage() . " in " . $exception->getFile() . ":" . $exception->getLine() . "\n" . $exception->getTraceAsString());
+            $message = getenv('APP_ENV') === 'production' ? 'Đã xảy ra lỗi hệ thống.' : ($exception->getMessage() ?: 'Đã xảy ra lỗi hệ thống.');
+            JsonResponse::error(new ApiException(500, 'INTERNAL_ERROR', $message, [], [], $exception), $requestId, $exception)->send();
+        }
     }
 
     /**

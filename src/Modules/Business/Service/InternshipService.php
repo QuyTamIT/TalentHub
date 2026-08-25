@@ -66,8 +66,16 @@ final class InternshipService
         foreach ($map as $field) {
             if (array_key_exists($field, $input)) {
                 $result[$field] = is_string($input[$field]) ? trim($input[$field]) : $input[$field];
-            } elseif ($requireAll && $field !== 'benefits') {
-                throw new ApiException(422, 'VALIDATION_FAILED', "Thiếu field {$field}.");
+            } elseif ($requireAll && !in_array($field, ['benefits', 'requirements'], true)) {
+                if ($field === 'workType') {
+                    $result[$field] = 'Full-time / Hybrid';
+                } elseif ($field === 'duration') {
+                    $result[$field] = '3 tháng';
+                } elseif ($field === 'educationLevel') {
+                    $result[$field] = 'Đại học / Cao đẳng';
+                } else {
+                    throw new ApiException(422, 'VALIDATION_FAILED', "Thiếu field {$field}.");
+                }
             }
         }
 

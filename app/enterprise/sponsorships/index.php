@@ -100,7 +100,7 @@ foreach ($dbProjects as $p) {
     $pct = $target > 0 ? (int) min(100, round(($raised / $target) * 100)) : 0;
     $cat = (string) ($p['category'] ?? 'Công nghệ & Đổi mới sáng tạo');
     $schName = (string) ($p['schoolName'] ?? 'Đại học đối tác');
-    $schCode = (string) ($p['schoolCode'] ?? 'Partner');
+    $schCode = (string) ($p['schoolLevel'] ?? $p['schoolCode'] ?? 'Đại học');
 
     $uniqueCategories[$cat] = $cat;
     $uniqueSchools[$schName] = $schName;
@@ -849,12 +849,12 @@ $filterOptions = [
     <script>
         window.ENTERPRISE_BOOT = {
             csrfToken: <?= json_encode($context['csrfToken']); ?>,
-            apiBase: '/api/v1'
+            apiBase: <?= json_encode(app_href('/api/v1')); ?>
         };
         window.ENTERPRISE_PROJECTS = <?= json_encode($projects); ?>;
         window.ENTERPRISE_SPONSORSHIPS = <?= json_encode($mySponsorships); ?>;
     </script>
-    <script src="../../../assets/js/enterprise.js"></script>
-    <script src="../../../assets/js/enterprise-sponsorships.js"></script>
+    <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/enterprise-sponsorships.js'); ?>"></script>
 </body>
 </html>

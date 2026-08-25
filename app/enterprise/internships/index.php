@@ -429,8 +429,8 @@ foreach ($posts as $post) {
     </div>
 
     <!-- JavaScript Assets -->
-    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => '/api/v1'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
-    <script src="../../../assets/js/enterprise.js"></script>
-    <script src="../../../assets/js/internship-management.js"></script>
+    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => app_href('/api/v1')], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
+    <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/internship-management.js'); ?>"></script>
 </body>
 </html>
