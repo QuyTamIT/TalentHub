@@ -135,27 +135,27 @@ $filterOptions = [
 $applicationTrend = [
     'labels' => ['Thg 3', 'Thg 4', 'Thg 5', 'Thg 6', 'Thg 7', 'Thg 8'],
     'total_applicants' => [
-        max(1, (int) round($summary['total_applicants'] * 0.1)),
-        max(1, (int) round($summary['total_applicants'] * 0.15)),
-        max(1, (int) round($summary['total_applicants'] * 0.2)),
-        max(1, (int) round($summary['total_applicants'] * 0.25)),
-        max(1, (int) round($summary['total_applicants'] * 0.35)),
-        max(1, $summary['total_applicants']),
+        $summary['total_applicants'] > 0 ? max(0, (int) round($summary['total_applicants'] * 0.1)) : 0,
+        $summary['total_applicants'] > 0 ? max(0, (int) round($summary['total_applicants'] * 0.15)) : 0,
+        $summary['total_applicants'] > 0 ? max(0, (int) round($summary['total_applicants'] * 0.2)) : 0,
+        $summary['total_applicants'] > 0 ? max(0, (int) round($summary['total_applicants'] * 0.25)) : 0,
+        $summary['total_applicants'] > 0 ? max(0, (int) round($summary['total_applicants'] * 0.35)) : 0,
+        $summary['total_applicants'],
     ],
     'qualified_applicants' => [
-        max(0, (int) round($summary['qualified_candidates'] * 0.1)),
-        max(0, (int) round($summary['qualified_candidates'] * 0.15)),
-        max(0, (int) round($summary['qualified_candidates'] * 0.2)),
-        max(0, (int) round($summary['qualified_candidates'] * 0.25)),
-        max(0, (int) round($summary['qualified_candidates'] * 0.35)),
-        max(0, $summary['qualified_candidates']),
+        $summary['qualified_candidates'] > 0 ? max(0, (int) round($summary['qualified_candidates'] * 0.1)) : 0,
+        $summary['qualified_candidates'] > 0 ? max(0, (int) round($summary['qualified_candidates'] * 0.15)) : 0,
+        $summary['qualified_candidates'] > 0 ? max(0, (int) round($summary['qualified_candidates'] * 0.2)) : 0,
+        $summary['qualified_candidates'] > 0 ? max(0, (int) round($summary['qualified_candidates'] * 0.25)) : 0,
+        $summary['qualified_candidates'] > 0 ? max(0, (int) round($summary['qualified_candidates'] * 0.35)) : 0,
+        $summary['qualified_candidates'],
     ],
     'current_month_index' => 5
 ];
 
 $matchDistribution = [
-    'avg_score' => 84.5,
-    'total_evaluated' => max(1, $summary['total_applicants']),
+    'avg_score' => $summary['total_applicants'] > 0 ? 84.5 : 0.0,
+    'total_evaluated' => $summary['total_applicants'],
     'tiers' => [
         ['range' => '> 90', 'label' => 'Xuất sắc', 'count' => max(0, (int) round($summary['total_applicants'] * 0.3)), 'color' => '#16A34A'],
         ['range' => '80 - 90', 'label' => 'Rất tốt', 'count' => max(0, (int) round($summary['total_applicants'] * 0.4)), 'color' => '#3B82F6'],

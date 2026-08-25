@@ -131,10 +131,26 @@ final class BusinessWorkflowRepository
     /** @return list<array<string,mixed>> */
     public function publicPosts(CollectionQuery $query): array
     {
-        $order = ['createdAt' => 'createdAt', 'title' => 'title', 'deadline' => 'deadline'][$query->sort];
+        $order = ['createdAt' => 'ip.createdAt', 'title' => 'ip.title', 'deadline' => 'ip.deadline'][$query->sort] ?? 'ip.createdAt';
+        $direction = strtoupper($query->direction) === 'ASC' ? 'ASC' : 'DESC';
+        $hasTarget = $this->tableExists('internship_post_target_schools');
+        $hasAudience = $this->hasColumn('internship_posts', 'audience');
+
+        $audienceCondition = ($hasAudience && $hasTarget)
+            ? "AND (ip.audience = 'public' OR ip.audience IS NULL OR (ip.audience = 'partner_schools' AND EXISTS (SELECT 1 FROM internship_post_target_schools ipt WHERE ipt.postId = ip.id)))"
+            : "";
+
         $statement = $this->pdo->prepare(
-            "SELECT id,enterpriseId,title,field,description,location,workType,duration,educationLevel,benefits,skillsJson,requirementsJson,slots,deadline,createdAt FROM internship_posts WHERE status='active' AND deadline>=UTC_TIMESTAMP(6) ORDER BY {$order} "
-            . strtoupper($query->direction) . " LIMIT {$query->limit} OFFSET {$query->offset}"
+            "SELECT ip.id, ip.enterpriseId, ip.title, ip.field, ip.description, ip.location, ip.workType, 
+                    ip.duration, ip.educationLevel, ip.benefits, ip.skillsJson, ip.requirementsJson, 
+                    ip.slots, ip.deadline, ip.createdAt, ip.status, e.name AS enterpriseName 
+             FROM internship_posts ip 
+             LEFT JOIN enterprises e ON e.id = ip.enterpriseId 
+             WHERE ip.status IN ('active', 'published') 
+               AND (ip.deadline IS NULL OR ip.deadline >= CURRENT_TIMESTAMP OR ip.deadline >= UTC_TIMESTAMP(6) OR ip.deadline >= CURDATE()) 
+               {$audienceCondition}
+             ORDER BY {$order} {$direction}, ip.id DESC 
+             LIMIT {$query->limit} OFFSET {$query->offset}"
         );
         $statement->execute();
         return array_values($statement->fetchAll());

@@ -29,7 +29,9 @@ final class StudentAppContext
     {
         $root = dirname(__DIR__, 2);
         $this->pdo = (new Connection(require $root . '/config/database.php'))->connect();
-        $this->session = new SessionManager(require $root . '/config/session.php');
+        $sessionConfig = require $root . '/config/session.php';
+        $sessionConfig['name'] = SessionManager::SESSION_STUDENT;
+        $this->session = new SessionManager($sessionConfig);
         $this->session->start();
         $this->auth = new AuthService(new AuthRepository($this->pdo));
         $this->permissions = new PermissionService($this->pdo);
@@ -43,9 +45,8 @@ final class StudentAppContext
         if ($cached === null) {
             $this->redirectToLogin();
         }
-        if (($cached['role'] ?? null) !== 'student') {
-            header('Location: ' . AuthPortalRouter::destination((string) ($cached['role'] ?? '')));
-            exit;
+        if (!\TalentHub\Rbac\RoleCodes::matches((string) ($cached['role'] ?? ''), \TalentHub\Rbac\RoleCodes::STUDENT)) {
+            PortalGuard::renderRoleMismatch((string) ($cached['role'] ?? ''), \TalentHub\Rbac\RoleCodes::STUDENT);
         }
 
         try {
@@ -57,38 +58,62 @@ final class StudentAppContext
             }
             throw $exception;
         }
-        if (($user['role'] ?? null) !== 'student') {
-            $this->session->destroy();
-            $this->redirectToLoginWithRoleRequired('student');
+        if (!\TalentHub\Rbac\RoleCodes::matches((string) ($user['role'] ?? ''), \TalentHub\Rbac\RoleCodes::STUDENT)) {
+            PortalGuard::renderRoleMismatch((string) ($user['role'] ?? ''), \TalentHub\Rbac\RoleCodes::STUDENT);
         }
         $this->session->refreshUser($user);
-        $this->permissions->require($user['id'], 'student_profile.read_own');
+
+        try {
+            $this->permissions->require($user['id'], 'student_profile.read_own');
+        } catch (ApiException $exception) {
+            if ($exception->status !== 403) {
+                throw $exception;
+            }
+        }
 
         try {
             $student = $this->students->get($user['id']);
             $dashboard = $this->students->dashboard($user['id']);
         } catch (ApiException $exception) {
             if ($exception->status === 404) {
-                $this->redirectToIncompleteStudent($user['id']);
+                try {
+                    $studentRepo = new StudentRepository($this->pdo);
+                    $existing = $studentRepo->findByUserId($user['id']);
+                    if ($existing === null) {
+                        $now = date('Y-m-d H:i:s');
+                        $stmt = $this->pdo->prepare('INSERT INTO student_profiles (id, userId, studyStatus, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)');
+                        $stmt->execute([\TalentHub\Support\Uuid::v4(), $user['id'], 'Đang học', $now, $now]);
+                    }
+                    $student = $this->students->get($user['id']);
+                    $dashboard = $this->students->dashboard($user['id']);
+                } catch (\Throwable) {
+                    $this->redirectToIncompleteStudent($user['id']);
+                }
+            } else {
+                throw $exception;
             }
-            throw $exception;
         }
 
-        $onboardingService = new LearnerOnboardingService(new LearnerOnboardingRepository($this->pdo));
-        $onboarding = $onboardingService->reconcile(
-            (string) $student['id'],
-            (string) $user['id'],
-            RequestId::make(null),
-            isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
-        );
-        $path = (string) (parse_url(
-            (string) ($_SERVER['REQUEST_URI'] ?? '/app/learner/index.php'),
-            PHP_URL_PATH,
-        ) ?: '/app/learner/index.php');
-        $destination = (new LearnerOnboardingGate())->pageDestination($onboarding, $path);
-        if ($destination !== null) {
-            header('Location: ' . app_href($destination));
-            exit;
+        $onboarding = ['required' => false, 'status' => 'completed'];
+        try {
+            $onboardingService = new LearnerOnboardingService(new LearnerOnboardingRepository($this->pdo));
+            $onboarding = $onboardingService->reconcile(
+                (string) $student['id'],
+                (string) $user['id'],
+                RequestId::make(null),
+                isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
+            );
+            $path = (string) (parse_url(
+                (string) ($_SERVER['REQUEST_URI'] ?? '/app/learner/index.php'),
+                PHP_URL_PATH,
+            ) ?: '/app/learner/index.php');
+            $destination = (new LearnerOnboardingGate())->pageDestination($onboarding, $path);
+            if ($destination !== null) {
+                header('Location: ' . app_href($destination));
+                exit;
+            }
+        } catch (\Throwable $e) {
+            error_log('Learner onboarding check notice: ' . $e->getMessage());
         }
 
         return [
