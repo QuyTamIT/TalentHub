@@ -29,14 +29,18 @@ $companyInitials = getInitials($enterprise['name']);
 $isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
 $accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
 
+$workflowService = $context['workflows'];
+$analyticsData = $workflowService->analytics((string) $user['id']);
+$summary = $analyticsData['summary'];
+
 $enterpriseInfo = [
     'id'                => $enterprise['id'],
     'company_name'      => $enterprise['name'],
     'account_type'      => $accountType,
     'logo_initials'     => $companyInitials,
     'logo_url'          => $enterprise['logoUrl'] ?? null,
-    'new_matches_count' => 86,
-    'total_talents'     => 1247,
+    'new_matches_count' => $summary['qualified_candidates'],
+    'total_talents'     => $summary['matched_talents_count'],
 ];
 
 $sidebarNav = [
@@ -81,33 +85,33 @@ $sidebarNav = [
 $kpis = [
     [
         'id' => 'talents',
-        'label' => 'Hồ sơ phù hợp',
-        'value' => '1,247',
-        'change' => '+86 tuần này',
+        'label' => 'Hồ sơ ứng tuyển',
+        'value' => number_format($summary['total_applicants'], 0, ',', '.'),
+        'change' => "{$summary['submitted_count']} hồ sơ mới chờ xem",
         'change_type' => 'positive',
         'icon' => 'user-check'
     ],
     [
         'id' => 'jobs',
         'label' => 'Tin tuyển dụng',
-        'value' => '12',
-        'change' => '5 tin đang mở',
+        'value' => (string) $summary['total_posts'],
+        'change' => "{$summary['active_posts']} tin đang mở",
         'change_type' => 'positive',
         'icon' => 'file-text'
     ],
     [
         'id' => 'projects',
         'label' => 'Dự án đã tài trợ',
-        'value' => '3',
-        'change' => 'Tổng: 120 triệu VNĐ',
+        'value' => (string) $summary['sponsored_projects_count'],
+        'change' => "Tổng: " . $summary['total_sponsored_formatted'],
         'change_type' => 'positive',
         'icon' => 'gift'
     ],
     [
         'id' => 'pass_rate',
         'label' => 'Tỷ lệ qua phỏng vấn',
-        'value' => '94%',
-        'change' => '+8% so với tháng trước',
+        'value' => $summary['pass_rate_formatted'],
+        'change' => "{$summary['passed_candidates']} ứng viên trúng tuyển",
         'change_type' => 'positive',
         'icon' => 'trending-up'
     ]
@@ -143,36 +147,43 @@ $featuredTalents = [
     ]
 ];
 
-$pendingActions = [
-    [
-        'title' => '8 ứng viên mới cần xem',
-        'subtitle' => 'Hồ sơ tuyển dụng thực tập sinh tháng này',
+$pendingActions = [];
+if ($summary['submitted_count'] > 0) {
+    $pendingActions[] = [
+        'title' => "{$summary['submitted_count']} ứng viên mới cần xem",
+        'subtitle' => 'Hồ sơ tuyển dụng thực tập sinh cần được đánh giá',
         'type' => 'urgent',
         'action_label' => 'Xem danh sách',
-        'route' => '/app/enterprise/internships'
-    ],
-    [
-        'title' => '2 tin tuyển dụng sắp hết hạn',
-        'subtitle' => 'Vị trí Frontend Developer & AI Research',
-        'type' => 'warning',
-        'action_label' => 'Gia hạn tin',
-        'route' => '/app/enterprise/internships'
-    ],
-    [
-        'title' => '1 giao dịch tài trợ đang chờ xử lý',
-        'subtitle' => 'Dự án Sân chơi Năng khiếu Công nghệ 2026',
+        'route' => '/app/enterprise/internships/'
+    ];
+}
+if ($summary['active_posts'] > 0) {
+    $pendingActions[] = [
+        'title' => "{$summary['active_posts']} tin tuyển dụng đang hoạt động",
+        'subtitle' => 'Theo dõi và quản lý các đợt tiếp nhận hồ sơ',
         'type' => 'info',
-        'action_label' => 'Xác nhận tài trợ',
-        'route' => '/app/enterprise/sponsorships/'
-    ],
-    [
-        'title' => '3 yêu cầu liên hệ chưa xử lý',
-        'subtitle' => 'Yêu cầu kết nối từ Giảng viên Hướng dẫn ĐH Bách Khoa',
+        'action_label' => 'Quản lý tin',
+        'route' => '/app/enterprise/internships/'
+    ];
+}
+if ($summary['sponsored_projects_count'] > 0) {
+    $pendingActions[] = [
+        'title' => "{$summary['sponsored_projects_count']} dự án nhận tài trợ",
+        'subtitle' => 'Theo dõi tiến độ nghiên cứu & giải ngân',
         'type' => 'neutral',
-        'action_label' => 'Trả lời ngay',
-        'route' => '/app/enterprise/talents.php'
-    ]
-];
+        'action_label' => 'Xem tiến độ',
+        'route' => '/app/enterprise/sponsorships/'
+    ];
+}
+if (empty($pendingActions)) {
+    $pendingActions[] = [
+        'title' => 'Tất cả tác vụ đã được xử lý',
+        'subtitle' => 'Không có công việc tồn đọng cần giải quyết ngay',
+        'type' => 'neutral',
+        'action_label' => 'Đăng tin mới',
+        'route' => '/app/enterprise/internships/create.php'
+    ];
+}
 
 $recentActivities = [
     [

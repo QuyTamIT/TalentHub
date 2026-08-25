@@ -195,6 +195,17 @@ final class BusinessWorkflowService
         return $this->repository->payments($this->enterprise($userId));
     }
 
+    public function analytics(string $userId, array $params = []): array
+    {
+        $enterpriseId = $this->enterprise($userId);
+        return $this->repository->analytics($enterpriseId, $params);
+    }
+
+    public function getEnterpriseMetrics(string $enterpriseId): array
+    {
+        return $this->repository->analytics($enterpriseId)['summary'];
+    }
+
     /** @return array<string,mixed> */
     private function postData(array $input): array
     {

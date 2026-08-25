@@ -285,6 +285,186 @@ final class BusinessWorkflowRepository
         }
     }
 
+    /** @return array<string,mixed> */
+    public function analytics(string $enterpriseId, array $params = []): array
+    {
+        // 1. Post statistics
+        $stmtPosts = $this->pdo->prepare(
+            "SELECT 
+                COUNT(*) AS totalPosts,
+                COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0) AS activePosts,
+                COALESCE(SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END), 0) AS closedPosts
+             FROM internship_posts
+             WHERE enterpriseId = ?"
+        );
+        $stmtPosts->execute([$enterpriseId]);
+        $postStats = $stmtPosts->fetch(PDO::FETCH_ASSOC) ?: ['totalPosts' => 0, 'activePosts' => 0, 'closedPosts' => 0];
+
+        // 2. Application statistics
+        $stmtApps = $this->pdo->prepare(
+            "SELECT 
+                COUNT(ia.id) AS totalApplicants,
+                COALESCE(SUM(CASE WHEN ia.status = 'submitted' THEN 1 ELSE 0 END), 0) AS submittedCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'reviewing' THEN 1 ELSE 0 END), 0) AS reviewingCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'interview' THEN 1 ELSE 0 END), 0) AS interviewCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'accepted' THEN 1 ELSE 0 END), 0) AS acceptedCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'declined' THEN 1 ELSE 0 END), 0) AS declinedCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'withdrawn' THEN 1 ELSE 0 END), 0) AS withdrawnCount
+             FROM internship_applications ia
+             INNER JOIN internship_posts ip ON ip.id = ia.postId
+             WHERE ip.enterpriseId = ?"
+        );
+        $stmtApps->execute([$enterpriseId]);
+        $appStats = $stmtApps->fetch(PDO::FETCH_ASSOC) ?: [
+            'totalApplicants' => 0, 'submittedCount' => 0, 'reviewingCount' => 0,
+            'interviewCount' => 0, 'acceptedCount' => 0, 'declinedCount' => 0, 'withdrawnCount' => 0
+        ];
+
+        $totalApplicants = (int) $appStats['totalApplicants'];
+        $interviewCount = (int) $appStats['interviewCount'];
+        $acceptedCount = (int) $appStats['acceptedCount'];
+        $reviewingCount = (int) $appStats['reviewingCount'];
+        $submittedCount = (int) $appStats['submittedCount'];
+        $qualifiedCount = $reviewingCount + $interviewCount + $acceptedCount;
+        
+        $reviewedCount = $interviewCount + $acceptedCount;
+        $passRate = $reviewedCount > 0
+            ? round(($acceptedCount / $reviewedCount) * 100, 1)
+            : ($totalApplicants > 0 ? round(($acceptedCount / $totalApplicants) * 100, 1) : 0.0);
+
+        // 3. Sponsorship statistics
+        $stmtSpon = $this->pdo->prepare(
+            "SELECT 
+                COALESCE(COUNT(DISTINCT projectId), 0) AS sponsoredProjectsCount,
+                COALESCE(SUM(amount), 0) AS totalSponsoredAmount
+             FROM project_sponsorships
+             WHERE enterpriseId = ? AND status = 'paid'"
+        );
+        $stmtSpon->execute([$enterpriseId]);
+        $sponStats = $stmtSpon->fetch(PDO::FETCH_ASSOC) ?: ['sponsoredProjectsCount' => 0, 'totalSponsoredAmount' => '0.00'];
+
+        // 4. Position performance breakdown
+        $stmtPositions = $this->pdo->prepare(
+            "SELECT 
+                ip.id,
+                ip.title,
+                ip.status,
+                ip.deadline,
+                ip.createdAt,
+                COUNT(ia.id) AS applicantsCount,
+                COALESCE(SUM(CASE WHEN ia.status IN ('reviewing', 'interview', 'accepted') THEN 1 ELSE 0 END), 0) AS qualifiedCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'interview' THEN 1 ELSE 0 END), 0) AS interviewCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'accepted' THEN 1 ELSE 0 END), 0) AS acceptedCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'declined' THEN 1 ELSE 0 END), 0) AS declinedCount
+             FROM internship_posts ip
+             LEFT JOIN internship_applications ia ON ia.postId = ip.id
+             WHERE ip.enterpriseId = ?
+             GROUP BY ip.id
+             ORDER BY ip.createdAt DESC"
+        );
+        $stmtPositions->execute([$enterpriseId]);
+        $positionsRaw = $stmtPositions->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        $positionsPerformance = [];
+        foreach ($positionsRaw as $p) {
+            $pApps = (int) $p['applicantsCount'];
+            $pAcc = (int) $p['acceptedCount'];
+            $pInt = (int) $p['interviewCount'];
+            $pReview = $pInt + $pAcc;
+            $pRate = $pReview > 0
+                ? round(($pAcc / $pReview) * 100, 1)
+                : ($pApps > 0 ? round(($pAcc / $pApps) * 100, 1) : 0.0);
+
+            $positionsPerformance[] = [
+                'id' => (string) $p['id'],
+                'title' => (string) $p['title'],
+                'status' => (string) $p['status'],
+                'status_label' => $p['status'] === 'active' ? 'Đang mở' : ($p['status'] === 'closed' ? 'Đã đóng' : 'Bản nháp'),
+                'deadline' => (string) ($p['deadline'] ?? ''),
+                'applicants_count' => $pApps,
+                'qualified_count' => (int) $p['qualifiedCount'],
+                'interview_count' => $pInt,
+                'accepted_count' => $pAcc,
+                'pass_rate' => $pRate,
+                'pass_rate_formatted' => $pRate . '%',
+            ];
+        }
+
+        // 5. Funnel Stages
+        $funnelStages = [
+            [
+                'id' => 'applied',
+                'name' => 'Ứng tuyển',
+                'sub' => 'Hồ sơ nhận vào hệ thống',
+                'count' => $totalApplicants,
+                'percentage' => 100.0,
+                'conversion_from_prev' => '100%',
+                'icon' => 'file-text',
+                'color' => '#3B82F6'
+            ],
+            [
+                'id' => 'qualified',
+                'name' => 'Sàng lọc hồ sơ',
+                'sub' => 'Hồ sơ được chấp thuận duyệt',
+                'count' => $qualifiedCount,
+                'percentage' => $totalApplicants > 0 ? round(($qualifiedCount / $totalApplicants) * 100, 1) : 0.0,
+                'conversion_from_prev' => $totalApplicants > 0 ? round(($qualifiedCount / $totalApplicants) * 100, 1) . '%' : '0%',
+                'icon' => 'user-check',
+                'color' => '#F97316'
+            ],
+            [
+                'id' => 'interviewed',
+                'name' => 'Phỏng vấn',
+                'sub' => 'Vòng phỏng vấn chuyên môn',
+                'count' => $reviewedCount,
+                'percentage' => $totalApplicants > 0 ? round(($reviewedCount / $totalApplicants) * 100, 1) : 0.0,
+                'conversion_from_prev' => $qualifiedCount > 0 ? round(($reviewedCount / $qualifiedCount) * 100, 1) . '%' : '0%',
+                'icon' => 'users',
+                'color' => '#8B5CF6'
+            ],
+            [
+                'id' => 'passed',
+                'name' => 'Đạt / Tuyển dụng',
+                'sub' => 'Chính thức nhận vào thực tập',
+                'count' => $acceptedCount,
+                'percentage' => $totalApplicants > 0 ? round(($acceptedCount / $totalApplicants) * 100, 1) : 0.0,
+                'conversion_from_prev' => $reviewedCount > 0 ? round(($acceptedCount / $reviewedCount) * 100, 1) . '%' : '0%',
+                'icon' => 'award',
+                'color' => '#16A34A'
+            ]
+        ];
+
+        // 6. Matched talents in talent pool
+        $matchedTalentsCount = 0;
+        if ($this->tableExists('student_profiles')) {
+            $matchedTalentsCount = (int) $this->pdo->query("SELECT COUNT(*) FROM student_profiles")->fetchColumn();
+        }
+
+        return [
+            'summary' => [
+                'total_posts' => (int) $postStats['totalPosts'],
+                'active_posts' => (int) $postStats['activePosts'],
+                'closed_posts' => (int) $postStats['closedPosts'],
+                'total_applicants' => $totalApplicants,
+                'submitted_count' => $submittedCount,
+                'reviewing_count' => $reviewingCount,
+                'qualified_candidates' => $qualifiedCount,
+                'qualified_percentage' => ($totalApplicants > 0 ? round(($qualifiedCount / $totalApplicants) * 100, 1) : 0.0) . '%',
+                'interviewing' => $interviewCount,
+                'passed_candidates' => $acceptedCount,
+                'declined_candidates' => (int) $appStats['declinedCount'],
+                'pass_rate' => $passRate,
+                'pass_rate_formatted' => $passRate . '%',
+                'sponsored_projects_count' => (int) $sponStats['sponsoredProjectsCount'],
+                'total_sponsored_amount' => (string) $sponStats['totalSponsoredAmount'],
+                'total_sponsored_formatted' => number_format((float) $sponStats['totalSponsoredAmount'], 0, ',', '.') . ' VNĐ',
+                'matched_talents_count' => $matchedTalentsCount,
+            ],
+            'funnel_stages' => $funnelStages,
+            'positions_performance' => $positionsPerformance,
+        ];
+    }
+
     /** @return list<array<string,mixed>> */
     public function payments(string $enterpriseId): array
     {
