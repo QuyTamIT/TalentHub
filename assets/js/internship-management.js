@@ -180,14 +180,21 @@ function initInternshipManagementModule() {
         const bootNode = document.getElementById('enterprise-session-boot');
         let boot = {};
         try { boot = JSON.parse(bootNode?.textContent || '{}'); } catch { boot = {}; }
+        const apiBase = boot.apiBase || (window.location.pathname.includes('/TalentHub') ? '/TalentHub/api/v1' : '/api/v1');
+        const csrf = boot.csrfToken || document.querySelector('input[name="csrfToken"]')?.value || '';
         try {
-            const response = await fetch(`${boot.apiBase || '/api/v1'}/businesses/me/internships/${encodeURIComponent(postId)}/${action}`, {
+            const response = await fetch(`${apiBase}/businesses/me/internships/${encodeURIComponent(postId)}/${action}`, {
                 method: 'POST', credentials: 'same-origin',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': boot.csrfToken || '' },
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
                 body: JSON.stringify({ expectedCurrentStatus }),
             });
-            const payload = await response.json();
-            if (!response.ok || payload?.data?.post?.status !== targetStatus) throw new Error(payload?.error?.message || 'Không thể đổi trạng thái tin.');
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || payload?.data?.post?.status !== targetStatus) {
+                const errorMsg = payload?.error?.message 
+                    || (payload?.error?.details && Array.isArray(payload.error.details) ? payload.error.details.map(d => d.message).join(' ') : null)
+                    || 'Không thể đổi trạng thái tin.';
+                throw new Error(errorMsg);
+            }
         } catch (error) {
             (window.showEntToast || showToast)(error?.message || 'Không thể đổi trạng thái tin.');
             return;
@@ -842,14 +849,21 @@ function initInternshipManagementModule() {
                 targetSchoolIds: targetSchoolIds,
             };
             const request = async (method, path, body) => {
-                const response = await fetch(`${boot.apiBase || '/api/v1'}${path}`, {
+                const apiBase = boot.apiBase || (window.location.pathname.includes('/TalentHub') ? '/TalentHub/api/v1' : '/api/v1');
+                const csrf = boot.csrfToken || document.querySelector('input[name="csrfToken"]')?.value || '';
+                const response = await fetch(`${apiBase}${path}`, {
                     method,
                     credentials: 'same-origin',
-                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': boot.csrfToken || '' },
+                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
                     body: JSON.stringify(body),
                 });
-                const json = await response.json();
-                if (!response.ok || !json?.data) throw new Error(json?.error?.message || 'Không thể lưu tin tuyển dụng.');
+                const json = await response.json().catch(() => null);
+                if (!response.ok || !json?.data) {
+                    const errorMsg = json?.error?.message 
+                        || (json?.error?.details && Array.isArray(json.error.details) ? json.error.details.map(d => d.message).join(' ') : null)
+                        || `Thao tác thất bại (HTTP ${response.status}). Vui lòng thử lại.`;
+                    throw new Error(errorMsg);
+                }
                 return json.data;
             };
             btnSaveDraft && (btnSaveDraft.disabled = true);
@@ -867,7 +881,8 @@ function initInternshipManagementModule() {
                 showToast(targetStatus === 'active' ? 'Đã phát hành tin tuyển dụng thành công!' : 'Đã lưu tin tuyển dụng!');
                 window.setTimeout(() => { window.location.href = 'index.php'; }, 600);
             } catch (error) {
-                showToast(error?.message || 'Không thể lưu tin tuyển dụng.');
+                console.error('Submit internship post error:', error);
+                showToast(error?.message || 'Không thể lưu tin tuyển dụng. Vui lòng thử lại.');
             } finally {
                 btnSaveDraft && (btnSaveDraft.disabled = false);
                 btnPublishPost && (btnPublishPost.disabled = false);

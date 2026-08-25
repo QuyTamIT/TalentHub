@@ -28,11 +28,45 @@ $companyInitials = getInitials($enterprise['name']);
 $isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
 $accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
 
-// Fetch real database analytics
-$analyticsData = $workflowService->analytics((string) $user['id']);
-$summary = $analyticsData['summary'];
-$funnelStages = $analyticsData['funnel_stages'];
-$positionsPerformance = $analyticsData['positions_performance'];
+$summary = [
+    'total_posts' => 0,
+    'active_posts' => 0,
+    'closed_posts' => 0,
+    'total_applicants' => 0,
+    'submitted_count' => 0,
+    'reviewing_count' => 0,
+    'qualified_candidates' => 0,
+    'qualified_percentage' => '0%',
+    'interviewing' => 0,
+    'passed_candidates' => 0,
+    'declined_candidates' => 0,
+    'pass_rate' => 0.0,
+    'pass_rate_formatted' => '0%',
+    'sponsored_projects_count' => 0,
+    'total_sponsored_amount' => '0.00',
+    'total_sponsored_formatted' => '0 VNĐ',
+    'matched_talents_count' => 0,
+];
+$funnelStages = [
+    ['id' => 'applied', 'name' => 'Ứng tuyển', 'sub' => 'Hồ sơ nhận vào hệ thống', 'count' => 0, 'percentage' => 100.0, 'conversion_from_prev' => '100%', 'icon' => 'file-text', 'color' => '#3B82F6'],
+    ['id' => 'qualified', 'name' => 'Sàng lọc hồ sơ', 'sub' => 'Hồ sơ được chấp thuận duyệt', 'count' => 0, 'percentage' => 0.0, 'conversion_from_prev' => '0%', 'icon' => 'user-check', 'color' => '#F97316'],
+    ['id' => 'interviewed', 'name' => 'Phỏng vấn', 'sub' => 'Vòng phỏng vấn chuyên môn', 'count' => 0, 'percentage' => 0.0, 'conversion_from_prev' => '0%', 'icon' => 'users', 'color' => '#8B5CF6'],
+    ['id' => 'passed', 'name' => 'Đạt / Tuyển dụng', 'sub' => 'Chính thức nhận vào thực tập', 'count' => 0, 'percentage' => 0.0, 'conversion_from_prev' => '0%', 'icon' => 'award', 'color' => '#16A34A']
+];
+$positionsPerformance = [];
+$analyticsData = ['summary' => $summary, 'funnel_stages' => $funnelStages, 'positions_performance' => $positionsPerformance];
+
+try {
+    $fetched = $workflowService->analytics((string) $user['id']);
+    if (!empty($fetched['summary'])) {
+        $analyticsData = $fetched;
+        $summary = array_merge($summary, $fetched['summary']);
+        $funnelStages = $fetched['funnel_stages'] ?? $funnelStages;
+        $positionsPerformance = $fetched['positions_performance'] ?? $positionsPerformance;
+    }
+} catch (\Throwable $e) {
+    error_log('Enterprise analytics page fetch failed: ' . $e->getMessage());
+}
 
 $enterpriseInfo = [
     'id'                => $enterprise['id'],
@@ -472,11 +506,12 @@ $sidebarNav = [
 
                             <div class="ana-bars-container" id="trend-bars-container">
                                 <?php 
-                                $maxVal = max($applicationTrend['total_applicants']);
+                                $rawMax = !empty($applicationTrend['total_applicants']) ? max($applicationTrend['total_applicants']) : 0;
+                                $maxVal = max(1, (int) $rawMax);
                                 $currIdx = $applicationTrend['current_month_index'] ?? 5;
                                 foreach ($applicationTrend['labels'] as $i => $label): 
-                                    $totVal = $applicationTrend['total_applicants'][$i];
-                                    $qualVal = $applicationTrend['qualified_applicants'][$i];
+                                    $totVal = $applicationTrend['total_applicants'][$i] ?? 0;
+                                    $qualVal = $applicationTrend['qualified_applicants'][$i] ?? 0;
                                     $totHeight = round(($totVal / $maxVal) * 140);
                                     $qualHeight = round(($qualVal / $maxVal) * 140);
                                     $isCurrent = ($i === $currIdx);
@@ -594,38 +629,50 @@ $sidebarNav = [
                                     </tr>
                                 </thead>
                                 <tbody id="job-performance-tbody">
-                                    <?php foreach ($jobPerformanceData as $job): ?>
+                                    <?php if (empty($jobPerformanceData)): ?>
                                         <tr>
-                                            <td>
-                                                <div class="ana-job-title"><?= htmlspecialchars($job['position']); ?></div>
-                                                <div class="ana-job-code">Mã: <?= htmlspecialchars($job['code']); ?></div>
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="ana-dept-badge"><?= htmlspecialchars($job['department']); ?></span>
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="font-semibold text-dark"><?= number_format($job['applicants'], 0, ',', '.'); ?></span>
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="font-semibold text-accent"><?= number_format($job['qualified'], 0, ',', '.'); ?></span>
-                                                <span class="ana-qual-pct">(<?= round(($job['qualified'] / $job['applicants']) * 100); ?>%)</span>
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="font-medium text-secondary"><?= $job['interviewed']; ?></span>
-                                            </td>
-                                            <td class="text-center">
-                                                <span class="font-semibold text-primary"><?= $job['passed']; ?></span>
-                                            </td>
-                                            <td class="text-center">
-                                                <div class="ana-match-cell">
-                                                    <span class="ana-match-val"><?= $job['avg_match']; ?></span>
-                                                    <div class="ana-match-bar-track">
-                                                        <div class="ana-match-bar-fill" style="width: <?= $job['avg_match']; ?>%;"></div>
-                                                    </div>
-                                                </div>
+                                            <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                                                Chưa có dữ liệu tin tuyển dụng phù hợp với bộ lọc.
                                             </td>
                                         </tr>
-                                    <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <?php foreach ($jobPerformanceData as $job): 
+                                            $appCount = (int) ($job['applicants'] ?? 0);
+                                            $qualCount = (int) ($job['qualified'] ?? 0);
+                                            $qualPct = $appCount > 0 ? (int) round(($qualCount / $appCount) * 100) : 0;
+                                        ?>
+                                            <tr>
+                                                <td>
+                                                    <div class="ana-job-title"><?= htmlspecialchars($job['position']); ?></div>
+                                                    <div class="ana-job-code">Mã: <?= htmlspecialchars($job['code']); ?></div>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span class="ana-dept-badge"><?= htmlspecialchars($job['department']); ?></span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span class="font-semibold text-dark"><?= number_format($appCount, 0, ',', '.'); ?></span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span class="font-semibold text-accent"><?= number_format($qualCount, 0, ',', '.'); ?></span>
+                                                    <span class="ana-qual-pct">(<?= $qualPct; ?>%)</span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span class="font-medium text-secondary"><?= (int) ($job['interviewed'] ?? 0); ?></span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span class="font-semibold text-primary"><?= (int) ($job['passed'] ?? 0); ?></span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <div class="ana-match-cell">
+                                                        <span class="ana-match-val"><?= (int) ($job['avg_match'] ?? 0); ?></span>
+                                                        <div class="ana-match-bar-track">
+                                                            <div class="ana-match-bar-fill" style="width: <?= min(100, (int) ($job['avg_match'] ?? 0)); ?>%;"></div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>

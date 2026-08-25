@@ -424,7 +424,7 @@ $sidebarNav = [
             'csrfToken' => $csrfToken,
             'enterpriseId' => $enterprise['id'],
             'isVerified' => $isVerified,
-            'apiBase' => '/api/v1/businesses/me',
+            'apiBase' => app_href('/api/v1/businesses/me'),
             'initialTalents' => $talentsData['items'],
             'totalTalents' => $talentsData['total'],
         ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
@@ -474,7 +474,7 @@ $sidebarNav = [
     </div>
 
     <!-- JavaScript Assets -->
-    <script src="../../assets/js/enterprise.js"></script>
-    <script src="../../assets/js/talent-search.js"></script>
+    <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/talent-search.js'); ?>"></script>
 </body>
 </html>

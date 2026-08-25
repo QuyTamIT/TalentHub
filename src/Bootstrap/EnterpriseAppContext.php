@@ -4,10 +4,14 @@ namespace TalentHub\Bootstrap;
 
 use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Auth\Repository\AuthRepository;
+use TalentHub\Auth\Service\AuthPortalRouter;
 use TalentHub\Auth\Service\AuthService;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
+use TalentHub\Modules\Business\Repository\BusinessRepository;
 use TalentHub\Modules\Business\Repository\BusinessWorkflowRepository;
+use TalentHub\Modules\Business\Repository\EnterpriseTalentRepository;
+use TalentHub\Modules\Business\Repository\InternshipRepository;
 use TalentHub\Modules\Business\Service\BusinessProfileService;
 use TalentHub\Modules\Business\Service\BusinessWorkflowService;
 use TalentHub\Modules\Business\Service\EnterpriseTalentService;
@@ -74,6 +78,10 @@ final class EnterpriseAppContext
         if ($cached === null) {
             $this->redirectToLogin();
         }
+        if (!RoleCodes::matches((string) ($cached['role'] ?? ''), RoleCodes::ENTERPRISE)) {
+            header('Location: ' . app_href(AuthPortalRouter::destination((string) ($cached['role'] ?? ''))));
+            exit;
+        }
         try {
             $user = $this->auth->current((string) $cached['id']);
             $this->session->refreshUser($user);
@@ -85,8 +93,8 @@ final class EnterpriseAppContext
             throw $exception;
         }
         if (!RoleCodes::matches((string) ($user['role'] ?? ''), RoleCodes::ENTERPRISE)) {
-            $this->session->destroy();
-            $this->redirectToLoginWithRoleRequired('enterprise');
+            header('Location: ' . app_href(AuthPortalRouter::destination((string) ($user['role'] ?? ''))));
+            exit;
         }
         try {
             $this->permissions->require($user['id'], 'business_dashboard.read_own');

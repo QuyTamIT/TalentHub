@@ -215,10 +215,8 @@ final class BusinessWorkflowService
         } catch (\Throwable) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Deadline không hợp lệ.');
         }
-        $workType = (string) ($input['workType'] ?? $input['workMode'] ?? 'onsite');
-        if (!in_array($workType, ['onsite', 'remote', 'hybrid'], true)) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Work type không hợp lệ.');
-        }
+        $rawWorkType = trim((string) ($input['workType'] ?? $input['workMode'] ?? 'onsite'));
+        $workType = $rawWorkType !== '' ? $rawWorkType : 'onsite';
         $slots = filter_var($input['slots'] ?? $input['openings'] ?? 1, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 1000]]);
         if ($slots === false) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Slots không hợp lệ.');

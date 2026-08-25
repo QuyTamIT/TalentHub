@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const noteText = noteInput ? noteInput.value.trim() : '';
 
             const boot = window.ENTERPRISE_BOOT || {};
-            const apiBase = boot.apiBase || '/api/v1';
+            const apiBase = boot.apiBase || (window.location.pathname.includes('/TalentHub') ? '/TalentHub/api/v1' : '/api/v1');
             const csrfToken = boot.csrfToken || '';
 
             const request = async (method, path, body) => {
@@ -342,9 +342,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     body: JSON.stringify(body),
                 });
-                const json = await response.json();
+                const json = await response.json().catch(() => null);
                 if (!response.ok || !json?.data) {
-                    throw new Error(json?.error?.message || 'Thao tác tài trợ không thành công.');
+                    const errorMsg = json?.error?.message 
+                        || (json?.error?.details && Array.isArray(json.error.details) ? json.error.details.map(d => d.message).join(' ') : null)
+                        || `Thao tác thất bại (HTTP ${response.status}). Vui lòng thử lại.`;
+                    throw new Error(errorMsg);
                 }
                 return json.data;
             };
