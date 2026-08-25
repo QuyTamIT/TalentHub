@@ -45,7 +45,9 @@ final class EnterpriseAppContext
     {
         $config = require dirname(__DIR__, 2) . '/config/database.php';
         $this->connection = new Connection($config);
-        $this->session = new SessionManager(require dirname(__DIR__, 2) . '/config/session.php');
+        $sessionConfig = require dirname(__DIR__, 2) . '/config/session.php';
+        $sessionConfig['name'] = SessionManager::SESSION_ENTERPRISE;
+        $this->session = new SessionManager($sessionConfig);
         $this->session->start();
         $pdo = $this->connection->connect();
         $repository = new BusinessRepository($pdo);
@@ -79,8 +81,7 @@ final class EnterpriseAppContext
             $this->redirectToLogin();
         }
         if (!RoleCodes::matches((string) ($cached['role'] ?? ''), RoleCodes::ENTERPRISE)) {
-            header('Location: ' . app_href(AuthPortalRouter::destination((string) ($cached['role'] ?? ''))));
-            exit;
+            PortalGuard::renderRoleMismatch((string) ($cached['role'] ?? ''), RoleCodes::ENTERPRISE);
         }
         try {
             $user = $this->auth->current((string) $cached['id']);
@@ -93,8 +94,7 @@ final class EnterpriseAppContext
             throw $exception;
         }
         if (!RoleCodes::matches((string) ($user['role'] ?? ''), RoleCodes::ENTERPRISE)) {
-            header('Location: ' . app_href(AuthPortalRouter::destination((string) ($user['role'] ?? ''))));
-            exit;
+            PortalGuard::renderRoleMismatch((string) ($user['role'] ?? ''), RoleCodes::ENTERPRISE);
         }
         try {
             $this->permissions->require($user['id'], 'business_dashboard.read_own');

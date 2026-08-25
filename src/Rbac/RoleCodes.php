@@ -20,7 +20,16 @@ final class RoleCodes
     public static function canonical(string $role): string
     {
         $role = strtolower(trim($role));
-        return $role === 'business' ? self::ENTERPRISE : $role;
+        if ($role === 'business') {
+            return self::ENTERPRISE;
+        }
+        if ($role === 'learner') {
+            return self::STUDENT;
+        }
+        if ($role === 'admin') {
+            return self::PLATFORM_ADMIN;
+        }
+        return $role;
     }
 
     public static function matches(string $actual, string $expected): bool

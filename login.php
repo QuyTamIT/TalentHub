@@ -26,13 +26,26 @@ $roleMessages=[
 ];
 $roleAlert=null;
 if($requiredRole!==null&&isset($roleMessages[$requiredRole])){
+    $roleSessionName = SessionManager::sessionNameForRole($requiredRole);
+    if (isset($_COOKIE[$roleSessionName])) {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+        $rSession = new SessionManager(array_merge(require __DIR__.'/config/session.php', ['name' => $roleSessionName]));
+        $rSession->start();
+        $rUser = $rSession->user();
+        if ($rUser !== null && \TalentHub\Rbac\RoleCodes::matches((string)($rUser['role'] ?? ''), $requiredRole)) {
+            header('Location: '.app_href(AuthPortalRouter::destination((string)$rUser['role'], $requestedNext)));
+            exit;
+        }
+        session_write_close();
+        $session->start();
+    }
     $currentUser=$session->user();
     $currentRole=$currentUser['role']??null;
-    if($currentRole===$requiredRole){
-        // Already logged in with correct role - redirect to destination
-        $destinations=['student'=>'/app/learner/index.php','teacher'=>'/app/teacher/index.php','school'=>'/app/school/index.php','enterprise'=>'/app/enterprise/index.php','admin'=>'/app/admin/index.php'];
-        $destination=$destinations[$currentRole]??'/';
-        header('Location: '.app_href($requestedNext??$destination));exit;
+    if($currentRole!==null && \TalentHub\Rbac\RoleCodes::matches((string)$currentRole, $requiredRole)){
+        header('Location: '.app_href(AuthPortalRouter::destination((string)$currentRole, $requestedNext)));
+        exit;
     }
     $roleAlert=$roleMessages[$requiredRole];
 }
@@ -48,7 +61,9 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
         $pdo=(new Connection(require __DIR__.'/config/database.php'))->connect();$repository=new AuthRepository($pdo);$auth=new AuthService($repository);$limiter=new LoginRateLimiter($pdo);$ip=$_SERVER['REMOTE_ADDR']??null;$requestId=RequestId::make(null);
         $limiter->assertAllowed($emailValue,$ip);$session->assertLoginAllowed();
         try{$user=$auth->login(['email'=>$emailValue,'password'=>$password],$requestId,$ip);}catch(ApiException $exception){if($exception->errorCode==='INVALID_CREDENTIALS'){$limiter->recordFailure($emailValue,$ip);$session->recordLoginFailure();}throw $exception;}
-        $limiter->clearIdentity($emailValue,$ip);$session->clearLoginFailures();$session->login($user);header('Location: '.app_href(AuthPortalRouter::destination($user['role'],$requestedNext)));exit;
+        $limiter->clearIdentity($emailValue,$ip);$session->clearLoginFailures();$session->login($user);
+        SessionManager::writeUserToRoleSession($user, require __DIR__.'/config/session.php');
+        header('Location: '.app_href(AuthPortalRouter::destination($user['role'],$requestedNext)));exit;
     }catch(ApiException $exception){http_response_code($exception->status);$errorMessage=$exception->getMessage();foreach($exception->details as $detail){$fieldErrors[$detail['field']]=$detail['message'];}if(isset($exception->headers['Retry-After'])){header('Retry-After: '.$exception->headers['Retry-After']);}}
     catch(Throwable){$errorMessage='Không thể kết nối dịch vụ đăng nhập. Vui lòng thử lại sau.';}
 }

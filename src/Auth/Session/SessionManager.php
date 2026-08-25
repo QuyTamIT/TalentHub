@@ -7,8 +7,49 @@ use TalentHub\Http\ApiException;
 
 final class SessionManager
 {
+    public const SESSION_STUDENT = 'TALENTHUB_STUDENT_SESS';
+    public const SESSION_ENTERPRISE = 'TALENTHUB_ENTERPRISE_SESS';
+    public const SESSION_SCHOOL = 'TALENTHUB_SCHOOL_SESS';
+    public const SESSION_ADMIN = 'TALENTHUB_ADMIN_SESS';
+    public const SESSION_DEFAULT = 'TALENTHUBSESSID';
+
     /** @param array{name:string,lifetime:int,secure:bool,sameSite:string,savePath:string,path?:string,domain?:string} $config */
     public function __construct(private readonly array $config) {}
+
+    public static function sessionNameForRole(?string $role): string
+    {
+        if ($role === null || trim($role) === '') {
+            return self::SESSION_DEFAULT;
+        }
+        $role = \TalentHub\Rbac\RoleCodes::canonical($role);
+        return match ($role) {
+            \TalentHub\Rbac\RoleCodes::STUDENT => self::SESSION_STUDENT,
+            \TalentHub\Rbac\RoleCodes::ENTERPRISE => self::SESSION_ENTERPRISE,
+            \TalentHub\Rbac\RoleCodes::SCHOOL, \TalentHub\Rbac\RoleCodes::TEACHER => self::SESSION_SCHOOL,
+            \TalentHub\Rbac\RoleCodes::PLATFORM_ADMIN => self::SESSION_ADMIN,
+            default => self::SESSION_DEFAULT,
+        };
+    }
+
+    public function name(): string
+    {
+        return (string) ($this->config['name'] ?? self::SESSION_DEFAULT);
+    }
+
+    public static function writeUserToRoleSession(array $user, array $baseConfig): void
+    {
+        $roleSessionName = self::sessionNameForRole($user['role'] ?? null);
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        $config = array_merge($baseConfig, ['name' => $roleSessionName]);
+        $mgr = new self($config);
+        $mgr->start();
+        $mgr->login($user);
+        session_write_close();
+    }
 
     public function start(): void
     {
@@ -16,9 +57,25 @@ final class SessionManager
             return;
         }
         $this->configureStorage();
-        session_name($this->config['name']);
-        
-        $path = $this->config['path'] ?? '/';
+        $sessionName = $this->config['name'] ?? self::SESSION_DEFAULT;
+
+        if (!isset($_COOKIE[$sessionName])) {
+            $legacyAliases = [
+                self::SESSION_STUDENT => ['TALENTHUB_STUDENT_SESSION', 'TALENTHUBSESSID', 'PHPSESSID'],
+                self::SESSION_ENTERPRISE => ['TALENTHUB_ENTERPRISE_SESSION', 'TALENTHUBSESSID', 'PHPSESSID'],
+                self::SESSION_SCHOOL => ['TALENTHUB_SCHOOL_SESSION', 'TALENTHUBSESSID', 'PHPSESSID'],
+                self::SESSION_ADMIN => ['TALENTHUB_ADMIN_SESSION', 'TALENTHUBSESSID', 'PHPSESSID'],
+            ];
+            foreach ($legacyAliases[$sessionName] ?? [] as $alias) {
+                if (isset($_COOKIE[$alias]) && is_string($_COOKIE[$alias]) && $_COOKIE[$alias] !== '') {
+                    $_COOKIE[$sessionName] = $_COOKIE[$alias];
+                    break;
+                }
+            }
+        }
+        session_name($sessionName);
+
+        $path = '/';
         $secure = (bool) ($this->config['secure'] ?? false);
         $sameSite = $this->config['sameSite'] ?? 'Lax';
         $domain = $this->config['domain'] ?? '';
