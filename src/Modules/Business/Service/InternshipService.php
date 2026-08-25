@@ -12,7 +12,11 @@ use TalentHub\Support\Uuid;
 
 final class InternshipService
 {
-    private const POST_FIELDS = ['title', 'field', 'location', 'workType', 'duration', 'educationLevel', 'description', 'benefits', 'skills', 'requirements', 'slots', 'deadline'];
+    private const POST_FIELDS = [
+        'title', 'field', 'location', 'workType', 'duration', 'educationLevel',
+        'description', 'benefits', 'skills', 'requirements', 'slots', 'deadline',
+        'audience', 'targetSchoolIds'
+    ];
 
     public function __construct(private readonly InternshipRepository $repository) {}
 
@@ -60,9 +64,37 @@ final class InternshipService
         $result = [];
         $map = ['title', 'field', 'location', 'workType', 'duration', 'educationLevel', 'description', 'benefits', 'slots', 'deadline'];
         foreach ($map as $field) {
-            if (array_key_exists($field, $input)) { $result[$field] = is_string($input[$field]) ? trim($input[$field]) : $input[$field]; }
-            elseif ($requireAll && $field !== 'benefits') { throw new ApiException(422, 'VALIDATION_FAILED', "Thiếu field {$field}."); }
+            if (array_key_exists($field, $input)) {
+                $result[$field] = is_string($input[$field]) ? trim($input[$field]) : $input[$field];
+            } elseif ($requireAll && $field !== 'benefits') {
+                throw new ApiException(422, 'VALIDATION_FAILED', "Thiếu field {$field}.");
+            }
         }
+
+        if (array_key_exists('audience', $input)) {
+            $audience = is_string($input['audience']) ? trim($input['audience']) : '';
+            if (!in_array($audience, ['public', 'partner_schools'], true)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'audience không hợp lệ.');
+            }
+            $result['audience'] = $audience;
+        } elseif ($requireAll) {
+            $result['audience'] = 'public';
+        }
+
+        if (array_key_exists('targetSchoolIds', $input)) {
+            if (!is_array($input['targetSchoolIds'])) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'targetSchoolIds phải là mảng.');
+            }
+            $schoolIds = [];
+            foreach ($input['targetSchoolIds'] as $schoolId) {
+                if (!is_string($schoolId) || !Uuid::isValid(trim($schoolId))) {
+                    throw new ApiException(422, 'VALIDATION_FAILED', 'targetSchoolIds chứa mã trường không hợp lệ.');
+                }
+                $schoolIds[] = trim($schoolId);
+            }
+            $result['targetSchoolIds'] = array_values(array_unique($schoolIds));
+        }
+
         foreach (['skills' => 'skillsJson', 'requirements' => 'requirementsJson'] as $inputField => $databaseField) {
             if (array_key_exists($inputField, $input)) {
                 if (!is_array($input[$inputField])) { throw new ApiException(422, 'VALIDATION_FAILED', "{$inputField} phải là mảng."); }

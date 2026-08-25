@@ -171,51 +171,110 @@ final class BusinessWorkflowRepository
     /** @return list<array<string,mixed>> */
     public function projects(CollectionQuery $query): array
     {
-        $order = ['createdAt' => 'createdAt', 'title' => 'title', 'fundingGoal' => 'fundingGoal'][$query->sort];
-        $statement = $this->pdo->prepare(
-            "SELECT id,schoolId,title,description,fundingGoal,status,createdAt,updatedAt FROM projects WHERE status='in_progress' AND fundingGoal IS NOT NULL ORDER BY {$order} "
-            . strtoupper($query->direction) . " LIMIT {$query->limit} OFFSET {$query->offset}"
-        );
+        $order = ['createdAt' => 'p.createdAt', 'title' => 'p.title', 'fundingGoal' => 'p.fundingGoal'][$query->sort];
+        $direction = strtoupper($query->direction);
+
+        $sql = "SELECT p.*,
+                       s.name AS schoolName,
+                       s.code AS schoolCode,
+                       COALESCE((SELECT SUM(ps.amount) FROM project_sponsorships ps WHERE ps.projectId = p.id AND ps.status = 'paid'), 0) AS raisedAmount,
+                       COALESCE((SELECT COUNT(DISTINCT ps.enterpriseId) FROM project_sponsorships ps WHERE ps.projectId = p.id AND ps.status = 'paid'), 0) AS sponsorsCount,
+                       COALESCE((SELECT COUNT(*) FROM project_members pm WHERE pm.projectId = p.id AND pm.status = 'active'), 0) AS membersCount
+                FROM projects p
+                LEFT JOIN schools s ON s.id = p.schoolId
+                WHERE p.status = 'in_progress' AND p.fundingGoal IS NOT NULL
+                ORDER BY {$order} {$direction}
+                LIMIT {$query->limit} OFFSET {$query->offset}";
+
+        $statement = $this->pdo->prepare($sql);
         $statement->execute();
-        return array_values($statement->fetchAll());
+        $items = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        foreach ($items as &$item) {
+            $item['fundingGoal'] = (string) $item['fundingGoal'];
+            $item['raisedAmount'] = (string) $item['raisedAmount'];
+            $item['percentage'] = (float) $item['fundingGoal'] > 0
+                ? (int) min(100, round(((float) $item['raisedAmount'] / (float) $item['fundingGoal']) * 100))
+                : 0;
+            $item['members'] = $this->projectMembers((string) $item['id']);
+        }
+        unset($item);
+
+        return array_values($items);
+    }
+
+    private function projectMembers(string $projectId): array
+    {
+        if (!$this->tableExists('project_members') || !$this->tableExists('student_profiles') || !$this->tableExists('users')) {
+            return [];
+        }
+        $stmt = $this->pdo->prepare(
+            "SELECT pm.id, pm.role, pm.joinedAt, u.fullName AS name, u.email
+             FROM project_members pm
+             INNER JOIN student_profiles sp ON sp.id = pm.studentId
+             INNER JOIN users u ON u.id = sp.userId
+             WHERE pm.projectId = ? AND pm.status = 'active'
+             ORDER BY pm.joinedAt ASC"
+        );
+        $stmt->execute([$projectId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
     public function sponsor(string $enterpriseId, string $projectId, string $amount, string $currency, ?string $note): string
     {
         $id = Uuid::v4();
-        $statement = $this->pdo->prepare("INSERT INTO project_sponsorships(id,enterpriseId,projectId,amount,currency,note) SELECT ?,?,id,?,?,? FROM projects WHERE id=? AND status='in_progress' AND fundingGoal IS NOT NULL");
-        $statement->execute([$id, $enterpriseId, $amount, $currency, $note, $projectId]);
+        $now = $this->now();
+        $statement = $this->pdo->prepare("INSERT INTO project_sponsorships(id,enterpriseId,projectId,amount,currency,status,note,createdAt,updatedAt) SELECT ?,?,id,?,?,'pledged',?,?,? FROM projects WHERE id=? AND status='in_progress' AND fundingGoal IS NOT NULL");
+        $statement->execute([$id, $enterpriseId, $amount, $currency, $note, $now, $now, $projectId]);
         return $statement->rowCount() === 1 ? $id : '';
     }
 
     /** @return list<array<string,mixed>> */
     public function sponsorships(string $enterpriseId): array
     {
-        $statement = $this->pdo->prepare('SELECT ps.*,p.title AS projectTitle FROM project_sponsorships ps JOIN projects p ON p.id=ps.projectId WHERE ps.enterpriseId=? ORDER BY ps.createdAt DESC');
+        $statement = $this->pdo->prepare(
+            "SELECT ps.*,
+                    p.title AS projectTitle,
+                    p.category AS projectCategory,
+                    p.fundingGoal,
+                    s.name AS schoolName,
+                    po.id AS paymentOrderId,
+                    po.paymentStatus,
+                    po.providerReference,
+                    po.paidAt
+             FROM project_sponsorships ps
+             INNER JOIN projects p ON p.id = ps.projectId
+             LEFT JOIN schools s ON s.id = p.schoolId
+             LEFT JOIN payment_orders po ON po.sponsorshipId = ps.id
+             WHERE ps.enterpriseId = ?
+             ORDER BY ps.createdAt DESC"
+        );
         $statement->execute([$enterpriseId]);
-        return array_values($statement->fetchAll());
+        return array_values($statement->fetchAll(PDO::FETCH_ASSOC) ?: []);
     }
 
     public function cancelSponsorship(string $enterpriseId, string $id): bool
     {
-        $statement = $this->pdo->prepare("UPDATE project_sponsorships SET status='cancelled',cancelledAt=UTC_TIMESTAMP(6) WHERE id=? AND enterpriseId=? AND status='pledged'");
-        $statement->execute([$id, $enterpriseId]);
+        $now = $this->now();
+        $statement = $this->pdo->prepare("UPDATE project_sponsorships SET status='cancelled',cancelledAt=:now,updatedAt=:now WHERE id=:id AND enterpriseId=:enterpriseId AND status='pledged'");
+        $statement->execute(['now' => $now, 'id' => $id, 'enterpriseId' => $enterpriseId]);
         return $statement->rowCount() === 1;
     }
 
     public function createPayment(string $enterpriseId, string $sponsorshipId, string $provider): string
     {
         $id = Uuid::v4();
+        $now = $this->now();
         $this->pdo->beginTransaction();
         try {
-            $statement = $this->pdo->prepare("INSERT INTO payment_orders(id,enterpriseId,sponsorshipId,amount,currency,provider) SELECT ?,enterpriseId,id,amount,currency,? FROM project_sponsorships WHERE id=? AND enterpriseId=? AND status='pledged'");
-            $statement->execute([$id, $provider, $sponsorshipId, $enterpriseId]);
+            $statement = $this->pdo->prepare("INSERT INTO payment_orders(id,enterpriseId,sponsorshipId,amount,currency,provider,paymentStatus,createdAt,updatedAt) SELECT ?,enterpriseId,id,amount,currency,?,'pending',?,? FROM project_sponsorships WHERE id=? AND enterpriseId=? AND status='pledged'");
+            $statement->execute([$id, $provider, $now, $now, $sponsorshipId, $enterpriseId]);
             if ($statement->rowCount() !== 1) {
                 $this->pdo->rollBack();
                 return '';
             }
-            $this->pdo->prepare("UPDATE project_sponsorships SET status='pending_payment' WHERE id=? AND enterpriseId=?")
-                ->execute([$sponsorshipId, $enterpriseId]);
+            $this->pdo->prepare("UPDATE project_sponsorships SET status='pending_payment',updatedAt=? WHERE id=? AND enterpriseId=?")
+                ->execute([$now, $sponsorshipId, $enterpriseId]);
             $this->pdo->commit();
             return $id;
         } catch (Throwable $exception) {
@@ -224,6 +283,186 @@ final class BusinessWorkflowRepository
             }
             throw $exception;
         }
+    }
+
+    /** @return array<string,mixed> */
+    public function analytics(string $enterpriseId, array $params = []): array
+    {
+        // 1. Post statistics
+        $stmtPosts = $this->pdo->prepare(
+            "SELECT 
+                COUNT(*) AS totalPosts,
+                COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0) AS activePosts,
+                COALESCE(SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END), 0) AS closedPosts
+             FROM internship_posts
+             WHERE enterpriseId = ?"
+        );
+        $stmtPosts->execute([$enterpriseId]);
+        $postStats = $stmtPosts->fetch(PDO::FETCH_ASSOC) ?: ['totalPosts' => 0, 'activePosts' => 0, 'closedPosts' => 0];
+
+        // 2. Application statistics
+        $stmtApps = $this->pdo->prepare(
+            "SELECT 
+                COUNT(ia.id) AS totalApplicants,
+                COALESCE(SUM(CASE WHEN ia.status = 'submitted' THEN 1 ELSE 0 END), 0) AS submittedCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'reviewing' THEN 1 ELSE 0 END), 0) AS reviewingCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'interview' THEN 1 ELSE 0 END), 0) AS interviewCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'accepted' THEN 1 ELSE 0 END), 0) AS acceptedCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'declined' THEN 1 ELSE 0 END), 0) AS declinedCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'withdrawn' THEN 1 ELSE 0 END), 0) AS withdrawnCount
+             FROM internship_applications ia
+             INNER JOIN internship_posts ip ON ip.id = ia.postId
+             WHERE ip.enterpriseId = ?"
+        );
+        $stmtApps->execute([$enterpriseId]);
+        $appStats = $stmtApps->fetch(PDO::FETCH_ASSOC) ?: [
+            'totalApplicants' => 0, 'submittedCount' => 0, 'reviewingCount' => 0,
+            'interviewCount' => 0, 'acceptedCount' => 0, 'declinedCount' => 0, 'withdrawnCount' => 0
+        ];
+
+        $totalApplicants = (int) $appStats['totalApplicants'];
+        $interviewCount = (int) $appStats['interviewCount'];
+        $acceptedCount = (int) $appStats['acceptedCount'];
+        $reviewingCount = (int) $appStats['reviewingCount'];
+        $submittedCount = (int) $appStats['submittedCount'];
+        $qualifiedCount = $reviewingCount + $interviewCount + $acceptedCount;
+        
+        $reviewedCount = $interviewCount + $acceptedCount;
+        $passRate = $reviewedCount > 0
+            ? round(($acceptedCount / $reviewedCount) * 100, 1)
+            : ($totalApplicants > 0 ? round(($acceptedCount / $totalApplicants) * 100, 1) : 0.0);
+
+        // 3. Sponsorship statistics
+        $stmtSpon = $this->pdo->prepare(
+            "SELECT 
+                COALESCE(COUNT(DISTINCT projectId), 0) AS sponsoredProjectsCount,
+                COALESCE(SUM(amount), 0) AS totalSponsoredAmount
+             FROM project_sponsorships
+             WHERE enterpriseId = ? AND status = 'paid'"
+        );
+        $stmtSpon->execute([$enterpriseId]);
+        $sponStats = $stmtSpon->fetch(PDO::FETCH_ASSOC) ?: ['sponsoredProjectsCount' => 0, 'totalSponsoredAmount' => '0.00'];
+
+        // 4. Position performance breakdown
+        $stmtPositions = $this->pdo->prepare(
+            "SELECT 
+                ip.id,
+                ip.title,
+                ip.status,
+                ip.deadline,
+                ip.createdAt,
+                COUNT(ia.id) AS applicantsCount,
+                COALESCE(SUM(CASE WHEN ia.status IN ('reviewing', 'interview', 'accepted') THEN 1 ELSE 0 END), 0) AS qualifiedCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'interview' THEN 1 ELSE 0 END), 0) AS interviewCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'accepted' THEN 1 ELSE 0 END), 0) AS acceptedCount,
+                COALESCE(SUM(CASE WHEN ia.status = 'declined' THEN 1 ELSE 0 END), 0) AS declinedCount
+             FROM internship_posts ip
+             LEFT JOIN internship_applications ia ON ia.postId = ip.id
+             WHERE ip.enterpriseId = ?
+             GROUP BY ip.id
+             ORDER BY ip.createdAt DESC"
+        );
+        $stmtPositions->execute([$enterpriseId]);
+        $positionsRaw = $stmtPositions->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        $positionsPerformance = [];
+        foreach ($positionsRaw as $p) {
+            $pApps = (int) $p['applicantsCount'];
+            $pAcc = (int) $p['acceptedCount'];
+            $pInt = (int) $p['interviewCount'];
+            $pReview = $pInt + $pAcc;
+            $pRate = $pReview > 0
+                ? round(($pAcc / $pReview) * 100, 1)
+                : ($pApps > 0 ? round(($pAcc / $pApps) * 100, 1) : 0.0);
+
+            $positionsPerformance[] = [
+                'id' => (string) $p['id'],
+                'title' => (string) $p['title'],
+                'status' => (string) $p['status'],
+                'status_label' => $p['status'] === 'active' ? 'Đang mở' : ($p['status'] === 'closed' ? 'Đã đóng' : 'Bản nháp'),
+                'deadline' => (string) ($p['deadline'] ?? ''),
+                'applicants_count' => $pApps,
+                'qualified_count' => (int) $p['qualifiedCount'],
+                'interview_count' => $pInt,
+                'accepted_count' => $pAcc,
+                'pass_rate' => $pRate,
+                'pass_rate_formatted' => $pRate . '%',
+            ];
+        }
+
+        // 5. Funnel Stages
+        $funnelStages = [
+            [
+                'id' => 'applied',
+                'name' => 'Ứng tuyển',
+                'sub' => 'Hồ sơ nhận vào hệ thống',
+                'count' => $totalApplicants,
+                'percentage' => 100.0,
+                'conversion_from_prev' => '100%',
+                'icon' => 'file-text',
+                'color' => '#3B82F6'
+            ],
+            [
+                'id' => 'qualified',
+                'name' => 'Sàng lọc hồ sơ',
+                'sub' => 'Hồ sơ được chấp thuận duyệt',
+                'count' => $qualifiedCount,
+                'percentage' => $totalApplicants > 0 ? round(($qualifiedCount / $totalApplicants) * 100, 1) : 0.0,
+                'conversion_from_prev' => $totalApplicants > 0 ? round(($qualifiedCount / $totalApplicants) * 100, 1) . '%' : '0%',
+                'icon' => 'user-check',
+                'color' => '#F97316'
+            ],
+            [
+                'id' => 'interviewed',
+                'name' => 'Phỏng vấn',
+                'sub' => 'Vòng phỏng vấn chuyên môn',
+                'count' => $reviewedCount,
+                'percentage' => $totalApplicants > 0 ? round(($reviewedCount / $totalApplicants) * 100, 1) : 0.0,
+                'conversion_from_prev' => $qualifiedCount > 0 ? round(($reviewedCount / $qualifiedCount) * 100, 1) . '%' : '0%',
+                'icon' => 'users',
+                'color' => '#8B5CF6'
+            ],
+            [
+                'id' => 'passed',
+                'name' => 'Đạt / Tuyển dụng',
+                'sub' => 'Chính thức nhận vào thực tập',
+                'count' => $acceptedCount,
+                'percentage' => $totalApplicants > 0 ? round(($acceptedCount / $totalApplicants) * 100, 1) : 0.0,
+                'conversion_from_prev' => $reviewedCount > 0 ? round(($acceptedCount / $reviewedCount) * 100, 1) . '%' : '0%',
+                'icon' => 'award',
+                'color' => '#16A34A'
+            ]
+        ];
+
+        // 6. Matched talents in talent pool
+        $matchedTalentsCount = 0;
+        if ($this->tableExists('student_profiles')) {
+            $matchedTalentsCount = (int) $this->pdo->query("SELECT COUNT(*) FROM student_profiles")->fetchColumn();
+        }
+
+        return [
+            'summary' => [
+                'total_posts' => (int) $postStats['totalPosts'],
+                'active_posts' => (int) $postStats['activePosts'],
+                'closed_posts' => (int) $postStats['closedPosts'],
+                'total_applicants' => $totalApplicants,
+                'submitted_count' => $submittedCount,
+                'reviewing_count' => $reviewingCount,
+                'qualified_candidates' => $qualifiedCount,
+                'qualified_percentage' => ($totalApplicants > 0 ? round(($qualifiedCount / $totalApplicants) * 100, 1) : 0.0) . '%',
+                'interviewing' => $interviewCount,
+                'passed_candidates' => $acceptedCount,
+                'declined_candidates' => (int) $appStats['declinedCount'],
+                'pass_rate' => $passRate,
+                'pass_rate_formatted' => $passRate . '%',
+                'sponsored_projects_count' => (int) $sponStats['sponsoredProjectsCount'],
+                'total_sponsored_amount' => (string) $sponStats['totalSponsoredAmount'],
+                'total_sponsored_formatted' => number_format((float) $sponStats['totalSponsoredAmount'], 0, ',', '.') . ' VNĐ',
+                'matched_talents_count' => $matchedTalentsCount,
+            ],
+            'funnel_stages' => $funnelStages,
+            'positions_performance' => $positionsPerformance,
+        ];
     }
 
     /** @return list<array<string,mixed>> */
@@ -236,8 +475,8 @@ final class BusinessWorkflowRepository
 
     public function audit(string $userId, string $action, string $type, string $id, string $requestId): void
     {
-        $statement = $this->pdo->prepare('INSERT INTO audit_logs(id,userId,action,entityType,entityId,requestId,metadata) VALUES(?,?,?,?,?,?,?)');
-        $statement->execute([Uuid::v4(), $userId, $action, $type, $id, $requestId, '{}']);
+        $statement = $this->pdo->prepare('INSERT INTO audit_logs(id,userId,action,entityType,entityId,requestId,metadata,createdAt) VALUES(?,?,?,?,?,?,?,?)');
+        $statement->execute([Uuid::v4(), $userId, $action, $type, $id, $requestId, '{}', $this->now()]);
     }
 
     private function applicationCommandService(): \TalentHub\Learner\Data\Service\ApplicationCommandService
@@ -251,5 +490,23 @@ final class BusinessWorkflowRepository
     private function lockSuffix(): string
     {
         return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite' ? '' : ' FOR UPDATE';
+    }
+
+    private function tableExists(string $tableName): bool
+    {
+        $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $stmt = $this->pdo->prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name = ? LIMIT 1");
+            $stmt->execute([$tableName]);
+            return (bool) $stmt->fetchColumn();
+        }
+        $stmt = $this->pdo->prepare('SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ? LIMIT 1');
+        $stmt->execute([$tableName]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    private function now(): string
+    {
+        return (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s.u');
     }
 }

@@ -7,12 +7,13 @@ use TalentHub\Auth\Repository\AuthRepository;
 use TalentHub\Auth\Service\AuthService;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
-use TalentHub\Modules\Business\Repository\BusinessRepository;
-use TalentHub\Modules\Business\Repository\EnterpriseTalentRepository;
-use TalentHub\Modules\Business\Repository\InternshipRepository;
+use TalentHub\Modules\Business\Repository\BusinessWorkflowRepository;
 use TalentHub\Modules\Business\Service\BusinessProfileService;
+use TalentHub\Modules\Business\Service\BusinessWorkflowService;
 use TalentHub\Modules\Business\Service\EnterpriseTalentService;
 use TalentHub\Modules\Business\Service\InternshipService;
+use TalentHub\Modules\School\Repository\SchoolPartnershipRepository;
+use TalentHub\Modules\School\Service\SchoolPartnershipService;
 use TalentHub\Rbac\RoleCodes;
 use TalentHub\Rbac\Service\PermissionService;
 
@@ -33,6 +34,8 @@ final class EnterpriseAppContext
     private PermissionService $permissions;
     private InternshipService $internships;
     private EnterpriseTalentService $talents;
+    private SchoolPartnershipService $partnerships;
+    private BusinessWorkflowService $workflows;
 
     public function __construct()
     {
@@ -47,6 +50,8 @@ final class EnterpriseAppContext
         $this->permissions = new PermissionService($pdo);
         $this->internships = new InternshipService(new InternshipRepository($pdo));
         $this->talents = new EnterpriseTalentService(new EnterpriseTalentRepository($pdo));
+        $this->partnerships = new SchoolPartnershipService(new SchoolPartnershipRepository($pdo));
+        $this->workflows = new BusinessWorkflowService(new BusinessWorkflowRepository($pdo), $this->internships);
     }
 
     /**
@@ -105,6 +110,8 @@ final class EnterpriseAppContext
             'csrfToken'  => $this->session->csrfToken(),
             'internships'=> $this->internships,
             'talents'    => $this->talents,
+            'partnerships'=> $this->partnerships,
+            'workflows'  => $this->workflows,
             'permissions'=> $this->permissions,
         ];
     }

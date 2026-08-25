@@ -183,9 +183,27 @@ final class BusinessWorkflowService
         return ['id' => $id, 'status' => 'pending'];
     }
 
+    public function confirmPayment(string $userId, string $orderId, array $input, string $requestId): array
+    {
+        $enterpriseId = $this->enterprise($userId);
+        $confirmationService = new PaymentConfirmationService($this->repository->pdo());
+        return $confirmationService->confirmPayment($enterpriseId, $orderId, $input, $requestId);
+    }
+
     public function payments(string $userId): array
     {
         return $this->repository->payments($this->enterprise($userId));
+    }
+
+    public function analytics(string $userId, array $params = []): array
+    {
+        $enterpriseId = $this->enterprise($userId);
+        return $this->repository->analytics($enterpriseId, $params);
+    }
+
+    public function getEnterpriseMetrics(string $enterpriseId): array
+    {
+        return $this->repository->analytics($enterpriseId)['summary'];
     }
 
     /** @return array<string,mixed> */
