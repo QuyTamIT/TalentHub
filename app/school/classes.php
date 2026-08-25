@@ -29,14 +29,10 @@ ksort($grades);
 $gradeStats = [];
 foreach ($grades as $gradeName => $gradeClasses) {
     $studentSum = array_sum(array_column($gradeClasses, 'students'));
-    $avgCompletion = count($gradeClasses) > 0
-        ? round(array_sum(array_column($gradeClasses, 'completion')) / count($gradeClasses))
-        : 0;
     $gradeStats[] = [
         'name'          => $gradeName,
         'classes'       => count($gradeClasses),
         'students'      => $studentSum,
-        'avgCompletion' => $avgCompletion,
     ];
 }
 
@@ -56,7 +52,7 @@ $pageTitle    = 'Lớp & Khối';
 ob_start();
 ?>
 <?php
-$pageDescription = 'Quản lý các lớp theo khối, xem sĩ số và tỷ lệ hoàn thiện hồ sơ.';
+$pageDescription = 'Quản lý các lớp theo khối và xem sĩ số thực tế.';
 $pageActions = '<a href="./class-edit.php" class="btn btn-primary">+ Thêm lớp mới</a>';
 include __DIR__ . '/includes/page-banner.php';
 ?>
@@ -78,15 +74,9 @@ include __DIR__ . '/includes/page-banner.php';
                     <?= $stat['classes'] ?> lớp
                 </span>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-                <div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);"><?= $stat['students'] ?></div>
-                    <div style="font-size: 0.8125rem; color: var(--text-muted);">học sinh</div>
-                </div>
-                <div style="text-align: right;">
-                    <div style="font-size: 1.125rem; font-weight: 700; color: #2563EB;"><?= $stat['avgCompletion'] ?>%</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">hoàn thiện TB</div>
-                </div>
+            <div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);"><?= $stat['students'] ?></div>
+                <div style="font-size: 0.8125rem; color: var(--text-muted);">học sinh đang hoạt động</div>
             </div>
         </div>
     <?php endforeach; ?>
@@ -118,18 +108,11 @@ include __DIR__ . '/includes/page-banner.php';
                             <?= htmlspecialchars($class['statusText']); ?>
                         </span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+                    <div style="margin-bottom: 1rem;">
                         <div>
                             <span style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);"><?= $class['students'] ?></span>
-                            <span style="font-size: 0.8125rem; color: var(--text-muted); margin-left: 0.25rem;">học sinh</span>
+                            <span style="font-size: 0.8125rem; color: var(--text-muted); margin-left: 0.25rem;">học sinh đang hoạt động</span>
                         </div>
-                        <div style="text-align: right;">
-                            <span style="font-size: 1rem; font-weight: 700; color: #2563EB;"><?= $class['completion'] ?>%</span>
-                            <span style="font-size: 0.75rem; color: var(--text-muted);"> hồ sơ</span>
-                        </div>
-                    </div>
-                    <div style="height: 6px; background: var(--background); border-radius: 3px; overflow: hidden; margin-bottom: 1rem;">
-                        <div style="height: 100%; width: <?= $class['completion'] ?>%; background: <?= $class['completion'] >= 80 ? '#22C55E' : ($class['completion'] >= 70 ? '#F59E0B' : '#EF4444'); ?>; border-radius: 3px;"></div>
                     </div>
                     <div style="display: flex; gap: 0.5rem;">
                         <a href="./students.php?classId=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="flex: 1; text-decoration:none;">

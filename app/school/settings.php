@@ -14,6 +14,7 @@ use TalentHub\Http\ApiException;
 $context = (new SchoolAppContext())->boot();
 $service = $context['service'];
 $userId  = $context['user']['id'];
+$session = $context['session'];
 
 $schoolInfo = [
     'name'          => $context['school']['name'],
@@ -31,6 +32,7 @@ $error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
         if (isset($_FILES['logoFile']) && is_array($_FILES['logoFile']) && ($_FILES['logoFile']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
             $file = $_FILES['logoFile'];
             if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
@@ -82,6 +84,7 @@ include __DIR__ . '/includes/page-banner.php';
     <?php endif; ?>
 
     <form method="post" class="school-form" enctype="multipart/form-data" novalidate>
+        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
         <div class="school-form__grid school-form__grid--2col">
             <label class="school-form__field">
                 <span>Tên trường <em>*</em></span>

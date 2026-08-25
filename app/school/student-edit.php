@@ -15,6 +15,7 @@ use TalentHub\Support\Uuid;
 $context = (new SchoolAppContext())->boot();
 $service = $context['service'];
 $userId  = $context['user']['id'];
+$session = $context['session'];
 
 $studentId = isset($_GET['id']) ? (string) $_GET['id'] : null;
 $isEdit    = $studentId !== null && Uuid::isValid($studentId);
@@ -44,9 +45,11 @@ if ($isEdit) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     try {
+        $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
         if ($action === 'create') {
-            $service->createStudent($userId, $_POST);
-            header('Location: ./students.php?msg=created');
+            $result = $service->createStudent($userId, $_POST);
+            $message = ($result['deliveryStatus'] ?? 'failed') === 'sent' ? 'invited' : 'invite_delivery_failed';
+            header('Location: ./students.php?msg=' . $message);
             exit;
         }
         if ($action === 'update' && $isEdit) {
@@ -93,6 +96,7 @@ ob_start();
     <?php endif; ?>
 
     <form method="post" class="school-form" novalidate>
+        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
         <input type="hidden" name="action" value="<?= $isEdit ? 'update' : 'create'; ?>">
 
         <div class="school-form__grid school-form__grid--2col">

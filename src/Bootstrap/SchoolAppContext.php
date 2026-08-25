@@ -9,8 +9,12 @@ use TalentHub\Auth\Service\AuthService;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\School\Repository\SchoolRepository;
+use TalentHub\Modules\School\Repository\SchoolPartnershipRepository;
+use TalentHub\Modules\School\Repository\SchoolProjectRepository;
 use TalentHub\Modules\School\Service\SchoolAuthorization;
 use TalentHub\Modules\School\Service\SchoolDashboardService;
+use TalentHub\Modules\School\Service\SchoolPartnershipService;
+use TalentHub\Modules\School\Service\SchoolProjectService;
 use TalentHub\Rbac\Service\PermissionService;
 
 /**
@@ -26,6 +30,8 @@ final class SchoolAppContext
     private Connection $connection;
     private SessionManager $session;
     private SchoolDashboardService $service;
+    private SchoolPartnershipService $partnerships;
+    private SchoolProjectService $projects;
     private AuthService $auth;
     private PermissionService $permissions;
 
@@ -37,11 +43,14 @@ final class SchoolAppContext
         $this->session->start();
         $pdo = $this->connection->connect();
         $repository = new SchoolRepository($pdo);
+        $authorization = new SchoolAuthorization($pdo);
         $this->service = new SchoolDashboardService(
             $repository,
             $pdo,
-            new SchoolAuthorization($pdo)
+            $authorization
         );
+        $this->partnerships = new SchoolPartnershipService(new SchoolPartnershipRepository($pdo), $authorization);
+        $this->projects = new SchoolProjectService(new SchoolProjectRepository($pdo), $authorization);
         $this->auth = new AuthService(new AuthRepository($pdo));
         $this->permissions = new PermissionService($pdo);
     }
@@ -55,6 +64,8 @@ final class SchoolAppContext
      *   school: array<string,mixed>,
      *   dashboard: array<string,mixed>,
      *   service: SchoolDashboardService,
+     *   partnerships: SchoolPartnershipService,
+     *   projects: SchoolProjectService,
      *   session: SessionManager
      * }
      */
@@ -99,6 +110,8 @@ final class SchoolAppContext
             'school'    => $dashboard['school'],
             'dashboard' => $dashboard,
             'service'   => $this->service,
+            'partnerships' => $this->partnerships,
+            'projects' => $this->projects,
             'session'   => $this->session,
         ];
     }

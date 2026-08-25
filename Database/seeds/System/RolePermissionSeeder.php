@@ -75,6 +75,9 @@ final class RolePermissionSeeder
             'activity_registration.read_own_school', 'report.create_own_school',
             'report.read_own_school', 'report.download_own_school', 'project.read_own_school',
             'project.create_own_school', 'project.update_own_school',
+            'partnership.read_own_school', 'partnership.review_own_school',
+            'safeguarding.read_own_school', 'safeguarding.manage_own_school',
+            'internship_application.read_own_school', 'internship_mentor.assign_own_school',
             'sponsorship.read_own_school_project', 'notification.send_own_school',
         ],
         'enterprise' => [

@@ -30,6 +30,19 @@ final class SchoolDashboardService
         self::REPORT_TYPE_AWARDS,
     ];
 
+    /** @return array{schoolId:string,defaultVisibility:string,allowedVisibilities:list<string>,readableStatuses:list<string>,registrableStatus:string} */
+    public function activityVisibilityPolicy(string $userId): array
+    {
+        $school = $this->getByUser($userId);
+        return [
+            'schoolId' => $school['id'],
+            'defaultVisibility' => 'school_only',
+            'allowedVisibilities' => ['school_only', 'public'],
+            'readableStatuses' => ['published', 'ongoing', 'completed'],
+            'registrableStatus' => 'published',
+        ];
+    }
+
     public function __construct(
         private readonly SchoolRepository $repository,
         private readonly PDO $pdo,
@@ -55,20 +68,22 @@ final class SchoolDashboardService
             $teacherStmt=$this->pdo->prepare('SELECT COUNT(*) FROM teacher_profiles WHERE schoolId=?');$teacherStmt->execute([$schoolId]);
             $metrics=['totalStudents'=>(int)$studentStmt->fetchColumn(),'totalClasses'=>(int)$classStmt->fetchColumn(),'totalTeachers'=>(int)$teacherStmt->fetchColumn()];
             $classesStmt=$this->pdo->prepare("SELECT c.id,c.schoolId,c.name,c.gradeLevel,c.academicYear,'active' AS status,(SELECT COUNT(*) FROM student_profiles sp WHERE sp.classId=c.id AND sp.studyStatus='active') AS studentCount FROM classes c WHERE c.schoolId=? ORDER BY c.gradeLevel,c.name");$classesStmt->execute([$schoolId]);$classes=$classesStmt->fetchAll();
-            return ['school'=>$school,'metrics'=>$metrics,'kpis'=>$this->buildKpis($metrics,$classes),'topTalents'=>$this->topStudentsForDemo($schoolId,4),'classes'=>$this->presentClasses($classes),'recentActivity'=>[]];
+            $metrics['activeStudents'] = $metrics['totalStudents'];
+            $metrics['activeTeachers'] = $metrics['totalTeachers'];
+            $metrics['publishedActivities'] = 0;
+            $metrics['confirmedCheckins'] = 0;
+            return ['school'=>$school,'metrics'=>$metrics,'kpis'=>$this->buildKpis($metrics),'classes'=>$this->presentClasses($classes),'recentActivity'=>[]];
         }
         $metrics  = $this->repository->dashboardMetrics($schoolId);
 
-        $topTalents = $this->topStudentsForDemo($schoolId, 4);
         $classes    = $this->repository->listClasses($schoolId);
-        $recent     = $this->recentActivityForDemo($schoolId, 5);
-        $kpis       = $this->buildKpis($metrics, $classes);
+        $recent     = $this->recentSchoolActivity($schoolId, 5);
+        $kpis       = $this->buildKpis($metrics);
 
         return [
             'school'        => $school,
-            'metrics'       => $metrics,
+            'metrics'       => ['schoolId' => $schoolId, 'schoolName' => $school['name']] + $metrics,
             'kpis'          => $kpis,
-            'topTalents'    => $topTalents,
             'classes'       => $this->presentClasses($classes),
             'recentActivity'=> $recent,
         ];
@@ -293,7 +308,39 @@ final class SchoolDashboardService
 
     /**
      * @param array<string,mixed> $input
-     * @return array{userId:string,profileId:string,generatedPassword:?string}
+     * @return array<string,mixed>
+     */
+    public function updateTeacherProfile(string $userId, string $profileId, array $input): array
+    {
+        $school = $this->getByUser($userId);
+        $this->guardWrite($userId, $school['id']);
+        Uuid::orFail($profileId, 'profileId');
+        $existing = $this->repository->findTeacherById($profileId, $school['id']);
+        if ($existing === null) {
+            throw new ApiException(404, 'TEACHER_NOT_FOUND', 'Không tìm thấy giáo viên.');
+        }
+
+        $fields = [
+            'specialization' => $this->text($input['specialization'] ?? null, 'specialization', 0, 150, true),
+            'phone' => $this->text($input['phone'] ?? null, 'phone', 0, 30, true),
+            'bio' => $this->text($input['bio'] ?? null, 'bio', 0, 1000, true),
+        ];
+
+        $this->repository->updateTeacherProfile($profileId, $school['id'], $fields);
+        $this->repository->writeAudit(
+            $userId,
+            'TEACHER_PROFILE_UPDATE',
+            'teacher_profile',
+            $profileId,
+            ['schoolId' => $school['id'], 'fields' => array_keys($fields)]
+        );
+
+        return $this->repository->findTeacherById($profileId, $school['id']) ?? [];
+    }
+
+    /**
+     * @param array<string,mixed> $input
+     * @return array{userId:string,profileId:string,invitationStatus:string,deliveryStatus:string,expiresAt:string}
      */
     public function inviteTeacher(string $userId, array $input): array
     {
@@ -314,24 +361,41 @@ final class SchoolDashboardService
             ]);
         }
 
-        $generated = bin2hex(random_bytes(6));
-        $passwordHash = password_hash($generated, PASSWORD_DEFAULT);
+        $rawToken = bin2hex(random_bytes(32));
+        $tokenHash = hash('sha256', $rawToken);
+        $expiresAt = gmdate('Y-m-d H:i:s', time() + 72 * 60 * 60);
+        $initialPasswordHash = password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT);
+        if (!is_string($initialPasswordHash)) {
+            throw new RuntimeException('Không thể khởi tạo tài khoản lời mời.');
+        }
 
-        $result = $this->repository->inviteTeacher($school['id'], $email, $fullName, $isAdmin, $passwordHash);
+        $result = $this->repository->inviteTeacher(
+            $school['id'],
+            $email,
+            $fullName,
+            $isAdmin,
+            $initialPasswordHash,
+            $userId,
+            $tokenHash,
+            $expiresAt
+        );
 
         $this->repository->writeAudit(
             $userId,
             'TEACHER_INVITE',
-            'teacher_profile',
-            $result['profileId'],
+            'account_invitation',
+            $result['invitationId'],
             ['schoolId' => $school['id'], 'email' => $email, 'isSchoolAdmin' => $isAdmin]
         );
         $this->repository->refreshCounters($school['id']);
+        $deliveryStatus = $this->deliverAccountInvitation($email, $fullName, $school['name'], $rawToken, $expiresAt);
 
         return [
-            'userId'           => $result['userId'],
-            'profileId'        => $result['profileId'],
-            'generatedPassword'=> $generated,
+            'userId' => $result['userId'],
+            'profileId' => $result['profileId'],
+            'invitationStatus' => 'pending',
+            'deliveryStatus' => $deliveryStatus,
+            'expiresAt' => gmdate(DATE_ATOM, strtotime($expiresAt . ' UTC')),
         ];
     }
 
@@ -412,6 +476,34 @@ final class SchoolDashboardService
         }, $rows);
     }
 
+    /** @return list<array<string,mixed>> */
+    public function internshipApplications(string $userId, ?string $status = null): array
+    {
+        $school = $this->getByUser($userId);
+        if ($status !== null && !in_array($status, ['submitted', 'reviewing', 'interview', 'accepted', 'declined', 'withdrawn'], true)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Trạng thái ứng tuyển không hợp lệ.');
+        }
+        return $this->repository->listInternshipApplications($school['id'], $status);
+    }
+
+    /** @return array<string,mixed> */
+    public function assignInternshipMentor(
+        string $userId,
+        string $applicationId,
+        string $mentorTeacherId,
+    ): array {
+        $school = $this->getByUser($userId);
+        $this->guardWrite($userId, $school['id']);
+        Uuid::orFail($applicationId, 'applicationId');
+        Uuid::orFail($mentorTeacherId, 'mentorTeacherId');
+        return $this->repository->assignInternshipMentor(
+            $school['id'],
+            $applicationId,
+            $mentorTeacherId,
+            $userId
+        );
+    }
+
     /**
      * @return array<string,mixed>
      */
@@ -448,28 +540,34 @@ final class SchoolDashboardService
             $existing = $this->pdo->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
             $existing->execute(['email' => $email]);
             $userIdRow = $existing->fetchColumn();
-            if (!$userIdRow) {
-                $userIdRow = Uuid::v4();
-                $roleStmt = $this->pdo->prepare('SELECT id FROM roles WHERE code = :code LIMIT 1');
-                $roleStmt->execute(['code' => 'student']);
-                $roleId = $roleStmt->fetchColumn();
-                if (!is_string($roleId)) {
-                    throw new RuntimeException('Role student chưa được seed.');
-                }
-                $tempPassword = bin2hex(random_bytes(6));
-                $hash = password_hash($tempPassword, PASSWORD_DEFAULT);
-                $insertUser = $this->pdo->prepare(
-                    'INSERT INTO users (id, roleId, email, passwordHash, fullName, status)
-                     VALUES (:id, :roleId, :email, :hash, :fullName, \'active\')'
-                );
-                $insertUser->execute([
-                    'id'       => $userIdRow,
-                    'roleId'   => $roleId,
-                    'email'    => $email,
-                    'hash'     => $hash,
-                    'fullName' => $fullName,
-                ]);
+            if ($userIdRow) {
+                throw new ApiException(422, 'EMAIL_ALREADY_EXISTS', 'Email đã được sử dụng bởi người dùng khác.');
             }
+            $userIdRow = Uuid::v4();
+            $roleStmt = $this->pdo->prepare('SELECT id FROM roles WHERE code = :code LIMIT 1');
+            $roleStmt->execute(['code' => 'student']);
+            $roleId = $roleStmt->fetchColumn();
+            if (!is_string($roleId)) {
+                throw new RuntimeException('Role student chưa được seed.');
+            }
+            $rawToken = bin2hex(random_bytes(32));
+            $tokenHash = hash('sha256', $rawToken);
+            $expiresAt = gmdate('Y-m-d H:i:s', time() + 72 * 60 * 60);
+            $hash = password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT);
+            if (!is_string($hash)) {
+                throw new RuntimeException('Không thể khởi tạo tài khoản lời mời.');
+            }
+            $insertUser = $this->pdo->prepare(
+                'INSERT INTO users (id, roleId, email, passwordHash, fullName, status)
+                 VALUES (:id, :roleId, :email, :hash, :fullName, \'pending\')'
+            );
+            $insertUser->execute([
+                'id'       => $userIdRow,
+                'roleId'   => $roleId,
+                'email'    => $email,
+                'hash'     => $hash,
+                'fullName' => $fullName,
+            ]);
 
             $profileId = $this->repository->createStudentProfile($school['id'], [
                 'userId'     => (string) $userIdRow,
@@ -477,6 +575,13 @@ final class SchoolDashboardService
                 'dateOfBirth'=> $dob,
                 'phone'      => $phone,
             ]);
+            $invitationId = $this->repository->createAccountInvitation(
+                (string) $userIdRow,
+                $userId,
+                $school['id'],
+                $tokenHash,
+                $expiresAt
+            );
 
             $this->pdo->commit();
         } catch (\Throwable $e) {
@@ -489,13 +594,17 @@ final class SchoolDashboardService
         $this->repository->refreshCounters($school['id']);
         $this->repository->writeAudit(
             $userId,
-            'STUDENT_CREATE',
-            'student_profile',
-            $profileId,
+            'STUDENT_INVITE',
+            'account_invitation',
+            $invitationId,
             ['schoolId' => $school['id'], 'classId' => $classId]
         );
+        $student = $this->repository->findStudentById($profileId, $school['id']) ?? [];
+        $student['invitationStatus'] = 'pending';
+        $student['deliveryStatus'] = $this->deliverAccountInvitation($email, $fullName, $school['name'], $rawToken, $expiresAt);
+        $student['expiresAt'] = gmdate(DATE_ATOM, strtotime($expiresAt . ' UTC'));
 
-        return $this->repository->findStudentById($profileId, $school['id']) ?? [];
+        return $student;
     }
 
     /**
@@ -609,6 +718,8 @@ final class SchoolDashboardService
             'monthly'     => $monthly,
             'actions'     => $actions,
             'totalEvents' => $total,
+            'domainMetrics' => ['schoolId' => $school['id'], 'schoolName' => $school['name']]
+                + $this->repository->dashboardMetrics($school['id']),
             'checkinExperience' => (new SchoolCheckinAggregateService($this->pdo))->confirmedForSchool($school['id']),
         ];
     }
@@ -643,6 +754,70 @@ final class SchoolDashboardService
             $userId,
             ['schoolId' => $school['id']]
         );
+    }
+
+    /** @return array{invitationStatus:string,userId:string,schoolId:string,role:string} */
+    public function acceptInvitation(string $rawToken, string $newPassword): array
+    {
+        if (!preg_match('/\A[a-f0-9]{64}\z/', $rawToken)) {
+            throw new ApiException(422, 'INVITATION_INVALID', 'Liên kết lời mời không hợp lệ.');
+        }
+        $passwordLength = strlen($newPassword);
+        if ($passwordLength < 12 || $passwordLength > 255) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Mật khẩu phải có từ 12 đến 255 ký tự.', [
+                ['field' => 'newPassword', 'code' => 'INVALID_LENGTH', 'message' => 'Mật khẩu phải có từ 12 đến 255 ký tự.'],
+            ]);
+        }
+        $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+        if (!is_string($passwordHash)) {
+            throw new RuntimeException('Không thể thiết lập mật khẩu.');
+        }
+
+        $result = $this->repository->acceptAccountInvitation(hash('sha256', $rawToken), $passwordHash);
+        $status = $result['status'];
+        if ($status === 'invalid') {
+            throw new ApiException(404, 'INVITATION_NOT_FOUND', 'Không tìm thấy lời mời.');
+        }
+        if ($status === 'expired') {
+            throw new ApiException(410, 'INVITATION_EXPIRED', 'Lời mời đã hết hạn.');
+        }
+        if ($status === 'revoked') {
+            throw new ApiException(410, 'INVITATION_REVOKED', 'Lời mời đã bị thu hồi.');
+        }
+        if ($status === 'already_accepted') {
+            throw new ApiException(409, 'INVITATION_ALREADY_ACCEPTED', 'Lời mời đã được sử dụng.');
+        }
+
+        return [
+            'invitationStatus' => 'accepted',
+            'userId' => (string) $result['userId'],
+            'schoolId' => (string) $result['schoolId'],
+            'role' => (string) $result['role'],
+        ];
+    }
+
+    private function deliverAccountInvitation(
+        string $email,
+        string $fullName,
+        string $schoolName,
+        string $rawToken,
+        string $expiresAt,
+    ): string {
+        $path = (function_exists('app_href') ? app_href('/accept-invitation.php') : '/accept-invitation.php')
+            . '?token=' . rawurlencode($rawToken);
+        $baseUrl = rtrim((string) getenv('APP_URL'), '/');
+        $acceptUrl = $baseUrl . $path;
+        $subject = 'TalentHub - Loi moi tham gia ' . $schoolName;
+        $message = "Xin chao {$fullName},\n\n"
+            . "Ban da duoc moi tham gia {$schoolName} tren TalentHub.\n"
+            . "Dat mat khau tai: {$acceptUrl}\n"
+            . "Loi moi het han luc {$expiresAt} UTC va chi dung duoc mot lan.\n";
+        $from = (string) (getenv('INVITATION_FROM_EMAIL') ?: 'no-reply@talenthub.local');
+        if (!filter_var($from, FILTER_VALIDATE_EMAIL)) {
+            return 'failed';
+        }
+        $sent = mail($email, $subject, $message, 'From: ' . $from);
+        return $sent ? 'sent' : 'failed';
     }
 
     /**
@@ -806,34 +981,7 @@ final class SchoolDashboardService
         ];
     }
 
-    private function topStudentsForDemo(string $schoolId, int $limit): array
-    {
-        $stmt = $this->pdo->prepare(
-            'SELECT sp.userId, sp.classId, u.fullName, c.name AS className, c.gradeLevel
-             FROM student_profiles sp
-             JOIN users u ON u.id = sp.userId
-             JOIN classes c ON c.id = sp.classId
-             WHERE c.schoolId = :schoolId AND sp.studyStatus = \'active\'
-             ORDER BY c.gradeLevel DESC, u.fullName ASC
-             LIMIT ' . (int) $limit
-        );
-        $stmt->execute(['schoolId' => $schoolId]);
-        $rows = $stmt->fetchAll();
-        $result = [];
-        foreach (array_values($rows) as $idx => $row) {
-            $result[] = [
-                'userId' => (string) $row['userId'],
-                'name'   => (string) $row['fullName'],
-                'class'  => (string) $row['className'],
-                'talent' => 'Tổng hợp',
-                'score'  => (98 - $idx * 3) . '/100',
-                'rank'   => $idx + 1,
-            ];
-        }
-        return $result;
-    }
-
-    private function recentActivityForDemo(string $schoolId, int $limit): array
+    private function recentSchoolActivity(string $schoolId, int $limit): array
     {
         $activities = [];
 
@@ -883,13 +1031,13 @@ final class SchoolDashboardService
         return array_slice($activities, 0, $limit);
     }
 
-    private function buildKpis(array $metrics, array $classes): array
+    private function buildKpis(array $metrics): array
     {
-        $students     = (int) $metrics['totalStudents'];
+        $students     = (int) $metrics['activeStudents'];
         $classesCount = (int) $metrics['totalClasses'];
-        $teachers     = (int) $metrics['totalTeachers'];
-
-        $completionRate = $classesCount > 0 ? min(99, 60 + ($classesCount * 4)) : 0;
+        $teachers     = (int) $metrics['activeTeachers'];
+        $activities   = (int) $metrics['publishedActivities'];
+        $checkins     = (int) $metrics['confirmedCheckins'];
 
         return [
             [
@@ -900,24 +1048,24 @@ final class SchoolDashboardService
                 'icon'       => 'users',
             ],
             [
-                'label'      => 'Hoạt động tháng này',
-                'value'      => (string) ($classesCount > 0 ? $classesCount + 2 : 0),
-                'change'     => 'Tổng hợp từ lớp',
-                'changeType' => 'neutral',
+                'label'      => 'Hoạt động đã xuất bản',
+                'value'      => number_format($activities),
+                'change'     => 'Trạng thái published',
+                'changeType' => $activities > 0 ? 'positive' : 'neutral',
                 'icon'       => 'calendar',
             ],
             [
-                'label'      => 'Chứng chỉ đã cấp',
-                'value'      => (string) ($teachers * 4 + 12),
-                'change'     => sprintf('%d giáo viên', $teachers),
+                'label'      => 'Giáo viên đang hoạt động',
+                'value'      => number_format($teachers),
+                'change'     => 'Tài khoản active trong trường',
                 'changeType' => $teachers > 0 ? 'positive' : 'neutral',
-                'icon'       => 'award',
+                'icon'       => 'users',
             ],
             [
-                'label'      => 'Tỷ lệ hoàn thiện hồ sơ',
-                'value'      => $completionRate . '%',
-                'change'     => 'Mục tiêu: 85%',
-                'changeType' => $completionRate >= 80 ? 'positive' : 'neutral',
+                'label'      => 'Check-in đã xác nhận',
+                'value'      => number_format($checkins),
+                'change'     => 'Trạng thái confirmed',
+                'changeType' => $checkins > 0 ? 'positive' : 'neutral',
                 'icon'       => 'check-circle',
             ],
         ];
@@ -936,13 +1084,7 @@ final class SchoolDashboardService
             } elseif ($count === 0) {
                 $status = 'warning';
                 $text   = 'Chưa có học sinh';
-            } elseif ($count < 30) {
-                $status = 'warning';
-                $text   = 'Cần cải thiện';
             }
-            $completion = $count === 0
-                ? 0
-                : max(60, min(98, 65 + (int) round($count / 1.5)));
             $result[] = [
                 'id'           => (string) $row['id'],
                 'name'         => (string) $row['name'],
@@ -953,7 +1095,6 @@ final class SchoolDashboardService
                 'homeroom'     => '—',
                 'status'       => $status,
                 'statusText'   => $text,
-                'completion'   => $completion,
             ];
         }
         return $result;

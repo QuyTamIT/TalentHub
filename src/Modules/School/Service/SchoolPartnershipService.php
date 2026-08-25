@@ -10,7 +10,10 @@ use TalentHub\Support\Uuid;
 
 final class SchoolPartnershipService
 {
-    public function __construct(private readonly SchoolPartnershipRepository $repository) {}
+    public function __construct(
+        private readonly SchoolPartnershipRepository $repository,
+        private readonly ?SchoolAuthorization $authorization = null,
+    ) {}
 
     public function listEnterprisePartnerships(string $userId, ?string $status = null): array
     {
@@ -57,6 +60,7 @@ final class SchoolPartnershipService
         }
 
         $schoolId = $this->repository->schoolIdForUser($userId);
+        $this->authorization?->requireWriteAccess($userId, $schoolId);
         $status = trim((string) ($input['status'] ?? $input['targetStatus'] ?? ''));
 
         if (!in_array($status, ['approved', 'rejected', 'suspended'], true)) {

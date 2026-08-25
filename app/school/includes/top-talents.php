@@ -3,32 +3,7 @@
  * School Dashboard - Top Talents Component
  */
 
-$topTalents = [
-    [
-        'name' => 'Nguyễn Văn Minh',
-        'class' => '12A',
-        'talent' => 'Toán học',
-        'score' => '98/100'
-    ],
-    [
-        'name' => 'Trần Thu Hà',
-        'class' => '11B',
-        'talent' => 'Âm nhạc',
-        'score' => '95/100'
-    ],
-    [
-        'name' => 'Lê Hoàng Nam',
-        'class' => '10C',
-        'talent' => 'Lập trình',
-        'score' => '92/100'
-    ],
-    [
-        'name' => 'Phạm Thị Lan',
-        'class' => '12D',
-        'talent' => 'Ngữ Văn',
-        'score' => '90/100'
-    ]
-];
+$topTalents = $topTalents ?? [];
 
 function getInitials($name) {
     $words = explode(' ', $name);
@@ -42,8 +17,8 @@ function getInitials($name) {
 <section class="school-section-box">
     <div class="school-section-box__header">
         <div>
-            <h3 class="school-section-box__title">Top tài năng nổi bật</h3>
-            <p class="school-section-box__subtitle">Học sinh có thành tích xuất sắc</p>
+            <h3 class="school-section-box__title">Minh chứng năng lực nổi bật</h3>
+            <p class="school-section-box__subtitle">Chỉ hiển thị dữ liệu đã được xác minh</p>
         </div>
         <a href="./analytics.php" class="school-section-box__link">Xem tất cả</a>
     </div>
@@ -71,5 +46,8 @@ function getInitials($name) {
                 </div>
             </div>
         <?php endforeach; ?>
+        <?php if ($topTalents === []): ?>
+            <p style="color:var(--text-muted);">Chưa có minh chứng đã xác minh để xếp hạng.</p>
+        <?php endif; ?>
     </div>
 </section>

@@ -6,12 +6,14 @@ namespace TalentHub\Modules\School\Service;
 
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\School\Repository\SchoolProjectRepository;
+use TalentHub\Support\Id\RequestId;
 use TalentHub\Support\Uuid;
 
 final class SchoolProjectService
 {
     public function __construct(
-        private readonly SchoolProjectRepository $repository
+        private readonly SchoolProjectRepository $repository,
+        private readonly ?SchoolAuthorization $authorization = null,
     ) {}
 
     public function schoolId(string $userId): string
@@ -22,6 +24,7 @@ final class SchoolProjectService
     public function createProject(string $userId, array $input, string $requestId): array
     {
         $schoolId = $this->schoolId($userId);
+        $this->authorization?->requireWriteAccess($userId, $schoolId);
         return $this->repository->createProject($schoolId, $userId, $input, $requestId);
     }
 
@@ -46,6 +49,7 @@ final class SchoolProjectService
             throw new ApiException(422, 'VALIDATION_FAILED', 'projectId không đúng định dạng UUID.');
         }
         $schoolId = $this->schoolId($userId);
-        return $this->repository->updateProject($schoolId, $projectId, $input);
+        $this->authorization?->requireWriteAccess($userId, $schoolId);
+        return $this->repository->updateProject($schoolId, $projectId, $input, $userId, RequestId::generate());
     }
 }

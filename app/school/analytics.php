@@ -39,19 +39,25 @@ for ($i = 11; $i >= 0; $i--) {
     $monthlyStats[] = [
         'month'    => 'T' . (int) $dt->format('n'),
         'yearMo'   => $monthKey,
-        'students' => $count,
+        'events'   => $count,
     ];
 }
 
-$maxStudents = max(1, max(array_column($monthlyStats, 'students')));
-
-$totalStudentCount = (int) ($metrics['totalStudents'] ?? 0);
-$talentDistribution = [
-    ['name' => 'Khoa học',  'count' => (int) round($totalStudentCount * 0.26), 'percentage' => 26.0],
-    ['name' => 'Nghệ thuật','count' => (int) round($totalStudentCount * 0.22), 'percentage' => 22.0],
-    ['name' => 'Thể thao',  'count' => (int) round($totalStudentCount * 0.20), 'percentage' => 20.0],
-    ['name' => 'Công nghệ', 'count' => (int) round($totalStudentCount * 0.18), 'percentage' => 18.0],
-    ['name' => 'Ngôn ngữ',  'count' => (int) round($totalStudentCount * 0.14), 'percentage' => 14.0],
+$maxEvents = max(1, max(array_column($monthlyStats, 'events')));
+$domainMetrics = $analytics['domainMetrics'];
+$metricCards = [
+    ['label' => 'Học sinh active', 'value' => number_format((int) $domainMetrics['activeStudents'])],
+    ['label' => 'Giáo viên active', 'value' => number_format((int) $domainMetrics['activeTeachers'])],
+    ['label' => 'Hoạt động published', 'value' => number_format((int) $domainMetrics['publishedActivities'])],
+    ['label' => 'Đăng ký approved', 'value' => number_format((int) $domainMetrics['approvedRegistrations'])],
+    ['label' => 'Check-in confirmed', 'value' => number_format((int) $domainMetrics['confirmedCheckins'])],
+    ['label' => 'Đánh giá published', 'value' => number_format((int) $domainMetrics['publishedAssessments'])],
+    ['label' => 'Kỹ năng verified', 'value' => number_format((int) $domainMetrics['verifiedSkills'])],
+    ['label' => 'Đối tác approved', 'value' => number_format((int) $domainMetrics['approvedEnterprisePartners'])],
+    ['label' => 'Tin thực tập active', 'value' => number_format((int) $domainMetrics['activeInternshipPosts'])],
+    ['label' => 'Ứng tuyển accepted', 'value' => number_format((int) $domainMetrics['acceptedInternshipApplications'])],
+    ['label' => 'Dự án đang chạy', 'value' => number_format((int) $domainMetrics['activeProjects'])],
+    ['label' => 'Tài trợ đã thanh toán', 'value' => number_format((float) $domainMetrics['paidSponsorshipAmount'], 0, ',', '.') . ' ₫'],
 ];
 
 $gradeStats = [];
@@ -62,13 +68,10 @@ foreach ($classes as $class) {
 ksort($grouped);
 foreach ($grouped as $grade => $items) {
     $sum = array_sum(array_column($items, 'students'));
-    $avg = count($items) > 0
-        ? (int) round(array_sum(array_column($items, 'completion')) / count($items))
-        : 0;
     $gradeStats[] = [
         'grade'      => $grade,
         'students'   => $sum,
-        'completion' => $avg,
+        'classes'    => count($items),
     ];
 }
 
@@ -86,19 +89,28 @@ $pageTitle = 'Phân tích dữ liệu';
 ob_start();
 ?>
 <?php
-$pageDescription = 'Tổng quan số liệu theo tháng, phân bố năng khiếu và hoàn thiện theo khối.';
+$pageDescription = 'Các metric được tổng hợp trực tiếp từ dữ liệu thuộc trường hiện tại.';
 include __DIR__ . '/includes/page-banner.php';
 ?>
 
+<div class="school-metric-grid">
+    <?php foreach ($metricCards as $card): ?>
+        <article class="school-kpi-card">
+            <div class="school-kpi-card__label"><?= htmlspecialchars($card['label']); ?></div>
+            <div class="school-kpi-card__value"><?= htmlspecialchars($card['value']); ?></div>
+        </article>
+    <?php endforeach; ?>
+</div>
+
 <div class="school-chart-container">
     <div class="school-chart-header">
-        <h3 class="school-chart-title">Số lượng học sinh & Hoạt động theo tháng</h3>
+        <h3 class="school-chart-title">Thao tác quản trị theo tháng</h3>
     </div>
     <div style="display: flex; align-items: flex-end; gap: 0.5rem; height: 200px; padding: 1rem 0;">
         <?php foreach ($monthlyStats as $stat):
-            $height = ($stat['students'] / $maxStudents) * 160; ?>
+            $height = ($stat['events'] / $maxEvents) * 160; ?>
             <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;">
-                <div style="width: 100%; background: linear-gradient(180deg, #3B82F6 0%, #93C5FD 100%); border-radius: 4px 4px 0 0; height: <?= $height; ?>px; min-height: 16px;" title="<?= $stat['students']; ?> học sinh"></div>
+                <div style="width: 100%; background: linear-gradient(180deg, #3B82F6 0%, #93C5FD 100%); border-radius: 4px 4px 0 0; height: <?= $height; ?>px; min-height: 2px;" title="<?= $stat['events']; ?> thao tác"></div>
                 <span style="font-size: 0.6875rem; color: var(--text-muted);"><?= $stat['month']; ?></span>
             </div>
         <?php endforeach; ?>
@@ -108,41 +120,32 @@ include __DIR__ . '/includes/page-banner.php';
 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 1.5rem;">
     <div class="school-section-box">
         <div class="school-section-box__header">
-            <h3 class="school-section-box__title">Phân bố năng khiếu</h3>
-            <p class="school-section-box__subtitle">Theo lĩnh vực</p>
+            <h3 class="school-section-box__title">Loại thao tác quản trị</h3>
+            <p class="school-section-box__subtitle"><?= number_format((int) $analytics['totalEvents']); ?> audit events</p>
         </div>
         <div style="display: flex; flex-direction: column; gap: 1rem;">
-            <?php foreach ($talentDistribution as $talent): ?>
-                <div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.375rem;">
-                        <span style="font-size: 0.875rem; font-weight: 500;"><?= htmlspecialchars($talent['name']); ?></span>
-                        <span style="font-size: 0.875rem; color: var(--text-muted);"><?= $talent['count']; ?> HS (<?= $talent['percentage']; ?>%)</span>
-                    </div>
-                    <div style="height: 8px; background: var(--background); border-radius: 4px; overflow: hidden;">
-                        <div style="height: 100%; width: <?= $talent['percentage']; ?>%; background: linear-gradient(90deg, #3B82F6 0%, #60A5FA 100%); border-radius: 4px;"></div>
-                    </div>
+            <?php foreach ($analytics['actions'] as $action): ?>
+                <div style="display:flex;justify-content:space-between;gap:1rem;">
+                    <span style="font-size:0.875rem;font-weight:500;"><?= htmlspecialchars($action['action']); ?></span>
+                    <strong><?= number_format((int) $action['count']); ?></strong>
                 </div>
             <?php endforeach; ?>
+            <?php if ($analytics['actions'] === []): ?><p>Chưa có thao tác được ghi nhận.</p><?php endif; ?>
         </div>
     </div>
 
     <div class="school-section-box">
         <div class="school-section-box__header">
             <h3 class="school-section-box__title">Tổng quan theo khối</h3>
-            <p class="school-section-box__subtitle">Số lượng & tỷ lệ hoàn thiện</p>
+            <p class="school-section-box__subtitle">Số lớp và học sinh active</p>
         </div>
         <div style="display: flex; flex-direction: column; gap: 1.25rem;">
             <?php foreach ($gradeStats as $grade): ?>
                 <div style="display: flex; align-items: center; gap: 1rem;">
                     <div style="width: 80px; font-size: 0.875rem; font-weight: 600;"><?= htmlspecialchars($grade['grade']); ?></div>
-                    <div style="flex: 1;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-                            <span style="font-size: 0.8125rem; color: var(--text-secondary);"><?= $grade['students']; ?> học sinh</span>
-                            <span style="font-size: 0.8125rem; font-weight: 600; color: #2563EB;"><?= $grade['completion']; ?>%</span>
-                        </div>
-                        <div style="height: 6px; background: var(--background); border-radius: 3px; overflow: hidden;">
-                            <div style="height: 100%; width: <?= $grade['completion']; ?>%; background: #2563EB; border-radius: 3px;"></div>
-                        </div>
+                    <div style="flex:1;display:flex;justify-content:space-between;">
+                        <span style="font-size:0.8125rem;color:var(--text-secondary);"><?= number_format((int) $grade['students']); ?> học sinh</span>
+                        <span style="font-size:0.8125rem;font-weight:600;color:#2563EB;"><?= number_format((int) $grade['classes']); ?> lớp</span>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -154,8 +157,10 @@ $pageBody = ob_get_clean();
 
 $extraStyles = <<<'HTML'
 <style>
+.school-metric-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem; }
 @media (max-width: 768px) {
     [style*="grid-template-columns: repeat(2, 1fr)"] { grid-template-columns: 1fr !important; }
+    .school-metric-grid { grid-template-columns:repeat(2,1fr); }
 }
 </style>
 HTML;

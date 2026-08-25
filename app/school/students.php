@@ -144,7 +144,11 @@ $extraScripts = <<<'HTML'
 document.addEventListener('DOMContentLoaded', function() {
     const params = new URLSearchParams(window.location.search);
     if (params.has('msg')) {
-        const map = { created: 'Đã thêm học sinh.', updated: 'Đã cập nhật học sinh.' };
+        const map = {
+            invited: 'Đã tạo học sinh và gửi liên kết đặt mật khẩu qua email.',
+            invite_delivery_failed: 'Đã tạo lời mời nhưng gửi email thất bại; hãy kiểm tra APP_URL và mail server.',
+            updated: 'Đã cập nhật học sinh.'
+        };
         const key = params.get('msg');
         if (map[key]) showSchoolToast(map[key]);
     }

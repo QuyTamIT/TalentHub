@@ -15,6 +15,7 @@ use TalentHub\Support\Uuid;
 $context = (new SchoolAppContext())->boot();
 $service = $context['service'];
 $userId  = $context['user']['id'];
+$session = $context['session'];
 
 $flash = null;
 $error = null;
@@ -22,12 +23,12 @@ $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     try {
+        $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
         if ($action === 'invite') {
             $result = $service->inviteTeacher($userId, $_POST);
-            $flash = sprintf(
-                'Đã mời giáo viên. Mật khẩu tạm: %s (hãy gửi cho giáo viên để họ đăng nhập lần đầu).',
-                $result['generatedPassword'] ?? '—'
-            );
+            $flash = ($result['deliveryStatus'] ?? 'failed') === 'sent'
+                ? 'Đã tạo tài khoản pending và gửi liên kết đặt mật khẩu một lần qua email.'
+                : 'Đã tạo lời mời nhưng chưa gửi được email. Hãy kiểm tra cấu hình APP_URL và mail server trước khi gửi lại.';
         } elseif ($action === 'toggle_admin' && !empty($_POST['profileId']) && Uuid::isValid($_POST['profileId'])) {
             $service->setTeacherAdmin($userId, $_POST['profileId'], !empty($_POST['isAdmin']));
             $flash = 'Đã cập nhật vai trò giáo viên.';
@@ -61,7 +62,7 @@ $pageTitle    = 'Giáo viên';
 ob_start();
 ?>
 <?php
-$pageDescription = 'Mời giáo viên mới và quản lý hồ sơ giáo viên trong trường.';
+$pageDescription = 'Mời giáo viên bằng liên kết đặt mật khẩu một lần, có hiệu lực trong 72 giờ.';
 include __DIR__ . '/includes/page-banner.php';
 ?>
 
@@ -78,6 +79,7 @@ include __DIR__ . '/includes/page-banner.php';
             <h3 class="school-section-box__title">Mời giáo viên mới</h3>
         </div>
         <form method="post" class="school-form" novalidate>
+            <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
             <input type="hidden" name="action" value="invite">
             <div class="school-form__grid" style="grid-template-columns: 1fr;">
                 <label class="school-form__field">
@@ -140,6 +142,7 @@ include __DIR__ . '/includes/page-banner.php';
                             <td style="text-align: right;">
                                 <div style="display: flex; gap: 0.375rem; justify-content: flex-end;">
                                     <form method="post" style="display:inline;">
+                                        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="action" value="toggle_admin">
                                         <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
                                         <input type="hidden" name="isAdmin" value="<?= $t['isSchoolAdmin'] ? '0' : '1'; ?>">
@@ -148,6 +151,7 @@ include __DIR__ . '/includes/page-banner.php';
                                         </button>
                                     </form>
                                     <form method="post" style="display:inline;">
+                                        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="action" value="toggle_active">
                                         <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
                                         <input type="hidden" name="isActive" value="<?= $t['userStatus'] === 'active' ? '0' : '1'; ?>">

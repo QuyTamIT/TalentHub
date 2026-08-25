@@ -14,6 +14,11 @@ final class MigrationRunner
             '475ffb17c426c92e96fcb66b9c5b04a0bd98f665bd697b3d0ea75942c966df80',
             '82c823601e730b8cb68862f6e2e4d855de6cb769b3261705be297f4e1ace66cb',
         ],
+        '20260825000100' => [
+            // Previously applied School visibility migration. Its column,
+            // index and CHECK constraint were verified equivalent in MySQL.
+            '297e5dae674810733ec2a00f65d988d10f2fe98b1eb822392b54431e1e844019',
+        ],
     ];
 
     private MigrationRepository $repository;

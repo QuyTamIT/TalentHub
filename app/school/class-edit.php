@@ -15,6 +15,7 @@ use TalentHub\Support\Uuid;
 $context = (new SchoolAppContext())->boot();
 $service = $context['service'];
 $userId  = $context['user']['id'];
+$session = $context['session'];
 
 $classId = isset($_GET['id']) ? (string) $_GET['id'] : null;
 $isEdit  = $classId !== null && Uuid::isValid($classId ?? '');
@@ -31,8 +32,9 @@ $row   = [
     'status'       => 'active',
 ];
 
-if ($action === 'archive' && $isEdit) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'archive' && $isEdit) {
     try {
+        $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
         $service->archiveClass($userId, $classId);
         header('Location: ./classes.php?msg=archived');
         exit;
@@ -43,6 +45,7 @@ if ($action === 'archive' && $isEdit) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'update'], true)) {
     try {
+        $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
         if ($action === 'create') {
             $newId = $service->createClass($userId, $_POST)['id'] ?? null;
             header('Location: ./classes.php?msg=created');
@@ -94,6 +97,7 @@ ob_start();
         </div>
         <?php if ($isEdit): ?>
             <form method="post" data-confirm="Lưu trữ lớp này? Học sinh vẫn giữ hồ sơ nhưng sẽ không hiển thị ở dashboard.">
+                <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
                 <input type="hidden" name="action" value="archive">
                 <button type="submit" class="btn btn-outline" style="border-color:#FCA5A5;color:#B91C1C;">Lưu trữ lớp</button>
             </form>
@@ -105,6 +109,7 @@ ob_start();
     <?php endif; ?>
 
     <form method="post" class="school-form" novalidate>
+        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
         <input type="hidden" name="action" value="<?= $isEdit ? 'update' : 'create'; ?>">
 
         <div class="school-form__grid school-form__grid--2col">

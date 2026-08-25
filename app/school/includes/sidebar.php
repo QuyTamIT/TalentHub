@@ -49,6 +49,21 @@ $sidebarNav = [
         'icon'  => 'file-text',
     ],
     [
+        'title' => 'Đối tác doanh nghiệp',
+        'route' => '/app/school/partnerships.php',
+        'icon'  => 'users',
+    ],
+    [
+        'title' => 'Dự án',
+        'route' => '/app/school/projects.php',
+        'icon'  => 'book',
+    ],
+    [
+        'title' => 'Theo dõi thực tập',
+        'route' => '/app/school/internships.php',
+        'icon'  => 'users',
+    ],
+    [
         'title' => 'Cài đặt',
         'route' => '/app/school/settings.php',
         'icon'  => 'cog',

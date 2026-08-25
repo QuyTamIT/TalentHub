@@ -35,7 +35,6 @@ $currentRoute = '/app/school/';
 $pageTitle    = 'Tổng quan';
 
 $kpis            = $dashboard['kpis'];
-$topTalents      = $dashboard['topTalents'];
 $classes         = $dashboard['classes'];
 $recentActivities= $dashboard['recentActivity'];
 

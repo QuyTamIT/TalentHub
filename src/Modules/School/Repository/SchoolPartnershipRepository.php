@@ -48,34 +48,14 @@ final class SchoolPartnershipRepository
 
     public function schoolIdForUser(string $userId): string
     {
-        // 1. Direct school admin / staff query
-        if ($this->tableExists('school_teachers')) {
-            $stmt = $this->pdo->prepare('SELECT schoolId FROM school_teachers WHERE userId = ? ORDER BY id LIMIT 1');
-            $stmt->execute([$userId]);
-            $id = $stmt->fetchColumn();
-            if (is_string($id) && $id !== '') {
-                return $id;
-            }
+        $stmt = $this->pdo->prepare('SELECT schoolId FROM school_members WHERE userId = ? ORDER BY id LIMIT 2');
+        $stmt->execute([$userId]);
+        $ids = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        if (count($ids) !== 1 || !is_string($ids[0]) || $ids[0] === '') {
+            throw new ApiException(403, 'PERMISSION_DENIED', 'Tài khoản phải thuộc đúng một cơ sở giáo dục.');
         }
 
-        if ($this->tableExists('teachers')) {
-            $stmt = $this->pdo->prepare('SELECT schoolId FROM teachers WHERE userId = ? ORDER BY id LIMIT 1');
-            $stmt->execute([$userId]);
-            $id = $stmt->fetchColumn();
-            if (is_string($id) && $id !== '') {
-                return $id;
-            }
-        }
-
-        // 2. Query schools table directly if user is school owner or linked
-        $stmt = $this->pdo->prepare('SELECT id FROM schools WHERE status = \'active\' ORDER BY createdAt ASC LIMIT 1');
-        $stmt->execute();
-        $id = $stmt->fetchColumn();
-        if (is_string($id) && $id !== '') {
-            return $id;
-        }
-
-        throw new ApiException(403, 'PERMISSION_DENIED', 'Tài khoản không thuộc cơ sở giáo dục nào.');
+        return $ids[0];
     }
 
     /** @return list<array<string,mixed>> */
@@ -233,6 +213,18 @@ final class SchoolPartnershipRepository
                 'schoolId' => $schoolId,
             ]);
 
+            $audit = $this->pdo->prepare(
+                'INSERT INTO audit_logs (id, userId, action, entityType, entityId, metadata)
+                 VALUES (:id, :userId, :action, \'school_enterprise_partnership\', :entityId, :metadata)'
+            );
+            $audit->execute([
+                'id' => Uuid::v4(),
+                'userId' => $reviewerUserId,
+                'action' => 'SCHOOL_PARTNERSHIP_' . strtoupper($targetStatus),
+                'entityId' => $partnershipId,
+                'metadata' => json_encode(['schoolId' => $schoolId, 'enterpriseId' => $partnership['enterpriseId']], JSON_UNESCAPED_UNICODE),
+            ]);
+
             // Notify Enterprise
             $enterpriseId = (string) $partnership['enterpriseId'];
             $statusLabels = [
@@ -276,9 +268,17 @@ final class SchoolPartnershipRepository
     private function notifySchool(string $schoolId, string $title, string $message, string $deepLink): void
     {
         try {
-            // Find school admin user(s)
-            $stmt = $this->pdo->prepare('SELECT u.id FROM users u WHERE u.role IN (\'school\', \'school_admin\') AND u.status = \'active\' LIMIT 1');
-            $stmt->execute();
+            $stmt = $this->pdo->prepare(
+                "SELECT sm.userId
+                 FROM school_members sm
+                 INNER JOIN users u ON u.id = sm.userId
+                 WHERE sm.schoolId = :schoolId
+                   AND sm.memberRole = 'admin'
+                   AND u.status = 'active'
+                 ORDER BY sm.id
+                 LIMIT 1"
+            );
+            $stmt->execute(['schoolId' => $schoolId]);
             $userId = $stmt->fetchColumn();
             if (is_string($userId) && $userId !== '') {
                 $notifService = $this->getNotificationService();
