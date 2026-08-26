@@ -39,6 +39,26 @@ $sidebarNav = [
         'icon'  => 'book',
     ],
     [
+        'title' => 'Đối tác',
+        'route' => '/app/school/partnerships.php',
+        'icon' => 'users',
+    ],
+    [
+        'title' => 'Dự án',
+        'route' => '/app/school/projects.php',
+        'icon' => 'book',
+    ],
+    [
+        'title' => 'Thực tập',
+        'route' => '/app/school/internships.php',
+        'icon' => 'file-text',
+    ],
+    [
+        'title' => 'An toàn học sinh',
+        'route' => '/app/school/safeguarding.php',
+        'icon' => 'lock',
+    ],
+    [
         'title' => 'Phân tích',
         'route' => '/app/school/analytics.php',
         'icon'  => 'trending-up',

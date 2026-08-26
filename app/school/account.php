@@ -14,11 +14,13 @@ use TalentHub\Http\ApiException;
 $context = (new SchoolAppContext())->boot();
 $service = $context['service'];
 $userId  = $context['user']['id'];
+$session = $context['session'];
 
 $flash = null;
 $error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
     try {
         $service->changePassword(
             $userId,
@@ -68,6 +70,7 @@ include __DIR__ . '/includes/page-banner.php';
     <?php endif; ?>
 
     <form method="post" class="school-form" novalidate>
+        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
         <div class="school-form__grid" style="grid-template-columns: 1fr;">
             <label class="school-form__field">
                 <span>Mật khẩu hiện tại <em>*</em></span>

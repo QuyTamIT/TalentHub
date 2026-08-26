@@ -14,6 +14,7 @@ use TalentHub\Http\ApiException;
 $context = (new SchoolAppContext())->boot();
 $service = $context['service'];
 $userId  = $context['user']['id'];
+$session = $context['session'];
 
 $schoolInfo = [
     'name'          => $context['school']['name'],
@@ -30,6 +31,7 @@ $flash = null;
 $error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
     try {
         if (isset($_FILES['logoFile']) && is_array($_FILES['logoFile']) && ($_FILES['logoFile']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
             $file = $_FILES['logoFile'];
@@ -47,7 +49,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
             $flash = 'Đã cập nhật logo nhà trường.';
         } else {
-            $updated = $service->update($userId, $_POST);
+            $updated = $service->update($userId, [
+                'name' => $_POST['name'] ?? '',
+                'level' => $_POST['level'] ?? '',
+                'academicYear' => $_POST['academicYear'] ?? '',
+                'phone' => $_POST['phone'] ?? '',
+                'email' => $_POST['email'] ?? '',
+                'website' => $_POST['website'] ?? '',
+                'address' => $_POST['address'] ?? '',
+                'logoUrl' => $_POST['logoUrl'] ?? '',
+            ]);
             $context['school'] = $updated;
             $flash = 'Đã cập nhật hồ sơ nhà trường.';
         }
@@ -82,6 +93,7 @@ include __DIR__ . '/includes/page-banner.php';
     <?php endif; ?>
 
     <form method="post" class="school-form" enctype="multipart/form-data" novalidate>
+        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
         <div class="school-form__grid school-form__grid--2col">
             <label class="school-form__field">
                 <span>Tên trường <em>*</em></span>
