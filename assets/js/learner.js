@@ -298,9 +298,93 @@
             });
         });
 
-        document.querySelector('.learner-avatar')?.addEventListener('click', () => {
-            showToast('Tài khoản của Nguyễn Văn A đang được hiển thị.', 'info');
-        });
+        /* Account Dropdown Menu Handler */
+        const initAccountDropdown = () => {
+            const trigger = document.getElementById('learner-account-trigger');
+            const menu = document.getElementById('learner-account-menu');
+            const wrapper = document.getElementById('learner-account-wrapper');
+
+            if (!trigger || !menu) return;
+
+            const menuItems = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+
+            const openMenu = () => {
+                trigger.setAttribute('aria-expanded', 'true');
+                menu.removeAttribute('hidden');
+                menu.classList.add('is-open');
+            };
+
+            const closeMenu = (focusTrigger = false) => {
+                trigger.setAttribute('aria-expanded', 'false');
+                menu.setAttribute('hidden', '');
+                menu.classList.remove('is-open');
+                if (focusTrigger) {
+                    trigger.focus();
+                }
+            };
+
+            const toggleMenu = () => {
+                const isExpanded = trigger.getAttribute('aria-expanded') === 'true';
+                if (isExpanded) {
+                    closeMenu();
+                } else {
+                    openMenu();
+                }
+            };
+
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleMenu();
+            });
+
+            document.addEventListener('click', (e) => {
+                if (wrapper && !wrapper.contains(e.target)) {
+                    closeMenu();
+                }
+            });
+
+            trigger.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openMenu();
+                    if (menuItems.length > 0) {
+                        menuItems[0].focus();
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    openMenu();
+                    if (menuItems.length > 0) {
+                        menuItems[menuItems.length - 1].focus();
+                    }
+                } else if (e.key === 'Escape') {
+                    if (trigger.getAttribute('aria-expanded') === 'true') {
+                        e.preventDefault();
+                        closeMenu(true);
+                    }
+                }
+            });
+
+            menu.addEventListener('keydown', (e) => {
+                const currentFocusedIndex = menuItems.indexOf(document.activeElement);
+
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    closeMenu(true);
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const nextIndex = (currentFocusedIndex + 1) % menuItems.length;
+                    menuItems[nextIndex].focus();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const prevIndex = (currentFocusedIndex - 1 + menuItems.length) % menuItems.length;
+                    menuItems[prevIndex].focus();
+                } else if (e.key === 'Tab') {
+                    closeMenu();
+                }
+            });
+        };
+
+        initAccountDropdown();
 
         document.getElementById('learner-search-form')?.addEventListener('submit', (event) => {
             event.preventDefault();

@@ -18,6 +18,7 @@ use TalentHub\Support\Uuid;
 $context = (new SchoolAppContext())->boot();
 $service = $context['service'];
 $userId  = $context['user']['id'];
+$session = $context['session'];
 
 $profileId = isset($_GET['id']) ? (string) $_GET['id'] : null;
 if ($profileId === null || !Uuid::isValid($profileId)) {
@@ -35,39 +36,17 @@ try {
     $error = $e->getMessage();
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $row) {
     try {
-        $specialization = $_POST['specialization'] ?? '';
-        $phone          = $_POST['phone'] ?? '';
-        $bio            = $_POST['bio'] ?? '';
-
-        // Cập nhật qua PDO trực tiếp (chưa có method trong service cho fields này)
-        $pdo = \TalentHub\Database\Connection::class;
-        $config = dirname(__DIR__, 2) . '/config/database.php';
-        $pdoInstance = (new \TalentHub\Database\Connection(require $config))->connect();
-        $stmt = $pdoInstance->prepare(
-            'UPDATE teacher_profiles SET specialization = :spec, phone = :phone, bio = :bio
-             WHERE id = :id AND schoolId = :schoolId'
-        );
-        $school = $context['school'];
-        $stmt->execute([
-            'spec'     => $specialization,
-            'phone'    => $phone,
-            'bio'      => $bio,
-            'id'       => $profileId,
-            'schoolId' => $school['id'],
+        $row = $service->updateTeacherProfile($userId, $profileId, [
+            'specialization' => $_POST['specialization'] ?? '',
+            'phone' => $_POST['phone'] ?? '',
+            'bio' => $_POST['bio'] ?? '',
         ]);
-
-        $repo = new \TalentHub\Modules\School\Repository\SchoolRepository($pdoInstance);
-        $repo->writeAudit(
-            $userId,
-            'TEACHER_PROFILE_UPDATE',
-            'teacher_profile',
-            $profileId,
-            ['schoolId' => $school['id']]
-        );
-
-        $row = $service->getTeacher($userId, $profileId);
         $flash = 'Đã cập nhật hồ sơ giáo viên.';
     } catch (\Throwable $e) {
         $error = 'Đã xảy ra lỗi: ' . $e->getMessage();
@@ -111,6 +90,7 @@ ob_start();
         </p>
 
         <form method="post" class="school-form" novalidate>
+            <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
             <div class="school-form__grid school-form__grid--2col">
                 <label class="school-form__field">
                     <span>Số điện thoại</span>

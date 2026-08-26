@@ -251,22 +251,16 @@ api_test_assert($bandResolver->resolve(API_STUDENT_B, 'high') === 'college', 'Un
 $pdo->exec("UPDATE student_profiles SET classId = 'class-university-year-4' WHERE id = '" . API_STUDENT_B . "'");
 api_test_assert($bandResolver->resolve(API_STUDENT_B, null) === 'college', 'University year 4 boundary resolves to college');
 
-// Primary grades and unknown school levels remain on the explicit confirmation path.
+// Primary grades and unknown school levels use the latest safe inference defaults.
 $pdo->exec("INSERT INTO schools (id, name, level) VALUES ('school-primary-001', 'Primary School', 'Tiểu học')");
 $pdo->exec("INSERT INTO schools (id, name, level) VALUES ('school-unknown-001', 'Unknown School', NULL)");
 $pdo->exec("INSERT INTO classes (id, schoolId, name, gradeLevel, academicYear) VALUES ('class-primary-grade-5', 'school-primary-001', '5A', 5, '2026-2027')");
 $pdo->exec("INSERT INTO classes (id, schoolId, name, gradeLevel, academicYear) VALUES ('class-unknown-grade-1', 'school-unknown-001', 'Year 1', 1, '2026-2027')");
 $pdo->exec("UPDATE student_profiles SET classId = 'class-primary-grade-5' WHERE id = '" . API_STUDENT_B . "'");
-api_test_expect_band_required(
-    static fn () => $bandResolver->resolve(API_STUDENT_B, null),
-    'Primary grade 5 requires explicit confirmation'
-);
-api_test_assert($bandResolver->resolve(API_STUDENT_B, 'middle') === 'middle', 'Primary grade 5 accepts an explicit valid confirmation');
+api_test_assert($bandResolver->resolve(API_STUDENT_B, null) === 'college', 'Primary grade 5 resolves to the supported college catalog');
+api_test_assert($bandResolver->resolve(API_STUDENT_B, 'middle') === 'college', 'Known primary grade takes precedence over a conflicting confirmed band');
 $pdo->exec("UPDATE student_profiles SET classId = 'class-unknown-grade-1' WHERE id = '" . API_STUDENT_B . "'");
-api_test_expect_band_required(
-    static fn () => $bandResolver->resolve(API_STUDENT_B, null),
-    'Unknown-school grade 1 requires explicit confirmation'
-);
+api_test_assert($bandResolver->resolve(API_STUDENT_B, null) === 'college', 'Unknown-school grade 1 resolves to the supported college catalog');
 $pdo->exec("UPDATE student_profiles SET classId = 'class-high-001' WHERE id = '" . API_STUDENT_B . "'");
 
 // Verify LearnerApiContext exposes required service methods
@@ -302,26 +296,21 @@ $explicitCatalogRes = execute_endpoint($assessmentsEndpoint, ['REQUEST_METHOD' =
 api_test_assert($explicitCatalogRes['status'] === 200, 'Explicit catalog view returns 200: ' . json_encode($explicitCatalogRes));
 api_test_assert(count($explicitCatalogRes['body']['data']['assessments'] ?? []) === 4, 'Explicit catalog view returns the published catalog');
 
-// C2. A classless learner receives a successful band-required catalog contract.
+// C2. A classless learner receives a successful safe-default catalog contract.
 $pdo->exec("UPDATE student_profiles SET classId = NULL WHERE id = '" . API_STUDENT_B . "'");
 $bandRequiredCatalogRes = execute_endpoint($assessmentsEndpoint, ['REQUEST_METHOD' => 'GET'], [], [], ['user' => $userStudentB], $dbPath);
-api_test_assert($bandRequiredCatalogRes['status'] === 200, 'Classless catalog request returns a successful band-required contract: ' . json_encode($bandRequiredCatalogRes));
-api_test_assert(($bandRequiredCatalogRes['body']['data']['code'] ?? '') === 'EDUCATION_BAND_REQUIRED', 'Classless catalog exposes a useful band-required code');
-api_test_assert(($bandRequiredCatalogRes['body']['data']['requires_education_band'] ?? false) === true, 'Classless catalog explicitly requires education band');
-api_test_assert(array_key_exists('education_band', $bandRequiredCatalogRes['body']['data'] ?? []) && $bandRequiredCatalogRes['body']['data']['education_band'] === null, 'Classless catalog keeps education_band null');
-api_test_assert(($bandRequiredCatalogRes['body']['data']['assessments'] ?? null) === [], 'Classless catalog returns an empty catalog shape without claiming valid empty state');
-api_test_assert(!isset($bandRequiredCatalogRes['body']['error']), 'Band-required catalog is never SOURCE_FAILURE');
+api_test_assert($bandRequiredCatalogRes['status'] === 200, 'Classless catalog request returns a successful safe-default contract: ' . json_encode($bandRequiredCatalogRes));
+api_test_assert(($bandRequiredCatalogRes['body']['data']['education_band'] ?? '') === 'high', 'Classless catalog uses the safe high band default');
+api_test_assert(count($bandRequiredCatalogRes['body']['data']['assessments'] ?? []) === 4, 'Classless catalog returns the published high-band assessments');
+api_test_assert(!isset($bandRequiredCatalogRes['body']['error']), 'Safe-default catalog is never SOURCE_FAILURE');
 
 $bandRequiredDetailRes = execute_endpoint($assessmentsEndpoint, ['REQUEST_METHOD' => 'GET'], ['code' => 'holland'], [], ['user' => $userStudentB], $dbPath);
-api_test_assert($bandRequiredDetailRes['status'] === 200, 'Classless detail request returns a successful band-required contract: ' . json_encode($bandRequiredDetailRes));
-api_test_assert(($bandRequiredDetailRes['body']['data']['code'] ?? '') === 'EDUCATION_BAND_REQUIRED', 'Classless detail exposes a useful band-required code');
-api_test_assert(($bandRequiredDetailRes['body']['data']['requires_education_band'] ?? false) === true, 'Classless detail explicitly requires education band');
-api_test_assert(($bandRequiredDetailRes['body']['data']['assessment_code'] ?? '') === 'holland', 'Classless detail preserves requested assessment code');
-api_test_assert(array_key_exists('education_band', $bandRequiredDetailRes['body']['data'] ?? []) && $bandRequiredDetailRes['body']['data']['education_band'] === null, 'Classless detail keeps education_band null');
-api_test_assert(array_key_exists('assessment', $bandRequiredDetailRes['body']['data'] ?? []) && $bandRequiredDetailRes['body']['data']['assessment'] === null, 'Classless detail has a null assessment shape');
-api_test_assert(($bandRequiredDetailRes['body']['data']['questions'] ?? null) === [], 'Classless detail has an empty questions shape');
-api_test_assert(($bandRequiredDetailRes['body']['data']['history'] ?? null) === [], 'Classless detail has an empty history shape');
-api_test_assert(!isset($bandRequiredDetailRes['body']['error']), 'Band-required detail is never SOURCE_FAILURE');
+api_test_assert($bandRequiredDetailRes['status'] === 200, 'Classless detail request returns a successful safe-default contract: ' . json_encode($bandRequiredDetailRes));
+api_test_assert(($bandRequiredDetailRes['body']['data']['assessment']['education_band'] ?? '') === 'high', 'Classless detail uses the safe high band default');
+api_test_assert(($bandRequiredDetailRes['body']['data']['assessment']['code'] ?? '') === 'holland', 'Classless detail preserves the requested assessment code');
+api_test_assert(count($bandRequiredDetailRes['body']['data']['questions'] ?? []) === 6, 'Classless detail returns the published high-band questions');
+api_test_assert(is_array($bandRequiredDetailRes['body']['data']['history'] ?? null), 'Classless detail returns history');
+api_test_assert(!isset($bandRequiredDetailRes['body']['error']), 'Safe-default detail is never SOURCE_FAILURE');
 $pdo->exec("UPDATE student_profiles SET classId = 'class-high-001' WHERE id = '" . API_STUDENT_B . "'");
 
 // D. GET with invalid band returns 422 / VALIDATION_FAILED

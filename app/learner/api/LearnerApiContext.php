@@ -71,7 +71,8 @@ final class LearnerApiContext
     {
         $request = Request::fromGlobals();
         $sessionConfig = require dirname(__DIR__, 3) . '/config/session.php';
-        $session = new SessionManager(array_merge($sessionConfig, ['name' => SessionManager::SESSION_STUDENT]));
+        $sessionConfig['name'] = SessionManager::SESSION_STUDENT;
+        $session = new SessionManager($sessionConfig);
         $session->start();
         if (isset($GLOBALS['__TALENTHUB_TEST_SESSION__']) && is_array($GLOBALS['__TALENTHUB_TEST_SESSION__'])) {
             $_SESSION = $GLOBALS['__TALENTHUB_TEST_SESSION__'];

@@ -15,7 +15,7 @@ if(($current=$session->user())!==null){header('Location: '.app_href(AuthPortalRo
 
 $values=['fullName'=>'','email'=>'','phone'=>'','dateOfBirth'=>'','schoolId'=>'','classId'=>''];$fieldErrors=[];$errorMessage=null;$classes=[];$repository=null;
 try{$pdo=(new Connection(require __DIR__.'/config/database.php'))->connect();$repository=new AuthRepository($pdo);$classes=$repository->registrationClasses();}
-catch(Throwable){$errorMessage='Chưa thể tải danh sách lớp. Vui lòng thử lại khi dịch vụ dữ liệu sẵn sàng.';}
+catch(Throwable $e){error_log('[Register DB Load Error] '.$e->getMessage());$errorMessage='Chưa thể tải danh sách lớp: '.$e->getMessage();}
 
 if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
     foreach(array_keys($values) as $field){$values[$field]=trim((string)($_POST[$field]??''));}
@@ -25,7 +25,7 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
     if($values['schoolId']===''){$fieldErrors['schoolId']='Vui lòng chọn trường đang theo học.';}
     if($selectedClass===null){$fieldErrors['classId']='Vui lòng chọn một lớp đang hoạt động.';}
     elseif(!hash_equals($values['schoolId'],$selectedClass['schoolId'])){$fieldErrors['classId']='Lớp đã chọn không thuộc trường này.';}
-    if($repository===null){$errorMessage='Không thể kết nối dịch vụ đăng ký. Vui lòng thử lại sau.';}
+    if($repository===null){$errorMessage='Không thể kết nối dịch vụ đăng ký cơ sở dữ liệu. Vui lòng kiểm tra lại cấu hình CSDL.';}
     elseif($fieldErrors===[]){
         try{
             $registrationInput=[
@@ -37,9 +37,10 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
                 'phone'=>$values['phone'],
             ];
             $auth=new AuthService($repository);$user=$auth->registerStudent($registrationInput,RequestId::make(null),$_SERVER['REMOTE_ADDR']??null);
-            $_SESSION['authFlash']=['type'=>'registered','email'=>$user['email']];header('Location: ./login.php');exit;
+            $_SESSION['authFlash']=['type'=>'registered','email'=>$user['email']];header('Location: '.app_href('/login.php'));exit;
         }catch(ApiException $exception){$errorMessage=$exception->getMessage();foreach($exception->details as $detail){$fieldErrors[$detail['field']]=$detail['message'];}}
-        catch(Throwable){$errorMessage='Không thể hoàn tất đăng ký. Vui lòng thử lại sau.';}
+        catch(\PDOException $pdoException){error_log('[Registration SQL Error] '.$pdoException->getMessage()."\n".$pdoException->getTraceAsString());$errorMessage='Lỗi truy vấn cơ sở dữ liệu (SQL '.$pdoException->getCode().'): '.$pdoException->getMessage();}
+        catch(Throwable $e){error_log('[Registration Error] '.$e->getMessage()."\n".$e->getTraceAsString());$errorMessage='Không thể hoàn tất đăng ký: '.$e->getMessage();}
     }
 }
 
@@ -78,7 +79,7 @@ $schools=[];foreach($classes as $class){$schools[$class['schoolId']]=['id'=>$cla
             <a class="auth-mobile-logo" href="./index.php"><img src="./assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
             <div class="auth-heading"><div class="auth-heading__row"><div><p class="auth-kicker">Tài khoản mới</p><h2 id="register-title">Đăng ký học viên</h2></div><span class="auth-role-badge">Student</span></div><p>Điền đúng thông tin đang sử dụng tại trường của bạn.</p></div>
             <?php if($errorMessage!==null||$fieldErrors!==[]): ?><div class="auth-alert auth-alert--error" role="alert" tabindex="-1" data-error-summary><strong><?=registerEscape($errorMessage??'Vui lòng kiểm tra lại thông tin đăng ký.')?></strong><?php if($fieldErrors!==[]): ?><ul><?php foreach($fieldErrors as $field=>$message): ?><li><a href="#<?=registerEscape($field)?>"><?=registerEscape($message)?></a></li><?php endforeach; ?></ul><?php endif; ?></div><?php endif; ?>
-            <form class="auth-form auth-form--register" method="post" action="/register.php" data-auth-form>
+            <form class="auth-form auth-form--register" method="post" action="<?= app_href('/register.php') ?>" data-auth-form>
                 <div class="auth-form-grid">
                     <div class="auth-form-section auth-field--full"><span>01</span><div><strong>Thông tin cá nhân</strong><small>Nhập thông tin cơ bản của học viên</small></div></div>
                     <div class="auth-field auth-field--full"><label for="fullName">Họ và tên</label><input id="fullName" name="fullName" value="<?=registerEscape($values['fullName'])?>" autocomplete="name" minlength="2" maxlength="150" required <?php if(isset($fieldErrors['fullName'])): ?>aria-invalid="true" aria-describedby="fullName-error"<?php endif; ?>><?php if(isset($fieldErrors['fullName'])): ?><span class="auth-field__error" id="fullName-error"><?=registerEscape($fieldErrors['fullName'])?></span><?php endif; ?></div>

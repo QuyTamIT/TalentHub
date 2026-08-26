@@ -42,11 +42,15 @@ final class StudentAppContext
     public function boot(): array
     {
         $cached = $this->session->user();
+        if ($cached === null && (isset($_SESSION['user_id']) || isset($_SESSION['user']))) {
+            $cached = $this->session->user();
+        }
         if ($cached === null) {
             $this->redirectToLogin();
         }
-        if (!\TalentHub\Rbac\RoleCodes::matches((string) ($cached['role'] ?? ''), \TalentHub\Rbac\RoleCodes::STUDENT)) {
-            PortalGuard::renderRoleMismatch((string) ($cached['role'] ?? ''), \TalentHub\Rbac\RoleCodes::STUDENT);
+        $currentRole = (string) ($cached['role'] ?? $_SESSION['role'] ?? $_SESSION['user']['role'] ?? '');
+        if (!\TalentHub\Rbac\RoleCodes::matches($currentRole, \TalentHub\Rbac\RoleCodes::STUDENT)) {
+            PortalGuard::renderRoleMismatch($currentRole, \TalentHub\Rbac\RoleCodes::STUDENT);
         }
 
         try {

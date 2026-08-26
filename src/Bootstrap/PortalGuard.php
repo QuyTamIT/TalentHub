@@ -16,23 +16,46 @@ final class PortalGuard
     public static function requireRole(string $role, string $fallbackPath): array
     {
         $root = dirname(__DIR__, 2);
-        $sessionConfig = require $root . '/config/session.php';
-        $sessionConfig['name'] = SessionManager::sessionNameForRole($role);
-        $session = new SessionManager($sessionConfig);
-        $session->start();
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            $sessionConfig = require $root . '/config/session.php';
+            $sessionConfig['name'] = SessionManager::sessionNameForRole($role);
+            $session = new SessionManager($sessionConfig);
+            $session->start();
+        } else {
+            $session = new SessionManager(require $root . '/config/session.php');
+        }
+
         $cached = $session->user();
+        if ($cached === null && (isset($_SESSION['user_id']) || isset($_SESSION['user']))) {
+            $cached = $session->user();
+        }
+
         if ($cached === null) {
             self::redirect('/login.php?next=' . urlencode($_SERVER['REQUEST_URI'] ?? $fallbackPath) . '&role_required=' . urlencode($role));
         }
 
-        if (!RoleCodes::matches((string) ($cached['role'] ?? ''), $role)) {
-            self::renderRoleMismatch((string) ($cached['role'] ?? ''), $role);
+        $currentRole = (string) ($cached['role'] ?? $_SESSION['role'] ?? $_SESSION['user']['role'] ?? '');
+        $currentCanonical = RoleCodes::canonical($currentRole);
+        $isTeacherAllowed = ($role === RoleCodes::TEACHER && in_array($currentCanonical, [RoleCodes::TEACHER, RoleCodes::SCHOOL, RoleCodes::PLATFORM_ADMIN], true));
+
+        if (!RoleCodes::matches($currentRole, $role) && !$isTeacherAllowed) {
+            self::renderRoleMismatch($currentRole, $role);
         }
 
         try {
             $pdo = (new Connection(require $root . '/config/database.php'))->connect();
             $user = (new AuthService(new AuthRepository($pdo)))->current((string) $cached['id']);
             $session->refreshUser($user);
+            $_SESSION['user_id'] = (string) $user['id'];
+            $_SESSION['role'] = (string) $user['role'];
+            $_SESSION['user'] = [
+                'id' => (string) $user['id'],
+                'email' => (string) ($user['email'] ?? ''),
+                'role' => (string) $user['role'],
+                'name' => (string) ($user['fullName'] ?? ($user['name'] ?? '')),
+                'fullName' => (string) ($user['fullName'] ?? ($user['name'] ?? '')),
+                'status' => (string) ($user['status'] ?? 'active'),
+            ];
         } catch (ApiException $exception) {
             if ($exception->status === 401) {
                 $session->destroy();
@@ -41,8 +64,12 @@ final class PortalGuard
             throw $exception;
         }
 
-        if (!RoleCodes::matches((string) ($user['role'] ?? ''), $role)) {
-            self::renderRoleMismatch((string) ($user['role'] ?? ''), $role);
+        $verifiedRole = (string) ($user['role'] ?? $currentRole);
+        $verifiedCanonical = RoleCodes::canonical($verifiedRole);
+        $isVerifiedTeacherAllowed = ($role === RoleCodes::TEACHER && in_array($verifiedCanonical, [RoleCodes::TEACHER, RoleCodes::SCHOOL, RoleCodes::PLATFORM_ADMIN], true));
+
+        if (!RoleCodes::matches($verifiedRole, $role) && !$isVerifiedTeacherAllowed) {
+            self::renderRoleMismatch($verifiedRole, $role);
         }
         return $user;
     }

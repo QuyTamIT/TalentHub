@@ -18,23 +18,20 @@ final class SchoolProjectRepository
 
     public function schoolIdForUser(string $userId): string
     {
-        if ($this->tableExists('school_teachers')) {
-            $stmt = $this->pdo->prepare('SELECT schoolId FROM school_teachers WHERE userId = ? LIMIT 1');
-            $stmt->execute([$userId]);
-            $schoolId = $stmt->fetchColumn();
-            if (is_string($schoolId) && $schoolId !== '') {
-                return $schoolId;
-            }
+        $stmt = $this->pdo->prepare(
+            'SELECT sm.schoolId
+             FROM school_members sm
+             INNER JOIN schools s ON s.id = sm.schoolId
+             WHERE sm.userId = :userId AND s.status = \'active\'
+             LIMIT 2'
+        );
+        $stmt->execute(['userId' => $userId]);
+        $ids = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        if (count($ids) === 1 && is_string($ids[0]) && $ids[0] !== '') {
+            return $ids[0];
         }
 
-        if ($this->tableExists('schools')) {
-            $schoolId = $this->pdo->query('SELECT id FROM schools LIMIT 1')?->fetchColumn();
-            if (is_string($schoolId) && $schoolId !== '') {
-                return $schoolId;
-            }
-        }
-
-        throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy thông tin trường học tương ứng.');
+        throw new ApiException(403, 'PERMISSION_DENIED', 'Tài khoản phải thuộc đúng một trường đang hoạt động.');
     }
 
     /**
@@ -53,7 +50,7 @@ final class SchoolProjectRepository
             throw new ApiException(422, 'VALIDATION_FAILED', 'Tiêu đề dự án không được để trống.');
         }
 
-        $fundingGoal = isset($input['fundingGoal']) ? (string) $input['fundingGoal'] : null;
+        $fundingGoal = isset($input['fundingGoal']) && trim((string) $input['fundingGoal']) !== '' ? trim((string) $input['fundingGoal']) : null;
         if ($fundingGoal !== null) {
             if (!preg_match('/^\d+(\.\d{1,2})?$/', $fundingGoal) || (float) $fundingGoal <= 0) {
                 throw new ApiException(422, 'VALIDATION_FAILED', 'Mục tiêu tài trợ (fundingGoal) phải là số dương lớn hơn 0.');
@@ -65,9 +62,9 @@ final class SchoolProjectRepository
             $category = 'general';
         }
 
-        $status = trim((string) ($input['status'] ?? 'in_progress'));
+        $status = trim((string) ($input['status'] ?? 'draft'));
         if (!in_array($status, ['draft', 'in_progress', 'completed', 'archived'], true)) {
-            $status = 'in_progress';
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Trạng thái dự án không hợp lệ.');
         }
 
         $mentorTeacherId = isset($input['mentorTeacherId']) && is_string($input['mentorTeacherId']) && trim($input['mentorTeacherId']) !== ''
@@ -81,13 +78,24 @@ final class SchoolProjectRepository
 
         $description = isset($input['description']) && is_string($input['description']) ? trim($input['description']) : null;
         $projectUrl = isset($input['projectUrl']) && is_string($input['projectUrl']) ? trim($input['projectUrl']) : null;
-        $startAt = isset($input['startAt']) && is_string($input['startAt']) ? trim($input['startAt']) : null;
-        $endAt = isset($input['endAt']) && is_string($input['endAt']) ? trim($input['endAt']) : null;
+        $startAt = isset($input['startAt']) && is_string($input['startAt']) && trim($input['startAt']) !== '' ? trim($input['startAt']) : null;
+        $endAt = isset($input['endAt']) && is_string($input['endAt']) && trim($input['endAt']) !== '' ? trim($input['endAt']) : null;
+        if ($startAt !== null && !$this->validDate($startAt)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Ngày bắt đầu không hợp lệ.');
+        }
+        if ($endAt !== null && !$this->validDate($endAt)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Ngày kết thúc không hợp lệ.');
+        }
+        if ($startAt !== null && $endAt !== null && $endAt < $startAt) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.');
+        }
 
         $id = Uuid::v4();
         $now = $this->now();
 
-        $stmt = $this->pdo->prepare(<<<'SQL'
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare(<<<'SQL'
             INSERT INTO projects (
                 id, schoolId, mentorTeacherId, title, category, description,
                 projectUrl, fundingGoal, startAt, endAt, status, createdAt, updatedAt
@@ -95,23 +103,34 @@ final class SchoolProjectRepository
                 :id, :schoolId, :mentorTeacherId, :title, :category, :description,
                 :projectUrl, :fundingGoal, :startAt, :endAt, :status, :createdAt, :updatedAt
             )
-        SQL);
+SQL);
 
-        $stmt->execute([
-            'id' => $id,
-            'schoolId' => $schoolId,
-            'mentorTeacherId' => $mentorTeacherId,
-            'title' => $title,
-            'category' => $category,
-            'description' => $description,
-            'projectUrl' => $projectUrl,
-            'fundingGoal' => $fundingGoal,
-            'startAt' => $startAt,
-            'endAt' => $endAt,
-            'status' => $status,
-            'createdAt' => $now,
-            'updatedAt' => $now,
-        ]);
+            $stmt->execute([
+                'id' => $id,
+                'schoolId' => $schoolId,
+                'mentorTeacherId' => $mentorTeacherId,
+                'title' => $title,
+                'category' => $category,
+                'description' => $description,
+                'projectUrl' => $projectUrl,
+                'fundingGoal' => $fundingGoal,
+                'startAt' => $startAt,
+                'endAt' => $endAt,
+                'status' => $status,
+                'createdAt' => $now,
+                'updatedAt' => $now,
+            ]);
+
+            $this->writeAudit($userId, 'PROJECT_CREATE', $id, $requestId, [
+                'schoolId' => $schoolId,
+                'mentorTeacherId' => $mentorTeacherId,
+                'status' => $status,
+            ]);
+            $this->pdo->commit();
+        } catch (\Throwable $exception) {
+            if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
+            throw $exception;
+        }
 
         return $this->getProject($schoolId, $id);
     }
@@ -162,7 +181,7 @@ final class SchoolProjectRepository
         return ['items' => $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []];
     }
 
-    public function updateProject(string $schoolId, string $projectId, array $input): array
+    public function updateProject(string $schoolId, string $userId, string $projectId, array $input): array
     {
         $current = $this->getProject($schoolId, $projectId);
         $now = $this->now();
@@ -171,24 +190,45 @@ final class SchoolProjectRepository
         $category = isset($input['category']) ? trim((string) $input['category']) : (string) ($current['category'] ?? 'general');
         $description = array_key_exists('description', $input) ? (is_string($input['description']) ? trim($input['description']) : null) : $current['description'];
         $status = isset($input['status']) ? trim((string) $input['status']) : (string) $current['status'];
-        $fundingGoal = array_key_exists('fundingGoal', $input) ? (string) $input['fundingGoal'] : $current['fundingGoal'];
+        if (!in_array($status, ['draft', 'in_progress', 'completed', 'archived'], true)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Trạng thái dự án không hợp lệ.');
+        }
+        if ($title === '' || mb_strlen($title) > 255) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Tiêu đề dự án phải có từ 1 đến 255 ký tự.');
+        }
+        $fundingGoal = array_key_exists('fundingGoal', $input) && trim((string) $input['fundingGoal']) !== '' ? trim((string) $input['fundingGoal']) : $current['fundingGoal'];
+        if ($fundingGoal !== null && (!preg_match('/^\d+(\.\d{1,2})?$/', (string) $fundingGoal) || (float) $fundingGoal <= 0)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Mục tiêu tài trợ phải là số dương.');
+        }
 
-        $stmt = $this->pdo->prepare(
-            "UPDATE projects
-             SET title = :title, category = :category, description = :description, status = :status,
-                 fundingGoal = :fundingGoal, updatedAt = :updatedAt
-             WHERE id = :id AND schoolId = :schoolId"
-        );
-        $stmt->execute([
-            'title' => $title,
-            'category' => $category,
-            'description' => $description,
-            'status' => $status,
-            'fundingGoal' => $fundingGoal,
-            'updatedAt' => $now,
-            'id' => $projectId,
-            'schoolId' => $schoolId,
-        ]);
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare(
+                "UPDATE projects
+                 SET title = :title, category = :category, description = :description, status = :status,
+                     fundingGoal = :fundingGoal, updatedAt = :updatedAt
+                 WHERE id = :id AND schoolId = :schoolId"
+            );
+            $stmt->execute([
+                'title' => $title,
+                'category' => $category,
+                'description' => $description,
+                'status' => $status,
+                'fundingGoal' => $fundingGoal,
+                'updatedAt' => $now,
+                'id' => $projectId,
+                'schoolId' => $schoolId,
+            ]);
+
+            $this->writeAudit($userId, 'PROJECT_UPDATE', $projectId, 'school-project-ui', [
+                'schoolId' => $schoolId,
+                'changes' => array_keys($input),
+            ]);
+            $this->pdo->commit();
+        } catch (\Throwable $exception) {
+            if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
+            throw $exception;
+        }
 
         return $this->getProject($schoolId, $projectId);
     }
@@ -199,10 +239,33 @@ final class SchoolProjectRepository
             $stmt = $this->pdo->prepare('SELECT schoolId FROM teacher_profiles WHERE id = ? LIMIT 1');
             $stmt->execute([$mentorTeacherId]);
             $tSchool = $stmt->fetchColumn();
-            if ($tSchool !== false && $tSchool !== null && (string) $tSchool !== $schoolId) {
+            if (!is_string($tSchool) || $tSchool === '' || $tSchool !== $schoolId) {
                 throw new ApiException(422, 'VALIDATION_FAILED', 'Giáo viên hướng dẫn không thuộc trường học này.');
             }
         }
+    }
+
+    private function validDate(string $value): bool
+    {
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value, new DateTimeZone('UTC'));
+        return $date !== false && $date->format('Y-m-d') === $value;
+    }
+
+    /** @param array<string,mixed> $metadata */
+    private function writeAudit(string $userId, string $action, string $projectId, string $requestId, array $metadata): void
+    {
+        $stmt = $this->pdo->prepare(
+            'INSERT INTO audit_logs (id, userId, action, entityType, entityId, requestId, metadata)
+             VALUES (:id, :userId, :action, \'project\', :entityId, :requestId, :metadata)'
+        );
+        $stmt->execute([
+            'id' => Uuid::v4(),
+            'userId' => $userId,
+            'action' => $action,
+            'entityId' => $projectId,
+            'requestId' => $requestId,
+            'metadata' => json_encode($metadata, JSON_THROW_ON_ERROR),
+        ]);
     }
 
     private function tableExists(string $tableName): bool

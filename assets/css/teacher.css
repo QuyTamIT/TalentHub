@@ -84,13 +84,15 @@ body.teacher-sidebar-open {
 .teacher-sidebar__link {
     display: flex;
     align-items: center;
-    gap: 0.625rem;
-    padding: 0.625rem 0.75rem;
-    border-radius: var(--radius-sm);
+    gap: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    border-radius: var(--radius-md);
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--text-secondary);
     transition: all var(--transition-fast);
+    text-decoration: none;
+    border: 1px solid transparent;
 }
 
 .teacher-sidebar__link:hover,
@@ -100,9 +102,14 @@ body.teacher-sidebar-open {
 }
 
 .teacher-sidebar__link.is-active {
-    background-color: var(--primary-light);
+    background-color: rgba(249, 115, 22, 0.1);
     color: var(--primary);
     font-weight: 600;
+    border-color: rgba(249, 115, 22, 0.2);
+}
+
+.teacher-sidebar__link.is-active .teacher-sidebar__icon {
+    color: var(--primary);
 }
 
 .teacher-sidebar__icon {
@@ -111,6 +118,7 @@ body.teacher-sidebar-open {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    transition: color var(--transition-fast);
 }
 
 .teacher-sidebar__footer {
@@ -148,6 +156,23 @@ body.teacher-sidebar-open {
 .teacher-sidebar__link--logout:focus-visible {
     outline: 2px solid rgba(239, 68, 68, 0.4);
     outline-offset: 2px;
+}
+
+.teacher-sidebar__link--switch {
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+}
+
+.teacher-sidebar__link--switch:hover {
+    background: rgba(249, 115, 22, 0.08);
+    color: var(--primary);
+    border-color: rgba(249, 115, 22, 0.3);
+}
+
+.teacher-sidebar__link--switch:hover .teacher-sidebar__icon {
+    color: var(--primary);
 }
 
 .teacher-main-wrapper {
@@ -329,13 +354,18 @@ body.teacher-sidebar-open {
     flex-direction: column;
 }
 
+.teacher-header__company-name,
 .teacher-header__name {
     font-size: 0.8125rem;
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
+.teacher-header__package-name,
 .teacher-header__role {
     font-size: 0.75rem;
     color: var(--text-secondary);

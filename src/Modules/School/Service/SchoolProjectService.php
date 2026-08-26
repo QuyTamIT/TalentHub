@@ -46,6 +46,6 @@ final class SchoolProjectService
             throw new ApiException(422, 'VALIDATION_FAILED', 'projectId không đúng định dạng UUID.');
         }
         $schoolId = $this->schoolId($userId);
-        return $this->repository->updateProject($schoolId, $projectId, $input);
+        return $this->repository->updateProject($schoolId, $userId, $projectId, $input);
     }
 }

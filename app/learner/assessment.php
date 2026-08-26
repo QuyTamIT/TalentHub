@@ -27,12 +27,14 @@ $currentRoute = '/app/learner/discover.php';
 $bootData = [
     'assessmentCode' => $assessmentCode,
     'endpoints' => [
-        'catalog' => '/app/learner/api/v1/assessments.php',
-        'attempts' => '/app/learner/api/v1/assessment-attempts.php',
-        'answers' => '/app/learner/api/v1/assessment-answers.php',
-        'submit' => '/app/learner/api/v1/assessment-submit.php',
+        'catalog' => app_href('/app/learner/api/v1/assessments.php'),
+        'attempts' => app_href('/app/learner/api/v1/assessment-attempts.php'),
+        'answers' => app_href('/app/learner/api/v1/assessment-answers.php'),
+        'submit' => app_href('/app/learner/api/v1/assessment-submit.php'),
     ],
-    'result_url' => 'assessment-result.php?code=' . urlencode($assessmentCode),
+    'appBase' => app_href(''),
+    'apiBase' => app_href('/app/learner/api/v1'),
+    'result_url' => app_href('/app/learner/assessment-result.php?code=' . urlencode($assessmentCode)),
 ];
 ?>
 <!DOCTYPE html>
@@ -42,6 +44,8 @@ $bootData = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Thực hiện bài đánh giá năng khiếu trên TalentHub.">
     <title><?= learner_escape($assessmentName); ?> | TalentHub</title>
+    <meta name="csrf-token" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
+    <meta name="csrfToken" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
 </head>
@@ -220,7 +224,11 @@ $bootData = [
         </section>
     </div>
 
-    <script id="learner-session-boot" type="application/json"><?= json_encode(['csrfToken' => $GLOBALS['learner_page_context']['csrfToken'] ?? ''], JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
+    <script id="learner-session-boot" type="application/json"><?= json_encode([
+        'csrfToken' => $GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? ''),
+        'apiBase' => app_href('/app/learner/api/v1'),
+        'appBase' => app_href(''),
+    ], JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
     <script id="learner-assessment-boot" type="application/json"><?= json_encode($bootData, JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
     <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>

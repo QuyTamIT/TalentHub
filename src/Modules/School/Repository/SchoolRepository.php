@@ -72,7 +72,12 @@ final class SchoolRepository
     public function listClasses(string $schoolId, bool $includeArchived = false): array
     {
         $sql = 'SELECT id, schoolId, name, gradeLevel, academicYear, status,
-                       (SELECT COUNT(*) FROM student_profiles sp WHERE sp.classId = c.id AND sp.studyStatus = \'active\') AS studentCount
+                       (SELECT COUNT(*) FROM student_profiles sp INNER JOIN users su ON su.id = sp.userId WHERE sp.classId = c.id AND sp.studyStatus = \'active\' AND su.status = \'active\') AS studentCount,
+                       (SELECT COALESCE(ROUND(AVG(CASE
+                           WHEN sp.phone IS NOT NULL AND sp.phone <> \'\' AND sp.dateOfBirth IS NOT NULL THEN 100
+                           WHEN (sp.phone IS NOT NULL AND sp.phone <> \'\') OR sp.dateOfBirth IS NOT NULL THEN 50
+                           ELSE 0 END)), 0)
+                        FROM student_profiles sp INNER JOIN users su ON su.id = sp.userId WHERE sp.classId = c.id AND sp.studyStatus = \'active\' AND su.status = \'active\') AS profileCompletion
                 FROM classes c
                 WHERE c.schoolId = :schoolId';
         if (!$includeArchived) {
@@ -184,6 +189,25 @@ final class SchoolRepository
         ]);
     }
 
+    /**
+     * @param array{specialization:?string,phone:?string,bio:?string} $fields
+     */
+    public function updateTeacherProfile(string $profileId, string $schoolId, array $fields): void
+    {
+        $stmt = $this->pdo->prepare(
+            'UPDATE teacher_profiles
+             SET specialization = :specialization, phone = :phone, bio = :bio
+             WHERE id = :id AND schoolId = :schoolId'
+        );
+        $stmt->execute([
+            'specialization' => $fields['specialization'],
+            'phone' => $fields['phone'],
+            'bio' => $fields['bio'],
+            'id' => $profileId,
+            'schoolId' => $schoolId,
+        ]);
+    }
+
     public function deactivateTeacher(string $profileId, string $schoolId): void
     {
         $stmt = $this->pdo->prepare(
@@ -213,6 +237,7 @@ final class SchoolRepository
         string $fullName,
         bool $isSchoolAdmin,
         string $passwordHash,
+        array $invitation,
     ): array {
         $this->pdo->beginTransaction();
         try {
@@ -227,7 +252,7 @@ final class SchoolRepository
                 $roleId = $this->teacherRoleId();
                 $stmt = $this->pdo->prepare(
                     'INSERT INTO users (id, roleId, email, passwordHash, fullName, status)
-                     VALUES (:id, :roleId, :email, :hash, :fullName, \'active\')'
+                     VALUES (:id, :roleId, :email, :hash, :fullName, \'pending\')'
                 );
                 $stmt->execute([
                     'id'       => $userId,
@@ -285,13 +310,131 @@ final class SchoolRepository
                 ]);
             }
 
+            $invitationId = $this->createAccountInvitation(
+                $userId,
+                (string) $invitation['invitedByUserId'],
+                $schoolId,
+                'teacher',
+                (string) $invitation['tokenHash'],
+                (string) $invitation['expiresAt'],
+            );
+
             $this->pdo->commit();
-            return ['userId' => $userId, 'profileId' => $profileId];
+            return ['userId' => $userId, 'profileId' => $profileId, 'invitationId' => $invitationId];
         } catch (\Throwable $e) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
             throw $e;
+        }
+    }
+
+    public function createAccountInvitation(
+        string $userId,
+        string $invitedByUserId,
+        string $schoolId,
+        string $accountRole,
+        string $tokenHash,
+        string $expiresAt,
+    ): string {
+        $now = gmdate('Y-m-d H:i:s.u');
+        $revoke = $this->pdo->prepare(
+            'UPDATE account_invitations
+             SET revokedAt = :now
+             WHERE userId = :userId AND acceptedAt IS NULL AND revokedAt IS NULL'
+        );
+        $revoke->execute(['now' => $now, 'userId' => $userId]);
+
+        $id = Uuid::v4();
+        $insert = $this->pdo->prepare(
+            'INSERT INTO account_invitations
+                (id, userId, invitedByUserId, schoolId, accountRole, tokenHash, expiresAt, createdAt)
+             VALUES
+                (:id, :userId, :invitedByUserId, :schoolId, :accountRole, :tokenHash, :expiresAt, :createdAt)'
+        );
+        $insert->execute([
+            'id' => $id,
+            'userId' => $userId,
+            'invitedByUserId' => $invitedByUserId,
+            'schoolId' => $schoolId,
+            'accountRole' => $accountRole,
+            'tokenHash' => $tokenHash,
+            'expiresAt' => $expiresAt,
+            'createdAt' => $now,
+        ]);
+        return $id;
+    }
+
+    /** @return array<string,mixed>|null */
+    public function findAccountInvitation(string $tokenHash): ?array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT ai.id, ai.userId, ai.schoolId, ai.accountRole, ai.expiresAt,
+                    ai.acceptedAt, ai.revokedAt, u.email, u.fullName, u.status AS userStatus,
+                    r.code AS actualRole, s.name AS schoolName
+             FROM account_invitations ai
+             INNER JOIN users u ON u.id = ai.userId
+             INNER JOIN roles r ON r.id = u.roleId
+             INNER JOIN schools s ON s.id = ai.schoolId
+             WHERE ai.tokenHash = :tokenHash
+             LIMIT 1'
+        );
+        $stmt->execute(['tokenHash' => $tokenHash]);
+        $row = $stmt->fetch();
+        return is_array($row) ? $row : null;
+    }
+
+    public function acceptAccountInvitation(string $tokenHash, string $passwordHash, string $acceptedAt, string $requestId): string
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $lockSuffix = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite' ? '' : ' FOR UPDATE';
+            $lock = $this->pdo->prepare(
+                'SELECT id, userId FROM account_invitations
+                 WHERE tokenHash = :tokenHash
+                   AND acceptedAt IS NULL
+                   AND revokedAt IS NULL
+                   AND expiresAt > :acceptedAt
+                 LIMIT 1' . $lockSuffix
+            );
+            $lock->execute(['tokenHash' => $tokenHash, 'acceptedAt' => $acceptedAt]);
+            $invitation = $lock->fetch();
+            if (!is_array($invitation)) {
+                throw new \TalentHub\Http\ApiException(410, 'INVITATION_NOT_ACTIVE', 'Lời mời đã hết hạn, bị thu hồi hoặc đã được sử dụng.');
+            }
+
+            $updateInvitation = $this->pdo->prepare(
+                'UPDATE account_invitations SET acceptedAt = :acceptedAt
+                 WHERE id = :id AND acceptedAt IS NULL AND revokedAt IS NULL'
+            );
+            $updateInvitation->execute(['acceptedAt' => $acceptedAt, 'id' => $invitation['id']]);
+            if ($updateInvitation->rowCount() !== 1) {
+                throw new \TalentHub\Http\ApiException(409, 'INVITATION_ALREADY_USED', 'Lời mời đã được sử dụng.');
+            }
+
+            $updateUser = $this->pdo->prepare(
+                "UPDATE users SET passwordHash = :passwordHash, status = 'active' WHERE id = :userId AND status = 'pending'"
+            );
+            $updateUser->execute(['passwordHash' => $passwordHash, 'userId' => $invitation['userId']]);
+            if ($updateUser->rowCount() !== 1) {
+                throw new \TalentHub\Http\ApiException(409, 'INVITATION_ACCOUNT_STATE_INVALID', 'Tài khoản không còn ở trạng thái chờ kích hoạt.');
+            }
+
+            $this->writeAudit(
+                (string) $invitation['userId'],
+                'ACCOUNT_INVITATION_ACCEPT',
+                'account_invitation',
+                (string) $invitation['id'],
+                null,
+                $requestId,
+            );
+            $this->pdo->commit();
+            return (string) $invitation['userId'];
+        } catch (\Throwable $exception) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
         }
     }
 
@@ -331,6 +474,81 @@ final class SchoolRepository
         );
         $stmt->execute(['schoolId' => $schoolId]);
         return (int) $stmt->fetchColumn();
+    }
+
+    /** @return list<array<string,mixed>> */
+    public function listInternshipApplications(string $schoolId): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT ia.id, ia.status, ia.appliedAt, ia.updatedAt,
+                    sp.id AS studentId, u.fullName AS studentName,
+                    ip.id AS postId, ip.title AS postTitle,
+                    e.id AS enterpriseId, e.name AS enterpriseName,
+                    ima.mentorTeacherId, mentor.fullName AS mentorName
+             FROM internship_applications ia
+             INNER JOIN student_profiles sp ON sp.id = ia.studentId
+             INNER JOIN users u ON u.id = sp.userId
+             INNER JOIN classes c ON c.id = sp.classId
+             INNER JOIN internship_posts ip ON ip.id = ia.postId
+             INNER JOIN enterprises e ON e.id = ip.enterpriseId
+             LEFT JOIN internship_mentor_assignments ima ON ima.applicationId = ia.id
+             LEFT JOIN teacher_profiles tp ON tp.id = ima.mentorTeacherId
+             LEFT JOIN users mentor ON mentor.id = tp.userId
+             WHERE c.schoolId = :schoolId
+             ORDER BY ia.updatedAt DESC, ia.appliedAt DESC'
+        );
+        $stmt->execute(['schoolId' => $schoolId]);
+        return array_values($stmt->fetchAll());
+    }
+
+    /** @return array<string,mixed> */
+    public function assignInternshipMentor(string $schoolId, string $applicationId, string $mentorTeacherId, string $assignedByUserId): array
+    {
+        $application = $this->pdo->prepare(
+            'SELECT ia.id, ia.status FROM internship_applications ia
+             INNER JOIN student_profiles sp ON sp.id = ia.studentId
+             INNER JOIN classes c ON c.id = sp.classId
+             WHERE ia.id = :applicationId AND c.schoolId = :schoolId LIMIT 1'
+        );
+        $application->execute(['applicationId' => $applicationId, 'schoolId' => $schoolId]);
+        $applicationRow = $application->fetch();
+        if (!is_array($applicationRow)) {
+            throw new \TalentHub\Http\ApiException(404, 'APPLICATION_NOT_FOUND', 'Không tìm thấy đơn thực tập trong trường.');
+        }
+        if (!in_array((string) $applicationRow['status'], ['interview', 'accepted'], true)) {
+            throw new \TalentHub\Http\ApiException(422, 'MENTOR_ASSIGNMENT_NOT_ALLOWED', 'Chỉ gán mentor cho đơn đang phỏng vấn hoặc đã được chấp nhận.');
+        }
+        $teacher = $this->pdo->prepare('SELECT id FROM teacher_profiles WHERE id = :teacherId AND schoolId = :schoolId LIMIT 1');
+        $teacher->execute(['teacherId' => $mentorTeacherId, 'schoolId' => $schoolId]);
+        if (!$teacher->fetchColumn()) {
+            throw new \TalentHub\Http\ApiException(422, 'MENTOR_SCHOOL_MISMATCH', 'Giáo viên hướng dẫn không thuộc trường của học sinh.');
+        }
+
+        $now = gmdate('Y-m-d H:i:s.u');
+        $this->pdo->beginTransaction();
+        try {
+            $existing = $this->pdo->prepare('SELECT id FROM internship_mentor_assignments WHERE applicationId = :applicationId LIMIT 1');
+            $existing->execute(['applicationId' => $applicationId]);
+            $assignmentId = $existing->fetchColumn();
+            if (is_string($assignmentId) && $assignmentId !== '') {
+                $update = $this->pdo->prepare('UPDATE internship_mentor_assignments SET mentorTeacherId = :mentorTeacherId, assignedByUserId = :assignedByUserId, updatedAt = :now WHERE id = :id');
+                $update->execute(['mentorTeacherId' => $mentorTeacherId, 'assignedByUserId' => $assignedByUserId, 'now' => $now, 'id' => $assignmentId]);
+            } else {
+                $assignmentId = Uuid::v4();
+                $insert = $this->pdo->prepare('INSERT INTO internship_mentor_assignments (id, applicationId, mentorTeacherId, assignedByUserId, assignedAt, updatedAt) VALUES (:id, :applicationId, :mentorTeacherId, :assignedByUserId, :now, :now)');
+                $insert->execute(['id' => $assignmentId, 'applicationId' => $applicationId, 'mentorTeacherId' => $mentorTeacherId, 'assignedByUserId' => $assignedByUserId, 'now' => $now]);
+            }
+            $this->writeAudit($assignedByUserId, 'INTERNSHIP_MENTOR_ASSIGN', 'internship_application', $applicationId, ['schoolId' => $schoolId, 'mentorTeacherId' => $mentorTeacherId]);
+            $this->pdo->commit();
+        } catch (\Throwable $exception) {
+            if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
+            throw $exception;
+        }
+
+        foreach ($this->listInternshipApplications($schoolId) as $item) {
+            if ((string) $item['id'] === $applicationId) { return $item; }
+        }
+        throw new \TalentHub\Http\ApiException(404, 'APPLICATION_NOT_FOUND', 'Không tìm thấy đơn thực tập sau khi gán mentor.');
     }
 
     /** @return array<string,mixed>|null */
@@ -415,18 +633,22 @@ final class SchoolRepository
     public function dashboardMetrics(string $schoolId): array
     {
         $metrics = [
-            'totalStudents'  => 0,
-            'totalClasses'   => 0,
-            'totalTeachers'  => 0,
+            'activeStudents' => 0, 'activeTeachers' => 0, 'totalClasses' => 0,
+            'publishedActivities' => 0, 'approvedRegistrations' => 0,
+            'confirmedCheckins' => 0, 'publishedAssessments' => 0,
+            'verifiedSkills' => 0, 'approvedEnterprisePartners' => 0,
+            'activeInternshipPosts' => 0, 'acceptedInternshipApplications' => 0,
+            'activeProjects' => 0, 'paidSponsorshipAmount' => '0.00',
         ];
 
         $studentStmt = $this->pdo->prepare(
             'SELECT COUNT(*) FROM student_profiles sp
+             INNER JOIN users u ON u.id = sp.userId
              JOIN classes c ON c.id = sp.classId
-             WHERE c.schoolId = :schoolId AND sp.studyStatus = \'active\''
+             WHERE c.schoolId = :schoolId AND sp.studyStatus = \'active\' AND u.status = \'active\''
         );
         $studentStmt->execute(['schoolId' => $schoolId]);
-        $metrics['totalStudents'] = (int) $studentStmt->fetchColumn();
+        $metrics['activeStudents'] = (int) $studentStmt->fetchColumn();
 
         $classStmt = $this->pdo->prepare(
             'SELECT COUNT(*) FROM classes WHERE schoolId = :schoolId AND status = \'active\''
@@ -435,12 +657,53 @@ final class SchoolRepository
         $metrics['totalClasses'] = (int) $classStmt->fetchColumn();
 
         $teacherStmt = $this->pdo->prepare(
-            'SELECT COUNT(*) FROM teacher_profiles WHERE schoolId = :schoolId'
+            "SELECT COUNT(*) FROM teacher_profiles tp INNER JOIN users u ON u.id = tp.userId WHERE tp.schoolId = :schoolId AND u.status = 'active'"
         );
         $teacherStmt->execute(['schoolId' => $schoolId]);
-        $metrics['totalTeachers'] = (int) $teacherStmt->fetchColumn();
+        $metrics['activeTeachers'] = (int) $teacherStmt->fetchColumn();
+
+        $queries = [
+            'publishedActivities' => "SELECT COUNT(*) FROM activities WHERE schoolId = :schoolId AND status = 'published'",
+            'approvedRegistrations' => "SELECT COUNT(*) FROM activity_registrations ar INNER JOIN activities a ON a.id = ar.activityId WHERE a.schoolId = :schoolId AND ar.status = 'approved'",
+            'confirmedCheckins' => "SELECT COUNT(*) FROM checkins ci INNER JOIN activity_registrations ar ON ar.id = ci.registrationId INNER JOIN activities a ON a.id = ar.activityId WHERE a.schoolId = :schoolId AND ci.status = 'confirmed'",
+            'publishedAssessments' => "SELECT COUNT(*) FROM assessments ass INNER JOIN activities a ON a.id = ass.activityId WHERE a.schoolId = :schoolId AND ass.status = 'published'",
+            'verifiedSkills' => "SELECT COUNT(*) FROM student_skills ss INNER JOIN student_profiles sp ON sp.id = ss.studentId INNER JOIN classes c ON c.id = sp.classId WHERE c.schoolId = :schoolId AND ss.verificationStatus = 'verified'",
+            'approvedEnterprisePartners' => "SELECT COUNT(*) FROM school_enterprise_partnerships WHERE schoolId = :schoolId AND status = 'approved'",
+            'activeInternshipPosts' => "SELECT COUNT(DISTINCT ip.id) FROM internship_posts ip INNER JOIN internship_post_target_schools targets ON targets.postId = ip.id INNER JOIN school_enterprise_partnerships sep ON sep.schoolId = targets.schoolId AND sep.enterpriseId = ip.enterpriseId AND sep.status = 'approved' WHERE targets.schoolId = :schoolId AND ip.status = 'active' AND ip.audience = 'partner_schools'",
+            'acceptedInternshipApplications' => "SELECT COUNT(*) FROM internship_applications ia INNER JOIN student_profiles sp ON sp.id = ia.studentId INNER JOIN classes c ON c.id = sp.classId WHERE c.schoolId = :schoolId AND ia.status = 'accepted'",
+            'activeProjects' => "SELECT COUNT(*) FROM projects WHERE schoolId = :schoolId AND status = 'in_progress'",
+            'paidSponsorshipAmount' => "SELECT COALESCE(SUM(ps.amount), 0) FROM project_sponsorships ps INNER JOIN projects p ON p.id = ps.projectId WHERE p.schoolId = :schoolId AND ps.status = 'paid'",
+        ];
+        foreach ($queries as $metric => $sql) {
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute(['schoolId' => $schoolId]);
+            $value = $stmt->fetchColumn();
+            $metrics[$metric] = $metric === 'paidSponsorshipAmount'
+                ? number_format((float) $value, 2, '.', '')
+                : (int) $value;
+        }
+
+        // Backward-compatible aliases for existing school UI consumers.
+        $metrics['totalStudents'] = $metrics['activeStudents'];
+        $metrics['totalTeachers'] = $metrics['activeTeachers'];
 
         return $metrics;
+    }
+
+    /** @return list<array{name:string,count:int}> */
+    public function verifiedSkillDistribution(string $schoolId): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT sk.category AS name, COUNT(*) AS skillCount
+             FROM student_skills ss
+             INNER JOIN skills sk ON sk.id = ss.skillId
+             INNER JOIN student_profiles sp ON sp.id = ss.studentId
+             INNER JOIN classes c ON c.id = sp.classId
+             WHERE c.schoolId = :schoolId AND ss.verificationStatus = 'verified'
+             GROUP BY sk.category ORDER BY skillCount DESC, sk.category ASC"
+        );
+        $stmt->execute(['schoolId' => $schoolId]);
+        return array_map(static fn(array $row): array => ['name' => (string) $row['name'], 'count' => (int) $row['skillCount']], $stmt->fetchAll());
     }
 
     /**
@@ -452,8 +715,9 @@ final class SchoolRepository
         try {
             $studentStmt = $this->pdo->prepare(
                 'SELECT COUNT(*) FROM student_profiles sp
+                 INNER JOIN users u ON u.id = sp.userId
                  JOIN classes c ON c.id = sp.classId
-                 WHERE c.schoolId = :schoolId AND sp.studyStatus = \'active\''
+                 WHERE c.schoolId = :schoolId AND sp.studyStatus = \'active\' AND u.status = \'active\''
             );
             $studentStmt->execute(['schoolId' => $schoolId]);
             $studentCount = (int) $studentStmt->fetchColumn();

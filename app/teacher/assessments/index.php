@@ -12,20 +12,14 @@ use TalentHub\Modules\Teacher\Repository\TeacherGradingRepository;
 use TalentHub\Modules\Teacher\Service\TeacherGradingService;
 use TalentHub\Rbac\Service\PermissionService;
 
+use TalentHub\Bootstrap\PortalGuard;
+use TalentHub\Rbac\RoleCodes;
+
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-$session = new SessionManager(require dirname(__DIR__, 3) . '/config/session.php');
+$user = PortalGuard::requireRole(RoleCodes::TEACHER, '/app/teacher/assessments/index.php');
+$session = new SessionManager(array_merge(require dirname(__DIR__, 3) . '/config/session.php', ['name' => SessionManager::SESSION_TEACHER]));
 $session->start();
-
-$user = $session->user();
-if ($user === null) {
-    header('Location: ' . app_href('/login.php') . '?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/app/teacher/assessments/'));
-    exit;
-}
-if (($user['role'] ?? null) !== 'teacher') {
-    header('Location: ' . app_href('/role-selection.php'));
-    exit;
-}
 
 $pageTitle = 'Chấm điểm';
 $currentRoute = 'assessments';

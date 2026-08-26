@@ -100,7 +100,7 @@ $invited = $service->inviteTeacher($adminId, [
     'isSchoolAdmin' => false,
 ]);
 echo '[OK] Invited teacher profileId: ' . $invited['profileId']
-    . ' (temp pwd: ' . $invited['generatedPassword'] . ')' . PHP_EOL;
+    . ' (invitation expires: ' . $invited['expiresAt'] . ')' . PHP_EOL;
 
 $service->setTeacherAdmin($adminId, $invited['profileId'], true);
 echo '[OK] Granted school admin role' . PHP_EOL;

@@ -15,6 +15,7 @@ use TalentHub\Support\Uuid;
 $context = (new SchoolAppContext())->boot();
 $service = $context['service'];
 $userId  = $context['user']['id'];
+$session = $context['session'];
 
 $studentId = isset($_GET['id']) ? (string) $_GET['id'] : null;
 $isEdit    = $studentId !== null && Uuid::isValid($studentId);
@@ -42,15 +43,29 @@ if ($isEdit) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
     $action = $_POST['action'] ?? '';
     try {
         if ($action === 'create') {
-            $service->createStudent($userId, $_POST);
-            header('Location: ./students.php?msg=created');
-            exit;
+            $created = $service->createStudent($userId, [
+                'fullName' => $_POST['fullName'] ?? '',
+                'email' => $_POST['email'] ?? '',
+                'classId' => $_POST['classId'] ?? '',
+                'phone' => $_POST['phone'] ?? '',
+                'dateOfBirth' => $_POST['dateOfBirth'] ?? '',
+            ]);
+            $invitationUrl = app_href((string) $created['invitationUrl']);
+            $flash = 'Đã tạo học sinh ở trạng thái chờ kích hoạt. Gửi liên kết dùng một lần trước '
+                . htmlspecialchars((string) $created['expiresAt'], ENT_QUOTES, 'UTF-8') . ': '
+                . '<a href="' . htmlspecialchars($invitationUrl, ENT_QUOTES, 'UTF-8') . '">Mở lời mời</a>';
         }
         if ($action === 'update' && $isEdit) {
-            $service->updateStudent($userId, $studentId, $_POST);
+            $service->updateStudent($userId, $studentId, [
+                'classId' => $_POST['classId'] ?? '',
+                'phone' => $_POST['phone'] ?? '',
+                'dateOfBirth' => $_POST['dateOfBirth'] ?? '',
+                'studyStatus' => $_POST['studyStatus'] ?? 'active',
+            ]);
             header('Location: ./students.php?msg=updated');
             exit;
         }
@@ -91,8 +106,12 @@ ob_start();
     <?php if ($error): ?>
         <div class="school-flash school-flash--error" role="alert"><?= htmlspecialchars($error); ?></div>
     <?php endif; ?>
+    <?php if ($flash): ?>
+        <div class="school-flash school-flash--success" role="status"><?= $flash; ?></div>
+    <?php endif; ?>
 
     <form method="post" class="school-form" novalidate>
+        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
         <input type="hidden" name="action" value="<?= $isEdit ? 'update' : 'create'; ?>">
 
         <div class="school-form__grid school-form__grid--2col">

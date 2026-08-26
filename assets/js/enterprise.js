@@ -227,12 +227,13 @@ function initTalentActions() {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             const talentId = btn.getAttribute('data-talent-id');
+            const talentName = btn.getAttribute('data-talent-name');
             const action = btn.getAttribute('data-action');
 
             if (action === 'view') {
-                showEntToast(`Đang mở chi tiết Hồ sơ ứng viên #${talentId}...`);
+                showEntToast(`Đang mở chi tiết Hồ sơ ứng viên ${talentName || '#' + talentId}...`);
             } else if (action === 'contact') {
-                showEntToast(`Đã gửi yêu cầu kết nối tới Ứng viên #${talentId}.`);
+                showEntToast(`Đã gửi yêu cầu kết nối tới ứng viên ${talentName || '#' + talentId}.`);
             }
         });
     });
