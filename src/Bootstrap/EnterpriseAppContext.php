@@ -77,11 +77,15 @@ final class EnterpriseAppContext
     public function boot(): array
     {
         $cached = $this->session->user();
+        if ($cached === null && (isset($_SESSION['user_id']) || isset($_SESSION['user']))) {
+            $cached = $this->session->user();
+        }
         if ($cached === null) {
             $this->redirectToLogin();
         }
-        if (!RoleCodes::matches((string) ($cached['role'] ?? ''), RoleCodes::ENTERPRISE)) {
-            PortalGuard::renderRoleMismatch((string) ($cached['role'] ?? ''), RoleCodes::ENTERPRISE);
+        $currentRole = (string) ($cached['role'] ?? $_SESSION['role'] ?? $_SESSION['user']['role'] ?? '');
+        if (!RoleCodes::matches($currentRole, RoleCodes::ENTERPRISE)) {
+            PortalGuard::renderRoleMismatch($currentRole, RoleCodes::ENTERPRISE);
         }
         try {
             $user = $this->auth->current((string) $cached['id']);

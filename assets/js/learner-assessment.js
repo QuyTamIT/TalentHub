@@ -377,9 +377,11 @@
             return null;
         }
         const session = parseBoot('learner-session-boot');
+        const boot = parseBoot('learner-assessment-boot');
+        const apiBase = session.apiBase || boot.apiBase || '/app/learner/api/v1';
         try {
             return global.TalentHubLearnerApi.createLearnerApiClient({
-                baseUrl: '/app/learner/api/v1',
+                baseUrl: apiBase,
                 csrfToken: session.csrfToken || '',
             });
         } catch {

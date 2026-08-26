@@ -157,13 +157,19 @@ $sidebarNav = [
         </ul>
     </nav>
 
-    <!-- Bottom Action -->
+    <!-- Bottom Action: Logout -->
     <div class="school-sidebar__footer">
-        <a href="../../role-selection.php" class="school-sidebar__link school-sidebar__link--switch">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M16 17l5-5-5-5M19.8 12H9M13 22a10 10 0 1 1 0-20"></path>
-            </svg>
-            <span>Đổi vai trò</span>
+        <a href="<?= function_exists('app_href') ? app_href('/logout.php?role=school') : '/logout.php?role=school'; ?>" 
+           class="school-sidebar__link school-sidebar__link--logout"
+           aria-label="Đăng xuất khỏi hệ thống">
+            <span class="school-sidebar__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </span>
+            <span>Đăng xuất</span>
         </a>
     </div>
 </aside>

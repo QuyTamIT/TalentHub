@@ -271,10 +271,20 @@ final class RolePermissionSeeder
     {
         $enterprise = $pdo->query("SELECT id FROM roles WHERE code = 'enterprise' LIMIT 1")->fetchColumn();
         $business = $pdo->query("SELECT id FROM roles WHERE code = 'business' LIMIT 1")->fetchColumn();
+
         if ($enterprise !== false && $business !== false && $enterprise !== $business) {
-            throw new RuntimeException('Both legacy business and canonical enterprise roles exist. Resolve duplicate role data first.');
-        }
-        if ($enterprise === false && $business !== false) {
+            // Re-assign users from legacy business role to canonical enterprise role
+            $stmt = $pdo->prepare("UPDATE users SET roleId = ? WHERE roleId = ?");
+            $stmt->execute([$enterprise, $business]);
+
+            // Clean up role_permissions referencing the legacy business role
+            $stmt = $pdo->prepare("DELETE FROM role_permissions WHERE roleId = ?");
+            $stmt->execute([$business]);
+
+            // Remove the duplicate legacy business role
+            $stmt = $pdo->prepare("DELETE FROM roles WHERE id = ?");
+            $stmt->execute([$business]);
+        } elseif ($enterprise === false && $business !== false) {
             $statement = $pdo->prepare("UPDATE roles SET code = 'enterprise', name = 'Enterprise' WHERE id = ? AND code = 'business'");
             $statement->execute([$business]);
         }

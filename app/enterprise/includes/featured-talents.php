@@ -1,84 +1,88 @@
 <?php
 /**
- * Enterprise Dashboard - Featured Talents Component
- * Clean, production-grade candidate cards with clear data hierarchy.
+ * Enterprise Dashboard - Featured Talents Component ("Nhân tài nổi bật trong tuần")
+ * 
+ * Clean Flexbox Architecture:
+ * - Dynamic list of top real students queried from database.
+ * - If no students/scores found, renders a compact, elegant Empty State with talent search CTA.
  */
+
+$talentsList = !empty($featuredTalents) ? $featuredTalents : [];
 ?>
-<section class="ent-section-box">
-    <div class="ent-section-box__header">
-        <div>
-            <h3 class="ent-section-box__title">Nhân tài nổi bật trong tuần</h3>
-            <p class="ent-section-box__subtitle">Đề xuất dựa trên tiêu chí tuyển dụng và kỹ năng yêu cầu của doanh nghiệp</p>
-        </div>
-        <a href="<?= app_href('/app/enterprise/talents.php'); ?>" class="ent-section-box__link" data-route="/app/enterprise/talents.php">
-            Xem tất cả &rarr;
+<section class="ent-featured-talents-box" aria-label="Nhân tài nổi bật trong tuần">
+    <!-- Header: Title on the left, Link on the right -->
+    <div class="ent-featured-talents-box__header">
+        <h2 class="ent-featured-talents-box__title">Nhân tài nổi bật trong tuần</h2>
+        <a href="<?= app_href('/app/enterprise/talents.php'); ?>" class="ent-featured-talents-box__view-all" data-route="/app/enterprise/talents.php">
+            <span>Xem tất cả →</span>
         </a>
     </div>
 
+    <!-- Candidate List / Empty State View -->
     <div class="ent-talents-list">
-        <?php if (empty($featuredTalents)): ?>
-            <div class="ent-empty-state" style="text-align: center; padding: 2.5rem 1rem; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius-md);">
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" style="margin-bottom: 0.5rem;">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
-                <h4 style="font-size: 0.9375rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">Chưa có nhân tài phù hợp trong tuần</h4>
-                <p style="font-size: 0.8125rem; color: var(--text-secondary); margin-bottom: 1rem;">Hệ thống sẽ tự động đề xuất sinh viên khi có hồ sơ mới phù hợp với nhu cầu tuyển dụng.</p>
-                <a href="<?= app_href('/app/enterprise/talents.php'); ?>" class="btn btn-secondary btn-sm" data-route="/app/enterprise/talents.php">Khám phá kho nhân tài &rarr;</a>
+        <?php if (empty($talentsList)): ?>
+            <div class="ent-empty-state ent-empty-state--compact">
+                <div class="ent-empty-state__icon" aria-hidden="true">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </div>
+                <h3 class="ent-empty-state__title">Chưa có đề xuất nhân tài trong tuần</h3>
+                <p class="ent-empty-state__desc">Hệ thống sẽ tự động tổng hợp các hồ sơ sinh viên, học sinh tiềm năng có điểm số và kỹ năng nổi bật khi có dữ liệu mới.</p>
+                <a href="<?= app_href('/app/enterprise/talents.php'); ?>" class="ent-btn-search-talents" data-route="/app/enterprise/talents.php">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <span>Tìm kiếm hồ sơ ứng viên</span>
+                </a>
             </div>
         <?php else: ?>
-            <?php foreach ($featuredTalents as $talent): 
-                $nameParts = explode(' ', $talent['name']);
-                $initials = count($nameParts) >= 2 
-                    ? mb_substr($nameParts[count($nameParts) - 2], 0, 1, 'UTF-8') . mb_substr($nameParts[count($nameParts) - 1], 0, 1, 'UTF-8')
-                    : mb_substr($nameParts[0], 0, 1, 'UTF-8');
-                $score = $talent['talent_score'] ?? $talent['match_score'];
-                $detailUrl = app_href('/app/enterprise/talents/detail.php?id=' . urlencode((string)$talent['id']));
+            <?php foreach ($talentsList as $talent): 
+                $talentId = (string) ($talent['id'] ?? '');
+                $talentName = (string) ($talent['name'] ?? 'Ứng viên tiềm năng');
+                $talentScore = (int) ($talent['talent_score'] ?? $talent['match_score'] ?? 95);
+                $talentMeta = (string) ($talent['meta_description'] ?? 'Lớp 12 • THPT • AI, Python');
+                $avatarLetter = (string) ($talent['avatar_letter'] ?? 'UV');
+                $avatarBg = (string) ($talent['avatar_bg'] ?? '#F97316');
+                $detailUrl = app_href('/app/enterprise/talents.php' . (!empty($talentId) ? '?id=' . urlencode($talentId) : ''));
             ?>
-                <article class="ent-talent-card">
-                    <div class="ent-talent-card__left">
-                        <div class="ent-talent-card__avatar">
-                            <?= htmlspecialchars($initials); ?>
+                <article class="ent-talent-row">
+                    <!-- Left: Avatar & Info -->
+                    <div class="ent-talent-row__left">
+                        <div class="ent-talent-row__avatar" style="background-color: <?= htmlspecialchars($avatarBg); ?>;" aria-hidden="true">
+                            <?= htmlspecialchars($avatarLetter); ?>
                         </div>
-                        <div class="ent-talent-card__details">
-                            <div class="ent-talent-card__name-row">
-                                <a href="<?= htmlspecialchars($detailUrl); ?>" class="ent-talent-card__name">
-                                    <?= htmlspecialchars($talent['name']); ?>
+
+                        <div class="ent-talent-row__info">
+                            <div class="ent-talent-row__name-row">
+                                <a href="<?= htmlspecialchars($detailUrl); ?>" class="ent-talent-row__name" data-route="/app/enterprise/talents.php">
+                                    <?= htmlspecialchars($talentName); ?>
                                 </a>
-                                <span class="ent-talent-card__score-badge" title="Độ tương thích năng lực">
-                                    <?= htmlspecialchars((string)$score); ?>% phù hợp
-                                </span>
-                            </div>
-                            
-                            <div class="ent-talent-card__meta-line">
-                                <span class="ent-talent-card__school">
-                                    <?= htmlspecialchars($talent['school']); ?> &bull; <?= htmlspecialchars($talent['major']); ?>
-                                </span>
-                                <span class="ent-talent-card__meta-divider">&bull;</span>
-                                <span class="ent-talent-card__exp">
-                                    <?= htmlspecialchars($talent['experience_hours']); ?>
+                                <span class="ent-talent-row__score-badge">
+                                    ★ <?= htmlspecialchars((string)$talentScore); ?> điểm
                                 </span>
                             </div>
 
-                            <div class="ent-talent-card__skills">
-                                <?php 
-                                // Display top 3 key skills for clean scanning
-                                $topSkills = array_slice($talent['skills'], 0, 3);
-                                foreach ($topSkills as $skill): 
-                                ?>
-                                    <span class="skill-tag"><?= htmlspecialchars($skill); ?></span>
-                                <?php endforeach; ?>
-                            </div>
+                            <p class="ent-talent-row__meta-text">
+                                <?= htmlspecialchars($talentMeta); ?>
+                            </p>
                         </div>
                     </div>
 
-                    <div class="ent-talent-card__actions">
-                        <a href="<?= htmlspecialchars($detailUrl); ?>" class="btn btn-secondary btn-sm" data-route="<?= htmlspecialchars($detailUrl); ?>">
-                            Xem hồ sơ
-                        </a>
-                        <button class="btn btn-primary btn-sm ent-talent-btn" data-talent-id="<?= htmlspecialchars((string)$talent['id']); ?>" data-action="contact">
+                    <!-- Right: Action Button -->
+                    <div class="ent-talent-row__actions">
+                        <button 
+                            type="button" 
+                            class="ent-btn-contact ent-talent-btn" 
+                            data-talent-id="<?= htmlspecialchars($talentId); ?>" 
+                            data-talent-name="<?= htmlspecialchars($talentName); ?>"
+                            data-action="contact"
+                            aria-label="Liên hệ với ứng viên <?= htmlspecialchars($talentName); ?>"
+                        >
                             Liên hệ
                         </button>
                     </div>

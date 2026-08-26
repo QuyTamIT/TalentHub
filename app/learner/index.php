@@ -17,6 +17,8 @@ $onboardingPending = ($onboarding['required'] ?? false) === true
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Tổng quan hành trình phát triển năng lực của <?= learner_escape($student['name']); ?> trên TalentHub.">
     <title>Tổng quan Học sinh | TalentHub</title>
+    <meta name="csrf-token" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
+    <meta name="csrfToken" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
 </head>
@@ -180,11 +182,13 @@ $onboardingPending = ($onboarding['required'] ?? false) === true
             <p class="learner-onboarding__save-note">Tiến độ được tự động lưu để bạn tiếp tục trong lần đăng nhập sau.</p>
             <div class="learner-onboarding__actions">
                 <form method="post" action="<?= learner_escape(app_href('/app/learner/onboarding.php')); ?>">
-                    <input type="hidden" name="csrfToken" value="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ''); ?>">
+                    <input type="hidden" name="csrfToken" value="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
+                    <input type="hidden" name="csrf_token" value="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
                     <button class="learner-btn learner-btn--primary" type="submit" name="action" value="accept">Đồng ý và bắt đầu</button>
                 </form>
                 <form method="post" action="<?= learner_escape(app_href('/app/learner/onboarding.php')); ?>">
-                    <input type="hidden" name="csrfToken" value="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ''); ?>">
+                    <input type="hidden" name="csrfToken" value="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
+                    <input type="hidden" name="csrf_token" value="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
                     <button class="learner-btn learner-btn--danger" type="submit" name="action" value="decline">Từ chối và đăng xuất</button>
                 </form>
             </div>

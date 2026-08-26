@@ -33,7 +33,9 @@ final class SchoolAppContext
     {
         $config = require dirname(__DIR__, 2) . '/config/database.php';
         $this->connection = new Connection($config);
-        $this->session = new SessionManager(require dirname(__DIR__, 2) . '/config/session.php');
+        $sessionConfig = require dirname(__DIR__, 2) . '/config/session.php';
+        $sessionConfig['name'] = SessionManager::SESSION_SCHOOL;
+        $this->session = new SessionManager($sessionConfig);
         $this->session->start();
         $pdo = $this->connection->connect();
         $repository = new SchoolRepository($pdo);
@@ -61,12 +63,15 @@ final class SchoolAppContext
     public function boot(): array
     {
         $cached = $this->session->user();
+        if ($cached === null && (isset($_SESSION['user_id']) || isset($_SESSION['user']))) {
+            $cached = $this->session->user();
+        }
         if ($cached === null) {
             $this->redirectToLogin();
         }
-        if (($cached['role'] ?? null) !== 'school') {
-            header('Location: ' . app_href(AuthPortalRouter::destination((string) ($cached['role'] ?? ''))));
-            exit;
+        $currentRole = (string) ($cached['role'] ?? $_SESSION['role'] ?? $_SESSION['user']['role'] ?? '');
+        if (!\TalentHub\Rbac\RoleCodes::matches($currentRole, \TalentHub\Rbac\RoleCodes::SCHOOL)) {
+            PortalGuard::renderRoleMismatch($currentRole, \TalentHub\Rbac\RoleCodes::SCHOOL);
         }
         try {
             $user = $this->auth->current((string) $cached['id']);
@@ -78,9 +83,8 @@ final class SchoolAppContext
             }
             throw $exception;
         }
-        if (($user['role'] ?? null) !== 'school') {
-            header('Location: ' . app_href(AuthPortalRouter::destination((string) ($user['role'] ?? ''))));
-            exit;
+        if (!\TalentHub\Rbac\RoleCodes::matches((string) ($user['role'] ?? ''), \TalentHub\Rbac\RoleCodes::SCHOOL)) {
+            PortalGuard::renderRoleMismatch((string) ($user['role'] ?? ''), \TalentHub\Rbac\RoleCodes::SCHOOL);
         }
         $this->permissions->require($user['id'], 'school_dashboard.read_own');
 
@@ -120,7 +124,7 @@ final class SchoolAppContext
     public function redirectToLoginWithRoleRequired(string $requiredRole): never
     {
         $base = app_href('/login.php');
-        $target = app_href($_SERVER['REQUEST_URI'] ?? '/app/school/');
+        $target = app_href($_SERVER['REQUEST_URI'] ?? '/app/school/index.php');
         $loginUrl = $base . '?next=' . urlencode($target) . '&role_required=' . urlencode($requiredRole);
         header('Location: ' . $loginUrl);
         exit;
@@ -139,6 +143,6 @@ final class SchoolAppContext
     private function resolveLoginUrl(): string
     {
         $base = app_href('/login.php');
-        return $base . '?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/app/school/');
+        return $base . '?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/app/school/index.php') . '&role_required=school';
     }
 }

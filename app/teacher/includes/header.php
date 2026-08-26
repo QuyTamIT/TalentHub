@@ -2,43 +2,45 @@
 /**
  * Teacher Dashboard - Header Component
  *
- * User Profile Dropdown Menu:
- * - Compact identity preview (Avatar initials, Full Name, Role badge, School name)
- * - Navigation links: Teacher Profile & Logout
- * - Accessible ARIA attributes and keyboard navigation
+ * Synchronized 100% with Enterprise Portal:
+ * - Mobile toggle & header title
+ * - Notification bell
+ * - Account trigger button with Avatar, Teacher Name, Role subtitle, rotating chevron
+ * - Floating account dropdown with Identity header, Profile link ("Hồ sơ giáo viên"), Divider, and Logout action
  */
 
 if (!function_exists('app_href') && is_file(dirname(__DIR__, 3) . '/bin/bootstrap.php')) {
     require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
 }
 
-$basePrefix = (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/TalentHub') !== false) ? '/TalentHub' : '';
-$profileRoute = '/app/teacher/profile.php';
-$logoutUrl = function_exists('app_href') ? app_href('/logout.php') : ($basePrefix . '/logout.php');
-$profileUrl = function_exists('app_href') ? app_href($profileRoute) : ($basePrefix . $profileRoute);
-
 $teacherFullName = $teacherInfo['full_name'] ?? 'Thầy Nguyễn Văn Bình';
 $teacherAvatar = $teacherInfo['avatar_initials'] ?? 'TB';
 $teacherRoleLabel = $teacherInfo['role_label'] ?? 'Giáo viên / Hướng dẫn viên';
 $teacherSchoolName = $teacherInfo['school_name'] ?? 'THPT Nguyễn Trãi';
+
+$profileRoute = '/app/teacher/profile.php';
+$profileUrl = function_exists('app_href') ? app_href($profileRoute) : '/app/teacher/profile.php';
+$logoutUrl = function_exists('app_href') ? app_href('/logout.php?role=teacher') : '/logout.php?role=teacher';
 ?>
 <header class="teacher-header">
     <div class="teacher-header__left">
+        <!-- Mobile Sidebar Toggle -->
         <button class="teacher-header__toggle" id="teacher-sidebar-toggle" aria-label="Mở danh mục điều hướng">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
                 <line x1="3" y1="6" x2="21" y2="6"></line>
                 <line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
         </button>
+
         <h1 class="teacher-header__title"><?= isset($pageTitle) ? htmlspecialchars($pageTitle) : 'Tổng quan Giáo viên'; ?></h1>
     </div>
 
     <div class="teacher-header__right">
         <!-- Notification Bell -->
-        <div class="teacher-header__notif" id="teacher-notif-trigger" title="Thông báo">
-            <button class="teacher-header__icon-btn" type="button" aria-label="Thông báo">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div class="teacher-header__notif" id="teacher-notif-trigger" title="Thông báo mới (Mock UI)">
+            <button class="teacher-header__icon-btn" type="button" aria-label="Thông báo mới">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                     <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                 </svg>
@@ -63,8 +65,8 @@ $teacherSchoolName = $teacherInfo['school_name'] ?? 'THPT Nguyễn Trãi';
                     <?= htmlspecialchars($teacherAvatar); ?>
                 </div>
                 <div class="teacher-header__user-info">
-                    <span class="teacher-header__name"><?= htmlspecialchars($teacherFullName); ?></span>
-                    <span class="teacher-header__role"><?= htmlspecialchars($teacherRoleLabel); ?></span>
+                    <span class="teacher-header__company-name"><?= htmlspecialchars($teacherFullName); ?></span>
+                    <span class="teacher-header__package-name"><?= htmlspecialchars($teacherRoleLabel); ?></span>
                 </div>
                 <span class="teacher-header__chevron" aria-hidden="true">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -81,17 +83,14 @@ $teacherSchoolName = $teacherInfo['school_name'] ?? 'THPT Nguyễn Trãi';
                 aria-labelledby="teacher-account-trigger"
                 hidden
             >
-                <!-- Identity Header Card -->
+                <!-- Teacher Identity Header -->
                 <div class="teacher-account-menu__identity" role="none">
                     <div class="teacher-account-menu__avatar" aria-hidden="true">
                         <?= htmlspecialchars($teacherAvatar); ?>
                     </div>
                     <div class="teacher-account-menu__details">
-                        <span class="teacher-account-menu__name"><?= htmlspecialchars($teacherFullName); ?></span>
-                        <span class="teacher-account-menu__badge"><?= htmlspecialchars($teacherRoleLabel); ?></span>
-                        <?php if (!empty($teacherSchoolName)): ?>
-                            <span class="teacher-account-menu__school"><?= htmlspecialchars($teacherSchoolName); ?></span>
-                        <?php endif; ?>
+                        <span class="teacher-account-menu__company-name"><?= htmlspecialchars($teacherFullName); ?></span>
+                        <span class="teacher-account-menu__badge">Tài khoản Giáo viên</span>
                     </div>
                 </div>
 

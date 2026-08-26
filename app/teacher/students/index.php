@@ -66,17 +66,12 @@ function teacher_students_url(array $filters, array $pagination, int $page): str
     return '/app/teacher/students/index.php' . ($query !== '' ? '?' . $query : '');
 }
 
-$session = new SessionManager(require dirname(__DIR__, 3) . '/config/session.php');
+use TalentHub\Bootstrap\PortalGuard;
+use TalentHub\Rbac\RoleCodes;
+
+$user = PortalGuard::requireRole(RoleCodes::TEACHER, '/app/teacher/students/index.php');
+$session = new SessionManager(array_merge(require dirname(__DIR__, 3) . '/config/session.php', ['name' => SessionManager::SESSION_TEACHER]));
 $session->start();
-$user = $session->user();
-if ($user === null) {
-    header('Location: ' . app_href('/login.php') . '?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/app/teacher/students/index.php'));
-    exit;
-}
-if (($user['role'] ?? null) !== 'teacher') {
-    header('Location: ' . app_href('/role-selection.php'));
-    exit;
-}
 
 $error = null;
 $pageData = [

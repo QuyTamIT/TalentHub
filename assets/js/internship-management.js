@@ -15,7 +15,7 @@ function initInternshipManagementModule() {
     const statusSelect = document.getElementById('filter-status-select');
     const fieldSelect = document.getElementById('filter-field-select');
     const sortSelect = document.getElementById('sort-select');
-    const tbody = id('internship-tbody');
+    const tbody = id('internship-cards-container') || id('internship-tbody');
     const emptyState = id('internships-empty-state');
     const resetSearchBtn = id('reset-search-btn');
 
@@ -116,7 +116,7 @@ function initInternshipManagementModule() {
         const fieldFilter = fieldSelect ? fieldSelect.value : '';
         const sortVal = sortSelect ? sortSelect.value : 'newest';
 
-        const rows = Array.from(tbody.querySelectorAll('tr[data-post-id]'));
+        const rows = Array.from(tbody.querySelectorAll('[data-post-id]'));
         let visibleCount = 0;
 
         rows.forEach(row => {
@@ -136,7 +136,7 @@ function initInternshipManagementModule() {
             }
         });
 
-        // Handle Table Sorting
+        // Handle Table & Cards Sorting
         const sortedRows = rows.filter(r => r.style.display !== 'none');
         sortedRows.sort((a, b) => {
             if (sortVal === 'applicants') {
@@ -144,13 +144,13 @@ function initInternshipManagementModule() {
                 const numB = parseInt(b.querySelector('.ent-applicant-num')?.textContent || b.querySelector('.ent-applicant-count-badge')?.textContent || b.querySelector('.ent-applicant-count-text')?.textContent || '0', 10);
                 return numB - numA;
             } else if (sortVal === 'deadline') {
-                const deadA = a.querySelectorAll('td')[3]?.textContent.trim() || '';
-                const deadB = b.querySelectorAll('td')[3]?.textContent.trim() || '';
+                const deadA = a.getAttribute('data-deadline') || a.querySelector('[data-meta="deadline"]')?.textContent.trim() || a.querySelectorAll('td')[3]?.textContent.trim() || '';
+                const deadB = b.getAttribute('data-deadline') || b.querySelector('[data-meta="deadline"]')?.textContent.trim() || b.querySelectorAll('td')[3]?.textContent.trim() || '';
                 return deadA.localeCompare(deadB);
             } else {
                 // Newest by ID default
-                const idA = intval(a.getAttribute('data-post-id'));
-                const idB = intval(b.getAttribute('data-post-id'));
+                const idA = parseInt(a.getAttribute('data-post-id'), 10) || 0;
+                const idB = parseInt(b.getAttribute('data-post-id'), 10) || 0;
                 return idB - idA;
             }
         });
@@ -166,7 +166,7 @@ function initInternshipManagementModule() {
      * 2. Status Transition Machine & Summary Metrics Recalculation
      * -------------------------------------------------------------------------- */
     async function handleStatusChange(postId, targetStatus) {
-        const row = tbody ? tbody.querySelector(`tr[data-post-id="${postId}"]`) : null;
+        const row = tbody ? tbody.querySelector(`[data-post-id="${postId}"]`) : null;
         if (!row) return;
 
         const expectedCurrentStatus = row.getAttribute('data-status') || '';
@@ -201,44 +201,50 @@ function initInternshipManagementModule() {
         }
 
         row.setAttribute('data-status', targetStatus);
-        const statusCell = row.querySelectorAll('td')[1];
+        const statusCell = row.querySelector('.ent-status-pill-wrapper') || row.querySelector('.ent-status-pill');
         const actionMenu = row.querySelector('.ent-dropdown-menu');
+        const actionHub = row.querySelector('.ent-job-card__actions');
 
-        let statusLabel = 'Đang tuyển';
+        let statusLabel = 'Đang nhận hồ sơ';
         let pillClass = 'ent-status-pill--active';
-        let actionMarkup = '';
-
-        const editLinkMarkup = `
-            <a href="create.php?id=${postId}" class="ent-dropdown-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                </svg>
-                Sửa
-            </a>`;
 
         if (targetStatus === 'active') {
-            statusLabel = 'Đang tuyển';
+            statusLabel = 'Đang nhận hồ sơ';
             pillClass = 'ent-status-pill--active';
-            actionMarkup = editLinkMarkup + `
-                <button type="button" class="ent-dropdown-item action-change-status" data-post-id="${postId}" data-target-status="closed">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line></svg>
-                    Đóng tin
-                </button>`;
-            (window.showEntToast || showToast)(`Đã xuất bản tin tuyển dụng #${postId}. Tin hiện đang hiển thị.`);
+            if (actionHub) {
+                const btnToggle = actionHub.querySelector('.ent-btn-toggle-status');
+                if (btnToggle) {
+                    btnToggle.outerHTML = `
+                        <button type="button" class="ent-btn-toggle-status ent-btn-close-job action-change-status" data-post-id="${postId}" data-target-status="closed">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line></svg>
+                            <span>Đóng tin</span>
+                        </button>`;
+                }
+            }
+            (window.showEntToast || showToast)(`Đã xuất bản tin tuyển dụng #${postId}. Tin hiện đang mở nhận hồ sơ.`);
         } else if (targetStatus === 'closed') {
             statusLabel = 'Đã đóng';
             pillClass = 'ent-status-pill--closed';
-            actionMarkup = editLinkMarkup;
+            if (actionHub) {
+                const btnToggle = actionHub.querySelector('.ent-btn-toggle-status');
+                if (btnToggle) {
+                    btnToggle.outerHTML = `<span class="ent-status-closed-text">Đã đóng</span>`;
+                }
+            }
             (window.showEntToast || showToast)(`Đã đóng tin tuyển dụng #${postId}. Ngừng tiếp nhận hồ sơ.`);
         } else {
             statusLabel = 'Bản nháp';
             pillClass = 'ent-status-pill--draft';
-            actionMarkup = editLinkMarkup + `
-                <button type="button" class="ent-dropdown-item action-change-status" data-post-id="${postId}" data-target-status="active">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                    Đăng tuyển
-                </button>`;
+            if (actionHub) {
+                const btnToggle = actionHub.querySelector('.ent-btn-toggle-status');
+                if (btnToggle) {
+                    btnToggle.outerHTML = `
+                        <button type="button" class="ent-btn-toggle-status ent-btn-publish-job action-change-status" data-post-id="${postId}" data-target-status="active">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            <span>Đăng tuyển</span>
+                        </button>`;
+                }
+            }
             (window.showEntToast || showToast)(`Đã chuyển tin tuyển dụng #${postId} thành bản nháp.`);
         }
 
@@ -246,12 +252,8 @@ function initInternshipManagementModule() {
             statusCell.innerHTML = `
                 <span class="ent-status-pill ${pillClass}">
                     <span class="dot"></span>
-                    ${statusLabel}
+                    <span>${statusLabel}</span>
                 </span>`;
-        }
-
-        if (actionMenu) {
-            actionMenu.innerHTML = actionMarkup;
         }
 
         recalculateMetrics();
@@ -260,7 +262,7 @@ function initInternshipManagementModule() {
 
     function recalculateMetrics() {
         if (!tbody) return;
-        const rows = Array.from(tbody.querySelectorAll('tr[data-post-id]'));
+        const rows = Array.from(tbody.querySelectorAll('[data-post-id]'));
         let total = rows.length;
         let active = 0;
         let draft = 0;

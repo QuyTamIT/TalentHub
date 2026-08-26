@@ -29,6 +29,9 @@ final class RoleCodes
         if ($role === 'admin') {
             return self::PLATFORM_ADMIN;
         }
+        if ($role === 'school_admin') {
+            return self::SCHOOL;
+        }
         return $role;
     }
 
