@@ -176,7 +176,6 @@
                 const effectiveToken = getEffectiveCsrf();
                 if (effectiveToken) {
                     headers['X-CSRF-Token'] = effectiveToken;
-                    headers['X-CSRF-TOKEN'] = effectiveToken;
                 }
             }
             const idempotencyKey = requestOptions && typeof requestOptions.idempotencyKey === 'string'

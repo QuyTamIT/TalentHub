@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const modulePath = path.join(__dirname, '..', 'assets', 'js', 'learner-assessment.js');
+const apiModulePath = path.join(__dirname, '..', 'assets', 'js', 'learner-api.js');
 
 function createMockView() {
   return {
@@ -162,6 +163,35 @@ test('learner-assessment module exists and exports createAssessmentController', 
   assert.equal(fs.existsSync(modulePath), true, 'learner-assessment.js must exist');
   const mod = require(modulePath);
   assert.equal(typeof mod.createAssessmentController, 'function', 'createAssessmentController must be exported');
+});
+
+test('learner API mutation sends one canonical CSRF header without a comma-joined duplicate', async () => {
+  const { createLearnerApiClient } = require(apiModulePath);
+  const csrfToken = 'csrf-token-1234567890';
+  let requestHeaders = null;
+  const fetchImpl = async (_url, options) => {
+    requestHeaders = new Headers(options.headers);
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      json: async () => ({ data: { accepted: true } }),
+    };
+  };
+  const client = createLearnerApiClient({
+    baseUrl: '/app/learner/api/v1',
+    csrfToken,
+    fetchImpl,
+    timeoutMs: 0,
+    getRetryCount: 0,
+  });
+
+  await client.send('POST', '/assessment-attempts.php', {
+    assessmentCode: 'holland',
+    educationBand: 'college',
+  });
+
+  assert.equal(requestHeaders.get('x-csrf-token'), csrfToken);
 });
 
 test('Likert answers render separate value, readable label, and selected-state affordance', () => {
