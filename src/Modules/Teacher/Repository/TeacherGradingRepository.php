@@ -327,6 +327,10 @@ final class TeacherGradingRepository
             require_once $root . '/app/learner/data/Contracts/StatisticsRepository.php';
             require_once $root . '/app/learner/data/Contracts/NotificationRepository.php';
             require_once $root . '/app/learner/data/Domain/LevelProgression.php';
+            require_once $root . '/app/learner/data/Exceptions/LearnerDataMappingException.php';
+            require_once $root . '/app/learner/data/Exceptions/LearnerDataQueryException.php';
+            require_once $root . '/app/learner/data/Support/KeyMapper.php';
+            require_once $root . '/app/learner/data/Support/Uuid.php';
             require_once $root . '/app/learner/data/Service/BadgeRuleEngine.php';
             require_once $root . '/app/learner/data/Service/BadgeAwardService.php';
             require_once $root . '/app/learner/data/Service/NotificationService.php';
