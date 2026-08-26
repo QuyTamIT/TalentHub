@@ -596,6 +596,23 @@ test('controller loads the latest server result without browser scoring', async 
   assert.equal(view.states.at(-1), 'complete');
 });
 
+test('assessment result empty state is hidden by author CSS when a result exists', () => {
+  const cssPath = path.join(__dirname, '..', 'assets', 'css', 'learner.css');
+  const css = fs.readFileSync(cssPath, 'utf8');
+  assert.match(
+    css,
+    /\.learner-not-found\[hidden\][^{]*\{[^}]*display:\s*none\s*!important/s,
+    'the hidden empty-result panel must not override the browser hidden attribute',
+  );
+});
+
+test('assessment result renderer fills the primary result label', () => {
+  const source = fs.readFileSync(modulePath, 'utf8');
+  assert.match(source, /data-result-primary-name/);
+  assert.match(source, /const resultLabel = result\.result_code \|\| result\.code/);
+  assert.match(source, /primaryNode\.textContent\s*=\s*resultLabel/);
+});
+
 test('history loading uses the dedicated read endpoint without changing the primary result state', async () => {
   const { createAssessmentController } = require(modulePath);
   const view = createMockView();

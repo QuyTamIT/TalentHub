@@ -5167,6 +5167,7 @@ body.learner-sidebar-open {
 
 .learner-data-note svg { flex: 0 0 auto; color: var(--secondary); }
 .learner-not-found { display: grid; min-height: 420px; padding: 38px; place-items: center; align-content: center; gap: 10px; text-align: center; }
+.learner-not-found[hidden] { display: none !important; }
 .learner-not-found > span { color: var(--primary); }
 .learner-not-found p { color: var(--text-secondary); }
 

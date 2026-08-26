@@ -905,8 +905,11 @@
         setHidden(empty, true);
         setHidden(content, false);
         const codeNode = root.querySelector('[data-result-code]');
+        const primaryNode = root.querySelector('[data-result-primary-name]');
         const summaryNode = root.querySelector('[data-result-primary-summary]');
-        if (codeNode) codeNode.textContent = result.result_code || result.code || '—';
+        const resultLabel = result.result_code || result.code || '—';
+        if (codeNode) codeNode.textContent = resultLabel;
+        if (primaryNode) primaryNode.textContent = resultLabel;
         if (summaryNode) summaryNode.textContent = result.summary || 'Kết quả đã được lưu trên hệ thống.';
         const list = root.querySelector('[data-result-dimension-list]');
         if (list) {
