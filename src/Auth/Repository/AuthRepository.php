@@ -48,7 +48,8 @@ final class AuthRepository
             if($legacy){$statement=$this->pdo->prepare("INSERT INTO users(id,email,passwordHash,fullName,roles,status) VALUES(?,?,?,?,'student','active')");$statement->execute([$userId,$data['email'],$data['passwordHash'],$data['fullName']]);}
             else{$statement=$this->pdo->prepare("INSERT INTO users(id,roleId,email,passwordHash,fullName,status) VALUES(?,?,?,?,?,'active')");$statement->execute([$userId,$role,$data['email'],$data['passwordHash'],$data['fullName']]);}
             $statement=$this->pdo->prepare("INSERT INTO student_profiles(id,userId,classId,dateOfBirth,phone,studyStatus) VALUES(?,?,?,?,?,'active')");$statement->execute([$profileId,$userId,$data['classId'],$data['dateOfBirth'],$data['phone']]);
-            $statement=$this->pdo->prepare("INSERT INTO learner_onboarding_states(studentId,status) VALUES(?,'pending')");$statement->execute([$profileId]);
+            if($this->hasOnboardingIdColumn()){$statement=$this->pdo->prepare("INSERT INTO learner_onboarding_states(id,studentId,status,step,isCompleted) VALUES(?,?, 'pending', 'welcome', 0)");$statement->execute([Uuid::v4(),$profileId]);}
+            else{$statement=$this->pdo->prepare("INSERT INTO learner_onboarding_states(studentId,status) VALUES(?,'pending')");$statement->execute([$profileId]);}
             if($legacy){$statement=$this->pdo->prepare("INSERT INTO audit_logs(id,userId,action,entityType,entityId) VALUES(?,?,'auth.student_registered','user',?)");$statement->execute([Uuid::v4(),$userId,$userId]);}
             else{$statement=$this->pdo->prepare("INSERT INTO audit_logs(id,userId,action,entityType,entityId,requestId,ipAddress,metadata) VALUES(?,?,'auth.student_registered','user',?,?,?,?)");$statement->execute([Uuid::v4(),$userId,$userId,$requestId,$ip,json_encode(['role'=>'student'],JSON_THROW_ON_ERROR)]);}
             $this->pdo->commit();return $userId;
@@ -71,5 +72,18 @@ final class AuthRepository
         }
         $s=$this->pdo->prepare("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='users' AND column_name='roles'");$s->execute();
         return $this->legacySchema=(int)$s->fetchColumn()===1;
+    }
+
+    private ?bool $onboardingIdColumn=null;
+    private function hasOnboardingIdColumn(): bool
+    {
+        if($this->onboardingIdColumn!==null){return $this->onboardingIdColumn;}
+        if($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)==='sqlite'){
+            $columns=$this->pdo->query("PRAGMA table_info('learner_onboarding_states')")->fetchAll(PDO::FETCH_ASSOC);
+            foreach($columns as $column){if(($column['name']??null)==='id'){return $this->onboardingIdColumn=true;}}
+            return $this->onboardingIdColumn=false;
+        }
+        $s=$this->pdo->prepare("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='learner_onboarding_states' AND column_name='id'");$s->execute();
+        return $this->onboardingIdColumn=(int)$s->fetchColumn()===1;
     }
 }

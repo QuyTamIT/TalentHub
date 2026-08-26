@@ -9,6 +9,7 @@ $sessionNames = [
     SessionManager::SESSION_STUDENT,
     SessionManager::SESSION_ENTERPRISE,
     SessionManager::SESSION_SCHOOL,
+    SessionManager::SESSION_TEACHER,
     SessionManager::SESSION_ADMIN,
     SessionManager::SESSION_DEFAULT,
 ];

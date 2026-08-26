@@ -181,14 +181,15 @@ body.school-sidebar-open {
 .school-sidebar__link {
     display: flex;
     align-items: center;
-    gap: 0.625rem;
-    padding: 0.625rem 0.75rem;
-    border-radius: var(--radius-sm);
+    gap: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    border-radius: var(--radius-md);
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--text-secondary);
     transition: all var(--transition-fast);
     text-decoration: none;
+    border: 1px solid transparent;
 }
 
 .school-sidebar__link:hover {
@@ -197,9 +198,10 @@ body.school-sidebar-open {
 }
 
 .school-sidebar__link.is-active {
-    background-color: var(--primary-light);
+    background-color: rgba(249, 115, 22, 0.1);
     color: var(--primary);
     font-weight: 600;
+    border-color: rgba(249, 115, 22, 0.2);
 }
 
 .school-sidebar__link.is-active .school-sidebar__icon {
@@ -211,6 +213,7 @@ body.school-sidebar-open {
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: color var(--transition-fast);
 }
 
 .school-sidebar__badge-count {
@@ -229,8 +232,52 @@ body.school-sidebar-open {
     border-top: 1px solid var(--border);
 }
 
+.school-sidebar__link--logout {
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}
+
+.school-sidebar__link--logout .school-sidebar__icon {
+    color: var(--text-secondary);
+    transition: color 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.school-sidebar__link--logout:hover {
+    background-color: #fef2f2;
+    color: #ef4444;
+}
+
+.school-sidebar__link--logout:hover .school-sidebar__icon {
+    color: #ef4444;
+    transform: translateX(3px);
+}
+
+.school-sidebar__link--logout:active {
+    background-color: #fee2e2;
+    transform: scale(0.98);
+}
+
+.school-sidebar__link--logout:focus-visible {
+    outline: 2px solid rgba(239, 68, 68, 0.4);
+    outline-offset: 2px;
+}
+
 .school-sidebar__link--switch {
-    color: var(--text-muted);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+}
+
+.school-sidebar__link--switch:hover {
+    background: rgba(249, 115, 22, 0.08);
+    color: var(--primary);
+    border-color: rgba(249, 115, 22, 0.3);
+}
+
+.school-sidebar__link--switch:hover .school-sidebar__icon {
+    color: var(--primary);
 }
 
 /* --------------------------------------------------------------------------
@@ -332,26 +379,50 @@ body.school-sidebar-open {
     border: 2px solid var(--surface);
 }
 
+/* Account Wrapper & Dropdown Menu */
+.school-header__account-wrapper {
+    position: relative;
+}
+
 .school-header__account {
     display: flex;
     align-items: center;
     gap: 0.625rem;
+    padding: 0.375rem 0.625rem;
     padding-left: 0.875rem;
     border-left: 1px solid var(--border);
+    background: transparent;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: background-color var(--transition-fast);
+    text-align: left;
+}
+
+.school-header__account:hover {
+    background-color: var(--background);
+}
+
+.school-header__account:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .school-header__avatar {
-    width: 2rem;
-    height: 2rem;
+    width: 2.25rem;
+    height: 2.25rem;
     border-radius: 50%;
-    background: var(--primary);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
     color: #FFFFFF;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(249, 115, 22, 0.2);
 }
 
 .school-header__user-info {
@@ -359,41 +430,172 @@ body.school-sidebar-open {
     flex-direction: column;
 }
 
+.school-header__company-name,
 .school-header__user-name {
     font-size: 0.8125rem;
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
+.school-header__package-name,
 .school-header__user-role {
     font-size: 0.75rem;
     color: var(--text-secondary);
 }
 
-.school-header__logout {
-    display: inline-flex;
+.school-header__chevron {
+    color: var(--text-muted);
+    display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.875rem;
-    border-radius: var(--radius-sm);
+    transition: transform var(--transition-fast);
+    margin-left: 0.25rem;
+}
+
+.school-header__account[aria-expanded="true"] .school-header__chevron {
+    transform: rotate(180deg);
+}
+
+/* Dropdown Menu Container */
+.school-account-menu {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    width: 260px;
     background: var(--surface);
     border: 1px solid var(--border);
-    color: var(--text-secondary);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.06);
+    z-index: 1000;
+    padding: 0.5rem 0;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px) scale(0.98);
+    transition: opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.15s;
+}
+
+.school-account-menu.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+/* Identity Card */
+.school-account-menu__identity {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+}
+
+.school-account-menu__avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
     font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.school-account-menu__details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+}
+
+.school-account-menu__name {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.school-account-menu__badge {
+    display: inline-block;
+    font-size: 0.6875rem;
     font-weight: 600;
+    color: var(--primary);
+    background: rgba(249, 115, 22, 0.1);
+    padding: 0.125rem 0.375rem;
+    border-radius: var(--radius-sm);
+    width: fit-content;
+}
+
+.school-account-menu__divider {
+    height: 1px;
+    background-color: var(--border);
+    margin: 0.375rem 0;
+}
+
+.school-account-menu__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.school-account-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 1rem;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
     text-decoration: none;
-    transition: all var(--transition-fast);
+    transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
-.school-header__logout:hover {
-    background: #FEF2F2;
+.school-account-menu__item-icon {
+    color: var(--text-secondary);
+    transition: color var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.school-account-menu__item:hover,
+.school-account-menu__item:focus-visible,
+.school-account-menu__item.is-focused {
+    background-color: var(--background);
+    color: var(--primary);
+}
+
+.school-account-menu__item:hover .school-account-menu__item-icon,
+.school-account-menu__item:focus-visible .school-account-menu__item-icon,
+.school-account-menu__item.is-focused .school-account-menu__item-icon {
+    color: var(--primary);
+}
+
+.school-account-menu__item--logout {
+    color: #DC2626;
+}
+
+.school-account-menu__item--logout .school-account-menu__item-icon {
+    color: #DC2626;
+}
+
+.school-account-menu__item--logout:hover,
+.school-account-menu__item--logout:focus-visible,
+.school-account-menu__item--logout.is-focused {
+    background-color: #FEF2F2;
     color: #B91C1C;
-    border-color: #FCA5A5;
 }
 
-.school-header__logout:hover svg {
-    stroke: #B91C1C;
+.school-account-menu__item--logout:hover .school-account-menu__item-icon,
+.school-account-menu__item--logout:focus-visible .school-account-menu__item-icon,
+.school-account-menu__item--logout.is-focused .school-account-menu__item-icon {
+    color: #B91C1C;
 }
 
 /* --------------------------------------------------------------------------

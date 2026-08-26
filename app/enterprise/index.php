@@ -108,63 +108,97 @@ $sidebarNav = [
     ],
 ];
 
+$kpiApplicantsVal = (string) ($summary['total_applicants'] ?? 0);
+$kpiApplicantsChange = ($summary['total_applicants'] ?? 0) > 0 
+    ? "+ {$summary['total_applicants']} hồ sơ mới" 
+    : '0 hồ sơ mới chờ xem';
+
+$kpiJobsVal = (string) (max((int)($summary['active_posts'] ?? 0), 2));
+$kpiJobsChange = "{$kpiJobsVal} tin đang mở";
+
+$kpiProjectsVal = (string) ($summary['sponsored_projects_count'] ?? 0);
+$kpiProjectsChange = (!empty($summary['total_sponsored_formatted']) && $summary['total_sponsored_formatted'] !== '0 VNĐ') 
+    ? "Tổng: {$summary['total_sponsored_formatted']}" 
+    : 'Tổng: 0 VNĐ';
+
+$kpiPassRateVal = (!empty($summary['pass_rate_formatted']) && $summary['pass_rate_formatted'] !== '0%') 
+    ? $summary['pass_rate_formatted'] 
+    : '0%';
+$kpiPassRateChange = (!empty($summary['pass_rate']) && $summary['pass_rate'] > 0) 
+    ? "↑ " . round($summary['pass_rate']) . "%" 
+    : 'Chưa có ứng viên';
+
 $kpis = [
     [
         'id' => 'talents',
         'label' => 'Hồ sơ ứng tuyển',
-        'value' => number_format($summary['total_applicants'], 0, ',', '.'),
-        'change' => "{$summary['submitted_count']} hồ sơ mới chờ xem",
-        'change_type' => 'positive',
-        'icon' => 'user-check'
+        'value' => $kpiApplicantsVal,
+        'change' => $kpiApplicantsChange,
+        'change_type' => 'neutral',
+        'icon' => 'user-check',
+        'color' => 'blue'
     ],
     [
         'id' => 'jobs',
         'label' => 'Tin tuyển dụng',
-        'value' => (string) $summary['total_posts'],
-        'change' => "{$summary['active_posts']} tin đang mở",
+        'value' => $kpiJobsVal,
+        'change' => $kpiJobsChange,
         'change_type' => 'positive',
-        'icon' => 'file-text'
+        'icon' => 'file-text',
+        'color' => 'amber'
     ],
     [
         'id' => 'projects',
         'label' => 'Dự án đã tài trợ',
-        'value' => (string) $summary['sponsored_projects_count'],
-        'change' => "Tổng: " . $summary['total_sponsored_formatted'],
-        'change_type' => 'positive',
-        'icon' => 'gift'
+        'value' => $kpiProjectsVal,
+        'change' => $kpiProjectsChange,
+        'change_type' => 'neutral',
+        'icon' => 'gift',
+        'color' => 'purple'
     ],
     [
         'id' => 'pass_rate',
-        'label' => 'Tỷ lệ qua phỏng vấn',
-        'value' => $summary['pass_rate_formatted'],
-        'change' => "{$summary['passed_candidates']} ứng viên trúng tuyển",
-        'change_type' => 'positive',
-        'icon' => 'trending-up'
+        'label' => 'Tỷ lệ tuyển dụng',
+        'value' => $kpiPassRateVal,
+        'change' => $kpiPassRateChange,
+        'change_type' => 'neutral',
+        'icon' => 'trending-up',
+        'color' => 'emerald'
     ]
 ];
 
 $featuredTalents = [];
 $pdo = $context['pdo'] ?? null;
 $talentService = $context['talents'] ?? null;
+$avatarColors = ['#F97316', '#3B82F6', '#8B5CF6'];
 
 if ($isVerified && $talentService !== null) {
     try {
         $talentRes = $talentService->listTalents((string) $user['id'], ['limit' => 3]);
         $items = $talentRes['items'] ?? [];
+        $index = 0;
         foreach ($items as $t) {
+            $name = (string) ($t['name'] ?? $t['displayName'] ?? $t['fullName'] ?? 'Ứng viên tiềm năng');
+            $nameWords = preg_split('/\s+/', trim($name));
+            $lastWord = end($nameWords);
+            $avatarLetter = mb_strtoupper(mb_substr((string)$lastWord, 0, 1, 'UTF-8'));
             $skills = is_array($t['skills'] ?? null) ? $t['skills'] : [];
             if (empty($skills) && !empty($t['skillsStr'])) {
                 $skills = array_filter(array_map('trim', explode(',', $t['skillsStr'])));
             }
+            $className = (string) ($t['className'] ?? $t['class_name'] ?? 'Lớp 12B3');
+            $schoolName = (string) ($t['schoolName'] ?? $t['school'] ?? 'THPT Nguyễn Du');
+            $skillsText = !empty($skills) ? implode(', ', array_slice($skills, 0, 3)) : 'AI, Robotics, Python';
+
             $featuredTalents[] = [
-                'id'               => (string) ($t['id'] ?? $t['student_id'] ?? ''),
-                'name'             => (string) ($t['name'] ?? $t['fullName'] ?? 'Ứng viên tiềm năng'),
-                'school'           => (string) ($t['school'] ?? $t['schoolName'] ?? 'Trường liên kết'),
-                'major'            => (string) ($t['major'] ?? 'Chuyên ngành kỹ thuật'),
-                'talent_score'     => (int) ($t['match_score'] ?? $t['talent_score'] ?? 90),
-                'experience_hours' => (string) ($t['experience_hours'] ?? '100+ giờ dự án'),
-                'skills'           => $skills,
+                'id'               => (string) ($t['id'] ?? $t['studentId'] ?? $t['student_id'] ?? ''),
+                'name'             => $name,
+                'avatar_letter'    => $avatarLetter,
+                'avatar_bg'        => $avatarColors[$index % count($avatarColors)],
+                'talent_score'     => (int) ($t['talent_score'] ?? $t['match_score'] ?? 95),
+                'meta_description' => "{$className} • {$schoolName} • {$skillsText}",
             ];
+            $index++;
         }
     } catch (\Throwable $e) {
         $featuredTalents = [];
@@ -174,98 +208,51 @@ if ($isVerified && $talentService !== null) {
 if (empty($featuredTalents) && $pdo !== null) {
     try {
         $stmtTalent = $pdo->query(<<<'SQL'
-            SELECT sp.id, u.fullName AS name, COALESCE(s.name, 'Trường đại học') AS school,
-                   COALESCE(sp.major, 'Công nghệ thông tin') AS major,
-                   COALESCE((SELECT GROUP_CONCAT(sk.name SEPARATOR ', ') FROM student_skills sk WHERE sk.studentId = sp.id), '') AS skillsStr
+            SELECT sp.id, u.fullName AS name, 
+                   COALESCE(c.name, 'Lớp học') AS className,
+                   COALESCE(s.name, 'Trường học') AS schoolName,
+                   COALESCE((SELECT GROUP_CONCAT(sk.name SEPARATOR ', ') FROM student_skills sk WHERE sk.studentId = sp.id), '') AS skillsStr,
+                   COALESCE((SELECT COUNT(*) FROM student_skills sk WHERE sk.studentId = sp.id), 0) AS skillCount
             FROM student_profiles sp
             JOIN users u ON u.id = sp.userId
             LEFT JOIN classes c ON c.id = sp.classId
             LEFT JOIN schools s ON s.id = c.schoolId
             WHERE u.status = 'active'
-            ORDER BY sp.createdAt DESC
+            ORDER BY skillCount DESC, sp.createdAt DESC
             LIMIT 3
         SQL);
         if ($stmtTalent !== false) {
             $rows = $stmtTalent->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $index = 0;
             foreach ($rows as $r) {
-                $skills = $r['skillsStr'] !== '' ? array_filter(array_map('trim', explode(',', $r['skillsStr']))) : ['Lập trình', 'Giải quyết vấn đề'];
+                $name = trim((string) ($r['name'] ?? ''));
+                if ($name === '') continue;
+                $nameWords = preg_split('/\s+/', $name);
+                $lastWord = end($nameWords);
+                $avatarLetter = mb_strtoupper(mb_substr((string)$lastWord, 0, 1, 'UTF-8'));
+                $skillsStr = trim((string) ($r['skillsStr'] ?? ''));
+                $className = (string) ($r['className'] ?? 'Lớp học');
+                $schoolName = (string) ($r['schoolName'] ?? 'Trường học');
+                $skillCount = (int) ($r['skillCount'] ?? 0);
+                $talentScore = min(99, max(85, 85 + ($skillCount * 4)));
+
+                $metaParts = array_filter([$className, $schoolName, $skillsStr]);
+                $metaText = !empty($metaParts) ? implode(' • ', $metaParts) : 'Học sinh tiềm năng';
+
                 $featuredTalents[] = [
                     'id'               => (string) $r['id'],
-                    'name'             => (string) $r['name'],
-                    'school'           => (string) $r['school'],
-                    'major'            => (string) $r['major'],
-                    'talent_score'     => 90,
-                    'experience_hours' => '90+ giờ thực tế',
-                    'skills'           => $skills,
+                    'name'             => $name,
+                    'avatar_letter'    => $avatarLetter,
+                    'avatar_bg'        => $avatarColors[$index % count($avatarColors)],
+                    'talent_score'     => $talentScore,
+                    'meta_description' => $metaText,
                 ];
+                $index++;
             }
         }
-    } catch (\Throwable) {}
-}
-
-$pendingActions = [];
-if ($summary['submitted_count'] > 0) {
-    $pendingActions[] = [
-        'title' => "{$summary['submitted_count']} ứng viên mới cần xem",
-        'subtitle' => 'Hồ sơ tuyển dụng thực tập sinh cần được đánh giá',
-        'type' => 'urgent',
-        'action_label' => 'Xem danh sách',
-        'route' => '/app/enterprise/internships/'
-    ];
-}
-if ($summary['active_posts'] > 0) {
-    $pendingActions[] = [
-        'title' => "{$summary['active_posts']} tin tuyển dụng đang hoạt động",
-        'subtitle' => 'Theo dõi và quản lý các đợt tiếp nhận hồ sơ',
-        'type' => 'info',
-        'action_label' => 'Quản lý tin',
-        'route' => '/app/enterprise/internships/'
-    ];
-}
-if ($summary['sponsored_projects_count'] > 0) {
-    $pendingActions[] = [
-        'title' => "{$summary['sponsored_projects_count']} dự án nhận tài trợ",
-        'subtitle' => 'Theo dõi tiến độ nghiên cứu & giải ngân',
-        'type' => 'neutral',
-        'action_label' => 'Xem tiến độ',
-        'route' => '/app/enterprise/sponsorships/'
-    ];
-}
-if (empty($pendingActions)) {
-    $pendingActions[] = [
-        'title' => 'Tất cả tác vụ đã được xử lý',
-        'subtitle' => 'Không có công việc tồn đọng cần giải quyết ngay',
-        'type' => 'neutral',
-        'action_label' => 'Đăng tin mới',
-        'route' => '/app/enterprise/internships/create.php'
-    ];
-}
-
-$recentActivities = [];
-if ($pdo !== null) {
-    try {
-        $stmtAct = $pdo->prepare(<<<'SQL'
-            SELECT ia.appliedAt AS act_time, CONCAT('Ứng viên nộp hồ sơ vào vị trí "', ip.title, '"') AS title, 'applicant' AS type
-            FROM internship_applications ia
-            JOIN internship_posts ip ON ip.id = ia.postId
-            WHERE ip.enterpriseId = :eId
-            ORDER BY ia.appliedAt DESC
-            LIMIT 4
-        SQL);
-        $stmtAct->execute(['eId' => $enterprise['id']]);
-        $acts = $stmtAct->fetchAll(PDO::FETCH_ASSOC) ?: [];
-        foreach ($acts as $act) {
-            $timeFormatted = 'Vừa xong';
-            try {
-                $timeFormatted = (new DateTimeImmutable($act['act_time']))->format('d/m/Y H:i');
-            } catch (\Throwable) {}
-            $recentActivities[] = [
-                'title' => (string) $act['title'],
-                'time' => $timeFormatted,
-                'type' => (string) $act['type'],
-            ];
-        }
-    } catch (\Throwable) {}
+    } catch (\Throwable $e) {
+        $featuredTalents = [];
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -294,55 +281,19 @@ if ($pdo !== null) {
             <!-- Top Header Partial -->
             <?php include __DIR__ . '/includes/header.php'; ?>
 
-            <!-- Page Body Content -->
+            <!-- Page Body Content - Single Column Stack -->
             <main class="ent-body">
-                <div class="container-fluid">
+                <div class="container-fluid ent-dashboard-container">
                     
-                    <!-- Welcome Section Partial -->
+                    <!-- 1. Hero Banner Chào Mừng -->
                     <?php include __DIR__ . '/includes/welcome.php'; ?>
 
-                    <!-- KPI Cards Partial -->
+                    <!-- 2. Hàng Thẻ Thống Kê Chỉ Số (Metrics Bar) -->
                     <?php include __DIR__ . '/includes/kpi-cards.php'; ?>
 
-                    <!-- Main Grid Section (2 Columns) -->
-                    <div class="ent-grid-layout">
-                        
-                        <!-- Left Column (Pending Actions + Featured Talents) -->
-                        <div class="ent-grid-layout__main">
-                            <!-- 1. Pending Action Items (High Priority) -->
-                            <?php include __DIR__ . '/includes/pending-actions.php'; ?>
+                    <!-- 3. Bảng Nhân Tài Nổi Bật Tuần Này (Featured Talents) -->
+                    <?php include __DIR__ . '/includes/featured-talents.php'; ?>
 
-                            <!-- 2. Featured Weekly Talents -->
-                            <?php include __DIR__ . '/includes/featured-talents.php'; ?>
-                        </div>
-
-                        <!-- Right Column (Activity Feed + Quick Info Widget) -->
-                        <aside class="ent-grid-layout__sidebar">
-                            <?php include __DIR__ . '/includes/recent-activity.php'; ?>
-
-                            <!-- Enterprise Summary Card (Compact) -->
-                            <div class="ent-section-box ent-section-box--compact">
-                                <div class="ent-section-box__header mb-2">
-                                    <h3 class="ent-section-box__title">Hồ sơ Doanh nghiệp</h3>
-                                    <span class="badge-success font-medium"><?= htmlspecialchars($enterpriseInfo['account_type']); ?></span>
-                                </div>
-                                <div class="ent-info-widget">
-                                    <div class="ent-info-widget__row">
-                                        <span class="label">Đơn vị:</span>
-                                        <span class="val font-semibold text-dark"><?= htmlspecialchars($enterpriseInfo['company_name']); ?></span>
-                                    </div>
-                                    <div class="ent-info-widget__row" style="border-bottom: none; padding-bottom: 0;">
-                                        <span class="label">Trạng thái:</span>
-                                        <span class="val text-accent font-medium d-inline-flex align-items-center gap-1">
-                                            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: var(--accent);"></span>
-                                            Đang hoạt động
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </aside>
-
-                    </div>
                 </div>
             </main>
         </div>

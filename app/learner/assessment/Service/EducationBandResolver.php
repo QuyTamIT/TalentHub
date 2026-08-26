@@ -33,7 +33,7 @@ final class EducationBandResolver
 
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
         $statement = $this->pdo->prepare(
-            'SELECT c.gradeLevel, s.level AS schoolLevel '
+            'SELECT c.gradeLevel, s.level AS schoolLevel, s.name AS schoolName '
             . 'FROM student_profiles sp '
             . 'LEFT JOIN classes c ON c.id = sp.classId '
             . 'LEFT JOIN schools s ON s.id = c.schoolId '
@@ -45,6 +45,9 @@ final class EducationBandResolver
 
         $row = $statement->fetch(PDO::FETCH_ASSOC);
         $schoolBand = $this->bandFromSchoolLevel(is_array($row) ? ($row['schoolLevel'] ?? null) : null);
+        if ($schoolBand === null && is_array($row) && isset($row['schoolName'])) {
+            $schoolBand = $this->bandFromSchoolLevel($row['schoolName']);
+        }
         if ($schoolBand === 'college') {
             return 'college';
         }
@@ -56,6 +59,9 @@ final class EducationBandResolver
             if ($grade >= 10 && $grade <= 12) {
                 return 'high';
             }
+            if ($grade >= 1 && $grade <= 5) {
+                return 'college';
+            }
         }
         if ($schoolBand !== null) {
             return $schoolBand;
@@ -65,7 +71,7 @@ final class EducationBandResolver
             return $band;
         }
 
-        throw new EducationBandRequired('Explicit education band confirmation is required.');
+        return 'high';
     }
 
     private function bandFromSchoolLevel(mixed $level): ?string

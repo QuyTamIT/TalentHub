@@ -105,7 +105,7 @@ $teacherRouteHrefs = [
 
     <!-- Bottom Action: Logout -->
     <div class="teacher-sidebar__footer">
-        <a href="<?= htmlspecialchars($logoutUrl); ?>" 
+        <a href="<?= function_exists('app_href') ? app_href('/logout.php?role=teacher') : '/logout.php?role=teacher'; ?>" 
            class="teacher-sidebar__link teacher-sidebar__link--logout"
            aria-label="Đăng xuất khỏi hệ thống">
             <span class="teacher-sidebar__icon">

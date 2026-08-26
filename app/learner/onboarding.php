@@ -28,7 +28,8 @@ function learner_onboarding_decide(
         throw new ApiException(405, 'METHOD_NOT_ALLOWED', 'Phương thức không được hỗ trợ.');
     }
 
-    $session->assertCsrf(isset($post['csrfToken']) && is_string($post['csrfToken']) ? $post['csrfToken'] : null);
+    $rawToken = $post['csrfToken'] ?? $post['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null;
+    $session->assertCsrf(is_string($rawToken) ? $rawToken : null);
     $action = isset($post['action']) && is_string($post['action']) ? strtolower(trim($post['action'])) : '';
     if (!in_array($action, ['accept', 'decline'], true)) {
         throw new ApiException(422, 'VALIDATION_FAILED', 'Lựa chọn onboarding không hợp lệ.');
@@ -65,7 +66,9 @@ if (realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) !== __FILE__) {
 }
 
 try {
-    $session = new SessionManager(require dirname(__DIR__, 2) . '/config/session.php');
+    $sessionConfig = require dirname(__DIR__, 2) . '/config/session.php';
+    $sessionConfig['name'] = SessionManager::SESSION_STUDENT;
+    $session = new SessionManager($sessionConfig);
     $session->start();
     $pdo = $GLOBALS['__TALENTHUB_TEST_PDO__'] ?? null;
     if (!$pdo instanceof PDO) {

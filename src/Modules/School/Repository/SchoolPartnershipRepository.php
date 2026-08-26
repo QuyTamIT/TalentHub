@@ -171,7 +171,7 @@ final class SchoolPartnershipRepository
         }
 
         // Notify School Admin
-        $this->notifySchool($schoolId, 'Yêu cầu hợp tác mới từ Doanh nghiệp', "Doanh nghiệp đã gửi yêu cầu hợp tác với nhà trường.", "/app/school/partnerships.php?id={$id}");
+        $this->notifySchool($schoolId, 'Yêu cầu hợp tác mới từ Doanh nghiệp', "Doanh nghiệp đã gửi yêu cầu hợp tác với nhà trường.", "/app/teacher/partnerships.php?id={$id}");
 
         return $this->getPartnership($id);
     }

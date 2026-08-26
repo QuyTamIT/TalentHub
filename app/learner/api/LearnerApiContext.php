@@ -70,7 +70,9 @@ final class LearnerApiContext
     public static function fromGlobals(): self
     {
         $request = Request::fromGlobals();
-        $session = new SessionManager(require dirname(__DIR__, 3) . '/config/session.php');
+        $sessionConfig = require dirname(__DIR__, 3) . '/config/session.php';
+        $sessionConfig['name'] = SessionManager::SESSION_STUDENT;
+        $session = new SessionManager($sessionConfig);
         $session->start();
         if (isset($GLOBALS['__TALENTHUB_TEST_SESSION__']) && is_array($GLOBALS['__TALENTHUB_TEST_SESSION__'])) {
             $_SESSION = $GLOBALS['__TALENTHUB_TEST_SESSION__'];

@@ -7,7 +7,89 @@ document.addEventListener('DOMContentLoaded', () => {
     initSchoolSidebar();
     initSchoolNotifications();
     initSchoolConfirmForms();
+    initSchoolAccountDropdown();
 });
+
+function initSchoolAccountDropdown() {
+    const trigger = document.getElementById('school-account-trigger');
+    const menu = document.getElementById('school-account-menu');
+    const wrapper = document.getElementById('school-account-wrapper');
+
+    if (!trigger || !menu) return;
+
+    const menuItems = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+
+    function openMenu() {
+        trigger.setAttribute('aria-expanded', 'true');
+        menu.removeAttribute('hidden');
+        menu.classList.add('is-open');
+    }
+
+    function closeMenu(focusTrigger = false) {
+        trigger.setAttribute('aria-expanded', 'false');
+        menu.setAttribute('hidden', '');
+        menu.classList.remove('is-open');
+        if (focusTrigger) {
+            trigger.focus();
+        }
+    }
+
+    trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+        if (isOpen) {
+            closeMenu();
+        } else {
+            openMenu();
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (wrapper && !wrapper.contains(e.target)) {
+            closeMenu();
+        }
+    });
+
+    trigger.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openMenu();
+            if (menuItems.length > 0) {
+                menuItems[0].focus();
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            openMenu();
+            if (menuItems.length > 0) {
+                menuItems[menuItems.length - 1].focus();
+            }
+        } else if (e.key === 'Escape') {
+            if (trigger.getAttribute('aria-expanded') === 'true') {
+                e.preventDefault();
+                closeMenu(true);
+            }
+        }
+    });
+
+    menu.addEventListener('keydown', (e) => {
+        const currentFocusedIndex = menuItems.indexOf(document.activeElement);
+
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closeMenu(true);
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const nextIndex = (currentFocusedIndex + 1) % menuItems.length;
+            menuItems[nextIndex].focus();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            const prevIndex = (currentFocusedIndex - 1 + menuItems.length) % menuItems.length;
+            menuItems[prevIndex].focus();
+        } else if (e.key === 'Tab') {
+            closeMenu();
+        }
+    });
+}
 
 function initSchoolSidebar() {
     const toggleBtn = document.getElementById('school-sidebar-toggle');
