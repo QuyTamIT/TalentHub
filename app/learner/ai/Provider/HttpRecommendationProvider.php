@@ -35,14 +35,7 @@ final class HttpRecommendationProvider implements RecommendationProvider
         } catch (JsonException) {
             return ProviderResponse::failure('invalid_request', null, 'request');
         }
-        $headers = [
-            'Accept' => 'application/json',
-            'Content-Type' => 'application/json',
-            'Authorization' => 'Bearer ' . $this->config->apiKey(),
-        ];
-        if ($this->config->model() !== null) {
-            $headers['X-Model-Name'] = $this->config->model();
-        }
+        $headers = $this->transportHeaders();
         for ($attempt = 1; $attempt <= $this->config->maxAttempts(); $attempt++) {
             try {
                 $authorizer->beforeAttempt($attempt);
@@ -73,6 +66,9 @@ final class HttpRecommendationProvider implements RecommendationProvider
     private function transportPayload(ProviderRequest $request): array
     {
         $payload = $request->payload();
+        if ($this->isGeminiProvider()) {
+            return $this->geminiPayload($payload);
+        }
         if (str_starts_with(strtolower((string) $this->config->provider()), '9router')) {
             $payload = [
                 'messages' => [
@@ -104,6 +100,52 @@ final class HttpRecommendationProvider implements RecommendationProvider
         }
 
         return $payload;
+    }
+
+    /** @return array<string,string> */
+    private function transportHeaders(): array
+    {
+        $headers = [
+            'Accept' => 'application/json',
+            'Content-Type' => 'application/json',
+        ];
+        if ($this->isGeminiProvider()) {
+            $headers['x-goog-api-key'] = (string) $this->config->apiKey();
+            return $headers;
+        }
+
+        $headers['Authorization'] = 'Bearer ' . $this->config->apiKey();
+        if ($this->config->model() !== null) {
+            $headers['X-Model-Name'] = $this->config->model();
+        }
+        return $headers;
+    }
+
+    private function isGeminiProvider(): bool
+    {
+        return str_starts_with(strtolower((string) $this->config->provider()), 'gemini');
+    }
+
+    /** @param array<string,mixed> $payload @return array<string,mixed> */
+    private function geminiPayload(array $payload): array
+    {
+        $instructions = is_array($payload['instructions'] ?? null) ? $payload['instructions'] : [];
+        unset($payload['instructions']);
+
+        return [
+            'systemInstruction' => [
+                'parts' => [['text' => implode("\n", array_filter($instructions, 'is_string'))]],
+            ],
+            'contents' => [[
+                'role' => 'user',
+                'parts' => [[
+                    'text' => json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                ]],
+            ]],
+            'generationConfig' => [
+                'responseFormat' => ['text' => ['mimeType' => 'APPLICATION_JSON']],
+            ],
+        ];
     }
 
     private function success(mixed $body): ProviderResponse

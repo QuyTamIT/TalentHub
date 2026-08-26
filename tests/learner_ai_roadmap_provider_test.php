@@ -85,6 +85,34 @@ roadmap_provider_assert(($transportBody['max_tokens'] ?? null) === 4096, 'roadma
 $modelInput = json_decode($transportBody['messages'][1]['content'], true, 512, JSON_THROW_ON_ERROR);
 roadmap_provider_assert(($modelInput['output_schema']['additionalProperties'] ?? null) === false, 'exact output schema reaches the model');
 
+$geminiConfig = RecommendationConfig::fromEnvironment([
+    'APP_ENV' => 'test',
+    'TALENTHUB_AI_ENABLED' => 'true',
+    'TALENTHUB_AI_PROVIDER' => 'gemini',
+    'TALENTHUB_AI_MODEL' => 'gemini-3.7-flash',
+    'TALENTHUB_AI_API_URL' => 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent',
+    'TALENTHUB_AI_API_KEY' => 'gemini-test-key-never-log',
+    'TALENTHUB_AI_ALLOWED_HOSTS' => 'generativelanguage.googleapis.com',
+    'TALENTHUB_AI_TIMEOUT_SECONDS' => '3',
+    'TALENTHUB_AI_MAX_ATTEMPTS' => '2',
+    'TALENTHUB_AI_ROADMAP_TIMEOUT_SECONDS' => '3',
+]);
+$geminiCaptured = [];
+$geminiProvider = new HttpRoadmapProvider($geminiConfig, static function ($url, $headers, $body, $timeout) use (&$geminiCaptured, $rawDirect): array {
+    $geminiCaptured = compact('url', 'headers', 'body', 'timeout');
+    return ['status' => 200, 'headers' => [], 'body' => $rawDirect];
+});
+$geminiResponse = $geminiProvider->generate(roadmap_provider_request(), roadmap_provider_authorizer());
+roadmap_provider_assert($geminiResponse->isSuccess(), 'native Gemini roadmap request succeeds');
+roadmap_provider_assert(($geminiCaptured['headers']['x-goog-api-key'] ?? '') === 'gemini-test-key-never-log', 'native Gemini roadmap uses x-goog-api-key');
+roadmap_provider_assert(!isset($geminiCaptured['headers']['Authorization']), 'native Gemini roadmap does not use Bearer authorization');
+$geminiBody = json_decode((string) ($geminiCaptured['body'] ?? ''), true, 512, JSON_THROW_ON_ERROR);
+roadmap_provider_assert(isset($geminiBody['systemInstruction']['parts'][0]['text']), 'native Gemini roadmap includes system instruction');
+roadmap_provider_assert(isset($geminiBody['contents'][0]['parts'][0]['text']), 'native Gemini roadmap includes user contents');
+roadmap_provider_assert(($geminiBody['generationConfig']['responseFormat']['text']['mimeType'] ?? null) === 'APPLICATION_JSON', 'native Gemini roadmap uses the official JSON response-format enum');
+roadmap_provider_assert(($geminiBody['generationConfig']['maxOutputTokens'] ?? null) === 4096, 'native Gemini roadmap bounds output tokens');
+roadmap_provider_assert(!isset($geminiBody['response_format'], $geminiBody['max_tokens'], $geminiBody['messages']), 'native Gemini roadmap omits OpenAI-only fields');
+
 $fenced = "```json\n{$rawDirect}\n```";
 $envelopeBody = json_encode(['id' => 'body_req_456', 'choices' => [['message' => ['content' => $fenced]]]], JSON_THROW_ON_ERROR);
 $envelope = new HttpRoadmapProvider(roadmap_provider_config(), static fn (): array => ['status' => 200, 'headers' => [], 'body' => $envelopeBody]);

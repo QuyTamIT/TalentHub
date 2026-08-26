@@ -40,7 +40,7 @@ INNER JOIN enterprises enterprise ON enterprise.id = post.enterpriseId
 WHERE EXISTS (SELECT 1 FROM student_profiles student WHERE student.id = :student_id)
   AND post.status IN ('active', 'published')
   AND enterprise.status = 'active'
-  AND (enterprise.verificationStatus IN ('verified', 'approved') OR enterprise.verificationStatus IS NULL OR enterprise.verificationStatus = 'pending')
+  AND enterprise.verificationStatus IN ('verified', 'approved')
   AND (
       post.audience = 'public'
       OR post.audience IS NULL
@@ -71,6 +71,7 @@ INNER JOIN enterprises enterprise ON enterprise.id = post.enterpriseId
 WHERE EXISTS (SELECT 1 FROM student_profiles student WHERE student.id = :student_id)
   AND post.status IN ('active', 'published')
   AND enterprise.status = 'active'
+  AND enterprise.verificationStatus IN ('verified', 'approved')
 ORDER BY post.createdAt DESC, post.id DESC
 SQL;
 
@@ -120,16 +121,19 @@ SQL;
         // 1. Fetch internship posts if contract available
         if ($this->hasInternshipContract()) {
             try {
-                $statement = $this->pdo->prepare(self::INTERNSHIP_SQL);
-                $executed = $statement !== false && $statement->execute([
-                    'student_id' => $studentId,
-                    'student_id_target' => $studentId,
-                ]);
-
-                if (!$executed) {
-                    $statement = $this->pdo->prepare(self::INTERNSHIP_SQL_FALLBACK);
-                    $executed = $statement !== false && $statement->execute(['student_id' => $studentId]);
+                $supportsAudience = in_array('audience', $this->columnsFor('internship_posts'), true);
+                $supportsCreatedAt = in_array('createdAt', $this->columnsFor('internship_posts'), true);
+                $orderBy = $supportsCreatedAt ? 'ORDER BY post.createdAt DESC, post.id DESC' : 'ORDER BY post.id DESC';
+                $query = $supportsAudience ? self::INTERNSHIP_SQL : self::INTERNSHIP_SQL_FALLBACK;
+                $query = str_replace('ORDER BY post.createdAt DESC, post.id DESC', $orderBy, $query);
+                $statement = $this->pdo->prepare(
+                    $query,
+                );
+                $parameters = ['student_id' => $studentId];
+                if ($supportsAudience) {
+                    $parameters['student_id_target'] = $studentId;
                 }
+                $executed = $statement !== false && $statement->execute($parameters);
 
                 if ($executed) {
                     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {

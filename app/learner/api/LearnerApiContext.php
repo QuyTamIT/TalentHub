@@ -70,7 +70,8 @@ final class LearnerApiContext
     public static function fromGlobals(): self
     {
         $request = Request::fromGlobals();
-        $session = new SessionManager(require dirname(__DIR__, 3) . '/config/session.php');
+        $sessionConfig = require dirname(__DIR__, 3) . '/config/session.php';
+        $session = new SessionManager(array_merge($sessionConfig, ['name' => SessionManager::SESSION_STUDENT]));
         $session->start();
         if (isset($GLOBALS['__TALENTHUB_TEST_SESSION__']) && is_array($GLOBALS['__TALENTHUB_TEST_SESSION__'])) {
             $_SESSION = $GLOBALS['__TALENTHUB_TEST_SESSION__'];
@@ -274,12 +275,9 @@ final class LearnerApiContext
         $engine = $ruleEngine;
         try {
             $decision = $consent->decision($studentId)->withServiceScopes(['assessment']);
-            $showModel = (new RecommendationRolloutSelector())->canShowRoadmapModel(
-                $studentId,
-                $config,
-                $decision->allowedScopes(),
-                true,
-            );
+            $showModel = $config->enabled()
+                && trim($studentId) !== ''
+                && $decision->permitsScopes(['assessment']);
         } catch (\Throwable) {
             $showModel = false;
         }

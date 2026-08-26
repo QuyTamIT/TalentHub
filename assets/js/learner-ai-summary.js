@@ -64,12 +64,12 @@
             inFlight = Promise.resolve()
                 .then(() => api.get('/ai-roadmap.php'))
                 .then((current) => {
-                    if (READY_STATES.has(current?.state) || current?.state === 'pending') return current;
-                    if (current?.state !== 'not_generated') return current;
+                    if (current?.state === 'ready_model' || current?.state === 'pending') return current;
+                    if (!['not_generated', 'fallback_rule'].includes(current?.state)) return current;
                     return api.send(
                         'POST',
                         '/ai-roadmap.php',
-                        { action: 'generate' },
+                        { action: current?.state === 'fallback_rule' ? 'refresh' : 'generate' },
                         { idempotencyKey: idempotencyKey() },
                     );
                 })
@@ -126,7 +126,7 @@
             render(state, payload) {
                 const isLoading = state === 'loading' || state === 'pending';
                 if (nodes.spinner) nodes.spinner.hidden = !isLoading;
-                if (nodes.retry) nodes.retry.hidden = !['error', 'engine_failure', 'source_unavailable'].includes(state);
+                if (nodes.retry) nodes.retry.hidden = !['error', 'engine_failure', 'source_unavailable', 'fallback_rule'].includes(state);
                 if (nodes.detail) nodes.detail.hidden = !READY_STATES.has(state);
 
                 if (state === 'ready_model') {

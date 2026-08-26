@@ -82,12 +82,12 @@ $validator = new RoadmapAnalysisValidator(array_keys($fixtureA['map']), []);
 $analysisA = $validator->fromProviderPayload(learner_ai_roadmap_provider_fixture(), [
     'origin' => 'model', 'provider' => '9router_gemini', 'model_version' => 'ag/gemini-3.7-flash-high',
     'prompt_version' => 'learner-roadmap-prompt-1.1.0', 'confidence_band' => 'high',
-    'provider_request_id' => 'router_req_repo', 'response_hash' => str_repeat('a', 64),
+    'provider_request_id' => null, 'response_hash' => str_repeat('a', 64),
 ]);
 $clockValues = ['2026-08-24T01:00:00.000000+00:00','2026-08-24T01:01:00.000000+00:00','2026-08-24T01:02:00.000000+00:00','2026-08-24T01:03:00.000000+00:00','2026-08-24T01:04:00.000000+00:00'];
 $clockIndex = 0;
 $repository = new DatabaseRoadmapRepository($pdo, static function () use (&$clockValues, &$clockIndex): string { return $clockValues[min($clockIndex++, count($clockValues) - 1)]; });
-$auditA = ['provider_request_id' => 'router_req_repo', 'response_hash' => str_repeat('a', 64), 'evidence_reference_map' => $fixtureA['map']];
+$auditA = ['provider_request_id' => null, 'response_hash' => str_repeat('a', 64), 'evidence_reference_map' => $fixtureA['map']];
 $savedA = $repository->saveCompleted($studentA, $runA, $analysisA, $auditA);
 roadmap_repository_assert($savedA['version'] === 1 && $savedA['status'] === 'active', 'first roadmap is active version one');
 roadmap_repository_assert($savedA['analysis_origin'] === 'model', 'model provenance is returned truthfully');

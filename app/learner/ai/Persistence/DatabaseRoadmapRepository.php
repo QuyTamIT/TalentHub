@@ -239,7 +239,7 @@ SQL);
         if ($analysis->origin() === 'model') {
             if (($providerAudit['provider_request_id'] ?? null) !== $analysis->providerRequestId()
                 || ($providerAudit['response_hash'] ?? null) !== $analysis->responseHash()
-                || $analysis->providerRequestId() === null || $analysis->responseHash() === null) {
+                || $analysis->responseHash() === null) {
                 throw new RuntimeException('Roadmap provider audit does not match model result');
             }
         } elseif (isset($providerAudit['provider_request_id']) || isset($providerAudit['response_hash'])) {

@@ -65,7 +65,8 @@ if (realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) !== __FILE__) {
 }
 
 try {
-    $session = new SessionManager(require dirname(__DIR__, 2) . '/config/session.php');
+    $sessionConfig = require dirname(__DIR__, 2) . '/config/session.php';
+    $session = new SessionManager(array_merge($sessionConfig, ['name' => SessionManager::SESSION_STUDENT]));
     $session->start();
     $pdo = $GLOBALS['__TALENTHUB_TEST_PDO__'] ?? null;
     if (!$pdo instanceof PDO) {

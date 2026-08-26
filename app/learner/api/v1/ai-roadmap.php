@@ -48,7 +48,12 @@ try {
         $studentId,
         isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
     );
-    $result = $context->roadmapService($studentId)->generate($studentId, $context->requestId(), $idempotencyKey);
+    $result = $context->roadmapService($studentId)->generate(
+        $studentId,
+        $context->requestId(),
+        $idempotencyKey,
+        $action === 'refresh',
+    );
     if (($result['state'] ?? null) === 'forbidden') {
         throw new ApiException(403, 'PERMISSION_DENIED', 'Bạn không có quyền tạo lộ trình này.');
     }

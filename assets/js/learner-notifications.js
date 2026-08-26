@@ -12,6 +12,8 @@
         '/app/learner/ecosystem.php',
         '/app/learner/badges.php',
         '/app/learner/activity-history.php',
+        '/app/learner/talent-passport.php',
+        '/app/teacher/projects/index.php',
     ];
 
     function isSafeDeepLink(url) {

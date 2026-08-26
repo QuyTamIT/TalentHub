@@ -30,5 +30,6 @@ Thumbs.db
 /.qwen/
 /.codex/
 /.codex-*/
+/.codex_tmp/activity-qr-fixtures/
 /.docx_review/
 /.worktrees/

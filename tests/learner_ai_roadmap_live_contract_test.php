@@ -60,6 +60,12 @@ $analysis = (new RoadmapAnalysisValidator($request->evidenceReferenceIds(), []))
     'provider_request_id'=>$response->providerRequestId(),'response_hash'=>$response->responseHash(),
 ]);
 $evaluation = (new RecommendationEvaluator())->evaluateRoadmap($analysis, $fixture['input']);
+if ($evaluation['valid'] !== true) {
+    fwrite(STDERR, 'LIVE_CONTRACT_EVALUATION_FAILED: ' . json_encode([
+        'violations' => $evaluation['violations'],
+        'metrics' => $evaluation['metrics'],
+    ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . "\n");
+}
 roadmap_live_assert($evaluation['valid'] === true, 'Vietnamese, grounding and safety evaluation must pass');
 
 $snapshotId = 'f1000000-0000-4000-8000-000000000001';

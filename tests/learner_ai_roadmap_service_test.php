@@ -110,6 +110,20 @@ $sameRepository=roadmap_service_repository(array_merge($repository->latest,['inp
 $same=roadmap_service_build($sameRepository,$sameEngine,$inputA,roadmap_service_consent())->generate('student-a','request-b','different-idempotency');
 roadmap_service_assert($same['state']==='ready_model' && $same['reused']===true && $sameEngine->calls===0,'unchanged source snapshot reuses active roadmap');
 
+$fallbackRoadmap = array_merge($repository->latest, [
+    'analysis_origin' => 'rule_fallback',
+    'engine' => ['rule_version' => 'learner-roadmap-rules-1', 'fallback_reason' => 'rule_only'],
+    'input_hash' => $inputA->contentHash(),
+]);
+$retryRepository = roadmap_service_repository($fallbackRoadmap);
+$retryEngine = roadmap_service_engine($modelA);
+$retried = roadmap_service_build($retryRepository, $retryEngine, $inputA, roadmap_service_consent())
+    ->generate('student-a', 'request-fallback-retry', 'idempotency-fallback-retry', true);
+roadmap_service_assert(
+    $retried['state'] === 'ready_model' && $retryEngine->calls === 1 && $retryRepository->saveCalls === 1,
+    'an explicit refresh replaces an unchanged saved rule fallback with a real AI roadmap',
+);
+
 $pendingEngine=roadmap_service_engine($modelA);
 $pending=roadmap_service_build(roadmap_service_repository(),$pendingEngine,$inputA,roadmap_service_consent(),true,true)->generate('student-a','request-p','idempotency-pending');
 roadmap_service_assert($pending['state']==='pending' && $pending['reused']===true && $pendingEngine->calls===0,'in-flight idempotent run is reused');

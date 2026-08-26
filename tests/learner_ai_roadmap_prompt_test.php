@@ -25,7 +25,10 @@ $input = new RecommendationInput(
             'name' => 'Nguyễn Minh Anh',
             'email' => 'minhanh@example.test',
             'student_id' => 'student-secret-123',
-            'school_name' => 'Trường không được gửi',
+            'school_name' => 'Trường THPT Nguyễn Trãi',
+            'class_name' => '12A1',
+            'grade_level' => 12,
+            'academic_year' => '2026-2027',
         ],
         'assessments' => [[
             'result_id' => 'database-result-secret',
@@ -134,7 +137,16 @@ roadmap_prompt_assert(!str_contains($json, 'student-secret-123'), 'student ID is
 roadmap_prompt_assert(!str_contains($json, 'database-result-secret'), 'assessment database ID is never sent');
 roadmap_prompt_assert(!str_contains($json, 'minhanh@example.test'), 'email is never sent');
 roadmap_prompt_assert(!str_contains($json, 'Nguyễn Minh Anh'), 'name is never sent');
-roadmap_prompt_assert(!str_contains($json, 'Trường không được gửi'), 'unapproved profile fields are never sent');
+roadmap_prompt_assert(
+    ($payload['input']['profile'] ?? null) === [
+        'study_status' => 'active',
+        'school_name' => 'Trường THPT Nguyễn Trãi',
+        'class_name' => '12A1',
+        'grade_level' => 12,
+        'academic_year' => '2026-2027',
+    ],
+    'Gemini receives the learner school, class, grade and academic year for personalized roadmap analysis',
+);
 roadmap_prompt_assert(!str_contains($json, 'raw_answers'), 'raw answers are never sent');
 roadmap_prompt_assert(!str_contains($json, 'không được gửi'), 'unapproved skill fields are never sent');
 roadmap_prompt_assert(str_contains($json, $activityId), 'allow-listed activity ID is available to the model');

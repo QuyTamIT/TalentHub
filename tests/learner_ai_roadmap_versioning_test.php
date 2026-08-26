@@ -44,6 +44,8 @@ roadmap_repository_assert($signals === [['verdict' => 'not_helpful', 'reason_cod
 $pdo->exec('ALTER TABLE student_profiles ADD COLUMN classId CHAR(36) NULL');
 $pdo->exec('CREATE TABLE schools (id CHAR(36) PRIMARY KEY, name TEXT NOT NULL)');
 $pdo->exec('CREATE TABLE classes (id CHAR(36) PRIMARY KEY, schoolId CHAR(36) NOT NULL)');
+$pdo->exec('CREATE TABLE activity_details (activityId CHAR(36) PRIMARY KEY, audienceScope TEXT NOT NULL, filterCategory TEXT NOT NULL, locationName TEXT NOT NULL)');
+$pdo->exec('CREATE TABLE activity_registration_policies (activityId CHAR(36) PRIMARY KEY, registrationOpensAt TEXT NOT NULL, registrationClosesAt TEXT NOT NULL)');
 foreach ([
     'schoolId CHAR(36) NULL', 'title TEXT NULL', 'category TEXT NULL', 'startAt TEXT NULL',
     'endAt TEXT NULL', 'capacity INTEGER NULL', 'status TEXT NULL',
@@ -57,6 +59,8 @@ $pdo->prepare('INSERT INTO classes VALUES (?,?)')->execute([$classId, $schoolId]
 $pdo->prepare('UPDATE student_profiles SET classId = ? WHERE id = ?')->execute([$classId, $studentA]);
 $pdo->prepare("INSERT INTO activities (id,schoolId,title,category,startAt,endAt,capacity,status) VALUES (?,?,?,?,?,?,?,'published')")
     ->execute([$activityId,$schoolId,'Phòng lab sản phẩm','technology','2026-09-01','2027-09-01',1]);
+$pdo->prepare("INSERT INTO activity_details VALUES (?, 'school_only', 'Kỹ thuật', 'Trường thử nghiệm')")->execute([$activityId]);
+$pdo->prepare("INSERT INTO activity_registration_policies VALUES (?, '2026-08-01', '2026-08-31')")->execute([$activityId]);
 
 $fixtureE = roadmap_repository_input('e');
 $payloadE = $fixtureE['input']->payload();

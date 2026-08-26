@@ -63,6 +63,7 @@ final class RoadmapPromptRegistry
                 'Trả về duy nhất một JSON object hợp lệ theo learner-roadmap-1.0.0.',
                 'Tuân thủ chính xác output_schema được cung cấp. Không thêm trường ngoài schema.',
                 'Viết toàn bộ nội dung dành cho học viên bằng tiếng Việt tự nhiên.',
+                'Phân tích đầy đủ bốn bài Holland, MBTI, DISC, Multiple Intelligence cùng trường, lớp, khối và năm học để cá nhân hóa lộ trình.',
                 'Tạo đúng ba giai đoạn 0–30, 31–60 và 61–90 ngày; mỗi giai đoạn có từ 3 đến 5 task cụ thể.',
                 'Không nhắc lại mã MBTI, điểm Holland, biểu đồ DISC hoặc điểm Multiple Intelligence.',
                 'Mỗi insight, phase và task phải trích dẫn evidence_ref_ids được cung cấp.',
@@ -194,7 +195,13 @@ final class RoadmapPromptRegistry
     private function safeInput(array $payload): array
     {
         $profile = is_array($payload['profile'] ?? null)
-            ? $this->safeRecord($payload['profile'], ['study_status'])
+            ? $this->safeRecord($payload['profile'], [
+                'study_status',
+                'school_name',
+                'class_name',
+                'grade_level',
+                'academic_year',
+            ])
             : [];
 
         return [

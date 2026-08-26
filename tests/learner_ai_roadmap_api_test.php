@@ -105,7 +105,9 @@ function roadmap_api_model_context_database(): PDO
     $pdo = new PDO('sqlite::memory:');
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->exec('PRAGMA foreign_keys = ON');
-    $pdo->exec("CREATE TABLE student_profiles (id CHAR(36) NOT NULL PRIMARY KEY, studyStatus VARCHAR(50) NOT NULL DEFAULT 'active')");
+    $pdo->exec('CREATE TABLE schools (id CHAR(36) NOT NULL PRIMARY KEY, name VARCHAR(255) NOT NULL)');
+    $pdo->exec('CREATE TABLE classes (id CHAR(36) NOT NULL PRIMARY KEY, schoolId CHAR(36) NOT NULL, name VARCHAR(100) NOT NULL, gradeLevel INTEGER NOT NULL, academicYear VARCHAR(20) NOT NULL)');
+    $pdo->exec("CREATE TABLE student_profiles (id CHAR(36) NOT NULL PRIMARY KEY, classId CHAR(36) NOT NULL, studyStatus VARCHAR(50) NOT NULL DEFAULT 'active')");
     $pdo->exec('CREATE TABLE activities (id CHAR(36) NOT NULL PRIMARY KEY)');
     $pdo->exec('CREATE TABLE activity_registrations (id CHAR(36) NOT NULL PRIMARY KEY)');
     $runner = new \TalentHub\Learner\Data\Migrations\LearnerForwardMigrationRunner(
@@ -118,7 +120,12 @@ function roadmap_api_model_context_database(): PDO
     }
 
     $studentId = '11111111-1111-4111-8111-111111111111';
-    $pdo->prepare('INSERT INTO student_profiles (id,studyStatus) VALUES (?,?)')->execute([$studentId, 'active']);
+    $schoolId = '71111111-1111-4111-8111-111111111111';
+    $classId = '81111111-1111-4111-8111-111111111111';
+    $pdo->prepare('INSERT INTO schools (id,name) VALUES (?,?)')->execute([$schoolId, 'Trường THPT Nguyễn Trãi']);
+    $pdo->prepare('INSERT INTO classes (id,schoolId,name,gradeLevel,academicYear) VALUES (?,?,?,?,?)')
+        ->execute([$classId, $schoolId, '12A1', 12, '2026-2027']);
+    $pdo->prepare('INSERT INTO student_profiles (id,classId,studyStatus) VALUES (?,?,?)')->execute([$studentId, $classId, 'active']);
     $families = [
         ['holland', 'interest'],
         ['mbti', 'personality'],
@@ -213,21 +220,21 @@ foreach (['TALENTHUB_AI_API_KEY','TALENTHUB_AI_API_URL','provider_request_id','r
 $modelPdo = roadmap_api_model_context_database();
 $capturedRequestBody = null;
 $GLOBALS['__TALENTHUB_TEST_ENV__'] = [
-    'APP_ENV'=>'test', 'TALENTHUB_AI_ENABLED'=>'true', 'TALENTHUB_AI_PROVIDER'=>'9router_gemini',
-    'TALENTHUB_AI_MODEL'=>'ag/gemini-3.7-flash-low', 'TALENTHUB_AI_API_URL'=>'http://127.0.0.1:20128/v1/chat/completions',
-    'TALENTHUB_AI_API_KEY'=>'test-key', 'TALENTHUB_AI_ALLOWED_HOSTS'=>'127.0.0.1',
-    'TALENTHUB_AI_SHADOW_GATE_APPROVED'=>'true',
-    'TALENTHUB_AI_VISIBLE_PERCENT'=>'100', 'TALENTHUB_AI_PILOT_APPROVAL_REFERENCE'=>'api-wiring-test',
-    'TALENTHUB_AI_PILOT_PAUSED'=>'false', 'TALENTHUB_AI_MAX_ATTEMPTS'=>'1',
+    'APP_ENV'=>'test', 'TALENTHUB_AI_ENABLED'=>'true', 'TALENTHUB_AI_PROVIDER'=>'gemini',
+    'TALENTHUB_AI_MODEL'=>'gemini-3.7-flash',
+    'TALENTHUB_AI_API_URL'=>'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent',
+    'TALENTHUB_AI_API_KEY'=>'test-key', 'TALENTHUB_AI_ALLOWED_HOSTS'=>'generativelanguage.googleapis.com',
+    'TALENTHUB_AI_SHADOW_GATE_APPROVED'=>'false', 'TALENTHUB_AI_VISIBLE_PERCENT'=>'0',
+    'TALENTHUB_AI_PILOT_PAUSED'=>'true', 'TALENTHUB_AI_MAX_ATTEMPTS'=>'1',
 ];
 $GLOBALS['__TALENTHUB_TEST_HTTP__'] = static function (string $url, array $headers, string $body, int $timeout) use (&$capturedRequestBody): array {
     $capturedRequestBody = $body;
+    roadmap_api_assert(($headers['x-goog-api-key'] ?? null) === 'test-key', 'Gemini roadmap provider uses the official Google API key header');
     return [
         'status'=>200,
         'headers'=>['x-request-id'=>'roadmap-api-model-request'],
         'body'=>json_encode([
-            'id'=>'roadmap-api-model-request',
-            'choices'=>[['message'=>['content'=>json_encode(learner_ai_roadmap_provider_fixture(), JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)]]],
+            'candidates'=>[['content'=>['parts'=>[['text'=>json_encode(learner_ai_roadmap_provider_fixture(), JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)]]]]],
         ], JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE),
     ];
 };
@@ -245,14 +252,17 @@ $modelRoadmap = $context->roadmapService($modelStudentId)->generate(
     'roadmap-api-wiring-request',
     'roadmap-api-wiring-idempotency',
 );
-roadmap_api_assert(($modelRoadmap['state'] ?? null) === 'ready_model', 'enabled API context uses the real Roadmap provider without a consent row: ' . json_encode($modelRoadmap));
-roadmap_api_assert(($modelRoadmap['engine']['model_version'] ?? null) === 'ag/gemini-3.7-flash-low', 'enabled API context preserves model provenance');
+roadmap_api_assert(($modelRoadmap['state'] ?? null) === 'ready_model', 'enabled roadmap calls Gemini after four assessments even when pilot rollout is disabled: ' . json_encode($modelRoadmap));
+roadmap_api_assert(($modelRoadmap['engine']['model_version'] ?? null) === 'gemini-3.7-flash', 'enabled API context preserves official Gemini model provenance');
 roadmap_api_assert((int) $modelPdo->query('SELECT COUNT(*) FROM learner_ai_consent_events')->fetchColumn() === 0, 'purpose-bound assessment access does not create or require a consent event');
 roadmap_api_assert(is_string($capturedRequestBody), 'enabled API context reaches the injected provider transport');
 $transport = json_decode((string) $capturedRequestBody, true, 512, JSON_THROW_ON_ERROR);
-$providerInput = json_decode((string) ($transport['messages'][1]['content'] ?? ''), true, 512, JSON_THROW_ON_ERROR);
+$providerInput = json_decode((string) ($transport['contents'][0]['parts'][0]['text'] ?? ''), true, 512, JSON_THROW_ON_ERROR);
 roadmap_api_assert(($providerInput['allowed_scopes'] ?? null) === ['assessment'], 'provider receives only the purpose-bound assessment scope');
 roadmap_api_assert(count($providerInput['input']['assessments'] ?? []) === 4, 'provider receives four sanitized assessment results');
+roadmap_api_assert(($providerInput['input']['profile']['school_name'] ?? null) === 'Trường THPT Nguyễn Trãi', 'Gemini receives the learner school from the real profile data source');
+roadmap_api_assert(($providerInput['input']['profile']['class_name'] ?? null) === '12A1', 'Gemini receives the learner class for personalized roadmap generation');
+roadmap_api_assert(($providerInput['input']['profile']['grade_level'] ?? null) === 12, 'Gemini receives the learner grade level');
 roadmap_api_assert(($providerInput['input']['skills'] ?? null) === [] && ($providerInput['input']['activities'] ?? null) === [] && ($providerInput['input']['evaluations'] ?? null) === [], 'ungranted non-assessment scopes remain empty');
 roadmap_api_assert(!str_contains((string) $capturedRequestBody, 'internal summary must not be sent'), 'assessment free-form summary is excluded from the provider request');
 roadmap_api_assert(!str_contains((string) $capturedRequestBody, $modelStudentId), 'student identifier is excluded from the provider request');

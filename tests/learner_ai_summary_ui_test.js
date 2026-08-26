@@ -98,16 +98,33 @@ test('existing model roadmap is summarized without regenerating', async () => {
   assert.equal(view.events.at(-1)[0], 'ready_model');
 });
 
-test('fallback is labelled explicitly and retry is available after failure', async () => {
+test('existing rule fallback is regenerated through the real AI refresh action', async () => {
   const { createAiSummaryController } = require(modulePath);
   const fallbackView = recordingView();
+  const fallbackCalls = [];
   await createAiSummaryController({
-    api: { async get() { return { state: 'fallback_rule', executive_summary: 'Gợi ý dự phòng.' }; }, async send() {} },
+    api: {
+      async get() { return { state: 'fallback_rule', executive_summary: 'Gợi ý dự phòng.' }; },
+      async send(method, endpoint, body, options) {
+        fallbackCalls.push([method, endpoint, body, options]);
+        return { state: 'ready_model', executive_summary: 'Gemini đã tạo lộ trình cá nhân.' };
+      },
+    },
     view: fallbackView,
     storage: memoryStorage(),
+    createIdempotencyKey: () => 'roadmap-summary-fallback-0001',
   }).run();
-  assert.equal(fallbackView.events.at(-1)[0], 'fallback_rule');
+  assert.deepEqual(fallbackCalls, [[
+    'POST',
+    '/ai-roadmap.php',
+    { action: 'refresh' },
+    { idempotencyKey: 'roadmap-summary-fallback-0001' },
+  ]]);
+  assert.equal(fallbackView.events.at(-1)[0], 'ready_model');
+});
 
+test('retry remains available after a transient provider failure', async () => {
+  const { createAiSummaryController } = require(modulePath);
   let attempts = 0;
   const retryView = recordingView();
   const retryController = createAiSummaryController({

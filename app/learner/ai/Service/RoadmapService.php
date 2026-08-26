@@ -69,7 +69,12 @@ final class RoadmapService
     }
 
     /** @return array<string,mixed> */
-    public function generate(string $studentId, string $requestId, string $idempotencyKey): array
+    public function generate(
+        string $studentId,
+        string $requestId,
+        string $idempotencyKey,
+        bool $forceRefresh = false,
+    ): array
     {
         try {
             if (!(($this->authorizer)($studentId))) return ['state'=>'forbidden'];
@@ -95,7 +100,7 @@ final class RoadmapService
         } catch (\Throwable) {
             $active = null;
         }
-        if ($active !== null && is_string($active['input_hash'] ?? null) && hash_equals($active['input_hash'], $input->contentHash())) {
+        if (!$forceRefresh && $active !== null && is_string($active['input_hash'] ?? null) && hash_equals($active['input_hash'], $input->contentHash())) {
             $response = $this->readyWithHistory($studentId, $active); $response['reused'] = true; return $response;
         }
 

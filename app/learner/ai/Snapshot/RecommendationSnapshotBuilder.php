@@ -143,11 +143,30 @@ final class RecommendationSnapshotBuilder
         return $allowed;
     }
 
-    /** @param array<string,mixed> $profile @return array<string,string> */
+    /** @param array<string,mixed> $profile @return array<string,string|int> */
     private function profile(array $profile): array
     {
         $status = trim((string) ($profile['study_status'] ?? ''));
-        return $status === '' ? [] : ['study_status' => $status];
+        if ($status === '') {
+            return [];
+        }
+
+        $safe = ['study_status' => $status];
+        foreach (['school_name', 'class_name'] as $field) {
+            $value = trim((string) ($profile[$field] ?? ''));
+            if ($value !== '') {
+                $safe[$field] = $value;
+            }
+        }
+        if (is_numeric($profile['grade_level'] ?? null)) {
+            $safe['grade_level'] = (int) $profile['grade_level'];
+        }
+        $academicYear = trim((string) ($profile['academic_year'] ?? ''));
+        if ($academicYear !== '') {
+            $safe['academic_year'] = $academicYear;
+        }
+
+        return $safe;
     }
 
     /** @param list<array<string,mixed>> $records @return list<array<string,mixed>> */
