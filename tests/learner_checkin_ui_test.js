@@ -126,6 +126,15 @@ test('learner check-in page treats server GET history as authoritative in databa
   assert.match(source, /getElementById\('learner-checkin-boot'\)/, 'check-in client reads its dedicated learner API base');
 });
 
+test('check-in page exposes the Scan-first responsive component structure', () => {
+  const page = fs.readFileSync(pagePath, 'utf8');
+  assert.match(page, /learner-checkin-layout/);
+  assert.match(page, /learner-checkin-scanner-card/);
+  assert.match(page, /learner-checkin-activity-card/);
+  assert.match(page, /learner-checkin-manual-card/);
+  assert.match(page, /Đưa mã QR vào giữa khung để check-in/u);
+});
+
 test('successful check-in reveals the activity-history action without changing the QR workflow', async () => {
   const page = fs.readFileSync(pagePath, 'utf8');
   assert.match(page, /data-checkin-history-action/, 'check-in page provides a minimal post-success history action');
