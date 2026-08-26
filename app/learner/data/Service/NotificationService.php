@@ -19,6 +19,7 @@ final class NotificationService
         'activity_registration_approved',
         'activity_registration_rejected',
         'activity_checkin_committed',
+        'activity_attendance_no_show',
         'assessment_submitted',
         'internship_application_submitted',
         'internship_application_withdrawn',
@@ -31,6 +32,7 @@ final class NotificationService
     public const ALLOW_LISTED_DEEP_LINKS = [
         '/app/learner/my-activities.php',
         '/app/learner/checkin.php',
+        '/app/learner/activity-history.php',
         '/app/learner/assessment-result.php',
         '/app/learner/ecosystem.php',
         '/app/learner/badges.php',
@@ -185,8 +187,7 @@ final class NotificationService
             throw new ApiException(422, 'INVALID_DEEP_LINK', 'Đường dẫn liên kết không an toàn.');
         }
 
-        $pathOnly = parse_url($deepLink, PHP_URL_PATH) ?? $deepLink;
-        if (!in_array($pathOnly, self::ALLOW_LISTED_DEEP_LINKS, true)) {
+        if (!in_array($deepLink, self::ALLOW_LISTED_DEEP_LINKS, true)) {
             throw new ApiException(422, 'INVALID_DEEP_LINK', 'Đường dẫn không thuộc danh sách cho phép.');
         }
 

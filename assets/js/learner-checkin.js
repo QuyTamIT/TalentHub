@@ -44,6 +44,7 @@
   const submitButton = document.querySelector('[data-submit-checkin]');
   const resetButton = document.querySelector('[data-reset-checkin]');
   const historyList = document.querySelector('[data-checkin-history]');
+  const historyAction = document.querySelector('[data-checkin-history-action]');
 
   const setText = (node, message, tone) => {
     if (!node) return;
@@ -149,6 +150,10 @@
       setText(feedback, 'Check-in thành công: ' + (result.activity?.title || 'hoạt động') + '.', 'success');
       setText(apiState, 'Đã xác nhận ' + (result.experience?.hours || '0.00') + ' giờ', 'success');
       await loadHistory();
+      if (historyAction) {
+        historyAction.hidden = false;
+        historyAction.style.removeProperty('display');
+      }
       if (tokenField) tokenField.value = '';
     } catch (error) {
       const code = error && error.code ? error.code : '';

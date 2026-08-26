@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-labelledby="detail-title detail-desc">
+  <title id="detail-title">Minh họa chi tiết hoạt động</title>
+  <desc id="detail-desc">Người học chế tạo robot và xem thông tin kỹ năng của hoạt động.</desc>
+  <defs>
+    <linearGradient id="detail-bg" x1="40" y1="30" x2="600" y2="380" gradientUnits="userSpaceOnUse"><stop stop-color="#EFF6FF"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#FFF7ED"/></linearGradient>
+    <filter id="detail-shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#0F172A" flood-opacity=".13"/></filter>
+  </defs>
+  <rect width="640" height="400" rx="36" fill="url(#detail-bg)"/>
+  <path d="M0 304c102-39 184-27 249 36 60 58 140 57 241-4 61-37 111-37 150-2v66H0z" fill="#DBEAFE"/>
+  <circle cx="548" cy="85" r="48" fill="#FFEDD5"/>
+  <g filter="url(#detail-shadow)"><rect x="70" y="74" width="210" height="250" rx="28" fill="#fff"/><rect x="94" y="100" width="162" height="104" rx="20" fill="#EFF6FF"/>
+    <path d="M122 171h104M139 144h70" stroke="#2563EB" stroke-width="12" stroke-linecap="round"/><circle cx="126" cy="236" r="10" fill="#16A34A"/><path d="M148 236h76" stroke="#CBD5E1" stroke-width="12" stroke-linecap="round"/><circle cx="126" cy="278" r="10" fill="#F97316"/><path d="M148 278h56" stroke="#CBD5E1" stroke-width="12" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(324 114)" filter="url(#detail-shadow)">
+    <rect x="0" y="100" width="218" height="116" rx="32" fill="#2563EB"/>
+    <rect x="34" y="48" width="150" height="110" rx="28" fill="#fff" stroke="#2563EB" stroke-width="10"/>
+    <circle cx="78" cy="99" r="18" fill="#DBEAFE" stroke="#0F172A" stroke-width="7"/><circle cx="140" cy="99" r="18" fill="#DBEAFE" stroke="#0F172A" stroke-width="7"/>
+    <path d="M73 135c22 17 50 17 72 0" fill="none" stroke="#F97316" stroke-width="8" stroke-linecap="round"/>
+    <path d="M109 48V20M91 20h36" stroke="#0F172A" stroke-width="8" stroke-linecap="round"/><circle cx="109" cy="12" r="11" fill="#16A34A"/>
+    <circle cx="48" cy="218" r="34" fill="#0F172A"/><circle cx="170" cy="218" r="34" fill="#0F172A"/><circle cx="48" cy="218" r="14" fill="#94A3B8"/><circle cx="170" cy="218" r="14" fill="#94A3B8"/>
+  </g>
+  <g transform="translate(485 45)"><rect width="92" height="60" rx="18" fill="#DCFCE7"/><path d="m27 31 13 13 28-30" fill="none" stroke="#16A34A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></g>
+</svg>

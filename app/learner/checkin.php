@@ -5,7 +5,35 @@ require_once __DIR__ . '/includes/activity-data.php';
 
 $pageTitle = 'Check-in QR';
 $currentRoute = '/app/learner/checkin.php';
-$linkedActivity = isset($_GET['activity']) ? learner_activity_find((string) $_GET['activity']) : null;
+$activityRouteId = trim((string) ($_GET['activity'] ?? ''));
+$activitySource = learner_repository_factory()->source();
+$activityRouteIsValid = $activityRouteId !== ''
+    && ($activitySource !== 'database' || \TalentHub\Learner\Data\Support\Uuid::isValid($activityRouteId));
+$linkedActivity = $activityRouteIsValid ? learner_activity_find($activityRouteId) : null;
+$linkedRegistration = null;
+$linkedRegistrationLabel = null;
+if ($linkedActivity !== null) {
+    foreach (learner_activity_registration_history(learner_current_student_id()) as $registration) {
+        if ((string) ($registration['activity_id'] ?? '') !== (string) ($linkedActivity['id'] ?? '')) {
+            continue;
+        }
+        $status = (string) ($registration['status'] ?? '');
+        $linkedRegistrationLabel = match ($status) {
+            'approved' => 'Đã được duyệt',
+            'pending' => 'Chờ giáo viên duyệt',
+            'waitlisted' => 'Danh sách chờ',
+            'attended' => 'Đã tham gia',
+            default => null,
+        };
+        if ($linkedRegistrationLabel !== null) {
+            $linkedRegistration = $registration;
+        }
+        break;
+    }
+}
+if ($linkedRegistration === null) {
+    $linkedActivity = null;
+}
 $checkinBoot = ['csrfToken' => (string) ($GLOBALS['learner_page_context']['csrfToken'] ?? ''), 'apiBase' => '/app/learner/api/v1', 'historyUrl' => '/app/learner/api/v1/checkins.php'];
 ?>
 <!DOCTYPE html>
@@ -35,7 +63,7 @@ $checkinBoot = ['csrfToken' => (string) ($GLOBALS['learner_page_context']['csrfT
                 ?>
                 <?php if ($linkedActivity): ?>
                     <section class="learner-card learner-checkin-linked-activity">
-                        <span class="learner-verified-pill"><?= learner_icon('check', 14); ?> Đã đăng ký</span>
+                        <span class="learner-verified-pill"><?= learner_icon('check', 14); ?> <?= learner_escape($linkedRegistrationLabel); ?></span>
                         <div>
                             <h2><?= learner_escape($linkedActivity['title']); ?></h2>
                             <p><?= learner_escape((new DateTimeImmutable($linkedActivity['start_at']))->format('d/m/Y · H:i')); ?> · <?= learner_escape($linkedActivity['location']); ?></p>
@@ -58,6 +86,7 @@ $checkinBoot = ['csrfToken' => (string) ($GLOBALS['learner_page_context']['csrfT
                         <h2 id="learner-manual-title">Nhập token thủ công</h2>
                         <form class="learner-checkin-form" data-manual-form novalidate><label class="learner-form-field"><span>Token QR</span><textarea data-manual-token rows="4" placeholder="Dán token QR vào đây" required></textarea></label><div class="learner-modal__actions"><button class="learner-btn learner-btn--primary" type="submit" data-submit-checkin>Gửi check-in</button><button class="learner-btn learner-btn--ghost" type="button" data-reset-checkin>Xóa</button></div></form>
                         <div class="learner-checkin-api-state" data-api-state></div>
+                        <a class="learner-btn learner-btn--outline" href="activity-history.php" data-checkin-history-action hidden style="display: none;">Xem lịch sử hoạt động</a>
                     </section>
                     <section class="learner-card learner-checkin-history" aria-labelledby="learner-checkin-history-title">
                         <h2 id="learner-checkin-history-title">Lịch sử check-in</h2>

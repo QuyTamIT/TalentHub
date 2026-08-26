@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace TalentHub\Learner\Data\Mock;
 
+use DateTimeImmutable;
 use TalentHub\Learner\Data\Contracts\ActivityRepository;
 use TalentHub\Learner\Data\Enums\ActivityRegistrationStatus;
 use TalentHub\Learner\Data\Enums\ActivityStatus;
@@ -44,6 +45,63 @@ final class MockActivityRepository implements ActivityRepository
             $this->registrations,
             static fn (array $registration): bool => ($registration['student_id'] ?? '') === $canonicalStudentId
         ));
+    }
+
+    public function discoverForStudent(string $studentId, DateTimeImmutable $now): array
+    {
+        $canonicalStudentId = MockRecordNormalizer::lookupId('student', $studentId);
+        $activeStatuses = ['pending', 'approved', 'waitlisted', 'attended'];
+        $ownActiveActivityIds = [];
+        $occupiedByActivity = [];
+        foreach ($this->registrations as $registration) {
+            $activityId = (string) ($registration['activity_id'] ?? '');
+            $status = (string) ($registration['status'] ?? '');
+            if (($registration['student_id'] ?? '') === $canonicalStudentId && in_array($status, $activeStatuses, true)) {
+                $ownActiveActivityIds[$activityId] = true;
+            }
+            if (in_array($status, ['approved', 'attended'], true)) {
+                $occupiedByActivity[$activityId] = ($occupiedByActivity[$activityId] ?? 0) + 1;
+            }
+        }
+
+        $eligible = array_values(array_filter(
+            $this->activities,
+            static function (array $activity) use ($now, $ownActiveActivityIds, $occupiedByActivity): bool {
+                if (($activity['status'] ?? '') !== ActivityStatus::Published->value) return false;
+                $activityId = (string) ($activity['id'] ?? '');
+                if (isset($ownActiveActivityIds[$activityId])) return false;
+                if (($occupiedByActivity[$activityId] ?? 0) >= (int) ($activity['capacity'] ?? PHP_INT_MAX)) return false;
+
+                foreach ([['registration_opens_at', '<='], ['registration_closes_at', '>'], ['start_at', '>']] as [$field, $operator]) {
+                    $raw = trim((string) ($activity[$field] ?? ''));
+                    if ($raw === '') continue;
+                    try {
+                        $date = new DateTimeImmutable($raw);
+                    } catch (\Throwable) {
+                        return false;
+                    }
+                    if ($operator === '<=' && $date > $now) return false;
+                    if ($operator === '>' && $date <= $now) return false;
+                }
+                return true;
+            }
+        ));
+        usort($eligible, static fn (array $left, array $right): int => [
+            (string) ($left['start_at'] ?? ''), (string) ($left['id'] ?? ''),
+        ] <=> [
+            (string) ($right['start_at'] ?? ''), (string) ($right['id'] ?? ''),
+        ]);
+        return $eligible;
+    }
+
+    public function findForStudent(string $studentId, string $activityId): ?array
+    {
+        return $this->findById($activityId);
+    }
+
+    public function registrationTimelineFor(string $studentId): array
+    {
+        return $this->registrationsFor($studentId);
     }
 
     private function normalizeActivity(array $activity): array

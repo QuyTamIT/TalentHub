@@ -36,6 +36,7 @@ final class DatabaseActivityCommandRepository implements ActivityCommandReposito
             if ($activity === null) {
                 throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động đang nhận đăng ký.');
             }
+            $this->assertStudentCanJoinActivity($studentId, (string) ($activity['schoolId'] ?? ''));
             $this->assertRegistrationWindow($activity, $now);
 
             if ($this->registrationExists($activityId, $studentId)) {
@@ -217,7 +218,7 @@ final class DatabaseActivityCommandRepository implements ActivityCommandReposito
     {
         $lock = $this->lockSuffix();
         $statement = $this->pdo->prepare(<<<SQL
-            SELECT activity.id, activity.title, activity.startAt, activity.endAt, activity.capacity, activity.status,
+            SELECT activity.id, {$this->activitySchoolIdSelect()} activity.title, activity.startAt, activity.endAt, activity.capacity, activity.status,
                    policy.registrationOpensAt, COALESCE(policy.registrationClosesAt, activity.startAt) registrationClosesAt,
                    COALESCE(policy.cancellationClosesAt, activity.startAt) cancellationClosesAt,
                    COALESCE(policy.approvalMode, 'automatic') approvalMode
@@ -244,9 +245,83 @@ final class DatabaseActivityCommandRepository implements ActivityCommandReposito
         $opens = is_string($opensRaw) && $opensRaw !== ''
             ? new DateTimeImmutable($opensRaw, new DateTimeZone('UTC'))
             : null;
-        if (($opens !== null && $now < $opens) || $now > $closes) {
+        if (($opens !== null && $now < $opens) || $now >= $closes) {
             throw new ApiException(422, 'REGISTRATION_CLOSED', 'Hoạt động nằm ngoài thời gian đăng ký.');
         }
+    }
+
+    private function assertStudentCanJoinActivity(string $studentId, string $activitySchoolId): void
+    {
+        // Only legacy SQLite fixtures may predate school ownership. Any other
+        // database must fail closed before a write if its scope joins are unavailable.
+        if ($this->isSqlite() && $this->hasLegacySqliteSchoolScopeFallback()) {
+            return;
+        }
+
+        if (!$this->hasSchoolScopeSchema()) {
+            throw new ApiException(
+                503,
+                'ACTIVITY_SCHOOL_SCOPE_UNAVAILABLE',
+                'Không thể xác minh phạm vi trường của hoạt động.'
+            );
+        }
+        $statement = $this->pdo->prepare(
+            'SELECT classroom.schoolId
+             FROM student_profiles student
+             INNER JOIN classes classroom ON classroom.id = student.classId
+             WHERE student.id = :studentId
+             LIMIT 1' . $this->lockSuffix()
+        );
+        $statement->execute(['studentId' => $studentId]);
+        $studentSchoolId = $statement->fetchColumn();
+        if (!is_string($studentSchoolId) || $activitySchoolId === '' || !hash_equals($studentSchoolId, $activitySchoolId)) {
+            throw new ApiException(403, 'ACTIVITY_SCHOOL_SCOPE_DENIED', 'Bạn chỉ được đăng ký hoạt động của trường mình.');
+        }
+    }
+
+    private function activitySchoolIdSelect(): string
+    {
+        return $this->hasColumn('activities', 'schoolId') ? 'activity.schoolId,' : 'NULL AS schoolId,';
+    }
+
+    private function hasSchoolScopeSchema(): bool
+    {
+        return $this->hasTable('classes')
+            && $this->hasColumn('student_profiles', 'classId')
+            && $this->hasColumn('classes', 'schoolId')
+            && $this->hasColumn('activities', 'schoolId');
+    }
+
+    private function hasLegacySqliteSchoolScopeFallback(): bool
+    {
+        return !$this->hasTable('classes')
+            && !$this->hasColumn('student_profiles', 'classId')
+            && !$this->hasColumn('activities', 'schoolId');
+    }
+
+    private function hasTable(string $table): bool
+    {
+        $statement = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite'
+            ? $this->pdo->prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=:table")
+            : $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=:table');
+        $statement->execute(['table' => $table]);
+        return (int) $statement->fetchColumn() === 1;
+    }
+
+    private function hasColumn(string $table, string $column): bool
+    {
+        if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $statement = $this->pdo->query('PRAGMA table_info(' . $table . ')');
+            foreach ($statement ? $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {
+                if (($row['name'] ?? null) === $column) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=:table AND column_name=:column');
+        $statement->execute(['table' => $table, 'column' => $column]);
+        return (int) $statement->fetchColumn() === 1;
     }
 
     private function registrationExists(string $activityId, string $studentId): bool
@@ -400,6 +475,11 @@ final class DatabaseActivityCommandRepository implements ActivityCommandReposito
     private function timestamp(DateTimeImmutable $value): string
     {
         return $value->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u');
+    }
+
+    private function isSqlite(): bool
+    {
+        return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite';
     }
 
     private function lockSuffix(): string

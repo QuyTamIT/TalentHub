@@ -11,6 +11,7 @@
         '/app/learner/assessment-result.php',
         '/app/learner/ecosystem.php',
         '/app/learner/badges.php',
+        '/app/learner/activity-history.php',
     ];
 
     function isSafeDeepLink(url) {
@@ -27,6 +28,24 @@
             emailEnabled: value && value.emailEnabled === true,
             updatedAt: value && typeof value.updatedAt === 'string' ? value.updatedAt : null,
         }));
+    }
+
+    function preferenceLabel(type) {
+        const labels = {
+            activity_registration_created: 'Đăng ký hoạt động',
+            activity_registration_cancelled: 'Hủy đăng ký hoạt động',
+            activity_registration_promoted: 'Được chuyển khỏi danh sách chờ',
+            activity_registration_approved: 'Đăng ký được phê duyệt',
+            activity_registration_rejected: 'Đăng ký bị từ chối',
+            activity_checkin_committed: 'Check-in và giờ trải nghiệm',
+            activity_attendance_no_show: 'Thông báo hoạt động không tham gia',
+            assessment_submitted: 'Nộp bài đánh giá năng lực',
+            internship_application_submitted: 'Nộp hồ sơ thực tập',
+            internship_application_withdrawn: 'Rút hồ sơ thực tập',
+            internship_application_status_changed: 'Trạng thái hồ sơ thực tập',
+            badge_awarded: 'Huy hiệu được trao',
+        };
+        return labels[type] || type;
     }
 
     function buildNotificationQuery(filter = 'all', limit = 25, offset = 0) {
@@ -449,20 +468,7 @@
         }
 
         preferenceLabel(type) {
-            const labels = {
-                activity_registration_created: 'Đăng ký hoạt động',
-                activity_registration_cancelled: 'Hủy đăng ký hoạt động',
-                activity_registration_promoted: 'Được chuyển khỏi danh sách chờ',
-                activity_registration_approved: 'Đăng ký được phê duyệt',
-                activity_registration_rejected: 'Đăng ký bị từ chối',
-                activity_checkin_committed: 'Check-in và giờ trải nghiệm',
-                assessment_submitted: 'Nộp bài đánh giá năng lực',
-                internship_application_submitted: 'Nộp hồ sơ thực tập',
-                internship_application_withdrawn: 'Rút hồ sơ thực tập',
-                internship_application_status_changed: 'Trạng thái hồ sơ thực tập',
-                badge_awarded: 'Huy hiệu được trao',
-            };
-            return labels[type] || type;
+            return preferenceLabel(type);
         }
 
         async persistPreference(notificationType, inApp, email, changedInput) {
@@ -501,6 +507,7 @@
             apiRequest,
             el,
             formatTime,
+            preferenceLabel,
             LearnerNotificationManager,
         };
     } else {

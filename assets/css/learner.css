@@ -904,6 +904,14 @@
     line-height: 1.4;
 }
 
+.learner-activity-card__cover {
+    width: calc(100% + 32px);
+    height: 132px;
+    margin: -14px -16px 14px;
+    object-fit: cover;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
 .learner-activity-card p {
     margin: 4px 0 13px;
     color: var(--text-secondary);

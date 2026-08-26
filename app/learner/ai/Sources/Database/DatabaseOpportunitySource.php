@@ -22,10 +22,9 @@ final class DatabaseOpportunitySource implements OpportunitySource
         'student_profiles' => ['id', 'classId'],
         'classes' => ['id', 'schoolId'],
         'schools' => ['id', 'name'],
-        'activities' => ['id', 'schoolId', 'title', 'category', 'startAt', 'capacity', 'status'],
-    ];
-
-    private const REQUIRED_REGISTRATION_COLUMNS = [
+        'activities' => ['id', 'schoolId', 'title', 'category', 'startAt', 'endAt', 'capacity', 'status'],
+        'activity_details' => ['activityId', 'audienceScope', 'filterCategory', 'locationName'],
+        'activity_registration_policies' => ['activityId', 'registrationOpensAt', 'registrationClosesAt'],
         'activity_registrations' => ['id', 'activityId', 'studentId', 'status'],
     ];
 
@@ -80,36 +79,24 @@ SELECT
     activity.id AS opportunity_id,
     activity.title,
     activity.category,
-    school.name AS location,
-    COALESCE(activity.endAt, activity.startAt) AS deadline,
+    details.locationName AS location,
+    policy.registrationClosesAt AS deadline,
     activity.status
 FROM activities activity
 INNER JOIN schools school ON school.id = activity.schoolId
 INNER JOIN classes class ON class.schoolId = school.id
 INNER JOIN student_profiles student ON student.classId = class.id
+INNER JOIN activity_details details ON details.activityId = activity.id
+INNER JOIN activity_registration_policies policy ON policy.activityId = activity.id
 WHERE student.id = :student_id
-  AND activity.status IN ('published', 'ongoing')
-  AND (activity.endAt IS NULL OR activity.endAt >= :current_time)
-  AND (SELECT COUNT(1) FROM activity_registrations reg WHERE reg.activityId = activity.id AND reg.status IN ('pending', 'approved', 'attended')) < activity.capacity
-  AND NOT EXISTS (SELECT 1 FROM activity_registrations reg WHERE reg.activityId = activity.id AND reg.studentId = :reg_student_id AND reg.status IN ('pending', 'approved', 'attended'))
-ORDER BY activity.startAt ASC, activity.id ASC
-SQL;
-
-    private const ACTIVITY_SQL_SIMPLE = <<<'SQL'
-SELECT
-    activity.id AS opportunity_id,
-    activity.title,
-    activity.category,
-    school.name AS location,
-    COALESCE(activity.endAt, activity.startAt) AS deadline,
-    activity.status
-FROM activities activity
-INNER JOIN schools school ON school.id = activity.schoolId
-INNER JOIN classes class ON class.schoolId = school.id
-INNER JOIN student_profiles student ON student.classId = class.id
-WHERE student.id = :student_id
-  AND activity.status IN ('published', 'ongoing')
-  AND (activity.endAt IS NULL OR activity.endAt >= :current_time)
+  AND activity.status = 'published'
+  AND details.audienceScope = 'school_only'
+  AND policy.registrationOpensAt <= :registration_opened_at
+  AND :registration_closes_at < policy.registrationClosesAt
+  AND :activity_starts_at < activity.startAt
+  AND :activity_ends_at < COALESCE(activity.endAt, activity.startAt)
+  AND (SELECT COUNT(1) FROM activity_registrations reg WHERE reg.activityId = activity.id AND reg.status IN ('approved', 'attended')) < activity.capacity
+  AND NOT EXISTS (SELECT 1 FROM activity_registrations reg WHERE reg.activityId = activity.id AND reg.studentId = :reg_student_id AND reg.status IN ('pending', 'approved', 'waitlisted', 'attended'))
 ORDER BY activity.startAt ASC, activity.id ASC
 SQL;
 
@@ -171,13 +158,15 @@ SQL;
         if ($this->hasActivityContract()) {
             try {
                 $currentTime = $this->clock->format('Y-m-d H:i:s');
-                $hasReg = $this->hasRegistrationsContract();
-                $sql = $hasReg ? self::ACTIVITY_SQL_WITH_REGISTRATIONS : self::ACTIVITY_SQL_SIMPLE;
-                $params = ['student_id' => $studentId, 'current_time' => $currentTime];
-                if ($hasReg) {
-                    $params['reg_student_id'] = $studentId;
-                }
-                $statement = $this->pdo->prepare($sql);
+                $statement = $this->pdo->prepare(self::ACTIVITY_SQL_WITH_REGISTRATIONS);
+                $params = [
+                    'student_id' => $studentId,
+                    'registration_opened_at' => $currentTime,
+                    'registration_closes_at' => $currentTime,
+                    'activity_starts_at' => $currentTime,
+                    'activity_ends_at' => $currentTime,
+                    'reg_student_id' => $studentId,
+                ];
                 if ($statement !== false && $statement->execute($params)) {
                     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
                         $deadline = self::timestamp($row['deadline'] ?? null);
@@ -224,17 +213,6 @@ SQL;
     private function hasActivityContract(): bool
     {
         foreach (self::REQUIRED_ACTIVITY_COLUMNS as $table => $requiredColumns) {
-            if (array_diff($requiredColumns, $this->columnsFor($table)) !== []) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private function hasRegistrationsContract(): bool
-    {
-        foreach (self::REQUIRED_REGISTRATION_COLUMNS as $table => $requiredColumns) {
             if (array_diff($requiredColumns, $this->columnsFor($table)) !== []) {
                 return false;
             }

@@ -2,6 +2,7 @@
 /** TalentHub Learner - Overview */
 require __DIR__ . '/includes/student-data.php';
 require_once __DIR__ . '/includes/icons.php';
+require_once __DIR__ . '/includes/activity-data.php';
 
 $pageTitle = 'Tổng quan';
 $currentRoute = '/app/learner/index.php';
@@ -9,6 +10,34 @@ $dashboardSkills = array_slice($skills, 0, 4);
 $onboarding = $GLOBALS['learner_page_context']['onboarding'] ?? ['required' => false];
 $onboardingPending = ($onboarding['required'] ?? false) === true
     && ($onboarding['status'] ?? '') === 'pending';
+$dashboardOpenActivities = ($isDatabaseMode ?? false)
+    ? array_slice(learner_activity_catalog(), 0, 3)
+    : $activities;
+$dashboardConfirmedActivities = ($isDatabaseMode ?? false) ? $activities : [];
+$dashboardActivityDate = static function (mixed $value): string {
+    try {
+        return (new DateTimeImmutable((string) $value, new DateTimeZone('UTC')))->format('d/m/Y');
+    } catch (Throwable) {
+        return 'Chưa cập nhật';
+    }
+};
+$dashboardActivityCover = static function (mixed $value): string {
+    $cover = trim((string) $value);
+    if ($cover === '' || str_contains($cover, '..')) {
+        return 'assets/activities/illustrations/hero-detail.svg';
+    }
+    return preg_match('#\A(?:/app/learner/)?assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg)\z#i', $cover) === 1
+        ? $cover
+        : 'assets/activities/illustrations/hero-detail.svg';
+};
+$dashboardActivityCategory = static function (array $activity): string {
+    foreach (['display_category', 'filter_category'] as $field) {
+        $label = trim((string) ($activity[$field] ?? ''));
+        if ($label !== '') return $label;
+    }
+    $canonical = trim((string) ($activity['canonical_category'] ?? $activity['category'] ?? ''));
+    return learner_activity_category_label($canonical);
+};
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -136,23 +165,63 @@ $onboardingPending = ($onboarding['required'] ?? false) === true
 
                 <section class="learner-card learner-activities" aria-labelledby="activities-title">
                     <div class="learner-section-heading">
-                        <h2 id="activities-title"><?= ($isDatabaseMode ?? false) ? 'Hoạt động đã xác nhận' : 'Hoạt động sắp diễn ra'; ?></h2>
+                        <h2 id="activities-title"><?= ($isDatabaseMode ?? false) ? 'Hoạt động đang mở cho bạn' : 'Hoạt động sắp diễn ra'; ?></h2>
                         <a href="./activities.php">Tất cả hoạt động</a>
                     </div>
                     <div class="learner-activity-grid">
-                        <?php if ($activities === []): ?>
-                            <p class="learner-empty-state">Chưa có hoạt động đã xác nhận.</p>
+                        <?php if ($dashboardOpenActivities === []): ?>
+                            <p class="learner-empty-state"><?= ($isDatabaseMode ?? false) ? 'Chưa có hoạt động đang mở phù hợp.' : 'Chưa có hoạt động sắp diễn ra.'; ?></p>
                         <?php endif; ?>
-                        <?php foreach ($activities as $activity): ?>
+                        <?php foreach ($dashboardOpenActivities as $activity): ?>
+                            <?php
+                            $activityId = (string) ($activity['route_id'] ?? $activity['id'] ?? '');
+                            $activityCover = $dashboardActivityCover($activity['cover_image_url'] ?? '');
+                            $activityCategory = $dashboardActivityCategory($activity);
+                            $activityStart = ($isDatabaseMode ?? false)
+                                ? $dashboardActivityDate($activity['start_at'] ?? null)
+                                : (string) ($activity['time'] ?? 'Chưa cập nhật');
+                            ?>
                             <article class="learner-activity-card">
-                                <span class="learner-badge learner-badge--<?= learner_escape($activity['tone']); ?>"><?= learner_escape($activity['category']); ?></span>
-                                <h3><?= learner_escape($activity['title']); ?></h3>
-                                <p><?= learner_escape($activity['time']); ?> <span aria-hidden="true">•</span> <?= learner_escape($activity['location']); ?></p>
-                                <a class="learner-btn learner-btn--outline learner-btn--block" href="activities.php">Xem chi tiết</a>
+                                <?php if ($isDatabaseMode ?? false): ?>
+                                    <img class="learner-activity-card__cover" src="<?= learner_escape($activityCover); ?>" alt="<?= learner_escape($activity['cover_image_alt'] ?? $activity['title'] ?? 'Ảnh hoạt động'); ?>" loading="lazy" width="480" height="270">
+                                <?php endif; ?>
+                                <span class="learner-badge learner-badge--<?= learner_escape($activity['tone'] ?? 'neutral'); ?>"><?= learner_escape($activityCategory); ?></span>
+                                <h3><?= learner_escape($activity['title'] ?? 'Hoạt động TalentHub'); ?></h3>
+                                <p><?= learner_escape($activityStart); ?> <span aria-hidden="true">•</span> <?= learner_escape($activity['location'] ?? 'Chưa cập nhật'); ?></p>
+                                <a class="learner-btn learner-btn--outline learner-btn--block" href="<?= ($isDatabaseMode ?? false) ? 'activity-detail.php?id=' . rawurlencode($activityId) : 'activities.php'; ?>">Xem chi tiết</a>
                             </article>
                         <?php endforeach; ?>
                     </div>
                 </section>
+
+                <?php if ($isDatabaseMode ?? false): ?>
+                    <section class="learner-card learner-activities" aria-labelledby="confirmed-activities-title">
+                        <div class="learner-section-heading">
+                            <h2 id="confirmed-activities-title">Hoạt động đã xác nhận</h2>
+                            <a href="activity-history.php">Xem lịch sử</a>
+                        </div>
+                        <div class="learner-activity-grid">
+                            <?php if ($dashboardConfirmedActivities === []): ?>
+                                <p class="learner-empty-state">Chưa có hoạt động đã xác nhận.</p>
+                            <?php endif; ?>
+                            <?php foreach ($dashboardConfirmedActivities as $activity): ?>
+                                <?php
+                                $confirmedCover = $dashboardActivityCover($activity['cover_image_url'] ?? '');
+                                $confirmedAlt = trim((string) ($activity['cover_image_alt'] ?? '')) ?: 'Ảnh hoạt động ' . (string) ($activity['title'] ?? 'đã xác nhận');
+                                $confirmedDate = $dashboardActivityDate($activity['start_at'] ?? null);
+                                $confirmedLocation = trim((string) ($activity['location'] ?? '')) ?: 'Chưa cập nhật';
+                                ?>
+                                <article class="learner-activity-card">
+                                    <img class="learner-activity-card__cover" src="<?= learner_escape($confirmedCover); ?>" alt="<?= learner_escape($confirmedAlt); ?>" loading="lazy" width="480" height="270">
+                                    <span class="learner-badge learner-badge--<?= learner_escape($activity['tone'] ?? 'neutral'); ?>"><?= learner_escape($dashboardActivityCategory($activity)); ?></span>
+                                    <h3><?= learner_escape($activity['title'] ?? 'Hoạt động đã xác nhận'); ?></h3>
+                                    <p><?= learner_escape($confirmedDate); ?> <span aria-hidden="true">•</span> <?= learner_escape($confirmedLocation); ?></p>
+                                    <a class="learner-btn learner-btn--outline learner-btn--block" href="activity-detail.php?id=<?= rawurlencode((string) ($activity['id'] ?? '')); ?>">Xem chi tiết</a>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                    </section>
+                <?php endif; ?>
             </main>
         </div>
     </div>

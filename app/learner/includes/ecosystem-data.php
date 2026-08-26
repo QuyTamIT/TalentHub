@@ -541,24 +541,18 @@ if (!function_exists('learner_ecosystem_school_activities')) {
         }
 
         $activities = \TalentHub\Learner\Data\ReadModel\ActivityReadModel::activities(
-            $factory->activity()->all()
-        );
-        $visibleSchoolIds = array_fill_keys(
-            array_map(
-                static fn (array $school): string => (string) ($school['id'] ?? ''),
-                $factory->ecosystem()->partners('school')
-            ),
-            true
+            $factory->activity()->discoverForStudent(
+                learner_current_student_id(),
+                new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+            )
         );
 
         return array_values(array_filter(
             $activities,
-            static function (array $activity) use ($schoolId, $visibleSchoolIds): bool {
+            static function (array $activity) use ($schoolId): bool {
                 $activitySchoolId = (string) ($activity['school_id'] ?? '');
 
-                return isset($visibleSchoolIds[$activitySchoolId])
-                    && in_array((string) ($activity['status'] ?? ''), ['published', 'ongoing'], true)
-                    && ($schoolId === null || $activitySchoolId === $schoolId);
+                return $schoolId === null || $activitySchoolId === $schoolId;
             }
         ));
     }

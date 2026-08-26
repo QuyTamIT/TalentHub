@@ -28,9 +28,10 @@ INNER JOIN activities activity ON activity.id = experience.activityId
 WHERE experience.studentId = :student_id
   AND experience.status = 'confirmed'
   AND experience.confirmedAt IS NOT NULL
+  AND registration.status = 'attended'
   AND checkin_record.status = 'confirmed'
   AND checkin_record.confirmedAt IS NOT NULL
-  AND activity.status IN ('published', 'active', 'completed')
+  AND activity.status IN ('published', 'ongoing', 'completed')
 ORDER BY experience.confirmedAt DESC, experience.id DESC
 SQL;
 

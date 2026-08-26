@@ -18,9 +18,18 @@ final class DatabaseStatisticsRepository extends AbstractDatabaseRepository impl
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
 
         $hoursSql = <<<'SQL'
-            SELECT COALESCE(SUM(hours), 0) AS total_hours
-            FROM experience_logs
-            WHERE studentId = :student_id AND status = 'confirmed'
+            SELECT COALESCE(SUM(el.hours), 0) AS total_hours
+            FROM experience_logs el
+            INNER JOIN checkins c ON c.id = el.checkinId
+                AND c.status = 'confirmed'
+                AND c.confirmedAt IS NOT NULL
+            INNER JOIN activity_registrations ar ON ar.id = c.registrationId
+                AND ar.studentId = el.studentId
+                AND ar.activityId = el.activityId
+                AND ar.status = 'attended'
+            WHERE el.studentId = :student_id
+              AND el.status = 'confirmed'
+              AND el.confirmedAt IS NOT NULL
         SQL;
         $hoursRow = $this->fetchOne('lifetimeExperienceHours', $hoursSql, ['student_id' => $studentId]);
 
@@ -31,6 +40,7 @@ final class DatabaseStatisticsRepository extends AbstractDatabaseRepository impl
             WHERE ar.studentId = :student_id
               AND ar.status = 'attended'
               AND c.status = 'confirmed'
+              AND c.confirmedAt IS NOT NULL
         SQL;
         $attendedRow = $this->fetchOne('lifetimeAttendedActivities', $attendedSql, ['student_id' => $studentId]);
 
@@ -72,12 +82,20 @@ final class DatabaseStatisticsRepository extends AbstractDatabaseRepository impl
         ];
 
         $hoursSql = <<<'SQL'
-            SELECT COALESCE(SUM(hours), 0) AS total_hours
-            FROM experience_logs
-            WHERE studentId = :student_id
-              AND status = 'confirmed'
-              AND confirmedAt >= :from_time
-              AND confirmedAt < :to_time
+            SELECT COALESCE(SUM(el.hours), 0) AS total_hours
+            FROM experience_logs el
+            INNER JOIN checkins c ON c.id = el.checkinId
+                AND c.status = 'confirmed'
+                AND c.confirmedAt IS NOT NULL
+            INNER JOIN activity_registrations ar ON ar.id = c.registrationId
+                AND ar.studentId = el.studentId
+                AND ar.activityId = el.activityId
+                AND ar.status = 'attended'
+            WHERE el.studentId = :student_id
+              AND el.status = 'confirmed'
+              AND el.confirmedAt IS NOT NULL
+              AND el.confirmedAt >= :from_time
+              AND el.confirmedAt < :to_time
         SQL;
         $hoursRow = $this->fetchOne('periodHours', $hoursSql, $params);
 
@@ -88,6 +106,7 @@ final class DatabaseStatisticsRepository extends AbstractDatabaseRepository impl
             WHERE ar.studentId = :student_id
               AND ar.status = 'attended'
               AND c.status = 'confirmed'
+              AND c.confirmedAt IS NOT NULL
               AND c.confirmedAt >= :from_time
               AND c.confirmedAt < :to_time
         SQL;
@@ -130,13 +149,21 @@ final class DatabaseStatisticsRepository extends AbstractDatabaseRepository impl
 
         // Daily buckets
         $dailyBucketsSql = <<<'SQL'
-            SELECT DATE(confirmedAt) AS log_date, COALESCE(SUM(hours), 0) AS daily_hours
-            FROM experience_logs
-            WHERE studentId = :student_id
-              AND status = 'confirmed'
-              AND confirmedAt >= :from_time
-              AND confirmedAt < :to_time
-            GROUP BY DATE(confirmedAt)
+            SELECT DATE(el.confirmedAt) AS log_date, COALESCE(SUM(el.hours), 0) AS daily_hours
+            FROM experience_logs el
+            INNER JOIN checkins c ON c.id = el.checkinId
+                AND c.status = 'confirmed'
+                AND c.confirmedAt IS NOT NULL
+            INNER JOIN activity_registrations ar ON ar.id = c.registrationId
+                AND ar.studentId = el.studentId
+                AND ar.activityId = el.activityId
+                AND ar.status = 'attended'
+            WHERE el.studentId = :student_id
+              AND el.status = 'confirmed'
+              AND el.confirmedAt IS NOT NULL
+              AND el.confirmedAt >= :from_time
+              AND el.confirmedAt < :to_time
+            GROUP BY DATE(el.confirmedAt)
         SQL;
         $dailyRows = $this->fetchAll('periodDailyBuckets', $dailyBucketsSql, $params);
         $dailyMap = [];
@@ -163,9 +190,17 @@ final class DatabaseStatisticsRepository extends AbstractDatabaseRepository impl
         $catSql = <<<'SQL'
             SELECT a.category, COALESCE(SUM(el.hours), 0) AS category_hours
             FROM experience_logs el
+            INNER JOIN checkins c ON c.id = el.checkinId
+                AND c.status = 'confirmed'
+                AND c.confirmedAt IS NOT NULL
+            INNER JOIN activity_registrations ar ON ar.id = c.registrationId
+                AND ar.studentId = el.studentId
+                AND ar.activityId = el.activityId
+                AND ar.status = 'attended'
             INNER JOIN activities a ON a.id = el.activityId
             WHERE el.studentId = :student_id
               AND el.status = 'confirmed'
+              AND el.confirmedAt IS NOT NULL
               AND el.confirmedAt >= :from_time
               AND el.confirmedAt < :to_time
             GROUP BY a.category

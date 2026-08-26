@@ -24,6 +24,7 @@
         '/app/learner/assessment-result.php',
         '/app/learner/activity-detail.php',
         '/app/learner/my-activities.php',
+        '/app/learner/activity-history.php',
     ]);
 
     function validateProfile(data) {

@@ -252,14 +252,33 @@ $activityCatalog = [
 $activities = array_slice($activityCatalog, 0, 3);
 if ($isDatabaseMode) {
     $activities = array_map(
-        static fn (array $entry): array => [
-            'id' => (string) ($entry['activity_id'] ?? ''),
-            'category' => (string) ($entry['activity_category'] ?? 'Chưa phân loại'),
-            'tone' => 'neutral',
-            'title' => (string) ($entry['activity_title'] ?? 'Hoạt động đã xác nhận'),
-            'time' => (string) ($entry['confirmed_at'] ?? 'Đã xác nhận'),
-            'location' => 'Địa điểm chưa có dữ liệu',
-        ],
+        static function (array $entry): array {
+            $title = trim((string) ($entry['activity_title'] ?? '')) ?: 'Hoạt động đã xác nhận';
+            $displayCategory = trim((string) ($entry['display_category'] ?? ''));
+            $canonicalCategory = trim((string) ($entry['activity_category'] ?? ''));
+            $category = $displayCategory !== ''
+                ? $displayCategory
+                : learner_activity_category_label($canonicalCategory);
+            $location = trim((string) ($entry['location_name'] ?? '')) ?: 'Chưa cập nhật';
+            $cover = trim((string) ($entry['cover_image_url'] ?? ''));
+            if (str_contains($cover, '..') || preg_match('#\A(?:/app/learner/)?assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg)\z#i', $cover) !== 1) {
+                $cover = 'assets/activities/illustrations/hero-detail.svg';
+            }
+            $coverAlt = trim((string) ($entry['cover_image_alt'] ?? '')) ?: 'Ảnh hoạt động ' . $title;
+
+            return [
+                'id' => (string) ($entry['activity_id'] ?? ''),
+                'category' => $category,
+                'canonical_category' => $canonicalCategory,
+                'tone' => 'neutral',
+                'title' => $title,
+                'start_at' => $entry['activity_start_at'] ?? null,
+                'time' => $entry['activity_start_at'] ?? null,
+                'location' => $location,
+                'cover_image_url' => $cover,
+                'cover_image_alt' => $coverAlt,
+            ];
+        },
         array_slice($tp['experience']['confirmed_entries'] ?? [], 0, 3)
     );
 }
