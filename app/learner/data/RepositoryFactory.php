@@ -19,6 +19,7 @@ use TalentHub\Learner\Data\Contracts\BadgeRepository;
 use TalentHub\Learner\Data\Contracts\EcosystemRepository;
 use TalentHub\Learner\Data\Contracts\NotificationRepository;
 use TalentHub\Learner\Data\Contracts\StatisticsRepository;
+use TalentHub\Learner\Data\Contracts\SchoolCredentialRepository;
 use TalentHub\Learner\Data\Contracts\StudentRepository;
 use TalentHub\Learner\Data\Contracts\TalentPassportRepository;
 use TalentHub\Learner\Data\Exceptions\LearnerDataConfigurationException;
@@ -191,6 +192,27 @@ final class RepositoryFactory
             $this->badge(),
             $this->statistics(),
             new Service\BadgeRuleEngine()
+        );
+    }
+
+    public function schoolCredential(): SchoolCredentialRepository
+    {
+        if ($this->source !== 'database') {
+            throw new LearnerDataConfigurationException(
+                'School credential catalog requires the canonical learner database source.'
+            );
+        }
+
+        return new Database\DatabaseSchoolCredentialRepository($this->pdo);
+    }
+
+    public function schoolCredentialService(): Service\SchoolCredentialService
+    {
+        return new Service\SchoolCredentialService(
+            $this->schoolCredential(),
+            $this->statistics(),
+            $this->badge(),
+            new Service\CredentialRecommendationMatcher()
         );
     }
 }

@@ -17,6 +17,13 @@ interface BadgeRepository
     public function activeRules(): array;
 
     /**
+     * Returns global rules plus rules owned by the student's school.
+     *
+     * @return list<array{badge:array<string,mixed>,rule:array<string,mixed>}>
+     */
+    public function activeRulesForStudent(string $studentId): array;
+
+    /**
      * @return list<array{
      *     id: string,
      *     code: string,

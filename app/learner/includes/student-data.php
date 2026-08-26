@@ -238,6 +238,44 @@ if ($isDatabaseMode) {
     ];
 }
 
+$schoolCredentialError = false;
+$schoolCredentialData = [
+    'ready' => false,
+    'analysis_completed' => false,
+    'completed_test_count' => 0,
+    'required_test_count' => 4,
+    'school' => null,
+    'featured' => [],
+    'badges' => [],
+    'certificates' => [],
+];
+if ($isDatabaseMode) {
+    try {
+        $schoolCredentialData = learner_repository_factory()
+            ->schoolCredentialService()
+            ->forStudent($authenticatedStudentId);
+    } catch (Throwable) {
+        $schoolCredentialError = true;
+    }
+} else {
+    $schoolCredentialData = [
+        'ready' => true,
+        'analysis_completed' => true,
+        'completed_test_count' => 4,
+        'required_test_count' => 4,
+        'school' => ['id' => 'school-demo-nguyen-du', 'name' => $studentMock['school']],
+        'featured' => [
+            ['kind' => 'badge', 'id' => 'demo-badge-complete', 'code' => 'profile_complete', 'name' => 'Hồ sơ năng lực hoàn chỉnh', 'description' => 'Hoàn thành đủ bốn bài đánh giá năng lực.', 'issuer_name' => $studentMock['school'], 'icon_key' => 'clipboard', 'status' => 'achieved', 'status_label' => 'Đã đạt', 'match_score' => 100, 'reason' => 'Bạn đã hoàn thành Holland, MBTI, DISC và Đa trí thông minh.', 'progress_percent' => 100, 'current' => 4, 'target' => 4, 'awarded_at' => '2026-08-26 00:00:00', 'issued_at' => null, 'criteria' => []],
+            ['kind' => 'badge', 'id' => 'demo-badge-analytical', 'code' => 'analytical_thinker', 'name' => 'Nhà tư duy phân tích', 'description' => 'Phát triển tư duy logic và khả năng nghiên cứu.', 'issuer_name' => $studentMock['school'], 'icon_key' => 'award', 'status' => 'recommended', 'status_label' => 'AI gợi ý', 'match_score' => 89, 'reason' => 'Phù hợp với sở thích nghề nghiệp và năng lực nổi trội của bạn.', 'progress_percent' => 89, 'current' => 0, 'target' => 0, 'awarded_at' => null, 'issued_at' => null, 'criteria' => []],
+            ['kind' => 'certificate', 'id' => 'demo-cert-project', 'code' => 'applied_project', 'name' => 'Thực hành dự án ứng dụng', 'description' => 'Áp dụng năng lực vào một dự án thực tế được nhà trường xác nhận.', 'issuer_name' => $studentMock['school'], 'icon_key' => 'graduation-cap', 'status' => 'recommended', 'status_label' => 'AI gợi ý', 'match_score' => 84, 'reason' => 'Phù hợp với tư duy logic và kỹ năng giải quyết vấn đề của bạn.', 'progress_percent' => 72, 'current' => 4, 'target' => 10, 'awarded_at' => null, 'issued_at' => null, 'criteria' => []],
+        ],
+        'badges' => [],
+        'certificates' => [],
+    ];
+    $schoolCredentialData['badges'] = array_values(array_filter($schoolCredentialData['featured'], static fn (array $item): bool => $item['kind'] === 'badge'));
+    $schoolCredentialData['certificates'] = array_values(array_filter($schoolCredentialData['featured'], static fn (array $item): bool => $item['kind'] === 'certificate'));
+}
+
 $activityCategories = ['Tất cả', 'Kỹ thuật', 'Kinh doanh', 'Sáng tạo', 'Cộng đồng'];
 
 $activityCatalog = [

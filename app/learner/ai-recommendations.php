@@ -62,6 +62,18 @@ $currentRoute = '/app/learner/ai-recommendations.php';
                         </section>
                         <aside class="learner-card learner-roadmap-next" aria-labelledby="roadmap-next-title"><h2 id="roadmap-next-title">Việc nên làm tiếp theo</h2><div class="learner-roadmap-next__list" data-roadmap-next-actions></div><button class="learner-btn learner-btn--primary" type="button" data-roadmap-continue>Tiếp tục lộ trình</button></aside>
                     </div>
+                    <section class="learner-card learner-school-credential-section learner-school-credential-section--roadmap" aria-labelledby="roadmap-credentials-title">
+                        <div class="learner-school-credential-heading">
+                            <div><span class="learner-school-credential-heading__eyebrow"><?= learner_icon('sparkles', 17); ?> AI đối chiếu bộ thành tích của trường</span><h2 id="roadmap-credentials-title">Huy hiệu &amp; chứng chỉ phù hợp</h2><p>Các gợi ý chỉ lấy từ danh mục chính thức của <?= learner_escape($schoolCredentialData['school']['name'] ?? 'nhà trường'); ?>.</p></div>
+                            <a href="badges.php">Xem toàn bộ <?= learner_icon('arrow-right', 16); ?></a>
+                        </div>
+                        <?php
+                        $credentialItems = $schoolCredentialData['featured'] ?? [];
+                        $credentialCompact = true;
+                        include __DIR__ . '/includes/school-credential-grid.php';
+                        unset($credentialItems, $credentialCompact);
+                        ?>
+                    </section>
                     <section class="learner-card learner-roadmap-activities" aria-labelledby="roadmap-activities-title"><div class="learner-roadmap-section-heading"><div><span>Gợi ý theo lộ trình</span><h2 id="roadmap-activities-title">Hoạt động phù hợp với bạn</h2></div></div><div class="learner-roadmap-activities__list" data-roadmap-activities></div></section>
                     <div class="learner-roadmap__details">
                         <details class="learner-card learner-roadmap-disclosure" data-roadmap-evidence><summary>Dữ liệu AI đã sử dụng</summary><div data-roadmap-evidence-content></div></details>

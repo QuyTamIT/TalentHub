@@ -152,9 +152,19 @@ $dashboardActivityCategory = static function (array $activity): string {
                             <span>AI gợi ý cho bạn</span>
                         </div>
                         <?php if ($isDatabaseMode ?? false): ?>
-                            <h2 id="ai-title">Gợi ý AI chưa có dữ liệu</h2>
-                            <p>Kết quả chỉ hiển thị khi dữ liệu đã được xác minh và chính sách hiển thị AI cho phép.</p>
-                            <a class="learner-btn learner-btn--outline" href="ai-recommendations.php">Xem trạng thái AI <?= learner_icon('arrow-right', 17); ?></a>
+                            <?php if ($schoolCredentialData['analysis_completed'] ?? false): ?>
+                                <h2 id="ai-title">Đã có lộ trình và thành tích phù hợp</h2>
+                                <p>AI đã đối chiếu bốn bài đánh giá với bộ huy hiệu, chứng chỉ chính thức của trường.</p>
+                                <a class="learner-btn learner-btn--outline" href="ai-recommendations.php">Xem gợi ý của AI <?= learner_icon('arrow-right', 17); ?></a>
+                            <?php elseif ($schoolCredentialData['ready'] ?? false): ?>
+                                <h2 id="ai-title">Bạn đã đủ dữ liệu để AI phân tích</h2>
+                                <p>Bốn bài đánh giá đã hoàn thành. Hãy tạo lộ trình để xem gợi ý cá nhân hóa.</p>
+                                <a class="learner-btn learner-btn--outline" href="ai-recommendations.php">Tạo lộ trình AI <?= learner_icon('arrow-right', 17); ?></a>
+                            <?php else: ?>
+                                <h2 id="ai-title">Hoàn thành bộ 4 bài đánh giá</h2>
+                                <p>Đã hoàn thành <?= learner_escape($schoolCredentialData['completed_test_count'] ?? 0); ?>/4 bài. Kết quả sẽ mở khóa gợi ý thành tích của trường.</p>
+                                <a class="learner-btn learner-btn--outline" href="discover.php">Tiếp tục đánh giá <?= learner_icon('arrow-right', 17); ?></a>
+                            <?php endif; ?>
                         <?php else: ?>
                             <h2 id="ai-title">Năng khiếu nổi bật: IoT &amp; Drone</h2>
                             <p>Khuyến nghị tham gia nhóm nghiên cứu tự động hóa và cuộc thi sáng tạo kỹ thuật trong tháng tới.</p>
@@ -162,6 +172,33 @@ $dashboardActivityCategory = static function (array $activity): string {
                         <?php endif; ?>
                     </aside>
                 </div>
+
+                <section class="learner-card learner-school-credential-section" aria-labelledby="dashboard-school-credential-title">
+                    <div class="learner-school-credential-heading">
+                        <div>
+                            <span class="learner-school-credential-heading__eyebrow"><?= learner_icon('graduation-cap', 17); ?> Thành tích do trường cấp</span>
+                            <h2 id="dashboard-school-credential-title">Huy hiệu &amp; chứng chỉ dành cho bạn</h2>
+                            <p>
+                                <?php if ($schoolCredentialData['ready'] ?? false): ?>
+                                    <?= ($schoolCredentialData['analysis_completed'] ?? false) ? 'AI đã xếp hạng theo bốn bài test, năng lực và kỹ năng của bạn.' : 'Bạn đã đủ bốn bài test; hoàn thành phân tích AI để có lộ trình phát triển.'; ?>
+                                <?php else: ?>
+                                    Hoàn thành <?= learner_escape($schoolCredentialData['completed_test_count'] ?? 0); ?>/4 bài test để mở khóa mức độ phù hợp.
+                                <?php endif; ?>
+                            </p>
+                        </div>
+                        <a href="badges.php">Xem toàn bộ <?= learner_icon('arrow-right', 16); ?></a>
+                    </div>
+                    <?php if ($schoolCredentialError ?? false): ?>
+                        <p class="learner-empty-state">Dữ liệu thành tích của trường tạm thời chưa tải được.</p>
+                    <?php else: ?>
+                        <?php
+                        $credentialItems = $schoolCredentialData['featured'] ?? [];
+                        $credentialCompact = true;
+                        include __DIR__ . '/includes/school-credential-grid.php';
+                        unset($credentialItems, $credentialCompact);
+                        ?>
+                    <?php endif; ?>
+                </section>
 
                 <section class="learner-card learner-activities" aria-labelledby="activities-title">
                     <div class="learner-section-heading">

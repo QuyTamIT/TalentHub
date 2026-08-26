@@ -8,14 +8,45 @@ use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
 use PDOException;
+use RuntimeException;
 use TalentHub\Learner\Data\Contracts\BadgeRepository;
 use TalentHub\Learner\Data\Support\Uuid;
 use Throwable;
 
 final class DatabaseBadgeRepository extends AbstractDatabaseRepository implements BadgeRepository
 {
+    private ?bool $schoolScopeSupported = null;
+
     public function activeRules(): array
     {
+        return $this->fetchActiveRules(null);
+    }
+
+    public function activeRulesForStudent(string $studentId): array
+    {
+        return $this->fetchActiveRules(Uuid::normalizeDatabase($studentId, 'student_id'));
+    }
+
+    /** @return list<array{badge:array<string,mixed>,rule:array<string,mixed>}> */
+    private function fetchActiveRules(?string $studentId): array
+    {
+        $scopeSql = '1 = 1';
+        if ($this->supportsSchoolScope()) {
+            $scopeSql = $studentId === null
+                ? 'b.schoolId IS NULL'
+                : <<<'SQL'
+                (
+                    b.schoolId IS NULL
+                    OR b.schoolId = (
+                        SELECT c.schoolId
+                        FROM student_profiles sp
+                        INNER JOIN classes c ON c.id = sp.classId
+                        WHERE sp.id = :student_id
+                        LIMIT 1
+                    )
+                )
+                SQL;
+        }
         $sql = <<<'SQL'
             SELECT
                 b.id AS badge_id,
@@ -35,10 +66,15 @@ final class DatabaseBadgeRepository extends AbstractDatabaseRepository implement
             FROM badges b
             INNER JOIN badge_rule_definitions r ON r.badgeId = b.id
             WHERE b.status = 'active' AND r.isActive = 1
+              AND {{SCOPE}}
             ORDER BY b.level ASC, b.createdAt ASC
         SQL;
+        $sql = str_replace('{{SCOPE}}', $scopeSql, $sql);
 
-        $rows = $this->fetchAll('activeRules', $sql);
+        $parameters = $studentId === null || !$this->supportsSchoolScope()
+            ? []
+            : ['student_id' => $studentId];
+        $rows = $this->fetchAll('activeRules', $sql, $parameters);
         $result = [];
         foreach ($rows as $row) {
             $criteria = $this->decodeJson($row['threshold_criteria'] ?? null, 'thresholdCriteria');
@@ -65,6 +101,21 @@ final class DatabaseBadgeRepository extends AbstractDatabaseRepository implement
         }
 
         return $result;
+    }
+
+    private function supportsSchoolScope(): bool
+    {
+        if ($this->schoolScopeSupported !== null) {
+            return $this->schoolScopeSupported;
+        }
+
+        try {
+            $statement = $this->pdo->prepare('SELECT schoolId FROM badges WHERE 1 = 0');
+            $statement->execute();
+            return $this->schoolScopeSupported = true;
+        } catch (PDOException) {
+            return $this->schoolScopeSupported = false;
+        }
     }
 
     public function awardedBadges(string $studentId): array
@@ -137,6 +188,11 @@ final class DatabaseBadgeRepository extends AbstractDatabaseRepository implement
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
         $badgeId = Uuid::normalizeDatabase($badgeId, 'badge_id');
         $ruleDefinitionId = Uuid::normalizeDatabase($ruleDefinitionId, 'rule_definition_id');
+
+        if ($this->supportsSchoolScope()
+            && !$this->isAwardScopeValid($studentId, $badgeId, $ruleDefinitionId)) {
+            throw new RuntimeException('Badge award rejected because the rule, badge, or student school scope is invalid.');
+        }
 
         $id = \TalentHub\Support\Uuid::v4();
         $awardedAtStr = $awardedAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u');
@@ -223,5 +279,24 @@ final class DatabaseBadgeRepository extends AbstractDatabaseRepository implement
         $message = strtolower($e->getMessage());
         return str_contains($message, 'student_badges.studentid, student_badges.badgeid')
             || str_contains($message, 'unique constraint failed: student_badges.studentid, student_badges.badgeid');
+    }
+
+    private function isAwardScopeValid(string $studentId, string $badgeId, string $ruleDefinitionId): bool
+    {
+        $row = $this->fetchOne('isAwardScopeValid', <<<'SQL'
+SELECT 1 AS valid_scope
+FROM badges b
+INNER JOIN badge_rule_definitions r ON r.id = :rule_id AND r.badgeId = b.id
+INNER JOIN student_profiles sp ON sp.id = :student_id
+INNER JOIN classes c ON c.id = sp.classId
+WHERE b.id = :badge_id
+  AND (b.schoolId IS NULL OR b.schoolId = c.schoolId)
+LIMIT 1
+SQL, [
+            'rule_id' => $ruleDefinitionId,
+            'student_id' => $studentId,
+            'badge_id' => $badgeId,
+        ]);
+        return $row !== null;
     }
 }

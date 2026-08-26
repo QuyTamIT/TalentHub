@@ -127,11 +127,28 @@ $learnerBadgeFilters = [
                     </ol>
                 </section>
 
+                <section class="learner-card learner-school-credential-section" aria-labelledby="school-badges-title">
+                    <div class="learner-school-credential-heading">
+                        <div>
+                            <span class="learner-school-credential-heading__eyebrow"><?= learner_icon('building', 17); ?> Bộ thành tích của <?= learner_escape($schoolCredentialData['school']['name'] ?? 'nhà trường'); ?></span>
+                            <h2 id="school-badges-title">Huy hiệu chính thức của trường</h2>
+                            <p>Các huy hiệu được gợi ý theo hồ sơ năng lực; huy hiệu đủ điều kiện sẽ do hệ thống hoặc nhà trường ghi nhận.</p>
+                        </div>
+                        <a href="profile.php">Xem chứng chỉ <?= learner_icon('arrow-right', 16); ?></a>
+                    </div>
+                    <?php
+                    $credentialItems = $schoolCredentialData['badges'] ?? [];
+                    $credentialCompact = false;
+                    include __DIR__ . '/includes/school-credential-grid.php';
+                    unset($credentialItems, $credentialCompact);
+                    ?>
+                </section>
+
                 <section class="learner-badge-section" aria-labelledby="learner-badge-collection-title">
                     <div class="learner-badge-section__heading">
                         <div>
-                            <h2 id="learner-badge-collection-title">Bộ sưu tập huy hiệu</h2>
-                            <p>Tiếp tục trải nghiệm, tham gia hoạt động và làm bài đánh giá để mở khóa huy hiệu.</p>
+                            <h2 id="learner-badge-collection-title">Huy hiệu toàn hệ thống</h2>
+                            <p>Các cột mốc chung của TalentHub dựa trên trải nghiệm, hoạt động và bài đánh giá.</p>
                         </div>
                         <div class="learner-filter-list" aria-label="Lọc huy hiệu theo trạng thái">
                             <?php foreach ($learnerBadgeFilters as $index => $filter): ?>

@@ -39,7 +39,7 @@ final class BadgeAwardService
             }
 
             $facts = $this->statsRepo->lifetimeFacts($studentId);
-            $activeRules = $this->badgeRepo->activeRules();
+            $activeRules = $this->badgeRepo->activeRulesForStudent($studentId);
             $now = ($this->clock ?? new DateTimeImmutable('now', new DateTimeZone('UTC')))->setTimezone(new DateTimeZone('UTC'));
 
             $newlyAwarded = [];

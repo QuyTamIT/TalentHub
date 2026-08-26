@@ -118,12 +118,11 @@ try {
         'student_results' => [],
     ];
 
-    $activeRules = $badgeRepo->activeRules();
-
     foreach ($targetStudentIds as $sid) {
         if ($isDryRun) {
             $facts = $statsRepo->lifetimeFacts($sid);
             $eligible = [];
+            $activeRules = $badgeRepo->activeRulesForStudent($sid);
             foreach ($activeRules as $item) {
                 $badge = $item['badge'];
                 $rule = $item['rule'];
