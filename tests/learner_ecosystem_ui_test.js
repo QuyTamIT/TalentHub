@@ -28,13 +28,18 @@ assert.doesNotMatch(opportunityPage, /data-save-opportunity/, 'opportunity page 
 assert.doesNotMatch(ecosystemPage, /Dữ liệu demo|FPT Software/, 'ecosystem database copy does not advertise mock data');
 assert.doesNotMatch(partnerPage, /Dữ liệu demo|mock data|FPT Software/, 'partner database copy does not advertise mock data');
 assert.match(ecosystemPage, /Chưa có doanh nghiệp đã xác minh/, 'database enterprise empty state is authoritative');
-assert.match(ecosystemPage, /Chưa có trường học đang hoạt động/, 'database school empty state is authoritative');
 assert.match(ecosystemPage, /Chưa có cơ hội đang mở/, 'database opportunity empty state is authoritative');
-assert.match(
-    ecosystemPage,
-    /\$isDatabaseSource\s*&&\s*\$schools\s*===\s*\[\]/,
-    'school source-empty copy is restricted to an empty database collection',
+assert.deepEqual(
+    [...ecosystemPage.matchAll(/data-ecosystem-tab="([^"]+)"/g)].map((match) => match[1]),
+    ['enterprises', 'opportunities'],
+    'learner ecosystem exposes only enterprise and opportunity tabs',
 );
+assert.doesNotMatch(ecosystemPage, /data-ecosystem-tab="schools"/, 'school tab is removed from learner ecosystem UI');
+assert.doesNotMatch(ecosystemPage, /data-ecosystem-panel="schools"/, 'school panel is removed from learner ecosystem UI');
+assert.doesNotMatch(ecosystemPage, /Trường học đối tác/, 'school partner heading is not rendered in learner ecosystem UI');
+assert.match(ecosystemPage, /Khám phá doanh nghiệp và những cơ hội/, 'ecosystem hero copy focuses on enterprises and opportunities');
+assert.match(ecosystemPage, /Tìm doanh nghiệp hoặc cơ hội/, 'ecosystem header search excludes school wording');
+assert.match(ecosystemPage, /\$allowedTabs = \['enterprises', 'opportunities'\]/, 'invalid school tab query falls back through the reduced allow-list');
 assert.match(partnerPage, /learner_ecosystem_http_url/, 'partner normalizes website through the http/https allowlist');
 assert.doesNotMatch(
     partnerPage,

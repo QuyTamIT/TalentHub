@@ -317,19 +317,10 @@ $mockPartnerHtml = render_ecosystem_template(
 assert_true(substr_count($mockPartnerHtml, 'https://fptsoftware.com') === 2, 'production partner view retains both safe mock website links');
 assert_true(str_contains($mockPartnerHtml, '30.000+ nhân sự'), 'production partner view retains real mock optional facts');
 
-$databaseSchools = array_map(
-    static fn (int $index): array => \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::partner([
-        'id' => sprintf('00000000-0000-4000-8000-%012d', $index + 1),
-        'type' => 'school',
-        'name' => 'Trường dữ liệu thật ' . ($index + 1),
-        'status' => 'active',
-    ]),
-    range(0, 2)
-);
 $ecosystemVariables = [
-    'initialTab' => 'schools',
+    'initialTab' => 'enterprises',
     'enterprises' => [],
-    'schools' => $databaseSchools,
+    'schools' => [],
     'activeOpportunities' => [],
     'schoolActivities' => [],
     'activeEcosystemCount' => 0,
@@ -337,17 +328,11 @@ $ecosystemVariables = [
     'isDatabaseSource' => true,
 ];
 $databaseEcosystemHtml = render_ecosystem_template($root . '/app/learner/ecosystem.php', $ecosystemVariables);
-assert_true(substr_count($databaseEcosystemHtml, 'learner-partner-card learner-card') === 3, 'production ecosystem template renders exactly three database school cards');
-assert_true(!str_contains($databaseEcosystemHtml, 'Thông tin giới thiệu chưa có trong schema hiện tại.'), 'production school cards suppress generated intro copy');
-assert_true(!str_contains($databaseEcosystemHtml, 'Chưa cập nhật'), 'production school cards suppress compatibility placeholders');
-assert_true(!str_contains($databaseEcosystemHtml, 'chương trình nổi bật'), 'production school cards suppress synthetic program counts');
-assert_true(str_contains($databaseEcosystemHtml, 'Chưa tìm thấy trường học phù hợp'), 'populated school collection keeps filter-empty copy');
-assert_true(!str_contains($databaseEcosystemHtml, 'Chưa có trường học đang hoạt động'), 'populated school collection does not claim a source-empty state');
-
-$ecosystemVariables['schools'] = [];
-$emptyDatabaseEcosystemHtml = render_ecosystem_template($root . '/app/learner/ecosystem.php', $ecosystemVariables);
-assert_true(str_contains($emptyDatabaseEcosystemHtml, 'Chưa có trường học đang hoạt động'), 'empty database school collection renders authoritative source-empty copy');
-assert_true(!str_contains($emptyDatabaseEcosystemHtml, 'Chưa tìm thấy trường học phù hợp'), 'database school source-empty omits filter advice');
+assert_true(substr_count($databaseEcosystemHtml, 'data-ecosystem-tab=') === 2, 'production ecosystem template exposes only enterprise and opportunity tabs');
+assert_true(!str_contains($databaseEcosystemHtml, 'data-ecosystem-tab="schools"'), 'production ecosystem template removes the school tab');
+assert_true(!str_contains($databaseEcosystemHtml, 'data-ecosystem-panel="schools"'), 'production ecosystem template removes the school panel');
+assert_true(str_contains($databaseEcosystemHtml, 'data-initial-tab="enterprises"'), 'unsupported school tab query falls back to enterprises');
+assert_true(!str_contains($databaseEcosystemHtml, 'Trường học đối tác'), 'production ecosystem page does not render school partner copy');
 
 $populatedDatabaseSchool = \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::partner([
     'id' => $schoolId,
