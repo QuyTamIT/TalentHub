@@ -20,7 +20,8 @@ Thumbs.db
 /.tmp/
 
 # Local-only planning, QA, and coding-agent material.
-/tests/
+/tests/*
+!/tests/learner_journey_dashboard_ui_test.ps1
 /docs/
 /design/
 /Document/

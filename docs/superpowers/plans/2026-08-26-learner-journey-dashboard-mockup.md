@@ -35,17 +35,17 @@
 - Consumes: Mockup v1 và spec đã duyệt.
 - Produces: Prompt chỉnh ảnh khóa chính xác bố cục, nội dung và trạng thái dữ liệu.
 
-- [ ] **Step 1: Xác nhận ảnh v1 và spec tồn tại**
+- [x] **Step 1: Xác nhận ảnh v1 và spec tồn tại**
 
 Run: `Test-Path docs/mockups/learner-dashboard-desktop-v1.png; Test-Path docs/superpowers/specs/2026-08-26-learner-journey-dashboard-mockup-design.md`
 
 Expected: hai giá trị `True`.
 
-- [ ] **Step 2: Khóa nội dung giữ lại**
+- [x] **Step 2: Khóa nội dung giữ lại**
 
 Giữ sidebar 10 module, hero cam, bốn KPI, khu kỹ năng, card AI, hệ thống card trắng và typography Be Vietnam Pro.
 
-- [ ] **Step 3: Khóa nội dung phải thay đổi**
+- [x] **Step 3: Khóa nội dung phải thay đổi**
 
 Thay KPI thành “Cấp độ hiện tại”, “Huy hiệu đạt được”, “Giờ trải nghiệm”, “Hoạt động đã tham gia”; thay Chứng chỉ + Dự án bằng “Huy hiệu & chứng chỉ dành cho bạn”; thay hoạt động dạng text bằng card có ảnh; bổ sung “Hoạt động đã xác nhận”; đổi header sang vùng tài khoản đầy đủ; đổi AI sang trạng thái đã phân tích.
 
@@ -58,11 +58,11 @@ Thay KPI thành “Cấp độ hiện tại”, “Huy hiệu đạt được”
 - Consumes: Prompt và edit target từ Task 1.
 - Produces: Một PNG landscape hoàn chỉnh.
 
-- [ ] **Step 1: Gọi built-in image generator**
+- [x] **Step 1: Gọi built-in image generator**
 
 Dùng `docs/mockups/learner-dashboard-desktop-v1.png` làm edit target. Yêu cầu giữ hệ thống bố cục và nhận diện, thay chính xác các khu vực đã khóa ở Task 1, hiển thị đủ phần nội dung trong một ảnh full-page, chữ tiếng Việt dễ đọc.
 
-- [ ] **Step 2: Lưu file không phá hủy**
+- [x] **Step 2: Lưu file không phá hủy**
 
 Copy output được chọn từ thư mục generated images sang `docs/mockups/learner-journey-dashboard-desktop-v2.png`. Nếu tên này đã tồn tại, dùng `learner-journey-dashboard-desktop-v3.png` thay vì ghi đè.
 
@@ -75,20 +75,20 @@ Copy output được chọn từ thư mục generated images sang `docs/mockups/
 - Consumes: PNG từ Task 2.
 - Produces: Ảnh đã xác minh và đường dẫn bàn giao.
 
-- [ ] **Step 1: Kiểm tra cấu trúc**
+- [x] **Step 1: Kiểm tra cấu trúc**
 
 Xác nhận ảnh có sidebar, header tài khoản, hero, bốn KPI database, kỹ năng, AI đã phân tích, ba card thành tích trường, hoạt động đang mở và hoạt động đã xác nhận.
 
-- [ ] **Step 2: Kiểm tra nội dung loại bỏ**
+- [x] **Step 2: Kiểm tra nội dung loại bỏ**
 
 Xác nhận không còn “Điểm năng lực”, “Xếp hạng lớp”, khối “Dự án đã tham gia” hoặc danh sách chứng chỉ cá nhân của mockup cũ.
 
-- [ ] **Step 3: Kiểm tra file**
+- [x] **Step 3: Kiểm tra file**
 
 Run: PowerShell mở PNG bằng `System.Drawing.Image`, xác nhận chiều rộng và chiều cao lớn hơn `1000`, file lớn hơn `100000` byte, rồi in SHA-256.
 
 Expected: ảnh hợp lệ, landscape, không rỗng và có hash.
 
-- [ ] **Step 4: Bàn giao**
+- [x] **Step 4: Bàn giao**
 
 Hiển thị ảnh trong phản hồi, cung cấp liên kết workspace, prompt cuối và xác nhận ảnh được tạo bằng built-in image generator.

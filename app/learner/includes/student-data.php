@@ -182,11 +182,11 @@ if ($isDatabaseMode) {
     $projects = $tp['projects'];
     $learnerBadges = $badgeOverview['badges'] ?? $tp['badges'];
 } else {
-        $dashboardKpis = [
-        ['label' => 'Điểm năng lực', 'value' => '92', 'change' => '+8', 'icon' => 'star'],
+    $dashboardKpis = [
+        ['label' => 'Cấp độ hiện tại', 'value' => 'Explorer', 'change' => '', 'icon' => 'star'],
         ['label' => 'Huy hiệu đạt được', 'value' => '12', 'change' => '+2', 'icon' => 'trophy'],
         ['label' => 'Giờ trải nghiệm', 'value' => '64h', 'change' => '+18h', 'icon' => 'clock'],
-        ['label' => 'Xếp hạng lớp', 'value' => '#7', 'change' => '↑3', 'icon' => 'chart'],
+        ['label' => 'Hoạt động đã tham gia', 'value' => '8', 'change' => '+3', 'icon' => 'chart'],
     ];
 
     $profileKpis = [

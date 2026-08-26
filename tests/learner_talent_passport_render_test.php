@@ -243,7 +243,10 @@ passport_render_assert(str_contains($dashboardHtml, 'Hoạt động đã xác nh
 passport_render_assert(str_contains($dashboardHtml, 'Hoạt động đang mở cho bạn'), 'database discovery section is labelled separately');
 passport_render_assert(!str_contains($dashboardHtml, 'data-register-activity'), 'database dashboard never renders the mock-only fake registration button');
 passport_render_assert(str_contains($dashboardHtml, '>Xem chi tiết</a>'), 'database dashboard routes activity actions to the server-backed detail flow');
-passport_render_assert(str_contains($dashboardHtml, 'Gợi ý AI chưa có dữ liệu'), 'database dashboard renders a truthful AI unavailable state');
+passport_render_assert(str_contains($dashboardHtml, 'Dữ liệu đánh giá tạm thời chưa tải được'), 'database dashboard does not treat a credential service failure as real 0/4 progress');
+passport_render_assert(str_contains($dashboardHtml, 'Gợi ý AI tạm thời chưa tải được'), 'database dashboard renders a truthful AI service unavailable state');
+passport_render_assert(!str_contains($dashboardHtml, 'Đã hoàn thành 0/4 bài'), 'database dashboard does not invent assessment progress during a service failure');
+passport_render_assert(!str_contains($dashboardHtml, 'Hoàn thành 0/4 bài test'), 'credential heading does not invent assessment progress during a service failure');
 foreach (['IoT Lab — Cảm biến thông minh', 'Drone Workshop', 'Năng khiếu nổi bật: IoT &amp; Drone', '64/100 giờ'] as $demoSentinel) {
     passport_render_assert(!str_contains($dashboardHtml, $demoSentinel), "database dashboard excludes demo sentinel {$demoSentinel}");
 }
@@ -315,7 +318,9 @@ $mockProfileHtml = render_learner_page_mock($root . '/app/learner/profile.php');
 
 passport_render_assert(str_contains($mockProfileHtml, 'Google IT Automation'), 'mock mode retains mock certificates');
 passport_render_assert(str_contains($mockProfileHtml, 'Smart Garden IoT'), 'mock mode retains mock projects');
-passport_render_assert(str_contains($mockDashboardHtml, 'vượt 28%'), 'mock mode retains mock copy');
+passport_render_assert(str_contains($mockDashboardHtml, '64 giờ trải nghiệm xác thực'), 'mock mode uses the journey experience copy');
+passport_render_assert(str_contains($mockDashboardHtml, '4/4 bài đánh giá đã hoàn thành'), 'mock mode shows completed assessment progress');
+passport_render_assert(str_contains($mockDashboardHtml, 'Xem lộ trình AI'), 'mock mode exposes the completed AI journey CTA');
 
 $renderTestCompleted = true;
 echo "learner_talent_passport_render_test: OK\n";

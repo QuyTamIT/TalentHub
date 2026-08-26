@@ -38,6 +38,25 @@ $dashboardActivityCategory = static function (array $activity): string {
     $canonical = trim((string) ($activity['canonical_category'] ?? $activity['category'] ?? ''));
     return learner_activity_category_label($canonical);
 };
+$dashboardAssessmentCompleted = max(0, (int) ($schoolCredentialData['completed_test_count'] ?? 0));
+$dashboardAssessmentRequired = max(1, (int) ($schoolCredentialData['required_test_count'] ?? 4));
+$dashboardAssessmentUnavailable = ($schoolCredentialError ?? false) === true;
+$dashboardAnalysisCompleted = ($schoolCredentialData['analysis_completed'] ?? false) === true;
+$dashboardAnalysisReady = ($schoolCredentialData['ready'] ?? false) === true;
+$dashboardJourneyHref = (!$dashboardAssessmentUnavailable && ($dashboardAnalysisCompleted || $dashboardAnalysisReady))
+    ? 'ai-recommendations.php'
+    : 'discover.php';
+$dashboardJourneyLabel = match (true) {
+    $dashboardAssessmentUnavailable => 'Xem các bài đánh giá',
+    $dashboardAnalysisCompleted => 'Xem lộ trình AI',
+    $dashboardAnalysisReady => 'Tạo lộ trình AI',
+    default => 'Tiếp tục đánh giá',
+};
+$dashboardExperienceValue = trim((string) ($dashboardKpis[2]['value'] ?? '0h'));
+$dashboardExperienceHours = trim((string) preg_replace('/\s*h\s*$/i', '', $dashboardExperienceValue));
+if ($dashboardExperienceHours === '') {
+    $dashboardExperienceHours = '0';
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -59,49 +78,36 @@ $dashboardActivityCategory = static function (array $activity): string {
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content">
-                <section class="learner-welcome" aria-labelledby="welcome-title">
+                <section class="learner-welcome" aria-labelledby="welcome-title" data-dashboard-journey>
                     <div class="learner-welcome__content">
                         <p class="learner-welcome__streak">
                             <span aria-hidden="true"><?= learner_icon('flame', 19); ?></span>
                             Chuỗi <?= learner_escape($student['streak_days']); ?> ngày liên tiếp
                         </p>
                         <h1 id="welcome-title">Chào mừng trở lại, <?= learner_escape($student['name']); ?> <span aria-hidden="true">👋</span></h1>
-                        <?php if ($isDatabaseMode ?? false): ?>
-                            <p>Bạn đã ghi nhận <?= learner_escape($dashboardKpis[2]['value'] ?? '0h'); ?> giờ trải nghiệm xác thực trên hệ thống.</p>
+                        <p>Bạn đã ghi nhận <?= learner_escape($dashboardExperienceHours); ?> giờ trải nghiệm xác thực trên hệ thống.</p>
+                        <?php if ($dashboardAssessmentUnavailable): ?>
+                            <p class="learner-welcome__status learner-welcome__status--unavailable">
+                                Dữ liệu đánh giá tạm thời chưa tải được
+                            </p>
                         <?php else: ?>
-                            <p>Bạn đã hoàn thành <?= learner_escape($student['experience_hours']); ?> giờ trải nghiệm tháng này — vượt 28% so với tháng trước.</p>
+                            <p class="learner-welcome__status">
+                                <span aria-hidden="true"><?= learner_icon('check', 15); ?></span>
+                                <?= learner_escape($dashboardAssessmentCompleted); ?>/<?= learner_escape($dashboardAssessmentRequired); ?> bài đánh giá đã hoàn thành
+                            </p>
                         <?php endif; ?>
                         <div class="learner-welcome__actions">
                             <a class="learner-btn learner-btn--primary" href="./activities.php">
                                 Khám phá hoạt động <?= learner_icon('arrow-right', 18); ?>
                             </a>
-                            <a class="learner-btn learner-btn--secondary" href="discover.php">Làm test năng khiếu</a>
+                            <a class="learner-btn learner-btn--secondary" href="<?= learner_escape($dashboardJourneyHref); ?>">
+                                <?= learner_escape($dashboardJourneyLabel); ?> <?= learner_icon('arrow-right', 18); ?>
+                            </a>
                         </div>
                     </div>
 
                     <div class="learner-welcome__visual" aria-hidden="true">
-                        <svg viewBox="0 0 430 235" role="presentation">
-                            <rect x="310" y="22" width="92" height="146" rx="8" fill="var(--surface)" stroke="var(--border)"/>
-                            <path d="M356 22v146M310 87h92" stroke="var(--border)"/>
-                            <circle cx="205" cy="60" r="39" fill="var(--primary-light)"/>
-                            <path d="M182 55c2-25 45-30 51 0l-4 21h-42l-5-21Z" fill="var(--text-primary)"/>
-                            <circle cx="207" cy="67" r="25" fill="var(--primary-light)"/>
-                            <path d="M198 67h2M216 67h2" stroke="var(--text-primary)" stroke-width="3" stroke-linecap="round"/>
-                            <path d="M201 78c5 4 10 4 15 0" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"/>
-                            <path d="M158 134c4-36 26-53 50-53 29 0 56 23 60 58v58H151l7-63Z" fill="var(--primary)"/>
-                            <path d="M168 116c-28-20-36-37-25-47 8-7 18 6 25 19" fill="none" stroke="var(--primary)" stroke-width="15" stroke-linecap="round"/>
-                            <path d="M141 68c-7-13-5-24 1-29M146 67c0-14 5-24 10-27M151 70c5-12 12-19 18-20" fill="none" stroke="var(--text-primary)" stroke-width="3" stroke-linecap="round"/>
-                            <rect x="75" y="151" width="128" height="67" rx="7" fill="var(--text-secondary)"/>
-                            <rect x="86" y="160" width="106" height="49" rx="3" fill="var(--background)"/>
-                            <path d="m139 176 4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1 4-8Z" fill="var(--border)"/>
-                            <rect x="54" y="218" width="331" height="10" rx="5" fill="var(--primary-light)"/>
-                            <path d="M31 211h53v7H31z" fill="var(--warning)"/>
-                            <path d="M337 187h62v31h-62z" fill="var(--secondary)"/>
-                            <path d="M330 181h69v8h-69zM343 171h55v8h-55z" fill="var(--primary)"/>
-                            <path d="M45 198c-4-24 3-40 18-48 3 22-1 38-18 48Z" fill="var(--accent)"/>
-                            <path d="M45 198c-19-12-25-28-19-46 19 12 26 27 19 46Z" fill="var(--success)" opacity=".7"/>
-                            <rect x="35" y="197" width="23" height="21" rx="4" fill="var(--primary-light)" stroke="var(--primary)"/>
-                        </svg>
+                        <img class="learner-welcome__image" src="../../assets/images/learner/learner-journey-hero-v3.png" alt="" width="1448" height="1086" loading="eager" decoding="async">
                     </div>
                 </section>
 
@@ -110,7 +116,11 @@ $dashboardActivityCategory = static function (array $activity): string {
                         <article class="learner-card learner-kpi-card">
                             <div class="learner-kpi-card__top">
                                 <span class="learner-icon-tile learner-icon-tile--secondary"><?= learner_icon($kpi['icon'], 22); ?></span>
-                                <span class="learner-kpi-card__change"><?= learner_escape($kpi['change']); ?></span>
+                                <?php if ($isDatabaseMode ?? false): ?>
+                                    <span class="learner-kpi-card__verified"><?= learner_icon('check', 13); ?> Đã xác thực</span>
+                                <?php else: ?>
+                                    <span class="learner-kpi-card__change"><?= learner_escape($kpi['change']); ?></span>
+                                <?php endif; ?>
                             </div>
                             <strong><?= learner_escape($kpi['value']); ?></strong>
                             <p><?= learner_escape($kpi['label']); ?></p>
@@ -137,7 +147,15 @@ $dashboardActivityCategory = static function (array $activity): string {
                                     <?php $skillScoreClamped = max(0, min(100, (int) ($skill['score'] ?? 0))); ?>
                                     <div class="learner-skill-row">
                                         <span class="learner-skill-row__icon learner-tone--<?= learner_escape($skill['tone']); ?>"><?= learner_icon($skill['icon'], 16); ?></span>
-                                        <span class="learner-skill-row__name"><?= learner_escape($skill['short_name'] ?? $skill['name']); ?></span>
+                                        <div class="learner-skill-row__name">
+                                            <strong><?= learner_escape($skill['short_name'] ?? $skill['name']); ?></strong>
+                                            <span class="learner-skill-row__meta">
+                                                <?= learner_escape($skill['level'] ?? 'Đang cập nhật'); ?>
+                                                <?php if ($skill['verified'] ?? false): ?>
+                                                    <span class="learner-skill-row__verified"><?= learner_icon('check', 11); ?> Đã xác thực</span>
+                                                <?php endif; ?>
+                                            </span>
+                                        </div>
                                         <div class="learner-progress" role="progressbar" aria-label="<?= learner_escape($skill['name']); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= $skillScoreClamped; ?>">
                                             <span class="learner-progress--<?= learner_escape($skill['tone']); ?>" style="--learner-progress: <?= $skillScoreClamped; ?>%;"></span>
                                         </div>
@@ -154,7 +172,11 @@ $dashboardActivityCategory = static function (array $activity): string {
                             <span>AI gợi ý cho bạn</span>
                         </div>
                         <?php if ($isDatabaseMode ?? false): ?>
-                            <?php if ($schoolCredentialData['analysis_completed'] ?? false): ?>
+                            <?php if ($dashboardAssessmentUnavailable): ?>
+                                <h2 id="ai-title">Gợi ý AI tạm thời chưa tải được</h2>
+                                <p>Hệ thống chưa thể đọc trạng thái bài đánh giá. Tiến độ của bạn không bị thay đổi; vui lòng thử lại sau.</p>
+                                <a class="learner-btn learner-btn--outline" href="discover.php">Xem các bài đánh giá <?= learner_icon('arrow-right', 17); ?></a>
+                            <?php elseif ($schoolCredentialData['analysis_completed'] ?? false): ?>
                                 <h2 id="ai-title">Đã có lộ trình và thành tích phù hợp</h2>
                                 <p>AI đã đối chiếu bốn bài đánh giá với bộ huy hiệu, chứng chỉ chính thức của trường.</p>
                                 <a class="learner-btn learner-btn--outline" href="ai-recommendations.php">Xem gợi ý của AI <?= learner_icon('arrow-right', 17); ?></a>
@@ -181,7 +203,9 @@ $dashboardActivityCategory = static function (array $activity): string {
                             <span class="learner-school-credential-heading__eyebrow"><?= learner_icon('graduation-cap', 17); ?> Thành tích do trường cấp</span>
                             <h2 id="dashboard-school-credential-title">Huy hiệu &amp; chứng chỉ dành cho bạn</h2>
                             <p>
-                                <?php if ($schoolCredentialData['ready'] ?? false): ?>
+                                <?php if ($dashboardAssessmentUnavailable): ?>
+                                    Trạng thái thành tích tạm thời chưa tải được; tiến độ đánh giá của bạn không bị thay đổi.
+                                <?php elseif ($schoolCredentialData['ready'] ?? false): ?>
                                     <?= ($schoolCredentialData['analysis_completed'] ?? false) ? 'AI đã xếp hạng theo bốn bài test, năng lực và kỹ năng của bạn.' : 'Bạn đã đủ bốn bài test; hoàn thành phân tích AI để có lộ trình phát triển.'; ?>
                                 <?php else: ?>
                                     Hoàn thành <?= learner_escape($schoolCredentialData['completed_test_count'] ?? 0); ?>/4 bài test để mở khóa mức độ phù hợp.
