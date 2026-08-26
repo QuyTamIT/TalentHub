@@ -39,6 +39,7 @@ $user = PortalGuard::requireRole(RoleCodes::TEACHER, '/app/teacher/checkins/inde
 $session = new SessionManager(array_merge(require dirname(__DIR__, 3) . '/config/session.php', ['name' => SessionManager::SESSION_TEACHER]));
 $session->start();
 $storedFlash = $_SESSION['teacherQrFlash'] ?? null;
+$storedQr = $_SESSION['teacherQrCurrent'] ?? null;
 unset($_SESSION['teacherQrFlash']);
 
 header('Cache-Control: no-store, no-cache, must-revalidate');
@@ -68,10 +69,9 @@ $formValues = [
     'confirmed_hours' => TeacherQrSessionService::DEFAULT_CONFIRMED_HOURS,
 ];
 $oneTimeToken = null;
+$currentQrSessionId = null;
+$activeQrSession = null;
 $flash = is_array($storedFlash) ? $storedFlash : null;
-if ($flash !== null && isset($flash['rawToken'])) {
-    $oneTimeToken = (string) $flash['rawToken'];
-}
 
 try {
     $pdo = (new Connection(require dirname(__DIR__, 3) . '/config/database.php'))->connect();
@@ -105,11 +105,14 @@ try {
                 $rawConfirmedHours,
             );
 
-            $_SESSION['teacherQrFlash'] = [
-                'type' => 'success',
-                'message' => 'Đã tạo phiên QR. Mã QR và token chỉ hiển thị một lần trên trang tiếp theo.',
+            $_SESSION['teacherQrCurrent'] = [
                 'sessionId' => $result['sessionId'],
                 'rawToken' => $result['rawToken'],
+            ];
+            $_SESSION['teacherQrFlash'] = [
+                'type' => 'success',
+                'message' => 'Đã tạo phiên QR. Mã sẽ tiếp tục hiển thị trong phiên làm việc này cho đến khi hết hạn hoặc bị thu hồi.',
+                'sessionId' => $result['sessionId'],
             ];
             header('Location: ' . app_href('/app/teacher/checkins/index.php'));
             exit;
@@ -118,6 +121,13 @@ try {
         if ($formAction === 'revoke_session') {
             $permissions->require((string) $user['id'], 'qr_session.revoke_managed');
             $service->revoke((string) $user['id'], $_POST['session_id'] ?? null);
+
+            if (
+                is_array($_SESSION['teacherQrCurrent'] ?? null)
+                && (string) ($_SESSION['teacherQrCurrent']['sessionId'] ?? '') === (string) ($_POST['session_id'] ?? '')
+            ) {
+                unset($_SESSION['teacherQrCurrent']);
+            }
 
             $_SESSION['teacherQrFlash'] = [
                 'type' => 'success',
@@ -131,6 +141,41 @@ try {
     }
 
     $data = $service->pageData((string) $user['id']);
+
+    // The raw token is deliberately kept only in the authenticated server-side
+    // session. The database stores only its hash, so it cannot reconstruct a QR
+    // after a browser reload without this session value.
+    $candidateQr = is_array($storedQr) ? $storedQr : [];
+    if (is_array($flash) && isset($flash['rawToken'])) {
+        // Backward compatibility for a flash payload created before this fix.
+        $candidateQr = [
+            'sessionId' => $flash['sessionId'] ?? '',
+            'rawToken' => $flash['rawToken'],
+        ];
+    }
+
+    $candidateSessionId = trim((string) ($candidateQr['sessionId'] ?? ''));
+    $candidateToken = trim((string) ($candidateQr['rawToken'] ?? ''));
+    if ($candidateSessionId !== '' && $candidateToken !== '') {
+        foreach ($data['sessions'] as $qrSession) {
+            if ((string) ($qrSession['id'] ?? '') !== $candidateSessionId) {
+                continue;
+            }
+
+            if ((string) ($qrSession['status'] ?? '') === 'active') {
+                $oneTimeToken = $candidateToken;
+                $currentQrSessionId = $candidateSessionId;
+                $activeQrSession = $qrSession;
+                $_SESSION['teacherQrCurrent'] = [
+                    'sessionId' => $candidateSessionId,
+                    'rawToken' => $candidateToken,
+                ];
+            } elseif (is_array($storedQr) && $candidateSessionId === (string) ($storedQr['sessionId'] ?? '')) {
+                unset($_SESSION['teacherQrCurrent']);
+            }
+            break;
+        }
+    }
 } catch (ApiException $exception) {
     $errors[] = $exception->getMessage();
 } catch (Throwable) {
@@ -217,14 +262,33 @@ $statusClasses = [
                         </div>
                     <?php endif; ?>
 
-                    <?php if ($oneTimeToken !== null && $oneTimeToken !== ''): ?>
-                        <section class="teacher-section-box teacher-qr-reveal" aria-labelledby="teacher-qr-reveal-title">
+                    <?php if ($oneTimeToken !== null && $oneTimeToken !== '' && $activeQrSession !== null): ?>
+                        <section class="teacher-section-box teacher-qr-reveal teacher-qr-reveal--active" aria-labelledby="teacher-qr-reveal-title" data-qr-session-id="<?= teacherQrEscape($currentQrSessionId); ?>">
                             <div class="teacher-qr-reveal__copy">
-                                <span class="teacher-section-box__eyebrow">HIỂN THỊ MỘT LẦN</span>
-                                <h2 id="teacher-qr-reveal-title" class="teacher-section-box__title">QR đã sẵn sàng để chia sẻ</h2>
-                                <p class="teacher-section-box__subtitle">Hãy mở mã QR cho học viên trong thời gian hiệu lực. Token thô sẽ không được hiển thị lại sau lần tải trang này.</p>
+                                <div class="teacher-qr-reveal__heading">
+                                    <div>
+                                        <span class="teacher-section-box__eyebrow">PHIÊN ĐANG HOẠT ĐỘNG</span>
+                                        <h2 id="teacher-qr-reveal-title" class="teacher-section-box__title">Mã QR đã sẵn sàng</h2>
+                                    </div>
+                                    <span class="teacher-qr-live-badge"><span aria-hidden="true"></span> Đang hoạt động</span>
+                                </div>
+                                <p class="teacher-section-box__subtitle">Mở mã này để học viên quét tại hoạt động. Mã vẫn được giữ an toàn trong phiên đăng nhập hiện tại khi bạn tải lại trang.</p>
+                                <div class="teacher-qr-reveal__meta">
+                                    <div>
+                                        <span>Hoạt động</span>
+                                        <strong><?= teacherQrEscape($activeQrSession['activityTitle'] ?? 'Hoạt động'); ?></strong>
+                                    </div>
+                                    <div>
+                                        <span>Hết hạn lúc</span>
+                                        <strong><?= teacherQrEscape($activeQrSession['expiresAt'] ?? 'Chưa xác định'); ?></strong>
+                                    </div>
+                                    <div>
+                                        <span>Lượt quét</span>
+                                        <strong><?= number_format((int) ($activeQrSession['usedScans'] ?? 0)); ?> / <?= number_format((int) ($activeQrSession['maxScans'] ?? 0)); ?></strong>
+                                    </div>
+                                </div>
                                 <div class="teacher-qr-token-block">
-                                    <span class="teacher-qr-token-block__label">Token một lần</span>
+                                    <span class="teacher-qr-token-block__label">Token dự phòng</span>
                                     <code class="teacher-qr-token" id="teacher-qr-token-value"><?= teacherQrEscape($oneTimeToken); ?></code>
                                     <button type="button" class="btn btn-secondary teacher-qr-copy" data-copy-qr-token data-token="<?= teacherQrEscape($oneTimeToken); ?>">Sao chép token</button>
                                     <span class="teacher-qr-copy-status" data-copy-status aria-live="polite"></span>
@@ -232,7 +296,7 @@ $statusClasses = [
                             </div>
                             <div class="teacher-qr-code-shell">
                                 <div class="teacher-qr-code" id="teacher-qr-code" data-qr-token="<?= teacherQrEscape($oneTimeToken); ?>" role="img" aria-label="Mã QR của phiên vừa tạo"></div>
-                                <p class="teacher-qr-code-shell__hint">Nội dung QR là token opaque, không phải đường dẫn.</p>
+                                <p class="teacher-qr-code-shell__hint">Đưa mã vào giữa khung quét của học viên.</p>
                             </div>
                         </section>
                     <?php endif; ?>
