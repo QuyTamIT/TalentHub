@@ -143,35 +143,65 @@ $kpis = [
     ]
 ];
 
-$featuredTalents = [
-    [
-        'id' => 1,
-        'name' => 'Nguyễn Văn An',
-        'school' => 'Đại học Bách Khoa Hà Nội',
-        'major' => 'Công nghệ Thông tin',
-        'talent_score' => 95,
-        'experience_hours' => '120h thực án',
-        'skills' => ['React', 'Node.js', 'TypeScript', 'UI/UX']
-    ],
-    [
-        'id' => 2,
-        'name' => 'Lê Thị Bích Ngọc',
-        'school' => 'Đại học Quốc Gia TP.HCM',
-        'major' => 'Khoa học Dữ liệu & AI',
-        'talent_score' => 92,
-        'experience_hours' => '95h thực án',
-        'skills' => ['Python', 'PyTorch', 'SQL', 'Data Analytics']
-    ],
-    [
-        'id' => 3,
-        'name' => 'Trần Minh Đức',
-        'school' => 'Đại học FPT',
-        'major' => 'Kỹ thuật Phần mềm',
-        'talent_score' => 88,
-        'experience_hours' => '150h thực án',
-        'skills' => ['PHP', 'Laravel', 'MySQL', 'Docker']
-    ]
-];
+$featuredTalents = [];
+$pdo = $context['pdo'] ?? null;
+$talentService = $context['talents'] ?? null;
+
+if ($isVerified && $talentService !== null) {
+    try {
+        $talentRes = $talentService->listTalents((string) $user['id'], ['limit' => 3]);
+        $items = $talentRes['items'] ?? [];
+        foreach ($items as $t) {
+            $skills = is_array($t['skills'] ?? null) ? $t['skills'] : [];
+            if (empty($skills) && !empty($t['skillsStr'])) {
+                $skills = array_filter(array_map('trim', explode(',', $t['skillsStr'])));
+            }
+            $featuredTalents[] = [
+                'id'               => (string) ($t['id'] ?? $t['student_id'] ?? ''),
+                'name'             => (string) ($t['name'] ?? $t['fullName'] ?? 'Ứng viên tiềm năng'),
+                'school'           => (string) ($t['school'] ?? $t['schoolName'] ?? 'Trường liên kết'),
+                'major'            => (string) ($t['major'] ?? 'Chuyên ngành kỹ thuật'),
+                'talent_score'     => (int) ($t['match_score'] ?? $t['talent_score'] ?? 90),
+                'experience_hours' => (string) ($t['experience_hours'] ?? '100+ giờ dự án'),
+                'skills'           => $skills,
+            ];
+        }
+    } catch (\Throwable $e) {
+        $featuredTalents = [];
+    }
+}
+
+if (empty($featuredTalents) && $pdo !== null) {
+    try {
+        $stmtTalent = $pdo->query(<<<'SQL'
+            SELECT sp.id, u.fullName AS name, COALESCE(s.name, 'Trường đại học') AS school,
+                   COALESCE(sp.major, 'Công nghệ thông tin') AS major,
+                   COALESCE((SELECT GROUP_CONCAT(sk.name SEPARATOR ', ') FROM student_skills sk WHERE sk.studentId = sp.id), '') AS skillsStr
+            FROM student_profiles sp
+            JOIN users u ON u.id = sp.userId
+            LEFT JOIN classes c ON c.id = sp.classId
+            LEFT JOIN schools s ON s.id = c.schoolId
+            WHERE u.status = 'active'
+            ORDER BY sp.createdAt DESC
+            LIMIT 3
+        SQL);
+        if ($stmtTalent !== false) {
+            $rows = $stmtTalent->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            foreach ($rows as $r) {
+                $skills = $r['skillsStr'] !== '' ? array_filter(array_map('trim', explode(',', $r['skillsStr']))) : ['Lập trình', 'Giải quyết vấn đề'];
+                $featuredTalents[] = [
+                    'id'               => (string) $r['id'],
+                    'name'             => (string) $r['name'],
+                    'school'           => (string) $r['school'],
+                    'major'            => (string) $r['major'],
+                    'talent_score'     => 90,
+                    'experience_hours' => '90+ giờ thực tế',
+                    'skills'           => $skills,
+                ];
+            }
+        }
+    } catch (\Throwable) {}
+}
 
 $pendingActions = [];
 if ($summary['submitted_count'] > 0) {
@@ -211,28 +241,32 @@ if (empty($pendingActions)) {
     ];
 }
 
-$recentActivities = [
-    [
-        'title' => 'Ứng viên Nguyễn Văn An vừa nộp hồ sơ vào vị trí thực tập Frontend',
-        'time' => '10 phút trước',
-        'type' => 'applicant'
-    ],
-    [
-        'title' => 'Đã lưu 3 hồ sơ tài năng từ ĐH Bách Khoa Hà Nội vào danh sách ưu tiên',
-        'time' => '2 giờ trước',
-        'type' => 'bookmark'
-    ],
-    [
-        'title' => 'Cập nhật nội dung tin tuyển dụng Thực tập sinh PHP/Laravel 2026',
-        'time' => 'Hôm qua',
-        'type' => 'edit'
-    ],
-    [
-        'title' => 'Hoàn tất thủ tục tài trợ 50.000.000 VNĐ cho Dự án Sân chơi Năng khiếu AI',
-        'time' => '2 ngày trước',
-        'type' => 'sponsorship'
-    ]
-];
+$recentActivities = [];
+if ($pdo !== null) {
+    try {
+        $stmtAct = $pdo->prepare(<<<'SQL'
+            SELECT ia.appliedAt AS act_time, CONCAT('Ứng viên nộp hồ sơ vào vị trí "', ip.title, '"') AS title, 'applicant' AS type
+            FROM internship_applications ia
+            JOIN internship_posts ip ON ip.id = ia.postId
+            WHERE ip.enterpriseId = :eId
+            ORDER BY ia.appliedAt DESC
+            LIMIT 4
+        SQL);
+        $stmtAct->execute(['eId' => $enterprise['id']]);
+        $acts = $stmtAct->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($acts as $act) {
+            $timeFormatted = 'Vừa xong';
+            try {
+                $timeFormatted = (new DateTimeImmutable($act['act_time']))->format('d/m/Y H:i');
+            } catch (\Throwable) {}
+            $recentActivities[] = [
+                'title' => (string) $act['title'],
+                'time' => $timeFormatted,
+                'type' => (string) $act['type'],
+            ];
+        }
+    } catch (\Throwable) {}
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">

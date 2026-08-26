@@ -571,8 +571,9 @@ if (!function_exists('learner_ecosystem_can_apply')) {
     function learner_ecosystem_can_apply(array $opportunity, ?string $today = null): bool
     {
         $today ??= date('Y-m-d');
+        $status = (string) ($opportunity['status'] ?? '');
 
-        return ($opportunity['status'] ?? '') === 'active'
-            && ($opportunity['deadline'] ?? '') >= $today;
+        return in_array($status, ['active', 'published', 'open'], true)
+            && (($opportunity['deadline'] ?? '') === '' || ($opportunity['deadline'] ?? '') >= $today);
     }
 }

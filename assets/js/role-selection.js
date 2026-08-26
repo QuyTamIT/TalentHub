@@ -1,11 +1,6 @@
 /**
  * TalentHub - Role Selection Page Scripts
- * Handles role card interactions, keyboard navigation, active state selection,
- * and graceful route fallback notices for pending backend modules.
- * 
- * Note for Junior Developers:
- * - When target modules (/app/learner, /app/teacher, /app/school, /app/enterprise) are ready,
- *   update handleRoleNavigation to navigate directly using window.location.href = route.
+ * Handles role card interactions and keyboard navigation for registration.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -59,8 +54,7 @@ function selectCard(selectedCard) {
 }
 
 /**
- * Handles navigation to destination module or displays fallback feedback if module isn't created yet.
- * Routes always go through /login.php so credentials must match the chosen portal.
+ * Handles navigation to the selected registration form or displays fallback feedback.
  */
 function handleRoleNavigation(route, roleName) {
     if (!route) {

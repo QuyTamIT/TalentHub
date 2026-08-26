@@ -1,12 +1,13 @@
 <?php
 /**
  * TalentHub - Role Selection Page
- * Allows visitors to choose their area (Learner, Teacher, School, Enterprise).
+ * Allows visitors to choose the role they want to register.
  *
- * Clicking a card always routes through /login.php with role_required=...
- * so the visitor must re-authenticate with credentials that match the chosen
- * portal. If they are already authenticated with the matching role the login
- * page skips the form and forwards them straight to the area.
+ * Note for Junior Developers:
+ * - This page is accessed after clicking "Vào app" or "Trải nghiệm ngay" from Home.
+ * - Shared CSS design tokens are loaded from assets/css/home.css
+ * - Scoped role selection styles are defined in assets/css/role-selection.css
+ * - Interaction and fallback handlers are in assets/js/role-selection.js
  */
 require __DIR__ . '/bin/bootstrap.php';
 
@@ -43,50 +44,43 @@ $roles = [
         'id' => 'learner',
         'title' => 'Học sinh / Sinh viên',
         'description' => 'Khám phá năng khiếu, xây dựng hồ sơ năng lực và tham gia hoạt động.',
-        'cta' => 'Vào khu vực này',
-        'route' => 'app/learner/index.php',
+        'cta' => 'Đăng ký học viên',
+        'route' => 'register.php',
         'is_popular' => true,
         'badge' => 'Phổ biến nhất',
         'icon_type' => 'student',
-        'role_code' => 'student',
     ],
     [
         'id' => 'teacher',
         'title' => 'Giáo viên / HLV',
         'description' => 'Quản lý hoạt động, theo dõi và đánh giá năng lực người học.',
-        'cta' => 'Vào khu vực này',
-        'route' => 'app/teacher/index.php',
+        'cta' => 'Đăng ký giáo viên',
+        'route' => 'register-teacher.php',
         'is_popular' => false,
         'icon_type' => 'teacher',
-        'role_code' => 'teacher',
     ],
     [
         'id' => 'school',
         'title' => 'Nhà trường',
         'description' => 'Theo dõi năng lực, lớp học, phân tích và báo cáo toàn trường.',
-        'cta' => 'Vào khu vực này',
-        'route' => 'app/school/index.php',
+        'cta' => 'Đăng ký nhà trường',
+        'route' => 'register-school.php',
         'is_popular' => false,
         'icon_type' => 'school',
-        'role_code' => 'school',
     ],
     [
         'id' => 'enterprise',
         'title' => 'Doanh nghiệp',
         'description' => 'Tìm kiếm nhân tài, tuyển thực tập và tài trợ dự án.',
-        'cta' => 'Vào khu vực này',
-        'route' => 'app/enterprise/index.php',
+        'cta' => 'Đăng ký doanh nghiệp',
+        'route' => 'register-enterprise.php',
         'is_popular' => false,
         'icon_type' => 'enterprise',
-        'role_code' => 'enterprise',
     ],
 ];
 
-// Always route through login so credentials match the chosen portal
 foreach ($roles as &$role) {
-    $role['auth_href'] = app_href('/login.php')
-        . '?next=' . urlencode(app_href('/' . $role['route']))
-        . '&role_required=' . urlencode($role['role_code']);
+    $role['registration_href'] = app_href('/' . $role['route']);
 }
 unset($role);
 ?>
@@ -96,8 +90,8 @@ unset($role);
     <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="TalentHub - Chọn vai trò sử dụng để trải nghiệm các tính năng phù hợp.">
-    <title>Chọn Vai Trò Trải Nghiệm - TalentHub</title>
+    <meta name="description" content="TalentHub - Chọn vai trò để bắt đầu đăng ký tài khoản phù hợp.">
+    <title>Chọn Vai Trò Đăng Ký - TalentHub</title>
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="assets/css/home.css">
@@ -133,10 +127,10 @@ unset($role);
         <div class="container">
             <!-- Section Header -->
             <div class="role-selection-intro">
-                <span class="section-tag">✨ Chọn vai trò trải nghiệm</span>
-                <h1 class="role-selection-title">Bạn đang đăng nhập với vai trò nào?</h1>
+                <span class="section-tag">Bắt đầu cùng TalentHub</span>
+                <h1 class="role-selection-title">Bạn muốn đăng ký với vai trò nào?</h1>
                 <p class="role-selection-description">
-                    Vui lòng chọn vai trò phù hợp để truy cập giao diện và các tính năng được tối ưu hóa cho bạn.
+                    Chọn vai trò phù hợp để tiếp tục đến biểu mẫu đăng ký dành riêng cho bạn.
                 </p>
             </div>
 
@@ -154,7 +148,7 @@ unset($role);
             <div class="role-cards-grid">
                 <?php foreach ($roles as $role): ?>
                     <div class="role-card <?= $role['is_popular'] ? 'role-card--popular' : ''; ?>"
-                         data-route="<?= htmlspecialchars($role['auth_href']); ?>"
+                         data-route="<?= htmlspecialchars($role['registration_href']); ?>"
                          data-role-name="<?= htmlspecialchars($role['title']); ?>"
                          tabindex="0"
                          role="button"
@@ -194,8 +188,7 @@ unset($role);
                         <h2 class="role-card__title"><?= htmlspecialchars($role['title']); ?></h2>
                         <p class="role-card__description"><?= htmlspecialchars($role['description']); ?></p>
 
-                        <!-- Routes through /login.php with role_required=... to enforce re-auth -->
-                        <a href="<?= htmlspecialchars($role['auth_href']); ?>" class="btn <?= $role['is_popular'] ? 'btn-primary' : 'btn-secondary'; ?> role-card__cta">
+                        <a href="<?= htmlspecialchars($role['registration_href']); ?>" class="btn <?= $role['is_popular'] ? 'btn-primary' : 'btn-secondary'; ?> role-card__cta">
                             <?= htmlspecialchars($role['cta']); ?>
                             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -212,21 +205,10 @@ unset($role);
                     <line x1="12" y1="16" x2="12" y2="12"></line>
                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
                 </svg>
-                <span>Lưu ý: Bạn có thể truy cập đúng khu vực tính năng của TalentHub dựa trên vai trò của mình.</span>
+                <span>Sau khi đăng ký thành công, bạn sẽ được chuyển đến trang đăng nhập. Hồ sơ tổ chức và giáo viên có thể cần được xác minh trước khi kích hoạt.</span>
             </div>
         </div>
     </main>
-
-    <!-- Notification Toast Element (Fallback feedback for non-existent routes) -->
-    <div class="role-toast" id="role-toast" aria-live="polite" aria-atomic="true">
-        <div class="role-toast__content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M12 8v4l3 3"></path>
-            </svg>
-            <span class="role-toast__message">Khu vực đang được phát triển!</span>
-        </div>
-    </div>
 
     <!-- JavaScript Assets -->
     <script src="assets/js/role-selection.js"></script>

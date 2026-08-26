@@ -38,11 +38,12 @@ SELECT
 FROM internship_posts post
 INNER JOIN enterprises enterprise ON enterprise.id = post.enterpriseId
 WHERE EXISTS (SELECT 1 FROM student_profiles student WHERE student.id = :student_id)
-  AND post.status = 'active'
+  AND post.status IN ('active', 'published')
   AND enterprise.status = 'active'
-  AND enterprise.verificationStatus IN ('verified', 'approved')
+  AND (enterprise.verificationStatus IN ('verified', 'approved') OR enterprise.verificationStatus IS NULL OR enterprise.verificationStatus = 'pending')
   AND (
       post.audience = 'public'
+      OR post.audience IS NULL
       OR (
           post.audience = 'partner_schools'
           AND EXISTS (
@@ -55,7 +56,7 @@ WHERE EXISTS (SELECT 1 FROM student_profiles student WHERE student.id = :student
           )
       )
   )
-ORDER BY post.deadline ASC, post.id ASC
+ORDER BY post.createdAt DESC, post.id DESC
 SQL;
 
     private const INTERNSHIP_SQL_FALLBACK = <<<'SQL'
@@ -68,10 +69,9 @@ SELECT
 FROM internship_posts post
 INNER JOIN enterprises enterprise ON enterprise.id = post.enterpriseId
 WHERE EXISTS (SELECT 1 FROM student_profiles student WHERE student.id = :student_id)
-  AND post.status = 'active'
+  AND post.status IN ('active', 'published')
   AND enterprise.status = 'active'
-  AND enterprise.verificationStatus IN ('verified', 'approved')
-ORDER BY post.deadline ASC, post.id ASC
+ORDER BY post.createdAt DESC, post.id DESC
 SQL;
 
     private const ACTIVITY_SQL_WITH_REGISTRATIONS = <<<'SQL'

@@ -1,0 +1,67 @@
+<?php
+declare(strict_types=1);
+
+namespace TalentHub\Bootstrap;
+
+use TalentHub\Rbac\RoleCodes;
+
+final class AuthPortalRouter
+{
+    private const PORTALS = [
+        'student'        => '/app/learner/index.php',
+        'teacher'        => '/app/teacher/index.php',
+        'school'         => '/app/school/index.php',
+        'enterprise'     => '/app/enterprise/index.php',
+        'platform_admin' => '/app/admin/index.php',
+    ];
+
+    private const PREFIXES = [
+        'student'        => '/app/learner/',
+        'teacher'        => '/app/teacher/',
+        'school'         => '/app/school/',
+        'enterprise'     => '/app/enterprise/',
+        'platform_admin' => '/app/admin/',
+    ];
+
+    public static function getDashboardUrl(string $role): string
+    {
+        $role = RoleCodes::canonical($role);
+        return self::PORTALS[$role] ?? '/role-selection.php';
+    }
+
+    public static function getLoginUrl(): string
+    {
+        return '/login.php';
+    }
+
+    public static function destination(string $role, ?string $requested = null): string
+    {
+        $role = RoleCodes::canonical($role);
+        $default = self::PORTALS[$role] ?? '/role-selection.php';
+
+        if (!is_string($requested) || $requested === '' || str_starts_with($requested, '//')) {
+            return $default;
+        }
+
+        $path = parse_url($requested, PHP_URL_PATH);
+        if (!is_string($path) || !str_starts_with($path, '/')) {
+            return $default;
+        }
+
+        $prefix = self::PREFIXES[$role] ?? null;
+        return ($prefix !== null && str_starts_with($path, $prefix)) ? $requested : $default;
+    }
+
+    public static function redirectToDashboard(string $role): never
+    {
+        $url = self::getDashboardUrl($role);
+        header('Location: ' . app_href($url));
+        exit;
+    }
+
+    public static function redirect(string $path): never
+    {
+        header('Location: ' . app_href($path));
+        exit;
+    }
+}
