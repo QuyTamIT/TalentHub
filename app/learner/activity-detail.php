@@ -183,7 +183,7 @@ $formatDateTime = static function (mixed $value, string $format): string {
                                     <div><span><?= learner_icon('calendar', 18) ?></span><p>Ngày tổ chức<strong><?= learner_escape($startDate) ?></strong></p></div>
                                     <div><span><?= learner_icon('clock', 18) ?></span><p>Thời gian<strong><?= learner_escape($startTime . ' – ' . $endTime) ?></strong></p></div>
                                     <div><span><?= learner_icon('map-pin', 18) ?></span><p>Địa điểm<strong><?= learner_escape($locationName) ?></strong></p></div>
-                                    <div><span><?= learner_icon('users', 18) ?></span><p>Số lượng<strong><?= learner_escape($participants . '/' . $capacity . ' học sinh') ?></strong></p></div>
+                                    <div><span><?= learner_icon('users', 18) ?></span><p>Số lượng<strong data-activity-count><?= learner_escape($participants . '/' . $capacity . ' học sinh') ?></strong></p></div>
                                 </div>
 
                                 <?php if ($activity['has_description']): ?>
@@ -249,10 +249,10 @@ $formatDateTime = static function (mixed $value, string $format): string {
                             <section class="learner-card learner-activity-register-card">
                                 <h2>Đăng ký tham gia</h2>
                                 <div class="learner-activity-capacity">
-                                    <div><strong><?= learner_escape((string) $remaining) ?></strong><span>chỗ còn lại</span></div>
-                                    <span><?= learner_escape($participants . '/' . $capacity) ?> đã đăng ký</span>
+                                    <div><strong data-activity-remaining><?= learner_escape((string) $remaining) ?></strong><span>chỗ còn lại</span></div>
+                                    <span data-activity-participants><?= learner_escape($participants . '/' . $capacity) ?> đã đăng ký</span>
                                 </div>
-                                <progress value="<?= learner_escape((string) $capacityPercent) ?>" max="100" aria-label="<?= learner_escape('Đã sử dụng ' . $capacityPercent . '% số chỗ') ?>"><?= learner_escape((string) $capacityPercent) ?>%</progress>
+                                <progress data-activity-capacity-progress value="<?= learner_escape((string) $capacityPercent) ?>" max="100" aria-label="<?= learner_escape('Đã sử dụng ' . $capacityPercent . '% số chỗ') ?>"><?= learner_escape((string) $capacityPercent) ?>%</progress>
                                 <dl class="learner-activity-register-facts">
                                     <div><dt>Mở đăng ký</dt><dd><?= learner_escape($registrationOpens) ?></dd></div>
                                     <div><dt>Hạn đăng ký</dt><dd><?= learner_escape($registrationCloses) ?></dd></div>

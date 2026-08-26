@@ -97,6 +97,7 @@ $pdo = $fixture['pdo'];
 $ids = $fixture['ids'];
 $registered = $service->register($ids['studentA'], $ids['userA'], '01K39PHASE4REGISTER0000001', ['activityId' => $ids['activityAuto']]);
 registration_assert(($registered['registration']['status'] ?? null) === 'approved', 'automatic registration is approved');
+registration_assert(($registered['capacity'] ?? null) === ['participants' => 1, 'capacity' => 2, 'remaining' => 1], 'registration returns the authoritative post-transaction capacity snapshot');
 registration_assert((int) $pdo->query("SELECT COUNT(*) FROM audit_logs WHERE action='activity_registration.registered'")->fetchColumn() === 1, 'registration audit is atomic');
 registration_expect_api(
     fn () => $service->register($ids['studentA'], $ids['userA'], '01K39PHASE4REGISTER0000002', ['activityId' => $ids['activityAuto']]),
@@ -114,6 +115,7 @@ registration_assert(($waitlisted['registration']['status'] ?? null) === 'waitlis
 $fixture = registration_fixture();
 $pending = $fixture['service']->register($fixture['ids']['studentA'], $fixture['ids']['userA'], '01K39PHASE4PENDING000000001', ['activityId' => $fixture['ids']['activityReview']]);
 registration_assert(($pending['registration']['status'] ?? null) === 'pending', 'teacher-review policy creates pending registration');
+registration_assert(($pending['capacity']['participants'] ?? null) === 0, 'pending registration does not occupy confirmed capacity');
 
 $fixture = registration_fixture();
 $fixture['pdo']->prepare("INSERT INTO activity_registrations VALUES ('99999999-9999-4999-8999-999999999999', ?, ?, 'approved', '2026-08-01 00:00:00', '2026-08-01 00:00:00', NULL, NULL)")

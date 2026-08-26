@@ -6,6 +6,7 @@ const path = require('node:path');
 require('../assets/js/learner-activities.js');
 require('../assets/js/learner.js');
 const activitySource = fs.readFileSync(path.join(__dirname, '..', 'assets/js/learner-activities.js'), 'utf8');
+const activityDiscoverySource = fs.readFileSync(path.join(__dirname, '..', 'app', 'learner', 'activities.php'), 'utf8');
 assert.doesNotMatch(activitySource, /innerHTML|outerHTML|insertAdjacentHTML/, 'activity history renders server values without HTML parsing');
 const {
   canRegisterActivity,
@@ -27,6 +28,11 @@ const {
   activityMatchesDiscoveryFilters,
   activityAvailabilityState,
   registrationErrorMessage,
+  registrationCapacityDelta,
+  registrationSuccessMessage,
+  registrationBlockingState,
+  normalizeRegistrationCapacity,
+  createActivityCatalogFreshness,
   createSingleFlightRegistration,
   activeRegistrations,
   registeredSummary,
@@ -39,6 +45,57 @@ const {
   groupHistoryByMonth,
   historyMatchesFilters
 } = global.LearnerActivities;
+
+test('capacity feedback counts only confirmed registrations', () => {
+  assert.equal(registrationCapacityDelta('approved'), 1);
+  assert.equal(registrationCapacityDelta('attended'), 1);
+  assert.equal(registrationCapacityDelta('pending'), 0);
+  assert.equal(registrationCapacityDelta('waitlisted'), 0);
+});
+
+test('registration success feedback explains approval state', () => {
+  assert.equal(registrationSuccessMessage('approved'), 'Đăng ký thành công! Bạn đã được ghi nhận.');
+  assert.equal(registrationSuccessMessage('pending'), 'Đăng ký thành công! Đang chờ giáo viên phê duyệt.');
+  assert.equal(registrationSuccessMessage('waitlisted'), 'Đăng ký thành công! Bạn đang ở danh sách chờ.');
+});
+
+test('schedule conflict becomes an explicit blocked registration state', () => {
+  assert.deepEqual(registrationBlockingState({ code: 'SCHEDULE_CONFLICT' }), {
+    label: 'Không thể đăng ký: trùng lịch',
+    disabled: true,
+    tone: 'outline',
+    explanation: 'Bạn chưa thể đăng ký vì thời gian hoạt động trùng với một hoạt động đã đăng ký. Hãy kiểm tra mục Đã đăng ký.'
+  });
+  assert.equal(registrationBlockingState({ code: 'NETWORK_ERROR' }), null);
+});
+
+test('catalog revisions keep every older restored discovery page stale', () => {
+  const raw = memory();
+  const freshness = createActivityCatalogFreshness(raw, 'activity-catalog-test');
+  const firstDocumentRevision = freshness.current();
+  assert.equal(freshness.markForStatus('pending'), false);
+  assert.equal(freshness.markForStatus('approved'), true);
+  assert.equal(freshness.isNewerThan(firstDocumentRevision), true);
+  const freshDocumentRevision = freshness.current();
+  assert.equal(freshness.isNewerThan(freshDocumentRevision), false);
+  assert.equal(freshness.isNewerThan(firstDocumentRevision), true, 'a fresh page must not consume the revision needed by an older BFCache entry');
+});
+
+test('registration capacity uses one authoritative server snapshot', () => {
+  assert.deepEqual(normalizeRegistrationCapacity({ participants: 7, capacity: 35, remaining: 28 }), {
+    participants: 7,
+    capacity: 35,
+    remaining: 28,
+    percent: 20
+  });
+  assert.equal(normalizeRegistrationCapacity({ participants: 'bad', capacity: 35 }), null);
+  assert.equal(normalizeRegistrationCapacity({ participants: 1, capacity: 0 }), null);
+});
+
+test('discovery renders activity times in the same Vietnam timezone as detail', () => {
+  assert.match(activityDiscoverySource, /new DateTimeZone\('Asia\/Ho_Chi_Minh'\)/);
+  assert.match(activityDiscoverySource, /setTimezone\(\$activityDisplayTimezone\)/);
+});
 
 test('[phase8 task15] attendance history classification, KPI, grouping and filtering use resolved data', () => {
   const rows = [

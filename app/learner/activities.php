@@ -44,6 +44,7 @@ $newActivityCount = count(array_filter(
     }
 ));
 $discoveryCategories = ['Tất cả', 'Kỹ thuật', 'Kinh doanh', 'Sáng tạo', 'Cộng đồng'];
+$activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
 ?>
 <!doctype html>
 <html lang="vi">
@@ -172,8 +173,10 @@ $discoveryCategories = ['Tất cả', 'Kỹ thuật', 'Kinh doanh', 'Sáng tạo
                                     $locationLabel,
                                     implode(' ', array_map('strval', $activity['skills'] ?? [])),
                                 ]);
-                                $startAt = new DateTimeImmutable((string) $activity['start_at']);
-                                $registrationClosesAt = new DateTimeImmutable((string) $activity['registration_closes_at']);
+                                $startAt = (new DateTimeImmutable((string) $activity['start_at']))
+                                    ->setTimezone($activityDisplayTimezone);
+                                $registrationClosesAt = (new DateTimeImmutable((string) $activity['registration_closes_at']))
+                                    ->setTimezone($activityDisplayTimezone);
                                 ?>
                                 <article
                                     class="learner-activity-discovery-card"

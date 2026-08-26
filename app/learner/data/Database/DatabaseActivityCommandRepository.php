@@ -86,8 +86,17 @@ final class DatabaseActivityCommandRepository implements ActivityCommandReposito
 
             $registration = $this->findRegistration($registrationId)
                 ?? throw new ApiException(500, 'REGISTRATION_FAILED', 'Không thể đọc đăng ký vừa tạo.');
+            $confirmedParticipants = $this->occupiedCount($activityId);
             $this->pdo->commit();
-            return ['registration' => $registration, 'promotedRegistration' => null];
+            return [
+                'registration' => $registration,
+                'promotedRegistration' => null,
+                'capacity' => [
+                    'participants' => $confirmedParticipants,
+                    'capacity' => $capacity,
+                    'remaining' => max(0, $capacity - $confirmedParticipants),
+                ],
+            ];
         } catch (Throwable $exception) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();

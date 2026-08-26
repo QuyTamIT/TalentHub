@@ -282,6 +282,58 @@ function registrationErrorMessage(error){
   };
   return messages[code]||'Không thể đăng ký hoạt động. Vui lòng thử lại.';
 }
+function registrationCapacityDelta(status){
+  return ['approved','attended'].includes(String(status||''))?1:0;
+}
+function registrationSuccessMessage(status){
+  const messages={
+    approved:'Đăng ký thành công! Bạn đã được ghi nhận.',
+    attended:'Đăng ký thành công! Bạn đã được ghi nhận.',
+    pending:'Đăng ký thành công! Đang chờ giáo viên phê duyệt.',
+    waitlisted:'Đăng ký thành công! Bạn đang ở danh sách chờ.'
+  };
+  return messages[String(status||'')]||'Đăng ký thành công! Hệ thống đã ghi nhận yêu cầu của bạn.';
+}
+function registrationBlockingState(error){
+  if(String(error?.code||'')!=='SCHEDULE_CONFLICT')return null;
+  return{
+    label:'Không thể đăng ký: trùng lịch',
+    disabled:true,
+    tone:'outline',
+    explanation:'Bạn chưa thể đăng ký vì thời gian hoạt động trùng với một hoạt động đã đăng ký. Hãy kiểm tra mục Đã đăng ký.'
+  };
+}
+function normalizeRegistrationCapacity(snapshot){
+  const capacity=Number(snapshot?.capacity);
+  const participants=Number(snapshot?.participants);
+  if(!Number.isFinite(capacity)||capacity<=0||!Number.isFinite(participants)||participants<0)return null;
+  const confirmed=Math.floor(participants);
+  const total=Math.floor(capacity);
+  return{
+    participants:confirmed,
+    capacity:total,
+    remaining:Math.max(0,total-confirmed),
+    percent:Math.min(100,Math.round((confirmed/total)*100))
+  };
+}
+function createActivityCatalogFreshness(storage=null,key='talenthub:activity-catalog-stale'){
+  const available=Boolean(storage&&typeof storage.getItem==='function'&&typeof storage.setItem==='function');
+  const current=()=>{
+    if(!available)return 0;
+    try{
+      const revision=Number.parseInt(storage.getItem(key)||'0',10);
+      return Number.isInteger(revision)&&revision>0?revision:0;
+    }catch(error){return 0;}
+  };
+  return{
+    current,
+    isNewerThan:revision=>current()>Math.max(0,Number.parseInt(revision,10)||0),
+    markForStatus:status=>{
+      if(registrationCapacityDelta(status)===0||!available)return false;
+      try{storage.setItem(key,String(current()+1));return true;}catch(error){return false;}
+    }
+  };
+}
 function normalizeServerRegistration(registration){
   if(!registration||typeof registration!=='object')return null;
   return{
@@ -320,6 +372,11 @@ global.LearnerActivities={
   registrationPageForStatus,
   activityAvailabilityState,
   registrationErrorMessage,
+  registrationCapacityDelta,
+  registrationSuccessMessage,
+  registrationBlockingState,
+  normalizeRegistrationCapacity,
+  createActivityCatalogFreshness,
   createSingleFlightRegistration,
   activeRegistrations,
   registeredSummary,
@@ -334,8 +391,15 @@ global.LearnerActivities={
 };
 if(typeof document==='undefined')return;
 document.addEventListener('DOMContentLoaded',()=>{
+  let catalogStorage=null;
+  try{catalogStorage=global.sessionStorage;}catch(error){}
+  const catalogFreshness=createActivityCatalogFreshness(catalogStorage);
   const discovery=document.querySelector('[data-activity-discovery-page]');
   if(discovery){
+    const discoveryRevision=catalogFreshness.current();
+    global.addEventListener?.('pageshow',event=>{
+      if(event?.persisted===true&&catalogFreshness.isNewerThan(discoveryRevision))global.location.reload();
+    });
     const cards=Array.from(discovery.querySelectorAll('[data-activity-card]'));
     const search=discovery.querySelector('[data-activity-search-input]');
     const time=discovery.querySelector('[data-activity-time-filter]');
@@ -417,9 +481,30 @@ document.addEventListener('DOMContentLoaded',()=>{
   const detail=document.querySelector('[data-activity-detail-page]');
   if(detail){
     const activity=boot.activity;
+    let capacitySnapshot=normalizeRegistrationCapacity(activity);
+    let registrationBlock=null;
     let registration=all().find(r=>r.activity_id===activity.id);
     const button=detail.querySelector('[data-register-current]');
     const message=detail.querySelector('[data-registration-message]');
+    const count=detail.querySelector('[data-activity-count]');
+    const participants=detail.querySelector('[data-activity-participants]');
+    const remaining=detail.querySelector('[data-activity-remaining]');
+    const capacityProgress=detail.querySelector('[data-activity-capacity-progress]');
+    global.addEventListener?.('pageshow',event=>{
+      if(event?.persisted===true)global.location.reload();
+    });
+    const renderCapacity=()=>{
+      if(!capacitySnapshot)return;
+      const{participants:confirmed,capacity,remaining:left,percent}=capacitySnapshot;
+      if(count)count.textContent=`${confirmed}/${capacity} học sinh`;
+      if(participants)participants.textContent=`${confirmed}/${capacity} đã đăng ký`;
+      if(remaining)remaining.textContent=String(left);
+      if(capacityProgress){
+        capacityProgress.value=String(percent);
+        capacityProgress.textContent=`${percent}%`;
+        capacityProgress.setAttribute('aria-label',`Đã sử dụng ${percent}% số chỗ`);
+      }
+    };
     const setButtonTone=tone=>{
       if(!button)return;
       button.classList.remove('learner-btn--primary','learner-btn--secondary','learner-btn--outline');
@@ -428,9 +513,10 @@ document.addEventListener('DOMContentLoaded',()=>{
     const render=(commandFeedback='')=>{
       registration=all().find(r=>r.activity_id===activity.id);
       if(!button)return;
-      const cta=!localMutationsEnabled&&!serverMutationsEnabled&&!registration&&canRegisterActivity(activity)
+      const defaultCta=!localMutationsEnabled&&!serverMutationsEnabled&&!registration&&canRegisterActivity(activity)
         ?{label:'Đăng ký trực tuyến chưa khả dụng',disabled:true,tone:'outline',explanation:'Kết nối đăng ký trực tuyến hiện chưa khả dụng.'}
         :activityCtaState(activity,registration);
+      const cta=registrationBlock||defaultCta;
       button.textContent=cta.label;
       button.disabled=cta.disabled;
       setButtonTone(cta.tone);
@@ -439,17 +525,24 @@ document.addEventListener('DOMContentLoaded',()=>{
     render();
     button?.addEventListener('click',async()=>{
       if(serverMutationsEnabled){
+        registrationBlock=null;
         button.disabled=true;
         if(message)message.textContent='Đang ghi nhận đăng ký...';
         let commandFeedback='';
         try{
           const result=await submitRegistration(activity.id);
+          const serverCapacity=normalizeRegistrationCapacity(result.capacity);
+          const normalizedRegistration=normalizeServerRegistration(result.registration);
+          if(!serverCapacity||!normalizedRegistration)throw{code:'INVALID_RESPONSE'};
           const created=upsertServerRegistration(result.registration);
-          commandFeedback=`Đã ghi nhận: ${getStatusLabel(created?.status)}.`;
+          capacitySnapshot=serverCapacity;
+          catalogFreshness.markForStatus(created?.status);
+          commandFeedback=registrationSuccessMessage(created?.status);
         }catch(error){
-          commandFeedback=registrationErrorMessage(error);
+          registrationBlock=registrationBlockingState(error);
+          commandFeedback=registrationBlock?.explanation||registrationErrorMessage(error);
         }
-        render(commandFeedback);return;
+        renderCapacity();render(commandFeedback);return;
       }
       if(!localMutationsEnabled){
         if(message)message.textContent='Đăng ký trực tuyến chưa khả dụng.';render();return;
@@ -460,8 +553,8 @@ document.addEventListener('DOMContentLoaded',()=>{
       }
       const active=all().filter(r=>r.status!=='cancelled');
       if(hasScheduleConflict(activity,active,boot.catalog)){
-        if(message)message.textContent='Lịch hoạt động bị trùng với một đăng ký hiện có.';
-        return;
+        registrationBlock=registrationBlockingState({code:'SCHEDULE_CONFLICT'});
+        render(registrationBlock?.explanation||'Lịch hoạt động bị trùng với một đăng ký hiện có.');return;
       }
       const existing=store?.getByActivity(activity.id);
       const created=createRegistration({studentId:boot.student_id,activity,id:existing?.id});
@@ -470,7 +563,12 @@ document.addEventListener('DOMContentLoaded',()=>{
         render();return;
       }
       store?.saveRegistration(created);
-      if(message)message.textContent=`Đã ghi nhận: ${getStatusLabel(created.status)}.`;
+      capacitySnapshot=normalizeRegistrationCapacity({
+        participants:(Number(activity.participants)||0)+registrationCapacityDelta(created.status),
+        capacity:activity.capacity
+      });
+      if(message)message.textContent=registrationSuccessMessage(created.status);
+      renderCapacity();
       render();
     });
   }

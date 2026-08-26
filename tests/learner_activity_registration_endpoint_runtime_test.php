@@ -115,6 +115,7 @@ SQL
     $registrationId = (string) ($register['data']['registration']['id'] ?? '');
     $assert($registrationId !== '', 'Real endpoint creates a registration.');
     $assert(($register['data']['registration']['status'] ?? null) === 'approved', 'Endpoint returns authoritative status.');
+    $assert(($register['data']['capacity'] ?? null) === ['participants' => 1, 'capacity' => 2, 'remaining' => 1], 'Endpoint returns authoritative capacity after registration.');
 
     $beforeForeignScope = [
         'registrations' => (int) $pdo->query('SELECT COUNT(*) FROM activity_registrations')->fetchColumn(),
