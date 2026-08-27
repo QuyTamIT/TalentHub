@@ -41,24 +41,7 @@ final class TeacherActivityRepository
     /** @return list<array<string,mixed>> */
     public function list(string $teacherId, string $search = ''): array
     {
-        $sql = "
-            SELECT
-                a.id,
-                a.title,
-                a.category,
-                a.startAt,
-                a.endAt,
-                a.capacity,
-                a.status,
-                (
-                    SELECT COUNT(*)
-                    FROM activity_registrations ar
-                    WHERE ar.activityId = a.id
-                      AND ar.status IN ('approved', 'attended')
-                ) AS registered_count
-            FROM activities a
-            WHERE a.createdByTeacherId = :teacherId
-        ";
+        $sql = $this->activitySelectSql() . ' WHERE a.createdByTeacherId = :teacherId';
         $params = ['teacherId' => $teacherId];
 
         if ($search !== '') {
@@ -76,26 +59,7 @@ final class TeacherActivityRepository
     /** @return array<string,mixed>|null */
     public function find(string $teacherId, string $activityId): ?array
     {
-        $statement = $this->pdo->prepare("
-            SELECT
-                a.id,
-                a.title,
-                a.category,
-                a.startAt,
-                a.endAt,
-                a.capacity,
-                a.status,
-                (
-                    SELECT COUNT(*)
-                    FROM activity_registrations ar
-                    WHERE ar.activityId = a.id
-                      AND ar.status IN ('approved', 'attended')
-                ) AS registered_count
-            FROM activities a
-            WHERE a.createdByTeacherId = :teacherId
-              AND a.id = :activityId
-            LIMIT 1
-        ");
+        $statement = $this->pdo->prepare($this->activitySelectSql() . ' WHERE a.createdByTeacherId = :teacherId AND a.id = :activityId LIMIT 1');
         $statement->execute(['teacherId' => $teacherId, 'activityId' => $activityId]);
         $row = $statement->fetch();
 
@@ -124,64 +88,243 @@ final class TeacherActivityRepository
         return $statement->fetchAll();
     }
 
-    /** @param array{title:string,category:string,startAt:string,endAt:string,capacity:int} $data */
+    /** @param array<string,mixed> $data */
     public function create(string $teacherId, string $schoolId, string $activityId, array $data): void
     {
-        $statement = $this->pdo->prepare("
-            INSERT INTO activities (id, schoolId, createdByTeacherId, title, category, startAt, endAt, capacity, status)
-            VALUES (:id, :schoolId, :teacherId, :title, :category, :startAt, :endAt, :capacity, 'draft')
-        ");
-        $statement->execute([
-            'id' => $activityId,
-            'schoolId' => $schoolId,
-            'teacherId' => $teacherId,
-            'title' => $data['title'],
-            'category' => $data['category'],
-            'startAt' => $data['startAt'],
-            'endAt' => $data['endAt'],
-            'capacity' => $data['capacity'],
-        ]);
-    }
-
-    /** @param array{title:string,category:string,startAt:string,endAt:string,capacity:int} $data */
-    public function update(string $teacherId, string $activityId, array $data): bool
-    {
-        $current = $this->activityScope($teacherId, $activityId);
-        if ($current === null) return false;
-        $started = !$this->pdo->inTransaction();
-        if ($started) $this->pdo->beginTransaction();
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) $this->pdo->beginTransaction();
         try {
-            $statement = $this->pdo->prepare("
-            UPDATE activities
-            SET title = :title,
-                category = :category,
-                startAt = :startAt,
-                endAt = :endAt,
-                capacity = :capacity
-            WHERE id = :activityId
-              AND createdByTeacherId = :teacherId
-        ");
+            $actualSchoolId = $this->schoolIdForTeacher($teacherId);
+            if ($actualSchoolId === null) throw new ApiException(403, 'PERMISSION_DENIED', 'Không tìm thấy hồ sơ giáo viên hợp lệ.');
+            $columns = 'id, schoolId, createdByTeacherId, title, category, startAt, endAt, capacity, status';
+            $values = ':id, :schoolId, :teacherId, :title, :category, :startAt, :endAt, :capacity, \'draft\'';
+            if ($this->hasColumn('activities', 'visibility')) { $columns .= ', visibility'; $values .= ", 'school_only'"; }
+            $statement = $this->pdo->prepare("INSERT INTO activities ({$columns}) VALUES ({$values})");
             $statement->execute([
-            'title' => $data['title'],
-            'category' => $data['category'],
-            'startAt' => $data['startAt'],
-            'endAt' => $data['endAt'],
-            'capacity' => $data['capacity'],
-            'activityId' => $activityId,
-            'teacherId' => $teacherId,
+                'id' => $activityId,
+                'schoolId' => $actualSchoolId,
+                'teacherId' => $teacherId,
+                'title' => $data['title'], 'category' => $data['category'],
+                'startAt' => $data['startAt'], 'endAt' => $data['endAt'], 'capacity' => $data['capacity'],
             ]);
-            if (in_array((string) $current['status'], ['published', 'ongoing'], true)) {
-                $students = (new AiAudienceResolver($this->pdo))->schoolStudents((string) $current['schoolId']);
-                if ($students !== []) {
-                    TransactionalAiOutboxPublisher::publish($this->pdo, 'activity', $activityId, TransactionalAiOutboxPublisher::version(), $students, 'activity.updated', ['fields' => ['title', 'category', 'startAt', 'endAt', 'capacity']], (string) $current['schoolId']);
-                }
-            }
-            if ($started) $this->pdo->commit();
-            return true;
-        } catch (\Throwable $exception) {
-            if ($started && $this->pdo->inTransaction()) $this->pdo->rollBack();
+            $this->writeDetails($activityId, $actualSchoolId, $data);
+            $this->writePolicies($activityId, $data);
+            if ($ownsTransaction) $this->pdo->commit();
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $exception;
         }
+    }
+
+    /** @param array<string,mixed> $data */
+    public function update(string $teacherId, string $activityId, array $data): void
+    {
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) $this->pdo->beginTransaction();
+        try {
+            $lock = $this->lockSuffix();
+            $activity = $this->pdo->prepare("SELECT id, schoolId, capacity, status FROM activities WHERE id=:activityId AND createdByTeacherId=:teacherId LIMIT 1{$lock}");
+            $activity->execute(['activityId' => $activityId, 'teacherId' => $teacherId]);
+            $row = $activity->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($row)) throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.');
+            $occupied = $this->pdo->prepare("SELECT COUNT(*) FROM activity_registrations WHERE activityId=:activityId AND status IN ('approved','attended')");
+            $occupied->execute(['activityId' => $activityId]);
+            if ((int) $data['capacity'] < (int) $occupied->fetchColumn()) {
+                throw new ApiException(409, 'CAPACITY_REACHED', 'Sức chứa không được thấp hơn số đăng ký đã được duyệt hoặc đã tham dự.');
+            }
+            $this->assertResponsibleTeacher($data['responsibleTeacherId'] ?? null, (string) $row['schoolId']);
+            $statement = $this->pdo->prepare('UPDATE activities SET title=:title, category=:category, startAt=:startAt, endAt=:endAt, capacity=:capacity WHERE id=:activityId AND createdByTeacherId=:teacherId');
+            $statement->execute([
+                'title' => $data['title'], 'category' => $data['category'], 'startAt' => $data['startAt'],
+                'endAt' => $data['endAt'], 'capacity' => $data['capacity'], 'activityId' => $activityId, 'teacherId' => $teacherId,
+            ]);
+            $this->writeDetails($activityId, (string) $row['schoolId'], $data);
+            $this->writePolicies($activityId, $data);
+            if (in_array((string) $row['status'], ['published', 'ongoing'], true)) {
+                $students = (new AiAudienceResolver($this->pdo))->schoolStudents((string) $row['schoolId']);
+                if ($students !== []) {
+                    TransactionalAiOutboxPublisher::publish(
+                        $this->pdo,
+                        'activity',
+                        $activityId,
+                        TransactionalAiOutboxPublisher::version(),
+                        $students,
+                        'activity.updated',
+                        ['fields' => ['title', 'category', 'startAt', 'endAt', 'capacity']],
+                        (string) $row['schoolId'],
+                    );
+                }
+            }
+            if ($ownsTransaction) $this->pdo->commit();
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $exception;
+        }
+    }
+
+    /** @return list<array{id:string,name:string}> */
+    public function responsibleTeachers(string $teacherId): array
+    {
+        $schoolId = $this->schoolIdForTeacher($teacherId);
+        if ($schoolId === null) return [];
+        $name = $this->hasTable('users') ? 'COALESCE(u.fullName, t.id)' : 't.id';
+        $join = $this->hasTable('users') ? 'LEFT JOIN users u ON u.id = t.userId' : '';
+        $statement = $this->pdo->prepare("SELECT t.id, {$name} AS name FROM teacher_profiles t {$join} WHERE t.schoolId=:schoolId ORDER BY name, t.id");
+        $statement->execute(['schoolId' => $schoolId]);
+        return array_map(static fn (array $row): array => ['id' => (string) $row['id'], 'name' => (string) $row['name']], $statement->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    private function activitySelectSql(): string
+    {
+        $details = $this->hasTable('activity_details');
+        $policies = $this->hasTable('activity_registration_policies');
+        $experience = $this->hasTable('activity_experience_policies');
+        $detailJoin = $details ? ' LEFT JOIN activity_details d ON d.activityId = a.id' : '';
+        $policyJoin = $policies ? ' LEFT JOIN activity_registration_policies p ON p.activityId = a.id' : '';
+        $experienceJoin = $experience ? ' LEFT JOIN activity_experience_policies e ON e.activityId = a.id' : '';
+        $detail = static fn (string $column): string => $details ? "d.{$column} AS {$column}" : "NULL AS {$column}";
+        $policy = static fn (string $column): string => $policies ? "p.{$column} AS {$column}" : "NULL AS {$column}";
+        $hours = $experience ? 'e.confirmedHours AS confirmedHours' : 'NULL AS confirmedHours';
+        return "SELECT a.id, a.title, a.category, a.startAt, a.endAt, a.capacity, a.status,
+            {$detail('responsibleTeacherId')}, {$detail('audienceScope')}, {$detail('displayCategory')}, {$detail('filterCategory')},
+            {$detail('summary')}, {$detail('description')}, {$detail('experienceHighlights')}, {$detail('skillTags')},
+            {$detail('eligibilityRules')}, {$detail('benefitItems')}, {$detail('locationName')}, {$detail('locationAddress')},
+            {$detail('deliveryMode')}, {$detail('onlineMeetingUrl')}, {$detail('organizerName')}, {$detail('organizerContact')},
+            {$detail('organizerEmail')}, {$detail('organizerPhone')}, {$detail('coverImageUrl')}, {$detail('coverImageAlt')},
+            {$detail('feeAmount')}, {$detail('currency')}, {$detail('targetAudience')}, {$detail('certificateLabel')},
+            {$policy('registrationOpensAt')}, {$policy('registrationClosesAt')}, {$policy('cancellationClosesAt')}, {$policy('approvalMode')},
+            {$hours}, (SELECT COUNT(*) FROM activity_registrations ar WHERE ar.activityId=a.id AND ar.status IN ('approved','attended')) AS registered_count
+            FROM activities a{$detailJoin}{$policyJoin}{$experienceJoin}";
+    }
+
+    /** @param array<string,mixed> $data */
+    private function writeDetails(string $activityId, string $schoolId, array $data): void
+    {
+        $responsible = $data['responsibleTeacherId'];
+        $this->assertResponsibleTeacher($responsible, $schoolId);
+        $exists = $this->pdo->prepare('SELECT COUNT(*) FROM activity_details WHERE activityId=:activityId');
+        $exists->execute(['activityId' => $activityId]);
+        $params = [
+            'activityId' => $activityId, 'responsibleTeacherId' => $responsible, 'audienceScope' => 'school_only',
+            'displayCategory' => $data['displayCategory'], 'filterCategory' => $data['filterCategory'], 'summary' => $data['summary'],
+            'description' => $data['description'], 'experienceHighlights' => json_encode($data['experienceHighlights'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+            'skillTags' => json_encode($data['skillTags'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+            'eligibilityRules' => json_encode($data['eligibilityRules'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+            'benefitItems' => json_encode($data['benefitItems'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+            'locationName' => $data['locationName'], 'locationAddress' => $data['locationAddress'], 'deliveryMode' => $data['deliveryMode'],
+            'onlineMeetingUrl' => $data['onlineMeetingUrl'], 'organizerName' => $data['organizerName'], 'organizerContact' => $data['organizerContact'],
+            'organizerEmail' => $data['organizerEmail'], 'organizerPhone' => $data['organizerPhone'], 'coverImageUrl' => $data['coverImageUrl'],
+            'coverImageAlt' => $data['coverImageAlt'], 'feeAmount' => $data['feeAmount'], 'currency' => $data['currency'],
+            'targetAudience' => $data['targetAudience'], 'certificateLabel' => $data['certificateLabel'],
+            'createdAt' => gmdate('Y-m-d H:i:s.u'), 'updatedAt' => gmdate('Y-m-d H:i:s.u'),
+        ];
+        if ((int) $exists->fetchColumn() === 1) {
+            $sql = 'UPDATE activity_details SET responsibleTeacherId=:responsibleTeacherId,audienceScope=:audienceScope,displayCategory=:displayCategory,filterCategory=:filterCategory,summary=:summary,description=:description,experienceHighlights=:experienceHighlights,skillTags=:skillTags,eligibilityRules=:eligibilityRules,benefitItems=:benefitItems,locationName=:locationName,locationAddress=:locationAddress,deliveryMode=:deliveryMode,onlineMeetingUrl=:onlineMeetingUrl,organizerName=:organizerName,organizerContact=:organizerContact,organizerEmail=:organizerEmail,organizerPhone=:organizerPhone,coverImageUrl=:coverImageUrl,coverImageAlt=:coverImageAlt,feeAmount=:feeAmount,currency=:currency,targetAudience=:targetAudience,certificateLabel=:certificateLabel,updatedAt=:updatedAt WHERE activityId=:activityId';
+            unset($params['createdAt']);
+        } else {
+            $sql = 'INSERT INTO activity_details (activityId,responsibleTeacherId,audienceScope,displayCategory,filterCategory,summary,description,experienceHighlights,skillTags,eligibilityRules,benefitItems,locationName,locationAddress,deliveryMode,onlineMeetingUrl,organizerName,organizerContact,organizerEmail,organizerPhone,coverImageUrl,coverImageAlt,feeAmount,currency,targetAudience,certificateLabel,createdAt,updatedAt) VALUES (:activityId,:responsibleTeacherId,:audienceScope,:displayCategory,:filterCategory,:summary,:description,:experienceHighlights,:skillTags,:eligibilityRules,:benefitItems,:locationName,:locationAddress,:deliveryMode,:onlineMeetingUrl,:organizerName,:organizerContact,:organizerEmail,:organizerPhone,:coverImageUrl,:coverImageAlt,:feeAmount,:currency,:targetAudience,:certificateLabel,:createdAt,:updatedAt)';
+        }
+        $this->pdo->prepare($sql)->execute($params);
+    }
+
+    private function assertResponsibleTeacher(mixed $responsible, string $schoolId): void
+    {
+        if ($responsible === null || $responsible === '') return;
+        $teacher = $this->pdo->prepare('SELECT id FROM teacher_profiles WHERE id=:teacherId AND schoolId=:schoolId LIMIT 1');
+        $teacher->execute(['teacherId' => (string) $responsible, 'schoolId' => $schoolId]);
+        if ($teacher->fetchColumn() === false) throw new ApiException(422, 'VALIDATION_FAILED', 'Giáo viên phụ trách phải thuộc cùng trường.');
+    }
+
+    /** @param array<string,mixed> $data */
+    private function writePolicies(string $activityId, array $data): void
+    {
+        $exists = $this->pdo->prepare('SELECT COUNT(*) FROM activity_registration_policies WHERE activityId=:activityId');
+        $exists->execute(['activityId' => $activityId]);
+        $params = [
+            'activityId' => $activityId, 'registrationOpensAt' => $data['registrationOpensAt'], 'registrationClosesAt' => $data['registrationClosesAt'],
+            'cancellationClosesAt' => $data['cancellationClosesAt'], 'approvalMode' => $data['approvalMode'],
+            'createdAt' => gmdate('Y-m-d H:i:s.u'), 'updatedAt' => gmdate('Y-m-d H:i:s.u'),
+        ];
+        if ((int) $exists->fetchColumn() === 1) {
+            $sql = 'UPDATE activity_registration_policies SET registrationOpensAt=:registrationOpensAt,registrationClosesAt=:registrationClosesAt,cancellationClosesAt=:cancellationClosesAt,approvalMode=:approvalMode,updatedAt=:updatedAt WHERE activityId=:activityId';
+            unset($params['createdAt']);
+        } else {
+            $sql = 'INSERT INTO activity_registration_policies (activityId,registrationOpensAt,registrationClosesAt,cancellationClosesAt,approvalMode,createdAt,updatedAt) VALUES (:activityId,:registrationOpensAt,:registrationClosesAt,:cancellationClosesAt,:approvalMode,:createdAt,:updatedAt)';
+        }
+        $this->pdo->prepare($sql)->execute($params);
+
+        $exists = $this->pdo->prepare('SELECT COUNT(*) FROM activity_experience_policies WHERE activityId=:activityId');
+        $exists->execute(['activityId' => $activityId]);
+        $hoursParams = ['activityId' => $activityId, 'confirmedHours' => $data['confirmedHours'], 'createdAt' => gmdate('Y-m-d H:i:s.u'), 'updatedAt' => gmdate('Y-m-d H:i:s.u')];
+        if ((int) $exists->fetchColumn() === 1) {
+            $sql = 'UPDATE activity_experience_policies SET confirmedHours=:confirmedHours,updatedAt=:updatedAt WHERE activityId=:activityId';
+            unset($hoursParams['createdAt']);
+        } else {
+            $sql = 'INSERT INTO activity_experience_policies (activityId,confirmedHours,createdAt,updatedAt) VALUES (:activityId,:confirmedHours,:createdAt,:updatedAt)';
+        }
+        $this->pdo->prepare($sql)->execute($hoursParams);
+    }
+
+    private function schoolIdForTeacher(string $teacherId): ?string
+    {
+        $statement = $this->pdo->prepare('SELECT schoolId FROM teacher_profiles WHERE id=:teacherId LIMIT 1');
+        $statement->execute(['teacherId' => $teacherId]);
+        $schoolId = $statement->fetchColumn();
+        return is_string($schoolId) && $schoolId !== '' ? $schoolId : null;
+    }
+
+    private function assertPublishable(string $teacherId, string $activityId): void
+    {
+        $row = $this->find($teacherId, $activityId);
+        $missing = [];
+        if ($row === null || $this->countRows('activity_details', $activityId) !== 1) $missing[] = 'thông tin chi tiết';
+        if ($row === null || $this->countRows('activity_registration_policies', $activityId) !== 1) $missing[] = 'cấu hình đăng ký';
+        if ($row === null || $this->countRows('activity_experience_policies', $activityId) !== 1) $missing[] = 'số giờ trải nghiệm';
+        if ($row !== null) {
+            try {
+                $start = new \DateTimeImmutable((string) $row['startAt'], new \DateTimeZone('UTC'));
+                $end = new \DateTimeImmutable((string) $row['endAt'], new \DateTimeZone('UTC'));
+                $opens = new \DateTimeImmutable((string) $row['registrationOpensAt'], new \DateTimeZone('UTC'));
+                $closes = new \DateTimeImmutable((string) $row['registrationClosesAt'], new \DateTimeZone('UTC'));
+                $cancel = new \DateTimeImmutable((string) $row['cancellationClosesAt'], new \DateTimeZone('UTC'));
+                if ($end <= $start || $opens > $closes || $closes >= $start || $cancel > $start) $missing[] = 'thứ tự thời gian đăng ký';
+            } catch (Throwable) { $missing[] = 'thời gian đăng ký'; }
+            if (!is_numeric($row['confirmedHours'] ?? null)) $missing[] = 'số giờ trải nghiệm';
+            if (!in_array((string) ($row['approvalMode'] ?? ''), ['automatic', 'teacher_review'], true)) $missing[] = 'cách duyệt đăng ký';
+            if (!in_array((string) ($row['deliveryMode'] ?? ''), ['in_person', 'online', 'hybrid'], true)) $missing[] = 'hình thức tổ chức';
+        }
+        if ($missing) throw new ApiException(422, 'INVALID_ACTIVITY_CONFIGURATION', 'Chưa thể công bố: còn thiếu hoặc chưa hợp lệ ' . implode(', ', array_unique($missing)) . '.');
+    }
+
+    private function countRows(string $table, string $activityId): int
+    {
+        if (!$this->hasTable($table)) return 0;
+        $statement = $this->pdo->prepare("SELECT COUNT(*) FROM {$table} WHERE activityId=:activityId");
+        $statement->execute(['activityId' => $activityId]);
+        return (int) $statement->fetchColumn();
+    }
+
+    private function hasTable(string $table): bool
+    {
+        if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $statement = $this->pdo->prepare("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=:table");
+        } else {
+            $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=:table');
+        }
+        $statement->execute(['table' => $table]);
+        return (int) $statement->fetchColumn() === 1;
+    }
+
+    private function hasColumn(string $table, string $column): bool
+    {
+        if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $statement = $this->pdo->query('PRAGMA table_info(' . $table . ')');
+            foreach ($statement ? $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) if (($row['name'] ?? null) === $column) return true;
+            return false;
+        }
+        $statement = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=:table AND column_name=:column');
+        $statement->execute(['table' => $table, 'column' => $column]);
+        return (int) $statement->fetchColumn() === 1;
     }
 
     public function advanceStatus(string $teacherId, string $activityId, string $expectedStatus, string $nextStatus): bool
@@ -192,35 +335,47 @@ final class TeacherActivityRepository
 
         $current = $this->activityScope($teacherId, $activityId);
         if ($current === null) return false;
-        $started = !$this->pdo->inTransaction();
-        if ($started) $this->pdo->beginTransaction();
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) $this->pdo->beginTransaction();
         try {
+            if ($expectedStatus === 'draft' && $nextStatus === 'published') {
+                $this->assertPublishable($teacherId, $activityId);
+            }
             $statement = $this->pdo->prepare("
-            UPDATE activities
-            SET status = :nextStatus
-            WHERE id = :activityId
-              AND createdByTeacherId = :teacherId
-              AND status = :expectedStatus
-        ");
+                UPDATE activities
+                SET status = :nextStatus
+                WHERE id = :activityId
+                  AND createdByTeacherId = :teacherId
+                  AND status = :expectedStatus
+            ");
             $statement->execute([
-            'nextStatus' => $nextStatus,
-            'activityId' => $activityId,
-            'teacherId' => $teacherId,
-            'expectedStatus' => $expectedStatus,
+                'nextStatus' => $nextStatus,
+                'activityId' => $activityId,
+                'teacherId' => $teacherId,
+                'expectedStatus' => $expectedStatus,
             ]);
             if ($statement->rowCount() !== 1) {
-                if ($started) $this->pdo->rollBack();
+                if ($ownsTransaction) $this->pdo->rollBack();
                 return false;
             }
             $students = (new AiAudienceResolver($this->pdo))->schoolStudents((string) $current['schoolId']);
             if ($students !== []) {
                 $event = $nextStatus === 'published' ? 'activity.published' : 'activity.' . $nextStatus;
-                TransactionalAiOutboxPublisher::publish($this->pdo, 'activity', $activityId, TransactionalAiOutboxPublisher::version(), $students, $event, ['status' => $nextStatus], (string) $current['schoolId']);
+                TransactionalAiOutboxPublisher::publish(
+                    $this->pdo,
+                    'activity',
+                    $activityId,
+                    TransactionalAiOutboxPublisher::version(),
+                    $students,
+                    $event,
+                    ['status' => $nextStatus],
+                    (string) $current['schoolId'],
+                );
             }
-            if ($started) $this->pdo->commit();
+            if ($ownsTransaction) $this->pdo->commit();
             return true;
-        } catch (\Throwable $exception) {
-            if ($started && $this->pdo->inTransaction()) $this->pdo->rollBack();
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $exception;
         }
     }
