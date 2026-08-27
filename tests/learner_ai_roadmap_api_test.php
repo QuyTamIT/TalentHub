@@ -246,12 +246,12 @@ putenv('APP_ENV=test');
 $_ENV['APP_ENV'] = 'test';
 $modelStudentId = '11111111-1111-4111-8111-111111111111';
 $blockedGates = [
-    'shadow_gate_unapproved' => ['TALENTHUB_AI_SHADOW_GATE_APPROVED'=>'false'],
-    'visibility_zero' => ['TALENTHUB_AI_VISIBLE_PERCENT'=>'0'],
-    'pilot_paused' => ['TALENTHUB_AI_PILOT_PAUSED'=>'true'],
-    'approval_missing' => ['TALENTHUB_AI_PILOT_APPROVAL_REFERENCE'=>''],
+    'shadow_gate_unapproved' => [['TALENTHUB_AI_SHADOW_GATE_APPROVED'=>'false'], 'ai_unavailable'],
+    'visibility_zero' => [['TALENTHUB_AI_VISIBLE_PERCENT'=>'0'], 'ready_rule'],
+    'pilot_paused' => [['TALENTHUB_AI_PILOT_PAUSED'=>'true'], 'ai_unavailable'],
+    'approval_missing' => [['TALENTHUB_AI_PILOT_APPROVAL_REFERENCE'=>''], 'ai_unavailable'],
 ];
-foreach ($blockedGates as $gateName => $gateOverride) {
+foreach ($blockedGates as $gateName => [$gateOverride, $expectedState]) {
     $GLOBALS['__TALENTHUB_TEST_ENV__'] = array_replace($modelGateBase, $gateOverride);
     $callsBefore = $providerCallCount;
     $context = new \TalentHub\Learner\Api\LearnerApiContext(
@@ -266,10 +266,15 @@ foreach ($blockedGates as $gateName => $gateOverride) {
         'roadmap-api-idempotency-' . $gateName,
         true,
     );
-    roadmap_api_assert(($modelRoadmap['state'] ?? null) === 'ready_rule', "{$gateName} returns an explicit rule roadmap: " . json_encode($modelRoadmap));
-    roadmap_api_assert(($modelRoadmap['analysis_origin'] ?? null) === 'rule', "{$gateName} normalizes internal rule fallback origin");
-    roadmap_api_assert(($modelRoadmap['freshness_status'] ?? null) === 'fresh', "{$gateName} exposes canonical rule freshness");
-    roadmap_api_assert(array_key_exists('model_version', $modelRoadmap) && $modelRoadmap['model_version'] === null && is_string($modelRoadmap['rule_version'] ?? null), "{$gateName} exposes only the applicable rule version");
+    roadmap_api_assert(($modelRoadmap['state'] ?? null) === $expectedState, "{$gateName} returns the expected explicit state: " . json_encode($modelRoadmap));
+    if ($expectedState === 'ready_rule') {
+        roadmap_api_assert(($modelRoadmap['analysis_origin'] ?? null) === 'rule', "{$gateName} normalizes internal rule fallback origin");
+        roadmap_api_assert(($modelRoadmap['freshness_status'] ?? null) === 'fresh', "{$gateName} exposes canonical rule freshness");
+        roadmap_api_assert(array_key_exists('model_version', $modelRoadmap) && $modelRoadmap['model_version'] === null && is_string($modelRoadmap['rule_version'] ?? null), "{$gateName} exposes only the applicable rule version");
+    } else {
+        roadmap_api_assert(($modelRoadmap['analysis_origin'] ?? null) === null, "{$gateName} does not silently expose a rule roadmap during the 100% Gemini rollout");
+        roadmap_api_assert(($modelRoadmap['freshness_status'] ?? null) === 'unavailable', "{$gateName} reports explicit unavailability");
+    }
     roadmap_api_assert($providerCallCount === $callsBefore, "{$gateName} does not call Gemini");
 }
 roadmap_api_assert((int) $modelPdo->query('SELECT COUNT(*) FROM learner_ai_consent_events')->fetchColumn() === 0, 'purpose-bound assessment access does not create or require a consent event');

@@ -39,6 +39,7 @@ use TalentHub\Learner\Ai\Quality\DataQualityGate;
 use TalentHub\Learner\Ai\Quality\RoadmapQualityGate;
 use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
 use TalentHub\Learner\Ai\Rollout\RecommendationRolloutSelector;
+use TalentHub\Learner\Ai\Rollout\RolloutEvidenceFactory;
 use TalentHub\Learner\Ai\Rules\RuleRecommendationEngine;
 use TalentHub\Learner\Ai\Rules\RuleRoadmapEngine;
 use TalentHub\Learner\Ai\Service\RecommendationResponseMapper;
@@ -267,14 +268,10 @@ final class LearnerApiContext
         $snapshotBuilder = $this->snapshotBuilder();
         $runs = new DatabaseRecommendationRepository($this->pdo);
         $roadmaps = new DatabaseRoadmapRepository($this->pdo);
-        try {
-            $env = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
-                ? $GLOBALS['__TALENTHUB_TEST_ENV__']
-                : $_ENV;
-            $config = RecommendationConfig::fromEnvironment($env);
-        } catch (\Throwable) {
-            $config = RecommendationConfig::fromEnvironment(['TALENTHUB_AI_ENABLED' => 'false']);
-        }
+        $env = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
+            ? $GLOBALS['__TALENTHUB_TEST_ENV__']
+            : $_ENV;
+        $config = RecommendationConfig::fromEnvironment($env);
         $ruleEngine = new RuleRoadmapEngine();
         $modelEngine = null;
         if ($config->enabled()) {
@@ -435,28 +432,7 @@ final class LearnerApiContext
     {
         $injected = $GLOBALS['__TALENTHUB_TEST_ROLLOUT_EVIDENCE__'] ?? null;
         if (is_array($injected)) return $injected;
-        $value = static function (string $key) use ($environment): string {
-            if (array_key_exists($key, $environment)) return trim((string)$environment[$key]);
-            $raw = getenv($key); return is_string($raw) ? trim($raw) : '';
-        };
-        $stage = strtolower($value('TALENTHUB_AI_ROLLOUT_STAGE'));
-        if (!in_array($stage, ['shadow','pilot','10','25','50'], true)) return null;
-        $verified = static fn(string $key): bool => strtolower($value($key)) === 'true';
-        return [
-            'stage'=>$stage,
-            'error_budget'=>$verified('TALENTHUB_AI_ERROR_BUDGET_VERIFIED'),
-            'freshness_sla'=>$verified('TALENTHUB_AI_FRESHNESS_SLA_VERIFIED'),
-            'validator_pass_rate'=>$verified('TALENTHUB_AI_VALIDATOR_PASS_RATE_VERIFIED'),
-            'privacy_review'=>$verified('TALENTHUB_AI_PRIVACY_REVIEW_VERIFIED'),
-            'rollback_drill'=>$verified('TALENTHUB_AI_ROLLBACK_DRILL_VERIFIED'),
-            'approval_reference'=>$config->pilotApprovalReference(),
-            'enabled'=>$config->enabled(), 'shadow_gate_approved'=>$config->shadowGateApproved(),
-            'pilot_paused'=>$config->pilotPaused(), 'visible_percent'=>$config->visiblePercent(),
-            'completed_stages'=>array_values(array_filter(array_map('trim', explode(',', $value('TALENTHUB_AI_COMPLETED_STAGES'))))),
-            'unified_policy_verified'=>$verified('TALENTHUB_AI_UNIFIED_POLICY_VERIFIED'),
-            'last_known_good_verified'=>$verified('TALENTHUB_AI_LAST_KNOWN_GOOD_VERIFIED'),
-            'queue_monitoring_verified'=>$verified('TALENTHUB_AI_QUEUE_MONITORING_VERIFIED'),
-        ];
+        return RolloutEvidenceFactory::fromEnvironment($config, $environment);
     }
 
     /** @return list<string> */
