@@ -1,11 +1,6 @@
 /**
  * TalentHub - Role Selection Page Scripts
- * Handles role card interactions, keyboard navigation, active state selection,
- * and graceful route fallback notices for pending backend modules.
- * 
- * Note for Junior Developers:
- * - When target modules (/app/learner, /app/teacher, /app/school, /app/enterprise) are ready,
- *   update handleRoleNavigation to navigate directly using window.location.href = route.
+ * Handles role card interactions and keyboard navigation for registration.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -59,22 +54,14 @@ function selectCard(selectedCard) {
 }
 
 /**
- * Handles navigation to destination module or displays fallback feedback if module isn't created yet.
+ * Handles navigation to the selected registration form or displays fallback feedback.
  */
 function handleRoleNavigation(route, roleName) {
-    // Navigate directly when the selected role module is available.
-    if (
-        route.includes('learner') ||
-        route.includes('teacher') ||
-        route.includes('enterprise') ||
-        route.includes('school')
-    ) {
-        window.location.href = route;
+    if (!route) {
+        showRoleToast(`Khu vực ${roleName} đang được phát triển!`);
         return;
     }
-
-    // Other backend modules use the fallback notice until they are available.
-    showRoleToast(`Khu vực ${roleName} đang được phát triển! (${route})`);
+    window.location.href = route;
 }
 
 /**

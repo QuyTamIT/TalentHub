@@ -15,7 +15,7 @@
             </span>
             <h2 class="school-welcome__title">Xin chào, Ban Giám hiệu <?= htmlspecialchars($schoolInfo['name']); ?>!</h2>
             <p class="school-welcome__description">
-                Theo dõi tổng quan hoạt động năng khiếu của trường, quản lý hồ sơ học sinh và xem báo cáo chi tiết về tiềm năng phát triển tài năng trong năm học <?= htmlspecialchars($schoolInfo['academic_year']); ?>.
+                Theo dõi tổng quan hoạt động đào tạo của trường, quản lý hồ sơ học sinh / sinh viên và xem báo cáo chi tiết về tiềm năng phát triển tài năng trong năm học <?= htmlspecialchars($schoolInfo['academic_year']); ?>.
             </p>
             <div class="school-welcome__actions">
                 <a href="./analytics.php" class="btn btn-primary">

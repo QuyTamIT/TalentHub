@@ -5,23 +5,23 @@
 
 $recentActivities = [
     [
-        'text' => 'Nguyễn Văn Minh đạt giải Nhất cuộc thi Toán cấp Quận',
+        'text' => 'Trần Minh Đức đạt giải Nhất cuộc thi AI Hackathon 2026',
         'time' => '2 giờ trước'
     ],
     [
-        'text' => 'Lớp 12A hoàn thành 100% hồ sơ năng lực',
+        'text' => 'Lớp BTEC-AI-2026A hoàn thành 100% hồ sơ năng lực',
         'time' => '4 giờ trước'
     ],
     [
-        'text' => 'Câu lạc bộ Âm nhạc khai giảng khóa mới với 45 thành viên',
+        'text' => 'CLB Khởi nghiệp & AI khai giảng khóa mới với 45 thành viên',
         'time' => '1 ngày trước'
     ],
     [
-        'text' => '25 học sinh đăng ký tham gia sân chơi lập trình tháng 9',
+        'text' => '25 sinh viên đăng ký tham gia phỏng vấn tuyển dụng thực tập',
         'time' => '1 ngày trước'
     ],
     [
-        'text' => 'Trường được vinh danh "Top 10 trường có hoạt động năng khiếu xuất sắc"',
+        'text' => 'Nhà trường ký kết hợp tác hướng nghiệp cùng Doanh nghiệp đối tác',
         'time' => '2 ngày trước'
     ]
 ];

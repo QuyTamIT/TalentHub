@@ -15,19 +15,25 @@ use TalentHub\Support\Uuid;
 $context = (new SchoolAppContext())->boot();
 $service = $context['service'];
 $userId  = $context['user']['id'];
+$session = $context['session'];
 
 $flash = null;
 $error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
     $action = $_POST['action'] ?? '';
     try {
         if ($action === 'invite') {
-            $result = $service->inviteTeacher($userId, $_POST);
-            $flash = sprintf(
-                'Đã mời giáo viên. Mật khẩu tạm: %s (hãy gửi cho giáo viên để họ đăng nhập lần đầu).',
-                $result['generatedPassword'] ?? '—'
-            );
+            $result = $service->inviteTeacher($userId, [
+                'fullName' => $_POST['fullName'] ?? '',
+                'email' => $_POST['email'] ?? '',
+                'isSchoolAdmin' => $_POST['isSchoolAdmin'] ?? null,
+            ]);
+            $invitationUrl = app_href((string) $result['invitationUrl']);
+            $flash = 'Đã tạo tài khoản chờ kích hoạt. Gửi liên kết dùng một lần này cho giáo viên trước '
+                . htmlspecialchars((string) $result['expiresAt'], ENT_QUOTES, 'UTF-8') . ': '
+                . '<a href="' . htmlspecialchars($invitationUrl, ENT_QUOTES, 'UTF-8') . '">Mở lời mời</a>';
         } elseif ($action === 'toggle_admin' && !empty($_POST['profileId']) && Uuid::isValid($_POST['profileId'])) {
             $service->setTeacherAdmin($userId, $_POST['profileId'], !empty($_POST['isAdmin']));
             $flash = 'Đã cập nhật vai trò giáo viên.';
@@ -50,7 +56,7 @@ $teachers = $service->teachers($userId, $perPage, $offset);
 $schoolInfo = [
     'name'          => $context['school']['name'],
     'logo_initials' => mb_substr($context['school']['name'], 0, 2),
-    'level'         => $context['school']['level'] ?? 'Trung học',
+    'level'         => $context['school']['level'] ?? 'Đại học / Cao đẳng',
     'district'      => $context['school']['address'] ?? '',
     'academic_year' => $context['school']['academicYear'] ?? '',
 ];
@@ -66,7 +72,7 @@ include __DIR__ . '/includes/page-banner.php';
 ?>
 
 <?php if ($flash): ?>
-    <div class="school-flash school-flash--success"><?= htmlspecialchars($flash); ?></div>
+    <div class="school-flash school-flash--success"><?= $flash; ?></div>
 <?php endif; ?>
 <?php if ($error): ?>
     <div class="school-flash school-flash--error"><?= htmlspecialchars($error); ?></div>
@@ -78,6 +84,7 @@ include __DIR__ . '/includes/page-banner.php';
             <h3 class="school-section-box__title">Mời giáo viên mới</h3>
         </div>
         <form method="post" class="school-form" novalidate>
+            <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
             <input type="hidden" name="action" value="invite">
             <div class="school-form__grid" style="grid-template-columns: 1fr;">
                 <label class="school-form__field">
@@ -140,6 +147,7 @@ include __DIR__ . '/includes/page-banner.php';
                             <td style="text-align: right;">
                                 <div style="display: flex; gap: 0.375rem; justify-content: flex-end;">
                                     <form method="post" style="display:inline;">
+                                        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="action" value="toggle_admin">
                                         <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
                                         <input type="hidden" name="isAdmin" value="<?= $t['isSchoolAdmin'] ? '0' : '1'; ?>">
@@ -148,6 +156,7 @@ include __DIR__ . '/includes/page-banner.php';
                                         </button>
                                     </form>
                                     <form method="post" style="display:inline;">
+                                        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="action" value="toggle_active">
                                         <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
                                         <input type="hidden" name="isActive" value="<?= $t['userStatus'] === 'active' ? '0' : '1'; ?>">

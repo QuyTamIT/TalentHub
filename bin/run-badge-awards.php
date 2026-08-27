@@ -7,6 +7,7 @@ require dirname(__DIR__) . '/app/learner/data/bootstrap.php';
 
 use TalentHub\Config\Environment;
 use TalentHub\Database\Connection;
+use TalentHub\Database\ProtectedDatabasePolicy;
 use TalentHub\Learner\Data\Database\DatabaseBadgeRepository;
 use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
 use TalentHub\Learner\Data\Database\DatabaseStatisticsRepository;
@@ -73,10 +74,13 @@ try {
 
     $databaseName = (string) ($dbConfig['database'] ?? '');
 
-    if ($isApply && $databaseName === 'talenthub_local') {
+    if ($isApply && ProtectedDatabasePolicy::isProtected($databaseName)) {
         $approved = getenv('TALENTHUB_PHASE9_PRIMARY_APPLY_APPROVED') ?: ($_ENV['TALENTHUB_PHASE9_PRIMARY_APPLY_APPROVED'] ?? '0');
-        if ($approved !== '1') {
-            throw new RuntimeException('Direct apply on talenthub_local requires TALENTHUB_PHASE9_PRIMARY_APPLY_APPROVED=1.');
+        if (!ProtectedDatabasePolicy::allowsExplicitPrimaryWrite($databaseName, $approved === '1')) {
+            throw new RuntimeException(
+                'Direct apply is allowed only on talenthub with '
+                . 'TALENTHUB_PHASE9_PRIMARY_APPLY_APPROVED=1; talenthub_local is a read-only backup.',
+            );
         }
     }
 
@@ -114,12 +118,11 @@ try {
         'student_results' => [],
     ];
 
-    $activeRules = $badgeRepo->activeRules();
-
     foreach ($targetStudentIds as $sid) {
         if ($isDryRun) {
             $facts = $statsRepo->lifetimeFacts($sid);
             $eligible = [];
+            $activeRules = $badgeRepo->activeRulesForStudent($sid);
             foreach ($activeRules as $item) {
                 $badge = $item['badge'];
                 $rule = $item['rule'];

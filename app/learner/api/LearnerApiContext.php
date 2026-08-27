@@ -22,14 +22,21 @@ use TalentHub\Learner\Ai\Evaluation\RecommendationEvaluator;
 use TalentHub\Learner\Ai\Evaluation\ShadowRunService;
 use TalentHub\Learner\Ai\Model\ModelRecommendationEngine;
 use TalentHub\Learner\Ai\Model\PromptRegistry;
+use TalentHub\Learner\Ai\Model\RoadmapPromptRegistry;
+use TalentHub\Learner\Ai\Model\ModelRoadmapEngine;
 use TalentHub\Learner\Ai\Persistence\DatabaseRecommendationRepository;
+use TalentHub\Learner\Ai\Persistence\DatabaseRoadmapRepository;
 use TalentHub\Learner\Ai\Provider\HttpRecommendationProvider;
+use TalentHub\Learner\Ai\Provider\HttpRoadmapProvider;
 use TalentHub\Learner\Ai\Quality\DataQualityGate;
+use TalentHub\Learner\Ai\Quality\RoadmapQualityGate;
 use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
 use TalentHub\Learner\Ai\Rollout\RecommendationRolloutSelector;
 use TalentHub\Learner\Ai\Rules\RuleRecommendationEngine;
+use TalentHub\Learner\Ai\Rules\RuleRoadmapEngine;
 use TalentHub\Learner\Ai\Service\RecommendationResponseMapper;
 use TalentHub\Learner\Ai\Service\RecommendationService;
+use TalentHub\Learner\Ai\Service\RoadmapService;
 use TalentHub\Learner\Ai\Snapshot\RecommendationSnapshotBuilder;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseActivityExperienceSource;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseAssessmentSource;
@@ -43,6 +50,9 @@ use TalentHub\Learner\Assessment\Service\AssessmentCatalogService;
 use TalentHub\Learner\Assessment\Service\EducationBandResolver;
 use TalentHub\Learner\Data\RepositoryFactory;
 use TalentHub\Learner\Data\Service\LearnerAssessmentService;
+use TalentHub\Modules\Student\Repository\LearnerOnboardingRepository;
+use TalentHub\Modules\Student\Service\LearnerOnboardingGate;
+use TalentHub\Modules\Student\Service\LearnerOnboardingService;
 use TalentHub\Rbac\Service\PermissionService;
 use TalentHub\Support\Id\RequestId;
 use TalentHub\Support\Uuid;
@@ -60,7 +70,9 @@ final class LearnerApiContext
     public static function fromGlobals(): self
     {
         $request = Request::fromGlobals();
-        $session = new SessionManager(require dirname(__DIR__, 3) . '/config/session.php');
+        $sessionConfig = require dirname(__DIR__, 3) . '/config/session.php';
+        $sessionConfig['name'] = SessionManager::SESSION_STUDENT;
+        $session = new SessionManager($sessionConfig);
         $session->start();
         if (isset($GLOBALS['__TALENTHUB_TEST_SESSION__']) && is_array($GLOBALS['__TALENTHUB_TEST_SESSION__'])) {
             $_SESSION = $GLOBALS['__TALENTHUB_TEST_SESSION__'];
@@ -106,10 +118,22 @@ final class LearnerApiContext
             $this->permissions->require((string) $user['id'], $permission);
         }
         $userId = (string) $user['id'];
-        return [
+        $identity = [
             'student_id' => $this->resolveStudentId($userId),
             'user_id' => $userId,
         ];
+        $progress = (new LearnerOnboardingService(new LearnerOnboardingRepository($this->pdo)))->reconcile(
+            $identity['student_id'],
+            $identity['user_id'],
+            $this->requestId,
+            isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
+        );
+        (new LearnerOnboardingGate())->assertApiAllowed(
+            $progress,
+            basename((string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?: '')),
+        );
+
+        return $identity;
     }
 
     private function resolveStudentId(string $userId): string
@@ -227,6 +251,68 @@ final class LearnerApiContext
         );
     }
 
+    public function roadmapService(string $studentId): RoadmapService
+    {
+        $consent = new ConsentPolicy(new DatabaseConsentSource($this->pdo));
+        $snapshotBuilder = new RecommendationSnapshotBuilder(
+            new DatabaseStudentProfileSource($this->pdo),
+            new DatabaseSkillSource($this->pdo),
+            new DatabaseAssessmentSource($this->pdo),
+            new DatabaseActivityExperienceSource($this->pdo),
+            new DatabasePublishedEvaluationSource($this->pdo),
+            new DatabaseOpportunitySource($this->pdo),
+        );
+        $runs = new DatabaseRecommendationRepository($this->pdo);
+        $roadmaps = new DatabaseRoadmapRepository($this->pdo);
+        try {
+            $env = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
+                ? $GLOBALS['__TALENTHUB_TEST_ENV__']
+                : $_ENV;
+            $config = RecommendationConfig::fromEnvironment($env);
+        } catch (\Throwable) {
+            $config = RecommendationConfig::fromEnvironment(['TALENTHUB_AI_ENABLED' => 'false']);
+        }
+        $ruleEngine = new RuleRoadmapEngine();
+        $engine = $ruleEngine;
+        try {
+            $decision = $consent->decision($studentId)->withServiceScopes(['assessment']);
+            $showModel = $config->enabled()
+                && trim($studentId) !== ''
+                && $decision->permitsScopes(['assessment']);
+        } catch (\Throwable) {
+            $showModel = false;
+        }
+        if ($showModel) {
+            $httpTransport = $GLOBALS['__TALENTHUB_TEST_HTTP__'] ?? null;
+            $provider = new HttpRoadmapProvider($config, is_callable($httpTransport) ? $httpTransport : null);
+            $engine = new ModelRoadmapEngine(
+                $provider,
+                $ruleEngine,
+                new RoadmapPromptRegistry(),
+                new RecommendationRateLimiter(
+                    $config->roadmapPerStudentLimit(),
+                    $config->roadmapGlobalLimit(),
+                    60,
+                    static fn (): int => (new DateTimeImmutable('now', new DateTimeZone('UTC')))->getTimestamp(),
+                ),
+                $config,
+                new ProviderConsentGate($consent, ['assessment'], ['assessment']),
+            );
+        }
+
+        return new RoadmapService(
+            $roadmaps,
+            $engine,
+            static fn (string $candidate): bool => hash_equals($studentId, $candidate),
+            static fn (string $candidate) => $consent->decision($candidate)->withServiceScopes(['assessment']),
+            static fn (string $candidate, array $scopes) => $snapshotBuilder->buildForRoadmap($candidate, $scopes),
+            static fn ($input) => (new RoadmapQualityGate())->evaluate($input),
+            static fn (string $candidate, $input, $context) => $runs->createPendingRoadmapRun($candidate, $input, $context),
+            static fn (string $candidate, string $runId, $analysis) => $runs->completeRoadmapRun($candidate, $runId, $analysis),
+            static fn (string $candidate, string $runId, string $code) => $runs->failRun($candidate, $runId, $code),
+        );
+    }
+
     public function shadowRunService(?RecommendationEngine $modelEngine = null): ?ShadowRunService
     {
         $repository = new DatabaseRecommendationRepository($this->pdo);
@@ -274,6 +360,12 @@ final class LearnerApiContext
         return (new DatabaseRecommendationRepository($this->pdo))->appendFeedback($studentId, $itemId, $verdict, $reasonCode, $safeComment);
     }
 
+    /** @return array<string,mixed> */
+    public function appendRoadmapFeedback(string $studentId, string $roadmapId, string $verdict, string $reasonCode, string $requestId): array
+    {
+        return $this->roadmapService($studentId)->feedback($studentId, $roadmapId, $verdict, $reasonCode, $requestId);
+    }
+
     /** @return list<string> */
     public function consentScopes(string $studentId): array
     {
@@ -310,8 +402,13 @@ final class LearnerApiContext
 
         return new AssessmentCatalogService(
             $factory->assessment(),
-            new EducationBandResolver($this->pdo)
+            $this->educationBandResolver()
         );
+    }
+
+    public function educationBandResolver(): EducationBandResolver
+    {
+        return new EducationBandResolver($this->pdo);
     }
 
     public function assessmentService(): LearnerAssessmentService
@@ -322,5 +419,10 @@ final class LearnerApiContext
             $factory->assessment(),
             $factory->assessmentWrite()
         );
+    }
+
+    public function onboardingService(): LearnerOnboardingService
+    {
+        return new LearnerOnboardingService(new LearnerOnboardingRepository($this->pdo));
     }
 }

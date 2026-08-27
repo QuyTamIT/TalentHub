@@ -1,6 +1,29 @@
 (function initLearnerCheckin(global) {
   'use strict';
 
+  const createFrameDecoder = ({ BarcodeDetector, jsQR, canvasFactory } = {}) => {
+    if (typeof BarcodeDetector === 'function') return new BarcodeDetector({ formats: ['qr_code'] });
+    if (typeof jsQR !== 'function' || typeof canvasFactory !== 'function') return null;
+    const canvas = canvasFactory();
+    const context = canvas && typeof canvas.getContext === 'function'
+      ? canvas.getContext('2d', { willReadFrequently: true })
+      : null;
+    if (!canvas || !context) return null;
+    return {
+      async detect(video) {
+        const width = Number(video && video.videoWidth) || 0;
+        const height = Number(video && video.videoHeight) || 0;
+        if (width < 1 || height < 1) return [];
+        canvas.width = width;
+        canvas.height = height;
+        context.drawImage(video, 0, 0, width, height);
+        const image = context.getImageData(0, 0, width, height);
+        const result = jsQR(image.data, image.width, image.height, { inversionAttempts: 'attemptBoth' });
+        return result && result.data ? [{ rawValue: result.data }] : [];
+      },
+    };
+  };
+
   const bootNode = typeof document !== 'undefined' ? document.getElementById('learner-checkin-boot') : null;
   let boot = {};
   try { boot = bootNode ? JSON.parse(bootNode.textContent || '{}') : {}; } catch { boot = {}; }
@@ -21,6 +44,7 @@
   const submitButton = document.querySelector('[data-submit-checkin]');
   const resetButton = document.querySelector('[data-reset-checkin]');
   const historyList = document.querySelector('[data-checkin-history]');
+  const historyAction = document.querySelector('[data-checkin-history-action]');
 
   const setText = (node, message, tone) => {
     if (!node) return;
@@ -126,6 +150,10 @@
       setText(feedback, 'Check-in thành công: ' + (result.activity?.title || 'hoạt động') + '.', 'success');
       setText(apiState, 'Đã xác nhận ' + (result.experience?.hours || '0.00') + ' giờ', 'success');
       await loadHistory();
+      if (historyAction) {
+        historyAction.hidden = false;
+        historyAction.style.removeProperty('display');
+      }
       if (tokenField) tokenField.value = '';
     } catch (error) {
       const code = error && error.code ? error.code : '';
@@ -171,7 +199,12 @@
       setText(apiState, 'Unsupported camera API', 'warn');
       return;
     }
-    if (typeof global.BarcodeDetector !== 'function') {
+    const detector = createFrameDecoder({
+      BarcodeDetector: global.BarcodeDetector,
+      jsQR: global.jsQR,
+      canvasFactory: () => document.createElement('canvas'),
+    });
+    if (!detector) {
       setText(feedback, 'Không hỗ trợ bộ giải mã QR trên trình duyệt này. Hãy dùng token thủ công.', 'warn');
       setText(apiState, 'unsupported-decoder', 'warn');
       return;
@@ -182,7 +215,7 @@
       generation = state.cameraGeneration;
       state.cameraPending = true;
       if (startButton) startButton.disabled = true;
-      state.detector = new global.BarcodeDetector({ formats: ['qr_code'] });
+      state.detector = detector;
       const stream = await global.navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
       if (generation !== state.cameraGeneration || document.hidden) {
         stream.getTracks().forEach(track => track.stop());
@@ -230,7 +263,7 @@
   document.addEventListener('visibilitychange', () => { if (document.hidden) cleanupStream(); });
   loadHistory();
 
-  const exported = { renderHistory, cleanupStream, requestKey, startCamera, submitToken, loadHistory };
+  const exported = { createFrameDecoder, renderHistory, cleanupStream, requestKey, startCamera, submitToken, loadHistory };
   if (typeof module !== 'undefined' && module.exports) module.exports = exported;
   global.LearnerCheckin = exported;
 })(typeof window !== 'undefined' ? window : globalThis);

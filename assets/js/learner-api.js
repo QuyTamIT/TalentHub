@@ -29,9 +29,25 @@
         return Number.isInteger(response?.status) ? response.status : 0;
     }
 
+    function detectAppPrefix() {
+        if (typeof window !== 'undefined' && window.location && window.location.pathname) {
+            const p = window.location.pathname;
+            const match = p.match(/^(\/[^/]+)?\/(app|api)\b/i);
+            if (match && match[1]) {
+                return match[1];
+            }
+        }
+        return '';
+    }
+
     function normalizeApiBase(baseUrl) {
-        const requestedBase = String(baseUrl || '').trim().replace(/\/+$/, '');
-        return ALLOWED_API_BASES.has(requestedBase) ? requestedBase : API_ROOT;
+        const prefix = detectAppPrefix();
+        let requestedBase = String(baseUrl || '').trim().replace(/\/+$/, '');
+        if (prefix && requestedBase.startsWith(prefix)) {
+            requestedBase = requestedBase.slice(prefix.length);
+        }
+        const canonicalBase = ALLOWED_API_BASES.has(requestedBase) ? requestedBase : API_ROOT;
+        return `${prefix}${canonicalBase}`;
     }
 
     function createApiPathError() {
@@ -56,7 +72,7 @@
 
         let url;
         try {
-            url = new URL(`${baseUrl}${path}`, 'https://talenthub.invalid');
+            url = new URL(`https://talenthub.invalid${baseUrl}${path}`);
         } catch {
             throw createApiPathError();
         }
@@ -136,6 +152,17 @@
             };
         }
 
+        function getEffectiveCsrf() {
+            if (csrf) return csrf;
+            if (typeof document !== 'undefined') {
+                const meta = document.querySelector('meta[name="csrf-token"], meta[name="csrfToken"]');
+                if (meta && meta.content) return meta.content;
+                const input = document.querySelector('input[name="csrfToken"], input[name="csrf_token"]');
+                if (input && input.value) return input.value;
+            }
+            return '';
+        }
+
         async function requestOnce(method, path, body, requestOptions = {}) {
             const normalizedMethod = String(method).toUpperCase();
             const headers = { Accept: 'application/json' };
@@ -145,7 +172,12 @@
                 headers['Content-Type'] = 'application/json';
                 options.body = JSON.stringify(body);
             }
-            if (MUTATION_METHODS.has(normalizedMethod)) headers['X-CSRF-Token'] = csrf;
+            if (MUTATION_METHODS.has(normalizedMethod)) {
+                const effectiveToken = getEffectiveCsrf();
+                if (effectiveToken) {
+                    headers['X-CSRF-Token'] = effectiveToken;
+                }
+            }
             const idempotencyKey = requestOptions && typeof requestOptions.idempotencyKey === 'string'
                 ? requestOptions.idempotencyKey.trim()
                 : '';

@@ -12,18 +12,17 @@ use TalentHub\Modules\Teacher\Repository\TeacherGradingRepository;
 use TalentHub\Modules\Teacher\Service\TeacherGradingService;
 use TalentHub\Rbac\Service\PermissionService;
 
+use TalentHub\Bootstrap\PortalGuard;
+use TalentHub\Rbac\RoleCodes;
+
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-$session = new SessionManager(require dirname(__DIR__, 3) . '/config/session.php');
+$user = PortalGuard::requireRole(RoleCodes::TEACHER, '/app/teacher/assessments/index.php');
+$session = new SessionManager(array_merge(require dirname(__DIR__, 3) . '/config/session.php', ['name' => SessionManager::SESSION_TEACHER]));
 $session->start();
 
-$user = $session->user();
-if ($user === null) {
-    header('Location: ' . app_href('/login.php') . '?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/app/teacher/assessments/'));
-    exit;
-}
-if (($user['role'] ?? null) !== 'teacher') {
-    header('Location: ' . app_href('/role-selection.php'));
+if (!isset($_GET['mode']) || $_GET['mode'] !== 'activity') {
+    header('Location: ' . app_href('/app/teacher/grading.php'));
     exit;
 }
 
@@ -103,8 +102,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $service !== null && $error !== nul
     }
 }
 
-$teacher = $data['teacher'];
-$teacherName = trim((string) ($teacher['fullName'] ?? $user['fullName'] ?? 'Giáo viên'));
+$rawName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
+$teacher = $data['teacher'] ?? [];
+$teacherName = trim((string) ($rawName !== '' ? $rawName : ($teacher['fullName'] ?? ($user['fullName'] ?? 'Giáo viên'))));
+if ($teacherName === 'minh triet') {
+    $teacherName = 'Minh Triết';
+}
 $teacherInfo = [
     'full_name' => $teacherName !== '' ? $teacherName : 'Giáo viên',
     'role_label' => 'Giáo viên / Hướng dẫn viên',
@@ -132,14 +135,21 @@ $assessmentStatusLabels = [
 
 function teacherGradingInitials(string $name): string
 {
-    $parts = preg_split('/\s+/', trim($name)) ?: [];
-    if ($parts === []) {
+    $name = trim($name);
+    if ($name === '') {
         return 'GV';
     }
 
+    $cleanName = preg_replace('/^(Thầy|Cô|Gv\.|GV|Ths\.|TS\.|ThS\.)\s+/iu', '', $name);
+    $cleanName = trim((string)$cleanName) ?: $name;
+
+    $parts = preg_split('/\s+/u', $cleanName) ?: [];
+    if (count($parts) === 1) {
+        return mb_strtoupper(mb_substr($parts[0], 0, min(2, mb_strlen($parts[0]))));
+    }
     $first = (string) ($parts[0] ?? '');
     $last = (string) ($parts[count($parts) - 1] ?? '');
-    return strtoupper(substr($first, 0, 1) . substr($last, 0, 1)) ?: 'GV';
+    return mb_strtoupper(mb_substr($first, 0, 1) . mb_substr($last, 0, 1)) ?: 'GV';
 }
 ?>
 <!DOCTYPE html>

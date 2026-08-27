@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
     // 2. Discover Projects Filter & Search Logic
     // --------------------------------------------------------------------------
     const searchInput = document.getElementById('spon-search-input');
@@ -35,12 +36,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const rangeSelect = document.getElementById('spon-range-select');
     const statusSelect = document.getElementById('spon-status-select');
     const resetBtn = document.getElementById('spon-reset-filters');
+    const pillBtns = document.querySelectorAll('.spon-pill-btn');
     const projectCards = document.querySelectorAll('.spon-project-card');
     const projectsEmptyState = document.getElementById('spon-projects-empty');
 
+    let activePillCategory = 'all';
+
     function applyFilters() {
         const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
-        const cat = categorySelect ? categorySelect.value : 'all';
+        const cat = categorySelect ? categorySelect.value : activePillCategory;
         const sch = schoolSelect ? schoolSelect.value : 'all';
         const rng = rangeSelect ? rangeSelect.value : 'all';
         const st = statusSelect ? statusSelect.value : 'all';
@@ -55,10 +59,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const target = parseInt(card.getAttribute('data-target') || '0', 10);
 
             // Keyword Search Match
-            const matchesQuery = !query || title.toLowerCase().includes(query) || category.toLowerCase().includes(query) || school.toLowerCase().includes(query);
+            const matchesQuery = !query || 
+                title.toLowerCase().includes(query) || 
+                category.toLowerCase().includes(query) || 
+                school.toLowerCase().includes(query);
 
-            // Category Filter Match
-            const matchesCategory = cat === 'all' || category === cat;
+            // Category Filter Match (handles both pills and select dropdown)
+            const matchesCategory = cat === 'all' || 
+                category.toLowerCase() === cat.toLowerCase() || 
+                category.toLowerCase().includes(cat.toLowerCase());
 
             // School Filter Match
             const matchesSchool = sch === 'all' || school === sch;
@@ -85,8 +94,28 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         if (projectsEmptyState) {
-            projectsEmptyState.style.display = visibleCount === 0 ? 'block' : 'none';
+            projectsEmptyState.style.display = visibleCount === 0 ? 'flex' : 'none';
         }
+    }
+
+    if (pillBtns.length > 0) {
+        pillBtns.forEach(btn => {
+            btn.addEventListener('click', function () {
+                pillBtns.forEach(b => {
+                    b.classList.remove('is-active');
+                    b.style.backgroundColor = '#F8FAFC';
+                    b.style.color = '#475569';
+                    b.style.borderColor = '#E2E8F0';
+                });
+                this.classList.add('is-active');
+                this.style.backgroundColor = '#F97316';
+                this.style.color = '#FFFFFF';
+                this.style.borderColor = '#F97316';
+
+                activePillCategory = this.getAttribute('data-cat') || 'all';
+                applyFilters();
+            });
+        });
     }
 
     if (searchInput) searchInput.addEventListener('input', applyFilters);
@@ -102,6 +131,20 @@ document.addEventListener('DOMContentLoaded', function () {
             if (schoolSelect) schoolSelect.value = 'all';
             if (rangeSelect) rangeSelect.value = 'all';
             if (statusSelect) statusSelect.value = 'all';
+            activePillCategory = 'all';
+            pillBtns.forEach((b, idx) => {
+                if (idx === 0) {
+                    b.classList.add('is-active');
+                    b.style.backgroundColor = '#F97316';
+                    b.style.color = '#FFFFFF';
+                    b.style.borderColor = '#F97316';
+                } else {
+                    b.classList.remove('is-active');
+                    b.style.backgroundColor = '#F8FAFC';
+                    b.style.color = '#475569';
+                    b.style.borderColor = '#E2E8F0';
+                }
+            });
             applyFilters();
         });
     }
@@ -122,7 +165,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (closeDetailBtn && detailModal) {
         closeDetailBtn.addEventListener('click', closeDetailModal);
         detailModal.addEventListener('click', function (e) {
-            if (e.target === detailModal) closeDetailModal();
+            if (e.target === detailModal || e.target.classList.contains('spon-modal-close') || e.target.hasAttribute('data-close-modal')) {
+                closeDetailModal();
+            }
         });
     }
 
@@ -134,10 +179,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Populate Modal Fields
         document.getElementById('modal-project-title').textContent = project.title;
-        document.getElementById('modal-school-badge').textContent = project.school_badge + ' • ' + project.school_name;
+        document.getElementById('modal-school-badge').textContent = (project.school_badge || 'Đại học') + ' • ' + project.school_name;
         document.getElementById('modal-category-badge').textContent = project.category;
-        document.getElementById('modal-status-badge').textContent = project.status_label;
-        document.getElementById('modal-problem-desc').textContent = project.problem_statement;
+        document.getElementById('modal-status-badge').textContent = project.status_label || 'Đang gọi vốn';
+        document.getElementById('modal-problem-desc').textContent = project.problem_statement || project.description;
         document.getElementById('modal-solution-desc').textContent = project.solution;
 
         // Populate Leader Info
@@ -147,58 +192,66 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Populate Members List
         const membersContainer = document.getElementById('modal-team-members');
-        membersContainer.innerHTML = '';
-        project.team_members.forEach(m => {
-            const memberHtml = `
-                <div class="spon-team-card">
-                    <div class="spon-avatar">${m.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</div>
-                    <div class="spon-team-info">
-                        <h5>${m.name}</h5>
-                        <p>${m.role}</p>
-                        <div class="spon-skills-row">
-                            ${m.skills.map(s => `<span class="spon-skill-tag">${s}</span>`).join('')}
+        if (membersContainer) {
+            membersContainer.innerHTML = '';
+            (project.team_members || []).forEach(m => {
+                const initials = m.name ? m.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'TV';
+                const skills = m.skills || ['Nghiên cứu', 'Thực hành'];
+                const memberHtml = `
+                    <div class="spon-team-card">
+                        <div class="spon-avatar">${initials}</div>
+                        <div class="spon-team-info">
+                            <h5>${m.name}</h5>
+                            <p>${m.role}</p>
+                            <div class="spon-skills-row">
+                                ${skills.map(s => `<span class="spon-skill-tag">${s}</span>`).join('')}
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-            membersContainer.insertAdjacentHTML('beforeend', memberHtml);
-        });
+                `;
+                membersContainer.insertAdjacentHTML('beforeend', memberHtml);
+            });
+        }
 
         // Populate Milestones Timeline
         const milestoneContainer = document.getElementById('modal-milestones-timeline');
-        milestoneContainer.innerHTML = '';
-        project.milestones.forEach(ms => {
-            const msHtml = `
-                <div class="spon-timeline-item ${ms.status}">
-                    <div class="spon-timeline-node"></div>
-                    <div class="spon-timeline-content">
-                        <div class="spon-timeline-header">
-                            <span class="spon-timeline-title">${ms.phase}: ${ms.title}</span>
-                            <span class="spon-timeline-date">${ms.date} • ${ms.status_label}</span>
+        if (milestoneContainer) {
+            milestoneContainer.innerHTML = '';
+            (project.milestones || []).forEach(ms => {
+                const msHtml = `
+                    <div class="spon-timeline-item ${ms.status}">
+                        <div class="spon-timeline-node"></div>
+                        <div class="spon-timeline-content">
+                            <div class="spon-timeline-header">
+                                <span class="spon-timeline-title">${ms.phase}: ${ms.title}</span>
+                                <span class="spon-timeline-date">${ms.date} • ${ms.status_label}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-            milestoneContainer.insertAdjacentHTML('beforeend', msHtml);
-        });
+                `;
+                milestoneContainer.insertAdjacentHTML('beforeend', msHtml);
+            });
+        }
 
         // Populate Fund Allocation Bars
         const fundContainer = document.getElementById('modal-fund-allocation');
-        fundContainer.innerHTML = '';
-        project.expected_use_of_funds.forEach(f => {
-            const fHtml = `
-                <div style="margin-bottom: 0.875rem;">
-                    <div style="display: flex; justify-content: space-between; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.25rem;">
-                        <span>${f.category}</span>
-                        <span>${f.amount} (${f.percentage}%)</span>
+        if (fundContainer) {
+            fundContainer.innerHTML = '';
+            (project.expected_use_of_funds || []).forEach(f => {
+                const fHtml = `
+                    <div style="margin-bottom: 0.875rem;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.25rem;">
+                            <span>${f.category}</span>
+                            <span>${f.amount} (${f.percentage}%)</span>
+                        </div>
+                        <div class="spon-progress-track" style="height: 6px;">
+                            <div class="spon-progress-fill" style="width: ${f.percentage}%;"></div>
+                        </div>
                     </div>
-                    <div class="spon-progress-track" style="height: 6px;">
-                        <div class="spon-progress-fill" style="width: ${f.percentage}%;"></div>
-                    </div>
-                </div>
-            `;
-            fundContainer.insertAdjacentHTML('beforeend', fHtml);
-        });
+                `;
+                fundContainer.insertAdjacentHTML('beforeend', fHtml);
+            });
+        }
 
         // Link CTA Button to Sponsor Modal
         const sponsorCta = document.getElementById('modal-sponsor-cta');
@@ -209,12 +262,14 @@ document.addEventListener('DOMContentLoaded', function () {
             };
         }
 
+        detailModal.style.display = 'flex';
         detailModal.classList.add('is-open');
         document.body.style.overflow = 'hidden';
     }
 
     function closeDetailModal() {
         if (detailModal) {
+            detailModal.style.display = 'none';
             detailModal.classList.remove('is-open');
             document.body.style.overflow = '';
         }
@@ -227,6 +282,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const closeFormBtn = document.getElementById('close-sponsorship-modal');
     const formProjectTitle = document.getElementById('form-project-title');
     const formTargetInfo = document.getElementById('form-target-info');
+    const formNeededAmount = document.getElementById('form-needed-amount');
     const amountInput = document.getElementById('spon-amount-input');
     const presetBtns = document.querySelectorAll('.spon-preset-btn');
     const sponsorSubmitBtn = document.getElementById('btn-submit-sponsorship');
@@ -245,7 +301,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (closeFormBtn && formModal) {
         closeFormBtn.addEventListener('click', closeFormModal);
         formModal.addEventListener('click', function (e) {
-            if (e.target === formModal) closeFormModal();
+            if (e.target === formModal || e.target.classList.contains('spon-modal-close') || e.target.hasAttribute('data-close-modal')) {
+                closeFormModal();
+            }
         });
     }
 
@@ -257,66 +315,93 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!project) return;
 
         if (formProjectTitle) formProjectTitle.textContent = project.title;
-        if (formTargetInfo) {
-            const remaining = project.target_amount - project.raised_amount;
+        const remaining = Math.max(0, project.target_amount - project.raised_amount);
+        if (formNeededAmount) {
+            formNeededAmount.textContent = remaining.toLocaleString('vi-VN') + ' VNĐ';
+        }
+        if (formTargetInfo && !formNeededAmount) {
             formTargetInfo.textContent = `${project.school_name} • Mục tiêu: ${(project.target_amount / 1000000).toFixed(0)} triệu VNĐ (Còn thiếu: ${(remaining / 1000000).toFixed(0)} triệu VNĐ)`;
         }
 
         // Set Default Preset Value (10.000.000 VNĐ)
-        if (amountInput) amountInput.value = '10,000,000';
+        if (amountInput) amountInput.value = '10000000';
         presetBtns.forEach(b => {
-            if (b.getAttribute('data-amount') === '10000000') {
+            const btnVal = b.getAttribute('data-val') || b.getAttribute('data-amount');
+            if (btnVal === '10000000') {
                 b.classList.add('is-selected');
+                b.style.backgroundColor = '#F97316';
+                b.style.color = '#FFFFFF';
+                b.style.borderColor = '#F97316';
             } else {
                 b.classList.remove('is-selected');
+                b.style.backgroundColor = '#FFFFFF';
+                b.style.color = '#0F172A';
+                b.style.borderColor = '#E2E8F0';
             }
         });
 
+        formModal.style.display = 'flex';
         formModal.classList.add('is-open');
         document.body.style.overflow = 'hidden';
     }
 
     function closeFormModal() {
         if (formModal) {
+            formModal.style.display = 'none';
             formModal.classList.remove('is-open');
             document.body.style.overflow = '';
         }
     }
 
+    // Global ESC Key Listener to Close Open Modals
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeDetailModal();
+            closeFormModal();
+        }
+    });
+
     // Preset Amount Click Handler
     presetBtns.forEach(btn => {
         btn.addEventListener('click', function () {
-            const rawVal = parseInt(this.getAttribute('data-amount'), 10);
+            const rawVal = parseInt(this.getAttribute('data-val') || this.getAttribute('data-amount') || '5000000', 10);
             if (amountInput) {
-                amountInput.value = rawVal.toLocaleString('en-US');
+                amountInput.value = rawVal;
             }
-            presetBtns.forEach(b => b.classList.remove('is-selected'));
+            presetBtns.forEach(b => {
+                b.classList.remove('is-selected');
+                b.style.backgroundColor = '#FFFFFF';
+                b.style.color = '#0F172A';
+                b.style.borderColor = '#E2E8F0';
+            });
             this.classList.add('is-selected');
+            this.style.backgroundColor = '#F97316';
+            this.style.color = '#FFFFFF';
+            this.style.borderColor = '#F97316';
         });
     });
 
     // Format Amount Input
     if (amountInput) {
         amountInput.addEventListener('input', function () {
-            let val = this.value.replace(/[^0-9]/g, '');
-            if (val) {
-                this.value = parseInt(val, 10).toLocaleString('en-US');
-            } else {
-                this.value = '';
-            }
-            presetBtns.forEach(b => b.classList.remove('is-selected'));
+            presetBtns.forEach(b => {
+                b.classList.remove('is-selected');
+                b.style.backgroundColor = '#FFFFFF';
+                b.style.color = '#0F172A';
+                b.style.borderColor = '#E2E8F0';
+            });
         });
     }
 
     // Submit Sponsorship Form
     if (sponsorshipForm) {
-        sponsorshipForm.addEventListener('submit', function (e) {
+        sponsorshipForm.addEventListener('submit', async function (e) {
             e.preventDefault();
 
             if (!activeSponsorProjectId) return;
 
-            const project = window.ENTERPRISE_PROJECTS.find(p => p.id === activeSponsorProjectId);
-            const valString = amountInput.value.replace(/,/g, '');
+            const project = window.ENTERPRISE_PROJECTS ? window.ENTERPRISE_PROJECTS.find(p => p.id === activeSponsorProjectId) : null;
+            const valString = String(amountInput.value).replace(/[^0-9]/g, '');
             const amountNum = parseInt(valString, 10);
 
             if (!amountNum || amountNum <= 0) {
@@ -324,16 +409,108 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            // Interactive Success Celebration Toast / Notification
-            closeFormModal();
+            const noteInput = document.getElementById('spon-note-input');
+            const noteText = noteInput ? noteInput.value.trim() : '';
 
-            showSuccessToast(`Tài trợ thành công ${(amountNum).toLocaleString('vi-VN')} VNĐ cho dự án "${project ? project.title : ''}". Nhóm dự án đã nhận được đề xuất đồng hành!`);
+            let boot = window.ENTERPRISE_BOOT || {};
+            const bootElement = document.getElementById('enterprise-session-boot');
+            if (bootElement && (!boot.csrfToken || !boot.apiBase)) {
+                try {
+                    boot = Object.assign(boot, JSON.parse(bootElement.textContent));
+                    window.ENTERPRISE_BOOT = boot;
+                } catch(err) {}
+            }
 
-            // Switch to "Đã tài trợ" tab visually to showcase the updated sponsorship status
-            setTimeout(() => {
-                const sponsoredTabBtn = document.querySelector('.spon-tab-btn[data-tab="my-sponsorships"]');
-                if (sponsoredTabBtn) sponsoredTabBtn.click();
-            }, 1200);
+            const apiBase = boot.apiBase || (window.location.pathname.includes('/TalentHub') ? '/TalentHub/api/v1' : '/api/v1');
+            const csrfToken = boot.csrfToken || '';
+
+            const request = async (method, path, body) => {
+                const response = await fetch(`${apiBase}${path}`, {
+                    method,
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken,
+                    },
+                    body: JSON.stringify(body),
+                });
+                const json = await response.json().catch(() => null);
+                if (!response.ok || !json?.data) {
+                    const errorMsg = json?.error?.message 
+                        || (json?.error?.details && Array.isArray(json.error.details) ? json.error.details.map(d => d.message).join(' ') : null)
+                        || `Thao tác thất bại (HTTP ${response.status}). Vui lòng thử lại.`;
+                    throw new Error(errorMsg);
+                }
+                return json.data;
+            };
+
+            if (sponsorSubmitBtn) {
+                sponsorSubmitBtn.disabled = true;
+                sponsorSubmitBtn.textContent = 'Đang xử lý cam kết...';
+            }
+
+            try {
+                // 1. Pledge sponsorship
+                const sponRes = await request('POST', '/businesses/me/sponsorships', {
+                    projectId: activeSponsorProjectId,
+                    amount: String(amountNum),
+                    currency: 'VND',
+                    note: noteText || 'Tài trợ phát triển dự án nghiên cứu sinh viên.',
+                });
+
+                const sponsorshipId = sponRes.id;
+
+                // 2. Create Payment Order
+                const paymentRes = await request('POST', '/businesses/me/payments', {
+                    sponsorshipId: sponsorshipId,
+                    provider: 'vnpay',
+                });
+
+                const orderId = paymentRes.id;
+
+                // 3. Confirm Payment (Simulated Provider Callback)
+                await request('POST', `/businesses/me/payments/${encodeURIComponent(orderId)}/confirm`, {
+                    providerReference: 'VNPAY_' + Date.now(),
+                });
+
+                // 4. Live update project card in DOM
+                if (project) {
+                    project.raised_amount = Number(project.raised_amount || 0) + amountNum;
+                    const target = Number(project.target_amount || 1);
+                    const newPct = Math.min(100, Math.round((project.raised_amount / target) * 100));
+                    project.percentage = newPct;
+
+                    const card = document.querySelector(`.spon-project-card[data-project-id="${activeSponsorProjectId}"]`);
+                    if (card) {
+                        const raisedM = (project.raised_amount / 1000000).toFixed(1).replace('.0', '');
+                        const targetM = (target / 1000000).toFixed(1).replace('.0', '');
+                        const progSpan = card.querySelector('div span:first-child');
+                        if (progSpan) progSpan.textContent = `${raisedM} triệu / ${targetM} triệu VNĐ`;
+                        const pctSpan = card.querySelector('div span:last-child');
+                        if (pctSpan) pctSpan.textContent = `${newPct}%`;
+                        const bar = card.querySelector('.spon-progress-fill, div[style*="linear-gradient"]');
+                        if (bar) bar.style.width = `${newPct}%`;
+                    }
+                }
+
+                closeFormModal();
+
+                showSuccessToast(`Tài trợ thành công ${(amountNum).toLocaleString('vi-VN')} VNĐ cho dự án "${project ? project.title : ''}". Giao dịch đã được xác nhận thanh toán!`);
+
+                // Reload page after a brief moment to sync server state
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+
+            } catch (error) {
+                alert(error?.message || 'Có lỗi xảy ra trong quá trình tài trợ dự án.');
+            } finally {
+                if (sponsorSubmitBtn) {
+                    sponsorSubmitBtn.disabled = false;
+                    sponsorSubmitBtn.textContent = 'Xác nhận Cam kết Tài trợ';
+                }
+            }
         });
     }
 

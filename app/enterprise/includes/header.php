@@ -53,7 +53,7 @@ $profileUrl = function_exists('app_href') ? app_href($profileRoute) : ($basePref
                 aria-haspopup="menu" 
                 aria-expanded="false" 
                 aria-controls="ent-account-menu"
-                aria-label="Tài khoản doanh nghiệp: <?= htmlspecialchars($enterpriseInfo['company_name'] ?? 'FPT Software'); ?>"
+                aria-label="Tài khoản doanh nghiệp: <?= htmlspecialchars($enterpriseInfo['company_name'] ?? ($enterprise['name'] ?? 'Doanh nghiệp')); ?>"
             >
                 <div class="ent-header__avatar" aria-hidden="true">
                     <?php 

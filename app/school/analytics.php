@@ -45,14 +45,7 @@ for ($i = 11; $i >= 0; $i--) {
 
 $maxStudents = max(1, max(array_column($monthlyStats, 'students')));
 
-$totalStudentCount = (int) ($metrics['totalStudents'] ?? 0);
-$talentDistribution = [
-    ['name' => 'Khoa học',  'count' => (int) round($totalStudentCount * 0.26), 'percentage' => 26.0],
-    ['name' => 'Nghệ thuật','count' => (int) round($totalStudentCount * 0.22), 'percentage' => 22.0],
-    ['name' => 'Thể thao',  'count' => (int) round($totalStudentCount * 0.20), 'percentage' => 20.0],
-    ['name' => 'Công nghệ', 'count' => (int) round($totalStudentCount * 0.18), 'percentage' => 18.0],
-    ['name' => 'Ngôn ngữ',  'count' => (int) round($totalStudentCount * 0.14), 'percentage' => 14.0],
-];
+$talentDistribution = $service->verifiedSkillDistribution($userId);
 
 $gradeStats = [];
 $grouped = [];
@@ -75,7 +68,7 @@ foreach ($grouped as $grade => $items) {
 $schoolInfo = [
     'name'          => $school['name'],
     'logo_initials' => mb_substr($school['name'], 0, 2),
-    'level'         => $school['level'] ?? 'Trung học',
+    'level'         => $school['level'] ?? 'Đại học / Cao đẳng',
     'district'      => $school['address'] ?? '',
     'academic_year' => $school['academicYear'] ?? '',
 ];
@@ -112,6 +105,7 @@ include __DIR__ . '/includes/page-banner.php';
             <p class="school-section-box__subtitle">Theo lĩnh vực</p>
         </div>
         <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <?php if ($talentDistribution === []): ?><p>Chưa có kỹ năng đã xác minh.</p><?php endif; ?>
             <?php foreach ($talentDistribution as $talent): ?>
                 <div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 0.375rem;">

@@ -32,6 +32,8 @@ final class BadgeReadService
         $awarded = $this->badgeRepo->awardedBadges($studentId);
         $facts = $this->statsRepo->lifetimeFacts($studentId);
         $level = LevelProgression::fromHours((float) $facts['confirmed_experience_hours']);
+        // School-owned credentials are rendered by SchoolCredentialService.
+        // Keep this legacy collection global-only to avoid duplicate cards.
         $activeRules = $this->badgeRepo->activeRules();
 
         $awardedMap = [];

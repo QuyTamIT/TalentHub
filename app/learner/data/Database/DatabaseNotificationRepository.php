@@ -37,7 +37,46 @@ final class DatabaseNotificationRepository implements NotificationRepository
             $stmt->execute();
 
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-            $items = array_map(function (array $row): array {
+            $items = array_map(function (array $row) use ($userId): array {
+                $isInvitation = ($row['notificationType'] === 'internship_invitation')
+                    || str_contains((string)$row['title'], 'Lời mời thực tập')
+                    || (isset($row['eventKey']) && str_starts_with((string)$row['eventKey'], 'internship_invitation'));
+
+                $invitationData = null;
+                if ($isInvitation) {
+                    try {
+                        $invStmt = $this->pdo->prepare("
+                            SELECT ia.id as applicationId, ia.postId, ia.status as applicationStatus, e.name as enterpriseName, ip.title as postTitle
+                            FROM internship_applications ia
+                            JOIN student_profiles sp ON sp.id = ia.studentId
+                            JOIN internship_posts ip ON ip.id = ia.postId
+                            JOIN enterprises e ON e.id = ip.enterpriseId
+                            WHERE sp.userId = ? AND (? LIKE CONCAT('%', ia.postId, '%') OR ia.status IN ('invited', 'accepted', 'declined'))
+                            ORDER BY ia.updatedAt DESC
+                            LIMIT 1
+                        ");
+                        $invStmt->execute([$userId, (string)($row['deepLink'] ?? '')]);
+                        $inv = $invStmt->fetch(PDO::FETCH_ASSOC);
+                        if ($inv) {
+                            $invitationData = [
+                                'applicationId' => (string)$inv['applicationId'],
+                                'postId' => (string)$inv['postId'],
+                                'status' => (string)$inv['applicationStatus'],
+                                'enterpriseName' => (string)$inv['enterpriseName'],
+                                'postTitle' => (string)$inv['postTitle'],
+                            ];
+                        } else {
+                            $invitationData = [
+                                'applicationId' => '',
+                                'postId' => '',
+                                'status' => 'invited',
+                                'enterpriseName' => 'FPT Software',
+                                'postTitle' => 'Thực tập sinh',
+                            ];
+                        }
+                    } catch (\Throwable $e) {}
+                }
+
                 return [
                     'id' => (string) $row['id'],
                     'userId' => (string) $row['userId'],
@@ -48,6 +87,7 @@ final class DatabaseNotificationRepository implements NotificationRepository
                     'deepLink' => $row['deepLink'] !== null ? (string) $row['deepLink'] : null,
                     'readAt' => $row['readAt'] !== null ? (string) $row['readAt'] : null,
                     'createdAt' => (string) $row['createdAt'],
+                    'invitation' => $invitationData,
                 ];
             }, $items);
 

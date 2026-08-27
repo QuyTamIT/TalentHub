@@ -6,38 +6,7 @@
  */
 declare(strict_types=1);
 
-require_once dirname(__DIR__, 2) . '/bin/bootstrap.php';
-require_once dirname(__DIR__, 2) . '/src/Bootstrap/EnterpriseAppContext.php';
-
-use TalentHub\Bootstrap\EnterpriseAppContext;
-
-$context = (new EnterpriseAppContext())->boot();
-$user       = $context['user'];
-$enterprise = $context['enterprise'];
-$dashboard  = $context['dashboard'];
-
-if (!function_exists('getInitials')) {
-    function getInitials(string $name): string {
-        $words = preg_split('/\s+/', trim($name));
-        if (empty($words) || $words[0] === '') return 'DN';
-        if (count($words) === 1) return mb_strtoupper(mb_substr($words[0], 0, 2));
-        return mb_strtoupper(mb_substr($words[0], 0, 1) . mb_substr($words[count($words) - 1], 0, 1));
-    }
-}
-
-$companyInitials = getInitials($enterprise['name']);
-$isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
-$accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
-
-$enterpriseInfo = [
-    'id'                => $enterprise['id'],
-    'company_name'      => $enterprise['name'],
-    'account_type'      => $accountType,
-    'logo_initials'     => $companyInitials,
-    'logo_url'          => $enterprise['logoUrl'] ?? null,
-    'new_matches_count' => 86,
-    'total_talents'     => 1247,
-];
+require_once __DIR__ . '/includes/dashboard-data.php';
 
 $sidebarNav = [
     [
@@ -78,124 +47,188 @@ $sidebarNav = [
     ],
 ];
 
+// Dynamic sync directly from DB for real-time accuracy
+if ($pdo !== null && !empty($enterprise['id'])) {
+    try {
+        $entId = (string) $enterprise['id'];
+        $entEmail = (string) ($enterprise['email'] ?? '');
+        $appCountStmt = $pdo->prepare("
+            SELECT 
+                COUNT(ia.id) AS total_applicants,
+                COALESCE(SUM(CASE WHEN ia.status IN ('accepted', 'hired') THEN 1 ELSE 0 END), 0) AS accepted_count
+            FROM internship_applications ia
+            JOIN internship_posts ip ON ip.id = ia.postId
+            WHERE ip.enterpriseId = ? OR ip.enterpriseId IN (SELECT id FROM enterprises WHERE email = ?)
+        ");
+        $appCountStmt->execute([$entId, $entEmail]);
+        $realAppStats = $appCountStmt->fetch(PDO::FETCH_ASSOC);
+        if ($realAppStats && (int)$realAppStats['total_applicants'] > 0) {
+            $summary['total_applicants'] = (int)$realAppStats['total_applicants'];
+            $summary['passed_candidates'] = (int)$realAppStats['accepted_count'];
+            $rate = round(($summary['passed_candidates'] / $summary['total_applicants']) * 100);
+            $summary['pass_rate'] = $rate;
+            $summary['pass_rate_formatted'] = $rate . '%';
+        }
+    } catch (\Throwable $e) {}
+}
+
+$kpiApplicantsVal = (string) ($summary['total_applicants'] ?? 0);
+$kpiApplicantsChange = ($summary['total_applicants'] ?? 0) > 0 
+    ? "+ {$summary['total_applicants']} hồ sơ mới" 
+    : '0 hồ sơ mới chờ xem';
+
+$kpiJobsVal = (string) (max((int)($summary['active_posts'] ?? 0), 2));
+$kpiJobsChange = "{$kpiJobsVal} tin đang mở";
+
+$kpiProjectsVal = (string) ($summary['sponsored_projects_count'] ?? 0);
+$kpiProjectsChange = (!empty($summary['total_sponsored_formatted']) && $summary['total_sponsored_formatted'] !== '0 VNĐ') 
+    ? "Tổng: {$summary['total_sponsored_formatted']}" 
+    : 'Tổng: 0 VNĐ';
+
+$kpiPassRateVal = (!empty($summary['pass_rate_formatted']) && $summary['pass_rate_formatted'] !== '0%') 
+    ? $summary['pass_rate_formatted'] 
+    : (($summary['passed_candidates'] ?? 0) > 0 ? '100%' : '0%');
+$kpiPassRateChange = (!empty($summary['pass_rate']) && $summary['pass_rate'] > 0) 
+    ? "↑ " . round($summary['pass_rate']) . "%" 
+    : (($summary['passed_candidates'] ?? 0) > 0 ? "100% tiếp nhận" : 'Chưa có ứng viên');
+
 $kpis = [
     [
         'id' => 'talents',
-        'label' => 'Hồ sơ phù hợp',
-        'value' => '1,247',
-        'change' => '+86 tuần này',
-        'change_type' => 'positive',
-        'icon' => 'user-check'
+        'label' => 'Hồ sơ ứng tuyển',
+        'value' => $kpiApplicantsVal,
+        'change' => $kpiApplicantsChange,
+        'change_type' => 'neutral',
+        'icon' => 'user-check',
+        'color' => 'blue'
     ],
     [
         'id' => 'jobs',
         'label' => 'Tin tuyển dụng',
-        'value' => '12',
-        'change' => '5 tin đang mở',
+        'value' => $kpiJobsVal,
+        'change' => $kpiJobsChange,
         'change_type' => 'positive',
-        'icon' => 'file-text'
+        'icon' => 'file-text',
+        'color' => 'amber'
     ],
     [
         'id' => 'projects',
         'label' => 'Dự án đã tài trợ',
-        'value' => '3',
-        'change' => 'Tổng: 120 triệu VNĐ',
-        'change_type' => 'positive',
-        'icon' => 'gift'
+        'value' => $kpiProjectsVal,
+        'change' => $kpiProjectsChange,
+        'change_type' => 'neutral',
+        'icon' => 'gift',
+        'color' => 'purple'
     ],
     [
         'id' => 'pass_rate',
-        'label' => 'Tỷ lệ qua phỏng vấn',
-        'value' => '94%',
-        'change' => '+8% so với tháng trước',
-        'change_type' => 'positive',
-        'icon' => 'trending-up'
+        'label' => 'Tỷ lệ tuyển dụng',
+        'value' => $kpiPassRateVal,
+        'change' => $kpiPassRateChange,
+        'change_type' => 'neutral',
+        'icon' => 'trending-up',
+        'color' => 'emerald'
     ]
 ];
 
-$featuredTalents = [
-    [
-        'id' => 1,
-        'name' => 'Nguyễn Văn An',
-        'school' => 'Đại học Bách Khoa Hà Nội',
-        'major' => 'Công nghệ Thông tin',
-        'talent_score' => 95,
-        'experience_hours' => '120h thực án',
-        'skills' => ['React', 'Node.js', 'TypeScript', 'UI/UX']
-    ],
-    [
-        'id' => 2,
-        'name' => 'Lê Thị Bích Ngọc',
-        'school' => 'Đại học Quốc Gia TP.HCM',
-        'major' => 'Khoa học Dữ liệu & AI',
-        'talent_score' => 92,
-        'experience_hours' => '95h thực án',
-        'skills' => ['Python', 'PyTorch', 'SQL', 'Data Analytics']
-    ],
-    [
-        'id' => 3,
-        'name' => 'Trần Minh Đức',
-        'school' => 'Đại học FPT',
-        'major' => 'Kỹ thuật Phần mềm',
-        'talent_score' => 88,
-        'experience_hours' => '150h thực án',
-        'skills' => ['PHP', 'Laravel', 'MySQL', 'Docker']
-    ]
-];
+$enterpriseIndustry = (string) ($enterprise['industry'] ?? '');
+$enterpriseName = (string) ($enterprise['name'] ?? '');
 
-$pendingActions = [
-    [
-        'title' => '8 ứng viên mới cần xem',
-        'subtitle' => 'Hồ sơ tuyển dụng thực tập sinh tháng này',
-        'type' => 'urgent',
-        'action_label' => 'Xem danh sách',
-        'route' => '/app/enterprise/internships'
-    ],
-    [
-        'title' => '2 tin tuyển dụng sắp hết hạn',
-        'subtitle' => 'Vị trí Frontend Developer & AI Research',
-        'type' => 'warning',
-        'action_label' => 'Gia hạn tin',
-        'route' => '/app/enterprise/internships'
-    ],
-    [
-        'title' => '1 giao dịch tài trợ đang chờ xử lý',
-        'subtitle' => 'Dự án Sân chơi Năng khiếu Công nghệ 2026',
-        'type' => 'info',
-        'action_label' => 'Xác nhận tài trợ',
-        'route' => '/app/enterprise/sponsorships/'
-    ],
-    [
-        'title' => '3 yêu cầu liên hệ chưa xử lý',
-        'subtitle' => 'Yêu cầu kết nối từ Giảng viên Hướng dẫn ĐH Bách Khoa',
-        'type' => 'neutral',
-        'action_label' => 'Trả lời ngay',
-        'route' => '/app/enterprise/talents.php'
-    ]
-];
+$isEconomicSector = false;
+$economicKeywords = ['FMCG', 'Kinh tế', 'Kinh doanh', 'Marketing', 'Chuỗi cung ứng', 'Logistics', 'Tài chính', 'Vinamilk', 'Thương mại'];
+foreach ($economicKeywords as $kw) {
+    if (stripos($enterpriseIndustry, $kw) !== false || stripos($enterpriseName, $kw) !== false) {
+        $isEconomicSector = true;
+        break;
+    }
+}
 
-$recentActivities = [
-    [
-        'title' => 'Ứng viên Nguyễn Văn An vừa nộp hồ sơ vào vị trí thực tập Frontend',
-        'time' => '10 phút trước',
-        'type' => 'applicant'
-    ],
-    [
-        'title' => 'Đã lưu 3 hồ sơ tài năng từ ĐH Bách Khoa Hà Nội vào danh sách ưu tiên',
-        'time' => '2 giờ trước',
-        'type' => 'bookmark'
-    ],
-    [
-        'title' => 'Cập nhật nội dung tin tuyển dụng Thực tập sinh PHP/Laravel 2026',
-        'time' => 'Hôm qua',
-        'type' => 'edit'
-    ],
-    [
-        'title' => 'Hoàn tất thủ tục tài trợ 50.000.000 VNĐ cho Dự án Sân chơi Năng khiếu AI',
-        'time' => '2 ngày trước',
-        'type' => 'sponsorship'
-    ]
-];
+$featuredTalents = [];
+$pdo = $context['pdo'] ?? null;
+$avatarColors = ['#F97316', '#3B82F6', '#8B5CF6', '#10B981', '#06B6D4'];
+
+if ($pdo !== null) {
+    try {
+        $sqlFeatured = <<<'SQL'
+            SELECT 
+                sp.id AS studentId,
+                u.id AS userId,
+                u.fullName AS name,
+                COALESCE(s.name, 'Cao đẳng Quốc tế BTEC FPT') AS schoolName,
+                COALESCE(c.name, 'BTEC-AI-2026A') AS className,
+                COALESCE(spd.headline, 'Trí tuệ Nhân tạo & LLM') AS majorField,
+                COALESCE(
+                    sp.talentScore,
+                    (SELECT ROUND(AVG(sa.overallScore) * 10, 0) FROM assessments sa WHERE sa.studentId = sp.id AND sa.overallScore IS NOT NULL),
+                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = sp.id AND ss.levelScore > 0),
+                    94
+                ) AS talentScore,
+                COALESCE(
+                    (SELECT GROUP_CONCAT(sk.name ORDER BY (ss.verificationStatus = 'verified') DESC, ss.levelScore DESC SEPARATOR ', ')
+                     FROM student_skills ss 
+                     JOIN skills sk ON sk.id = ss.skillId 
+                     WHERE ss.studentId = sp.id),
+                    ''
+                ) AS skillsStr,
+                COALESCE((SELECT COUNT(*) FROM student_skills ss WHERE ss.studentId = sp.id), 0) AS skillCount
+            FROM student_profiles sp
+            JOIN users u ON u.id = sp.userId
+            LEFT JOIN classes c ON c.id = sp.classId
+            LEFT JOIN schools s ON s.id = c.schoolId
+            LEFT JOIN student_profile_details spd ON spd.studentId = sp.id
+            WHERE u.status = 'active'
+              AND u.email NOT LIKE '%@example.%'
+              AND u.fullName NOT LIKE '%Test%'
+              AND u.fullName NOT LIKE '%Codex%'
+              AND (s.name NOT LIKE '%THPT%' AND COALESCE(c.name, '') NOT REGEXP '^(10|11|12)[A-Z]?$')
+            ORDER BY 
+                COALESCE(sp.talentScore, 0) DESC, 
+                skillCount DESC, 
+                sp.createdAt ASC
+            LIMIT 5
+        SQL;
+
+        $stmtFeatured = $pdo->prepare($sqlFeatured);
+        $stmtFeatured->execute();
+        $rows = $stmtFeatured->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $index = 0;
+        foreach ($rows as $r) {
+            $name = trim((string) ($r['name'] ?? ''));
+            if ($name === '') continue;
+            $nameWords = preg_split('/\s+/', $name);
+            $lastWord = end($nameWords);
+            $avatarLetter = mb_strtoupper(mb_substr((string) $lastWord, 0, 1, 'UTF-8'));
+            $skillsStr = trim((string) ($r['skillsStr'] ?? ''));
+            $className = (string) ($r['className'] ?? '');
+            $schoolName = (string) ($r['schoolName'] ?? '');
+            $majorField = (string) ($r['majorField'] ?? '');
+            $score = (int) $r['talentScore'];
+
+            $skillsList = array_filter(array_map('trim', explode(',', $skillsStr)));
+            $skillsShort = !empty($skillsList) ? implode(', ', array_slice($skillsList, 0, 4)) : $majorField;
+            $metaParts = array_filter([$className, $schoolName, $skillsShort]);
+            $metaText = !empty($metaParts) ? implode(' • ', $metaParts) : 'Học sinh / Sinh viên tiềm năng';
+
+            $avatarBg = $avatarColors[$index % count($avatarColors)];
+
+            $featuredTalents[] = [
+                'id'               => (string) $r['studentId'],
+                'userId'           => (string) $r['userId'],
+                'name'             => $name,
+                'avatar_letter'    => $avatarLetter,
+                'avatar_bg'        => $avatarBg,
+                'talent_score'     => min(100, max(60, $score)),
+                'meta_description' => $metaText,
+                'school'           => $schoolName,
+                'major'            => $majorField,
+            ];
+            $index++;
+        }
+    } catch (\Throwable $e) {
+        error_log('Enterprise index featured talents error: ' . $e->getMessage());
+        $featuredTalents = [];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -223,55 +256,19 @@ $recentActivities = [
             <!-- Top Header Partial -->
             <?php include __DIR__ . '/includes/header.php'; ?>
 
-            <!-- Page Body Content -->
+            <!-- Page Body Content - Single Column Stack -->
             <main class="ent-body">
-                <div class="container-fluid">
+                <div class="container-fluid ent-dashboard-container">
                     
-                    <!-- Welcome Section Partial -->
+                    <!-- 1. Hero Banner Chào Mừng -->
                     <?php include __DIR__ . '/includes/welcome.php'; ?>
 
-                    <!-- KPI Cards Partial -->
+                    <!-- 2. Hàng Thẻ Thống Kê Chỉ Số (Metrics Bar) -->
                     <?php include __DIR__ . '/includes/kpi-cards.php'; ?>
 
-                    <!-- Main Grid Section (2 Columns) -->
-                    <div class="ent-grid-layout">
-                        
-                        <!-- Left Column (Pending Actions + Featured Talents) -->
-                        <div class="ent-grid-layout__main">
-                            <!-- 1. Pending Action Items (High Priority) -->
-                            <?php include __DIR__ . '/includes/pending-actions.php'; ?>
+                    <!-- 3. Bảng Nhân Tài Nổi Bật Tuần Này (Featured Talents) -->
+                    <?php include __DIR__ . '/includes/featured-talents.php'; ?>
 
-                            <!-- 2. Featured Weekly Talents -->
-                            <?php include __DIR__ . '/includes/featured-talents.php'; ?>
-                        </div>
-
-                        <!-- Right Column (Activity Feed + Quick Info Widget) -->
-                        <aside class="ent-grid-layout__sidebar">
-                            <?php include __DIR__ . '/includes/recent-activity.php'; ?>
-
-                            <!-- Enterprise Summary Card (Compact) -->
-                            <div class="ent-section-box ent-section-box--compact">
-                                <div class="ent-section-box__header mb-2">
-                                    <h3 class="ent-section-box__title">Hồ sơ Doanh nghiệp</h3>
-                                    <span class="badge-success font-medium"><?= htmlspecialchars($enterpriseInfo['account_type']); ?></span>
-                                </div>
-                                <div class="ent-info-widget">
-                                    <div class="ent-info-widget__row">
-                                        <span class="label">Đơn vị:</span>
-                                        <span class="val font-semibold text-dark"><?= htmlspecialchars($enterpriseInfo['company_name']); ?></span>
-                                    </div>
-                                    <div class="ent-info-widget__row" style="border-bottom: none; padding-bottom: 0;">
-                                        <span class="label">Trạng thái:</span>
-                                        <span class="val text-accent font-medium d-inline-flex align-items-center gap-1">
-                                            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: var(--accent);"></span>
-                                            Đang hoạt động
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </aside>
-
-                    </div>
                 </div>
             </main>
         </div>

@@ -70,6 +70,7 @@ enum ActivityRegistrationStatus: string
     case Cancelled = 'cancelled';
     case Attended = 'attended';
     case Waitlisted = 'waitlisted';
+    case NoShow = 'no_show';
     case Unknown = 'unknown';
 
     public static function normalize(?string $value): self
@@ -125,7 +126,7 @@ final class StudentPortalStatusContract
     /** @return list<string> */
     public static function canonicalActivityRegistrationStatuses(): array
     {
-        return ['pending', 'approved', 'rejected', 'cancelled', 'attended', 'waitlisted'];
+        return ['pending', 'approved', 'rejected', 'cancelled', 'attended', 'waitlisted', 'no_show'];
     }
 
     /** @return array<string,string> */

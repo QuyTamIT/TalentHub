@@ -21,31 +21,32 @@ function teacherQrEscape(mixed $value): string
 
 function teacherQrInitials(string $name): string
 {
-    $parts = preg_split('/\s+/', trim($name)) ?: [];
-    if ($parts === []) {
+    $name = trim($name);
+    if ($name === '') {
         return 'GV';
     }
 
+    $cleanName = preg_replace('/^(Thầy|Cô|Gv\.|GV|Ths\.|TS\.|ThS\.)\s+/iu', '', $name);
+    $cleanName = trim((string)$cleanName) ?: $name;
+
+    $parts = preg_split('/\s+/u', $cleanName) ?: [];
+    if (count($parts) === 1) {
+        return mb_strtoupper(mb_substr($parts[0], 0, min(2, mb_strlen($parts[0]))));
+    }
     $first = (string) ($parts[0] ?? '');
     $last = (string) ($parts[count($parts) - 1] ?? '');
 
-    return strtoupper(substr($first, 0, 1) . substr($last, 0, 1)) ?: 'GV';
+    return mb_strtoupper(mb_substr($first, 0, 1) . mb_substr($last, 0, 1)) ?: 'GV';
 }
 
-$session = new SessionManager(require dirname(__DIR__, 3) . '/config/session.php');
+use TalentHub\Bootstrap\PortalGuard;
+use TalentHub\Rbac\RoleCodes;
+
+$user = PortalGuard::requireRole(RoleCodes::TEACHER, '/app/teacher/checkins/index.php');
+$session = new SessionManager(array_merge(require dirname(__DIR__, 3) . '/config/session.php', ['name' => SessionManager::SESSION_TEACHER]));
 $session->start();
 $storedFlash = $_SESSION['teacherQrFlash'] ?? null;
 unset($_SESSION['teacherQrFlash']);
-
-$user = $session->user();
-if ($user === null) {
-    header('Location: ' . app_href('/login.php') . '?next=' . urlencode($_SERVER['REQUEST_URI'] ?? '/app/teacher/checkins/index.php'));
-    exit;
-}
-if (($user['role'] ?? null) !== 'teacher') {
-    header('Location: ' . app_href('/role-selection.php'));
-    exit;
-}
 
 header('Cache-Control: no-store, no-cache, must-revalidate');
 header('Pragma: no-cache');
@@ -151,7 +152,11 @@ if (isset($pdo) && $pdo instanceof PDO) {
         $teacher = [];
     }
 }
-$teacherName = trim((string) ($teacher['fullName'] ?? $user['fullName'] ?? 'Giáo viên'));
+$rawName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
+$teacherName = trim((string) ($rawName !== '' ? $rawName : ($teacher['fullName'] ?? ($user['fullName'] ?? 'Giáo viên'))));
+if ($teacherName === 'minh triet') {
+    $teacherName = 'Minh Triết';
+}
 $teacherInfo = [
     'full_name' => $teacherName !== '' ? $teacherName : 'Giáo viên',
     'role_label' => 'Giáo viên / Hướng dẫn viên',

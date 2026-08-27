@@ -5,8 +5,8 @@
  */
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/bin/bootstrap.php';
-require dirname(__DIR__, 2) . '/src/Bootstrap/SchoolAppContext.php';
+require_once dirname(__DIR__, 2) . '/bin/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/Bootstrap/SchoolAppContext.php';
 
 use TalentHub\Bootstrap\SchoolAppContext;
 
@@ -26,7 +26,7 @@ function schoolInitials(string $name): string {
 $schoolInfo = [
     'name'          => $school['name'],
     'logo_initials' => mb_substr($school['name'], 0, 2),
-    'level'         => $school['level'] ?? 'Trung học',
+    'level'         => $school['level'] ?? 'Đại học / Cao đẳng',
     'district'      => $school['address'] ?? '',
     'academic_year' => $school['academicYear'] ?? '',
 ];
@@ -53,7 +53,7 @@ ob_start();
             </span>
             <h2 class="school-welcome__title">Xin chào, Ban Giám hiệu <?= htmlspecialchars($school['name']); ?>!</h2>
             <p class="school-welcome__description">
-                Theo dõi tổng quan hoạt động năng khiếu của trường, quản lý hồ sơ học sinh và xem báo cáo chi tiết về tiềm năng phát triển tài năng trong năm học <?= htmlspecialchars($school['academicYear']); ?>.
+                Theo dõi tổng quan hoạt động đào tạo của trường, quản lý hồ sơ học sinh / sinh viên và xem báo cáo chi tiết về tiềm năng phát triển tài năng trong năm học <?= htmlspecialchars($school['academicYear']); ?>.
             </p>
             <div class="school-welcome__actions">
                 <a href="./analytics.php" class="btn btn-primary">

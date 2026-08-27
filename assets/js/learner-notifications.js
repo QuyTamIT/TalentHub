@@ -11,6 +11,9 @@
         '/app/learner/assessment-result.php',
         '/app/learner/ecosystem.php',
         '/app/learner/badges.php',
+        '/app/learner/activity-history.php',
+        '/app/learner/talent-passport.php',
+        '/app/teacher/projects/index.php',
     ];
 
     function isSafeDeepLink(url) {
@@ -27,6 +30,24 @@
             emailEnabled: value && value.emailEnabled === true,
             updatedAt: value && typeof value.updatedAt === 'string' ? value.updatedAt : null,
         }));
+    }
+
+    function preferenceLabel(type) {
+        const labels = {
+            activity_registration_created: 'Đăng ký hoạt động',
+            activity_registration_cancelled: 'Hủy đăng ký hoạt động',
+            activity_registration_promoted: 'Được chuyển khỏi danh sách chờ',
+            activity_registration_approved: 'Đăng ký được phê duyệt',
+            activity_registration_rejected: 'Đăng ký bị từ chối',
+            activity_checkin_committed: 'Check-in và giờ trải nghiệm',
+            activity_attendance_no_show: 'Thông báo hoạt động không tham gia',
+            assessment_submitted: 'Nộp bài đánh giá năng lực',
+            internship_application_submitted: 'Nộp hồ sơ thực tập',
+            internship_application_withdrawn: 'Rút hồ sơ thực tập',
+            internship_application_status_changed: 'Trạng thái hồ sơ thực tập',
+            badge_awarded: 'Huy hiệu được trao',
+        };
+        return labels[type] || type;
     }
 
     function buildNotificationQuery(filter = 'all', limit = 25, offset = 0) {
@@ -52,6 +73,10 @@
                 element.className = value;
             } else if (key === 'textContent') {
                 element.textContent = value;
+            } else if (key === 'innerHTML') {
+                element.innerHTML = value;
+            } else if (key === 'style' && typeof value === 'string') {
+                element.style.cssText = value;
             } else if (key.startsWith('on') && typeof value === 'function') {
                 element.addEventListener(key.slice(2).toLowerCase(), value);
             } else if (value !== null && value !== undefined) {
@@ -106,12 +131,23 @@
     }
 
     function showToast(message) {
-        const toast = document.getElementById('learner-toast');
-        if (!toast) return;
-        const target = toast.querySelector('.learner-toast__message');
-        if (target) target.textContent = message;
+        let toast = document.getElementById('learner-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'learner-toast';
+            toast.className = 'learner-toast';
+            toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#0F172A;color:#FFFFFF;padding:12px 20px;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.25);z-index:9999;font-weight:600;font-size:0.9rem;display:flex;align-items:center;gap:8px;';
+            toast.innerHTML = '<span class="learner-toast__message"></span>';
+            document.body.appendChild(toast);
+        }
+        const target = toast.querySelector('.learner-toast__message') || toast;
+        target.textContent = message;
         toast.classList.add('is-visible');
-        setTimeout(() => toast.classList.remove('is-visible'), 3000);
+        toast.style.display = 'flex';
+        setTimeout(() => {
+            toast.classList.remove('is-visible');
+            toast.style.display = 'none';
+        }, 3500);
     }
 
     class LearnerNotificationManager {
@@ -134,6 +170,7 @@
         }
 
         init() {
+            if (getBootContext().onboardingRestricted === true) return;
             this.updateUnreadCount();
             window.setInterval(() => this.updateUnreadCount(), 30000);
             if (!this.list) return;
@@ -246,16 +283,62 @@
             });
         }
 
+        getAvatarInfo(notification) {
+            let name = '';
+            if (notification.invitation && notification.invitation.enterpriseName) {
+                name = notification.invitation.enterpriseName;
+            } else if (notification.title && /từ\s+/i.test(notification.title)) {
+                name = notification.title.split(/từ\s+/i)[1] || '';
+            } else if (notification.title) {
+                name = notification.title;
+            }
+
+            let cleanName = name
+                .replace(/^(Công ty TNHH Phần mềm|Công ty TNHH|Công ty Cổ phần|Công ty CP|Công ty|Tập đoàn|Trường Đại học|Trường Cao đẳng|Trường|Học viện)\s+/i, '')
+                .trim();
+
+            if (!cleanName) cleanName = name.trim() || 'TalentHub';
+
+            const words = cleanName.split(/\s+/).filter(Boolean);
+            let initials = 'TH';
+            if (words.length >= 2) {
+                initials = (words[0][0] + words[1][0]).toUpperCase();
+            } else if (words.length === 1) {
+                initials = words[0].slice(0, 2).toUpperCase();
+            }
+
+            const palettes = [
+                { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0' }, // Green (Enterprise/Success)
+                { bg: '#e0e7ff', text: '#4338ca', border: '#c7d2fe' }, // Indigo (Education)
+                { bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe' }, // Blue
+                { bg: '#fef3c7', text: '#b45309', border: '#fde68a' }, // Amber
+                { bg: '#faf5ff', text: '#7e22ce', border: '#e9d5ff' }, // Purple
+                { bg: '#fff1f2', text: '#be123c', border: '#fecdd3' }, // Rose
+            ];
+
+            let hash = 0;
+            for (let i = 0; i < cleanName.length; i++) {
+                hash = cleanName.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const palette = palettes[Math.abs(hash) % palettes.length];
+
+            return { initials, palette, name: cleanName };
+        }
+
         notificationCard(notification) {
             const unread = !notification.readAt;
             const card = el('article', {
                 className: `learner-notification-card${unread ? ' is-unread' : ''}`,
                 'data-notification-id': notification.id,
             });
+
+            const avatarInfo = this.getAvatarInfo(notification);
             card.appendChild(el('div', {
                 className: 'learner-notification-card__icon',
-                textContent: this.iconFor(notification.notificationType),
-                'aria-hidden': 'true',
+                style: `width: 44px; height: 44px; min-width: 44px; border-radius: 50%; background: ${avatarInfo.palette.bg} !important; color: ${avatarInfo.palette.text} !important; border: 1.5px solid ${avatarInfo.palette.border}; display: flex !important; align-items: center !important; justify-content: center !important; font-weight: 700 !important; font-size: 14px !important; letter-spacing: 0.5px; text-transform: uppercase; font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif; box-shadow: 0 1px 2px rgba(0,0,0,0.05);`,
+                textContent: avatarInfo.initials,
+                title: avatarInfo.name,
+                'aria-label': avatarInfo.name,
             }));
 
             const body = el('div', { className: 'learner-notification-card__body' });
@@ -287,17 +370,144 @@
             body.appendChild(meta);
             card.appendChild(body);
 
+            // Check if notification is an internship invitation
+            const isInvite = notification.invitation || 
+                (notification.title && notification.title.toLowerCase().includes('lời mời thực tập')) ||
+                (notification.message && notification.message.toLowerCase().includes('lời mời bạn tham gia thực tập')) ||
+                (notification.notificationType === 'internship_invitation');
+
+            if (isInvite) {
+                const inviteStatus = notification.invitation?.status || 'invited';
+                const entName = notification.invitation?.enterpriseName || 'FPT Software';
+
+                const actionBox = el('div', { 
+                    className: 'learner-notification-invite-actions',
+                    style: 'margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;'
+                });
+
+                if (inviteStatus === 'accepted') {
+                    actionBox.appendChild(el('span', {
+                        className: 'badge bg-success-subtle text-success border border-success px-3 py-2 rounded-pill fw-bold learner-invite-badge-accepted',
+                        style: 'background: #ecfdf5 !important; color: #047857 !important; border: 1.5px solid #10b981 !important; font-weight: 700 !important; font-size: 13.5px !important; padding: 7px 16px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; width: auto !important; height: auto !important; white-space: nowrap !important;',
+                        innerHTML: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> <span>Đã tiếp nhận thực tập</span>'
+                    }));
+                } else if (inviteStatus === 'declined' || inviteStatus === 'rejected') {
+                    actionBox.appendChild(el('span', {
+                        className: 'badge bg-danger-subtle text-danger border border-danger px-3 py-2 rounded-pill fw-bold learner-invite-badge-declined',
+                        style: 'background: #fef2f2 !important; color: #b91c1c !important; border: 1.5px solid #f87171 !important; font-weight: 700 !important; font-size: 13.5px !important; padding: 7px 16px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; width: auto !important; height: auto !important; white-space: nowrap !important;',
+                        innerHTML: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> <span>Đã từ chối</span>'
+                    }));
+                } else {
+                    // Two buttons: [Chấp nhận lời mời] & [Từ chối] (clean icon + text, locked with data-id)
+                    const acceptBtn = el('button', {
+                        type: 'button',
+                        className: 'learner-invite-btn-accept',
+                        'data-id': notification.id,
+                        'data-notification-id': notification.id,
+                        style: 'display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important; background: #10b981 !important; color: #ffffff !important; font-weight: 700 !important; font-size: 14px !important; line-height: 1.4 !important; padding: 9px 18px !important; border-radius: 8px !important; border: none !important; cursor: pointer !important; text-decoration: none !important; white-space: nowrap !important; width: auto !important; height: auto !important; min-width: fit-content !important; box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;',
+                        innerHTML: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> <span>Chấp nhận lời mời</span>',
+                        onClick: (e) => {
+                            e.stopPropagation();
+                            const notifId = acceptBtn.getAttribute('data-id') || notification.id;
+                            if (typeof window.handleAcceptInvitation === 'function') {
+                                window.handleAcceptInvitation(notifId, entName, actionBox);
+                            } else {
+                                this.respondInvitation(notifId, 'accept', actionBox, entName);
+                            }
+                        }
+                    });
+
+                    const declineBtn = el('button', {
+                        type: 'button',
+                        className: 'learner-invite-btn-decline',
+                        'data-id': notification.id,
+                        'data-notification-id': notification.id,
+                        style: 'display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important; background: #ffffff !important; color: #4b5563 !important; font-weight: 600 !important; font-size: 14px !important; line-height: 1.4 !important; padding: 8px 16px !important; border-radius: 8px !important; border: 1.5px solid #d1d5db !important; cursor: pointer !important; text-decoration: none !important; white-space: nowrap !important; width: auto !important; height: auto !important; min-width: fit-content !important;',
+                        innerHTML: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> <span>Từ chối</span>',
+                        onClick: (e) => {
+                            e.stopPropagation();
+                            const notifId = declineBtn.getAttribute('data-id') || notification.id;
+                            if (typeof window.handleDeclineInvitation === 'function') {
+                                window.handleDeclineInvitation(notifId, entName, actionBox);
+                            } else {
+                                this.respondInvitation(notifId, 'decline', actionBox, entName);
+                            }
+                        }
+                    });
+
+                    actionBox.appendChild(acceptBtn);
+                    actionBox.appendChild(declineBtn);
+                }
+
+                body.appendChild(actionBox);
+            }
+
             if (unread) {
                 card.appendChild(el('div', { className: 'learner-notification-card__actions' }, [
                     el('button', {
                         type: 'button',
                         className: 'learner-btn learner-btn--ghost learner-btn--sm',
+                        'data-id': notification.id,
                         textContent: 'Đánh dấu đã đọc',
                         onClick: () => this.markAsRead(notification.id),
                     }),
                 ]));
             }
             return card;
+        }
+
+        async respondInvitation(notificationId, decision, actionBox, entName) {
+            actionBox.innerHTML = '<span style="font-size: 0.85rem; color: #64748B; font-style: italic;">Đang xử lý phản hồi...</span>';
+
+            try {
+                const response = await apiRequest(ENDPOINT, 'PATCH', {
+                    action: 'respond-invitation',
+                    notificationId,
+                    notification_id: notificationId,
+                    decision,
+                });
+
+                const data = response.data || {};
+                const newStatus = data.status || (decision === 'accept' ? 'accepted' : 'declined');
+                actionBox.innerHTML = '';
+
+                if (newStatus === 'accepted') {
+                    actionBox.innerHTML = `
+                        <span class="badge bg-success-subtle text-success border border-success px-3 py-2 rounded-pill fw-bold learner-invite-badge-accepted" style="background: #ecfdf5 !important; color: #047857 !important; border: 1.5px solid #10b981 !important; font-weight: 700 !important; font-size: 13.5px !important; padding: 7px 16px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; width: auto !important; height: auto !important; white-space: nowrap !important;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            <span>Đã tiếp nhận thực tập</span>
+                        </span>
+                    `;
+                    showToast(data.message || `Bạn đã chấp nhận lời mời thực tập từ ${entName}!`);
+                } else {
+                    actionBox.innerHTML = `
+                        <span class="badge bg-danger-subtle text-danger border border-danger px-3 py-2 rounded-pill fw-bold learner-invite-badge-declined" style="background: #fef2f2 !important; color: #b91c1c !important; border: 1.5px solid #f87171 !important; font-weight: 700 !important; font-size: 13.5px !important; padding: 7px 16px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; width: auto !important; height: auto !important; white-space: nowrap !important;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                            <span>Đã từ chối</span>
+                        </span>
+                    `;
+                    showToast(data.message || 'Bạn đã từ chối lời mời thực tập.');
+                }
+
+                // Mark card unread style removed for ONLY this specific card
+                const card = document.querySelector(`[data-notification-id="${notificationId}"]`) || document.querySelector(`[data-id="${notificationId}"]`);
+                if (card) {
+                    card.classList.remove('is-unread');
+                    const markBtn = card.querySelector('.learner-notification-card__actions');
+                    if (markBtn) markBtn.remove();
+                }
+
+                this.updateUnreadCount();
+            } catch (err) {
+                console.error(err);
+                showToast('Không thể gửi phản hồi lời mời lúc này.');
+                this.loadNotifications(false);
+            }
         }
 
         iconFor(type) {
@@ -448,20 +658,7 @@
         }
 
         preferenceLabel(type) {
-            const labels = {
-                activity_registration_created: 'Đăng ký hoạt động',
-                activity_registration_cancelled: 'Hủy đăng ký hoạt động',
-                activity_registration_promoted: 'Được chuyển khỏi danh sách chờ',
-                activity_registration_approved: 'Đăng ký được phê duyệt',
-                activity_registration_rejected: 'Đăng ký bị từ chối',
-                activity_checkin_committed: 'Check-in và giờ trải nghiệm',
-                assessment_submitted: 'Nộp bài đánh giá năng lực',
-                internship_application_submitted: 'Nộp hồ sơ thực tập',
-                internship_application_withdrawn: 'Rút hồ sơ thực tập',
-                internship_application_status_changed: 'Trạng thái hồ sơ thực tập',
-                badge_awarded: 'Huy hiệu được trao',
-            };
-            return labels[type] || type;
+            return preferenceLabel(type);
         }
 
         async persistPreference(notificationType, inApp, email, changedInput) {
@@ -500,6 +697,7 @@
             apiRequest,
             el,
             formatTime,
+            preferenceLabel,
             LearnerNotificationManager,
         };
     } else {

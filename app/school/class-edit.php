@@ -15,11 +15,16 @@ use TalentHub\Support\Uuid;
 $context = (new SchoolAppContext())->boot();
 $service = $context['service'];
 $userId  = $context['user']['id'];
+$session = $context['session'];
 
 $classId = isset($_GET['id']) ? (string) $_GET['id'] : null;
 $isEdit  = $classId !== null && Uuid::isValid($classId ?? '');
 
 $action = $_POST['action'] ?? null;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
+}
 
 $flash = null;
 $error = null;
@@ -44,12 +49,22 @@ if ($action === 'archive' && $isEdit) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'update'], true)) {
     try {
         if ($action === 'create') {
-            $newId = $service->createClass($userId, $_POST)['id'] ?? null;
+            $service->createClass($userId, [
+                'name' => $_POST['name'] ?? '',
+                'gradeLevel' => $_POST['gradeLevel'] ?? '',
+                'academicYear' => $_POST['academicYear'] ?? '',
+                'status' => $_POST['status'] ?? 'active',
+            ]);
             header('Location: ./classes.php?msg=created');
             exit;
         }
         if ($action === 'update') {
-            $service->updateClass($userId, $classId, $_POST);
+            $service->updateClass($userId, $classId, [
+                'name' => $_POST['name'] ?? '',
+                'gradeLevel' => $_POST['gradeLevel'] ?? '',
+                'academicYear' => $_POST['academicYear'] ?? '',
+                'status' => $_POST['status'] ?? 'active',
+            ]);
             header('Location: ./classes.php?msg=updated');
             exit;
         }
@@ -72,7 +87,7 @@ if ($isEdit) {
 $schoolInfo = [
     'name'          => $context['school']['name'],
     'logo_initials' => mb_substr($context['school']['name'], 0, 2),
-    'level'         => $context['school']['level'] ?? 'Trung học',
+    'level'         => $context['school']['level'] ?? 'Đại học / Cao đẳng',
     'district'      => $context['school']['address'] ?? '',
     'academic_year' => $context['school']['academicYear'] ?? '',
 ];
@@ -94,6 +109,7 @@ ob_start();
         </div>
         <?php if ($isEdit): ?>
             <form method="post" data-confirm="Lưu trữ lớp này? Học sinh vẫn giữ hồ sơ nhưng sẽ không hiển thị ở dashboard.">
+                <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
                 <input type="hidden" name="action" value="archive">
                 <button type="submit" class="btn btn-outline" style="border-color:#FCA5A5;color:#B91C1C;">Lưu trữ lớp</button>
             </form>
@@ -105,6 +121,7 @@ ob_start();
     <?php endif; ?>
 
     <form method="post" class="school-form" novalidate>
+        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
         <input type="hidden" name="action" value="<?= $isEdit ? 'update' : 'create'; ?>">
 
         <div class="school-form__grid school-form__grid--2col">

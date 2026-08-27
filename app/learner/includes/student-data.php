@@ -81,6 +81,20 @@ $learnerNav = [
     ['label' => 'Huy hiệu', 'route' => '/app/learner/badges.php', 'icon' => 'award', 'implemented' => true],
     ['label' => 'Thống kê', 'route' => '/app/learner/statistics.php', 'icon' => 'chart', 'implemented' => true],
 ];
+$onboardingNavigation = $GLOBALS['learner_page_context']['onboarding'] ?? ['required' => false];
+if (($onboardingNavigation['required'] ?? false) === true) {
+    $allowedOnboardingRoutes = match ($onboardingNavigation['status'] ?? '') {
+        'pending' => ['/app/learner/index.php'],
+        'accepted' => ['/app/learner/index.php', '/app/learner/discover.php'],
+        default => null,
+    };
+    if (is_array($allowedOnboardingRoutes)) {
+        $learnerNav = array_values(array_filter(
+            $learnerNav,
+            static fn (array $item): bool => in_array($item['route'], $allowedOnboardingRoutes, true),
+        ));
+    }
+}
 
 $level = [
     'name' => 'Explorer',
@@ -139,7 +153,7 @@ if ($isDatabaseMode) {
 
     $skills = [];
     foreach ($tp['skills'] as $dbSkill) {
-        $rawScore = (float) ($dbSkill['level_score'] ?? 0);
+        $rawScore = (float) ($dbSkill['levelScore'] ?? $dbSkill['level_score'] ?? 0);
         $score = max(0, min(100, (int) round($rawScore)));
         $levelLabel = match (true) {
             $score >= 85 => 'Rất tốt',
@@ -160,19 +174,20 @@ if ($isDatabaseMode) {
             'level' => $levelLabel,
             'tone' => $tone,
             'icon' => 'sparkles',
-            'verified' => ($dbSkill['verification_status'] ?? '') === 'verified',
+            'verified' => ($dbSkill['verificationStatus'] ?? $dbSkill['verification_status'] ?? '') === 'verified',
         ];
     }
+    usort($skills, static fn (array $a, array $b): int => $b['score'] <=> $a['score']);
 
     $certificates = $tp['certificates'];
     $projects = $tp['projects'];
     $learnerBadges = $badgeOverview['badges'] ?? $tp['badges'];
 } else {
-        $dashboardKpis = [
-        ['label' => 'Điểm năng lực', 'value' => '92', 'change' => '+8', 'icon' => 'star'],
+    $dashboardKpis = [
+        ['label' => 'Cấp độ hiện tại', 'value' => 'Explorer', 'change' => '', 'icon' => 'star'],
         ['label' => 'Huy hiệu đạt được', 'value' => '12', 'change' => '+2', 'icon' => 'trophy'],
         ['label' => 'Giờ trải nghiệm', 'value' => '64h', 'change' => '+18h', 'icon' => 'clock'],
-        ['label' => 'Xếp hạng lớp', 'value' => '#7', 'change' => '↑3', 'icon' => 'chart'],
+        ['label' => 'Hoạt động đã tham gia', 'value' => '8', 'change' => '+3', 'icon' => 'chart'],
     ];
 
     $profileKpis = [
@@ -224,6 +239,44 @@ if ($isDatabaseMode) {
     ];
 }
 
+$schoolCredentialError = false;
+$schoolCredentialData = [
+    'ready' => false,
+    'analysis_completed' => false,
+    'completed_test_count' => 0,
+    'required_test_count' => 4,
+    'school' => null,
+    'featured' => [],
+    'badges' => [],
+    'certificates' => [],
+];
+if ($isDatabaseMode) {
+    try {
+        $schoolCredentialData = learner_repository_factory()
+            ->schoolCredentialService()
+            ->forStudent($authenticatedStudentId);
+    } catch (Throwable) {
+        $schoolCredentialError = true;
+    }
+} else {
+    $schoolCredentialData = [
+        'ready' => true,
+        'analysis_completed' => true,
+        'completed_test_count' => 4,
+        'required_test_count' => 4,
+        'school' => ['id' => 'school-demo-nguyen-du', 'name' => $studentMock['school']],
+        'featured' => [
+            ['kind' => 'badge', 'id' => 'demo-badge-complete', 'code' => 'profile_complete', 'name' => 'Hồ sơ năng lực hoàn chỉnh', 'description' => 'Hoàn thành đủ bốn bài đánh giá năng lực.', 'issuer_name' => $studentMock['school'], 'icon_key' => 'clipboard', 'status' => 'achieved', 'status_label' => 'Đã đạt', 'match_score' => 100, 'reason' => 'Bạn đã hoàn thành Holland, MBTI, DISC và Đa trí thông minh.', 'progress_percent' => 100, 'current' => 4, 'target' => 4, 'awarded_at' => '2026-08-26 00:00:00', 'issued_at' => null, 'criteria' => []],
+            ['kind' => 'badge', 'id' => 'demo-badge-analytical', 'code' => 'analytical_thinker', 'name' => 'Nhà tư duy phân tích', 'description' => 'Phát triển tư duy logic và khả năng nghiên cứu.', 'issuer_name' => $studentMock['school'], 'icon_key' => 'award', 'status' => 'recommended', 'status_label' => 'AI gợi ý', 'match_score' => 89, 'reason' => 'Phù hợp với sở thích nghề nghiệp và năng lực nổi trội của bạn.', 'progress_percent' => 89, 'current' => 0, 'target' => 0, 'awarded_at' => null, 'issued_at' => null, 'criteria' => []],
+            ['kind' => 'certificate', 'id' => 'demo-cert-project', 'code' => 'applied_project', 'name' => 'Thực hành dự án ứng dụng', 'description' => 'Áp dụng năng lực vào một dự án thực tế được nhà trường xác nhận.', 'issuer_name' => $studentMock['school'], 'icon_key' => 'graduation-cap', 'status' => 'recommended', 'status_label' => 'AI gợi ý', 'match_score' => 84, 'reason' => 'Phù hợp với tư duy logic và kỹ năng giải quyết vấn đề của bạn.', 'progress_percent' => 72, 'current' => 4, 'target' => 10, 'awarded_at' => null, 'issued_at' => null, 'criteria' => []],
+        ],
+        'badges' => [],
+        'certificates' => [],
+    ];
+    $schoolCredentialData['badges'] = array_values(array_filter($schoolCredentialData['featured'], static fn (array $item): bool => $item['kind'] === 'badge'));
+    $schoolCredentialData['certificates'] = array_values(array_filter($schoolCredentialData['featured'], static fn (array $item): bool => $item['kind'] === 'certificate'));
+}
+
 $activityCategories = ['Tất cả', 'Kỹ thuật', 'Kinh doanh', 'Sáng tạo', 'Cộng đồng'];
 
 $activityCatalog = [
@@ -238,14 +291,33 @@ $activityCatalog = [
 $activities = array_slice($activityCatalog, 0, 3);
 if ($isDatabaseMode) {
     $activities = array_map(
-        static fn (array $entry): array => [
-            'id' => (string) ($entry['activity_id'] ?? ''),
-            'category' => (string) ($entry['activity_category'] ?? 'Chưa phân loại'),
-            'tone' => 'neutral',
-            'title' => (string) ($entry['activity_title'] ?? 'Hoạt động đã xác nhận'),
-            'time' => (string) ($entry['confirmed_at'] ?? 'Đã xác nhận'),
-            'location' => 'Địa điểm chưa có dữ liệu',
-        ],
+        static function (array $entry): array {
+            $title = trim((string) ($entry['activity_title'] ?? '')) ?: 'Hoạt động đã xác nhận';
+            $displayCategory = trim((string) ($entry['display_category'] ?? ''));
+            $canonicalCategory = trim((string) ($entry['activity_category'] ?? ''));
+            $category = $displayCategory !== ''
+                ? $displayCategory
+                : learner_activity_category_label($canonicalCategory);
+            $location = trim((string) ($entry['location_name'] ?? '')) ?: 'Chưa cập nhật';
+            $cover = trim((string) ($entry['cover_image_url'] ?? ''));
+            if (str_contains($cover, '..') || preg_match('#\A(?:/app/learner/)?assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg)\z#i', $cover) !== 1) {
+                $cover = 'assets/activities/illustrations/hero-detail.svg';
+            }
+            $coverAlt = trim((string) ($entry['cover_image_alt'] ?? '')) ?: 'Ảnh hoạt động ' . $title;
+
+            return [
+                'id' => (string) ($entry['activity_id'] ?? ''),
+                'category' => $category,
+                'canonical_category' => $canonicalCategory,
+                'tone' => 'neutral',
+                'title' => $title,
+                'start_at' => $entry['activity_start_at'] ?? null,
+                'time' => $entry['activity_start_at'] ?? null,
+                'location' => $location,
+                'cover_image_url' => $cover,
+                'cover_image_alt' => $coverAlt,
+            ];
+        },
         array_slice($tp['experience']['confirmed_entries'] ?? [], 0, 3)
     );
 }

@@ -15,11 +15,13 @@ use TalentHub\Modules\School\Service\SchoolDashboardService;
 $context = (new SchoolAppContext())->boot();
 $service = $context['service'];
 $userId  = $context['user']['id'];
+$session = $context['session'];
 
 $flash = null;
 $error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
     try {
         $type = $_POST['reportType'] ?? '';
         $start = $_POST['periodStart'] ?? null;
@@ -38,7 +40,7 @@ $reports = $service->listReports($userId);
 $schoolInfo = [
     'name'          => $context['school']['name'],
     'logo_initials' => mb_substr($context['school']['name'], 0, 2),
-    'level'         => $context['school']['level'] ?? 'Trung học',
+    'level'         => $context['school']['level'] ?? 'Đại học / Cao đẳng',
     'district'      => $context['school']['address'] ?? '',
     'academic_year' => $context['school']['academicYear'] ?? '',
 ];
@@ -73,6 +75,7 @@ include __DIR__ . '/includes/page-banner.php';
             <h3 class="school-section-box__title">Tạo báo cáo mới</h3>
         </div>
         <form method="post" class="school-form" novalidate>
+            <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
             <div class="school-form__grid" style="grid-template-columns: 1fr;">
                 <label class="school-form__field">
                     <span>Loại báo cáo <em>*</em></span>

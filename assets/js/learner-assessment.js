@@ -6,6 +6,14 @@
 (function initLearnerAssessment(global) {
     'use strict';
 
+    function safeOnboardingDestination(value) {
+        return typeof value === 'string'
+            && value.startsWith('/app/learner/')
+            && !value.startsWith('//')
+            ? value
+            : null;
+    }
+
     function presentationState(payload) {
         const status = typeof payload?.status === 'string' ? payload.status : '';
         if (status === 'loading') return 'loading';
@@ -25,6 +33,37 @@
             return `assessment-submit-${global.crypto.randomUUID()}`;
         }
         return `assessment-submit-${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
+    }
+
+    function renderLikertOption(doc, option, selectedValue) {
+        const value = typeof option === 'object' && option !== null ? option.value : option;
+        const labelText = typeof option === 'object' && option !== null ? (option.label ?? option.value) : option;
+        const label = doc.createElement('label');
+        label.className = 'learner-likert-option';
+
+        const input = doc.createElement('input');
+        input.type = 'radio';
+        input.name = 'assessment-answer';
+        input.value = String(value ?? '');
+        input.checked = String(selectedValue ?? '') === String(value ?? '');
+
+        const surface = doc.createElement('span');
+        surface.className = 'learner-likert-option__surface';
+        const badge = doc.createElement('b');
+        badge.className = 'learner-likert-option__value';
+        badge.textContent = String(value ?? '');
+        badge.setAttribute('aria-hidden', 'true');
+        const text = doc.createElement('span');
+        text.className = 'learner-likert-option__label';
+        text.textContent = String(labelText ?? '');
+        const check = doc.createElement('span');
+        check.className = 'learner-likert-option__check';
+        check.textContent = '✓';
+        check.setAttribute('aria-hidden', 'true');
+
+        surface.append(badge, text, check);
+        label.append(input, surface);
+        return label;
     }
 
     function createAssessmentController({ api, view, createIdempotencyKey = defaultIdempotencyKey }) {
@@ -60,7 +99,7 @@
         }
 
         function renderSourceError(error) {
-            return renderState('source-error', { error, attempt: currentAttempt });
+            return renderState('source-error', { status: 'source-error', error, attempt: currentAttempt });
         }
 
         async function loadCatalog(band) {
@@ -102,15 +141,11 @@
 
                 // If attempt doesn't contain full question details, fetch owned attempt with questions
                 if (!Array.isArray(currentAttempt?.questions) || currentAttempt.questions.length === 0) {
-                    try {
-                        const fullAttempt = await api.get(`/assessment-attempts.php?attemptId=${encodeURIComponent(response.id)}`);
-                        if (fullAttempt?.id) {
-                            setAttempt(fullAttempt);
-                        } else if (Array.isArray(fullAttempt?.questions)) {
-                            currentAttempt.questions = fullAttempt.questions;
-                        }
-                    } catch {
-                        // Fall back to existing attempt data
+                    const fullAttempt = await api.get(`/assessment-attempts.php?attemptId=${encodeURIComponent(response.id)}`);
+                    if (fullAttempt?.id) {
+                        setAttempt(fullAttempt);
+                    } else if (Array.isArray(fullAttempt?.questions)) {
+                        currentAttempt.questions = fullAttempt.questions;
                     }
                 }
 
@@ -325,10 +360,11 @@
         };
     }
 
-    function parseBoot(id) {
-        if (typeof document === 'undefined') return {};
+    function parseBoot(id, suppliedDocument = null) {
+        const targetDocument = suppliedDocument || (typeof document !== 'undefined' ? document : null);
+        if (!targetDocument) return {};
         try {
-            const node = document.getElementById(id);
+            const node = targetDocument.getElementById(id);
             const value = JSON.parse(node?.textContent || '{}');
             return value && typeof value === 'object' ? value : {};
         } catch {
@@ -341,9 +377,11 @@
             return null;
         }
         const session = parseBoot('learner-session-boot');
+        const boot = parseBoot('learner-assessment-boot');
+        const apiBase = session.apiBase || boot.apiBase || '/app/learner/api/v1';
         try {
             return global.TalentHubLearnerApi.createLearnerApiClient({
-                baseUrl: '/app/learner/api/v1',
+                baseUrl: apiBase,
                 csrfToken: session.csrfToken || '',
             });
         } catch {
@@ -374,8 +412,149 @@
         },
     });
 
+    const DISCOVERY_DIMENSIONS = Object.freeze({
+        holland: Object.freeze([
+            { code: 'R', label: 'Kỹ thuật — Thực tế', tone: 'secondary' },
+            { code: 'I', label: 'Nghiên cứu — Phân tích', tone: 'primary' },
+            { code: 'A', label: 'Nghệ thuật — Sáng tạo', tone: 'warning' },
+            { code: 'S', label: 'Xã hội — Hỗ trợ', tone: 'success' },
+            { code: 'E', label: 'Quản lý — Thuyết phục', tone: 'secondary' },
+            { code: 'C', label: 'Nghiệp vụ — Tổ chức', tone: 'primary' },
+        ]),
+        multiple_intelligence: Object.freeze([
+            { code: 'LING', label: 'Ngôn ngữ', tone: 'primary' },
+            { code: 'LOGI', label: 'Logic — Toán học', tone: 'secondary' },
+            { code: 'SPAT', label: 'Không gian — Hình ảnh', tone: 'warning' },
+            { code: 'BODY', label: 'Vận động — Cơ thể', tone: 'success' },
+            { code: 'MUSIC', label: 'Âm nhạc', tone: 'warning' },
+            { code: 'INTER', label: 'Tương tác xã hội', tone: 'success' },
+            { code: 'INTRA', label: 'Nội tâm', tone: 'primary' },
+            { code: 'NAT', label: 'Tự nhiên', tone: 'success' },
+        ]),
+    });
+
+    function normalizeAssessmentType(item) {
+        const declaredType = String(item?.assessment_type || '').trim().toLowerCase();
+        if (Object.prototype.hasOwnProperty.call(ASSESSMENT_META, declaredType)) return declaredType;
+        const rawCode = String(item?.assessment_code || item?.code || '').trim().toLowerCase();
+        const baseCode = rawCode.replace(/_(middle|high|college)$/, '');
+        if (Object.prototype.hasOwnProperty.call(ASSESSMENT_META, baseCode)) return baseCode;
+        return declaredType || baseCode;
+    }
+
+    function latestSubmittedHistory(historyPayload) {
+        const items = Array.isArray(historyPayload?.assessment_history?.items)
+            ? historyPayload.assessment_history.items
+            : [];
+        const latestByType = new Map();
+        items.forEach((item) => {
+            if (!item || typeof item !== 'object') return;
+            const status = String(item.status || '').toLowerCase();
+            if (status && status !== 'submitted') return;
+            const type = normalizeAssessmentType(item);
+            if (!type) return;
+            const timestamp = Date.parse(item.submitted_at || item.result_created_at || item.created_at || '') || 0;
+            const existing = latestByType.get(type);
+            const existingTimestamp = Date.parse(existing?.submitted_at || existing?.result_created_at || existing?.created_at || '') || 0;
+            if (!existing || timestamp > existingTimestamp) latestByType.set(type, item);
+        });
+        return latestByType;
+    }
+
+    function mergeCatalogWithHistory(catalog, historyPayload) {
+        const source = catalog && typeof catalog === 'object' ? catalog : {};
+        const latestByType = latestSubmittedHistory(historyPayload);
+        const assessments = Array.isArray(source.assessments) ? source.assessments : [];
+        return {
+            ...source,
+            assessments: assessments.map((item) => {
+                const latestResult = latestByType.get(normalizeAssessmentType(item)) || null;
+                return {
+                    ...item,
+                    latest_result: latestResult,
+                    can_view_result: Boolean(latestResult?.id),
+                };
+            }),
+        };
+    }
+
+    function deriveDiscoverySummary(historyPayload) {
+        const latestByType = latestSubmittedHistory(historyPayload);
+        const present = (assessmentType) => {
+            const item = latestByType.get(assessmentType);
+            const scores = item?.dimension_scores && typeof item.dimension_scores === 'object'
+                ? item.dimension_scores
+                : {};
+            return (DISCOVERY_DIMENSIONS[assessmentType] || []).map((dimension) => ({
+                ...dimension,
+                score: Number(scores[dimension.code]) || 0,
+            }));
+        };
+        return {
+            career: latestByType.has('holland') ? present('holland') : [],
+            talents: latestByType.has('multiple_intelligence') ? present('multiple_intelligence') : [],
+        };
+    }
+
+    function deriveDiscoveryProgress(historyPayload, total = 4) {
+        const latestByType = latestSubmittedHistory(historyPayload);
+        const completed = Math.min(Math.max(0, Number(total) || 0), latestByType.size);
+        let latestSubmittedAt = null;
+        latestByType.forEach((item) => {
+            const candidate = item?.submitted_at || item?.result_created_at || item?.created_at || null;
+            if (!candidate) return;
+            if (!latestSubmittedAt || (Date.parse(candidate) || 0) > (Date.parse(latestSubmittedAt) || 0)) {
+                latestSubmittedAt = candidate;
+            }
+        });
+        const normalizedTotal = Math.max(0, Number(total) || 0);
+        return {
+            completed,
+            total: normalizedTotal,
+            percent: normalizedTotal > 0 ? Math.round((completed / normalizedTotal) * 100) : 0,
+            latestSubmittedAt,
+        };
+    }
+
+    function formatDiscoveryDate(value) {
+        const parsed = normalizeDiscoveryDate(value);
+        if (Number.isNaN(parsed.getTime())) return 'Chưa có dữ liệu';
+        return new Intl.DateTimeFormat('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            timeZone: 'Asia/Ho_Chi_Minh',
+        }).format(parsed);
+    }
+
+    function normalizeDiscoveryDate(value) {
+        const raw = String(value || '').trim();
+        const offsetlessDatabaseTimestamp = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
+        const normalized = offsetlessDatabaseTimestamp.test(raw)
+            ? `${raw.replace(' ', 'T')}+07:00`
+            : raw;
+        return new Date(normalized);
+    }
+
+    function renderDiscoveryProgress(root, historyPayload) {
+        const progress = deriveDiscoveryProgress(historyPayload);
+        const completedCount = root.querySelector('[data-discovery-completed-count]');
+        const latestDate = root.querySelector('[data-discovery-latest-date]');
+        const progressMeter = root.querySelector('[data-discovery-progress]');
+        const progressBar = root.querySelector('[data-discovery-progress-bar]');
+        if (completedCount) completedCount.textContent = `${progress.completed}/${progress.total} bài đánh giá`;
+        if (latestDate) latestDate.textContent = formatDiscoveryDate(progress.latestSubmittedAt);
+        if (progressMeter) progressMeter.setAttribute('aria-valuenow', String(progress.percent));
+        if (progressBar) progressBar.style.setProperty('--learner-progress', `${progress.percent}%`);
+    }
+
     function setHidden(node, hidden) {
         if (node) node.hidden = hidden;
+    }
+
+    function normalizeEducationBand(value) {
+        const band = String(value || '').trim().toLowerCase();
+        return ['middle', 'high', 'college'].includes(band) ? band : '';
     }
 
     function createTextElement(doc, tag, text, className = '') {
@@ -414,12 +593,13 @@
             timer: root.querySelector('[data-assessment-timer]'),
             questionError: root.querySelector('[data-assessment-question-error]'),
             navigator: root.querySelector('[data-assessment-navigator]'),
-            submitModal: document.querySelector('[data-assessment-submit-modal]'),
-            submitAnswered: document.querySelector('[data-submit-answered]'),
-            submitUnanswered: document.querySelector('[data-submit-unanswered]'),
-            submitError: document.querySelector('[data-assessment-submit-error]'),
-            submitButton: document.querySelector('[data-assessment-submit]'),
-            bandModal: document.querySelector('[data-assessment-band-confirmation]'),
+            submitModal: doc.querySelector('[data-assessment-submit-modal]'),
+            submitAnswered: doc.querySelector('[data-submit-answered]'),
+            submitUnanswered: doc.querySelector('[data-submit-unanswered]'),
+            submitError: doc.querySelector('[data-assessment-submit-error]'),
+            submitButton: doc.querySelector('[data-assessment-submit]'),
+            bandModal: doc.querySelector('[data-assessment-band-confirmation]'),
+            bandError: doc.querySelector('[data-assessment-band-error]'),
         };
         let questionIndex = 0;
 
@@ -441,20 +621,7 @@
                 while (nodes.options.firstChild) nodes.options.removeChild(nodes.options.firstChild);
                 const options = Array.isArray(question.options) ? question.options : [];
                 options.forEach((option) => {
-                    const value = typeof option === 'object' ? option.value : option;
-                    const labelText = typeof option === 'object' ? (option.label ?? option.value) : option;
-                    const label = doc.createElement('label');
-                    label.className = 'learner-likert-option';
-                    const input = doc.createElement('input');
-                    input.type = 'radio';
-                    input.name = 'assessment-answer';
-                    input.value = String(value ?? '');
-                    input.checked = String(answers[question.id] ?? '') === String(value ?? '');
-                    const span = doc.createElement('span');
-                    span.textContent = `${String(value ?? '')} ${String(labelText ?? '')}`.trim();
-                    label.appendChild(input);
-                    label.appendChild(span);
-                    nodes.options.appendChild(label);
+                    nodes.options.appendChild(renderLikertOption(doc, option, answers[question.id]));
                 });
             }
             if (nodes.previous) nodes.previous.disabled = questionIndex === 0;
@@ -526,8 +693,23 @@
             renderQuestion,
             setQuestionIndex: (index) => { questionIndex = Number(index) || 0; },
             getQuestionIndex: () => questionIndex,
-            showBandModal: () => setHidden(nodes.bandModal, false),
-            hideBandModal: () => setHidden(nodes.bandModal, true),
+            showBandModal: () => {
+                if (typeof global.LearnerUI?.openModal === 'function') {
+                    global.LearnerUI.openModal(nodes.bandModal);
+                } else {
+                    setHidden(nodes.bandModal, false);
+                }
+                setHidden(nodes.bandError, true);
+            },
+            hideBandModal: () => {
+                if (typeof global.LearnerUI?.closeModal === 'function') {
+                    global.LearnerUI.closeModal(nodes.bandModal);
+                } else {
+                    setHidden(nodes.bandModal, true);
+                }
+            },
+            showBandError: () => setHidden(nodes.bandError, false),
+            hideBandError: () => setHidden(nodes.bandError, true),
             nodes,
         };
     }
@@ -536,10 +718,15 @@
         const doc = root.ownerDocument || document;
         const loading = root.querySelector('[data-catalog-loading]');
         const empty = root.querySelector('[data-empty-catalog]');
+        const error = root.querySelector('[data-catalog-error]');
         const cards = root.querySelector('[data-catalog-cards]');
         setHidden(loading, true);
+        setHidden(error, true);
+        setHidden(cards, false);
         if (cards) while (cards.firstChild) cards.removeChild(cards.firstChild);
         const items = Array.isArray(payload?.assessments) ? payload.assessments : [];
+        const educationBand = normalizeEducationBand(payload?.education_band);
+        const bandQuery = educationBand ? `&band=${encodeURIComponent(educationBand)}` : '';
         setHidden(empty, items.length !== 0);
         if (!cards) return;
         items.forEach((item) => {
@@ -548,25 +735,159 @@
             const article = doc.createElement('article');
             article.className = 'learner-card learner-assessment-card';
             article.dataset.assessmentCard = code;
+            const icon = createTextElement(doc, 'span', code === 'multiple_intelligence' ? 'MI' : code.slice(0, 1).toUpperCase(), 'learner-assessment-card__icon');
+            icon.setAttribute('aria-hidden', 'true');
+            article.appendChild(icon);
             const status = doc.createElement('span');
             status.className = 'learner-assessment-card__status';
             const published = String(item?.status || '').toLowerCase() === 'published';
             const locked = item?.attempt_status === 'retake_locked';
-            status.classList.add(published && !locked ? 'is-experimental' : 'is-unpublished');
-            status.textContent = locked ? 'Chưa đến ngày làm lại' : (published ? 'Bản thử nghiệm' : 'Chưa có phiên bản được duyệt');
+            const complete = ['submitted', 'retake_locked'].includes(String(item?.attempt_status || '').toLowerCase())
+                || Boolean(item?.latest_result?.id);
+            status.className += complete ? ' is-complete' : (published && !locked ? ' is-experimental' : ' is-unpublished');
+            status.textContent = complete ? 'Đã hoàn thành' : (locked ? 'Chưa đến ngày làm lại' : (published ? 'Sẵn sàng' : 'Chưa có phiên bản được duyệt'));
             article.appendChild(status);
             const title = createTextElement(doc, 'h2', item?.name || item?.test_name || meta.name);
             const description = createTextElement(doc, 'p', item?.description || meta.description);
             article.appendChild(title);
             article.appendChild(description);
+            if (complete && item?.latest_result?.result_code) {
+                article.appendChild(createTextElement(doc, 'span', item.latest_result.result_code, 'learner-assessment-card__result'));
+            }
             const action = doc.createElement(published && !locked ? 'a' : 'button');
             action.className = `learner-btn learner-btn--${published && !locked ? 'primary' : 'secondary'} learner-btn--block`;
             action.textContent = locked ? 'Chưa thể làm lại' : (published ? (item?.attempt_status === 'in_progress' ? 'Tiếp tục bài test' : 'Bắt đầu bài test') : 'Chưa có phiên bản được duyệt');
-            if (action.tagName === 'A') action.href = `assessment.php?code=${encodeURIComponent(code)}`;
+            if (action.tagName === 'A') action.href = `assessment.php?code=${encodeURIComponent(code)}${bandQuery}`;
             else { action.type = 'button'; action.disabled = true; }
             article.appendChild(action);
+            if (complete && item?.can_view_result && item?.latest_result?.id) {
+                const resultLink = doc.createElement('a');
+                resultLink.className = 'learner-btn learner-btn--outline learner-btn--block';
+                resultLink.href = `assessment-result.php?code=${encodeURIComponent(code)}&attempt=${encodeURIComponent(item.latest_result.id)}${bandQuery}`;
+                resultLink.textContent = `Xem kết quả ${item.latest_result.result_code || ''}`.trim();
+                article.appendChild(resultLink);
+            }
             cards.appendChild(article);
         });
+    }
+
+    function createSvgElement(doc, tag, attributes = {}) {
+        const element = doc.createElementNS('http://www.w3.org/2000/svg', tag);
+        Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, value));
+        return element;
+    }
+
+    function renderTalentRadar(doc, container, talents) {
+        const width = 520;
+        const height = 320;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = 105;
+        const count = talents.length;
+        const pointAt = (index, scale = 1) => {
+            const angle = (-Math.PI / 2) + ((Math.PI * 2 * index) / count);
+            return [centerX + Math.cos(angle) * radius * scale, centerY + Math.sin(angle) * radius * scale];
+        };
+        const points = (scaleFor) => talents.map((item, index) => {
+            const [x, y] = pointAt(index, scaleFor(item));
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+
+        const svg = createSvgElement(doc, 'svg', {
+            class: 'learner-radar',
+            viewBox: `0 0 ${width} ${height}`,
+            role: 'img',
+            'aria-label': talents.map((item) => `${item.label} ${item.score}`).join(', '),
+        });
+        [0.25, 0.5, 0.75, 1].forEach((scale) => {
+            svg.appendChild(createSvgElement(doc, 'polygon', {
+                class: 'learner-radar__grid',
+                points: points(() => scale),
+            }));
+        });
+        talents.forEach((_item, index) => {
+            const [x, y] = pointAt(index);
+            svg.appendChild(createSvgElement(doc, 'line', {
+                class: 'learner-radar__axis',
+                x1: centerX,
+                y1: centerY,
+                x2: x,
+                y2: y,
+            }));
+        });
+        svg.appendChild(createSvgElement(doc, 'polygon', {
+            class: 'learner-radar-data',
+            points: points((item) => Math.max(0, Math.min(100, Number(item.score) || 0)) / 100),
+        }));
+        talents.forEach((item, index) => {
+            const scoreScale = Math.max(0, Math.min(100, Number(item.score) || 0)) / 100;
+            const [pointX, pointY] = pointAt(index, scoreScale);
+            svg.appendChild(createSvgElement(doc, 'circle', {
+                class: 'learner-radar__point',
+                cx: pointX,
+                cy: pointY,
+                r: 4,
+            }));
+            const [labelX, labelY] = pointAt(index, 1.28);
+            const label = createSvgElement(doc, 'text', {
+                class: 'learner-radar__labels',
+                x: labelX,
+                y: labelY,
+                'text-anchor': labelX < centerX - 8 ? 'end' : (labelX > centerX + 8 ? 'start' : 'middle'),
+                'dominant-baseline': 'middle',
+            });
+            label.textContent = `${item.label} ${item.score}`;
+            svg.appendChild(label);
+        });
+        container.appendChild(svg);
+    }
+
+    function renderDiscoverySummary(root, summary) {
+        const doc = root.ownerDocument || root;
+        const renderEmpty = (container, message) => {
+            container.appendChild(createTextElement(doc, 'p', message, 'learner-discovery-empty'));
+        };
+        const talents = root.querySelector('[data-discovery-talents]');
+        if (talents) {
+            while (talents.firstChild) talents.removeChild(talents.firstChild);
+            if (!Array.isArray(summary?.talents) || summary.talents.length === 0) {
+                renderEmpty(talents, 'Hoàn thành bài Đa trí thông minh để xem bản đồ năng khiếu.');
+            } else {
+                renderTalentRadar(doc, talents, summary.talents);
+            }
+        }
+        const career = root.querySelector('[data-discovery-career]');
+        if (career) {
+            while (career.firstChild) career.removeChild(career.firstChild);
+            if (!Array.isArray(summary?.career) || summary.career.length === 0) {
+                renderEmpty(career, 'Hoàn thành bài Holland để xem định hướng phù hợp.');
+            } else {
+                summary.career.forEach((item) => {
+                    const article = doc.createElement('article');
+                    article.className = 'learner-direction-row';
+                    const content = doc.createElement('div');
+                    content.className = 'learner-direction-row__content';
+                    const heading = doc.createElement('div');
+                    heading.appendChild(createTextElement(doc, 'span', item.label));
+                    heading.appendChild(createTextElement(doc, 'strong', `${item.score}%`));
+                    const progress = doc.createElement('div');
+                    progress.className = 'learner-progress';
+                    progress.setAttribute('role', 'progressbar');
+                    progress.setAttribute('aria-label', item.label);
+                    progress.setAttribute('aria-valuemin', '0');
+                    progress.setAttribute('aria-valuemax', '100');
+                    progress.setAttribute('aria-valuenow', String(item.score));
+                    const bar = doc.createElement('span');
+                    bar.className = `learner-progress--${item.tone}`;
+                    bar.style.setProperty('--learner-progress', `${item.score}%`);
+                    progress.appendChild(bar);
+                    content.appendChild(heading);
+                    content.appendChild(progress);
+                    article.appendChild(content);
+                    career.appendChild(article);
+                });
+            }
+        }
     }
 
     function renderResult(root, payload) {
@@ -584,8 +905,11 @@
         setHidden(empty, true);
         setHidden(content, false);
         const codeNode = root.querySelector('[data-result-code]');
+        const primaryNode = root.querySelector('[data-result-primary-name]');
         const summaryNode = root.querySelector('[data-result-primary-summary]');
-        if (codeNode) codeNode.textContent = result.result_code || result.code || '—';
+        const resultLabel = result.result_code || result.code || '—';
+        if (codeNode) codeNode.textContent = resultLabel;
+        if (primaryNode) primaryNode.textContent = resultLabel;
         if (summaryNode) summaryNode.textContent = result.summary || 'Kết quả đã được lưu trên hệ thống.';
         const list = root.querySelector('[data-result-dimension-list]');
         if (list) {
@@ -613,31 +937,59 @@
         }
     }
 
-    function bootRunner(root) {
-        const api = createApiClient();
-        if (!api) return;
-        const boot = parseBoot('learner-assessment-boot');
+    function bootRunner(root, suppliedApi = null, suppliedDocument = null) {
+        const api = suppliedApi || createApiClient();
+        if (!api) return Promise.resolve(null);
+        const doc = suppliedDocument || root.ownerDocument || document;
+        const boot = parseBoot('learner-assessment-boot', doc);
         const code = String(root.dataset.assessmentCode || boot.assessmentCode || 'holland');
         const view = createDomView(root);
         const controller = createAssessmentController({ api, view });
-        let selectedBand = '';
+        let selectedBand = normalizeEducationBand(new URLSearchParams(global.location?.search || '').get('band'));
         let currentAttempt = null;
         const resultUrl = boot.result_url || `assessment-result.php?code=${encodeURIComponent(code)}`;
+        let retryRunnerAction = null;
 
         const start = async (band) => {
-            selectedBand = band || selectedBand;
+            const confirmedBand = normalizeEducationBand(band || selectedBand);
+            if (confirmedBand === '') {
+                view.showBandModal();
+                view.showBandError();
+                return { code: 'EDUCATION_BAND_REQUIRED', requires_education_band: true };
+            }
+            selectedBand = confirmedBand;
+            retryRunnerAction = () => start(selectedBand);
+            view.hideBandError();
             view.hideBandModal();
-            const attempt = await controller.startOrResume(code, selectedBand || 'high');
+            const attempt = await controller.startOrResume(code, selectedBand);
             if (attempt?.id) {
                 currentAttempt = attempt;
                 view.render('ready', attempt);
             }
         };
         const loadDetail = async (band) => {
+            retryRunnerAction = () => loadDetail(selectedBand);
             const detail = await controller.loadDetail(code, band);
+            if (detail?.status === 'source-error') {
+                view.hideBandModal();
+                return detail;
+            }
             if (detail?.assessment) {
-                selectedBand = detail.education_band || band || selectedBand;
+                selectedBand = normalizeEducationBand(
+                    detail.assessment.education_band || detail.education_band
+                );
+                if (selectedBand === '') {
+                    const error = new Error('Assessment response is missing its education band.');
+                    view.render('source-error', { status: 'source-error', error });
+                    view.hideBandModal();
+                    return { status: 'source-error', error };
+                }
                 view.renderDetail(detail);
+                view.hideBandModal();
+            } else if (detail?.requires_education_band === true) {
+                view.showBandModal();
+            } else {
+                view.hideBandModal();
             }
             return detail;
         };
@@ -645,11 +997,13 @@
         root.querySelector('[data-assessment-start]')?.addEventListener('click', () => start(selectedBand));
         root.querySelector('[data-assessment-resume]')?.addEventListener('click', () => start(selectedBand));
         root.querySelector('[data-assessment-restart]')?.addEventListener('click', () => start(selectedBand));
-        document.querySelector('[data-confirm-band]')?.addEventListener('click', () => {
-            const selected = root.querySelector('[name="education_band"]:checked');
-            start(selected?.value || 'high');
+        doc.querySelector('[data-confirm-band]')?.addEventListener('click', () => {
+            const selected = doc.querySelector('[name="education_band"]:checked');
+            return start(selected?.value || '');
         });
-        root.querySelector('[data-assessment-retry]')?.addEventListener('click', () => controller.retry());
+        root.querySelector('[data-assessment-retry]')?.addEventListener('click', () => (
+            typeof retryRunnerAction === 'function' ? retryRunnerAction() : loadDetail(selectedBand)
+        ));
         root.querySelector('[data-assessment-retry-save]')?.addEventListener('click', () => controller.retry());
         root.querySelector('[data-assessment-back-to-questions]')?.addEventListener('click', () => {
             if (currentAttempt) view.render('ready', currentAttempt);
@@ -692,33 +1046,151 @@
         });
         view.nodes.submitButton?.addEventListener('click', async () => {
             const response = await controller.submit();
-            if (response?.status === 'submitted' || response?.result || response?.result_id) {
-                const attemptId = response.id || currentAttempt?.id;
-                global.location.href = `${resultUrl}${resultUrl.includes('?') ? '&' : '?'}attempt=${encodeURIComponent(attemptId || '')}`;
+            const isSubmittedResult = response?.status === 'submitted'
+                || response?.result
+                || response?.result_id
+                || (response?.attempt_id && response?.result_code);
+            if (isSubmittedResult) {
+                const aiSummaryDestination = response?.ai_analysis?.required === true
+                    ? '/app/learner/discover.php?onboarding=completed&ai=analyze'
+                    : null;
+                const onboardingDestination = safeOnboardingDestination(response?.next_url) || aiSummaryDestination;
+                if (onboardingDestination) {
+                    global.location.href = onboardingDestination;
+                    return;
+                }
+                const attemptId = response.attempt_id || currentAttempt?.id || response.id;
+                const attemptQuery = `${resultUrl.includes('?') ? '&' : '?'}attempt=${encodeURIComponent(attemptId || '')}`;
+                const bandQuery = selectedBand ? `&band=${encodeURIComponent(selectedBand)}` : '';
+                global.location.href = `${resultUrl}${attemptQuery}${bandQuery}`;
             }
         });
-        document.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', () => {
+        doc.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', () => {
             const modal = button.closest('.learner-modal');
             setHidden(modal, true);
         }));
 
-        loadDetail().then((detail) => {
-            if (!detail?.assessment) view.showBandModal();
+        return loadDetail(selectedBand);
+    }
+
+    function bootCatalog(root, suppliedApi = null) {
+        const api = suppliedApi || createApiClient();
+        const doc = root.ownerDocument || document;
+        const loading = root.querySelector('[data-catalog-loading]');
+        const empty = root.querySelector('[data-empty-catalog]');
+        const error = root.querySelector('[data-catalog-error]');
+        const cards = root.querySelector('[data-catalog-cards]');
+        const historyWarning = root.querySelector('[data-catalog-history-warning]');
+        const bandConfirmation = root.querySelector('[data-catalog-band-confirmation]');
+        const bandError = root.querySelector('[data-catalog-band-error]');
+        let currentCatalog = null;
+        let selectedBand = '';
+
+        const renderCatalogError = (sourceError) => {
+            setHidden(loading, true);
+            setHidden(empty, true);
+            setHidden(error, false);
+            setHidden(cards, true);
+            setHidden(historyWarning, true);
+            setHidden(bandConfirmation, true);
+            setHidden(bandError, true);
+            return { status: 'source-error', error: sourceError };
+        };
+
+        const renderBandRequired = (payload) => {
+            currentCatalog = null;
+            setHidden(loading, true);
+            setHidden(empty, true);
+            setHidden(error, true);
+            setHidden(cards, true);
+            setHidden(historyWarning, true);
+            setHidden(bandConfirmation, false);
+            setHidden(bandError, true);
+            return payload;
+        };
+
+        const renderHistory = (historyPayload) => {
+            renderCatalog(root, mergeCatalogWithHistory(currentCatalog, historyPayload));
+            renderDiscoverySummary(doc, deriveDiscoverySummary(historyPayload));
+            renderDiscoveryProgress(doc, historyPayload);
+            setHidden(historyWarning, true);
+            setHidden(bandConfirmation, true);
+            return historyPayload;
+        };
+
+        const loadHistory = async () => {
+            if (!currentCatalog) return loadCatalog();
+            setHidden(historyWarning, true);
+            try {
+                return renderHistory(await api.get('/assessments.php?view=history'));
+            } catch (historyError) {
+                renderCatalog(root, currentCatalog);
+                renderDiscoverySummary(doc, deriveDiscoverySummary({}));
+                renderDiscoveryProgress(doc, {});
+                setHidden(historyWarning, false);
+                return { status: 'source-error', error: historyError };
+            }
+        };
+
+        const loadCatalog = async (band = selectedBand) => {
+            selectedBand = normalizeEducationBand(band);
+            setHidden(loading, false);
+            setHidden(empty, true);
+            setHidden(error, true);
+            setHidden(cards, true);
+            setHidden(historyWarning, true);
+            setHidden(bandConfirmation, true);
+            setHidden(bandError, true);
+            if (!api) return renderCatalogError(new Error('Assessment API client is unavailable.'));
+
+            const catalogEndpoint = selectedBand
+                ? `/assessments.php?band=${encodeURIComponent(selectedBand)}`
+                : '/assessments.php';
+            const [catalogResult, historyResult] = await Promise.allSettled([
+                api.get(catalogEndpoint),
+                api.get('/assessments.php?view=history'),
+            ]);
+            if (catalogResult.status === 'rejected') {
+                return renderCatalogError(catalogResult.reason);
+            }
+
+            currentCatalog = catalogResult.value;
+            if (currentCatalog?.requires_education_band === true) {
+                return renderBandRequired(currentCatalog);
+            }
+            if (historyResult.status === 'fulfilled') {
+                renderHistory(historyResult.value);
+                return { catalog: currentCatalog, history: historyResult.value };
+            }
+
+            renderCatalog(root, currentCatalog);
+            renderDiscoverySummary(doc, deriveDiscoverySummary({}));
+            renderDiscoveryProgress(doc, {});
+            setHidden(historyWarning, false);
+            return { catalog: currentCatalog, history: { status: 'source-error', error: historyResult.reason } };
+        };
+
+        root.querySelector('[data-catalog-retry]')?.addEventListener('click', () => loadCatalog(selectedBand));
+        root.querySelector('[data-catalog-history-retry]')?.addEventListener('click', () => loadHistory());
+        root.querySelector('[data-catalog-band-confirm]')?.addEventListener('click', () => {
+            const selected = root.querySelector('[name="catalog_education_band"]:checked');
+            const confirmedBand = normalizeEducationBand(selected?.value);
+            if (confirmedBand === '') {
+                setHidden(bandError, false);
+                return { status: 'validation-error', code: 'EDUCATION_BAND_REQUIRED' };
+            }
+            return loadCatalog(confirmedBand);
         });
+        return loadCatalog();
     }
 
-    function bootCatalog(root) {
-        const api = createApiClient();
-        if (!api) return;
-        const controller = createAssessmentController({ api, view: { render() {} } });
-        controller.loadCatalog().then((payload) => renderCatalog(root, payload));
-    }
-
-    function bootResult(root) {
-        const api = createApiClient();
-        if (!api) return;
+    function bootResult(root, suppliedApi = null) {
+        const api = suppliedApi || createApiClient();
+        if (!api) return Promise.resolve([]);
         const code = String(root.dataset.assessmentCode || 'holland');
-        const attemptId = new URLSearchParams(global.location?.search || '').get('attempt') || '';
+        const search = new URLSearchParams(global.location?.search || '');
+        const attemptId = search.get('attempt') || '';
+        const educationBand = normalizeEducationBand(search.get('band'));
         const resultView = {
             render: (state, payload) => {
                 if (state === 'complete' || state === 'ready') renderResult(root, payload);
@@ -730,11 +1202,11 @@
             },
         };
         const controller = createAssessmentController({ api, view: resultView });
-        controller.loadResult(code, '', attemptId).catch(() => {
+        const resultPromise = controller.loadResult(code, educationBand, attemptId).catch(() => {
             setHidden(root.querySelector('[data-assessment-result-content]'), true);
             setHidden(root.querySelector('[data-assessment-result-empty]'), false);
         });
-        controller.loadHistory().then((payload) => {
+        const historyPromise = controller.loadHistory().then((payload) => {
             const automated = Array.isArray(payload?.assessment_history?.items) ? payload.assessment_history.items : null;
             const teacher = Array.isArray(payload?.teacher_evaluations?.items) ? payload.teacher_evaluations.items : null;
             const renderCollection = (loadingSel, emptySel, errorSel, listSel, items, renderItem) => {
@@ -835,6 +1307,7 @@
             setHidden(root.querySelector('[data-teacher-published-evaluation-empty]'), true);
             setHidden(root.querySelector('[data-teacher-published-evaluation-error]'), false);
         });
+        return Promise.allSettled([resultPromise, historyPromise]);
     }
 
     function boot() {
@@ -851,6 +1324,15 @@
         presentationState,
         createAssessmentController,
         createDomView,
+        renderLikertOption,
+        mergeCatalogWithHistory,
+        deriveDiscoverySummary,
+        deriveDiscoveryProgress,
+        normalizeDiscoveryDate,
+        bootCatalog,
+        bootRunner,
+        bootResult,
+        safeOnboardingDestination,
     };
 
     if (typeof module !== 'undefined' && module.exports) {

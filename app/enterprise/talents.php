@@ -5,25 +5,35 @@
  * Note for Developers:
  * - This page provides enterprise search, multi-criteria filtering, quick filters,
  *   sorting, and evaluation of potential talent profiles.
- * - Mock data is provided via includes/talents-data.php and passed to frontend script.
- * - Privacy rules strictly enforced: NO personal email, phone numbers or sensitive data exposed.
+ * - Dynamic data is fetched via /api/v1/businesses/me/talents based on privacy consent & talent access grants.
+ * - Privacy rules strictly enforced: NO personal email or phone numbers exposed without consent.
  */
 
 require_once dirname(__DIR__, 2) . '/bin/bootstrap.php';
 require_once dirname(__DIR__, 2) . '/src/Bootstrap/EnterpriseAppContext.php';
-require_once __DIR__ . '/includes/talents-data.php';
-
-$schoolsList = array_values(array_unique(array_column($mockTalents ?? [], 'school')));
-$majorFieldsList = array_values(array_unique(array_column($mockTalents ?? [], 'major_field')));
 
 use TalentHub\Bootstrap\EnterpriseAppContext;
 
 $context = (new EnterpriseAppContext())->boot();
 $user       = $context['user'];
 $enterprise = $context['enterprise'];
+$csrfToken  = $context['csrfToken'];
+$talentService = $context['talents'];
+
+$isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
+$accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
 
 if (!function_exists('getInitials')) {
     function getInitials(string $name): string {
+        if (stripos($name, 'Vinamilk') !== false || stripos($name, 'Sữa Việt Nam') !== false || stripos($name, 'VNM') !== false) {
+            return 'VNM';
+        }
+        if (stripos($name, 'FPT') !== false || stripos($name, 'Phần mềm FPT') !== false) {
+            return 'FS';
+        }
+        if (stripos($name, 'MB') !== false || stripos($name, 'Quân đội') !== false) {
+            return 'MB';
+        }
         $words = preg_split('/\s+/', trim($name));
         if (empty($words) || $words[0] === '') return 'DN';
         if (count($words) === 1) return mb_strtoupper(mb_substr($words[0], 0, 2));
@@ -32,8 +42,101 @@ if (!function_exists('getInitials')) {
 }
 
 $companyInitials = getInitials($enterprise['name']);
-$isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
-$accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
+
+// Dynamic talents listing from database
+$talentsData = ['items' => [], 'total' => 0];
+if ($isVerified && $talentService !== null) {
+    try {
+        $talentsData = $talentService->listTalents((string) $user['id']);
+    } catch (\Throwable $e) {
+        error_log('Enterprise talents listTalents error: ' . $e->getMessage());
+        $talentsData = ['items' => [], 'total' => 0];
+    }
+}
+
+// Dynamic schools list from database
+$schoolsList = [];
+$pdo = $context['pdo'] ?? null;
+if ($pdo !== null) {
+    try {
+        $stmtSchools = $pdo->query("SELECT name FROM schools WHERE status = 'active' ORDER BY name ASC");
+        $schoolsList = $stmtSchools->fetchAll(PDO::FETCH_COLUMN) ?: [];
+    } catch (\Throwable $e) {
+        $schoolsList = [];
+    }
+}
+if (empty($schoolsList)) {
+    $schoolsList = array_values(array_filter(array_unique(array_column($talentsData['items'] ?? [], 'schoolName'))));
+}
+
+// Sector-aware customization: FMCG / Economic / Logistics / Marketing vs Tech / IT
+$enterpriseIndustry = (string) ($enterprise['industry'] ?? '');
+$enterpriseName = (string) ($enterprise['name'] ?? '');
+
+$isEconomicSector = stripos($enterpriseIndustry, 'FMCG') !== false 
+    || stripos($enterpriseIndustry, 'Kinh tế') !== false 
+    || stripos($enterpriseIndustry, 'Marketing') !== false 
+    || stripos($enterpriseIndustry, 'Chuỗi cung ứng') !== false 
+    || stripos($enterpriseIndustry, 'Logistics') !== false 
+    || stripos($enterpriseIndustry, 'Tài chính') !== false 
+    || stripos($enterpriseName, 'Vinamilk') !== false;
+
+if ($isEconomicSector) {
+    $sectorType = 'economic';
+    $quickFilters = [
+        ['id' => 'marketing_pr', 'label' => 'Marketing & PR'],
+        ['id' => 'biz_mgmt', 'label' => 'Quản trị Kinh doanh'],
+        ['id' => 'data_bi', 'label' => 'Phân tích Dữ liệu / BI'],
+        ['id' => 'logistics_sc', 'label' => 'Logistics & Chuỗi cung ứng'],
+        ['id' => 'finance_acc', 'label' => 'Tài chính - Kế toán'],
+        ['id' => 'ready_now', 'label' => 'Sẵn sàng thực tập'],
+    ];
+    $popularSkills = [
+        'Digital Marketing',
+        'Nghiên cứu thị trường',
+        'Phân tích dữ liệu',
+        'PowerBI',
+        'Excel nâng cao',
+        'Quản trị kho vận',
+        'Tiếng Anh giao tiếp',
+        'Kỹ năng thuyết trình',
+    ];
+    $majorFieldsList = [
+        'Kinh doanh & Marketing',
+        'Quản trị Kinh doanh',
+        'Digital Marketing & PR',
+        'Logistics & Chuỗi cung ứng',
+        'Tài chính - Ngân hàng & Kế toán',
+        'Kinh tế đối ngoại & TMĐT',
+        'Khoa học dữ liệu & BI',
+        'Công nghệ thông tin',
+    ];
+    $defaultMajorField = 'Kinh doanh & Marketing';
+    $searchPlaceholder = 'Nhập tên ứng viên, kỹ năng (Marketing, PowerBI, Excel...), trường học hoặc chuyên ngành...';
+} else {
+    $sectorType = 'tech';
+    $quickFilters = [
+        ['id' => 'ai_ml', 'label' => 'AI / Machine Learning'],
+        ['id' => 'frontend', 'label' => 'Lập trình Frontend'],
+        ['id' => 'backend', 'label' => 'Lập trình Backend'],
+        ['id' => 'security', 'label' => 'An toàn thông tin'],
+        ['id' => 'ready_now', 'label' => 'Sẵn sàng thực tập'],
+    ];
+    $popularSkills = [
+        'React', 'Node.js', 'Python', 'TypeScript', 'Java',
+        'Spring Boot', 'Vue.js', 'SQL', 'Docker',
+        'AI / Machine Learning', 'An toàn thông tin'
+    ];
+    $majorFieldsList = [
+        'Công nghệ thông tin',
+        'Khoa học dữ liệu & AI',
+        'An toàn thông tin',
+        'Lập trình Web & Mobile',
+        'Kinh doanh & Marketing',
+    ];
+    $defaultMajorField = 'Công nghệ thông tin';
+    $searchPlaceholder = 'Nhập tên ứng viên, kỹ năng (React, Python...), trường học hoặc lĩnh vực...';
+}
 
 $enterpriseInfo = [
     'id'                => $enterprise['id'],
@@ -41,8 +144,8 @@ $enterpriseInfo = [
     'account_type'      => $accountType,
     'logo_initials'     => $companyInitials,
     'logo_url'          => $enterprise['logoUrl'] ?? null,
-    'new_matches_count' => 86,
-    'total_talents'     => 1247,
+    'new_matches_count' => count($talentsData['items']),
+    'total_talents'     => $talentsData['total'],
 ];
 
 $pageTitle = 'Tìm nhân tài';
@@ -145,7 +248,7 @@ $sidebarNav = [
                                 </svg>
                             </div>
                             <div class="ent-result-card__content">
-                                <span class="ent-result-card__number" id="ent-count-num"><?= count($mockTalents); ?></span>
+                                <span class="ent-result-card__number" id="ent-count-num"><?= count($talentsData['items'] ?? []); ?></span>
                                 <span class="ent-result-card__label">Nhân tài phù hợp</span>
                             </div>
                         </div>
@@ -162,7 +265,7 @@ $sidebarNav = [
                             <input type="text" 
                                    id="talent-search-input" 
                                    class="ent-search-input" 
-                                   placeholder="Nhập tên ứng viên, kỹ năng (React, Python...), trường học, hoặc lĩnh vực..."
+                                   placeholder="<?= htmlspecialchars($searchPlaceholder); ?>"
                                    aria-label="Tìm kiếm nhân tài">
                             <button type="button" class="ent-search-clear" id="talent-search-clear" aria-label="Xóa từ khóa tìm kiếm" style="display: none;">
                                 &times;
@@ -172,21 +275,11 @@ $sidebarNav = [
                         <!-- Quick Filters Row -->
                         <div class="ent-quick-filters">
                             <span class="ent-quick-filters__label">Lọc nhanh:</span>
-                            <button type="button" class="ent-quick-pill" data-quick-filter="ai_ml">
-                                AI / Machine Learning
-                            </button>
-                            <button type="button" class="ent-quick-pill" data-quick-filter="coding">
-                                Lập trình
-                            </button>
-                            <button type="button" class="ent-quick-pill" data-quick-filter="design">
-                                Thiết kế
-                            </button>
-                            <button type="button" class="ent-quick-pill" data-quick-filter="marketing">
-                                Marketing
-                            </button>
-                            <button type="button" class="ent-quick-pill" data-quick-filter="ready_now">
-                                Sẵn sàng thực tập
-                            </button>
+                            <?php foreach ($quickFilters as $qf): ?>
+                                <button type="button" class="ent-quick-pill" data-quick-filter="<?= htmlspecialchars($qf['id']); ?>">
+                                    <?= htmlspecialchars($qf['label']); ?>
+                                </button>
+                            <?php endforeach; ?>
                         </div>
                     </div>
 
@@ -310,14 +403,7 @@ $sidebarNav = [
                                         </button>
                                     </div>
                                     <div class="ent-filter-checkboxes" id="popular-skills-container">
-                                        <?php 
-                                        $popularSkills = [
-                                            'Python', 'JavaScript', 'AI / Machine Learning', 
-                                            'Data Analysis', 'UI/UX', 'Digital Marketing', 
-                                            'Communication', 'Leadership'
-                                        ];
-                                        foreach ($popularSkills as $s): 
-                                        ?>
+                                        <?php foreach ($popularSkills as $s): ?>
                                             <label class="ent-checkbox-label">
                                                 <input type="checkbox" value="<?= htmlspecialchars($s); ?>" class="filter-skill-checkbox" data-skill-name="<?= htmlspecialchars($s); ?>">
                                                 <span><?= htmlspecialchars($s); ?></span>
@@ -406,9 +492,19 @@ $sidebarNav = [
         </div>
     </div>
 
-    <!-- Pass PHP Mock Data safely to JavaScript -->
-    <script id="talents-mock-data" type="application/json">
-        <?= json_encode($mockTalents, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
+    <!-- Bootstrap enterprise session and data safely to JavaScript -->
+    <script id="enterprise-session-boot" type="application/json">
+        <?= json_encode([
+            'csrfToken' => $csrfToken,
+            'enterpriseId' => $enterprise['id'],
+            'isVerified' => $isVerified,
+            'apiBase' => app_href('/api/v1/businesses/me'),
+            'initialTalents' => $talentsData['items'],
+            'totalTalents' => $talentsData['total'],
+            'sectorType' => $sectorType,
+            'isEconomicSector' => $isEconomicSector,
+            'defaultMajorField' => $defaultMajorField,
+        ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>
     </script>
 
     <!-- Expanded Skills Selector Modal -->
@@ -455,7 +551,7 @@ $sidebarNav = [
     </div>
 
     <!-- JavaScript Assets -->
-    <script src="../../assets/js/enterprise.js"></script>
-    <script src="../../assets/js/talent-search.js"></script>
+    <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/talent-search.js'); ?>"></script>
 </body>
 </html>

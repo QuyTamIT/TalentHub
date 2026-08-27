@@ -96,6 +96,13 @@ final class AdminRepository
     public function organizations(string $type=''): array
     {
         $rows=[];
+        if($this->tableExists('organization_registration_requests')){
+            $this->pdo->exec("DELETE FROM organization_registration_requests WHERE status='pending' AND expiresAt<=UTC_TIMESTAMP(6)");
+            $params=[];$where="status='pending' AND expiresAt>UTC_TIMESTAMP(6)";
+            if(in_array($type,['school','enterprise'],true)){$where.=' AND type=?';$params[]=$type;}
+            $request=$this->pdo->prepare("SELECT id,organizationName AS name,type,'pending' AS status,'pending' AS verificationStatus,createdAt,expiresAt,email,1 AS registrationRequest FROM organization_registration_requests WHERE {$where} ORDER BY createdAt DESC LIMIT 200");
+            $request->execute($params);$rows=$request->fetchAll(PDO::FETCH_ASSOC);
+        }
         if(($type===''||$type==='school')&&$this->tableExists('schools')){
             $columns=$this->columns('schools');
             $verification=in_array('verificationStatus',$columns,true)?'verificationStatus':(in_array('status',$columns,true)?'status':"'unknown'");
@@ -170,10 +177,34 @@ final class AdminRepository
     public function verifyOrganization(string $actorId,string $type,string $id,string $decision,string $reason,string $requestId): array
     {
         if(!in_array($type,['school','enterprise'],true)||!in_array($decision,['verified','rejected','pending'],true)){throw new RuntimeException('Quyết định xác minh không hợp lệ.');}
+        if($this->tableExists('organization_registration_requests')){$request=$this->pdo->prepare('SELECT COUNT(*) FROM organization_registration_requests WHERE id=? AND type=?');$request->execute([$id,$type]);if((int)$request->fetchColumn()>0){return $this->reviewOrganizationRegistration($actorId,$type,$id,$decision,$reason,$requestId);}}
         $this->assertReason($reason);$table=$type==='school'?'schools':'enterprises';$columns=$this->columns($table);$hasVerification=in_array('verificationStatus',$columns,true);$field=$hasVerification?'verificationStatus':'status';$storedDecision=$hasVerification?$decision:match($decision){'verified'=>'active','rejected'=>'suspended',default=>'inactive'};
         $emailSelect=in_array('email',$columns,true)?',email':'';$this->pdo->beginTransaction();try{$s=$this->pdo->prepare("SELECT {$field}{$emailSelect} FROM {$table} WHERE id=? FOR UPDATE");$s->execute([$id]);$organization=$s->fetch(PDO::FETCH_ASSOC);if(!$organization){throw new RuntimeException('Không tìm thấy tổ chức.');}$before=(string)$organization[$field];$sets=["{$field}=?"];$params=[$storedDecision];if(in_array('verificationNote',$columns,true)){$sets[]='verificationNote=?';$params[]=$reason;}if(in_array('verifiedBy',$columns,true)){$sets[]='verifiedBy=?';$params[]=$decision==='verified'?$actorId:null;}if(in_array('verifiedAt',$columns,true)){$sets[]='verifiedAt=?';$params[]=$decision==='verified'?gmdate('Y-m-d H:i:s'):null;}$params[]=$id;$this->pdo->prepare("UPDATE {$table} SET ".implode(',',$sets).' WHERE id=?')->execute($params);
             $userId=null;$memberTable=$type==='school'?'school_members':'enterprise_members';$foreignKey=$type==='school'?'schoolId':'enterpriseId';if($this->tableExists($memberTable)){$member=$this->pdo->prepare("SELECT userId FROM {$memberTable} WHERE {$foreignKey}=? ORDER BY id LIMIT 1");$member->execute([$id]);$candidate=$member->fetchColumn();if(is_string($candidate)){$userId=$candidate;}}if($userId===null&&!empty($organization['email'])){$candidate=$this->pdo->prepare('SELECT id FROM users WHERE email=? LIMIT 1');$candidate->execute([(string)$organization['email']]);$found=$candidate->fetchColumn();if(is_string($found)){$userId=$found;}}if($userId!==null){$userStatus=match($decision){'verified'=>'active','rejected'=>'disabled',default=>'pending'};$this->pdo->prepare('UPDATE users SET status=? WHERE id=?')->execute([$userStatus,$userId]);}
             $this->audit($actorId,'admin.organization_verification_changed',$type,$id,$requestId,['before'=>$before,'after'=>$decision,'reason'=>$reason]);$this->pdo->commit();return ['id'=>$id,'type'=>$type,'verificationStatus'=>$decision];}catch(\Throwable $e){if($this->pdo->inTransaction()){$this->pdo->rollBack();}throw $e;}
+    }
+
+    /** @return array<string,mixed> */
+    private function reviewOrganizationRegistration(string $actorId,string $type,string $id,string $decision,string $reason,string $requestId): array
+    {
+        if(!in_array($decision,['verified','rejected'],true)){throw new RuntimeException('Yêu cầu đăng ký chỉ có thể được duyệt hoặc từ chối.');}
+        $this->assertReason($reason);$this->pdo->beginTransaction();
+        try{
+            $statement=$this->pdo->prepare('SELECT * FROM organization_registration_requests WHERE id=? AND type=? FOR UPDATE');$statement->execute([$id,$type]);$request=$statement->fetch(PDO::FETCH_ASSOC);
+            if(!$request||$request['status']!=='pending'){throw new RuntimeException('Yêu cầu đăng ký không còn ở trạng thái chờ xử lý.');}
+            if(strtotime((string)$request['expiresAt'])<=time()){$this->pdo->prepare('DELETE FROM organization_registration_requests WHERE id=?')->execute([$id]);$this->pdo->commit();throw new RuntimeException('Yêu cầu đăng ký đã hết hạn sau 3 ngày và đã được xóa.');}
+            if($decision==='rejected'){$this->pdo->prepare("UPDATE organization_registration_requests SET status='rejected',passwordHash='',reviewedAt=UTC_TIMESTAMP(6),reviewedBy=?,reviewNote=? WHERE id=?")->execute([$actorId,$reason,$id]);$this->audit($actorId,'admin.organization_registration_rejected','organization_registration_request',$id,$requestId,['type'=>$type,'reason'=>$reason]);$this->pdo->commit();return ['id'=>$id,'type'=>$type,'verificationStatus'=>'rejected','accountCreated'=>false];}
+            $duplicate=$this->pdo->prepare('SELECT COUNT(*) FROM users WHERE email=?');$duplicate->execute([(string)$request['email']]);if((int)$duplicate->fetchColumn()>0){throw new RuntimeException('Email của yêu cầu đã được một tài khoản khác sử dụng.');}
+            $userId=Uuid::v4();$organizationId=Uuid::v4();$legacy=$this->columnExists('users','roles');
+            if($legacy){$this->pdo->prepare("INSERT INTO users(id,email,passwordHash,fullName,roles,status) VALUES(?,?,?,?,?,'active')")->execute([$userId,$request['email'],$request['passwordHash'],$request['fullName'],$type]);}
+            else{$this->pdo->prepare("INSERT INTO users(id,roleId,email,passwordHash,fullName,status) VALUES(?,?,?,?,?,'active')")->execute([$userId,$this->roleId($type),$request['email'],$request['passwordHash'],$request['fullName']]);}
+            $table=$type==='school'?'schools':'enterprises';$columns=$this->columns($table);$all=['id'=>$organizationId,'name'=>$request['organizationName'],'status'=>'active','email'=>$request['email'],'phone'=>$request['phone'],'address'=>$request['address'],'verificationStatus'=>'verified','verificationNote'=>$reason,'verifiedAt'=>gmdate('Y-m-d H:i:s'),'verifiedBy'=>$actorId];$organization=array_intersect_key($all,array_flip($columns));$names=array_keys($organization);
+            $this->pdo->prepare('INSERT INTO '.$table.'('.implode(',',$names).') VALUES('.implode(',',array_fill(0,count($names),'?')).')')->execute(array_values($organization));
+            $memberTable=$type==='school'?'school_members':'enterprise_members';$foreignKey=$type==='school'?'schoolId':'enterpriseId';if($this->tableExists($memberTable)){$memberColumns=$this->columns($memberTable);$roleColumn=in_array('memberRole',$memberColumns,true)?'memberRole':'role';$this->pdo->prepare("INSERT INTO {$memberTable}(id,{$foreignKey},userId,{$roleColumn}) VALUES(?,?,?,'admin')")->execute([Uuid::v4(),$organizationId,$userId]);}
+            $this->pdo->prepare("UPDATE organization_registration_requests SET status='approved',passwordHash='',reviewedAt=UTC_TIMESTAMP(6),reviewedBy=?,reviewNote=?,createdUserId=?,createdOrganizationId=? WHERE id=?")->execute([$actorId,$reason,$userId,$organizationId,$id]);
+            $this->audit($actorId,'admin.organization_registration_approved','organization_registration_request',$id,$requestId,['type'=>$type,'userId'=>$userId,'organizationId'=>$organizationId]);
+            $this->pdo->commit();return ['id'=>$organizationId,'requestId'=>$id,'type'=>$type,'verificationStatus'=>'verified','accountCreated'=>true,'userId'=>$userId];
+        }catch(\Throwable $exception){if($this->pdo->inTransaction()){$this->pdo->rollBack();}throw $exception;}
     }
 
     /** @param array<string,mixed> $metadata */

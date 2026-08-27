@@ -23,6 +23,15 @@ $session = $context['session'];
 
 if (!function_exists('getInitials')) {
     function getInitials(string $name): string {
+        if (stripos($name, 'Vinamilk') !== false || stripos($name, 'Sữa Việt Nam') !== false || stripos($name, 'VNM') !== false) {
+            return 'VNM';
+        }
+        if (stripos($name, 'FPT') !== false || stripos($name, 'Phần mềm FPT') !== false) {
+            return 'FS';
+        }
+        if (stripos($name, 'MB') !== false || stripos($name, 'Quân đội') !== false) {
+            return 'MB';
+        }
         $words = preg_split('/\s+/', trim($name));
         if (empty($words) || $words[0] === '') return 'DN';
         if (count($words) === 1) return mb_strtoupper(mb_substr($words[0], 0, 2));
@@ -44,6 +53,7 @@ $enterpriseInfo = [
     'total_talents'     => 1247,
 ];
 
+$internshipService = $context['internships'];
 $postId = isset($_GET['id']) ? trim((string) $_GET['id']) : null;
 $permissions->require((string) $user['id'], $postId ? 'internship_post.update_own_business' : 'internship_post.create_own_business');
 
@@ -103,6 +113,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_internship']))
         }
 
         $deadlineFormatted = $deadlineInput . ' 23:59:59.000000';
+        $audience = trim((string) ($_POST['audience'] ?? 'public'));
+        $targetSchoolIds = isset($_POST['targetSchoolIds']) && is_array($_POST['targetSchoolIds'])
+            ? array_values(array_unique(array_filter(array_map('strval', $_POST['targetSchoolIds']))))
+            : [];
 
         $payload = [
             'title'          => $title,
@@ -117,6 +131,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_internship']))
             'benefits'       => $benefits,
             'skills'         => $skillsArray,
             'requirements'   => [],
+            'audience'       => in_array($audience, ['public', 'partner_schools'], true) ? $audience : 'public',
+            'targetSchoolIds'=> $targetSchoolIds,
         ];
 
         if ($postId) {
@@ -140,8 +156,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_internship']))
         exit;
     } catch (ApiException $e) {
         $errorMessage = $e->getMessage();
+        error_log('create.php ApiException: ' . $e->getMessage() . ' (' . $e->errorCode . ')');
     } catch (\Throwable $e) {
-        $errorMessage = $e->getMessage();
+        $errorMessage = $e->getMessage() ?: 'Không thể xử lý yêu cầu. Vui lòng thử lại sau.';
+        error_log('create.php Throwable: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());
     }
 }
 
@@ -156,6 +174,9 @@ if ($editingPost) {
         'skills' => array_map(static fn ($skill): array => ['name' => (string) $skill, 'category' => 'Yêu cầu', 'type' => 'required'], is_array($decodedSkills) ? $decodedSkills : []),
     ];
 }
+
+$postAudience = $editingPost ? ($editingPost['audience'] ?? 'public') : 'public';
+$selectedTargetSchoolIds = $editingPost ? ($editingPost['targetSchoolIds'] ?? []) : [];
 
 $isEdit = !empty($editingPost);
 $pageTitle = $isEdit ? ('Chỉnh sửa: ' . $editingPost['title']) : 'Đăng tin tuyển dụng mới';
@@ -471,6 +492,72 @@ $sidebarNav = [
                             </div>
                         </section>
 
+                        <!-- 3. Audience & Partner Schools Targeting Section -->
+                        <section class="ent-section-box mb-4">
+                            <h3 class="ent-section-box__title mb-3">3. Phạm vi tuyển dụng & Đối tượng hướng đích</h3>
+                            <p class="text-muted small mb-3">Chọn đối tượng sinh viên có thể xem và nộp hồ sơ ứng tuyển vị trí này.</p>
+
+                            <div class="ent-form-group mb-3">
+                                <div class="ent-radio-cards-grid d-flex gap-3 flex-wrap">
+                                    <label class="ent-radio-card flex-grow-1 p-3 border rounded <?= $postAudience === 'public' ? 'border-primary bg-light' : ''; ?>" style="cursor:pointer; min-width:260px;">
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <input type="radio" name="audience" value="public" id="audience-public" <?= $postAudience === 'public' ? 'checked' : ''; ?>>
+                                            <strong>Công khai toàn hệ thống (Public)</strong>
+                                        </div>
+                                        <div class="text-muted small ps-4">
+                                            Tất cả học sinh, sinh viên trên TalentHub đều có thể tìm thấy và nộp hồ sơ.
+                                        </div>
+                                    </label>
+
+                                    <label class="ent-radio-card flex-grow-1 p-3 border rounded <?= $postAudience === 'partner_schools' ? 'border-primary bg-light' : ''; ?>" style="cursor:pointer; min-width:260px;">
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <input type="radio" name="audience" value="partner_schools" id="audience-partner-schools" <?= $postAudience === 'partner_schools' ? 'checked' : ''; ?>>
+                                            <strong>Chỉ dành cho Trường đối tác (Partner Schools)</strong>
+                                        </div>
+                                        <div class="text-muted small ps-4">
+                                            Chỉ sinh viên thuộc các trường đại học/cao đẳng đã ký kết hợp tác được chọn mới thấy tin.
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Target Schools Picker Area -->
+                            <div id="target-schools-container" class="mt-3 p-3 bg-light border rounded" style="<?= $postAudience === 'partner_schools' ? 'display:block;' : 'display:none;'; ?>">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="ent-form-label required mb-0">Danh sách Trường đối tác áp dụng:</label>
+                                    <span class="text-muted small">Đã chọn: <strong id="target-schools-count"><?= count($selectedTargetSchoolIds); ?></strong> trường</span>
+                                </div>
+
+                                <?php if (empty($approvedPartners)): ?>
+                                    <div class="alert alert-warning mb-0 py-2 small">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1 inline-block">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                        </svg>
+                                        Doanh nghiệp chưa có quan hệ hợp tác nào ở trạng thái đã phê duyệt (Approved).
+                                        <a href="/app/enterprise/partnerships.php" class="fw-semibold text-primary ms-1">Kết nối với Nhà trường ngay &rarr;</a>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="row g-2 mt-1">
+                                        <?php foreach ($approvedPartners as $school):
+                                            $checked = in_array((string) $school['id'], array_map('strval', $selectedTargetSchoolIds), true) ? 'checked' : '';
+                                        ?>
+                                            <div class="col-md-6 col-lg-4">
+                                                <label class="d-flex align-items-center gap-2 p-2 border rounded bg-white w-100" style="cursor:pointer;">
+                                                    <input type="checkbox" name="targetSchoolIds[]" value="<?= htmlspecialchars((string) $school['id']); ?>" <?= $checked; ?> class="target-school-checkbox">
+                                                    <div class="d-flex flex-column text-truncate">
+                                                        <span class="fw-semibold text-truncate small"><?= htmlspecialchars((string) $school['name']); ?></span>
+                                                        <span class="text-muted" style="font-size:11px;"><?= htmlspecialchars((string) ($school['code'] ?? '')); ?> &bull; <?= htmlspecialchars((string) ($school['level'] ?? 'Đại học')); ?></span>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </section>
+
                         <!-- Form Actions Bar -->
                         <div class="ent-form-actions-bar">
                             <a href="<?= function_exists('app_href') ? app_href('/app/enterprise/internships/index.php') : 'index.php'; ?>" class="btn btn-secondary">Hủy bỏ</a>
@@ -511,8 +598,8 @@ $sidebarNav = [
     </div>
 
     <!-- JavaScript Assets -->
-    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => '/api/v1'], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
-    <script src="../../../assets/js/enterprise.js"></script>
-    <script src="../../../assets/js/internship-management.js"></script>
+    <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => app_href('/api/v1')], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
+    <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/internship-management.js'); ?>"></script>
 </body>
 </html>

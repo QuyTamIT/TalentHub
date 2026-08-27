@@ -19,19 +19,25 @@ final class NotificationService
         'activity_registration_approved',
         'activity_registration_rejected',
         'activity_checkin_committed',
+        'activity_attendance_no_show',
         'assessment_submitted',
         'internship_application_submitted',
         'internship_application_withdrawn',
         'internship_application_status_changed',
         'badge_awarded',
+        'project_sponsored',
+        'project_member_added',
     ];
 
     public const ALLOW_LISTED_DEEP_LINKS = [
         '/app/learner/my-activities.php',
         '/app/learner/checkin.php',
+        '/app/learner/activity-history.php',
         '/app/learner/assessment-result.php',
         '/app/learner/ecosystem.php',
         '/app/learner/badges.php',
+        '/app/learner/talent-passport.php',
+        '/app/teacher/projects/index.php',
     ];
 
     public function __construct(private readonly NotificationRepository $repo) {}

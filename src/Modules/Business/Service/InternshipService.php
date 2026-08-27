@@ -12,7 +12,11 @@ use TalentHub\Support\Uuid;
 
 final class InternshipService
 {
-    private const POST_FIELDS = ['title', 'field', 'location', 'workType', 'duration', 'educationLevel', 'description', 'benefits', 'skills', 'requirements', 'slots', 'deadline'];
+    private const POST_FIELDS = [
+        'title', 'field', 'location', 'workType', 'duration', 'educationLevel',
+        'description', 'benefits', 'skills', 'requirements', 'slots', 'deadline',
+        'audience', 'targetSchoolIds'
+    ];
 
     public function __construct(private readonly InternshipRepository $repository) {}
 
@@ -45,10 +49,10 @@ final class InternshipService
 
     public function review(string $userId, string $applicationId, array $input): array
     {
-        $this->assertAllowed($input, ['expectedCurrentStatus', 'targetStatus', 'reviewerNote']);
+        $this->assertAllowed($input, ['expectedCurrentStatus', 'targetStatus', 'status', 'reviewerNote', 'note']);
         $expected = trim((string) ($input['expectedCurrentStatus'] ?? ''));
-        $target = trim((string) ($input['targetStatus'] ?? ''));
-        $note = trim((string) ($input['reviewerNote'] ?? ''));
+        $target = trim((string) ($input['targetStatus'] ?? $input['status'] ?? ''));
+        $note = trim((string) ($input['reviewerNote'] ?? $input['note'] ?? ''));
         if ($expected === '' || $target === '' || mb_strlen($note) > 2000) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Dữ liệu duyệt hồ sơ không hợp lệ.');
         }
@@ -60,9 +64,45 @@ final class InternshipService
         $result = [];
         $map = ['title', 'field', 'location', 'workType', 'duration', 'educationLevel', 'description', 'benefits', 'slots', 'deadline'];
         foreach ($map as $field) {
-            if (array_key_exists($field, $input)) { $result[$field] = is_string($input[$field]) ? trim($input[$field]) : $input[$field]; }
-            elseif ($requireAll && $field !== 'benefits') { throw new ApiException(422, 'VALIDATION_FAILED', "Thiếu field {$field}."); }
+            if (array_key_exists($field, $input)) {
+                $result[$field] = is_string($input[$field]) ? trim($input[$field]) : $input[$field];
+            } elseif ($requireAll && !in_array($field, ['benefits', 'requirements'], true)) {
+                if ($field === 'workType') {
+                    $result[$field] = 'Full-time / Hybrid';
+                } elseif ($field === 'duration') {
+                    $result[$field] = '3 tháng';
+                } elseif ($field === 'educationLevel') {
+                    $result[$field] = 'Đại học / Cao đẳng';
+                } else {
+                    throw new ApiException(422, 'VALIDATION_FAILED', "Thiếu field {$field}.");
+                }
+            }
         }
+
+        if (array_key_exists('audience', $input)) {
+            $audience = is_string($input['audience']) ? trim($input['audience']) : '';
+            if (!in_array($audience, ['public', 'partner_schools'], true)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'audience không hợp lệ.');
+            }
+            $result['audience'] = $audience;
+        } elseif ($requireAll) {
+            $result['audience'] = 'public';
+        }
+
+        if (array_key_exists('targetSchoolIds', $input)) {
+            if (!is_array($input['targetSchoolIds'])) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'targetSchoolIds phải là mảng.');
+            }
+            $schoolIds = [];
+            foreach ($input['targetSchoolIds'] as $schoolId) {
+                if (!is_string($schoolId) || !Uuid::isValid(trim($schoolId))) {
+                    throw new ApiException(422, 'VALIDATION_FAILED', 'targetSchoolIds chứa mã trường không hợp lệ.');
+                }
+                $schoolIds[] = trim($schoolId);
+            }
+            $result['targetSchoolIds'] = array_values(array_unique($schoolIds));
+        }
+
         foreach (['skills' => 'skillsJson', 'requirements' => 'requirementsJson'] as $inputField => $databaseField) {
             if (array_key_exists($inputField, $input)) {
                 if (!is_array($input[$inputField])) { throw new ApiException(422, 'VALIDATION_FAILED', "{$inputField} phải là mảng."); }

@@ -27,8 +27,9 @@ if (!function_exists('learner_activity_mock_catalog')) {
 if (!function_exists('learner_activity_find')) {
     function learner_activity_find(string $id): ?array
     {
-        return \TalentHub\Learner\Data\ReadModel\ActivityReadModel::resolve(
+        return \TalentHub\Learner\Data\ReadModel\ActivityReadModel::resolveForStudent(
             learner_activity_repository(),
+            learner_current_student_id(),
             $id
         );
     }
@@ -64,7 +65,10 @@ if (!function_exists('learner_activity_catalog')) {
     function learner_activity_catalog(): array
     {
         return \TalentHub\Learner\Data\ReadModel\ActivityReadModel::activities(
-            learner_activity_repository()->all()
+            learner_activity_repository()->discoverForStudent(
+                learner_current_student_id(),
+                new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+            )
         );
     }
 }
@@ -73,7 +77,62 @@ if (!function_exists('learner_activity_registration_history')) {
     function learner_activity_registration_history(string $studentId): array
     {
         return \TalentHub\Learner\Data\ReadModel\ActivityReadModel::registrations(
-            learner_activity_repository()->registrationsFor($studentId)
+            learner_activity_repository()->registrationTimelineFor($studentId)
         );
+    }
+}
+
+if (!function_exists('learner_activity_active_registrations')) {
+    /** Registrations that still belong on the current student's registered page. */
+    function learner_activity_active_registrations(string $studentId): array
+    {
+        $timeline = \TalentHub\Learner\Data\ReadModel\ActivityReadModel::registrations(
+            learner_activity_repository()->registrationTimelineFor($studentId)
+        );
+
+        return array_values(array_filter(
+            $timeline,
+            static fn (array $registration): bool => in_array(
+                (string) ($registration['status'] ?? ''),
+                ['pending', 'approved', 'waitlisted'],
+                true
+            )
+        ));
+    }
+}
+
+if (!function_exists('learner_activity_attendance_history')) {
+    /** Attendance-resolved history, already scoped by student and school in the repository. */
+    function learner_activity_attendance_history(string $studentId): array
+    {
+        $timeline = \TalentHub\Learner\Data\ReadModel\ActivityReadModel::registrations(
+            learner_activity_repository()->registrationTimelineFor($studentId)
+        );
+        $history = array_values(array_filter(
+            $timeline,
+            static fn (array $registration): bool => in_array(
+                (string) ($registration['status'] ?? ''),
+                ['attended', 'no_show'],
+                true
+            )
+        ));
+        foreach ($history as &$registration) {
+            if (($registration['status'] ?? '') === 'no_show') {
+                $registration['experience_hours'] = 0.0;
+                $registration['checked_in_at'] = null;
+            }
+        }
+        unset($registration);
+        usort($history, static function (array $left, array $right): int {
+            $timestamp = static function (array $item): int {
+                foreach (['attendance_resolved_at', 'checked_in_at', 'end_at', 'updated_at'] as $field) {
+                    $value = strtotime((string) ($item[$field] ?? ''));
+                    if ($value !== false) return $value;
+                }
+                return 0;
+            };
+            return $timestamp($right) <=> $timestamp($left);
+        });
+        return $history;
     }
 }

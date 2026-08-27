@@ -18,7 +18,8 @@ try {
     $context = LearnerApiContext::fromGlobals();
 
     if ($request->method === 'POST') {
-        $studentId = $context->studentId('student_profile.update_own');
+        $identity = $context->studentIdentityForPermissions(['student_profile.update_own']);
+        $studentId = $identity['student_id'];
         $context->mutation($request->header('x-csrf-token'));
 
         $input = $context->allowedInput($request->json(), ['assessmentCode', 'educationBand']);
@@ -36,13 +37,17 @@ try {
                 ['field' => 'educationBand', 'code' => 'INVALID_BAND', 'message' => 'Khung giáo dục phải là middle, high hoặc college.'],
             ]);
         }
+        $context->onboardingService()->assertAssessmentAccessible($studentId, $code);
+
+        $band = $context->educationBandResolver()->resolve($studentId, $band);
 
         $attempt = $context->assessmentService()->startOrResume($studentId, $code, $band);
         JsonResponder::sendSuccess($attempt, $context->requestId(), 200);
     }
 
     if ($request->method === 'GET') {
-        $studentId = $context->studentId('student_profile.read_own');
+        $identity = $context->studentIdentityForPermissions(['student_profile.read_own']);
+        $studentId = $identity['student_id'];
 
         $allowedParams = ['attemptId'];
         foreach (array_keys($_GET) as $key) {
@@ -61,6 +66,10 @@ try {
         }
 
         $attempt = $context->assessmentService()->ownedAttemptWithQuestions($studentId, $attemptId);
+        $context->onboardingService()->assertAssessmentAccessible(
+            $studentId,
+            (string) ($attempt['assessment_code'] ?? ''),
+        );
         JsonResponder::sendSuccess($attempt, $context->requestId());
     }
 

@@ -77,6 +77,23 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                     </div>
                 </section>
 
+                <section class="learner-card learner-school-credential-section" aria-labelledby="school-certificates-title">
+                    <div class="learner-school-credential-heading">
+                        <div>
+                            <span class="learner-school-credential-heading__eyebrow"><?= learner_icon('graduation-cap', 17); ?> Chương trình của <?= learner_escape($schoolCredentialData['school']['name'] ?? 'nhà trường'); ?></span>
+                            <h2 id="school-certificates-title">Chứng chỉ do trường cấp</h2>
+                            <p>Xem chứng chỉ đã được cấp, chứng chỉ đủ điều kiện và các mục tiêu AI gợi ý cho bạn.</p>
+                        </div>
+                        <a href="ai-recommendations.php">Xem lộ trình AI <?= learner_icon('arrow-right', 16); ?></a>
+                    </div>
+                    <?php
+                    $credentialItems = $schoolCredentialData['certificates'] ?? [];
+                    $credentialCompact = false;
+                    include __DIR__ . '/includes/school-credential-grid.php';
+                    unset($credentialItems, $credentialCompact);
+                    ?>
+                </section>
+
                 <div class="learner-profile-grid">
                     <section class="learner-card learner-profile-skills" aria-labelledby="profile-skills-title">
                         <div class="learner-section-heading learner-section-heading--icon">
@@ -108,10 +125,10 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                         <div class="learner-section-heading learner-section-heading--icon" style="display: flex; justify-content: space-between; align-items: center;">
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
                                 <span class="learner-section-heading__icon"><?= learner_icon('award', 22); ?></span>
-                                <h2 id="certificates-title">Chứng chỉ</h2>
+                                <h2 id="certificates-title">Chứng chỉ bên ngoài</h2>
                             </div>
                             <button class="learner-btn learner-btn--outline" type="button" data-open-modal="learner-certificate-modal" style="font-size: 0.875rem; padding: 0.35rem 0.75rem;">
-                                + Thêm chứng chỉ
+                                + Thêm chứng chỉ ngoài
                             </button>
                         </div>
                         <?php if (empty($certificates)): ?>

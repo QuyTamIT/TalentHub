@@ -155,7 +155,52 @@ final class PhaseRequirements
                 'uq_learner_ai_evaluation_model_revision',
             ],
         ]);
-        $this->requirements[12] = $this->mergeDefinitions([$this->requirements[11], $phase12Telemetry]);
+        $phase12Roadmaps = $this->definition(true, [], [
+            'learner_ai_roadmaps', 'learner_ai_roadmap_phases',
+            'learner_ai_roadmap_tasks', 'learner_ai_roadmap_task_events',
+        ], [
+            'learner_ai_roadmaps' => [
+                'id', 'studentId', 'runId', 'versionNumber', 'contractVersion', 'status',
+                'executiveSummary', 'primaryDirectionJson', 'alternativeDirectionsJson',
+                'insightsJson', 'confidenceBand', 'evidenceSummaryJson', 'providerRequestId',
+                'responseHash', 'generatedAt', 'supersededAt', 'createdAt',
+            ],
+            'learner_ai_roadmap_phases' => [
+                'id', 'roadmapId', 'position', 'startDay', 'endDay', 'code', 'title', 'goal',
+                'skillFocus', 'deliverable', 'effortLabel', 'metricLabel', 'evidenceJson', 'createdAt',
+            ],
+            'learner_ai_roadmap_tasks' => [
+                'id', 'phaseId', 'position', 'title', 'description', 'estimatedMinutes',
+                'actionType', 'targetType', 'targetId', 'evidenceJson', 'createdAt',
+            ],
+            'learner_ai_roadmap_task_events' => [
+                'id', 'taskId', 'studentId', 'status', 'requestId', 'occurredAt', 'createdAt',
+            ],
+        ], [
+            'learner_ai_roadmaps' => [
+                'uq_learner_ai_roadmaps_student_version', 'uq_learner_ai_roadmaps_run',
+                'uq_learner_ai_roadmaps_id_student', 'idx_learner_ai_roadmaps_student_status_generated',
+            ],
+            'learner_ai_roadmap_phases' => ['uq_learner_ai_roadmap_phases_position', 'idx_learner_ai_roadmap_phases_roadmap'],
+            'learner_ai_roadmap_tasks' => ['uq_learner_ai_roadmap_tasks_position', 'idx_learner_ai_roadmap_tasks_phase'],
+            'learner_ai_roadmap_task_events' => [
+                'uq_learner_ai_roadmap_task_events_request',
+                'idx_learner_ai_roadmap_task_events_task_occurred',
+                'idx_learner_ai_roadmap_task_events_student_created',
+            ],
+        ], [], [
+            'learner_ai_roadmaps' => [
+                ['from' => 'studentId', 'table' => 'student_profiles', 'to' => 'id'],
+                ['from' => 'runId', 'table' => 'learner_recommendation_runs', 'to' => 'id'],
+            ],
+            'learner_ai_roadmap_phases' => [['from' => 'roadmapId', 'table' => 'learner_ai_roadmaps', 'to' => 'id']],
+            'learner_ai_roadmap_tasks' => [['from' => 'phaseId', 'table' => 'learner_ai_roadmap_phases', 'to' => 'id']],
+            'learner_ai_roadmap_task_events' => [
+                ['from' => 'taskId', 'table' => 'learner_ai_roadmap_tasks', 'to' => 'id'],
+                ['from' => 'studentId', 'table' => 'student_profiles', 'to' => 'id'],
+            ],
+        ]);
+        $this->requirements[12] = $this->mergeDefinitions([$this->requirements[11], $phase12Telemetry, $phase12Roadmaps]);
     }
 
     public function all(): array

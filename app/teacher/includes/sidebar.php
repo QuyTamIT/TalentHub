@@ -18,7 +18,7 @@ $logoutUrl = function_exists('app_href') ? app_href('/logout.php') : '/logout.ph
 $teacherRouteHrefs = [
     'grid' => function_exists('app_href') ? app_href('/app/teacher/index.php') : '../index.php',
     'trophy' => function_exists('app_href') ? app_href('/app/teacher/activities/index.php') : 'activities/',
-    'clipboard-check' => function_exists('app_href') ? app_href('/app/teacher/assessments/index.php') : 'assessments/',
+    'clipboard-check' => function_exists('app_href') ? app_href('/app/teacher/grading.php') : 'grading.php',
     'users' => function_exists('app_href') ? app_href('/app/teacher/students/index.php') : 'students/',
     'qr' => function_exists('app_href') ? app_href('/app/teacher/checkins/index.php') : 'checkins/',
 ];
@@ -105,7 +105,7 @@ $teacherRouteHrefs = [
 
     <!-- Bottom Action: Logout -->
     <div class="teacher-sidebar__footer">
-        <a href="<?= htmlspecialchars($logoutUrl); ?>" 
+        <a href="<?= function_exists('app_href') ? app_href('/logout.php?role=teacher') : '/logout.php?role=teacher'; ?>" 
            class="teacher-sidebar__link teacher-sidebar__link--logout"
            aria-label="Đăng xuất khỏi hệ thống">
             <span class="teacher-sidebar__icon">

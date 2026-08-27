@@ -2,43 +2,23 @@
 /** TalentHub Learner - Aptitude discovery */
 require __DIR__ . '/includes/student-data.php';
 require_once __DIR__ . '/includes/icons.php';
-require_once __DIR__ . '/includes/assessment-data.php';
 
 $pageTitle = 'Khám phá năng khiếu';
 $currentRoute = '/app/learner/discover.php';
+$onboarding = $GLOBALS['learner_page_context']['onboarding'] ?? ['required' => false];
+$onboardingLabels = [
+    'holland' => 'Holland',
+    'mbti' => 'MBTI',
+    'disc' => 'DISC',
+    'multiple_intelligence' => 'Đa trí thông minh',
+];
+$onboardingStateLabels = [
+    'completed' => 'Đã hoàn thành',
+    'next' => 'Tiếp theo',
+    'in_progress' => 'Đang làm',
+    'locked' => 'Chưa mở',
+];
 
-$assessmentCodes = ['holland', 'mbti', 'disc', 'multiple_intelligence'];
-
-$radarCenterX = 260;
-$radarCenterY = 180;
-$radarRadius = 120;
-$radarAngles = [-90, -30, 30, 90, 150, 210];
-$radarGrids = [];
-
-foreach ([0.25, 0.5, 0.75, 1] as $scale) {
-    $gridPoints = [];
-    foreach ($radarAngles as $angle) {
-        $radians = deg2rad($angle);
-        $gridPoints[] = number_format($radarCenterX + cos($radians) * $radarRadius * $scale, 1, '.', '') . ','
-            . number_format($radarCenterY + sin($radians) * $radarRadius * $scale, 1, '.', '');
-    }
-    $radarGrids[] = implode(' ', $gridPoints);
-}
-
-$radarPoints = [];
-foreach ($radarScores as $index => $score) {
-    $radians = deg2rad($radarAngles[$index]);
-    $scaledRadius = $radarRadius * ((float) $score['score'] / 100);
-    $radarPoints[] = [
-        'x' => number_format($radarCenterX + cos($radians) * $scaledRadius, 1, '.', ''),
-        'y' => number_format($radarCenterY + sin($radians) * $scaledRadius, 1, '.', ''),
-    ];
-}
-
-$radarPolygon = implode(' ', array_map(
-    static fn(array $point): string => $point['x'] . ',' . $point['y'],
-    $radarPoints
-));
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -58,16 +38,92 @@ $radarPolygon = implode(' ', array_map(
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content">
-                <?php
-                $learnerPageBanner = [
-                    'id' => 'learner-discover-page-title',
-                    'eyebrow' => 'Hiểu bản thân hơn',
-                    'title' => 'Khám phá năng khiếu',
-                    'description' => 'Bộ 4 bài đánh giá khoa học giúp bạn hiểu rõ điểm mạnh và định hướng phát triển toàn diện.',
-                    'icon' => 'compass',
-                ];
-                include __DIR__ . '/includes/page-banner.php';
-                ?>
+                <?php if (($onboarding['required'] ?? false) === true): ?>
+                <section class="learner-card learner-onboarding-progress" data-onboarding-progress aria-labelledby="onboarding-progress-title">
+                    <div class="learner-onboarding-progress__heading">
+                        <div>
+                            <span class="learner-onboarding-progress__eyebrow">Đánh giá ban đầu bắt buộc</span>
+                            <h1 id="onboarding-progress-title">Tiến độ của bạn</h1>
+                            <p>
+                                Đã hoàn thành
+                                <strong><?= learner_escape($onboarding['completed_count'] ?? 0); ?>/<?= learner_escape($onboarding['required_count'] ?? 4); ?></strong>
+                                bài đánh giá. Mỗi câu trả lời được tự động lưu.
+                            </p>
+                        </div>
+                        <span class="learner-onboarding-progress__count" aria-label="Số bài đã hoàn thành">
+                            <?= learner_escape($onboarding['completed_count'] ?? 0); ?>/<?= learner_escape($onboarding['required_count'] ?? 4); ?>
+                        </span>
+                    </div>
+
+                    <?php if (($onboarding['status'] ?? '') === 'completed' && ($_GET['onboarding'] ?? '') === 'completed'): ?>
+                    <div class="learner-onboarding-progress__success" role="status">
+                        <strong>Bạn đã hoàn thành đủ 4/4 bài đánh giá.</strong>
+                        <span>TalentHub đã mở toàn bộ không gian sinh viên cho tài khoản của bạn.</span>
+                        <a class="learner-btn learner-btn--primary" href="<?= learner_escape(app_href('/app/learner/index.php')); ?>">Về tổng quan</a>
+                    </div>
+                    <?php endif; ?>
+
+                    <ol class="learner-onboarding-progress__list">
+                        <?php foreach (($onboarding['items'] ?? []) as $position => $item): ?>
+                            <?php
+                            $code = is_string($item['code'] ?? null) ? $item['code'] : '';
+                            $state = is_string($item['state'] ?? null) ? $item['state'] : 'locked';
+                            $label = $onboardingLabels[$code] ?? 'Bài đánh giá';
+                            $stateLabel = $onboardingStateLabels[$state] ?? 'Chưa mở';
+                            $isAvailable = in_array($state, ['completed', 'next', 'in_progress'], true);
+                            $itemUrl = $state === 'completed'
+                                ? '/app/learner/assessment-result.php?code=' . rawurlencode($code)
+                                : '/app/learner/assessment.php?code=' . rawurlencode($code);
+                            ?>
+                            <li class="learner-onboarding-progress__item is-<?= learner_escape($state); ?>">
+                                <span class="learner-onboarding-progress__position" aria-hidden="true"><?= learner_escape($position + 1); ?></span>
+                                <span class="learner-onboarding-progress__copy">
+                                    <strong><?= learner_escape($label); ?></strong>
+                                    <small><?= learner_escape($stateLabel); ?></small>
+                                </span>
+                                <?php if ($isAvailable): ?>
+                                    <a class="learner-btn learner-btn--outline" href="<?= learner_escape(app_href($itemUrl)); ?>">
+                                        <?= $state === 'completed' ? 'Xem kết quả' : 'Tiếp tục'; ?>
+                                    </a>
+                                <?php else: ?>
+                                    <span class="learner-onboarding-progress__locked" aria-label="Bài đánh giá chưa mở">Khóa</span>
+                                <?php endif; ?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ol>
+
+                    <?php if (($onboarding['status'] ?? '') === 'accepted'): ?>
+                    <a class="learner-onboarding-progress__logout" href="<?= learner_escape(app_href('/logout.php')); ?>">Đăng xuất và tiếp tục sau</a>
+                    <?php endif; ?>
+                </section>
+                <?php endif; ?>
+
+                <section class="learner-discover-hero" aria-labelledby="learner-discover-page-title">
+                    <div class="learner-discover-hero__copy">
+                        <span class="learner-discover-hero__eyebrow">Hiểu bản thân hơn</span>
+                        <h1 id="learner-discover-page-title">Khám phá năng khiếu</h1>
+                        <p>Bộ 4 bài đánh giá giúp bạn hiểu bản thân và định hướng tương lai.</p>
+                    </div>
+                    <div class="learner-discover-progress" aria-label="Tiến độ khám phá năng khiếu">
+                        <div class="learner-discover-progress__item">
+                            <span class="learner-discover-progress__icon learner-discover-progress__icon--success" aria-hidden="true"><?= learner_icon('check', 20); ?></span>
+                            <div>
+                                <span>Đã hoàn thành</span>
+                                <strong data-discovery-completed-count>0/4 bài đánh giá</strong>
+                            </div>
+                        </div>
+                        <div class="learner-discover-progress__item">
+                            <span class="learner-discover-progress__icon" aria-hidden="true"><?= learner_icon('calendar', 20); ?></span>
+                            <div>
+                                <span>Cập nhật gần nhất</span>
+                                <strong data-discovery-latest-date>Chưa có dữ liệu</strong>
+                            </div>
+                        </div>
+                        <div class="learner-progress learner-discover-progress__bar" role="progressbar" aria-label="Tỷ lệ hoàn thành bài đánh giá" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-discovery-progress>
+                            <span data-discovery-progress-bar style="--learner-progress: 0%;"></span>
+                        </div>
+                    </div>
+                </section>
 
                 <section class="learner-assessment-grid" aria-label="Các bài đánh giá năng khiếu" data-assessment-catalog data-catalog-endpoint="/app/learner/api/v1/assessments.php">
                     <div class="learner-card learner-assessment-state" data-catalog-loading>
@@ -77,95 +133,117 @@ $radarPolygon = implode(' ', array_map(
                     <div class="learner-card learner-empty-catalog" data-empty-catalog hidden>
                         <p>Chưa có phiên bản được duyệt. Vui lòng quay lại sau.</p>
                     </div>
-                    <div data-catalog-cards></div>
-                    <div data-assessment-card-templates hidden aria-hidden="true">
-                        <?php foreach ($assessmentCodes as $assessmentCode): ?>
-                            <template data-assessment-card-template="<?= learner_escape($assessmentCode); ?>"></template>
-                        <?php endforeach; ?>
+                    <div class="learner-card learner-assessment-state learner-assessment-state--error" data-catalog-error role="alert" hidden>
+                        <?= learner_icon('alert-triangle', 22); ?>
+                        <div>
+                            <p>Không thể tải danh mục bài đánh giá từ máy chủ.</p>
+                            <button class="learner-btn learner-btn--outline" type="button" data-catalog-retry>Thử tải lại</button>
+                        </div>
                     </div>
+                    <div class="learner-card learner-assessment-state" data-catalog-band-confirmation role="group" aria-labelledby="catalog-band-title" hidden>
+                        <?= learner_icon('graduation-cap', 22); ?>
+                        <div>
+                            <h2 id="catalog-band-title">Chọn cấp học của bạn</h2>
+                            <p>Hãy xác nhận cấp học để tải đúng bộ bài đánh giá.</p>
+                            <span id="catalog-band-options-title" class="learner-visually-hidden">Cấp học hiện tại</span>
+                            <div class="learner-band-options" role="radiogroup" aria-labelledby="catalog-band-options-title">
+                                <label class="learner-band-option">
+                                    <input type="radio" name="catalog_education_band" value="middle">
+                                    <span><strong>Trung học cơ sở</strong> (Lớp 6 – 9)</span>
+                                </label>
+                                <label class="learner-band-option">
+                                    <input type="radio" name="catalog_education_band" value="high">
+                                    <span><strong>Trung học phổ thông</strong> (Lớp 10 – 12)</span>
+                                </label>
+                                <label class="learner-band-option">
+                                    <input type="radio" name="catalog_education_band" value="college">
+                                    <span><strong>Đại học / Cao đẳng</strong></span>
+                                </label>
+                            </div>
+                            <p class="learner-form-error" role="alert" data-catalog-band-error hidden>Vui lòng chọn một cấp học để tiếp tục.</p>
+                            <button class="learner-btn learner-btn--primary" type="button" data-catalog-band-confirm>Xác nhận cấp học</button>
+                        </div>
+                    </div>
+                    <div class="learner-card learner-assessment-state" data-catalog-history-warning role="status" hidden>
+                        <?= learner_icon('info', 22); ?>
+                        <div>
+                            <p>Danh mục vẫn dùng được, nhưng kết quả trước đây tạm thời chưa tải được.</p>
+                            <button class="learner-btn learner-btn--outline" type="button" data-catalog-history-retry>Thử tải lại kết quả</button>
+                        </div>
+                    </div>
+                    <div class="learner-assessment-grid__cards" data-catalog-cards></div>
                 </section>
-
-                <div class="learner-data-note learner-discover-data-note"><?= learner_icon('info', 17); ?><p>Kết quả từ 4 bài đánh giá được sử dụng để cá nhân hóa gợi ý năng lực và trải nghiệm học tập.</p></div>
 
                 <div class="learner-discovery-grid">
                     <section class="learner-card learner-radar-card" aria-labelledby="radar-title">
-                        <div class="learner-section-heading learner-section-heading--stacked">
+                        <div class="learner-discover-section-heading">
                             <h2 id="radar-title">Bản đồ năng khiếu</h2>
-                            <p>Đa trí thông minh – Multiple Intelligence</p>
+                            <span><i aria-hidden="true"></i> Điểm nổi trội</span>
                         </div>
 
-                        <div class="learner-radar-wrap">
-                            <svg class="learner-radar" viewBox="0 0 520 360" role="img" aria-labelledby="radar-svg-title radar-svg-desc">
-                                <title id="radar-svg-title">Biểu đồ radar năng khiếu tổng hợp</title>
-                                <desc id="radar-svg-desc">Sáu trục gồm Logic 72, Sáng tạo 66, Vận động 58, Giao tiếp 78, Âm nhạc 62 và Tự nhiên 70 điểm.</desc>
-
-                                <?php foreach ($radarGrids as $grid): ?>
-                                    <polygon class="learner-radar__grid" points="<?= learner_escape($grid); ?>"></polygon>
-                                <?php endforeach; ?>
-
-                                <?php foreach ($radarAngles as $angle): ?>
-                                    <?php
-                                    $radians = deg2rad($angle);
-                                    $axisX = number_format($radarCenterX + cos($radians) * $radarRadius, 1, '.', '');
-                                    $axisY = number_format($radarCenterY + sin($radians) * $radarRadius, 1, '.', '');
-                                    ?>
-                                    <line class="learner-radar__axis" x1="<?= $radarCenterX; ?>" y1="<?= $radarCenterY; ?>" x2="<?= learner_escape($axisX); ?>" y2="<?= learner_escape($axisY); ?>"></line>
-                                <?php endforeach; ?>
-
-                                <polygon class="learner-radar-data" points="<?= learner_escape($radarPolygon); ?>"></polygon>
-
-                                <?php foreach ($radarPoints as $point): ?>
-                                    <circle class="learner-radar__point" cx="<?= learner_escape($point['x']); ?>" cy="<?= learner_escape($point['y']); ?>" r="4"></circle>
-                                <?php endforeach; ?>
-
-                                <g class="learner-radar__labels">
-                                    <text x="260" y="28" text-anchor="middle">Logic</text>
-                                    <text x="400" y="112" text-anchor="start">Sáng tạo</text>
-                                    <text x="405" y="258" text-anchor="start">Vận động</text>
-                                    <text x="260" y="346" text-anchor="middle">Giao tiếp</text>
-                                    <text x="115" y="258" text-anchor="end">Âm nhạc</text>
-                                    <text x="110" y="112" text-anchor="end">Tự nhiên</text>
-                                </g>
-                            </svg>
-                        </div>
-
-                        <div class="learner-radar-legend" aria-label="Điểm chi tiết">
-                            <?php foreach ($radarScores as $score): ?>
-                                <span><?= learner_icon($score['icon'], 16); ?> <?= learner_escape($score['label']); ?> <strong><?= learner_escape($score['score']); ?></strong></span>
-                            <?php endforeach; ?>
-                        </div>
+                        <div class="learner-discovery-talent-list" data-discovery-talents aria-label="Điểm đa trí thông minh" aria-live="polite"></div>
                     </section>
 
                     <section class="learner-card learner-directions" aria-labelledby="directions-title">
-                        <div class="learner-section-heading learner-section-heading--stacked">
-                            <p>Kết quả tổng hợp</p>
+                        <div class="learner-directions__heading">
+                            <span>Kết quả tổng hợp</span>
                             <h2 id="directions-title">Định hướng của bạn</h2>
                         </div>
-                        <div class="learner-direction-list">
-                            <?php foreach ($careerDirections as $direction): ?>
-                                <article class="learner-direction-row">
-                                    <span class="learner-direction-row__icon learner-icon-tile learner-icon-tile--<?= learner_escape($direction['tone']); ?>"><?= learner_icon($direction['icon'], 22); ?></span>
-                                    <div class="learner-direction-row__content">
-                                        <div>
-                                            <span><?= learner_escape($direction['label']); ?></span>
-                                            <strong><?= learner_escape($direction['score']); ?>%</strong>
-                                        </div>
-                                        <div class="learner-progress" role="progressbar" aria-label="<?= learner_escape($direction['label']); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($direction['score']); ?>">
-                                            <span class="learner-progress--<?= learner_escape($direction['tone']); ?>" style="--learner-progress: <?= learner_escape($direction['score']); ?>%;"></span>
-                                        </div>
-                                    </div>
-                                </article>
-                            <?php endforeach; ?>
-                        </div>
+                        <div class="learner-direction-list" data-discovery-career aria-live="polite"></div>
+                        <a class="learner-btn learner-btn--primary learner-directions__action" href="ecosystem.php">Khám phá cơ hội phù hợp <?= learner_icon('arrow-right', 17); ?></a>
                     </section>
                 </div>
+
+                <section class="learner-discover-next" aria-labelledby="discover-next-title">
+                    <div class="learner-discover-next__heading">
+                        <h2 id="discover-next-title">Gợi ý bước tiếp theo</h2>
+                        <p>Tiếp tục phát triển từ kết quả đánh giá đã lưu của bạn.</p>
+                    </div>
+                    <div class="learner-discover-next__grid">
+                        <a class="learner-card learner-discover-next__card" href="activities.php">
+                            <span class="learner-discover-next__icon learner-discover-next__icon--blue" aria-hidden="true"><?= learner_icon('users', 22); ?></span>
+                            <span><strong>Tham gia hoạt động</strong><small>Rèn luyện kỹ năng qua trải nghiệm thực tế.</small></span>
+                            <?= learner_icon('arrow-right', 19); ?>
+                        </a>
+                        <a class="learner-card learner-discover-next__card" href="ecosystem.php">
+                            <span class="learner-discover-next__icon" aria-hidden="true"><?= learner_icon('briefcase', 22); ?></span>
+                            <span><strong>Khám phá ngành học</strong><small>Xem trường học và cơ hội phù hợp.</small></span>
+                            <?= learner_icon('arrow-right', 19); ?>
+                        </a>
+                        <a class="learner-card learner-discover-next__card" href="profile.php">
+                            <span class="learner-discover-next__icon learner-discover-next__icon--green" aria-hidden="true"><?= learner_icon('user', 22); ?></span>
+                            <span><strong>Hoàn thiện hồ sơ</strong><small>Bổ sung điểm mạnh vào hồ sơ năng lực.</small></span>
+                            <?= learner_icon('arrow-right', 19); ?>
+                        </a>
+                    </div>
+                </section>
             </main>
         </div>
+    </div>
+
+    <div class="learner-modal learner-ai-summary-modal" data-ai-summary-modal hidden aria-hidden="true">
+        <button class="learner-modal__backdrop" type="button" data-ai-summary-defer aria-label="Để sau và đóng tóm tắt AI"></button>
+        <section class="learner-modal__dialog learner-modal__dialog--compact" role="dialog" aria-modal="true" aria-labelledby="learner-ai-summary-title" aria-describedby="learner-ai-summary-live" tabindex="-1">
+            <div class="learner-ai-summary-modal__icon" aria-hidden="true"><?= learner_icon('sparkles', 28); ?></div>
+            <span class="learner-modal__eyebrow" data-ai-summary-eyebrow>AI đang phân tích</span>
+            <h2 id="learner-ai-summary-title" data-ai-summary-title>Đang tạo lộ trình dành riêng cho bạn</h2>
+            <div id="learner-ai-summary-live" class="learner-ai-summary-modal__live" data-ai-summary-live aria-live="polite" aria-atomic="true">
+                <span class="learner-assessment-spinner" data-ai-summary-spinner aria-hidden="true"></span>
+                <p data-ai-summary-message>Quá trình này có thể mất khoảng 30 giây.</p>
+                <p class="learner-ai-summary-modal__summary" data-ai-summary-text></p>
+            </div>
+            <div class="learner-modal__actions">
+                <button class="learner-btn learner-btn--secondary" type="button" data-ai-summary-defer>Để sau</button>
+                <button class="learner-btn learner-btn--outline" type="button" data-ai-summary-retry hidden>Thử lại</button>
+                <a class="learner-btn learner-btn--primary" href="<?= learner_escape(app_href('/app/learner/ai-recommendations.php')); ?>" data-ai-summary-detail hidden>Xem phân tích chi tiết</a>
+            </div>
+        </section>
     </div>
 
     <script id="learner-session-boot" type="application/json"><?= json_encode(['csrfToken' => $GLOBALS['learner_page_context']['csrfToken'] ?? ''], JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
     <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
     <script src="../../assets/js/learner-assessment.js"></script>
+    <script src="../../assets/js/learner-ai-summary.js"></script>
 </body>
 </html>

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 70" width="280" height="70">
+  <defs>
+    <linearGradient id="vnmBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#003B7A"/>
+      <stop offset="100%" stop-color="#002244"/>
+    </linearGradient>
+    <linearGradient id="vnmBadge" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#003B7A"/>
+      <stop offset="100%" stop-color="#0056B3"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(8, 8)">
+    <!-- Vinamilk Emblem / Badge Icon -->
+    <rect x="0" y="2" width="50" height="50" rx="12" fill="url(#vnmBadge)" />
+    <!-- White Drop / Leaf Milk Nutrition Accent -->
+    <path d="M25,10 C25,10 13,24 13,32 C13,38.6 18.4,44 25,44 C31.6,44 37,38.6 37,32 C37,24 25,10 25,10 Z" fill="#FFFFFF" />
+    <path d="M25,20 C25,20 18,29 18,33.5 C18,37.1 21.1,40 25,40 C28.9,40 32,37.1 32,33.5 C32,29 25,20 25,20 Z" fill="#003B7A" opacity="0.18" />
+    <circle cx="21" cy="28" r="2.5" fill="#FFFFFF" opacity="0.85" />
+
+    <!-- Vinamilk Bold Wordmark -->
+    <text x="60" y="36" font-family="'Segoe UI', Roboto, -apple-system, sans-serif" font-weight="900" font-size="28" fill="url(#vnmBlue)" letter-spacing="0.5px">VINAMILK</text>
+    
+    <!-- Tagline: VIETNAM DAIRY PRODUCTS JSC -->
+    <text x="61" y="50" font-family="'Segoe UI', Roboto, -apple-system, sans-serif" font-weight="700" font-size="10.5" fill="#64748B" letter-spacing="0.8px">DINH DƯỠNG QUỐC GIA</text>
+  </g>
+</svg>

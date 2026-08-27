@@ -2,18 +2,42 @@
 /**
  * School Dashboard - Header Component
  *
- * Expects $schoolInfo and $user (optional) to be set by the parent scope.
+ * Synchronized 100% with Enterprise Portal:
+ * - Mobile toggle & header title
+ * - Notification bell
+ * - Account trigger button with Avatar, School Name, Role subtitle, rotating chevron
+ * - Floating account dropdown with Identity header, Profile link ("Hồ sơ trường học"), Divider, and Logout action
  */
 
+if (!function_exists('app_href') && is_file(dirname(__DIR__, 3) . '/bin/bootstrap.php')) {
+    require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
+}
+
 $schoolRole = 'Ban Giám hiệu';
-$displayName = $schoolInfo['name'] ?? 'Nhà trường';
-$initials    = $schoolInfo['logo_initials'] ?? 'TH';
+$displayName = !empty($schoolInfo['name']) ? $schoolInfo['name'] : (!empty($school['name']) ? $school['name'] : 'Cao đẳng Quốc tế BTEC FPT');
+
+if (stripos($displayName, 'BTEC') !== false) {
+    $initials = 'BF';
+} elseif (stripos($displayName, 'Cần Thơ') !== false || stripos($displayName, 'CTU') !== false) {
+    $initials = 'CTU';
+} elseif (stripos($displayName, 'FPT') !== false) {
+    $initials = 'FPT';
+} elseif (!empty($schoolInfo['logo_initials'])) {
+    $initials = $schoolInfo['logo_initials'];
+} else {
+    $words = explode(' ', trim($displayName));
+    $initials = count($words) > 1 ? mb_substr($words[0], 0, 1) . mb_substr($words[count($words) - 1], 0, 1) : mb_substr($displayName, 0, 2);
+}
+
+$profileRoute = '/app/school/account.php';
+$profileUrl = function_exists('app_href') ? app_href($profileRoute) : '/app/school/account.php';
+$logoutUrl = function_exists('app_href') ? app_href('/app/auth/logout.php?role=school') : '/app/auth/logout.php?role=school';
 ?>
 <header class="school-header">
     <div class="school-header__left">
         <!-- Mobile Sidebar Toggle -->
         <button class="school-header__toggle" id="school-sidebar-toggle" aria-label="Mở danh mục điều hướng">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
                 <line x1="3" y1="6" x2="21" y2="6"></line>
                 <line x1="3" y1="18" x2="21" y2="18"></line>
@@ -24,10 +48,10 @@ $initials    = $schoolInfo['logo_initials'] ?? 'TH';
     </div>
 
     <div class="school-header__right">
-        <!-- Notification Bell (UI Mock Only) -->
+        <!-- Notification Bell (UI Mock) -->
         <div class="school-header__notif" id="school-notif-trigger" title="Thông báo mới (Mock UI)">
-            <button class="school-header__icon-btn" aria-label="Thông báo mới">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button class="school-header__icon-btn" type="button" aria-label="Thông báo mới">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                     <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                 </svg>
@@ -35,22 +59,92 @@ $initials    = $schoolInfo['logo_initials'] ?? 'TH';
             </button>
         </div>
 
-        <!-- School Account Area -->
-        <div class="school-header__account">
-            <div class="school-header__avatar">
-                <?= htmlspecialchars($initials); ?>
-            </div>
-            <div class="school-header__user-info">
-                <span class="school-header__user-name"><?= htmlspecialchars($displayName); ?></span>
-                <span class="school-header__user-role"><?= htmlspecialchars($schoolRole); ?></span>
+        <!-- School Account Area with Dropdown -->
+        <div class="school-header__account-wrapper" id="school-account-wrapper">
+            <button 
+                type="button" 
+                class="school-header__account" 
+                id="school-account-trigger" 
+                aria-haspopup="menu" 
+                aria-expanded="false" 
+                aria-controls="school-account-menu"
+                aria-label="Tài khoản nhà trường: <?= htmlspecialchars($displayName); ?>"
+            >
+                <div class="school-header__avatar" aria-hidden="true">
+                    <?= htmlspecialchars($initials); ?>
+                </div>
+                <div class="school-header__user-info">
+                    <span class="school-header__company-name"><?= htmlspecialchars($displayName); ?></span>
+                    <span class="school-header__package-name"><?= htmlspecialchars($schoolRole); ?></span>
+                </div>
+                <span class="school-header__chevron" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </span>
+            </button>
+
+            <!-- Account Dropdown Menu -->
+            <div 
+                class="school-account-menu" 
+                id="school-account-menu" 
+                role="menu" 
+                aria-labelledby="school-account-trigger"
+                hidden
+            >
+                <!-- School Identity Header -->
+                <div class="school-account-menu__identity" role="none">
+                    <div class="school-account-menu__avatar" aria-hidden="true">
+                        <?= htmlspecialchars($initials); ?>
+                    </div>
+                    <div class="school-account-menu__details">
+                        <span class="school-account-menu__company-name"><?= htmlspecialchars($displayName); ?></span>
+                        <span class="school-account-menu__badge">Tài khoản Nhà trường</span>
+                    </div>
+                </div>
+
+                <div class="school-account-menu__divider" role="separator"></div>
+
+                <!-- Navigation List -->
+                <ul class="school-account-menu__list" role="none">
+                    <li role="none">
+                        <a 
+                            href="<?= htmlspecialchars($profileUrl); ?>" 
+                            class="school-account-menu__item" 
+                            role="menuitem"
+                            data-route="<?= htmlspecialchars($profileRoute); ?>"
+                            tabindex="-1"
+                        >
+                            <svg class="school-account-menu__item-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                            <span>Hồ sơ & Tài khoản</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="school-account-menu__divider" role="separator"></div>
+
+                <!-- Logout Link -->
+                <ul class="school-account-menu__list" role="none">
+                    <li role="none">
+                        <a 
+                            href="<?= htmlspecialchars($logoutUrl); ?>" 
+                            class="school-account-menu__item school-account-menu__item--logout" 
+                            role="menuitem"
+                            tabindex="-1"
+                        >
+                            <svg class="school-account-menu__item-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                <polyline points="16 17 21 12 16 7"></polyline>
+                                <line x1="21" y1="12" x2="9" y2="12"></line>
+                            </svg>
+                            <span>Đăng xuất</span>
+                        </a>
+                    </li>
+                </ul>
             </div>
         </div>
-
-        <a href="../../logout.php" class="school-header__logout" title="Đăng xuất">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M16 17l5-5-5-5M19.8 12H9M13 22a10 10 0 1 1 0-20"></path>
-            </svg>
-            <span>Đăng xuất</span>
-        </a>
     </div>
 </header>

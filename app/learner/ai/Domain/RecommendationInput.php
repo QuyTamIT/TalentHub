@@ -117,6 +117,9 @@ final class RecommendationInput
     private static function isPrivateKey(string $key): bool
     {
         $normalized = strtolower((string) preg_replace('/[^a-z0-9]/i', '', $key));
+        if (in_array($normalized, ['schoolname', 'classname'], true)) {
+            return false;
+        }
         foreach (self::PRIVATE_KEYS as $privateKey) {
             if ($normalized === $privateKey || str_contains($normalized, $privateKey)) {
                 return true;

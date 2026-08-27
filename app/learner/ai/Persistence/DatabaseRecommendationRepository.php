@@ -13,6 +13,7 @@ use TalentHub\Learner\Ai\Domain\RecommendationEvidence;
 use TalentHub\Learner\Ai\Domain\RecommendationInput;
 use TalentHub\Learner\Ai\Domain\RecommendationItem;
 use TalentHub\Learner\Ai\Domain\RecommendationResult;
+use TalentHub\Learner\Ai\Domain\RoadmapAnalysis;
 
 final class DatabaseRecommendationRepository implements RecommendationRepository
 {
@@ -110,6 +111,28 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
     }
 
     /** @return array<string,mixed> */
+    public function createPendingRoadmapRun(string $studentId, RecommendationInput $input, RecommendationContext $context): array
+    {
+        $pending = $this->createPendingRun($studentId, $input, $context);
+        $runId = (string) ($pending['runId'] ?? '');
+        $marker = $this->pdo->prepare(
+            "SELECT 1 FROM learner_recommendation_audit_events WHERE runId = :runId AND studentId = :studentId AND action = 'roadmap_run_created' LIMIT 1"
+        );
+        $marker->execute(['runId' => $runId, 'studentId' => $studentId]);
+        if ($marker->fetchColumn() === false) {
+            $this->insertAuditEvent(
+                $runId,
+                $studentId,
+                $context->requestId() ?? self::uuid(),
+                'roadmap_run_created',
+                ['purpose' => 'learner_roadmap'],
+                'pending',
+            );
+        }
+        return $pending;
+    }
+
+    /** @return array<string,mixed> */
     public function completeRun(string $studentId, string $runId, RecommendationResult $result): array
     {
         $studentId = $this->required($studentId, 'Student id is required.');
@@ -156,6 +179,48 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
             }
             $this->insertAuditEvent($runId, $studentId, self::uuid(), 'run_completed', $result->engineMetadata(), $status);
 
+            $completed = $this->runForStudent($studentId, $runId);
+            if ($completed === null) {
+                throw new RuntimeException('Recommendation run not found for learner');
+            }
+            return $completed;
+        });
+    }
+
+    /** @return array<string,mixed> */
+    public function completeRoadmapRun(string $studentId, string $runId, RoadmapAnalysis $analysis): array
+    {
+        $studentId = $this->required($studentId, 'Student id is required.');
+        $runId = $this->required($runId, 'Recommendation run id is required.');
+
+        return $this->transaction(function () use ($studentId, $runId, $analysis): array {
+            $run = $this->ownedRun($studentId, $runId);
+            if ($run['status'] !== 'pending') {
+                throw new RuntimeException('Recommendation run is not pending');
+            }
+            $metadata = $analysis->engineMetadata();
+            $isModel = $analysis->origin() === 'model';
+            $status = $isModel ? 'completed' : 'fallback';
+            $update = $this->pdo->prepare(
+                'UPDATE learner_recommendation_runs SET engineType = :engineType, status = :status, ruleVersion = :ruleVersion, provider = :provider, modelVersion = :modelVersion, promptVersion = :promptVersion, fallbackReason = :fallbackReason, safeErrorCode = NULL, completedAt = :completedAt WHERE id = :runId AND studentId = :studentId AND status = :pendingStatus'
+            );
+            $update->execute([
+                'engineType' => $isModel ? 'model' : 'rule',
+                'status' => $status,
+                'ruleVersion' => $isModel ? null : $metadata['rule_version'],
+                'provider' => $isModel ? $metadata['provider'] : null,
+                'modelVersion' => $isModel ? $metadata['model_version'] : null,
+                'promptVersion' => $isModel ? $metadata['prompt_version'] : null,
+                'fallbackReason' => $isModel ? null : $analysis->fallbackReason(),
+                'completedAt' => $this->now(),
+                'runId' => $runId,
+                'studentId' => $studentId,
+                'pendingStatus' => 'pending',
+            ]);
+            if ($update->rowCount() !== 1) {
+                throw new RuntimeException('Recommendation run is not pending');
+            }
+            $this->insertAuditEvent($runId, $studentId, self::uuid(), 'roadmap_run_completed', $metadata, $status);
             $completed = $this->runForStudent($studentId, $runId);
             if ($completed === null) {
                 throw new RuntimeException('Recommendation run not found for learner');

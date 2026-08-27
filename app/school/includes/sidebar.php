@@ -24,7 +24,7 @@ $sidebarNav = [
         'icon'   => 'grid',
     ],
     [
-        'title' => 'Học sinh',
+        'title' => 'Học sinh / Sinh viên',
         'route' => '/app/school/students.php',
         'icon'  => 'user',
     ],
@@ -34,9 +34,29 @@ $sidebarNav = [
         'icon'  => 'users',
     ],
     [
-        'title' => 'Lớp & Khối',
+        'title' => 'Lớp & Chuyên ngành',
         'route' => '/app/school/classes.php',
         'icon'  => 'book',
+    ],
+    [
+        'title' => 'Đối tác',
+        'route' => '/app/school/partnerships.php',
+        'icon' => 'users',
+    ],
+    [
+        'title' => 'Dự án',
+        'route' => '/app/school/projects.php',
+        'icon' => 'book',
+    ],
+    [
+        'title' => 'Thực tập',
+        'route' => '/app/school/internships.php',
+        'icon' => 'file-text',
+    ],
+    [
+        'title' => 'An toàn sinh viên',
+        'route' => '/app/school/safeguarding.php',
+        'icon' => 'lock',
     ],
     [
         'title' => 'Phân tích',
@@ -49,14 +69,9 @@ $sidebarNav = [
         'icon'  => 'file-text',
     ],
     [
-        'title' => 'Cài đặt',
-        'route' => '/app/school/settings.php',
-        'icon'  => 'cog',
-    ],
-    [
-        'title' => 'Tài khoản',
+        'title' => 'Hồ sơ & Tài khoản',
         'route' => '/app/school/account.php',
-        'icon'  => 'lock',
+        'icon'  => 'user',
     ],
 ];
 ?>
@@ -157,13 +172,19 @@ $sidebarNav = [
         </ul>
     </nav>
 
-    <!-- Bottom Action -->
+    <!-- Bottom Action: Logout -->
     <div class="school-sidebar__footer">
-        <a href="../../role-selection.php" class="school-sidebar__link school-sidebar__link--switch">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M16 17l5-5-5-5M19.8 12H9M13 22a10 10 0 1 1 0-20"></path>
-            </svg>
-            <span>Đổi vai trò</span>
+        <a href="<?= function_exists('app_href') ? app_href('/app/auth/logout.php?role=school') : '/app/auth/logout.php?role=school'; ?>" 
+           class="school-sidebar__link school-sidebar__link--logout"
+           aria-label="Đăng xuất khỏi hệ thống">
+            <span class="school-sidebar__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </span>
+            <span>Đăng xuất</span>
         </a>
     </div>
 </aside>

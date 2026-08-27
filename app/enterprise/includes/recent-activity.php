@@ -10,14 +10,20 @@
     </div>
 
     <div class="ent-activity-timeline">
-        <?php foreach ($recentActivities as $act): ?>
-            <div class="ent-activity-item">
-                <div class="ent-activity-item__indicator"></div>
-                <div class="ent-activity-item__content">
-                    <p class="ent-activity-item__text"><?= htmlspecialchars($act['title']); ?></p>
-                    <span class="ent-activity-item__time"><?= htmlspecialchars($act['time']); ?></span>
-                </div>
+        <?php if (empty($recentActivities)): ?>
+            <div style="text-align: center; padding: 2rem 1rem; color: var(--text-muted); font-size: 0.8125rem;">
+                Chưa có hoạt động tuyển dụng mới nào được ghi nhận.
             </div>
-        <?php endforeach; ?>
+        <?php else: ?>
+            <?php foreach ($recentActivities as $act): ?>
+                <div class="ent-activity-item">
+                    <div class="ent-activity-item__indicator"></div>
+                    <div class="ent-activity-item__content">
+                        <p class="ent-activity-item__text"><?= htmlspecialchars($act['title']); ?></p>
+                        <span class="ent-activity-item__time"><?= htmlspecialchars($act['time']); ?></span>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </div>
 </section>

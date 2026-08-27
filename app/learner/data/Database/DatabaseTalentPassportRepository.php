@@ -150,7 +150,22 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
 
     private function experience(string $studentId): array
     {
-        $sql = <<<'SQL'
+        $inspector = $this->inspector();
+        $hasDetails = $inspector->hasTable('activity_details');
+        $detail = function (string $column) use ($hasDetails): string {
+            return $hasDetails && $this->inspector()->hasColumn('activity_details', $column)
+                ? "ad.{$column}"
+                : 'NULL';
+        };
+        $activityStartAt = $inspector->hasColumn('activities', 'startAt') ? 'a.startAt' : 'NULL';
+        $detailsJoin = $hasDetails ? 'LEFT JOIN activity_details ad ON ad.activityId = a.id' : '';
+        $displayCategory = $detail('displayCategory');
+        $filterCategory = $detail('filterCategory');
+        $locationName = $detail('locationName');
+        $coverImageUrl = $detail('coverImageUrl');
+        $coverImageAlt = $detail('coverImageAlt');
+
+        $sql = <<<SQL
             SELECT
                 el.id,
                 el.studentId,
@@ -160,10 +175,26 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
                 el.status,
                 el.confirmedAt,
                 a.title AS activityTitle,
-                a.category AS activityCategory
+                a.category AS activityCategory,
+                {$displayCategory} AS displayCategory,
+                {$filterCategory} AS filterCategory,
+                {$activityStartAt} AS activityStartAt,
+                {$locationName} AS locationName,
+                {$coverImageUrl} AS coverImageUrl,
+                {$coverImageAlt} AS coverImageAlt
             FROM experience_logs el
-            LEFT JOIN activities a ON a.id = el.activityId
-            WHERE el.studentId = :student_id AND el.status = 'confirmed'
+            INNER JOIN checkins ci ON ci.id = el.checkinId
+                AND ci.status = 'confirmed'
+                AND ci.confirmedAt IS NOT NULL
+            INNER JOIN activity_registrations ar ON ar.id = ci.registrationId
+                AND ar.studentId = el.studentId
+                AND ar.activityId = el.activityId
+                AND ar.status = 'attended'
+            INNER JOIN activities a ON a.id = el.activityId
+            {$detailsJoin}
+            WHERE el.studentId = :student_id
+              AND el.status = 'confirmed'
+              AND el.confirmedAt IS NOT NULL
             ORDER BY el.confirmedAt DESC, el.id ASC
             SQL;
 
@@ -285,6 +316,7 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
         $sql = <<<'SQL'
             SELECT
                 COUNT(ar.id) AS registeredCount,
+                SUM(CASE WHEN ar.status IN ('pending', 'approved', 'waitlisted') THEN 1 ELSE 0 END) AS activeRegisteredCount,
                 SUM(CASE WHEN ar.status = 'attended' THEN 1 ELSE 0 END) AS attendedCount
             FROM activity_registrations ar
             WHERE ar.studentId = :student_id
@@ -294,6 +326,7 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
 
         return [
             'registered_count' => (int) ($row['registered_count'] ?? 0),
+            'active_registered_count' => (int) ($row['active_registered_count'] ?? 0),
             'attended_count' => (int) ($row['attended_count'] ?? 0),
             'confirmed_hours' => $confirmedHours,
         ];

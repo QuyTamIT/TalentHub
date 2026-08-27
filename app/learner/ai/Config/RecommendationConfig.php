@@ -18,6 +18,9 @@ final class RecommendationConfig
         private readonly int $maxAttempts,
         private readonly int $perStudentLimit,
         private readonly int $globalLimit,
+        private readonly int $roadmapTimeoutSeconds,
+        private readonly int $roadmapPerStudentLimit,
+        private readonly int $roadmapGlobalLimit,
         private readonly bool $shadowEnabled,
         private readonly bool $shadowGateApproved,
         private readonly int $visiblePercent,
@@ -31,7 +34,7 @@ final class RecommendationConfig
     {
         $enabled = strtolower(self::value($environment, 'TALENTHUB_AI_ENABLED', 'false')) === 'true';
         if (!$enabled) {
-            return new self(false, null, null, null, null, [], 2, 1, 1, 1, false, false, 0, null, true);
+            return new self(false, null, null, null, null, [], 2, 1, 1, 1, 30, 2, 20, false, false, 0, null, true);
         }
 
         $provider = self::required($environment, 'TALENTHUB_AI_PROVIDER');
@@ -60,6 +63,9 @@ final class RecommendationConfig
             self::boundedInt($environment, 'TALENTHUB_AI_MAX_ATTEMPTS', 1, 1, 2),
             self::boundedInt($environment, 'TALENTHUB_AI_PER_STUDENT_LIMIT', 2, 1, 60),
             self::boundedInt($environment, 'TALENTHUB_AI_GLOBAL_LIMIT', 20, 1, 600),
+            self::boundedInt($environment, 'TALENTHUB_AI_ROADMAP_TIMEOUT_SECONDS', 30, 1, 60),
+            self::boundedInt($environment, 'TALENTHUB_AI_ROADMAP_PER_STUDENT_LIMIT', 2, 1, 60),
+            self::boundedInt($environment, 'TALENTHUB_AI_ROADMAP_GLOBAL_LIMIT', 20, 1, 600),
             strtolower(self::value($environment, 'TALENTHUB_AI_SHADOW', 'false')) === 'true',
             strtolower(self::value($environment, 'TALENTHUB_AI_SHADOW_GATE_APPROVED', 'false')) === 'true',
             self::boundedInt($environment, 'TALENTHUB_AI_VISIBLE_PERCENT', 0, 0, 100),
@@ -77,6 +83,9 @@ final class RecommendationConfig
     public function maxAttempts(): int { return $this->maxAttempts; }
     public function perStudentLimit(): int { return $this->perStudentLimit; }
     public function globalLimit(): int { return $this->globalLimit; }
+    public function roadmapTimeoutSeconds(): int { return $this->roadmapTimeoutSeconds; }
+    public function roadmapPerStudentLimit(): int { return $this->roadmapPerStudentLimit; }
+    public function roadmapGlobalLimit(): int { return $this->roadmapGlobalLimit; }
     public function shadowEnabled(): bool { return $this->shadowEnabled; }
     public function shadowGateApproved(): bool { return $this->shadowGateApproved; }
     public function visiblePercent(): int { return $this->visiblePercent; }
