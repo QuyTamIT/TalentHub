@@ -6,7 +6,7 @@ use TalentHub\Database\Migration\AbstractMigration;
 use TalentHub\Database\Migration\MigrationContext;
 
 return new class extends AbstractMigration {
-    private const SOURCE_TYPES = "'profile','skill','assessment','activity_experience','activity','evaluation','opportunity','certificate','project','achievement','badge','progress','checkin','mentor_evaluation','teacher_feedback','roadmap_feedback'";
+    private const SOURCE_TYPES = "'profile','skill','assessment','activity_experience','activity','evaluation','opportunity','catalog','certificate','project','achievement','badge','progress','checkin','mentor_evaluation','teacher_feedback','roadmap_feedback'";
 
     public function description(): string
     {
