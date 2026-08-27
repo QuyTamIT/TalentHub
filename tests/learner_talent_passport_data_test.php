@@ -119,6 +119,7 @@ passport_data_assert(!in_array('Communication', array_column($passportA['skills'
 passport_data_assert($passportA['experience']['confirmed_hours'] === 2.5, 'Only confirmed experience is summed (2.5, not 6.5 or 12.5)');
 passport_data_assert(count($passportA['experience']['confirmed_entries']) === 1, 'Only 1 confirmed entry for Student A');
 passport_data_assert($passportA['experience']['confirmed_entries'][0]['id'] === 'exp-1', 'Correct confirmed entry');
+passport_data_assert($passportA['checkins'] === $passportA['experience']['confirmed_entries'], 'Confirmed check-ins are exposed as a canonical AI source');
 
 // Assert automated assessment results (only submitted WITH test_results)
 passport_data_assert(count($passportA['assessment_results']) === 1, 'Only 1 submitted assessment attempt WITH results for Student A');
@@ -134,6 +135,10 @@ passport_data_assert($passportA['teacher_evaluations'][0]['teacher_name'] === 'T
 passport_data_assert($passportA['teacher_evaluations'][0]['overall_score'] === 9.0, 'Correct overall score');
 passport_data_assert(count($passportA['teacher_evaluations'][0]['criteria_scores']) === 1, 'Criteria scores included');
 passport_data_assert(!str_contains(json_encode($passportA), 'Student B Secret Evaluation'), 'Student B evaluations do not leak');
+passport_data_assert($passportA['teacher_feedback'] === $passportA['teacher_evaluations'], 'Published teacher comments are exposed as canonical feedback');
+passport_data_assert(($passportA['source_availability']['achievement']['status'] ?? null) === 'unavailable', 'Missing achievement schema is explicit');
+passport_data_assert(($passportA['source_availability']['mentor_evaluation']['reason'] ?? null) === 'canonical_source_not_available', 'Missing mentor evaluation has a stable reason');
+passport_data_assert(($passportA['source_availability']['roadmap_feedback']['status'] ?? null) === 'unavailable', 'Missing roadmap feedback schema is explicit');
 
 // Assert absent optional facts
 passport_data_assert($passportA['certificates'] === [], 'Absent certificates is empty array');
@@ -195,6 +200,30 @@ passport_data_assert(($passportWithBadge['badges'][0]['code'] ?? null) === 'firs
 passport_data_assert(($passportWithBadge['badges'][0]['icon_url'] ?? null) === '/badge.svg', 'Canonical badge icon alias is mapped');
 passport_data_assert(($passportWithBadge['badges'][0]['awarded_at'] ?? null) === '2026-08-20', 'Canonical award timestamp is mapped');
 passport_data_assert(!str_contains(json_encode($passportWithBadge), '2026-08-21'), 'Foreign learner badge metadata does not leak');
+passport_data_assert(count($passportWithBadge['progress'] ?? []) === 1, 'Canonical badge progression is exposed to the AI snapshot');
+passport_data_assert(($passportWithBadge['progress'][0]['status'] ?? null) === 'achieved', 'Awarded badge progress is marked achieved');
+passport_data_assert(($passportWithBadge['source_availability']['progress']['status'] ?? null) === 'available', 'Progress capability is available when canonical badge schema exists');
+
+// 9. Roadmap feedback is read from the canonical append-only audit store.
+$pdo->exec('CREATE TABLE learner_recommendation_audit_events (id TEXT PRIMARY KEY, runId TEXT NOT NULL, studentId TEXT NOT NULL, requestId TEXT NOT NULL, actorType TEXT NOT NULL, action TEXT NOT NULL, engineMetadataJson TEXT NOT NULL, status TEXT NOT NULL, createdAt TEXT NOT NULL)');
+$pdo->exec("INSERT INTO learner_recommendation_audit_events VALUES ('feedback-a', 'run-a', '{$studentA}', 'request-a', 'learner', 'roadmap_feedback', '{\"verdict\":\"helpful\",\"reason_code\":\"useful_direction\"}', 'completed', '2026-08-26 10:00:00')");
+$pdo->exec("INSERT INTO learner_recommendation_audit_events VALUES ('feedback-b', 'run-b', '{$studentB}', 'request-b', 'learner', 'roadmap_feedback', '{\"verdict\":\"not_helpful\",\"reason_code\":\"not_relevant\"}', 'completed', '2026-08-26 11:00:00')");
+$passportWithFeedback = $repo->aggregateForStudent($studentA);
+passport_data_assert(count($passportWithFeedback['roadmap_feedback'] ?? []) === 1, 'Only authenticated learner roadmap feedback is returned');
+passport_data_assert(($passportWithFeedback['roadmap_feedback'][0]['verdict'] ?? null) === 'helpful', 'Roadmap feedback verdict is decoded');
+passport_data_assert(!str_contains(json_encode($passportWithFeedback), 'not_relevant'), 'Foreign learner roadmap feedback does not leak');
+passport_data_assert(($passportWithFeedback['source_availability']['roadmap_feedback']['status'] ?? null) === 'available', 'Roadmap feedback capability is available when canonical audit store exists');
+
+// 10. Stored AI capability profile is visible only while current assessment consent is granted.
+$pdo->exec('CREATE TABLE learner_ai_consent_events (id TEXT PRIMARY KEY, studentId TEXT, scope TEXT, action TEXT, occurredAt TEXT)');
+$pdo->exec('CREATE TABLE learner_ai_capability_profiles (id TEXT PRIMARY KEY, student_id TEXT, version_number INTEGER, status TEXT, talent_map_json TEXT, strengths_json TEXT, improvements_json TEXT, potential_paths_json TEXT, trend_signals_json TEXT, evidence_json TEXT, snapshot_hash TEXT, model_version TEXT, generated_at TEXT, stale_since TEXT, superseded_at TEXT, created_at TEXT)');
+$pdo->exec("INSERT INTO learner_ai_consent_events VALUES ('consent-grant', '{$studentA}', 'assessment', 'granted', '2026-08-27 09:00:00')");
+$pdo->exec("INSERT INTO learner_ai_capability_profiles VALUES ('profile-a', '{$studentA}', 1, 'ready_model', '{\"technical\":80}', '[{\"label\":\"Logic\"}]', '[]', '[]', '[]', '[{\"source_type\":\"assessment\"}]', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'gemini-test', '2026-08-27 09:10:00', NULL, NULL, '2026-08-27 09:10:00')");
+$passportWithAiProfile=$repo->aggregateForStudent($studentA);
+passport_data_assert(($passportWithAiProfile['ai_capability_profile']['status']??null)==='ready_model','Granted consent exposes stored AI capability profile');
+$pdo->exec("INSERT INTO learner_ai_consent_events VALUES ('consent-revoke', '{$studentA}', 'assessment', 'revoked', '2026-08-27 10:00:00')");
+$passportAfterRevoke=$repo->aggregateForStudent($studentA);
+passport_data_assert(($passportAfterRevoke['ai_capability_profile']??null)===null,'Revoked consent suppresses stored AI capability profile immediately');
 
 $passportSource = file_get_contents(dirname(__DIR__) . '/app/learner/data/Database/DatabaseTalentPassportRepository.php') ?: '';
 passport_data_assert(!str_contains($passportSource, 'SELECT b.*'), 'Badge passport query lists explicit canonical columns');

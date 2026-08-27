@@ -3,12 +3,16 @@
 declare(strict_types=1);
 
 namespace TalentHub\Modules\School\Repository;
+require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/TransactionalAiOutboxPublisher.php';
+require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/AiAudienceResolver.php';
 
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
 use TalentHub\Http\ApiException;
 use TalentHub\Support\Uuid;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
+use TalentHub\Learner\Ai\Queue\AiAudienceResolver;
 
 final class SchoolProjectRepository
 {
@@ -126,6 +130,12 @@ SQL);
                 'mentorTeacherId' => $mentorTeacherId,
                 'status' => $status,
             ]);
+            if ($status === 'in_progress') {
+                $studentIds = (new AiAudienceResolver($this->pdo))->schoolStudents($schoolId);
+                if ($studentIds !== []) {
+                    TransactionalAiOutboxPublisher::publish($this->pdo, 'project', $id, TransactionalAiOutboxPublisher::version(), $studentIds, 'project.published', ['status' => $status], $schoolId);
+                }
+            }
             $this->pdo->commit();
         } catch (\Throwable $exception) {
             if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
@@ -224,6 +234,10 @@ SQL);
                 'schoolId' => $schoolId,
                 'changes' => array_keys($input),
             ]);
+            $studentIds = (new AiAudienceResolver($this->pdo))->schoolStudents($schoolId);
+            if ($studentIds !== []) {
+                TransactionalAiOutboxPublisher::publish($this->pdo, 'project', $projectId, TransactionalAiOutboxPublisher::version(), $studentIds, $status === 'in_progress' ? 'project.updated' : 'project.archived', ['changes' => array_values(array_keys($input)), 'status' => $status], $schoolId);
+            }
             $this->pdo->commit();
         } catch (\Throwable $exception) {
             if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }

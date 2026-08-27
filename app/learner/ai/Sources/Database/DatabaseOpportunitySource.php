@@ -82,7 +82,9 @@ SELECT
     activity.category,
     details.locationName AS location,
     policy.registrationClosesAt AS deadline,
-    activity.status
+    activity.status,
+    activity.capacity,
+    (SELECT COUNT(1) FROM activity_registrations occupied WHERE occupied.activityId = activity.id AND occupied.status IN ('approved', 'attended')) AS enrolled_count
 FROM activities activity
 INNER JOIN schools school ON school.id = activity.schoolId
 INNER JOIN classes class ON class.schoolId = school.id
@@ -123,8 +125,10 @@ SQL;
             try {
                 $supportsAudience = in_array('audience', $this->columnsFor('internship_posts'), true);
                 $supportsCreatedAt = in_array('createdAt', $this->columnsFor('internship_posts'), true);
+                $supportsSlots = in_array('slots', $this->columnsFor('internship_posts'), true);
                 $orderBy = $supportsCreatedAt ? 'ORDER BY post.createdAt DESC, post.id DESC' : 'ORDER BY post.id DESC';
                 $query = $supportsAudience ? self::INTERNSHIP_SQL : self::INTERNSHIP_SQL_FALLBACK;
+                $query = str_replace("post.deadline\n", 'post.deadline, ' . ($supportsSlots ? 'post.slots' : '1') . " AS capacity\n", $query);
                 $query = str_replace('ORDER BY post.createdAt DESC, post.id DESC', $orderBy, $query);
                 $statement = $this->pdo->prepare(
                     $query,
@@ -138,18 +142,25 @@ SQL;
                 if ($executed) {
                     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
                         $deadline = self::timestamp($row['deadline'] ?? null);
-                        if ($deadline === null) {
+                        if ($deadline === null || $deadline <= $this->clock->format('Y-m-d\\TH:i:s.uP')) {
                             continue;
                         }
 
+                        $capacity = max(1, (int) ($row['capacity'] ?? 1));
+                        $applicationState = $this->internshipApplicationState((string) $row['opportunity_id'], $studentId);
+                        if ($applicationState['already_applied'] || $applicationState['accepted'] >= $capacity) continue;
                         $opportunities[] = [
                             'opportunity_id' => (string) $row['opportunity_id'],
+                            'catalog_id' => (string) $row['opportunity_id'],
                             'enterprise_id' => (string) $row['enterprise_id'],
                             'title' => (string) $row['title'],
                             'location' => (string) $row['location'],
                             'deadline_at' => $deadline,
                             'opportunity_type' => 'internship',
                             'status' => 'active',
+                            'availability' => ['capacity' => $capacity, 'enrolled' => $applicationState['accepted'], 'remaining' => max(0, $capacity - $applicationState['accepted'])],
+                            'url' => '/app/learner/opportunities.php?postId=' . rawurlencode((string) $row['opportunity_id']),
+                            'action' => ['type' => 'view_opportunity', 'post_id' => (string) $row['opportunity_id']],
                         ];
                     }
                 }
@@ -180,12 +191,20 @@ SQL;
 
                         $opportunities[] = [
                             'opportunity_id' => (string) $row['opportunity_id'],
+                            'catalog_id' => (string) $row['opportunity_id'],
                             'title' => (string) $row['title'],
                             'category' => (string) $row['category'],
                             'location' => (string) ($row['location'] ?? 'Trường học'),
                             'deadline_at' => $deadline,
                             'opportunity_type' => 'activity',
                             'status' => (string) $row['status'],
+                            'availability' => [
+                                'capacity' => (int) ($row['capacity'] ?? 0),
+                                'enrolled' => (int) ($row['enrolled_count'] ?? 0),
+                                'remaining' => max(0, (int) ($row['capacity'] ?? 0) - (int) ($row['enrolled_count'] ?? 0)),
+                            ],
+                            'url' => '/app/learner/activity-detail.php?id=' . rawurlencode((string) $row['opportunity_id']),
+                            'action' => ['type' => 'register_activity', 'activity_source_id' => (string) $row['opportunity_id']],
                         ];
                     }
                 }
@@ -223,6 +242,25 @@ SQL;
         }
 
         return true;
+    }
+
+    /** @return array{accepted:int,already_applied:bool} */
+    private function internshipApplicationState(string $postId, string $studentId): array
+    {
+        $columns = $this->columnsFor('internship_applications');
+        if (array_diff(['postId', 'studentId', 'status'], $columns) !== []) return ['accepted' => 0, 'already_applied' => false];
+        try {
+            $statement = $this->pdo->prepare(
+                "SELECT SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) AS accepted, "
+                . 'MAX(CASE WHEN studentId=:student THEN 1 ELSE 0 END) AS already_applied '
+                . 'FROM internship_applications WHERE postId=:post'
+            );
+            $statement->execute(['student' => $studentId, 'post' => $postId]);
+            $row = $statement->fetch(PDO::FETCH_ASSOC) ?: [];
+            return ['accepted' => (int) ($row['accepted'] ?? 0), 'already_applied' => (int) ($row['already_applied'] ?? 0) === 1];
+        } catch (Throwable) {
+            return ['accepted' => PHP_INT_MAX, 'already_applied' => true];
+        }
     }
 
     /** @return list<string> */

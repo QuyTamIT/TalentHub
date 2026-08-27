@@ -5,7 +5,8 @@
 (function initLearnerRecommendations(global) {
     'use strict';
 
-    const READY_STATES = new Set(['ready-rule', 'ready-model', 'fallback-rule']);
+    const READY_STATES = new Set(['ready-rule', 'ready-model', 'stale-model', 'fallback-rule']);
+    const RECOMMENDATION_ACTIONS = new Set(['view_activity', 'view_opportunity', 'register_activity', 'open_catalog_item']);
 
     function presentationState(payload) {
         const state = typeof payload?.state === 'string' ? payload.state : '';
@@ -13,6 +14,7 @@
         if (state === 'insufficient_data' || state === 'not_generated') return 'insufficient-data';
         if (state === 'ready_rule') return 'ready-rule';
         if (state === 'ready_model') return 'ready-model';
+        if (state === 'stale_model') return 'stale-model';
         if (state === 'fallback_rule') return 'fallback-rule';
         if (state === 'pending') return 'loading';
         return 'source-error';
@@ -22,6 +24,49 @@
         if (itemType === 'strength') return 'strength';
         if (itemType === 'activity') return 'activity';
         return 'other';
+    }
+
+    function createRecommendationClickTracker({
+        fetchImpl = global.fetch,
+        csrfToken = '',
+        endpoint = '/app/learner/api/v1/recommendation-click.php',
+    } = {}) {
+        function track(input) {
+            const itemId = typeof input?.itemId === 'string' ? input.itemId.trim() : '';
+            const catalogId = typeof input?.catalogId === 'string' ? input.catalogId.trim() : '';
+            const actionType = typeof input?.actionType === 'string' ? input.actionType.trim().toLowerCase() : '';
+            if (typeof fetchImpl !== 'function'
+                || !validOpaqueId(itemId)
+                || (catalogId !== '' && !validOpaqueId(catalogId))
+                || !RECOMMENDATION_ACTIONS.has(actionType)) return;
+
+            const payload = { itemId, actionType };
+            if (catalogId !== '') payload.catalogId = catalogId;
+            try {
+                Promise.resolve(fetchImpl(endpoint, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    keepalive: true,
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': String(csrfToken || ''),
+                    },
+                    body: JSON.stringify(payload),
+                })).catch(() => {});
+            } catch {
+                // Telemetry is best-effort. A failure must never block the CTA navigation.
+            }
+        }
+
+        return { track };
+    }
+
+    function validOpaqueId(value) {
+        return typeof value === 'string'
+            && value.length >= 1
+            && value.length <= 128
+            && /^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value);
     }
 
     function createRecommendationController({ api, view, createIdempotencyKey = defaultIdempotencyKey }) {
@@ -145,6 +190,7 @@
                 'source-error': 'Chưa thể lấy dữ liệu gợi ý.',
                 'ready-rule': 'Gợi ý theo quy tắc đã sẵn sàng.',
                 'ready-model': 'Gợi ý từ mô hình đã sẵn sàng.',
+                'stale-model': 'Đang hiển thị gợi ý AI gần nhất trong khi hệ thống cập nhật.',
                 'fallback-rule': 'Đang hiển thị gợi ý dự phòng theo quy tắc.',
                 'feedback-saved': 'Đã lưu phản hồi của bạn.',
             }[state] || 'Trạng thái gợi ý đã thay đổi.';
@@ -265,7 +311,15 @@
             summary.textContent = text(item.summary, 'Gợi ý được xây dựng từ dữ liệu bạn đã cho phép.');
             article.append(title, summary);
 
+            const type = text(item.item_type, 'development');
+            const typeLabel = document.createElement('small');
+            typeLabel.className = 'learner-ai-result__type';
+            typeLabel.textContent = ({ activity: 'Hoạt động', strength: 'Điểm mạnh', improvement: 'Cần cải thiện', development: 'Phát triển', roadmap: 'Lộ trình' })[type] || 'Gợi ý';
+            article.appendChild(typeLabel);
+
+            const itemId = text(item.item_id, '');
             const action = item.action && typeof item.action === 'object' ? item.action : null;
+            let hasActionLink = false;
             if (action?.type === 'register_activity'
                 && typeof action.activity_source_id === 'string'
                 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(action.activity_source_id)) {
@@ -273,10 +327,30 @@
                 link.className = 'learner-btn learner-btn--primary';
                 link.href = `activity-detail.php?id=${encodeURIComponent(action.activity_source_id)}`;
                 link.textContent = 'Xem hoạt động và đăng ký';
+                decorateRecommendationCta(link, itemId, '', 'register_activity');
                 article.appendChild(link);
+                hasActionLink = true;
+            }
+            if (!hasActionLink) {
+                const evidence = Array.isArray(item.evidence) ? item.evidence : [];
+                const catalog = evidence.find((entry) => ['catalog', 'opportunity'].includes(entry?.source_type)
+                    && entry?.safe_value && typeof entry.safe_value === 'object');
+                const url = typeof catalog?.safe_value?.url === 'string' ? catalog.safe_value.url.trim() : '';
+                if (/^\/(?!\/)[A-Za-z0-9._~!$&'()*+,;=:@%/?#-]+$/.test(url)) {
+                    const link = document.createElement('a');
+                    link.className = 'learner-btn learner-btn--primary';
+                    link.href = url;
+                    link.textContent = 'Xem chi tiết';
+                    decorateRecommendationCta(
+                        link,
+                        itemId,
+                        typeof catalog.source_id === 'string' ? catalog.source_id : '',
+                        catalog.source_type === 'opportunity' ? 'view_opportunity' : 'open_catalog_item',
+                    );
+                    article.appendChild(link);
+                }
             }
 
-            const itemId = text(item.item_id, '');
             const evidence = Array.isArray(item.evidence) ? item.evidence : [];
             if (itemId !== '' && evidence.length > 0) {
                 const toggle = document.createElement('button');
@@ -344,6 +418,14 @@
         return button;
     }
 
+    function decorateRecommendationCta(link, itemId, catalogId, actionType) {
+        if (!validOpaqueId(itemId) || !RECOMMENDATION_ACTIONS.has(actionType)) return;
+        link.dataset.aiRecommendationCta = 'true';
+        link.dataset.aiRecommendationItem = itemId;
+        link.dataset.aiRecommendationAction = actionType;
+        if (validOpaqueId(catalogId)) link.dataset.aiRecommendationCatalog = catalogId;
+    }
+
     function engineLabel(state, payload = {}) {
         const effectiveState = state !== 'feedback-saved'
             ? state
@@ -351,6 +433,7 @@
                 ? presentationState(payload)
                 : (payload?.engine_type === 'model' ? 'ready-model' : 'ready-rule'));
         if (effectiveState === 'ready-model') return 'Gợi ý từ mô hình AI';
+        if (effectiveState === 'stale-model') return 'Gợi ý AI gần nhất';
         if (effectiveState === 'fallback-rule') return 'Gợi ý dự phòng theo quy tắc';
         return 'Gợi ý theo quy tắc';
     }
@@ -396,7 +479,19 @@
             return;
         }
         const controller = createRecommendationController({ api, view: createDomView(root) });
+        const clickTracker = createRecommendationClickTracker({ csrfToken });
         root.addEventListener('click', (event) => {
+            const cta = event.target instanceof Element
+                ? event.target.closest('a[data-ai-recommendation-cta]')
+                : null;
+            if (cta && root.contains(cta)) {
+                clickTracker.track({
+                    itemId: cta.dataset.aiRecommendationItem,
+                    catalogId: cta.dataset.aiRecommendationCatalog,
+                    actionType: cta.dataset.aiRecommendationAction,
+                });
+                return;
+            }
             const target = event.target instanceof Element ? event.target.closest('button') : null;
             if (!target || !root.contains(target)) return;
             if (target.matches('[data-ai-generate]')) {
@@ -418,7 +513,14 @@
         controller.load();
     }
 
-    const api = { createRecommendationController, createDomView, presentationState, recommendationSection, engineLabel };
+    const api = {
+        createRecommendationController,
+        createRecommendationClickTracker,
+        createDomView,
+        presentationState,
+        recommendationSection,
+        engineLabel,
+    };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     global.TalentHubLearnerRecommendations = api;
 

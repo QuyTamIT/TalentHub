@@ -2,7 +2,7 @@
 (function initLearnerAiRoadmap(global) {
     'use strict';
 
-    const READY_STATES = new Set(['ready-model', 'fallback-rule']);
+    const READY_STATES = new Set(['ready-model', 'stale-model', 'fallback-rule']);
 
     function presentationState(payload) {
         const state = typeof payload?.state === 'string' ? payload.state : '';
@@ -11,6 +11,8 @@
         if (state === 'consent_required') return 'consent-required';
         if (state === 'insufficient_data') return 'insufficient-data';
         if (state === 'ready_model') return 'ready-model';
+        if (state === 'stale_model') return 'stale-model';
+        if (state === 'ready_rule') return 'fallback-rule';
         if (state === 'fallback_rule') return 'fallback-rule';
         return 'source-error';
     }
@@ -29,6 +31,7 @@
     }
 
     function buildRoadmapViewModel(payload) {
+        const records = (value, limit = 8) => (Array.isArray(value) ? value.filter((item) => item && typeof item === 'object').slice(0, limit) : []);
         const rawPhases = Array.isArray(payload?.phases) ? payload.phases : [];
         const phases = rawPhases
             .filter((phase) => phase && typeof phase === 'object')
@@ -56,6 +59,12 @@
             activities,
             evidenceTotal,
             confidenceLabel: confidenceLabel(payload?.confidence_band),
+            talentMap: records(payload?.talent_map).map((item) => ({ ...item, score: Math.max(0, Math.min(100, Number(item?.score) || 0)) })),
+            strengths: records(payload?.strengths),
+            improvements: records(payload?.improvements),
+            potentialPaths: records(payload?.potential_paths),
+            trendSignals: records(payload?.trend_signals),
+            growthHypotheses: records(payload?.growth_hypotheses),
         };
     }
 
@@ -72,21 +81,46 @@
         return factory({ baseUrl: '/app/learner/api/v1', csrfToken, timeoutMs: 45000 });
     }
 
-    function createRoadmapController({ api, view, createIdempotencyKey = defaultIdempotencyKey }) {
+    function createRoadmapController({
+        api, view, createIdempotencyKey = defaultIdempotencyKey,
+        schedule = (callback, delay) => global.setTimeout(callback, delay),
+        cancelSchedule = (handle) => global.clearTimeout(handle),
+        pendingDelays = [1000, 2000, 4000, 8000, 15000],
+    }) {
         if (!api || typeof api.get !== 'function' || typeof api.send !== 'function') throw new TypeError('A roadmap API client is required.');
         if (!view || typeof view.render !== 'function') throw new TypeError('A roadmap view is required.');
         let generation = null;
         let currentRoadmapId = '';
+        let pendingAttempt = 0;
+        let pendingHandle = null;
+
+        function stopPolling(reset = true) {
+            if (pendingHandle !== null) cancelSchedule(pendingHandle);
+            pendingHandle = null;
+            if (reset) pendingAttempt = 0;
+        }
+
+        function schedulePendingPoll() {
+            if (pendingHandle !== null || pendingAttempt >= pendingDelays.length) return;
+            const delay = pendingDelays[pendingAttempt];
+            pendingAttempt += 1;
+            pendingHandle = schedule(async () => {
+                pendingHandle = null;
+                await load(false);
+            }, delay);
+        }
 
         function render(payload) {
             const state = presentationState(payload);
             if (READY_STATES.has(state)) currentRoadmapId = text(payload?.roadmap_id);
             view.render(state, READY_STATES.has(state) ? buildRoadmapViewModel(payload) : payload);
+            if (state === 'pending') schedulePendingPoll();
+            else stopPolling();
             return payload;
         }
 
-        async function load() {
-            view.render('loading', {});
+        async function load(showLoading = true) {
+            if (showLoading) view.render('loading', {});
             try { return render(await api.get('/ai-roadmap.php')); }
             catch (error) { return render({ state: 'source_unavailable', message: error?.message }); }
         }
@@ -146,7 +180,7 @@
             return generation;
         }
 
-        return { load, loadVersion, generate, retry: load, updateTask, submitFeedback };
+        return { load, loadVersion, generate, retry: load, updateTask, submitFeedback, dispose: stopPolling };
     }
 
     function createDomView(root) {
@@ -171,6 +205,12 @@
             directionRationale: root.querySelector('[data-roadmap-direction-rationale]'),
             alternatives: root.querySelector('[data-roadmap-direction-alternatives]'),
             insights: root.querySelector('[data-roadmap-insights]'),
+            talentMap: root.querySelector('[data-roadmap-talent-map]'),
+            strengths: root.querySelector('[data-roadmap-strengths]'),
+            improvements: root.querySelector('[data-roadmap-improvements]'),
+            trends: root.querySelector('[data-roadmap-trends]'),
+            potentialPaths: root.querySelector('[data-roadmap-potential-paths]'),
+            growthHypotheses: root.querySelector('[data-roadmap-growth-hypotheses]'),
             phases: root.querySelector('[data-roadmap-phases]'),
             overallProgress: root.querySelector('[data-roadmap-overall-progress]'),
             nextActions: root.querySelector('[data-roadmap-next-actions]'),
@@ -196,6 +236,7 @@
                 loading: 'Đang tải lộ trình AI.', 'not-generated': 'Chưa có lộ trình AI.', pending: 'AI đang tạo lộ trình.',
                 'consent-required': 'Cần quyền dữ liệu để tạo lộ trình.', 'insufficient-data': 'Chưa đủ dữ liệu để tạo lộ trình.',
                 'source-error': 'Chưa thể tải lộ trình.', 'ready-model': 'Lộ trình từ AI đã sẵn sàng.',
+                'stale-model': 'Đang hiển thị lộ trình AI gần nhất trong khi hệ thống cập nhật.',
                 'fallback-rule': 'Gợi ý dự phòng theo quy tắc đã sẵn sàng.',
             }[state] || 'Trạng thái lộ trình đã thay đổi.';
         }
@@ -214,15 +255,16 @@
         }
 
         function renderReady(model, state) {
-            set(nodes.summaryLabel, state === 'ready-model' ? 'Tóm tắt từ AI' : 'Gợi ý dự phòng theo quy tắc');
+            set(nodes.summaryLabel, state === 'fallback-rule' ? 'Gợi ý dự phòng theo quy tắc' : (state === 'stale-model' ? 'Bản AI gần nhất' : 'Tóm tắt từ AI'));
             set(nodes.summary, text(model.executive_summary, 'Chưa có nội dung tóm tắt.'));
             set(nodes.evidenceTotal, `${model.evidenceTotal} nguồn dữ liệu đã cho phép`);
             set(nodes.confidence, model.confidenceLabel);
             set(nodes.directionLabel, text(model?.primary_direction?.label, 'Chưa xác định'));
             set(nodes.directionRationale, text(model?.primary_direction?.rationale, 'Hướng này cần được kiểm chứng qua trải nghiệm thực tế.'));
-            set(nodes.freshness, `Cập nhật: ${displayDate(model.generated_at)}`);
+            set(nodes.freshness, state === 'stale-model' ? `Bản gần nhất: ${displayDate(model.generated_at)} · Đang thử cập nhật lại` : `Cập nhật: ${displayDate(model.generated_at)}`);
             renderAlternatives(model.alternative_directions);
             renderInsights(model.insights);
+            renderCapabilityAnalysis(model);
             renderPhases(model.phases);
             renderNextActions(model.nextActions);
             renderActivities(model.activities);
@@ -237,6 +279,39 @@
             const complete = integer(model?.progress?.completed_tasks);
             const total = integer(model?.progress?.total_tasks);
             set(nodes.overallProgress, `${complete}/${total} nhiệm vụ hoàn thành`);
+        }
+
+        function evidenceTitle(record) {
+            const references = Array.isArray(record?.evidence_ref_ids) ? record.evidence_ref_ids.filter((value) => typeof value === 'string') : [];
+            return references.length > 0 ? `Nguồn bằng chứng: ${references.join(', ')}` : 'Chưa có nguồn bằng chứng hiển thị.';
+        }
+
+        function renderCapabilityAnalysis(model) {
+            clear(nodes.talentMap);
+            for (const item of model.talentMap) {
+                const row = element('article', 'learner-roadmap-capability__talent');
+                row.setAttribute('title', evidenceTitle(item));
+                row.append(element('strong', '', text(item?.field, 'Lĩnh vực')), element('span', '', `${Math.round(Number(item?.score) || 0)}%`));
+                nodes.talentMap?.appendChild(row);
+            }
+            renderTextRecords(nodes.strengths, model.strengths, 'Chưa có điểm mạnh đủ bằng chứng.');
+            renderTextRecords(nodes.improvements, model.improvements, 'Chưa có điểm cần cải thiện đủ bằng chứng.');
+            renderTextRecords(nodes.trends, model.trendSignals, 'Chưa có xu hướng đủ bằng chứng.', 'label');
+            renderTextRecords(nodes.potentialPaths, model.potentialPaths, 'Chưa có hướng phát triển đủ bằng chứng.', 'label');
+            renderTextRecords(nodes.growthHypotheses, model.growthHypotheses, 'Chưa có giả thuyết phát triển đủ bằng chứng.');
+        }
+
+        function renderTextRecords(node, items, emptyCopy, field = 'text') {
+            clear(node);
+            if (!Array.isArray(items) || items.length === 0) {
+                node?.appendChild(element('p', 'learner-roadmap-empty', emptyCopy));
+                return;
+            }
+            for (const item of items) {
+                const record = element('article', 'learner-roadmap-capability__record', text(item?.[field], 'Nhận định cần kiểm chứng.'));
+                record.setAttribute('title', evidenceTitle(item));
+                node?.appendChild(record);
+            }
         }
 
         function renderAlternatives(items) {

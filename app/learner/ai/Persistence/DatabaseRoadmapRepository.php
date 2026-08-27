@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace TalentHub\Learner\Ai\Persistence;
+require_once dirname(__DIR__) . '/Queue/TransactionalAiOutboxPublisher.php';
 
 use Closure;
 use JsonException;
@@ -12,6 +13,7 @@ use TalentHub\Learner\Ai\Domain\RoadmapAnalysis;
 use TalentHub\Learner\Ai\Domain\RoadmapPhase;
 use TalentHub\Learner\Ai\Domain\RoadmapTask;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseOpportunitySource;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 
 final class DatabaseRoadmapRepository implements RoadmapRepository
 {
@@ -67,7 +69,19 @@ final class DatabaseRoadmapRepository implements RoadmapRepository
                 'id' => $roadmapId, 'studentId' => $studentId, 'runId' => $runId, 'versionNumber' => $version,
                 'contractVersion' => RoadmapAnalysis::CONTRACT_VERSION, 'status' => 'active', 'executiveSummary' => $analysis->executiveSummary(),
                 'primaryDirectionJson' => self::json($analysis->primaryDirection()->toArray()),
-                'alternativeDirectionsJson' => self::json($data['alternative_directions']), 'insightsJson' => self::json($data['insights']),
+                'alternativeDirectionsJson' => self::json($data['alternative_directions']), 'insightsJson' => self::json([
+                    'items' => $data['insights'],
+                    '__ai_extended' => [
+                        'talent_map' => $data['talent_map'],
+                        'strengths' => $data['strengths'],
+                        'improvements' => $data['improvements'],
+                        'potential_paths' => $data['potential_paths'],
+                        'trend_signals' => $data['trend_signals'],
+                        'growth_hypotheses' => $data['growth_hypotheses'],
+                        'confidence' => $data['confidence'],
+                        'evidence' => $data['evidence'],
+                    ],
+                ]),
                 'confidenceBand' => $analysis->confidenceBand(), 'evidenceSummaryJson' => self::json($summary),
                 'providerRequestId' => $analysis->providerRequestId(), 'responseHash' => $analysis->responseHash(),
                 'generatedAt' => $now, 'createdAt' => $now,
@@ -185,6 +199,7 @@ SQL);
             $event = ['id' => self::uuid(), 'taskId' => $taskId, 'studentId' => $studentId, 'status' => $status, 'requestId' => $requestId, 'occurredAt' => $this->now()];
             $insert = $this->pdo->prepare('INSERT INTO learner_ai_roadmap_task_events (id,taskId,studentId,status,requestId,occurredAt,createdAt) VALUES (:id,:taskId,:studentId,:status,:requestId,:occurredAt,:createdAt)');
             $insert->execute($event + ['createdAt' => $event['occurredAt']]);
+            TransactionalAiOutboxPublisher::publish($this->pdo,'roadmap_progress',$event['id'],TransactionalAiOutboxPublisher::version(),[$studentId],'roadmap.progress_updated',['task_id'=>$taskId,'status'=>$status]);
             unset($owned);
             return $this->eventResponse($event, false);
         });
@@ -211,6 +226,7 @@ SQL);
             $id = self::uuid(); $now = $this->now();
             $insert = $this->pdo->prepare('INSERT INTO learner_recommendation_audit_events (id,runId,studentId,requestId,actorType,action,engineMetadataJson,status,createdAt) VALUES (:id,:runId,:studentId,:requestId,:actorType,:action,:metadata,:status,:createdAt)');
             $insert->execute(['id'=>$id,'runId'=>$runId,'studentId'=>$studentId,'requestId'=>$requestId,'actorType'=>'learner','action'=>'roadmap_feedback','metadata'=>self::json(['verdict'=>$verdict,'reason_code'=>$reasonCode]),'status'=>'completed','createdAt'=>$now]);
+            TransactionalAiOutboxPublisher::publish($this->pdo,'roadmap_feedback',$id,TransactionalAiOutboxPublisher::version(),[$studentId],'roadmap.feedback',['roadmap_id'=>$roadmapId,'verdict'=>$verdict,'reason_code'=>$reasonCode]);
             return ['state'=>'feedback_saved','feedback_id'=>$id,'roadmap_id'=>$roadmapId,'verdict'=>$verdict,'reason_code'=>$reasonCode,'reused'=>false,'created_at'=>$now];
         });
     }
@@ -349,8 +365,27 @@ SQL);
             }
             $phaseData[] = ['phase_id'=>$phase['id'],'position'=>(int)$phase['position'],'start_day'=>(int)$phase['startDay'],'end_day'=>(int)$phase['endDay'],'code'=>$phase['code'],'title'=>$phase['title'],'goal'=>$phase['goal'],'skill_focus'=>$phase['skillFocus'],'deliverable'=>$phase['deliverable'],'effort_label'=>$phase['effortLabel'],'metric_label'=>$phase['metricLabel'],'evidence_ref_ids'=>self::decode((string)$phase['evidenceJson']),'tasks'=>$taskData,'progress'=>['completed_tasks'=>$phaseCompleted,'total_tasks'=>count($taskData)]];
         }
+        $storedInsights = self::decode((string)$row['insightsJson']);
+        $extended = is_array($storedInsights['__ai_extended'] ?? null) ? $storedInsights['__ai_extended'] : [];
+        $insights = is_array($storedInsights['items'] ?? null) ? $storedInsights['items'] : $storedInsights;
+        $evidence = is_array($extended['evidence'] ?? null) ? $extended['evidence'] : [];
+        if ($evidence === []) {
+            $evidence = [];
+            foreach ($phaseData as $phase) {
+                foreach (($phase['evidence_ref_ids'] ?? []) as $reference) {
+                    if (is_string($reference)) $evidence[$reference] = true;
+                }
+                foreach (($phase['tasks'] ?? []) as $task) {
+                    foreach (($task['evidence_ref_ids'] ?? []) as $reference) {
+                        if (is_string($reference)) $evidence[$reference] = true;
+                    }
+                }
+            }
+            $evidence = array_keys($evidence);
+            sort($evidence, SORT_STRING);
+        }
         $origin = $row['engineType'] === 'model' ? 'model' : 'rule_fallback';
-        return ['roadmap_id'=>$row['id'],'run_id'=>$row['runId'],'input_hash'=>$row['inputHash'],'version'=>(int)$row['versionNumber'],'contract_version'=>$row['contractVersion'],'status'=>$row['status'],'analysis_origin'=>$origin,'executive_summary'=>$row['executiveSummary'],'confidence_band'=>$row['confidenceBand'],'primary_direction'=>self::decode((string)$row['primaryDirectionJson']),'alternative_directions'=>self::decode((string)$row['alternativeDirectionsJson']),'insights'=>self::decode((string)$row['insightsJson']),'evidence_summary'=>self::decode((string)$row['evidenceSummaryJson']),'generated_at'=>$row['generatedAt'],'engine'=>['provider'=>$row['provider'],'model_version'=>$row['modelVersion'],'prompt_version'=>$row['promptVersion'],'rule_version'=>$row['ruleVersion'],'fallback_reason'=>$row['fallbackReason']],'phases'=>$phaseData,'progress'=>['completed_tasks'=>$completed,'total_tasks'=>$total]];
+        return ['roadmap_id'=>$row['id'],'run_id'=>$row['runId'],'input_hash'=>$row['inputHash'],'version'=>(int)$row['versionNumber'],'contract_version'=>$row['contractVersion'],'status'=>$row['status'],'analysis_origin'=>$origin,'freshness_status'=>$row['freshness_status']??null,'stale_since'=>$row['stale_since']??null,'last_refresh_error'=>$row['last_refresh_error']??null,'next_retry_at'=>$row['next_retry_at']??null,'refresh_job_id'=>$row['refresh_job_id']??null,'executive_summary'=>$row['executiveSummary'],'confidence_band'=>$row['confidenceBand'],'confidence'=>(float)($extended['confidence'] ?? 0.0),'talent_map'=>is_array($extended['talent_map'] ?? null) ? $extended['talent_map'] : [],'strengths'=>is_array($extended['strengths'] ?? null) ? $extended['strengths'] : [],'improvements'=>is_array($extended['improvements'] ?? null) ? $extended['improvements'] : [],'potential_paths'=>is_array($extended['potential_paths'] ?? null) ? $extended['potential_paths'] : [],'trend_signals'=>is_array($extended['trend_signals'] ?? null) ? $extended['trend_signals'] : [],'growth_hypotheses'=>is_array($extended['growth_hypotheses'] ?? null) ? $extended['growth_hypotheses'] : [],'evidence'=>$evidence,'primary_direction'=>self::decode((string)$row['primaryDirectionJson']),'alternative_directions'=>self::decode((string)$row['alternativeDirectionsJson']),'insights'=>$insights,'evidence_summary'=>self::decode((string)$row['evidenceSummaryJson']),'generated_at'=>$row['generatedAt'],'engine'=>['provider'=>$row['provider'],'model_version'=>$row['modelVersion'],'prompt_version'=>$row['promptVersion'],'rule_version'=>$row['ruleVersion'],'fallback_reason'=>$row['fallbackReason']],'phases'=>$phaseData,'progress'=>['completed_tasks'=>$completed,'total_tasks'=>$total]];
     }
 
     /** @return array<string,mixed> */

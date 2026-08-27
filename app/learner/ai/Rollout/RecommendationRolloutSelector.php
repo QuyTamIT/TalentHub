@@ -4,51 +4,67 @@ declare(strict_types=1);
 
 namespace TalentHub\Learner\Ai\Rollout;
 
+use TalentHub\Learner\Ai\Availability\AiAvailabilityDecision;
+use TalentHub\Learner\Ai\Availability\AiAvailabilityPolicy;
 use TalentHub\Learner\Ai\Config\RecommendationConfig;
+use TalentHub\Learner\Ai\Consent\ConsentDecision;
 
 final class RecommendationRolloutSelector
 {
-    /** @param list<string> $allowedScopes */
-    public function canShowModel(string $studentId, RecommendationConfig $config, array $allowedScopes, bool $snapshotCurrent): bool
+    private readonly AiAvailabilityPolicy $policy;
+    /** @var array<string,mixed>|null */
+    private readonly ?array $rolloutEvidence;
+
+    /** @param array<string,mixed>|null $rolloutEvidence */
+    public function __construct(?AiAvailabilityPolicy $policy = null, ?array $rolloutEvidence = null)
     {
-        $required = ['assessment' => true, 'skills' => true, 'activity' => true, 'evaluation' => true];
-        foreach ($allowedScopes as $scope) {
-            if (is_string($scope)) {
-                unset($required[$scope]);
-            }
-        }
-        return $config->enabled()
-            && $config->shadowGateApproved()
-            && $config->visiblePercent() > 0
-            && !$config->pilotPaused()
-            && $config->pilotApprovalReference() !== null
-            && $snapshotCurrent
-            && $required === []
-            && $this->isAssigned($studentId, $config);
+        $this->policy = $policy ?? new AiAvailabilityPolicy();
+        $this->rolloutEvidence = $rolloutEvidence;
+    }
+
+    /** @param list<string> $allowedScopes */
+    public function canShowModel(string $studentId, RecommendationConfig $config, array $allowedScopes, bool $snapshotCurrent, ?array $rolloutEvidence = null): bool
+    {
+        return $this->decision($studentId, $config, $allowedScopes, $snapshotCurrent, false, true, null, $rolloutEvidence ?? $this->rolloutEvidence)->canShowModel();
     }
 
     public function isAssigned(string $studentId, RecommendationConfig $config): bool
     {
-        if ($config->visiblePercent() <= 0 || trim($studentId) === '') {
-            return false;
-        }
-        if ($config->visiblePercent() >= 100) {
-            return true;
-        }
-        $bucket = hexdec(substr(hash('sha256', strtolower(trim($studentId))), 0, 8)) % 100;
-        return $bucket < $config->visiblePercent();
+        return $this->policy->isAssigned($studentId, $config);
+    }
+
+    /** @return array<string,mixed>|null */
+    public function rolloutEvidence(): ?array
+    {
+        return $this->rolloutEvidence;
     }
 
     /** @param list<string> $allowedScopes */
-    public function canShowRoadmapModel(string $studentId, RecommendationConfig $config, array $allowedScopes, bool $snapshotCurrent): bool
+    public function canShowRoadmapModel(string $studentId, RecommendationConfig $config, array $allowedScopes, bool $snapshotCurrent, ?array $rolloutEvidence = null): bool
     {
-        return in_array('assessment', $allowedScopes, true)
-            && $config->enabled()
-            && $config->shadowGateApproved()
-            && $config->visiblePercent() > 0
-            && !$config->pilotPaused()
-            && $config->pilotApprovalReference() !== null
-            && $snapshotCurrent
-            && $this->isAssigned($studentId, $config);
+        return $this->decision($studentId, $config, $allowedScopes, $snapshotCurrent, false, true, ['assessment'], $rolloutEvidence ?? $this->rolloutEvidence)->canShowModel();
+    }
+
+    /** @param list<string> $allowedScopes @param list<string>|null $requiredScopes */
+    public function decision(
+        string $studentId,
+        RecommendationConfig $config,
+        array $allowedScopes,
+        bool $snapshotCurrent,
+        bool $hasActiveModel,
+        bool $ruleFallbackCompleted,
+        ?array $requiredScopes = null,
+        ?array $rolloutEvidence = null,
+    ): AiAvailabilityDecision {
+        return $this->policy->decide(
+            $studentId,
+            $config,
+            $allowedScopes,
+            $snapshotCurrent,
+            $hasActiveModel,
+            $ruleFallbackCompleted,
+            $requiredScopes ?? ConsentDecision::REQUIRED_SCOPES,
+            $rolloutEvidence ?? $this->rolloutEvidence,
+        );
     }
 }

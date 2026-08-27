@@ -1,8 +1,10 @@
 <?php
 declare(strict_types=1);
 namespace TalentHub\Modules\Student\Repository;
+require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/TransactionalAiOutboxPublisher.php';
 
 use PDO;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 
 final class StudentRepository
 {
@@ -85,6 +87,10 @@ final class StudentRepository
                 }
             }
 
+            $studentStatement = $this->pdo->prepare('SELECT id FROM student_profiles WHERE userId=? LIMIT 1');
+            $studentStatement->execute([$userId]);
+            $affectedStudentId=$studentStatement->fetchColumn();
+            if(is_string($affectedStudentId)&&$affectedStudentId!=='') TransactionalAiOutboxPublisher::publish($this->pdo,'student_profile',$affectedStudentId,TransactionalAiOutboxPublisher::version(),[$affectedStudentId],'profile.updated');
             $this->pdo->commit();
         } catch (\Throwable $exception) {
             if ($this->pdo->inTransaction()) {

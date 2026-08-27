@@ -33,7 +33,7 @@ function roadmap_repository_fixture(): PDO
     $pdo->exec('PRAGMA foreign_keys = ON');
     foreach (['student_profiles','activities','activity_registrations'] as $table) $pdo->exec("CREATE TABLE {$table} (id CHAR(36) NOT NULL PRIMARY KEY)");
     $runner = new LearnerForwardMigrationRunner($pdo, dirname(__DIR__) . '/Database/migrations/learner', new SchemaInspector($pdo, 'main'));
-    foreach (['002_create_ai_input_foundation','003_create_ai_input_extensions','004_create_recommendation_store','005_create_ai_roadmap_store'] as $version) $runner->migrateApproved([$version]);
+    foreach (['002_create_ai_input_foundation','003_create_ai_input_extensions','004_create_recommendation_store','005_create_ai_roadmap_store','007_create_ai_data_outbox'] as $version) $runner->migrateApproved([$version]);
     return $pdo;
 }
 
@@ -116,6 +116,7 @@ $completed = $repository->appendTaskEvent($studentA, $taskId, 'completed', 'prog
 roadmap_repository_assert($completed['status'] === 'completed', 'started task can complete');
 $duplicate = $repository->appendTaskEvent($studentA, $taskId, 'completed', 'progress-request-2');
 roadmap_repository_assert($duplicate['event_id'] === $completed['event_id'] && $duplicate['reused'] === true, 'duplicate progress request is reused');
+roadmap_repository_assert((int)$pdo->query("SELECT COUNT(*) FROM learner_ai_data_outbox WHERE aggregate_type='roadmap_progress'")->fetchColumn()===2,'each committed roadmap progress change writes one adaptive-refresh outbox event');
 roadmap_repository_expect(fn () => $repository->appendTaskEvent($studentA, $taskId, 'skipped', 'progress-request-3'), 'completed task rejects later transitions');
 roadmap_repository_expect(fn () => $repository->appendTaskEvent($studentB, $taskId, 'in_progress', 'cross-owner-progress'), 'another learner cannot update task progress');
 $latest = $repository->latestForStudent($studentA);

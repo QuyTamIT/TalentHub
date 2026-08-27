@@ -3,11 +3,16 @@ declare(strict_types=1);
 
 namespace TalentHub\Modules\Teacher\Repository;
 
+require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/TransactionalAiOutboxPublisher.php';
+require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/AiAudienceResolver.php';
+
 use PDO;
 use TalentHub\Http\ApiException;
 use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
 use TalentHub\Learner\Data\Service\NotificationService;
 use TalentHub\Support\Uuid;
+use TalentHub\Learner\Ai\Queue\AiAudienceResolver;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 
 final class TeacherActivityRepository
 {
@@ -135,6 +140,21 @@ final class TeacherActivityRepository
             ]);
             $this->writeDetails($activityId, (string) $row['schoolId'], $data);
             $this->writePolicies($activityId, $data);
+            if (in_array((string) $row['status'], ['published', 'ongoing'], true)) {
+                $students = (new AiAudienceResolver($this->pdo))->schoolStudents((string) $row['schoolId']);
+                if ($students !== []) {
+                    TransactionalAiOutboxPublisher::publish(
+                        $this->pdo,
+                        'activity',
+                        $activityId,
+                        TransactionalAiOutboxPublisher::version(),
+                        $students,
+                        'activity.updated',
+                        ['fields' => ['title', 'category', 'startAt', 'endAt', 'capacity']],
+                        (string) $row['schoolId'],
+                    );
+                }
+            }
             if ($ownsTransaction) $this->pdo->commit();
         } catch (Throwable $exception) {
             if ($ownsTransaction && $this->pdo->inTransaction()) $this->pdo->rollBack();
@@ -313,24 +333,60 @@ final class TeacherActivityRepository
             throw new \InvalidArgumentException('Invalid activity status transition.');
         }
 
-        if ($expectedStatus === 'draft' && $nextStatus === 'published') {
-            $this->assertPublishable($teacherId, $activityId);
+        $current = $this->activityScope($teacherId, $activityId);
+        if ($current === null) return false;
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) $this->pdo->beginTransaction();
+        try {
+            if ($expectedStatus === 'draft' && $nextStatus === 'published') {
+                $this->assertPublishable($teacherId, $activityId);
+            }
+            $statement = $this->pdo->prepare("
+                UPDATE activities
+                SET status = :nextStatus
+                WHERE id = :activityId
+                  AND createdByTeacherId = :teacherId
+                  AND status = :expectedStatus
+            ");
+            $statement->execute([
+                'nextStatus' => $nextStatus,
+                'activityId' => $activityId,
+                'teacherId' => $teacherId,
+                'expectedStatus' => $expectedStatus,
+            ]);
+            if ($statement->rowCount() !== 1) {
+                if ($ownsTransaction) $this->pdo->rollBack();
+                return false;
+            }
+            $students = (new AiAudienceResolver($this->pdo))->schoolStudents((string) $current['schoolId']);
+            if ($students !== []) {
+                $event = $nextStatus === 'published' ? 'activity.published' : 'activity.' . $nextStatus;
+                TransactionalAiOutboxPublisher::publish(
+                    $this->pdo,
+                    'activity',
+                    $activityId,
+                    TransactionalAiOutboxPublisher::version(),
+                    $students,
+                    $event,
+                    ['status' => $nextStatus],
+                    (string) $current['schoolId'],
+                );
+            }
+            if ($ownsTransaction) $this->pdo->commit();
+            return true;
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $exception;
         }
-        $statement = $this->pdo->prepare("
-            UPDATE activities
-            SET status = :nextStatus
-            WHERE id = :activityId
-              AND createdByTeacherId = :teacherId
-              AND status = :expectedStatus
-        ");
-        $statement->execute([
-            'nextStatus' => $nextStatus,
-            'activityId' => $activityId,
-            'teacherId' => $teacherId,
-            'expectedStatus' => $expectedStatus,
-        ]);
+    }
 
-        return $statement->rowCount() === 1;
+    /** @return array{schoolId:string,status:string}|null */
+    private function activityScope(string $teacherId, string $activityId): ?array
+    {
+        $statement = $this->pdo->prepare('SELECT schoolId, status FROM activities WHERE id = :id AND createdByTeacherId = :teacherId LIMIT 1');
+        $statement->execute(['id' => $activityId, 'teacherId' => $teacherId]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? ['schoolId' => (string) $row['schoolId'], 'status' => (string) $row['status']] : null;
     }
 
     /** @return array{id:string,activityId:string,status:string,updatedAt:string} */

@@ -22,13 +22,18 @@ $pdo = new PDO('sqlite::memory:', null, null, [
 $pdo->exec(<<<'SQL'
 CREATE TABLE users (id TEXT PRIMARY KEY, fullName TEXT NOT NULL, email TEXT);
 CREATE TABLE teacher_profiles (id TEXT PRIMARY KEY, userId TEXT NOT NULL, schoolId TEXT NOT NULL);
+CREATE TABLE classes (id TEXT PRIMARY KEY, schoolId TEXT NOT NULL);
+CREATE TABLE student_profiles (id TEXT PRIMARY KEY, classId TEXT NOT NULL);
 CREATE TABLE activities (id TEXT PRIMARY KEY, schoolId TEXT NOT NULL, createdByTeacherId TEXT NOT NULL, title TEXT NOT NULL, category TEXT NOT NULL, startAt TEXT NOT NULL, endAt TEXT, capacity INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'draft', visibility TEXT NOT NULL DEFAULT 'school_only');
 CREATE TABLE activity_registrations (id TEXT PRIMARY KEY, activityId TEXT NOT NULL, studentId TEXT NOT NULL, status TEXT NOT NULL);
 CREATE TABLE activity_details (activityId TEXT PRIMARY KEY, responsibleTeacherId TEXT, audienceScope TEXT NOT NULL, displayCategory TEXT NOT NULL, filterCategory TEXT NOT NULL, summary TEXT NOT NULL, description TEXT NOT NULL, experienceHighlights TEXT NOT NULL, skillTags TEXT NOT NULL, eligibilityRules TEXT NOT NULL, benefitItems TEXT NOT NULL, locationName TEXT NOT NULL, locationAddress TEXT, deliveryMode TEXT NOT NULL, onlineMeetingUrl TEXT, organizerName TEXT NOT NULL, organizerContact TEXT, organizerEmail TEXT, organizerPhone TEXT, coverImageUrl TEXT, coverImageAlt TEXT, feeAmount NUMERIC NOT NULL DEFAULT 0, currency TEXT NOT NULL DEFAULT 'VND', targetAudience TEXT NOT NULL, certificateLabel TEXT, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL);
 CREATE TABLE activity_registration_policies (activityId TEXT PRIMARY KEY, registrationOpensAt TEXT NOT NULL, registrationClosesAt TEXT NOT NULL, cancellationClosesAt TEXT NOT NULL, approvalMode TEXT NOT NULL DEFAULT 'automatic', createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL);
 CREATE TABLE activity_experience_policies (activityId TEXT PRIMARY KEY, confirmedHours NUMERIC NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL);
+CREATE TABLE learner_ai_data_outbox (id TEXT PRIMARY KEY, aggregate_type TEXT NOT NULL, aggregate_id TEXT NOT NULL, tenant_id TEXT, event_type TEXT NOT NULL, aggregate_version INTEGER NOT NULL, payload_hash TEXT NOT NULL, affected_student_ids TEXT NOT NULL, delivery_status TEXT NOT NULL, occurred_at TEXT NOT NULL);
 INSERT INTO users VALUES ('21111111-1111-4111-8111-111111111111','Giáo viên Một','one@example.test'),('22222222-2222-4222-8222-222222222222','Giáo viên Khác','two@example.test');
 INSERT INTO teacher_profiles VALUES ('11111111-1111-4111-8111-111111111111','21111111-1111-4111-8111-111111111111','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),('12222222-2222-4222-8222-222222222222','22222222-2222-4222-8222-222222222222','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+INSERT INTO classes VALUES ('class-ai-001','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+INSERT INTO student_profiles VALUES ('student-ai-001','class-ai-001');
 SQL
 );
 
@@ -111,5 +116,11 @@ $assert($actualTitle === 'Robotics Lab Updated' && $actualResponsible === $teach
 
 $service->advanceStatus($teacherId, $activityId);
 $assert($pdo->query("SELECT status FROM activities WHERE id='{$activityId}'")->fetchColumn() === 'published', 'A fully configured draft can be published without changing lifecycle during edit.');
+$publishedOutbox = $pdo->query("SELECT event_type, affected_student_ids FROM learner_ai_data_outbox WHERE event_type='activity.published' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+$assert(is_array($publishedOutbox) && json_decode((string) $publishedOutbox['affected_student_ids'], true) === ['student-ai-001'], 'Publishing an activity queues one learner AI refresh event for the school audience.');
+
+$service->update($teacherId, $activityId, ['title' => 'Robotics Lab Published']);
+$updatedOutbox = $pdo->query("SELECT event_type FROM learner_ai_data_outbox WHERE event_type='activity.updated' LIMIT 1")->fetchColumn();
+$assert($updatedOutbox === 'activity.updated', 'Updating a published activity queues an AI refresh event in the same mutation flow.');
 
 echo "teacher_activity_details_transaction_test: OK\n";

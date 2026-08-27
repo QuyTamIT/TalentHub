@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 namespace TalentHub\Modules\Teacher\Repository;
+require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/TransactionalAiOutboxPublisher.php';
 
 use PDO;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 use TalentHub\Learner\Data\Database\DatabaseBadgeRepository;
 use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
 use TalentHub\Learner\Data\Database\DatabaseStatisticsRepository;
@@ -240,6 +242,8 @@ final class TeacherGradingRepository
             if ($status === 'published' && $publishedAt !== null && $this->hasBadgesTable()) {
                 $this->getBadgeAwardService()->evaluateAndAward($studentId, 'system');
             }
+
+            TransactionalAiOutboxPublisher::publish($this->pdo,'teacher_evaluation',$savedAssessmentId,$expectedVersion+1,[$studentId],$status==='published'?'evaluation.published':'evaluation.updated',['activity_id'=>$activityId,'status'=>$status]);
 
             $this->pdo->commit();
         } catch (\Throwable $exception) {

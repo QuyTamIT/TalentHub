@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace TalentHub\Learner\Ai\Service;
 
 use Closure;
+use TalentHub\Learner\Ai\Availability\AiAvailabilityPolicy;
+use TalentHub\Learner\Ai\Config\RecommendationConfig;
 use TalentHub\Learner\Ai\Consent\ConsentDecision;
 use TalentHub\Learner\Ai\Contracts\RoadmapEngine;
 use TalentHub\Learner\Ai\Domain\RecommendationContext;
@@ -12,6 +14,8 @@ use TalentHub\Learner\Ai\Domain\RecommendationInput;
 use TalentHub\Learner\Ai\Domain\RoadmapAnalysis;
 use TalentHub\Learner\Ai\Persistence\RoadmapRepository;
 use TalentHub\Learner\Ai\Quality\DataQualityResult;
+use TalentHub\Learner\Ai\Provider\ProviderRetryAfterException;
+use TalentHub\Learner\Ai\Observability\AiMetricsCollector;
 
 final class RoadmapService
 {
@@ -33,6 +37,11 @@ final class RoadmapService
         callable $pendingRunCreator,
         callable $runCompleter,
         callable $runFailer,
+        private readonly ?RoadmapEngine $modelEngine = null,
+        private readonly ?RecommendationConfig $modelConfig = null,
+        private readonly ?AiAvailabilityPolicy $availabilityPolicy = null,
+        /** @var array<string,mixed>|null */
+        private readonly ?array $rolloutEvidence = null,
     ) {
         $this->authorizer = Closure::fromCallable($authorizer);
         $this->consentResolver = Closure::fromCallable($consentResolver);
@@ -50,9 +59,10 @@ final class RoadmapService
             if (!(($this->authorizer)($studentId))) return null;
             $roadmap = $this->roadmaps->latestForStudent($studentId);
             if ($roadmap !== null) return $this->readyWithHistory($studentId, $roadmap);
-            return $this->roadmaps->latestPendingForStudent($studentId);
+            $pending = $this->roadmaps->latestPendingForStudent($studentId);
+            return $pending === null ? null : $this->pending($pending);
         } catch (\Throwable) {
-            return ['state' => 'source_unavailable'];
+            return $this->unavailable();
         }
     }
 
@@ -64,7 +74,7 @@ final class RoadmapService
             $roadmap = $this->roadmaps->versionForStudent($studentId, $version);
             return $roadmap === null ? null : $this->readyWithHistory($studentId, $roadmap);
         } catch (\Throwable) {
-            return ['state' => 'source_unavailable'];
+            return $this->unavailable();
         }
     }
 
@@ -74,6 +84,8 @@ final class RoadmapService
         string $requestId,
         string $idempotencyKey,
         bool $forceRefresh = false,
+        ?callable $leaseGuard = null,
+        bool $propagateProviderRetry = false,
     ): array
     {
         try {
@@ -91,40 +103,69 @@ final class RoadmapService
             $quality = ($this->qualityGate)($input);
             if (!$quality instanceof DataQualityResult) throw new \RuntimeException('Roadmap quality state is unavailable.');
         } catch (\Throwable) {
-            return ['state'=>'source_unavailable'];
+            return $this->unavailable();
         }
-        if ($quality->state() !== 'ready') return $this->quality($quality);
-
         try {
             $active = $this->roadmaps->latestForStudent($studentId);
         } catch (\Throwable) {
             $active = null;
         }
-        if (!$forceRefresh && $active !== null && is_string($active['input_hash'] ?? null) && hash_equals($active['input_hash'], $input->contentHash())) {
+        $availability = $this->availabilityPolicy !== null && $this->modelConfig !== null
+            ? $this->availabilityPolicy->decide(
+                $studentId,
+                $this->modelConfig,
+                $scopes,
+                $quality->state() === 'ready',
+                ($active['analysis_origin'] ?? null) === 'model',
+                true,
+                ['assessment'],
+                $this->rolloutEvidence,
+            )
+            : null;
+        if ($quality->state() !== 'ready') {
+            if ($active !== null && $availability?->canServeStaleModel()) {
+                return $this->retained($studentId, $active, 'snapshot_stale');
+            }
+            return $this->quality($quality);
+        }
+
+        if (!$forceRefresh && $active !== null && is_string($active['input_hash'] ?? null) && hash_equals($active['input_hash'], $input->contentHash())
+            && ($availability === null || $availability->canServeActiveModel())) {
             $response = $this->readyWithHistory($studentId, $active); $response['reused'] = true; return $response;
+        }
+        if ($availability !== null && ($active['analysis_origin'] ?? null) === 'model'
+            && !$availability->canServeActiveModel() && !$availability->canServeStaleModel()) {
+            return $this->unavailable($availability->reason());
         }
 
         $context = new RecommendationContext(
             $scopes, $requestId, 'roadmap-' . hash('sha256', $idempotencyKey), $studentId,
             $decision instanceof ConsentDecision ? $decision->decisionHash() : null,
             $decision instanceof ConsentDecision ? $decision->policyVersion() : null,
+            $propagateProviderRetry,
         );
         try {
+            $this->guardLease($leaseGuard);
             $pending = ($this->pendingRunCreator)($studentId, $input, $context);
             if (!is_array($pending)) throw new \RuntimeException('Roadmap pending run is unavailable.');
         } catch (\Throwable) {
-            return $active === null ? ['state'=>'source_unavailable'] : $this->retained($studentId, $active, 'persistence_unavailable');
+            return $active === null ? $this->unavailable() : $this->retained($studentId, $active, 'persistence_unavailable');
         }
         if (($pending['reused'] ?? false) === true) {
-            return ['state'=>'pending','run_id'=>$pending['runId']??null,'snapshot_id'=>$pending['snapshotId']??null,'reused'=>true];
+            return $this->pending($pending);
         }
 
         try {
-            $analysis = $this->engine->generate($input, $context);
+            $selectedEngine = $availability?->canShowModel() === true && $this->modelEngine !== null
+                ? $this->modelEngine
+                : $this->engine;
+            $analysis = $selectedEngine->generate($input, $context);
+            $this->guardLease($leaseGuard);
             ($this->runCompleter)($studentId, (string) ($pending['runId'] ?? ''), $analysis);
             if ($analysis->origin() === 'rule_fallback' && $active !== null) {
                 return $this->retained($studentId, $active, $analysis->fallbackReason() ?? 'provider_unavailable');
             }
+            $this->guardLease($leaseGuard);
             $saved = $this->roadmaps->saveCompleted(
                 $studentId,
                 (string) ($pending['runId'] ?? ''),
@@ -132,10 +173,39 @@ final class RoadmapService
                 $this->providerAudit($input, $analysis),
             );
             return $this->readyWithHistory($studentId, $saved);
-        } catch (\Throwable) {
-            try { ($this->runFailer)($studentId, (string) ($pending['runId'] ?? ''), 'roadmap_engine_failure'); } catch (\Throwable) {}
-            return $active === null ? ['state'=>'engine_failure'] : $this->retained($studentId, $active, 'engine_failure');
+        } catch (\Throwable $exception) {
+            try { $this->guardLease($leaseGuard);($this->runFailer)($studentId, (string) ($pending['runId'] ?? ''), $exception instanceof ProviderRetryAfterException?'rate_limited':'roadmap_engine_failure'); } catch (\Throwable) {}
+            if($propagateProviderRetry&&$exception instanceof ProviderRetryAfterException)throw $exception;
+            return $active === null ? $this->unavailable() : $this->retained($studentId, $active, 'engine_failure');
         }
+    }
+
+    /** Internal worker response that retains the persisted model-input hash for provenance checks. */
+    public function generateForProfile(
+        string $studentId,
+        string $requestId,
+        string $idempotencyKey,
+        bool $forceRefresh = false,
+        ?callable $leaseGuard = null,
+        bool $propagateProviderRetry = false,
+    ): array {
+        $result = $this->generate($studentId, $requestId, $idempotencyKey, $forceRefresh, $leaseGuard, $propagateProviderRetry);
+        if (($result['state'] ?? null) !== 'ready_model') return $result;
+        $persisted = $this->roadmaps->latestForStudent($studentId);
+        if (is_array($persisted) && ($persisted['roadmap_id'] ?? null) === ($result['roadmap_id'] ?? null) && is_string($persisted['input_hash'] ?? null)) {
+            $result['input_hash'] = $persisted['input_hash'];
+        }
+        return $result;
+    }
+
+    /** Hash of the exact canonical input used by roadmap/profile model generation. */
+    public function inputHash(string $studentId): string
+    {
+        if (!(($this->authorizer)($studentId))) throw new \RuntimeException('Roadmap input is forbidden.');
+        $decision = ($this->consentResolver)($studentId);
+        $input = ($this->snapshotBuilder)($studentId, $this->scopes($decision));
+        if (!$input instanceof RecommendationInput) throw new \RuntimeException('Roadmap snapshot is unavailable.');
+        return $this->withPreferenceSignals($input, $this->roadmaps->feedbackSignalsForStudent($studentId))->contentHash();
     }
 
     /** @return array<string,mixed> */
@@ -164,7 +234,9 @@ final class RoadmapService
     {
         try {
             if (!(($this->authorizer)($studentId))) return ['state'=>'forbidden'];
-            return $this->roadmaps->appendRoadmapFeedback($studentId, $roadmapId, $verdict, $reasonCode, $requestId);
+            $result = $this->roadmaps->appendRoadmapFeedback($studentId, $roadmapId, $verdict, $reasonCode, $requestId);
+            AiMetricsCollector::shared()->record(['recommendation_feedback' => $verdict]);
+            return $result;
         } catch (\InvalidArgumentException|\RuntimeException) {
             return ['state'=>'invalid_feedback'];
         } catch (\Throwable) {
@@ -185,14 +257,20 @@ final class RoadmapService
     /** @return array<string,mixed> */
     private function quality(DataQualityResult $quality): array
     {
-        return ['state'=>$quality->state(),'missing_consent_scopes'=>$quality->missingConsentScopes(),'missing_categories'=>$quality->missingCategories(),'completion_actions'=>$quality->completionActions()];
+        return array_replace($this->unavailable($quality->state()), [
+            'quality_state'=>$quality->state(),
+            'missing_consent_scopes'=>$quality->missingConsentScopes(),
+            'missing_categories'=>$quality->missingCategories(),
+            'completion_actions'=>$quality->completionActions(),
+        ]);
     }
 
     /** @param array<string,mixed> $roadmap @return array<string,mixed> */
     private function ready(array $roadmap): array
     {
         $engine = is_array($roadmap['engine'] ?? null) ? $roadmap['engine'] : [];
-        $publicEngine = ($roadmap['analysis_origin'] ?? null) === 'model'
+        $analysisOrigin = ($roadmap['analysis_origin'] ?? null) === 'model' ? 'model' : 'rule';
+        $publicEngine = $analysisOrigin === 'model'
             ? array_filter([
                 'provider' => $engine['provider'] ?? null,
                 'model_version' => $engine['model_version'] ?? null,
@@ -207,13 +285,32 @@ final class RoadmapService
         foreach ([
             'roadmap_id', 'version', 'contract_version', 'status', 'analysis_origin',
             'executive_summary', 'confidence_band', 'primary_direction',
+            'confidence', 'talent_map', 'strengths', 'improvements', 'potential_paths', 'trend_signals', 'growth_hypotheses',
             'alternative_directions', 'insights', 'evidence_summary',
             'generated_at', 'phases', 'progress', 'reused',
+            'stale_since', 'last_refresh_error', 'next_retry_at', 'refresh_job_id',
         ] as $field) {
             if (array_key_exists($field, $roadmap)) $response[$field] = $roadmap[$field];
         }
         $response['engine'] = $publicEngine;
-        $response['state'] = ($roadmap['analysis_origin'] ?? null) === 'model' ? 'ready_model' : 'fallback_rule';
+        $response['contract_version'] = (string) ($roadmap['contract_version'] ?? RoadmapAnalysis::CONTRACT_VERSION);
+        $response['capability'] = 'roadmap';
+        $response['analysis_origin'] = $analysisOrigin;
+        $persistedFreshness=(string)($roadmap['freshness_status']??'');
+        $response['state'] = $analysisOrigin === 'model' ? ($persistedFreshness==='stale_model'?'stale_model':'ready_model') : 'ready_rule';
+        $response['freshness_status'] = $response['state']==='stale_model'?'stale':'fresh';
+        $response['last_known_good']=$response['state']==='stale_model';
+        $response['model_version'] = $analysisOrigin === 'model' ? ($publicEngine['model_version'] ?? null) : null;
+        $response['rule_version'] = $analysisOrigin === 'rule' ? ($publicEngine['rule_version'] ?? null) : null;
+        $response['evidence'] = is_array($roadmap['evidence'] ?? null)
+            ? $roadmap['evidence']
+            : (is_array($roadmap['evidence_summary'] ?? null) ? $roadmap['evidence_summary'] : []);
+        AiMetricsCollector::shared()->record([
+            'stale' => $response['state'] === 'stale_model',
+            'fallback' => $analysisOrigin === 'rule' && isset($publicEngine['fallback_reason']),
+            'freshness_age_seconds' => isset($roadmap['generated_at']) && is_string($roadmap['generated_at'])
+                ? max(0, time() - (strtotime($roadmap['generated_at']) ?: time())) : 0,
+        ]);
         return $response;
     }
 
@@ -247,6 +344,57 @@ final class RoadmapService
         $response = $this->readyWithHistory($studentId, $active);
         $response['refresh_state'] = 'fallback_not_applied';
         $response['fallback_reason'] = $reason;
+        if (($response['analysis_origin'] ?? null) === 'model') {
+            $response['state'] = 'stale_model';
+            $response['freshness_status'] = 'stale';
+            $response['last_known_good'] = true;
+            $response['stale_since'] = is_string($active['stale_since'] ?? null)
+                ? $active['stale_since']
+                : gmdate('c');
+        }
+        return $response;
+    }
+
+    private function guardLease(?callable $leaseGuard):void
+    {
+        if($leaseGuard!==null&&!$leaseGuard())throw new \RuntimeException('refresh_lease_lost');
+    }
+
+    /** @param array<string,mixed> $pending @return array<string,mixed> */
+    private function pending(array $pending): array
+    {
+        return [
+            'contract_version' => RoadmapAnalysis::CONTRACT_VERSION,
+            'capability' => 'roadmap',
+            'state' => 'pending',
+            'freshness_status' => 'pending',
+            'analysis_origin' => null,
+            'evidence' => [],
+            'generated_at' => null,
+            'model_version' => null,
+            'rule_version' => null,
+            'run_id' => $pending['runId'] ?? $pending['run_id'] ?? null,
+            'snapshot_id' => $pending['snapshotId'] ?? $pending['snapshot_id'] ?? null,
+            'started_at' => $pending['started_at'] ?? null,
+            'reused' => ($pending['reused'] ?? false) === true,
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    private function unavailable(?string $reason = null): array
+    {
+        $response = [
+            'contract_version' => RoadmapAnalysis::CONTRACT_VERSION,
+            'capability' => 'roadmap',
+            'state' => 'ai_unavailable',
+            'freshness_status' => 'unavailable',
+            'analysis_origin' => null,
+            'evidence' => [],
+            'generated_at' => null,
+            'model_version' => null,
+            'rule_version' => null,
+        ];
+        if ($reason !== null) $response['availability_reason'] = $reason;
         return $response;
     }
 

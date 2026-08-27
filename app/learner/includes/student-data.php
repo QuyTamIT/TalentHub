@@ -110,12 +110,14 @@ $level = [
 ];
 
 $isDatabaseMode = !$useMock && learner_repository_factory()->source() === 'database';
+$aiCapabilityProfile = null;
 
 if ($isDatabaseMode) {
     $tp = $GLOBALS['learner_talent_passport'] ?? \TalentHub\Learner\Data\ReadModel\TalentPassportReadModel::fromAggregate(
         learner_repository_factory()->talentPassport()->aggregateForStudent((string) ($student['id'] ?? learner_current_student_id()))
     );
     $GLOBALS['learner_talent_passport'] = $tp;
+    $aiCapabilityProfile = is_array($tp['ai_capability_profile'] ?? null) ? $tp['ai_capability_profile'] : null;
     if (!empty($tp['student']['full_name'])) {
         $student['name'] = $tp['student']['full_name'];
     }

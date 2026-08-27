@@ -132,9 +132,10 @@ test('presentation state exposes every stable recommendation response state', ()
     presentationState({ state: 'source_unavailable' }),
     presentationState({ state: 'ready_rule' }),
     presentationState({ state: 'ready_model' }),
+    presentationState({ state: 'stale_model' }),
     presentationState({ state: 'fallback_rule' }),
   ], [
-    'loading', 'consent-required', 'insufficient-data', 'source-error', 'ready-rule', 'ready-model', 'fallback-rule',
+    'loading', 'consent-required', 'insufficient-data', 'source-error', 'ready-rule', 'ready-model', 'stale-model', 'fallback-rule',
   ]);
 });
 
@@ -153,6 +154,57 @@ test('recommendation client renders a registration link for career activities', 
   assert.equal(source.includes("activity_source_id"), true);
 });
 
+test('recommendation click tracker sends a same-origin keepalive request without awaiting it', () => {
+  const { createRecommendationClickTracker } = require(modulePath);
+  const calls = [];
+  const tracker = createRecommendationClickTracker({
+    csrfToken: 'csrf-token-1',
+    fetchImpl(endpoint, options) {
+      calls.push({ endpoint, options });
+      return Promise.reject(new Error('expired CSRF or offline'));
+    },
+  });
+
+  const result = tracker.track({
+    itemId: 'item-1',
+    catalogId: 'catalog-1',
+    actionType: 'open_catalog_item',
+  });
+
+  assert.equal(result, undefined, 'telemetry must not return a navigation-blocking promise');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].endpoint, '/app/learner/api/v1/recommendation-click.php');
+  assert.equal(calls[0].options.method, 'POST');
+  assert.equal(calls[0].options.credentials, 'same-origin');
+  assert.equal(calls[0].options.keepalive, true);
+  assert.equal(calls[0].options.headers['X-CSRF-Token'], 'csrf-token-1');
+  assert.deepEqual(JSON.parse(calls[0].options.body), {
+    itemId: 'item-1', catalogId: 'catalog-1', actionType: 'open_catalog_item',
+  });
+});
+
+test('recommendation click tracker ignores invalid input and synchronous transport failures', () => {
+  const { createRecommendationClickTracker } = require(modulePath);
+  let calls = 0;
+  const tracker = createRecommendationClickTracker({
+    fetchImpl() {
+      calls += 1;
+      throw new Error('transport unavailable');
+    },
+  });
+
+  assert.doesNotThrow(() => tracker.track({ itemId: 'item-1', actionType: 'view_activity' }));
+  assert.doesNotThrow(() => tracker.track({ itemId: '', actionType: 'view_activity' }));
+  assert.equal(calls, 1, 'invalid payload must not be sent');
+});
+
+test('recommendation CTA click handling does not cancel browser navigation', () => {
+  const source = fs.readFileSync(modulePath, 'utf8');
+  assert.match(source, /data-ai-recommendation-cta/);
+  assert.match(source, /clickTracker\.track/);
+  assert.doesNotMatch(source, /preventDefault\s*\(/);
+});
+
 test('recommendations group current item types without inventing a roadmap', () => {
   const { recommendationSection } = require(modulePath);
   assert.equal(recommendationSection('strength'), 'strength');
@@ -166,7 +218,7 @@ test('recommendations group current item types without inventing a roadmap', () 
   assert.doesNotMatch(source, /Lộ trình 3 tháng/);
 });
 
-test('legacy recommendation client stays regression-covered while the page switches to Roadmap-first', () => {
+test('recommendation client stays regression-covered beside the Roadmap-first experience', () => {
   const source = fs.readFileSync(modulePath, 'utf8');
   const page = fs.readFileSync(pagePath, 'utf8');
 
@@ -175,7 +227,7 @@ test('legacy recommendation client stays regression-covered while the page switc
   assert.match(source, /payload\?\.provider/);
   assert.match(source, /payload\?\.model_version/);
   assert.match(page, /LỘ TRÌNH PHÁT TRIỂN 90 NGÀY/);
-  assert.doesNotMatch(page, /learner-recommendations\.js/);
+  assert.match(page, /learner-recommendations\.js/);
   assert.match(page, /learner-ai-roadmap\.js/);
 });
 
@@ -206,7 +258,10 @@ test('current hero payload renders two activities and one strength with no empty
     createDomView(root).render('ready-rule', {
       state: 'ready_rule',
       items: [
-        { item_id: 'activity-1', item_type: 'activity', title: 'Hoạt động 1' },
+        {
+          item_id: 'activity-1', item_type: 'activity', title: 'Hoạt động 1',
+          action: { type: 'register_activity', activity_source_id: '123e4567-e89b-12d3-a456-426614174000' },
+        },
         { item_id: 'strength-1', item_type: 'strength', title: 'Điểm mạnh 1' },
         { item_id: 'activity-2', item_type: 'activity', title: 'Hoạt động 2' },
       ],
@@ -219,4 +274,8 @@ test('current hero payload renders two activities and one strength with no empty
     'Điểm mạnh nổi bật', 'Hoạt động phù hợp',
   ]);
   assert.deepEqual(list.children.map((section) => section.children[1].children.length), [1, 2]);
+  const activityCard = list.children[1].children[1].children[0];
+  const actionLink = activityCard.children.find((child) => child.dataset?.aiRecommendationCta === 'true');
+  assert.equal(actionLink.dataset.aiRecommendationItem, 'activity-1');
+  assert.equal(actionLink.dataset.aiRecommendationAction, 'register_activity');
 });

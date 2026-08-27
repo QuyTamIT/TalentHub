@@ -143,6 +143,11 @@ include __DIR__ . '/includes/page-banner.php';
         </div>
     </div>
 </div>
+<section class="school-section-box school-ai-insight" data-school-ai-insight aria-labelledby="school-ai-insight-title">
+    <div class="school-section-box__header"><h3 class="school-section-box__title" id="school-ai-insight-title">AI giải thích xu hướng năng lực</h3><p class="school-section-box__subtitle">Chỉ dùng dữ liệu tổng hợp của nhóm đủ lớn; không hiển thị hồ sơ cá nhân.</p></div>
+    <p data-school-ai-state role="status" aria-live="polite">Đang tải phân tích...</p>
+    <div data-school-ai-content hidden><p data-school-ai-summary></p><ul data-school-ai-priorities></ul><div data-school-ai-cohorts></div><small data-school-ai-provenance></small></div>
+</section>
 <?php
 $pageBody = ob_get_clean();
 
@@ -153,5 +158,6 @@ $extraStyles = <<<'HTML'
 }
 </style>
 HTML;
+$extraScripts = '<script src="../../assets/js/school-ai-insights.js" defer></script>';
 
 require __DIR__ . '/includes/layout.php';

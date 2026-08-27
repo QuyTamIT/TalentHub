@@ -20,23 +20,36 @@ final class RoadmapAnalysisValidator
         'primary_direction',
         'recommended_activity_source_ids',
     ];
+    private const EXTENDED_FIELDS = [
+        'confidence',
+        'evidence',
+        'growth_hypotheses',
+        'improvements',
+        'potential_paths',
+        'strengths',
+        'talent_map',
+        'trend_signals',
+    ];
 
     /** @var array<string,bool> */
     private readonly array $allowedEvidence;
     /** @var array<string,bool> */
     private readonly array $allowedActivityIds;
+    /** @var array<string,bool> */
+    private readonly array $allowedCatalogIds;
 
-    /** @param list<string> $allowedEvidence @param list<string> $allowedActivityIds */
-    public function __construct(array $allowedEvidence, array $allowedActivityIds)
+    /** @param list<string> $allowedEvidence @param list<string> $allowedActivityIds @param list<string> $allowedCatalogIds */
+    public function __construct(array $allowedEvidence, array $allowedActivityIds, array $allowedCatalogIds = [])
     {
         $this->allowedEvidence = $this->allowList($allowedEvidence, 'Roadmap evidence allow-list is invalid.');
         $this->allowedActivityIds = $this->allowList($allowedActivityIds, 'Roadmap activity allow-list is invalid.');
+        $this->allowedCatalogIds = $this->allowList($allowedCatalogIds, 'Roadmap catalog allow-list is invalid.');
     }
 
     /** @param array<string,mixed> $payload @param array<string,mixed> $engineMetadata */
     public function fromProviderPayload(array $payload, array $engineMetadata): RoadmapAnalysis
     {
-        $this->assertExactFields($payload, self::PAYLOAD_FIELDS, 'Roadmap provider payload fields are invalid.');
+        $this->assertPayloadFields($payload);
         $metadata = $this->modelMetadata($engineMetadata);
         $summary = $this->requiredText($payload['executive_summary'], 'Roadmap executive summary is required.');
         $this->assertVietnamese($summary);
@@ -88,6 +101,7 @@ final class RoadmapAnalysisValidator
         }
 
         $recommended = $this->references($payload['recommended_activity_source_ids'], $this->allowedActivityIds, false, 'Roadmap activity source ids are invalid.');
+        $extended = $this->extendedPayload($payload);
 
         return new RoadmapAnalysis(
             'model',
@@ -99,6 +113,13 @@ final class RoadmapAnalysisValidator
             $metadata['confidence_band'],
             $recommended,
             $metadata,
+            $extended['talent_map'],
+            $extended['strengths'],
+            $extended['improvements'],
+            $extended['potential_paths'],
+            $extended['trend_signals'],
+            $extended['growth_hypotheses'],
+            $extended['confidence'],
         );
     }
 
@@ -252,6 +273,91 @@ final class RoadmapAnalysisValidator
         sort($actual, SORT_STRING);
         sort($expected, SORT_STRING);
         if ($actual !== $expected) throw new \InvalidArgumentException($message);
+    }
+
+    /** @param array<string,mixed> $payload */
+    private function assertPayloadFields(array $payload): void
+    {
+        $actual = array_keys($payload);
+        $allowed = [...self::PAYLOAD_FIELDS, ...self::EXTENDED_FIELDS];
+        if (array_diff($actual, $allowed) !== [] || array_diff(self::PAYLOAD_FIELDS, $actual) !== []) {
+            throw new \InvalidArgumentException('Roadmap provider payload fields are invalid.');
+        }
+    }
+
+    /** @param array<string,mixed> $payload @return array<string,mixed> */
+    private function extendedPayload(array $payload): array
+    {
+        $confidence = $payload['confidence'] ?? null;
+        if ($confidence !== null && (!is_int($confidence) && !is_float($confidence) || $confidence < 0 || $confidence > 1)) {
+            throw new \InvalidArgumentException('Roadmap confidence is invalid.');
+        }
+        $allowedEvidence = $this->allowedEvidence;
+        if (array_key_exists('evidence', $payload)) {
+            $this->references($payload['evidence'], $allowedEvidence, true, 'Roadmap evidence references are invalid.');
+        }
+        $talentMap = $this->extendedRecords($payload['talent_map'] ?? [], ['field', 'score', 'evidence_ref_ids'], 'talent map', static function (array $record): void {
+            if (!is_string($record['field'] ?? null) || trim($record['field']) === '' || !is_numeric($record['score'] ?? null) || $record['score'] < 0 || $record['score'] > 1) {
+                throw new \InvalidArgumentException('Roadmap talent map is invalid.');
+            }
+        });
+        $strengths = $this->extendedRecords($payload['strengths'] ?? [], ['text', 'evidence_ref_ids'], 'strengths');
+        $improvements = $this->extendedRecords($payload['improvements'] ?? [], ['text', 'evidence_ref_ids'], 'improvements');
+        $potentialPaths = $this->extendedRecords($payload['potential_paths'] ?? [], ['label', 'catalog_id', 'evidence_ref_ids'], 'potential paths', function (array $record): void {
+            if (array_key_exists('catalog_id', $record)) {
+                $catalogId = $record['catalog_id'];
+                if (!is_string($catalogId) || !isset($this->allowedCatalogIds[trim($catalogId)])) {
+                    throw new \InvalidArgumentException('Roadmap catalog id is invalid.');
+                }
+            }
+        });
+        $trendSignals = $this->extendedRecords($payload['trend_signals'] ?? [], ['direction', 'label', 'evidence_ref_ids'], 'trend signals', static function (array $record): void {
+            if (!is_string($record['direction'] ?? null) || !in_array($record['direction'], ['up', 'down', 'flat'], true)) {
+                throw new \InvalidArgumentException('Roadmap trend signals are invalid.');
+            }
+        });
+        $growthHypotheses = $this->extendedRecords($payload['growth_hypotheses'] ?? [], ['text', 'confidence', 'evidence_ref_ids'], 'growth hypotheses', static function (array $record): void {
+            if (!is_numeric($record['confidence'] ?? null) || $record['confidence'] < 0 || $record['confidence'] > 1) {
+                throw new \InvalidArgumentException('Roadmap growth hypotheses are invalid.');
+            }
+        });
+        return [
+            'talent_map' => $talentMap,
+            'strengths' => $strengths,
+            'improvements' => $improvements,
+            'potential_paths' => $potentialPaths,
+            'trend_signals' => $trendSignals,
+            'growth_hypotheses' => $growthHypotheses,
+            'confidence' => $confidence === null ? 0.0 : (float) $confidence,
+        ];
+    }
+
+    /** @param mixed $value @param list<string> $fields @return list<array<string,mixed>> */
+    private function extendedRecords(mixed $value, array $fields, string $label, ?callable $extra = null): array
+    {
+        if (!is_array($value) || !array_is_list($value)) {
+            throw new \InvalidArgumentException('Roadmap ' . $label . ' are invalid.');
+        }
+        $result = [];
+        foreach ($value as $record) {
+            if (!is_array($record)) {
+                throw new \InvalidArgumentException('Roadmap ' . $label . ' are invalid.');
+            }
+            $actual = array_keys($record);
+            if (array_diff($actual, $fields) !== [] || array_diff(['evidence_ref_ids'], $actual) !== []) {
+                throw new \InvalidArgumentException('Roadmap ' . $label . ' fields are invalid.');
+            }
+            $text = $record['text'] ?? $record['label'] ?? $record['field'] ?? null;
+            if (!is_string($text) || trim($text) === '') {
+                throw new \InvalidArgumentException('Roadmap ' . $label . ' text is required.');
+            }
+            $record['evidence_ref_ids'] = $this->references($record['evidence_ref_ids'], $this->allowedEvidence, true, 'Roadmap ' . $label . ' evidence references are invalid.');
+            if ($extra !== null) {
+                $extra($record);
+            }
+            $result[] = $record;
+        }
+        return $result;
     }
 
     /** @param mixed $value @return list<mixed> */

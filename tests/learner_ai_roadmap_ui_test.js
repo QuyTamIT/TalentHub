@@ -53,6 +53,15 @@ function payload(origin = 'model') {
       { category: 'improvement', title: 'Cần cải thiện', summary: 'Trình bày quyết định rõ hơn.' },
       { category: 'potential', title: 'Tiềm năng', summary: 'Dẫn dắt dự án nhóm nhỏ.' },
     ],
+    talent_map: [
+      { field: 'Kỹ thuật', score: 72, evidence_ref_ids: ['assessment:holland'] },
+      { field: 'Kinh doanh', score: 28, evidence_ref_ids: ['assessment:disc'] },
+    ],
+    strengths: [{ text: 'Tư duy logic và học công nghệ nhanh.', evidence_ref_ids: ['skill:logic'] }],
+    improvements: [{ text: 'Thuyết trình trước nhóm đông.', evidence_ref_ids: ['evaluation:presentation'] }],
+    potential_paths: [{ label: 'Kỹ sư tự động hóa', catalog_id: 'project-robotics', evidence_ref_ids: ['assessment:holland'] }],
+    trend_signals: [{ direction: 'up', label: 'Kỹ năng trình bày đang tiến bộ.', evidence_ref_ids: ['evaluation:presentation'] }],
+    growth_hypotheses: [{ text: 'Có thể dẫn dắt dự án kỹ thuật nhỏ.', confidence: 0.78, evidence_ref_ids: ['project:robotics'] }],
     evidence_summary: { assessment_count: 4, skill_count: 2, activity_count: 1, evaluation_count: 1 },
     engine: origin === 'model'
       ? { provider: '9router_gemini', model_version: 'ag/gemini', prompt_version: 'roadmap-1' }
@@ -70,10 +79,10 @@ test('roadmap module maps all stable API states', () => {
   const { presentationState } = require(modulePath);
   assert.deepEqual([
     'not_generated', 'pending', 'consent_required', 'insufficient_data',
-    'source_unavailable', 'engine_failure', 'ready_model', 'fallback_rule',
+    'source_unavailable', 'engine_failure', 'ready_model', 'stale_model', 'fallback_rule',
   ].map((state) => presentationState({ state })), [
     'not-generated', 'pending', 'consent-required', 'insufficient-data',
-    'source-error', 'source-error', 'ready-model', 'fallback-rule',
+    'source-error', 'source-error', 'ready-model', 'stale-model', 'fallback-rule',
   ]);
 });
 
@@ -106,7 +115,42 @@ test('view model keeps exactly three roadmap phases and derives real next action
   assert.equal(model.activities.length, 1);
   assert.equal(model.evidenceTotal, 8);
   assert.equal(model.confidenceLabel, 'Độ tin cậy cao');
+  assert.equal(model.talentMap.length, 2);
+  assert.equal(model.strengths.length, 1);
+  assert.equal(model.improvements.length, 1);
+  assert.equal(model.potentialPaths.length, 1);
+  assert.equal(model.trendSignals.length, 1);
+  assert.equal(model.growthHypotheses.length, 1);
   assert.equal(Object.hasOwn(model, 'fitPercentage'), false, 'UI never invents a fit percentage');
+});
+
+test('canonical ready_rule state renders as an explicit fallback rule', () => {
+    assert.equal(require(modulePath).presentationState({ state: 'ready_rule' }), 'fallback-rule');
+});
+
+test('pending roadmap polls with bounded exponential backoff and stops when ready', async () => {
+  const { createRoadmapController } = require(modulePath);
+  const view = viewRecorder();
+  const scheduled = [];
+  let reads = 0;
+  const api = {
+    async get() { reads += 1; return reads === 1 ? { state: 'pending' } : payload(); },
+    async send() { throw new Error('not used'); },
+  };
+  const controller = createRoadmapController({
+    api, view,
+    schedule: (callback, delay) => { scheduled.push({ callback, delay }); return scheduled.length; },
+    cancelSchedule: () => {},
+    pendingDelays: [1000, 2000, 4000],
+  });
+  await controller.load();
+  assert.equal(view.events.at(-1)[0], 'pending');
+  assert.equal(scheduled[0].delay, 1000);
+  await scheduled[0].callback();
+  assert.equal(reads, 2);
+  assert.equal(view.events.at(-1)[0], 'ready-model');
+  assert.equal(scheduled.length, 1);
+  controller.dispose();
 });
 
 test('controller loads roadmap and reuses one in-flight refresh', async () => {
@@ -145,6 +189,7 @@ test('DOM view renders the canonical model payload into semantic roadmap regions
     'freshness', 'summary-label', 'summary-text', 'evidence-total', 'confidence', 'direction-label',
     'direction-rationale', 'direction-alternatives', 'insights', 'phases', 'overall-progress', 'next-actions',
     'activities', 'evidence-content', 'engine-content',
+    'talent-map', 'strengths', 'improvements', 'trends', 'potential-paths', 'growth-hypotheses',
   ];
   const nodes = Object.fromEntries(selectors.map((name) => [`[data-roadmap-${name}]`, new FakeNode()]));
   const doc = { createElement: (tag) => new FakeNode(tag) };
@@ -154,18 +199,34 @@ test('DOM view renders the canonical model payload into semantic roadmap regions
   assert.equal(nodes['[data-roadmap-phases]'].children.length, 3);
   assert.equal(nodes['[data-roadmap-next-actions]'].children.length, 3);
   assert.equal(nodes['[data-roadmap-activities]'].children.length, 1);
+  assert.equal(nodes['[data-roadmap-talent-map]'].children.length, 2);
+  assert.equal(nodes['[data-roadmap-strengths]'].children.length, 1);
+  assert.equal(nodes['[data-roadmap-improvements]'].children.length, 1);
+  assert.equal(nodes['[data-roadmap-trends]'].children.length, 1);
   assert.equal(nodes['[data-roadmap-engine-content]'].children.length, 6);
 });
 
-test('page exposes every Roadmap-first region and removes the legacy client', () => {
+test('page exposes every Roadmap-first region and the live recommendation client', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
   for (const marker of [
     'data-ai-roadmap-page', 'data-roadmap-summary', 'data-roadmap-direction',
     'data-roadmap-phases', 'data-roadmap-next-actions', 'data-roadmap-activities',
     'data-roadmap-evidence', 'data-roadmap-feedback', 'data-roadmap-engine',
+    'data-roadmap-talent-map', 'data-roadmap-strengths', 'data-roadmap-improvements',
+    'data-roadmap-trends', 'data-roadmap-potential-paths', 'data-roadmap-growth-hypotheses',
     'data-roadmap-generate', 'data-roadmap-retry', 'learner-ai-roadmap.js',
   ]) assert.match(page, new RegExp(marker));
-  assert.doesNotMatch(page, /learner-recommendations\.js/);
+  assert.match(page, /learner-recommendations\.js/);
+});
+
+test('page loads live catalog recommendations through the server API client', () => {
+  const page = fs.readFileSync(pagePath, 'utf8');
+  assert.match(page, /data-ai-page/);
+  assert.match(page, /data-ai-result-list/);
+  assert.match(page, /learner-recommendations\.js/);
+  const client = fs.readFileSync(path.join(root, 'assets', 'js', 'learner-recommendations.js'), 'utf8');
+  assert.match(client, /api\.get\('\/recommendations\.php'\)/);
+  assert.doesNotMatch(client, /generativelanguage\.googleapis|x-goog-api-key/i);
 });
 
 test('renderer uses safe text nodes and never duplicates assessment result content', () => {
