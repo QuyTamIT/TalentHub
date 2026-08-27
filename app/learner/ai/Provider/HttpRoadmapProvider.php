@@ -88,6 +88,16 @@ final class HttpRoadmapProvider implements RoadmapProvider
         $instructions = is_array($payload['instructions'] ?? null) ? $payload['instructions'] : [];
         unset($payload['instructions']);
         if ($this->isGeminiProvider()) {
+            $generationConfig = [
+                'responseFormat' => [
+                    'text' => [
+                        'mimeType' => 'APPLICATION_JSON',
+                        'schema' => $this->outputSchema($payload['output_schema'] ?? []),
+                    ],
+                ],
+                'thinkingConfig' => ['thinkingLevel' => 'low'],
+                'maxOutputTokens' => 8192,
+            ];
             return [
                 'systemInstruction' => [
                     'parts' => [['text' => implode("\n", array_filter($instructions, 'is_string'))]],
@@ -98,10 +108,7 @@ final class HttpRoadmapProvider implements RoadmapProvider
                         'text' => json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                     ]],
                 ]],
-                'generationConfig' => [
-                    'responseFormat' => ['text' => ['mimeType' => 'APPLICATION_JSON']],
-                    'maxOutputTokens' => 4096,
-                ],
+                'generationConfig' => $generationConfig,
             ];
         }
         $transport = [
@@ -115,6 +122,71 @@ final class HttpRoadmapProvider implements RoadmapProvider
         ];
         if ($this->config->model() !== null) $transport['model'] = $this->config->model();
         return $transport;
+    }
+
+    /**
+     * Sanitize the canonical roadmap output schema for the Gemini
+     * `responseFormat.text.schema` slot. Gemini rejects fields that are
+     * not part of the supported subset (for example, the `const`
+     * discriminator that the prompt registry uses); we keep the required
+     * shape, translate safe discriminator constraints and strip unrecognised
+     * keys, falling back to a closed object when the schema is missing.
+     *
+     * @param array<string,mixed> $schema
+     * @return array<string,mixed>
+     */
+    private function outputSchema(array $schema): array
+    {
+        if ($schema === []) {
+            return ['type' => 'object', 'additionalProperties' => false];
+        }
+        $cleaned = $this->cleanSchemaNode($schema);
+        $cleaned['type'] = 'object';
+        return $cleaned;
+    }
+
+    /** @param array<string,mixed>|list<mixed> $node @return array<string,mixed>|list<mixed>|string|int|float|bool|null */
+    private function cleanSchemaNode(mixed $node): mixed
+    {
+        if (!is_array($node)) return $node;
+        $isList = array_is_list($node);
+        if ($isList) {
+            $result = [];
+            foreach ($node as $value) $result[] = $this->cleanSchemaNode($value);
+            return $result;
+        }
+        $result = [];
+        $supported = [
+            '$ref',
+            'type', 'format', 'title', 'description', 'enum',
+            'items', 'prefixItems', 'minItems', 'maxItems',
+            'minimum', 'maximum', 'anyOf',
+            'properties', 'additionalProperties', 'required',
+        ];
+        foreach ($node as $key => $value) {
+            if (!is_string($key)) continue;
+            if ($key === 'const' && (is_string($value) || is_int($value) || is_float($value) || is_bool($value) || $value === null)) {
+                $result['enum'] = [$value];
+                continue;
+            }
+            if ($key === 'oneOf' && is_array($value) && array_is_list($value)) {
+                $result['anyOf'] = $this->cleanSchemaNode($value);
+                continue;
+            }
+            if (!in_array($key, $supported, true)) continue;
+            if ($key === 'properties' && is_array($value) && !array_is_list($value)) {
+                $properties = [];
+                foreach ($value as $property => $propertySchema) {
+                    if (is_string($property) && is_array($propertySchema)) {
+                        $properties[$property] = $this->cleanSchemaNode($propertySchema);
+                    }
+                }
+                $result[$key] = $properties;
+                continue;
+            }
+            $result[$key] = $this->cleanSchemaNode($value);
+        }
+        return $result;
     }
 
     /** @return array<string,string> */
@@ -153,7 +225,7 @@ final class HttpRoadmapProvider implements RoadmapProvider
         if (isset($decoded['executive_summary'])) {
             return RoadmapProviderResponse::success($decoded, $requestId, $hash);
         }
-        $content = $decoded['choices'][0]['message']['content'] ?? $decoded['candidates'][0]['content']['parts'][0]['text'] ?? null;
+        $content = $decoded['choices'][0]['message']['content'] ?? $this->geminiContent($decoded);
         if (!is_string($content)) return RoadmapProviderResponse::failure('malformed_response', null, '2xx', $requestId, $hash);
         $raw = trim($content);
         if (str_starts_with($raw, '```')) {
@@ -167,6 +239,19 @@ final class HttpRoadmapProvider implements RoadmapProvider
         return is_array($payload) && $payload !== []
             ? RoadmapProviderResponse::success($payload, $requestId, $hash)
             : RoadmapProviderResponse::failure('malformed_response', null, '2xx', $requestId, $hash);
+    }
+
+    /** @param array<string,mixed> $decoded */
+    private function geminiContent(array $decoded): ?string
+    {
+        $parts = $decoded['candidates'][0]['content']['parts'] ?? null;
+        if (!is_array($parts)) return null;
+        $chunks = [];
+        foreach ($parts as $part) {
+            if (!is_array($part) || ($part['thought'] ?? false) === true || !is_string($part['text'] ?? null)) continue;
+            $chunks[] = $part['text'];
+        }
+        return $chunks === [] ? null : implode('', $chunks);
     }
 
     private function retryAfter(mixed $headers): ?int

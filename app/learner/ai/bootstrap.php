@@ -90,6 +90,7 @@ require_once $learnerAiRoot . '/Model/RoadmapPromptRegistry.php';
 require_once $learnerAiRoot . '/Rollout/RecommendationRolloutSelector.php';
 require_once $learnerAiRoot . '/Rollout/PilotEligibility.php';
 require_once $learnerAiRoot . '/Rollout/AiPilotPolicy.php';
+require_once $learnerAiRoot . '/Rollout/RolloutEvidenceFactory.php';
 require_once $learnerAiRoot . '/Explanation/RecommendationExplainer.php';
 require_once $learnerAiRoot . '/Rules/CareerGroupClassifier.php';
 require_once $learnerAiRoot . '/Rules/RuleDefinition.php';
@@ -105,6 +106,7 @@ require_once $learnerAiRoot . '/Persistence/DatabaseAiRefreshStateRepository.php
 require_once $learnerAiRoot . '/Validation/RecommendationResultValidator.php';
 require_once $learnerAiRoot . '/Validation/RoadmapAnalysisValidator.php';
 require_once $learnerAiRoot . '/Model/ModelRecommendationEngine.php';
+require_once $learnerAiRoot . '/Model/RoadmapModelUnavailable.php';
 require_once $learnerAiRoot . '/Model/ModelRoadmapEngine.php';
 require_once $learnerAiRoot . '/Evaluation/RecommendationEvaluator.php';
 require_once $learnerAiRoot . '/Evaluation/PersistedRecommendationRun.php';
