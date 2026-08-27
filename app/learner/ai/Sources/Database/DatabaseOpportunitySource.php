@@ -173,7 +173,11 @@ SQL;
         if ($this->hasActivityContract()) {
             try {
                 $currentTime = $this->clock->format('Y-m-d H:i:s');
-                $statement = $this->pdo->prepare(self::ACTIVITY_SQL_WITH_REGISTRATIONS);
+                $activitySql = self::ACTIVITY_SQL_WITH_REGISTRATIONS;
+                if (in_array('approvalStatus', $this->columnsFor('activities'), true)) {
+                    $activitySql = str_replace("AND activity.status = 'published'", "AND activity.status = 'published'\n  AND activity.approvalStatus = 'approved'", $activitySql);
+                }
+                $statement = $this->pdo->prepare($activitySql);
                 $params = [
                     'student_id' => $studentId,
                     'registration_opened_at' => $currentTime,

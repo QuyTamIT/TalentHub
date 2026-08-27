@@ -31,6 +31,11 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
     $startAt = teacherActivitiesDate($row['startAt'] ?? null);
     $endAt = teacherActivitiesDate($row['endAt'] ?? null);
     $rawStatus = strtolower(trim((string) ($row['status'] ?? '')));
+    $approvalStatus = strtolower(trim((string) ($row['approvalStatus'] ?? 'approved')));
+    $approvalLabels = [
+        'draft' => 'Chưa gửi duyệt', 'pending_school_review' => 'Chờ Nhà trường duyệt',
+        'changes_requested' => 'Cần chỉnh sửa', 'approved' => 'Đã duyệt', 'rejected' => 'Bị từ chối',
+    ];
 
     $statusLabels = [
         'draft' => 'Bản nháp',
@@ -101,6 +106,8 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
         'location_label' => trim((string) ($row['locationName'] ?? '')) ?: 'Chưa cập nhật',
         'delivery_mode_label' => teacherActivitiesDeliveryMode((string) ($row['deliveryMode'] ?? '')),
         'policy_configured' => ($row['registrationOpensAt'] ?? null) !== null && ($row['registrationClosesAt'] ?? null) !== null && ($row['cancellationClosesAt'] ?? null) !== null,
+        'approval_status' => $approvalStatus,
+        'approval_status_label' => $approvalLabels[$approvalStatus] ?? 'Không xác định',
     ]);
 }
 

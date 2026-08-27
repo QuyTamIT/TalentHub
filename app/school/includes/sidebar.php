@@ -44,6 +44,16 @@ $sidebarNav = [
         'icon' => 'users',
     ],
     [
+        'title' => 'Duyệt hoạt động',
+        'route' => '/app/school/activities.php',
+        'icon' => 'clipboard-check',
+    ],
+    [
+        'title' => 'Chứng nhận',
+        'route' => '/app/school/credentials.php',
+        'icon' => 'trophy',
+    ],
+    [
         'title' => 'Dự án',
         'route' => '/app/school/projects.php',
         'icon' => 'book',

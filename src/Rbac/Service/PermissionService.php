@@ -16,7 +16,7 @@ final class PermissionService
             $allowed=match($role){
                 'enterprise','business'=>str_starts_with($permission,'business_'),
                 'teacher'=>str_starts_with($permission,'teacher_'),
-                'school'=>str_starts_with($permission,'school_')||str_starts_with($permission,'class.')||str_ends_with($permission,'_own_school'),
+                'school'=>str_starts_with($permission,'school_')||str_starts_with($permission,'class.')||str_ends_with($permission,'_own_school')||$permission==='activity.review_school',
                 'student'=>str_starts_with($permission,'student_'),
                 'platform_admin'=>str_starts_with($permission,'admin.'),
                 default=>false,

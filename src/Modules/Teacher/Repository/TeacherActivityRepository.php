@@ -99,6 +99,7 @@ final class TeacherActivityRepository
             $columns = 'id, schoolId, createdByTeacherId, title, category, startAt, endAt, capacity, status';
             $values = ':id, :schoolId, :teacherId, :title, :category, :startAt, :endAt, :capacity, \'draft\'';
             if ($this->hasColumn('activities', 'visibility')) { $columns .= ', visibility'; $values .= ", 'school_only'"; }
+            if ($this->hasColumn('activities', 'approvalStatus')) { $columns .= ', approvalStatus'; $values .= ", 'draft'"; }
             $statement = $this->pdo->prepare("INSERT INTO activities ({$columns}) VALUES ({$values})");
             $statement->execute([
                 'id' => $activityId,
@@ -123,10 +124,14 @@ final class TeacherActivityRepository
         if ($ownsTransaction) $this->pdo->beginTransaction();
         try {
             $lock = $this->lockSuffix();
-            $activity = $this->pdo->prepare("SELECT id, schoolId, capacity, status FROM activities WHERE id=:activityId AND createdByTeacherId=:teacherId LIMIT 1{$lock}");
+            $approvalProjection = $this->hasColumn('activities', 'approvalStatus') ? ', approvalStatus' : '';
+            $activity = $this->pdo->prepare("SELECT id, schoolId, capacity, status{$approvalProjection} FROM activities WHERE id=:activityId AND createdByTeacherId=:teacherId LIMIT 1{$lock}");
             $activity->execute(['activityId' => $activityId, 'teacherId' => $teacherId]);
             $row = $activity->fetch(PDO::FETCH_ASSOC);
             if (!is_array($row)) throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.');
+            if (isset($row['approvalStatus']) && !in_array((string) $row['approvalStatus'], ['draft', 'changes_requested'], true)) {
+                throw new ApiException(409, 'APPROVAL_STATUS_CONFLICT', 'Không thể sửa hoạt động khi đang chờ duyệt, đã duyệt hoặc đã từ chối.');
+            }
             $occupied = $this->pdo->prepare("SELECT COUNT(*) FROM activity_registrations WHERE activityId=:activityId AND status IN ('approved','attended')");
             $occupied->execute(['activityId' => $activityId]);
             if ((int) $data['capacity'] < (int) $occupied->fetchColumn()) {
@@ -185,7 +190,10 @@ final class TeacherActivityRepository
         $detail = static fn (string $column): string => $details ? "d.{$column} AS {$column}" : "NULL AS {$column}";
         $policy = static fn (string $column): string => $policies ? "p.{$column} AS {$column}" : "NULL AS {$column}";
         $hours = $experience ? 'e.confirmedHours AS confirmedHours' : 'NULL AS confirmedHours';
-        return "SELECT a.id, a.title, a.category, a.startAt, a.endAt, a.capacity, a.status,
+        $approval = $this->hasColumn('activities', 'approvalStatus')
+            ? 'a.approvalStatus, a.approvalRequestedAt, a.approvedAt, a.approvedBy, a.approvalReason'
+            : "'approved' AS approvalStatus, NULL AS approvalRequestedAt, NULL AS approvedAt, NULL AS approvedBy, NULL AS approvalReason";
+        return "SELECT a.id, a.title, a.category, a.startAt, a.endAt, a.capacity, a.status, {$approval},
             {$detail('responsibleTeacherId')}, {$detail('audienceScope')}, {$detail('displayCategory')}, {$detail('filterCategory')},
             {$detail('summary')}, {$detail('description')}, {$detail('experienceHighlights')}, {$detail('skillTags')},
             {$detail('eligibilityRules')}, {$detail('benefitItems')}, {$detail('locationName')}, {$detail('locationAddress')},
@@ -281,6 +289,9 @@ final class TeacherActivityRepository
         if ($row === null || $this->countRows('activity_registration_policies', $activityId) !== 1) $missing[] = 'cấu hình đăng ký';
         if ($row === null || $this->countRows('activity_experience_policies', $activityId) !== 1) $missing[] = 'số giờ trải nghiệm';
         if ($row !== null) {
+            if ($this->hasColumn('activities', 'approvalStatus') && (string) ($row['approvalStatus'] ?? '') !== 'approved') {
+                $missing[] = 'phê duyệt của Nhà trường';
+            }
             try {
                 $start = new \DateTimeImmutable((string) $row['startAt'], new \DateTimeZone('UTC'));
                 $end = new \DateTimeImmutable((string) $row['endAt'], new \DateTimeZone('UTC'));
@@ -327,7 +338,7 @@ final class TeacherActivityRepository
         return (int) $statement->fetchColumn() === 1;
     }
 
-    public function advanceStatus(string $teacherId, string $activityId, string $expectedStatus, string $nextStatus): bool
+    public function advanceStatus(string $teacherId, string $activityId, string $expectedStatus, string $nextStatus, ?string $requestId = null): bool
     {
         if ((self::STATUS_TRANSITIONS[$expectedStatus] ?? null) !== $nextStatus) {
             throw new \InvalidArgumentException('Invalid activity status transition.');
@@ -358,6 +369,17 @@ final class TeacherActivityRepository
                 if ($ownsTransaction) $this->pdo->rollBack();
                 return false;
             }
+            $audit = $this->pdo->prepare(
+                'INSERT INTO audit_logs (id,userId,action,entityType,entityId,requestId,ipAddress,metadata,createdAt)
+                 SELECT :id,tp.userId,:action,\'activity\',:entityId,:requestId,NULL,:metadata,:createdAt
+                 FROM teacher_profiles tp WHERE tp.id=:teacherId LIMIT 1'
+            );
+            $audit->execute([
+                'id' => Uuid::v4(), 'action' => 'activity.' . $nextStatus, 'entityId' => $activityId,
+                'requestId' => $requestId ?? strtoupper(bin2hex(random_bytes(13))),
+                'metadata' => json_encode(['previousStatus' => $expectedStatus, 'status' => $nextStatus], JSON_THROW_ON_ERROR),
+                'createdAt' => gmdate('Y-m-d H:i:s.u'), 'teacherId' => $teacherId,
+            ]);
             $students = (new AiAudienceResolver($this->pdo))->schoolStudents((string) $current['schoolId']);
             if ($students !== []) {
                 $event = $nextStatus === 'published' ? 'activity.published' : 'activity.' . $nextStatus;
@@ -378,6 +400,58 @@ final class TeacherActivityRepository
             if ($ownsTransaction && $this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $exception;
         }
+    }
+
+    /** @return array<string,mixed> */
+    public function submitForSchoolReview(string $teacherId, string $activityId, string $requestId): array
+    {
+        if (!$this->hasColumn('activities', 'approvalStatus')) {
+            throw new ApiException(503, 'APPROVAL_CONTRACT_UNAVAILABLE', 'Database chưa có contract duyệt hoạt động của Nhà trường.');
+        }
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) $this->pdo->beginTransaction();
+        try {
+            $lock = $this->lockSuffix();
+            $statement = $this->pdo->prepare('SELECT a.id,a.title,a.schoolId,a.status,a.approvalStatus,tp.userId AS teacherUserId FROM activities a INNER JOIN teacher_profiles tp ON tp.id=a.createdByTeacherId WHERE a.id=:activityId AND a.createdByTeacherId=:teacherId LIMIT 1' . $lock);
+            $statement->execute(['activityId' => $activityId, 'teacherId' => $teacherId]);
+            $activity = $statement->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($activity)) throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.');
+            if ((string) $activity['status'] !== 'draft' || !in_array((string) $activity['approvalStatus'], ['draft', 'changes_requested'], true)) {
+                throw new ApiException(409, 'APPROVAL_STATUS_CONFLICT', 'Chỉ hoạt động nháp mới có thể gửi Nhà trường duyệt.');
+            }
+            $this->assertPublishableConfiguration($teacherId, $activityId);
+            $now = gmdate('Y-m-d H:i:s.u');
+            $update = $this->pdo->prepare("UPDATE activities SET approvalStatus='pending_school_review',approvalRequestedAt=:requestedAt,approvedAt=NULL,approvedBy=NULL,approvalReason=NULL WHERE id=:activityId AND createdByTeacherId=:teacherId AND approvalStatus=:expected");
+            $update->execute(['requestedAt' => $now, 'activityId' => $activityId, 'teacherId' => $teacherId, 'expected' => (string) $activity['approvalStatus']]);
+            if ($update->rowCount() !== 1) throw new ApiException(409, 'APPROVAL_STATUS_CONFLICT', 'Trạng thái duyệt đã thay đổi bởi một yêu cầu khác.');
+            $audit = $this->pdo->prepare('INSERT INTO audit_logs (id,userId,action,entityType,entityId,requestId,ipAddress,metadata,createdAt) VALUES (:id,:userId,\'activity.submitted_for_review\',\'activity\',:entityId,:requestId,NULL,:metadata,:createdAt)');
+            $audit->execute(['id' => Uuid::v4(), 'userId' => (string) $activity['teacherUserId'], 'entityId' => $activityId, 'requestId' => $requestId, 'metadata' => json_encode(['schoolId' => $activity['schoolId'], 'previousStatus' => $activity['approvalStatus'], 'status' => 'pending_school_review'], JSON_THROW_ON_ERROR), 'createdAt' => $now]);
+            $members = $this->pdo->prepare("SELECT sm.userId FROM school_members sm WHERE sm.schoolId=:schoolId AND sm.memberRole='admin'");
+            $members->execute(['schoolId' => (string) $activity['schoolId']]);
+            foreach ($members->fetchAll(PDO::FETCH_ASSOC) ?: [] as $member) {
+                $this->getNotificationService()->publish((string) $member['userId'], 'activity_submitted_for_review', 'Hoạt động chờ duyệt', 'Hoạt động ' . (string) $activity['title'] . ' vừa được Giáo viên gửi duyệt.', '/app/school/activities.php', 'activity_submitted_for_review:' . $activityId . ':' . (string) $member['userId']);
+            }
+            if ($ownsTransaction) $this->pdo->commit();
+            return $activity + ['approvalStatus' => 'pending_school_review', 'approvalRequestedAt' => $now];
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $exception;
+        }
+    }
+
+    private function assertPublishableConfiguration(string $teacherId, string $activityId): void
+    {
+        // Submission validates completeness but deliberately does not require approval yet.
+        $row = $this->find($teacherId, $activityId);
+        $missing = [];
+        if ($row === null || $this->countRows('activity_details', $activityId) !== 1) $missing[] = 'thông tin chi tiết';
+        if ($row === null || $this->countRows('activity_registration_policies', $activityId) !== 1) $missing[] = 'cấu hình đăng ký';
+        if ($row === null || $this->countRows('activity_experience_policies', $activityId) !== 1) $missing[] = 'số giờ trải nghiệm';
+        foreach (['summary' => 'tóm tắt', 'description' => 'mô tả', 'organizerName' => 'đơn vị tổ chức'] as $field => $label) {
+            if (trim((string) ($row[$field] ?? '')) === '') $missing[] = $label;
+        }
+        if (($row['deliveryMode'] ?? 'in_person') !== 'online' && trim((string) ($row['locationName'] ?? '')) === '') $missing[] = 'địa điểm';
+        if ($missing !== []) throw new ApiException(422, 'INVALID_ACTIVITY_CONFIGURATION', 'Chưa thể gửi duyệt: còn thiếu ' . implode(', ', array_unique($missing)) . '.');
     }
 
     /** @return array{schoolId:string,status:string}|null */

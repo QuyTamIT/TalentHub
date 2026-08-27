@@ -99,7 +99,7 @@ $dataLoaded = false;
 $unexpectedLoadError = false;
 $saveStarted = false;
 $stage = 'initialization';
-$requestId = RequestId::generate();
+$requestId = RequestId::make(null);
 $unexpectedException = null;
 $data = [
     'teacher' => [],
@@ -134,7 +134,7 @@ try {
         $stage = 'save:permission';
         $permissions->require($user['id'], 'assessment.update_managed');
         $stage = 'save:assessment';
-        $savedActivityId = $service->save($user['id'], $_POST);
+        $savedActivityId = $service->save($user['id'], $_POST, $requestId);
 
         $_SESSION['teacherGradingFlash'] = 'Đã lưu đánh giá cho học viên.';
         $redirectQuery = ['activityId' => $savedActivityId];

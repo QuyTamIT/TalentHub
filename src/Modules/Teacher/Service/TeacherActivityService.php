@@ -57,9 +57,11 @@ final class TeacherActivityService
     }
 
     /** @param array<string,mixed> $input */
-    public function create(string $teacherId, string $schoolId, array $input): void
+    public function create(string $teacherId, string $schoolId, array $input): string
     {
-        $this->repository->create($this->requireUuid($teacherId, 'teacherId'), $schoolId, self::uuid(), $this->payload($input));
+        $activityId = self::uuid();
+        $this->repository->create($this->requireUuid($teacherId, 'teacherId'), $schoolId, $activityId, $this->payload($input, true));
+        return $activityId;
     }
 
     /** @param array<string,mixed> $input */
@@ -78,7 +80,7 @@ final class TeacherActivityService
         );
     }
 
-    public function advanceStatus(string $teacherId, string $activityId): string
+    public function advanceStatus(string $teacherId, string $activityId, ?string $requestId = null): string
     {
         $activityId = trim($activityId);
         $activity = $this->repository->find($teacherId, $activityId);
@@ -96,11 +98,32 @@ final class TeacherActivityService
             throw new ApiException(422, 'INVALID_TRANSITION', 'Hoạt động đã lưu trữ và không thể chuyển tiếp.');
         }
 
-        if (!$this->repository->advanceStatus($this->requireUuid($teacherId, 'teacherId'), $this->requireUuid($activityId, 'activityId'), $currentStatus, $nextStatus)) {
+        if (!$this->repository->advanceStatus($this->requireUuid($teacherId, 'teacherId'), $this->requireUuid($activityId, 'activityId'), $currentStatus, $nextStatus, $requestId !== null ? $this->requestId($requestId) : null)) {
             throw new ApiException(409, 'STATUS_CONFLICT', 'Hoạt động đã thay đổi hoặc không còn thuộc giáo viên này.');
         }
 
         return $nextStatus;
+    }
+
+    /** @return array<string,mixed> */
+    public function submitForSchoolReview(string $teacherId, string $activityId, string $requestId): array
+    {
+        return $this->repository->submitForSchoolReview(
+            $this->requireUuid($teacherId, 'teacherId'),
+            $this->requireUuid($activityId, 'activityId'),
+            $this->requestId($requestId),
+        );
+    }
+
+    /** @return array{activityId:string,status:string} */
+    public function publish(string $teacherId, string $activityId, string $requestId): array
+    {
+        $requestId = $this->requestId($requestId);
+        $activity = $this->find($this->requireUuid($teacherId, 'teacherId'), $this->requireUuid($activityId, 'activityId'));
+        if ($activity === null) throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.');
+        if ((string) ($activity['status'] ?? '') !== 'draft') throw new ApiException(409, 'STATUS_CONFLICT', 'Chỉ hoạt động nháp mới có thể công bố.');
+        if ((string) ($activity['approvalStatus'] ?? '') !== 'approved') throw new ApiException(409, 'SCHOOL_APPROVAL_REQUIRED', 'Hoạt động phải được Nhà trường duyệt trước khi công bố.');
+        return ['activityId' => $activityId, 'status' => $this->advanceStatus($teacherId, $activityId, $requestId)];
     }
 
     /** @param array<string,mixed> $input @return array{id:string,activityId:string,status:string,updatedAt:string} */
@@ -135,7 +158,7 @@ final class TeacherActivityService
     }
 
     /** @param array<string,mixed> $input @return array<string,mixed> */
-    private function payload(array $input): array
+    private function payload(array $input, bool $creating = false): array
     {
         $title = $this->stringValue($input['title'] ?? null, 'Tên hoạt động', 255, true);
         $category = $this->stringValue($input['category'] ?? null, 'Nhóm hoạt động', 100, true);
@@ -226,17 +249,17 @@ final class TeacherActivityService
             'audienceScope' => 'school_only',
             'displayCategory' => $displayCategory,
             'filterCategory' => $filterCategory,
-            'summary' => $this->stringValue($input['summary'] ?? null, 'Tóm tắt', 500, false),
-            'description' => $this->stringValue($input['description'] ?? null, 'Mô tả', 65535, false),
+            'summary' => $this->stringValue($input['summary'] ?? null, 'Tóm tắt', 500, $creating),
+            'description' => $this->stringValue($input['description'] ?? null, 'Mô tả', 65535, $creating),
             'experienceHighlights' => $this->textList($input['experienceHighlights'] ?? []),
             'skillTags' => $this->textList($input['skillTags'] ?? []),
             'eligibilityRules' => $this->textList($input['eligibilityRules'] ?? []),
             'benefitItems' => $this->textList($input['benefitItems'] ?? []),
-            'locationName' => $this->stringValue($input['locationName'] ?? null, 'Tên địa điểm', 255, false),
+            'locationName' => $this->stringValue($input['locationName'] ?? null, 'Tên địa điểm', 255, $creating && $deliveryMode !== 'online'),
             'locationAddress' => $this->nullableString($input['locationAddress'] ?? null, 'Địa chỉ', 500),
             'deliveryMode' => $deliveryMode,
             'onlineMeetingUrl' => $onlineMeetingUrl,
-            'organizerName' => $this->stringValue($input['organizerName'] ?? null, 'Đơn vị tổ chức', 255, false),
+            'organizerName' => $this->stringValue($input['organizerName'] ?? null, 'Đơn vị tổ chức', 255, $creating),
             'organizerContact' => $this->nullableString($input['organizerContact'] ?? null, 'Liên hệ', 255),
             'organizerEmail' => $this->email($input['organizerEmail'] ?? null),
             'organizerPhone' => $this->phone($input['organizerPhone'] ?? null),
@@ -373,5 +396,13 @@ final class TeacherActivityService
             throw new ApiException(422, 'VALIDATION_FAILED', "{$field} phải có định dạng UUID hợp lệ.");
         }
         return strtolower($value);
+    }
+
+    private function requestId(string $value): string
+    {
+        if (preg_match('/\A[A-Za-z0-9_-]{16,64}\z/', $value) !== 1) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'requestId không hợp lệ.');
+        }
+        return substr($value, 0, 26);
     }
 }
