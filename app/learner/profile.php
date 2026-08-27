@@ -77,6 +77,33 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                     </div>
                 </section>
 
+                <?php if (is_array($aiCapabilityProfile)): ?>
+                    <section class="learner-card" aria-labelledby="ai-capability-profile-title">
+                        <div class="learner-section-heading learner-section-heading--icon">
+                            <span class="learner-section-heading__icon"><?= learner_icon('sparkles', 22); ?></span>
+                            <div>
+                                <h2 id="ai-capability-profile-title">AI phân tích hồ sơ năng lực</h2>
+                                <p>Cập nhật <?= learner_escape($aiCapabilityProfile['generated_at'] ?? ''); ?> · <?= ($aiCapabilityProfile['status'] ?? '') === 'stale_model' ? 'Đang hiển thị bản AI gần nhất' : 'Dữ liệu AI mới nhất'; ?></p>
+                            </div>
+                        </div>
+                        <div class="learner-profile-grid">
+                            <article>
+                                <h3>Điểm mạnh</h3>
+                                <ul><?php foreach (($aiCapabilityProfile['strengths'] ?? []) as $insight): ?><li><?= learner_escape(is_array($insight) ? ($insight['label'] ?? $insight['title'] ?? '') : $insight); ?></li><?php endforeach; ?></ul>
+                            </article>
+                            <article>
+                                <h3>Cần cải thiện</h3>
+                                <ul><?php foreach (($aiCapabilityProfile['improvements'] ?? []) as $insight): ?><li><?= learner_escape(is_array($insight) ? ($insight['label'] ?? $insight['title'] ?? '') : $insight); ?></li><?php endforeach; ?></ul>
+                            </article>
+                        </div>
+                        <details>
+                            <summary>Xem nguồn bằng chứng AI đã sử dụng</summary>
+                            <ul><?php foreach (($aiCapabilityProfile['evidence'] ?? []) as $evidence): ?><li><?= learner_escape(is_array($evidence) ? ($evidence['source_type'] ?? $evidence['ref_id'] ?? 'Nguồn dữ liệu') : $evidence); ?></li><?php endforeach; ?></ul>
+                        </details>
+                        <p><small>Phân tích AI chỉ hỗ trợ định hướng và không thay thế điểm đánh giá chính thức của giáo viên/mentor.</small></p>
+                    </section>
+                <?php endif; ?>
+
                 <section class="learner-card learner-school-credential-section" aria-labelledby="school-certificates-title">
                     <div class="learner-school-credential-heading">
                         <div>

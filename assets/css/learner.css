@@ -8082,6 +8082,32 @@ body.learner-sidebar-open {
     }
 }
 
+.learner-page-ai .learner-roadmap-capability__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.learner-page-ai .learner-roadmap-capability__grid > .learner-card { padding: 20px; }
+.learner-page-ai .learner-roadmap-capability__grid h3 { margin: 0 0 12px; }
+.learner-page-ai .learner-roadmap-capability__talent,
+.learner-page-ai .learner-roadmap-capability__record {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--learner-border, #E5E7EB);
+}
+.learner-page-ai .learner-roadmap-capability__record { display: block; }
+
+@media (max-width: 1100px) {
+    .learner-page-ai .learner-roadmap-capability__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+    .learner-page-ai .learner-roadmap-capability__grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 480px) {
     .learner-page-overview .learner-welcome__status {
         align-items: flex-start;
@@ -8244,3 +8270,6 @@ body.learner-sidebar-open {
         display: none;
     }
 }
+.learner-ai-live-catalog { margin-block: 1.5rem; }
+.learner-ai-live-catalog__meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .75rem; margin-bottom: 1rem; color: var(--text-secondary); }
+.learner-ai-result__type { display: inline-block; margin-block: .5rem; color: var(--text-secondary); }

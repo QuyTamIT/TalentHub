@@ -10,6 +10,7 @@ final class RecommendationItem
 {
     private const ITEM_TYPES = ['strength', 'improvement', 'development', 'activity', 'roadmap'];
     private const CONFIDENCE_BANDS = ['low', 'medium', 'high'];
+    private const REASON_CODES = ['career_match', 'eligible_catalog', 'skill_match', 'deadline_soon'];
 
     /** @var array<string,mixed> */
     private readonly array $action;
@@ -28,6 +29,10 @@ final class RecommendationItem
         private readonly string $confidenceBand,
         array $action,
         array $evidence,
+        private readonly ?string $category = null,
+        private readonly ?string $catalogId = null,
+        private readonly ?string $reason = null,
+        array $reasonCodes = [],
     ) {
         if (!in_array($itemType, self::ITEM_TYPES, true)) {
             throw new \InvalidArgumentException('Unsupported recommendation item type.');
@@ -49,6 +54,19 @@ final class RecommendationItem
         if ($evidence === []) {
             throw new \InvalidArgumentException('Recommendation items require normalized evidence.');
         }
+        if ($catalogId !== null && trim($catalogId) === '') {
+            throw new \InvalidArgumentException('Recommendation catalog id must be non-empty when provided.');
+        }
+        if ($reason !== null && trim($reason) === '') {
+            throw new \InvalidArgumentException('Recommendation reason must be non-empty when provided.');
+        }
+        $codes = [];
+        foreach ($reasonCodes as $code) {
+            if (!is_string($code) || !in_array(trim($code), self::REASON_CODES, true)) {
+                throw new \InvalidArgumentException('Recommendation reason code is invalid.');
+            }
+            $codes[trim($code)] = true;
+        }
         foreach ($evidence as $value) {
             if (!$value instanceof RecommendationEvidence) {
                 throw new \InvalidArgumentException('Recommendation items require normalized evidence.');
@@ -56,6 +74,9 @@ final class RecommendationItem
         }
         $this->action = $action;
         $this->evidence = array_values($evidence);
+        $normalizedReasonCodes = array_keys($codes);
+        sort($normalizedReasonCodes, SORT_STRING);
+        $this->reasonCodes = $normalizedReasonCodes;
     }
 
     public function itemType(): string
@@ -98,5 +119,29 @@ final class RecommendationItem
     public function evidence(): array
     {
         return $this->evidence;
+    }
+
+    public function category(): ?string
+    {
+        return $this->category;
+    }
+
+    public function catalogId(): ?string
+    {
+        return $this->catalogId;
+    }
+
+    public function reason(): ?string
+    {
+        return $this->reason;
+    }
+
+    /** @var list<string> */
+    private readonly array $reasonCodes;
+
+    /** @return list<string> */
+    public function reasonCodes(): array
+    {
+        return $this->reasonCodes;
     }
 }

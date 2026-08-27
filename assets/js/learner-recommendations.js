@@ -5,7 +5,7 @@
 (function initLearnerRecommendations(global) {
     'use strict';
 
-    const READY_STATES = new Set(['ready-rule', 'ready-model', 'fallback-rule']);
+    const READY_STATES = new Set(['ready-rule', 'ready-model', 'stale-model', 'fallback-rule']);
 
     function presentationState(payload) {
         const state = typeof payload?.state === 'string' ? payload.state : '';
@@ -13,6 +13,7 @@
         if (state === 'insufficient_data' || state === 'not_generated') return 'insufficient-data';
         if (state === 'ready_rule') return 'ready-rule';
         if (state === 'ready_model') return 'ready-model';
+        if (state === 'stale_model') return 'stale-model';
         if (state === 'fallback_rule') return 'fallback-rule';
         if (state === 'pending') return 'loading';
         return 'source-error';
@@ -145,6 +146,7 @@
                 'source-error': 'Chưa thể lấy dữ liệu gợi ý.',
                 'ready-rule': 'Gợi ý theo quy tắc đã sẵn sàng.',
                 'ready-model': 'Gợi ý từ mô hình đã sẵn sàng.',
+                'stale-model': 'Đang hiển thị gợi ý AI gần nhất trong khi hệ thống cập nhật.',
                 'fallback-rule': 'Đang hiển thị gợi ý dự phòng theo quy tắc.',
                 'feedback-saved': 'Đã lưu phản hồi của bạn.',
             }[state] || 'Trạng thái gợi ý đã thay đổi.';
@@ -265,7 +267,14 @@
             summary.textContent = text(item.summary, 'Gợi ý được xây dựng từ dữ liệu bạn đã cho phép.');
             article.append(title, summary);
 
+            const type = text(item.item_type, 'development');
+            const typeLabel = document.createElement('small');
+            typeLabel.className = 'learner-ai-result__type';
+            typeLabel.textContent = ({ activity: 'Hoạt động', strength: 'Điểm mạnh', improvement: 'Cần cải thiện', development: 'Phát triển', roadmap: 'Lộ trình' })[type] || 'Gợi ý';
+            article.appendChild(typeLabel);
+
             const action = item.action && typeof item.action === 'object' ? item.action : null;
+            let hasActionLink = false;
             if (action?.type === 'register_activity'
                 && typeof action.activity_source_id === 'string'
                 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(action.activity_source_id)) {
@@ -274,6 +283,20 @@
                 link.href = `activity-detail.php?id=${encodeURIComponent(action.activity_source_id)}`;
                 link.textContent = 'Xem hoạt động và đăng ký';
                 article.appendChild(link);
+                hasActionLink = true;
+            }
+            if (!hasActionLink) {
+                const evidence = Array.isArray(item.evidence) ? item.evidence : [];
+                const catalog = evidence.find((entry) => ['catalog', 'opportunity'].includes(entry?.source_type)
+                    && entry?.safe_value && typeof entry.safe_value === 'object');
+                const url = typeof catalog?.safe_value?.url === 'string' ? catalog.safe_value.url.trim() : '';
+                if (/^\/(?!\/)[A-Za-z0-9._~!$&'()*+,;=:@%/?#-]+$/.test(url)) {
+                    const link = document.createElement('a');
+                    link.className = 'learner-btn learner-btn--primary';
+                    link.href = url;
+                    link.textContent = 'Xem chi tiết';
+                    article.appendChild(link);
+                }
             }
 
             const itemId = text(item.item_id, '');
@@ -351,6 +374,7 @@
                 ? presentationState(payload)
                 : (payload?.engine_type === 'model' ? 'ready-model' : 'ready-rule'));
         if (effectiveState === 'ready-model') return 'Gợi ý từ mô hình AI';
+        if (effectiveState === 'stale-model') return 'Gợi ý AI gần nhất';
         if (effectiveState === 'fallback-rule') return 'Gợi ý dự phòng theo quy tắc';
         return 'Gợi ý theo quy tắc';
     }

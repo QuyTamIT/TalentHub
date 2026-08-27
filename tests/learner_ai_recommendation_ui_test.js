@@ -132,9 +132,10 @@ test('presentation state exposes every stable recommendation response state', ()
     presentationState({ state: 'source_unavailable' }),
     presentationState({ state: 'ready_rule' }),
     presentationState({ state: 'ready_model' }),
+    presentationState({ state: 'stale_model' }),
     presentationState({ state: 'fallback_rule' }),
   ], [
-    'loading', 'consent-required', 'insufficient-data', 'source-error', 'ready-rule', 'ready-model', 'fallback-rule',
+    'loading', 'consent-required', 'insufficient-data', 'source-error', 'ready-rule', 'ready-model', 'stale-model', 'fallback-rule',
   ]);
 });
 
@@ -166,7 +167,7 @@ test('recommendations group current item types without inventing a roadmap', () 
   assert.doesNotMatch(source, /Lộ trình 3 tháng/);
 });
 
-test('legacy recommendation client stays regression-covered while the page switches to Roadmap-first', () => {
+test('recommendation client stays regression-covered beside the Roadmap-first experience', () => {
   const source = fs.readFileSync(modulePath, 'utf8');
   const page = fs.readFileSync(pagePath, 'utf8');
 
@@ -175,7 +176,7 @@ test('legacy recommendation client stays regression-covered while the page switc
   assert.match(source, /payload\?\.provider/);
   assert.match(source, /payload\?\.model_version/);
   assert.match(page, /LỘ TRÌNH PHÁT TRIỂN 90 NGÀY/);
-  assert.doesNotMatch(page, /learner-recommendations\.js/);
+  assert.match(page, /learner-recommendations\.js/);
   assert.match(page, /learner-ai-roadmap\.js/);
 });
 

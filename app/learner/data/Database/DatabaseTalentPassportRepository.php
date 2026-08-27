@@ -25,7 +25,36 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
         $teacherEvaluations = $this->teacherEvaluations($studentId);
         $activitySummary = $this->activitySummary($studentId, $experience['confirmed_hours']);
         $optional = $this->optionalFacts($studentId);
+        $progress = $this->progress($studentId, $optional['capabilities']['badges']);
+        $roadmapFeedback = $this->roadmapFeedback($studentId);
+        $aiCapabilityProfile = $this->aiCapabilityProfile($studentId);
         $timestamps = $this->sourceTimestamps($skills, $experience['confirmed_entries'], $assessmentResults, $teacherEvaluations);
+        $sourceAvailability = [
+            'achievement' => ['status' => 'unavailable', 'reason' => 'canonical_source_not_available'],
+            'certificate' => [
+                'status' => $optional['capabilities']['certificates'] ? 'available' : 'unavailable',
+                'reason' => $optional['capabilities']['certificates'] ? null : 'schema_not_available',
+            ],
+            'project' => [
+                'status' => $optional['capabilities']['projects'] ? 'available' : 'unavailable',
+                'reason' => $optional['capabilities']['projects'] ? null : 'schema_not_available',
+            ],
+            'badge' => [
+                'status' => $optional['capabilities']['badges'] ? 'available' : 'unavailable',
+                'reason' => $optional['capabilities']['badges'] ? null : 'schema_not_available',
+            ],
+            'progress' => [
+                'status' => $optional['capabilities']['badges'] ? 'available' : 'unavailable',
+                'reason' => $optional['capabilities']['badges'] ? null : 'schema_not_available',
+            ],
+            'checkin' => ['status' => 'available', 'reason' => null],
+            'teacher_feedback' => ['status' => 'available', 'reason' => null],
+            'mentor_evaluation' => ['status' => 'unavailable', 'reason' => 'canonical_source_not_available'],
+            'roadmap_feedback' => [
+                'status' => $this->inspector()->hasTable('learner_recommendation_audit_events') ? 'available' : 'unavailable',
+                'reason' => $this->inspector()->hasTable('learner_recommendation_audit_events') ? null : 'schema_not_available',
+            ],
+        ];
 
         return [
             'student' => $student,
@@ -37,9 +66,48 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             'certificates' => $optional['certificates'],
             'projects' => $optional['projects'],
             'badges' => $optional['badges'],
+            'achievements' => [],
+            'progress' => $progress,
+            'checkins' => $experience['confirmed_entries'],
+            'teacher_feedback' => $teacherEvaluations,
+            'mentor_evaluations' => [],
+            'roadmap_feedback' => $roadmapFeedback,
+            'ai_capability_profile' => $aiCapabilityProfile,
             'source_timestamps' => $timestamps,
             'capabilities' => $optional['capabilities'],
+            'source_availability' => $sourceAvailability,
         ];
+    }
+
+    /** @return array<string,mixed>|null */
+    private function aiCapabilityProfile(string $studentId): ?array
+    {
+        if (!$this->inspector()->hasTable('learner_ai_capability_profiles') || !$this->aiProfileConsentGranted($studentId)) return null;
+        $row=$this->fetchOne('ai capability profile', <<<'SQL'
+            SELECT version_number, status, talent_map_json, strengths_json, improvements_json,
+                   potential_paths_json, trend_signals_json, evidence_json, snapshot_hash,
+                   model_version, generated_at, stale_since
+            FROM learner_ai_capability_profiles
+            WHERE student_id = :student_id AND superseded_at IS NULL
+            ORDER BY version_number DESC LIMIT 1
+            SQL, ['student_id'=>$studentId]);
+        if ($row===null) return null;
+        foreach (['talent_map_json','strengths_json','improvements_json','potential_paths_json','trend_signals_json','evidence_json'] as $field) {
+            $decoded=json_decode((string)($row[$field]??'[]'),true);
+            $row[substr($field,0,-5)]=is_array($decoded)?$decoded:[]; unset($row[$field]);
+        }
+        return $row;
+    }
+
+    private function aiProfileConsentGranted(string $studentId): bool
+    {
+        if (!$this->inspector()->hasTable('learner_ai_consent_events')) return false;
+        $row=$this->fetchOne('AI capability profile consent', <<<'SQL'
+            SELECT action FROM learner_ai_consent_events
+            WHERE studentId = :student_id AND scope = 'assessment'
+            ORDER BY occurredAt DESC, id DESC LIMIT 1
+            SQL, ['student_id'=>$studentId]);
+        return ($row['action']??null)==='granted';
     }
 
     /** @param list<string> $sections @return array<string,mixed> */
@@ -330,6 +398,65 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             'attended_count' => (int) ($row['attended_count'] ?? 0),
             'confirmed_hours' => $confirmedHours,
         ];
+    }
+
+    /** @return list<array<string,mixed>> */
+    private function progress(string $studentId, bool $badgesAvailable): array
+    {
+        if (!$badgesAvailable) {
+            return [];
+        }
+
+        try {
+            $service = new \TalentHub\Learner\Data\Service\BadgeReadService(
+                new DatabaseBadgeRepository($this->pdo),
+                new DatabaseStatisticsRepository($this->pdo),
+                new \TalentHub\Learner\Data\Service\BadgeRuleEngine(),
+            );
+            $result = $service->forStudent($studentId);
+            return is_array($result['progress'] ?? null) ? $result['progress'] : [];
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /** @return list<array<string,mixed>> */
+    private function roadmapFeedback(string $studentId): array
+    {
+        if (!$this->inspector()->hasTable('learner_recommendation_audit_events')) {
+            return [];
+        }
+
+        try {
+            $rows = $this->fetchAll(
+                'roadmapFeedback',
+                "SELECT id, runId AS run_id, engineMetadataJson AS engine_metadata_json, createdAt AS created_at
+                 FROM learner_recommendation_audit_events
+                 WHERE studentId = :student_id AND action = 'roadmap_feedback' AND status = 'completed'
+                 ORDER BY createdAt DESC, id ASC LIMIT 100",
+                ['student_id' => $studentId],
+            );
+            $feedback = [];
+            foreach ($rows as $row) {
+                $metadata = $this->decodeJson($row['engine_metadata_json'] ?? null, 'engineMetadataJson');
+                $verdict = $metadata['verdict'] ?? $row['verdict'] ?? null;
+                $reason = $metadata['reason_code'] ?? $row['reason_code'] ?? null;
+                if (!is_string($verdict) || !in_array($verdict, ['helpful', 'not_helpful'], true)
+                    || !is_string($reason) || !in_array($reason, ['useful_direction', 'not_relevant', 'too_generic', 'too_difficult'], true)) {
+                    continue;
+                }
+                $feedback[] = [
+                    'id' => (string) ($row['id'] ?? ''),
+                    'run_id' => (string) ($row['run_id'] ?? ''),
+                    'verdict' => $verdict,
+                    'reason_code' => $reason,
+                    'updated_at' => $row['created_at'] ?? null,
+                ];
+            }
+            return $feedback;
+        } catch (Throwable) {
+            return [];
+        }
     }
 
     private function optionalFacts(string $studentId): array

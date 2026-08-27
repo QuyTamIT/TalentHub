@@ -92,7 +92,7 @@ roadmap_service_assert($forbidden['state']==='forbidden','owner authorization ru
 
 $noConsentInput=roadmap_service_input('a',['activity','assessment','evaluation','skills']);
 $noConsent=roadmap_service_build(roadmap_service_repository(),roadmap_service_engine($modelA),$noConsentInput,roadmap_service_consent(false))->generate('student-a','request-a','idempotency-key-a');
-roadmap_service_assert($noConsent['state']==='consent_required' && $noConsent['missing_consent_scopes']===['assessment'],'missing assessment consent is explicit');
+roadmap_service_assert($noConsent['state']==='ai_unavailable' && $noConsent['quality_state']==='consent_required' && $noConsent['freshness_status']==='unavailable' && $noConsent['missing_consent_scopes']===['assessment'],'missing assessment consent is explicit within canonical availability');
 
 $repository=roadmap_service_repository(); $engine=roadmap_service_engine($modelA);
 $ready=roadmap_service_build($repository,$engine,$inputA,roadmap_service_consent())->generate('student-a','request-a','idempotency-key-a');
@@ -103,8 +103,10 @@ foreach (['input_hash','provider_request_id','response_hash','raw_snapshot','api
 
 $preferenceRepository=roadmap_service_repository(null,null,[['verdict'=>'not_helpful','reason_code'=>'too_generic','count'=>2]]);
 $preferenceEngine=roadmap_service_engine($modelA);
-roadmap_service_build($preferenceRepository,$preferenceEngine,$inputA,roadmap_service_consent())->generate('student-a','request-pref','idempotency-pref');
+$preferenceService=roadmap_service_build($preferenceRepository,$preferenceEngine,$inputA,roadmap_service_consent());
+$profileReady=$preferenceService->generateForProfile('student-a','request-pref','idempotency-pref');
 roadmap_service_assert(($preferenceEngine->lastInput?->payload()['preference_signals'] ?? null) == [['verdict'=>'not_helpful','reason_code'=>'too_generic','count'=>2]], 'aggregate allowlisted feedback is part of the next immutable roadmap snapshot');
+roadmap_service_assert(($profileReady['input_hash']??null)===$preferenceService->inputHash('student-a'),'profile worker exposes the actual canonical model input hash including preference signals');
 
 $sameRepository=roadmap_service_repository(array_merge($repository->latest,['input_hash'=>$inputA->contentHash()])); $sameEngine=roadmap_service_engine($modelA);
 $same=roadmap_service_build($sameRepository,$sameEngine,$inputA,roadmap_service_consent())->generate('student-a','request-b','different-idempotency');

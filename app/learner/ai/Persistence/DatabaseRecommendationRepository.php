@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace TalentHub\Learner\Ai\Persistence;
+require_once dirname(__DIR__) . '/Queue/TransactionalAiOutboxPublisher.php';
 
 use JsonException;
 use PDO;
@@ -14,6 +15,7 @@ use TalentHub\Learner\Ai\Domain\RecommendationInput;
 use TalentHub\Learner\Ai\Domain\RecommendationItem;
 use TalentHub\Learner\Ai\Domain\RecommendationResult;
 use TalentHub\Learner\Ai\Domain\RoadmapAnalysis;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 
 final class DatabaseRecommendationRepository implements RecommendationRepository
 {
@@ -266,7 +268,7 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
     {
         $studentId = $this->required($studentId, 'Student id is required.');
         $statement = $this->pdo->prepare(
-            "SELECT id FROM learner_recommendation_runs WHERE studentId = :studentId AND idempotencyKey NOT LIKE 'shadow-%' ORDER BY createdAt DESC, id DESC LIMIT 1"
+            "SELECT id FROM learner_recommendation_runs WHERE studentId = :studentId AND idempotencyKey NOT LIKE 'shadow-%' ORDER BY CASE WHEN engineType = 'model' AND status = 'completed' THEN 0 ELSE 1 END, createdAt DESC, id DESC LIMIT 1"
         );
         $statement->execute(['studentId' => $studentId]);
         $runId = $statement->fetchColumn();
@@ -310,6 +312,7 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
                 'safeComment' => $safeComment,
                 'createdAt' => $createdAt,
             ]);
+            TransactionalAiOutboxPublisher::publish($this->pdo,'recommendation_feedback',$feedbackId,TransactionalAiOutboxPublisher::version(),[$studentId],'recommendation.feedback',['item_id'=>$itemId,'verdict'=>$verdict,'reason_code'=>$reasonCode]);
             return [
                 'feedbackId' => $feedbackId,
                 'studentId' => $studentId,
@@ -381,10 +384,32 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
             'summary' => $item->summary(),
             'priority' => $item->priority(),
             'confidenceBand' => $item->confidenceBand(),
-            'actionJson' => $item->actionJson(),
+            'actionJson' => self::json($this->persistedAction($item)),
             'lifecycleStatus' => 'active',
             'createdAt' => $createdAt,
         ]);
+    }
+
+    /**
+     * The Phase 2 output fields do not have dedicated columns in the existing
+     * recommendation table. Keep the legacy action shape intact and carry the
+     * additive fields in a reserved envelope so old rows remain readable.
+     *
+     * @return array<string,mixed>
+     */
+    private function persistedAction(RecommendationItem $item): array
+    {
+        $action = $item->action();
+        $metadata = array_filter([
+            'category' => $item->category(),
+            'catalog_id' => $item->catalogId(),
+            'reason' => $item->reason(),
+            'reason_codes' => $item->reasonCodes(),
+        ], static fn (mixed $value): bool => $value !== null);
+        if ($metadata !== []) {
+            $action['__ai_metadata'] = $metadata;
+        }
+        return $action;
     }
 
     /** @param array{id:string,sourceType:string,sourceId:string,observedAt:?string,safeValueJson:string} $snapshotEvidence */
@@ -501,7 +526,7 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
     private function runForStudent(string $studentId, string $runId): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, snapshotId, studentId, idempotencyKey, engineType, status, ruleVersion, provider, modelVersion, promptVersion, fallbackReason, safeErrorCode, startedAt, completedAt, createdAt FROM learner_recommendation_runs WHERE id = :runId AND studentId = :studentId'
+            'SELECT * FROM learner_recommendation_runs WHERE id = :runId AND studentId = :studentId'
         );
         $statement->execute(['runId' => $runId, 'studentId' => $studentId]);
         $run = $statement->fetch(PDO::FETCH_ASSOC);

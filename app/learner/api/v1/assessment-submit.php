@@ -52,6 +52,7 @@ try {
     );
     $result['onboarding'] = $onboarding;
     $result['ai_analysis'] = PostAssessmentAiTrigger::metadata($beforeOnboarding, $onboarding);
+    if (($result['ai_analysis']['required'] ?? false) === true) $result['ai_analysis']['refresh']=['status'=>'pending','delivery'=>'transactional_outbox'];
     $result['next_url'] = ($result['ai_analysis']['required'] ?? false) === true
         ? '/app/learner/discover.php?onboarding=completed&ai=analyze'
         : ($onboarding['status'] === 'completed'

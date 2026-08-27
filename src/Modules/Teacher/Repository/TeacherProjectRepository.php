@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace TalentHub\Modules\Teacher\Repository;
+require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/TransactionalAiOutboxPublisher.php';
 
 use DateTimeImmutable;
 use DateTimeZone;
@@ -11,6 +12,7 @@ use TalentHub\Http\ApiException;
 use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
 use TalentHub\Learner\Data\Service\NotificationService;
 use TalentHub\Support\Uuid;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 
 final class TeacherProjectRepository
 {
@@ -85,6 +87,8 @@ final class TeacherProjectRepository
             throw new ApiException(403, 'PERMISSION_DENIED', 'Học sinh không thuộc cùng trường học với dự án.');
         }
 
+        $this->pdo->beginTransaction();
+        try {
         // 3. Check for existing active membership
         $stmtCheck = $this->pdo->prepare("SELECT id, status FROM project_members WHERE projectId = ? AND studentId = ? LIMIT 1");
         $stmtCheck->execute([$projectId, $studentId]);
@@ -132,7 +136,10 @@ final class TeacherProjectRepository
             );
         }
 
+        TransactionalAiOutboxPublisher::publish($this->pdo,'project_membership',$memberId,TransactionalAiOutboxPublisher::version(),[$studentId],'project.membership_updated',['project_id'=>$projectId,'status'=>'active']);
+        $this->pdo->commit();
         return $this->getMember($projectId, $memberId);
+        } catch (\Throwable $exception) { if ($this->pdo->inTransaction()) $this->pdo->rollBack(); throw $exception; }
     }
 
     public function getMember(string $projectId, string $memberId): array

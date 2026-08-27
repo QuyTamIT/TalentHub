@@ -14,6 +14,7 @@ use TalentHub\Learner\Ai\Domain\RecommendationInput;
 use TalentHub\Learner\Ai\Domain\RoadmapAnalysis;
 use TalentHub\Learner\Ai\Evaluation\RecommendationEvaluator;
 use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
+use TalentHub\Learner\Ai\Provider\ProviderRetryAfterException;
 use TalentHub\Learner\Ai\Validation\RoadmapAnalysisValidator;
 
 final class ModelRoadmapEngine implements RoadmapEngine
@@ -49,7 +50,10 @@ final class ModelRoadmapEngine implements RoadmapEngine
         } catch (\Throwable) {
             return $this->fallback($input, $context, 'provider_unavailable');
         }
-        if (!$response->isSuccess()) return $this->fallback($input, $context, (string) $response->errorCode());
+        if (!$response->isSuccess()) {
+            if ($context->shouldPropagateProviderRetry() && $response->errorCode() === 'rate_limited' && $response->retryAfterSeconds() !== null) throw new ProviderRetryAfterException('rate_limited', $response->retryAfterSeconds());
+            return $this->fallback($input, $context, (string) $response->errorCode());
+        }
 
         try {
             $allowedActivities = $request->payload()['allowed_activity_ids'] ?? [];

@@ -15,6 +15,8 @@ use TalentHub\Learner\Ai\Domain\RecommendationInput;
 use TalentHub\Learner\Ai\Domain\RecommendationItem;
 use TalentHub\Learner\Ai\Domain\RecommendationResult;
 use TalentHub\Learner\Ai\Provider\ProviderRequest;
+use TalentHub\Learner\Ai\Provider\ProviderRetryAfterException;
+use TalentHub\Learner\Ai\Observability\AiMetricsCollector;
 use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
 use TalentHub\Learner\Ai\Validation\RecommendationResultValidator;
 
@@ -45,6 +47,9 @@ final class ModelRecommendationEngine implements RecommendationEngine
             new BoundProviderAttemptAuthorizer($this->consentGate, $studentId, $input, $context),
         );
         if (!$response->isSuccess()) {
+            if ($context->shouldPropagateProviderRetry() && $response->errorCode() === 'rate_limited' && $response->retryAfterSeconds() !== null) {
+                throw new ProviderRetryAfterException('rate_limited', $response->retryAfterSeconds());
+            }
             return $this->fallback($input, $context, (string) $response->errorCode());
         }
         try {
@@ -86,6 +91,20 @@ final class ModelRecommendationEngine implements RecommendationEngine
                     $record->safeValue(),
                 );
             }
+            $catalogId = is_string($item['catalog_id'] ?? null) ? $item['catalog_id'] : null;
+            if ($catalogId !== null) {
+                $hasMatchingEvidence = false;
+                foreach ($evidence as $record) {
+                    if (in_array($record->sourceType(), ['opportunity', 'catalog'], true)
+                        && hash_equals($catalogId, $record->sourceId())) {
+                        $hasMatchingEvidence = true;
+                        break;
+                    }
+                }
+                if (!$hasMatchingEvidence) {
+                    throw new \InvalidArgumentException('Model item catalog id must match its cited catalog evidence.');
+                }
+            }
             $result[] = new RecommendationItem(
                 is_string($item['item_type'] ?? null) ? $item['item_type'] : '',
                 is_string($item['title'] ?? null) ? $item['title'] : '',
@@ -94,6 +113,10 @@ final class ModelRecommendationEngine implements RecommendationEngine
                 is_string($item['confidence_band'] ?? null) ? $item['confidence_band'] : '',
                 is_array($item['action'] ?? null) ? $item['action'] : [],
                 $evidence,
+                is_string($item['category'] ?? null) ? $item['category'] : null,
+                $catalogId,
+                is_string($item['reason'] ?? ($item['explanation'] ?? null)) ? ($item['reason'] ?? $item['explanation']) : null,
+                is_array($item['reason_codes'] ?? null) ? $item['reason_codes'] : [],
             );
         }
         return $result;
@@ -101,6 +124,7 @@ final class ModelRecommendationEngine implements RecommendationEngine
 
     private function fallback(RecommendationInput $input, RecommendationContext $context, string $reason): RecommendationResult
     {
+        AiMetricsCollector::shared()->record(['fallback' => true]);
         $rule = $this->fallback->generate($input, $context);
         return new RecommendationResult(
             'rule',

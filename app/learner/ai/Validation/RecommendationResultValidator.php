@@ -13,6 +13,21 @@ final class RecommendationResultValidator
     private const CONFIDENCE_BANDS = ['low', 'medium', 'high'];
     private const MAX_ITEMS = 12;
     private const MAX_ROADMAP_STEPS = 3;
+    /** @var array<string,bool> */
+    private readonly array $allowedCatalogIds;
+
+    /** @param list<string> $allowedCatalogIds */
+    public function __construct(array $allowedCatalogIds = [])
+    {
+        $normalized = [];
+        foreach ($allowedCatalogIds as $catalogId) {
+            if (!is_string($catalogId) || trim($catalogId) === '') {
+                throw new \InvalidArgumentException('Recommendation catalog allow-list is invalid.');
+            }
+            $normalized[trim($catalogId)] = true;
+        }
+        $this->allowedCatalogIds = $normalized;
+    }
 
     public function validate(RecommendationResult $result): void
     {
@@ -36,14 +51,33 @@ final class RecommendationResultValidator
             || $item->evidence() === []) {
             throw new \RuntimeException('Recommendation result item is invalid.');
         }
+        if ($item->catalogId() !== null) {
+            if ($this->allowedCatalogIds !== [] && !isset($this->allowedCatalogIds[$item->catalogId()])) {
+                throw new \RuntimeException('Recommendation catalog id is invalid or unavailable.');
+            }
+            $hasMatchingCatalogEvidence = false;
+            foreach ($item->evidence() as $evidence) {
+                if (in_array($evidence->sourceType(), ['opportunity', 'catalog'], true)
+                    && hash_equals($item->catalogId(), $evidence->sourceId())) {
+                    $hasMatchingCatalogEvidence = true;
+                    break;
+                }
+            }
+            if (!$hasMatchingCatalogEvidence) {
+                throw new \RuntimeException('Recommendation catalog id must match catalog evidence on the same item.');
+            }
+        }
+        if ($item->reason() !== null && $this->containsUnsupportedClaim($item->reason())) {
+            throw new \RuntimeException('Recommendation reason contains an unsupported absolute claim.');
+        }
         if ($this->containsUnsupportedClaim($item->title()) || $this->containsUnsupportedClaim($item->summary())) {
             throw new \RuntimeException('Recommendation result contains an unsupported absolute claim.');
         }
-        $this->validateAction($item->action());
+        $this->validateAction($item->action(), $item);
     }
 
     /** @param array<string,mixed> $action */
-    private function validateAction(array $action): void
+    private function validateAction(array $action, RecommendationItem $item): void
     {
         $type = $action['type'] ?? null;
         if (!is_string($type)) {
@@ -83,8 +117,12 @@ final class RecommendationResultValidator
             if (!is_string($careerGroup) || !in_array(trim($careerGroup), $validCareerGroups, true)) {
                 throw new \RuntimeException('Recommendation activity action career group is invalid.');
             }
-            if (!is_string($activitySourceId)
-                || preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i', $activitySourceId) !== 1) {
+            $isUuid = is_string($activitySourceId)
+                && preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i', $activitySourceId) === 1;
+            $isValidatedCatalogId = is_string($activitySourceId)
+                && $item->catalogId() !== null
+                && hash_equals($item->catalogId(), $activitySourceId);
+            if (!$isUuid && !$isValidatedCatalogId) {
                 throw new \RuntimeException('Recommendation activity action activity source ID is invalid.');
             }
         }

@@ -14,6 +14,7 @@ use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
 use TalentHub\Http\Request;
+use TalentHub\Learner\Ai\Availability\AiAvailabilityPolicy;
 use TalentHub\Learner\Ai\Config\RecommendationConfig;
 use TalentHub\Learner\Ai\Consent\ConsentPolicy;
 use TalentHub\Learner\Ai\Consent\ProviderConsentGate;
@@ -24,10 +25,16 @@ use TalentHub\Learner\Ai\Model\ModelRecommendationEngine;
 use TalentHub\Learner\Ai\Model\PromptRegistry;
 use TalentHub\Learner\Ai\Model\RoadmapPromptRegistry;
 use TalentHub\Learner\Ai\Model\ModelRoadmapEngine;
+use TalentHub\Learner\Ai\Observability\AiMetricsCollector;
 use TalentHub\Learner\Ai\Persistence\DatabaseRecommendationRepository;
 use TalentHub\Learner\Ai\Persistence\DatabaseRoadmapRepository;
 use TalentHub\Learner\Ai\Provider\HttpRecommendationProvider;
 use TalentHub\Learner\Ai\Provider\HttpRoadmapProvider;
+use TalentHub\Learner\Ai\Provider\CircuitBreaker;
+use TalentHub\Learner\Ai\Provider\DatabaseCircuitBreakerStore;
+use TalentHub\Learner\Ai\Queue\AiRefreshDispatcher;
+use TalentHub\Learner\Ai\Queue\DatabaseAiRefreshJobRepository;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 use TalentHub\Learner\Ai\Quality\DataQualityGate;
 use TalentHub\Learner\Ai\Quality\RoadmapQualityGate;
 use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
@@ -38,10 +45,12 @@ use TalentHub\Learner\Ai\Service\RecommendationResponseMapper;
 use TalentHub\Learner\Ai\Service\RecommendationService;
 use TalentHub\Learner\Ai\Service\RoadmapService;
 use TalentHub\Learner\Ai\Snapshot\RecommendationSnapshotBuilder;
+use TalentHub\Learner\Ai\Sources\AiSourceRegistry;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseActivityExperienceSource;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseAssessmentSource;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseConsentSource;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseOpportunitySource;
+use TalentHub\Learner\Ai\Sources\Database\DatabaseCatalogSource;
 use TalentHub\Learner\Ai\Sources\Database\DatabasePublishedEvaluationSource;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseSkillSource;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseStudentProfileSource;
@@ -186,19 +195,13 @@ final class LearnerApiContext
     public function recommendationService(string $studentId): RecommendationService
     {
         $consent = new ConsentPolicy(new DatabaseConsentSource($this->pdo));
-        $snapshotBuilder = new RecommendationSnapshotBuilder(
-            new DatabaseStudentProfileSource($this->pdo),
-            new DatabaseSkillSource($this->pdo),
-            new DatabaseAssessmentSource($this->pdo),
-            new DatabaseActivityExperienceSource($this->pdo),
-            new DatabasePublishedEvaluationSource($this->pdo),
-            new DatabaseOpportunitySource($this->pdo),
-        );
+        $snapshotBuilder = $this->snapshotBuilder();
         $repository = new DatabaseRecommendationRepository($this->pdo);
 
         $modelEngine = null;
         $modelConfig = null;
         $rolloutSelector = null;
+        $availabilityPolicy = new AiAvailabilityPolicy();
 
         try {
             $env = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
@@ -207,11 +210,16 @@ final class LearnerApiContext
             $config = RecommendationConfig::fromEnvironment($env);
             if ($config->enabled()) {
                 $modelConfig = $config;
-                $rolloutSelector = new RecommendationRolloutSelector();
+                $rolloutSelector = new RecommendationRolloutSelector($availabilityPolicy, $this->rolloutEvidence($config, $env));
                 $httpTransport = $GLOBALS['__TALENTHUB_TEST_HTTP__'] ?? null;
                 $provider = new HttpRecommendationProvider(
                     $config,
                     is_callable($httpTransport) ? $httpTransport : null,
+                    null,
+                    $this->providerCircuitBreaker((string)$config->provider()),
+                    null,
+                    null,
+                    AiMetricsCollector::shared(),
                 );
                 $fallbackEngine = new RuleRecommendationEngine();
                 $modelEngine = new ModelRecommendationEngine(
@@ -248,20 +256,14 @@ final class LearnerApiContext
             $modelEngine,
             $modelConfig,
             $rolloutSelector,
+            $availabilityPolicy,
         );
     }
 
     public function roadmapService(string $studentId): RoadmapService
     {
         $consent = new ConsentPolicy(new DatabaseConsentSource($this->pdo));
-        $snapshotBuilder = new RecommendationSnapshotBuilder(
-            new DatabaseStudentProfileSource($this->pdo),
-            new DatabaseSkillSource($this->pdo),
-            new DatabaseAssessmentSource($this->pdo),
-            new DatabaseActivityExperienceSource($this->pdo),
-            new DatabasePublishedEvaluationSource($this->pdo),
-            new DatabaseOpportunitySource($this->pdo),
-        );
+        $snapshotBuilder = $this->snapshotBuilder();
         $runs = new DatabaseRecommendationRepository($this->pdo);
         $roadmaps = new DatabaseRoadmapRepository($this->pdo);
         try {
@@ -273,19 +275,11 @@ final class LearnerApiContext
             $config = RecommendationConfig::fromEnvironment(['TALENTHUB_AI_ENABLED' => 'false']);
         }
         $ruleEngine = new RuleRoadmapEngine();
-        $engine = $ruleEngine;
-        try {
-            $decision = $consent->decision($studentId)->withServiceScopes(['assessment']);
-            $showModel = $config->enabled()
-                && trim($studentId) !== ''
-                && $decision->permitsScopes(['assessment']);
-        } catch (\Throwable) {
-            $showModel = false;
-        }
-        if ($showModel) {
+        $modelEngine = null;
+        if ($config->enabled()) {
             $httpTransport = $GLOBALS['__TALENTHUB_TEST_HTTP__'] ?? null;
-            $provider = new HttpRoadmapProvider($config, is_callable($httpTransport) ? $httpTransport : null);
-            $engine = new ModelRoadmapEngine(
+            $provider = new HttpRoadmapProvider($config,is_callable($httpTransport)?$httpTransport:null,null,$this->providerCircuitBreaker((string)$config->provider()),null,null,AiMetricsCollector::shared());
+            $modelEngine = new ModelRoadmapEngine(
                 $provider,
                 $ruleEngine,
                 new RoadmapPromptRegistry(),
@@ -302,7 +296,7 @@ final class LearnerApiContext
 
         return new RoadmapService(
             $roadmaps,
-            $engine,
+            $ruleEngine,
             static fn (string $candidate): bool => hash_equals($studentId, $candidate),
             static fn (string $candidate) => $consent->decision($candidate)->withServiceScopes(['assessment']),
             static fn (string $candidate, array $scopes) => $snapshotBuilder->buildForRoadmap($candidate, $scopes),
@@ -310,7 +304,51 @@ final class LearnerApiContext
             static fn (string $candidate, $input, $context) => $runs->createPendingRoadmapRun($candidate, $input, $context),
             static fn (string $candidate, string $runId, $analysis) => $runs->completeRoadmapRun($candidate, $runId, $analysis),
             static fn (string $candidate, string $runId, string $code) => $runs->failRun($candidate, $runId, $code),
+            $modelEngine,
+            $config,
+            new AiAvailabilityPolicy(),
+            $this->rolloutEvidence($config, $env),
         );
+    }
+
+    /** @return array{status:string,job_keys:list<string>,snapshot_hash:?string,error_code:?string} */
+    public function dispatchAiRefresh(string $studentId): array
+    {
+        try {
+            $input=$this->snapshotBuilder()->build($studentId,$this->consentScopes($studentId));
+            $dispatcher=new AiRefreshDispatcher(new DatabaseAiRefreshJobRepository($this->pdo));$jobs=[];
+            foreach(['roadmap','recommendation','profile_analysis'] as $capability)$jobs=array_merge($jobs,$dispatcher->dispatch($studentId,$this->aiSnapshotHash($studentId,$capability),[$capability]));
+            return ['status'=>'pending','job_keys'=>array_map(static fn($job):string=>$job->jobKey,$jobs),'snapshot_hash'=>$input->contentHash(),'error_code'=>null];
+        } catch (\Throwable $exception) {
+            return ['status'=>'ai_unavailable','job_keys'=>[],'snapshot_hash'=>null,'error_code'=>'refresh_enqueue_failed'];
+        }
+    }
+
+    public function aiSnapshotHash(string $studentId, string $capability = 'recommendation'): string
+    {
+        if (in_array($capability, ['roadmap','profile_analysis'], true)) return $this->roadmapService($studentId)->inputHash($studentId);
+        return $this->snapshotBuilder()->build($studentId,$this->consentScopes($studentId))->contentHash();
+    }
+
+    private function providerCircuitBreaker(string $provider): CircuitBreaker
+    {
+        try {$s=$this->pdo->query("SELECT 1 FROM learner_ai_provider_health LIMIT 1");if($s!==false)return new CircuitBreaker(3,30,null,new DatabaseCircuitBreakerStore($this->pdo),'learner:'.strtolower($provider));}catch(\Throwable){}
+        return new CircuitBreaker();
+    }
+
+    private function snapshotBuilder(): RecommendationSnapshotBuilder
+    {
+        $registry = AiSourceRegistry::fromLegacySources([
+            new DatabaseStudentProfileSource($this->pdo),
+            new DatabaseSkillSource($this->pdo),
+            new DatabaseAssessmentSource($this->pdo),
+            new DatabaseActivityExperienceSource($this->pdo),
+            new DatabasePublishedEvaluationSource($this->pdo),
+            new DatabaseOpportunitySource($this->pdo),
+            new DatabaseCatalogSource($this->pdo),
+        ]);
+        $registry->registerTalentPassportSources((new RepositoryFactory('database', $this->pdo))->talentPassport());
+        return new RecommendationSnapshotBuilder($registry);
     }
 
     public function shadowRunService(?RecommendationEngine $modelEngine = null): ?ShadowRunService
@@ -324,13 +362,26 @@ final class LearnerApiContext
                 ? $GLOBALS['__TALENTHUB_TEST_ENV__']
                 : $_ENV;
             $config = RecommendationConfig::fromEnvironment($env);
-            if (!$config->enabled() || !$config->shadowEnabled()) {
+            $availability = (new AiAvailabilityPolicy())->decide(
+                'shadow-evaluation',
+                $config,
+                \TalentHub\Learner\Ai\Consent\ConsentDecision::REQUIRED_SCOPES,
+                true,
+                false,
+                true,
+            );
+            if (!$availability->canRunShadow()) {
                 return null;
             }
             $httpTransport = $GLOBALS['__TALENTHUB_TEST_HTTP__'] ?? null;
             $provider = new HttpRecommendationProvider(
                 $config,
                 is_callable($httpTransport) ? $httpTransport : null,
+                null,
+                null,
+                null,
+                null,
+                AiMetricsCollector::shared(),
             );
             $fallbackEngine = new RuleRecommendationEngine();
             $consent = new ConsentPolicy(new DatabaseConsentSource($this->pdo));
@@ -357,13 +408,44 @@ final class LearnerApiContext
     /** @return array<string,mixed> */
     public function appendFeedback(string $studentId, string $itemId, string $verdict, string $reasonCode, ?string $safeComment): array
     {
-        return (new DatabaseRecommendationRepository($this->pdo))->appendFeedback($studentId, $itemId, $verdict, $reasonCode, $safeComment);
+        $result = (new DatabaseRecommendationRepository($this->pdo))->appendFeedback($studentId, $itemId, $verdict, $reasonCode, $safeComment);
+        AiMetricsCollector::shared()->record(['recommendation_feedback' => $verdict]);
+        return $result;
     }
 
     /** @return array<string,mixed> */
     public function appendRoadmapFeedback(string $studentId, string $roadmapId, string $verdict, string $reasonCode, string $requestId): array
     {
         return $this->roadmapService($studentId)->feedback($studentId, $roadmapId, $verdict, $reasonCode, $requestId);
+    }
+
+    /** @param array<string,string> $environment @return array<string,mixed>|null */
+    private function rolloutEvidence(RecommendationConfig $config, array $environment): ?array
+    {
+        $injected = $GLOBALS['__TALENTHUB_TEST_ROLLOUT_EVIDENCE__'] ?? null;
+        if (is_array($injected)) return $injected;
+        $value = static function (string $key) use ($environment): string {
+            if (array_key_exists($key, $environment)) return trim((string)$environment[$key]);
+            $raw = getenv($key); return is_string($raw) ? trim($raw) : '';
+        };
+        $stage = strtolower($value('TALENTHUB_AI_ROLLOUT_STAGE'));
+        if (!in_array($stage, ['shadow','pilot','10','25','50'], true)) return null;
+        $verified = static fn(string $key): bool => strtolower($value($key)) === 'true';
+        return [
+            'stage'=>$stage,
+            'error_budget'=>$verified('TALENTHUB_AI_ERROR_BUDGET_VERIFIED'),
+            'freshness_sla'=>$verified('TALENTHUB_AI_FRESHNESS_SLA_VERIFIED'),
+            'validator_pass_rate'=>$verified('TALENTHUB_AI_VALIDATOR_PASS_RATE_VERIFIED'),
+            'privacy_review'=>$verified('TALENTHUB_AI_PRIVACY_REVIEW_VERIFIED'),
+            'rollback_drill'=>$verified('TALENTHUB_AI_ROLLBACK_DRILL_VERIFIED'),
+            'approval_reference'=>$config->pilotApprovalReference(),
+            'enabled'=>$config->enabled(), 'shadow_gate_approved'=>$config->shadowGateApproved(),
+            'pilot_paused'=>$config->pilotPaused(), 'visible_percent'=>$config->visiblePercent(),
+            'completed_stages'=>array_values(array_filter(array_map('trim', explode(',', $value('TALENTHUB_AI_COMPLETED_STAGES'))))),
+            'unified_policy_verified'=>$verified('TALENTHUB_AI_UNIFIED_POLICY_VERIFIED'),
+            'last_known_good_verified'=>$verified('TALENTHUB_AI_LAST_KNOWN_GOOD_VERIFIED'),
+            'queue_monitoring_verified'=>$verified('TALENTHUB_AI_QUEUE_MONITORING_VERIFIED'),
+        ];
     }
 
     /** @return list<string> */
@@ -381,6 +463,8 @@ final class LearnerApiContext
         }
         $occurredAt = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s.u');
         $eventId = Uuid::v4();
+        $this->pdo->beginTransaction();
+        try {
         $insert = $this->pdo->prepare(
             'INSERT INTO learner_ai_consent_events (id, studentId, scope, action, policyVersion, occurredAt, requestId) VALUES (:id, :studentId, :scope, :action, :policyVersion, :occurredAt, :requestId)'
         );
@@ -393,6 +477,9 @@ final class LearnerApiContext
             'occurredAt' => $occurredAt,
             'requestId' => $this->requestId,
         ]);
+        TransactionalAiOutboxPublisher::publish($this->pdo,'ai_consent',$eventId,TransactionalAiOutboxPublisher::version(),[$studentId],'consent.'.$action,['scope'=>$scope]);
+        $this->pdo->commit();
+        } catch (\Throwable $exception) { if ($this->pdo->inTransaction()) $this->pdo->rollBack(); throw $exception; }
         return ['event_id' => $eventId, 'scope' => $scope, 'action' => $action];
     }
 

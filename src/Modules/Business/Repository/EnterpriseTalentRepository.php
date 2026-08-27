@@ -16,6 +16,9 @@ use Throwable;
 
 final class EnterpriseTalentRepository
 {
+    /** @var array<string,list<array<string,mixed>>> */
+    private static array $matchRankingCache = [];
+
     public function __construct(
         private readonly PDO $pdo,
         private readonly ?NotificationService $notifications = null
@@ -24,6 +27,158 @@ final class EnterpriseTalentRepository
     public function pdo(): PDO
     {
         return $this->pdo;
+    }
+
+    /**
+     * Return the minimum, consented candidate projection used by enterprise matching.
+     * The query intentionally exposes no protected traits or hidden profile fields.
+     *
+     * @param list<string> $requiredSkills
+     * @return list<array{student_id:string,display_name:string,skills:list<array<string,mixed>>}>
+     */
+    public function matchCandidates(string $enterpriseId, array $requiredSkills = []): array
+    {
+        $now = $this->now();
+        $sql = <<<'SQL'
+            SELECT sp.id AS student_id, u.fullName AS display_name,
+                   sk.id AS skill_id, sk.name AS skill_name, ss.levelScore AS level_score
+            FROM student_profiles sp
+            INNER JOIN users u ON u.id = sp.userId AND u.status = 'active'
+            INNER JOIN enterprise_talent_access_grants grant_row
+              ON grant_row.studentId = sp.id
+             AND grant_row.enterpriseId = :enterpriseId
+             AND grant_row.scope = 'enterprise_talent_discovery'
+             AND grant_row.revokedAt IS NULL
+             AND grant_row.expiresAt > :now
+            INNER JOIN privacy_consents consent
+              ON consent.id = grant_row.consentId
+             AND consent.studentId = sp.id
+             AND consent.scope = 'enterprise_talent_discovery'
+             AND consent.isGranted = 1
+             AND consent.revokedAt IS NULL
+            LEFT JOIN student_skills ss
+              ON ss.studentId = sp.id AND ss.verificationStatus = 'verified'
+            LEFT JOIN skills sk ON sk.id = ss.skillId AND sk.status = 'active'
+            ORDER BY sp.id ASC, sk.name ASC, sk.id ASC
+        SQL;
+        // A partnership is an additional tenant boundary when schools are present.
+        if ($this->tableExists('school_enterprise_partnerships') && $this->tableExists('classes')) {
+            $sql = str_replace(
+                '            ORDER BY sp.id ASC, sk.name ASC, sk.id ASC',
+                "            WHERE sp.classId IS NULL OR EXISTS (SELECT 1 FROM classes cl INNER JOIN school_enterprise_partnerships sep ON sep.schoolId = cl.schoolId WHERE cl.id = sp.classId AND sep.enterpriseId = :partnershipEnterprise AND sep.status = 'approved')\n            ORDER BY sp.id ASC, sk.name ASC, sk.id ASC",
+                $sql
+            );
+        }
+        $stmt = $this->pdo->prepare($sql);
+        $params = ['enterpriseId' => $enterpriseId, 'now' => $now];
+        if (str_contains($sql, ':partnershipEnterprise')) {
+            $params['partnershipEnterprise'] = $enterpriseId;
+        }
+        $stmt->execute($params);
+
+        $required = [];
+        foreach ($requiredSkills as $skill) {
+            $normalized = mb_strtolower(trim((string) $skill));
+            if ($normalized !== '') {
+                $required[$normalized] = true;
+            }
+        }
+        $candidates = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $studentId = (string) ($row['student_id'] ?? '');
+            if ($studentId === '') {
+                continue;
+            }
+            if (!isset($candidates[$studentId])) {
+                $candidates[$studentId] = [
+                    'student_id' => $studentId,
+                    'display_name' => (string) ($row['display_name'] ?? 'Ứng viên'),
+                    'skills' => [],
+                ];
+            }
+            if (!empty($row['skill_id']) && !empty($row['skill_name'])) {
+                $name = (string) $row['skill_name'];
+                $candidates[$studentId]['skills'][] = [
+                    'skill_id' => (string) $row['skill_id'],
+                    'name' => $name,
+                    'level_score' => (float) ($row['level_score'] ?? 0),
+                ];
+            }
+        }
+
+        $result = [];
+        foreach ($candidates as $candidate) {
+            $names = [];
+            foreach ($candidate['skills'] as $skill) {
+                $names[mb_strtolower(trim((string) $skill['name']))] = true;
+            }
+            foreach ($required as $skill => $_) {
+                if (!isset($names[$skill])) {
+                    continue 2;
+                }
+            }
+            $result[] = $candidate;
+        }
+        return $result;
+    }
+
+    /** Backwards-compatible descriptive alias for matching callers. */
+    public function findMatchCandidates(string $enterpriseId, array $requiredSkills = []): array
+    {
+        return $this->matchCandidates($enterpriseId, $requiredSkills);
+    }
+
+    /** @return list<array<string,mixed>> */
+    public function cachedMatchRanking(string $enterpriseId, string $jobHash): array
+    {
+        $key = $enterpriseId . ':' . $jobHash;
+        try {
+            $statement = $this->pdo->prepare('SELECT ranking_json FROM enterprise_ai_match_rankings WHERE enterprise_id = ? AND job_hash = ? LIMIT 1');
+            $statement->execute([$enterpriseId, $jobHash]);
+            $json = $statement->fetchColumn();
+            if (is_string($json)) {
+                $decoded = json_decode($json, true, 64, JSON_THROW_ON_ERROR);
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+            }
+        } catch (Throwable) {
+        }
+        return self::$matchRankingCache[$key] ?? [];
+    }
+
+    /** @return list<array<string,mixed>> */
+    public function getCachedRanking(string $enterpriseId, string $jobHash): array
+    {
+        return $this->cachedMatchRanking($enterpriseId, $jobHash);
+    }
+
+    /** @param list<array<string,mixed>> $ranking */
+    public function storeMatchRanking(string $enterpriseId, string $jobHash, array $ranking): void
+    {
+        self::$matchRankingCache[$enterpriseId . ':' . $jobHash] = $ranking;
+        while (count(self::$matchRankingCache) > 1000) {
+            array_shift(self::$matchRankingCache);
+        }
+        try {
+            $sql = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite'
+                ? 'INSERT OR REPLACE INTO enterprise_ai_match_rankings (enterprise_id, job_hash, ranking_json, updated_at) VALUES (?, ?, ?, ?)'
+                : 'INSERT INTO enterprise_ai_match_rankings (enterprise_id, job_hash, ranking_json, updated_at) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE ranking_json = VALUES(ranking_json), updated_at = VALUES(updated_at)';
+            $this->pdo->prepare($sql)->execute([
+                $enterpriseId,
+                $jobHash,
+                json_encode($ranking, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                gmdate('Y-m-d H:i:s'),
+            ]);
+        } catch (Throwable) {
+            // The in-process cache remains a safe fallback when migration is pending.
+        }
+    }
+
+    /** @param list<array<string,mixed>> $ranking */
+    public function saveCachedRanking(string $enterpriseId, string $jobHash, array $ranking): void
+    {
+        $this->storeMatchRanking($enterpriseId, $jobHash, $ranking);
     }
 
     /**

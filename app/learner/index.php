@@ -57,6 +57,9 @@ $dashboardExperienceHours = trim((string) preg_replace('/\s*h\s*$/i', '', $dashb
 if ($dashboardExperienceHours === '') {
     $dashboardExperienceHours = '0';
 }
+$dashboardAiTalentMap = is_array($aiCapabilityProfile['talent_map'] ?? null) ? $aiCapabilityProfile['talent_map'] : [];
+$dashboardAiStrengths = is_array($aiCapabilityProfile['strengths'] ?? null) ? $aiCapabilityProfile['strengths'] : [];
+$dashboardAiImprovements = is_array($aiCapabilityProfile['improvements'] ?? null) ? $aiCapabilityProfile['improvements'] : [];
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -78,6 +81,31 @@ if ($dashboardExperienceHours === '') {
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <main class="learner-content" id="main-content">
+                <?php if (is_array($aiCapabilityProfile)): ?>
+                    <section class="learner-card learner-dashboard-ai-profile" aria-label="Tóm tắt AI hồ sơ năng lực">
+                        <h2>AI gợi ý từ Talent Passport</h2>
+                        <p><?= learner_escape(($aiCapabilityProfile['status'] ?? '') === 'stale_model' ? 'Đang dùng bản phân tích AI gần nhất.' : 'Hồ sơ AI đã cập nhật theo dữ liệu mới nhất.'); ?></p>
+                        <div class="learner-dashboard-ai-profile__grid">
+                            <div data-dashboard-ai-talent-map><strong>Bản đồ năng khiếu</strong>
+                                <?php foreach ($dashboardAiTalentMap as $field => $entry): ?>
+                                    <?php $label = is_array($entry) ? (string) ($entry['field'] ?? $field) : (string) $field; $score = is_array($entry) ? ($entry['score'] ?? 0) : $entry; ?>
+                                    <span><?= learner_escape($label); ?>: <?= max(0, min(100, (int) $score)); ?>%</span>
+                                <?php endforeach; ?>
+                            </div>
+                            <div data-dashboard-ai-strengths><strong>Điểm mạnh mới nhất</strong>
+                                <?php foreach (array_slice($dashboardAiStrengths, 0, 2) as $strength): ?>
+                                    <span title="Nhận định có nguồn bằng chứng trong Talent Passport"><?= learner_escape($strength['text'] ?? $strength['label'] ?? 'Đang cập nhật'); ?></span>
+                                <?php endforeach; ?>
+                            </div>
+                            <div data-dashboard-ai-improvements><strong>Ưu tiên cải thiện</strong>
+                                <?php foreach (array_slice($dashboardAiImprovements, 0, 2) as $improvement): ?>
+                                    <span title="Nhận định có nguồn bằng chứng trong Talent Passport"><?= learner_escape($improvement['text'] ?? $improvement['label'] ?? 'Đang cập nhật'); ?></span>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <a href="profile.php#ai-capability-profile-title">Xem điểm mạnh, điểm cần cải thiện và nguồn bằng chứng</a>
+                    </section>
+                <?php endif; ?>
                 <section class="learner-welcome" aria-labelledby="welcome-title" data-dashboard-journey>
                     <div class="learner-welcome__content">
                         <p class="learner-welcome__streak">

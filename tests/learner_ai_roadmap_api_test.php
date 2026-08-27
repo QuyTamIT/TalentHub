@@ -219,15 +219,19 @@ foreach (['TALENTHUB_AI_API_KEY','TALENTHUB_AI_API_URL','provider_request_id','r
 
 $modelPdo = roadmap_api_model_context_database();
 $capturedRequestBody = null;
-$GLOBALS['__TALENTHUB_TEST_ENV__'] = [
+$providerCallCount = 0;
+$modelGateBase = [
     'APP_ENV'=>'test', 'TALENTHUB_AI_ENABLED'=>'true', 'TALENTHUB_AI_PROVIDER'=>'gemini',
     'TALENTHUB_AI_MODEL'=>'gemini-3.7-flash',
     'TALENTHUB_AI_API_URL'=>'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent',
     'TALENTHUB_AI_API_KEY'=>'test-key', 'TALENTHUB_AI_ALLOWED_HOSTS'=>'generativelanguage.googleapis.com',
-    'TALENTHUB_AI_SHADOW_GATE_APPROVED'=>'false', 'TALENTHUB_AI_VISIBLE_PERCENT'=>'0',
-    'TALENTHUB_AI_PILOT_PAUSED'=>'true', 'TALENTHUB_AI_MAX_ATTEMPTS'=>'1',
+    'TALENTHUB_AI_SHADOW_GATE_APPROVED'=>'true', 'TALENTHUB_AI_VISIBLE_PERCENT'=>'100',
+    'TALENTHUB_AI_PILOT_APPROVAL_REFERENCE'=>'phase-1-test-approval',
+    'TALENTHUB_AI_PILOT_PAUSED'=>'false', 'TALENTHUB_AI_MAX_ATTEMPTS'=>'1',
 ];
-$GLOBALS['__TALENTHUB_TEST_HTTP__'] = static function (string $url, array $headers, string $body, int $timeout) use (&$capturedRequestBody): array {
+$GLOBALS['__TALENTHUB_TEST_ROLLOUT_EVIDENCE__'] = ['stage'=>'50','error_budget'=>true,'freshness_sla'=>true,'validator_pass_rate'=>true,'privacy_review'=>true,'rollback_drill'=>true,'approval_reference'=>'phase-1-test-approval','enabled'=>true,'shadow_gate_approved'=>true,'pilot_paused'=>false,'completed_stages'=>['pilot','10','25','50'],'visible_percent'=>100,'unified_policy_verified'=>true,'last_known_good_verified'=>true,'queue_monitoring_verified'=>true];
+$GLOBALS['__TALENTHUB_TEST_HTTP__'] = static function (string $url, array $headers, string $body, int $timeout) use (&$capturedRequestBody, &$providerCallCount): array {
+    $providerCallCount++;
     $capturedRequestBody = $body;
     roadmap_api_assert(($headers['x-goog-api-key'] ?? null) === 'test-key', 'Gemini roadmap provider uses the official Google API key header');
     return [
@@ -240,33 +244,63 @@ $GLOBALS['__TALENTHUB_TEST_HTTP__'] = static function (string $url, array $heade
 };
 putenv('APP_ENV=test');
 $_ENV['APP_ENV'] = 'test';
-$context = new \TalentHub\Learner\Api\LearnerApiContext(
+$modelStudentId = '11111111-1111-4111-8111-111111111111';
+$blockedGates = [
+    'shadow_gate_unapproved' => ['TALENTHUB_AI_SHADOW_GATE_APPROVED'=>'false'],
+    'visibility_zero' => ['TALENTHUB_AI_VISIBLE_PERCENT'=>'0'],
+    'pilot_paused' => ['TALENTHUB_AI_PILOT_PAUSED'=>'true'],
+    'approval_missing' => ['TALENTHUB_AI_PILOT_APPROVAL_REFERENCE'=>''],
+];
+foreach ($blockedGates as $gateName => $gateOverride) {
+    $GLOBALS['__TALENTHUB_TEST_ENV__'] = array_replace($modelGateBase, $gateOverride);
+    $callsBefore = $providerCallCount;
+    $context = new \TalentHub\Learner\Api\LearnerApiContext(
+        $modelPdo,
+        new \TalentHub\Auth\Session\SessionManager(require dirname(__DIR__) . '/config/session.php'),
+        new \TalentHub\Rbac\Service\PermissionService($modelPdo),
+        'roadmap-api-' . $gateName,
+    );
+    $modelRoadmap = $context->roadmapService($modelStudentId)->generate(
+        $modelStudentId,
+        'roadmap-api-' . $gateName,
+        'roadmap-api-idempotency-' . $gateName,
+        true,
+    );
+    roadmap_api_assert(($modelRoadmap['state'] ?? null) === 'ready_rule', "{$gateName} returns an explicit rule roadmap: " . json_encode($modelRoadmap));
+    roadmap_api_assert(($modelRoadmap['analysis_origin'] ?? null) === 'rule', "{$gateName} normalizes internal rule fallback origin");
+    roadmap_api_assert(($modelRoadmap['freshness_status'] ?? null) === 'fresh', "{$gateName} exposes canonical rule freshness");
+    roadmap_api_assert(array_key_exists('model_version', $modelRoadmap) && $modelRoadmap['model_version'] === null && is_string($modelRoadmap['rule_version'] ?? null), "{$gateName} exposes only the applicable rule version");
+    roadmap_api_assert($providerCallCount === $callsBefore, "{$gateName} does not call Gemini");
+}
+roadmap_api_assert((int) $modelPdo->query('SELECT COUNT(*) FROM learner_ai_consent_events')->fetchColumn() === 0, 'purpose-bound assessment access does not create or require a consent event');
+roadmap_api_assert($providerCallCount === 0 && $capturedRequestBody === null, 'all blocked rollout gates keep Gemini transport untouched');
+$GLOBALS['__TALENTHUB_TEST_ENV__'] = $modelGateBase;
+$allowedContext = new \TalentHub\Learner\Api\LearnerApiContext(
     $modelPdo,
     new \TalentHub\Auth\Session\SessionManager(require dirname(__DIR__) . '/config/session.php'),
     new \TalentHub\Rbac\Service\PermissionService($modelPdo),
-    'roadmap-api-wiring-request',
+    'roadmap-api-approved',
 );
-$modelStudentId = '11111111-1111-4111-8111-111111111111';
-$modelRoadmap = $context->roadmapService($modelStudentId)->generate(
+$allowedRoadmap = $allowedContext->roadmapService($modelStudentId)->generate(
     $modelStudentId,
-    'roadmap-api-wiring-request',
-    'roadmap-api-wiring-idempotency',
+    'roadmap-api-approved',
+    'roadmap-api-idempotency-approved',
+    true,
 );
-roadmap_api_assert(($modelRoadmap['state'] ?? null) === 'ready_model', 'enabled roadmap calls Gemini after four assessments even when pilot rollout is disabled: ' . json_encode($modelRoadmap));
-roadmap_api_assert(($modelRoadmap['engine']['model_version'] ?? null) === 'gemini-3.7-flash', 'enabled API context preserves official Gemini model provenance');
-roadmap_api_assert((int) $modelPdo->query('SELECT COUNT(*) FROM learner_ai_consent_events')->fetchColumn() === 0, 'purpose-bound assessment access does not create or require a consent event');
-roadmap_api_assert(is_string($capturedRequestBody), 'enabled API context reaches the injected provider transport');
+roadmap_api_assert(($allowedRoadmap['state'] ?? null) === 'ready_model', 'approved rollout gate calls Gemini and returns model roadmap: ' . json_encode($allowedRoadmap));
+roadmap_api_assert(($allowedRoadmap['analysis_origin'] ?? null) === 'model', 'approved roadmap exposes model origin');
+roadmap_api_assert(($allowedRoadmap['model_version'] ?? null) === 'gemini-3.7-flash', 'approved roadmap exposes Gemini model version');
+roadmap_api_assert(($allowedRoadmap['freshness_status'] ?? null) === 'fresh', 'approved roadmap exposes fresh model state');
+roadmap_api_assert($providerCallCount === 1 && is_string($capturedRequestBody), 'approved rollout performs exactly one provider call');
 $transport = json_decode((string) $capturedRequestBody, true, 512, JSON_THROW_ON_ERROR);
 $providerInput = json_decode((string) ($transport['contents'][0]['parts'][0]['text'] ?? ''), true, 512, JSON_THROW_ON_ERROR);
-roadmap_api_assert(($providerInput['allowed_scopes'] ?? null) === ['assessment'], 'provider receives only the purpose-bound assessment scope');
-roadmap_api_assert(count($providerInput['input']['assessments'] ?? []) === 4, 'provider receives four sanitized assessment results');
-roadmap_api_assert(($providerInput['input']['profile']['school_name'] ?? null) === 'Trường THPT Nguyễn Trãi', 'Gemini receives the learner school from the real profile data source');
-roadmap_api_assert(($providerInput['input']['profile']['class_name'] ?? null) === '12A1', 'Gemini receives the learner class for personalized roadmap generation');
-roadmap_api_assert(($providerInput['input']['profile']['grade_level'] ?? null) === 12, 'Gemini receives the learner grade level');
-roadmap_api_assert(($providerInput['input']['skills'] ?? null) === [] && ($providerInput['input']['activities'] ?? null) === [] && ($providerInput['input']['evaluations'] ?? null) === [], 'ungranted non-assessment scopes remain empty');
-roadmap_api_assert(!str_contains((string) $capturedRequestBody, 'internal summary must not be sent'), 'assessment free-form summary is excluded from the provider request');
-roadmap_api_assert(!str_contains((string) $capturedRequestBody, $modelStudentId), 'student identifier is excluded from the provider request');
-unset($GLOBALS['__TALENTHUB_TEST_ENV__'], $GLOBALS['__TALENTHUB_TEST_HTTP__']);
+roadmap_api_assert(($providerInput['allowed_scopes'] ?? null) === ['assessment'], 'approved provider receives only the purpose-bound assessment scope');
+roadmap_api_assert(count($providerInput['input']['assessments'] ?? []) === 4, 'approved provider receives four sanitized assessment results');
+roadmap_api_assert(($providerInput['input']['profile']['school_name'] ?? null) === 'Trường THPT Nguyễn Trãi', 'approved Gemini request receives school profile data');
+roadmap_api_assert(($providerInput['input']['profile']['class_name'] ?? null) === '12A1', 'approved Gemini request receives class profile data');
+roadmap_api_assert(($providerInput['input']['profile']['grade_level'] ?? null) === 12, 'approved Gemini request receives grade profile data');
+roadmap_api_assert(!str_contains((string) $capturedRequestBody, $modelStudentId), 'approved Gemini request excludes student identifier');
+unset($GLOBALS['__TALENTHUB_TEST_ENV__'], $GLOBALS['__TALENTHUB_TEST_HTTP__'], $GLOBALS['__TALENTHUB_TEST_ROLLOUT_EVIDENCE__']);
 
 @unlink($database);
 echo "learner_ai_roadmap_api_test: OK\n";

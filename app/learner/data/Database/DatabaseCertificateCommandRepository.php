@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 namespace TalentHub\Learner\Data\Database;
+require_once dirname(__DIR__, 2) . '/ai/Queue/TransactionalAiOutboxPublisher.php';
 
 use PDO;
 use TalentHub\Http\ApiException;
 use TalentHub\Support\Uuid;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 
 final class DatabaseCertificateCommandRepository
 {
@@ -80,6 +82,7 @@ final class DatabaseCertificateCommandRepository
             ]);
             $created = $this->findById($studentId, $id)
                 ?? throw new ApiException(500, 'CREATION_FAILED', 'Không thể tạo chứng chỉ.');
+            TransactionalAiOutboxPublisher::publish($this->pdo,'certificate',$id,TransactionalAiOutboxPublisher::version(),[$studentId],'certificate.created');
             $this->pdo->commit();
             return $created;
         } catch (\Throwable $e) {
@@ -140,6 +143,7 @@ final class DatabaseCertificateCommandRepository
             }
             $updated = $this->findById($studentId, $certificateId)
                 ?? throw new ApiException(500, 'UPDATE_FAILED', 'Không thể cập nhật chứng chỉ.');
+            TransactionalAiOutboxPublisher::publish($this->pdo,'certificate',$certificateId,TransactionalAiOutboxPublisher::version(),[$studentId],'certificate.updated');
             $this->pdo->commit();
             return $updated;
         } catch (\Throwable $e) {
@@ -169,6 +173,7 @@ final class DatabaseCertificateCommandRepository
             if ($statement->rowCount() !== 1) {
                 throw new ApiException(409, 'STALE_CERTIFICATE_STATE', 'Trạng thái chứng chỉ đã thay đổi.');
             }
+            TransactionalAiOutboxPublisher::publish($this->pdo,'certificate',$certificateId,TransactionalAiOutboxPublisher::version(),[$studentId],'certificate.deleted');
             $this->pdo->commit();
         } catch (\Throwable $e) {
             if ($this->pdo->inTransaction()) {

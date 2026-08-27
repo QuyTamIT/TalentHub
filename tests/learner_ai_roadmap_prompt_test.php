@@ -131,6 +131,7 @@ roadmap_prompt_assert(($actionVariants[0]['properties']['type']['const'] ?? null
 roadmap_prompt_assert(($schema['properties']['recommended_activity_source_ids']['items']['enum'] ?? null) === [$activityId], 'activity output is constrained to the server allow-list');
 
 roadmap_prompt_assert(($payload['allowed_scopes'] ?? null) === ['assessment', 'skills'], 'only current consent scopes are disclosed');
+roadmap_prompt_assert(($payload['input_quality']['missing_consent_scopes'] ?? null) === ['activity', 'evaluation'], 'input quality exposes consent gaps to the model');
 roadmap_prompt_assert(($payload['allowed_activity_ids'] ?? null) === [$activityId], 'only eligible activity UUID is allow-listed');
 roadmap_prompt_assert(!str_contains($json, $hiddenOpportunityId), 'non-activity database ID is never sent');
 roadmap_prompt_assert(!str_contains($json, 'student-secret-123'), 'student ID is never sent');

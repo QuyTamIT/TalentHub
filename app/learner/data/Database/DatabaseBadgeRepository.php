@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace TalentHub\Learner\Data\Database;
+require_once dirname(__DIR__, 2) . '/ai/Queue/TransactionalAiOutboxPublisher.php';
 
 use DateTimeImmutable;
 use DateTimeZone;
@@ -11,6 +12,7 @@ use PDOException;
 use RuntimeException;
 use TalentHub\Learner\Data\Contracts\BadgeRepository;
 use TalentHub\Learner\Data\Support\Uuid;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 use Throwable;
 
 final class DatabaseBadgeRepository extends AbstractDatabaseRepository implements BadgeRepository
@@ -198,6 +200,10 @@ final class DatabaseBadgeRepository extends AbstractDatabaseRepository implement
         $awardedAtStr = $awardedAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u');
         $awardContextJson = json_encode($awardContext, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) {
+            $this->pdo->beginTransaction();
+        }
         try {
             $stmt = $this->pdo->prepare(<<<'SQL'
                 INSERT INTO student_badges (id, studentId, badgeId, ruleDefinitionId, awardedAt, awardedBy, awardContext)
@@ -214,10 +220,23 @@ final class DatabaseBadgeRepository extends AbstractDatabaseRepository implement
                 'award_context' => $awardContextJson,
             ]);
 
+            TransactionalAiOutboxPublisher::publish($this->pdo,'badge',$id,TransactionalAiOutboxPublisher::version(),[$studentId],'badge.awarded',['badge_id'=>$badgeId]);
+            if ($ownsTransaction) {
+                $this->pdo->commit();
+            }
+
             return true;
         } catch (PDOException $e) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
             if ($this->isDuplicateKey($e)) {
                 return false;
+            }
+            throw $e;
+        } catch (Throwable $e) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
             }
             throw $e;
         }

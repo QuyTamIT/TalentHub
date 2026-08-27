@@ -89,7 +89,7 @@ $rolloutEnv = [
     'TALENTHUB_AI_API_URL'=>'http://127.0.0.1:20128/v1/chat/completions','TALENTHUB_AI_API_KEY'=>'test-key','TALENTHUB_AI_ALLOWED_HOSTS'=>'127.0.0.1',
     'TALENTHUB_AI_SHADOW_GATE_APPROVED'=>'true','TALENTHUB_AI_VISIBLE_PERCENT'=>'100','TALENTHUB_AI_PILOT_APPROVAL_REFERENCE'=>'pilot-approved','TALENTHUB_AI_PILOT_PAUSED'=>'false',
 ];
-$selector = new RecommendationRolloutSelector();
+$selector = new RecommendationRolloutSelector(null, ['stage'=>'50','error_budget'=>true,'freshness_sla'=>true,'validator_pass_rate'=>true,'privacy_review'=>true,'rollback_drill'=>true,'approval_reference'=>'pilot-approved','enabled'=>true,'shadow_gate_approved'=>true,'pilot_paused'=>false,'completed_stages'=>['pilot','10','25','50'],'visible_percent'=>100,'unified_policy_verified'=>true,'last_known_good_verified'=>true,'queue_monitoring_verified'=>true]);
 roadmap_safety_assert(method_exists($selector, 'canShowRoadmapModel'), 'roadmap has an explicit controlled-visibility gate');
 roadmap_safety_assert($selector->canShowRoadmapModel('student-pilot', RecommendationConfig::fromEnvironment($rolloutEnv), ['assessment'], true) === true, 'approved roadmap pilot requires assessment consent');
 $paused = $rolloutEnv; $paused['TALENTHUB_AI_PILOT_PAUSED']='true';

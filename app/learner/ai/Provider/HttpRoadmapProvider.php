@@ -10,6 +10,7 @@ use TalentHub\Learner\Ai\Config\RecommendationConfig;
 use TalentHub\Learner\Ai\Consent\ProviderAttemptAuthorizer;
 use TalentHub\Learner\Ai\Consent\ProviderConsentDenied;
 use TalentHub\Learner\Ai\Contracts\RoadmapProvider;
+use TalentHub\Learner\Ai\Observability\AiMetricsCollector;
 
 final class HttpRoadmapProvider implements RoadmapProvider
 {
@@ -17,16 +18,38 @@ final class HttpRoadmapProvider implements RoadmapProvider
     private readonly Closure $http;
 
     /** @param (callable(string,array<string,string>,string,int):array<string,mixed>)|null $http */
-    public function __construct(private readonly RecommendationConfig $config, ?callable $http = null)
+    private readonly ?AiMetricsCollector $metrics;
+
+    public function __construct(private readonly RecommendationConfig $config, ?callable $http = null, ?RetryPolicy $retryPolicy = null, ?CircuitBreaker $circuitBreaker = null, ?callable $sleeper = null, ?ProviderHealthStore $healthStore = null, ?AiMetricsCollector $metrics = null)
     {
         $this->http = $http !== null ? Closure::fromCallable($http) : Closure::fromCallable([$this, 'defaultHttpTransport']);
+        $this->retryPolicy = $retryPolicy ?? new RetryPolicy($config->maxAttempts());
+        $this->circuitBreaker = $circuitBreaker ?? new CircuitBreaker();
+        $this->sleeper = $sleeper !== null ? Closure::fromCallable($sleeper) : static function (int $milliseconds): void { if ($milliseconds > 0) usleep($milliseconds * 1000); };
+        $this->healthStore=$healthStore??new ProviderHealthStore();
+        $this->metrics = $metrics ?? AiMetricsCollector::shared();
     }
+    private readonly RetryPolicy $retryPolicy;
+    private readonly CircuitBreaker $circuitBreaker;
+    /** @var Closure(int):void */ private readonly Closure $sleeper;
+    private readonly ProviderHealthStore $healthStore;
+    private int $attemptsUsed=0;
 
     public function generate(ProviderRequest $request, ProviderAttemptAuthorizer $authorizer): RoadmapProviderResponse
+    {
+        $started=microtime(true);$this->attemptsUsed=0;$response=$this->performGenerate($request,$authorizer);$latency=(int)round((microtime(true)-$started)*1000);$this->healthStore->record($response->isSuccess(),$latency,max(0,$this->attemptsUsed-1),$response->errorCode(),$this->circuitBreaker->state());
+        $this->metrics->record(['provider_latency_ms'=>$latency,'provider_error'=>$response->errorCode(),'circuit_state'=>$this->circuitBreaker->state()]);
+        return $response;
+    }
+
+    public function health(): array { return $this->healthStore->snapshot(); }
+
+    private function performGenerate(ProviderRequest $request, ProviderAttemptAuthorizer $authorizer): RoadmapProviderResponse
     {
         if (!$this->config->enabled() || $this->config->apiUrl() === null || $this->config->apiKey() === null) {
             return RoadmapProviderResponse::failure('provider_disabled', null, 'config');
         }
+        if (!$this->circuitBreaker->allow()) return RoadmapProviderResponse::failure('provider_circuit_open', null, 'health');
         try {
             $body = json_encode($this->transportPayload($request), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         } catch (JsonException) {
@@ -35,6 +58,7 @@ final class HttpRoadmapProvider implements RoadmapProvider
         $headers = $this->transportHeaders();
 
         for ($attempt = 1; $attempt <= $this->config->maxAttempts(); $attempt++) {
+            $this->attemptsUsed=$attempt;
             try {
                 $authorizer->beforeAttempt($attempt);
             } catch (ProviderConsentDenied $exception) {
@@ -43,12 +67,15 @@ final class HttpRoadmapProvider implements RoadmapProvider
             try {
                 $response = ($this->http)($this->config->apiUrl(), $headers, $body, $this->config->roadmapTimeoutSeconds());
             } catch (\Throwable) {
+                if ($this->retryPolicy->shouldRetry(0,'network',$attempt)) { ($this->sleeper)($this->retryPolicy->delayMs($attempt)); continue; }
+                $this->circuitBreaker->recordFailure();
                 return RoadmapProviderResponse::failure('provider_unavailable', null, 'network');
             }
             $status = is_numeric($response['status'] ?? null) ? (int) $response['status'] : 0;
-            if ($status === 200) return $this->success($response['body'] ?? null, $response['headers'] ?? []);
-            if ($status === 429) return RoadmapProviderResponse::failure('rate_limited', $this->retryAfter($response['headers'] ?? []), '4xx');
-            if (in_array($status, [502, 503], true) && $attempt < $this->config->maxAttempts()) continue;
+            if ($status === 200) { $result=$this->success($response['body'] ?? null, $response['headers'] ?? []); if ($result->isSuccess()) $this->circuitBreaker->recordSuccess(); else $this->circuitBreaker->recordFailure(); return $result; }
+            if ($status === 429) { $retryAfter=$this->retryAfter($response['headers'] ?? []); return RoadmapProviderResponse::failure('rate_limited', $retryAfter, '4xx'); }
+            if ($this->retryPolicy->shouldRetry($status,null,$attempt)) { ($this->sleeper)($this->retryPolicy->delayMs($attempt)); continue; }
+            if ($status >= 500) $this->circuitBreaker->recordFailure();
             return RoadmapProviderResponse::failure($status >= 500 ? 'provider_unavailable' : 'provider_rejected', null, $status >= 500 ? '5xx' : '4xx');
         }
         return RoadmapProviderResponse::failure('provider_unavailable', null, '5xx');
@@ -114,6 +141,7 @@ final class HttpRoadmapProvider implements RoadmapProvider
         if (!is_string($body) || preg_match('//u', $body) !== 1) {
             return RoadmapProviderResponse::failure('malformed_response', null, '2xx');
         }
+        if (strlen($body) > 2097152) return RoadmapProviderResponse::failure('response_too_large', null, '2xx');
         $hash = hash('sha256', $body);
         try {
             $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);

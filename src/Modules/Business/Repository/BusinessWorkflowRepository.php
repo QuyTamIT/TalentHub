@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace TalentHub\Modules\Business\Repository;
 
+require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/TransactionalAiOutboxPublisher.php';
+require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/AiAudienceResolver.php';
+
 use PDO;
 use TalentHub\Http\ApiException;
 use TalentHub\Http\CollectionQuery;
 use TalentHub\Modules\Business\Repository\InternshipRepository;
 use TalentHub\Support\Uuid;
+use TalentHub\Learner\Ai\Queue\AiAudienceResolver;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 use Throwable;
 
 final class BusinessWorkflowRepository
@@ -123,9 +128,26 @@ final class BusinessWorkflowRepository
 
     public function transitionPost(string $enterpriseId, string $id, string $from, string $to): bool
     {
-        $statement = $this->pdo->prepare('UPDATE internship_posts SET status=? WHERE id=? AND enterpriseId=? AND status=?');
-        $statement->execute([$to, $id, $enterpriseId, $from]);
-        return $statement->rowCount() === 1;
+        $started = !$this->pdo->inTransaction();
+        if ($started) $this->pdo->beginTransaction();
+        try {
+            $statement = $this->pdo->prepare('UPDATE internship_posts SET status=? WHERE id=? AND enterpriseId=? AND status=?');
+            $statement->execute([$to, $id, $enterpriseId, $from]);
+            if ($statement->rowCount() !== 1) {
+                if ($started) $this->pdo->rollBack();
+                return false;
+            }
+            $students = (new AiAudienceResolver($this->pdo))->internshipStudents($id);
+            if ($students !== []) {
+                $event = in_array($to, ['active', 'published'], true) ? 'opportunity.published' : 'opportunity.archived';
+                TransactionalAiOutboxPublisher::publish($this->pdo, 'internship_post', $id, TransactionalAiOutboxPublisher::version(), $students, $event, ['status' => $to], $enterpriseId);
+            }
+            if ($started) $this->pdo->commit();
+            return true;
+        } catch (\Throwable $exception) {
+            if ($started && $this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $exception;
+        }
     }
 
     /** @return list<array<string,mixed>> */

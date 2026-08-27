@@ -101,7 +101,7 @@ $view = TalentPassportReadModel::fromAggregate($rawAggregate);
 
 $expectedKeys = [
     'student', 'skills', 'experience', 'assessment_results', 'teacher_evaluations',
-    'activity_summary', 'certificates', 'projects', 'badges', 'source_timestamps', 'capabilities',
+    'activity_summary', 'certificates', 'projects', 'badges', 'ai_capability_profile', 'source_timestamps', 'capabilities',
 ];
 passport_contract_assert(array_keys($view) === $expectedKeys, 'Talent Passport shape is stable and exact');
 passport_contract_assert($view['certificates'] === [] && $view['projects'] === [] && $view['badges'] === [], 'future facts remain empty');

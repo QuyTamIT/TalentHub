@@ -39,6 +39,9 @@ final class TalentPassportReadModel
             'badges' => is_array($aggregate['badges'] ?? null)
                 ? array_values($aggregate['badges'])
                 : [],
+            'ai_capability_profile' => is_array($aggregate['ai_capability_profile'] ?? null)
+                ? $aggregate['ai_capability_profile']
+                : null,
             'source_timestamps' => is_array($aggregate['source_timestamps'] ?? null)
                 ? $aggregate['source_timestamps']
                 : [],

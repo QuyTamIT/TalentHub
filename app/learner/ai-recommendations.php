@@ -55,6 +55,17 @@ $currentRoute = '/app/learner/ai-recommendations.php';
                         </section>
                     </div>
                     <section class="learner-roadmap-insights" data-roadmap-insights aria-label="Nhận định phát triển"></section>
+                    <section class="learner-roadmap-capability" aria-labelledby="roadmap-capability-title">
+                        <div class="learner-roadmap-section-heading"><div><span>Hồ sơ năng lực AI</span><h2 id="roadmap-capability-title">BẢN ĐỒ NĂNG KHIẾU &amp; XU HƯỚNG PHÁT TRIỂN</h2></div></div>
+                        <div class="learner-roadmap-capability__grid">
+                            <article class="learner-card"><h3>Bản đồ năng khiếu</h3><div data-roadmap-talent-map></div></article>
+                            <article class="learner-card"><h3>Điểm mạnh</h3><div data-roadmap-strengths></div></article>
+                            <article class="learner-card"><h3>Cần cải thiện</h3><div data-roadmap-improvements></div></article>
+                            <article class="learner-card"><h3>Xu hướng</h3><div data-roadmap-trends></div></article>
+                            <article class="learner-card"><h3>Hướng phát triển</h3><div data-roadmap-potential-paths></div></article>
+                            <article class="learner-card"><h3>Giả thuyết tăng trưởng</h3><div data-roadmap-growth-hypotheses></div></article>
+                        </div>
+                    </section>
                     <div class="learner-roadmap__workspace">
                         <section class="learner-card learner-roadmap-plan" aria-labelledby="roadmap-plan-title">
                             <div class="learner-roadmap-section-heading"><div><span>Kế hoạch hành động</span><h2 id="roadmap-plan-title">LỘ TRÌNH PHÁT TRIỂN 90 NGÀY</h2></div><span data-roadmap-overall-progress></span></div>
@@ -62,6 +73,15 @@ $currentRoute = '/app/learner/ai-recommendations.php';
                         </section>
                         <aside class="learner-card learner-roadmap-next" aria-labelledby="roadmap-next-title"><h2 id="roadmap-next-title">Việc nên làm tiếp theo</h2><div class="learner-roadmap-next__list" data-roadmap-next-actions></div><button class="learner-btn learner-btn--primary" type="button" data-roadmap-continue>Tiếp tục lộ trình</button></aside>
                     </div>
+                    <section class="learner-card learner-ai-live-catalog" data-ai-page aria-labelledby="live-recommendations-title">
+                        <div class="learner-roadmap-section-heading"><div><span>Cập nhật theo dữ liệu mới nhất</span><h2 id="live-recommendations-title">Gợi ý hoạt động, dự án và cơ hội</h2></div><button class="learner-btn learner-btn--outline" type="button" data-ai-generate>Làm mới gợi ý</button></div>
+                        <p data-ai-state-status role="status" aria-live="polite"></p>
+                        <div data-ai-loading hidden>Đang tải gợi ý...</div>
+                        <div data-ai-consent hidden><p data-ai-consent-copy></p><div data-ai-consent-actions></div></div>
+                        <div data-ai-insufficient hidden><p data-ai-insufficient-copy>Chưa đủ dữ liệu để tạo gợi ý.</p></div>
+                        <div data-ai-source-error hidden><p>Chưa thể tải gợi ý. <button class="learner-btn learner-btn--outline" type="button" data-ai-retry>Thử lại</button></p></div>
+                        <div data-ai-results hidden><div class="learner-ai-live-catalog__meta"><strong data-ai-engine-label></strong><span data-ai-generated-at></span></div><div data-ai-engine-details></div><div data-ai-result-list></div><small data-ai-feedback-status role="status" aria-live="polite"></small></div>
+                    </section>
                     <section class="learner-card learner-school-credential-section learner-school-credential-section--roadmap" aria-labelledby="roadmap-credentials-title">
                         <div class="learner-school-credential-heading">
                             <div><span class="learner-school-credential-heading__eyebrow"><?= learner_icon('sparkles', 17); ?> AI đối chiếu bộ thành tích của trường</span><h2 id="roadmap-credentials-title">Huy hiệu &amp; chứng chỉ phù hợp</h2><p>Các gợi ý chỉ lấy từ danh mục chính thức của <?= learner_escape($schoolCredentialData['school']['name'] ?? 'nhà trường'); ?>.</p></div>
@@ -87,6 +107,7 @@ $currentRoute = '/app/learner/ai-recommendations.php';
     <script id="learner-session-boot" type="application/json"><?= json_encode(['csrfToken' => $GLOBALS['learner_page_context']['csrfToken'] ?? ''], JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
     <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
+    <script src="../../assets/js/learner-recommendations.js"></script>
     <script src="../../assets/js/learner-ai-roadmap.js"></script>
 </body>
 </html>
