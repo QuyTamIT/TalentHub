@@ -48,7 +48,7 @@ $talentsList = !empty($featuredTalents) ? $featuredTalents : [];
                 $talentMeta = (string) ($talent['meta_description'] ?? 'Lớp 12 • THPT • AI, Python');
                 $avatarLetter = (string) ($talent['avatar_letter'] ?? 'UV');
                 $avatarBg = (string) ($talent['avatar_bg'] ?? '#F97316');
-                $detailUrl = app_href('/app/enterprise/talents.php' . (!empty($talentId) ? '?id=' . urlencode($talentId) : ''));
+                $detailUrl = app_href('/app/enterprise/talents/detail.php' . (!empty($talentId) ? '?id=' . urlencode($talentId) : ''));
             ?>
                 <article class="ent-talent-row">
                     <!-- Left: Avatar & Info -->
@@ -59,7 +59,7 @@ $talentsList = !empty($featuredTalents) ? $featuredTalents : [];
 
                         <div class="ent-talent-row__info">
                             <div class="ent-talent-row__name-row">
-                                <a href="<?= htmlspecialchars($detailUrl); ?>" class="ent-talent-row__name" data-route="/app/enterprise/talents.php">
+                                <a href="<?= htmlspecialchars($detailUrl); ?>" class="ent-talent-row__name" data-route="/app/enterprise/talents/detail.php">
                                     <?= htmlspecialchars($talentName); ?>
                                 </a>
                                 <span class="ent-talent-row__score-badge">
@@ -75,16 +75,14 @@ $talentsList = !empty($featuredTalents) ? $featuredTalents : [];
 
                     <!-- Right: Action Button -->
                     <div class="ent-talent-row__actions">
-                        <button 
-                            type="button" 
-                            class="ent-btn-contact ent-talent-btn" 
-                            data-talent-id="<?= htmlspecialchars($talentId); ?>" 
-                            data-talent-name="<?= htmlspecialchars($talentName); ?>"
-                            data-action="contact"
-                            aria-label="Liên hệ với ứng viên <?= htmlspecialchars($talentName); ?>"
+                        <a 
+                            href="<?= htmlspecialchars($detailUrl); ?>" 
+                            class="ent-btn-contact" 
+                            aria-label="Xem hồ sơ và liên hệ với ứng viên <?= htmlspecialchars($talentName); ?>"
+                            data-route="/app/enterprise/talents/detail.php"
                         >
-                            Liên hệ
-                        </button>
+                            Xem hồ sơ
+                        </a>
                     </div>
                 </article>
             <?php endforeach; ?>

@@ -332,6 +332,16 @@ final class InternshipRepository
             }
             $now = $this->now();
             $hasRevCols = $this->hasColumn('internship_applications', 'reviewerNote');
+            $validReviewerId = $userId;
+            if ($this->tableExists('users')) {
+                $chkUser = $this->pdo->prepare('SELECT id FROM users WHERE id = ? LIMIT 1');
+                $chkUser->execute([$userId]);
+                $validReviewerId = $chkUser->fetchColumn() ?: null;
+                if (!is_string($validReviewerId) || $validReviewerId === '') {
+                    throw new ApiException(403, 'PERMISSION_DENIED', 'Người duyệt không hợp lệ.');
+                }
+            }
+
             if ($hasRevCols) {
                 $update = $this->pdo->prepare(<<<'SQL'
                     UPDATE internship_applications
@@ -339,7 +349,7 @@ final class InternshipRepository
                         reviewedBy = :reviewedBy, updatedAt = :updatedAt
                     WHERE id = :id AND status = :expectedStatus
                 SQL);
-                $update->execute(['targetStatus' => $targetStatus, 'reviewerNote' => $reviewerNote === '' ? null : $reviewerNote, 'reviewedAt' => $now, 'reviewedBy' => $userId, 'updatedAt' => $now, 'id' => $applicationId, 'expectedStatus' => $expectedStatus]);
+                $update->execute(['targetStatus' => $targetStatus, 'reviewerNote' => $reviewerNote === '' ? null : $reviewerNote, 'reviewedAt' => $now, 'reviewedBy' => $validReviewerId, 'updatedAt' => $now, 'id' => $applicationId, 'expectedStatus' => $expectedStatus]);
             } else {
                 $update = $this->pdo->prepare('UPDATE internship_applications SET status = :targetStatus, updatedAt = :updatedAt WHERE id = :id AND status = :expectedStatus');
                 $update->execute(['targetStatus' => $targetStatus, 'updatedAt' => $now, 'id' => $applicationId, 'expectedStatus' => $expectedStatus]);
@@ -349,7 +359,7 @@ final class InternshipRepository
                 throw new ApiException(409, 'CONCURRENT_MODIFICATION', 'Trạng thái hồ sơ đã thay đổi.');
             }
             $history = $this->pdo->prepare('INSERT INTO application_status_history (id, applicationId, fromStatus, toStatus, changedByUserId, changedByRole, note, createdAt) VALUES (:id, :applicationId, :fromStatus, :toStatus, :changedByUserId, \'enterprise\', :note, :createdAt)');
-            $history->execute(['id' => Uuid::v4(), 'applicationId' => $applicationId, 'fromStatus' => $expectedStatus, 'toStatus' => $targetStatus, 'changedByUserId' => $userId, 'note' => $reviewerNote === '' ? null : $reviewerNote, 'createdAt' => $now]);
+            $history->execute(['id' => Uuid::v4(), 'applicationId' => $applicationId, 'fromStatus' => $expectedStatus, 'toStatus' => $targetStatus, 'changedByUserId' => $validReviewerId, 'note' => $reviewerNote === '' ? null : $reviewerNote, 'createdAt' => $now]);
 
             $studentId = (string) ($application['studentId'] ?? '');
             if ($studentId === '') {

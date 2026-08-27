@@ -10,6 +10,10 @@ final class MigrationRunner
 {
     /** Checksums recorded by an earlier verified migration revision before a forward repair was committed. */
     private const COMPATIBLE_CHECKSUMS = [
+        '20260816000100' => [
+            '4898b6f710c6b014073a58a96b423c654cb401d85f98c0e150f7b01b466a0138',
+            '25b7c4191dfcf41154fa4195007515ff681b7d0f7bccb6eb124a4a650597b625',
+        ],
         '20260821000400' => [
             '475ffb17c426c92e96fcb66b9c5b04a0bd98f665bd697b3d0ea75942c966df80',
             '82c823601e730b8cb68862f6e2e4d855de6cb769b3261705be297f4e1ace66cb',

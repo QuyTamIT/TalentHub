@@ -56,7 +56,7 @@ $teachers = $service->teachers($userId, $perPage, $offset);
 $schoolInfo = [
     'name'          => $context['school']['name'],
     'logo_initials' => mb_substr($context['school']['name'], 0, 2),
-    'level'         => $context['school']['level'] ?? 'Trung học',
+    'level'         => $context['school']['level'] ?? 'Đại học / Cao đẳng',
     'district'      => $context['school']['address'] ?? '',
     'academic_year' => $context['school']['academicYear'] ?? '',
 ];

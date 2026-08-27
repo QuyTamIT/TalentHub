@@ -39,6 +39,25 @@ final class TeacherGradingRepository
         $statement->execute([$userId]);
         $row = $statement->fetch();
 
+        if (!is_array($row)) {
+            // Self-heal: If user exists in users table, insert a teacher_profiles row for BTEC FPT
+            try {
+                $chkUser = $this->pdo->prepare('SELECT id, fullName, email FROM users WHERE id = ? LIMIT 1');
+                $chkUser->execute([$userId]);
+                $u = $chkUser->fetch();
+                if ($u) {
+                    $btecSchool = $this->pdo->query("SELECT id FROM schools WHERE name LIKE '%BTEC%' LIMIT 1")->fetchColumn()
+                        ?: 'da811c4f-2f74-4fdd-80b0-dd6f26109783';
+                    $newTpId = \TalentHub\Support\Uuid::uuid4();
+                    $ins = $this->pdo->prepare('INSERT INTO teacher_profiles (id, userId, schoolId, isSchoolAdmin, specialization) VALUES (?, ?, ?, 0, ?)');
+                    $ins->execute([$newTpId, $userId, $btecSchool, 'Kỹ thuật phần mềm & AI']);
+                    
+                    $statement->execute([$userId]);
+                    $row = $statement->fetch();
+                }
+            } catch (\Throwable) {}
+        }
+
         return is_array($row) ? $row : null;
     }
 

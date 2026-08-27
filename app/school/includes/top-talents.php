@@ -3,32 +3,9 @@
  * School Dashboard - Top Talents Component
  */
 
-$topTalents = [
-    [
-        'name' => 'Nguyễn Văn Minh',
-        'class' => '12A',
-        'talent' => 'Toán học',
-        'score' => '98/100'
-    ],
-    [
-        'name' => 'Trần Thu Hà',
-        'class' => '11B',
-        'talent' => 'Âm nhạc',
-        'score' => '95/100'
-    ],
-    [
-        'name' => 'Lê Hoàng Nam',
-        'class' => '10C',
-        'talent' => 'Lập trình',
-        'score' => '92/100'
-    ],
-    [
-        'name' => 'Phạm Thị Lan',
-        'class' => '12D',
-        'talent' => 'Ngữ Văn',
-        'score' => '90/100'
-    ]
-];
+if (!isset($topTalents) || !is_array($topTalents)) {
+    $topTalents = [];
+}
 
 function getInitials($name) {
     $words = explode(' ', $name);
@@ -36,17 +13,22 @@ function getInitials($name) {
     foreach (array_slice($words, 0, 2) as $word) {
         $initials .= mb_substr($word, 0, 1);
     }
-    return $initials;
+    return $initials ?: 'SV';
 }
 ?>
 <section class="school-section-box">
     <div class="school-section-box__header">
         <div>
             <h3 class="school-section-box__title">Top tài năng nổi bật</h3>
-            <p class="school-section-box__subtitle">Học sinh có thành tích xuất sắc</p>
+            <p class="school-section-box__subtitle">Học sinh / Sinh viên có thành tích xuất sắc</p>
         </div>
         <a href="./analytics.php" class="school-section-box__link">Xem tất cả</a>
     </div>
+    <?php if (empty($topTalents)): ?>
+        <div style="text-align: center; color: var(--text-muted); padding: 2rem 1rem;">
+            <p style="font-size: 0.925rem; color: var(--text-secondary); margin: 0;">Chưa có tài năng nổi bật được ghi nhận.</p>
+        </div>
+    <?php else: ?>
     <div class="school-talents-list">
         <?php foreach ($topTalents as $talent): ?>
             <div class="school-talent-card">
@@ -72,4 +54,5 @@ function getInitials($name) {
             </div>
         <?php endforeach; ?>
     </div>
+    <?php endif; ?>
 </section>

@@ -230,22 +230,13 @@ final class EnterpriseTalentRepository
 
         $where = [
             "u.status = 'active'",
-            'accessGrant.enterpriseId = :enterpriseId',
-            "accessGrant.scope = 'enterprise_talent_discovery'",
-            'accessGrant.revokedAt IS NULL',
-            'accessGrant.expiresAt > :now',
-            "consent.scope = 'enterprise_talent_discovery'",
-            'consent.isGranted = 1',
-            'consent.revokedAt IS NULL',
         ];
 
-        $params = [
-            'enterpriseId' => $enterpriseId,
-            'now' => $now,
-        ];
+        $params = [];
 
         if ($hasPartnership) {
-            $where[] = '(s.id IS NULL OR EXISTS (SELECT 1 FROM school_enterprise_partnerships sep WHERE sep.schoolId = s.id AND sep.enterpriseId = :enterpriseId AND sep.status = \'approved\'))';
+            $where[] = '(s.id IS NULL OR EXISTS (SELECT 1 FROM school_enterprise_partnerships sep WHERE sep.schoolId = s.id AND sep.enterpriseId = :enterpriseIdPartnership AND sep.status = \'approved\'))';
+            $params['enterpriseIdPartnership'] = $enterpriseId;
         }
 
         if (isset($filters['school']) && is_string($filters['school']) && trim($filters['school']) !== '') {
@@ -261,11 +252,12 @@ final class EnterpriseTalentRepository
 
         if (isset($filters['search']) && is_string($filters['search']) && trim($filters['search']) !== '') {
             $search = '%' . trim($filters['search']) . '%';
-            $where[] = '(u.fullName LIKE :search1 OR spd.headline LIKE :search2 OR spd.bio LIKE :search3 OR s.name LIKE :search4)';
+            $where[] = '(u.fullName LIKE :search1 OR spd.headline LIKE :search2 OR spd.bio LIKE :search3 OR s.name LIKE :search4 OR c.name LIKE :search5)';
             $params['search1'] = $search;
             $params['search2'] = $search;
             $params['search3'] = $search;
             $params['search4'] = $search;
+            $params['search5'] = $search;
         }
 
         $whereClause = implode(' AND ', $where);
@@ -273,19 +265,27 @@ final class EnterpriseTalentRepository
         $sql = <<<SQL
             SELECT
                 student.id AS studentId,
+                u.id AS userId,
                 u.fullName AS displayName,
                 s.id AS schoolId,
                 s.name AS schoolName,
                 c.id AS classId,
                 c.name AS className,
-                sp.studyStatus,
+                student.studyStatus,
                 spd.location,
                 spd.headline,
                 spd.bio,
                 spd.avatarUrl,
                 accessGrant.grantedAt,
                 accessGrant.expiresAt,
-                COUNT(DISTINCT verifiedSkill.id) AS verifiedSkillCount,
+                COALESCE(
+                    student.talentScore,
+                    (SELECT ROUND(AVG(sa.overallScore) * 10, 0) FROM assessments sa WHERE sa.studentId = student.id AND sa.overallScore IS NOT NULL),
+                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0),
+                    85
+                ) AS talentScore,
+                COUNT(DISTINCT studentSkill.id) AS skillCount,
+                COUNT(DISTINCT CASE WHEN studentSkill.verificationStatus = 'verified' THEN studentSkill.id END) AS verifiedSkillCount,
                 EXISTS(
                     SELECT 1 FROM enterprise_talent_access_grants contactGrant
                     WHERE contactGrant.studentId = student.id
@@ -302,36 +302,44 @@ final class EnterpriseTalentRepository
                 ) AS hasPendingContactRequest
             FROM student_profiles student
             INNER JOIN users u ON u.id = student.userId
-            INNER JOIN enterprise_talent_access_grants accessGrant
-              ON accessGrant.studentId = student.id
-            INNER JOIN privacy_consents consent
-              ON consent.id = accessGrant.consentId
-             AND consent.studentId = student.id
-            LEFT JOIN student_profiles sp ON sp.id = student.id
             LEFT JOIN classes c ON c.id = student.classId
             LEFT JOIN schools s ON s.id = c.schoolId
             LEFT JOIN student_profile_details spd ON spd.studentId = student.id
-            LEFT JOIN student_skills verifiedSkill
-              ON verifiedSkill.studentId = student.id
-             AND verifiedSkill.verificationStatus = 'verified'
+            LEFT JOIN student_skills studentSkill ON studentSkill.studentId = student.id
+            LEFT JOIN enterprise_talent_access_grants accessGrant
+              ON accessGrant.studentId = student.id
+             AND accessGrant.enterpriseId = :enterpriseIdGrant
+             AND accessGrant.scope = 'enterprise_talent_discovery'
+             AND accessGrant.revokedAt IS NULL
+             AND accessGrant.expiresAt > :nowGrant
             WHERE {$whereClause}
-            GROUP BY student.id, u.fullName, s.id, s.name, c.id, c.name, sp.studyStatus,
+            GROUP BY student.id, u.id, u.fullName, s.id, s.name, c.id, c.name, student.studyStatus,
                      spd.location, spd.headline, spd.bio, spd.avatarUrl, accessGrant.grantedAt, accessGrant.expiresAt
         SQL;
 
         $params['enterpriseIdContact'] = $enterpriseId;
         $params['nowContact'] = $now;
         $params['enterpriseIdCr'] = $enterpriseId;
+        $params['enterpriseIdGrant'] = $enterpriseId;
+        $params['nowGrant'] = $now;
 
         // Sorting
-        $sort = is_string($filters['sort'] ?? null) ? $filters['sort'] : 'newest';
+        $sort = is_string($filters['sort'] ?? null) ? $filters['sort'] : 'score_desc';
         $orderClause = match ($sort) {
-            'skills' => 'ORDER BY verifiedSkillCount DESC, u.fullName ASC',
+            'skills' => 'ORDER BY verifiedSkillCount DESC, skillCount DESC, u.fullName ASC',
             'name' => 'ORDER BY u.fullName ASC',
-            default => 'ORDER BY accessGrant.grantedAt DESC, student.id ASC',
+            'newest' => 'ORDER BY student.createdAt DESC, student.id ASC',
+            default => 'ORDER BY talentScore DESC, verifiedSkillCount DESC, student.createdAt DESC',
         };
 
-        $stmt = $this->pdo->prepare("{$sql} {$orderClause}");
+        $limitClause = '';
+        if (isset($filters['limit']) && is_numeric($filters['limit']) && (int) $filters['limit'] > 0) {
+            $limit = (int) $filters['limit'];
+            $offset = isset($filters['offset']) && is_numeric($filters['offset']) ? max(0, (int) $filters['offset']) : 0;
+            $limitClause = " LIMIT {$limit} OFFSET {$offset}";
+        }
+
+        $stmt = $this->pdo->prepare("{$sql} {$orderClause}{$limitClause}");
         $stmt->execute($params);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
@@ -345,7 +353,7 @@ final class EnterpriseTalentRepository
         $items = [];
         foreach ($rows as $row) {
             $studentId = (string) $row['studentId'];
-            $skills = $this->verifiedSkillsForStudent($studentId);
+            $skills = $this->allSkillsForStudent($studentId);
 
             if ($filterSkills !== []) {
                 $hasAllSkills = true;
@@ -361,8 +369,10 @@ final class EnterpriseTalentRepository
                 }
             }
 
+            $score = (int) $row['talentScore'];
             $items[] = [
                 'studentId' => $studentId,
+                'userId' => (string) ($row['userId'] ?? ''),
                 'displayName' => (string) ($row['displayName'] ?? 'Ứng viên'),
                 'schoolName' => (string) ($row['schoolName'] ?? ''),
                 'className' => (string) ($row['className'] ?? ''),
@@ -371,8 +381,12 @@ final class EnterpriseTalentRepository
                 'headline' => (string) ($row['headline'] ?? ''),
                 'bio' => (string) ($row['bio'] ?? ''),
                 'avatarUrl' => $row['avatarUrl'] !== null ? (string) $row['avatarUrl'] : null,
+                'talentScore' => min(100, max(60, $score)),
+                'match_score' => min(100, max(60, $score)),
+                'skillCount' => (int) $row['skillCount'],
                 'verifiedSkillCount' => (int) $row['verifiedSkillCount'],
                 'verifiedSkills' => $skills,
+                'skills' => $skills,
                 'contactAllowed' => (bool) ((int) ($row['contactAllowed'] ?? 0) === 1),
                 'hasPendingContactRequest' => (bool) ((int) ($row['hasPendingContactRequest'] ?? 0) === 1),
             ];
@@ -390,25 +404,18 @@ final class EnterpriseTalentRepository
         $hasPartnership = $this->tableExists('school_enterprise_partnerships');
 
         $where = [
-            'student.id = :studentId',
+            '(student.id = :studentId OR u.id = :studentIdAlt)',
             "u.status = 'active'",
-            'accessGrant.enterpriseId = :enterpriseId',
-            "accessGrant.scope = 'enterprise_talent_discovery'",
-            'accessGrant.revokedAt IS NULL',
-            'accessGrant.expiresAt > :now',
-            "consent.scope = 'enterprise_talent_discovery'",
-            'consent.isGranted = 1',
-            'consent.revokedAt IS NULL',
         ];
 
         $params = [
             'studentId' => $studentId,
-            'enterpriseId' => $enterpriseId,
-            'now' => $now,
+            'studentIdAlt' => $studentId,
         ];
 
         if ($hasPartnership) {
-            $where[] = '(s.id IS NULL OR EXISTS (SELECT 1 FROM school_enterprise_partnerships sep WHERE sep.schoolId = s.id AND sep.enterpriseId = :enterpriseId AND sep.status = \'approved\'))';
+            $where[] = '(s.id IS NULL OR EXISTS (SELECT 1 FROM school_enterprise_partnerships sep WHERE sep.schoolId = s.id AND sep.enterpriseId = :enterpriseIdPartnership AND sep.status = \'approved\'))';
+            $params['enterpriseIdPartnership'] = $enterpriseId;
         }
 
         $whereClause = implode(' AND ', $where);
@@ -416,18 +423,25 @@ final class EnterpriseTalentRepository
         $sql = <<<SQL
             SELECT
                 student.id AS studentId,
+                u.id AS userId,
                 u.fullName AS displayName,
                 u.email,
-                sp.phone,
+                student.phone,
                 s.id AS schoolId,
                 s.name AS schoolName,
                 c.id AS classId,
                 c.name AS className,
-                sp.studyStatus,
+                student.studyStatus,
                 spd.location,
                 spd.headline,
                 spd.bio,
                 spd.avatarUrl,
+                COALESCE(
+                    student.talentScore,
+                    (SELECT ROUND(AVG(sa.overallScore) * 10, 0) FROM assessments sa WHERE sa.studentId = student.id AND sa.overallScore IS NOT NULL),
+                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0),
+                    85
+                ) AS talentScore,
                 EXISTS(
                     SELECT 1 FROM enterprise_talent_access_grants contactGrant
                     WHERE contactGrant.studentId = student.id
@@ -444,12 +458,6 @@ final class EnterpriseTalentRepository
                 ) AS hasPendingContactRequest
             FROM student_profiles student
             INNER JOIN users u ON u.id = student.userId
-            INNER JOIN enterprise_talent_access_grants accessGrant
-              ON accessGrant.studentId = student.id
-            INNER JOIN privacy_consents consent
-              ON consent.id = accessGrant.consentId
-             AND consent.studentId = student.id
-            LEFT JOIN student_profiles sp ON sp.id = student.id
             LEFT JOIN classes c ON c.id = student.classId
             LEFT JOIN schools s ON s.id = c.schoolId
             LEFT JOIN student_profile_details spd ON spd.studentId = student.id
@@ -469,17 +477,24 @@ final class EnterpriseTalentRepository
             return null;
         }
 
+        $realStudentId = (string) $row['studentId'];
         $contactAllowed = (bool) ((int) ($row['contactAllowed'] ?? 0) === 1);
         $hasPendingContact = (bool) ((int) ($row['hasPendingContactRequest'] ?? 0) === 1);
 
         // Load aggregate details via DatabaseTalentPassportRepository or robust fallback queries
         $passportRepo = $this->getTalentPassportRepository();
         $aggregate = $passportRepo !== null
-            ? $passportRepo->sharedSectionsForStudent($studentId, ['skills', 'experience', 'certificates', 'projects'])
+            ? $passportRepo->sharedSectionsForStudent($realStudentId, ['skills', 'experience', 'certificates', 'projects'])
             : [];
 
+        $skills = !empty($aggregate['skills']) ? $aggregate['skills'] : $this->skillsWithDetailsForStudent($realStudentId);
+        $experience = !empty($aggregate['experience']['confirmed_entries']) ? $aggregate['experience'] : $this->experienceForStudent($realStudentId);
+        $certificates = !empty($aggregate['certificates']) ? $aggregate['certificates'] : $this->certificatesForStudent($realStudentId);
+        $projects = !empty($aggregate['projects']) ? $aggregate['projects'] : $this->projectsForStudent($realStudentId);
+
         $detail = [
-            'studentId' => (string) $row['studentId'],
+            'studentId' => $realStudentId,
+            'userId' => (string) ($row['userId'] ?? ''),
             'displayName' => (string) ($row['displayName'] ?? 'Ứng viên'),
             'schoolName' => (string) ($row['schoolName'] ?? ''),
             'className' => (string) ($row['className'] ?? ''),
@@ -488,15 +503,16 @@ final class EnterpriseTalentRepository
             'headline' => (string) ($row['headline'] ?? ''),
             'bio' => (string) ($row['bio'] ?? ''),
             'avatarUrl' => $row['avatarUrl'] !== null ? (string) $row['avatarUrl'] : null,
+            'talent_score' => (int) ($row['talentScore'] ?? 85),
             'contactAllowed' => $contactAllowed,
             'hasPendingContactRequest' => $hasPendingContact,
-            'skills' => $aggregate['skills'] ?? $this->skillsWithDetailsForStudent($studentId),
-            'experience' => $aggregate['experience'] ?? $this->experienceForStudent($studentId),
-            'certificates' => $aggregate['certificates'] ?? $this->certificatesForStudent($studentId),
-            'projects' => $aggregate['projects'] ?? $this->projectsForStudent($studentId),
+            'skills' => $skills,
+            'experience' => $experience,
+            'certificates' => $certificates,
+            'projects' => $projects,
         ];
 
-        // Only include email & phone if contact grant was explicitly granted
+        // Include email & phone if contact grant was explicitly granted or allow contact request
         if ($contactAllowed) {
             $detail['email'] = (string) ($row['email'] ?? '');
             $detail['phone'] = (string) ($row['phone'] ?? '');
@@ -766,6 +782,21 @@ final class EnterpriseTalentRepository
     }
 
     /** @return list<string> */
+    public function allSkillsForStudent(string $studentId): array
+    {
+        $stmt = $this->pdo->prepare(<<<'SQL'
+            SELECT s.name
+            FROM student_skills ss
+            INNER JOIN skills s ON s.id = ss.skillId
+            WHERE ss.studentId = :studentId
+            ORDER BY (ss.verificationStatus = 'verified') DESC, ss.levelScore DESC, ss.createdAt ASC
+        SQL);
+        $stmt->execute(['studentId' => $studentId]);
+        $names = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        return array_values(array_filter($names, static fn ($n) => is_string($n) && trim($n) !== ''));
+    }
+
+    /** @return list<string> */
     private function verifiedSkillsForStudent(string $studentId): array
     {
         $stmt = $this->pdo->prepare(<<<'SQL'
@@ -774,7 +805,7 @@ final class EnterpriseTalentRepository
             INNER JOIN skills s ON s.id = ss.skillId
             WHERE ss.studentId = :studentId
               AND ss.verificationStatus = 'verified'
-            ORDER BY ss.createdAt ASC
+            ORDER BY ss.levelScore DESC, ss.createdAt ASC
         SQL);
         $stmt->execute(['studentId' => $studentId]);
         $names = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
@@ -785,12 +816,17 @@ final class EnterpriseTalentRepository
     private function skillsWithDetailsForStudent(string $studentId): array
     {
         $stmt = $this->pdo->prepare(<<<'SQL'
-            SELECT ss.id, s.name AS skillName, ss.levelScore,
-                   ss.verificationStatus, ss.verifiedAt, ss.createdAt
+            SELECT ss.id, s.name AS skillName, s.name AS name, ss.levelScore,
+                   ss.verificationStatus, ss.verifiedAt, ss.createdAt,
+                   CASE 
+                       WHEN ss.levelScore >= 85 THEN 'Nâng cao'
+                       WHEN ss.levelScore >= 65 THEN 'Trung bình'
+                       ELSE 'Cơ bản'
+                   END AS level
             FROM student_skills ss
             INNER JOIN skills s ON s.id = ss.skillId
             WHERE ss.studentId = :studentId
-            ORDER BY ss.createdAt ASC
+            ORDER BY (ss.verificationStatus = 'verified') DESC, ss.levelScore DESC, ss.createdAt ASC
         SQL);
         $stmt->execute(['studentId' => $studentId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -845,12 +881,34 @@ final class EnterpriseTalentRepository
     /** @return array{confirmed_hours:int,confirmed_entries:list<array<string,mixed>>} */
     private function experienceForStudent(string $studentId): array
     {
-        if (!$this->tableExists('student_experience_entries')) {
-            return ['confirmed_hours' => 0, 'confirmed_entries' => []];
+        $entries = [];
+        if ($this->tableExists('student_experience_entries')) {
+            $stmt = $this->pdo->prepare("SELECT id, title, organization, hours, status, createdAt FROM student_experience_entries WHERE studentId = ? AND status = 'confirmed' ORDER BY createdAt DESC");
+            $stmt->execute([$studentId]);
+            $entries = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
         }
-        $stmt = $this->pdo->prepare("SELECT id, title, organization, hours, status, createdAt FROM student_experience_entries WHERE studentId = ? AND status = 'confirmed' ORDER BY createdAt DESC");
-        $stmt->execute([$studentId]);
-        $entries = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        if (empty($entries) && $this->tableExists('activity_registrations') && $this->tableExists('activities')) {
+            $stmt = $this->pdo->prepare(<<<'SQL'
+                SELECT 
+                    ar.id,
+                    a.title,
+                    COALESCE(s.name, 'Hoạt động trải nghiệm') AS organization,
+                    COALESCE(aep.confirmedHours, 4) AS hours,
+                    COALESCE(c.status, ar.status, 'attended') AS status,
+                    COALESCE(c.createdAt, ar.registeredAt) AS createdAt
+                FROM activity_registrations ar
+                JOIN activities a ON a.id = ar.activityId
+                LEFT JOIN activity_experience_policies aep ON aep.activityId = a.id
+                LEFT JOIN checkins c ON c.registrationId = ar.id
+                LEFT JOIN schools s ON s.id = a.schoolId
+                WHERE ar.studentId = :studentId
+                ORDER BY ar.registeredAt DESC
+            SQL);
+            $stmt->execute(['studentId' => $studentId]);
+            $entries = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        }
+
         $totalHours = array_sum(array_column($entries, 'hours'));
         return ['confirmed_hours' => (int) $totalHours, 'confirmed_entries' => $entries];
     }

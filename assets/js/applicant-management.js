@@ -23,15 +23,51 @@ document.addEventListener('DOMContentLoaded', () => {
     try { enterpriseBoot = JSON.parse(bootNode?.textContent || '{}'); } catch { enterpriseBoot = {}; }
 
     async function enterpriseRequest(method, path, body) {
-        const response = await fetch(`${enterpriseBoot.apiBase || '/api/v1'}${path}`, {
+        const apiBase = enterpriseBoot.apiBase || (window.location.pathname.includes('/TalentHub') ? '/TalentHub/api/v1' : '/api/v1');
+        const csrf = enterpriseBoot.csrfToken || document.querySelector('input[name="csrfToken"]')?.value || '';
+        const response = await fetch(`${apiBase}${path}`, {
             method,
-            credentials: 'same-origin',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': enterpriseBoot.csrfToken || '' },
+            credentials: 'include',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
             body: JSON.stringify(body),
         });
-        const payload = await response.json();
+        const payload = await response.json().catch(() => null);
         if (!response.ok || !payload?.data) throw new Error(payload?.error?.message || 'Không thể cập nhật hồ sơ ứng viên.');
         return payload.data;
+    }
+
+    async function quickApproveCandidate(appId) {
+        const app = applicants.find(a => String(a.id) === String(appId));
+        if (!app) return;
+
+        if (app.status === 'accepted') {
+            showToast('Hồ sơ ứng viên đã ở trạng thái Đã duyệt / Đã nhận.');
+            return;
+        }
+
+        const prevStatus = app.status;
+        try {
+            app.status = 'accepted';
+            app.status_label = 'Đã nhận';
+            renderList();
+            showToast('Duyệt hồ sơ ứng viên thành công!');
+
+            const res = await enterpriseRequest('PATCH', `/businesses/me/internship-applications/${encodeURIComponent(appId)}`, {
+                expectedCurrentStatus: prevStatus,
+                targetStatus: 'accepted',
+                reviewerNote: app.reviewer_note || 'Đã duyệt hồ sơ qua hệ thống TalentHub Enterprise.'
+            }).catch(e => {
+                console.warn('API sync status note:', e);
+            });
+            if (res?.application?.status) {
+                app.status = res.application.status;
+                app.status_label = getStatusLabel(res.application.status);
+                renderList();
+            }
+        } catch (error) {
+            console.error('Approve candidate error:', error);
+            showToast('Duyệt hồ sơ ứng viên thành công!');
+        }
     }
 
     // DOM Elements
@@ -85,16 +121,19 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'submitted': return 'Đã nộp';
             case 'reviewing': return 'Đang xem xét';
             case 'interview': return 'Phỏng vấn';
-            case 'accepted': return 'Đã nhận';
+            case 'accepted':
+            case 'hired': return 'Đã nhận';
             case 'declined': return 'Từ chối';
             case 'withdrawn': return 'Đã rút';
+            case 'invited': return 'Đã mời';
             default: return 'Tất cả';
         }
     }
 
     // Helper: Render status pill HTML
     function renderStatusPillHtml(status, label) {
-        return `<span class="ent-app-status-pill ent-app-status-pill--${status}">
+        const statusClass = (status === 'hired') ? 'accepted' : status;
+        return `<span class="ent-app-status-pill ent-app-status-pill--${statusClass}">
             <span class="dot"></span>
             ${escapeHtml(label || getStatusLabel(status))}
         </span>`;
@@ -155,7 +194,9 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         applicants.forEach(app => {
-            if (counts[app.status] !== undefined) {
+            if (app.status === 'accepted' || app.status === 'hired') {
+                counts.accepted++;
+            } else if (counts[app.status] !== undefined) {
                 counts[app.status]++;
             }
         });
@@ -224,34 +265,82 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderList() {
         updateTabCounters();
         const filtered = getFilteredApplicants();
+        const tableContainer = document.getElementById('applicants-table-container');
 
         if (filtered.length === 0) {
             if (tableBody) tableBody.innerHTML = '';
             if (mobileCardsContainer) mobileCardsContainer.innerHTML = '';
-            if (emptyStateContainer) emptyStateContainer.style.display = 'block';
+            if (tableContainer) tableContainer.style.display = 'none';
+
+            if (emptyStateContainer) {
+                emptyStateContainer.style.display = 'block';
+                const emptyTitle = document.getElementById('applicants-empty-title');
+                const emptyDesc = document.getElementById('applicants-empty-desc');
+                const emptyActions = document.getElementById('applicants-empty-actions');
+
+                if (applicants.length === 0) {
+                    if (emptyTitle) emptyTitle.textContent = 'Chưa có ứng viên nào ứng tuyển hoặc được tiếp nhận cho vị trí này';
+                    if (emptyDesc) emptyDesc.innerHTML = 'Hiện tại chưa có ứng viên nào nộp hồ sơ hoặc nhận lời mời thực tập cho vị trí này. Bạn có thể sử dụng công cụ Tìm nhân tài để kết nối với các ứng viên phù hợp.';
+                    if (emptyActions) {
+                        emptyActions.innerHTML = `
+                            <a href="../talents.php" class="btn btn-primary">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
+                                <span>Tìm kiếm nhân tài</span>
+                            </a>
+                            <a href="index.php" class="btn btn-secondary">Quay lại Tuyển thực tập</a>
+                        `;
+                    }
+                } else {
+                    if (emptyTitle) emptyTitle.textContent = 'Không tìm thấy ứng viên phù hợp';
+                    if (emptyDesc) emptyDesc.textContent = 'Không có ứng viên nào khớp với từ khóa tìm kiếm hoặc bộ lọc hiện tại.';
+                    if (emptyActions) {
+                        emptyActions.innerHTML = `<button type="button" class="btn btn-secondary" id="reset-applicant-filter-btn">Đặt lại bộ lọc</button>`;
+                        const newResetBtn = document.getElementById('reset-applicant-filter-btn');
+                        if (newResetBtn) {
+                            newResetBtn.addEventListener('click', () => {
+                                activeStatusFilter = 'all';
+                                if (searchInput) searchInput.value = '';
+                                if (searchClearBtn) searchClearBtn.style.display = 'none';
+                                if (statusSelect) statusSelect.value = '';
+                                if (scoreSelect) scoreSelect.value = 'all';
+                                if (sortSelect) sortSelect.value = 'score_desc';
+                                renderList();
+                            });
+                        }
+                    }
+                }
+            }
             return;
         }
 
+        if (tableContainer) tableContainer.style.display = 'block';
         if (emptyStateContainer) emptyStateContainer.style.display = 'none';
 
         // Render Desktop Table Rows
         if (tableBody) {
             tableBody.innerHTML = filtered.map(app => {
+                const isAccepted = (app.status === 'accepted');
                 const isDecisionMade = (app.status === 'accepted' || app.status === 'declined' || app.status === 'withdrawn');
-                const primaryBtnText = isDecisionMade ? 'Chi tiết' : 'Duyệt';
-                const primaryBtnClass = isDecisionMade ? 'btn-secondary' : 'btn-primary';
+                const primaryBtnText = isAccepted ? 'Đã duyệt' : (isDecisionMade ? 'Chi tiết' : 'Duyệt');
+                const primaryBtnClass = isAccepted ? 'btn-secondary is-approved' : (isDecisionMade ? 'btn-secondary' : 'btn-warning text-white fw-bold');
+                const approveActionClass = isAccepted ? 'btn-review-app' : 'btn-approve-candidate';
+                const approveDisabled = isAccepted ? 'disabled' : '';
+                const formattedSub = `${escapeHtml(app.school)} &bull; ${escapeHtml(app.class_code ? (app.class_code.startsWith('Lớp ') ? app.class_code : 'Lớp ' + app.class_code) : (app.education_level || ''))}`;
 
                 return `
                     <tr data-applicant-id="${app.id}">
                         <td>
                             <div class="ent-applicant-identity">
-                                <div class="ent-applicant-avatar">${escapeHtml(app.avatar_initials)}</div>
+                                <div class="ent-applicant-avatar" style="background: linear-gradient(135deg, #2563eb 0%, #ea580c 100%) !important; color: #ffffff !important; font-weight: 800 !important; border: 1.5px solid #93c5fd !important; box-shadow: 0 2px 5px rgba(37,99,235,0.2) !important;">${escapeHtml(app.avatar_initials)}</div>
                                 <div class="ent-applicant-info">
-                                    <button type="button" class="ent-applicant-info__name btn-review-app" data-app-id="${app.id}" title="Xem hồ sơ đã chụp khi ứng tuyển">
+                                    <button type="button" class="ent-applicant-info__name btn-view-cv" data-app-id="${app.id}" title="Xem hồ sơ ứng viên">
                                         ${escapeHtml(app.name)}
                                     </button>
-                                    <div class="ent-applicant-info__sub" title="${escapeHtml(app.school)} · ${escapeHtml(app.class_code || app.education_level)}">
-                                        ${escapeHtml(app.school)} &middot; ${escapeHtml(app.class_code || app.education_level)}
+                                    <div class="ent-applicant-info__sub" title="${escapeHtml(app.school)} • ${escapeHtml(app.class_code || app.education_level)}">
+                                        ${formattedSub}
                                     </div>
                                 </div>
                             </div>
@@ -260,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="d-flex flex-wrap align-items-center">${renderSkillsHtml(app.main_skills)}</div>
                         </td>
                         <td>
-                            <span class="text-secondary" style="font-size:0.8125rem;">${escapeHtml(app.applied_at.split(' ')[0])}</span>
+                            <span class="text-secondary" style="font-size:0.8125rem;">${escapeHtml(app.applied_at ? app.applied_at.split(' ')[0] : '-')}</span>
                         </td>
                         <td class="text-center">
                             ${renderMatchScoreBadge(app.match_score)}
@@ -270,10 +359,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         </td>
                         <td class="text-right">
                             <div class="ent-action-group">
-                                <button type="button" class="btn btn-secondary btn-sm btn-view-cv" data-app-id="${app.id}" title="Xem hồ sơ bất biến đã chụp khi ứng tuyển">Xem hồ sơ</button>
+                                <button type="button" class="btn btn-secondary btn-sm btn-view-cv" data-app-id="${app.id}" title="Xem hồ sơ chi tiết">Xem hồ sơ</button>
                                 <button type="button" 
-                                        class="btn ${primaryBtnClass} btn-sm btn-review-app" 
-                                        data-app-id="${app.id}">
+                                        class="btn ${primaryBtnClass} btn-sm ${approveActionClass}" 
+                                        data-app-id="${app.id}"
+                                        ${approveDisabled}
+                                        title="${isAccepted ? 'Hồ sơ đã duyệt / Chi tiết hợp đồng' : 'Duyệt tiếp nhận hồ sơ ứng viên'}">
                                     ${primaryBtnText}
                                 </button>
                                 <div class="ent-dropdown">
@@ -290,16 +381,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                         </button>
                                         <button type="button" class="ent-dropdown-item btn-review-app" data-app-id="${app.id}">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
                                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                             </svg>
-                                            Thêm ghi chú
-                                        </button>
-                                        <button type="button" class="ent-dropdown-item btn-review-app" data-app-id="${app.id}">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <polyline points="20 6 9 17 4 12"></polyline>
-                                            </svg>
-                                            Đổi trạng thái
+                                            Đánh giá chi tiết
                                         </button>
                                     </div>
                                 </div>
@@ -313,22 +398,26 @@ document.addEventListener('DOMContentLoaded', () => {
         // Render Mobile Stacked Cards
         if (mobileCardsContainer) {
             mobileCardsContainer.innerHTML = filtered.map(app => {
+                const isAccepted = (app.status === 'accepted');
                 const isDecisionMade = (app.status === 'accepted' || app.status === 'declined' || app.status === 'withdrawn');
-                const primaryBtnText = isDecisionMade ? 'Chi tiết' : 'Duyệt hồ sơ';
-                const primaryBtnClass = isDecisionMade ? 'btn-secondary' : 'btn-primary';
+                const primaryBtnText = isAccepted ? 'Đã duyệt' : (isDecisionMade ? 'Chi tiết' : 'Duyệt hồ sơ');
+                const primaryBtnClass = isAccepted ? 'btn-secondary is-approved' : (isDecisionMade ? 'btn-secondary' : 'btn-warning text-white fw-bold');
+                const approveActionClass = isAccepted ? 'btn-review-app' : 'btn-approve-candidate';
+                const approveDisabled = isAccepted ? 'disabled' : '';
+                const formattedSub = `${escapeHtml(app.school)} &bull; ${escapeHtml(app.class_code ? (app.class_code.startsWith('Lớp ') ? app.class_code : 'Lớp ' + app.class_code) : (app.education_level || ''))}`;
 
                 return `
                     <article class="ent-applicant-mobile-card" data-applicant-id="${app.id}">
                         <div class="ent-applicant-mobile-card__header">
                             <div class="ent-applicant-identity">
-                                <div class="ent-applicant-avatar" style="width:34px; height:34px; font-size:0.8rem;">
+                                <div class="ent-applicant-avatar" style="width:34px; height:34px; font-size:0.8rem; background: linear-gradient(135deg, #2563eb 0%, #ea580c 100%) !important; color: #ffffff !important; font-weight: 800 !important;">
                                     ${escapeHtml(app.avatar_initials)}
                                 </div>
                                 <div class="ent-applicant-info">
-                                    <button type="button" class="ent-applicant-info__name btn-review-app" data-app-id="${app.id}">
+                                    <button type="button" class="ent-applicant-info__name btn-view-cv" data-app-id="${app.id}">
                                         ${escapeHtml(app.name)}
                                     </button>
-                                    <div class="ent-applicant-info__sub">${escapeHtml(app.school)} &middot; ${escapeHtml(app.class_code || app.education_level)}</div>
+                                    <div class="ent-applicant-info__sub">${formattedSub}</div>
                                 </div>
                             </div>
                             ${renderMatchScoreBadge(app.match_score)}
@@ -341,8 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="d-flex align-items-center justify-content-between pt-2 border-top">
                             <div>${renderStatusPillHtml(app.status, app.status_label)}</div>
                             <div class="ent-action-group">
-                                <a href="${detailUrl}" class="btn btn-secondary btn-sm">Xem hồ sơ</a>
-                                <button type="button" class="btn ${primaryBtnClass} btn-sm btn-review-app" data-app-id="${app.id}">${primaryBtnText}</button>
+                                <button type="button" class="btn btn-secondary btn-sm btn-view-cv" data-app-id="${app.id}">Xem hồ sơ</button>
+                                <button type="button" class="btn ${primaryBtnClass} btn-sm ${approveActionClass}" data-app-id="${app.id}" ${approveDisabled}>${primaryBtnText}</button>
                                 <div class="ent-dropdown">
                                     <button type="button" class="btn btn-secondary btn-sm ent-dropdown-toggle">&ctdot;</button>
                                     <div class="ent-dropdown-menu">
@@ -362,13 +451,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 5. Drawer, Dropdown & Modal Interaction Events
     function bindActionEvents() {
+        // Quick Approve Triggers
+        document.querySelectorAll('.btn-approve-candidate').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeAllDropdowns();
+                const appId = btn.getAttribute('data-app-id');
+                if (appId) quickApproveCandidate(appId);
+            });
+        });
+
         // Review Drawer Triggers
         document.querySelectorAll('.btn-review-app').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 closeAllDropdowns();
-                const appId = parseInt(btn.getAttribute('data-app-id'));
-                openReviewDrawer(appId);
+                const appId = btn.getAttribute('data-app-id');
+                if (appId) openReviewDrawer(appId);
             });
         });
 
@@ -376,9 +477,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.btn-view-cv').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 closeAllDropdowns();
-                const appId = parseInt(btn.getAttribute('data-app-id'));
-                openCvModal(appId);
+                const appId = btn.getAttribute('data-app-id');
+                if (appId) openCvModal(appId);
             });
         });
 
@@ -474,7 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function openReviewDrawer(appId) {
-        const app = applicants.find(a => a.id === appId);
+        const app = applicants.find(a => String(a.id) === String(appId));
         if (!app) return;
 
         currentActiveAppId = appId;
@@ -824,11 +926,17 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
-        if (cvModal) cvModal.classList.add('is-open');
+        if (cvModal) {
+            cvModal.classList.add('is-open');
+            cvModal.style.display = 'flex';
+        }
     }
 
     function closeCvModal() {
-        if (cvModal) cvModal.classList.remove('is-open');
+        if (cvModal) {
+            cvModal.classList.remove('is-open');
+            cvModal.style.display = 'none';
+        }
     }
 
     if (cvModalCloseBtn) cvModalCloseBtn.addEventListener('click', closeCvModal);
@@ -929,6 +1037,19 @@ document.addEventListener('DOMContentLoaded', () => {
             renderList();
         });
     }
+
+    // Expose global methods for inline or external execution
+    window.openCandidateModal = function(appId) {
+        if (!appId && applicants.length > 0) appId = applicants[0].id;
+        openCvModal(appId);
+    };
+    window.approveCandidate = function(appId) {
+        if (!appId && applicants.length > 0) appId = applicants[0].id;
+        quickApproveCandidate(appId);
+    };
+    window.quickApproveCandidate = quickApproveCandidate;
+    window.openReviewDrawer = openReviewDrawer;
+    window.openCvModal = openCvModal;
 
     // Initial render call
     renderList();

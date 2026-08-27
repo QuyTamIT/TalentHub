@@ -163,6 +163,22 @@ body.school-sidebar-open {
     line-height: 1.2;
 }
 
+.school-sidebar__nav {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    margin-bottom: 0.5rem;
+    padding-right: 2px;
+}
+
+.school-sidebar__nav::-webkit-scrollbar {
+    width: 4px;
+}
+.school-sidebar__nav::-webkit-scrollbar-thumb {
+    background: #E2E8F0;
+    border-radius: 4px;
+}
+
 .school-sidebar__nav-title {
     font-size: 0.6875rem;
     font-weight: 700;
@@ -230,6 +246,7 @@ body.school-sidebar-open {
     margin-top: auto;
     padding-top: 0.875rem;
     border-top: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .school-sidebar__link--logout {
