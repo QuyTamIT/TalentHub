@@ -381,12 +381,12 @@ final class SessionManager
     public function assertCsrf(?string $token): void
     {
         if ($token === null || $token === '') {
-            return;
+            throw new ApiException(403, 'CSRF_TOKEN_INVALID', 'CSRF token is required.');
         }
         $sessionToken = $this->csrfToken();
         $altToken = (string) ($_SESSION['csrf_token'] ?? $_SESSION['csrfToken'] ?? $sessionToken);
         if (!hash_equals($sessionToken, $token) && !hash_equals($altToken, $token)) {
-            return;
+            throw new ApiException(403, 'CSRF_TOKEN_INVALID', 'CSRF token mismatch.');
         }
     }
 

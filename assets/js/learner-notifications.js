@@ -66,6 +66,38 @@
         }
     }
 
+    function createSvgIcon(type, width = 15, height = 15, strokeWidth = '2.5') {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', String(width));
+        svg.setAttribute('height', String(height));
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', String(strokeWidth));
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+
+        if (type === 'check') {
+            const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            polyline.setAttribute('points', '20 6 9 17 4 12');
+            svg.appendChild(polyline);
+        } else if (type === 'cross') {
+            const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line1.setAttribute('x1', '18');
+            line1.setAttribute('y1', '6');
+            line1.setAttribute('x2', '6');
+            line1.setAttribute('y2', '18');
+            const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line2.setAttribute('x1', '6');
+            line2.setAttribute('y1', '6');
+            line2.setAttribute('x2', '18');
+            line2.setAttribute('y2', '18');
+            svg.appendChild(line1);
+            svg.appendChild(line2);
+        }
+        return svg;
+    }
+
     function el(tag, attrs = {}, children = []) {
         const element = document.createElement(tag);
         for (const [key, value] of Object.entries(attrs)) {
@@ -73,8 +105,6 @@
                 element.className = value;
             } else if (key === 'textContent') {
                 element.textContent = value;
-            } else if (key === 'innerHTML') {
-                element.innerHTML = value;
             } else if (key === 'style' && typeof value === 'string') {
                 element.style.cssText = value;
             } else if (key.startsWith('on') && typeof value === 'function') {
@@ -137,7 +167,9 @@
             toast.id = 'learner-toast';
             toast.className = 'learner-toast';
             toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#0F172A;color:#FFFFFF;padding:12px 20px;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.25);z-index:9999;font-weight:600;font-size:0.9rem;display:flex;align-items:center;gap:8px;';
-            toast.innerHTML = '<span class="learner-toast__message"></span>';
+            const msgSpan = document.createElement('span');
+            msgSpan.className = 'learner-toast__message';
+            toast.appendChild(msgSpan);
             document.body.appendChild(toast);
         }
         const target = toast.querySelector('.learner-toast__message') || toast;
@@ -389,14 +421,18 @@
                     actionBox.appendChild(el('span', {
                         className: 'badge bg-success-subtle text-success border border-success px-3 py-2 rounded-pill fw-bold learner-invite-badge-accepted',
                         style: 'background: #ecfdf5 !important; color: #047857 !important; border: 1.5px solid #10b981 !important; font-weight: 700 !important; font-size: 13.5px !important; padding: 7px 16px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; width: auto !important; height: auto !important; white-space: nowrap !important;',
-                        innerHTML: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> <span>Đã tiếp nhận thực tập</span>'
-                    }));
+                    }, [
+                        createSvgIcon('check', 15, 15, '3'),
+                        el('span', { textContent: 'Đã tiếp nhận thực tập' }),
+                    ]));
                 } else if (inviteStatus === 'declined' || inviteStatus === 'rejected') {
                     actionBox.appendChild(el('span', {
                         className: 'badge bg-danger-subtle text-danger border border-danger px-3 py-2 rounded-pill fw-bold learner-invite-badge-declined',
                         style: 'background: #fef2f2 !important; color: #b91c1c !important; border: 1.5px solid #f87171 !important; font-weight: 700 !important; font-size: 13.5px !important; padding: 7px 16px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; width: auto !important; height: auto !important; white-space: nowrap !important;',
-                        innerHTML: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> <span>Đã từ chối</span>'
-                    }));
+                    }, [
+                        createSvgIcon('cross', 15, 15, '3'),
+                        el('span', { textContent: 'Đã từ chối' }),
+                    ]));
                 } else {
                     // Two buttons: [Chấp nhận lời mời] & [Từ chối] (clean icon + text, locked with data-id)
                     const acceptBtn = el('button', {
@@ -405,7 +441,6 @@
                         'data-id': notification.id,
                         'data-notification-id': notification.id,
                         style: 'display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important; background: #10b981 !important; color: #ffffff !important; font-weight: 700 !important; font-size: 14px !important; line-height: 1.4 !important; padding: 9px 18px !important; border-radius: 8px !important; border: none !important; cursor: pointer !important; text-decoration: none !important; white-space: nowrap !important; width: auto !important; height: auto !important; min-width: fit-content !important; box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;',
-                        innerHTML: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> <span>Chấp nhận lời mời</span>',
                         onClick: (e) => {
                             e.stopPropagation();
                             const notifId = acceptBtn.getAttribute('data-id') || notification.id;
@@ -415,7 +450,10 @@
                                 this.respondInvitation(notifId, 'accept', actionBox, entName);
                             }
                         }
-                    });
+                    }, [
+                        createSvgIcon('check', 15, 15, '2.5'),
+                        el('span', { textContent: 'Chấp nhận lời mời' }),
+                    ]);
 
                     const declineBtn = el('button', {
                         type: 'button',
@@ -423,7 +461,6 @@
                         'data-id': notification.id,
                         'data-notification-id': notification.id,
                         style: 'display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important; background: #ffffff !important; color: #4b5563 !important; font-weight: 600 !important; font-size: 14px !important; line-height: 1.4 !important; padding: 8px 16px !important; border-radius: 8px !important; border: 1.5px solid #d1d5db !important; cursor: pointer !important; text-decoration: none !important; white-space: nowrap !important; width: auto !important; height: auto !important; min-width: fit-content !important;',
-                        innerHTML: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> <span>Từ chối</span>',
                         onClick: (e) => {
                             e.stopPropagation();
                             const notifId = declineBtn.getAttribute('data-id') || notification.id;
@@ -433,7 +470,10 @@
                                 this.respondInvitation(notifId, 'decline', actionBox, entName);
                             }
                         }
-                    });
+                    }, [
+                        createSvgIcon('cross', 15, 15, '2.5'),
+                        el('span', { textContent: 'Từ chối' }),
+                    ]);
 
                     actionBox.appendChild(acceptBtn);
                     actionBox.appendChild(declineBtn);
@@ -457,7 +497,10 @@
         }
 
         async respondInvitation(notificationId, decision, actionBox, entName) {
-            actionBox.innerHTML = '<span style="font-size: 0.85rem; color: #64748B; font-style: italic;">Đang xử lý phản hồi...</span>';
+            actionBox.replaceChildren(el('span', {
+                style: 'font-size: 0.85rem; color: #64748B; font-style: italic;',
+                textContent: 'Đang xử lý phản hồi...',
+            }));
 
             try {
                 const response = await apiRequest(ENDPOINT, 'PATCH', {
@@ -469,28 +512,25 @@
 
                 const data = response.data || {};
                 const newStatus = data.status || (decision === 'accept' ? 'accepted' : 'declined');
-                actionBox.innerHTML = '';
+                actionBox.replaceChildren();
 
                 if (newStatus === 'accepted') {
-                    actionBox.innerHTML = `
-                        <span class="badge bg-success-subtle text-success border border-success px-3 py-2 rounded-pill fw-bold learner-invite-badge-accepted" style="background: #ecfdf5 !important; color: #047857 !important; border: 1.5px solid #10b981 !important; font-weight: 700 !important; font-size: 13.5px !important; padding: 7px 16px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; width: auto !important; height: auto !important; white-space: nowrap !important;">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                            <span>Đã tiếp nhận thực tập</span>
-                        </span>
-                    `;
+                    actionBox.appendChild(el('span', {
+                        className: 'badge bg-success-subtle text-success border border-success px-3 py-2 rounded-pill fw-bold learner-invite-badge-accepted',
+                        style: 'background: #ecfdf5 !important; color: #047857 !important; border: 1.5px solid #10b981 !important; font-weight: 700 !important; font-size: 13.5px !important; padding: 7px 16px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; width: auto !important; height: auto !important; white-space: nowrap !important;',
+                    }, [
+                        createSvgIcon('check', 15, 15, '3'),
+                        el('span', { textContent: 'Đã tiếp nhận thực tập' }),
+                    ]));
                     showToast(data.message || `Bạn đã chấp nhận lời mời thực tập từ ${entName}!`);
                 } else {
-                    actionBox.innerHTML = `
-                        <span class="badge bg-danger-subtle text-danger border border-danger px-3 py-2 rounded-pill fw-bold learner-invite-badge-declined" style="background: #fef2f2 !important; color: #b91c1c !important; border: 1.5px solid #f87171 !important; font-weight: 700 !important; font-size: 13.5px !important; padding: 7px 16px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; width: auto !important; height: auto !important; white-space: nowrap !important;">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                            <span>Đã từ chối</span>
-                        </span>
-                    `;
+                    actionBox.appendChild(el('span', {
+                        className: 'badge bg-danger-subtle text-danger border border-danger px-3 py-2 rounded-pill fw-bold learner-invite-badge-declined',
+                        style: 'background: #fef2f2 !important; color: #b91c1c !important; border: 1.5px solid #f87171 !important; font-weight: 700 !important; font-size: 13.5px !important; padding: 7px 16px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; width: auto !important; height: auto !important; white-space: nowrap !important;',
+                    }, [
+                        createSvgIcon('cross', 15, 15, '3'),
+                        el('span', { textContent: 'Đã từ chối' }),
+                    ]));
                     showToast(data.message || 'Bạn đã từ chối lời mời thực tập.');
                 }
 

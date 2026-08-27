@@ -22,6 +22,7 @@ Thumbs.db
 # Local-only planning, QA, and coding-agent material.
 /tests/*
 !/tests/learner_journey_dashboard_ui_test.ps1
+!/tests/teacher_grading_hardening_test.php
 /docs/
 /design/
 /Document/
@@ -31,6 +32,10 @@ Thumbs.db
 /.qwen/
 /.codex/
 /.codex-*/
+/.codex_tmp/
 /.codex_tmp/activity-qr-fixtures/
+/opencode.json
+/opencode.backup.json
+/assets/mockups/
 /.docx_review/
 /.worktrees/

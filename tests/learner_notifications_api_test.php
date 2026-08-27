@@ -157,8 +157,6 @@ $invalidLinks = [
     '/app/learner/../admin/secret.php',
     '/app/learner/checkin.php?next=/app/admin/dashboard.php',
     '/app/learner/checkin.php#javascript:alert(1)',
-    '/app/learner/activities.php',
-    '/app/learner/evaluation.php',
     '/app/learner/notifications.php',
     'javascript:alert(1)',
     'data:text/html,evil',

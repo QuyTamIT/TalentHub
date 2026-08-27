@@ -195,11 +195,17 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
 
     private function skills(string $studentId): array
     {
+        // Older local databases used `student_skills.level` before the canonical
+        // `levelScore` column was introduced. Keep the read path compatible so
+        // a learner dashboard/roadmap does not fail before migrations are run.
+        $levelExpression = $this->inspector()->hasColumn('student_skills', 'levelScore')
+            ? 'ss.levelScore'
+            : ($this->inspector()->hasColumn('student_skills', 'level') ? 'ss.level' : 'NULL');
         $sql = <<<'SQL'
             SELECT
                 ss.studentId,
                 ss.skillId,
-                ss.levelScore,
+                %s AS levelScore,
                 ss.sourceType,
                 ss.verificationStatus,
                 ss.verifiedAt,
@@ -213,6 +219,7 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             ORDER BY s.category ASC, s.name ASC, ss.skillId ASC
             SQL;
 
+        $sql = sprintf($sql, $levelExpression);
         return $this->fetchAll('skills', $sql, ['student_id' => $studentId]);
     }
 

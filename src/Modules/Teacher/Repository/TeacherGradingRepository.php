@@ -293,7 +293,7 @@ final class TeacherGradingRepository
 
             TransactionalAiOutboxPublisher::publish($this->pdo,'teacher_evaluation',$savedAssessmentId,$expectedVersion+1,[$studentId],$status==='published'?'evaluation.published':'evaluation.updated',['activity_id'=>$activityId,'status'=>$status]);
 
-            if ($this->hasTable('audit_logs')) {
+            if ($this->hasTable('audit_logs') && is_string($actorUserId) && $actorUserId !== '' && is_string($requestId) && $requestId !== '') {
                 $audit = $this->pdo->prepare(
                     'INSERT INTO audit_logs (id,userId,action,entityType,entityId,requestId,ipAddress,metadata,createdAt)
                      VALUES (:id,:userId,:action,\'assessment\',:entityId,:requestId,NULL,:metadata,:createdAt)'

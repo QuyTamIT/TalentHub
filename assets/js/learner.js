@@ -698,36 +698,39 @@
                 if (evaluationEmpty) evaluationEmpty.hidden = Boolean(evaluation);
                 if (!evaluation || !evaluationCriteria) return;
 
-                const rows = evaluation.criteria.map((criterion) => {
-                    const row = document.createElement('article');
-                    row.className = 'learner-evaluation-criterion';
+                const rows = (evaluation.criteria || []).map((criterion) => {
+                    const row = document.createElement('div');
+                    row.className = 'eval-criterion-row';
                     row.dataset.evaluationCriterion = '';
 
                     const heading = document.createElement('div');
-                    heading.className = 'learner-evaluation-criterion__heading';
+                    heading.className = 'eval-criterion-header';
                     const name = document.createElement('span');
-                    const score = document.createElement('strong');
                     name.textContent = criterion.name;
-                    score.textContent = `${criterion.score}/${criterion.max}`;
+
+                    const score = document.createElement('span');
+                    score.className = 'eval-criterion-score';
+                    const maximum = Number(criterion.max) || 10;
+                    const scoreVal = Number(criterion.score) || 0;
+                    const percentage = maximum > 0
+                        ? Math.max(0, Math.min(100, scoreVal / maximum * 100))
+                        : 0;
+                    score.textContent = `${scoreVal.toFixed(1)} / ${maximum.toFixed(0)} (${Math.round(percentage)}%)`;
                     heading.append(name, score);
 
-                    const progress = document.createElement('div');
-                    progress.className = 'learner-progress';
-                    progress.setAttribute('role', 'progressbar');
-                    progress.setAttribute('aria-label', criterion.name);
-                    progress.setAttribute('aria-valuemin', '0');
-                    progress.setAttribute('aria-valuemax', String(criterion.max));
-                    progress.setAttribute('aria-valuenow', String(criterion.score));
+                    const track = document.createElement('div');
+                    track.className = 'eval-progress-track';
+                    track.setAttribute('role', 'progressbar');
+                    track.setAttribute('aria-label', criterion.name);
+                    track.setAttribute('aria-valuemin', '0');
+                    track.setAttribute('aria-valuemax', String(maximum));
+                    track.setAttribute('aria-valuenow', String(scoreVal));
 
-                    const bar = document.createElement('span');
-                    bar.className = `learner-progress--${criterion.tone}`;
-                    const maximum = Number(criterion.max);
-                    const percentage = maximum > 0
-                        ? Math.max(0, Math.min(100, Number(criterion.score) / maximum * 100))
-                        : 0;
-                    bar.style.setProperty('--learner-progress', `${percentage}%`);
-                    progress.append(bar);
-                    row.append(heading, progress);
+                    const fill = document.createElement('div');
+                    fill.className = `eval-progress-fill eval-progress-fill--${criterion.tone || 'primary'}`;
+                    fill.style.width = `${percentage}%`;
+                    track.append(fill);
+                    row.append(heading, track);
                     return row;
                 });
 
@@ -737,6 +740,8 @@
                 setEvaluationText('[data-evaluation-ranking]', evaluation.ranking);
                 setEvaluationText('[data-evaluation-comment]', evaluation.comment);
                 setEvaluationText('[data-evaluation-reviewer]', evaluation.reviewer);
+                setEvaluationText('[data-evaluation-reviewer-avatar]', evaluation.reviewer_initials || 'GV');
+                setEvaluationText('[data-evaluation-activity]', evaluation.activity_title || 'Đồ án');
             };
 
             evaluationSelect.addEventListener('change', () => {

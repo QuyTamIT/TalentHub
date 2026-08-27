@@ -112,6 +112,13 @@ try {
     JsonResponder::sendError($exception, $context?->requestId() ?? 'request-unavailable');
 } catch (Throwable $exception) {
     $msg = $exception->getMessage();
+    error_log(sprintf(
+        '[Learner assessments API] request=%s error=%s file=%s line=%d',
+        $context?->requestId() ?? 'request-unavailable',
+        $msg,
+        $exception->getFile(),
+        $exception->getLine(),
+    ));
     if (str_contains($msg, 'not found') || str_contains($msg, 'was not found')) {
         JsonResponder::sendError(
             new ApiException(404, 'ASSESSMENT_NOT_FOUND', 'Bài đánh giá không tồn tại hoặc chưa được xuất bản.'),
