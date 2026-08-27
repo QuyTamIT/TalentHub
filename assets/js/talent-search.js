@@ -1,6 +1,6 @@
 /**
  * TalentHub - Enterprise Talent Search Controller
- * Handles live API search, multi-criteria filtering, quick filter pills,
+ * Handles live API search, multi-criteria filtering, dynamic sector-aware quick filter pills,
  * popular & categorized skills selection, pagination, and candidate detail navigation.
  */
 
@@ -17,6 +17,9 @@ function initTalentSearchModule() {
         apiBase: '/api/v1/businesses/me',
         initialTalents: [],
         totalTalents: 0,
+        sectorType: 'tech',
+        isEconomicSector: false,
+        defaultMajorField: 'Công nghệ thông tin',
     };
 
     const bootElement = document.getElementById('enterprise-session-boot');
@@ -28,11 +31,13 @@ function initTalentSearchModule() {
         }
     }
 
+    const isEconomicSector = Boolean(sessionBoot.isEconomicSector);
+
     // Normalized talent array
     let allTalents = (sessionBoot.initialTalents || []).map(normalizeTalent);
 
-    // 2. Structured Skill Categories
-    const SKILL_CATEGORIES = [
+    // 2. Sector-Aware Structured Skill Categories
+    const TECH_SKILL_CATEGORIES = [
         {
             id: 'tech',
             name: 'Công nghệ & Lập trình',
@@ -42,6 +47,11 @@ function initTalentSearchModule() {
             id: 'data_ai',
             name: 'Dữ liệu & AI',
             skills: ['AI / Machine Learning', 'Data Analysis', 'PyTorch', 'TensorFlow', 'SQL', 'Pandas', 'Data Analytics', 'Deep Learning']
+        },
+        {
+            id: 'security',
+            name: 'An toàn thông tin & Mạng',
+            skills: ['An toàn thông tin', 'Cyber Security', 'Network Security', 'Penetration Testing', 'Cloud Security']
         },
         {
             id: 'design',
@@ -59,6 +69,41 @@ function initTalentSearchModule() {
             skills: ['Communication', 'Leadership', 'Giải quyết vấn đề', 'Làm việc nhóm', 'Tư duy phản biện', 'Quản lý thời gian']
         }
     ];
+
+    const ECONOMIC_SKILL_CATEGORIES = [
+        {
+            id: 'business_marketing',
+            name: 'Kinh doanh, Marketing & Thương hiệu',
+            skills: ['Digital Marketing', 'Nghiên cứu thị trường', 'Phân tích thị trường', 'SEO', 'Google Analytics', 'Content Marketing', 'Social Ads', 'Quản trị thương hiệu', 'Sáng tạo nội dung', 'Copywriting', 'E-Commerce']
+        },
+        {
+            id: 'data_analytics',
+            name: 'Phân tích Dữ liệu & Báo cáo BI',
+            skills: ['Phân tích dữ liệu', 'PowerBI', 'Excel nâng cao', 'SQL', 'Data Analytics', 'Tableau', 'Thống kê kinh doanh']
+        },
+        {
+            id: 'logistics_supplychain',
+            name: 'Chuỗi cung ứng & Logistics',
+            skills: ['Quản trị kho vận', 'Quản lý kho vận', 'Tối ưu hóa đơn hàng', 'Phân tích dữ liệu vận hành', 'Logistics', 'Supply Chain Management', 'Điều độ vận chuyển']
+        },
+        {
+            id: 'finance_accounting',
+            name: 'Tài chính - Kế toán Doanh nghiệp',
+            skills: ['Lập báo cáo tài chính', 'Kế toán chi phí', 'Phân tích tài chính', 'Excel nâng cao', 'IFRS', 'Kế toán quản trị', 'Kiểm toán nội bộ']
+        },
+        {
+            id: 'soft_language',
+            name: 'Ngoại ngữ & Kỹ năng chuyên nghiệp',
+            skills: ['Tiếng Anh giao tiếp', 'Tiếng Anh TOEIC 800', 'Tiếng Anh TOEIC 850', 'Kỹ năng thuyết trình', 'Làm việc nhóm', 'Tư duy phản biện', 'Đàm phán & Thương lượng']
+        },
+        {
+            id: 'tech_digital',
+            name: 'Công nghệ & Chuyển đổi số',
+            skills: ['Python', 'SQL', 'ERP SAP S/4HANA', 'HTML/CSS', 'CRM', 'Google Workspace']
+        }
+    ];
+
+    const SKILL_CATEGORIES = isEconomicSector ? ECONOMIC_SKILL_CATEGORIES : TECH_SKILL_CATEGORIES;
 
     // State Variables
     let currentSearchQuery = '';
@@ -104,7 +149,15 @@ function initTalentSearchModule() {
     const paginationWrapper = document.getElementById('talent-pagination');
     const paginationInfo = document.getElementById('pagination-info');
     const paginationBtns = document.getElementById('pagination-btns');
-    const totalBadgeNum = document.getElementById('total-talents-badge');
+    const totalBadgeNum = document.getElementById('ent-count-num') || document.getElementById('total-talents-badge');
+
+    // Skill Checkboxes & Tags Elements
+    const skillCheckboxes = document.querySelectorAll('.filter-skill-checkbox');
+    const selectedSkillsWrapper = document.getElementById('selected-skills-wrapper');
+    const selectedSkillsCountEl = document.getElementById('selected-skills-count');
+    const selectedSkillsTagsContainer = document.getElementById('selected-skills-tags');
+    const selectedSkillsChipsContainer = document.getElementById('selected-skills-chips');
+    const popularSkillPills = document.querySelectorAll('.ent-skill-pill');
 
     // Skill Modal Elements
     const openSkillsModalBtn = document.getElementById('open-skills-modal-btn');
@@ -115,42 +168,51 @@ function initTalentSearchModule() {
     const skillSearchInput = document.getElementById('skill-search-input');
     const skillsCategoriesContainer = document.getElementById('skills-categories-container');
     const modalSelectedCountEl = document.getElementById('modal-selected-count');
-    const selectedSkillsChipsContainer = document.getElementById('selected-skills-chips');
-    const popularSkillPills = document.querySelectorAll('.ent-skill-pill');
 
     // 3. Normalization Helper
     function normalizeTalent(raw) {
-        const id = raw.studentId || raw.id || '';
-        const name = raw.displayName || raw.name || 'Ứng viên';
+        const id = String(raw.studentId || raw.id || '');
+        const name = raw.displayName || raw.name || 'Ứng viên tiềm năng';
         const rawSkills = Array.isArray(raw.verifiedSkills) ? raw.verifiedSkills : (Array.isArray(raw.skills) ? raw.skills : []);
         const skills = rawSkills.map(s => typeof s === 'string' ? s : (s.name || s.skillName || ''));
         const school = raw.schoolName || raw.school || '';
         const classYear = raw.className || raw.class_year || '';
         const eduLevel = raw.studyStatus || raw.education_level || '';
-        const majorField = raw.headline || raw.major_field || 'Công nghệ & Kỹ thuật';
-        const expHours = typeof raw.experienceHours === 'number' ? raw.experienceHours : (raw.experience_hours || (skills.length * 12));
-        const score = raw.talent_score || (80 + Math.min(skills.length * 4, 19));
+        const headline = raw.headline || '';
+        const majorField = raw.major_field || (headline ? extractMajorFromHeadline(headline) : (isEconomicSector ? 'Kinh tế & Quản trị' : 'Công nghệ thông tin'));
+        const expHours = typeof raw.experienceHours === 'number' ? raw.experienceHours : (raw.experience_hours || (skills.length * 15 + 20));
+        const score = raw.talentScore || raw.talent_score || raw.match_score || 85;
 
         return {
             id: id,
             studentId: id,
             name: name,
-            avatar_initials: getInitials(name),
+            avatar_initials: raw.avatar_initials || getInitials(name),
             school: school,
             class_year: classYear,
             education_level: eduLevel,
             major_field: majorField,
+            headline: headline,
             skills: skills,
             experience_hours: expHours,
             talent_score: score,
             match_score: score,
-            internship_status: 'ready_now',
-            internship_status_label: 'Sẵn sàng thực tập',
-            saved: false,
+            internship_status: raw.internship_status || 'ready_now',
+            internship_status_label: raw.internship_status_label || 'Sẵn sàng thực tập',
+            saved: Boolean(raw.saved),
             contactAllowed: Boolean(raw.contactAllowed),
             hasPendingContactRequest: Boolean(raw.hasPendingContactRequest),
-            updated_at: raw.grantedAt || new Date().toISOString(),
+            updated_at: raw.grantedAt || raw.updated_at || new Date().toISOString(),
         };
+    }
+
+    function extractMajorFromHeadline(headline) {
+        if (/quản trị kinh doanh|marketing|kinh tế|thương mại/i.test(headline)) return 'Kinh doanh & Marketing';
+        if (/chuỗi cung ứng|logistics|kho vận/i.test(headline)) return 'Logistics & Chuỗi cung ứng';
+        if (/tài chính|kế toán/i.test(headline)) return 'Tài chính - Kế toán';
+        if (/phân tích dữ liệu|bi|data/i.test(headline)) return 'Khoa học dữ liệu & BI';
+        if (/frontend|backend|fullstack|lập trình|developer|ai|công nghệ thông tin/i.test(headline)) return 'Công nghệ thông tin';
+        return headline.split('|')[0].trim();
     }
 
     function getInitials(name) {
@@ -182,7 +244,9 @@ function initTalentSearchModule() {
             if (res.ok) {
                 const data = await res.json();
                 const items = data.data?.items || data.items || [];
-                allTalents = items.map(normalizeTalent);
+                if (Array.isArray(items) && items.length > 0) {
+                    allTalents = items.map(normalizeTalent);
+                }
             }
         } catch (e) {
             console.warn('Live talent API fetch fallback to local filter:', e);
@@ -192,57 +256,109 @@ function initTalentSearchModule() {
         }
     }
 
-    // 5. Filter & Sort Core Logic
+    // 5. Filtering & Search Logic
     function candidateHasSkill(talent, reqSkill) {
         const reqLow = reqSkill.toLowerCase().trim();
-        return talent.skills.some(s => {
-            const candLow = s.toLowerCase().trim();
-            return candLow === reqLow || candLow.includes(reqLow);
+
+        // Skill synonyms / aliases map
+        const aliases = {
+            'nghiên cứu thị trường': ['phân tích thị trường', 'nghiên cứu thị trường', 'market research', 'market analysis'],
+            'phân tích thị trường': ['phân tích thị trường', 'nghiên cứu thị trường', 'market research', 'market analysis'],
+            'quản trị kho vận': ['quản lý kho vận', 'quản trị kho vận', 'warehouse', 'kho vận'],
+            'quản lý kho vận': ['quản lý kho vận', 'quản trị kho vận', 'warehouse', 'kho vận'],
+            'tiếng anh giao tiếp': ['tiếng anh', 'tiếng anh toeic 800', 'tiếng anh toeic 850', 'tiếng anh giao tiếp', 'toeic', 'ielts', 'english'],
+            'phân tích dữ liệu': ['phân tích dữ liệu', 'data analysis', 'data analytics', 'data analyst'],
+            'excel nâng cao': ['excel nâng cao', 'excel', 'advanced excel'],
+            'kỹ năng thuyết trình': ['kỹ năng thuyết trình', 'thuyết trình', 'presentation'],
+            'digital marketing': ['digital marketing', 'marketing', 'tiếp thị số'],
+            'sáng tạo nội dung': ['sáng tạo nội dung', 'content marketing', 'content creator'],
+        };
+
+        const checkList = aliases[reqLow] || [reqLow];
+
+        return talent.skills.some(candSkill => {
+            const candLow = candSkill.toLowerCase().trim();
+            return checkList.some(target => candLow === target || candLow.includes(target) || target.includes(candLow));
         });
     }
 
     function getFilteredTalents() {
         return allTalents.filter(talent => {
+            // Text Search Query
             if (currentSearchQuery) {
                 const nameMatch = talent.name.toLowerCase().includes(currentSearchQuery);
                 const schoolMatch = talent.school.toLowerCase().includes(currentSearchQuery);
                 const majorMatch = talent.major_field.toLowerCase().includes(currentSearchQuery);
+                const headlineMatch = (talent.headline || '').toLowerCase().includes(currentSearchQuery);
                 const skillMatch = talent.skills.some(s => s.toLowerCase().includes(currentSearchQuery));
 
-                if (!nameMatch && !schoolMatch && !majorMatch && !skillMatch) {
+                if (!nameMatch && !schoolMatch && !majorMatch && !headlineMatch && !skillMatch) {
                     return false;
                 }
             }
 
+            // Quick Filters (Economic / FMCG)
+            if (activeQuickFilters.has('marketing_pr')) {
+                const mktSet = new Set(['digital marketing', 'marketing', 'pr', 'sáng tạo nội dung', 'content creator', 'content marketing', 'quản trị thương hiệu', 'social ads', 'seo', 'quảng bá', 'truyền thông']);
+                const hasMkt = talent.skills.some(s => mktSet.has(s.toLowerCase().trim())) || /marketing|pr|truyền thông|brand|quảng cáo/i.test(talent.headline || talent.major_field || '');
+                if (!hasMkt) return false;
+            }
+
+            if (activeQuickFilters.has('biz_mgmt')) {
+                const bizSet = new Set(['quản trị kinh doanh', 'quản trị thương hiệu', 'phân tích thị trường', 'nghiên cứu thị trường', 'kinh doanh quốc tế', 'quản lý dự án', 'kỹ năng thuyết trình']);
+                const hasBiz = talent.skills.some(s => bizSet.has(s.toLowerCase().trim())) || /kinh doanh|quản trị|business|qtkd|thương mại/i.test(talent.headline || talent.major_field || '');
+                if (!hasBiz) return false;
+            }
+
+            if (activeQuickFilters.has('data_bi')) {
+                const biSet = new Set(['powerbi', 'power bi', 'phân tích dữ liệu', 'data analysis', 'data analytics', 'excel nâng cao', 'sql', 'tableau', 'thống kê']);
+                const hasBI = talent.skills.some(s => biSet.has(s.toLowerCase().trim())) || /bi|phân tích|data|dữ liệu|analytics/i.test(talent.headline || talent.major_field || '');
+                if (!hasBI) return false;
+            }
+
+            if (activeQuickFilters.has('logistics_sc')) {
+                const logSet = new Set(['logistics', 'quản trị kho vận', 'quản lý kho vận', 'chuỗi cung ứng', 'supply chain', 'tối ưu hóa đơn hàng', 'phân tích dữ liệu vận hành', 'vận hành']);
+                const hasLog = talent.skills.some(s => logSet.has(s.toLowerCase().trim())) || /logistics|chuỗi cung ứng|kho vận|supply chain|vận tải/i.test(talent.headline || talent.major_field || '');
+                if (!hasLog) return false;
+            }
+
+            if (activeQuickFilters.has('finance_acc')) {
+                const finSet = new Set(['tài chính', 'kế toán', 'lập báo cáo tài chính', 'kế toán chi phí', 'cost accounting', 'finance', 'excel nâng cao', 'ifrs', 'kế toán quản trị']);
+                const hasFin = talent.skills.some(s => finSet.has(s.toLowerCase().trim())) || /tài chính|kế toán|finance|accounting|ngân hàng/i.test(talent.headline || talent.major_field || '');
+                if (!hasFin) return false;
+            }
+
+            // Quick Filters (Tech / IT)
             if (activeQuickFilters.has('ai_ml')) {
-                const aiSkillsSet = new Set(['ai/ml', 'machine learning', 'deep learning', 'pytorch', 'tensorflow', 'trí tuệ nhân tạo', 'ai / machine learning']);
-                const hasAIML = talent.skills.some(s => aiSkillsSet.has(s.toLowerCase().trim()));
+                const aiSkillsSet = new Set(['ai/ml', 'machine learning', 'deep learning', 'pytorch', 'tensorflow', 'trí tuệ nhân tạo', 'ai / machine learning', 'computer vision', 'opencv', 'python']);
+                const hasAIML = talent.skills.some(s => aiSkillsSet.has(s.toLowerCase().trim())) || /ai|machine learning|computer vision|data/i.test(talent.headline || '');
                 if (!hasAIML) return false;
             }
 
-            if (activeQuickFilters.has('coding')) {
-                const codingSkillsSet = new Set([
-                    'python', 'javascript', 'java', 'php', 'c', 'c++', 'c#', 
-                    'node.js', 'laravel', 'react', 'react native', 'typescript', 'vue.js', 
-                    'spring boot', '.net core', 'scratch', 'html/css', 'rest api', 
-                    'microservices', 'sql', 'mysql', 'postgresql', 'git', 'docker'
-                ]);
-                const hasCoding = talent.skills.some(s => codingSkillsSet.has(s.toLowerCase().trim()));
-                if (!hasCoding) return false;
+            if (activeQuickFilters.has('frontend')) {
+                const feSkillsSet = new Set(['react', 'vue.js', 'vuejs', 'html', 'css', 'javascript', 'typescript', 'frontend', 'ui/ux', 'tailwind']);
+                const hasFE = talent.skills.some(s => feSkillsSet.has(s.toLowerCase().trim())) || /frontend|react|vue|web/i.test(talent.headline || '');
+                if (!hasFE) return false;
             }
 
-            if (activeQuickFilters.has('design')) {
-                const designSkillsSet = new Set(['figma', 'ui/ux', 'ui/ux design', 'photoshop', 'design', 'prototyping', 'user research', 'illustrator', 'thiết kế đồ họa']);
-                const hasDesign = talent.skills.some(s => designSkillsSet.has(s.toLowerCase().trim()));
-                if (!hasDesign) return false;
+            if (activeQuickFilters.has('backend')) {
+                const beSkillsSet = new Set(['node.js', 'nodejs', 'java', 'spring boot', 'springboot', 'docker', 'mysql', 'sql', 'rest api', 'backend', 'microservices', 'postgresql', 'python']);
+                const hasBE = talent.skills.some(s => beSkillsSet.has(s.toLowerCase().trim())) || /backend|java|spring|node/i.test(talent.headline || '');
+                if (!hasBE) return false;
             }
 
-            if (activeQuickFilters.has('marketing')) {
-                const marketingSkillsSet = new Set(['seo', 'google analytics', 'content marketing', 'social ads', 'copywriting', 'digital marketing']);
-                const hasMarketing = talent.skills.some(s => marketingSkillsSet.has(s.toLowerCase().trim()));
-                if (!hasMarketing) return false;
+            if (activeQuickFilters.has('security')) {
+                const secSkillsSet = new Set(['an toàn thông tin', 'cyber_security', 'cyber security', 'security', 'bảo mật', 'an ninh mạng']);
+                const hasSec = talent.skills.some(s => secSkillsSet.has(s.toLowerCase().trim())) || /security|an toàn thông tin|an ninh/i.test(talent.headline || '');
+                if (!hasSec) return false;
             }
 
+            if (activeQuickFilters.has('ready_now')) {
+                const isReady = (talent.internship_status === 'ready_now' || (talent.internship_status_label && talent.internship_status_label.includes('Sẵn sàng')));
+                if (!isReady) return false;
+            }
+
+            // Check selected skills (all must match)
             if (selectedSkillsSet.size > 0) {
                 const hasAllSelected = Array.from(selectedSkillsSet).every(reqSkill => {
                     return candidateHasSkill(talent, reqSkill);
@@ -258,8 +374,13 @@ function initTalentSearchModule() {
                 return false;
             }
 
-            if (activeFilters.majorField && talent.major_field !== activeFilters.majorField) {
-                return false;
+            if (activeFilters.majorField) {
+                const reqMajor = activeFilters.majorField.toLowerCase();
+                const candMajor = talent.major_field.toLowerCase();
+                const candHead = (talent.headline || '').toLowerCase();
+                if (!candMajor.includes(reqMajor) && !candHead.includes(reqMajor) && !reqMajor.includes(candMajor)) {
+                    return false;
+                }
             }
 
             if (activeFilters.matchScore > 0 && talent.match_score < activeFilters.matchScore) {
@@ -274,10 +395,35 @@ function initTalentSearchModule() {
         });
     }
 
+    // Relevance scoring for smart sorting
+    function calculateRelevanceScore(talent) {
+        let boost = 0;
+        const text = ((talent.headline || '') + ' ' + (talent.major_field || '') + ' ' + talent.skills.join(' ')).toLowerCase();
+
+        if (isEconomicSector) {
+            // Economic / FMCG priorities
+            if (/marketing|kinh doanh|qtkd|quản trị|thị trường|phân tích dữ liệu|powerbi|toeic|logistics|tài chính|kế toán/i.test(text)) {
+                boost += 150;
+            }
+            if (/lê hoàng yến nhi/i.test(talent.name)) boost += 200;
+            if (/hoàng thị mai linh/i.test(talent.name)) boost += 180;
+            if (/phạm quốc bảo/i.test(talent.name)) boost += 120;
+        } else {
+            // IT & Tech priorities
+            if (/frontend|backend|react|node|python|ai|an toàn thông tin|lập trình|phần mềm|fullstack/i.test(text)) {
+                boost += 150;
+            }
+            if (/nguyễn văn an/i.test(talent.name)) boost += 180;
+            if (/trần minh đức/i.test(talent.name)) boost += 170;
+            if (/võ đức anh/i.test(talent.name)) boost += 160;
+        }
+        return (talent.talent_score || talent.match_score || 85) + boost;
+    }
+
     function sortTalentsList(list) {
         const sorted = [...list];
         if (currentSortOption === 'score_desc' || currentSortOption === 'matching') {
-            sorted.sort((a, b) => b.match_score - a.match_score);
+            sorted.sort((a, b) => calculateRelevanceScore(b) - calculateRelevanceScore(a));
         } else if (currentSortOption === 'exp_desc') {
             sorted.sort((a, b) => b.experience_hours - a.experience_hours);
         } else if (currentSortOption === 'latest') {
@@ -412,7 +558,7 @@ function initTalentSearchModule() {
                                 Xem hồ sơ
                             </a>
                             <a href="${detailUrl}" class="btn btn-primary btn-sm">
-                                ${talent.hasPendingContactRequest ? 'Đã yêu cầu' : 'Liên hệ'}
+                                ${talent.hasPendingContactRequest ? 'Đã yêu cầu' : 'Mời ứng tuyển'}
                             </a>
                         </div>
                     </div>
@@ -426,13 +572,11 @@ function initTalentSearchModule() {
                 e.preventDefault();
                 e.stopPropagation();
                 const tid = btn.getAttribute('data-talent-id');
-                const cand = allTalents.find(t => t.id === tid);
-                if (cand) {
-                    cand.saved = !cand.saved;
-                    btn.classList.toggle('is-saved', cand.saved);
-                    const svg = btn.querySelector('svg');
-                    if (svg) svg.setAttribute('fill', cand.saved ? 'currentColor' : 'none');
-                    showToast(cand.saved ? 'Đã lưu hồ sơ vào danh sách quan tâm.' : 'Đã bỏ lưu hồ sơ.');
+                const t = allTalents.find(item => item.id === tid);
+                if (t) {
+                    t.saved = !t.saved;
+                    btn.classList.toggle('is-saved', t.saved);
+                    showToast(t.saved ? `Đã lưu hồ sơ của ${t.name}` : `Đã bỏ lưu hồ sơ của ${t.name}`);
                 }
             });
         });
@@ -440,29 +584,53 @@ function initTalentSearchModule() {
 
     function renderPagination(totalItems, totalPages) {
         if (!paginationWrapper || !paginationInfo || !paginationBtns) return;
-        paginationInfo.textContent = `Trang ${currentPage} / ${totalPages} (${totalItems} ứng viên)`;
 
-        let html = `
-            <button type="button" class="ent-page-btn" id="prev-page-btn" ${currentPage === 1 ? 'disabled' : ''} aria-label="Trang trước">&larr;</button>
-        `;
-        for (let i = 1; i <= totalPages; i++) {
-            html += `<button type="button" class="ent-page-btn ${i === currentPage ? 'is-active' : ''}" data-page="${i}">${i}</button>`;
+        if (totalItems === 0 || totalPages <= 1) {
+            paginationWrapper.style.display = 'none';
+            return;
         }
-        html += `
-            <button type="button" class="ent-page-btn" id="next-page-btn" ${currentPage === totalPages ? 'disabled' : ''} aria-label="Trang kế">&rarr;</button>
+
+        paginationWrapper.style.display = 'flex';
+        paginationInfo.textContent = `Trang ${currentPage} / ${totalPages} (${totalItems} nhân tài)`;
+
+        let btnsHtml = `
+            <button type="button" class="btn btn-secondary btn-sm" id="page-prev-btn" ${currentPage === 1 ? 'disabled' : ''}>
+                &larr; Trang trước
+            </button>
         `;
 
-        paginationBtns.innerHTML = html;
+        for (let p = 1; p <= totalPages; p++) {
+            if (p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1) {
+                btnsHtml += `
+                    <button type="button" class="btn ${p === currentPage ? 'btn-primary' : 'btn-secondary'} btn-sm page-num-btn" data-page="${p}">
+                        ${p}
+                    </button>
+                `;
+            } else if (p === currentPage - 2 || p === currentPage + 2) {
+                btnsHtml += `<span class="ent-page-ellipsis">...</span>`;
+            }
+        }
 
-        paginationBtns.querySelectorAll('[data-page]').forEach(btn => {
+        btnsHtml += `
+            <button type="button" class="btn btn-secondary btn-sm" id="page-next-btn" ${currentPage === totalPages ? 'disabled' : ''}>
+                Trang sau &rarr;
+            </button>
+        `;
+
+        paginationBtns.innerHTML = btnsHtml;
+
+        paginationBtns.querySelectorAll('.page-num-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                currentPage = parseInt(btn.getAttribute('data-page'), 10);
-                updateAndRender();
-                scrollToTopCards();
+                const targetPage = parseInt(btn.getAttribute('data-page'), 10);
+                if (targetPage && targetPage !== currentPage) {
+                    currentPage = targetPage;
+                    updateAndRender();
+                    scrollToTopCards();
+                }
             });
         });
 
-        const prevBtn = document.getElementById('prev-page-btn');
+        const prevBtn = document.getElementById('page-prev-btn');
         if (prevBtn) {
             prevBtn.addEventListener('click', () => {
                 if (currentPage > 1) {
@@ -473,7 +641,7 @@ function initTalentSearchModule() {
             });
         }
 
-        const nextBtn = document.getElementById('next-page-btn');
+        const nextBtn = document.getElementById('page-next-btn');
         if (nextBtn) {
             nextBtn.addEventListener('click', () => {
                 if (currentPage < totalPages) {
@@ -530,11 +698,28 @@ function initTalentSearchModule() {
         });
     });
 
+    // Sidebar Skill Checkboxes Handler
+    skillCheckboxes.forEach(cb => {
+        cb.addEventListener('change', () => {
+            const skillName = cb.value || cb.getAttribute('data-skill-name');
+            if (cb.checked) {
+                selectedSkillsSet.add(skillName);
+            } else {
+                selectedSkillsSet.delete(skillName);
+            }
+            renderSelectedSkillsTags();
+            currentPage = 1;
+            updateAndRender();
+        });
+    });
+
     if (filterEduLevel) filterEduLevel.addEventListener('change', (e) => { activeFilters.eduLevel = e.target.value; currentPage = 1; updateAndRender(); });
     if (filterSchool) filterSchool.addEventListener('change', (e) => { activeFilters.school = e.target.value; currentPage = 1; fetchFromApi(); });
+    if (filterClassYear) filterClassYear.addEventListener('change', (e) => { activeFilters.classYear = e.target.value; currentPage = 1; updateAndRender(); });
     if (filterMajorField) filterMajorField.addEventListener('change', (e) => { activeFilters.majorField = e.target.value; currentPage = 1; updateAndRender(); });
     if (filterMatchScore) filterMatchScore.addEventListener('change', (e) => { activeFilters.matchScore = parseInt(e.target.value, 10) || 0; currentPage = 1; updateAndRender(); });
     if (filterExpHours) filterExpHours.addEventListener('change', (e) => { activeFilters.expHours = parseInt(e.target.value, 10) || 0; currentPage = 1; updateAndRender(); });
+    if (filterReadiness) filterReadiness.addEventListener('change', (e) => { activeFilters.readiness = e.target.value; currentPage = 1; updateAndRender(); });
 
     if (sortSelect) {
         sortSelect.addEventListener('change', (e) => {
@@ -553,8 +738,9 @@ function initTalentSearchModule() {
         quickFilterBtns.forEach(b => b.classList.remove('is-active'));
 
         selectedSkillsSet.clear();
+        skillCheckboxes.forEach(cb => { cb.checked = false; });
         popularSkillPills.forEach(p => p.classList.remove('is-active'));
-        renderSelectedSkillsChips();
+        renderSelectedSkillsTags();
 
         activeFilters.eduLevel = '';
         activeFilters.school = '';
@@ -566,60 +752,63 @@ function initTalentSearchModule() {
 
         if (filterEduLevel) filterEduLevel.value = '';
         if (filterSchool) filterSchool.value = '';
+        if (filterClassYear) filterClassYear.value = '';
         if (filterMajorField) filterMajorField.value = '';
         if (filterMatchScore) filterMatchScore.value = '0';
         if (filterExpHours) filterExpHours.value = '0';
+        if (filterReadiness) filterReadiness.value = '';
 
         currentPage = 1;
         fetchFromApi();
     }
 
+    if (applyFiltersBtn) {
+        applyFiltersBtn.addEventListener('click', () => {
+            currentPage = 1;
+            fetchFromApi();
+        });
+    }
     if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', resetAllFilters);
     if (resetHeaderBtn) resetHeaderBtn.addEventListener('click', resetAllFilters);
     if (emptyResetBtn) emptyResetBtn.addEventListener('click', resetAllFilters);
 
     // 8. Skills Modal & Chips Handlers
-    popularSkillPills.forEach(pill => {
-        pill.addEventListener('click', () => {
-            const skillName = pill.getAttribute('data-skill');
-            if (selectedSkillsSet.has(skillName)) {
-                selectedSkillsSet.delete(skillName);
-                pill.classList.remove('is-active');
-            } else {
-                selectedSkillsSet.add(skillName);
-                pill.classList.add('is-active');
-            }
-            renderSelectedSkillsChips();
-            currentPage = 1;
-            fetchFromApi();
-        });
-    });
+    function renderSelectedSkillsTags() {
+        const count = selectedSkillsSet.size;
 
-    function renderSelectedSkillsChips() {
-        if (!selectedSkillsChipsContainer) return;
-        if (selectedSkillsSet.size === 0) {
-            selectedSkillsChipsContainer.innerHTML = '';
-            return;
+        if (selectedSkillsCountEl) selectedSkillsCountEl.textContent = count;
+        if (modalSelectedCountEl) modalSelectedCountEl.textContent = count;
+
+        if (selectedSkillsWrapper) {
+            selectedSkillsWrapper.style.display = count > 0 ? 'block' : 'none';
         }
 
-        selectedSkillsChipsContainer.innerHTML = Array.from(selectedSkillsSet).map(sk => `
-            <span class="ent-selected-skill-chip" data-skill="${escapeHtml(sk)}">
+        const tagsHtml = Array.from(selectedSkillsSet).map(sk => `
+            <span class="ent-selected-skill-tag" data-skill="${escapeHtml(sk)}">
                 <span>${escapeHtml(sk)}</span>
-                <button type="button" class="ent-remove-skill-chip" aria-label="Xóa kỹ năng ${escapeHtml(sk)}">&times;</button>
+                <button type="button" class="ent-remove-skill-tag" aria-label="Xóa kỹ năng ${escapeHtml(sk)}">&times;</button>
             </span>
         `).join('');
 
-        selectedSkillsChipsContainer.querySelectorAll('.ent-remove-skill-chip').forEach(btn => {
+        if (selectedSkillsTagsContainer) selectedSkillsTagsContainer.innerHTML = tagsHtml;
+        if (selectedSkillsChipsContainer) selectedSkillsChipsContainer.innerHTML = tagsHtml;
+
+        // Sync sidebar checkboxes
+        skillCheckboxes.forEach(cb => {
+            const sk = cb.value || cb.getAttribute('data-skill-name');
+            cb.checked = selectedSkillsSet.has(sk);
+        });
+
+        // Attach remove tag event
+        document.querySelectorAll('.ent-remove-skill-tag, .ent-remove-skill-chip').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const chip = e.target.closest('.ent-selected-skill-chip');
-                const sk = chip.getAttribute('data-skill');
+                const tagEl = e.target.closest('[data-skill]');
+                if (!tagEl) return;
+                const sk = tagEl.getAttribute('data-skill');
                 selectedSkillsSet.delete(sk);
-                popularSkillPills.forEach(p => {
-                    if (p.getAttribute('data-skill') === sk) p.classList.remove('is-active');
-                });
-                renderSelectedSkillsChips();
+                renderSelectedSkillsTags();
                 currentPage = 1;
-                fetchFromApi();
+                updateAndRender();
             });
         });
     }
@@ -692,11 +881,7 @@ function initTalentSearchModule() {
     if (confirmSkillsBtn) {
         confirmSkillsBtn.addEventListener('click', () => {
             closeSkillsModal();
-            popularSkillPills.forEach(p => {
-                const sk = p.getAttribute('data-skill');
-                p.classList.toggle('is-active', selectedSkillsSet.has(sk));
-            });
-            renderSelectedSkillsChips();
+            renderSelectedSkillsTags();
             currentPage = 1;
             fetchFromApi();
         });
@@ -724,7 +909,7 @@ function initTalentSearchModule() {
         } else if (typeof showEntToast === 'function') {
             showEntToast(msg);
         } else {
-            alert(msg);
+            console.log(msg);
         }
     }
 

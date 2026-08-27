@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 70" width="280" height="70">
+  <defs>
+    <linearGradient id="mbBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0054A6"/>
+      <stop offset="100%" stop-color="#003366"/>
+    </linearGradient>
+    <linearGradient id="mbRed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ED1C24"/>
+      <stop offset="100%" stop-color="#C10D14"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(8, 8)">
+    <!-- MB Star / Dynamic Striped Cross Symbol -->
+    <g transform="translate(0, 4)">
+      <!-- Vertical and diagonal red dynamic stripes -->
+      <path d="M12,2 L18,2 L18,48 L12,48 Z" fill="url(#mbRed)" />
+      <path d="M22,6 L28,6 L28,44 L22,44 Z" fill="url(#mbRed)" />
+      <path d="M2,18 L38,18 L38,24 L2,24 Z" fill="url(#mbRed)" />
+      <path d="M4,28 L36,28 L36,34 L4,34 Z" fill="url(#mbRed)" />
+      <!-- Central Star Accent -->
+      <polygon points="20,12 23,20 31,21 25,27 27,35 20,31 13,35 15,27 9,21 17,20" fill="#FFFFFF"/>
+    </g>
+
+    <!-- MB Wordmark -->
+    <text x="52" y="42" font-family="'Segoe UI', Roboto, -apple-system, sans-serif" font-weight="900" font-size="38" fill="url(#mbBlue)" letter-spacing="-1px">MB</text>
+    
+    <!-- Tagline: NGÂN HÀNG QUÂN ĐỘI -->
+    <text x="120" y="30" font-family="'Segoe UI', Roboto, -apple-system, sans-serif" font-weight="800" font-size="15" fill="#003366" letter-spacing="0.5px">NGÂN HÀNG QUÂN ĐỘI</text>
+    <text x="120" y="46" font-family="'Segoe UI', Roboto, -apple-system, sans-serif" font-weight="600" font-size="11" fill="#64748B" letter-spacing="0.2px">Vững bước tương lai</text>
+  </g>
+</svg>

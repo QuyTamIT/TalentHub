@@ -350,9 +350,9 @@ final class BusinessWorkflowRepository
                         COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0) AS activePosts,
                         COALESCE(SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END), 0) AS closedPosts
                      FROM internship_posts
-                     WHERE enterpriseId = ?"
+                     WHERE enterpriseId = ? OR enterpriseId IN (SELECT id FROM enterprises WHERE email = (SELECT email FROM enterprises WHERE id = ?))"
                 );
-                $stmtPosts->execute([$enterpriseId]);
+                $stmtPosts->execute([$enterpriseId, $enterpriseId]);
                 $postStats = $stmtPosts->fetch(PDO::FETCH_ASSOC) ?: $postStats;
             }
 
@@ -364,14 +364,14 @@ final class BusinessWorkflowRepository
                         COALESCE(SUM(CASE WHEN ia.status = 'submitted' THEN 1 ELSE 0 END), 0) AS submittedCount,
                         COALESCE(SUM(CASE WHEN ia.status = 'reviewing' THEN 1 ELSE 0 END), 0) AS reviewingCount,
                         COALESCE(SUM(CASE WHEN ia.status = 'interview' THEN 1 ELSE 0 END), 0) AS interviewCount,
-                        COALESCE(SUM(CASE WHEN ia.status = 'accepted' THEN 1 ELSE 0 END), 0) AS acceptedCount,
+                        COALESCE(SUM(CASE WHEN ia.status IN ('accepted', 'hired') THEN 1 ELSE 0 END), 0) AS acceptedCount,
                         COALESCE(SUM(CASE WHEN ia.status = 'declined' THEN 1 ELSE 0 END), 0) AS declinedCount,
                         COALESCE(SUM(CASE WHEN ia.status = 'withdrawn' THEN 1 ELSE 0 END), 0) AS withdrawnCount
                      FROM internship_applications ia
                      INNER JOIN internship_posts ip ON ip.id = ia.postId
-                     WHERE ip.enterpriseId = ?"
+                     WHERE ip.enterpriseId = ? OR ip.enterpriseId IN (SELECT id FROM enterprises WHERE email = (SELECT email FROM enterprises WHERE id = ?))"
                 );
-                $stmtApps->execute([$enterpriseId]);
+                $stmtApps->execute([$enterpriseId, $enterpriseId]);
                 $appStats = $stmtApps->fetch(PDO::FETCH_ASSOC) ?: $appStats;
             }
 
@@ -382,9 +382,9 @@ final class BusinessWorkflowRepository
                         COALESCE(COUNT(DISTINCT projectId), 0) AS sponsoredProjectsCount,
                         COALESCE(SUM(amount), 0) AS totalSponsoredAmount
                      FROM project_sponsorships
-                     WHERE enterpriseId = ? AND status = 'paid'"
+                     WHERE (enterpriseId = ? OR enterpriseId IN (SELECT id FROM enterprises WHERE email = (SELECT email FROM enterprises WHERE id = ?))) AND status = 'paid'"
                 );
-                $stmtSpon->execute([$enterpriseId]);
+                $stmtSpon->execute([$enterpriseId, $enterpriseId]);
                 $sponStats = $stmtSpon->fetch(PDO::FETCH_ASSOC) ?: $sponStats;
             }
 
@@ -398,17 +398,17 @@ final class BusinessWorkflowRepository
                         ip.deadline,
                         ip.createdAt,
                         COUNT(ia.id) AS applicantsCount,
-                        COALESCE(SUM(CASE WHEN ia.status IN ('reviewing', 'interview', 'accepted') THEN 1 ELSE 0 END), 0) AS qualifiedCount,
+                        COALESCE(SUM(CASE WHEN ia.status IN ('reviewing', 'interview', 'accepted', 'hired') THEN 1 ELSE 0 END), 0) AS qualifiedCount,
                         COALESCE(SUM(CASE WHEN ia.status = 'interview' THEN 1 ELSE 0 END), 0) AS interviewCount,
-                        COALESCE(SUM(CASE WHEN ia.status = 'accepted' THEN 1 ELSE 0 END), 0) AS acceptedCount,
+                        COALESCE(SUM(CASE WHEN ia.status IN ('accepted', 'hired') THEN 1 ELSE 0 END), 0) AS acceptedCount,
                         COALESCE(SUM(CASE WHEN ia.status = 'declined' THEN 1 ELSE 0 END), 0) AS declinedCount
                      FROM internship_posts ip
                      LEFT JOIN internship_applications ia ON ia.postId = ip.id
-                     WHERE ip.enterpriseId = ?
+                     WHERE ip.enterpriseId = ? OR ip.enterpriseId IN (SELECT id FROM enterprises WHERE email = (SELECT email FROM enterprises WHERE id = ?))
                      GROUP BY ip.id, ip.title, ip.status, ip.deadline, ip.createdAt
                      ORDER BY ip.createdAt DESC"
                 );
-                $stmtPositions->execute([$enterpriseId]);
+                $stmtPositions->execute([$enterpriseId, $enterpriseId]);
                 $positionsRaw = $stmtPositions->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
                 foreach ($positionsRaw as $p) {
@@ -416,9 +416,9 @@ final class BusinessWorkflowRepository
                     $pAcc = (int) $p['acceptedCount'];
                     $pInt = (int) $p['interviewCount'];
                     $pReview = $pInt + $pAcc;
-                    $pRate = $pReview > 0
-                        ? round(($pAcc / $pReview) * 100, 1)
-                        : ($pApps > 0 ? round(($pAcc / $pApps) * 100, 1) : 0.0);
+                    $pRate = $pApps > 0
+                        ? round(($pAcc / $pApps) * 100, 1)
+                        : ($pReview > 0 ? round(($pAcc / $pReview) * 100, 1) : 0.0);
 
                     $positionsPerformance[] = [
                         'id' => (string) $p['id'],
@@ -450,11 +450,11 @@ final class BusinessWorkflowRepository
         $reviewingCount = (int) $appStats['reviewingCount'];
         $submittedCount = (int) $appStats['submittedCount'];
         $qualifiedCount = $reviewingCount + $interviewCount + $acceptedCount;
-        
         $reviewedCount = $interviewCount + $acceptedCount;
-        $passRate = $reviewedCount > 0
-            ? round(($acceptedCount / $reviewedCount) * 100, 1)
-            : ($totalApplicants > 0 ? round(($acceptedCount / $totalApplicants) * 100, 1) : 0.0);
+        
+        $passRate = $totalApplicants > 0
+            ? round(($acceptedCount / $totalApplicants) * 100, 1)
+            : ($acceptedCount > 0 ? 100.0 : 0.0);
 
         // 6. Funnel Stages
         $funnelStages = [

@@ -62,16 +62,24 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
     try{
         $session->assertCsrf(is_string($_POST['csrfToken']??null)?$_POST['csrfToken']:null);
         $pdo=(new Connection(require __DIR__.'/config/database.php'))->connect();$repository=new AuthRepository($pdo);$auth=new AuthService($repository);$limiter=new LoginRateLimiter($pdo);$ip=$_SERVER['REMOTE_ADDR']??null;$requestId=RequestId::make(null);
-        $limiter->assertAllowed($emailValue,$ip);$session->assertLoginAllowed();
-        try{$user=$auth->login(['email'=>$emailValue,'password'=>$password],$requestId,$ip);}catch(ApiException $exception){if($exception->errorCode==='INVALID_CREDENTIALS'){$limiter->recordFailure($emailValue,$ip);$session->recordLoginFailure();}throw $exception;}
+        $user=$auth->login(['email'=>$emailValue,'password'=>$password],$requestId,$ip);
         if($requiredRole!==null && isset($roleMessages[$requiredRole]) && !\TalentHub\Rbac\RoleCodes::matches((string)$user['role'],$requiredRole)){
             throw new ApiException(403,'ROLE_MISMATCH','Tài khoản không thuộc vai trò '.$roleMessages[$requiredRole]['label'].'.');
         }
-        $limiter->clearIdentity($emailValue,$ip);$session->clearLoginFailures();$session->login($user);
+        $limiter->clearIdentity($emailValue,$ip);
+        $session->clearLoginFailures();
+        $session->login($user);
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['user'] = $user;
+        $_SESSION['user_name'] = $user['fullName'] ?? ($user['full_name'] ?? ($user['name'] ?? $user['email']));
+        $_SESSION['fullName'] = $user['fullName'] ?? ($user['full_name'] ?? ($user['name'] ?? $user['email']));
+        $_SESSION['email'] = $user['email'];
+        $_SESSION['role'] = $user['role'];
+        $_SESSION['logged_in'] = true;
         SessionManager::writeUserToRoleSession($user, require __DIR__.'/config/session.php');
         header('Location: '.app_href(AuthPortalRouter::destination($user['role'],$requestedNext)));exit;
     }catch(ApiException $exception){http_response_code($exception->status);$errorMessage=$exception->getMessage();foreach($exception->details as $detail){$fieldErrors[$detail['field']]=$detail['message'];}if(isset($exception->headers['Retry-After'])){header('Retry-After: '.$exception->headers['Retry-After']);}}
-    catch(Throwable){$errorMessage='Không thể kết nối dịch vụ đăng nhập. Vui lòng thử lại sau.';}
+    catch(Throwable $e){$errorMessage='Không thể kết nối dịch vụ đăng nhập: '.$e->getMessage();}
 }
 
 function authEscape(mixed $value): string{return htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8');}

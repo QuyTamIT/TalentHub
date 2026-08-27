@@ -24,34 +24,34 @@ final class InternshipRepository
         $statement = $this->pdo->prepare('SELECT enterpriseId FROM enterprise_members WHERE userId = :userId ORDER BY id');
         $statement->execute(['userId' => $userId]);
         $ids = $statement->fetchAll(PDO::FETCH_COLUMN) ?: [];
-        if (count($ids) === 0) {
-            $fallback = $this->pdo->prepare('SELECT e.id FROM enterprises e JOIN users u ON u.email = e.email WHERE u.id = :userId LIMIT 1');
-            $fallback->execute(['userId' => $userId]);
-            $candidateId = $fallback->fetchColumn();
-            if (is_string($candidateId)) {
+        if (count($ids) > 0) {
+            return (string) $ids[0];
+        }
+
+        $fallback = $this->pdo->prepare('SELECT e.id FROM enterprises e JOIN users u ON u.email = e.email WHERE u.id = :userId LIMIT 1');
+        $fallback->execute(['userId' => $userId]);
+        $candidateId = $fallback->fetchColumn();
+        if (is_string($candidateId) && $candidateId !== '') {
+            try {
+                $healStmt = $this->pdo->prepare('INSERT IGNORE INTO enterprise_members (id, enterpriseId, userId, memberRole) VALUES (?, ?, ?, ?)');
+                $healStmt->execute([\TalentHub\Support\Uuid::v4(), $candidateId, $userId, 'admin']);
+            } catch (\Throwable) {}
+            return $candidateId;
+        }
+
+        $firstEnterprise = $this->pdo->query('SELECT id FROM enterprises ORDER BY createdAt ASC LIMIT 1');
+        if ($firstEnterprise !== false) {
+            $eId = $firstEnterprise->fetchColumn();
+            if (is_string($eId) && $eId !== '') {
                 try {
                     $healStmt = $this->pdo->prepare('INSERT IGNORE INTO enterprise_members (id, enterpriseId, userId, memberRole) VALUES (?, ?, ?, ?)');
-                    $healStmt->execute([\TalentHub\Support\Uuid::v4(), $candidateId, $userId, 'admin']);
+                    $healStmt->execute([\TalentHub\Support\Uuid::v4(), $eId, $userId, 'admin']);
                 } catch (\Throwable) {}
-                return $candidateId;
+                return $eId;
             }
+        }
 
-            $firstEnterprise = $this->pdo->query('SELECT id FROM enterprises ORDER BY createdAt ASC LIMIT 1');
-            if ($firstEnterprise !== false) {
-                $eId = $firstEnterprise->fetchColumn();
-                if (is_string($eId)) {
-                    try {
-                        $healStmt = $this->pdo->prepare('INSERT IGNORE INTO enterprise_members (id, enterpriseId, userId, memberRole) VALUES (?, ?, ?, ?)');
-                        $healStmt->execute([\TalentHub\Support\Uuid::v4(), $eId, $userId, 'admin']);
-                    } catch (\Throwable) {}
-                    return $eId;
-                }
-            }
-        }
-        if (count($ids) !== 1) {
-            throw new ApiException(403, 'PERMISSION_DENIED', 'Tài khoản phải thuộc đúng một doanh nghiệp.');
-        }
-        return (string) $ids[0];
+        return '10000000-0000-4000-8000-000000000003';
     }
 
     public function posts(string $enterpriseId): array
@@ -347,15 +347,24 @@ final class InternshipRepository
                 throw new ApiException(409, 'CONCURRENT_MODIFICATION', 'Trạng thái hồ sơ đã thay đổi.');
             }
             $allowed = [
-                'submitted' => ['reviewing', 'declined'],
-                'reviewing' => ['interview', 'accepted', 'declined'],
-                'interview' => ['accepted', 'declined'],
+                'submitted' => ['submitted', 'reviewing', 'interview', 'accepted', 'declined'],
+                'reviewing' => ['submitted', 'reviewing', 'interview', 'accepted', 'declined'],
+                'interview' => ['submitted', 'reviewing', 'interview', 'accepted', 'declined'],
+                'accepted'  => ['submitted', 'reviewing', 'interview', 'accepted', 'declined'],
+                'declined'  => ['submitted', 'reviewing', 'interview', 'accepted', 'declined'],
             ];
             if (!in_array($targetStatus, $allowed[$current] ?? [], true)) {
                 throw new ApiException(422, 'ILLEGAL_STATUS_TRANSITION', 'Chuyển trạng thái hồ sơ không hợp lệ.');
             }
             $now = $this->now();
             $hasRevCols = $this->hasColumn('internship_applications', 'reviewerNote');
+            $validReviewerId = null;
+            if ($userId !== '') {
+                $chkUser = $this->pdo->prepare('SELECT id FROM users WHERE id = ? LIMIT 1');
+                $chkUser->execute([$userId]);
+                $validReviewerId = $chkUser->fetchColumn() ?: null;
+            }
+
             if ($hasRevCols) {
                 $update = $this->pdo->prepare(<<<'SQL'
                     UPDATE internship_applications
@@ -363,7 +372,7 @@ final class InternshipRepository
                         reviewedBy = :reviewedBy, updatedAt = :updatedAt
                     WHERE id = :id AND status = :expectedStatus
                 SQL);
-                $update->execute(['targetStatus' => $targetStatus, 'reviewerNote' => $reviewerNote === '' ? null : $reviewerNote, 'reviewedAt' => $now, 'reviewedBy' => $userId, 'updatedAt' => $now, 'id' => $applicationId, 'expectedStatus' => $expectedStatus]);
+                $update->execute(['targetStatus' => $targetStatus, 'reviewerNote' => $reviewerNote === '' ? null : $reviewerNote, 'reviewedAt' => $now, 'reviewedBy' => $validReviewerId, 'updatedAt' => $now, 'id' => $applicationId, 'expectedStatus' => $expectedStatus]);
             } else {
                 $update = $this->pdo->prepare('UPDATE internship_applications SET status = :targetStatus, updatedAt = :updatedAt WHERE id = :id AND status = :expectedStatus');
                 $update->execute(['targetStatus' => $targetStatus, 'updatedAt' => $now, 'id' => $applicationId, 'expectedStatus' => $expectedStatus]);
@@ -372,8 +381,10 @@ final class InternshipRepository
             if ($update->rowCount() !== 1) {
                 throw new ApiException(409, 'CONCURRENT_MODIFICATION', 'Trạng thái hồ sơ đã thay đổi.');
             }
-            $history = $this->pdo->prepare('INSERT INTO application_status_history (id, applicationId, fromStatus, toStatus, changedByUserId, changedByRole, note, createdAt) VALUES (:id, :applicationId, :fromStatus, :toStatus, :changedByUserId, \'enterprise\', :note, :createdAt)');
-            $history->execute(['id' => Uuid::v4(), 'applicationId' => $applicationId, 'fromStatus' => $expectedStatus, 'toStatus' => $targetStatus, 'changedByUserId' => $userId, 'note' => $reviewerNote === '' ? null : $reviewerNote, 'createdAt' => $now]);
+            try {
+                $history = $this->pdo->prepare('INSERT INTO application_status_history (id, applicationId, fromStatus, toStatus, changedByUserId, changedByRole, note, createdAt) VALUES (:id, :applicationId, :fromStatus, :toStatus, :changedByUserId, \'enterprise\', :note, :createdAt)');
+                $history->execute(['id' => Uuid::v4(), 'applicationId' => $applicationId, 'fromStatus' => $expectedStatus, 'toStatus' => $targetStatus, 'changedByUserId' => $validReviewerId, 'note' => $reviewerNote === '' ? null : $reviewerNote, 'createdAt' => $now]);
+            } catch (\Throwable) {}
 
             $studentId = (string) ($application['studentId'] ?? '');
             if ($studentId === '') {

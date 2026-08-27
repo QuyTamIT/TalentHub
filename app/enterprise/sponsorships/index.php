@@ -22,6 +22,15 @@ $workflowService = $context['workflows'];
 
 if (!function_exists('getInitials')) {
     function getInitials(string $name): string {
+        if (stripos($name, 'Vinamilk') !== false || stripos($name, 'Sữa Việt Nam') !== false || stripos($name, 'VNM') !== false) {
+            return 'VNM';
+        }
+        if (stripos($name, 'FPT') !== false || stripos($name, 'Phần mềm FPT') !== false) {
+            return 'FS';
+        }
+        if (stripos($name, 'MB') !== false || stripos($name, 'Quân đội') !== false) {
+            return 'MB';
+        }
         $words = preg_split('/\s+/', trim($name));
         if (empty($words) || $words[0] === '') return 'DN';
         if (count($words) === 1) return mb_strtoupper(mb_substr($words[0], 0, 2));
@@ -85,166 +94,6 @@ $sidebarNav = [
     ],
 ];
 
-// Fallback high-quality showcase research projects
-$sampleProjects = [
-    [
-        'id' => 'proj-iot-01',
-        'title' => 'Smart Garden IoT - Hệ Thống Vườn Thông Minh Tự Động',
-        'school_id' => 'sch-khtn',
-        'school_name' => 'THPT Chuyên KHTN - ĐHQG Hà Nội',
-        'school_badge' => 'THPT Chuyên',
-        'category' => 'IoT & Phần cứng',
-        'status' => 'calling',
-        'status_label' => 'Đang gọi vốn',
-        'raised_amount' => 38000000,
-        'target_amount' => 50000000,
-        'percentage' => 76,
-        'members_count' => 4,
-        'description' => 'Hệ thống cảm biến tự động giám sát độ ẩm, nhiệt độ và điều tiết nước tưới tiêu thông minh thông qua ứng dụng di động.',
-        'problem_statement' => 'Tình trạng lãng phí nguồn nước và thiếu hụt nhân lực chăm sóc cây trồng nông nghiệp tại các đô thị và nhà kính.',
-        'solution' => 'Sử dụng mạng lưới cảm biến IoT kết hợp vi điều khiển ESP32 và máy học phân tích độ ẩm đất để tối ưu hóa 40% lượng nước tưới.',
-        'team_leader' => [
-            'name' => 'Nguyễn Hoàng Long',
-            'role' => 'Trưởng nhóm IoT',
-            'school' => 'THPT Chuyên KHTN',
-            'avatar_initial' => 'NL',
-        ],
-        'team_members' => [
-            ['name' => 'Nguyễn Hoàng Long', 'role' => 'Trưởng nhóm', 'skills' => ['C/C++', 'ESP32', 'IoT']],
-            ['name' => 'Trần Minh Anh', 'role' => 'Phần cứng', 'skills' => ['PCB Design', 'Sensors']],
-            ['name' => 'Lê Bảo Nam', 'role' => 'Mobile App', 'skills' => ['Flutter', 'Firebase']],
-            ['name' => 'Phạm Thu Trang', 'role' => 'Dữ liệu', 'skills' => ['Data Analysis', 'Python']],
-        ],
-        'milestones' => [
-            ['phase' => 'Giai đoạn 1', 'title' => 'Thiết kế bo mạch & Thu thập dữ liệu đất', 'date' => '05/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
-            ['phase' => 'Giai đoạn 2', 'title' => 'Thử nghiệm thực địa tại 3 nhà vườn', 'date' => '08/2026', 'status' => 'in_progress', 'status_label' => 'Đang triển khai'],
-            ['phase' => 'Giai đoạn 3', 'title' => 'Tích hợp AI dự báo thời tiết & Đóng gói sản phẩm', 'date' => '11/2026', 'status' => 'planned', 'status_label' => 'Kế hoạch']
-        ],
-        'expected_use_of_funds' => [
-            ['category' => 'Cảm biến chuyên dụng & Bo mạch', 'amount' => '25.000.000 VNĐ', 'percentage' => 50],
-            ['category' => 'Chi phí thử nghiệm thực địa & Server IoT', 'amount' => '15.000.000 VNĐ', 'percentage' => 30],
-            ['category' => 'Học bổng & Hỗ trợ nhóm nghiên cứu', 'amount' => '10.000.000 VNĐ', 'percentage' => 20]
-        ]
-    ],
-    [
-        'id' => 'proj-ai-02',
-        'title' => 'AI For Healthcare - Chẩn Đoán Sớm Bệnh Phổi Bằng X-Ray AI',
-        'school_id' => 'sch-uet',
-        'school_name' => 'ĐH Y Dược & ĐH Công Nghệ - ĐHQGHN',
-        'school_badge' => 'Đại học',
-        'category' => 'AI / Robotics',
-        'status' => 'calling',
-        'status_label' => 'Tiềm năng cao',
-        'raised_amount' => 65000000,
-        'target_amount' => 80000000,
-        'percentage' => 81,
-        'members_count' => 5,
-        'description' => 'Mô hình Deep Learning hỗ trợ bác sĩ phát hiện sớm tổn thương phổi trên ảnh chụp X-quang với độ chính xác trên 94%.',
-        'problem_statement' => 'Thiếu hụt bác sĩ chẩn đoán hình ảnh tại các bệnh viện tuyến huyện dẫn đến phát hiện trễ các tổn thương phổi nguy hiểm.',
-        'solution' => 'Huấn luyện mạng nơ-ron tích chập (CNN) trên tập dữ liệu 50.000 ảnh X-quang chuẩn hóa, cho kết quả khoanh vùng tổn thương trong 3 giây.',
-        'team_leader' => [
-            'name' => 'Vũ Đình Khang',
-            'role' => 'AI Research Lead',
-            'school' => 'ĐH Công Nghệ - ĐHQGHN',
-            'avatar_initial' => 'VK',
-        ],
-        'team_members' => [
-            ['name' => 'Vũ Đình Khang', 'role' => 'Trưởng nhóm AI', 'skills' => ['PyTorch', 'Computer Vision', 'Python']],
-            ['name' => 'Bác sĩ nội trú Lê Mai', 'role' => 'Cố vấn Y khoa', 'skills' => ['Chẩn đoán hình ảnh', 'Y học lâm sàng']],
-            ['name' => 'Đặng Tuấn Kiệt', 'role' => 'Backend Engineer', 'skills' => ['FastAPI', 'Docker', 'DICOM']],
-            ['name' => 'Hoàng Thu Hằng', 'role' => 'Data Specialist', 'skills' => ['Data Cleaning', 'Annotation']],
-            ['name' => 'Ngô Gia Huy', 'role' => 'Frontend UI', 'skills' => ['React', 'Medical UI']]
-        ],
-        'milestones' => [
-            ['phase' => 'Giai đoạn 1', 'title' => 'Gán nhãn dữ liệu & Huấn luyện mô hình cơ sở', 'date' => '04/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
-            ['phase' => 'Giai đoạn 2', 'title' => 'Thử nghiệm lâm sàng mù đôi tại bệnh viện đối tác', 'date' => '07/2026', 'status' => 'in_progress', 'status_label' => 'Đang triển khai'],
-            ['phase' => 'Giai đoạn 3', 'title' => 'Chứng nhận y tế & Triển khai Cloud API', 'date' => '10/2026', 'status' => 'planned', 'status_label' => 'Kế hoạch']
-        ],
-        'expected_use_of_funds' => [
-            ['category' => 'Thuê GPU Cloud Computing (A100)', 'amount' => '40.000.000 VNĐ', 'percentage' => 50],
-            ['category' => 'Bản quyền dữ liệu y khoa & Kiểm định', 'amount' => '24.000.000 VNĐ', 'percentage' => 30],
-            ['category' => 'Học bổng sinh viên nghiên cứu', 'amount' => '16.000.000 VNĐ', 'percentage' => 20]
-        ]
-    ],
-    [
-        'id' => 'proj-robot-03',
-        'title' => 'Robot Dò Mìn & Khám Phá Địa Hình Nguy Hiểm Bằng Computer Vision',
-        'school_id' => 'sch-hust',
-        'school_name' => 'Đại học Bách Khoa Hà Nội',
-        'school_badge' => 'Đại học',
-        'category' => 'AI / Robotics',
-        'status' => 'calling',
-        'status_label' => 'Đang gọi vốn',
-        'raised_amount' => 42000000,
-        'target_amount' => 60000000,
-        'percentage' => 70,
-        'members_count' => 4,
-        'description' => 'Robot trinh sát tự hành trang bị camera nhiệt và cảm biến kim loại phục vụ cứu hộ cứu nạn trong địa hình hiểm trở.',
-        'problem_statement' => 'Nguy cơ tai nạn cao cho lực lượng cứu hộ và rà phá bom mìn khi tiếp cận các khu vực sạt lở hoặc bãi mìn tàn dư.',
-        'solution' => 'Khung gầm bánh xích vượt chướng ngại vật kết hợp camera 360 và thuật toán SLAM tự dựng bản đồ 3D thời gian thực.',
-        'team_leader' => [
-            'name' => 'Trần Quang Huy',
-            'role' => 'Robotics Engineer',
-            'school' => 'ĐH Bách Khoa Hà Nội',
-            'avatar_initial' => 'QH',
-        ],
-        'team_members' => [
-            ['name' => 'Trần Quang Huy', 'role' => 'Trưởng nhóm', 'skills' => ['ROS2', 'SLAM', 'Robotics']],
-            ['name' => 'Nguyễn Văn Đức', 'role' => 'Cơ khí chính xác', 'skills' => ['SolidWorks', 'CNC', 'Chế tạo']],
-            ['name' => 'Lý Quốc Bảo', 'role' => 'Lập trình nhúng', 'skills' => ['STM32', 'Motor Control']],
-            ['name' => 'Chu Thùy Linh', 'role' => 'Thị giác máy tính', 'skills' => ['OpenCV', 'Thermal Vision']]
-        ],
-        'milestones' => [
-            ['phase' => 'Giai đoạn 1', 'title' => 'Chế tạo khung gầm & Kiểm tra độ bền địa hình', 'date' => '05/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
-            ['phase' => 'Giai đoạn 2', 'title' => 'Tích hợp cảm biến từ trường & Camera hồng ngoại', 'date' => '08/2026', 'status' => 'in_progress', 'status_label' => 'Đang triển khai'],
-            ['phase' => 'Giai đoạn 3', 'title' => 'Diễn tập thực địa cùng ban chỉ huy cứu nạn', 'date' => '12/2026', 'status' => 'planned', 'status_label' => 'Kế hoạch']
-        ],
-        'expected_use_of_funds' => [
-            ['category' => 'Vật liệu hợp kim & Động cơ công suất cao', 'amount' => '30.000.000 VNĐ', 'percentage' => 50],
-            ['category' => 'Cảm biến hồng ngoại & Module truyền sóng xa', 'amount' => '18.000.000 VNĐ', 'percentage' => 30],
-            ['category' => 'Phí thử nghiệm thực địa & Bảo hộ an toàn', 'amount' => '12.000.000 VNĐ', 'percentage' => 20]
-        ]
-    ],
-    [
-        'id' => 'proj-ar-04',
-        'title' => 'Ứng Dụng Học Tiếng Anh AR Dành Cho Trẻ Em Vùng Cao',
-        'school_id' => 'sch-hnue',
-        'school_name' => 'ĐH Sư Phạm & THPT Chu Văn An',
-        'school_badge' => 'ĐH Sư Phạm',
-        'category' => 'Công nghệ Giáo dục & Xã hội',
-        'status' => 'calling',
-        'status_label' => 'Đang gọi vốn',
-        'raised_amount' => 28000000,
-        'target_amount' => 35000000,
-        'percentage' => 80,
-        'members_count' => 3,
-        'description' => 'Nền tảng học tương tác thực tế ảo tăng cường (AR) giúp trẻ em tiếp cận ngữ âm bản xứ sinh động không cần kết nối Internet liên tục.',
-        'problem_statement' => 'Học sinh tiểu học tại các điểm trường vùng cao thiếu giáo viên ngoại ngữ và giáo cụ trực quan sinh động.',
-        'solution' => 'Bộ flashcard thông minh kích hoạt mô hình 3D và phát âm chuẩn qua camera điện thoại giá rẻ, hoạt động offline 100%.',
-        'team_leader' => [
-            'name' => 'Lê Thị Thu Thảo',
-            'role' => 'EdTech Project Lead',
-            'school' => 'ĐH Sư Phạm Hà Nội',
-            'avatar_initial' => 'TT',
-        ],
-        'team_members' => [
-            ['name' => 'Lê Thị Thu Thảo', 'role' => 'Nội dung Sư phạm', 'skills' => ['Curriculum Design', 'Phonics']],
-            ['name' => 'Đỗ Minh Trí', 'role' => 'AR Developer', 'skills' => ['Unity', 'ARKit', 'C#']],
-            ['name' => 'Nguyễn Mai Chi', 'role' => '3D Artist', 'skills' => ['Blender', 'Illustration']]
-        ],
-        'milestones' => [
-            ['phase' => 'Giai đoạn 1', 'title' => 'Xây dựng 50 chủ đề từ vựng & Tạo hình 3D', 'date' => '06/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
-            ['phase' => 'Giai đoạn 2', 'title' => 'Trao tặng 200 bộ thẻ thử nghiệm tại Lào Cai, Hà Giang', 'date' => '09/2026', 'status' => 'in_progress', 'status_label' => 'Đang triển khai'],
-            ['phase' => 'Giai đoạn 3', 'title' => 'Đo lường tiến bộ học tập & Mở rộng 500 điểm trường', 'date' => '11/2026', 'status' => 'planned', 'status_label' => 'Kế hoạch']
-        ],
-        'expected_use_of_funds' => [
-            ['category' => 'In ấn bộ thẻ Flashcard phủ màng bảo vệ', 'amount' => '17.500.000 VNĐ', 'percentage' => 50],
-            ['category' => 'Chi phí vận chuyển & Trao tận tay điểm trường', 'amount' => '10.500.000 VNĐ', 'percentage' => 30],
-            ['category' => 'Hỗ trợ nhóm sinh viên tình nguyện sư phạm', 'amount' => '7.000.000 VNĐ', 'percentage' => 20]
-        ]
-    ]
-];
-
 // Fetch real database projects and sponsorships
 $projectsQuery = \TalentHub\Http\CollectionQuery::fromRequest(
     new \TalentHub\Http\Request('GET', '/api/v1/projects', [], '', [], ['limit' => '100']),
@@ -253,8 +102,54 @@ $projectsQuery = \TalentHub\Http\CollectionQuery::fromRequest(
 $dbProjects = $workflowService->projects($projectsQuery);
 $dbSponsorships = $workflowService->sponsorships((string) $user['id']);
 
+$projectDetails = [
+    '50000000-0000-4000-8000-000000000001' => [
+        'problem_statement' => 'Tình trạng rác thải sinh hoạt và rác tái chế bị vứt lẫn lộn gây khó khăn lớn cho công tác xử lý và làm giảm 70% giá trị tái chế nguyên liệu.',
+        'solution' => 'Sử dụng camera AI nhận diện thời gian thực kết hợp vi xử lý Raspberry Pi/Jetson Nano và hệ thống cánh lật phân loại tự động vào 3 ngăn.',
+        'milestones' => [
+            ['phase' => 'Giai đoạn 1', 'title' => 'Huấn luyện mô hình YOLOv8 trên 15.000 ảnh rác thải', 'date' => '08/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
+            ['phase' => 'Giai đoạn 2', 'title' => 'Chế tạo và thử nghiệm thùng rác thông minh tại Campus BTEC', 'date' => '10/2026', 'status' => 'in_progress', 'status_label' => 'Đang triển khai'],
+            ['phase' => 'Giai đoạn 3', 'title' => 'Thương mại hóa và lắp đặt thử nghiệm tại các tòa nhà văn phòng FPT', 'date' => '12/2026', 'status' => 'planned', 'status_label' => 'Kế hoạch']
+        ],
+        'expected_use_of_funds' => [
+            ['category' => 'Module AI Camera & Vi xử lý Edge (Jetson Nano)', 'amount' => '12.500.000 VNĐ', 'percentage' => 50],
+            ['category' => 'Cơ khí khung thùng rác & Động cơ Servo công nghiệp', 'amount' => '7.500.000 VNĐ', 'percentage' => 30],
+            ['category' => 'Học bổng & Hỗ trợ sinh viên nghiên cứu', 'amount' => '5.000.000 VNĐ', 'percentage' => 20]
+        ]
+    ],
+    '50000000-0000-4000-8000-000000000002' => [
+        'problem_statement' => 'Kiến thức lịch sử truyền thống trong sách giáo khoa khó tạo hứng thú cho học sinh gen Z và thiếu trải nghiệm không gian thực tế.',
+        'solution' => 'Xây dựng tựa game nhập vai 3D trên Unity với đồ họa chân thực, tái hiện các trận đánh lịch sử và sự kiện hào hùng của dân tộc Việt Nam.',
+        'milestones' => [
+            ['phase' => 'Giai đoạn 1', 'title' => 'Dựng hình 3D bối cảnh lịch sử & Xây dựng cốt truyện', 'date' => '08/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
+            ['phase' => 'Giai đoạn 2', 'title' => 'Lập trình logic gameplay & Thử nghiệm Alpha test 500 sinh viên', 'date' => '10/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
+            ['phase' => 'Giai đoạn 3', 'title' => 'Phát hành miễn phí cho học sinh THPT trên toàn quốc', 'date' => '12/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành']
+        ],
+        'expected_use_of_funds' => [
+            ['category' => 'Bản quyền Asset 3D & Plugin Đồ họa Unity Pro', 'amount' => '17.500.000 VNĐ', 'percentage' => 50],
+            ['category' => 'Server Cloud Multiplayer & Hosting', 'amount' => '10.500.000 VNĐ', 'percentage' => 30],
+            ['category' => 'Phần thưởng & Khuyến khích nhóm phát triển', 'amount' => '7.000.000 VNĐ', 'percentage' => 20]
+        ]
+    ],
+    '50000000-0000-4000-8000-000000000003' => [
+        'problem_statement' => 'Nông sản OCOP của các hợp tác xã thanh niên miền Tây gặp khó khăn trong tiếp cận thị trường lớn và chứng minh nguồn gốc sạch.',
+        'solution' => 'Xây dựng sàn thương mại điện tử chuyên biệt tích hợp công nghệ QR Code mã hóa Blockchain, minh bạch từ khâu trồng trọt đến tay người tiêu dùng.',
+        'milestones' => [
+            ['phase' => 'Giai đoạn 1', 'title' => 'Xây dựng kiến trúc hệ thống & Cơ sở dữ liệu phân tán', 'date' => '08/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
+            ['phase' => 'Giai đoạn 2', 'title' => 'Tích hợp cổng thanh toán trực tuyến & Hệ thống in tem QR', 'date' => '10/2026', 'status' => 'in_progress', 'status_label' => 'Đang triển khai'],
+            ['phase' => 'Giai đoạn 3', 'title' => 'Liên kết 30+ Hợp tác xã thanh niên Cần Thơ & Đồng Tháp', 'date' => '12/2026', 'status' => 'planned', 'status_label' => 'Kế hoạch']
+        ],
+        'expected_use_of_funds' => [
+            ['category' => 'Hạ tầng Cloud Server & Thiết bị in mã QR chuyên dụng', 'amount' => '15.000.000 VNĐ', 'percentage' => 50],
+            ['category' => 'Tập huấn kỹ thuật cho các HTX & Marketing quảng bá', 'amount' => '9.000.000 VNĐ', 'percentage' => 30],
+            ['category' => 'Hỗ trợ nhóm sinh viên thực địa', 'amount' => '6.000.000 VNĐ', 'percentage' => 20]
+        ]
+    ]
+];
+
 $projects = [];
 foreach ($dbProjects as $p) {
+    $pId = (string) $p['id'];
     $raised = (float) ($p['raisedAmount'] ?? 0);
     $target = (float) ($p['fundingGoal'] ?? 0);
     $pct = $target > 0 ? (int) min(100, round(($raised / $target) * 100)) : 0;
@@ -269,38 +164,19 @@ foreach ($dbProjects as $p) {
         'school' => $schName,
         'avatar_initial' => mb_strtoupper(mb_substr($members[0]['name'], 0, 2)),
     ] : [
-        'name' => (string) ($p['mentorTeacherName'] ?? 'Giáo viên phụ trách'),
-        'role' => 'Project Mentor',
+        'name' => 'Nhóm sinh viên nghiên cứu',
+        'role' => 'Trưởng nhóm đề án',
         'school' => $schName,
-        'avatar_initial' => 'PM',
+        'avatar_initial' => 'SV',
     ];
 
-    $projects[] = [
-        'id' => (string) $p['id'],
-        'title' => (string) $p['title'],
-        'school_id' => (string) ($p['schoolId'] ?? ''),
-        'school_name' => $schName,
-        'school_badge' => $schCode,
-        'category' => $cat,
-        'status' => (string) ($p['status'] ?? 'calling'),
-        'status_label' => $pct >= 100 ? 'Đã đạt mục tiêu' : ($pct >= 80 ? 'Tiềm năng cao' : 'Đang gọi vốn'),
-        'raised_amount' => $raised,
-        'target_amount' => $target,
-        'percentage' => $pct,
-        'members_count' => (int) ($p['membersCount'] ?? count($members)),
-        'description' => (string) ($p['description'] ?? 'Dự án nghiên cứu và phát triển giải pháp thực tiễn từ giảng đường.'),
+    $extra = $projectDetails[$pId] ?? [
         'problem_statement' => (string) ($p['description'] ?? 'Giải quyết bài toán thực tiễn từ doanh nghiệp và xã hội.'),
         'solution' => 'Giải pháp công nghệ kết hợp nghiên cứu thực tiễn do sinh viên và giảng viên hướng dẫn triển khai.',
-        'team_leader' => $teamLeader,
-        'team_members' => array_map(static fn($m): array => [
-            'name' => (string) $m['name'],
-            'role' => (string) $m['role'],
-            'skills' => ['Nghiên cứu', 'Thực hành', 'Công nghệ']
-        ], $members),
         'milestones' => [
-            ['phase' => 'Giai đoạn 1', 'title' => 'Nghiên cứu & Thiết kế', 'date' => '05/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
-            ['phase' => 'Giai đoạn 2', 'title' => 'Thử nghiệm & Đánh giá', 'date' => '08/2026', 'status' => 'in_progress', 'status_label' => 'Đang triển khai'],
-            ['phase' => 'Giai đoạn 3', 'title' => 'Nghiệm thu & Ứng dụng', 'date' => '11/2026', 'status' => 'planned', 'status_label' => 'Kế hoạch']
+            ['phase' => 'Giai đoạn 1', 'title' => 'Nghiên cứu & Thiết kế', 'date' => '08/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
+            ['phase' => 'Giai đoạn 2', 'title' => 'Thử nghiệm & Đánh giá', 'date' => '10/2026', 'status' => 'in_progress', 'status_label' => 'Đang triển khai'],
+            ['phase' => 'Giai đoạn 3', 'title' => 'Nghiệm thu & Ứng dụng', 'date' => '12/2026', 'status' => 'planned', 'status_label' => 'Kế hoạch']
         ],
         'expected_use_of_funds' => [
             ['category' => 'Trang thiết bị & Linh kiện', 'amount' => number_format($target * 0.5, 0, ',', '.') . ' VNĐ', 'percentage' => 50],
@@ -308,18 +184,35 @@ foreach ($dbProjects as $p) {
             ['category' => 'Học bổng & Hỗ trợ sinh viên', 'amount' => number_format($target * 0.2, 0, ',', '.') . ' VNĐ', 'percentage' => 20]
         ]
     ];
+
+    $projects[] = [
+        'id' => $pId,
+        'title' => (string) $p['title'],
+        'school_id' => (string) ($p['schoolId'] ?? ''),
+        'school_name' => $schName,
+        'school_badge' => $schCode,
+        'category' => $cat,
+        'status' => (string) ($p['status'] ?? 'in_progress'),
+        'status_label' => $pct >= 100 ? 'Đã đạt mục tiêu' : ($pct >= 80 ? 'Tiềm năng cao' : 'Đang gọi vốn'),
+        'raised_amount' => $raised,
+        'target_amount' => $target,
+        'percentage' => $pct,
+        'members_count' => (int) ($p['membersCount'] ?? count($members)),
+        'description' => (string) ($p['description'] ?? 'Dự án nghiên cứu và phát triển giải pháp thực tiễn từ giảng đường.'),
+        'problem_statement' => $extra['problem_statement'],
+        'solution' => $extra['solution'],
+        'team_leader' => $teamLeader,
+        'team_members' => array_map(static fn($m): array => [
+            'name' => (string) $m['name'],
+            'role' => (string) $m['role'],
+            'skills' => ['AI / ML', 'Phần mềm', 'Thực hành', 'Nghiên cứu']
+        ], $members),
+        'milestones' => $extra['milestones'],
+        'expected_use_of_funds' => $extra['expected_use_of_funds'],
+    ];
 }
 
-// Fallback logic: Ensure at least 4 vivid projects for full showcase experience
-$displayProjects = !empty($projects) ? $projects : $sampleProjects;
-if (count($displayProjects) < 4) {
-    $existingIds = array_column($displayProjects, 'id');
-    foreach ($sampleProjects as $sp) {
-        if (!in_array($sp['id'], $existingIds, true)) {
-            $displayProjects[] = $sp;
-        }
-    }
-}
+$displayProjects = $projects;
 
 $mySponsorships = [];
 $totalSponsoredAmount = 0.0;
@@ -362,10 +255,9 @@ foreach ($dbSponsorships as $s) {
 
 $openProjectsCount = count($displayProjects);
 $totalTalentsCount = array_sum(array_column($displayProjects, 'members_count'));
+$totalCapitalMobilized = array_sum(array_column($displayProjects, 'raised_amount'));
 
-$totalBudgetDisplay = $totalSponsoredAmount > 0 
-    ? number_format($totalSponsoredAmount, 0, ',', '.') . ' VNĐ'
-    : '150.000.000 VNĐ';
+$totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VNĐ';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -459,19 +351,16 @@ $totalBudgetDisplay = $totalSponsoredAmount > 0
                         <!-- Bên phải: Filter Pills Danh mục nhanh -->
                         <div class="spon-filter-pills" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                             <button type="button" class="spon-pill-btn is-active" data-cat="all" style="padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #F97316; background: #F97316; color: #FFFFFF; transition: all 0.15s ease;">
-                                Tất cả
+                                Tất cả (3)
                             </button>
-                            <button type="button" class="spon-pill-btn" data-cat="AI / Robotics" style="padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #E2E8F0; background: #F8FAFC; color: #475569; transition: all 0.15s ease;">
-                                AI / Robotics
+                            <button type="button" class="spon-pill-btn" data-cat="AI & Phần mềm" style="padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #E2E8F0; background: #F8FAFC; color: #475569; transition: all 0.15s ease;">
+                                AI &amp; Phần mềm
                             </button>
-                            <button type="button" class="spon-pill-btn" data-cat="IoT & Phần cứng" style="padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #E2E8F0; background: #F8FAFC; color: #475569; transition: all 0.15s ease;">
-                                IoT & Phần cứng
+                            <button type="button" class="spon-pill-btn" data-cat="Đồ họa 3D & Đa phương tiện" style="padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #E2E8F0; background: #F8FAFC; color: #475569; transition: all 0.15s ease;">
+                                Đồ họa 3D &amp; Game
                             </button>
-                            <button type="button" class="spon-pill-btn" data-cat="Môi trường xanh" style="padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #E2E8F0; background: #F8FAFC; color: #475569; transition: all 0.15s ease;">
-                                Môi trường xanh
-                            </button>
-                            <button type="button" class="spon-pill-btn" data-cat="Công nghệ Giáo dục & Xã hội" style="padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #E2E8F0; background: #F8FAFC; color: #475569; transition: all 0.15s ease;">
-                                Xã hội & Giáo dục
+                            <button type="button" class="spon-pill-btn" data-cat="Kinh tế số & Thương mại điện tử" style="padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid #E2E8F0; background: #F8FAFC; color: #475569; transition: all 0.15s ease;">
+                                Kinh tế số &amp; TMĐT
                             </button>
                         </div>
                     </div>

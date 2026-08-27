@@ -164,4 +164,4 @@ $accountType = 'Tài khoản Sinh viên';
     'onboardingRestricted' => $learnerOnboardingRestricted,
 ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
 <?php endif; ?>
-<script src="../../assets/js/learner-notifications.js" defer></script>
+<script src="../../assets/js/learner-notifications.js?v=<?= time(); ?>" defer></script>

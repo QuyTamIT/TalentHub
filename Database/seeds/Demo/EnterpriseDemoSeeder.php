@@ -46,7 +46,9 @@ final class EnterpriseDemoSeeder
                     $enterpriseEmails = [
                         'business@test.talenthub.local',
                         'vng.careers@talenthub.local',
-                        'shopee.careers@talenthub.local',
+                        'vinamilk@talenthub.local',
+                        'biz@talenthub.local',
+                        'vinamilk.careers@talenthub.local',
                         'techcombank.careers@talenthub.local',
                         'viettel.cyber@talenthub.local',
                         'dentsu.careers@talenthub.local',

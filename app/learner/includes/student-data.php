@@ -153,7 +153,7 @@ if ($isDatabaseMode) {
 
     $skills = [];
     foreach ($tp['skills'] as $dbSkill) {
-        $rawScore = (float) ($dbSkill['level_score'] ?? 0);
+        $rawScore = (float) ($dbSkill['levelScore'] ?? $dbSkill['level_score'] ?? 0);
         $score = max(0, min(100, (int) round($rawScore)));
         $levelLabel = match (true) {
             $score >= 85 => 'Rất tốt',
@@ -174,9 +174,10 @@ if ($isDatabaseMode) {
             'level' => $levelLabel,
             'tone' => $tone,
             'icon' => 'sparkles',
-            'verified' => ($dbSkill['verification_status'] ?? '') === 'verified',
+            'verified' => ($dbSkill['verificationStatus'] ?? $dbSkill['verification_status'] ?? '') === 'verified',
         ];
     }
+    usort($skills, static fn (array $a, array $b): int => $b['score'] <=> $a['score']);
 
     $certificates = $tp['certificates'];
     $projects = $tp['projects'];

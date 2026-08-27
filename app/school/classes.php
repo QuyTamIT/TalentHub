@@ -45,18 +45,18 @@ $totalStudents = array_sum(array_column($classes, 'students'));
 $schoolInfo = [
     'name'          => $school['name'],
     'logo_initials' => mb_substr($school['name'], 0, 2),
-    'level'         => $school['level'] ?? 'Trung học',
+    'level'         => $school['level'] ?? 'Đại học / Cao đẳng',
     'district'      => $school['address'] ?? '',
     'academic_year' => $school['academicYear'] ?? '',
 ];
 
 $currentRoute = '/app/school/classes.php';
-$pageTitle    = 'Lớp & Khối';
+$pageTitle    = 'Lớp & Chuyên ngành';
 
 ob_start();
 ?>
 <?php
-$pageDescription = 'Quản lý các lớp theo khối, xem sĩ số và tỷ lệ hoàn thiện hồ sơ.';
+$pageDescription = 'Quản lý các lớp và chuyên ngành đào tạo, xem sĩ số sinh viên và tỷ lệ hoàn thiện hồ sơ.';
 $pageActions = '<a href="./class-edit.php" class="btn btn-primary">+ Thêm lớp mới</a>';
 include __DIR__ . '/includes/page-banner.php';
 ?>
@@ -81,7 +81,7 @@ include __DIR__ . '/includes/page-banner.php';
             <div style="display: flex; justify-content: space-between; align-items: flex-end;">
                 <div>
                     <div style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);"><?= $stat['students'] ?></div>
-                    <div style="font-size: 0.8125rem; color: var(--text-muted);">học sinh</div>
+                    <div style="font-size: 0.8125rem; color: var(--text-muted);">sinh viên</div>
                 </div>
                 <div style="text-align: right;">
                     <div style="font-size: 1.125rem; font-weight: 700; color: #2563EB;"><?= $stat['avgCompletion'] ?>%</div>
@@ -108,7 +108,7 @@ include __DIR__ . '/includes/page-banner.php';
                     <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1rem;">
                         <div>
                             <h4 style="font-size: 1.125rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.25rem 0;">
-                                Lớp <?= htmlspecialchars($class['name']) ?>
+                                <?= htmlspecialchars($class['name']) ?>
                             </h4>
                             <p style="font-size: 0.8125rem; color: var(--text-secondary); margin: 0;">
                                 Niên khóa: <?= htmlspecialchars($class['academicYear']) ?>
@@ -121,7 +121,7 @@ include __DIR__ . '/includes/page-banner.php';
                     <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
                         <div>
                             <span style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);"><?= $class['students'] ?></span>
-                            <span style="font-size: 0.8125rem; color: var(--text-muted); margin-left: 0.25rem;">học sinh</span>
+                            <span style="font-size: 0.8125rem; color: var(--text-muted); margin-left: 0.25rem;">sinh viên</span>
                         </div>
                         <div style="text-align: right;">
                             <span style="font-size: 1rem; font-weight: 700; color: #2563EB;"><?= $class['completion'] ?>%</span>
@@ -137,7 +137,7 @@ include __DIR__ . '/includes/page-banner.php';
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
                             </svg>
-                            Học sinh
+                            Sinh viên
                         </a>
                         <a href="./class-edit.php?id=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="text-decoration:none;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">

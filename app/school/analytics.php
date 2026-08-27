@@ -68,7 +68,7 @@ foreach ($grouped as $grade => $items) {
 $schoolInfo = [
     'name'          => $school['name'],
     'logo_initials' => mb_substr($school['name'], 0, 2),
-    'level'         => $school['level'] ?? 'Trung học',
+    'level'         => $school['level'] ?? 'Đại học / Cao đẳng',
     'district'      => $school['address'] ?? '',
     'academic_year' => $school['academicYear'] ?? '',
 ];

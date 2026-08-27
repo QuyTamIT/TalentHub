@@ -21,6 +21,15 @@ $workflowService = $context['workflows'];
 
 if (!function_exists('getInitials')) {
     function getInitials(string $name): string {
+        if (stripos($name, 'Vinamilk') !== false || stripos($name, 'Sữa Việt Nam') !== false || stripos($name, 'VNM') !== false) {
+            return 'VNM';
+        }
+        if (stripos($name, 'FPT') !== false || stripos($name, 'Phần mềm FPT') !== false) {
+            return 'FS';
+        }
+        if (stripos($name, 'MB') !== false || stripos($name, 'Quân đội') !== false) {
+            return 'MB';
+        }
         $words = preg_split('/\s+/', trim($name));
         if (empty($words) || $words[0] === '') return 'DN';
         if (count($words) === 1) return mb_strtoupper(mb_substr($words[0], 0, 2));
