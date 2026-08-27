@@ -6,7 +6,7 @@ Record a product-analytics event only when an authenticated learner activates a 
 
 ## Client flow
 
-Each rendered recommendation CTA carries only safe identifiers already returned by the recommendation API: `item_id`, optional `catalog_id`, and an allow-listed `action_type`. The delegated click handler sends a same-origin `POST` to the learner API with the existing session CSRF token and `keepalive: true`. It does not await the response and never prevents default navigation, so an expired session, rejected CSRF token, network failure, or analytics outage cannot block the CTA.
+Each rendered recommendation CTA carries only safe identifiers already returned by the recommendation API: `itemId`, optional `catalogId`, and an allow-listed `actionType`. The delegated click handler sends a same-origin `POST` to the learner API with the existing session CSRF token and `keepalive: true`. It does not await the response and never prevents default navigation, so an expired session, rejected CSRF token, network failure, or analytics outage cannot block the CTA.
 
 The browser does not send recommendation title, summary, evidence, learner identifier, destination URL, prompt, or model output.
 
@@ -14,9 +14,9 @@ The browser does not send recommendation title, summary, evidence, learner ident
 
 The endpoint uses the existing learner API bootstrap, authentication, role/permission checks, JSON validation, and CSRF validation. It accepts exactly:
 
-- `item_id`: bounded opaque identifier;
-- `catalog_id`: optional bounded opaque identifier;
-- `action_type`: one of `view_activity`, `view_opportunity`, `register_activity`, or `open_catalog_item`.
+- `itemId`: bounded opaque identifier;
+- `catalogId`: optional bounded opaque identifier;
+- `actionType`: one of `view_activity`, `view_opportunity`, `register_activity`, or `open_catalog_item`.
 
 Before recording the metric, the server verifies that the referenced recommendation item belongs to the authenticated learner's current or retained recommendation data and that the supplied catalog identifier matches that item when present. Invalid, stale, cross-owner, or fabricated identifiers return a safe validation/not-found response and produce no metric.
 

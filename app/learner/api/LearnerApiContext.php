@@ -43,6 +43,7 @@ use TalentHub\Learner\Ai\Rules\RuleRecommendationEngine;
 use TalentHub\Learner\Ai\Rules\RuleRoadmapEngine;
 use TalentHub\Learner\Ai\Service\RecommendationResponseMapper;
 use TalentHub\Learner\Ai\Service\RecommendationService;
+use TalentHub\Learner\Ai\Service\RecommendationClickService;
 use TalentHub\Learner\Ai\Service\RoadmapService;
 use TalentHub\Learner\Ai\Snapshot\RecommendationSnapshotBuilder;
 use TalentHub\Learner\Ai\Sources\AiSourceRegistry;
@@ -411,6 +412,16 @@ final class LearnerApiContext
         $result = (new DatabaseRecommendationRepository($this->pdo))->appendFeedback($studentId, $itemId, $verdict, $reasonCode, $safeComment);
         AiMetricsCollector::shared()->record(['recommendation_feedback' => $verdict]);
         return $result;
+    }
+
+    /** @return array{state:string} */
+    public function recordRecommendationClick(string $studentId, string $itemId, ?string $catalogId, string $actionType): array
+    {
+        (new RecommendationClickService(
+            new DatabaseRecommendationRepository($this->pdo),
+            AiMetricsCollector::shared(),
+        ))->record($studentId, $itemId, $catalogId, $actionType);
+        return ['state' => 'recorded'];
     }
 
     /** @return array<string,mixed> */

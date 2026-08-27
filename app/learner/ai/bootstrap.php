@@ -82,6 +82,7 @@ require_once $learnerAiRoot . '/Listeners/LearnerAiDataChangedListener.php';
 require_once $learnerAiRoot . '/Service/AdaptiveRefreshCoordinator.php';
 require_once $learnerAiRoot . '/Service/AiCapabilityProfileService.php';
 require_once $learnerAiRoot . '/Service/ProfileAnalysisRefreshService.php';
+require_once $learnerAiRoot . '/Service/RecommendationClickService.php';
 require_once $learnerAiRoot . '/RateLimit/RecommendationRateLimitDecision.php';
 require_once $learnerAiRoot . '/RateLimit/RecommendationRateLimiter.php';
 require_once $learnerAiRoot . '/Model/PromptRegistry.php';

@@ -81,6 +81,10 @@ final class AiMetricsCollector
             $feedback = strtolower(trim($input['recommendation_feedback']));
             if (in_array($feedback, ['helpful', 'not_helpful', 'dismissed'], true)) $event['recommendation_feedback'] = $feedback;
         }
+        if (isset($input['recommendation_action']) && is_string($input['recommendation_action'])) {
+            $action = strtolower(trim($input['recommendation_action']));
+            if (in_array($action, ['view_activity', 'view_opportunity', 'register_activity', 'open_catalog_item'], true)) $event['recommendation_action'] = $action;
+        }
         $this->events[] = $event;
         if (count($this->events) > $this->maxEvents) array_shift($this->events);
         if ($this->sink !== null) {

@@ -14,6 +14,7 @@ This checklist records only safe metrics and hashes. Never paste a learner promp
 - [x] Deterministic safety cases cover diagnosis, protected traits, guaranteed outcomes, fabricated activities, unsupported links, prompt injection, English-only output, uncited claims, and discovery-result duplication.
 - [x] Model and rule-fallback origins are labelled separately.
 - [x] Progress, feedback, and roadmap versions are owner-scoped and persisted.
+- [x] Real recommendation CTA clicks are emitted separately from feedback through a same-origin CSRF-protected endpoint; telemetry failure never blocks link navigation.
 - [x] Phase 2 registry reads certificates, projects, badges, progress, confirmed check-ins, teacher feedback, and roadmap feedback from the canonical learner aggregate.
 - [x] Phase 2 source availability is explicit: unsupported canonical sources (currently achievements and mentor evaluations) are surfaced with machine-readable reasons and are not silently treated as present.
 - [x] Phase 2 evidence persistence accepts the canonical source types through migration `20260827000100_extend_learner_ai_evidence_source_types`.
@@ -100,5 +101,7 @@ Keep this checklist at `MODEL_VISIBLE_BLOCKED` whenever any gate is unchecked. N
 ## Phase 8 operations evidence
 
 Owners: AI Platform on-call for queue/provider/circuit, Security & Privacy for consent incidents, Database Operations for migration rollback, and Product Owner for staged approvals. `ai-observability-v1` structured events are sanitized to hashes/metrics only and retained for 30 days. Alert at queue depth 100, oldest queue age 300 seconds, stale ratio 5%, provider error rate 10%, p95 latency 2,000ms, quota zero, or circuit `open`; each alert pauses the pilot. Privacy review must explicitly confirm no learner identifier, prompt, raw response, credential, or authorization header is retained.
+
+Recommendation CTA telemetry evidence: the browser sends only `itemId`, optional `catalogId`, and an allow-listed `actionType` using `credentials=same-origin`, `keepalive=true`, and `X-CSRF-Token`. The endpoint revalidates learner ownership and catalog evidence before emitting only the aggregate click flag/action category. Invalid CSRF, invalid input, cross-owner IDs, and infrastructure failures record no click; the client never awaits the request or prevents the CTA's default navigation.
 
 Staged rollout evidence is recorded in order: `0% shadow`, approved `pilot`, `10%`, `25%`, `50%`, then `100%`. Every transition requires error-budget, freshness-SLA, validator pass-rate, privacy, provider-health, and rollback-drill evidence. The 100% stage is blocked until all previous stages are recorded and the unified `AiAvailabilityPolicy` plus last-known-good/queue monitoring are verified.

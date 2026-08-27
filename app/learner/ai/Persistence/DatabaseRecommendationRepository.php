@@ -275,6 +275,21 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
         return $runId === false ? null : $this->runForStudent($studentId, (string) $runId);
     }
 
+    public function ownsClickTarget(string $studentId, string $itemId, ?string $catalogId): bool
+    {
+        $studentId = $this->required($studentId, 'Student id is required.');
+        $itemId = $this->required($itemId, 'Recommendation item id is required.');
+        if ($catalogId === null) {
+            $statement = $this->pdo->prepare('SELECT 1 FROM learner_recommendation_items AS items INNER JOIN learner_recommendation_runs AS runs ON runs.id = items.runId WHERE items.id = :itemId AND runs.studentId = :studentId LIMIT 1');
+            $statement->execute(['itemId' => $itemId, 'studentId' => $studentId]);
+            return $statement->fetchColumn() !== false;
+        }
+        $catalogId = $this->required($catalogId, 'Recommendation catalog id is required.');
+        $statement = $this->pdo->prepare("SELECT 1 FROM learner_recommendation_items AS items INNER JOIN learner_recommendation_runs AS runs ON runs.id = items.runId INNER JOIN learner_recommendation_evidence AS evidence ON evidence.itemId = items.id WHERE items.id = :itemId AND runs.studentId = :studentId AND evidence.sourceType IN ('catalog','opportunity') AND evidence.sourceId = :catalogId LIMIT 1");
+        $statement->execute(['itemId' => $itemId, 'studentId' => $studentId, 'catalogId' => $catalogId]);
+        return $statement->fetchColumn() !== false;
+    }
+
     /** @return array<string,mixed> */
     public function appendFeedback(string $studentId, string $itemId, string $verdict, string $reasonCode, ?string $safeComment): array
     {
