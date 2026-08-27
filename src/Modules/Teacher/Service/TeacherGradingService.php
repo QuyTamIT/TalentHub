@@ -7,6 +7,7 @@ namespace TalentHub\Modules\Teacher\Service;
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\Teacher\Exception\TeacherGradingConflictException;
 use TalentHub\Modules\Teacher\Repository\TeacherGradingRepository;
+use TalentHub\Support\Id\RequestId;
 use TalentHub\Support\Uuid;
 
 final class TeacherGradingService
@@ -48,7 +49,7 @@ final class TeacherGradingService
     }
 
     /** @param array<string,mixed> $input */
-    public function save(string $userId, array $input): string
+    public function save(string $userId, array $input, ?string $requestId = null): string
     {
         $teacher = $this->teacher($userId);
         $teacherId = (string) $teacher['id'];
@@ -106,6 +107,9 @@ final class TeacherGradingService
                 $criteriaScores[] = ['criteriaId' => $criteriaId, 'score' => $score];
             }
         }
+        if ($status === 'published' && count($criteriaScores) !== count($criteriaById)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Assessment đã công bố phải có điểm cho toàn bộ tiêu chí đang active.');
+        }
 
         $this->repository->saveAssessment(
             $teacherId,
@@ -117,10 +121,34 @@ final class TeacherGradingService
             $comment,
             $status,
             $status === 'published' ? gmdate('Y-m-d H:i:s.u') : null,
-            $criteriaScores
+            $criteriaScores,
+            $userId,
+            substr($requestId ?? RequestId::make(null), 0, 26)
         );
 
         return $activityId;
+    }
+
+    /** @return array{id:string,status:string,version:int} */
+    public function publish(string $teacherUserId, string $assessmentId, int $expectedVersion, string $requestId): array
+    {
+        $this->assertUuid($assessmentId, 'assessmentId');
+        if ($expectedVersion < 1) throw new ApiException(422, 'VALIDATION_FAILED', 'expectedVersion phải lớn hơn 0.');
+        $assessment = $this->repository->draftAssessmentForTeacherUser($teacherUserId, $assessmentId);
+        if ($assessment === null) throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy assessment thuộc Giáo viên hiện tại.');
+        if (($assessment['status'] ?? null) !== 'draft') throw new TeacherGradingConflictException('Published assessments are immutable.');
+        if ((int) ($assessment['version'] ?? 0) !== $expectedVersion) throw new TeacherGradingConflictException('Assessment version no longer matches.');
+        $this->save($teacherUserId, [
+            'activityId' => (string) $assessment['activityId'],
+            'studentId' => (string) $assessment['studentId'],
+            'assessmentId' => $assessmentId,
+            'expectedVersion' => (string) $expectedVersion,
+            'assessmentStatus' => 'published',
+            'overallScore' => (string) ($assessment['overallScore'] ?? ''),
+            'comment' => $assessment['comment'],
+            'criteria' => $assessment['criteria'] ?? [],
+        ], $requestId);
+        return ['id' => $assessmentId, 'status' => 'published', 'version' => $expectedVersion + 1];
     }
 
     /** @return array<string,mixed> */

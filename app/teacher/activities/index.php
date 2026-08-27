@@ -97,9 +97,15 @@ function teacherActivitiesErrorField(string $message): ?string
 function teacherActivitiesLifecycleAction(array $activity): ?array
 {
     $rawStatus = strtolower(trim((string) ($activity['raw_status'] ?? '')));
+    $approvalStatus = strtolower(trim((string) ($activity['approvalStatus'] ?? 'approved')));
 
     return match ($rawStatus) {
-        'draft' => ['label' => 'Công bố hoạt động'],
+        'draft' => match ($approvalStatus) {
+            'draft', 'changes_requested' => ['label' => 'Gửi Nhà trường duyệt', 'formAction' => 'submit_review'],
+            'pending_school_review' => null,
+            'approved' => ['label' => 'Công bố hoạt động', 'formAction' => 'advance_status'],
+            default => null,
+        },
         'published' => ['label' => 'Bắt đầu hoạt động'],
         'ongoing' => ['label' => 'Kết thúc hoạt động'],
         'completed' => ['label' => 'Lưu trữ hoạt động'],
@@ -178,6 +184,7 @@ if (isset($_GET['saved'])) {
         'updated' => 'Đã cập nhật hoạt động.',
         'advanced' => 'Đã chuyển hoạt động sang trạng thái mới.',
         'registration' => 'Đã cập nhật trạng thái đăng ký.',
+        'submitted' => 'Đã gửi hoạt động cho Nhà trường duyệt.',
     ];
     $notice = $noticeMessages[(string) $_GET['saved']] ?? 'Đã lưu thay đổi hoạt động.';
 }
@@ -317,6 +324,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($formAction === 'submit_review') {
+        if (!$pdo || !$activityService || $teacherId === '') {
+            $errors[] = 'Chưa kết nối được hồ sơ giáo viên để gửi duyệt.';
+        }
+        if ($postedActivityId === '') $errors[] = 'Thiếu mã hoạt động cần gửi duyệt.';
+        if (!$errors) {
+            try {
+                $activityService->submitForSchoolReview($teacherId, $postedActivityId, \TalentHub\Support\Id\RequestId::make(null));
+                header('Location: index.php?saved=submitted');
+                exit;
+            } catch (Throwable $exception) {
+                $errors[] = $exception->getMessage() ?: 'Không thể gửi hoạt động cho Nhà trường duyệt.';
+            }
+        }
+    }
+
     if ($formAction === 'advance_status') {
         if (!$pdo || $teacherId === '') {
             $errors[] = 'Chưa kết nối được hồ sơ giáo viên để cập nhật trạng thái hoạt động.';
@@ -340,7 +363,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = 'registrations';
         $activityId = $postedActivityId;
         $selectedActivity = $pdo && $teacherId !== '' ? teacherActivitiesFind($pdo, $teacherId, $activityId) : null;
-    } elseif ($formAction === 'advance_status') {
+    } elseif (in_array($formAction, ['advance_status', 'submit_review'], true)) {
         $action = '';
         if ($postedActivityId !== '') {
             $activityId = $postedActivityId;
@@ -754,7 +777,7 @@ $additionalSummary = $additionalLabels ? 'Đã có ' . implode(', ', $additional
                                     <?php if ($detailLifecycleAction !== null): ?>
                                         <form method="post" class="teacher-activities-inline-form">
                                             <input type="hidden" name="csrfToken" value="<?= teacherActivitiesEscape($csrfToken); ?>">
-                                            <input type="hidden" name="form_action" value="advance_status">
+                                            <input type="hidden" name="form_action" value="<?= teacherActivitiesEscape((string) ($detailLifecycleAction['formAction'] ?? 'advance_status')); ?>">
                                             <input type="hidden" name="activity_id" value="<?= teacherActivitiesEscape($selectedActivity['id']); ?>">
                                             <button type="submit" class="btn btn-secondary btn-sm"><?= teacherActivitiesEscape($detailLifecycleAction['label']); ?></button>
                                         </form>
@@ -764,6 +787,7 @@ $additionalSummary = $additionalLabels ? 'Đã có ' . implode(', ', $additional
                             </div>
                             <div class="teacher-activity-detail-grid">
                                 <div><span>Trạng thái</span><strong><span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($selectedActivity['status_class']); ?>"><?= teacherActivitiesEscape($selectedActivity['status_label']); ?></span></strong></div>
+                                <div><span>Duyệt Nhà trường</span><strong><?= teacherActivitiesEscape($selectedActivity['approval_status_label'] ?? 'Đã duyệt'); ?></strong></div>
                                 <div><span>Thời gian</span><strong><?= teacherActivitiesEscape($selectedActivity['start_label']); ?> – <?= teacherActivitiesEscape($selectedActivity['end_label']); ?></strong></div>
                                 <div><span>Địa điểm</span><strong><?= teacherActivitiesEscape($selectedActivity['location_label'] ?? 'Chưa cập nhật'); ?><?php if (!empty($selectedActivity['locationAddress'])): ?><small class="teacher-text-muted"> · <?= teacherActivitiesEscape($selectedActivity['locationAddress']); ?></small><?php endif; ?></strong></div>
                                 <div><span>Đăng ký</span><strong><?= teacherActivitiesEscape((string) $selectedActivity['registered_count']); ?> / <?= teacherActivitiesEscape((string) $selectedActivity['capacity']); ?></strong></div>
@@ -928,7 +952,7 @@ $additionalSummary = $additionalLabels ? 'Đã có ' . implode(', ', $additional
                                                 <?php if ($rowLifecycleAction !== null): ?>
                                                     <form method="post" class="teacher-activities-inline-form">
                                                         <input type="hidden" name="csrfToken" value="<?= teacherActivitiesEscape($csrfToken); ?>">
-                                                        <input type="hidden" name="form_action" value="advance_status">
+                                                        <input type="hidden" name="form_action" value="<?= teacherActivitiesEscape((string) ($rowLifecycleAction['formAction'] ?? 'advance_status')); ?>">
                                                         <input type="hidden" name="activity_id" value="<?= teacherActivitiesEscape($activity['id']); ?>">
                                                         <button type="submit" class="teacher-activity-action teacher-activity-action--button"><?= teacherActivitiesEscape($rowLifecycleAction['label']); ?></button>
                                                     </form>

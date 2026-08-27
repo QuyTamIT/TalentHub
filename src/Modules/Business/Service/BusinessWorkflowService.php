@@ -9,6 +9,7 @@ use TalentHub\Http\ApiException;
 use TalentHub\Http\CollectionQuery;
 use TalentHub\Modules\Business\Repository\BusinessWorkflowRepository;
 use TalentHub\Modules\Business\Repository\InternshipRepository;
+use TalentHub\Support\Uuid;
 
 final class BusinessWorkflowService
 {
@@ -63,9 +64,9 @@ final class BusinessWorkflowService
         return $this->repository->post($enterpriseId, $id) ?? [];
     }
 
-    public function publicPosts(CollectionQuery $query): array
+    public function publicPosts(CollectionQuery $query, string $userId): array
     {
-        return $this->repository->publicPosts($query);
+        return $this->repository->publicPosts($query, $this->student($userId));
     }
 
     public function apply(string $userId, string $postId, array $input, string $requestId): array
@@ -236,7 +237,29 @@ final class BusinessWorkflowService
                 : null,
             'slots' => $slots,
             'deadline' => $date->format('Y-m-d H:i:s.u'),
+            'audience' => $this->audience($input['audience'] ?? 'public'),
+            'targetSchoolIds' => $this->targetSchoolIds($input['targetSchoolIds'] ?? []),
         ];
+    }
+
+    private function audience(mixed $value): string
+    {
+        if (!is_string($value) || !in_array($value, ['public', 'partner_schools'], true)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'audience không hợp lệ.');
+        }
+        return $value;
+    }
+
+    /** @return list<string> */
+    private function targetSchoolIds(mixed $value): array
+    {
+        if (!is_array($value)) throw new ApiException(422, 'VALIDATION_FAILED', 'targetSchoolIds không hợp lệ.');
+        $ids = [];
+        foreach ($value as $id) {
+            if (!is_string($id) || !Uuid::isValid($id)) throw new ApiException(422, 'VALIDATION_FAILED', 'targetSchoolIds chứa ID không hợp lệ.');
+            $ids[] = strtolower($id);
+        }
+        return array_values(array_unique($ids));
     }
 
     private function jsonList(mixed $value): string

@@ -33,34 +33,7 @@ final class BusinessWorkflowRepository
         $statement = $this->pdo->prepare('SELECT enterpriseId FROM enterprise_members WHERE userId=? LIMIT 1');
         $statement->execute([$userId]);
         $id = $statement->fetchColumn();
-        if (is_string($id)) {
-            return $id;
-        }
-
-        $fallback = $this->pdo->prepare('SELECT e.id FROM enterprises e JOIN users u ON u.email = e.email WHERE u.id=? LIMIT 1');
-        $fallback->execute([$userId]);
-        $candidateId = $fallback->fetchColumn();
-        if (is_string($candidateId)) {
-            try {
-                $healStmt = $this->pdo->prepare('INSERT IGNORE INTO enterprise_members (id, enterpriseId, userId, memberRole) VALUES (?, ?, ?, ?)');
-                $healStmt->execute([\TalentHub\Support\Uuid::v4(), $candidateId, $userId, 'admin']);
-            } catch (\Throwable) {}
-            return $candidateId;
-        }
-
-        $firstEnterprise = $this->pdo->query('SELECT id FROM enterprises ORDER BY createdAt ASC LIMIT 1');
-        if ($firstEnterprise !== false) {
-            $eId = $firstEnterprise->fetchColumn();
-            if (is_string($eId)) {
-                try {
-                    $healStmt = $this->pdo->prepare('INSERT IGNORE INTO enterprise_members (id, enterpriseId, userId, memberRole) VALUES (?, ?, ?, ?)');
-                    $healStmt->execute([\TalentHub\Support\Uuid::v4(), $eId, $userId, 'admin']);
-                } catch (\Throwable) {}
-                return $eId;
-            }
-        }
-
-        return null;
+        return is_string($id) && $id !== '' ? $id : null;
     }
 
     public function studentId(string $userId): ?string
@@ -88,42 +61,23 @@ final class BusinessWorkflowRepository
 
     public function post(string $enterpriseId, string $id): ?array
     {
-        $statement = $this->pdo->prepare('SELECT * FROM internship_posts WHERE id=? AND enterpriseId=?');
-        $statement->execute([$id, $enterpriseId]);
-        $row = $statement->fetch();
-        return is_array($row) ? $row : null;
+        try {
+            return $this->getInternshipRepository()->post($enterpriseId, $id);
+        } catch (ApiException $exception) {
+            if ($exception->status === 404) return null;
+            throw $exception;
+        }
     }
 
     public function insertPost(string $enterpriseId, array $data): string
     {
-        $id = Uuid::v4();
-        $statement = $this->pdo->prepare(<<<'SQL'
-            INSERT INTO internship_posts
-                (id, enterpriseId, title, field, location, workType, duration, educationLevel,
-                 description, benefits, skillsJson, requirementsJson, slots, deadline, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft')
-        SQL);
-        $statement->execute([
-            $id, $enterpriseId, $data['title'], $data['field'], $data['location'], $data['workType'],
-            $data['duration'], $data['educationLevel'], $data['description'], $data['benefits'],
-            $data['skillsJson'], $data['requirementsJson'], $data['slots'], $data['deadline'],
-        ]);
-        return $id;
+        $post = $this->getInternshipRepository()->createPost($enterpriseId, $data);
+        return (string) $post['id'];
     }
 
     public function updatePost(string $enterpriseId, string $id, array $data): void
     {
-        $statement = $this->pdo->prepare(<<<'SQL'
-            UPDATE internship_posts
-            SET title=?, field=?, location=?, workType=?, duration=?, educationLevel=?, description=?,
-                benefits=?, skillsJson=?, requirementsJson=?, slots=?, deadline=?
-            WHERE id=? AND enterpriseId=? AND status='draft'
-        SQL);
-        $statement->execute([
-            $data['title'], $data['field'], $data['location'], $data['workType'], $data['duration'],
-            $data['educationLevel'], $data['description'], $data['benefits'], $data['skillsJson'],
-            $data['requirementsJson'], $data['slots'], $data['deadline'], $id, $enterpriseId,
-        ]);
+        $this->getInternshipRepository()->updatePost($enterpriseId, $id, $data);
     }
 
     public function transitionPost(string $enterpriseId, string $id, string $from, string $to): bool
@@ -151,7 +105,7 @@ final class BusinessWorkflowRepository
     }
 
     /** @return list<array<string,mixed>> */
-    public function publicPosts(CollectionQuery $query): array
+    public function publicPosts(CollectionQuery $query, string $studentId): array
     {
         $order = ['createdAt' => 'ip.createdAt', 'title' => 'ip.title', 'deadline' => 'ip.deadline'][$query->sort] ?? 'ip.createdAt';
         $direction = strtoupper($query->direction) === 'ASC' ? 'ASC' : 'DESC';
@@ -159,22 +113,25 @@ final class BusinessWorkflowRepository
         $hasAudience = $this->hasColumn('internship_posts', 'audience');
 
         $audienceCondition = ($hasAudience && $hasTarget)
-            ? "AND (ip.audience = 'public' OR ip.audience IS NULL OR (ip.audience = 'partner_schools' AND EXISTS (SELECT 1 FROM internship_post_target_schools ipt WHERE ipt.postId = ip.id)))"
+            ? "AND (ip.audience = 'public' OR ip.audience IS NULL OR (ip.audience = 'partner_schools' AND EXISTS (SELECT 1 FROM internship_post_target_schools ipt INNER JOIN student_profiles scoped_student ON scoped_student.id=:studentId INNER JOIN classes scoped_class ON scoped_class.id=scoped_student.classId WHERE ipt.postId=ip.id AND ipt.schoolId=scoped_class.schoolId)))"
             : "";
 
         $statement = $this->pdo->prepare(
             "SELECT ip.id, ip.enterpriseId, ip.title, ip.field, ip.description, ip.location, ip.workType, 
                     ip.duration, ip.educationLevel, ip.benefits, ip.skillsJson, ip.requirementsJson, 
-                    ip.slots, ip.deadline, ip.createdAt, ip.status, e.name AS enterpriseName 
+                    ip.slots, ip.deadline, ip.createdAt, ip.status, e.name AS enterpriseName
              FROM internship_posts ip 
-             LEFT JOIN enterprises e ON e.id = ip.enterpriseId 
+             INNER JOIN enterprises e ON e.id = ip.enterpriseId
              WHERE ip.status IN ('active', 'published') 
-               AND (ip.deadline IS NULL OR ip.deadline >= CURRENT_TIMESTAMP OR ip.deadline >= UTC_TIMESTAMP(6) OR ip.deadline >= CURDATE()) 
+               AND e.status = 'active' AND e.verificationStatus = 'verified'
+               AND (ip.deadline IS NULL OR ip.deadline >= :now)
                {$audienceCondition}
              ORDER BY {$order} {$direction}, ip.id DESC 
              LIMIT {$query->limit} OFFSET {$query->offset}"
         );
-        $statement->execute();
+        $parameters = ['now' => gmdate('Y-m-d H:i:s.u')];
+        if ($hasAudience && $hasTarget) $parameters['studentId'] = $studentId;
+        $statement->execute($parameters);
         return array_values($statement->fetchAll());
     }
 
