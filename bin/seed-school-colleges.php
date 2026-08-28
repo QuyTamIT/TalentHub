@@ -93,7 +93,7 @@ function ensureSchoolUser(PDO $pdo, string $userId, string $email, string $fullN
     }
 
     // Ensure school_members link
-    $pdo->prepare("DELETE FROM school_members WHERE userId = ? OR (schoolId = ? AND memberRole = 'admin')")->execute([$actualUserId, $schoolId]);
+    $pdo->prepare("DELETE FROM school_members WHERE userId = ?")->execute([$actualUserId]);
     $memberId = Uuid::v4();
     $pdo->prepare("
         INSERT INTO school_members (id, schoolId, userId, memberRole, createdAt)
@@ -102,10 +102,10 @@ function ensureSchoolUser(PDO $pdo, string $userId, string $email, string $fullN
     echo "[OK] Linked School Admin: $email ($fullName) -> School ID: $schoolId\n";
 }
 
-// BTEC FPT Admin
+// BTEC FPT Admins (Standardized credentials)
+ensureSchoolUser($pdo, '31000000-0000-4000-8000-000000000001', 'btec@school.edu.vn', 'Ban Đào tạo Cao đẳng Quốc tế BTEC FPT', $schoolRoleId, $passwordHash, $btecSchoolId);
 ensureSchoolUser($pdo, '31000000-0000-4000-8000-000000000002', 'btec@talenthub.local', 'Ban Đào tạo BTEC FPT', $schoolRoleId, $passwordHash, $btecSchoolId);
-// Also link school@talenthub.local to BTEC FPT for compatibility
-ensureSchoolUser($pdo, 'cf711da3-ef58-429b-b52f-d3bff8b60e05', 'school@talenthub.local', 'Ban Đào tạo Cao đẳng Quốc tế BTEC FPT', $schoolRoleId, $passwordHash, $btecSchoolId);
+ensureSchoolUser($pdo, 'cf711da3-ef58-429b-b52f-d3bff8b60e05', 'school@talenthub.local', 'Ban Giám hiệu Cao đẳng Quốc tế BTEC FPT', $schoolRoleId, $passwordHash, $btecSchoolId);
 
 // CTU Admin
 ensureSchoolUser($pdo, '31000000-0000-4000-8000-000000000003', 'ctu@talenthub.local', 'Ban Giám hiệu Đại học Cần Thơ', $schoolRoleId, $passwordHash, $ctuSchoolId);

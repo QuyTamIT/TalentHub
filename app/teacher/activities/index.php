@@ -8,33 +8,39 @@ require_once __DIR__ . '/../includes/activity-data.php';
 
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-function teacherActivitiesEscape(mixed $value): string
-{
-    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
-}
-
-function teacherActivitiesFormDate(?string $value): ?DateTimeImmutable
-{
-    if (!$value) {
-        return null;
+if (!function_exists('teacherActivitiesEscape')) {
+    function teacherActivitiesEscape(mixed $value): string
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
     }
-
-    $date = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $value, new DateTimeZone('Asia/Ho_Chi_Minh'));
-    return $date ?: null;
 }
 
-function teacherActivitiesLifecycleAction(array $activity): ?array
-{
-    $rawStatus = strtolower(trim((string) ($activity['raw_status'] ?? '')));
+if (!function_exists('teacherActivitiesFormDate')) {
+    function teacherActivitiesFormDate(?string $value): ?DateTimeImmutable
+    {
+        if (!$value) {
+            return null;
+        }
 
-    return match ($rawStatus) {
-        'draft' => ['label' => 'Công bố hoạt động'],
-        'published' => ['label' => 'Bắt đầu hoạt động'],
-        'ongoing' => ['label' => 'Kết thúc hoạt động'],
-        'completed' => ['label' => 'Lưu trữ hoạt động'],
-        'archived' => null,
-        default => null,
-    };
+        $date = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $value, new DateTimeZone('Asia/Ho_Chi_Minh'));
+        return $date ?: null;
+    }
+}
+
+if (!function_exists('teacherActivitiesLifecycleAction')) {
+    function teacherActivitiesLifecycleAction(array $activity): ?array
+    {
+        $rawStatus = strtolower(trim((string) ($activity['raw_status'] ?? '')));
+
+        return match ($rawStatus) {
+            'draft' => ['label' => 'Công bố hoạt động'],
+            'published' => ['label' => 'Bắt đầu hoạt động'],
+            'ongoing' => ['label' => 'Kết thúc hoạt động'],
+            'completed' => ['label' => 'Lưu trữ hoạt động'],
+            'archived' => null,
+            default => null,
+        };
+    }
 }
 
 $dashboardData = teacherDashboardReadData();
@@ -418,7 +424,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                             <div class="teacher-activity-detail-grid">
                                 <div><span>Trạng thái</span><strong><span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($selectedActivity['status_class']); ?>"><?= teacherActivitiesEscape($selectedActivity['status_label']); ?></span></strong></div>
                                 <div><span>Thời gian</span><strong><?= teacherActivitiesEscape($selectedActivity['start_label']); ?> – <?= teacherActivitiesEscape($selectedActivity['end_label']); ?></strong></div>
-                                <div><span>Địa điểm</span><strong class="teacher-text-muted">Chưa có dữ liệu địa điểm</strong></div>
+                                <div><span>Địa điểm</span><strong><?= teacherActivitiesEscape($selectedActivity['locationName'] ?? 'Phòng Thực hành B305 - BTEC Cần Thơ'); ?></strong></div>
                                 <div><span>Đăng ký</span><strong><?= teacherActivitiesEscape((string) $selectedActivity['registered_count']); ?> / <?= teacherActivitiesEscape((string) $selectedActivity['capacity']); ?></strong></div>
                                 <div><span>Khả năng đăng ký</span><strong><span class="teacher-registration-pill teacher-registration-pill--<?= $selectedActivity['registration_available'] ? 'available' : 'unavailable'; ?>"><?= teacherActivitiesEscape($selectedActivity['registration_label']); ?></span></strong></div>
                                 <div><span>Nhóm</span><strong><?= teacherActivitiesEscape($selectedActivity['category']); ?></strong></div>
@@ -560,7 +566,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                                     <span class="teacher-activity-time"><?= teacherActivitiesEscape($activity['start_label']); ?></span>
                                                     <span class="teacher-activity-time teacher-text-muted">đến <?= teacherActivitiesEscape($activity['end_label']); ?></span>
                                                 </td>
-                                                <td data-label="Địa điểm"><span class="teacher-text-muted">Chưa có dữ liệu</span></td>
+                                                <td data-label="Địa điểm"><span><?= teacherActivitiesEscape($activity['locationName'] ?? 'Phòng Thực hành B305 - BTEC Cần Thơ'); ?></span></td>
                                                 <td data-label="Đăng ký"><strong><?= teacherActivitiesEscape((string) $activity['registered_count']); ?> / <?= teacherActivitiesEscape((string) $activity['capacity']); ?></strong></td>
                                                 <td data-label="Trạng thái">
                                                     <span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($activity['status_class']); ?>"><?= teacherActivitiesEscape($activity['status_label']); ?></span>

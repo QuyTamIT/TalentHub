@@ -51,9 +51,11 @@ final class TeacherActivityService
     }
 
     /** @param array{title:string,category:string,startAt:DateTimeImmutable,endAt:DateTimeImmutable,capacity:int} $input */
-    public function create(string $teacherId, string $schoolId, array $input): void
+    public function create(string $teacherId, string $schoolId, array $input): string
     {
-        $this->repository->create($teacherId, $schoolId, self::uuid(), $this->payload($input));
+        $id = self::uuid();
+        $this->repository->create($teacherId, $schoolId, $id, $this->payload($input));
+        return $id;
     }
 
     /** @param array{title:string,category:string,startAt:DateTimeImmutable,endAt:DateTimeImmutable,capacity:int} $input */
@@ -146,8 +148,8 @@ final class TeacherActivityService
         return [
             'title' => $title,
             'category' => $category,
-            'startAt' => $input['startAt']->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
-            'endAt' => $input['endAt']->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+            'startAt' => $input['startAt']->format('Y-m-d H:i:s'),
+            'endAt' => $input['endAt']->format('Y-m-d H:i:s'),
             'capacity' => $capacity,
         ];
     }

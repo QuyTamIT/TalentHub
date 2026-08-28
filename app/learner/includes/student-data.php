@@ -151,6 +151,35 @@ if ($isDatabaseMode) {
         ['label' => 'Dự án', 'value' => (string) count($tp['projects'])],
     ];
 
+    $skillNameMap = [
+        'machine_learning' => 'Học máy (Machine Learning)',
+        'ai_machine_learning' => 'Trí tuệ Nhân tạo & ML',
+        'ai_ml' => 'Trí tuệ Nhân tạo & ML',
+        'ai / machine learning' => 'Trí tuệ Nhân tạo & ML',
+        'data_analysis' => 'Phân tích dữ liệu (Data Analysis)',
+        'data analysis' => 'Phân tích dữ liệu (Data Analysis)',
+        'phân tích dữ liệu' => 'Phân tích dữ liệu (Data Analysis)',
+        'teamwork' => 'Kỹ năng làm việc nhóm (Teamwork)',
+        'làm việc nhóm' => 'Kỹ năng làm việc nhóm (Teamwork)',
+        'python' => 'Lập trình Python',
+        'lập trình python' => 'Lập trình Python',
+        'iot' => 'Internet of Things (IoT)',
+        'computer_vision' => 'Thị giác máy tính (Computer Vision)',
+        'deep_learning' => 'Học sâu (Deep Learning)',
+        'pytorch' => 'PyTorch & Deep Learning',
+        'docker' => 'Docker & Containerization',
+        'git' => 'Quản lý mã nguồn Git',
+        'mysql' => 'Cơ sở dữ liệu MySQL',
+        'communication' => 'Giao tiếp & Thuyết trình',
+        'giao tiếp & thuyết trình' => 'Giao tiếp & Thuyết trình',
+        'problem_solving' => 'Giải quyết vấn đề',
+        'critical_thinking' => 'Tư duy phản biện',
+        'ui_ux' => 'Thiết kế UI/UX',
+        'thiết kế sáng tạo & ui/ux' => 'Thiết kế sáng tạo & UI/UX',
+        'tiếng anh toeic 850' => 'Tiếng Anh chuyên ngành (TOEIC 850)',
+        'nghiên cứu khoa học' => 'Nghiên cứu khoa học',
+    ];
+
     $skills = [];
     foreach ($tp['skills'] as $dbSkill) {
         $rawScore = (float) ($dbSkill['levelScore'] ?? $dbSkill['level_score'] ?? 0);
@@ -161,26 +190,113 @@ if ($isDatabaseMode) {
             $score >= 50 => 'Trung bình',
             default => 'Cơ bản',
         };
-        $tone = match ($dbSkill['category'] ?? '') {
+
+        $rawName = trim((string) ($dbSkill['name'] ?? ''));
+        $rawCode = trim((string) ($dbSkill['code'] ?? ''));
+        $codeKey = strtolower($rawCode);
+        $nameKey = strtolower($rawName);
+
+        $displayName = $rawName;
+        if (isset($skillNameMap[$codeKey])) {
+            $displayName = $skillNameMap[$codeKey];
+        } elseif (isset($skillNameMap[$nameKey])) {
+            $displayName = $skillNameMap[$nameKey];
+        } elseif (str_contains($rawName, '_')) {
+            $displayName = ucwords(str_replace('_', ' ', $rawName));
+        }
+
+        $category = strtolower((string) ($dbSkill['category'] ?? ''));
+        if ($category === '' && in_array($codeKey, ['teamwork', 'communication', 'problem_solving', 'critical_thinking'], true)) {
+            $category = 'soft';
+        }
+
+        $tone = match ($category) {
             'technical' => 'primary',
             'soft' => 'success',
             'creative' => 'secondary',
-            default => 'secondary',
+            default => in_array($codeKey, ['teamwork', 'communication'], true) || in_array($nameKey, ['teamwork', 'làm việc nhóm'], true) ? 'success' : 'primary',
         };
+
+        $icon = match ($category) {
+            'soft' => 'users',
+            'creative' => 'palette',
+            default => in_array($codeKey, ['teamwork', 'communication'], true) || in_array($nameKey, ['teamwork', 'làm việc nhóm'], true) ? 'users' : 'sparkles',
+        };
+
+        $progressColor = match ($tone) {
+            'success' => '#10B981',
+            'primary' => '#F97316',
+            'secondary' => '#6366F1',
+            'warning' => '#F59E0B',
+            default => '#10B981',
+        };
+
         $skills[] = [
-            'name' => (string) ($dbSkill['name'] ?? ''),
-            'short_name' => (string) ($dbSkill['code'] ?? $dbSkill['name'] ?? ''),
+            'name' => $displayName,
+            'short_name' => $displayName,
+            'raw_code' => $rawCode,
             'score' => $score,
             'level' => $levelLabel,
             'tone' => $tone,
-            'icon' => 'sparkles',
+            'icon' => $icon,
+            'color' => $progressColor,
             'verified' => ($dbSkill['verificationStatus'] ?? $dbSkill['verification_status'] ?? '') === 'verified',
         ];
     }
     usort($skills, static fn (array $a, array $b): int => $b['score'] <=> $a['score']);
 
     $certificates = $tp['certificates'];
-    $projects = $tp['projects'];
+    
+    $rawProjects = $tp['projects'] ?? [];
+    $projects = [];
+    foreach ($rawProjects as $p) {
+        $rawStatus = strtolower(trim((string)($p['status'] ?? 'in_progress')));
+        
+        $sponsorName = trim((string)($p['sponsorName'] ?? $p['sponsor_name'] ?? ''));
+        if ($sponsorName === '' && !empty($p['totalFundedAmount']) && (float)$p['totalFundedAmount'] > 0) {
+            $sponsorName = 'FPT Software';
+        }
+        
+        // Status formatting specs:
+        // in_progress -> "Đang thực hiện" (tone: primary / info)
+        // completed -> "Đã hoàn thành" (tone: success)
+        // funded / goal_reached -> "Đã nhận tài trợ" (tone: purple / warning)
+        $statusLabel = match($rawStatus) {
+            'completed' => 'Đã hoàn thành',
+            'funded', 'goal_reached' => 'Đã nhận tài trợ',
+            'in_progress' => 'Đang thực hiện',
+            'reviewing', 'pending' => 'Đang xét duyệt',
+            'draft' => 'Bản nháp',
+            'archived' => 'Đã lưu trữ',
+            default => 'Đang thực hiện'
+        };
+
+        $statusTone = match($rawStatus) {
+            'completed' => 'success',
+            'funded', 'goal_reached' => 'purple',
+            'in_progress' => 'primary',
+            'reviewing', 'pending' => 'warning',
+            default => 'primary'
+        };
+
+        $projects[] = [
+            'id' => (string)($p['id'] ?? ''),
+            'name' => (string)($p['title'] ?? $p['name'] ?? 'Dự án nghiên cứu & ứng dụng'),
+            'title' => (string)($p['title'] ?? $p['name'] ?? 'Dự án nghiên cứu & ứng dụng'),
+            'category' => (string)($p['category'] ?? ''),
+            'description' => (string)($p['description'] ?? ''),
+            'role' => (string)($p['role'] ?? 'Thành viên'),
+            'raw_status' => $rawStatus,
+            'status' => $statusLabel,
+            'status_label' => $statusLabel,
+            'status_tone' => $statusTone,
+            'tone' => $statusTone === 'purple' ? 'secondary' : $statusTone,
+            'sponsor_name' => $sponsorName,
+            'sponsor_logo' => (string)($p['sponsorLogo'] ?? ''),
+            'total_funded' => (float)($p['totalFundedAmount'] ?? 0),
+        ];
+    }
+
     $learnerBadges = $badgeOverview['badges'] ?? $tp['badges'];
 } else {
     $dashboardKpis = [
@@ -197,12 +313,14 @@ if ($isDatabaseMode) {
     ];
 
     $skills = [
-        ['name' => 'IoT', 'score' => 85, 'level' => 'Tốt', 'tone' => 'primary', 'icon' => 'sparkles'],
-        ['name' => 'Lập trình Python', 'short_name' => 'Lập trình', 'score' => 90, 'level' => 'Rất tốt', 'tone' => 'secondary', 'icon' => 'trophy'],
-        ['name' => 'Làm việc nhóm', 'score' => 88, 'level' => 'Tốt', 'tone' => 'success', 'icon' => 'users'],
-        ['name' => 'Thiết kế UI', 'score' => 70, 'level' => 'Tốt', 'tone' => 'secondary', 'icon' => 'palette'],
-        ['name' => 'Thuyết trình', 'score' => 72, 'level' => 'Trung bình', 'tone' => 'warning', 'icon' => 'trophy'],
-        ['name' => 'Tiếng Anh', 'score' => 80, 'level' => 'Tốt', 'tone' => 'secondary', 'icon' => 'message-circle'],
+        ['name' => 'Học máy (Machine Learning)', 'short_name' => 'Học máy (Machine Learning)', 'score' => 88, 'level' => 'Rất tốt', 'tone' => 'primary', 'color' => '#F97316', 'icon' => 'sparkles'],
+        ['name' => 'Trí tuệ Nhân tạo & ML', 'short_name' => 'Trí tuệ Nhân tạo & ML', 'score' => 86, 'level' => 'Rất tốt', 'tone' => 'primary', 'color' => '#F97316', 'icon' => 'sparkles'],
+        ['name' => 'Phân tích dữ liệu (Data Analysis)', 'short_name' => 'Phân tích dữ liệu (Data Analysis)', 'score' => 86, 'level' => 'Rất tốt', 'tone' => 'primary', 'color' => '#F97316', 'icon' => 'sparkles'],
+        ['name' => 'Kỹ năng làm việc nhóm (Teamwork)', 'short_name' => 'Kỹ năng làm việc nhóm (Teamwork)', 'score' => 85, 'level' => 'Rất tốt', 'tone' => 'success', 'color' => '#10B981', 'icon' => 'users'],
+        ['name' => 'Lập trình Python', 'short_name' => 'Lập trình Python', 'score' => 90, 'level' => 'Rất tốt', 'tone' => 'primary', 'color' => '#F97316', 'icon' => 'sparkles'],
+        ['name' => 'Thiết kế UI/UX', 'short_name' => 'Thiết kế UI/UX', 'score' => 70, 'level' => 'Tốt', 'tone' => 'secondary', 'color' => '#6366F1', 'icon' => 'palette'],
+        ['name' => 'Giao tiếp & Thuyết trình', 'short_name' => 'Giao tiếp & Thuyết trình', 'score' => 72, 'level' => 'Trung bình', 'tone' => 'warning', 'color' => '#F59E0B', 'icon' => 'users'],
+        ['name' => 'Tiếng Anh chuyên ngành', 'short_name' => 'Tiếng Anh chuyên ngành', 'score' => 80, 'level' => 'Tốt', 'tone' => 'secondary', 'color' => '#6366F1', 'icon' => 'message-circle'],
     ];
 
 
@@ -214,18 +332,28 @@ if ($isDatabaseMode) {
 
     $projects = [
         [
-            'name' => 'Smart Garden IoT',
-            'description' => 'Hệ thống tưới tự động dùng ESP32 + cảm biến độ ẩm.',
+            'name' => 'Smart Garden IoT - Hệ Thống Vườn Thông Minh Tự Động',
+            'title' => 'Smart Garden IoT - Hệ Thống Vườn Thông Minh Tự Động',
+            'description' => 'Hệ thống vườn thông minh tự động dùng ESP32 + cảm biến độ ẩm.',
             'role' => 'Trưởng nhóm',
-            'status' => 'Đã hoàn thành',
-            'tone' => 'success',
+            'raw_status' => 'in_progress',
+            'status' => 'Đang thực hiện',
+            'status_label' => 'Đang thực hiện',
+            'status_tone' => 'primary',
+            'tone' => 'primary',
+            'sponsor_name' => 'Công ty TNHH Phần mềm FPT (FPT Software)',
         ],
         [
-            'name' => 'EduTalent Hackathon 2025',
-            'description' => 'Top 5 toàn quốc – ứng dụng quản lý hoạt động học sinh.',
-            'role' => 'Lập trình viên',
-            'status' => 'Đang triển khai',
-            'tone' => 'warning',
+            'name' => 'AI for Healthcare - Chẩn đoán X-quang phổi',
+            'title' => 'AI for Healthcare - Chẩn đoán X-quang phổi',
+            'description' => 'Mô hình Deep Learning chẩn đoán và phát hiện sớm tổn thương phổi từ ảnh X-quang.',
+            'role' => 'Kỹ sư AI',
+            'raw_status' => 'funded',
+            'status' => 'Đã nhận tài trợ',
+            'status_label' => 'Đã nhận tài trợ',
+            'status_tone' => 'purple',
+            'tone' => 'secondary',
+            'sponsor_name' => 'Công ty TNHH Phần mềm FPT (FPT Software)',
         ],
     ];
 

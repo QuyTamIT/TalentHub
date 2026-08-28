@@ -61,7 +61,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 $oversight = $service->internshipOversight($userId);
-$teachers = $service->teachers($userId, 100, 0);
+$rawTeachers = $service->teachers($userId, 100, 0);
+
+// Filter out generic admin accounts like "Ban Giám hiệu" from teacher list so only real mentors appear
+$uniqueTeachers = [];
+$seenTeacherNames = [];
+foreach ($rawTeachers as $t) {
+    $tName = trim((string) ($t['fullName'] ?? ''));
+    if ($tName === '' || isset($seenTeacherNames[$tName]) || str_contains($tName, 'Ban Giám hiệu') || str_contains($tName, 'FPT Software')) {
+        continue;
+    }
+    $seenTeacherNames[$tName] = true;
+    $uniqueTeachers[] = $t;
+}
+$teachers = $uniqueTeachers;
 
 // Filter and prioritize active named teachers
 usort($teachers, function($a, $b) {

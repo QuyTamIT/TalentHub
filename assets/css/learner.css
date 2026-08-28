@@ -2125,7 +2125,82 @@
 .learner-checkin-api-state[data-tone="success"] { color: var(--success); }
 .learner-checkin-api-state[data-tone="warn"] { color: var(--warning); }
 .learner-checkin-api-state[data-tone="error"] { color: var(--danger); }
-.learner-checkin-history-action { width: 100%; margin-top: 10px; }
+.learner-checkin-history-action { width: 100%; margin-top: 12px; }
+
+/* ==========================================================================
+   Learner Check-in Success Alert Box (Emerald / Mint Aesthetic)
+   ========================================================================== */
+.learner-checkin-success-box {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: #ECFDF5;
+    border: 1.5px solid #34D399;
+    border-radius: 12px;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.12);
+    margin-top: 14px;
+    width: 100%;
+    text-align: left;
+    box-sizing: border-box;
+    animation: learnerCheckinSuccessIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.learner-checkin-success-box__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    border-radius: 50%;
+    background: #D1FAE5;
+    color: #059669;
+    box-shadow: 0 2px 6px rgba(5, 150, 105, 0.15);
+}
+
+.learner-checkin-success-box__icon svg {
+    width: 26px;
+    height: 26px;
+    stroke: #059669;
+}
+
+.learner-checkin-success-box__content {
+    flex: 1;
+    min-width: 0;
+}
+
+.learner-checkin-success-box__title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #065F46;
+    margin: 0 0 2px 0;
+    line-height: 1.3;
+}
+
+.learner-checkin-success-box__desc {
+    font-size: 13px;
+    font-weight: 500;
+    color: #047857;
+    margin: 0;
+    line-height: 1.45;
+}
+
+.learner-checkin-success-box__desc strong {
+    font-weight: 700;
+    color: #065F46;
+}
+
+@keyframes learnerCheckinSuccessIn {
+    0% {
+        opacity: 0;
+        transform: translateY(6px) scale(0.97);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
 
 .learner-checkin-section-heading { align-items: flex-end; }
 .learner-checkin-section-heading > a { color: var(--primary); font-size: 0.68rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
@@ -2457,6 +2532,31 @@
     color: var(--success);
     background: var(--accent-light);
     border-radius: var(--radius-full);
+}
+
+.learner-evaluation-classification--excellent {
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.12);
+}
+
+.learner-evaluation-classification--good {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.12);
+}
+
+.learner-evaluation-classification--fair {
+    color: #0284c7;
+    background: rgba(2, 132, 199, 0.12);
+}
+
+.learner-evaluation-classification--average {
+    color: #d97706;
+    background: rgba(217, 119, 6, 0.12);
+}
+
+.learner-evaluation-classification--improvement {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
 }
 
 .learner-evaluation-ranking {

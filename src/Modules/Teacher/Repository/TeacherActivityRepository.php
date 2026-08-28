@@ -45,6 +45,9 @@ final class TeacherActivityRepository
                 a.endAt,
                 a.capacity,
                 a.status,
+                COALESCE(ad.locationName, ad.locationAddress, 'Phòng Thực hành B305 - BTEC Cần Thơ') AS locationName,
+                ad.description,
+                ad.summary,
                 (
                     SELECT COUNT(*)
                     FROM activity_registrations ar
@@ -52,6 +55,7 @@ final class TeacherActivityRepository
                       AND ar.status IN ('approved', 'attended')
                 ) AS registered_count
             FROM activities a
+            LEFT JOIN activity_details ad ON ad.activityId = a.id
             WHERE a.createdByTeacherId = :teacherId
         ";
         $params = ['teacherId' => $teacherId];
@@ -80,6 +84,9 @@ final class TeacherActivityRepository
                 a.endAt,
                 a.capacity,
                 a.status,
+                COALESCE(ad.locationName, ad.locationAddress, 'Phòng Thực hành B305 - BTEC Cần Thơ') AS locationName,
+                ad.description,
+                ad.summary,
                 (
                     SELECT COUNT(*)
                     FROM activity_registrations ar
@@ -87,6 +94,7 @@ final class TeacherActivityRepository
                       AND ar.status IN ('approved', 'attended')
                 ) AS registered_count
             FROM activities a
+            LEFT JOIN activity_details ad ON ad.activityId = a.id
             WHERE a.createdByTeacherId = :teacherId
               AND a.id = :activityId
             LIMIT 1

@@ -55,6 +55,34 @@ $currentRoute = '/app/learner/ai-recommendations.php';
                         </section>
                     </div>
                     <section class="learner-roadmap-insights" data-roadmap-insights aria-label="Nhận định phát triển"></section>
+
+                    <!-- Job Matching % and Skill Gap Analysis -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 24px;">
+                        <section class="learner-card" aria-labelledby="job-matching-title">
+                            <div class="learner-roadmap-section-heading" style="margin-bottom: 16px;">
+                                <div>
+                                    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #4F46E5; text-transform: uppercase; letter-spacing: 0.05em;"><?= learner_icon('briefcase', 16); ?> Khớp nối nghề nghiệp</span>
+                                    <h2 id="job-matching-title" style="font-size: 1.1rem; font-weight: 700; margin: 4px 0 0 0; color: #0F172A;">ĐỘ PHÙ HỢP CÔNG VIỆC TỪ AI</h2>
+                                </div>
+                            </div>
+                            <div data-roadmap-job-matching style="display: flex; flex-direction: column; gap: 14px;">
+                                <p style="color: #64748B; font-size: 0.85rem;">Đang tổng hợp dữ liệu đánh giá...</p>
+                            </div>
+                        </section>
+
+                        <section class="learner-card" aria-labelledby="skill-gaps-title">
+                            <div class="learner-roadmap-section-heading" style="margin-bottom: 16px;">
+                                <div>
+                                    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #D97706; text-transform: uppercase; letter-spacing: 0.05em;"><?= learner_icon('sparkles', 16); ?> Phân tích khoảng cách kỹ năng</span>
+                                    <h2 id="skill-gaps-title" style="font-size: 1.1rem; font-weight: 700; margin: 4px 0 0 0; color: #0F172A;">KỸ NĂNG CẦN BỔ SUNG TIẾP THEO</h2>
+                                </div>
+                            </div>
+                            <div data-roadmap-skill-gaps style="display: flex; flex-direction: column; gap: 14px;">
+                                <p style="color: #64748B; font-size: 0.85rem;">Đang phân tích kỹ năng...</p>
+                            </div>
+                        </section>
+                    </div>
+
                     <div class="learner-roadmap__workspace">
                         <section class="learner-card learner-roadmap-plan" aria-labelledby="roadmap-plan-title">
                             <div class="learner-roadmap-section-heading"><div><span>Kế hoạch hành động</span><h2 id="roadmap-plan-title">LỘ TRÌNH PHÁT TRIỂN 90 NGÀY</h2></div><span data-roadmap-overall-progress></span></div>

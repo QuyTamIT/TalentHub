@@ -6,7 +6,7 @@ require_once __DIR__ . '/includes/activity-data.php';
 
 $pageTitle = 'Tổng quan';
 $currentRoute = '/app/learner/index.php';
-$dashboardSkills = array_slice($skills, 0, 4);
+$dashboardSkills = array_slice($skills, 0, 6);
 $onboarding = $GLOBALS['learner_page_context']['onboarding'] ?? ['required' => false];
 $onboardingPending = ($onboarding['required'] ?? false) === true
     && ($onboarding['status'] ?? '') === 'pending';
@@ -144,11 +144,22 @@ if ($dashboardExperienceHours === '') {
                                 <p class="learner-empty-state">Chưa có dữ liệu kỹ năng.</p>
                             <?php else: ?>
                                 <?php foreach ($dashboardSkills as $skill): ?>
-                                    <?php $skillScoreClamped = max(0, min(100, (int) ($skill['score'] ?? 0))); ?>
+                                    <?php 
+                                        $skillScoreClamped = max(0, min(100, (int) ($skill['score'] ?? 0))); 
+                                        $skillTone = learner_escape($skill['tone'] ?? 'primary');
+                                        $skillColor = $skill['color'] ?? match ($skillTone) {
+                                            'success' => '#10B981',
+                                            'primary' => '#F97316',
+                                            'secondary' => '#6366F1',
+                                            'warning' => '#F59E0B',
+                                            default => '#10B981'
+                                        };
+                                        $displayName = $skill['name'] ?? $skill['short_name'] ?? 'Kỹ năng';
+                                    ?>
                                     <div class="learner-skill-row">
-                                        <span class="learner-skill-row__icon learner-tone--<?= learner_escape($skill['tone']); ?>"><?= learner_icon($skill['icon'], 16); ?></span>
+                                        <span class="learner-skill-row__icon learner-tone--<?= $skillTone; ?>" style="background: <?= $skillColor; ?>18; color: <?= $skillColor; ?>;"><?= learner_icon($skill['icon'] ?? 'sparkles', 16); ?></span>
                                         <div class="learner-skill-row__name">
-                                            <strong><?= learner_escape($skill['short_name'] ?? $skill['name']); ?></strong>
+                                            <strong><?= learner_escape($displayName); ?></strong>
                                             <span class="learner-skill-row__meta">
                                                 <?= learner_escape($skill['level'] ?? 'Đang cập nhật'); ?>
                                                 <?php if ($skill['verified'] ?? false): ?>
@@ -156,10 +167,10 @@ if ($dashboardExperienceHours === '') {
                                                 <?php endif; ?>
                                             </span>
                                         </div>
-                                        <div class="learner-progress" role="progressbar" aria-label="<?= learner_escape($skill['name']); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= $skillScoreClamped; ?>">
-                                            <span class="learner-progress--<?= learner_escape($skill['tone']); ?>" style="--learner-progress: <?= $skillScoreClamped; ?>%;"></span>
+                                        <div class="learner-progress" role="progressbar" aria-label="<?= learner_escape($displayName); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= $skillScoreClamped; ?>" style="position: relative; width: 100%; height: 8px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
+                                            <span class="learner-progress--<?= $skillTone; ?>" style="--learner-progress: <?= $skillScoreClamped; ?>%; width: <?= $skillScoreClamped; ?>%; background-color: <?= $skillColor; ?>; display: block; height: 100%; border-radius: inherit; transition: width 0.55s ease;"></span>
                                         </div>
-                                        <span class="learner-skill-row__score"><?= $skillScoreClamped; ?>/100</span>
+                                        <span class="learner-skill-row__score" style="font-weight: 700; color: #0F172A; min-width: 50px; text-align: right;"><?= $skillScoreClamped; ?>/100</span>
                                     </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>

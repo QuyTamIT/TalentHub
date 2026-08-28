@@ -2,7 +2,7 @@
 (function initLearnerAiRoadmap(global) {
     'use strict';
 
-    const READY_STATES = new Set(['ready-model', 'fallback-rule']);
+    const READY_STATES = new Set(['ready-model', 'fallback-rule', 'ready']);
 
     function presentationState(payload) {
         const state = typeof payload?.state === 'string' ? payload.state : '';
@@ -10,8 +10,8 @@
         if (state === 'pending') return 'pending';
         if (state === 'consent_required') return 'consent-required';
         if (state === 'insufficient_data') return 'insufficient-data';
-        if (state === 'ready_model') return 'ready-model';
-        if (state === 'fallback_rule') return 'fallback-rule';
+        if (state === 'ready_model' || state === 'ready-model' || state === 'ready') return 'ready-model';
+        if (state === 'fallback_rule' || state === 'fallback-rule') return 'fallback-rule';
         return 'source-error';
     }
 
@@ -180,6 +180,8 @@
             version: root.querySelector('[data-roadmap-version-select]'),
             changed: root.querySelector('[data-roadmap-version-changes]'),
             feedbackStatus: root.querySelector('[data-roadmap-feedback-status]'),
+            jobMatching: root.querySelector('[data-roadmap-job-matching]'),
+            skillGaps: root.querySelector('[data-roadmap-skill-gaps]'),
         };
 
         function hide(node, value) { if (node) node.hidden = value; }
@@ -223,6 +225,8 @@
             set(nodes.freshness, `Cập nhật: ${displayDate(model.generated_at)}`);
             renderAlternatives(model.alternative_directions);
             renderInsights(model.insights);
+            renderJobMatching(model.job_matching);
+            renderSkillGaps(model.skill_gaps);
             renderPhases(model.phases);
             renderNextActions(model.nextActions);
             renderActivities(model.activities);
@@ -237,6 +241,94 @@
             const complete = integer(model?.progress?.completed_tasks);
             const total = integer(model?.progress?.total_tasks);
             set(nodes.overallProgress, `${complete}/${total} nhiệm vụ hoàn thành`);
+        }
+
+        function renderJobMatching(items) {
+            if (!nodes.jobMatching) return;
+            clear(nodes.jobMatching);
+            const list = Array.isArray(items) ? items : [];
+            for (const item of list) {
+                const card = element('div', 'learner-job-match-card');
+                card.style.cssText = 'padding: 14px 16px; border: 1px solid #E2E8F0; border-radius: 10px; background: #FFFFFF; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);';
+                
+                const header = element('div', '');
+                header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;';
+                
+                const title = element('strong', '', text(item.role, 'Vị trí nghề nghiệp'));
+                title.style.cssText = 'font-size: 0.92rem; color: #0F172A; font-weight: 700;';
+                
+                const badge = element('span', '', `${integer(item.match_percent)}% Phù hợp`);
+                const color = text(item.color, '#4F46E5');
+                badge.style.cssText = `font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 9999px; background: ${color}15; color: ${color}; border: 1px solid ${color}40;`;
+                
+                header.append(title, badge);
+
+                const barWrap = element('div', '');
+                barWrap.style.cssText = 'width: 100%; height: 6px; background: #F1F5F9; border-radius: 9999px; overflow: hidden;';
+                const bar = element('div', '');
+                bar.style.cssText = `width: ${integer(item.match_percent)}%; height: 100%; background: ${color}; border-radius: 9999px; transition: width 0.6s ease;`;
+                barWrap.appendChild(bar);
+
+                const reasonsList = element('ul', '');
+                reasonsList.style.cssText = 'margin: 0; padding-left: 18px; font-size: 0.78rem; color: #475569; display: flex; flex-direction: column; gap: 3px; line-height: 1.4;';
+                for (const r of (Array.isArray(item.reasons) ? item.reasons : [])) {
+                    const li = element('li', '', text(r));
+                    reasonsList.appendChild(li);
+                }
+
+                card.append(header, barWrap, reasonsList);
+                nodes.jobMatching.appendChild(card);
+            }
+        }
+
+        function renderSkillGaps(items) {
+            if (!nodes.skillGaps) return;
+            clear(nodes.skillGaps);
+            const list = Array.isArray(items) ? items : [];
+            for (const item of list) {
+                const card = element('div', 'learner-skill-gap-card');
+                card.style.cssText = 'padding: 14px 16px; border: 1px solid #E2E8F0; border-radius: 10px; background: #FFFFFF; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);';
+                
+                const header = element('div', '');
+                header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;';
+                
+                const cat = element('strong', '', text(item.category, 'Nhóm kỹ năng'));
+                cat.style.cssText = 'font-size: 0.9rem; color: #0F172A; font-weight: 700;';
+                
+                const pri = element('span', '', text(item.priority, 'Ưu tiên'));
+                pri.style.cssText = 'font-size: 0.7rem; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: #FEF3C7; color: #B45309; border: 1px solid #FDE68A;';
+                
+                header.append(cat, pri);
+
+                const currentBox = element('div', '');
+                currentBox.style.cssText = 'font-size: 0.78rem; color: #334155;';
+                const curLabel = element('div', '', 'Đã có: ');
+                curLabel.style.cssText = 'font-weight: 600; color: #16A34A; margin-bottom: 3px; font-size: 0.75rem;';
+                const curTags = element('div', '');
+                curTags.style.cssText = 'display: flex; flex-wrap: wrap; gap: 5px;';
+                for (const sk of (Array.isArray(item.current_skills) ? item.current_skills : [])) {
+                    const tag = element('span', '', text(sk));
+                    tag.style.cssText = 'padding: 2px 6px; background: #DCFCE7; color: #15803D; border-radius: 4px; font-size: 0.72rem;';
+                    curTags.appendChild(tag);
+                }
+                currentBox.append(curLabel, curTags);
+
+                const recBox = element('div', '');
+                recBox.style.cssText = 'font-size: 0.78rem; color: #334155; margin-top: 2px;';
+                const recLabel = element('div', '', 'Cần bổ sung tiếp theo: ');
+                recLabel.style.cssText = 'font-weight: 600; color: #4F46E5; margin-bottom: 3px; font-size: 0.75rem;';
+                const recTags = element('div', '');
+                recTags.style.cssText = 'display: flex; flex-wrap: wrap; gap: 5px;';
+                for (const sk of (Array.isArray(item.recommended_skills) ? item.recommended_skills : [])) {
+                    const tag = element('span', '', text(sk));
+                    tag.style.cssText = 'padding: 2px 6px; background: #EEF2FF; color: #4338CA; border-radius: 4px; font-size: 0.72rem; border: 1px dashed #C7D2FE;';
+                    recTags.appendChild(tag);
+                }
+                recBox.append(recLabel, recTags);
+
+                card.append(header, currentBox, recBox);
+                nodes.skillGaps.appendChild(card);
+            }
         }
 
         function renderAlternatives(items) {

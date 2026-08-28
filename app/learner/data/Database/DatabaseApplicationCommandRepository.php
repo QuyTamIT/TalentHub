@@ -265,7 +265,7 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
 
     private function hasDuplicate(string $postId, string $studentId): bool
     {
-        $statement = $this->pdo->prepare('SELECT id FROM internship_applications WHERE postId = :postId AND studentId = :studentId LIMIT 1' . $this->lockSuffix());
+        $statement = $this->pdo->prepare('SELECT id FROM internship_applications WHERE postId = :postId AND studentId = :studentId AND status NOT IN (\'rejected\', \'declined\', \'withdrawn\', \'cancelled\') LIMIT 1' . $this->lockSuffix());
         $statement->execute(['postId' => $postId, 'studentId' => $studentId]);
         return $statement->fetchColumn() !== false;
     }

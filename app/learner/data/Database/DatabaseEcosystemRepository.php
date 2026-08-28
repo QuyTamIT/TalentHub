@@ -34,10 +34,25 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
                 );
             }
             if ($type === 'enterprise') {
-                return array_map(
-                    [$this, 'normalizeEnterprise'],
-                    $this->fetchAll('partners.enterprise', self::ENTERPRISES_SQL, $this->enterpriseVisibilityParameters())
-                );
+                $rows = $this->fetchAll('partners.enterprise', self::ENTERPRISES_SQL, $this->enterpriseVisibilityParameters());
+                $unique = [];
+                $seenNames = [];
+                foreach ($rows as $row) {
+                    $id = (string) ($row['id'] ?? '');
+                    $normName = mb_strtolower(trim((string) ($row['name'] ?? '')));
+                    $cleanBrand = trim((string) preg_replace('/\s*\(.*?\)\s*/', '', $normName));
+                    if ($id !== '' && isset($unique[$id])) {
+                        continue;
+                    }
+                    if ($cleanBrand !== '' && isset($seenNames[$cleanBrand])) {
+                        continue;
+                    }
+                    $unique[$id] = $this->normalizeEnterprise($row);
+                    if ($cleanBrand !== '') {
+                        $seenNames[$cleanBrand] = true;
+                    }
+                }
+                return array_values($unique);
             }
             if ($type !== null) {
                 return [];

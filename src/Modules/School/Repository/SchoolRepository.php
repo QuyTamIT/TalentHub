@@ -149,11 +149,14 @@ final class SchoolRepository
     public function listTeachers(string $schoolId, int $limit = 50, int $offset = 0): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT tp.id, tp.userId, tp.isSchoolAdmin, tp.specialization, tp.phone, tp.bio,
+            'SELECT tp.id, tp.userId, tp.isSchoolAdmin, 
+                    COALESCE(tp.specialization, \'Giảng viên chuyên ngành\') AS specialization, 
+                    tp.phone, tp.bio,
                     u.email, u.fullName, u.status AS userStatus
              FROM teacher_profiles tp
              JOIN users u ON u.id = tp.userId
-             WHERE tp.schoolId = :schoolId
+             WHERE tp.schoolId = :schoolId AND u.status = \'active\'
+             GROUP BY u.fullName, tp.id, tp.userId, tp.isSchoolAdmin, tp.specialization, tp.phone, tp.bio, u.email, u.status
              ORDER BY u.fullName ASC
              LIMIT ' . (int) $limit . ' OFFSET ' . (int) $offset
         );
@@ -706,20 +709,43 @@ final class SchoolRepository
         return $metrics;
     }
 
-    /** @return list<array{name:string,count:int}> */
+    /** @return list<array{name:string,count:int,category?:string}> */
     public function verifiedSkillDistribution(string $schoolId): array
     {
+        $categoryLabels = [
+            'technical'   => 'Kỹ thuật & Công nghệ',
+            'tech'        => 'Kỹ thuật & Công nghệ',
+            'academic'    => 'Logic - Toán học',
+            'business'    => 'Kinh doanh & Quản lý',
+            'creative'    => 'Nghệ thuật & Sáng tạo',
+            'soft'        => 'Ngoại ngữ & Giao tiếp',
+            'soft_skill'  => 'Ngoại ngữ & Giao tiếp',
+            'sports'      => 'Thể chất & Đời sống',
+        ];
+
         $stmt = $this->pdo->prepare(
-            "SELECT sk.category AS name, COUNT(*) AS skillCount
+            "SELECT sk.category AS rawCategory, COUNT(DISTINCT ss.id) AS skillCount
              FROM student_skills ss
              INNER JOIN skills sk ON sk.id = ss.skillId
              INNER JOIN student_profiles sp ON sp.id = ss.studentId
              INNER JOIN classes c ON c.id = sp.classId
              WHERE c.schoolId = :schoolId AND ss.verificationStatus = 'verified'
-             GROUP BY sk.category ORDER BY skillCount DESC, sk.category ASC"
+             GROUP BY sk.category ORDER BY skillCount DESC"
         );
         $stmt->execute(['schoolId' => $schoolId]);
-        return array_map(static fn(array $row): array => ['name' => (string) $row['name'], 'count' => (int) $row['skillCount']], $stmt->fetchAll());
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        $result = [];
+        foreach ($rows as $row) {
+            $cat = (string) $row['rawCategory'];
+            $label = $categoryLabels[$cat] ?? ucfirst($cat);
+            $result[] = [
+                'name'     => $label,
+                'category' => $cat,
+                'count'    => (int) $row['skillCount'],
+            ];
+        }
+        return $result;
     }
 
     /**

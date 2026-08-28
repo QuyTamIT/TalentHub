@@ -160,7 +160,7 @@ final class SchoolCredentialService
             'issuer_name' => (string) ($item['issuer_name'] ?? $schoolName),
             'icon_key' => (string) ($item['icon_key'] ?? 'award'),
             'status' => $status,
-            'status_label' => $this->statusLabel($status, $analysisCompleted),
+            'status_label' => $this->statusLabel($status, $analysisCompleted, $progressPercent),
             'match_score' => $matchScore,
             'reason' => (string) ($item['reason'] ?? ($ready
                 ? 'Được chọn từ bộ tiêu chí chính thức của nhà trường.'
@@ -200,7 +200,7 @@ final class SchoolCredentialService
                 $firstCurrent = $current;
                 $firstTarget = $target;
             }
-            $ratios[] = $target <= 0 ? 1.0 : min(1.0, $current / $target);
+            $ratios[] = $target <= 0.0 ? 1.0 : min(1.0, max(0.0, $current / $target));
         }
         if ($ratios === []) {
             return ['eligible' => false, 'percent' => 0, 'current' => 0.0, 'target' => 0.0];
@@ -232,8 +232,11 @@ final class SchoolCredentialService
         return $items;
     }
 
-    private function statusLabel(string $status, bool $analysisCompleted): string
+    private function statusLabel(string $status, bool $analysisCompleted, int $progressPercent = 0): string
     {
+        if ($progressPercent > 0 && $progressPercent < 100 && !in_array($status, ['achieved', 'issued', 'eligible'], true)) {
+            return 'Đang tích lũy';
+        }
         return match ($status) {
             'achieved' => 'Đã đạt',
             'issued' => 'Đã cấp',

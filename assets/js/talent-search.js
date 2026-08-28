@@ -177,7 +177,18 @@ function initTalentSearchModule() {
         const skills = rawSkills.map(s => typeof s === 'string' ? s : (s.name || s.skillName || ''));
         const school = raw.schoolName || raw.school || '';
         const classYear = raw.className || raw.class_year || '';
-        const eduLevel = raw.studyStatus || raw.education_level || '';
+        let eduLevel = raw.studyStatus || raw.education_level || '';
+        if (/thpt|trung học phổ thông/i.test(school) || /^(10|11|12)/.test(classYear)) {
+            eduLevel = 'THPT';
+        } else if (/thcs|trung học cơ sở/i.test(school) || /^(6|7|8|9)/.test(classYear)) {
+            eduLevel = 'THCS';
+        } else if (/cao đẳng|btec/i.test(school)) {
+            eduLevel = 'Cao đẳng';
+        } else if (/đại học|university/i.test(school)) {
+            eduLevel = 'Đại học';
+        } else if (!eduLevel || eduLevel === 'active') {
+            eduLevel = 'Sinh viên';
+        }
         const headline = raw.headline || '';
         const majorField = raw.major_field || (headline ? extractMajorFromHeadline(headline) : (isEconomicSector ? 'Kinh tế & Quản trị' : 'Công nghệ thông tin'));
         const expHours = typeof raw.experienceHours === 'number' ? raw.experienceHours : (raw.experience_hours || (skills.length * 15 + 20));
@@ -230,6 +241,8 @@ function initTalentSearchModule() {
         const params = new URLSearchParams();
         if (currentSearchQuery) params.append('search', currentSearchQuery);
         if (activeFilters.school) params.append('school', activeFilters.school);
+        if (activeFilters.eduLevel) params.append('education_level', activeFilters.eduLevel);
+        if (activeFilters.majorField) params.append('major_field', activeFilters.majorField);
         if (selectedSkillsSet.size > 0) {
             params.append('skills', Array.from(selectedSkillsSet).join(','));
         }
@@ -366,21 +379,61 @@ function initTalentSearchModule() {
                 if (!hasAllSelected) return false;
             }
 
-            if (activeFilters.eduLevel && talent.education_level !== activeFilters.eduLevel) {
-                return false;
+            if (activeFilters.eduLevel) {
+                const req = activeFilters.eduLevel.toLowerCase();
+                const candLevel = (talent.education_level || '').toLowerCase();
+                const candSchool = (talent.school || '').toLowerCase();
+                const candClass = (talent.class_year || '').toLowerCase();
+                let match = false;
+                if (req === 'thpt') {
+                    match = candLevel.includes('thpt') || candLevel.includes('phổ thông') || candSchool.includes('thpt') || /^(10|11|12)/.test(candClass);
+                } else if (req === 'thcs') {
+                    match = candLevel.includes('thcs') || candLevel.includes('cơ sở') || candSchool.includes('thcs') || /^(6|7|8|9)/.test(candClass);
+                } else if (req === 'cao đẳng') {
+                    match = candLevel.includes('cao đẳng') || candSchool.includes('cao đẳng') || candSchool.includes('btec');
+                } else if (req === 'đại học') {
+                    match = candLevel.includes('đại học') || candSchool.includes('đại học');
+                } else {
+                    match = candLevel.includes(req) || candSchool.includes(req) || candClass.includes(req);
+                }
+                if (!match) return false;
             }
 
-            if (activeFilters.school && talent.school !== activeFilters.school) {
+            if (activeFilters.school && talent.school !== activeFilters.school && !talent.school.includes(activeFilters.school)) {
                 return false;
             }
 
             if (activeFilters.majorField) {
-                const reqMajor = activeFilters.majorField.toLowerCase();
-                const candMajor = talent.major_field.toLowerCase();
+                const req = activeFilters.majorField.toLowerCase();
+                const candMajor = (talent.major_field || '').toLowerCase();
                 const candHead = (talent.headline || '').toLowerCase();
-                if (!candMajor.includes(reqMajor) && !candHead.includes(reqMajor) && !reqMajor.includes(candMajor)) {
-                    return false;
+                const candClass = (talent.class_year || '').toLowerCase();
+                const candSkills = talent.skills.map(s => s.toLowerCase());
+
+                let match = false;
+                if (req.includes('ai') || req.includes('dữ liệu') || req.includes('data')) {
+                    match = candHead.includes('ai') || candHead.includes('trí tuệ nhân tạo') || candHead.includes('data') || candClass.includes('ai')
+                        || candSkills.some(s => /python|machine learning|ai|pytorch|computer vision|phân tích dữ liệu|data/i.test(s));
+                } else if (req.includes('marketing') || req.includes('kinh doanh') || req.includes('qtkd')) {
+                    match = candHead.includes('marketing') || candHead.includes('kinh doanh') || candMajor.includes('kinh doanh') || candMajor.includes('marketing')
+                        || candSkills.some(s => /marketing|sáng tạo nội dung|nghiên cứu thị trường|seo|analytics|quản trị/i.test(s));
+                } else if (req.includes('logistics') || req.includes('kho vận') || req.includes('chuỗi cung ứng')) {
+                    match = candHead.includes('logistics') || candHead.includes('kho vận') || candMajor.includes('logistics')
+                        || candSkills.some(s => /logistics|kho vận|cung ứng|đơn hàng/i.test(s));
+                } else if (req.includes('tài chính') || req.includes('kế toán') || req.includes('ngân hàng')) {
+                    match = candHead.includes('tài chính') || candHead.includes('kế toán') || candMajor.includes('tài chính')
+                        || candSkills.some(s => /tài chính|kế toán|powerbi|excel/i.test(s));
+                } else if (req.includes('an toàn') || req.includes('security') || req.includes('bảo mật')) {
+                    match = candHead.includes('an toàn') || candHead.includes('security') || candHead.includes('bảo mật')
+                        || candSkills.some(s => /an toàn|security|bảo mật|an ninh/i.test(s));
+                } else if (req.includes('công nghệ') || req.includes('phần mềm') || req.includes('lập trình') || req.includes('web')) {
+                    match = candHead.includes('công nghệ') || candHead.includes('phần mềm') || candHead.includes('lập trình') || candHead.includes('web') || candHead.includes('ai') || candClass.includes('btec')
+                        || candSkills.some(s => /react|node|python|javascript|typescript|html|css|java|php|docker|git|sql|ai/i.test(s));
+                } else {
+                    match = candMajor.includes(req) || candHead.includes(req) || req.includes(candMajor);
                 }
+
+                if (!match) return false;
             }
 
             if (activeFilters.matchScore > 0 && talent.match_score < activeFilters.matchScore) {

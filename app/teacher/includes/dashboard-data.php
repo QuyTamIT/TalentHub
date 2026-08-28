@@ -209,8 +209,8 @@ function teacherDashboardReadData(): array
 
     $data['dbStatus'] = [
         'connected' => true,
-        'label' => 'Đọc từ database',
-        'message' => 'Đã kết nối MySQL và chỉ sử dụng SELECT trong phạm vi Giáo viên.',
+        'label' => '',
+        'message' => '',
     ];
 
     $profile = is_array($context['profile']) ? $context['profile'] : null;

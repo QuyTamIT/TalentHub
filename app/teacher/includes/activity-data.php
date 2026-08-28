@@ -19,7 +19,7 @@ function teacherActivitiesDate(?string $value): ?DateTimeImmutable
     }
 
     try {
-        return (new DateTimeImmutable($value, new DateTimeZone('UTC')))->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'));
+        return new DateTimeImmutable($value, new DateTimeZone('Asia/Ho_Chi_Minh'));
     } catch (Throwable $exception) {
         return null;
     }

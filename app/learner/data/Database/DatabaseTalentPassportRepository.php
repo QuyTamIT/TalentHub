@@ -79,13 +79,32 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
                     <<<'SQL'
                         SELECT p.id, p.title, p.category, p.description, p.projectUrl,
                                p.startAt, p.endAt, p.status, p.createdAt, p.updatedAt,
-                               pm.role, pm.contribution
+                               pm.role, pm.contribution,
+                               (
+                                   SELECT e.name 
+                                   FROM project_sponsorships ps 
+                                   JOIN enterprises e ON e.id = ps.enterpriseId 
+                                   WHERE ps.projectId = p.id AND ps.status = 'paid' 
+                                   ORDER BY ps.amount DESC, ps.createdAt DESC 
+                                   LIMIT 1
+                               ) AS sponsorName,
+                               (
+                                   SELECT SUM(ps.amount)
+                                   FROM project_sponsorships ps
+                                   WHERE ps.projectId = p.id AND ps.status = 'paid'
+                               ) AS totalFundedAmount
                         FROM projects p
                         INNER JOIN project_members pm ON pm.projectId = p.id
                         WHERE pm.studentId = :student_id
+                           OR pm.studentId IN (SELECT sp.id FROM student_profiles sp WHERE sp.userId = :student_id_alt1)
+                           OR pm.studentId IN (SELECT sp.userId FROM student_profiles sp WHERE sp.id = :student_id_alt2)
                         ORDER BY p.createdAt DESC
                     SQL,
-                    ['student_id' => $studentId],
+                    [
+                        'student_id' => $studentId,
+                        'student_id_alt1' => $studentId,
+                        'student_id_alt2' => $studentId,
+                    ],
                 );
             }
         }
@@ -363,8 +382,42 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             try {
                 $projects = $this->fetchAll(
                     'projects',
-                    'SELECT p.*, pm.role FROM projects p INNER JOIN project_members pm ON pm.projectId = p.id WHERE pm.studentId = :student_id ORDER BY p.createdAt DESC',
-                    ['student_id' => $studentId]
+                    <<<'SQL'
+                    SELECT p.id, p.title, p.category, p.description, p.fundingGoal, p.projectUrl, p.startAt, p.endAt, p.status,
+                           pm.role, pm.contribution,
+                           (
+                               SELECT e.name 
+                               FROM project_sponsorships ps 
+                               JOIN enterprises e ON e.id = ps.enterpriseId 
+                               WHERE ps.projectId = p.id AND ps.status = 'paid' 
+                               ORDER BY ps.amount DESC, ps.createdAt DESC 
+                               LIMIT 1
+                           ) AS sponsorName,
+                           (
+                               SELECT e.logoUrl 
+                               FROM project_sponsorships ps 
+                               JOIN enterprises e ON e.id = ps.enterpriseId 
+                               WHERE ps.projectId = p.id AND ps.status = 'paid' 
+                               ORDER BY ps.amount DESC, ps.createdAt DESC 
+                               LIMIT 1
+                           ) AS sponsorLogo,
+                           (
+                               SELECT SUM(ps.amount)
+                               FROM project_sponsorships ps
+                               WHERE ps.projectId = p.id AND ps.status = 'paid'
+                           ) AS totalFundedAmount
+                    FROM projects p 
+                    INNER JOIN project_members pm ON pm.projectId = p.id 
+                    WHERE pm.studentId = :student_id 
+                       OR pm.studentId IN (SELECT sp.id FROM student_profiles sp WHERE sp.userId = :student_id_alt1)
+                       OR pm.studentId IN (SELECT sp.userId FROM student_profiles sp WHERE sp.id = :student_id_alt2)
+                    ORDER BY p.createdAt DESC
+                    SQL,
+                    [
+                        'student_id' => $studentId,
+                        'student_id_alt1' => $studentId,
+                        'student_id_alt2' => $studentId,
+                    ]
                 );
             } catch (Throwable) {
                 $capabilities['projects'] = false;
