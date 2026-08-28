@@ -428,10 +428,21 @@ final class RoadmapService
     /** @return array<string,mixed> */
     private function unavailable(?string $reason = null): array
     {
+        $state = 'provider_unavailable';
+        if (in_array($reason, ['consent_required', 'consent_missing', 'consent_revoked', 'consent_changed'], true)) {
+            $state = 'consent_required';
+        } elseif (in_array($reason, ['data_insufficient', 'insufficient_assessments', 'missing_assessment', 'empty_snapshot', 'insufficient_data'], true)) {
+            $state = 'data_insufficient';
+        } elseif ($reason === 'pending') {
+            $state = 'pending';
+        } elseif ($reason === 'stale_model') {
+            $state = 'stale_model';
+        }
+
         $response = [
             'contract_version' => RoadmapAnalysis::CONTRACT_VERSION,
             'capability' => 'roadmap',
-            'state' => 'ai_unavailable',
+            'state' => $state,
             'freshness_status' => 'unavailable',
             'analysis_origin' => null,
             'evidence' => [],

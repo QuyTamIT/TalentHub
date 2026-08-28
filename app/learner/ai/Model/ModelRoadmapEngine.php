@@ -51,7 +51,9 @@ final class ModelRoadmapEngine implements RoadmapEngine
                 $request,
                 new BoundProviderAttemptAuthorizer($this->consentGate, $studentId, $input, $context),
             );
-        } catch (\Throwable) {
+        } catch (\TalentHub\Learner\Ai\Contracts\ProviderUnavailableException $e) {
+            throw new RoadmapModelUnavailable($e->reason());
+        } catch (\Throwable $e) {
             throw new RoadmapModelUnavailable('provider_unavailable');
         }
         if (!$response->isSuccess()) {

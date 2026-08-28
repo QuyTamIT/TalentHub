@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $dashboardPath = Join-Path $repositoryRoot 'app/learner/index.php'
@@ -6,9 +6,9 @@ $studentDataPath = Join-Path $repositoryRoot 'app/learner/includes/student-data.
 $stylesheetPath = Join-Path $repositoryRoot 'assets/css/learner.css'
 $heroImagePath = Join-Path $repositoryRoot 'assets/images/learner/learner-journey-hero-v3.png'
 
-$dashboard = Get-Content -LiteralPath $dashboardPath -Raw
-$studentData = Get-Content -LiteralPath $studentDataPath -Raw
-$stylesheet = Get-Content -LiteralPath $stylesheetPath -Raw
+$dashboard = Get-Content -LiteralPath $dashboardPath -Raw -Encoding UTF8
+$studentData = Get-Content -LiteralPath $studentDataPath -Raw -Encoding UTF8
+$stylesheet = Get-Content -LiteralPath $stylesheetPath -Raw -Encoding UTF8
 
 function Assert-Contract {
     param(

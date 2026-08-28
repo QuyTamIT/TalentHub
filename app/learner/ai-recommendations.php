@@ -84,7 +84,7 @@ $assetVersion = static function (string $relativePath): string {
                         <aside class="learner-card learner-roadmap-next" aria-labelledby="roadmap-next-title"><h2 id="roadmap-next-title">Việc nên làm tiếp theo</h2><div class="learner-roadmap-next__list" data-roadmap-next-actions></div><button class="learner-btn learner-btn--primary" type="button" data-roadmap-continue>Tiếp tục lộ trình</button></aside>
                     </div>
                     <section class="learner-card learner-roadmap-plan" aria-labelledby="roadmap-plan-title">
-                        <div class="learner-roadmap-section-heading"><div><span>Định hướng theo từng chặng</span><h2 id="roadmap-plan-title">ROADMAP PHÁT TRIỂN 90 NGÀY</h2></div><span class="learner-roadmap-progress-label" data-roadmap-overall-progress></span></div>
+                        <div class="learner-roadmap-section-heading"><div><span>Định hướng theo từng chặng</span><h2 id="roadmap-plan-title">LỘ TRÌNH PHÁT TRIỂN 90 NGÀY</h2></div><span class="learner-roadmap-progress-label" data-roadmap-overall-progress></span></div>
                         <div class="learner-roadmap-progress" aria-hidden="true"><span data-roadmap-progress-bar></span></div>
                         <div class="learner-roadmap-phases learner-roadmap-timeline" data-roadmap-phases></div>
                     </section>
@@ -94,10 +94,11 @@ $assetVersion = static function (string $relativePath): string {
                             <div class="learner-roadmap-highlight-row learner-roadmap-highlight-row--strength"><strong>Điểm mạnh</strong><div data-roadmap-strengths></div></div>
                             <div class="learner-roadmap-highlight-row learner-roadmap-highlight-row--improvement"><strong>Cần cải thiện</strong><div data-roadmap-improvements></div></div>
                             <div class="learner-roadmap-highlight-row learner-roadmap-highlight-row--trend"><strong>Xu hướng</strong><div data-roadmap-trends></div></div>
-                            <div class="learner-roadmap-analysis-details" data-roadmap-analysis-details hidden><h3>Hướng phát triển</h3><div data-roadmap-potential-paths></div><h3>Giả thuyết tăng trưởng</h3><div data-roadmap-growth-hypotheses></div></div>
+                            <div class="learner-roadmap-analysis-details" data-roadmap-analysis-details hidden><h3>Hướng phát triển ưu tiên</h3><div data-roadmap-potential-paths></div><h3>Giả thuyết tăng trưởng</h3><div data-roadmap-growth-hypotheses></div></div>
                         </article>
                     </section>
                     <div class="learner-visually-hidden" data-roadmap-insights hidden aria-hidden="true"></div>
+                    <div data-ai-result-list></div>
                     <details class="learner-card learner-roadmap-secondary learner-roadmap-credentials-disclosure">
                         <summary>Huy hiệu &amp; chứng chỉ phù hợp</summary>
                         <section class="learner-school-credential-section learner-school-credential-section--roadmap" aria-labelledby="roadmap-credentials-title">
@@ -126,5 +127,6 @@ $assetVersion = static function (string $relativePath): string {
     <script src="../../assets/js/learner-api.js?v=<?= $assetVersion('assets/js/learner-api.js'); ?>"></script>
     <script src="../../assets/js/learner.js?v=<?= $assetVersion('assets/js/learner.js'); ?>"></script>
     <script src="../../assets/js/learner-ai-roadmap.js?v=<?= $assetVersion('assets/js/learner-ai-roadmap.js'); ?>"></script>
+    <script src="../../assets/js/learner-recommendations.js?v=<?= $assetVersion('assets/js/learner-recommendations.js'); ?>"></script>
 </body>
 </html>

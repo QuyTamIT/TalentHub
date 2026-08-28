@@ -8319,7 +8319,7 @@ body.learner-sidebar-open {
 }
 
 .learner-page-ai .learner-roadmap__freshness {
-    color: var(--success);
+    color: var(--accent);
     background: #F0FDF4;
     border: 1px solid #BBF7D0;
     border-radius: 8px;
@@ -8527,7 +8527,7 @@ body.learner-sidebar-open {
 
 .learner-page-ai .learner-roadmap-phase.is-completed .learner-roadmap-phase__number {
     color: #FFFFFF;
-    background: var(--success);
+    background: var(--accent);
 }
 
 .learner-page-ai .learner-roadmap-phase__summary strong,
@@ -8604,8 +8604,8 @@ body.learner-sidebar-open {
 }
 
 .learner-page-ai .learner-roadmap-task.is-completed .learner-roadmap-task__control {
-    background: var(--success);
-    border-color: var(--success);
+    background: var(--accent);
+    border-color: var(--accent);
 }
 
 .learner-page-ai .learner-roadmap-task strong,
@@ -8710,7 +8710,7 @@ body.learner-sidebar-open {
     font-size: 14px;
 }
 
-.learner-page-ai .learner-roadmap-highlight-row--strength > strong { color: var(--success); }
+.learner-page-ai .learner-roadmap-highlight-row--strength > strong { color: var(--accent); }
 .learner-page-ai .learner-roadmap-highlight-row--improvement > strong { color: var(--warning); }
 .learner-page-ai .learner-roadmap-highlight-row--trend > strong { color: var(--secondary); }
 

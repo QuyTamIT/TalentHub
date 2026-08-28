@@ -86,11 +86,11 @@
         if (state === 'not_generated') return 'not-generated';
         if (state === 'pending') return 'pending';
         if (state === 'consent_required') return 'consent-required';
-        if (state === 'insufficient_data') return 'insufficient-data';
+        if (state === 'data_insufficient' || state === 'insufficient_data') return 'insufficient-data';
+        if (state === 'provider_unavailable') return 'source-error';
         if (state === 'ready_model') return 'ready-model';
         if (state === 'stale_model') return 'stale-model';
-        if (state === 'ready_rule') return 'fallback-rule';
-        if (state === 'fallback_rule') return 'fallback-rule';
+        if (state === 'ready_rule' || state === 'fallback_rule') return 'fallback-rule';
         return 'source-error';
     }
 
