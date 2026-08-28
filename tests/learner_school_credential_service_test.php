@@ -81,6 +81,25 @@ $credentialRepo = new class implements SchoolCredentialRepository {
     {
         return $this->roadmapCompleted;
     }
+
+    public function latestRoadmapAnalysis(string $studentId): ?array
+    {
+        return [
+            'executive_summary' => 'Bạn có tư duy phân tích và tiềm năng phát triển dự án công nghệ.',
+            'primary_direction' => ['label' => 'Công nghệ ứng dụng'],
+            'talent_map' => [
+                ['field' => 'Tư duy logic', 'score' => 0.88],
+                ['field' => 'Làm việc nhóm', 'score' => 0.76],
+            ],
+            'strengths' => [],
+            'improvements' => [],
+            'trend_signals' => [['direction' => 'up', 'label' => 'Mức độ tham gia dự án đang tăng']],
+            'insights' => [
+                ['category' => 'strength', 'title' => 'Tư duy phân tích sắc bén'],
+                ['category' => 'improvement', 'title' => 'Cần chủ động chia sẻ ý tưởng'],
+            ],
+        ];
+    }
 };
 
 $statistics = new class implements StatisticsRepository {
@@ -122,6 +141,10 @@ $result = (new SchoolCredentialService(
 
 $assert($result['ready'] === true, 'four completed assessment families mark recommendations ready');
 $assert($result['analysis_completed'] === true, 'AI roadmap completion is exposed');
+$assert($result['roadmap_analysis']['executive_summary'] === 'Bạn có tư duy phân tích và tiềm năng phát triển dự án công nghệ.', 'completed roadmap analysis is exposed to the learner dashboard');
+$assert($result['roadmap_analysis']['strengths'][0]['title'] === 'Tư duy phân tích sắc bén', 'strength insights backfill an empty extended strengths list');
+$assert($result['roadmap_analysis']['improvements'][0]['title'] === 'Cần chủ động chia sẻ ý tưởng', 'improvement insights backfill an empty extended improvements list');
+$assert((float) $result['roadmap_analysis']['talent_map'][0]['score'] === 0.88, 'stored AI talent-map scores remain unchanged for presentation normalization');
 $assert($result['school']['name'] === 'THPT Demo', 'school issuer context is returned');
 $assert($result['badges'][0]['status'] === 'achieved', 'awarded badge is marked achieved');
 $assert($result['badges'][1]['status'] === 'recommended', 'matched catalog badge is recommended');

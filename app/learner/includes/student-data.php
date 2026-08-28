@@ -132,31 +132,25 @@ if ($isDatabaseMode) {
         $phase9DashboardError = true;
     }
     $level = $badgeOverview['level'] ?? \TalentHub\Learner\Data\Domain\LevelProgression::fromHours($confirmedHours);
-    $lifetimeFacts = $badgeOverview['facts'] ?? [
-        'confirmed_experience_hours' => $confirmedHours,
-        'attended_activity_count' => count($tp['experience']['confirmed_entries'] ?? []),
-        'submitted_assessment_type_count' => count($tp['assessment_results'] ?? []),
-        'published_teacher_evaluation_count' => count($tp['teacher_evaluations'] ?? []),
-    ];
     $awardedBadgeCount = count($badgeOverview['badges'] ?? $tp['badges']);
 
-    $dashboardKpis = [
-        ['label' => 'Cấp độ hiện tại', 'value' => (string) ($level['name'] ?? 'Explorer'), 'change' => '', 'icon' => 'star'],
-        ['label' => 'Huy hiệu đạt được', 'value' => (string) $awardedBadgeCount, 'change' => '', 'icon' => 'trophy'],
-        ['label' => 'Giờ trải nghiệm', 'value' => $hoursValue, 'change' => '', 'icon' => 'clock'],
-        ['label' => 'Hoạt động đã tham gia', 'value' => (string) ($lifetimeFacts['attended_activity_count'] ?? 0), 'change' => '', 'icon' => 'chart'],
-    ];
-
-    $profileKpis = [
-        ['label' => 'Điểm năng lực', 'value' => 'Chưa có dữ liệu'],
-        ['label' => 'Huy hiệu', 'value' => (string) count($tp['badges'])],
-        ['label' => 'Dự án', 'value' => (string) count($tp['projects'])],
-    ];
-
+    $verifiedSkillScores = [];
+    $allSkillScores = [];
     $skills = [];
     foreach ($tp['skills'] as $dbSkill) {
+        $skillStatus = (string) ($dbSkill['skillStatus'] ?? $dbSkill['skill_status'] ?? 'active');
+        $verificationStatus = (string) ($dbSkill['verificationStatus'] ?? $dbSkill['verification_status'] ?? '');
+        if ($skillStatus !== 'active' || $verificationStatus === 'rejected') {
+            continue;
+        }
+
         $rawScore = (float) ($dbSkill['levelScore'] ?? $dbSkill['level_score'] ?? 0);
         $score = max(0, min(100, (int) round($rawScore)));
+        $allSkillScores[] = $score;
+        if ($verificationStatus === 'verified') {
+            $verifiedSkillScores[] = $score;
+        }
+
         $levelLabel = match (true) {
             $score >= 85 => 'Rất tốt',
             $score >= 70 => 'Tốt',
@@ -165,9 +159,9 @@ if ($isDatabaseMode) {
         };
         $tone = match ($dbSkill['category'] ?? '') {
             'technical' => 'primary',
-            'soft' => 'success',
-            'creative' => 'secondary',
-            default => 'secondary',
+            'soft' => 'secondary',
+            'creative' => 'warning',
+            default => 'success',
         };
         $skills[] = [
             'name' => (string) ($dbSkill['name'] ?? ''),
@@ -176,20 +170,37 @@ if ($isDatabaseMode) {
             'level' => $levelLabel,
             'tone' => $tone,
             'icon' => 'sparkles',
-            'verified' => ($dbSkill['verificationStatus'] ?? $dbSkill['verification_status'] ?? '') === 'verified',
+            'verified' => $verificationStatus === 'verified',
         ];
     }
     usort($skills, static fn (array $a, array $b): int => $b['score'] <=> $a['score']);
+
+    $competencyScores = $verifiedSkillScores !== [] ? $verifiedSkillScores : $allSkillScores;
+    $competencyScore = $competencyScores === []
+        ? null
+        : (int) round(array_sum($competencyScores) / count($competencyScores));
+    $competencyValue = $competencyScore === null ? 'Chưa có dữ liệu' : $competencyScore . '/100';
+
+    $dashboardKpis = [
+        ['id' => 'competency', 'label' => 'Điểm năng lực', 'value' => $competencyValue, 'icon' => 'star', 'tone' => 'primary'],
+        ['id' => 'experience', 'label' => 'Giờ trải nghiệm', 'value' => $hoursValue, 'icon' => 'clock', 'tone' => 'secondary'],
+        ['id' => 'badges', 'label' => 'Huy hiệu đạt được', 'value' => (string) $awardedBadgeCount, 'icon' => 'trophy', 'tone' => 'success'],
+    ];
+
+    $profileKpis = [
+        ['label' => 'Điểm năng lực', 'value' => $competencyValue],
+        ['label' => 'Huy hiệu', 'value' => (string) count($tp['badges'])],
+        ['label' => 'Dự án', 'value' => (string) count($tp['projects'])],
+    ];
 
     $certificates = $tp['certificates'];
     $projects = $tp['projects'];
     $learnerBadges = $badgeOverview['badges'] ?? $tp['badges'];
 } else {
     $dashboardKpis = [
-        ['label' => 'Cấp độ hiện tại', 'value' => 'Explorer', 'change' => '', 'icon' => 'star'],
-        ['label' => 'Huy hiệu đạt được', 'value' => '12', 'change' => '+2', 'icon' => 'trophy'],
-        ['label' => 'Giờ trải nghiệm', 'value' => '64h', 'change' => '+18h', 'icon' => 'clock'],
-        ['label' => 'Hoạt động đã tham gia', 'value' => '8', 'change' => '+3', 'icon' => 'chart'],
+        ['id' => 'competency', 'label' => 'Điểm năng lực', 'value' => '92/100', 'icon' => 'star', 'tone' => 'primary'],
+        ['id' => 'experience', 'label' => 'Giờ trải nghiệm', 'value' => '64h', 'icon' => 'clock', 'tone' => 'secondary'],
+        ['id' => 'badges', 'label' => 'Huy hiệu đạt được', 'value' => '12', 'icon' => 'trophy', 'tone' => 'success'],
     ];
 
     $profileKpis = [
@@ -245,6 +256,7 @@ $schoolCredentialError = false;
 $schoolCredentialData = [
     'ready' => false,
     'analysis_completed' => false,
+    'roadmap_analysis' => null,
     'completed_test_count' => 0,
     'required_test_count' => 4,
     'school' => null,
@@ -264,6 +276,7 @@ if ($isDatabaseMode) {
     $schoolCredentialData = [
         'ready' => true,
         'analysis_completed' => true,
+        'roadmap_analysis' => null,
         'completed_test_count' => 4,
         'required_test_count' => 4,
         'school' => ['id' => 'school-demo-nguyen-du', 'name' => $studentMock['school']],
@@ -277,6 +290,65 @@ if ($isDatabaseMode) {
     ];
     $schoolCredentialData['badges'] = array_values(array_filter($schoolCredentialData['featured'], static fn (array $item): bool => $item['kind'] === 'badge'));
     $schoolCredentialData['certificates'] = array_values(array_filter($schoolCredentialData['featured'], static fn (array $item): bool => $item['kind'] === 'certificate'));
+}
+
+$dashboardSkillsFromAssessment = false;
+if ($isDatabaseMode && $skills === []) {
+    $roadmapAnalysis = is_array($schoolCredentialData['roadmap_analysis'] ?? null)
+        ? $schoolCredentialData['roadmap_analysis']
+        : null;
+    $skillAnalysis = is_array($aiCapabilityProfile) ? $aiCapabilityProfile : $roadmapAnalysis;
+    $talentMap = is_array($skillAnalysis['talent_map'] ?? null) ? $skillAnalysis['talent_map'] : [];
+    $skillTones = ['primary', 'secondary', 'success', 'warning'];
+
+    foreach ($talentMap as $index => $talent) {
+        if (!is_array($talent)) {
+            continue;
+        }
+        $name = trim((string) ($talent['field'] ?? $talent['label'] ?? $talent['name'] ?? ''));
+        if ($name === '' || !is_numeric($talent['score'] ?? null)) {
+            continue;
+        }
+        $score = (float) $talent['score'];
+        if ($score <= 1) {
+            $score *= 100;
+        }
+        $score = max(0, min(100, (int) round($score)));
+        $skills[] = [
+            'name' => $name,
+            'short_name' => $name,
+            'score' => $score,
+            'level' => match (true) {
+                $score >= 85 => 'Rất tốt',
+                $score >= 70 => 'Tốt',
+                $score >= 50 => 'Khá',
+                default => 'Đang phát triển',
+            },
+            'tone' => $skillTones[$index % count($skillTones)],
+            'icon' => 'sparkles',
+            'verified' => false,
+            'source' => 'ai_assessment',
+        ];
+    }
+
+    if ($skills !== []) {
+        usort($skills, static fn (array $left, array $right): int => $right['score'] <=> $left['score']);
+        $dashboardSkillsFromAssessment = true;
+        $competencyScore = (int) round(array_sum(array_column($skills, 'score')) / count($skills));
+        $competencyValue = $competencyScore . '/100';
+        foreach ($dashboardKpis as &$dashboardKpi) {
+            if (($dashboardKpi['id'] ?? '') === 'competency') {
+                $dashboardKpi['value'] = $competencyValue;
+            }
+        }
+        unset($dashboardKpi);
+        foreach ($profileKpis as &$profileKpi) {
+            if (($profileKpi['label'] ?? '') === 'Điểm năng lực') {
+                $profileKpi['value'] = $competencyValue;
+            }
+        }
+        unset($profileKpi);
+    }
 }
 
 $activityCategories = ['Tất cả', 'Kỹ thuật', 'Kinh doanh', 'Sáng tạo', 'Cộng đồng'];
