@@ -13,8 +13,10 @@ use TalentHub\Learner\Ai\Domain\RecommendationContext;
 use TalentHub\Learner\Ai\Domain\RecommendationInput;
 use TalentHub\Learner\Ai\Domain\RoadmapAnalysis;
 use TalentHub\Learner\Ai\Evaluation\RecommendationEvaluator;
-use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
 use TalentHub\Learner\Ai\Provider\ProviderRetryAfterException;
+use TalentHub\Learner\Ai\Provider\StrictAiUnavailable;
+use TalentHub\Learner\Ai\Quality\StrictAiReadinessGate;
+use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
 use TalentHub\Learner\Ai\Validation\RoadmapAnalysisValidator;
 
 final class ModelRoadmapEngine implements RoadmapEngine
@@ -35,6 +37,7 @@ final class ModelRoadmapEngine implements RoadmapEngine
         if (!$this->config->enabled() || $studentId === '') {
             throw new RoadmapModelUnavailable('model_disabled');
         }
+        $this->assertStrictReadiness($input, $context, $studentId);
         if (!$this->rateLimiter->acquire($studentId)->allowed()) {
             if ($context->shouldPropagateProviderRetry()) {
                 throw new ProviderRetryAfterException('rate_limited', 60);
@@ -96,5 +99,25 @@ final class ModelRoadmapEngine implements RoadmapEngine
             ? (int) $counts['assessments']
             : count($input->payload()['assessments'] ?? []);
         return $assessmentCount >= 4 ? 'high' : 'low';
+    }
+
+    private function assertStrictReadiness(RecommendationInput $input, RecommendationContext $context, string $studentId): void
+    {
+        if (!$this->config->strictMode()) {
+            return;
+        }
+        $evidenceCount = count($input->evidenceReferences());
+        $signals = [
+            'snapshot_present' => $evidenceCount > 0,
+            'snapshot_evidence_count' => $evidenceCount,
+            'consent_ready' => true,
+            'required_scopes' => $context->allowedScopes(),
+            'allowed_scopes' => $context->allowedScopes(),
+        ];
+        StrictAiReadinessGate::create($this->config)->assertReady(
+            $studentId,
+            'roadmap.generate',
+            $signals,
+        );
     }
 }
