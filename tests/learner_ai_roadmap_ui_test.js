@@ -198,7 +198,7 @@ test('controller loads roadmap and reuses one in-flight refresh', async () => {
 test('DOM view renders the canonical model payload into semantic roadmap regions', () => {
   const { createDomView, buildRoadmapViewModel } = require(modulePath);
   class FakeNode {
-    constructor(tag = 'div') { this.tagName = tag.toUpperCase(); this.children = []; this.dataset = {}; this.attributes = {}; this.hidden = false; this.textContent = ''; }
+    constructor(tag = 'div') { this.tagName = tag.toUpperCase(); this.className = ''; this.children = []; this.dataset = {}; this.attributes = {}; this.style = { setProperty: (name, value) => { this[name] = value; } }; this.hidden = false; this.textContent = ''; }
     get firstChild() { return this.children[0] || null; }
     append(...nodes) { this.children.push(...nodes); }
     appendChild(node) { this.children.push(node); return node; }
@@ -213,14 +213,22 @@ test('DOM view renders the canonical model payload into semantic roadmap regions
     'talent-map', 'strengths', 'improvements', 'trends', 'potential-paths', 'growth-hypotheses',
   ];
   const nodes = Object.fromEntries(selectors.map((name) => [`[data-roadmap-${name}]`, new FakeNode()]));
-  const doc = { createElement: (tag) => new FakeNode(tag) };
+  const doc = { createElement: (tag) => new FakeNode(tag), createElementNS: (_namespace, tag) => new FakeNode(tag) };
   const rootNode = { ownerDocument: doc, querySelector: (selector) => nodes[selector] || null };
-  createDomView(rootNode).render('ready-model', buildRoadmapViewModel(payload()));
+  const radarPayload = payload();
+  radarPayload.talent_map.push({ field: 'Điều phối', score: 68, evidence_ref_ids: ['evaluation:coordination'] });
+  createDomView(rootNode).render('ready-model', buildRoadmapViewModel(radarPayload));
   assert.match(nodes['[data-roadmap-summary-text]'].textContent, /sản phẩm công nghệ/);
   assert.equal(nodes['[data-roadmap-phases]'].children.length, 3);
-  assert.equal(nodes['[data-roadmap-next-actions]'].children.length, 3);
+  assert.equal(nodes['[data-roadmap-next-actions]'].children.length, 1);
   assert.equal(nodes['[data-roadmap-activities]'].children.length, 1);
-  assert.equal(nodes['[data-roadmap-talent-map]'].children.length, 2);
+  assert.equal(nodes['[data-roadmap-talent-map]'].children.length, 1);
+  assert.equal(nodes['[data-roadmap-talent-map]'].children[0].tagName, 'SVG');
+  assert.equal(nodes['[data-roadmap-talent-map]'].children[0].attributes.role, 'img');
+  assert.match(nodes['[data-roadmap-talent-map]'].children[0].attributes['aria-label'], /Bản đồ năng khiếu/);
+  assert.match(nodes['[data-roadmap-phases]'].children[0].className, /is-current/);
+  assert.equal(nodes['[data-roadmap-phases]'].children[0].children.some((item) => item.textContent === 'Bạn đang ở đây'), true);
+  assert.equal(nodes['[data-roadmap-overall-progress]'].attributes['aria-valuenow'], '11');
   assert.equal(nodes['[data-roadmap-strengths]'].children.length, 1);
   assert.equal(nodes['[data-roadmap-improvements]'].children.length, 1);
   assert.equal(nodes['[data-roadmap-trends]'].children.length, 1);

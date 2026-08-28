@@ -252,6 +252,12 @@
             if (value !== undefined) node.textContent = String(value);
             return node;
         }
+
+        function svgElement(tag, attributes = {}) {
+            const node = doc.createElementNS('http://www.w3.org/2000/svg', tag);
+            for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
+            return node;
+        }
         function statusCopy(state) {
             return {
                 loading: 'Đang tải lộ trình AI.', 'not-generated': 'Chưa có lộ trình AI.', pending: 'AI đang tạo lộ trình.',
@@ -299,7 +305,14 @@
             renderHistory(model.version_history, model.version, model.changed_sections_from_previous);
             const complete = integer(model?.progress?.completed_tasks);
             const total = integer(model?.progress?.total_tasks);
-            set(nodes.overallProgress, `${complete}/${total} nhiệm vụ hoàn thành`);
+            set(nodes.overallProgress, `${complete}/${total} nội dung đã hoàn thành`);
+            nodes.overallProgress?.setAttribute('role', 'progressbar');
+            nodes.overallProgress?.setAttribute('aria-valuemin', '0');
+            nodes.overallProgress?.setAttribute('aria-valuemax', '100');
+            nodes.overallProgress?.setAttribute('aria-valuenow', String(model.overallPercent));
+            if (typeof nodes.overallProgress?.style?.setProperty === 'function') {
+                nodes.overallProgress.style.setProperty('--roadmap-progress', `${model.overallPercent}%`);
+            }
         }
 
         function evidenceTitle(record) {
@@ -309,17 +322,63 @@
 
         function renderCapabilityAnalysis(model) {
             clear(nodes.talentMap);
-            for (const item of model.talentMap) {
-                const row = element('article', 'learner-roadmap-capability__talent');
-                row.setAttribute('title', evidenceTitle(item));
-                row.append(element('strong', '', text(item?.field, 'Lĩnh vực')), element('span', '', `${Math.round(Number(item?.score) || 0)}%`));
-                nodes.talentMap?.appendChild(row);
-            }
+            if (model.talentMap.length >= 3) nodes.talentMap?.appendChild(renderTalentRadar(model.talentMap));
+            else nodes.talentMap?.appendChild(element('p', 'learner-roadmap-empty', 'Chưa đủ dữ liệu để vẽ bản đồ năng khiếu.'));
             renderTextRecords(nodes.strengths, model.strengths, 'Chưa có điểm mạnh đủ bằng chứng.');
             renderTextRecords(nodes.improvements, model.improvements, 'Chưa có điểm cần cải thiện đủ bằng chứng.');
             renderTextRecords(nodes.trends, model.trendSignals, 'Chưa có xu hướng đủ bằng chứng.', 'label');
             renderTextRecords(nodes.potentialPaths, model.potentialPaths, 'Chưa có hướng phát triển đủ bằng chứng.', 'label');
             renderTextRecords(nodes.growthHypotheses, model.growthHypotheses, 'Chưa có giả thuyết phát triển đủ bằng chứng.');
+        }
+
+        function renderTalentRadar(items) {
+            const safeItems = items.slice(0, 8);
+            const center = { x: 210, y: 145 };
+            const radius = 92;
+            const point = (index, distance) => {
+                const angle = -Math.PI / 2 + (Math.PI * 2 * index) / safeItems.length;
+                return { x: center.x + Math.cos(angle) * distance, y: center.y + Math.sin(angle) * distance };
+            };
+            const polygonPoints = (distance) => safeItems.map((_item, index) => {
+                const position = point(index, distance);
+                return `${position.x.toFixed(2)},${position.y.toFixed(2)}`;
+            }).join(' ');
+            const label = safeItems.map((item) => `${text(item?.field, 'Lĩnh vực')} ${item.score}%`).join(', ');
+            const svg = svgElement('svg', {
+                class: 'learner-roadmap-radar', viewBox: '0 0 420 300', role: 'img',
+                'aria-label': `Bản đồ năng khiếu: ${label}`,
+            });
+            svg.appendChild(svgElement('title', {}, 'Bản đồ năng khiếu'));
+            for (const scale of [1, 0.75, 0.5, 0.25]) {
+                svg.appendChild(svgElement('polygon', { class: 'learner-roadmap-radar__grid', points: polygonPoints(radius * scale) }));
+            }
+            for (let index = 0; index < safeItems.length; index += 1) {
+                const axis = point(index, radius);
+                svg.appendChild(svgElement('line', {
+                    class: 'learner-roadmap-radar__axis', x1: center.x, y1: center.y, x2: axis.x, y2: axis.y,
+                }));
+            }
+            svg.appendChild(svgElement('polygon', {
+                class: 'learner-roadmap-radar__data', points: safeItems.map((item, index) => {
+                    const position = point(index, radius * (Number(item.score) / 100));
+                    return `${position.x.toFixed(2)},${position.y.toFixed(2)}`;
+                }).join(' '),
+            }));
+            for (let index = 0; index < safeItems.length; index += 1) {
+                const item = safeItems[index];
+                const position = point(index, radius * (Number(item.score) / 100));
+                svg.appendChild(svgElement('circle', {
+                    class: 'learner-roadmap-radar__point', cx: position.x, cy: position.y, r: 5,
+                    'aria-label': `${text(item?.field, 'Lĩnh vực')}: ${item.score}%`,
+                }));
+                const labelPosition = point(index, radius + 25);
+                const labelNode = svgElement('text', {
+                    class: 'learner-roadmap-radar__label', x: labelPosition.x, y: labelPosition.y, 'text-anchor': 'middle',
+                });
+                labelNode.textContent = `${text(item?.field, 'Lĩnh vực')} ${item.score}%`;
+                svg.appendChild(labelNode);
+            }
+            return svg;
         }
 
         function renderTextRecords(node, items, emptyCopy, field = 'text') {
@@ -364,17 +423,21 @@
             clear(nodes.phases);
             for (const phase of phases) {
                 const details = doc.createElement('details');
-                details.className = 'learner-roadmap-phase';
-                if (integer(phase.position) === 1) details.open = true;
+                details.className = `learner-roadmap-phase is-${text(phase.status, 'upcoming')}`;
+                details.open = phase.status === 'current';
                 const summary = element('summary', 'learner-roadmap-phase__summary');
                 const number = element('span', 'learner-roadmap-phase__number', integer(phase.position));
                 const heading = element('span');
-                heading.append(element('small', '', phase.rangeLabel), element('strong', '', text(phase.title, 'Giai đoạn')));
+                heading.append(element('strong', '', text(phase.title, 'Giai đoạn')), element('small', '', phase.rangeLabel));
                 const progress = element('span', 'learner-roadmap-phase__progress', `${phase.progress.completed_tasks}/${phase.progress.total_tasks}`);
                 summary.append(number, heading, progress);
+                const currentBadge = phase.status === 'current' ? element('span', 'learner-roadmap-phase__current', 'Bạn đang ở đây') : null;
                 const body = element('div', 'learner-roadmap-phase__body');
-                body.append(renderPhaseFacts(phase), renderTasks(phase.tasks));
-                details.append(summary, body);
+                body.append(element('p', 'learner-roadmap-phase__goal', text(phase.goal, 'Tiếp tục phát triển năng lực theo hướng đã chọn.')));
+                body.append(renderTasks(phase.displayTasks));
+                details.append(summary);
+                if (currentBadge) details.append(currentBadge);
+                details.append(body);
                 nodes.phases?.appendChild(details);
             }
         }
@@ -414,7 +477,7 @@
                 nodes.nextActions?.appendChild(element('p', 'learner-roadmap-empty', 'Bạn đã hoàn thành toàn bộ nhiệm vụ hiện tại.'));
                 return;
             }
-            for (const task of tasks) {
+            for (const task of tasks.slice(0, 1)) {
                 const article = element('article', 'learner-roadmap-next__item');
                 article.append(element('strong', '', text(task.title, 'Nhiệm vụ tiếp theo')), element('span', '', text(task.phaseTitle, 'Giai đoạn')), element('small', '', `Khoảng ${integer(task.estimated_minutes)} phút`));
                 nodes.nextActions?.appendChild(article);
