@@ -30,6 +30,13 @@
             || 'Độ tin cậy chưa xác định';
     }
 
+    function normalizeTalentScore(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return 0;
+        const percentage = numeric > 0 && numeric <= 1 ? numeric * 100 : numeric;
+        return Math.max(0, Math.min(100, Math.round(percentage)));
+    }
+
     function buildRoadmapViewModel(payload) {
         const records = (value, limit = 8) => (Array.isArray(value) ? value.filter((item) => item && typeof item === 'object').slice(0, limit) : []);
         const rawPhases = Array.isArray(payload?.phases) ? payload.phases : [];
@@ -46,12 +53,24 @@
                     total_tasks: integer(phase?.progress?.total_tasks),
                 },
             }));
+        const currentPhaseIndex = phases.findIndex((phase) => {
+            const total = phase.progress.total_tasks || phase.tasks.length;
+            const complete = phase.progress.completed_tasks;
+            return total === 0 ? phase.tasks.some((task) => task.status !== 'completed') : complete < total;
+        });
+        const phaseStateIndex = currentPhaseIndex === -1 ? phases.length : currentPhaseIndex;
+        for (const [index, phase] of phases.entries()) {
+            phase.status = index < phaseStateIndex ? 'completed' : index === currentPhaseIndex ? 'current' : 'upcoming';
+            phase.displayTasks = phase.tasks.slice(0, 2);
+        }
         const tasks = phases.flatMap((phase) => phase.tasks.map((task) => ({ ...task, phaseTitle: text(phase.title, 'Giai đoạn') })));
         const nextActions = tasks.filter((task) => task.status !== 'completed').slice(0, 3);
         const activities = tasks.filter((task) => task?.action?.type === 'register_activity');
         const evidence = payload?.evidence_summary && typeof payload.evidence_summary === 'object' ? payload.evidence_summary : {};
         const evidenceTotal = ['assessment_count', 'skill_count', 'activity_count', 'evaluation_count']
             .reduce((total, key) => total + integer(evidence[key]), 0);
+        const completedTasks = integer(payload?.progress?.completed_tasks);
+        const totalTasks = integer(payload?.progress?.total_tasks);
         return {
             ...payload,
             phases,
@@ -59,12 +78,14 @@
             activities,
             evidenceTotal,
             confidenceLabel: confidenceLabel(payload?.confidence_band),
-            talentMap: records(payload?.talent_map).map((item) => ({ ...item, score: Math.max(0, Math.min(100, Number(item?.score) || 0)) })),
+            talentMap: records(payload?.talent_map).map((item) => ({ ...item, score: normalizeTalentScore(item?.score) })),
             strengths: records(payload?.strengths),
             improvements: records(payload?.improvements),
             potentialPaths: records(payload?.potential_paths),
             trendSignals: records(payload?.trend_signals),
             growthHypotheses: records(payload?.growth_hypotheses),
+            currentPhaseIndex,
+            overallPercent: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
         };
     }
 
@@ -510,7 +531,7 @@
         controller.load();
     }
 
-    const exported = { presentationState, buildRoadmapViewModel, createRoadmapApiClient, createRoadmapController, createDomView, confidenceLabel };
+    const exported = { presentationState, buildRoadmapViewModel, createRoadmapApiClient, createRoadmapController, createDomView, confidenceLabel, normalizeTalentScore };
     global.TalentHubLearnerAiRoadmap = exported;
     if (typeof module !== 'undefined' && module.exports) module.exports = exported;
     if (global.document && typeof global.document.addEventListener === 'function') {

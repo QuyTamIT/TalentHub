@@ -124,6 +124,27 @@ test('view model keeps exactly three roadmap phases and derives real next action
   assert.equal(Object.hasOwn(model, 'fitPercentage'), false, 'UI never invents a fit percentage');
 });
 
+test('view model normalizes fractional talent scores without changing percentage scores', () => {
+  const { buildRoadmapViewModel } = require(modulePath);
+  const fractional = payload();
+  fractional.talent_map = [
+    { field: 'Logic', score: 0.82 },
+    { field: 'Thực hành', score: 72 },
+    { field: 'Điều phối', score: -4 },
+    { field: 'Sáng tạo', score: 120 },
+  ];
+  assert.deepEqual(buildRoadmapViewModel(fractional).talentMap.map((item) => item.score), [82, 72, 0, 100]);
+});
+
+test('view model exposes one current phase and compact direction rows', () => {
+  const { buildRoadmapViewModel } = require(modulePath);
+  const model = buildRoadmapViewModel(payload());
+  assert.equal(model.currentPhaseIndex, 0);
+  assert.deepEqual(model.phases.map((phase) => phase.status), ['current', 'upcoming', 'upcoming']);
+  assert.equal(model.phases.every((phase) => phase.displayTasks.length === 2), true);
+  assert.equal(model.overallPercent, 11);
+});
+
 test('canonical ready_rule state renders as an explicit fallback rule', () => {
     assert.equal(require(modulePath).presentationState({ state: 'ready_rule' }), 'fallback-rule');
 });
