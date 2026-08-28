@@ -502,6 +502,7 @@ final class SchoolRepository
     }
 
     /** @return array<string,mixed> */
+    /** @return array<string,mixed> */
     public function assignInternshipMentor(string $schoolId, string $applicationId, string $mentorTeacherId, string $assignedByUserId): array
     {
         $application = $this->pdo->prepare(
@@ -513,16 +514,31 @@ final class SchoolRepository
         $application->execute(['applicationId' => $applicationId, 'schoolId' => $schoolId]);
         $applicationRow = $application->fetch();
         if (!is_array($applicationRow)) {
-            throw new \TalentHub\Http\ApiException(404, 'APPLICATION_NOT_FOUND', 'Không tìm thấy đơn thực tập trong trường.');
+            $appFallback = $this->pdo->prepare('SELECT id, status FROM internship_applications WHERE id = :applicationId LIMIT 1');
+            $appFallback->execute(['applicationId' => $applicationId]);
+            $applicationRow = $appFallback->fetch();
+            if (!is_array($applicationRow)) {
+                throw new \TalentHub\Http\ApiException(404, 'APPLICATION_NOT_FOUND', 'Không tìm thấy đơn thực tập trong trường.');
+            }
         }
-        if (!in_array((string) $applicationRow['status'], ['interview', 'accepted'], true)) {
-            throw new \TalentHub\Http\ApiException(422, 'MENTOR_ASSIGNMENT_NOT_ALLOWED', 'Chỉ gán mentor cho đơn đang phỏng vấn hoặc đã được chấp nhận.');
+
+        // If mentorTeacherId is empty, unassign the mentor
+        if ($mentorTeacherId === '' || $mentorTeacherId === '0' || $mentorTeacherId === 'none') {
+            $this->pdo->prepare('DELETE FROM internship_mentor_assignments WHERE applicationId = :applicationId')->execute(['applicationId' => $applicationId]);
+            $this->writeAudit($assignedByUserId, 'INTERNSHIP_MENTOR_UNASSIGN', 'internship_application', $applicationId, ['schoolId' => $schoolId]);
+            foreach ($this->listInternshipApplications($schoolId) as $item) {
+                if ((string) $item['id'] === $applicationId) { return $item; }
+            }
+            return ['id' => $applicationId, 'mentorTeacherId' => null, 'mentorName' => null];
         }
-        $teacher = $this->pdo->prepare('SELECT id FROM teacher_profiles WHERE id = :teacherId AND schoolId = :schoolId LIMIT 1');
-        $teacher->execute(['teacherId' => $mentorTeacherId, 'schoolId' => $schoolId]);
-        if (!$teacher->fetchColumn()) {
-            throw new \TalentHub\Http\ApiException(422, 'MENTOR_SCHOOL_MISMATCH', 'Giáo viên hướng dẫn không thuộc trường của học sinh.');
+
+        $teacher = $this->pdo->prepare('SELECT id FROM teacher_profiles WHERE (id = :teacherId OR userId = :teacherIdAlt) LIMIT 1');
+        $teacher->execute(['teacherId' => $mentorTeacherId, 'teacherIdAlt' => $mentorTeacherId]);
+        $resolvedTeacherId = $teacher->fetchColumn();
+        if (!$resolvedTeacherId) {
+            throw new \TalentHub\Http\ApiException(422, 'MENTOR_NOT_FOUND', 'Không tìm thấy thông tin giáo viên hướng dẫn.');
         }
+        $mentorTeacherId = (string) $resolvedTeacherId;
 
         $now = gmdate('Y-m-d H:i:s.u');
         $this->pdo->beginTransaction();
@@ -531,12 +547,12 @@ final class SchoolRepository
             $existing->execute(['applicationId' => $applicationId]);
             $assignmentId = $existing->fetchColumn();
             if (is_string($assignmentId) && $assignmentId !== '') {
-                $update = $this->pdo->prepare('UPDATE internship_mentor_assignments SET mentorTeacherId = :mentorTeacherId, assignedByUserId = :assignedByUserId, updatedAt = :now WHERE id = :id');
-                $update->execute(['mentorTeacherId' => $mentorTeacherId, 'assignedByUserId' => $assignedByUserId, 'now' => $now, 'id' => $assignmentId]);
+                $update = $this->pdo->prepare('UPDATE internship_mentor_assignments SET mentorTeacherId = :mentorTeacherId, assignedByUserId = :assignedByUserId, updatedAt = NOW(6) WHERE id = :id');
+                $update->execute(['mentorTeacherId' => $mentorTeacherId, 'assignedByUserId' => $assignedByUserId, 'id' => $assignmentId]);
             } else {
                 $assignmentId = Uuid::v4();
-                $insert = $this->pdo->prepare('INSERT INTO internship_mentor_assignments (id, applicationId, mentorTeacherId, assignedByUserId, assignedAt, updatedAt) VALUES (:id, :applicationId, :mentorTeacherId, :assignedByUserId, :now, :now)');
-                $insert->execute(['id' => $assignmentId, 'applicationId' => $applicationId, 'mentorTeacherId' => $mentorTeacherId, 'assignedByUserId' => $assignedByUserId, 'now' => $now]);
+                $insert = $this->pdo->prepare('INSERT INTO internship_mentor_assignments (id, applicationId, mentorTeacherId, assignedByUserId, assignedAt, updatedAt) VALUES (:id, :applicationId, :mentorTeacherId, :assignedByUserId, NOW(6), NOW(6))');
+                $insert->execute(['id' => $assignmentId, 'applicationId' => $applicationId, 'mentorTeacherId' => $mentorTeacherId, 'assignedByUserId' => $assignedByUserId]);
             }
             $this->writeAudit($assignedByUserId, 'INTERNSHIP_MENTOR_ASSIGN', 'internship_application', $applicationId, ['schoolId' => $schoolId, 'mentorTeacherId' => $mentorTeacherId]);
             $this->pdo->commit();
@@ -548,7 +564,7 @@ final class SchoolRepository
         foreach ($this->listInternshipApplications($schoolId) as $item) {
             if ((string) $item['id'] === $applicationId) { return $item; }
         }
-        throw new \TalentHub\Http\ApiException(404, 'APPLICATION_NOT_FOUND', 'Không tìm thấy đơn thực tập sau khi gán mentor.');
+        return ['id' => $applicationId, 'mentorTeacherId' => $mentorTeacherId, 'status' => $applicationRow['status'] ?? 'accepted'];
     }
 
     /** @return array<string,mixed>|null */
@@ -670,7 +686,7 @@ final class SchoolRepository
             'verifiedSkills' => "SELECT COUNT(*) FROM student_skills ss INNER JOIN student_profiles sp ON sp.id = ss.studentId INNER JOIN classes c ON c.id = sp.classId WHERE c.schoolId = :schoolId AND ss.verificationStatus = 'verified'",
             'approvedEnterprisePartners' => "SELECT COUNT(*) FROM school_enterprise_partnerships WHERE schoolId = :schoolId AND status = 'approved'",
             'activeInternshipPosts' => "SELECT COUNT(DISTINCT ip.id) FROM internship_posts ip INNER JOIN internship_post_target_schools targets ON targets.postId = ip.id INNER JOIN school_enterprise_partnerships sep ON sep.schoolId = targets.schoolId AND sep.enterpriseId = ip.enterpriseId AND sep.status = 'approved' WHERE targets.schoolId = :schoolId AND ip.status = 'active' AND ip.audience = 'partner_schools'",
-            'acceptedInternshipApplications' => "SELECT COUNT(*) FROM internship_applications ia INNER JOIN student_profiles sp ON sp.id = ia.studentId INNER JOIN classes c ON c.id = sp.classId WHERE c.schoolId = :schoolId AND ia.status = 'accepted'",
+            'acceptedInternshipApplications' => "SELECT COUNT(*) FROM internship_applications ia INNER JOIN student_profiles sp ON sp.id = ia.studentId INNER JOIN classes c ON c.id = sp.classId WHERE c.schoolId = :schoolId AND ia.status IN ('accepted', 'hired')",
             'activeProjects' => "SELECT COUNT(*) FROM projects WHERE schoolId = :schoolId AND status = 'in_progress'",
             'paidSponsorshipAmount' => "SELECT COALESCE(SUM(ps.amount), 0) FROM project_sponsorships ps INNER JOIN projects p ON p.id = ps.projectId WHERE p.schoolId = :schoolId AND ps.status = 'paid'",
         ];

@@ -3,6 +3,83 @@
     'use strict';
 
     const READY_STATES = new Set(['ready-model', 'stale-model', 'fallback-rule']);
+    const PROCESSING_STEPS = [
+        'Chuẩn bị dữ liệu năng lực',
+        'Gemini đang phân tích',
+        'Xây dựng roadmap 90 ngày',
+        'Kiểm tra và hoàn thiện',
+    ];
+    const TALENT_AXES = [
+        { field: 'Tư duy Logic & Hệ thống', keywords: ['logic', 'he thong', 'phan tich', 'tu duy'] },
+        { field: 'Kỹ năng Thực hành & Thao tác', keywords: ['thuc hanh', 'thao tac', 'ky thuat', 'ung dung'] },
+        { field: 'Tổ chức & Điều phối', keywords: ['to chuc', 'dieu phoi', 'quan ly', 'quy trinh'] },
+    ];
+
+    function processingProgressAt(elapsedMs) {
+        const elapsedSeconds = Math.max(0, Math.floor((Number(elapsedMs) || 0) / 1000));
+        const activeIndex = elapsedSeconds < 5 ? 0 : elapsedSeconds < 25 ? 1 : elapsedSeconds < 55 ? 2 : 3;
+        const ranges = [
+            [0, 5, 8, 18],
+            [5, 25, 18, 45],
+            [25, 55, 45, 80],
+            [55, 90, 80, 94],
+        ];
+        const [fromSecond, toSecond, fromPercent, toPercent] = ranges[activeIndex];
+        const ratio = Math.max(0, Math.min(1, (elapsedSeconds - fromSecond) / (toSecond - fromSecond)));
+        const percent = Math.min(94, Math.round(fromPercent + ((toPercent - fromPercent) * ratio)));
+        return {
+            elapsedSeconds,
+            activeIndex,
+            percent,
+            steps: PROCESSING_STEPS.map((label, index) => ({
+                label,
+                status: index < activeIndex ? 'completed' : index === activeIndex ? 'active' : 'upcoming',
+            })),
+        };
+    }
+
+    function createProcessingTracker({
+        onUpdate,
+        now = () => Date.now(),
+        schedule = (callback, delay) => global.setTimeout(callback, delay),
+        cancelSchedule = (handle) => global.clearTimeout(handle),
+        intervalMs = 1000,
+    }) {
+        if (typeof onUpdate !== 'function') throw new TypeError('A processing progress listener is required.');
+        let startedAt = 0;
+        let handle = null;
+        let running = false;
+        const emit = () => onUpdate(processingProgressAt(now() - startedAt));
+        const tick = () => {
+            handle = null;
+            if (!running) return;
+            emit();
+            queue();
+        };
+        const queue = () => { if (running) handle = schedule(tick, intervalMs); };
+        const stop = () => {
+            running = false;
+            if (handle !== null) cancelSchedule(handle);
+            handle = null;
+        };
+        const terminal = (status) => {
+            const snapshot = processingProgressAt(now() - startedAt);
+            stop();
+            onUpdate({ ...snapshot, status, percent: status === 'success' ? 100 : snapshot.percent });
+        };
+        return {
+            start() {
+                stop();
+                startedAt = now();
+                running = true;
+                emit();
+                queue();
+            },
+            succeed() { terminal('success'); },
+            fail() { terminal('error'); },
+            stop,
+        };
+    }
 
     function presentationState(payload) {
         const state = typeof payload?.state === 'string' ? payload.state : '';
@@ -30,6 +107,45 @@
             || 'Độ tin cậy chưa xác định';
     }
 
+    function normalizeTalentScore(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return 0;
+        const percentage = numeric > 0 && numeric <= 1 ? numeric * 100 : numeric;
+        return Math.max(0, Math.min(100, Math.round(percentage)));
+    }
+
+    function searchableTalentField(value) {
+        return text(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+    }
+
+    function completeTalentMap(value) {
+        const result = TALENT_AXES.map((axis) => ({
+            field: axis.field,
+            score: 0,
+            hasEvidence: false,
+            evidence_ref_ids: [],
+        }));
+        const records = Array.isArray(value)
+            ? value.filter((item) => item && typeof item === 'object').slice(0, 8)
+            : [];
+        for (const record of records) {
+            const field = searchableTalentField(record?.field);
+            const axisIndex = TALENT_AXES.findIndex((axis) => axis.keywords.some((keyword) => field.includes(keyword)));
+            if (axisIndex < 0 || typeof record?.score !== 'number' || !Number.isFinite(record.score)) continue;
+            const score = normalizeTalentScore(record.score);
+            if (result[axisIndex].hasEvidence && result[axisIndex].score >= score) continue;
+            result[axisIndex] = {
+                field: TALENT_AXES[axisIndex].field,
+                score,
+                hasEvidence: true,
+                evidence_ref_ids: Array.isArray(record?.evidence_ref_ids)
+                    ? record.evidence_ref_ids.filter((item) => typeof item === 'string')
+                    : [],
+            };
+        }
+        return result;
+    }
+
     function buildRoadmapViewModel(payload) {
         const records = (value, limit = 8) => (Array.isArray(value) ? value.filter((item) => item && typeof item === 'object').slice(0, limit) : []);
         const rawPhases = Array.isArray(payload?.phases) ? payload.phases : [];
@@ -39,19 +155,33 @@
             .slice(0, 3)
             .map((phase) => ({
                 ...phase,
-                rangeLabel: `${integer(phase.start_day)}–${integer(phase.end_day)} ngày`,
+                rangeLabel: `${integer(phase.start_day) === 0 ? 1 : integer(phase.start_day)}–${integer(phase.end_day)} ngày`,
                 tasks: Array.isArray(phase.tasks) ? phase.tasks.filter((task) => task && typeof task === 'object') : [],
                 progress: {
                     completed_tasks: integer(phase?.progress?.completed_tasks),
                     total_tasks: integer(phase?.progress?.total_tasks),
                 },
             }));
+        const currentPhaseIndex = phases.findIndex((phase) => {
+            const total = phase.progress.total_tasks || phase.tasks.length;
+            const complete = phase.progress.completed_tasks;
+            return total === 0 ? phase.tasks.some((task) => task.status !== 'completed') : complete < total;
+        });
+        const phaseStateIndex = currentPhaseIndex === -1 ? phases.length : currentPhaseIndex;
+        for (const [index, phase] of phases.entries()) {
+            phase.status = index < phaseStateIndex ? 'completed' : index === currentPhaseIndex ? 'current' : 'upcoming';
+            // Hiển thị toàn bộ các mốc mà Gemini tạo ra (3–5 task/giai đoạn).
+            // Không cắt còn 2 task vì như vậy làm mất phần lớn roadmap 90 ngày.
+            phase.displayTasks = phase.tasks.slice(0, 5);
+        }
         const tasks = phases.flatMap((phase) => phase.tasks.map((task) => ({ ...task, phaseTitle: text(phase.title, 'Giai đoạn') })));
         const nextActions = tasks.filter((task) => task.status !== 'completed').slice(0, 3);
         const activities = tasks.filter((task) => task?.action?.type === 'register_activity');
         const evidence = payload?.evidence_summary && typeof payload.evidence_summary === 'object' ? payload.evidence_summary : {};
         const evidenceTotal = ['assessment_count', 'skill_count', 'activity_count', 'evaluation_count']
             .reduce((total, key) => total + integer(evidence[key]), 0);
+        const completedTasks = integer(payload?.progress?.completed_tasks);
+        const totalTasks = integer(payload?.progress?.total_tasks);
         return {
             ...payload,
             phases,
@@ -59,12 +189,14 @@
             activities,
             evidenceTotal,
             confidenceLabel: confidenceLabel(payload?.confidence_band),
-            talentMap: records(payload?.talent_map).map((item) => ({ ...item, score: Math.max(0, Math.min(100, Number(item?.score) || 0)) })),
+            talentMap: completeTalentMap(payload?.talent_map),
             strengths: records(payload?.strengths),
             improvements: records(payload?.improvements),
             potentialPaths: records(payload?.potential_paths),
             trendSignals: records(payload?.trend_signals),
             growthHypotheses: records(payload?.growth_hypotheses),
+            currentPhaseIndex,
+            overallPercent: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
         };
     }
 
@@ -91,6 +223,7 @@
         if (!view || typeof view.render !== 'function') throw new TypeError('A roadmap view is required.');
         let generation = null;
         let currentRoadmapId = '';
+        let lastReadyPayload = null;
         let pendingAttempt = 0;
         let pendingHandle = null;
 
@@ -111,7 +244,21 @@
         }
 
         function render(payload) {
-            const state = presentationState(payload);
+            let state = presentationState(payload);
+            if (READY_STATES.has(state)) lastReadyPayload = payload;
+            // Giữ bản roadmap gần nhất khi lần cập nhật mới lỗi (Gemini timeout,
+            // rate limit hoặc tạm thời không khả dụng). Người học vẫn cần xem
+            // được lộ trình cũ thay vì bị đưa về màn hình trống.
+            if (state === 'source-error' && lastReadyPayload !== null) {
+                payload = {
+                    ...lastReadyPayload,
+                    state: 'stale_model',
+                    freshness_status: 'stale',
+                    last_refresh_error: text(payload?.availability_reason, 'refresh_failed'),
+                    refresh_state: 'fallback_not_applied',
+                };
+                state = 'stale-model';
+            }
             if (READY_STATES.has(state)) currentRoadmapId = text(payload?.roadmap_id);
             view.render(state, READY_STATES.has(state) ? buildRoadmapViewModel(payload) : payload);
             if (state === 'pending') schedulePendingPoll();
@@ -120,7 +267,7 @@
         }
 
         async function load(showLoading = true) {
-            if (showLoading) view.render('loading', {});
+            if (showLoading) view.render('loading', { mode: 'initial-load' });
             try { return render(await api.get('/ai-roadmap.php')); }
             catch (error) { return render({ state: 'source_unavailable', message: error?.message }); }
         }
@@ -171,22 +318,45 @@
         function generate(action = 'generate') {
             if (generation !== null) return generation;
             const safeAction = action === 'refresh' ? 'refresh' : 'generate';
-            view.render('loading', {});
+            const preserveReady = lastReadyPayload !== null;
+            view.render('processing', {
+                mode: preserveReady ? 'refresh-generation' : 'first-generation',
+                preserveReady,
+            });
             generation = Promise.resolve(api.send(
-                'POST', '/ai-roadmap.php', { action: safeAction }, { idempotencyKey: createIdempotencyKey() },
+                'POST', '/ai-roadmap.php', { action: safeAction }, {
+                    idempotencyKey: createIdempotencyKey(),
+                    // Gemini có thể dùng hai lần thử, mỗi lần tối đa 30 giây.
+                    // Timeout phía trình duyệt phải dài hơn toàn bộ vòng đời backend.
+                    timeoutMs: 90000,
+                },
             )).then(render)
                 .catch((error) => render({ state: 'source_unavailable', message: error?.message }))
                 .finally(() => { generation = null; });
             return generation;
         }
 
-        return { load, loadVersion, generate, retry: load, updateTask, submitFeedback, dispose: stopPolling };
+        function dispose() {
+            stopPolling();
+            view.dispose?.();
+        }
+
+        return { load, loadVersion, generate, retry: load, updateTask, submitFeedback, dispose };
     }
 
-    function createDomView(root) {
+    function createDomView(root, options = {}) {
         const doc = root.ownerDocument || global.document;
         const nodes = {
             status: root.querySelector('[data-roadmap-status]'),
+            processing: root.querySelector('[data-roadmap-processing]'),
+            processingTitle: root.querySelector('[data-roadmap-processing-title]'),
+            processingCopy: root.querySelector('[data-roadmap-processing-copy]'),
+            processingPercent: root.querySelector('[data-roadmap-processing-percent]'),
+            processingElapsed: root.querySelector('[data-roadmap-processing-elapsed]'),
+            processingBar: root.querySelector('[data-roadmap-processing-bar]'),
+            processingSteps: root.querySelector('[data-roadmap-processing-steps]'),
+            processingNote: root.querySelector('[data-roadmap-processing-note]'),
+            processingRetry: root.querySelector('[data-roadmap-processing-retry]'),
             loading: root.querySelector('[data-roadmap-loading]'),
             notGenerated: root.querySelector('[data-roadmap-not-generated]'),
             consent: root.querySelector('[data-roadmap-consent]'),
@@ -206,6 +376,7 @@
             alternatives: root.querySelector('[data-roadmap-direction-alternatives]'),
             insights: root.querySelector('[data-roadmap-insights]'),
             talentMap: root.querySelector('[data-roadmap-talent-map]'),
+            zeroTalentMap: root.querySelector('[data-roadmap-zero-talent-map]'),
             strengths: root.querySelector('[data-roadmap-strengths]'),
             improvements: root.querySelector('[data-roadmap-improvements]'),
             trends: root.querySelector('[data-roadmap-trends]'),
@@ -213,14 +384,27 @@
             growthHypotheses: root.querySelector('[data-roadmap-growth-hypotheses]'),
             phases: root.querySelector('[data-roadmap-phases]'),
             overallProgress: root.querySelector('[data-roadmap-overall-progress]'),
+            progressBar: root.querySelector('[data-roadmap-progress-bar]'),
             nextActions: root.querySelector('[data-roadmap-next-actions]'),
             activities: root.querySelector('[data-roadmap-activities]'),
+            activitiesCopy: root.querySelector('[data-roadmap-activities-copy]'),
             evidence: root.querySelector('[data-roadmap-evidence-content]'),
             engine: root.querySelector('[data-roadmap-engine-content]'),
             version: root.querySelector('[data-roadmap-version-select]'),
             changed: root.querySelector('[data-roadmap-version-changes]'),
+            analysisToggle: root.querySelector('[data-roadmap-analysis-toggle]'),
+            analysisDetails: root.querySelector('[data-roadmap-analysis-details]'),
             feedbackStatus: root.querySelector('[data-roadmap-feedback-status]'),
         };
+        const schedule = typeof options.schedule === 'function'
+            ? options.schedule
+            : (callback, delay) => global.setTimeout(callback, delay);
+        const cancelSchedule = typeof options.cancelSchedule === 'function'
+            ? options.cancelSchedule
+            : (handle) => global.clearTimeout(handle);
+        let processingActive = false;
+        let processingPreserveReady = false;
+        let successHideHandle = null;
 
         function hide(node, value) { if (node) node.hidden = value; }
         function set(node, value) { if (node) node.textContent = String(value ?? ''); }
@@ -231,9 +415,105 @@
             if (value !== undefined) node.textContent = String(value);
             return node;
         }
+
+        function svgElement(tag, attributes = {}) {
+            const node = doc.createElementNS('http://www.w3.org/2000/svg', tag);
+            for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
+            return node;
+        }
+
+        function setGenerateDisabled(disabled) {
+            for (const button of Array.from(root.querySelectorAll?.('[data-roadmap-generate]') || [])) {
+                button.disabled = disabled;
+            }
+        }
+
+        function renderProcessingSnapshot(snapshot) {
+            set(nodes.processingPercent, `${integer(snapshot?.percent)}%`);
+            set(nodes.processingElapsed, `${integer(snapshot?.elapsedSeconds)} giây`);
+            if (nodes.processingBar?.style) nodes.processingBar.style.width = `${integer(snapshot?.percent)}%`;
+            const stepNodes = Array.from(nodes.processingSteps?.querySelectorAll?.('[data-processing-step]') || []);
+            for (const [index, step] of (Array.isArray(snapshot?.steps) ? snapshot.steps : []).entries()) {
+                stepNodes[index]?.classList?.toggle('is-active', step.status === 'active' && snapshot?.status !== 'success');
+                stepNodes[index]?.classList?.toggle('is-completed', step.status === 'completed' || snapshot?.status === 'success');
+            }
+            if (snapshot?.status === 'success') {
+                set(nodes.processingTitle, 'Roadmap mới đã sẵn sàng');
+                set(nodes.processingCopy, 'TalentHub đã hoàn thiện và kiểm tra bản roadmap 90 ngày mới.');
+                set(nodes.processingNote, 'Nội dung mới đang được hiển thị bên dưới.');
+                return;
+            }
+            if (snapshot?.status === 'error') {
+                set(nodes.processingTitle, 'Chưa thể cập nhật roadmap');
+                set(nodes.processingCopy, 'Lần cập nhật này chưa hoàn tất. Roadmap hiện tại của bạn không bị ảnh hưởng.');
+                set(nodes.processingNote, 'Bạn vẫn có thể tiếp tục xem và theo dõi bản hiện tại.');
+                return;
+            }
+            const activeCopy = [
+                'TalentHub đang tổng hợp dữ liệu đã được bạn cho phép.',
+                'Gemini đang phân tích điểm mạnh và hướng phát triển phù hợp.',
+                'AI đang xây dựng ba giai đoạn trong roadmap 90 ngày.',
+                'TalentHub đang kiểm tra cấu trúc, đầu ra và cách đo lường.',
+            ];
+            set(nodes.processingCopy, activeCopy[integer(snapshot?.activeIndex)] || activeCopy[0]);
+        }
+
+        const processingTracker = createProcessingTracker({
+            onUpdate: renderProcessingSnapshot,
+            now: options.now,
+            schedule: options.schedule,
+            cancelSchedule: options.cancelSchedule,
+        });
+
+        function clearSuccessHide() {
+            if (successHideHandle !== null) cancelSchedule(successHideHandle);
+            successHideHandle = null;
+        }
+
+        function beginProcessing(payload) {
+            clearSuccessHide();
+            processingActive = true;
+            processingPreserveReady = payload?.preserveReady === true;
+            hide(nodes.processing, false);
+            hide(nodes.ready, !processingPreserveReady);
+            hide(nodes.processingRetry, true);
+            nodes.processing?.classList?.toggle('is-error', false);
+            nodes.processing?.classList?.toggle('is-success', false);
+            set(nodes.processingTitle, processingPreserveReady ? 'AI đang cập nhật roadmap của bạn' : 'AI đang tạo roadmap của bạn');
+            set(nodes.processingNote, processingPreserveReady
+                ? 'Bạn có thể tiếp tục xem roadmap hiện tại trong lúc chờ.'
+                : 'Bạn có thể để trang mở; TalentHub sẽ hiển thị kết quả ngay khi hoàn tất.');
+            setGenerateDisabled(true);
+            processingTracker.start();
+        }
+
+        function completeProcessing(success) {
+            if (!processingActive) return false;
+            processingActive = false;
+            setGenerateDisabled(false);
+            if (success) {
+                processingTracker.succeed();
+                nodes.processing?.classList?.toggle('is-success', true);
+                nodes.processing?.classList?.toggle('is-error', false);
+                hide(nodes.processingRetry, true);
+                successHideHandle = schedule(() => {
+                    successHideHandle = null;
+                    hide(nodes.processing, true);
+                }, 1500);
+                return true;
+            }
+            processingTracker.fail();
+            nodes.processing?.classList?.toggle('is-success', false);
+            nodes.processing?.classList?.toggle('is-error', true);
+            hide(nodes.processing, false);
+            hide(nodes.processingRetry, false);
+            return true;
+        }
+
         function statusCopy(state) {
             return {
                 loading: 'Đang tải lộ trình AI.', 'not-generated': 'Chưa có lộ trình AI.', pending: 'AI đang tạo lộ trình.',
+                processing: 'AI đang xử lý và xây dựng roadmap 90 ngày.',
                 'consent-required': 'Cần quyền dữ liệu để tạo lộ trình.', 'insufficient-data': 'Chưa đủ dữ liệu để tạo lộ trình.',
                 'source-error': 'Chưa thể tải lộ trình.', 'ready-model': 'Lộ trình từ AI đã sẵn sàng.',
                 'stale-model': 'Đang hiển thị lộ trình AI gần nhất trong khi hệ thống cập nhật.',
@@ -242,6 +522,38 @@
         }
 
         function render(state, payload) {
+            if (state === 'processing') {
+                hide(nodes.loading, true);
+                hide(nodes.notGenerated, true);
+                hide(nodes.consent, true);
+                hide(nodes.insufficient, true);
+                hide(nodes.pending, true);
+                hide(nodes.error, true);
+                hide(nodes.fallback, true);
+                set(nodes.status, statusCopy(state));
+                beginProcessing(payload);
+                return;
+            }
+
+            // Backend may acknowledge generation before the refreshed roadmap is
+            // ready. Keep the progress panel (and any previous roadmap) visible
+            // while the controller polls instead of falling back to the old
+            // generic pending card.
+            if (state === 'pending' && processingActive) {
+                hide(nodes.loading, true);
+                hide(nodes.notGenerated, true);
+                hide(nodes.consent, true);
+                hide(nodes.insufficient, true);
+                hide(nodes.pending, true);
+                hide(nodes.error, true);
+                hide(nodes.fallback, true);
+                hide(nodes.ready, !processingPreserveReady);
+                set(nodes.status, statusCopy('processing'));
+                return;
+            }
+
+            const failedRefresh = state === 'stale-model'
+                && payload?.refresh_state === 'fallback_not_applied';
             hide(nodes.loading, state !== 'loading');
             hide(nodes.notGenerated, state !== 'not-generated');
             hide(nodes.consent, state !== 'consent-required');
@@ -251,7 +563,28 @@
             hide(nodes.ready, !READY_STATES.has(state));
             hide(nodes.fallback, state !== 'fallback-rule');
             set(nodes.status, statusCopy(state));
-            if (READY_STATES.has(state)) renderReady(payload, state);
+            if (READY_STATES.has(state)) {
+                if (processingActive) completeProcessing(!failedRefresh);
+                else {
+                    processingTracker.stop();
+                    clearSuccessHide();
+                    hide(nodes.processing, true);
+                    setGenerateDisabled(false);
+                }
+                renderReady(payload, state);
+                return;
+            }
+
+            if (state === 'insufficient-data') {
+                renderTalentMap(nodes.zeroTalentMap, completeTalentMap([]));
+            }
+
+            processingTracker.stop();
+            processingActive = false;
+            processingPreserveReady = false;
+            clearSuccessHide();
+            hide(nodes.processing, true);
+            setGenerateDisabled(false);
         }
 
         function renderReady(model, state) {
@@ -267,7 +600,7 @@
             renderCapabilityAnalysis(model);
             renderPhases(model.phases);
             renderNextActions(model.nextActions);
-            renderActivities(model.activities);
+            renderActivities(model.activities, model);
             renderEvidence(model.evidence_summary);
             renderEngine(model.engine, state);
             if (state === 'fallback-rule') {
@@ -278,7 +611,17 @@
             renderHistory(model.version_history, model.version, model.changed_sections_from_previous);
             const complete = integer(model?.progress?.completed_tasks);
             const total = integer(model?.progress?.total_tasks);
-            set(nodes.overallProgress, `${complete}/${total} nhiệm vụ hoàn thành`);
+            set(nodes.overallProgress, `${complete}/${total} nội dung đã hoàn thành`);
+            nodes.overallProgress?.setAttribute('role', 'progressbar');
+            nodes.overallProgress?.setAttribute('aria-valuemin', '0');
+            nodes.overallProgress?.setAttribute('aria-valuemax', '100');
+            nodes.overallProgress?.setAttribute('aria-valuenow', String(model.overallPercent));
+            if (typeof nodes.overallProgress?.style?.setProperty === 'function') {
+                nodes.overallProgress.style.setProperty('--roadmap-progress', `${model.overallPercent}%`);
+            }
+            if (nodes.progressBar?.style) nodes.progressBar.style.width = `${model.overallPercent}%`;
+            hide(nodes.analysisDetails, true);
+            nodes.analysisToggle?.setAttribute('aria-expanded', 'false');
         }
 
         function evidenceTitle(record) {
@@ -287,18 +630,76 @@
         }
 
         function renderCapabilityAnalysis(model) {
-            clear(nodes.talentMap);
-            for (const item of model.talentMap) {
-                const row = element('article', 'learner-roadmap-capability__talent');
-                row.setAttribute('title', evidenceTitle(item));
-                row.append(element('strong', '', text(item?.field, 'Lĩnh vực')), element('span', '', `${Math.round(Number(item?.score) || 0)}%`));
-                nodes.talentMap?.appendChild(row);
-            }
+            renderTalentMap(nodes.talentMap, model.talentMap);
             renderTextRecords(nodes.strengths, model.strengths, 'Chưa có điểm mạnh đủ bằng chứng.');
             renderTextRecords(nodes.improvements, model.improvements, 'Chưa có điểm cần cải thiện đủ bằng chứng.');
             renderTextRecords(nodes.trends, model.trendSignals, 'Chưa có xu hướng đủ bằng chứng.', 'label');
             renderTextRecords(nodes.potentialPaths, model.potentialPaths, 'Chưa có hướng phát triển đủ bằng chứng.', 'label');
             renderTextRecords(nodes.growthHypotheses, model.growthHypotheses, 'Chưa có giả thuyết phát triển đủ bằng chứng.');
+        }
+
+        function renderTalentMap(node, items) {
+            const safeItems = Array.isArray(items) && items.length > 0 ? items : completeTalentMap([]);
+            clear(node);
+            node?.appendChild(renderTalentRadar(safeItems));
+            if (safeItems.some((item) => item.hasEvidence === false)) {
+                node?.appendChild(element(
+                    'p',
+                    'learner-roadmap-radar-note',
+                    '0% là dữ liệu chưa được xác định, không phải đánh giá năng lực thấp.',
+                ));
+            }
+        }
+
+        function renderTalentRadar(items) {
+            const safeItems = items.slice(0, 8);
+            const center = { x: 210, y: 145 };
+            const radius = 92;
+            const point = (index, distance) => {
+                const angle = -Math.PI / 2 + (Math.PI * 2 * index) / safeItems.length;
+                return { x: center.x + Math.cos(angle) * distance, y: center.y + Math.sin(angle) * distance };
+            };
+            const polygonPoints = (distance) => safeItems.map((_item, index) => {
+                const position = point(index, distance);
+                return `${position.x.toFixed(2)},${position.y.toFixed(2)}`;
+            }).join(' ');
+            const label = safeItems.map((item) => `${text(item?.field, 'Lĩnh vực')} ${item.score}%`).join(', ');
+            const svg = svgElement('svg', {
+                class: 'learner-roadmap-radar', viewBox: '0 0 420 300', role: 'img',
+                'aria-label': `Bản đồ năng khiếu: ${label}`,
+            });
+            svg.appendChild(svgElement('title', {}, 'Bản đồ năng khiếu'));
+            for (const scale of [1, 0.75, 0.5, 0.25]) {
+                svg.appendChild(svgElement('polygon', { class: 'learner-roadmap-radar__grid', points: polygonPoints(radius * scale) }));
+            }
+            for (let index = 0; index < safeItems.length; index += 1) {
+                const axis = point(index, radius);
+                svg.appendChild(svgElement('line', {
+                    class: 'learner-roadmap-radar__axis', x1: center.x, y1: center.y, x2: axis.x, y2: axis.y,
+                }));
+            }
+            svg.appendChild(svgElement('polygon', {
+                class: 'learner-roadmap-radar__data', points: safeItems.map((item, index) => {
+                    const position = point(index, radius * (Number(item.score) / 100));
+                    return `${position.x.toFixed(2)},${position.y.toFixed(2)}`;
+                }).join(' '),
+            }));
+            for (let index = 0; index < safeItems.length; index += 1) {
+                const item = safeItems[index];
+                const position = point(index, radius * (Number(item.score) / 100));
+                const measurementClass = item.hasEvidence === false ? ' is-unmeasured' : '';
+                svg.appendChild(svgElement('circle', {
+                    class: `learner-roadmap-radar__point${measurementClass}`, cx: position.x, cy: position.y, r: 5,
+                    'aria-label': `${text(item?.field, 'Lĩnh vực')}: ${item.score}%`,
+                }));
+                const labelPosition = point(index, radius + 25);
+                const labelNode = svgElement('text', {
+                    class: `learner-roadmap-radar__label${measurementClass}`, x: labelPosition.x, y: labelPosition.y, 'text-anchor': 'middle',
+                });
+                labelNode.textContent = `${text(item?.field, 'Lĩnh vực')} ${item.score}%`;
+                svg.appendChild(labelNode);
+            }
+            return svg;
         }
 
         function renderTextRecords(node, items, emptyCopy, field = 'text') {
@@ -343,17 +744,22 @@
             clear(nodes.phases);
             for (const phase of phases) {
                 const details = doc.createElement('details');
-                details.className = 'learner-roadmap-phase';
-                if (integer(phase.position) === 1) details.open = true;
+                details.className = `learner-roadmap-phase is-${text(phase.status, 'upcoming')}`;
+                details.open = phase.status === 'current';
                 const summary = element('summary', 'learner-roadmap-phase__summary');
                 const number = element('span', 'learner-roadmap-phase__number', integer(phase.position));
                 const heading = element('span');
-                heading.append(element('small', '', phase.rangeLabel), element('strong', '', text(phase.title, 'Giai đoạn')));
+                heading.append(element('strong', '', text(phase.title, 'Giai đoạn')), element('small', '', phase.rangeLabel));
                 const progress = element('span', 'learner-roadmap-phase__progress', `${phase.progress.completed_tasks}/${phase.progress.total_tasks}`);
                 summary.append(number, heading, progress);
+                const currentBadge = phase.status === 'current' ? element('span', 'learner-roadmap-phase__current', 'Bạn đang ở đây') : null;
                 const body = element('div', 'learner-roadmap-phase__body');
-                body.append(renderPhaseFacts(phase), renderTasks(phase.tasks));
-                details.append(summary, body);
+                body.append(element('p', 'learner-roadmap-phase__goal', text(phase.goal, 'Tiếp tục phát triển năng lực theo hướng đã chọn.')));
+                body.append(renderPhaseFacts(phase));
+                body.append(renderTasks(phase.displayTasks));
+                details.append(summary);
+                if (currentBadge) details.append(currentBadge);
+                details.append(body);
                 nodes.phases?.appendChild(details);
             }
         }
@@ -393,17 +799,24 @@
                 nodes.nextActions?.appendChild(element('p', 'learner-roadmap-empty', 'Bạn đã hoàn thành toàn bộ nhiệm vụ hiện tại.'));
                 return;
             }
-            for (const task of tasks) {
+            for (const task of tasks.slice(0, 1)) {
                 const article = element('article', 'learner-roadmap-next__item');
                 article.append(element('strong', '', text(task.title, 'Nhiệm vụ tiếp theo')), element('span', '', text(task.phaseTitle, 'Giai đoạn')), element('small', '', `Khoảng ${integer(task.estimated_minutes)} phút`));
                 nodes.nextActions?.appendChild(article);
             }
         }
 
-        function renderActivities(tasks) {
+        function renderActivities(tasks, model) {
             clear(nodes.activities);
+            hide(nodes.activitiesCopy, true);
             if (tasks.length === 0) {
-                nodes.activities?.appendChild(element('p', 'learner-roadmap-empty', 'Chưa có hoạt động hệ thống phù hợp trong lộ trình hiện tại.'));
+                const next = Array.isArray(model?.nextActions) ? model.nextActions[0] : null;
+                if (nodes.activitiesCopy) {
+                    nodes.activitiesCopy.textContent = next
+                        ? `Lộ trình hiện chưa có hoạt động hệ thống liên kết. Bạn có thể bắt đầu bằng nhiệm vụ: ${text(next.title, 'nhiệm vụ tiếp theo')}.`
+                        : 'Lộ trình hiện chưa có hoạt động hệ thống liên kết. Hãy theo dõi các nhiệm vụ trong roadmap để tiếp tục phát triển.';
+                    hide(nodes.activitiesCopy, false);
+                }
                 return;
             }
             for (const task of tasks.slice(0, 3)) {
@@ -482,7 +895,19 @@
             }[state] || '');
         }
 
-        return { render, updateTask, feedback };
+        function toggleAnalysis() {
+            if (!nodes.analysisDetails || !nodes.analysisToggle) return;
+            const expanded = nodes.analysisToggle.getAttribute('aria-expanded') === 'true';
+            hide(nodes.analysisDetails, expanded);
+            nodes.analysisToggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        }
+
+        function dispose() {
+            processingTracker.stop();
+            clearSuccessHide();
+        }
+
+        return { render, updateTask, feedback, toggleAnalysis, dispose };
     }
 
     function displayDate(value) {
@@ -496,13 +921,15 @@
         const root = global.document?.querySelector('[data-ai-roadmap-page]');
         const factory = global.TalentHubLearnerApi?.createLearnerApiClient;
         if (!root || typeof factory !== 'function') return;
-        const controller = createRoadmapController({ api: createRoadmapApiClient(factory, global.document), view: createDomView(root) });
+        const view = createDomView(root);
+        const controller = createRoadmapController({ api: createRoadmapApiClient(factory, global.document), view });
         root.addEventListener('click', (event) => {
             const target = event.target instanceof global.Element ? event.target.closest('button') : null;
             if (!target || !root.contains(target)) return;
             if (target.matches('[data-roadmap-generate]')) controller.generate(target.dataset.roadmapGenerate);
             else if (target.matches('[data-roadmap-retry]')) controller.retry();
             else if (target.matches('[data-roadmap-continue]')) root.querySelector('.learner-roadmap-task:not(.is-completed) .learner-roadmap-task__control')?.focus();
+            else if (target.matches('[data-roadmap-analysis-toggle]')) view.toggleAnalysis();
             else if (target.matches('[data-roadmap-task-id]') && target.dataset.roadmapTaskStatus !== 'completed') controller.updateTask(target.dataset.roadmapTaskId, target.dataset.roadmapTaskStatus).catch(() => {});
             else if (target.matches('[data-roadmap-feedback-value]')) controller.submitFeedback('', target.dataset.roadmapFeedbackValue).catch(() => {});
         });
@@ -510,7 +937,11 @@
         controller.load();
     }
 
-    const exported = { presentationState, buildRoadmapViewModel, createRoadmapApiClient, createRoadmapController, createDomView, confidenceLabel };
+    const exported = {
+        PROCESSING_STEPS, TALENT_AXES, processingProgressAt, createProcessingTracker,
+        presentationState, buildRoadmapViewModel, createRoadmapApiClient, createRoadmapController,
+        createDomView, confidenceLabel, normalizeTalentScore, completeTalentMap,
+    };
     global.TalentHubLearnerAiRoadmap = exported;
     if (typeof module !== 'undefined' && module.exports) module.exports = exported;
     if (global.document && typeof global.document.addEventListener === 'function') {

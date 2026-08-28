@@ -364,25 +364,32 @@ document.addEventListener('DOMContentLoaded', function () {
     // Preset Amount Click Handler
     presetBtns.forEach(btn => {
         btn.addEventListener('click', function () {
-            const rawVal = parseInt(this.getAttribute('data-amount'), 10);
+            const rawVal = parseInt(this.getAttribute('data-val') || this.getAttribute('data-amount') || '5000000', 10);
             if (amountInput) {
-                amountInput.value = rawVal.toLocaleString('en-US');
+                amountInput.value = rawVal;
             }
-            presetBtns.forEach(b => b.classList.remove('is-selected'));
+            presetBtns.forEach(b => {
+                b.classList.remove('is-selected');
+                b.style.backgroundColor = '#FFFFFF';
+                b.style.color = '#0F172A';
+                b.style.borderColor = '#E2E8F0';
+            });
             this.classList.add('is-selected');
+            this.style.backgroundColor = '#F97316';
+            this.style.color = '#FFFFFF';
+            this.style.borderColor = '#F97316';
         });
     });
 
     // Format Amount Input
     if (amountInput) {
         amountInput.addEventListener('input', function () {
-            let val = this.value.replace(/[^0-9]/g, '');
-            if (val) {
-                this.value = parseInt(val, 10).toLocaleString('en-US');
-            } else {
-                this.value = '';
-            }
-            presetBtns.forEach(b => b.classList.remove('is-selected'));
+            presetBtns.forEach(b => {
+                b.classList.remove('is-selected');
+                b.style.backgroundColor = '#FFFFFF';
+                b.style.color = '#0F172A';
+                b.style.borderColor = '#E2E8F0';
+            });
         });
     }
 
@@ -393,8 +400,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (!activeSponsorProjectId) return;
 
-            const project = window.ENTERPRISE_PROJECTS.find(p => p.id === activeSponsorProjectId);
-            const valString = amountInput.value.replace(/,/g, '');
+            const project = window.ENTERPRISE_PROJECTS ? window.ENTERPRISE_PROJECTS.find(p => p.id === activeSponsorProjectId) : null;
+            const valString = String(amountInput.value).replace(/[^0-9]/g, '');
             const amountNum = parseInt(valString, 10);
 
             if (!amountNum || amountNum <= 0) {
@@ -405,7 +412,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const noteInput = document.getElementById('spon-note-input');
             const noteText = noteInput ? noteInput.value.trim() : '';
 
-            const boot = window.ENTERPRISE_BOOT || {};
+            let boot = window.ENTERPRISE_BOOT || {};
+            const bootElement = document.getElementById('enterprise-session-boot');
+            if (bootElement && (!boot.csrfToken || !boot.apiBase)) {
+                try {
+                    boot = Object.assign(boot, JSON.parse(bootElement.textContent));
+                    window.ENTERPRISE_BOOT = boot;
+                } catch(err) {}
+            }
+
             const apiBase = boot.apiBase || (window.location.pathname.includes('/TalentHub') ? '/TalentHub/api/v1' : '/api/v1');
             const csrfToken = boot.csrfToken || '';
 
@@ -432,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (sponsorSubmitBtn) {
                 sponsorSubmitBtn.disabled = true;
-                sponsorSubmitBtn.textContent = 'Đang xử lý thanh toán...';
+                sponsorSubmitBtn.textContent = 'Đang xử lý cam kết...';
             }
 
             try {
@@ -459,11 +474,31 @@ document.addEventListener('DOMContentLoaded', function () {
                     providerReference: 'VNPAY_' + Date.now(),
                 });
 
+                // 4. Live update project card in DOM
+                if (project) {
+                    project.raised_amount = Number(project.raised_amount || 0) + amountNum;
+                    const target = Number(project.target_amount || 1);
+                    const newPct = Math.min(100, Math.round((project.raised_amount / target) * 100));
+                    project.percentage = newPct;
+
+                    const card = document.querySelector(`.spon-project-card[data-project-id="${activeSponsorProjectId}"]`);
+                    if (card) {
+                        const raisedM = (project.raised_amount / 1000000).toFixed(1).replace('.0', '');
+                        const targetM = (target / 1000000).toFixed(1).replace('.0', '');
+                        const progSpan = card.querySelector('div span:first-child');
+                        if (progSpan) progSpan.textContent = `${raisedM} triệu / ${targetM} triệu VNĐ`;
+                        const pctSpan = card.querySelector('div span:last-child');
+                        if (pctSpan) pctSpan.textContent = `${newPct}%`;
+                        const bar = card.querySelector('.spon-progress-fill, div[style*="linear-gradient"]');
+                        if (bar) bar.style.width = `${newPct}%`;
+                    }
+                }
+
                 closeFormModal();
 
                 showSuccessToast(`Tài trợ thành công ${(amountNum).toLocaleString('vi-VN')} VNĐ cho dự án "${project ? project.title : ''}". Giao dịch đã được xác nhận thanh toán!`);
 
-                // Reload page after a brief moment to show updated funding progress
+                // Reload page after a brief moment to sync server state
                 setTimeout(() => {
                     window.location.reload();
                 }, 1500);
@@ -473,7 +508,7 @@ document.addEventListener('DOMContentLoaded', function () {
             } finally {
                 if (sponsorSubmitBtn) {
                     sponsorSubmitBtn.disabled = false;
-                    sponsorSubmitBtn.textContent = 'Xác nhận tài trợ ngay';
+                    sponsorSubmitBtn.textContent = 'Xác nhận Cam kết Tài trợ';
                 }
             }
         });

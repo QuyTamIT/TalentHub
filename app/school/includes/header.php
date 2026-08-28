@@ -14,12 +14,24 @@ if (!function_exists('app_href') && is_file(dirname(__DIR__, 3) . '/bin/bootstra
 }
 
 $schoolRole = 'Ban Giám hiệu';
-$displayName = $schoolInfo['name'] ?? 'THPT Nguyễn Trãi';
-$initials    = $schoolInfo['logo_initials'] ?? 'TH';
+$displayName = !empty($schoolInfo['name']) ? $schoolInfo['name'] : (!empty($school['name']) ? $school['name'] : 'Cao đẳng Quốc tế BTEC FPT');
+
+if (stripos($displayName, 'BTEC') !== false) {
+    $initials = 'BF';
+} elseif (stripos($displayName, 'Cần Thơ') !== false || stripos($displayName, 'CTU') !== false) {
+    $initials = 'CTU';
+} elseif (stripos($displayName, 'FPT') !== false) {
+    $initials = 'FPT';
+} elseif (!empty($schoolInfo['logo_initials'])) {
+    $initials = $schoolInfo['logo_initials'];
+} else {
+    $words = explode(' ', trim($displayName));
+    $initials = count($words) > 1 ? mb_substr($words[0], 0, 1) . mb_substr($words[count($words) - 1], 0, 1) : mb_substr($displayName, 0, 2);
+}
 
 $profileRoute = '/app/school/account.php';
 $profileUrl = function_exists('app_href') ? app_href($profileRoute) : '/app/school/account.php';
-$logoutUrl = function_exists('app_href') ? app_href('/logout.php?role=school') : '/logout.php?role=school';
+$logoutUrl = function_exists('app_href') ? app_href('/app/auth/logout.php?role=school') : '/app/auth/logout.php?role=school';
 ?>
 <header class="school-header">
     <div class="school-header__left">
@@ -107,7 +119,7 @@ $logoutUrl = function_exists('app_href') ? app_href('/logout.php?role=school') :
                                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="12" cy="7" r="4"></circle>
                             </svg>
-                            <span>Hồ sơ trường học</span>
+                            <span>Hồ sơ & Tài khoản</span>
                         </a>
                     </li>
                 </ul>

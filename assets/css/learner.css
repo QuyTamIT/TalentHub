@@ -816,7 +816,7 @@
 
 .learner-icon-tile--success,
 .learner-tone--success {
-    color: var(--success);
+    color: var(--accent);
     background: var(--accent-light);
 }
 
@@ -2156,7 +2156,7 @@
     align-items: center;
     justify-content: center;
     color: var(--surface);
-    background: var(--success);
+    background: var(--accent);
     border-radius: 50%;
     box-shadow: 0 0 0 4px #dcfce7;
     font-size: 0.7rem;
@@ -6760,6 +6760,7 @@ body.learner-sidebar-open {
 }
 
 .learner-page-ai .learner-roadmap-state[hidden],
+.learner-page-ai .learner-roadmap-insufficient[hidden],
 .learner-page-ai .learner-roadmap__ready[hidden],
 .learner-page-ai .learner-roadmap__fallback[hidden] {
     display: none !important;
@@ -6793,6 +6794,142 @@ body.learner-sidebar-open {
 .learner-page-ai .learner-roadmap-state--error .learner-roadmap-state__icon {
     color: var(--danger);
     background: #FEF2F2;
+}
+
+.learner-page-ai .learner-roadmap-processing {
+    display: grid;
+    gap: 20px;
+    margin-bottom: 20px;
+    padding: 22px;
+    border: 1px solid #FED7AA;
+    background: linear-gradient(135deg, #FFFFFF 0%, #FFF7ED 100%);
+}
+
+.learner-page-ai .learner-roadmap-processing[hidden] {
+    display: none;
+}
+
+.learner-page-ai .learner-roadmap-processing__heading {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+}
+
+.learner-page-ai .learner-roadmap-processing__icon {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    place-items: center;
+    color: #F97316;
+    background: #FFF7ED;
+    border-radius: 12px;
+}
+
+.learner-page-ai .learner-roadmap-processing__heading h2,
+.learner-page-ai .learner-roadmap-processing__heading p {
+    margin: 0;
+}
+
+.learner-page-ai .learner-roadmap-processing__heading h2 {
+    font-size: 1.15rem;
+}
+
+.learner-page-ai .learner-roadmap-processing__heading p,
+.learner-page-ai .learner-roadmap-processing__meta,
+.learner-page-ai .learner-roadmap-processing__footer p {
+    color: #64748B;
+}
+
+.learner-page-ai .learner-roadmap-processing__meta {
+    text-align: right;
+}
+
+.learner-page-ai .learner-roadmap-processing__meta strong {
+    display: block;
+    color: #F97316;
+    font-size: 1.5rem;
+}
+
+.learner-page-ai .learner-roadmap-processing__bar {
+    height: 8px;
+    overflow: hidden;
+    background: #E2E8F0;
+    border-radius: 999px;
+}
+
+.learner-page-ai .learner-roadmap-processing__bar span {
+    display: block;
+    width: 8%;
+    height: 100%;
+    background: #F97316;
+    border-radius: inherit;
+    transition: width 0.35s ease;
+}
+
+.learner-page-ai .learner-roadmap-processing__steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.learner-page-ai .learner-roadmap-processing__steps li {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    align-items: center;
+    gap: 10px;
+    color: #64748B;
+    font-size: 0.84rem;
+}
+
+.learner-page-ai .learner-roadmap-processing__steps li > span {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    color: #64748B;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 50%;
+}
+
+.learner-page-ai .learner-roadmap-processing__steps .is-active {
+    color: #0F172A;
+}
+
+.learner-page-ai .learner-roadmap-processing__steps .is-active > span {
+    color: #FFFFFF;
+    background: #F97316;
+    border-color: #F97316;
+}
+
+.learner-page-ai .learner-roadmap-processing__steps .is-completed > span {
+    color: #FFFFFF;
+    background: #16A34A;
+    border-color: #16A34A;
+}
+
+.learner-page-ai .learner-roadmap-processing__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.learner-page-ai .learner-roadmap-processing__footer p {
+    margin: 0;
+}
+
+.learner-page-ai .learner-roadmap-processing.is-error {
+    background: #FFFFFF;
+    border-color: #FCA5A5;
+}
+
+.learner-page-ai .learner-roadmap-processing.is-success {
+    border-color: #86EFAC;
 }
 
 .learner-page-ai .learner-roadmap__ready {
@@ -7170,6 +7307,12 @@ body.learner-sidebar-open {
     gap: 10px;
 }
 
+.learner-page-ai .learner-roadmap-activities__copy {
+    margin: 0 0 14px;
+    color: #64748B;
+    font-size: 0.95rem;
+}
+
 .learner-page-ai .learner-roadmap-activity {
     padding: 13px;
     background: #FFFFFF;
@@ -7283,9 +7426,28 @@ body.learner-sidebar-open {
     .learner-page-ai .learner-roadmap-direction__alternatives {
         grid-template-columns: 1fr;
     }
+    .learner-page-ai .learner-roadmap-processing__heading {
+        grid-template-columns: auto 1fr;
+    }
+    .learner-page-ai .learner-roadmap-processing__meta {
+        grid-column: 1 / -1;
+        text-align: left;
+    }
+    .learner-page-ai .learner-roadmap-processing__steps {
+        grid-template-columns: 1fr;
+    }
+    .learner-page-ai .learner-roadmap-processing__footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .learner-page-ai .learner-roadmap-processing,
+    .learner-page-ai .learner-roadmap-processing__bar span {
+        animation: none;
+        transition: none;
+    }
     .learner-page-ai .learner-roadmap *,
     .learner-page-ai .learner-roadmap *::before,
     .learner-page-ai .learner-roadmap *::after {
@@ -8138,6 +8300,559 @@ body.learner-sidebar-open {
     }
 }
 
+/* AI roadmap simplification ------------------------------------------------ */
+.learner-page-ai .learner-roadmap {
+    font-family: 'Be Vietnam Pro', sans-serif;
+}
+
+.learner-page-ai .learner-roadmap__header {
+    margin-bottom: 20px;
+}
+
+.learner-page-ai .learner-roadmap__header h1 {
+    font-size: 32px;
+    line-height: 1.2;
+}
+
+.learner-page-ai .learner-roadmap__header-actions {
+    gap: 10px;
+}
+
+.learner-page-ai .learner-roadmap__freshness {
+    color: var(--accent);
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.learner-page-ai .learner-roadmap__ready {
+    display: grid;
+    gap: 18px;
+}
+
+.learner-page-ai .learner-roadmap-hero,
+.learner-page-ai .learner-roadmap-analysis {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(310px, .85fr);
+    gap: 16px;
+}
+
+.learner-page-ai .learner-roadmap-summary,
+.learner-page-ai .learner-roadmap-next,
+.learner-page-ai .learner-roadmap-plan,
+.learner-page-ai .learner-roadmap-radar-card,
+.learner-page-ai .learner-roadmap-highlights {
+    padding: 22px;
+    border-radius: 12px;
+    box-shadow: 0 5px 16px rgba(15, 23, 42, .045);
+}
+
+.learner-page-ai .learner-roadmap-summary__text {
+    max-width: 720px;
+    margin: 14px 0;
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.learner-page-ai .learner-roadmap-summary__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.learner-page-ai .learner-roadmap-summary__direction {
+    display: grid;
+    gap: 5px;
+    margin-top: 16px;
+    padding: 12px 14px;
+    background: var(--primary-light);
+    border: 1px solid #FED7AA;
+    border-radius: 8px;
+}
+
+.learner-page-ai .learner-roadmap-summary__direction strong {
+    color: var(--primary-hover);
+    font-size: 16px;
+}
+
+.learner-page-ai .learner-roadmap-summary__direction p,
+.learner-page-ai .learner-roadmap-summary__direction [data-roadmap-direction-alternatives] {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.learner-page-ai .learner-roadmap-next {
+    background: var(--primary-light);
+    border-color: #FED7AA;
+}
+
+.learner-page-ai .learner-roadmap-next h2,
+.learner-page-ai .learner-roadmap-radar-card h2,
+.learner-page-ai .learner-roadmap-highlights h2 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 20px;
+}
+
+.learner-page-ai .learner-roadmap-next__item {
+    display: grid;
+    gap: 4px;
+    margin: 18px 0;
+}
+
+.learner-page-ai .learner-roadmap-next__item strong {
+    color: var(--text-primary);
+    font-size: 16px;
+    line-height: 1.45;
+}
+
+.learner-page-ai .learner-roadmap-next__item span,
+.learner-page-ai .learner-roadmap-next__item small {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.learner-page-ai .learner-roadmap-plan {
+    padding: 24px;
+}
+
+.learner-page-ai .learner-roadmap-section-heading {
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+
+.learner-page-ai .learner-roadmap-section-heading > div > span {
+    font-size: 12px;
+}
+
+.learner-page-ai .learner-roadmap-section-heading h2 {
+    font-size: 24px;
+}
+
+.learner-page-ai .learner-roadmap-progress-label {
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.learner-page-ai .learner-roadmap-progress {
+    height: 7px;
+    margin: 0 0 28px;
+    overflow: hidden;
+    background: #E2E8F0;
+    border-radius: 999px;
+}
+
+.learner-page-ai .learner-roadmap-progress > span {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: var(--primary);
+    border-radius: inherit;
+    transition: width .25s ease;
+}
+
+.learner-page-ai .learner-roadmap-timeline {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.learner-page-ai .learner-roadmap-timeline::before {
+    position: absolute;
+    top: 18px;
+    right: 9%;
+    left: 9%;
+    height: 2px;
+    content: '';
+    background: var(--border);
+}
+
+.learner-page-ai .learner-roadmap-phase {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+    overflow: visible;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.learner-page-ai .learner-roadmap-phase.is-current {
+    border-color: var(--primary);
+    box-shadow: 0 7px 20px rgba(249, 115, 22, .1);
+}
+
+.learner-page-ai .learner-roadmap-phase.is-completed {
+    border-color: #86EFAC;
+}
+
+.learner-page-ai .learner-roadmap-phase__summary {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    min-height: 76px;
+    padding: 14px;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.learner-page-ai .learner-roadmap-phase__summary::-webkit-details-marker {
+    display: none;
+}
+
+.learner-page-ai .learner-roadmap-phase__number {
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    background: #F1F5F9;
+    border-radius: 50%;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.learner-page-ai .learner-roadmap-phase.is-current .learner-roadmap-phase__number {
+    color: #FFFFFF;
+    background: var(--primary);
+}
+
+.learner-page-ai .learner-roadmap-phase.is-completed .learner-roadmap-phase__number {
+    color: #FFFFFF;
+    background: var(--accent);
+}
+
+.learner-page-ai .learner-roadmap-phase__summary strong,
+.learner-page-ai .learner-roadmap-phase__summary small {
+    display: block;
+}
+
+.learner-page-ai .learner-roadmap-phase__summary strong {
+    color: var(--text-primary);
+    font-size: 16px;
+}
+
+.learner-page-ai .learner-roadmap-phase__summary small {
+    margin-top: 3px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.learner-page-ai .learner-roadmap-phase__progress {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.learner-page-ai .learner-roadmap-phase__current {
+    grid-column: 1 / -1;
+    justify-self: start;
+    padding: 4px 8px;
+    color: var(--primary-hover);
+    background: var(--primary-light);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.learner-page-ai .learner-roadmap-phase__body {
+    padding: 0 14px 14px;
+}
+
+.learner-page-ai .learner-roadmap-phase__goal {
+    min-height: 42px;
+    margin: 0 0 10px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.learner-page-ai .learner-roadmap-task-list {
+    display: grid;
+    gap: 7px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.learner-page-ai .learner-roadmap-task {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 9px;
+    padding: 8px;
+    background: #F8FAFC;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.learner-page-ai .learner-roadmap-task__control {
+    width: 22px;
+    height: 22px;
+    min-height: 22px;
+    padding: 0;
+    color: #FFFFFF;
+    background: transparent;
+    border: 2px solid var(--primary);
+    border-radius: 50%;
+}
+
+.learner-page-ai .learner-roadmap-task.is-completed .learner-roadmap-task__control {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.learner-page-ai .learner-roadmap-task strong,
+.learner-page-ai .learner-roadmap-task small {
+    display: block;
+}
+
+.learner-page-ai .learner-roadmap-task strong {
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.learner-page-ai .learner-roadmap-task small {
+    margin-top: 3px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.learner-page-ai .learner-roadmap-analysis {
+    grid-template-columns: minmax(300px, .8fr) minmax(0, 1.2fr);
+}
+
+.learner-page-ai .learner-roadmap-radar-card {
+    min-height: 290px;
+}
+
+.learner-page-ai .learner-roadmap-radar {
+    display: block;
+    width: 100%;
+    max-height: 270px;
+    margin: 4px auto 0;
+}
+
+.learner-page-ai .learner-roadmap-radar__grid {
+    fill: none;
+    stroke: #CBD5E1;
+    stroke-width: 1;
+}
+
+.learner-page-ai .learner-roadmap-radar__axis {
+    stroke: #E2E8F0;
+    stroke-width: 1;
+}
+
+.learner-page-ai .learner-roadmap-radar__data {
+    fill: rgba(249, 115, 22, .2);
+    stroke: var(--primary);
+    stroke-width: 3;
+}
+
+.learner-page-ai .learner-roadmap-radar__point {
+    fill: var(--primary);
+    stroke: #FFFFFF;
+    stroke-width: 2;
+}
+
+.learner-page-ai .learner-roadmap-radar__label {
+    fill: var(--text-primary);
+    font-family: 'Be Vietnam Pro', sans-serif;
+    font-size: 12px;
+}
+
+.learner-page-ai .learner-roadmap-radar-note {
+    margin: 2px auto 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.learner-page-ai .learner-roadmap-radar__point.is-unmeasured {
+    fill: #94A3B8;
+}
+
+.learner-page-ai .learner-roadmap-radar__label.is-unmeasured {
+    fill: #64748B;
+}
+
+.learner-page-ai .learner-roadmap-highlights .learner-roadmap-section-heading {
+    align-items: center;
+}
+
+.learner-page-ai .learner-btn--text {
+    min-height: 44px;
+    padding: 8px;
+    color: var(--secondary);
+    background: transparent;
+    border: 0;
+}
+
+.learner-page-ai .learner-roadmap-highlight-row {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 14px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.learner-page-ai .learner-roadmap-highlight-row > strong {
+    font-size: 14px;
+}
+
+.learner-page-ai .learner-roadmap-highlight-row--strength > strong { color: var(--accent); }
+.learner-page-ai .learner-roadmap-highlight-row--improvement > strong { color: var(--warning); }
+.learner-page-ai .learner-roadmap-highlight-row--trend > strong { color: var(--secondary); }
+
+.learner-page-ai .learner-roadmap-highlight-row .learner-roadmap-capability__record {
+    padding: 0;
+    border: 0;
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.learner-page-ai .learner-roadmap-analysis-details {
+    padding-top: 14px;
+}
+
+.learner-page-ai .learner-roadmap-analysis-details h3 {
+    margin: 12px 0 5px;
+    font-size: 14px;
+}
+
+.learner-page-ai .learner-roadmap-secondary {
+    overflow: hidden;
+    border-radius: 12px;
+}
+
+.learner-page-ai .learner-roadmap-secondary > summary {
+    min-height: 52px;
+    padding: 15px 18px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.learner-page-ai .learner-roadmap-secondary > summary::marker {
+    color: var(--primary);
+}
+
+.learner-page-ai .learner-roadmap-secondary > .learner-card,
+.learner-page-ai .learner-roadmap-secondary > section {
+    margin: 0 18px 18px;
+    padding: 18px;
+    box-shadow: none;
+}
+
+.learner-page-ai .learner-roadmap__details {
+    display: grid;
+    gap: 10px;
+}
+
+.learner-page-ai .learner-roadmap-feedback {
+    margin-top: 0;
+}
+
+.learner-page-ai .learner-roadmap [hidden] {
+    display: none !important;
+}
+
+.learner-page-ai .learner-roadmap-insufficient {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr);
+    gap: 16px;
+}
+
+.learner-page-ai .learner-roadmap-insufficient .learner-roadmap-state,
+.learner-page-ai .learner-roadmap-radar-card--zero {
+    min-height: 290px;
+}
+
+.learner-page-ai .learner-roadmap button:focus-visible,
+.learner-page-ai .learner-roadmap summary:focus-visible {
+    outline: 3px solid var(--secondary);
+    outline-offset: 2px;
+}
+
+@media (max-width: 1100px) {
+    .learner-page-ai .learner-roadmap-hero,
+    .learner-page-ai .learner-roadmap-analysis,
+    .learner-page-ai .learner-roadmap-insufficient {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 720px) {
+    .learner-page-ai .learner-roadmap__header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .learner-page-ai .learner-roadmap__header h1 {
+        font-size: 28px;
+    }
+
+    .learner-page-ai .learner-roadmap__header-actions {
+        width: 100%;
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+
+    .learner-page-ai .learner-roadmap__header-actions .learner-btn {
+        flex: 1 1 100%;
+    }
+
+    .learner-page-ai .learner-roadmap-plan,
+    .learner-page-ai .learner-roadmap-summary,
+    .learner-page-ai .learner-roadmap-next,
+    .learner-page-ai .learner-roadmap-radar-card,
+    .learner-page-ai .learner-roadmap-highlights {
+        padding: 18px;
+    }
+
+    .learner-page-ai .learner-roadmap-timeline {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding-left: 18px;
+    }
+
+    .learner-page-ai .learner-roadmap-timeline::before {
+        top: 18px;
+        right: auto;
+        bottom: 18px;
+        left: 5px;
+        width: 2px;
+        height: auto;
+    }
+
+    .learner-page-ai .learner-roadmap-phase {
+        width: 100%;
+    }
+
+    .learner-page-ai .learner-roadmap-highlight-row {
+        grid-template-columns: 1fr;
+        gap: 5px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .learner-page-ai .learner-roadmap-progress > span {
+        transition: none;
+    }
+}
+
 /* Hero visual refinement v2 --------------------------------------------- */
 .learner-page-overview .learner-welcome {
     display: grid;
@@ -8273,3 +8988,1700 @@ body.learner-sidebar-open {
 .learner-ai-live-catalog { margin-block: 1.5rem; }
 .learner-ai-live-catalog__meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .75rem; margin-bottom: 1rem; color: var(--text-secondary); }
 .learner-ai-result__type { display: inline-block; margin-block: .5rem; color: var(--text-secondary); }
+
+/* Credential cards: Diploma certificates and Medal badges ---------------- */
+.learner-credential-card,
+.learner-certificate--diploma,
+.learner-badge-card {
+    font-family: var(--font-primary);
+}
+
+.learner-app .learner-school-credential-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+    align-items: stretch;
+}
+
+.learner-app .learner-school-credential-grid--compact {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 265px), 1fr));
+}
+
+.learner-credential-card {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-primary);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, .07);
+}
+
+.learner-credential-card__topline,
+.learner-credential-card__badge-topline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.learner-credential-card__brand-mark {
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 38px;
+    color: var(--surface);
+    background: var(--primary);
+    border-radius: var(--radius-sm);
+}
+
+.learner-credential-card__kind,
+.learner-credential-card__category {
+    color: var(--primary-hover);
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.learner-credential-card__status {
+    margin-left: auto;
+    padding: 5px 9px;
+    color: var(--secondary);
+    background: var(--secondary-light);
+    border-radius: 999px;
+    font-size: .69rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.learner-credential-card--success .learner-credential-card__status {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
+.learner-credential-card--locked .learner-credential-card__status {
+    color: var(--text-secondary);
+    background: var(--background);
+}
+
+.learner-credential-card h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.12rem;
+    font-weight: 750;
+    line-height: 1.35;
+}
+
+.learner-credential-card__description {
+    margin: 7px 0 0;
+    color: var(--text-secondary);
+    font-size: .82rem;
+    line-height: 1.55;
+}
+
+.learner-credential-card__reason {
+    display: flex;
+    margin: 12px 0 0;
+    align-items: flex-start;
+    gap: 6px;
+    color: var(--secondary);
+    font-size: .74rem;
+    line-height: 1.45;
+}
+
+.learner-credential-card__reason svg {
+    flex: 0 0 auto;
+    margin-top: 1px;
+}
+
+/* Diploma cards */
+.learner-credential-card--certificate {
+    --diploma-frame-color: var(--primary);
+    --diploma-state-color: var(--primary-hover);
+    --diploma-action-color: var(--primary);
+    min-height: 520px;
+    padding: 10px;
+    background: var(--surface);
+    border-color: color-mix(in srgb, var(--border) 86%, var(--primary));
+    box-shadow: 0 10px 28px rgb(15 23 42 / .08);
+}
+
+.learner-credential-card__diploma-frame {
+    position: relative;
+    display: flex;
+    height: 100%;
+    min-height: 498px;
+    padding: 24px 22px 18px;
+    flex-direction: column;
+    align-items: stretch;
+    overflow: hidden;
+    border: 2px solid var(--diploma-frame-color);
+    border-radius: var(--radius-sm);
+    background:
+        linear-gradient(135deg, var(--diploma-frame-color) 0 2px, transparent 2px) 7px 7px / 22px 22px no-repeat,
+        linear-gradient(225deg, var(--diploma-frame-color) 0 2px, transparent 2px) calc(100% - 7px) 7px / 22px 22px no-repeat,
+        linear-gradient(45deg, var(--diploma-frame-color) 0 2px, transparent 2px) 7px calc(100% - 7px) / 22px 22px no-repeat,
+        linear-gradient(315deg, var(--diploma-frame-color) 0 2px, transparent 2px) calc(100% - 7px) calc(100% - 7px) / 22px 22px no-repeat,
+        var(--surface);
+    box-shadow: inset 0 0 0 6px var(--surface), inset 0 0 0 7px color-mix(in srgb, var(--diploma-frame-color) 72%, var(--border));
+}
+
+.learner-credential-card__diploma-frame::before {
+    position: absolute;
+    inset: 14px;
+    content: '';
+    pointer-events: none;
+    border: 1px solid color-mix(in srgb, var(--diploma-frame-color) 28%, transparent);
+    border-radius: 4px;
+}
+
+.learner-credential-card__diploma-crest {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    width: 142px;
+    min-height: 92px;
+    margin: 5px auto 14px;
+    align-items: center;
+    justify-content: center;
+    color: var(--diploma-frame-color);
+}
+
+.learner-credential-card__diploma-shield {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    width: 70px;
+    height: 78px;
+    color: var(--surface);
+    background: var(--diploma-frame-color);
+    clip-path: polygon(50% 0, 92% 16%, 87% 66%, 72% 86%, 50% 100%, 28% 86%, 13% 66%, 8% 16%);
+    place-items: center;
+    filter: drop-shadow(0 5px 8px rgb(15 23 42 / .12));
+}
+
+.learner-credential-card__diploma-shield::before {
+    position: absolute;
+    inset: 6px;
+    content: '';
+    border: 1px solid rgb(255 255 255 / .82);
+    clip-path: inherit;
+}
+
+.learner-credential-card__diploma-laurel {
+    width: 27px;
+    height: 65px;
+    margin-top: 17px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-bottom-color: transparent;
+    opacity: .88;
+}
+
+.learner-credential-card__diploma-laurel--left {
+    margin-right: -2px;
+    border-right: 0;
+    border-radius: 70% 0 0 60%;
+    transform: rotate(-10deg);
+}
+
+.learner-credential-card__diploma-laurel--right {
+    margin-left: -2px;
+    border-left: 0;
+    border-radius: 0 70% 60% 0;
+    transform: rotate(10deg);
+}
+
+.learner-credential-card__diploma-state {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(18px, 1fr) auto minmax(18px, 1fr);
+    align-items: center;
+    gap: 10px;
+    color: var(--diploma-state-color);
+    font-size: .76rem;
+    letter-spacing: .045em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.learner-credential-card__diploma-state span {
+    height: 1px;
+    background: currentColor;
+    opacity: .58;
+}
+
+.learner-credential-card--certificate h3,
+.learner-credential-card--certificate .learner-credential-card__description {
+    text-align: center;
+}
+
+.learner-credential-card--certificate h3 {
+    position: relative;
+    z-index: 1;
+    margin-top: 14px;
+    font-size: 1.24rem;
+    line-height: 1.35;
+}
+
+.learner-credential-card__diploma-rule {
+    position: relative;
+    z-index: 1;
+    width: 78%;
+    height: 9px;
+    margin: 11px auto 7px;
+}
+
+.learner-credential-card__diploma-rule::before,
+.learner-credential-card__diploma-rule::after {
+    position: absolute;
+    top: 4px;
+    width: calc(50% - 8px);
+    height: 1px;
+    content: '';
+    background: color-mix(in srgb, var(--diploma-frame-color) 36%, var(--border));
+}
+
+.learner-credential-card__diploma-rule::before {
+    left: 0;
+}
+
+.learner-credential-card__diploma-rule::after {
+    right: 0;
+}
+
+.learner-credential-card__diploma-rule span {
+    position: absolute;
+    top: 1px;
+    left: 50%;
+    width: 7px;
+    height: 7px;
+    background: var(--diploma-frame-color);
+    transform: translateX(-50%) rotate(45deg);
+}
+
+.learner-credential-card__diploma-issuer {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    color: var(--text-primary);
+    font-size: .91rem;
+    font-weight: 650;
+    line-height: 1.45;
+    text-align: center;
+}
+
+.learner-credential-card__diploma-body {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    min-height: 136px;
+    padding: 15px 9px 12px;
+    align-items: center;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.learner-credential-card__certificate-meta {
+    display: flex;
+    width: 100%;
+    max-width: 250px;
+    flex-direction: column;
+    gap: 9px;
+    color: var(--text-secondary);
+    font-size: .79rem;
+}
+
+.learner-credential-card__certificate-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.learner-credential-card__certificate-seal {
+    display: flex;
+    margin: 17px auto 0;
+    align-items: center;
+    gap: 9px;
+    color: var(--accent);
+    font-size: .88rem;
+}
+
+.learner-credential-card__certificate-seal > span {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    color: var(--surface);
+    background: var(--accent);
+    border: 3px double var(--surface);
+    border-radius: 50%;
+    outline: 2px solid var(--accent);
+    place-items: center;
+}
+
+.learner-credential-card__linear-progress {
+    display: grid;
+    width: 100%;
+    margin-top: 4px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+}
+
+.learner-credential-card__linear-progress .learner-progress > span {
+    background: var(--secondary);
+}
+
+.learner-credential-card--success .learner-credential-card__linear-progress .learner-progress > span {
+    background: var(--accent);
+}
+
+.learner-credential-card--locked .learner-credential-card__linear-progress .learner-progress > span {
+    background: var(--border);
+}
+
+.learner-credential-card__linear-progress strong {
+    color: var(--text-primary);
+    font-size: .9rem;
+    white-space: nowrap;
+}
+
+.learner-credential-card__diploma-progress-label {
+    margin-top: 12px;
+    color: var(--text-primary);
+    font-size: .91rem;
+}
+
+.learner-credential-card__diploma-criteria,
+.learner-credential-card__diploma-requirement {
+    display: flex;
+    margin: 15px 0 0;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: .78rem;
+    line-height: 1.45;
+    text-align: center;
+}
+
+.learner-credential-card__diploma-criteria svg,
+.learner-credential-card__diploma-requirement svg {
+    flex: 0 0 auto;
+}
+
+.learner-credential-card__diploma-lock {
+    display: grid;
+    width: 70px;
+    height: 70px;
+    color: #6B7280;
+    background: #F1F2F4;
+    border: 1px solid #E5E7EB;
+    border-radius: 50%;
+    place-items: center;
+}
+
+.learner-credential-card__diploma-action {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    width: calc(100% - 18px);
+    min-height: 46px;
+    margin: auto auto 2px;
+    padding: 10px 15px;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    color: var(--surface);
+    background: var(--diploma-action-color);
+    border: 1px solid var(--diploma-action-color);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 7px 16px color-mix(in srgb, var(--diploma-action-color) 22%, transparent);
+    font-size: .88rem;
+    font-weight: 750;
+    text-decoration: none;
+    transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+
+.learner-credential-card__diploma-action:hover {
+    color: var(--surface);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px color-mix(in srgb, var(--diploma-action-color) 28%, transparent);
+}
+
+.learner-credential-card--progress.learner-credential-card--certificate {
+    --diploma-state-color: var(--secondary);
+    --diploma-action-color: var(--secondary);
+}
+
+.learner-credential-card--locked.learner-credential-card--certificate {
+    --diploma-frame-color: #B8BCC3;
+    --diploma-state-color: #8B9098;
+    --diploma-action-color: #737982;
+    color: #737982;
+    background: #FCFCFD;
+}
+
+.learner-credential-card--locked .learner-credential-card__diploma-frame {
+    background:
+        linear-gradient(135deg, var(--diploma-frame-color) 0 2px, transparent 2px) 7px 7px / 22px 22px no-repeat,
+        linear-gradient(225deg, var(--diploma-frame-color) 0 2px, transparent 2px) calc(100% - 7px) 7px / 22px 22px no-repeat,
+        linear-gradient(45deg, var(--diploma-frame-color) 0 2px, transparent 2px) 7px calc(100% - 7px) / 22px 22px no-repeat,
+        linear-gradient(315deg, var(--diploma-frame-color) 0 2px, transparent 2px) calc(100% - 7px) calc(100% - 7px) / 22px 22px no-repeat,
+        #FCFCFD;
+}
+
+.learner-credential-card--locked .learner-credential-card__diploma-shield {
+    color: #F5F5F5;
+}
+
+.learner-credential-card--locked .learner-credential-card__diploma-issuer,
+.learner-credential-card--locked.learner-credential-card--certificate h3 {
+    color: #5F646C;
+}
+
+.learner-credential-card--locked .learner-credential-card__diploma-action {
+    color: #5F646C;
+    background: transparent;
+    border-color: #858A92;
+    box-shadow: none;
+}
+
+.learner-credential-card--locked .learner-credential-card__diploma-action:hover {
+    color: var(--text-primary);
+    background: #F4F5F6;
+}
+
+/* Medal cards */
+.learner-credential-card--badge {
+    display: flex;
+    min-height: 420px;
+    padding: 18px;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+}
+
+.learner-credential-card__badge-topline {
+    width: 100%;
+}
+
+.learner-credential-card__progress-ring,
+.learner-badge-card__ring {
+    display: grid;
+    width: 164px;
+    height: 164px;
+    margin: 22px auto 18px;
+    place-items: center;
+    background: conic-gradient(var(--secondary) var(--credential-progress, var(--badge-progress, 0%)), var(--border) 0);
+    border-radius: 50%;
+}
+
+.learner-credential-card--success .learner-credential-card__progress-ring {
+    background: conic-gradient(var(--accent) var(--credential-progress), color-mix(in srgb, var(--accent) 14%, var(--border)) 0);
+}
+
+.learner-credential-card--locked .learner-credential-card__progress-ring {
+    background: var(--border);
+}
+
+.learner-credential-card__medal,
+.learner-badge-card__medal {
+    position: relative;
+    z-index: 0;
+    display: grid;
+    width: 142px;
+    height: 142px;
+    place-items: center;
+}
+
+.learner-credential-card__medal-ribbons,
+.learner-badge-card__ribbons {
+    position: absolute;
+    z-index: -1;
+    right: 26px;
+    bottom: -17px;
+    left: 26px;
+    height: 74px;
+}
+
+.learner-credential-card__medal-ribbons::before,
+.learner-credential-card__medal-ribbons::after,
+.learner-badge-card__ribbons::before,
+.learner-badge-card__ribbons::after {
+    position: absolute;
+    top: 0;
+    width: 42px;
+    height: 72px;
+    content: '';
+    background: var(--primary);
+    clip-path: polygon(0 0, 100% 0, 92% 100%, 50% 79%, 8% 100%);
+}
+
+.learner-credential-card__medal-ribbons::before,
+.learner-badge-card__ribbons::before {
+    left: 0;
+    transform: rotate(10deg);
+}
+
+.learner-credential-card__medal-ribbons::after,
+.learner-badge-card__ribbons::after {
+    right: 0;
+    transform: rotate(-10deg);
+}
+
+.learner-credential-card__medal-face,
+.learner-badge-card__medal-face {
+    display: grid;
+    width: 122px;
+    height: 122px;
+    place-items: center;
+    color: var(--surface);
+    background: var(--primary);
+    border: 8px solid var(--primary-light);
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px var(--primary), 0 12px 24px rgba(249, 115, 22, .22);
+}
+
+.learner-credential-card--success .learner-credential-card__medal-face {
+    background: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 14%, var(--surface));
+    box-shadow: 0 0 0 3px var(--accent), 0 12px 24px rgba(22, 163, 74, .2);
+}
+
+.learner-credential-card--locked .learner-credential-card__medal-face,
+.learner-badge-card--locked .learner-badge-card__medal-face {
+    color: var(--text-secondary);
+    background: var(--border);
+    border-color: var(--background);
+    box-shadow: 0 0 0 3px var(--text-secondary);
+}
+
+.learner-credential-card--locked .learner-credential-card__medal-ribbons::before,
+.learner-credential-card--locked .learner-credential-card__medal-ribbons::after,
+.learner-badge-card--locked .learner-badge-card__ribbons::before,
+.learner-badge-card--locked .learner-badge-card__ribbons::after {
+    background: var(--text-secondary);
+}
+
+.learner-credential-card__badge-meta {
+    display: flex;
+    margin-top: 13px;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 14px;
+    color: var(--text-secondary);
+    font-size: .72rem;
+}
+
+.learner-credential-card__badge-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.learner-credential-card__criteria {
+    display: grid;
+    width: 100%;
+    margin-top: auto;
+    padding-top: 15px;
+    grid-template-columns: auto auto 1fr;
+    align-items: center;
+    gap: 7px;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border);
+    text-align: left;
+}
+
+.learner-credential-card__criteria strong {
+    color: var(--text-primary);
+    font-size: .83rem;
+}
+
+.learner-credential-card__criteria small {
+    justify-self: end;
+    font-size: .69rem;
+}
+
+/* External Diploma cards */
+.learner-certificate-list {
+    gap: 12px;
+}
+
+.learner-certificate.learner-certificate--diploma {
+    display: block;
+    padding: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--primary);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, .055);
+}
+
+.learner-certificate__frame {
+    display: grid;
+    padding: 13px;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border));
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 0 0 3px var(--primary-light);
+}
+
+.learner-certificate__topline {
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--primary-hover);
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.learner-certificate__topline > span:first-child {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.learner-certificate__status {
+    color: var(--text-secondary);
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.learner-certificate--verified .learner-certificate__status {
+    color: var(--accent);
+}
+
+.learner-certificate--diploma .learner-certificate__icon {
+    width: 42px;
+    height: 42px;
+    color: var(--primary);
+    background: var(--primary-light);
+    border-radius: var(--radius-sm);
+}
+
+.learner-certificate__content {
+    min-width: 0;
+}
+
+.learner-certificate--diploma h3 {
+    font-size: .88rem;
+    font-weight: 750;
+}
+
+.learner-certificate__meta {
+    display: flex;
+    margin-top: 6px;
+    flex-wrap: wrap;
+    gap: 5px 10px;
+    color: var(--text-secondary);
+    font-size: .68rem;
+}
+
+.learner-certificate__meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.learner-certificate__seal {
+    display: inline-flex;
+    padding: 6px 8px;
+    align-items: center;
+    gap: 5px;
+    color: var(--text-secondary);
+    background: var(--background);
+    border-radius: var(--radius-sm);
+    font-size: .66rem;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.learner-certificate--verified .learner-certificate__seal {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+}
+
+/* Global Medal cards */
+.learner-badge-grid {
+    grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));
+}
+
+.learner-badge-card {
+    min-height: 430px;
+    padding: 18px;
+    border-radius: var(--radius-md);
+}
+
+.learner-badge-card__topline {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 8px;
+}
+
+.learner-badge-card__category {
+    color: var(--primary-hover);
+    font-size: .7rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.learner-badge-card__topline .learner-badge-card__status {
+    margin: 0 0 0 auto;
+}
+
+.learner-badge-card__ring {
+    width: 164px;
+    height: 164px;
+    background: conic-gradient(var(--secondary) var(--badge-progress), var(--border) 0);
+}
+
+.learner-badge-card--achieved .learner-badge-card__ring {
+    background: conic-gradient(var(--accent) var(--badge-progress), color-mix(in srgb, var(--accent) 14%, var(--border)) 0);
+}
+
+.learner-badge-card--locked .learner-badge-card__ring {
+    background: var(--border);
+}
+
+.learner-badge-card__medal-face {
+    background: var(--primary);
+}
+
+.learner-badge-card__medal--success .learner-badge-card__medal-face {
+    background: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 14%, var(--surface));
+    box-shadow: 0 0 0 3px var(--accent), 0 12px 24px rgba(22, 163, 74, .2);
+}
+
+.learner-badge-card__medal--primary .learner-badge-card__medal-face {
+    background: var(--secondary);
+    border-color: var(--secondary-light);
+    box-shadow: 0 0 0 3px var(--secondary), 0 12px 24px rgba(37, 99, 235, .2);
+}
+
+.learner-badge-card h3 {
+    margin-top: 5px;
+    font-size: 1.08rem;
+    font-weight: 750;
+}
+
+.learner-badge-card > p {
+    min-height: 42px;
+    margin-top: 7px;
+    font-size: .78rem;
+}
+
+.learner-badge-card__meta {
+    display: grid;
+    width: 100%;
+    margin-top: auto;
+    padding-top: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-top: 1px solid var(--border);
+}
+
+.learner-badge-card__meta > span {
+    display: grid;
+    padding: 0 10px;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 1px 6px;
+    text-align: left;
+}
+
+.learner-badge-card__meta > span + span {
+    border-left: 1px solid var(--border);
+}
+
+.learner-badge-card__meta svg {
+    grid-row: 1 / 3;
+    color: var(--secondary);
+}
+
+.learner-badge-card__meta strong {
+    color: var(--text-primary);
+    font-size: .76rem;
+}
+
+.learner-badge-card__meta small {
+    color: var(--text-secondary);
+    font-size: .64rem;
+}
+
+.learner-badge-card__date {
+    display: inline-flex;
+    margin-top: 12px;
+    align-items: center;
+    gap: 5px;
+    color: var(--accent);
+    font-size: .7rem;
+    font-weight: 650;
+}
+
+@media (max-width: 720px) {
+    .learner-app .learner-school-credential-grid,
+    .learner-app .learner-school-credential-grid--compact,
+    .learner-badge-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .learner-credential-card--certificate,
+    .learner-credential-card--badge,
+    .learner-badge-card {
+        min-height: 0;
+    }
+
+    .learner-certificate__frame {
+        grid-template-columns: 42px minmax(0, 1fr);
+    }
+
+    .learner-certificate__seal {
+        grid-column: 2;
+        width: fit-content;
+    }
+}
+
+@media (max-width: 480px) {
+    .learner-credential-card__diploma-frame {
+        min-height: 486px;
+        padding: 22px 15px 16px;
+    }
+
+    .learner-credential-card__diploma-crest {
+        width: 126px;
+        min-height: 84px;
+        margin-bottom: 12px;
+    }
+
+    .learner-credential-card__diploma-shield {
+        width: 64px;
+        height: 72px;
+    }
+
+    .learner-credential-card__diploma-state {
+        gap: 7px;
+        font-size: .7rem;
+    }
+
+    .learner-credential-card__diploma-action {
+        width: calc(100% - 10px);
+    }
+
+    .learner-credential-card__topline,
+    .learner-credential-card__badge-topline,
+    .learner-certificate__topline {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .learner-credential-card__status {
+        margin-left: 0;
+    }
+
+    .learner-credential-card__badge-topline .learner-credential-card__status,
+    .learner-badge-card__topline .learner-badge-card__status {
+        margin-left: auto;
+    }
+
+    .learner-credential-card__progress-ring,
+    .learner-badge-card__ring {
+        width: 148px;
+        height: 148px;
+    }
+
+    .learner-credential-card__medal,
+    .learner-badge-card__medal {
+        width: 126px;
+        height: 126px;
+    }
+
+    .learner-credential-card__medal-face,
+    .learner-badge-card__medal-face {
+        width: 108px;
+        height: 108px;
+    }
+}
+
+/* Compact collection card sizing ---------------------------------------- */
+.learner-app .learner-school-credential-grid--certificates {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.learner-app .learner-school-credential-grid--badges {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 260px));
+    justify-content: start;
+    gap: 18px;
+}
+
+.learner-credential-card--certificate {
+    min-height: 290px;
+    padding: 7px;
+    box-shadow: 0 7px 18px rgb(15 23 42 / .07);
+}
+
+.learner-credential-card__diploma-frame {
+    min-height: 274px;
+    padding: 14px 20px 13px;
+    border-width: 1px;
+    box-shadow: inset 0 0 0 4px var(--surface), inset 0 0 0 5px color-mix(in srgb, var(--diploma-frame-color) 62%, var(--border));
+}
+
+.learner-credential-card__diploma-frame::before {
+    inset: 10px;
+}
+
+.learner-credential-card__diploma-crest {
+    width: 94px;
+    min-height: 58px;
+    margin: 0 auto 5px;
+}
+
+.learner-credential-card__diploma-shield {
+    width: 44px;
+    height: 50px;
+    filter: none;
+}
+
+.learner-credential-card__diploma-shield svg {
+    width: 23px;
+    height: 23px;
+}
+
+.learner-credential-card__diploma-shield::before {
+    inset: 4px;
+}
+
+.learner-credential-card__diploma-laurel {
+    width: 18px;
+    height: 40px;
+    margin-top: 10px;
+    border-width: 1px;
+}
+
+.learner-credential-card__diploma-state {
+    gap: 8px;
+    font-size: .67rem;
+}
+
+.learner-credential-card--certificate h3 {
+    margin-top: 9px;
+    font-size: 1rem;
+    line-height: 1.3;
+}
+
+.learner-credential-card__diploma-rule {
+    width: 68%;
+    margin: 7px auto 4px;
+}
+
+.learner-credential-card__diploma-rule span {
+    width: 6px;
+    height: 6px;
+}
+
+.learner-credential-card__diploma-issuer {
+    font-size: .78rem;
+}
+
+.learner-credential-card__diploma-summary {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    min-height: 42px;
+    margin-top: auto;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    color: var(--text-secondary);
+    font-size: .76rem;
+}
+
+.learner-credential-card__diploma-summary i,
+.learner-credential-card__badge-summary i {
+    color: var(--border);
+    font-style: normal;
+}
+
+.learner-credential-card__diploma-summary > strong {
+    color: var(--diploma-state-color);
+    font-weight: 650;
+}
+
+.learner-credential-card__certificate-seal {
+    margin: 0;
+    gap: 7px;
+    font-size: .78rem;
+}
+
+.learner-credential-card__certificate-seal > span {
+    width: 30px;
+    height: 30px;
+    border-width: 2px;
+    outline-width: 1px;
+}
+
+.learner-credential-card--progress.learner-credential-card--certificate {
+    --diploma-frame-color: var(--secondary);
+}
+
+.learner-credential-card--badge {
+    min-height: 300px;
+    padding: 15px 14px 14px;
+    box-shadow: 0 7px 18px rgb(15 23 42 / .07);
+}
+
+.learner-credential-card__progress-ring,
+.learner-badge-card__ring {
+    width: 112px;
+    height: 112px;
+    margin: 10px auto 20px;
+}
+
+.learner-credential-card__medal,
+.learner-badge-card__medal {
+    width: 94px;
+    height: 94px;
+}
+
+.learner-credential-card__medal-face,
+.learner-badge-card__medal-face {
+    width: 78px;
+    height: 78px;
+    border-width: 5px;
+    box-shadow: 0 0 0 2px var(--primary), 0 7px 14px rgba(249, 115, 22, .18);
+}
+
+.learner-credential-card__medal-ribbons,
+.learner-badge-card__ribbons {
+    right: 18px;
+    bottom: -13px;
+    left: 18px;
+    height: 50px;
+}
+
+.learner-credential-card__medal-ribbons::before,
+.learner-credential-card__medal-ribbons::after,
+.learner-badge-card__ribbons::before,
+.learner-badge-card__ribbons::after {
+    width: 29px;
+    height: 49px;
+}
+
+/* Compact medal state colors */
+.learner-credential-card--success .learner-credential-card__progress-ring,
+.learner-badge-card--achieved .learner-badge-card__ring {
+    background: conic-gradient(var(--primary) var(--credential-progress, var(--badge-progress, 100%)), var(--primary-light) 0);
+}
+
+.learner-credential-card--success .learner-credential-card__medal-face,
+.learner-badge-card__medal--success .learner-badge-card__medal-face {
+    background: var(--primary);
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 2px var(--primary), 0 7px 14px rgba(249, 115, 22, .18);
+}
+
+.learner-credential-card--progress .learner-credential-card__medal-face,
+.learner-badge-card__medal--primary .learner-badge-card__medal-face {
+    background: var(--secondary);
+    border-color: var(--secondary-light);
+    box-shadow: 0 0 0 2px var(--secondary), 0 7px 14px rgba(37, 99, 235, .18);
+}
+
+.learner-credential-card--progress .learner-credential-card__medal-ribbons::before,
+.learner-credential-card--progress .learner-credential-card__medal-ribbons::after,
+.learner-badge-card__medal--primary .learner-badge-card__ribbons::before,
+.learner-badge-card__medal--primary .learner-badge-card__ribbons::after {
+    background: var(--secondary);
+}
+
+.learner-credential-card__badge-state {
+    color: var(--secondary);
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+}
+
+.learner-credential-card--success .learner-credential-card__badge-state {
+    color: var(--primary-hover);
+}
+
+.learner-credential-card--locked .learner-credential-card__badge-state {
+    color: #858A92;
+}
+
+.learner-credential-card--badge h3 {
+    min-height: 40px;
+    margin-top: 10px;
+    font-size: .9rem;
+    line-height: 1.4;
+}
+
+.learner-credential-card__badge-summary {
+    display: flex;
+    width: 100%;
+    min-height: 34px;
+    margin-top: auto;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: .73rem;
+}
+
+.learner-credential-card__badge-summary .learner-credential-card__certificate-seal {
+    color: var(--accent);
+}
+
+.learner-credential-card__badge-summary .learner-credential-card__criteria {
+    display: inline;
+    width: auto;
+    margin: 0;
+    padding: 0;
+    color: var(--text-secondary);
+    border: 0;
+    font-size: inherit;
+    text-align: center;
+}
+
+.learner-credential-card__badge-summary .learner-credential-card__criteria strong {
+    color: var(--secondary);
+    font-size: inherit;
+}
+
+.learner-credential-card--locked .learner-credential-card__badge-summary .learner-credential-card__criteria strong {
+    color: #737982;
+}
+
+.learner-badge-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 260px));
+    justify-content: start;
+    gap: 18px;
+}
+
+.learner-badge-card {
+    min-height: 300px;
+    padding: 14px;
+    box-shadow: 0 7px 18px rgb(15 23 42 / .07);
+}
+
+.learner-badge-card__ring {
+    margin-top: 12px;
+    margin-bottom: 18px;
+}
+
+.learner-badge-card__compact-state {
+    color: var(--secondary);
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+}
+
+.learner-badge-card--achieved .learner-badge-card__compact-state {
+    color: var(--primary-hover);
+}
+
+.learner-badge-card--locked .learner-badge-card__compact-state {
+    color: #858A92;
+}
+
+.learner-badge-card h3 {
+    min-height: 39px;
+    margin-top: 10px;
+    font-size: .9rem;
+    line-height: 1.4;
+}
+
+.learner-badge-card > p {
+    display: -webkit-box;
+    min-height: 36px;
+    margin-top: 4px;
+    overflow: hidden;
+    font-size: .72rem;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.learner-badge-card__meta {
+    padding-top: 9px;
+}
+
+.learner-badge-card__compact-summary {
+    display: flex;
+    min-height: 34px;
+    margin-top: auto;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: .73rem;
+}
+
+.learner-badge-card__compact-summary i {
+    color: var(--border);
+    font-style: normal;
+}
+
+.learner-badge-card__compact-summary .learner-badge-card__criteria {
+    display: inline;
+    padding: 0;
+    border: 0;
+}
+
+.learner-badge-card__compact-summary .learner-badge-card__criteria strong {
+    color: var(--secondary);
+}
+
+.learner-badge-card--locked .learner-badge-card__compact-summary .learner-badge-card__criteria strong {
+    color: #737982;
+}
+
+.learner-badge-card__verified {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.learner-badge-card__date {
+    margin-top: 6px;
+}
+
+@media (max-width: 1100px) {
+    .learner-app .learner-school-credential-grid--certificates {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+    .learner-app .learner-school-credential-grid--certificates,
+    .learner-app .learner-school-credential-grid--badges,
+    .learner-badge-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .learner-credential-card--badge,
+    .learner-badge-card {
+        width: 100%;
+        max-width: 320px;
+        justify-self: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .learner-credential-card__diploma-frame {
+        min-height: 268px;
+        padding: 13px 14px 12px;
+    }
+
+    .learner-credential-card__diploma-crest {
+        width: 90px;
+        min-height: 55px;
+    }
+
+    .learner-credential-card__diploma-shield {
+        width: 42px;
+        height: 48px;
+    }
+
+    .learner-credential-card__progress-ring,
+    .learner-badge-card__ring {
+        width: 112px;
+        height: 112px;
+    }
+
+    .learner-credential-card__medal,
+    .learner-badge-card__medal {
+        width: 94px;
+        height: 94px;
+    }
+
+    .learner-credential-card__medal-face,
+    .learner-badge-card__medal-face {
+        width: 78px;
+        height: 78px;
+    }
+}
+
+/* Learner progress dashboard: approved 2026-08-28 mockup ---------------- */
+.learner-page-overview .learner-progress-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.learner-page-overview .learner-progress-kpi {
+    display: flex;
+    min-height: 104px;
+    padding: 18px 20px;
+    align-items: center;
+    gap: 15px;
+    box-shadow: var(--shadow-sm);
+}
+
+.learner-page-overview .learner-progress-kpi__icon {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    color: var(--primary);
+    background: var(--primary-light);
+    border-radius: var(--radius-sm);
+    place-items: center;
+}
+
+.learner-page-overview .learner-progress-kpi--secondary .learner-progress-kpi__icon {
+    color: var(--secondary);
+    background: var(--secondary-light);
+}
+
+.learner-page-overview .learner-progress-kpi--success .learner-progress-kpi__icon {
+    color: var(--accent);
+    background: var(--accent-light);
+}
+
+.learner-page-overview .learner-progress-kpi p {
+    color: var(--text-secondary);
+    font-size: .8rem;
+}
+
+.learner-page-overview .learner-progress-kpi strong {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-primary);
+    font-size: 1.65rem;
+    line-height: 1.2;
+}
+
+.learner-page-overview .learner-progress-dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.62fr) minmax(340px, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.learner-page-overview .learner-progress-skills,
+.learner-page-overview .learner-progress-ai,
+.learner-page-overview .learner-progress-activities {
+    padding: 22px;
+    box-shadow: var(--shadow-sm);
+}
+
+.learner-page-overview .learner-section-heading--stacked-copy > div p {
+    margin-top: 3px;
+    color: var(--text-secondary);
+    font-size: .78rem;
+}
+
+.learner-page-overview .learner-progress-skill-list {
+    display: grid;
+    gap: 14px;
+}
+
+.learner-page-overview .learner-progress-skill__heading {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) 88px 66px 18px;
+    align-items: center;
+    gap: 10px;
+    font-size: .78rem;
+}
+
+.learner-page-overview .learner-progress-skill__heading > strong {
+    overflow: hidden;
+    color: var(--text-primary);
+    font-size: .84rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.learner-page-overview .learner-progress-skill__heading > span {
+    color: var(--text-secondary);
+}
+
+.learner-page-overview .learner-progress-skill__heading > b {
+    color: var(--text-primary);
+    font-size: .9rem;
+    text-align: right;
+}
+
+.learner-page-overview .learner-progress-skill__heading > i {
+    display: grid;
+    width: 18px;
+    height: 18px;
+    color: var(--accent);
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    place-items: center;
+}
+
+.learner-page-overview .learner-progress-skill .learner-progress {
+    height: 8px;
+    margin-top: 7px;
+    background: var(--border);
+}
+
+.learner-page-overview .learner-progress > .learner-progress--success {
+    background: var(--accent);
+}
+
+.learner-page-overview .learner-progress > .learner-progress--warning {
+    background: var(--warning);
+}
+
+.learner-page-overview .learner-progress-ai {
+    border-top: 2px solid #BFDBFE;
+}
+
+.learner-page-overview .learner-progress-ai__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--secondary);
+}
+
+.learner-page-overview .learner-progress-ai__title h2 {
+    color: var(--text-primary);
+    font-size: 1.12rem;
+}
+
+.learner-page-overview .learner-progress-ai > p {
+    margin-top: 9px;
+    color: var(--text-secondary);
+    font-size: .82rem;
+    line-height: 1.55;
+}
+
+.learner-page-overview .learner-progress-ai section {
+    margin-top: 18px;
+}
+
+.learner-page-overview .learner-progress-ai section strong {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+    font-size: .8rem;
+}
+
+.learner-page-overview .learner-progress-ai section span {
+    display: inline-flex;
+    margin: 0 6px 6px 0;
+    padding: 6px 10px;
+    color: var(--accent);
+    background: var(--accent-light);
+    border-radius: var(--radius-sm);
+    font-size: .72rem;
+}
+
+.learner-page-overview .learner-progress-ai [data-ai-improvements] span {
+    color: var(--primary-hover);
+    background: var(--primary-light);
+}
+
+.learner-page-overview .learner-progress-ai__trend {
+    display: flex;
+    margin-top: 16px;
+    padding: 10px 12px;
+    align-items: center;
+    gap: 7px;
+    color: var(--secondary);
+    background: var(--secondary-light);
+    border-radius: var(--radius-sm);
+    font-size: .74rem;
+}
+
+.learner-page-overview .learner-progress-ai > a {
+    display: inline-flex;
+    margin-top: 14px;
+    align-items: center;
+    gap: 5px;
+    color: var(--primary);
+    font-size: .78rem;
+    font-weight: 700;
+}
+
+.learner-page-overview .learner-progress-activities {
+    margin-top: 16px;
+}
+
+.learner-page-overview .learner-progress-activity-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.learner-page-overview .learner-progress-activity {
+    display: grid;
+    min-width: 0;
+    padding: 8px 18px;
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 12px;
+    border-right: 1px solid var(--border);
+}
+
+.learner-page-overview .learner-progress-activity:last-child {
+    border-right: 0;
+}
+
+.learner-page-overview .learner-progress-activity time {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    color: var(--primary);
+}
+
+.learner-page-overview .learner-progress-activity time strong {
+    font-size: 1.2rem;
+}
+
+.learner-page-overview .learner-progress-activity time span {
+    color: var(--text-secondary);
+    font-size: .68rem;
+}
+
+.learner-page-overview .learner-progress-activity h3 {
+    overflow: hidden;
+    color: var(--text-primary);
+    font-size: .82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.learner-page-overview .learner-progress-activity p,
+.learner-page-overview .learner-progress-activity a {
+    display: flex;
+    margin-top: 5px;
+    align-items: center;
+    gap: 5px;
+    font-size: .7rem;
+}
+
+.learner-page-overview .learner-progress-activity p {
+    overflow: hidden;
+    color: var(--text-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.learner-page-overview .learner-progress-activity a {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.learner-page-overview .learner-progress-empty {
+    display: flex;
+    min-height: 92px;
+    padding: 16px;
+    align-items: center;
+    gap: 12px;
+    color: var(--secondary);
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.learner-page-overview .learner-progress-empty div {
+    min-width: 0;
+    flex: 1;
+}
+
+.learner-page-overview .learner-progress-empty strong {
+    color: var(--text-primary);
+    font-size: .84rem;
+}
+
+.learner-page-overview .learner-progress-empty p {
+    margin-top: 2px;
+    color: var(--text-secondary);
+    font-size: .74rem;
+}
+
+.learner-page-overview .learner-progress-empty a {
+    color: var(--primary);
+    font-size: .75rem;
+    font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+    .learner-page-overview .learner-progress-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .learner-page-overview .learner-progress-activity-list {
+        grid-template-columns: 1fr;
+    }
+
+    .learner-page-overview .learner-progress-activity {
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .learner-page-overview .learner-progress-activity:last-child {
+        border-bottom: 0;
+    }
+}
+
+@media (max-width: 720px) {
+    .learner-page-overview .learner-progress-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .learner-page-overview .learner-progress-kpi:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .learner-page-overview .learner-progress-skill__heading {
+        grid-template-columns: minmax(0, 1fr) 64px 18px;
+    }
+
+    .learner-page-overview .learner-progress-skill__heading > span {
+        grid-row: 2;
+        grid-column: 1;
+    }
+
+    .learner-page-overview .learner-progress-skill__heading > b {
+        grid-row: 1;
+        grid-column: 2;
+    }
+
+    .learner-page-overview .learner-progress-skill__heading > i {
+        grid-row: 1;
+        grid-column: 3;
+    }
+}
+
+@media (max-width: 480px) {
+    .learner-page-overview .learner-progress-kpis {
+        grid-template-columns: 1fr;
+    }
+
+    .learner-page-overview .learner-progress-kpi:last-child {
+        grid-column: auto;
+    }
+
+    .learner-page-overview .learner-progress-skills,
+    .learner-page-overview .learner-progress-ai,
+    .learner-page-overview .learner-progress-activities {
+        padding: 18px 16px;
+    }
+
+    .learner-page-overview .learner-progress-empty {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

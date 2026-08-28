@@ -12,7 +12,13 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
 
 final class RoadmapPromptRegistry
 {
-    public const VERSION = 'learner-roadmap-prompt-1.2.0';
+    public const VERSION = 'learner-roadmap-prompt-1.4.0';
+
+    private const TALENT_MAP_FIELDS = [
+        'Tư duy Logic & Hệ thống',
+        'Kỹ năng Thực hành & Thao tác',
+        'Tổ chức & Điều phối',
+    ];
 
     private const SAFE_FIELDS = [
         'assessment' => ['test_type', 'result_code', 'dimension_scores', 'submitted_at'],
@@ -83,8 +89,14 @@ final class RoadmapPromptRegistry
                 'Viết toàn bộ nội dung dành cho học viên bằng tiếng Việt tự nhiên.',
                 'Phân tích đầy đủ bốn bài Holland, MBTI, DISC, Multiple Intelligence cùng trường, lớp, khối và năm học để cá nhân hóa lộ trình.',
                 'Tạo đúng ba giai đoạn 0–30, 31–60 và 61–90 ngày; mỗi giai đoạn có từ 3 đến 5 task cụ thể.',
+                'Tạo lộ trình phù hợp với học sinh, sinh viên: ưu tiên bài tập học tập, dự án nhỏ, hoạt động nhóm và sản phẩm có thể hoàn thành trong lịch học; không giao nhiệm vụ như một nhân sự toàn thời gian.',
+                'Mỗi giai đoạn phải có 3–5 task theo trình tự tăng dần; khi phù hợp, sắp xếp task theo các mốc 7 ngày, 14 ngày, 30 ngày, 60 ngày và 90 ngày để người học dễ theo dõi tiến độ.',
+                'Mỗi task phải bắt đầu bằng một hành động cụ thể, mô tả cách thực hiện và nêu rõ đầu ra hoặc tiêu chí hoàn thành có thể kiểm tra được; không viết mô tả chung chung.',
+                'Cân bằng thời lượng task với lịch học; ưu tiên 30–120 phút cho một task, chia nhiệm vụ lớn thành bước nhỏ, và dùng metric_label để mô tả cách người học tự theo dõi tiến bộ.',
+                'Kết nối mỗi giai đoạn với mục tiêu học tập, kỹ năng trọng tâm, sản phẩm/đầu ra và thước đo; diễn đạt thân thiện, khích lệ, dễ hiểu với lứa tuổi học sinh–sinh viên.',
                 'Không nhắc lại mã MBTI, điểm Holland, biểu đồ DISC hoặc điểm Multiple Intelligence.',
                 'Mỗi insight, phase và task phải trích dẫn evidence_ref_ids được cung cấp.',
+                'talent_map phải có đúng ba record, mỗi record dùng duy nhất một trong ba field chuẩn: Tư duy Logic & Hệ thống; Kỹ năng Thực hành & Thao tác; Tổ chức & Điều phối; mỗi field xuất hiện đúng một lần. Không gộp hai nhóm vào cùng một record.',
                 'Nếu có talent_map, strengths, improvements, potential_paths, trend_signals hoặc growth_hypotheses thì mỗi record phải trích dẫn evidence_ref_ids được cung cấp.',
                 'Chỉ dùng catalog_id trùng một catalog evidence đã cung cấp và còn hiệu lực; không tự tạo mã catalog.',
                 'Không chẩn đoán, không khẳng định chắc chắn nghề nghiệp, tuyển sinh hoặc việc làm.',
@@ -183,7 +195,7 @@ final class RoadmapPromptRegistry
             'additionalProperties' => false,
             'required' => [
                 'executive_summary', 'primary_direction', 'alternative_directions', 'insights',
-                'phases', 'recommended_activity_source_ids',
+                'phases', 'recommended_activity_source_ids', 'talent_map',
             ],
             'properties' => [
                 'executive_summary' => $text,
@@ -208,9 +220,18 @@ final class RoadmapPromptRegistry
                 'phases' => ['type' => 'array', 'items' => $phase, 'minItems' => 3, 'maxItems' => 3],
                 'talent_map' => [
                     'type' => 'array',
-                    'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['field', 'score', 'evidence_ref_ids'], 'properties' => [
-                        'field' => $text, 'score' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1], 'evidence_ref_ids' => $evidence,
-                    ]],
+                    'minItems' => 3,
+                    'maxItems' => 3,
+                    'items' => [
+                        'type' => 'object',
+                        'additionalProperties' => false,
+                        'required' => ['field', 'score', 'evidence_ref_ids'],
+                        'properties' => [
+                            'field' => ['type' => 'string', 'enum' => self::TALENT_MAP_FIELDS],
+                            'score' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
+                            'evidence_ref_ids' => $evidence,
+                        ],
+                    ],
                 ],
                 'strengths' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['text', 'evidence_ref_ids'], 'properties' => ['text' => $text, 'evidence_ref_ids' => $evidence]]],
                 'improvements' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['text', 'evidence_ref_ids'], 'properties' => ['text' => $text, 'evidence_ref_ids' => $evidence]]],

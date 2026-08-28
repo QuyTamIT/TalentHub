@@ -184,7 +184,7 @@ function initInternshipManagementModule() {
         const csrf = boot.csrfToken || document.querySelector('input[name="csrfToken"]')?.value || '';
         try {
             const response = await fetch(`${apiBase}/businesses/me/internships/${encodeURIComponent(postId)}/${action}`, {
-                method: 'POST', credentials: 'same-origin',
+                method: 'POST', credentials: 'include',
                 headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
                 body: JSON.stringify({ expectedCurrentStatus }),
             });
@@ -855,7 +855,7 @@ function initInternshipManagementModule() {
                 const csrf = boot.csrfToken || document.querySelector('input[name="csrfToken"]')?.value || '';
                 const response = await fetch(`${apiBase}${path}`, {
                     method,
-                    credentials: 'same-origin',
+                    credentials: 'include',
                     headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
                     body: JSON.stringify(body),
                 });

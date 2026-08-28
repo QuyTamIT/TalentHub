@@ -77,10 +77,70 @@ try {
         ], $context->requestId());
     }
 
-    if ($request->method === 'PATCH') {
+    if ($request->method === 'PATCH' || $request->method === 'POST') {
         $context->mutation($request->header('x-csrf-token'));
         $raw = $request->json();
         $action = is_string($raw['action'] ?? null) ? $raw['action'] : '';
+
+        if ($action === 'respond-invitation' || $action === 'accept-invitation' || $action === 'decline-invitation') {
+            $identity = $context->studentIdentityForPermissions(['notification.mark_read_own']);
+            $notificationId = trim((string) ($raw['notificationId'] ?? ''));
+            $decision = ($action === 'accept-invitation') ? 'accept' : (($action === 'decline-invitation') ? 'decline' : strtolower(trim((string) ($raw['decision'] ?? 'accept'))));
+            $newStatus = ($decision === 'accept') ? 'accepted' : 'declined';
+
+            $pdo = $context->pdo();
+            $notifStmt = $pdo->prepare("SELECT * FROM notifications WHERE id = ? AND userId = ? LIMIT 1");
+            $notifStmt->execute([$notificationId, $identity['user_id']]);
+            $notif = $notifStmt->fetch(PDO::FETCH_ASSOC);
+
+            $enterpriseName = 'FPT Software';
+            $postTitle = 'Thực tập sinh';
+            $applicationId = null;
+
+            if ($notif) {
+                $deepLink = (string) ($notif['deepLink'] ?? '');
+                $appStmt = $pdo->prepare("
+                    SELECT ia.id, ia.postId, ia.status, e.name as enterpriseName, ip.title as postTitle
+                    FROM internship_applications ia
+                    JOIN student_profiles sp ON sp.id = ia.studentId
+                    JOIN internship_posts ip ON ip.id = ia.postId
+                    JOIN enterprises e ON e.id = ip.enterpriseId
+                    WHERE sp.userId = ? AND (? LIKE CONCAT('%', ia.postId, '%') OR ia.status IN ('invited', 'accepted', 'declined'))
+                    ORDER BY ia.updatedAt DESC
+                    LIMIT 1
+                ");
+                $appStmt->execute([$identity['user_id'], $deepLink]);
+                $appRow = $appStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($appRow) {
+                    $applicationId = $appRow['id'];
+                    $enterpriseName = $appRow['enterpriseName'];
+                    $postTitle = $appRow['postTitle'];
+
+                    $updApp = $pdo->prepare("UPDATE internship_applications SET status = ?, updatedAt = NOW(6) WHERE id = ?");
+                    $updApp->execute([$newStatus, $applicationId]);
+                }
+
+                // Mark notification read
+                $pdo->prepare("UPDATE notifications SET readAt = NOW(6) WHERE id = ?")->execute([$notificationId]);
+            }
+
+            $successMsg = ($newStatus === 'accepted')
+                ? "Bạn đã chấp nhận lời mời thực tập từ {$enterpriseName}!"
+                : "Bạn đã từ chối lời mời thực tập.";
+
+            $unread = $service->unreadCount($identity['user_id']);
+
+            JsonResponder::sendSuccess([
+                'success' => true,
+                'status' => $newStatus,
+                'message' => $successMsg,
+                'enterpriseName' => $enterpriseName,
+                'postTitle' => $postTitle,
+                'applicationId' => $applicationId,
+                'unreadCount' => $unread,
+            ], $context->requestId());
+        }
 
         if ($action === 'mark-read') {
             $identity = $context->studentIdentityForPermissions(['notification.mark_read_own']);
