@@ -230,7 +230,7 @@
         }
 
         async function load(showLoading = true) {
-            if (showLoading) view.render('loading', {});
+            if (showLoading) view.render('loading', { mode: 'initial-load' });
             try { return render(await api.get('/ai-roadmap.php')); }
             catch (error) { return render({ state: 'source_unavailable', message: error?.message }); }
         }
@@ -281,7 +281,11 @@
         function generate(action = 'generate') {
             if (generation !== null) return generation;
             const safeAction = action === 'refresh' ? 'refresh' : 'generate';
-            view.render('loading', {});
+            const preserveReady = lastReadyPayload !== null;
+            view.render('processing', {
+                mode: preserveReady ? 'refresh-generation' : 'first-generation',
+                preserveReady,
+            });
             generation = Promise.resolve(api.send(
                 'POST', '/ai-roadmap.php', { action: safeAction }, {
                     idempotencyKey: createIdempotencyKey(),
@@ -295,13 +299,27 @@
             return generation;
         }
 
-        return { load, loadVersion, generate, retry: load, updateTask, submitFeedback, dispose: stopPolling };
+        function dispose() {
+            stopPolling();
+            view.dispose?.();
+        }
+
+        return { load, loadVersion, generate, retry: load, updateTask, submitFeedback, dispose };
     }
 
-    function createDomView(root) {
+    function createDomView(root, options = {}) {
         const doc = root.ownerDocument || global.document;
         const nodes = {
             status: root.querySelector('[data-roadmap-status]'),
+            processing: root.querySelector('[data-roadmap-processing]'),
+            processingTitle: root.querySelector('[data-roadmap-processing-title]'),
+            processingCopy: root.querySelector('[data-roadmap-processing-copy]'),
+            processingPercent: root.querySelector('[data-roadmap-processing-percent]'),
+            processingElapsed: root.querySelector('[data-roadmap-processing-elapsed]'),
+            processingBar: root.querySelector('[data-roadmap-processing-bar]'),
+            processingSteps: root.querySelector('[data-roadmap-processing-steps]'),
+            processingNote: root.querySelector('[data-roadmap-processing-note]'),
+            processingRetry: root.querySelector('[data-roadmap-processing-retry]'),
             loading: root.querySelector('[data-roadmap-loading]'),
             notGenerated: root.querySelector('[data-roadmap-not-generated]'),
             consent: root.querySelector('[data-roadmap-consent]'),
@@ -340,6 +358,15 @@
             analysisDetails: root.querySelector('[data-roadmap-analysis-details]'),
             feedbackStatus: root.querySelector('[data-roadmap-feedback-status]'),
         };
+        const schedule = typeof options.schedule === 'function'
+            ? options.schedule
+            : (callback, delay) => global.setTimeout(callback, delay);
+        const cancelSchedule = typeof options.cancelSchedule === 'function'
+            ? options.cancelSchedule
+            : (handle) => global.clearTimeout(handle);
+        let processingActive = false;
+        let processingPreserveReady = false;
+        let successHideHandle = null;
 
         function hide(node, value) { if (node) node.hidden = value; }
         function set(node, value) { if (node) node.textContent = String(value ?? ''); }
@@ -356,9 +383,99 @@
             for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
             return node;
         }
+
+        function setGenerateDisabled(disabled) {
+            for (const button of Array.from(root.querySelectorAll?.('[data-roadmap-generate]') || [])) {
+                button.disabled = disabled;
+            }
+        }
+
+        function renderProcessingSnapshot(snapshot) {
+            set(nodes.processingPercent, `${integer(snapshot?.percent)}%`);
+            set(nodes.processingElapsed, `${integer(snapshot?.elapsedSeconds)} giây`);
+            if (nodes.processingBar?.style) nodes.processingBar.style.width = `${integer(snapshot?.percent)}%`;
+            const stepNodes = Array.from(nodes.processingSteps?.querySelectorAll?.('[data-processing-step]') || []);
+            for (const [index, step] of (Array.isArray(snapshot?.steps) ? snapshot.steps : []).entries()) {
+                stepNodes[index]?.classList?.toggle('is-active', step.status === 'active' && snapshot?.status !== 'success');
+                stepNodes[index]?.classList?.toggle('is-completed', step.status === 'completed' || snapshot?.status === 'success');
+            }
+            if (snapshot?.status === 'success') {
+                set(nodes.processingTitle, 'Roadmap mới đã sẵn sàng');
+                set(nodes.processingCopy, 'TalentHub đã hoàn thiện và kiểm tra bản roadmap 90 ngày mới.');
+                set(nodes.processingNote, 'Nội dung mới đang được hiển thị bên dưới.');
+                return;
+            }
+            if (snapshot?.status === 'error') {
+                set(nodes.processingTitle, 'Chưa thể cập nhật roadmap');
+                set(nodes.processingCopy, 'Lần cập nhật này chưa hoàn tất. Roadmap hiện tại của bạn không bị ảnh hưởng.');
+                set(nodes.processingNote, 'Bạn vẫn có thể tiếp tục xem và theo dõi bản hiện tại.');
+                return;
+            }
+            const activeCopy = [
+                'TalentHub đang tổng hợp dữ liệu đã được bạn cho phép.',
+                'Gemini đang phân tích điểm mạnh và hướng phát triển phù hợp.',
+                'AI đang xây dựng ba giai đoạn trong roadmap 90 ngày.',
+                'TalentHub đang kiểm tra cấu trúc, đầu ra và cách đo lường.',
+            ];
+            set(nodes.processingCopy, activeCopy[integer(snapshot?.activeIndex)] || activeCopy[0]);
+        }
+
+        const processingTracker = createProcessingTracker({
+            onUpdate: renderProcessingSnapshot,
+            now: options.now,
+            schedule: options.schedule,
+            cancelSchedule: options.cancelSchedule,
+        });
+
+        function clearSuccessHide() {
+            if (successHideHandle !== null) cancelSchedule(successHideHandle);
+            successHideHandle = null;
+        }
+
+        function beginProcessing(payload) {
+            clearSuccessHide();
+            processingActive = true;
+            processingPreserveReady = payload?.preserveReady === true;
+            hide(nodes.processing, false);
+            hide(nodes.ready, !processingPreserveReady);
+            hide(nodes.processingRetry, true);
+            nodes.processing?.classList?.toggle('is-error', false);
+            nodes.processing?.classList?.toggle('is-success', false);
+            set(nodes.processingTitle, processingPreserveReady ? 'AI đang cập nhật roadmap của bạn' : 'AI đang tạo roadmap của bạn');
+            set(nodes.processingNote, processingPreserveReady
+                ? 'Bạn có thể tiếp tục xem roadmap hiện tại trong lúc chờ.'
+                : 'Bạn có thể để trang mở; TalentHub sẽ hiển thị kết quả ngay khi hoàn tất.');
+            setGenerateDisabled(true);
+            processingTracker.start();
+        }
+
+        function completeProcessing(success) {
+            if (!processingActive) return false;
+            processingActive = false;
+            setGenerateDisabled(false);
+            if (success) {
+                processingTracker.succeed();
+                nodes.processing?.classList?.toggle('is-success', true);
+                nodes.processing?.classList?.toggle('is-error', false);
+                hide(nodes.processingRetry, true);
+                successHideHandle = schedule(() => {
+                    successHideHandle = null;
+                    hide(nodes.processing, true);
+                }, 1500);
+                return true;
+            }
+            processingTracker.fail();
+            nodes.processing?.classList?.toggle('is-success', false);
+            nodes.processing?.classList?.toggle('is-error', true);
+            hide(nodes.processing, false);
+            hide(nodes.processingRetry, false);
+            return true;
+        }
+
         function statusCopy(state) {
             return {
                 loading: 'Đang tải lộ trình AI.', 'not-generated': 'Chưa có lộ trình AI.', pending: 'AI đang tạo lộ trình.',
+                processing: 'AI đang xử lý và xây dựng roadmap 90 ngày.',
                 'consent-required': 'Cần quyền dữ liệu để tạo lộ trình.', 'insufficient-data': 'Chưa đủ dữ liệu để tạo lộ trình.',
                 'source-error': 'Chưa thể tải lộ trình.', 'ready-model': 'Lộ trình từ AI đã sẵn sàng.',
                 'stale-model': 'Đang hiển thị lộ trình AI gần nhất trong khi hệ thống cập nhật.',
@@ -367,6 +484,38 @@
         }
 
         function render(state, payload) {
+            if (state === 'processing') {
+                hide(nodes.loading, true);
+                hide(nodes.notGenerated, true);
+                hide(nodes.consent, true);
+                hide(nodes.insufficient, true);
+                hide(nodes.pending, true);
+                hide(nodes.error, true);
+                hide(nodes.fallback, true);
+                set(nodes.status, statusCopy(state));
+                beginProcessing(payload);
+                return;
+            }
+
+            // Backend may acknowledge generation before the refreshed roadmap is
+            // ready. Keep the progress panel (and any previous roadmap) visible
+            // while the controller polls instead of falling back to the old
+            // generic pending card.
+            if (state === 'pending' && processingActive) {
+                hide(nodes.loading, true);
+                hide(nodes.notGenerated, true);
+                hide(nodes.consent, true);
+                hide(nodes.insufficient, true);
+                hide(nodes.pending, true);
+                hide(nodes.error, true);
+                hide(nodes.fallback, true);
+                hide(nodes.ready, !processingPreserveReady);
+                set(nodes.status, statusCopy('processing'));
+                return;
+            }
+
+            const failedRefresh = state === 'stale-model'
+                && payload?.refresh_state === 'fallback_not_applied';
             hide(nodes.loading, state !== 'loading');
             hide(nodes.notGenerated, state !== 'not-generated');
             hide(nodes.consent, state !== 'consent-required');
@@ -376,7 +525,24 @@
             hide(nodes.ready, !READY_STATES.has(state));
             hide(nodes.fallback, state !== 'fallback-rule');
             set(nodes.status, statusCopy(state));
-            if (READY_STATES.has(state)) renderReady(payload, state);
+            if (READY_STATES.has(state)) {
+                if (processingActive) completeProcessing(!failedRefresh);
+                else {
+                    processingTracker.stop();
+                    clearSuccessHide();
+                    hide(nodes.processing, true);
+                    setGenerateDisabled(false);
+                }
+                renderReady(payload, state);
+                return;
+            }
+
+            processingTracker.stop();
+            processingActive = false;
+            processingPreserveReady = false;
+            clearSuccessHide();
+            hide(nodes.processing, true);
+            setGenerateDisabled(false);
         }
 
         function renderReady(model, state) {
@@ -682,7 +848,12 @@
             nodes.analysisToggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
         }
 
-        return { render, updateTask, feedback, toggleAnalysis };
+        function dispose() {
+            processingTracker.stop();
+            clearSuccessHide();
+        }
+
+        return { render, updateTask, feedback, toggleAnalysis, dispose };
     }
 
     function displayDate(value) {

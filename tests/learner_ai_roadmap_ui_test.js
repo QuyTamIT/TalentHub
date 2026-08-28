@@ -236,6 +236,25 @@ test('controller loads roadmap and reuses one in-flight refresh', async () => {
   }]);
 });
 
+test('controller distinguishes initial loading from first generation and refresh generation', async () => {
+  const { createRoadmapController } = require(modulePath);
+  const view = viewRecorder();
+  const api = {
+    async get() { return { state: 'not_generated' }; },
+    async send() { return payload(); },
+  };
+  const controller = createRoadmapController({ api, view });
+  await controller.load();
+  assert.deepEqual(view.events[0], ['loading', { mode: 'initial-load' }]);
+  let before = view.events.length;
+  await controller.generate('generate');
+  assert.deepEqual(view.events[before], ['processing', { mode: 'first-generation', preserveReady: false }]);
+  before = view.events.length;
+  await controller.generate('refresh');
+  assert.deepEqual(view.events[before], ['processing', { mode: 'refresh-generation', preserveReady: true }]);
+  controller.dispose();
+});
+
 test('failed refresh keeps the last ready roadmap visible as stale', async () => {
   const { createRoadmapController } = require(modulePath);
   const view = viewRecorder();
@@ -296,6 +315,90 @@ test('DOM view renders the canonical model payload into semantic roadmap regions
   const currentTaskList = currentPhaseBody.children.find((item) => item.className === 'learner-roadmap-task-list');
   assert.equal(currentTaskList.children.length, 3);
   assert.match(currentTaskList.children[0].children[1].children[0].textContent, /Nhiệm vụ 1\.1/);
+});
+
+test('DOM processing lifecycle preserves ready content and reports success or retryable failure', () => {
+  const { createDomView, buildRoadmapViewModel } = require(modulePath);
+  class FakeNode {
+    constructor(tag = 'div') {
+      this.tagName = tag.toUpperCase();
+      this.className = '';
+      this.children = [];
+      this.dataset = {};
+      this.attributes = {};
+      this.style = {};
+      this.hidden = false;
+      this.disabled = false;
+      this.textContent = '';
+      this.classList = {
+        toggle: (name, force) => {
+          const names = new Set(this.className.split(/\s+/).filter(Boolean));
+          if (force) names.add(name); else names.delete(name);
+          this.className = [...names].join(' ');
+        },
+      };
+    }
+    get firstChild() { return this.children[0] || null; }
+    append(...nodes) { this.children.push(...nodes); }
+    appendChild(node) { this.children.push(node); return node; }
+    removeChild(node) { this.children.splice(this.children.indexOf(node), 1); }
+    setAttribute(name, value) { this.attributes[name] = String(value); }
+    getAttribute(name) { return this.attributes[name]; }
+    querySelectorAll(selector) { return selector === '[data-processing-step]' ? this.children : []; }
+  }
+  const keys = [
+    'loading', 'not-generated', 'consent', 'insufficient', 'pending', 'error', 'ready', 'fallback',
+    'processing', 'processing-title', 'processing-copy', 'processing-percent', 'processing-elapsed',
+    'processing-bar', 'processing-steps', 'processing-note', 'processing-retry', 'status',
+  ];
+  const nodes = Object.fromEntries(keys.map((key) => [`[data-roadmap-${key}]`, new FakeNode()]));
+  const stepNodes = [0, 1, 2, 3].map(() => new FakeNode('li'));
+  nodes['[data-roadmap-processing-steps]'].children = stepNodes;
+  const generateButton = new FakeNode('button');
+  const doc = { createElement: (tag) => new FakeNode(tag), createElementNS: (_namespace, tag) => new FakeNode(tag) };
+  const root = {
+    ownerDocument: doc,
+    querySelector: (selector) => nodes[selector] || null,
+    querySelectorAll: (selector) => selector === '[data-roadmap-generate]' ? [generateButton] : [],
+  };
+  let time = 0;
+  const scheduled = [];
+  const cancelled = new Set();
+  const view = createDomView(root, {
+    now: () => time,
+    schedule: (callback, delay) => { scheduled.push({ callback, delay }); return scheduled.length; },
+    cancelSchedule: (handle) => { cancelled.add(handle); },
+  });
+
+  view.render('processing', { mode: 'refresh-generation', preserveReady: true });
+  assert.equal(nodes['[data-roadmap-processing]'].hidden, false);
+  assert.equal(nodes['[data-roadmap-ready]'].hidden, false);
+  assert.equal(generateButton.disabled, true);
+  assert.match(nodes['[data-roadmap-processing-note]'].textContent, /tiếp tục xem roadmap hiện tại/i);
+  time = 30000;
+  scheduled[0].callback();
+  assert.match(nodes['[data-roadmap-processing-copy]'].textContent, /roadmap 90 ngày/i);
+
+  view.render('ready-model', buildRoadmapViewModel(payload()));
+  assert.match(nodes['[data-roadmap-processing]'].className, /is-success/);
+  assert.equal(nodes['[data-roadmap-processing-percent]'].textContent, '100%');
+  assert.equal(nodes['[data-roadmap-ready]'].hidden, false);
+  assert.equal(generateButton.disabled, false);
+  const successHide = scheduled.find((entry) => entry.delay === 1500);
+  assert.ok(successHide);
+  successHide.callback();
+  assert.equal(nodes['[data-roadmap-processing]'].hidden, true);
+
+  view.render('processing', { mode: 'refresh-generation', preserveReady: true });
+  view.render('stale-model', buildRoadmapViewModel({
+    ...payload(), state: 'stale_model', refresh_state: 'fallback_not_applied', last_refresh_error: 'provider_unavailable',
+  }));
+  assert.equal(nodes['[data-roadmap-processing]'].hidden, false);
+  assert.match(nodes['[data-roadmap-processing]'].className, /is-error/);
+  assert.equal(nodes['[data-roadmap-processing-retry]'].hidden, false);
+  assert.equal(nodes['[data-roadmap-ready]'].hidden, false);
+  view.dispose();
+  assert.equal(cancelled.size > 0, true);
 });
 
 test('roadmap explains the development direction when no catalog activity is linked', () => {
