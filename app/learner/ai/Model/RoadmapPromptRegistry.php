@@ -12,7 +12,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
 
 final class RoadmapPromptRegistry
 {
-    public const VERSION = 'learner-roadmap-prompt-1.2.0';
+    public const VERSION = 'learner-roadmap-prompt-1.3.0';
 
     private const SAFE_FIELDS = [
         'assessment' => ['test_type', 'result_code', 'dimension_scores', 'submitted_at'],
@@ -83,6 +83,11 @@ final class RoadmapPromptRegistry
                 'Viết toàn bộ nội dung dành cho học viên bằng tiếng Việt tự nhiên.',
                 'Phân tích đầy đủ bốn bài Holland, MBTI, DISC, Multiple Intelligence cùng trường, lớp, khối và năm học để cá nhân hóa lộ trình.',
                 'Tạo đúng ba giai đoạn 0–30, 31–60 và 61–90 ngày; mỗi giai đoạn có từ 3 đến 5 task cụ thể.',
+                'Tạo lộ trình phù hợp với học sinh, sinh viên: ưu tiên bài tập học tập, dự án nhỏ, hoạt động nhóm và sản phẩm có thể hoàn thành trong lịch học; không giao nhiệm vụ như một nhân sự toàn thời gian.',
+                'Mỗi giai đoạn phải có 3–5 task theo trình tự tăng dần; khi phù hợp, sắp xếp task theo các mốc 7 ngày, 14 ngày, 30 ngày, 60 ngày và 90 ngày để người học dễ theo dõi tiến độ.',
+                'Mỗi task phải bắt đầu bằng một hành động cụ thể, mô tả cách thực hiện và nêu rõ đầu ra hoặc tiêu chí hoàn thành có thể kiểm tra được; không viết mô tả chung chung.',
+                'Cân bằng thời lượng task với lịch học; ưu tiên 30–120 phút cho một task, chia nhiệm vụ lớn thành bước nhỏ, và dùng metric_label để mô tả cách người học tự theo dõi tiến bộ.',
+                'Kết nối mỗi giai đoạn với mục tiêu học tập, kỹ năng trọng tâm, sản phẩm/đầu ra và thước đo; diễn đạt thân thiện, khích lệ, dễ hiểu với lứa tuổi học sinh–sinh viên.',
                 'Không nhắc lại mã MBTI, điểm Holland, biểu đồ DISC hoặc điểm Multiple Intelligence.',
                 'Mỗi insight, phase và task phải trích dẫn evidence_ref_ids được cung cấp.',
                 'Nếu có talent_map, strengths, improvements, potential_paths, trend_signals hoặc growth_hypotheses thì mỗi record phải trích dẫn evidence_ref_ids được cung cấp.',

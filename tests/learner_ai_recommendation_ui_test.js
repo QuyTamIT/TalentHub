@@ -40,6 +40,25 @@ test('recommendation controller maps API states and retries a source failure', a
   assert.equal(view.states.at(-1).state, 'ready-rule');
 });
 
+test('recommendation source failures preserve a safe retryable error code', async () => {
+  const { createRecommendationController } = require(modulePath);
+  const view = createView();
+  const api = {
+    async get() {
+      const error = new Error('hidden internal detail');
+      error.code = 'SERVICE_UNAVAILABLE';
+      error.status = 503;
+      error.requestId = 'request-123';
+      throw error;
+    },
+    async send() { throw new Error('not needed'); },
+  };
+  await createRecommendationController({ api, view }).load();
+  assert.equal(view.states.at(-1).state, 'source-error');
+  assert.equal(view.states.at(-1).payload.error_code, 'SERVICE_UNAVAILABLE');
+  assert.doesNotMatch(JSON.stringify(view.states.at(-1).payload), /hidden internal detail/);
+});
+
 test('recommendation controller reuses one idempotency key for an in-flight generation', async () => {
   assert.equal(fs.existsSync(modulePath), true, 'learner recommendation client must exist');
   const { createRecommendationController } = require(modulePath);
@@ -205,6 +224,21 @@ test('recommendation CTA click handling does not cancel browser navigation', () 
   assert.doesNotMatch(source, /preventDefault\s*\(/);
 });
 
+test('AI page version-stamps every runtime JavaScript asset', () => {
+  const page = fs.readFileSync(pagePath, 'utf8');
+  assert.match(page, /\$assetVersion\s*=\s*static\s+function/);
+  for (const asset of ['learner-api.js', 'learner.js', 'learner-ai-roadmap.js']) {
+    assert.match(page, new RegExp(`${asset.replace('.', '\\.') }\\?v=<\\?= \\$assetVersion\\(`));
+  }
+});
+
+test('AI page does not expose the unavailable live recommendation catalog UI', () => {
+  const page = fs.readFileSync(pagePath, 'utf8');
+  assert.doesNotMatch(page, /data-ai-page/);
+  assert.doesNotMatch(page, /data-ai-source-error/);
+  assert.doesNotMatch(page, /learner-recommendations\.js/);
+});
+
 test('recommendations group current item types without inventing a roadmap', () => {
   const { recommendationSection } = require(modulePath);
   assert.equal(recommendationSection('strength'), 'strength');
@@ -227,7 +261,7 @@ test('recommendation client stays regression-covered beside the Roadmap-first ex
   assert.match(source, /payload\?\.provider/);
   assert.match(source, /payload\?\.model_version/);
   assert.match(page, /ROADMAP PHÁT TRIỂN 90 NGÀY/);
-  assert.match(page, /learner-recommendations\.js/);
+  assert.doesNotMatch(page, /learner-recommendations\.js/);
   assert.match(page, /learner-ai-roadmap\.js/);
 });
 

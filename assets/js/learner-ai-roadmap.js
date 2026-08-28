@@ -61,7 +61,9 @@
         const phaseStateIndex = currentPhaseIndex === -1 ? phases.length : currentPhaseIndex;
         for (const [index, phase] of phases.entries()) {
             phase.status = index < phaseStateIndex ? 'completed' : index === currentPhaseIndex ? 'current' : 'upcoming';
-            phase.displayTasks = phase.tasks.slice(0, 2);
+            // Hiển thị toàn bộ các mốc mà Gemini tạo ra (3–5 task/giai đoạn).
+            // Không cắt còn 2 task vì như vậy làm mất phần lớn roadmap 90 ngày.
+            phase.displayTasks = phase.tasks.slice(0, 5);
         }
         const tasks = phases.flatMap((phase) => phase.tasks.map((task) => ({ ...task, phaseTitle: text(phase.title, 'Giai đoạn') })));
         const nextActions = tasks.filter((task) => task.status !== 'completed').slice(0, 3);
@@ -112,6 +114,7 @@
         if (!view || typeof view.render !== 'function') throw new TypeError('A roadmap view is required.');
         let generation = null;
         let currentRoadmapId = '';
+        let lastReadyPayload = null;
         let pendingAttempt = 0;
         let pendingHandle = null;
 
@@ -132,7 +135,21 @@
         }
 
         function render(payload) {
-            const state = presentationState(payload);
+            let state = presentationState(payload);
+            if (READY_STATES.has(state)) lastReadyPayload = payload;
+            // Giữ bản roadmap gần nhất khi lần cập nhật mới lỗi (Gemini timeout,
+            // rate limit hoặc tạm thời không khả dụng). Người học vẫn cần xem
+            // được lộ trình cũ thay vì bị đưa về màn hình trống.
+            if (state === 'source-error' && lastReadyPayload !== null) {
+                payload = {
+                    ...lastReadyPayload,
+                    state: 'stale_model',
+                    freshness_status: 'stale',
+                    last_refresh_error: text(payload?.availability_reason, 'refresh_failed'),
+                    refresh_state: 'fallback_not_applied',
+                };
+                state = 'stale-model';
+            }
             if (READY_STATES.has(state)) currentRoadmapId = text(payload?.roadmap_id);
             view.render(state, READY_STATES.has(state) ? buildRoadmapViewModel(payload) : payload);
             if (state === 'pending') schedulePendingPoll();
@@ -194,7 +211,12 @@
             const safeAction = action === 'refresh' ? 'refresh' : 'generate';
             view.render('loading', {});
             generation = Promise.resolve(api.send(
-                'POST', '/ai-roadmap.php', { action: safeAction }, { idempotencyKey: createIdempotencyKey() },
+                'POST', '/ai-roadmap.php', { action: safeAction }, {
+                    idempotencyKey: createIdempotencyKey(),
+                    // Gemini có thể dùng hai lần thử, mỗi lần tối đa 30 giây.
+                    // Timeout phía trình duyệt phải dài hơn toàn bộ vòng đời backend.
+                    timeoutMs: 90000,
+                },
             )).then(render)
                 .catch((error) => render({ state: 'source_unavailable', message: error?.message }))
                 .finally(() => { generation = null; });
@@ -237,6 +259,7 @@
             progressBar: root.querySelector('[data-roadmap-progress-bar]'),
             nextActions: root.querySelector('[data-roadmap-next-actions]'),
             activities: root.querySelector('[data-roadmap-activities]'),
+            activitiesCopy: root.querySelector('[data-roadmap-activities-copy]'),
             evidence: root.querySelector('[data-roadmap-evidence-content]'),
             engine: root.querySelector('[data-roadmap-engine-content]'),
             version: root.querySelector('[data-roadmap-version-select]'),
@@ -297,7 +320,7 @@
             renderCapabilityAnalysis(model);
             renderPhases(model.phases);
             renderNextActions(model.nextActions);
-            renderActivities(model.activities);
+            renderActivities(model.activities, model);
             renderEvidence(model.evidence_summary);
             renderEngine(model.engine, state);
             if (state === 'fallback-rule') {
@@ -440,6 +463,7 @@
                 const currentBadge = phase.status === 'current' ? element('span', 'learner-roadmap-phase__current', 'Bạn đang ở đây') : null;
                 const body = element('div', 'learner-roadmap-phase__body');
                 body.append(element('p', 'learner-roadmap-phase__goal', text(phase.goal, 'Tiếp tục phát triển năng lực theo hướng đã chọn.')));
+                body.append(renderPhaseFacts(phase));
                 body.append(renderTasks(phase.displayTasks));
                 details.append(summary);
                 if (currentBadge) details.append(currentBadge);
@@ -490,10 +514,17 @@
             }
         }
 
-        function renderActivities(tasks) {
+        function renderActivities(tasks, model) {
             clear(nodes.activities);
+            hide(nodes.activitiesCopy, true);
             if (tasks.length === 0) {
-                nodes.activities?.appendChild(element('p', 'learner-roadmap-empty', 'Chưa có hoạt động hệ thống phù hợp trong lộ trình hiện tại.'));
+                const next = Array.isArray(model?.nextActions) ? model.nextActions[0] : null;
+                if (nodes.activitiesCopy) {
+                    nodes.activitiesCopy.textContent = next
+                        ? `Lộ trình hiện chưa có hoạt động hệ thống liên kết. Bạn có thể bắt đầu bằng nhiệm vụ: ${text(next.title, 'nhiệm vụ tiếp theo')}.`
+                        : 'Lộ trình hiện chưa có hoạt động hệ thống liên kết. Hãy theo dõi các nhiệm vụ trong roadmap để tiếp tục phát triển.';
+                    hide(nodes.activitiesCopy, false);
+                }
                 return;
             }
             for (const task of tasks.slice(0, 3)) {

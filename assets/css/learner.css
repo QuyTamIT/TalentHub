@@ -7170,6 +7170,12 @@ body.learner-sidebar-open {
     gap: 10px;
 }
 
+.learner-page-ai .learner-roadmap-activities__copy {
+    margin: 0 0 14px;
+    color: #64748B;
+    font-size: 0.95rem;
+}
+
 .learner-page-ai .learner-roadmap-activity {
     padding: 13px;
     background: #FFFFFF;

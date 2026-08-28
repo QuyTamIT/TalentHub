@@ -7,6 +7,8 @@ const root = path.join(__dirname, '..');
 const modulePath = path.join(root, 'assets', 'js', 'learner-ai-roadmap.js');
 const pagePath = path.join(root, 'app', 'learner', 'ai-recommendations.php');
 const cssPath = path.join(root, 'assets', 'css', 'learner.css');
+const promptPath = path.join(root, 'app', 'learner', 'ai', 'Model', 'RoadmapPromptRegistry.php');
+const envExamplePath = path.join(root, '.env.example');
 
 function payload(origin = 'model') {
   const phases = [
@@ -128,12 +130,15 @@ test('view model normalizes fractional talent scores without changing percentage
   const { buildRoadmapViewModel } = require(modulePath);
   const fractional = payload();
   fractional.talent_map = [
+    { field: 'Tư duy', score: 0.01 },
+    { field: 'Thực hành', score: 0.5 },
+    { field: 'Điều phối', score: 1 },
     { field: 'Logic', score: 0.82 },
     { field: 'Thực hành', score: 72 },
     { field: 'Điều phối', score: -4 },
     { field: 'Sáng tạo', score: 120 },
   ];
-  assert.deepEqual(buildRoadmapViewModel(fractional).talentMap.map((item) => item.score), [82, 72, 0, 100]);
+  assert.deepEqual(buildRoadmapViewModel(fractional).talentMap.map((item) => item.score), [1, 50, 100, 82, 72, 0, 100]);
 });
 
 test('view model exposes one current phase and compact direction rows', () => {
@@ -141,7 +146,7 @@ test('view model exposes one current phase and compact direction rows', () => {
   const model = buildRoadmapViewModel(payload());
   assert.equal(model.currentPhaseIndex, 0);
   assert.deepEqual(model.phases.map((phase) => phase.status), ['current', 'upcoming', 'upcoming']);
-  assert.equal(model.phases.every((phase) => phase.displayTasks.length === 2), true);
+  assert.equal(model.phases.every((phase) => phase.displayTasks.length === 3), true);
   assert.equal(model.overallPercent, 11);
 });
 
@@ -192,7 +197,27 @@ test('controller loads roadmap and reuses one in-flight refresh', async () => {
   release();
   await Promise.all([first, second]);
   assert.equal(calls.filter((call) => call[0] === 'POST').length, 1);
-  assert.deepEqual(calls.at(-1), ['POST', '/ai-roadmap.php', { action: 'refresh' }, { idempotencyKey: 'roadmap-page-key-0001' }]);
+  assert.deepEqual(calls.at(-1), ['POST', '/ai-roadmap.php', { action: 'refresh' }, {
+    idempotencyKey: 'roadmap-page-key-0001',
+    timeoutMs: 90000,
+  }]);
+});
+
+test('failed refresh keeps the last ready roadmap visible as stale', async () => {
+  const { createRoadmapController } = require(modulePath);
+  const view = viewRecorder();
+  const api = {
+    async get() { return payload(); },
+    async send() { return { state: 'ai_unavailable', availability_reason: 'provider_unavailable' }; },
+  };
+  const controller = createRoadmapController({ api, view });
+  await controller.load();
+  await controller.generate('refresh');
+  const last = view.events.at(-1);
+  assert.equal(last[0], 'stale-model');
+  assert.equal(last[1].phases.length, 3);
+  assert.equal(last[1].last_refresh_error, 'provider_unavailable');
+  controller.dispose();
 });
 
 test('DOM view renders the canonical model payload into semantic roadmap regions', () => {
@@ -209,7 +234,7 @@ test('DOM view renders the canonical model payload into semantic roadmap regions
     'status', 'loading', 'not-generated', 'consent', 'insufficient', 'pending', 'error', 'ready', 'fallback',
     'freshness', 'summary-label', 'summary-text', 'evidence-total', 'confidence', 'direction-label',
     'direction-rationale', 'direction-alternatives', 'insights', 'phases', 'overall-progress', 'next-actions',
-    'activities', 'evidence-content', 'engine-content',
+    'activities', 'activities-copy', 'evidence-content', 'engine-content',
     'talent-map', 'strengths', 'improvements', 'trends', 'potential-paths', 'growth-hypotheses',
   ];
   const nodes = Object.fromEntries(selectors.map((name) => [`[data-roadmap-${name}]`, new FakeNode()]));
@@ -233,31 +258,97 @@ test('DOM view renders the canonical model payload into semantic roadmap regions
   assert.equal(nodes['[data-roadmap-improvements]'].children.length, 1);
   assert.equal(nodes['[data-roadmap-trends]'].children.length, 1);
   assert.equal(nodes['[data-roadmap-engine-content]'].children.length, 6);
+  const currentPhaseBody = nodes['[data-roadmap-phases]'].children[0].children.find((item) => item.className === 'learner-roadmap-phase__body');
+  assert.equal(currentPhaseBody.children.some((item) => item.className === 'learner-roadmap-phase__facts'), true);
+  const currentTaskList = currentPhaseBody.children.find((item) => item.className === 'learner-roadmap-task-list');
+  assert.equal(currentTaskList.children.length, 3);
+  assert.match(currentTaskList.children[0].children[1].children[0].textContent, /Nhiệm vụ 1\.1/);
 });
 
-test('page exposes every Roadmap-first region and the live recommendation client', () => {
+test('roadmap explains the development direction when no catalog activity is linked', () => {
+  const { createDomView, buildRoadmapViewModel } = require(modulePath);
+  class FakeNode {
+    constructor(tag = 'div') {
+      this.tagName = tag.toUpperCase();
+      this.className = '';
+      this.children = [];
+      this.dataset = {};
+      this.attributes = {};
+      this.style = { setProperty: () => {} };
+      this.hidden = false;
+      this.textContent = '';
+    }
+    get firstChild() { return this.children[0] || null; }
+    append(...nodes) { this.children.push(...nodes); }
+    appendChild(node) { this.children.push(node); return node; }
+    removeChild(node) { this.children.splice(this.children.indexOf(node), 1); }
+    setAttribute(name, value) { this.attributes[name] = String(value); }
+  }
+  const list = new FakeNode();
+  const copy = new FakeNode();
+  const doc = { createElement: (tag) => new FakeNode(tag), createElementNS: (_namespace, tag) => new FakeNode(tag) };
+  const rootNode = {
+    ownerDocument: doc,
+    querySelector(selector) {
+      if (selector === '[data-roadmap-activities]') return list;
+      if (selector === '[data-roadmap-activities-copy]') return copy;
+      return null;
+    },
+  };
+  const roadmapPayload = payload();
+  for (const phase of roadmapPayload.phases) {
+    for (const task of phase.tasks) task.action = { type: 'self_task' };
+  }
+  const model = buildRoadmapViewModel(roadmapPayload);
+  createDomView(rootNode).render('ready-model', model);
+  assert.equal(list.children.length, 0);
+  assert.equal(copy.hidden, false);
+  assert.match(copy.textContent, /chưa có hoạt động hệ thống liên kết/i);
+  assert.match(copy.textContent, /Nhiệm vụ 1\.2/);
+});
+
+test('page exposes the Roadmap-first experience without the unavailable catalog section', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
   assert.match(page, /ROADMAP PHÁT TRIỂN 90 NGÀY/);
   assert.match(page, /learner-roadmap-hero/);
   assert.match(page, /learner-roadmap-analysis/);
-  assert.match(page, /<details[^>]+learner-roadmap-secondary/);
+  assert.match(page, /learner-roadmap-credentials-disclosure/);
+  assert.doesNotMatch(page, /data-roadmap-secondary/);
+  assert.doesNotMatch(page, /data-ai-page/);
   assert.doesNotMatch(page, /learner-roadmap-capability__grid/);
   for (const marker of [
     'data-ai-roadmap-page', 'data-roadmap-summary', 'data-roadmap-direction',
-    'data-roadmap-phases', 'data-roadmap-next-actions', 'data-roadmap-activities',
+    'data-roadmap-phases', 'data-roadmap-next-actions',
     'data-roadmap-evidence', 'data-roadmap-feedback', 'data-roadmap-engine',
     'data-roadmap-talent-map', 'data-roadmap-strengths', 'data-roadmap-improvements',
     'data-roadmap-trends', 'data-roadmap-potential-paths', 'data-roadmap-growth-hypotheses',
     'data-roadmap-generate', 'data-roadmap-retry', 'learner-ai-roadmap.js',
   ]) assert.match(page, new RegExp(marker));
-  assert.match(page, /learner-recommendations\.js/);
+  assert.doesNotMatch(page, /learner-recommendations\.js/);
 });
 
-test('page loads live catalog recommendations through the server API client', () => {
+test('AI page omits the unavailable live recommendation catalog section', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
-  assert.match(page, /data-ai-page/);
-  assert.match(page, /data-ai-result-list/);
-  assert.match(page, /learner-recommendations\.js/);
+  assert.doesNotMatch(page, /data-ai-page/);
+  assert.doesNotMatch(page, /learner-recommendations\.js/);
+  assert.doesNotMatch(page, /Gợi ý hoạt động &amp; cơ hội phù hợp/);
+});
+
+test('roadmap prompt targets Gemini 3.7 Flash and detailed student-friendly milestones', () => {
+  const prompt = fs.readFileSync(promptPath, 'utf8');
+  const envExample = fs.readFileSync(envExamplePath, 'utf8');
+  assert.match(envExample, /^TALENTHUB_AI_MODEL=gemini-3\.7-flash$/m);
+  assert.match(envExample, /models\/gemini-3\.7-flash:generateContent/);
+  assert.match(prompt, /mỗi giai đoạn có từ 3 đến 5 task cụ thể/);
+  assert.match(prompt, /học sinh, sinh viên/);
+  assert.match(prompt, /đầu ra.*tiêu chí hoàn thành|tiêu chí hoàn thành.*đầu ra/i);
+  assert.match(prompt, /tuần|7 ngày|14 ngày/i);
+});
+
+test('recommendation client remains isolated from the Roadmap-first page', () => {
+  const page = fs.readFileSync(pagePath, 'utf8');
+  assert.doesNotMatch(page, /data-ai-page/);
+  assert.doesNotMatch(page, /learner-recommendations\.js/);
   const client = fs.readFileSync(path.join(root, 'assets', 'js', 'learner-recommendations.js'), 'utf8');
   assert.match(client, /api\.get\('\/recommendations\.php'\)/);
   assert.doesNotMatch(client, /generativelanguage\.googleapis|x-goog-api-key/i);

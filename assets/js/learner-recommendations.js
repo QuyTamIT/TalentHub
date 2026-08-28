@@ -69,6 +69,37 @@
             && /^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value);
     }
 
+    const SAFE_ERROR_CODES = new Set([
+        'SERVICE_UNAVAILABLE', 'REQUEST_TIMEOUT', 'NETWORK_ERROR', 'INVALID_RESPONSE',
+        'UNAUTHORIZED', 'FORBIDDEN', 'RATE_LIMIT_EXCEEDED', 'REQUEST_FAILED',
+    ]);
+
+    function normalizeRecommendationError(error) {
+        const code = typeof error?.code === 'string' && SAFE_ERROR_CODES.has(error.code)
+            ? error.code
+            : Number(error?.status) === 401 ? 'UNAUTHORIZED' : 'REQUEST_FAILED';
+        return {
+            state: 'source_unavailable',
+            error_code: code,
+            request_id: typeof error?.requestId === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(error.requestId)
+                ? error.requestId : '',
+            items: [],
+        };
+    }
+
+    function recommendationErrorCopy(code) {
+        return {
+            SERVICE_UNAVAILABLE: 'Dịch vụ gợi ý đang tạm thời bận. Vui lòng thử lại sau ít phút.',
+            REQUEST_TIMEOUT: 'Máy chủ phản hồi quá lâu. Vui lòng thử lại.',
+            NETWORK_ERROR: 'Không thể kết nối đến máy chủ. Kiểm tra mạng rồi thử lại.',
+            INVALID_RESPONSE: 'Dữ liệu gợi ý trả về chưa hợp lệ. Vui lòng thử lại.',
+            UNAUTHORIZED: 'Phiên đăng nhập đã hết. Hãy tải lại trang rồi thử lại.',
+            FORBIDDEN: 'Tài khoản chưa được phép lấy gợi ý. Vui lòng kiểm tra quyền dữ liệu.',
+            RATE_LIMIT_EXCEEDED: 'Bạn đã yêu cầu gợi ý quá nhiều lần. Vui lòng thử lại sau.',
+            REQUEST_FAILED: 'Chưa thể tải gợi ý. Vui lòng thử lại.',
+        }[code] || 'Chưa thể tải gợi ý. Vui lòng thử lại.';
+    }
+
     function createRecommendationController({ api, view, createIdempotencyKey = defaultIdempotencyKey }) {
         if (!api || typeof api.get !== 'function' || typeof api.send !== 'function') {
             throw new TypeError('A learner recommendation API client is required.');
@@ -86,16 +117,16 @@
             return currentPayload;
         }
 
-        function renderSourceError() {
-            return renderPayload({ state: 'source_unavailable', items: [] });
+        function renderSourceError(error) {
+            return renderPayload(normalizeRecommendationError(error));
         }
 
         async function load() {
             view.render('loading', currentPayload);
             try {
                 return renderPayload(await api.get('/recommendations.php'));
-            } catch {
-                return renderSourceError();
+            } catch (error) {
+                return renderSourceError(error);
             }
         }
 
@@ -106,7 +137,7 @@
             view.render('loading', currentPayload);
             generation = Promise.resolve(api.send('POST', '/recommendations.php', undefined, { idempotencyKey }))
                 .then(renderPayload)
-                .catch(renderSourceError)
+                .catch((error) => renderSourceError(error))
                 .finally(() => {
                     generation = null;
                 });
@@ -169,6 +200,7 @@
             insufficient: root.querySelector('[data-ai-insufficient]'),
             insufficientCopy: root.querySelector('[data-ai-insufficient-copy]'),
             sourceError: root.querySelector('[data-ai-source-error]'),
+            sourceErrorCopy: root.querySelector('[data-ai-source-error-copy]'),
             results: root.querySelector('[data-ai-results]'),
             list: root.querySelector('[data-ai-result-list]'),
             engineLabel: root.querySelector('[data-ai-engine-label]'),
@@ -204,6 +236,11 @@
             setHidden(nodes.sourceError, state !== 'source-error');
             setHidden(nodes.results, !showResults);
             if (nodes.status) nodes.status.textContent = statusText(state);
+            if (nodes.sourceErrorCopy) {
+                nodes.sourceErrorCopy.textContent = state === 'source-error'
+                    ? recommendationErrorCopy(payload?.error_code)
+                    : '';
+            }
             if (state === 'feedback-saved' && nodes.feedbackStatus) nodes.feedbackStatus.textContent = statusText(state);
             if (state === 'insufficient-data' && nodes.insufficientCopy && payload?.state === 'not_generated') {
                 nodes.insufficientCopy.textContent = 'Chưa có gợi ý. Chọn “Tạo gợi ý” để phân tích các dữ liệu bạn đã cho phép.';
