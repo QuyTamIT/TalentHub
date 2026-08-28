@@ -82,6 +82,7 @@ require_once $learnerDataRoot . '/Migrations/LearnerMigrationPreflight.php';
 require_once $learnerDataRoot . '/Migrations/ForwardMigrationDefinition.php';
 require_once $learnerDataRoot . '/Migrations/LearnerMigrationChecksum.php';
 require_once $learnerDataRoot . '/Migrations/LearnerForwardMigrationRunner.php';
+require_once $learnerDataRoot . '/Migrations/LearnerRoadmapRegistryReconciler.php';
 require_once $learnerDataRoot . '/Database/DatabaseCertificateCommandRepository.php';
 require_once $learnerDataRoot . '/Service/CertificateCommandService.php';
 require_once $learnerDataRoot . '/Service/ProfileSharingService.php';
