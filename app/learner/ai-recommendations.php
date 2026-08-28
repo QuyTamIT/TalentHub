@@ -114,6 +114,15 @@ $assetVersion = static function (string $relativePath): string {
                             ?>
                         </section>
                     </details>
+                    <section class="learner-card learner-roadmap-secondary" data-ai-group-matches aria-labelledby="ai-group-matches-title">
+                        <div class="learner-roadmap-section-heading">
+                            <div>
+                                <span class="learner-roadmap__eyebrow">CỘNG ĐỒNG &amp; NHÓM HỌC TẬP</span>
+                                <h2 id="ai-group-matches-title">Nhóm phù hợp</h2>
+                            </div>
+                        </div>
+                        <div data-group-matches-container></div>
+                    </section>
                     <div class="learner-roadmap__details">
                         <details class="learner-card learner-roadmap-disclosure" data-roadmap-evidence><summary>Dữ liệu AI đã sử dụng</summary><div data-roadmap-evidence-content></div></details>
                         <details class="learner-card learner-roadmap-disclosure" data-roadmap-engine><summary>Thông tin kỹ thuật</summary><dl data-roadmap-engine-content></dl></details>
@@ -128,5 +137,6 @@ $assetVersion = static function (string $relativePath): string {
     <script src="../../assets/js/learner.js?v=<?= $assetVersion('assets/js/learner.js'); ?>"></script>
     <script src="../../assets/js/learner-ai-roadmap.js?v=<?= $assetVersion('assets/js/learner-ai-roadmap.js'); ?>"></script>
     <script src="../../assets/js/learner-recommendations.js?v=<?= $assetVersion('assets/js/learner-recommendations.js'); ?>"></script>
+    <script src="../../assets/js/learner-ai-groups.js?v=<?= $assetVersion('assets/js/learner-ai-groups.js'); ?>"></script>
 </body>
 </html>

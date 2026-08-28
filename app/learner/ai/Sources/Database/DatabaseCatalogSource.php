@@ -149,6 +149,9 @@ final class DatabaseCatalogSource implements LearnerAiExtendedSource
         $rawRules = $item['eligibility_json'] ?? null;
         $rules = $this->json($rawRules);
         if (!is_string($rawRules) || trim($rawRules) === '' || $rules === null) return false;
+        if (self::containsProtectedTraits($rules)) return false;
+        $action = $this->json($item['action_json'] ?? null);
+        if ($action !== null && self::containsProtectedTraits($action)) return false;
         foreach (array_keys($rules) as $rule) {
             if (!in_array($rule, ['student_ids', 'class_ids', 'grade_levels'], true)) {
                 if (in_array(strtolower($rule), self::PROTECTED_ELIGIBILITY_KEYS, true)) {
@@ -161,6 +164,21 @@ final class DatabaseCatalogSource implements LearnerAiExtendedSource
             if (isset($rules[$field]) && is_array($rules[$field]) && !in_array($student[$studentField] ?? '', array_map('strval', $rules[$field]), true)) return false;
         }
         return true;
+    }
+
+    public static function containsProtectedTraits(mixed $data): bool
+    {
+        if (is_array($data)) {
+            foreach ($data as $key => $value) {
+                if (is_string($key) && in_array(strtolower(trim($key)), self::PROTECTED_ELIGIBILITY_KEYS, true)) {
+                    return true;
+                }
+                if (self::containsProtectedTraits($value)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** @return array<string,mixed> */

@@ -83,7 +83,7 @@ final class AiMetricsCollector
         }
         if (isset($input['recommendation_action']) && is_string($input['recommendation_action'])) {
             $action = strtolower(trim($input['recommendation_action']));
-            if (in_array($action, ['view_activity', 'view_opportunity', 'register_activity', 'open_catalog_item'], true)) $event['recommendation_action'] = $action;
+            if (in_array($action, ['view_activity', 'view_opportunity', 'register_activity', 'open_catalog_item', 'join_group'], true)) $event['recommendation_action'] = $action;
         }
         $this->events[] = $event;
         if (count($this->events) > $this->maxEvents) array_shift($this->events);

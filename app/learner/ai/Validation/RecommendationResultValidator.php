@@ -9,7 +9,7 @@ use TalentHub\Learner\Ai\Domain\RecommendationResult;
 
 final class RecommendationResultValidator
 {
-    private const ITEM_TYPES = ['strength', 'improvement', 'development', 'activity', 'roadmap'];
+    private const ITEM_TYPES = ['strength', 'improvement', 'development', 'activity', 'roadmap', 'group', 'community'];
     private const CONFIDENCE_BANDS = ['low', 'medium', 'high'];
     private const MAX_ITEMS = 12;
     private const MAX_ROADMAP_STEPS = 3;
@@ -89,6 +89,7 @@ final class RecommendationResultValidator
             'practice_presentation' => ['type', 'weeks', 'steps'],
             'explore_career_group' => ['type', 'career_group'],
             'register_activity' => ['type', 'career_group', 'activity_source_id'],
+            'join_group', 'open_catalog_item' => ['type', 'catalog_id'],
             default => throw new \RuntimeException('Recommendation action type is unsupported.'),
         };
         foreach (array_keys($action) as $key) {
@@ -124,6 +125,15 @@ final class RecommendationResultValidator
                 && hash_equals($item->catalogId(), $activitySourceId);
             if (!$isUuid && !$isValidatedCatalogId) {
                 throw new \RuntimeException('Recommendation activity action activity source ID is invalid.');
+            }
+        }
+        if (in_array($type, ['join_group', 'open_catalog_item'], true)) {
+            $catalogId = $action['catalog_id'] ?? null;
+            if (!is_string($catalogId) || trim($catalogId) === '') {
+                throw new \RuntimeException('Recommendation group/catalog action catalog ID is required.');
+            }
+            if ($item->catalogId() === null || !hash_equals($item->catalogId(), $catalogId)) {
+                throw new \RuntimeException('Recommendation group/catalog action catalog ID must match item catalog ID.');
             }
         }
         if ($type === 'practice_presentation') {

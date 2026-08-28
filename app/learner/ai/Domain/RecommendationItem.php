@@ -8,7 +8,7 @@ use JsonException;
 
 final class RecommendationItem
 {
-    private const ITEM_TYPES = ['strength', 'improvement', 'development', 'activity', 'roadmap'];
+    private const ITEM_TYPES = ['strength', 'improvement', 'development', 'activity', 'roadmap', 'group', 'community'];
     private const CONFIDENCE_BANDS = ['low', 'medium', 'high'];
     private const REASON_CODES = ['career_match', 'eligible_catalog', 'skill_match', 'deadline_soon'];
 

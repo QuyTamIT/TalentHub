@@ -46,6 +46,7 @@ use TalentHub\Learner\Ai\Service\RecommendationResponseMapper;
 use TalentHub\Learner\Ai\Service\RecommendationService;
 use TalentHub\Learner\Ai\Service\RecommendationClickService;
 use TalentHub\Learner\Ai\Service\RoadmapService;
+use TalentHub\Learner\Ai\Service\GroupMatchingService;
 use TalentHub\Learner\Ai\Snapshot\RecommendationSnapshotBuilder;
 use TalentHub\Learner\Ai\Sources\AiSourceRegistry;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseActivityExperienceSource;
@@ -453,21 +454,24 @@ final class LearnerApiContext
         $eventId = Uuid::v4();
         $this->pdo->beginTransaction();
         try {
-        $insert = $this->pdo->prepare(
-            'INSERT INTO learner_ai_consent_events (id, studentId, scope, action, policyVersion, occurredAt, requestId) VALUES (:id, :studentId, :scope, :action, :policyVersion, :occurredAt, :requestId)'
-        );
-        $insert->execute([
-            'id' => $eventId,
-            'studentId' => $studentId,
-            'scope' => $scope,
-            'action' => $action,
-            'policyVersion' => 'learner-ai-consent-1.0',
-            'occurredAt' => $occurredAt,
-            'requestId' => $this->requestId,
-        ]);
-        TransactionalAiOutboxPublisher::publish($this->pdo,'ai_consent',$eventId,TransactionalAiOutboxPublisher::version(),[$studentId],'consent.'.$action,['scope'=>$scope]);
-        $this->pdo->commit();
-        } catch (\Throwable $exception) { if ($this->pdo->inTransaction()) $this->pdo->rollBack(); throw $exception; }
+            $insert = $this->pdo->prepare(
+                'INSERT INTO learner_ai_consent_events (id, studentId, scope, action, policyVersion, occurredAt, requestId) VALUES (:id, :studentId, :scope, :action, :policyVersion, :occurredAt, :requestId)'
+            );
+            $insert->execute([
+                'id' => $eventId,
+                'studentId' => $studentId,
+                'scope' => $scope,
+                'action' => $action,
+                'policyVersion' => 'learner-ai-consent-1.0',
+                'occurredAt' => $occurredAt,
+                'requestId' => $this->requestId,
+            ]);
+            TransactionalAiOutboxPublisher::publish($this->pdo, 'ai_consent', $eventId, TransactionalAiOutboxPublisher::version(), [$studentId], 'consent.' . $action, ['scope' => $scope]);
+            $this->pdo->commit();
+        } catch (\Throwable $exception) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $exception;
+        }
         return ['event_id' => $eventId, 'scope' => $scope, 'action' => $action];
     }
 
@@ -499,5 +503,22 @@ final class LearnerApiContext
     public function onboardingService(): LearnerOnboardingService
     {
         return new LearnerOnboardingService(new LearnerOnboardingRepository($this->pdo));
+    }
+
+    public function groupMatchingService(string $studentId): GroupMatchingService
+    {
+        $consent = new ConsentPolicy(new DatabaseConsentSource($this->pdo));
+        $catalogSource = new DatabaseCatalogSource($this->pdo);
+        $snapshotBuilder = $this->snapshotBuilder();
+        $educationBandResolver = $this->educationBandResolver();
+
+        return new GroupMatchingService(
+            $this->pdo,
+            $catalogSource,
+            $consent,
+            $snapshotBuilder,
+            $educationBandResolver,
+            AiMetricsCollector::shared(),
+        );
     }
 }
