@@ -52,6 +52,8 @@ if (!function_exists('learner_icon')) {
             'music' => '<path d="M9 18V5l11-2v13M9 9l11-2"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
             'leaf' => '<path d="M21 3C12 3 5 7 5 14c0 4 3 7 7 7 7 0 9-9 9-18Z"/><path d="M3 21c4-6 8-9 14-13"/>',
             'graduation-cap' => '<path d="m2 10 10-5 10 5-10 5L2 10Z"/><path d="M6 12v5c3 3 9 3 12 0v-5M22 10v6"/>',
+            'lock' => '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
+            'shield-check' => '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>',
             'x' => '<path d="m6 6 12 12M18 6 6 18"/>',
             'copy' => '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
         ];
