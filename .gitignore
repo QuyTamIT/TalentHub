@@ -27,6 +27,7 @@ Thumbs.db
 !/tests/learner_ai_strict_mode_test.php
 !/tests/learner_ai_provider_test.php
 !/tests/learner_ai_9router_shadow_integration_test.php
+!/tests/learner_ai_database_schema_test.php
 /docs/
 /design/
 /Document/
