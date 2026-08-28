@@ -512,4 +512,23 @@ $canonicalHash = (string) $pdoRoadmap->query('SELECT contentHash FROM learner_re
 sync_assert($canonicalHash === $inputRoadmap->contentHash(), 'RecommendationRepository persists the canonical snapshot contentHash');
 sync_assert(preg_match('/\A[a-f0-9]{64}\z/', $canonicalHash) === 1, 'persisted snapshot hash is a 64-character lowercase hex digest');
 
+// =================================================================
+// 15. Production API wiring binds the shared PDO to snapshot reads.
+// =================================================================
+require_once dirname(__DIR__) . '/app/learner/api/LearnerApiContext.php';
+$contextReflection = new ReflectionClass(\TalentHub\Learner\Api\LearnerApiContext::class);
+$context = $contextReflection->newInstanceWithoutConstructor();
+$contextPdo = $contextReflection->getProperty('pdo');
+$contextPdo->setValue($context, $pdoTx);
+$snapshotBuilderMethod = $contextReflection->getMethod('snapshotBuilder');
+$snapshotBuilder = $snapshotBuilderMethod->invoke($context);
+$builderReflection = new ReflectionClass($snapshotBuilder);
+$builderRegistry = $builderReflection->getProperty('registry')->getValue($snapshotBuilder);
+$registryReflection = new ReflectionClass($builderRegistry);
+$productionTransactionPdo = $registryReflection->getProperty('transactionPdo')->getValue($builderRegistry);
+sync_assert(
+    $productionTransactionPdo === $pdoTx,
+    'LearnerApiContext binds AiSourceRegistry to the production PDO transaction'
+);
+
 echo "learner_ai_database_sync_test: OK\n";

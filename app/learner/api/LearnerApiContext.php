@@ -345,6 +345,7 @@ final class LearnerApiContext
             new DatabaseOpportunitySource($this->pdo),
             new DatabaseCatalogSource($this->pdo),
         ]);
+        $registry->setTransactionPdo($this->pdo);
         $registry->registerTalentPassportSources((new RepositoryFactory('database', $this->pdo))->talentPassport());
         return new RecommendationSnapshotBuilder($registry);
     }
