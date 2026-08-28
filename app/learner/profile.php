@@ -14,8 +14,8 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Hồ sơ năng lực đã xác minh của <?= learner_escape($student['name']); ?> trên TalentHub.">
     <title>Hồ sơ năng lực | TalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-profile" data-learner-source="<?= ($isDatabaseMode ?? false) ? 'database' : 'mock'; ?>">
     <div class="learner-layout">
@@ -165,15 +165,37 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                         <?php else: ?>
                             <div class="learner-certificate-list">
                                 <?php foreach ($certificates as $certificate): ?>
-                                    <article class="learner-certificate">
-                                        <span class="learner-certificate__icon"><?= learner_icon('award', 20); ?></span>
-                                        <div>
-                                            <h3><?= learner_escape($certificate['name'] ?? $certificate['title'] ?? ''); ?></h3>
-                                            <p><?= learner_escape($certificate['issuer'] ?? $certificate['issuing_organization'] ?? ''); ?> <span aria-hidden="true">•</span> <?= learner_escape($certificate['year'] ?? $certificate['issue_date'] ?? ''); ?></p>
+                                    <?php
+                                    $certificateVerified = !empty($certificate['verified']) || ($certificate['verification_status'] ?? $certificate['verificationStatus'] ?? '') === 'verified';
+                                    $certificateTitle = $certificate['name'] ?? $certificate['title'] ?? '';
+                                    $certificateIssuer = $certificate['issuer'] ?? $certificate['issuing_organization'] ?? $certificate['issuingOrganization'] ?? '';
+                                    $certificateDate = $certificate['year'] ?? $certificate['issue_date'] ?? $certificate['issueDate'] ?? '';
+                                    $certificateCode = $certificate['credential_id'] ?? $certificate['credentialId'] ?? '';
+                                    ?>
+                                    <article class="learner-certificate learner-certificate--diploma<?= $certificateVerified ? ' learner-certificate--verified' : ''; ?>">
+                                        <div class="learner-certificate__frame">
+                                            <div class="learner-certificate__topline">
+                                                <span><?= learner_icon('graduation-cap', 18); ?> Chứng chỉ bên ngoài</span>
+                                                <span class="learner-certificate__status"><?= $certificateVerified ? 'Đã xác minh' : 'Chờ xác minh'; ?></span>
+                                            </div>
+                                            <span class="learner-certificate__icon" aria-hidden="true"><?= learner_icon('graduation-cap', 24); ?></span>
+                                            <div class="learner-certificate__content">
+                                                <h3><?= learner_escape($certificateTitle); ?></h3>
+                                                <div class="learner-certificate__meta">
+                                                    <span><?= learner_icon('building', 14); ?> <?= learner_escape($certificateIssuer); ?></span>
+                                                    <?php if ((string) $certificateDate !== ''): ?>
+                                                        <span><?= learner_icon('calendar', 14); ?> Cấp ngày <?= learner_escape($certificateDate); ?></span>
+                                                    <?php endif; ?>
+                                                    <?php if ((string) $certificateCode !== ''): ?>
+                                                        <span><?= learner_icon('file-text', 14); ?> Mã: <?= learner_escape($certificateCode); ?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                            <span class="learner-certificate__seal">
+                                                <?= learner_icon($certificateVerified ? 'shield-check' : 'clock', 20); ?>
+                                                <?= $certificateVerified ? 'Đã xác minh' : 'Đang chờ'; ?>
+                                            </span>
                                         </div>
-                                        <?php if (!empty($certificate['verified']) || ($certificate['verification_status'] ?? '') === 'verified'): ?>
-                                            <span class="learner-verified-badge">Đã xác minh</span>
-                                        <?php endif; ?>
                                     </article>
                                 <?php endforeach; ?>
                             </div>
