@@ -16,6 +16,7 @@ final class AiSourceRegistry
     private $availabilityReader = null;
     /** @var (callable():void)|null */
     private $resetReaderCache = null;
+    private ?\PDO $transactionPdo = null;
 
     /** @param list<LearnerAiExtendedSource> $sources */
     public function __construct(array $sources = [])
@@ -35,6 +36,17 @@ final class AiSourceRegistry
         ksort($this->sources, SORT_STRING);
     }
 
+    /**
+     * Inject an optional PDO handle that supports transactional snapshot
+     * reads. When the registry detects a transactional source it wraps
+     * the per-student read inside a single transaction so the snapshot
+     * payload is consistent across every consent-scoped source.
+     */
+    public function setTransactionPdo(?\PDO $pdo): void
+    {
+        $this->transactionPdo = $pdo;
+    }
+
     /** @return list<LearnerAiExtendedSource> */
     public function adapters(): array
     {
@@ -49,16 +61,33 @@ final class AiSourceRegistry
         }
         $allowed = array_fill_keys($this->normalizeScopes($allowedScopes), true);
         $records = [];
-        foreach ($this->sources as $source) {
-            if (!isset($allowed[$source->consentScope()])) {
-                continue;
-            }
-            foreach ($source->readForStudent($studentId) as $record) {
-                $normalized = $this->normalizeRecord($source, $record);
-                if ($normalized !== null) {
-                    $records[] = $normalized;
+        $pdo = $this->transactionPdo;
+        $usesTransaction = $pdo !== null
+            && $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) !== 'sqlite'
+            && !$pdo->inTransaction();
+        if ($usesTransaction) {
+            $pdo->beginTransaction();
+        }
+        try {
+            foreach ($this->sources as $source) {
+                if (!isset($allowed[$source->consentScope()])) {
+                    continue;
+                }
+                foreach ($source->readForStudent($studentId) as $record) {
+                    $normalized = $this->normalizeRecord($source, $record);
+                    if ($normalized !== null) {
+                        $records[] = $normalized;
+                    }
                 }
             }
+            if ($usesTransaction) {
+                $pdo->commit();
+            }
+        } catch (\Throwable $exception) {
+            if ($usesTransaction && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $exception;
         }
         usort($records, static fn (array $left, array $right): int => [
             $left['source_type'], $left['source_id'], (string) $left['observed_at'],
