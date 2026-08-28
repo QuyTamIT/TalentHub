@@ -218,7 +218,7 @@ Run:
 ```bash
 php tests/learner_ai_customer_output_contract_test.php
 php tests/learner_school_credential_ui_test.php
-node --test tests/learner_ai_roadmap_ui_test.js tests/learner_recommendations_ui_test.js
+node --test tests/learner_ai_roadmap_ui_test.js tests/learner_ai_recommendation_ui_test.js
 ```
 
 Expected: all commands exit 0 and report no failed assertions.

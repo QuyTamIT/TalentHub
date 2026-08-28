@@ -46,7 +46,7 @@
             .slice(0, 3)
             .map((phase) => ({
                 ...phase,
-                rangeLabel: `${integer(phase.start_day)}–${integer(phase.end_day)} ngày`,
+                rangeLabel: `${integer(phase.start_day) === 0 ? 1 : integer(phase.start_day)}–${integer(phase.end_day)} ngày`,
                 tasks: Array.isArray(phase.tasks) ? phase.tasks.filter((task) => task && typeof task === 'object') : [],
                 progress: {
                     completed_tasks: integer(phase?.progress?.completed_tasks),
@@ -234,12 +234,15 @@
             growthHypotheses: root.querySelector('[data-roadmap-growth-hypotheses]'),
             phases: root.querySelector('[data-roadmap-phases]'),
             overallProgress: root.querySelector('[data-roadmap-overall-progress]'),
+            progressBar: root.querySelector('[data-roadmap-progress-bar]'),
             nextActions: root.querySelector('[data-roadmap-next-actions]'),
             activities: root.querySelector('[data-roadmap-activities]'),
             evidence: root.querySelector('[data-roadmap-evidence-content]'),
             engine: root.querySelector('[data-roadmap-engine-content]'),
             version: root.querySelector('[data-roadmap-version-select]'),
             changed: root.querySelector('[data-roadmap-version-changes]'),
+            analysisToggle: root.querySelector('[data-roadmap-analysis-toggle]'),
+            analysisDetails: root.querySelector('[data-roadmap-analysis-details]'),
             feedbackStatus: root.querySelector('[data-roadmap-feedback-status]'),
         };
 
@@ -313,6 +316,9 @@
             if (typeof nodes.overallProgress?.style?.setProperty === 'function') {
                 nodes.overallProgress.style.setProperty('--roadmap-progress', `${model.overallPercent}%`);
             }
+            if (nodes.progressBar?.style) nodes.progressBar.style.width = `${model.overallPercent}%`;
+            hide(nodes.analysisDetails, true);
+            nodes.analysisToggle?.setAttribute('aria-expanded', 'false');
         }
 
         function evidenceTitle(record) {
@@ -566,7 +572,14 @@
             }[state] || '');
         }
 
-        return { render, updateTask, feedback };
+        function toggleAnalysis() {
+            if (!nodes.analysisDetails || !nodes.analysisToggle) return;
+            const expanded = nodes.analysisToggle.getAttribute('aria-expanded') === 'true';
+            hide(nodes.analysisDetails, expanded);
+            nodes.analysisToggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        }
+
+        return { render, updateTask, feedback, toggleAnalysis };
     }
 
     function displayDate(value) {
@@ -580,13 +593,15 @@
         const root = global.document?.querySelector('[data-ai-roadmap-page]');
         const factory = global.TalentHubLearnerApi?.createLearnerApiClient;
         if (!root || typeof factory !== 'function') return;
-        const controller = createRoadmapController({ api: createRoadmapApiClient(factory, global.document), view: createDomView(root) });
+        const view = createDomView(root);
+        const controller = createRoadmapController({ api: createRoadmapApiClient(factory, global.document), view });
         root.addEventListener('click', (event) => {
             const target = event.target instanceof global.Element ? event.target.closest('button') : null;
             if (!target || !root.contains(target)) return;
             if (target.matches('[data-roadmap-generate]')) controller.generate(target.dataset.roadmapGenerate);
             else if (target.matches('[data-roadmap-retry]')) controller.retry();
             else if (target.matches('[data-roadmap-continue]')) root.querySelector('.learner-roadmap-task:not(.is-completed) .learner-roadmap-task__control')?.focus();
+            else if (target.matches('[data-roadmap-analysis-toggle]')) view.toggleAnalysis();
             else if (target.matches('[data-roadmap-task-id]') && target.dataset.roadmapTaskStatus !== 'completed') controller.updateTask(target.dataset.roadmapTaskId, target.dataset.roadmapTaskStatus).catch(() => {});
             else if (target.matches('[data-roadmap-feedback-value]')) controller.submitFeedback('', target.dataset.roadmapFeedbackValue).catch(() => {});
         });

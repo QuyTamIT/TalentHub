@@ -226,7 +226,7 @@ test('recommendation client stays regression-covered beside the Roadmap-first ex
   assert.match(source, /document\.createElement\('details'\)/);
   assert.match(source, /payload\?\.provider/);
   assert.match(source, /payload\?\.model_version/);
-  assert.match(page, /LỘ TRÌNH PHÁT TRIỂN 90 NGÀY/);
+  assert.match(page, /ROADMAP PHÁT TRIỂN 90 NGÀY/);
   assert.match(page, /learner-recommendations\.js/);
   assert.match(page, /learner-ai-roadmap\.js/);
 });

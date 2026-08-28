@@ -109,7 +109,7 @@ test('view model keeps exactly three roadmap phases and derives real next action
   const { buildRoadmapViewModel } = require(modulePath);
   const model = buildRoadmapViewModel(payload());
   assert.equal(model.phases.length, 3);
-  assert.deepEqual(model.phases.map((phase) => phase.rangeLabel), ['0–30 ngày', '31–60 ngày', '61–90 ngày']);
+  assert.deepEqual(model.phases.map((phase) => phase.rangeLabel), ['1–30 ngày', '31–60 ngày', '61–90 ngày']);
   assert.equal(model.nextActions.length, 3);
   assert.equal(model.nextActions.every((task) => task.status !== 'completed'), true);
   assert.equal(model.activities.length, 1);
@@ -237,6 +237,11 @@ test('DOM view renders the canonical model payload into semantic roadmap regions
 
 test('page exposes every Roadmap-first region and the live recommendation client', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
+  assert.match(page, /ROADMAP PHÁT TRIỂN 90 NGÀY/);
+  assert.match(page, /learner-roadmap-hero/);
+  assert.match(page, /learner-roadmap-analysis/);
+  assert.match(page, /<details[^>]+learner-roadmap-secondary/);
+  assert.doesNotMatch(page, /learner-roadmap-capability__grid/);
   for (const marker of [
     'data-ai-roadmap-page', 'data-roadmap-summary', 'data-roadmap-direction',
     'data-roadmap-phases', 'data-roadmap-next-actions', 'data-roadmap-activities',
@@ -280,6 +285,11 @@ test('Roadmap-first CSS is scoped, responsive and accessible', () => {
   assert.match(css, /@media \(max-width: 1100px\)/);
   assert.match(css, /@media \(max-width: 720px\)/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  assert.match(css, /font-family:\s*['"]Be Vietnam Pro['"],\s*sans-serif/);
+  assert.match(css, /\.learner-page-ai \.learner-roadmap-timeline/);
+  assert.match(css, /\.learner-page-ai \.learner-roadmap-radar/);
+  assert.match(css, /\.learner-page-ai \.learner-roadmap-secondary/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*grid-template-columns:\s*1fr/);
   for (const token of ['#F97316', '#EA580C', '#FFF7ED', '#2563EB', '#EFF6FF', '#16A34A']) {
     assert.match(css.toUpperCase(), new RegExp(token));
   }
