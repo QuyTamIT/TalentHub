@@ -304,7 +304,11 @@ test('DOM view renders the canonical model payload into semantic roadmap regions
   const doc = { createElement: (tag) => new FakeNode(tag), createElementNS: (_namespace, tag) => new FakeNode(tag) };
   const rootNode = { ownerDocument: doc, querySelector: (selector) => nodes[selector] || null };
   const radarPayload = payload();
-  radarPayload.talent_map.push({ field: 'Điều phối', score: 68, evidence_ref_ids: ['evaluation:coordination'] });
+  radarPayload.talent_map = [
+    { field: 'Tư duy Logic & Hệ thống', score: 82, evidence_ref_ids: ['assessment:holland'] },
+    { field: 'Kỹ năng Thực hành & Thao tác', score: 76, evidence_ref_ids: ['assessment:disc'] },
+    { field: 'Tổ chức & Điều phối', score: 68, evidence_ref_ids: ['evaluation:coordination'] },
+  ];
   createDomView(rootNode).render('ready-model', buildRoadmapViewModel(radarPayload));
   assert.match(nodes['[data-roadmap-summary-text]'].textContent, /sản phẩm công nghệ/);
   assert.equal(nodes['[data-roadmap-phases]'].children.length, 3);
@@ -326,6 +330,17 @@ test('DOM view renders the canonical model payload into semantic roadmap regions
   const currentTaskList = currentPhaseBody.children.find((item) => item.className === 'learner-roadmap-task-list');
   assert.equal(currentTaskList.children.length, 3);
   assert.match(currentTaskList.children[0].children[1].children[0].textContent, /Nhiệm vụ 1\.1/);
+
+  const emptyTalentPayload = payload();
+  emptyTalentPayload.talent_map = [];
+  createDomView(rootNode).render('ready-model', buildRoadmapViewModel(emptyTalentPayload));
+  const zeroRadar = nodes['[data-roadmap-talent-map]'].children[0];
+  assert.equal(zeroRadar.tagName, 'SVG');
+  assert.match(zeroRadar.attributes['aria-label'], /Tư duy Logic & Hệ thống 0%/);
+  assert.match(zeroRadar.attributes['aria-label'], /Kỹ năng Thực hành & Thao tác 0%/);
+  assert.match(zeroRadar.attributes['aria-label'], /Tổ chức & Điều phối 0%/);
+  assert.equal(nodes['[data-roadmap-talent-map]'].children[1].className, 'learner-roadmap-radar-note');
+  assert.match(nodes['[data-roadmap-talent-map]'].children[1].textContent, /chưa được xác định/i);
 });
 
 test('DOM processing lifecycle preserves ready content and reports success or retryable failure', () => {
@@ -535,6 +550,7 @@ test('renderer uses safe text nodes and never duplicates assessment result conte
   assert.match(source, /Gợi ý dự phòng theo quy tắc/);
   assert.match(source, /AI chưa được bật cho tài khoản này/);
   assert.match(source, /(?:document|doc)\.createElement\('details'\)/);
+  assert.doesNotMatch(source, /Chưa đủ dữ liệu để vẽ bản đồ năng khiếu/);
 });
 
 test('Roadmap-first CSS is scoped, responsive and accessible', () => {
@@ -547,6 +563,8 @@ test('Roadmap-first CSS is scoped, responsive and accessible', () => {
   assert.match(css, /font-family:\s*['"]Be Vietnam Pro['"],\s*sans-serif/);
   assert.match(css, /\.learner-page-ai \.learner-roadmap-timeline/);
   assert.match(css, /\.learner-page-ai \.learner-roadmap-radar/);
+  assert.match(css, /\.learner-page-ai \.learner-roadmap-radar-note/);
+  assert.match(css, /\.learner-roadmap-radar__point\.is-unmeasured/);
   assert.match(css, /\.learner-page-ai \.learner-roadmap-secondary/);
   assert.match(css, /@media \(max-width: 720px\)[\s\S]*grid-template-columns:\s*1fr/);
   for (const token of ['#F97316', '#EA580C', '#FFF7ED', '#2563EB', '#EFF6FF', '#16A34A']) {

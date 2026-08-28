@@ -626,8 +626,14 @@
 
         function renderCapabilityAnalysis(model) {
             clear(nodes.talentMap);
-            if (model.talentMap.length >= 3) nodes.talentMap?.appendChild(renderTalentRadar(model.talentMap));
-            else nodes.talentMap?.appendChild(element('p', 'learner-roadmap-empty', 'Chưa đủ dữ liệu để vẽ bản đồ năng khiếu.'));
+            nodes.talentMap?.appendChild(renderTalentRadar(model.talentMap));
+            if (model.talentMap.some((item) => item.hasEvidence === false)) {
+                nodes.talentMap?.appendChild(element(
+                    'p',
+                    'learner-roadmap-radar-note',
+                    '0% là dữ liệu chưa được xác định, không phải đánh giá năng lực thấp.',
+                ));
+            }
             renderTextRecords(nodes.strengths, model.strengths, 'Chưa có điểm mạnh đủ bằng chứng.');
             renderTextRecords(nodes.improvements, model.improvements, 'Chưa có điểm cần cải thiện đủ bằng chứng.');
             renderTextRecords(nodes.trends, model.trendSignals, 'Chưa có xu hướng đủ bằng chứng.', 'label');
@@ -671,13 +677,14 @@
             for (let index = 0; index < safeItems.length; index += 1) {
                 const item = safeItems[index];
                 const position = point(index, radius * (Number(item.score) / 100));
+                const measurementClass = item.hasEvidence === false ? ' is-unmeasured' : '';
                 svg.appendChild(svgElement('circle', {
-                    class: 'learner-roadmap-radar__point', cx: position.x, cy: position.y, r: 5,
+                    class: `learner-roadmap-radar__point${measurementClass}`, cx: position.x, cy: position.y, r: 5,
                     'aria-label': `${text(item?.field, 'Lĩnh vực')}: ${item.score}%`,
                 }));
                 const labelPosition = point(index, radius + 25);
                 const labelNode = svgElement('text', {
-                    class: 'learner-roadmap-radar__label', x: labelPosition.x, y: labelPosition.y, 'text-anchor': 'middle',
+                    class: `learner-roadmap-radar__label${measurementClass}`, x: labelPosition.x, y: labelPosition.y, 'text-anchor': 'middle',
                 });
                 labelNode.textContent = `${text(item?.field, 'Lĩnh vực')} ${item.score}%`;
                 svg.appendChild(labelNode);

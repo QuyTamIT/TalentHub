@@ -8669,6 +8669,22 @@ body.learner-sidebar-open {
     font-size: 12px;
 }
 
+.learner-page-ai .learner-roadmap-radar-note {
+    margin: 2px auto 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.learner-page-ai .learner-roadmap-radar__point.is-unmeasured {
+    fill: #94A3B8;
+}
+
+.learner-page-ai .learner-roadmap-radar__label.is-unmeasured {
+    fill: #64748B;
+}
+
 .learner-page-ai .learner-roadmap-highlights .learner-roadmap-section-heading {
     align-items: center;
 }
