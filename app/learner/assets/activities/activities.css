@@ -247,6 +247,18 @@
     width: 100%;
 }
 
+@media (max-width: 860px) {
+    .learner-activities-shell .learner-activity-discovery-hero {
+        grid-template-columns: 1fr;
+    }
+    .learner-activities-shell .learner-activity-discovery-hero__content {
+        padding: 24px 20px;
+    }
+    .learner-activities-shell .learner-activity-discovery-hero__illustration {
+        display: none;
+    }
+}
+
 .learner-activities-shell .learner-activity-discovery-kpis {
     align-items: center;
     display: flex;
@@ -320,9 +332,9 @@
 
 .learner-activities-shell .learner-activity-discovery-toolbar__primary {
     align-items: center;
-    display: grid;
-    gap: 10px;
-    grid-template-columns: minmax(250px, 1.25fr) 170px minmax(480px, auto);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
 .learner-activities-shell .learner-activity-discovery-search,
@@ -447,8 +459,9 @@
 
 .learner-activities-shell .learner-activity-discovery-grid {
     display: grid;
-    gap: 16px;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    width: 100%;
 }
 
 .learner-activities-shell .learner-activity-discovery-card {
@@ -1460,6 +1473,116 @@
 
 .learner-activities-shell .learner-activity-register-card [data-register-current] {
     min-height: 46px;
+    transition: all .2s ease;
+}
+
+/* ==========================================================================
+   Activity Registration Feedback Box (Emerald / Mint Aesthetic)
+   ========================================================================== */
+.learner-activities-shell .learner-activity-feedback-box {
+    align-items: center;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+    margin: 18px 0 14px;
+    padding: 20px 16px 18px;
+    text-align: center;
+    width: 100%;
+}
+
+.learner-activities-shell .learner-activity-feedback-box[hidden] {
+    display: none !important;
+}
+
+.learner-activities-shell .learner-activity-feedback-box--success {
+    background: #F0FDF4;
+    border: 1.5px solid #86EFAC;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.09);
+    animation: learnerSuccessFeedbackIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.learner-activities-shell .learner-activity-feedback-box__icon-wrapper {
+    align-items: center;
+    background: #DCFCE7;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.16);
+    display: inline-flex;
+    height: 48px;
+    justify-content: center;
+    margin-bottom: 2px;
+    width: 48px;
+}
+
+.learner-activities-shell .learner-activity-feedback-box__icon {
+    align-items: center;
+    animation: learnerSuccessIconScale 0.35s ease-out;
+    color: #16A34A;
+    display: inline-flex;
+    height: 30px;
+    justify-content: center;
+    width: 30px;
+}
+
+.learner-activities-shell .learner-activity-feedback-box__icon svg {
+    height: 28px;
+    stroke: #16A34A;
+    width: 28px;
+}
+
+.learner-activities-shell .learner-activity-feedback-box__title {
+    color: #15803D;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.35;
+    margin: 0;
+}
+
+.learner-activities-shell .learner-activity-feedback-box__desc {
+    color: #166534;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.48;
+    margin: 0;
+}
+
+.learner-activities-shell .learner-btn--registered-disabled,
+.learner-activities-shell .learner-btn[disabled].learner-btn--registered,
+.learner-activities-shell .learner-btn[disabled].learner-btn--registered-disabled {
+    background: #DCFCE7 !important;
+    border: 1.5px solid #86EFAC !important;
+    box-shadow: none !important;
+    color: #15803D !important;
+    cursor: default !important;
+    font-weight: 600 !important;
+    opacity: 1 !important;
+}
+
+@keyframes learnerSuccessFeedbackIn {
+    0% {
+        opacity: 0;
+        transform: translateY(6px) scale(0.98);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes learnerSuccessIconScale {
+    0% {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+    60% {
+        opacity: 1;
+        transform: scale(1.15);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .learner-activities-shell .learner-registration-message {

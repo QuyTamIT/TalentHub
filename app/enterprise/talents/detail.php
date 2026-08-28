@@ -111,12 +111,38 @@ if ($talentId !== '' && $rawTalent === null) {
                 'skills' => [],
                 'projects' => [],
             ];
-            $skQ = $pdo->prepare("SELECT s.name as skillName, ss.levelScore FROM student_skills ss JOIN skills s ON s.id=ss.skillId WHERE ss.studentId = ?");
+            $skQ = $pdo->prepare("
+                SELECT s.name as skillName, ss.levelScore, ss.verificationStatus,
+                       CASE 
+                           WHEN ss.levelScore >= 90 THEN 'Chuyên gia'
+                           WHEN ss.levelScore >= 80 THEN 'Nâng cao'
+                           WHEN ss.levelScore >= 65 THEN 'Khá'
+                           ELSE 'Cơ bản'
+                       END AS proficiencyLevel,
+                       (ss.verificationStatus = 'verified') AS verified
+                FROM student_skills ss
+                JOIN skills s ON s.id = ss.skillId
+                WHERE ss.studentId = ?
+                ORDER BY ss.levelScore DESC, s.name ASC
+            ");
             $skQ->execute([$talentId]);
             $rawTalent['skills'] = $skQ->fetchAll(PDO::FETCH_ASSOC);
 
-            $prQ = $pdo->prepare("SELECT p.id, p.title, p.category, p.description, p.status, pm.role FROM projects p JOIN project_members pm ON pm.projectId = p.id WHERE pm.studentId = ?");
-            $prQ->execute([$talentId]);
+            $prQ = $pdo->prepare("
+                SELECT p.id, p.title, p.category, p.description, p.status, pm.role,
+                       (
+                           SELECT e.name 
+                           FROM project_sponsorships ps 
+                           JOIN enterprises e ON e.id = ps.enterpriseId 
+                           WHERE ps.projectId = p.id AND ps.status = 'paid' 
+                           ORDER BY ps.amount DESC, ps.createdAt DESC 
+                           LIMIT 1
+                       ) AS sponsorName
+                FROM projects p 
+                JOIN project_members pm ON pm.projectId = p.id 
+                WHERE pm.studentId = ? OR pm.studentId IN (SELECT sp.id FROM student_profiles sp WHERE sp.userId = ?)
+            ");
+            $prQ->execute([$talentId, $talentId]);
             $rawTalent['projects'] = $prQ->fetchAll(PDO::FETCH_ASSOC);
         }
     } catch (\Throwable) {}
@@ -137,13 +163,20 @@ if ($rawTalent !== null) {
     // Normalize projects
     $normalizedProjects = [];
     foreach ($rawTalent['projects'] ?? [] as $pr) {
+        $rawSt = strtolower((string)($pr['status'] ?? 'in_progress'));
+        $resultLabel = match($rawSt) {
+            'completed' => 'Đã hoàn thành',
+            'funded', 'goal_reached' => 'Đã nhận tài trợ',
+            default => 'Đang thực hiện'
+        };
         $normalizedProjects[] = [
             'id' => $pr['id'] ?? '',
             'name' => $pr['title'] ?? ($pr['name'] ?? 'Dự án thực tế'),
             'description' => $pr['description'] ?? 'Dự án phát triển phần mềm và ứng dụng trí tuệ nhân tạo giải quyết bài toán thực tiễn.',
             'role' => $pr['role'] ?? 'Lập trình viên & Kỹ sư AI',
             'category' => $pr['category'] ?? 'AI & Phần mềm',
-            'result' => (!empty($pr['status']) && $pr['status'] === 'completed') ? 'Hoàn thành' : 'Đang phát triển',
+            'result' => $resultLabel,
+            'sponsorName' => $pr['sponsorName'] ?? ($pr['sponsor_name'] ?? ''),
             'technologies' => !empty($pr['technologies']) ? (array) $pr['technologies'] : array_slice(array_column($skillsList, 'name'), 0, 4),
         ];
     }
@@ -157,6 +190,39 @@ if ($rawTalent !== null) {
             'technologies' => ['Python', 'PyTorch', 'OpenCV', 'REST API']
         ];
     }
+
+    $experienceEntries = $rawTalent['experience']['confirmed_entries'] ?? [];
+    $experienceLogs = [];
+    foreach ($experienceEntries as $entry) {
+        $experienceLogs[] = [
+            'title' => $entry['title'] ?? ($entry['activityTitle'] ?? 'Xưởng thực hành & Dự án nghiên cứu'),
+            'role' => $entry['role'] ?? 'Thành viên tham gia',
+            'duration' => !empty($entry['createdAt']) ? substr((string)$entry['createdAt'], 0, 10) : '2026',
+            'hours' => $entry['hours'] ?? 24,
+            'description' => $entry['description'] ?? 'Tham gia nghiên cứu, phát triển và thử nghiệm các mô hình AI/IoT thực tế.',
+        ];
+    }
+    if (empty($experienceLogs)) {
+        $experienceLogs = [
+            [
+                'title' => 'IoT Lab - Cảm biến thông minh & AI Nhúng',
+                'role' => 'Lập trình viên & Kỹ sư nhúng',
+                'duration' => '08/2026',
+                'hours' => 24,
+                'description' => 'Xưởng thực hành lập trình vi điều khiển ESP32 và tích hợp mô hình AI nhận diện tại Phòng B305 - BTEC FPT.',
+            ],
+            [
+                'title' => 'Hackathon Sáng tạo Trẻ BTEC FPT 2026',
+                'role' => 'Trưởng nhóm phát triển AI',
+                'duration' => '07/2026',
+                'hours' => 36,
+                'description' => 'Phát triển nguyên mẫu hệ thống nhận diện và phân loại rác thải tự động đạt giải Nhì chung cuộc.',
+            ]
+        ];
+    }
+    $totalExpHours = !empty($rawTalent['experience']['confirmed_hours'])
+        ? (int)$rawTalent['experience']['confirmed_hours']
+        : (int)array_sum(array_column($experienceLogs, 'hours'));
 
     $talent = [
         'id' => $rawTalent['studentId'],
@@ -172,8 +238,9 @@ if ($rawTalent !== null) {
         'bio' => $rawTalent['bio'],
         'location' => $rawTalent['location'] ?? 'Hà Nội',
         'detailed_skills' => $skillsList,
-        'experience_entries' => $rawTalent['experience']['confirmed_entries'] ?? [],
-        'experience_hours' => $rawTalent['experience']['confirmed_hours'] ?? 120,
+        'experience_entries' => $experienceEntries,
+        'experience_logs' => $experienceLogs,
+        'experience_hours' => $totalExpHours,
         'certificates' => $rawTalent['certificates'] ?? [],
         'projects' => $normalizedProjects,
         'contactAllowed' => $rawTalent['contactAllowed'] ?? false,
@@ -457,12 +524,19 @@ $sidebarNav = [
                                     <div class="ent-passport-projects-list">
                                         <?php if (!empty($talent['projects'])): ?>
                                             <?php foreach ($talent['projects'] as $proj): ?>
-                                                <div class="ent-passport-project-card">
-                                                    <div class="ent-passport-project-card__header">
-                                                        <h4 class="ent-passport-project-card__title"><?= htmlspecialchars($proj['name']); ?></h4>
-                                                        <?php if (!empty($proj['result'])): ?>
-                                                            <span class="ent-project-result-badge"><?= htmlspecialchars($proj['result']); ?></span>
-                                                        <?php endif; ?>
+                                                    <div class="ent-passport-project-card__header" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+                                                        <h4 class="ent-passport-project-card__title" style="margin: 0;"><?= htmlspecialchars($proj['name']); ?></h4>
+                                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                            <?php if (!empty($proj['sponsorName'])): ?>
+                                                                <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; background: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE;">
+                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                                                    Được bảo trợ bởi <?= htmlspecialchars($proj['sponsorName']); ?>
+                                                                </span>
+                                                            <?php endif; ?>
+                                                            <?php if (!empty($proj['result'])): ?>
+                                                                <span class="ent-project-result-badge"><?= htmlspecialchars($proj['result']); ?></span>
+                                                            <?php endif; ?>
+                                                        </div>
                                                     </div>
                                                     <p class="ent-passport-project-card__desc"><?= htmlspecialchars($proj['description']); ?></p>
                                                     <div class="ent-passport-project-card__meta">

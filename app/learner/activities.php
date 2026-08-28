@@ -173,10 +173,19 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                                     $locationLabel,
                                     implode(' ', array_map('strval', $activity['skills'] ?? [])),
                                 ]);
-                                $startAt = (new DateTimeImmutable((string) $activity['start_at']))
-                                    ->setTimezone($activityDisplayTimezone);
-                                $registrationClosesAt = (new DateTimeImmutable((string) $activity['registration_closes_at']))
-                                    ->setTimezone($activityDisplayTimezone);
+                                $startAt = new DateTimeImmutable((string) $activity['start_at'], $activityDisplayTimezone);
+                                $endAt = !empty($activity['end_at'])
+                                    ? new DateTimeImmutable((string) $activity['end_at'], $activityDisplayTimezone)
+                                    : null;
+                                $registrationClosesAt = new DateTimeImmutable((string) $activity['registration_closes_at'], $activityDisplayTimezone);
+
+                                if ($endAt && $endAt->format('d/m/Y') !== $startAt->format('d/m/Y')) {
+                                    $timeRangeFormatted = $startAt->format('d/m/Y H:i') . ' – ' . $endAt->format('d/m/Y H:i');
+                                } elseif ($endAt) {
+                                    $timeRangeFormatted = $startAt->format('d/m/Y · H:i') . ' – ' . $endAt->format('H:i');
+                                } else {
+                                    $timeRangeFormatted = $startAt->format('d/m/Y · H:i');
+                                }
                                 ?>
                                 <article
                                     class="learner-activity-discovery-card"
@@ -202,7 +211,7 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                                         <h2><?= learner_escape($activity['title']); ?></h2>
                                         <p class="learner-activity-discovery-card__school"><?= learner_icon('building', 17); ?> <?= learner_escape($activity['school_name']); ?></p>
                                         <dl class="learner-activity-discovery-card__meta">
-                                            <div><dt><?= learner_icon('calendar', 17); ?><span class="learner-visually-hidden">Thời gian</span></dt><dd><?= learner_escape($startAt->format('d/m/Y · H:i')); ?></dd></div>
+                                            <div><dt><?= learner_icon('calendar', 17); ?><span class="learner-visually-hidden">Thời gian</span></dt><dd><?= learner_escape($timeRangeFormatted); ?></dd></div>
                                             <div><dt><?= learner_icon('map-pin', 17); ?><span class="learner-visually-hidden">Địa điểm</span></dt><dd><?= learner_escape($locationLabel); ?></dd></div>
                                             <div><dt><?= learner_icon('clock', 17); ?><span class="learner-visually-hidden">Hạn đăng ký</span></dt><dd>Hạn đăng ký: <?= learner_escape($registrationClosesAt->format('d/m/Y · H:i')); ?></dd></div>
                                         </dl>

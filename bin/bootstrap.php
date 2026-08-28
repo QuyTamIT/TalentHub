@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+date_default_timezone_set('Asia/Ho_Chi_Minh');
+
 /**
  * Load .env file (if present) into $_ENV / $_SERVER / getenv().
  * Existing process-level env vars are NOT overwritten so that

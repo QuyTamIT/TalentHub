@@ -41,16 +41,16 @@ $credentialCompact = (bool) ($credentialCompact ?? false);
                 <h3><?= learner_escape($credential['name'] ?? ''); ?></h3>
                 <p class="learner-school-credential__description"><?= learner_escape($credential['description'] ?? ''); ?></p>
                 <p class="learner-school-credential__issuer"><?= learner_icon('building', 15); ?> <?= learner_escape($credential['issuer_name'] ?? 'Nhà trường'); ?></p>
-                <?php if ($status === 'recommended'): ?>
+                <?php if ($status === 'recommended' && $progress < 100 && empty($credential['awarded_at']) && empty($credential['issued_at'])): ?>
                     <p class="learner-school-credential__reason"><?= learner_icon('sparkles', 15); ?> <?= learner_escape($credential['reason'] ?? 'Phù hợp với hồ sơ năng lực của bạn.'); ?></p>
-                <?php elseif ($dateLabel !== ''): ?>
+                <?php elseif ($dateLabel !== '' && ($status === 'achieved' || $status === 'issued' || $progress >= 100)): ?>
                     <p class="learner-school-credential__reason"><?= learner_icon('check', 15); ?> Được ghi nhận ngày <?= learner_escape($dateLabel); ?></p>
                 <?php endif; ?>
                 <div class="learner-school-credential__progress">
-                    <div class="learner-progress" role="progressbar" aria-label="Tiến độ <?= learner_escape($credential['name'] ?? ''); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= $progress; ?>">
-                        <span style="--learner-progress: <?= $progress; ?>%;"></span>
+                    <div class="learner-progress" role="progressbar" aria-label="Tiến độ <?= learner_escape($credential['name'] ?? ''); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= $progress; ?>" style="position: relative; width: 100%; height: 8px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
+                        <span class="learner-progress--<?= $tone; ?>" style="--learner-progress: <?= $progress; ?>%; width: <?= $progress; ?>%; background-color: <?= match($tone) { 'success' => '#10B981', 'primary' => '#F97316', 'ai' => '#6366F1', default => '#94A3B8' }; ?>; display: block; height: 100%; border-radius: inherit; transition: width 0.55s ease;"></span>
                     </div>
-                    <strong><?= $status === 'recommended' ? learner_escape($credential['match_score'] ?? $progress) . '% phù hợp' : $progress . '%'; ?></strong>
+                    <strong style="color: #0F172A;"><?= $status === 'recommended' && $progress === 0 ? learner_escape($credential['match_score'] ?? $progress) . '% phù hợp' : $progress . '%'; ?></strong>
                 </div>
             </article>
         <?php endforeach; ?>

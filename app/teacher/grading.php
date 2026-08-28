@@ -39,14 +39,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $score = max(0.0, min(100.0, (float) $rawScore));
 
         if (!empty($studentId)) {
-            // Cập nhật trực tiếp vào student_profiles
+            // Cập nhật điểm tổng quan trong student_profiles
             try {
                 $upd = $pdo->prepare("UPDATE student_profiles SET talentScore = ?, updatedAt = NOW() WHERE id = ?");
                 $upd->execute([$score, $studentId]);
 
-                // Cập nhật đồng bộ vào student_skills
-                $updSkills = $pdo->prepare("UPDATE student_skills SET levelScore = ?, updatedAt = NOW() WHERE studentId = ?");
-                $updSkills->execute([$score, $studentId]);
+                // Nếu có kỹ năng cụ thể được chỉ định, chỉ cập nhật đúng kỹ năng đó
+                $specificSkillId = trim((string) ($_POST['skillId'] ?? ''));
+                if (!empty($specificSkillId)) {
+                    $updSkills = $pdo->prepare("UPDATE student_skills SET levelScore = ?, updatedAt = NOW() WHERE studentId = ? AND skillId = ?");
+                    $updSkills->execute([$score, $studentId, $specificSkillId]);
+                }
             } catch (\Throwable $e) {}
 
             // Lấy tên sinh viên
@@ -83,8 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $upd = $pdo->prepare("UPDATE student_profiles SET talentScore = ?, updatedAt = NOW() WHERE id = ?");
                 $upd->execute([$score, $sId]);
 
-                $updSkills = $pdo->prepare("UPDATE student_skills SET levelScore = ?, updatedAt = NOW() WHERE studentId = ?");
-                $updSkills->execute([$score, $sId]);
+                // Không cập nhật đè điểm chung lên toàn bộ student_skills
             } catch (\Throwable $e) {}
             $count++;
         }
@@ -98,26 +100,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        $_SESSION['teacherGradingFlash'] = "Đã lưu điểm đánh giá năng lực cho {$count} sinh viên lớp BTEC-AI-2026A thành công.";
-        header('Location: ' . app_href('/app/teacher/grading.php'));
+        $targetClass = trim((string) ($_POST['class_name'] ?? ''));
+        $classSuffix = $targetClass !== '' ? " lớp {$targetClass}" : '';
+        $_SESSION['teacherGradingFlash'] = "Đã lưu điểm đánh giá năng lực cho {$count} sinh viên{$classSuffix} thành công.";
+        $redir = app_href('/app/teacher/grading.php') . ($targetClass !== '' ? '?class=' . urlencode($targetClass) : '');
+        header('Location: ' . $redir);
         exit;
     }
 }
 
-// 3. Đọc trực tiếp danh sách sinh viên từ Database
+// 3. Đọc danh sách lớp học và danh sách sinh viên theo lớp được chọn
+$classList = [];
+try {
+    $classStmt = $pdo->query("
+        SELECT c.id, c.name, COUNT(sp.id) AS studentCount
+        FROM classes c
+        LEFT JOIN student_profiles sp ON sp.classId = c.id AND sp.studyStatus = 'active'
+        WHERE c.schoolId = 'da811c4f-2f74-4fdd-80b0-dd6f26109783'
+           OR c.name LIKE '%BTEC%'
+        GROUP BY c.id, c.name
+        ORDER BY c.name ASC
+    ");
+    $classList = $classStmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (\Throwable $e) {
+    $classList = [];
+}
+
+$requestedClass = trim((string) ($_GET['class'] ?? ($_GET['class_id'] ?? '')));
+$selectedClass = null;
+
+foreach ($classList as $c) {
+    if ($requestedClass !== '' && ($c['id'] === $requestedClass || $c['name'] === $requestedClass)) {
+        $selectedClass = $c;
+        break;
+    }
+}
+if ($selectedClass === null) {
+    foreach ($classList as $c) {
+        if (str_contains($c['name'], 'BTEC-AI')) {
+            $selectedClass = $c;
+            break;
+        }
+    }
+}
+if ($selectedClass === null && !empty($classList)) {
+    $selectedClass = $classList[0];
+}
+
+$activeClassId = $selectedClass['id'] ?? 'a1e2894b-2386-5404-9695-78a78f5a60d3';
+$activeClassName = $selectedClass['name'] ?? 'BTEC-AI-2026A';
+
 $students = [];
 try {
-    $stStmt = $pdo->query("
+    $stStmt = $pdo->prepare("
         SELECT sp.id as studentId, u.fullName, u.email,
-               COALESCE(c.name, 'BTEC-AI-2026A') as className,
+               COALESCE(c.name, :activeClassName) as className,
                sp.talentScore
         FROM student_profiles sp
         JOIN users u ON u.id = sp.userId
         LEFT JOIN classes c ON c.id = sp.classId
         WHERE sp.studyStatus = 'active'
-          AND (c.schoolId = 'da811c4f-2f74-4fdd-80b0-dd6f26109783' OR sp.classId = 'a1e2894b-2386-5404-9695-78a78f5a60d3' OR c.name LIKE '%BTEC-AI%')
-        ORDER BY (u.fullName LIKE '%Vũ Đức Anh%') DESC, u.fullName ASC
+          AND sp.classId = :activeClassId
+        ORDER BY (u.fullName LIKE '%Vũ Đức Anh%') DESC, (u.fullName LIKE '%Lê Quý Tam%') DESC, u.fullName ASC
     ");
+    $stStmt->execute([
+        'activeClassId' => $activeClassId,
+        'activeClassName' => $activeClassName,
+    ]);
     $students = $stStmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (\Throwable $e) {
     $students = [];
@@ -139,7 +188,7 @@ $sidebarNav = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chấm điểm theo Lớp - BTEC-AI-2026A | TalentHub Giảng viên</title>
+    <title>Chấm điểm theo Lớp - <?= htmlspecialchars($activeClassName); ?> | TalentHub Giảng viên</title>
 
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/teacher.css'); ?>">
@@ -258,14 +307,25 @@ $sidebarNav = [
                                 Phân hệ Giảng viên • Đánh giá Năng lực
                             </div>
                             <h2 style="font-size: 1.5rem; font-weight: 800; color: #0F172A; margin: 0 0 0.4rem;">
-                                Chấm điểm theo Lớp: <span style="color: #2563EB;">BTEC-AI-2026A</span>
+                                Chấm điểm theo Lớp: <span style="color: #2563EB;"><?= htmlspecialchars($activeClassName); ?></span>
                             </h2>
                             <p style="color: #64748B; margin: 0; font-size: 0.92rem;">
-                                Danh sách sinh viên thuộc chuyên ngành <strong>Kỹ thuật phần mềm & Trí tuệ nhân tạo (AI)</strong> - Cao đẳng Quốc tế BTEC FPT.
+                                Danh sách sinh viên thuộc lớp <strong><?= htmlspecialchars($activeClassName); ?></strong> - Cao đẳng Quốc tế BTEC FPT.
                             </p>
                         </div>
 
-                        <div style="display: flex; gap: 0.75rem; align-items: center;">
+                        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; background: #FFFFFF; border: 1.5px solid #CBD5E1; border-radius: 8px; padding: 0.35rem 0.75rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                <label for="classFilterSelect" style="font-size: 0.85rem; font-weight: 700; color: #475569; margin: 0; white-space: nowrap;">Chọn Lớp:</label>
+                                <select id="classFilterSelect" onchange="location.href='grading.php?class=' + encodeURIComponent(this.value)" style="border: none; font-weight: 700; color: #1D4ED8; background: transparent; font-size: 0.9rem; cursor: pointer; outline: none;">
+                                    <?php foreach ($classList as $c): ?>
+                                        <option value="<?= htmlspecialchars($c['name']); ?>" <?= $c['name'] === $activeClassName ? 'selected' : ''; ?>>
+                                            <?= htmlspecialchars($c['name']); ?> (<?= (int)$c['studentCount']; ?> SV)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
                             <span class="class-badge" style="padding: 0.5rem 0.85rem; font-size: 0.9rem;">
                                 Sĩ số: <?= count($students); ?> sinh viên
                             </span>
@@ -301,6 +361,7 @@ $sidebarNav = [
                         <form id="batchGradingForm" method="post" action="grading.php">
                             <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken()); ?>">
                             <input type="hidden" name="action" value="save_batch">
+                            <input type="hidden" name="class_name" value="<?= htmlspecialchars($activeClassName); ?>">
 
                             <div style="overflow-x: auto;">
                                 <table class="grading-table">

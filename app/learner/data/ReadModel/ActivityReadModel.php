@@ -13,6 +13,36 @@ final class ActivityReadModel
     public static function activity(array $record): array
     {
         $record = LearnerViewAdapter::record($record);
+        if (!array_key_exists('start_at', $record) && array_key_exists('startAt', $record)) {
+            $record['start_at'] = $record['startAt'];
+        }
+        if (!array_key_exists('end_at', $record) && array_key_exists('endAt', $record)) {
+            $record['end_at'] = $record['endAt'];
+        }
+        if (!array_key_exists('school_id', $record) && array_key_exists('schoolId', $record)) {
+            $record['school_id'] = $record['schoolId'];
+        }
+        if (!array_key_exists('school_name', $record) && array_key_exists('schoolName', $record)) {
+            $record['school_name'] = $record['schoolName'];
+        }
+        if (!array_key_exists('responsible_teacher_name', $record) && array_key_exists('responsibleTeacherName', $record)) {
+            $record['responsible_teacher_name'] = $record['responsibleTeacherName'];
+        }
+        if (!array_key_exists('registration_opens_at', $record) && array_key_exists('registrationOpensAt', $record)) {
+            $record['registration_opens_at'] = $record['registrationOpensAt'];
+        }
+        if (!array_key_exists('registration_closes_at', $record) && array_key_exists('registrationClosesAt', $record)) {
+            $record['registration_closes_at'] = $record['registrationClosesAt'];
+        }
+        if (!array_key_exists('cancellation_closes_at', $record) && array_key_exists('cancellationClosesAt', $record)) {
+            $record['cancellation_closes_at'] = $record['cancellationClosesAt'];
+        }
+        if (!array_key_exists('approval_mode', $record) && array_key_exists('approvalMode', $record)) {
+            $record['approval_mode'] = $record['approvalMode'];
+        }
+        if (!array_key_exists('confirmed_hours', $record) && array_key_exists('confirmedHours', $record)) {
+            $record['confirmed_hours'] = $record['confirmedHours'];
+        }
         if (!array_key_exists('filter_category', $record) && array_key_exists('filterCategory', $record)) {
             $record['filter_category'] = $record['filterCategory'];
         }
@@ -22,7 +52,7 @@ final class ActivityReadModel
         if (!is_string($record['filter_category'] ?? null) || trim((string) $record['filter_category']) === '') {
             $record['filter_category'] = \learner_activity_category_label((string) ($record['category'] ?? ''));
         }
-        $record['registration_closes_at'] ??= $record['start_at'] ?? null;
+        $record['registration_closes_at'] ??= $record['end_at'] ?? $record['start_at'] ?? null;
 
         $view = ReadModelDefaults::apply($record, [
             'id' => '',
@@ -66,7 +96,7 @@ final class ActivityReadModel
             'confirmed_hours' => null,
             'cost' => 'Chưa cập nhật',
             'registration_opens_at' => null,
-            'registration_closes_at' => '1970-01-01 00:00:00',
+            'registration_closes_at' => null,
             'cancellation_closes_at' => null,
             'status' => 'unknown',
             'can_register' => false,
@@ -75,6 +105,11 @@ final class ActivityReadModel
         if ((int) $view['capacity'] <= 0) {
             $view['capacity'] = 1;
             $view['data_notes'][] = 'activity.capacity uses 1 to keep the current progress UI safe from division by zero.';
+        }
+
+        $rawCloses = $view['registration_closes_at'] ?? null;
+        if ($rawCloses === null || $rawCloses === '' || str_starts_with((string)$rawCloses, '1970')) {
+            $view['registration_closes_at'] = $view['end_at'] ?? $view['start_at'] ?? null;
         }
 
         $view['skills'] = self::normalizeTextList($metadata['skills'] ?? null);
@@ -131,33 +166,34 @@ final class ActivityReadModel
     public static function availabilityState(array $activity, ?\DateTimeImmutable $now = null): array
     {
         $status = strtolower(trim((string) ($activity['status'] ?? '')));
-        if (in_array($status, ['ongoing', 'active'], true)) {
-            return ['code' => 'ongoing', 'label' => 'Đang diễn ra', 'explanation' => 'Hoạt động đang diễn ra và không nhận đăng ký mới.'];
-        }
-        if ($status === 'completed') {
+        if ($status === 'completed' || $status === 'archived') {
             return ['code' => 'completed', 'label' => 'Đã kết thúc', 'explanation' => 'Hoạt động đã kết thúc.'];
         }
-        if ($status !== 'published') {
+        if (!in_array($status, ['published', 'ongoing', 'active'], true)) {
             return ['code' => 'unavailable', 'label' => 'Không nhận đăng ký', 'explanation' => 'Hoạt động hiện không nhận đăng ký.'];
         }
 
         try {
-            $current = ($now ?? new \DateTimeImmutable('now', new \DateTimeZone('UTC')))
-                ->setTimezone(new \DateTimeZone('UTC'));
+            $current = ($now ?? new \DateTimeImmutable('now', new \DateTimeZone('Asia/Ho_Chi_Minh')));
             $start = self::date($activity['start_at'] ?? null);
             $end = self::date($activity['end_at'] ?? null) ?? $start;
             $opens = self::date($activity['registration_opens_at'] ?? null);
-            $closes = self::date($activity['registration_closes_at'] ?? null) ?? $start;
+            
+            $closesRaw = $activity['registration_closes_at'] ?? null;
+            $closes = (!empty($closesRaw) && !str_starts_with((string)$closesRaw, '1970'))
+                ? self::date($closesRaw)
+                : ($end ?? $start);
         } catch (\Throwable) {
             return ['code' => 'unavailable', 'label' => 'Không nhận đăng ký', 'explanation' => 'Không thể xác định thời gian đăng ký.'];
         }
+
         if ($end !== null && $current >= $end) {
             return ['code' => 'completed', 'label' => 'Đã kết thúc', 'explanation' => 'Hoạt động đã kết thúc.'];
         }
         if ($opens !== null && $current < $opens) {
             return ['code' => 'not_open', 'label' => 'Chưa mở đăng ký', 'explanation' => 'Hoạt động chưa đến thời gian mở đăng ký.'];
         }
-        if ($closes === null || $current >= $closes) {
+        if ($closes !== null && $current >= $closes && $current >= $end) {
             return ['code' => 'expired', 'label' => 'Đã hết hạn đăng ký', 'explanation' => 'Hoạt động đã hết hạn đăng ký.'];
         }
         $capacity = (int) ($activity['capacity'] ?? 0);
@@ -188,9 +224,19 @@ final class ActivityReadModel
         ], 'activity_registration');
     }
 
+
+    /** @param list<array<string,mixed>> $records @return list<array<string,mixed>> */
     public static function activities(array $records): array
     {
-        return array_map([self::class, 'activity'], $records);
+        $unique = [];
+        foreach ($records as $record) {
+            $view = self::activity($record);
+            $id = (string) ($view['id'] ?? '');
+            if ($id !== '' && !isset($unique[$id])) {
+                $unique[$id] = $view;
+            }
+        }
+        return array_values($unique);
     }
 
     public static function registrations(array $records): array
@@ -265,7 +311,14 @@ final class ActivityReadModel
     private static function date(mixed $value): ?\DateTimeImmutable
     {
         $value = self::text($value);
-        return $value === '' ? null : new \DateTimeImmutable($value, new \DateTimeZone('UTC'));
+        if ($value === '') {
+            return null;
+        }
+        try {
+            return new \DateTimeImmutable($value, new \DateTimeZone('Asia/Ho_Chi_Minh'));
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private static function deliveryModeLabel(mixed $value): string

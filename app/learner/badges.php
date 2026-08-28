@@ -35,10 +35,10 @@ $levelNext = $level['nextLevel'] ?? null;
 $levelRemaining = (float) ($level['remainingHours'] ?? 0.0);
 
 $learnerLevels = [
-    ['id' => 'explorer', 'name' => 'Explorer', 'number' => 1, 'hours' => 0, 'target' => 10, 'state' => $level['name'] === 'Explorer' ? 'current' : ($levelCurrentHours >= 10 ? 'achieved' : 'next'), 'status' => $level['name'] === 'Explorer' ? 'Đang thực hiện' : ($levelCurrentHours >= 10 ? 'Đã đạt' : 'Chưa mở')],
-    ['id' => 'innovator', 'name' => 'Innovator', 'number' => 2, 'hours' => 10, 'target' => 100, 'state' => $level['name'] === 'Innovator' ? 'current' : ($levelCurrentHours >= 100 ? 'achieved' : ($level['name'] === 'Explorer' ? 'next' : 'locked')), 'status' => $level['name'] === 'Innovator' ? 'Đang thực hiện' : ($levelCurrentHours >= 100 ? 'Đã đạt' : 'Chưa mở')],
-    ['id' => 'expert', 'name' => 'Expert', 'number' => 3, 'hours' => 100, 'target' => 200, 'state' => $level['name'] === 'Expert' ? 'current' : ($levelCurrentHours >= 200 ? 'achieved' : ($level['name'] === 'Innovator' ? 'next' : 'locked')), 'status' => $level['name'] === 'Expert' ? 'Đang thực hiện' : ($levelCurrentHours >= 200 ? 'Đã đạt' : 'Chưa mở')],
-    ['id' => 'master', 'name' => 'Master', 'number' => 4, 'hours' => 200, 'target' => 200, 'state' => $level['name'] === 'Master' ? 'current' : ($level['name'] === 'Expert' ? 'next' : 'locked'), 'status' => $level['name'] === 'Master' ? 'Đã đạt cấp tối đa' : 'Chưa mở'],
+    ['id' => 'explorer',  'name' => 'Explorer',  'number' => 1, 'hours' => 0,   'target' => 10,  'range' => '0 - 10 giờ',    'state' => $level['name'] === 'Explorer' ? 'current' : ($levelCurrentHours >= 10 ? 'achieved' : 'next'), 'status' => $level['name'] === 'Explorer' ? 'Đang thực hiện' : ($levelCurrentHours >= 10 ? 'Đã đạt' : 'Chưa mở')],
+    ['id' => 'innovator', 'name' => 'Innovator', 'number' => 2, 'hours' => 10,  'target' => 50,  'range' => '10 - 50 giờ',   'state' => $level['name'] === 'Innovator' ? 'current' : ($levelCurrentHours >= 50 ? 'achieved' : ($level['name'] === 'Explorer' ? 'next' : 'locked')), 'status' => $level['name'] === 'Innovator' ? 'Đang thực hiện' : ($levelCurrentHours >= 50 ? 'Đã đạt' : 'Chưa mở')],
+    ['id' => 'expert',    'name' => 'Expert',    'number' => 3, 'hours' => 50,  'target' => 100, 'range' => '50 - 100 giờ',  'state' => $level['name'] === 'Expert' ? 'current' : ($levelCurrentHours >= 100 ? 'achieved' : ($level['name'] === 'Innovator' ? 'next' : 'locked')), 'status' => $level['name'] === 'Expert' ? 'Đang thực hiện' : ($levelCurrentHours >= 100 ? 'Đã đạt' : 'Chưa mở')],
+    ['id' => 'master',    'name' => 'Master',    'number' => 4, 'hours' => 100, 'target' => 200, 'range' => '100 - 200 giờ', 'state' => $level['name'] === 'Master' ? 'current' : ($level['name'] === 'Expert' ? 'next' : 'locked'), 'status' => $level['name'] === 'Master' ? 'Đã đạt cấp tối đa' : 'Chưa mở'],
 ];
 
 $learnerBadgeFilters = [
@@ -117,7 +117,8 @@ $learnerBadgeFilters = [
                                 </span>
                                 <strong><?= learner_escape($levelItem['name']); ?></strong>
                                 <small>
-                                    <?php if ($levelItem['state'] === 'achieved'): ?>Từ <?= learner_escape($levelItem['hours']); ?> giờ
+                                    <span style="display: block; font-weight: 600; color: #2563EB;"><?= learner_escape($levelItem['range'] ?? ''); ?></span>
+                                    <?php if ($levelItem['state'] === 'achieved'): ?>Đã hoàn thành
                                     <?php elseif ($levelItem['state'] === 'current'): ?><?= learner_escape($levelCurrentHours); ?>/<?= learner_escape($levelItem['target']); ?> giờ
                                     <?php else: ?>Yêu cầu <?= learner_escape($levelItem['hours']); ?> giờ<?php endif; ?>
                                 </small>

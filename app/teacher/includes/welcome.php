@@ -31,12 +31,6 @@ if ($teacherName === 'minh triet') {
             <span class="teacher-chip"><?= htmlspecialchars($teacherInfo['school_name'] ?? 'Cao đẳng Quốc tế BTEC FPT'); ?></span>
             <span class="teacher-chip" style="background: #EFF6FF; color: #1D4ED8; font-weight: 700; border: 1px solid #BFDBFE;">Lớp phụ trách: BTEC-AI-2026A</span>
             <span class="teacher-chip"><?= htmlspecialchars($todayLabel); ?></span>
-            <span class="teacher-chip <?= !empty($dbStatus['connected']) ? 'teacher-chip--success' : 'teacher-chip--muted'; ?>">
-                <?= htmlspecialchars($dbStatus['label'] ?? 'Đã kết nối'); ?>
-            </span>
         </div>
     </div>
-    <?php if (!empty($dbStatus['message'])): ?>
-        <p class="teacher-welcome__note"><?= htmlspecialchars($dbStatus['message']); ?></p>
-    <?php endif; ?>
 </section>

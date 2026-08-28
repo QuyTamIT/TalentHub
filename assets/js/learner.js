@@ -737,6 +737,11 @@
                 setEvaluationText('[data-evaluation-ranking]', evaluation.ranking);
                 setEvaluationText('[data-evaluation-comment]', evaluation.comment);
                 setEvaluationText('[data-evaluation-reviewer]', evaluation.reviewer);
+
+                const classBox = document.querySelector('.learner-evaluation-classification');
+                if (classBox && evaluation.tone) {
+                    classBox.className = `learner-evaluation-classification learner-evaluation-classification--${evaluation.tone}`;
+                }
             };
 
             evaluationSelect.addEventListener('change', () => {

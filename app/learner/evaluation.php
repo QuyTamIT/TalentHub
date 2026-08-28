@@ -44,14 +44,20 @@ if ($isDatabaseMode) {
                 ];
             }
 
+            $overallScoreVal = is_numeric($eval['overall_score'] ?? null) ? (float) $eval['overall_score'] : null;
+            $classification = \TalentHub\Support\GradeClassifier::getClassification($overallScoreVal);
+            $ranking = \TalentHub\Support\GradeClassifier::getRankingPercentile($overallScoreVal);
+            $tone = \TalentHub\Support\GradeClassifier::getBadgeTone($overallScoreVal);
+
             $evaluationTerms[$evaluationId] = [
                 'label' => $evaluationLabel,
                 'status' => 'Đã công bố',
                 'evaluation' => [
                     'criteria' => $criteria,
-                    'total' => $eval['overall_score'] ?? 'Chưa có dữ liệu',
-                    'classification' => 'Chưa có dữ liệu',
-                    'ranking' => 'Chưa có dữ liệu',
+                    'total' => $overallScoreVal !== null ? (string) $overallScoreVal : 'Chưa có dữ liệu',
+                    'classification' => $classification,
+                    'ranking' => $ranking,
+                    'tone' => $tone,
                     'comment' => (string) ($eval['comment'] ?? 'Chưa có nhận xét'),
                     'reviewer' => (string) ($eval['reviewer_name'] ?? 'Giáo viên'),
                 ],
@@ -171,7 +177,7 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
                         <p id="learner-total-title">Tổng điểm</p>
                         <strong data-evaluation-total><?= learner_escape($currentEvaluation['total'] ?? 'Chưa có dữ liệu'); ?></strong>
                         <span>/ 100</span>
-                        <div class="learner-evaluation-classification">
+                        <div class="learner-evaluation-classification learner-evaluation-classification--<?= learner_escape($currentEvaluation['tone'] ?? 'good'); ?>">
                             <?= learner_icon('star', 21); ?>
                             <strong data-evaluation-classification><?= learner_escape($currentEvaluation['classification'] ?? 'Chưa có dữ liệu'); ?></strong>
                         </div>

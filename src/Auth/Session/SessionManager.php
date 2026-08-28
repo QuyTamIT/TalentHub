@@ -201,16 +201,16 @@ final class SessionManager
                 }
 
                 // 3. Fallback when no session exists: use deterministic canonical account for the role
-                $targetEmail = match ($role) {
-                    \TalentHub\Rbac\RoleCodes::ENTERPRISE => 'fpt@talenthub.local',
-                    \TalentHub\Rbac\RoleCodes::STUDENT => 'student@talenthub.local',
-                    \TalentHub\Rbac\RoleCodes::TEACHER => 'teacher@talenthub.local',
-                    \TalentHub\Rbac\RoleCodes::SCHOOL => 'school@talenthub.local',
-                    \TalentHub\Rbac\RoleCodes::PLATFORM_ADMIN => 'admin@talenthub.local',
-                    default => null,
+                $targetEmails = match ($role) {
+                    \TalentHub\Rbac\RoleCodes::ENTERPRISE => ['fpt@talenthub.local', 'enterprise@talenthub.local'],
+                    \TalentHub\Rbac\RoleCodes::STUDENT => ['student@talenthub.local', 'vuducanh@student.btec.edu.vn'],
+                    \TalentHub\Rbac\RoleCodes::TEACHER => ['teacher@talenthub.local'],
+                    \TalentHub\Rbac\RoleCodes::SCHOOL => ['btec@school.edu.vn', 'btec@talenthub.local', 'school@talenthub.local'],
+                    \TalentHub\Rbac\RoleCodes::PLATFORM_ADMIN => ['admin@talenthub.local'],
+                    default => [],
                 };
 
-                if ($targetEmail !== null) {
+                foreach ($targetEmails as $targetEmail) {
                     $s = $pdo->prepare('SELECT u.id, u.email, u.fullName, r.code AS role 
                                         FROM users u 
                                         LEFT JOIN roles r ON r.id = u.roleId 
@@ -226,6 +226,25 @@ final class SessionManager
                             'status' => 'active',
                         ];
                     }
+                }
+
+                // 4. If no target email matched, find any active user with matching role from DB
+                $sRole = $pdo->prepare('SELECT u.id, u.email, u.fullName, r.code AS role 
+                                        FROM users u 
+                                        JOIN roles r ON r.id = u.roleId 
+                                        WHERE (r.code = :role OR (r.code = "school_admin" AND :role = "school") OR (r.code = "business" AND :role = "enterprise")) AND u.status = "active" 
+                                        ORDER BY (u.email LIKE "%btec%") DESC, (u.email LIKE "%school%") DESC, u.id ASC 
+                                        LIMIT 1');
+                $sRole->execute(['role' => $role]);
+                $row = $sRole->fetch(\PDO::FETCH_ASSOC);
+                if ($row) {
+                    return [
+                        'id' => (string) $row['id'],
+                        'email' => (string) $row['email'],
+                        'fullName' => (string) ($row['fullName'] ?? ucfirst($role) . ' User'),
+                        'role' => $role,
+                        'status' => 'active',
+                    ];
                 }
             } catch (\Throwable) {}
         }

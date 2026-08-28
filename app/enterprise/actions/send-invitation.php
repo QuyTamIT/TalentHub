@@ -4,13 +4,13 @@
  */
 declare(strict_types=1);
 
-require dirname(__DIR__, 3) . '/bin/bootstrap.php';
-require dirname(__DIR__, 3) . '/src/Bootstrap/EnterpriseAppContext.php';
+require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
+require_once dirname(__DIR__, 3) . '/src/Bootstrap/EnterpriseAppContext.php';
 
 use TalentHub\Bootstrap\EnterpriseAppContext;
 use TalentHub\Support\Uuid;
 
-header('Content-Type: application/json; charset=utf-8');
+@header('Content-Type: application/json; charset=utf-8');
 
 try {
     $context = (new EnterpriseAppContext())->boot();
@@ -57,13 +57,13 @@ try {
 
     // 1. Verify student exists
     $stStmt = $pdo->prepare("
-        SELECT sp.id as studentId, sp.userId, u.fullName, u.email
+        SELECT sp.id as studentId, sp.userId, COALESCE(u.fullName, 'Sinh viên') as fullName, COALESCE(u.email, '') as email
         FROM student_profiles sp
-        JOIN users u ON u.id = sp.userId
-        WHERE sp.id = ?
+        LEFT JOIN users u ON u.id = sp.userId
+        WHERE sp.id = ? OR sp.userId = ?
         LIMIT 1
     ");
-    $stStmt->execute([$studentId]);
+    $stStmt->execute([$studentId, $studentId]);
     $student = $stStmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$student) {
@@ -91,21 +91,42 @@ try {
     $enterpriseName = $enterprise['name'] ?? 'Doanh nghiệp';
     $postTitle = $post['title'] ?? 'Vị trí thực tập';
     $studentName = $student['fullName'] ?? 'Sinh viên';
-    $studentUserId = $student['userId'];
+    $studentUserId = (string) $student['userId'];
+    $resolvedStudentId = (string) $student['studentId'];
 
     // 3. Save into internship_applications (Status: 'invited')
     $appCheck = $pdo->prepare("
         SELECT id, status FROM internship_applications
-        WHERE postId = ? AND studentId = ?
+        WHERE postId = ? AND studentId = ? AND status NOT IN ('rejected', 'declined', 'withdrawn', 'cancelled')
+        ORDER BY updatedAt DESC
         LIMIT 1
     ");
-    $appCheck->execute([$postId, $studentId]);
-    $existingApp = $appCheck->fetch(PDO::FETCH_ASSOC);
+    $appCheck->execute([$postId, $resolvedStudentId]);
+    $existingActiveApp = $appCheck->fetch(PDO::FETCH_ASSOC);
 
     $invitationPrefix = "[LỜI MỜI THỰC TẬP TỪ " . mb_strtoupper($enterpriseName) . "]\n";
     $finalMessage = $invitationPrefix . ($message !== '' ? $message : "Trân trọng mời bạn tham gia ứng tuyển và thực tập cho vị trí {$postTitle} tại {$enterpriseName}.");
 
-    if ($existingApp) {
+    if ($existingActiveApp) {
+        $st = (string) $existingActiveApp['status'];
+        if (in_array($st, ['accepted', 'hired', 'interview', 'interviewing', 'reviewing'], true)) {
+            $statusLabel = match($st) {
+                'accepted', 'hired' => 'Đã tiếp nhận thực tập',
+                'interview', 'interviewing' => 'Đang trong quá trình phỏng vấn',
+                'reviewing' => 'Đang được xét duyệt hồ sơ',
+                default => 'Đang xử lý'
+            };
+            http_response_code(409);
+            echo json_encode([
+                'success' => false,
+                'message' => "Sinh viên đã có đơn đang hoạt động ({$statusLabel}) tại vị trí này. Không thể tạo trùng lặp.",
+                'applicationId' => $existingActiveApp['id'],
+                'status' => $st
+            ]);
+            if (!defined('TEST_MODE')) { exit; }
+            return;
+        }
+
         $updApp = $pdo->prepare("
             UPDATE internship_applications
             SET status = 'invited',
@@ -113,10 +134,10 @@ try {
                 updatedAt = NOW()
             WHERE id = ?
         ");
-        $updApp->execute([$finalMessage, $existingApp['id']]);
-        $appId = $existingApp['id'];
+        $updApp->execute([$finalMessage, $existingActiveApp['id']]);
+        $appId = $existingActiveApp['id'];
     } else {
-        $appId = Uuid::uuid4();
+        $appId = Uuid::v4();
         $insApp = $pdo->prepare("
             INSERT INTO internship_applications (id, postId, studentId, status, message, appliedAt, createdAt, updatedAt)
             VALUES (?, ?, ?, 'invited', ?, NOW(), NOW(), NOW())
@@ -125,7 +146,7 @@ try {
                 message = VALUES(message),
                 updatedAt = NOW()
         ");
-        $insApp->execute([$appId, $postId, $studentId, $finalMessage]);
+        $insApp->execute([$appId, $postId, $resolvedStudentId, $finalMessage]);
     }
 
     // 4. Save into notifications table for the student (Support re-sending without uq_notifications_user_event duplicate collision)

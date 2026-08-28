@@ -116,13 +116,21 @@ final class PaymentConfirmationService
 
             // 3. Write Audit Log
             if ($this->tableExists('audit_logs')) {
+                $userIdForAudit = null;
+                $stmtUser = $this->pdo->prepare('SELECT userId FROM enterprise_members WHERE enterpriseId = ? LIMIT 1');
+                $stmtUser->execute([$enterpriseId]);
+                $foundUid = $stmtUser->fetchColumn();
+                if ($foundUid) {
+                    $userIdForAudit = (string) $foundUid;
+                }
+
                 $audit = $this->pdo->prepare(
                     "INSERT INTO audit_logs(id, userId, action, entityType, entityId, requestId, metadata, createdAt)
                      VALUES (?, ?, 'payment.confirmed', 'payment_order', ?, ?, ?, ?)"
                 );
                 $audit->execute([
                     Uuid::v4(),
-                    $enterpriseId,
+                    $userIdForAudit,
                     $orderId,
                     $requestId,
                     json_encode([
