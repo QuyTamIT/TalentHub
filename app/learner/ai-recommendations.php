@@ -36,6 +36,31 @@ $assetVersion = static function (string $relativePath): string {
                 </header>
 
                 <p class="learner-visually-hidden" data-roadmap-status role="status" aria-live="polite" aria-atomic="true">Đang tải lộ trình.</p>
+                <section class="learner-card learner-roadmap-processing" data-roadmap-processing role="status" aria-live="polite" aria-atomic="false" hidden>
+                    <div class="learner-roadmap-processing__heading">
+                        <span class="learner-roadmap-processing__icon" aria-hidden="true"><?= learner_icon('sparkles', 24); ?></span>
+                        <div>
+                            <span class="learner-roadmap__eyebrow">AI ĐANG XỬ LÝ</span>
+                            <h2 data-roadmap-processing-title>Đang chuẩn bị roadmap của bạn</h2>
+                            <p data-roadmap-processing-copy>TalentHub đang tổng hợp dữ liệu đã được bạn cho phép.</p>
+                        </div>
+                        <div class="learner-roadmap-processing__meta">
+                            <strong data-roadmap-processing-percent>8%</strong>
+                            <span>Tiến độ ước tính · <span data-roadmap-processing-elapsed>0 giây</span></span>
+                        </div>
+                    </div>
+                    <div class="learner-roadmap-processing__bar" aria-hidden="true"><span data-roadmap-processing-bar></span></div>
+                    <ol class="learner-roadmap-processing__steps" data-roadmap-processing-steps>
+                        <li data-processing-step="0"><span>1</span><strong>Chuẩn bị dữ liệu năng lực</strong></li>
+                        <li data-processing-step="1"><span>2</span><strong>Gemini đang phân tích</strong></li>
+                        <li data-processing-step="2"><span>3</span><strong>Xây dựng roadmap 90 ngày</strong></li>
+                        <li data-processing-step="3"><span>4</span><strong>Kiểm tra và hoàn thiện</strong></li>
+                    </ol>
+                    <div class="learner-roadmap-processing__footer">
+                        <p data-roadmap-processing-note>Bạn có thể tiếp tục xem roadmap hiện tại trong lúc chờ.</p>
+                        <button class="learner-btn learner-btn--outline" type="button" data-roadmap-processing-retry data-roadmap-retry hidden>Thử cập nhật lại</button>
+                    </div>
+                </section>
                 <section class="learner-card learner-roadmap-state" data-roadmap-loading aria-label="AI đang tải lộ trình"><span class="learner-ai-loading__spinner" aria-hidden="true"></span><div><h2>Đang tải lộ trình của bạn...</h2><p>TalentHub đang kiểm tra bản phân tích mới nhất.</p></div></section>
                 <section class="learner-card learner-roadmap-state" data-roadmap-not-generated hidden><span class="learner-roadmap-state__icon"><?= learner_icon('sparkles', 30); ?></span><div><h2>Sẵn sàng tạo lộ trình 90 ngày</h2><p>AI sẽ tổng hợp bốn kết quả đánh giá đã hoàn thành để đề xuất các bước phát triển có thể thực hiện.</p></div><button class="learner-btn learner-btn--primary" type="button" data-roadmap-generate="generate">Phân tích và tạo lộ trình</button></section>
                 <section class="learner-card learner-roadmap-state" data-roadmap-consent hidden><span class="learner-roadmap-state__icon"><?= learner_icon('info', 30); ?></span><div><h2>Cần quyền sử dụng kết quả đánh giá</h2><p>Chỉ dữ liệu bạn cho phép mới được gửi tới dịch vụ AI.</p></div><a class="learner-btn learner-btn--primary" href="profile.php">Quản lý quyền dữ liệu</a></section>

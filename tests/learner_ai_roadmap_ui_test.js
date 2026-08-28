@@ -360,6 +360,27 @@ test('page exposes the Roadmap-first experience without the unavailable catalog 
   assert.doesNotMatch(page, /learner-recommendations\.js/);
 });
 
+test('AI page provides an accessible four-step processing panel above the saved roadmap', () => {
+  const page = fs.readFileSync(pagePath, 'utf8');
+  for (const marker of [
+    'data-roadmap-processing', 'data-roadmap-processing-title', 'data-roadmap-processing-copy',
+    'data-roadmap-processing-percent', 'data-roadmap-processing-elapsed',
+    'data-roadmap-processing-bar', 'data-roadmap-processing-steps',
+    'data-roadmap-processing-note', 'data-roadmap-processing-retry',
+  ]) assert.match(page, new RegExp(marker));
+  assert.match(page, /role="status"/);
+  assert.match(page, /aria-live="polite"/);
+  assert.match(page, /Tiến độ ước tính/);
+});
+
+test('processing panel CSS supports four-step desktop, mobile and reduced motion layouts', () => {
+  const css = fs.readFileSync(cssPath, 'utf8');
+  assert.match(css, /\.learner-roadmap-processing__steps/);
+  assert.match(css, /grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*learner-roadmap-processing__steps[\s\S]*grid-template-columns:\s*1fr/);
+  assert.match(css, /prefers-reduced-motion:\s*reduce[\s\S]*learner-roadmap-processing/);
+});
+
 test('AI page omits the unavailable live recommendation catalog section', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
   assert.doesNotMatch(page, /data-ai-page/);
