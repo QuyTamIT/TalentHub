@@ -8,10 +8,12 @@ use TalentHub\Auth\Service\AuthPortalRouter;
 use TalentHub\Auth\Service\AuthService;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
+use TalentHub\Modules\School\Repository\SchoolAuditRepository;
 use TalentHub\Modules\School\Repository\SchoolPartnershipRepository;
 use TalentHub\Modules\School\Repository\SchoolProjectRepository;
 use TalentHub\Modules\School\Repository\SchoolRepository;
 use TalentHub\Modules\School\Service\SchoolAuthorization;
+use TalentHub\Modules\School\Service\SchoolAuditService;
 use TalentHub\Modules\School\Service\SchoolDashboardService;
 use TalentHub\Modules\School\Service\SchoolPartnershipService;
 use TalentHub\Modules\School\Service\SchoolProjectService;
@@ -36,6 +38,7 @@ final class SchoolAppContext
     private SchoolPartnershipService $partnerships;
     private SchoolProjectService $projects;
     private StudentSafeguardingService $safeguarding;
+    private SchoolAuditService $audit;
 
     public function __construct()
     {
@@ -57,6 +60,7 @@ final class SchoolAppContext
         $this->partnerships = new SchoolPartnershipService(new SchoolPartnershipRepository($pdo));
         $this->projects = new SchoolProjectService(new SchoolProjectRepository($pdo));
         $this->safeguarding = new StudentSafeguardingService($pdo, $repository, new SchoolAuthorization($pdo));
+        $this->audit = new SchoolAuditService(new SchoolAuditRepository($pdo));
     }
 
     /**
@@ -71,7 +75,8 @@ final class SchoolAppContext
     *   session: SessionManager,
     *   partnerships: SchoolPartnershipService,
     *   projects: SchoolProjectService,
-    *   safeguarding: StudentSafeguardingService
+    *   safeguarding: StudentSafeguardingService,
+    *   audit: SchoolAuditService
      * }
      */
     public function boot(): array
@@ -249,6 +254,7 @@ final class SchoolAppContext
             'partnerships' => $this->partnerships,
             'projects'     => $this->projects,
             'safeguarding' => $this->safeguarding,
+            'audit'        => $this->audit,
         ];
     }
 

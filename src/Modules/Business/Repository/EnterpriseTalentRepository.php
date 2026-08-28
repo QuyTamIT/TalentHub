@@ -64,6 +64,40 @@ final class EnterpriseTalentRepository
         return $id;
     }
 
+    public function recordProfileAccess(
+        string $enterpriseId,
+        string $userId,
+        string $studentId,
+        string $accessType,
+        ?string $requestId = null,
+        ?string $ipAddress = null
+    ): void {
+        if (!$this->tableExists('student_profile_access_logs')) {
+            return;
+        }
+        if (!in_array($accessType, ['talent_detail', 'application_cv', 'shared_profile'], true)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Loại truy cập hồ sơ không hợp lệ.');
+        }
+
+        $statement = $this->pdo->prepare(<<<'SQL'
+            INSERT INTO student_profile_access_logs
+                (id, enterpriseId, studentId, accessedByUserId, accessType, requestId, ipAddress, metadata, accessedAt)
+            VALUES
+                (:id, :enterpriseId, :studentId, :userId, :accessType, :requestId, :ipAddress, :metadata, :accessedAt)
+        SQL);
+        $statement->execute([
+            'id' => Uuid::v4(),
+            'enterpriseId' => $enterpriseId,
+            'studentId' => $studentId,
+            'userId' => $userId,
+            'accessType' => $accessType,
+            'requestId' => $requestId,
+            'ipAddress' => $ipAddress,
+            'metadata' => json_encode(['source' => 'enterprise_talent_service'], JSON_THROW_ON_ERROR),
+            'accessedAt' => $this->now(),
+        ]);
+    }
+
     /**
      * @param array<string,mixed> $filters
      * @return array{items:list<array<string,mixed>>,total:int}

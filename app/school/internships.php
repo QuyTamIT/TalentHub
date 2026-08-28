@@ -98,7 +98,9 @@ $labels = [
     'interview' => 'Phỏng vấn', 
     'accepted' => 'Đã nhận', 
     'declined' => 'Từ chối', 
-    'withdrawn' => 'Đã rút'
+    'withdrawn' => 'Đã rút',
+    'lockedApplications' => 'Đã khóa do nhận việc khác',
+    'acceptedWithoutMentor' => 'Chờ phân công mentor',
 ];
 $badgeClasses = [
     'submitted' => 'school-badge--info',
@@ -193,9 +195,14 @@ ob_start();
                                 <span style="display: inline-block; padding: 0.3rem 0.65rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 700; <?= $badgeStyle ?>">
                                     ● <?= htmlspecialchars($labels[$st] ?? $st); ?>
                                 </span>
+                                <?php if (!empty($item['lockedByApplicationId'])): ?>
+                                    <div style="margin-top:0.4rem; color:#B45309; font-size:0.78rem; line-height:1.35;">
+                                        Đã khóa: <?= htmlspecialchars((string) ($item['lockReason'] ?? 'Sinh viên đã xác nhận vị trí thực tập khác.')); ?>
+                                    </div>
+                                <?php endif; ?>
                             </td>
                             <td style="padding: 1rem; vertical-align: middle;">
-                                <?php if (in_array($item['status'], ['interview', 'accepted'], true)): ?>
+                                <?php if ($item['status'] === 'accepted'): ?>
                                     <form method="post" class="mentor-assign-form" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
                                         <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="applicationId" value="<?= htmlspecialchars((string) $item['id']); ?>">
@@ -216,7 +223,7 @@ ob_start();
                                     </form>
                                 <?php else: ?>
                                     <span style="color: #94A3B8; font-size: 0.875rem; font-style: italic;">
-                                        <?= htmlspecialchars((string) ($item['mentorName'] ?? 'Chưa thể gán')); ?>
+                                        Chờ doanh nghiệp tiếp nhận sinh viên
                                     </span>
                                 <?php endif; ?>
                             </td>
@@ -263,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
             select.disabled = true;
             select.style.opacity = '0.6';
 
-            fetch('/app/school/internships.php', {
+            fetch('<?= htmlspecialchars(app_href('/app/school/internships.php'), ENT_QUOTES, 'UTF-8'); ?>', {
                 method: 'POST',
                 body: formData,
                 headers: {

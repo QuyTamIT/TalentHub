@@ -14,6 +14,7 @@ require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
 require_once dirname(__DIR__, 3) . '/src/Bootstrap/EnterpriseAppContext.php';
 
 use TalentHub\Bootstrap\EnterpriseAppContext;
+use TalentHub\Support\Id\RequestId;
 
 $context = (new EnterpriseAppContext())->boot();
 $user          = $context['user'];
@@ -71,81 +72,16 @@ $talent = null;
 
 if ($talentId !== '' && $isVerified && $talentService !== null) {
     try {
-        $rawTalent = $talentService->getTalent((string) $user['id'], $talentId);
+        $rawTalent = $talentService->getTalent(
+            (string) $user['id'],
+            $talentId,
+            RequestId::generate(),
+            isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null
+        );
     } catch (\Throwable $e) {
         error_log('Enterprise getTalent error: ' . $e->getMessage());
         $rawTalent = null;
     }
-}
-
-// Fallback robust query if getTalent returned null
-if ($talentId !== '' && $rawTalent === null) {
-    try {
-        $stQuery = $pdo->prepare("
-            SELECT sp.id as studentId, sp.userId, u.fullName as displayName, u.email, sp.phone,
-                   COALESCE(s.name, 'Cao đẳng Quốc tế BTEC FPT') as schoolName,
-                   c.name as className, sp.studyStatus, spd.location, spd.headline, spd.bio,
-                   COALESCE(sp.talentScore, 90.00) as talentScore
-            FROM student_profiles sp
-            JOIN users u ON u.id = sp.userId
-            LEFT JOIN classes c ON c.id = sp.classId
-            LEFT JOIN schools s ON s.id = c.schoolId
-            LEFT JOIN student_profile_details spd ON spd.studentId = sp.id
-            WHERE sp.id = ?
-            LIMIT 1
-        ");
-        $stQuery->execute([$talentId]);
-        $fallbackRow = $stQuery->fetch(PDO::FETCH_ASSOC);
-        if ($fallbackRow) {
-            $rawTalent = [
-                'studentId' => $fallbackRow['studentId'],
-                'userId' => $fallbackRow['userId'],
-                'displayName' => $fallbackRow['displayName'],
-                'schoolName' => $fallbackRow['schoolName'],
-                'className' => $fallbackRow['className'],
-                'studyStatus' => $fallbackRow['studyStatus'] ?: 'Sinh viên',
-                'headline' => $fallbackRow['headline'] ?: 'Kỹ thuật phần mềm & AI',
-                'bio' => $fallbackRow['bio'] ?: 'Sinh viên BTEC FPT năng động, ham học hỏi và luôn chủ động trau dồi kỹ năng thực tế.',
-                'location' => $fallbackRow['location'] ?: 'Hà Nội',
-                'talent_score' => (int) $fallbackRow['talentScore'],
-                'skills' => [],
-                'projects' => [],
-            ];
-            $skQ = $pdo->prepare("
-                SELECT s.name as skillName, ss.levelScore, ss.verificationStatus,
-                       CASE 
-                           WHEN ss.levelScore >= 90 THEN 'Chuyên gia'
-                           WHEN ss.levelScore >= 80 THEN 'Nâng cao'
-                           WHEN ss.levelScore >= 65 THEN 'Khá'
-                           ELSE 'Cơ bản'
-                       END AS proficiencyLevel,
-                       (ss.verificationStatus = 'verified') AS verified
-                FROM student_skills ss
-                JOIN skills s ON s.id = ss.skillId
-                WHERE ss.studentId = ?
-                ORDER BY ss.levelScore DESC, s.name ASC
-            ");
-            $skQ->execute([$talentId]);
-            $rawTalent['skills'] = $skQ->fetchAll(PDO::FETCH_ASSOC);
-
-            $prQ = $pdo->prepare("
-                SELECT p.id, p.title, p.category, p.description, p.status, pm.role,
-                       (
-                           SELECT e.name 
-                           FROM project_sponsorships ps 
-                           JOIN enterprises e ON e.id = ps.enterpriseId 
-                           WHERE ps.projectId = p.id AND ps.status = 'paid' 
-                           ORDER BY ps.amount DESC, ps.createdAt DESC 
-                           LIMIT 1
-                       ) AS sponsorName
-                FROM projects p 
-                JOIN project_members pm ON pm.projectId = p.id 
-                WHERE pm.studentId = ? OR pm.studentId IN (SELECT sp.id FROM student_profiles sp WHERE sp.userId = ?)
-            ");
-            $prQ->execute([$talentId, $talentId]);
-            $rawTalent['projects'] = $prQ->fetchAll(PDO::FETCH_ASSOC);
-        }
-    } catch (\Throwable) {}
 }
 
 if ($rawTalent !== null) {

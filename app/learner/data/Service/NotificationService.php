@@ -24,6 +24,8 @@ final class NotificationService
         'internship_application_submitted',
         'internship_application_withdrawn',
         'internship_application_status_changed',
+        'internship_placement_confirmed',
+        'internship_mentor_assigned',
         'badge_awarded',
         'project_sponsored',
         'project_member_added',
@@ -38,6 +40,9 @@ final class NotificationService
         '/app/learner/badges.php',
         '/app/learner/talent-passport.php',
         '/app/teacher/projects/index.php',
+        '/app/teacher/students/index.php',
+        '/app/school/projects.php',
+        '/app/school/internships.php',
     ];
 
     public function __construct(private readonly NotificationRepository $repo) {}

@@ -41,6 +41,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 $projects = $service->listProjects($userId)['items'];
+$fundingSummary = $service->fundingSummary($userId);
 $teachers = $dashboard->teachers($userId, 100, 0);
 $schoolInfo = ['name' => $context['school']['name'], 'logo_initials' => mb_substr($context['school']['name'], 0, 2), 'level' => $context['school']['level'] ?? '', 'district' => $context['school']['address'] ?? '', 'academic_year' => $context['school']['academicYear'] ?? ''];
 $currentRoute = '/app/school/projects.php';
@@ -51,6 +52,12 @@ ob_start();
 <?php $pageDescription = 'Tạo dự án thật, chỉ định giáo viên hướng dẫn và theo dõi tài trợ đã thanh toán.'; include __DIR__ . '/includes/page-banner.php'; ?>
 <?php if ($flash): ?><div class="school-flash school-flash--success"><?= htmlspecialchars($flash); ?></div><?php endif; ?>
 <?php if ($error): ?><div class="school-flash school-flash--error"><?= htmlspecialchars($error); ?></div><?php endif; ?>
+<div class="school-project-kpis">
+<article><span>Tổng ngân sách đã nhận</span><strong><?= number_format((float) $fundingSummary['totalRaised'], 0, ',', '.'); ?> ₫</strong></article>
+<article><span>Mục tiêu ươm mầm</span><strong><?= number_format((float) $fundingSummary['totalFundingGoal'], 0, ',', '.'); ?> ₫</strong></article>
+<article><span>Dự án đạt mục tiêu</span><strong><?= (int) $fundingSummary['goalReachedProjects']; ?> / <?= (int) $fundingSummary['projectsWithFunding']; ?></strong></article>
+<article><span>Lượt doanh nghiệp tài trợ</span><strong><?= (int) $fundingSummary['activeSponsors']; ?></strong></article>
+</div>
 <div class="school-grid-2col">
 <section class="school-section-box"><div class="school-section-box__header"><h2 class="school-section-box__title">Tạo dự án</h2></div>
 <form method="post" class="school-form"><input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="action" value="create">
@@ -66,11 +73,11 @@ ob_start();
 <section class="school-section-box"><div class="school-section-box__header"><h2 class="school-section-box__title">Danh sách dự án</h2></div>
 <?php if ($projects === []): ?><p>Chưa có dự án.</p><?php else: ?><table class="school-class-table"><thead><tr><th>Dự án</th><th>Tiến độ tài trợ</th><th>Thành viên</th><th>Trạng thái</th></tr></thead><tbody><?php foreach ($projects as $project): ?><tr>
 <td><strong><?= htmlspecialchars((string) $project['title']); ?></strong><br><small><?= htmlspecialchars((string) ($project['category'] ?? 'general')); ?></small></td>
-<td><?= number_format((float) ($project['raisedAmount'] ?? 0), 0, ',', '.'); ?> / <?= number_format((float) ($project['fundingGoal'] ?? 0), 0, ',', '.'); ?> ₫<br><small><?= (int) ($project['sponsorsCount'] ?? 0); ?> nhà tài trợ</small></td>
+<td><?= number_format((float) ($project['raisedAmount'] ?? 0), 0, ',', '.'); ?> / <?= number_format((float) ($project['fundingGoal'] ?? 0), 0, ',', '.'); ?> ₫<br><small><?= (int) ($project['sponsorsCount'] ?? 0); ?> nhà tài trợ · <?= (int) ($project['fundingPercentage'] ?? 0); ?>%</small><?php if (($project['fundingStatus'] ?? '') === 'goal_reached'): ?><br><span class="school-project-funded">Đã nhận đủ tài trợ</span><?php endif; ?></td>
 <td><?= (int) ($project['membersCount'] ?? 0); ?></td>
 <td><form method="post"><input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="action" value="status"><input type="hidden" name="projectId" value="<?= htmlspecialchars((string) $project['id']); ?>"><select name="status" onchange="this.form.submit()"><?php foreach ($statusLabels as $value => $label): ?><option value="<?= $value; ?>" <?= $project['status'] === $value ? 'selected' : ''; ?>><?= htmlspecialchars($label); ?></option><?php endforeach; ?></select></form></td>
 </tr><?php endforeach; ?></tbody></table><?php endif; ?></section></div>
 <?php
 $pageBody = ob_get_clean();
-$extraStyles = '<style>.school-grid-2col{align-items:start}</style>';
+$extraStyles = '<style>.school-grid-2col{align-items:start}.school-project-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;margin-bottom:1.25rem}.school-project-kpis article{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1rem}.school-project-kpis span{display:block;color:#64748b;font-size:.82rem;margin-bottom:.4rem}.school-project-kpis strong{color:#0f172a;font-size:1.15rem}.school-project-funded{display:inline-flex;margin-top:.35rem;padding:.2rem .5rem;border-radius:999px;background:#dcfce7;color:#15803d;font-size:.75rem;font-weight:700}@media(max-width:900px){.school-project-kpis{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.school-project-kpis{grid-template-columns:1fr}}</style>';
 require __DIR__ . '/includes/layout.php';

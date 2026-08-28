@@ -79,6 +79,13 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
             if ($student === null || (string) $student['userId'] !== $userId) {
                 throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hồ sơ học viên.');
             }
+            if ($this->hasAcceptedPlacement($studentId)) {
+                throw new ApiException(
+                    409,
+                    'INTERNSHIP_PLACEMENT_LOCKED',
+                    'Bạn đã xác nhận một vị trí thực tập và không thể nộp thêm hồ sơ mới.'
+                );
+            }
             $consent = $this->lockConsent($studentId);
             if ($consent === null) {
                 throw new ApiException(422, 'CONSENT_REQUIRED', 'Cần xác nhận chia sẻ hồ sơ trước khi ứng tuyển.');
@@ -267,6 +274,16 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
     {
         $statement = $this->pdo->prepare('SELECT id FROM internship_applications WHERE postId = :postId AND studentId = :studentId AND status NOT IN (\'rejected\', \'declined\', \'withdrawn\', \'cancelled\') LIMIT 1' . $this->lockSuffix());
         $statement->execute(['postId' => $postId, 'studentId' => $studentId]);
+        return $statement->fetchColumn() !== false;
+    }
+
+    private function hasAcceptedPlacement(string $studentId): bool
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT id FROM internship_applications "
+            . "WHERE studentId = :studentId AND status = 'accepted' LIMIT 1" . $this->lockSuffix()
+        );
+        $statement->execute(['studentId' => $studentId]);
         return $statement->fetchColumn() !== false;
     }
 

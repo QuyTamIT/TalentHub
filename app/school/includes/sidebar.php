@@ -59,6 +59,11 @@ $sidebarNav = [
         'icon' => 'lock',
     ],
     [
+        'title' => 'Nhật ký truy cập',
+        'route' => '/app/school/audit-logs.php',
+        'icon' => 'lock',
+    ],
+    [
         'title' => 'Phân tích',
         'route' => '/app/school/analytics.php',
         'icon'  => 'trending-up',

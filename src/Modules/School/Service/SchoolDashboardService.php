@@ -5,6 +5,8 @@ namespace TalentHub\Modules\School\Service;
 use PDO;
 use RuntimeException;
 use TalentHub\Http\ApiException;
+use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
+use TalentHub\Learner\Data\Service\NotificationService;
 use TalentHub\Modules\School\Repository\SchoolRepository;
 use TalentHub\Support\Uuid;
 
@@ -754,10 +756,21 @@ final class SchoolDashboardService
     {
         $school = $this->getByUser($userId);
         $items = $this->repository->listInternshipApplications($school['id']);
-        $summary = ['submitted' => 0, 'reviewing' => 0, 'interview' => 0, 'accepted' => 0, 'declined' => 0, 'withdrawn' => 0];
+        $summary = [
+            'submitted' => 0,
+            'reviewing' => 0,
+            'interview' => 0,
+            'accepted' => 0,
+            'declined' => 0,
+            'withdrawn' => 0,
+            'lockedApplications' => 0,
+            'acceptedWithoutMentor' => 0,
+        ];
         foreach ($items as $item) {
             $status = (string) ($item['status'] ?? '');
             if (array_key_exists($status, $summary)) { $summary[$status]++; }
+            if (!empty($item['lockedByApplicationId'])) { $summary['lockedApplications']++; }
+            if ($status === 'accepted' && empty($item['mentorTeacherId'])) { $summary['acceptedWithoutMentor']++; }
         }
         return ['items' => $items, 'summary' => $summary];
     }
@@ -771,28 +784,61 @@ final class SchoolDashboardService
         
         $mentorTeacherId = trim((string) $mentorTeacherId);
         if ($mentorTeacherId !== '' && $mentorTeacherId !== '0' && $mentorTeacherId !== 'none') {
-            if (!Uuid::isValid($mentorTeacherId)) {
-                // If it's not a UUID, check if it's a teacher userId or matching teacher profile
-                $tStmt = $this->pdo->prepare('SELECT id FROM teacher_profiles WHERE (userId = :id OR id = :id2) LIMIT 1');
-                $tStmt->execute(['id' => $mentorTeacherId, 'id2' => $mentorTeacherId]);
-                $foundId = $tStmt->fetchColumn();
-                if ($foundId && Uuid::isValid((string) $foundId)) {
-                    $mentorTeacherId = (string) $foundId;
-                } else {
-                    // Fallback to teacher profile matching teacher email or full name
-                    $tStmt2 = $this->pdo->prepare("SELECT tp.id FROM teacher_profiles tp JOIN users u ON u.id = tp.userId WHERE u.email = 'teacher@talenthub.local' OR u.fullName LIKE '%Hùng%' LIMIT 1");
-                    $tStmt2->execute();
-                    $foundId2 = $tStmt2->fetchColumn();
-                    if ($foundId2) {
-                        $mentorTeacherId = (string) $foundId2;
-                    }
-                }
-            }
+            Uuid::orFail($mentorTeacherId, 'mentorTeacherId');
         } else {
             $mentorTeacherId = '';
         }
 
-        return $this->repository->assignInternshipMentor($school['id'], $applicationId, $mentorTeacherId, $userId);
+        $assignment = $this->repository->assignInternshipMentor($school['id'], $applicationId, $mentorTeacherId, $userId);
+        if ($mentorTeacherId !== '') {
+            $this->publishMentorAssignmentNotifications($assignment);
+        }
+        return $assignment;
+    }
+
+    /** @param array<string,mixed> $assignment */
+    private function publishMentorAssignmentNotifications(array $assignment): void
+    {
+        try {
+            if (!class_exists(NotificationService::class, false)) {
+                $root = dirname(__DIR__, 4);
+                require_once $root . '/app/learner/data/Contracts/NotificationRepository.php';
+                require_once $root . '/app/learner/data/Service/NotificationService.php';
+                require_once $root . '/app/learner/data/Database/DatabaseNotificationRepository.php';
+            }
+            $notifications = new NotificationService(new DatabaseNotificationRepository($this->pdo));
+            $applicationId = (string) ($assignment['id'] ?? '');
+            $mentorUserId = (string) ($assignment['mentorUserId'] ?? '');
+            $studentUserId = (string) ($assignment['studentUserId'] ?? '');
+            $studentId = (string) ($assignment['studentId'] ?? '');
+            $studentName = (string) ($assignment['studentName'] ?? 'Sinh viên');
+            $mentorName = (string) ($assignment['mentorName'] ?? 'Giảng viên hướng dẫn');
+            $postTitle = (string) ($assignment['postTitle'] ?? 'vị trí thực tập');
+
+            if ($mentorUserId !== '') {
+                $notifications->publish(
+                    $mentorUserId,
+                    'internship_mentor_assigned',
+                    'Phân công hướng dẫn thực tập',
+                    "Bạn được phân công hướng dẫn {$studentName} cho {$postTitle}.",
+                    '/app/teacher/students/index.php',
+                    "internship_mentor:teacher:{$applicationId}:{$mentorUserId}"
+                );
+            }
+            if ($studentUserId !== '') {
+                $notifications->publish(
+                    $studentUserId,
+                    'internship_mentor_assigned',
+                    'Đã có giảng viên hướng dẫn thực tập',
+                    "Nhà trường đã phân công {$mentorName} hướng dẫn kỳ thực tập của bạn.",
+                    '/app/learner/ecosystem.php',
+                    "internship_mentor:student:{$applicationId}:{$mentorUserId}",
+                    $studentId
+                );
+            }
+        } catch (\Throwable $exception) {
+            error_log('School mentor notification failed: ' . $exception->getMessage());
+        }
     }
 
     /**
