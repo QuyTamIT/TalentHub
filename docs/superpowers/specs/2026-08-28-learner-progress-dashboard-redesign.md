@@ -59,7 +59,7 @@ Hiển thị ba card:
 
 Mỗi card có icon tile nhỏ, nhãn và số chính. Không hiển thị số tăng trưởng nếu không có dữ liệu lịch sử thật.
 
-`Điểm năng lực` ưu tiên nguồn `student_profiles.talentScore` nếu cột và giá trị tồn tại. Nếu không có, dùng trung bình `levelScore` của các kỹ năng hợp lệ của học sinh. Nếu cả hai nguồn đều không có thì hiển thị `Chưa có dữ liệu`; không hardcode `92` trong chế độ database.
+Schema chính hiện không có cột `student_profiles.talentScore`. `Điểm năng lực` được tính từ dữ liệu thật trong `student_skills.levelScore`: ưu tiên trung bình các kỹ năng có `verificationStatus = verified`; nếu chưa có kỹ năng xác thực thì dùng các kỹ năng hiển thị hợp lệ (`self_declared` hoặc `pending`). Nếu không có điểm kỹ năng thì hiển thị `Chưa có dữ liệu`; không hardcode `92` trong chế độ database.
 
 ## Hồ sơ kỹ năng
 
