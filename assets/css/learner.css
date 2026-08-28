@@ -6760,6 +6760,7 @@ body.learner-sidebar-open {
 }
 
 .learner-page-ai .learner-roadmap-state[hidden],
+.learner-page-ai .learner-roadmap-insufficient[hidden],
 .learner-page-ai .learner-roadmap__ready[hidden],
 .learner-page-ai .learner-roadmap__fallback[hidden] {
     display: none !important;
@@ -8768,6 +8769,17 @@ body.learner-sidebar-open {
     display: none !important;
 }
 
+.learner-page-ai .learner-roadmap-insufficient {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr);
+    gap: 16px;
+}
+
+.learner-page-ai .learner-roadmap-insufficient .learner-roadmap-state,
+.learner-page-ai .learner-roadmap-radar-card--zero {
+    min-height: 290px;
+}
+
 .learner-page-ai .learner-roadmap button:focus-visible,
 .learner-page-ai .learner-roadmap summary:focus-visible {
     outline: 3px solid var(--secondary);
@@ -8776,7 +8788,8 @@ body.learner-sidebar-open {
 
 @media (max-width: 1100px) {
     .learner-page-ai .learner-roadmap-hero,
-    .learner-page-ai .learner-roadmap-analysis {
+    .learner-page-ai .learner-roadmap-analysis,
+    .learner-page-ai .learner-roadmap-insufficient {
         grid-template-columns: 1fr;
     }
 }

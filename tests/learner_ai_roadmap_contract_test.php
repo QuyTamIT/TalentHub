@@ -157,4 +157,11 @@ roadmap_contract_expect(
     'talent map fields',
 );
 
+$stringTalentScore = learner_ai_roadmap_provider_fixture();
+$stringTalentScore['talent_map'][0]['score'] = '0.82';
+roadmap_contract_expect(
+    static fn () => $validator->fromProviderPayload($stringTalentScore, learner_ai_roadmap_model_metadata()),
+    'talent map',
+);
+
 echo "learner_ai_roadmap_contract_test: OK\n";

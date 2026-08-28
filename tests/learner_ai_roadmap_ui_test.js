@@ -185,6 +185,25 @@ test('legacy talent records map once and never duplicate a combined score', () =
   assert.deepEqual(result[0].evidence_ref_ids, ['evidence-001']);
 });
 
+test('legacy Vietnamese labels preserve uppercase D-stroke and reject malformed scores', () => {
+  const { completeTalentMap } = require(modulePath);
+  const mapped = completeTalentMap([
+    { field: 'Điều phối', score: 0.7, evidence_ref_ids: ['evidence-003'] },
+    { field: 'Kỹ thuật', score: 0.65, evidence_ref_ids: ['evidence-002'] },
+    { field: 'Tư duy', score: 0.8, evidence_ref_ids: ['evidence-001'] },
+  ]);
+  assert.deepEqual(mapped.map((item) => item.score), [80, 65, 70]);
+  assert.deepEqual(mapped.map((item) => item.hasEvidence), [true, true, true]);
+
+  const malformed = completeTalentMap([
+    { field: 'Tư duy', score: null },
+    { field: 'Kỹ thuật', score: '' },
+    { field: 'Điều phối', score: true },
+  ]);
+  assert.deepEqual(malformed.map((item) => item.score), [0, 0, 0]);
+  assert.deepEqual(malformed.map((item) => item.hasEvidence), [false, false, false]);
+});
+
 test('view model exposes one current phase and compact direction rows', () => {
   const { buildRoadmapViewModel } = require(modulePath);
   const model = buildRoadmapViewModel(payload());
@@ -298,7 +317,7 @@ test('DOM view renders the canonical model payload into semantic roadmap regions
     'freshness', 'summary-label', 'summary-text', 'evidence-total', 'confidence', 'direction-label',
     'direction-rationale', 'direction-alternatives', 'insights', 'phases', 'overall-progress', 'next-actions',
     'activities', 'activities-copy', 'evidence-content', 'engine-content',
-    'talent-map', 'strengths', 'improvements', 'trends', 'potential-paths', 'growth-hypotheses',
+    'talent-map', 'zero-talent-map', 'strengths', 'improvements', 'trends', 'potential-paths', 'growth-hypotheses',
   ];
   const nodes = Object.fromEntries(selectors.map((name) => [`[data-roadmap-${name}]`, new FakeNode()]));
   const doc = { createElement: (tag) => new FakeNode(tag), createElementNS: (_namespace, tag) => new FakeNode(tag) };
@@ -341,6 +360,16 @@ test('DOM view renders the canonical model payload into semantic roadmap regions
   assert.match(zeroRadar.attributes['aria-label'], /Tổ chức & Điều phối 0%/);
   assert.equal(nodes['[data-roadmap-talent-map]'].children[1].className, 'learner-roadmap-radar-note');
   assert.match(nodes['[data-roadmap-talent-map]'].children[1].textContent, /chưa được xác định/i);
+
+  createDomView(rootNode).render('insufficient-data', {});
+  assert.equal(nodes['[data-roadmap-insufficient]'].hidden, false);
+  assert.equal(nodes['[data-roadmap-ready]'].hidden, true);
+  const insufficientRadar = nodes['[data-roadmap-zero-talent-map]'].children[0];
+  assert.equal(insufficientRadar.tagName, 'SVG');
+  assert.match(insufficientRadar.attributes['aria-label'], /Tư duy Logic & Hệ thống 0%/);
+  assert.match(insufficientRadar.attributes['aria-label'], /Kỹ năng Thực hành & Thao tác 0%/);
+  assert.match(insufficientRadar.attributes['aria-label'], /Tổ chức & Điều phối 0%/);
+  assert.match(nodes['[data-roadmap-zero-talent-map]'].children[1].textContent, /chưa được xác định/i);
 });
 
 test('DOM processing lifecycle preserves ready content and reports success or retryable failure', () => {
@@ -482,7 +511,7 @@ test('page exposes the Roadmap-first experience without the unavailable catalog 
     'data-ai-roadmap-page', 'data-roadmap-summary', 'data-roadmap-direction',
     'data-roadmap-phases', 'data-roadmap-next-actions',
     'data-roadmap-evidence', 'data-roadmap-feedback', 'data-roadmap-engine',
-    'data-roadmap-talent-map', 'data-roadmap-strengths', 'data-roadmap-improvements',
+    'data-roadmap-talent-map', 'data-roadmap-zero-talent-map', 'data-roadmap-strengths', 'data-roadmap-improvements',
     'data-roadmap-trends', 'data-roadmap-potential-paths', 'data-roadmap-growth-hypotheses',
     'data-roadmap-generate', 'data-roadmap-retry', 'learner-ai-roadmap.js',
   ]) assert.match(page, new RegExp(marker));

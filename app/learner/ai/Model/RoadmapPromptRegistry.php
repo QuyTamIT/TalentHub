@@ -96,7 +96,7 @@ final class RoadmapPromptRegistry
                 'Kết nối mỗi giai đoạn với mục tiêu học tập, kỹ năng trọng tâm, sản phẩm/đầu ra và thước đo; diễn đạt thân thiện, khích lệ, dễ hiểu với lứa tuổi học sinh–sinh viên.',
                 'Không nhắc lại mã MBTI, điểm Holland, biểu đồ DISC hoặc điểm Multiple Intelligence.',
                 'Mỗi insight, phase và task phải trích dẫn evidence_ref_ids được cung cấp.',
-                'talent_map phải có đúng ba record, mỗi record dùng duy nhất một trong ba field chuẩn: Tư duy Logic & Hệ thống; Kỹ năng Thực hành & Thao tác; Tổ chức & Điều phối. Không gộp hai nhóm vào cùng một record.',
+                'talent_map phải có đúng ba record, mỗi record dùng duy nhất một trong ba field chuẩn: Tư duy Logic & Hệ thống; Kỹ năng Thực hành & Thao tác; Tổ chức & Điều phối; mỗi field xuất hiện đúng một lần. Không gộp hai nhóm vào cùng một record.',
                 'Nếu có talent_map, strengths, improvements, potential_paths, trend_signals hoặc growth_hypotheses thì mỗi record phải trích dẫn evidence_ref_ids được cung cấp.',
                 'Chỉ dùng catalog_id trùng một catalog evidence đã cung cấp và còn hiệu lực; không tự tạo mã catalog.',
                 'Không chẩn đoán, không khẳng định chắc chắn nghề nghiệp, tuyển sinh hoặc việc làm.',

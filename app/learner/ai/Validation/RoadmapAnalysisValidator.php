@@ -303,7 +303,8 @@ final class RoadmapAnalysisValidator
             $this->references($payload['evidence'], $allowedEvidence, true, 'Roadmap evidence references are invalid.');
         }
         $talentMap = $this->extendedRecords($payload['talent_map'] ?? [], ['field', 'score', 'evidence_ref_ids'], 'talent map', static function (array $record): void {
-            if (!is_string($record['field'] ?? null) || trim($record['field']) === '' || !is_numeric($record['score'] ?? null) || $record['score'] < 0 || $record['score'] > 1) {
+            $score = $record['score'] ?? null;
+            if (!is_string($record['field'] ?? null) || trim($record['field']) === '' || (!is_int($score) && !is_float($score)) || $score < 0 || $score > 1) {
                 throw new \InvalidArgumentException('Roadmap talent map is invalid.');
             }
         });

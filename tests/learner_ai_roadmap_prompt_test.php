@@ -108,6 +108,7 @@ roadmap_prompt_assert(str_contains($instructions, 'Không thêm trường ngoài
 roadmap_prompt_assert(str_contains($instructions, 'tiếng Việt tự nhiên'), 'learner-facing content must be Vietnamese');
 roadmap_prompt_assert(str_contains($instructions, '0–30, 31–60 và 61–90'), 'three exact phases are required');
 roadmap_prompt_assert(str_contains($instructions, 'Mỗi insight, phase và task phải trích dẫn evidence_ref_ids'), 'every generated block requires evidence');
+roadmap_prompt_assert(str_contains($instructions, 'mỗi field xuất hiện đúng một lần'), 'each canonical talent axis must appear exactly once');
 roadmap_prompt_assert(str_contains($instructions, 'Không nhắc lại mã MBTI, điểm Holland, biểu đồ DISC hoặc điểm Multiple Intelligence'), 'discover-page content cannot be repeated');
 roadmap_prompt_assert(str_contains($instructions, 'Không chẩn đoán'), 'diagnosis is prohibited');
 roadmap_prompt_assert(str_contains($instructions, 'không khẳng định chắc chắn nghề nghiệp, tuyển sinh hoặc việc làm'), 'guaranteed outcomes are prohibited');

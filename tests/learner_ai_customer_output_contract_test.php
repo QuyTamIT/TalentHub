@@ -25,7 +25,9 @@ learner_ai_customer_output_assert(method_exists(RoadmapAnalysis::class, 'growthH
 
 $payload = learner_ai_roadmap_provider_fixture();
 $payload['talent_map'] = [
-    ['field' => 'technology', 'score' => 0.82, 'evidence_ref_ids' => ['evidence-001']],
+    ['field' => 'Tư duy Logic & Hệ thống', 'score' => 0.82, 'evidence_ref_ids' => ['evidence-001']],
+    ['field' => 'Kỹ năng Thực hành & Thao tác', 'score' => 0.68, 'evidence_ref_ids' => ['evidence-002']],
+    ['field' => 'Tổ chức & Điều phối', 'score' => 0.74, 'evidence_ref_ids' => ['evidence-003']],
 ];
 $payload['strengths'] = [['text' => 'Tư duy hệ thống', 'evidence_ref_ids' => ['evidence-001']]];
 $payload['improvements'] = [['text' => 'Luyện trình bày', 'evidence_ref_ids' => ['evidence-002']]];

@@ -115,7 +115,7 @@
     }
 
     function searchableTalentField(value) {
-        return text(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase();
+        return text(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
     }
 
     function completeTalentMap(value) {
@@ -131,7 +131,7 @@
         for (const record of records) {
             const field = searchableTalentField(record?.field);
             const axisIndex = TALENT_AXES.findIndex((axis) => axis.keywords.some((keyword) => field.includes(keyword)));
-            if (axisIndex < 0 || !Number.isFinite(Number(record?.score))) continue;
+            if (axisIndex < 0 || typeof record?.score !== 'number' || !Number.isFinite(record.score)) continue;
             const score = normalizeTalentScore(record.score);
             if (result[axisIndex].hasEvidence && result[axisIndex].score >= score) continue;
             result[axisIndex] = {
@@ -376,6 +376,7 @@
             alternatives: root.querySelector('[data-roadmap-direction-alternatives]'),
             insights: root.querySelector('[data-roadmap-insights]'),
             talentMap: root.querySelector('[data-roadmap-talent-map]'),
+            zeroTalentMap: root.querySelector('[data-roadmap-zero-talent-map]'),
             strengths: root.querySelector('[data-roadmap-strengths]'),
             improvements: root.querySelector('[data-roadmap-improvements]'),
             trends: root.querySelector('[data-roadmap-trends]'),
@@ -574,6 +575,10 @@
                 return;
             }
 
+            if (state === 'insufficient-data') {
+                renderTalentMap(nodes.zeroTalentMap, completeTalentMap([]));
+            }
+
             processingTracker.stop();
             processingActive = false;
             processingPreserveReady = false;
@@ -625,20 +630,25 @@
         }
 
         function renderCapabilityAnalysis(model) {
-            clear(nodes.talentMap);
-            nodes.talentMap?.appendChild(renderTalentRadar(model.talentMap));
-            if (model.talentMap.some((item) => item.hasEvidence === false)) {
-                nodes.talentMap?.appendChild(element(
-                    'p',
-                    'learner-roadmap-radar-note',
-                    '0% là dữ liệu chưa được xác định, không phải đánh giá năng lực thấp.',
-                ));
-            }
+            renderTalentMap(nodes.talentMap, model.talentMap);
             renderTextRecords(nodes.strengths, model.strengths, 'Chưa có điểm mạnh đủ bằng chứng.');
             renderTextRecords(nodes.improvements, model.improvements, 'Chưa có điểm cần cải thiện đủ bằng chứng.');
             renderTextRecords(nodes.trends, model.trendSignals, 'Chưa có xu hướng đủ bằng chứng.', 'label');
             renderTextRecords(nodes.potentialPaths, model.potentialPaths, 'Chưa có hướng phát triển đủ bằng chứng.', 'label');
             renderTextRecords(nodes.growthHypotheses, model.growthHypotheses, 'Chưa có giả thuyết phát triển đủ bằng chứng.');
+        }
+
+        function renderTalentMap(node, items) {
+            const safeItems = Array.isArray(items) && items.length > 0 ? items : completeTalentMap([]);
+            clear(node);
+            node?.appendChild(renderTalentRadar(safeItems));
+            if (safeItems.some((item) => item.hasEvidence === false)) {
+                node?.appendChild(element(
+                    'p',
+                    'learner-roadmap-radar-note',
+                    '0% là dữ liệu chưa được xác định, không phải đánh giá năng lực thấp.',
+                ));
+            }
         }
 
         function renderTalentRadar(items) {
