@@ -86,6 +86,11 @@ function learner_ai_roadmap_provider_fixture(): array
                 'evidence_ref_ids' => ['evidence-003'],
             ],
         ],
+        'talent_map' => [
+            ['field' => 'Tư duy Logic & Hệ thống', 'score' => 0.82, 'evidence_ref_ids' => ['evidence-001']],
+            ['field' => 'Kỹ năng Thực hành & Thao tác', 'score' => 0.74, 'evidence_ref_ids' => ['evidence-002']],
+            ['field' => 'Tổ chức & Điều phối', 'score' => 0.68, 'evidence_ref_ids' => ['evidence-003']],
+        ],
         'phases' => [
             $phase(1, 0, 30, 'discover', 'Khám phá', 'Hoàn thành mini project', 'Tư duy sản phẩm', 'Bản demo đầu tiên', '3 giờ/tuần', 'Một bản demo nhận ít nhất hai phản hồi', 'evidence-001', [
                 'Chọn một vấn đề thực tế',
@@ -113,7 +118,7 @@ function learner_ai_roadmap_model_metadata(): array
         'origin' => 'model',
         'provider' => '9router_gemini',
         'model_version' => 'ag/gemini-3.7-flash-high',
-        'prompt_version' => 'learner-roadmap-prompt-1.0.0',
+        'prompt_version' => 'learner-roadmap-prompt-1.4.0',
         'confidence_band' => 'high',
     ];
 }

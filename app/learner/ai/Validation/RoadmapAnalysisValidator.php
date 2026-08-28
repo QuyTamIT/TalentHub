@@ -12,6 +12,12 @@ use TalentHub\Learner\Ai\Domain\RoadmapTask;
 
 final class RoadmapAnalysisValidator
 {
+    private const TALENT_MAP_FIELDS = [
+        'Tư duy Logic & Hệ thống',
+        'Kỹ năng Thực hành & Thao tác',
+        'Tổ chức & Điều phối',
+    ];
+
     private const PAYLOAD_FIELDS = [
         'alternative_directions',
         'executive_summary',
@@ -19,6 +25,7 @@ final class RoadmapAnalysisValidator
         'phases',
         'primary_direction',
         'recommended_activity_source_ids',
+        'talent_map',
     ];
     private const EXTENDED_FIELDS = [
         'confidence',
@@ -27,7 +34,6 @@ final class RoadmapAnalysisValidator
         'improvements',
         'potential_paths',
         'strengths',
-        'talent_map',
         'trend_signals',
     ];
 
@@ -301,6 +307,16 @@ final class RoadmapAnalysisValidator
                 throw new \InvalidArgumentException('Roadmap talent map is invalid.');
             }
         });
+        if (count($talentMap) !== 3) {
+            throw new \InvalidArgumentException('Roadmap requires exactly three talent map records.');
+        }
+        $talentFields = array_column($talentMap, 'field');
+        sort($talentFields, SORT_STRING);
+        $expectedTalentFields = self::TALENT_MAP_FIELDS;
+        sort($expectedTalentFields, SORT_STRING);
+        if ($talentFields !== $expectedTalentFields) {
+            throw new \InvalidArgumentException('Roadmap talent map fields are invalid.');
+        }
         $strengths = $this->extendedRecords($payload['strengths'] ?? [], ['text', 'evidence_ref_ids'], 'strengths');
         $improvements = $this->extendedRecords($payload['improvements'] ?? [], ['text', 'evidence_ref_ids'], 'improvements');
         $potentialPaths = $this->extendedRecords($payload['potential_paths'] ?? [], ['label', 'catalog_id', 'evidence_ref_ids'], 'potential paths', function (array $record): void {
