@@ -107,6 +107,39 @@ test('roadmap API client receives session CSRF and the dedicated model timeout',
   });
 });
 
+test('processing progress moves through four honest estimated stages and stays below 100', () => {
+  const { processingProgressAt } = require(modulePath);
+  const snapshots = [0, 6000, 30000, 70000].map(processingProgressAt);
+  assert.deepEqual(snapshots.map((item) => item.activeIndex), [0, 1, 2, 3]);
+  assert.equal(snapshots.every((item) => item.percent >= 0 && item.percent <= 94), true);
+  assert.deepEqual(snapshots[3].steps.map((step) => step.status), ['completed', 'completed', 'completed', 'active']);
+  assert.equal(snapshots[2].elapsedSeconds, 30);
+  assert.match(snapshots[1].steps[1].label, /Gemini đang phân tích/);
+});
+
+test('processing tracker emits timed progress and terminal success without leaking timers', () => {
+  const { createProcessingTracker } = require(modulePath);
+  let time = 0;
+  let scheduled = null;
+  let cancelled = 0;
+  const updates = [];
+  const tracker = createProcessingTracker({
+    now: () => time,
+    schedule: (callback) => { scheduled = callback; return 9; },
+    cancelSchedule: (handle) => { assert.equal(handle, 9); cancelled += 1; },
+    onUpdate: (snapshot) => updates.push(snapshot),
+  });
+  tracker.start();
+  time = 30000;
+  scheduled();
+  tracker.succeed();
+  assert.equal(updates[0].activeIndex, 0);
+  assert.equal(updates[1].activeIndex, 2);
+  assert.equal(updates.at(-1).status, 'success');
+  assert.equal(updates.at(-1).percent, 100);
+  assert.equal(cancelled > 0, true);
+});
+
 test('view model keeps exactly three roadmap phases and derives real next actions', () => {
   const { buildRoadmapViewModel } = require(modulePath);
   const model = buildRoadmapViewModel(payload());

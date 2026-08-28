@@ -3,6 +3,78 @@
     'use strict';
 
     const READY_STATES = new Set(['ready-model', 'stale-model', 'fallback-rule']);
+    const PROCESSING_STEPS = [
+        'Chuẩn bị dữ liệu năng lực',
+        'Gemini đang phân tích',
+        'Xây dựng roadmap 90 ngày',
+        'Kiểm tra và hoàn thiện',
+    ];
+
+    function processingProgressAt(elapsedMs) {
+        const elapsedSeconds = Math.max(0, Math.floor((Number(elapsedMs) || 0) / 1000));
+        const activeIndex = elapsedSeconds < 5 ? 0 : elapsedSeconds < 25 ? 1 : elapsedSeconds < 55 ? 2 : 3;
+        const ranges = [
+            [0, 5, 8, 18],
+            [5, 25, 18, 45],
+            [25, 55, 45, 80],
+            [55, 90, 80, 94],
+        ];
+        const [fromSecond, toSecond, fromPercent, toPercent] = ranges[activeIndex];
+        const ratio = Math.max(0, Math.min(1, (elapsedSeconds - fromSecond) / (toSecond - fromSecond)));
+        const percent = Math.min(94, Math.round(fromPercent + ((toPercent - fromPercent) * ratio)));
+        return {
+            elapsedSeconds,
+            activeIndex,
+            percent,
+            steps: PROCESSING_STEPS.map((label, index) => ({
+                label,
+                status: index < activeIndex ? 'completed' : index === activeIndex ? 'active' : 'upcoming',
+            })),
+        };
+    }
+
+    function createProcessingTracker({
+        onUpdate,
+        now = () => Date.now(),
+        schedule = (callback, delay) => global.setTimeout(callback, delay),
+        cancelSchedule = (handle) => global.clearTimeout(handle),
+        intervalMs = 1000,
+    }) {
+        if (typeof onUpdate !== 'function') throw new TypeError('A processing progress listener is required.');
+        let startedAt = 0;
+        let handle = null;
+        let running = false;
+        const emit = () => onUpdate(processingProgressAt(now() - startedAt));
+        const tick = () => {
+            handle = null;
+            if (!running) return;
+            emit();
+            queue();
+        };
+        const queue = () => { if (running) handle = schedule(tick, intervalMs); };
+        const stop = () => {
+            running = false;
+            if (handle !== null) cancelSchedule(handle);
+            handle = null;
+        };
+        const terminal = (status) => {
+            const snapshot = processingProgressAt(now() - startedAt);
+            stop();
+            onUpdate({ ...snapshot, status, percent: status === 'success' ? 100 : snapshot.percent });
+        };
+        return {
+            start() {
+                stop();
+                startedAt = now();
+                running = true;
+                emit();
+                queue();
+            },
+            succeed() { terminal('success'); },
+            fail() { terminal('error'); },
+            stop,
+        };
+    }
 
     function presentationState(payload) {
         const state = typeof payload?.state === 'string' ? payload.state : '';
@@ -640,7 +712,11 @@
         controller.load();
     }
 
-    const exported = { presentationState, buildRoadmapViewModel, createRoadmapApiClient, createRoadmapController, createDomView, confidenceLabel, normalizeTalentScore };
+    const exported = {
+        PROCESSING_STEPS, processingProgressAt, createProcessingTracker,
+        presentationState, buildRoadmapViewModel, createRoadmapApiClient, createRoadmapController,
+        createDomView, confidenceLabel, normalizeTalentScore,
+    };
     global.TalentHubLearnerAiRoadmap = exported;
     if (typeof module !== 'undefined' && module.exports) module.exports = exported;
     if (global.document && typeof global.document.addEventListener === 'function') {
