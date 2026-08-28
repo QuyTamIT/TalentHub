@@ -9,6 +9,11 @@
         'Xây dựng roadmap 90 ngày',
         'Kiểm tra và hoàn thiện',
     ];
+    const TALENT_AXES = [
+        { field: 'Tư duy Logic & Hệ thống', keywords: ['logic', 'he thong', 'phan tich', 'tu duy'] },
+        { field: 'Kỹ năng Thực hành & Thao tác', keywords: ['thuc hanh', 'thao tac', 'ky thuat', 'ung dung'] },
+        { field: 'Tổ chức & Điều phối', keywords: ['to chuc', 'dieu phoi', 'quan ly', 'quy trinh'] },
+    ];
 
     function processingProgressAt(elapsedMs) {
         const elapsedSeconds = Math.max(0, Math.floor((Number(elapsedMs) || 0) / 1000));
@@ -109,6 +114,38 @@
         return Math.max(0, Math.min(100, Math.round(percentage)));
     }
 
+    function searchableTalentField(value) {
+        return text(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase();
+    }
+
+    function completeTalentMap(value) {
+        const result = TALENT_AXES.map((axis) => ({
+            field: axis.field,
+            score: 0,
+            hasEvidence: false,
+            evidence_ref_ids: [],
+        }));
+        const records = Array.isArray(value)
+            ? value.filter((item) => item && typeof item === 'object').slice(0, 8)
+            : [];
+        for (const record of records) {
+            const field = searchableTalentField(record?.field);
+            const axisIndex = TALENT_AXES.findIndex((axis) => axis.keywords.some((keyword) => field.includes(keyword)));
+            if (axisIndex < 0 || !Number.isFinite(Number(record?.score))) continue;
+            const score = normalizeTalentScore(record.score);
+            if (result[axisIndex].hasEvidence && result[axisIndex].score >= score) continue;
+            result[axisIndex] = {
+                field: TALENT_AXES[axisIndex].field,
+                score,
+                hasEvidence: true,
+                evidence_ref_ids: Array.isArray(record?.evidence_ref_ids)
+                    ? record.evidence_ref_ids.filter((item) => typeof item === 'string')
+                    : [],
+            };
+        }
+        return result;
+    }
+
     function buildRoadmapViewModel(payload) {
         const records = (value, limit = 8) => (Array.isArray(value) ? value.filter((item) => item && typeof item === 'object').slice(0, limit) : []);
         const rawPhases = Array.isArray(payload?.phases) ? payload.phases : [];
@@ -152,7 +189,7 @@
             activities,
             evidenceTotal,
             confidenceLabel: confidenceLabel(payload?.confidence_band),
-            talentMap: records(payload?.talent_map).map((item) => ({ ...item, score: normalizeTalentScore(item?.score) })),
+            talentMap: completeTalentMap(payload?.talent_map),
             strengths: records(payload?.strengths),
             improvements: records(payload?.improvements),
             potentialPaths: records(payload?.potential_paths),
@@ -884,9 +921,9 @@
     }
 
     const exported = {
-        PROCESSING_STEPS, processingProgressAt, createProcessingTracker,
+        PROCESSING_STEPS, TALENT_AXES, processingProgressAt, createProcessingTracker,
         presentationState, buildRoadmapViewModel, createRoadmapApiClient, createRoadmapController,
-        createDomView, confidenceLabel, normalizeTalentScore,
+        createDomView, confidenceLabel, normalizeTalentScore, completeTalentMap,
     };
     global.TalentHubLearnerAiRoadmap = exported;
     if (typeof module !== 'undefined' && module.exports) module.exports = exported;

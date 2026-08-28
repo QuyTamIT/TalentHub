@@ -150,7 +150,8 @@ test('view model keeps exactly three roadmap phases and derives real next action
   assert.equal(model.activities.length, 1);
   assert.equal(model.evidenceTotal, 8);
   assert.equal(model.confidenceLabel, 'Độ tin cậy cao');
-  assert.equal(model.talentMap.length, 2);
+  assert.equal(model.talentMap.length, 3);
+  assert.deepEqual(model.talentMap.map((item) => item.score), [0, 72, 0]);
   assert.equal(model.strengths.length, 1);
   assert.equal(model.improvements.length, 1);
   assert.equal(model.potentialPaths.length, 1);
@@ -160,18 +161,28 @@ test('view model keeps exactly three roadmap phases and derives real next action
 });
 
 test('view model normalizes fractional talent scores without changing percentage scores', () => {
-  const { buildRoadmapViewModel } = require(modulePath);
-  const fractional = payload();
-  fractional.talent_map = [
-    { field: 'Tư duy', score: 0.01 },
-    { field: 'Thực hành', score: 0.5 },
-    { field: 'Điều phối', score: 1 },
-    { field: 'Logic', score: 0.82 },
-    { field: 'Thực hành', score: 72 },
-    { field: 'Điều phối', score: -4 },
-    { field: 'Sáng tạo', score: 120 },
-  ];
-  assert.deepEqual(buildRoadmapViewModel(fractional).talentMap.map((item) => item.score), [1, 50, 100, 82, 72, 0, 100]);
+  const { normalizeTalentScore } = require(modulePath);
+  assert.deepEqual([0.01, 0.5, 1, 0.82, 72, -4, 120].map(normalizeTalentScore), [1, 50, 100, 82, 72, 0, 100]);
+});
+
+test('talent map always exposes three canonical axes with zero for missing data', () => {
+  const { completeTalentMap } = require(modulePath);
+  assert.deepEqual(completeTalentMap([]), [
+    { field: 'Tư duy Logic & Hệ thống', score: 0, hasEvidence: false, evidence_ref_ids: [] },
+    { field: 'Kỹ năng Thực hành & Thao tác', score: 0, hasEvidence: false, evidence_ref_ids: [] },
+    { field: 'Tổ chức & Điều phối', score: 0, hasEvidence: false, evidence_ref_ids: [] },
+  ]);
+});
+
+test('legacy talent records map once and never duplicate a combined score', () => {
+  const { completeTalentMap } = require(modulePath);
+  const result = completeTalentMap([
+    { field: 'Tư duy Logic & Kỹ thuật Thực hành', score: 0.85, evidence_ref_ids: ['evidence-001'] },
+    { field: 'Tổ chức & Quản lý Quy trình', score: 0.82, evidence_ref_ids: ['evidence-002'] },
+  ]);
+  assert.deepEqual(result.map((item) => item.score), [85, 0, 82]);
+  assert.deepEqual(result.map((item) => item.hasEvidence), [true, false, true]);
+  assert.deepEqual(result[0].evidence_ref_ids, ['evidence-001']);
 });
 
 test('view model exposes one current phase and compact direction rows', () => {
