@@ -113,6 +113,8 @@ require_once $learnerAiRoot . '/Persistence/RecommendationRepository.php';
 require_once $learnerAiRoot . '/Persistence/RoadmapRepository.php';
 require_once $learnerAiRoot . '/Persistence/DatabaseRecommendationRepository.php';
 require_once $learnerAiRoot . '/Persistence/DatabaseRoadmapRepository.php';
+require_once $learnerAiRoot . '/Persistence/OpportunityMatchRepository.php';
+require_once $learnerAiRoot . '/Persistence/DatabaseOpportunityMatchRepository.php';
 require_once $learnerAiRoot . '/Persistence/DatabaseAiCapabilityProfileRepository.php';
 require_once $learnerAiRoot . '/Persistence/DatabaseAiRefreshStateRepository.php';
 require_once $learnerAiRoot . '/Service/StrictRecommendationRefreshDispatcher.php';
@@ -152,5 +154,6 @@ require_once $learnerAiRoot . '/Service/RecommendationService.php';
 require_once $learnerAiRoot . '/Service/RoadmapService.php';
 require_once $learnerAiRoot . '/Service/GroupMatchingService.php';
 require_once $learnerAiRoot . '/Service/PostAssessmentAiTrigger.php';
+require_once $learnerAiRoot . '/Service/OpportunityMatchService.php';
 
 unset($learnerAiRoot);
