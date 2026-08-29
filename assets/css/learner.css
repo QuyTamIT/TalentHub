@@ -2855,6 +2855,15 @@ body.learner-sidebar-open {
     gap: 24px;
 }
 
+.learner-ai-result-list__empty {
+    margin: 0;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--border-subtle, #dbe4f0);
+    border-radius: .75rem;
+    color: var(--text-secondary, #64748b);
+    background: var(--surface-muted, #f8fafc);
+}
+
 .learner-ai-result-group,
 .learner-ai-result-group__cards {
     display: grid;

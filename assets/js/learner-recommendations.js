@@ -283,6 +283,13 @@
             const items = Array.isArray(payload?.items)
                 ? payload.items.filter((item) => item && typeof item === 'object')
                 : [];
+            if (items.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'learner-ai-result-list__empty';
+                empty.textContent = 'Chưa có gợi ý phù hợp từ dữ liệu hiện tại. Hãy bấm “Làm mới gợi ý” để thử lại.';
+                nodes.list.appendChild(empty);
+                return;
+            }
             const groups = [
                 ['strength', 'Điểm mạnh nổi bật'],
                 ['activity', 'Hoạt động phù hợp'],

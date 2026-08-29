@@ -268,7 +268,30 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
     {
         $studentId = $this->required($studentId, 'Student id is required.');
         $statement = $this->pdo->prepare(
-            "SELECT id FROM learner_recommendation_runs WHERE studentId = :studentId AND idempotencyKey NOT LIKE 'shadow-%' ORDER BY CASE WHEN engineType = 'model' AND status = 'completed' THEN 0 ELSE 1 END, createdAt DESC, id DESC LIMIT 1"
+            "SELECT runs.id
+             FROM learner_recommendation_runs AS runs
+             WHERE runs.studentId = :studentId
+               AND runs.idempotencyKey NOT LIKE 'shadow-%'
+               AND NOT EXISTS (
+                   SELECT 1
+                   FROM learner_recommendation_audit_events AS roadmap_events
+                   WHERE roadmap_events.runId = runs.id
+                     AND roadmap_events.studentId = runs.studentId
+                     AND roadmap_events.action = 'roadmap_run_created'
+               )
+               AND (
+                   runs.engineType <> 'model'
+                   OR runs.status <> 'completed'
+                   OR EXISTS (
+                       SELECT 1
+                       FROM learner_recommendation_items AS recommendation_items
+                       WHERE recommendation_items.runId = runs.id
+                   )
+               )
+             ORDER BY CASE WHEN runs.engineType = 'model' AND runs.status = 'completed' THEN 0 ELSE 1 END,
+                      runs.createdAt DESC,
+                      runs.id DESC
+             LIMIT 1"
         );
         $statement->execute(['studentId' => $studentId]);
         $runId = $statement->fetchColumn();

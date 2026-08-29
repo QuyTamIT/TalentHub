@@ -18,6 +18,7 @@ roadmap_render_assert(str_contains($page, 'Dữ liệu AI đã sử dụng'), 'e
 roadmap_render_assert(str_contains($page, 'Thông tin kỹ thuật'), 'technical provenance is collapsed');
 roadmap_render_assert(str_contains($page, '<details'), 'evidence and engine metadata use native collapsed disclosure');
 roadmap_render_assert(str_contains($page, 'learner-recommendations.js') && str_contains($page, 'data-ai-result-list'), 'live catalog recommendation renderer is mounted beside the roadmap');
+roadmap_render_assert(str_contains($recommendationClient, 'learner-ai-result-list__empty'), 'empty recommendation results render an explicit user-facing state');
 roadmap_render_assert(str_contains($client, 'textContent'), 'untrusted model strings use textContent');
 roadmap_render_assert(!str_contains($client . $recommendationClient, 'innerHTML'), 'renderers never assign HTML from model output');
 roadmap_render_assert(!str_contains($page . $client . $recommendationClient, 'TALENTHUB_AI_API_KEY'), 'API key is never rendered');

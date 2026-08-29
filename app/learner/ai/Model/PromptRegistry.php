@@ -39,6 +39,8 @@ final class PromptRegistry
             'prompt_version' => self::VERSION,
             'instructions' => [
                 'Return JSON with an items array only.',
+                'Return 3 to 6 useful recommendations whenever the supplied evidence permits it; never return an empty items array.',
+                'If no catalog opportunity is eligible, use evidence-backed development, activity, presentation-practice, or career-group actions instead of returning no items.',
                 'Every item must include a concise reason or explanation grounded in its evidence.',
                 'Use catalog_id only when it matches a supplied catalog evidence source; never invent catalog IDs.',
                 'Every item must cite one or more supplied evidence_ref_ids.',
