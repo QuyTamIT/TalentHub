@@ -77,6 +77,9 @@ final class OpportunityMatchPromptRegistry
                 ];
             }
         }
+        foreach ($profile->evidenceRefs() as $ref) {
+            $evidenceRefs[$ref] = true;
+        }
 
         $payload = [
             'prompt_version' => self::VERSION,
@@ -104,12 +107,20 @@ final class OpportunityMatchPromptRegistry
         $studentIdSuffix = is_string($studentId) && $studentId !== '' ? $studentId : 'student-1';
         $labelPrefix = "opportunity-match-{$studentIdSuffix}";
         foreach ($evidenceRefs as $ref => $_) {
+            $parts = explode(':', $ref, 2);
+            $sourceType = count($parts) === 2 && in_array($parts[0], [
+                'profile', 'skill', 'assessment', 'achievement', 'certificate', 'project',
+                'activity', 'activity_experience', 'checkin', 'badge', 'progress',
+                'evaluation', 'mentor_evaluation', 'teacher_feedback', 'roadmap_feedback',
+                'opportunity', 'catalog',
+            ], true) ? $parts[0] : 'profile';
+            $sourceId = count($parts) === 2 && trim($parts[1]) !== '' ? $parts[1] : $ref;
             $evidenceByReference[$ref] = new RecommendationEvidence(
-                'opportunity',
-                $ref,
+                $sourceType,
+                $sourceId,
                 null,
                 "{$labelPrefix}-{$ref}",
-                ['catalog_reference' => $ref],
+                ['reference' => $ref],
             );
         }
 

@@ -6,7 +6,6 @@ namespace TalentHub\Learner\Ai\Model;
 
 use InvalidArgumentException;
 use TalentHub\Learner\Ai\Consent\ProviderAttemptAuthorizer;
-use TalentHub\Learner\Ai\Consent\ProviderConsentDenied;
 use TalentHub\Learner\Ai\Contracts\RecommendationProvider;
 use TalentHub\Learner\Ai\Domain\RecommendationContext;
 use TalentHub\Learner\Ai\Matching\LearnerOpportunityProfile;
@@ -50,18 +49,13 @@ final class ModelOpportunityMatchEngine
             throw new InvalidArgumentException('Opportunity match engine requires at least three valid candidates.');
         }
 
+        $candidateAllowList = array_slice($rankedCandidates, 0, OpportunityMatchPromptRegistry::MAX_CANDIDATES);
         $request = OpportunityMatchPromptRegistry::create(
             $profile,
-            $rankedCandidates,
+            $candidateAllowList,
             $structuredScores,
             $context,
         );
-
-        try {
-            $this->authorizer->beforeAttempt(1);
-        } catch (ProviderConsentDenied $exception) {
-            throw new InvalidArgumentException('Opportunity match engine requires provider consent: ' . $exception->reason());
-        }
 
         $response = $this->provider->generate($request, $this->authorizer);
         if (!$response->isSuccess()) {
@@ -71,7 +65,7 @@ final class ModelOpportunityMatchEngine
         $items = self::stripProviderFabricatedFields($response->items());
 
         $validator = $this->validator ?? new OpportunityMatchValidator();
-        return $validator->validate($items, $rankedCandidates, $profile);
+        return $validator->validate($items, $candidateAllowList, $profile);
     }
 
     private const PROVIDER_FABRICATED_FIELDS = [

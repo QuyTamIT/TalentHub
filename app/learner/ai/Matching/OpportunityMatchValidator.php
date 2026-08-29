@@ -24,7 +24,7 @@ final class OpportunityMatchValidator
     private const NEAR_DUPLICATE_JACCARD = 0.85;
 
     private const UNSAFE_PATTERNS = [
-        '/\b(chắc chắn|đảm bảo|guaranteed|will definitely|sẽ được tuyển|sẽ đạt giải|se duoc tuyen|se dat giai|chac chan|dam bao|will be hired|will be admitted|will be awarded|will receive an offer|admission guarantee|employment guarantee|will win|will pass)\b/iu',
+        '/\b(chắc chắn|đảm bảo|cam kết|được tuyển|đậu đại học|nhập học|guaranteed|will definitely|sẽ được tuyển|sẽ đạt giải|se duoc tuyen|se dat giai|chac chan|dam bao|cam ket|duoc tuyen|dau dai hoc|nhap hoc|hired|admitted|will be hired|will be admitted|will be awarded|will receive an offer|admission guarantee|employment guarantee|will win|will pass)\b/iu',
         '/\b(tuyển dụng|hiring|admission|admissions|award|prize|grade|grades|employment|job offer|tuyen dung|giai thuong)\b.*\b(chắc chắn|đảm bảo|guaranteed|sẽ được|will be|chac chan|dam bao|se duoc)\b/iu',
     ];
 
@@ -40,9 +40,7 @@ final class OpportunityMatchValidator
         }
 
         $candidateMap = self::indexCandidates($allowList);
-        $skillAllowList = self::skillAllowList($profile, $allowList);
-        $outcomeAllowList = self::outcomeAllowList($allowList);
-        $evidenceAllowList = self::evidenceAllowList($allowList, $profile);
+        $profileEvidence = self::profileEvidenceAllowList($profile);
 
         $normalisedWhyFits = [];
         $matches = [];
@@ -69,6 +67,7 @@ final class OpportunityMatchValidator
                 throw new InvalidArgumentException('Opportunity match validator detected duplicate catalog id.');
             }
             $seenIds[$catalogId] = true;
+            $candidate = $candidateMap[$catalogId];
 
             $geminiScore = $item['gemini_score'] ?? null;
             if (!is_int($geminiScore) || $geminiScore < 0 || $geminiScore > 100) {
@@ -88,13 +87,32 @@ final class OpportunityMatchValidator
             $outcomeCodes = self::codeList($item['expected_outcome_codes'] ?? null, 'expected_outcome_codes');
             $evidenceRefs = self::codeList($item['evidence_ref_ids'] ?? null, 'evidence_ref_ids');
 
+            $requiredSkills = [];
+            foreach ($candidate->requiredSkills() as $skill) {
+                $requiredSkills[$skill['code']] = $skill['minimum_score'];
+            }
+            $candidateOutcomes = [];
+            foreach ($candidate->learningOutcomes() as $outcome) {
+                $candidateOutcomes[$outcome['code']] = true;
+            }
+            $candidateEvidence = [];
+            foreach ($candidate->providerPayload()['evidence_refs'] ?? [] as $ref) {
+                if (is_string($ref)) {
+                    $candidateEvidence[$ref] = true;
+                }
+            }
+
             foreach ($matchedCodes as $code) {
-                if (!in_array($code, $skillAllowList, true)) {
+                $minimum = $requiredSkills[$code] ?? null;
+                $profileScore = $profile->skillScore($code);
+                if ($minimum === null || $profileScore === null || $profileScore < $minimum) {
                     throw new InvalidArgumentException("Opportunity match matched_skill_codes contains unsupported code: {$code}.");
                 }
             }
             foreach ($missingCodes as $code) {
-                if (!in_array($code, $skillAllowList, true)) {
+                $minimum = $requiredSkills[$code] ?? null;
+                $profileScore = $profile->skillScore($code);
+                if ($minimum === null || ($profileScore !== null && $profileScore >= $minimum)) {
                     throw new InvalidArgumentException("Opportunity match missing_skill_codes contains unsupported code: {$code}.");
                 }
                 if (in_array($code, $matchedCodes, true)) {
@@ -102,12 +120,15 @@ final class OpportunityMatchValidator
                 }
             }
             foreach ($outcomeCodes as $code) {
-                if (!in_array($code, $outcomeAllowList, true)) {
+                if (!isset($candidateOutcomes[$code])) {
                     throw new InvalidArgumentException("Opportunity match expected_outcome_codes contains unsupported code: {$code}.");
                 }
             }
             foreach ($evidenceRefs as $ref) {
-                if (!in_array($ref, $evidenceAllowList, true)) {
+                $isCatalogEvidence = str_starts_with($ref, 'opportunity:') || str_starts_with($ref, 'catalog:');
+                $isAllowed = isset($candidateEvidence[$ref])
+                    || (!$isCatalogEvidence && isset($profileEvidence[$ref]));
+                if (!$isAllowed) {
                     throw new InvalidArgumentException("Opportunity match evidence_ref_ids contains unsupported reference: {$ref}.");
                 }
             }
@@ -116,7 +137,7 @@ final class OpportunityMatchValidator
             }
 
             $matches[] = new OpportunityMatch(
-                $candidateMap[$catalogId],
+                $candidate,
                 $geminiScore,
                 $whyFit,
                 $matchedCodes,
@@ -141,57 +162,16 @@ final class OpportunityMatchValidator
         return $map;
     }
 
-    /** @param list<OpportunityCandidate> $allowList @return list<string> */
-    private static function skillAllowList(LearnerOpportunityProfile $profile, array $allowList): array
-    {
-        $codes = [];
-        foreach ($allowList as $candidate) {
-            foreach ($candidate->requiredSkills() as $skill) {
-                $codes[$skill['code']] = true;
-            }
-        }
-        foreach (array_keys($profile->skills()) as $code) {
-            $codes[$code] = true;
-        }
-        $list = array_keys($codes);
-        sort($list, SORT_STRING);
-        return $list;
-    }
-
-    /** @param list<OpportunityCandidate> $allowList @return list<string> */
-    private static function outcomeAllowList(array $allowList): array
-    {
-        $codes = [];
-        foreach ($allowList as $candidate) {
-            foreach ($candidate->learningOutcomes() as $outcome) {
-                $codes[$outcome['code']] = true;
-            }
-        }
-        $list = array_keys($codes);
-        sort($list, SORT_STRING);
-        return $list;
-    }
-
-    /**
-     * @param list<OpportunityCandidate> $allowList
-     * @return list<string>
-     */
-    private static function evidenceAllowList(array $allowList, LearnerOpportunityProfile $profile): array
+    /** @return array<string,true> */
+    private static function profileEvidenceAllowList(LearnerOpportunityProfile $profile): array
     {
         $refs = [];
-        foreach ($allowList as $candidate) {
-            foreach ($candidate->providerPayload()['evidence_refs'] ?? [] as $ref) {
-                if (is_string($ref)) {
-                    $refs[$ref] = true;
-                }
+        foreach ($profile->evidenceRefs() as $ref) {
+            if (!str_starts_with($ref, 'opportunity:') && !str_starts_with($ref, 'catalog:')) {
+                $refs[$ref] = true;
             }
         }
-        foreach ($profile->evidenceRefs() as $ref) {
-            $refs[$ref] = true;
-        }
-        $list = array_keys($refs);
-        sort($list, SORT_STRING);
-        return $list;
+        return $refs;
     }
 
     private static function canonicalString(mixed $value, string $field): string

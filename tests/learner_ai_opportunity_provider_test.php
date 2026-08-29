@@ -75,7 +75,10 @@ function provider_test_candidate(string $catalogId, array $overrides = []): Oppo
         'item_type' => 'internship',
         'title' => "Title for {$catalogId}",
         'provider_name' => "Provider for {$catalogId}",
-        'required_skills' => [['code' => 'python', 'minimum_score' => 60]],
+        'required_skills' => [
+            ['code' => 'python', 'minimum_score' => 60],
+            ['code' => 'sql', 'minimum_score' => 50],
+        ],
         'learning_outcomes' => [['code' => 'dashboard', 'label' => 'Dashboard dữ liệu']],
         'education_bands' => ['high', 'college'],
         'deadline_at' => '2026-10-01T00:00:00.000000+00:00',
@@ -118,8 +121,20 @@ $stubAuthorizer = new class implements ProviderAttemptAuthorizer {
 $profile = LearnerOpportunityProfile::fromInput(provider_test_input());
 $candidates = [
     provider_test_candidate('internship-1'),
-    provider_test_candidate('internship-2'),
-    provider_test_candidate('internship-3'),
+    provider_test_candidate('internship-2', [
+        'required_skills' => [
+            ['code' => 'python', 'minimum_score' => 60],
+            ['code' => 'marketing', 'minimum_score' => 40],
+        ],
+        'learning_outcomes' => [['code' => 'insight', 'label' => 'Customer insight']],
+    ]),
+    provider_test_candidate('internship-3', [
+        'required_skills' => [
+            ['code' => 'python', 'minimum_score' => 60],
+            ['code' => 'user_research', 'minimum_score' => 40],
+        ],
+        'learning_outcomes' => [['code' => 'prototype', 'label' => 'Prototype']],
+    ]),
 ];
 $scored = [
     'internship-1' => new OpportunityScore(['skill_match' => 30, 'assessment_alignment' => 20, 'experience_relevance' => 10, 'growth_potential' => 12, 'feasibility' => 8]),
@@ -144,6 +159,8 @@ provider_assert($required === ['catalog_id', 'evidence_ref_ids', 'expected_outco
 $allowList = $request->payload()['input']['candidate_allow_list'] ?? [];
 provider_assert(count($allowList) === 3, 'candidate allow-list contains the supplied candidates');
 provider_assert(array_column($allowList, 'catalog_id') === ['internship-1', 'internship-2', 'internship-3'], 'candidate allow-list preserves order and ids');
+provider_assert(in_array('skill:python-skill-1', $request->payload()['input']['evidence_allow_list'] ?? [], true), 'prompt exposes profile evidence references to Gemini');
+provider_assert(in_array('skill:python-skill-1', $request->evidenceReferenceIds(), true), 'provider request resolves profile evidence references');
 
 $extraCandidates = $candidates;
 for ($i = 4; $i <= 12; $i++) {
@@ -168,8 +185,8 @@ $positiveItems = [
         'gemini_score' => 80,
         'why_fit' => 'AI Marketing phu hop voi kinh nghiem STEM va logic.',
         'matched_skill_codes' => ['python'],
-        'missing_skill_codes' => ['sql'],
-        'expected_outcome_codes' => ['dashboard'],
+        'missing_skill_codes' => ['marketing'],
+        'expected_outcome_codes' => ['insight'],
         'evidence_ref_ids' => ['opportunity:internship-2', 'skill:python-skill-1'],
     ],
     [
@@ -177,8 +194,8 @@ $positiveItems = [
         'gemini_score' => 70,
         'why_fit' => 'Design Sprint giup ban phat trien ky nang sang tao va lam viec nhom.',
         'matched_skill_codes' => ['python'],
-        'missing_skill_codes' => ['sql'],
-        'expected_outcome_codes' => ['dashboard'],
+        'missing_skill_codes' => ['user_research'],
+        'expected_outcome_codes' => ['prototype'],
         'evidence_ref_ids' => ['opportunity:internship-3', 'skill:python-skill-1'],
     ],
 ];
@@ -270,11 +287,27 @@ provider_expect_invalid(
 );
 
 $foreignEvidence = $positiveItems;
-$foreignEvidence[0]['evidence_ref_ids'] = ['opportunity:other-1'];
+$foreignEvidence[0]['evidence_ref_ids'] = ['opportunity:internship-2'];
 provider_expect_invalid(
     static fn () => $validator->validate($foreignEvidence, $candidates, $profile),
     InvalidArgumentException::class,
     'validator rejects evidence from other candidate'
+);
+
+$foreignSkill = $positiveItems;
+$foreignSkill[0]['missing_skill_codes'] = ['marketing'];
+provider_expect_invalid(
+    static fn () => $validator->validate($foreignSkill, $candidates, $profile),
+    InvalidArgumentException::class,
+    'validator rejects a required skill belonging to another candidate'
+);
+
+$foreignOutcome = $positiveItems;
+$foreignOutcome[0]['expected_outcome_codes'] = ['insight'];
+provider_expect_invalid(
+    static fn () => $validator->validate($foreignOutcome, $candidates, $profile),
+    InvalidArgumentException::class,
+    'validator rejects a learning outcome belonging to another candidate'
 );
 
 $sameSkill = $positiveItems;
@@ -338,6 +371,20 @@ provider_expect_invalid(
     'validator rejects guarantee claim'
 );
 
+foreach ([
+    'Bạn được tuyển ngay sau dự án này.',
+    'TalentHub cam kết bạn nhận được cơ hội tốt.',
+    'Bạn đậu đại học sau dự án này.',
+] as $unsafeClaim) {
+    $unsafeExistingPattern = $positiveItems;
+    $unsafeExistingPattern[0]['why_fit'] = $unsafeClaim;
+    provider_expect_invalid(
+        static fn () => $validator->validate($unsafeExistingPattern, $candidates, $profile),
+        InvalidArgumentException::class,
+        'validator reuses existing unsupported-claim coverage'
+    );
+}
+
 $extraProps = $positiveItems;
 $extraProps[0]['fabricated'] = 'value';
 provider_expect_invalid(
@@ -362,6 +409,47 @@ $enginePayloadJson = json_encode($engineRequest->payload(), JSON_THROW_ON_ERROR)
 provider_assert(!str_contains($enginePayloadJson, 'student@example.com'), 'engine payload excludes email');
 provider_assert(!str_contains($enginePayloadJson, 'phone'), 'engine payload excludes phone field');
 provider_assert(!str_contains($enginePayloadJson, 'gender'), 'engine payload excludes gender');
+
+$countingAuthorizer = new class($stubAuthorizer) implements ProviderAttemptAuthorizer {
+    public int $calls = 0;
+
+    public function __construct(private readonly ProviderAttemptAuthorizer $delegate)
+    {
+    }
+
+    public function beforeAttempt(int $attemptNumber): ConsentDecision
+    {
+        $this->calls++;
+        return $this->delegate->beforeAttempt($attemptNumber);
+    }
+};
+$countingEngine = new ModelOpportunityMatchEngine(new FakeRecommendationProvider($engineResponse), $countingAuthorizer);
+$countingEngine->generate($profile, $candidates, $scored, provider_test_context());
+provider_assert($countingAuthorizer->calls === 1, 'one provider attempt performs exactly one consent authorization');
+
+$elevenCandidates = $candidates;
+for ($i = 4; $i <= 11; $i++) {
+    $elevenCandidates[] = provider_test_candidate("internship-{$i}");
+}
+$outsideTopTen = $positiveItems;
+$outsideTopTen[2] = [
+    'catalog_id' => 'internship-11',
+    'gemini_score' => 70,
+    'why_fit' => 'Du an thu muoi mot nam ngoai danh sach ung vien da gui toi Gemini.',
+    'matched_skill_codes' => ['python'],
+    'missing_skill_codes' => [],
+    'expected_outcome_codes' => ['dashboard'],
+    'evidence_ref_ids' => ['opportunity:internship-11'],
+];
+$outsideTopTenEngine = new ModelOpportunityMatchEngine(
+    new FakeRecommendationProvider(ProviderResponse::success($outsideTopTen)),
+    $stubAuthorizer,
+);
+provider_expect_invalid(
+    static fn () => $outsideTopTenEngine->generate($profile, $elevenCandidates, $scored, provider_test_context()),
+    InvalidArgumentException::class,
+    'engine rejects a candidate outside the exact Top 10 sent to Gemini'
+);
 
 $invalidResponse = ProviderResponse::success([
     ['catalog_id' => 'invented-9999', 'gemini_score' => 50, 'why_fit' => 'a', 'matched_skill_codes' => ['python'], 'missing_skill_codes' => ['sql'], 'expected_outcome_codes' => ['dashboard'], 'evidence_ref_ids' => ['opportunity:internship-1']],

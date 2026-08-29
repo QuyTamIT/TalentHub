@@ -160,6 +160,25 @@ scorer_assert($breakdown['growth_potential'] === 0, 'mandatory sql missing and n
 scorer_assert($breakdown['feasibility'] === 10, 'feasibility 10 when candidate passes all gates');
 scorer_assert($scorer->score($profile, $candidate)->structuredScore() === 36, 'sum 18+0+8+0+10 = 36');
 
+$advancedCandidate = scorer_test_candidate(['difficulty' => 'advanced']);
+$advancedBreakdown = $scorer->score($profile, $advancedCandidate)->breakdown();
+scorer_assert($advancedBreakdown['feasibility'] === 0, 'advanced difficulty is not feasible when relevant skill readiness is below 80');
+
+$advancedReadyProfile = LearnerOpportunityProfile::fromInput(scorer_test_input([
+    'skills' => [
+        ['code' => 'python', 'score' => 90],
+        ['code' => 'sql', 'score' => 85],
+    ],
+]));
+$advancedReadyBreakdown = $scorer->score($advancedReadyProfile, $advancedCandidate)->breakdown();
+scorer_assert($advancedReadyBreakdown['feasibility'] === 10, 'advanced difficulty is feasible when relevant skill readiness is at least 80');
+
+scorer_expect_invalid(
+    static fn (): OpportunityScore => $scorer->score($profile, scorer_test_candidate(['difficulty' => 'expert-only'])),
+    DomainException::class,
+    'unknown difficulty fails closed'
+);
+
 $matchedCandidate = scorer_test_candidate([
     'required_skills' => [['code' => 'python', 'minimum_score' => 60], ['code' => 'sql', 'minimum_score' => 50]],
     'category' => 'logical_thinking',

@@ -18,6 +18,14 @@ final class StructuredOpportunityScorer
 {
     private const MANDATORY_MINIMUM_SCORE = 50;
 
+    private const DIFFICULTY_READINESS = [
+        '' => 0,
+        'introductory' => 0,
+        'beginner' => 0,
+        'intermediate' => 50,
+        'advanced' => 80,
+    ];
+
     private readonly DateTimeImmutable $clock;
 
     public function __construct(?DateTimeImmutable $clock = null)
@@ -35,7 +43,7 @@ final class StructuredOpportunityScorer
             'assessment_alignment' => $this->assessmentAlignment($profile, $candidate),
             'experience_relevance' => $this->experienceRelevance($profile, $candidate),
             'growth_potential' => $this->growthPotential($profile, $candidate),
-            'feasibility' => 10,
+            'feasibility' => $this->feasibility($profile, $candidate),
         ];
 
         return new OpportunityScore($breakdown);
@@ -137,6 +145,33 @@ final class StructuredOpportunityScorer
             }
         }
         return $allCovered ? OpportunityScore::MAX['growth_potential'] : 0;
+    }
+
+    private function feasibility(LearnerOpportunityProfile $profile, OpportunityCandidate $candidate): int
+    {
+        $payload = $candidate->providerPayload();
+        $difficulty = LearnerOpportunityProfile::normalizeCode((string) ($payload['difficulty'] ?? ''));
+        if (!array_key_exists($difficulty, self::DIFFICULTY_READINESS)) {
+            throw new DomainException('candidate_ineligible');
+        }
+
+        $requiredReadiness = self::DIFFICULTY_READINESS[$difficulty];
+        if ($requiredReadiness === 0) {
+            return OpportunityScore::MAX['feasibility'];
+        }
+
+        $requiredSkills = $candidate->requiredSkills();
+        if ($requiredSkills === []) {
+            return 0;
+        }
+
+        $total = 0;
+        foreach ($requiredSkills as $skill) {
+            $total += $profile->skillScore($skill['code']) ?? 0;
+        }
+        $readiness = (int) round($total / count($requiredSkills));
+
+        return $readiness >= $requiredReadiness ? OpportunityScore::MAX['feasibility'] : 0;
     }
 
     /** @return list<string> */
