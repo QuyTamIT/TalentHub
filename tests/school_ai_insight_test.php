@@ -27,6 +27,7 @@ $pdo->exec('CREATE TABLE learner_ai_consent_events (id TEXT, studentId TEXT, sco
 $pdo->exec('CREATE TABLE learner_ai_capability_profiles (id TEXT, student_id TEXT, status TEXT, talent_map_json TEXT, trend_signals_json TEXT, evidence_json TEXT DEFAULT \'[]\', generated_at TEXT, superseded_at TEXT)');
 $pdo->exec('CREATE TABLE school_ai_insights (id TEXT PRIMARY KEY, school_id TEXT, aggregate_hash TEXT, payload_json TEXT, model_version TEXT, generated_at TEXT, stale_since TEXT, UNIQUE(school_id, aggregate_hash, model_version))');
 $pdo->exec('CREATE TABLE school_ai_refresh_jobs (id INTEGER PRIMARY KEY AUTOINCREMENT, school_id TEXT, aggregate_hash TEXT, status TEXT, attempts INTEGER, lease_owner TEXT, lease_token TEXT, lease_until TEXT, error_code TEXT, next_retry_at TEXT, dead_lettered_at TEXT, created_at TEXT, updated_at TEXT)');
+$pdo->exec('CREATE TABLE learner_ai_provider_health (provider_key TEXT PRIMARY KEY, state TEXT, failure_count INTEGER, opened_at TEXT, updated_at TEXT)');
 
 $pdo->exec("INSERT INTO classes VALUES ('a1', 'school-a', '10A1', 10), ('a2', 'school-a', '10A2', 10), ('b1', 'school-b', '10B1', 10)");
 for ($i = 1; $i <= 8; $i++) {
@@ -64,6 +65,14 @@ $repository = new SchoolAiAggregateRepository($pdo);
 $readiness = $repository->readiness();
 school_ai_assert($readiness['ready'] === true && $readiness['error_code'] === null, 'readiness is true on complete schema');
 
+$minimumRejected = false;
+try {
+    $repository->aggregate('school-a', 4, '2026-01-01');
+} catch (InvalidArgumentException) {
+    $minimumRejected = true;
+}
+school_ai_assert($minimumRejected, 'aggregate rejects every minimum cohort below five');
+
 $aggregate = $repository->aggregate('school-a', 5, '2026-01-01');
 school_ai_assert(count($aggregate['cohorts']) === 3, 'class with five consented learners plus grade and whole-school cohorts are visible while the two-person class is suppressed');
 school_ai_assert($aggregate['suppressed_cohort_count'] === 1, 'small cohort is counted only as suppressed');
@@ -82,6 +91,19 @@ school_ai_assert(($classAfterRegrant['student_count'] ?? 0) === 6, 'latest conse
 
 $encoded = json_encode($aggregate);
 school_ai_assert(!str_contains($encoded, 'student-a') && !str_contains($encoded, 'student-b'), 'aggregate never exposes student identifiers');
+
+$protectedTraits = ['age', 'gender', 'sex', 'race', 'ethnicity', 'religion', 'disability', 'health', 'nationality', 'dob', 'tuổi', 'giới tính', 'dân tộc', 'tôn giáo', 'khuyết tật', 'sức khỏe', 'ngày sinh'];
+$protectedLabels = array_map(static fn(string $trait): string => "trait-{$trait}", $protectedTraits);
+$protectedTalents = json_encode(array_merge([['field' => 'Kỹ thuật', 'score' => 80]], array_map(static fn(string $label): array => ['field' => $label, 'score' => 80], $protectedLabels)), JSON_UNESCAPED_UNICODE);
+$protectedTrends = json_encode(array_merge([['label' => 'Tư duy logic tăng']], array_map(static fn(string $label): array => ['label' => $label], $protectedLabels)), JSON_UNESCAPED_UNICODE);
+foreach (range(1, 5) as $i) {
+    $pdo->prepare('UPDATE learner_ai_capability_profiles SET talent_map_json = ?, trend_signals_json = ? WHERE student_id = ?')->execute([$protectedTalents, $protectedTrends, "student-a{$i}"]);
+}
+$protectedAggregate = $repository->aggregate('school-a', 5, '2026-01-01');
+$protectedAggregateJson = mb_strtolower((string) json_encode($protectedAggregate, JSON_UNESCAPED_UNICODE));
+foreach ($protectedLabels as $label) {
+    school_ai_assert(!str_contains($protectedAggregateJson, mb_strtolower($label)), "aggregate suppresses protected label {$label}");
+}
 
 $captured = [];
 $service = new SchoolAiInsightService(
@@ -139,6 +161,31 @@ $schemaFailResult = $serviceMissing->insight('school-user');
 school_ai_assert($schemaFailResult['state'] === 'provider_unavailable', 'missing AI schema fails closed');
 school_ai_assert(($schemaFailResult['error_code'] ?? '') === 'ai_schema_unavailable', 'schema error is categorized safely');
 
+foreach (['school_ai_insights', 'school_ai_refresh_jobs', 'learner_ai_provider_health', 'learner_ai_consent_events'] as $missingTable) {
+    $schemaPdo = new PDO('sqlite::memory:');
+    $schemaPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    foreach ([
+        'CREATE TABLE classes (id TEXT PRIMARY KEY, schoolId TEXT, name TEXT, gradeLevel INTEGER)',
+        'CREATE TABLE student_profiles (id TEXT PRIMARY KEY, classId TEXT, studyStatus TEXT DEFAULT \'active\')',
+        'CREATE TABLE learner_ai_capability_profiles (id TEXT, student_id TEXT, status TEXT, talent_map_json TEXT, trend_signals_json TEXT, evidence_json TEXT, generated_at TEXT, superseded_at TEXT)',
+    ] as $sql) {
+        $schemaPdo->exec($sql);
+    }
+    $requiredAiTables = [
+        'school_ai_insights' => 'CREATE TABLE school_ai_insights (id TEXT, school_id TEXT, aggregate_hash TEXT, payload_json TEXT, model_version TEXT, generated_at TEXT)',
+        'school_ai_refresh_jobs' => 'CREATE TABLE school_ai_refresh_jobs (id TEXT, school_id TEXT, aggregate_hash TEXT, status TEXT, attempts INTEGER, next_retry_at TEXT)',
+        'learner_ai_provider_health' => 'CREATE TABLE learner_ai_provider_health (provider_key TEXT, state TEXT, failure_count INTEGER, opened_at TEXT, updated_at TEXT)',
+        'learner_ai_consent_events' => 'CREATE TABLE learner_ai_consent_events (id TEXT, studentId TEXT, scope TEXT, action TEXT, occurredAt TEXT, requestId TEXT)',
+    ];
+    foreach ($requiredAiTables as $table => $sql) {
+        if ($table !== $missingTable) {
+            $schemaPdo->exec($sql);
+        }
+    }
+    $schemaReadiness = (new SchoolAiAggregateRepository($schemaPdo))->readiness();
+    school_ai_assert($schemaReadiness['ready'] === false && $schemaReadiness['error_code'] === 'ai_schema_unavailable', "missing {$missingTable} fails school AI readiness closed");
+}
+
 // Async queueing contract
 $queued = [];
 $async = new SchoolAiInsightService(
@@ -159,6 +206,88 @@ $async = new SchoolAiInsightService(
 $asyncResult = $async->insight('school-user');
 school_ai_assert($asyncResult['state'] === 'pending' && $queued[0] === 'school-a', 'school GET never invokes Gemini synchronously and enqueues a deterministic refresh');
 
+$currentHash = $repository->aggregateHash($repository->aggregate('school-a', 5));
+$sameHashQueued = 0;
+$sameHashCache = new SchoolAiInsightService(
+    $repository,
+    static fn(): array => ['id' => 'school-a'],
+    static fn(): array => ['summary' => 'must not run'],
+    static fn(): array => ['state' => 'ready_model', 'analysis_origin' => 'model', 'aggregate' => $repository->aggregate('school-a', 5), 'generated_at' => gmdate('Y-m-d H:i:s'), 'model_version' => 'model-v1'],
+    5,
+    null,
+    static fn(): bool => true,
+    'model-v1',
+    false,
+    604800,
+    static function () use (&$sameHashQueued): void { $sameHashQueued++; }
+);
+$sameHashResult = $sameHashCache->insight('school-user');
+school_ai_assert($sameHashResult['state'] === 'ready_model' && $sameHashResult['freshness_status'] === 'current' && $sameHashQueued === 0, 'same-hash valid model cache is current and does not enqueue');
+
+$changedHashQueued = 0;
+$changedHashCache = new SchoolAiInsightService(
+    $repository,
+    static fn(): array => ['id' => 'school-a'],
+    static fn(): array => ['summary' => 'must not run'],
+    static fn(): array => ['state' => 'ready_model', 'analysis_origin' => 'model', 'aggregate' => ['school_id' => 'school-a', 'minimum_cohort' => 5, 'cohorts' => [], 'suppressed_cohort_count' => 0, 'generated_at' => '2026-01-01T00:00:00+00:00'], 'generated_at' => gmdate('Y-m-d H:i:s'), 'model_version' => 'model-v1'],
+    5,
+    null,
+    static fn(): bool => true,
+    'model-v1',
+    false,
+    604800,
+    static function () use (&$changedHashQueued): void { $changedHashQueued++; }
+);
+$changedHashResult = $changedHashCache->insight('school-user');
+school_ai_assert($changedHashResult['state'] === 'stale_model' && $changedHashQueued === 1, 'changed hash with valid LKG enqueues once and returns stale model');
+
+$noQueue = new SchoolAiInsightService(
+    $repository,
+    static fn(): array => ['id' => 'school-a'],
+    static fn(): array => ['summary' => 'must not run'],
+    null,
+    5,
+    null,
+    static fn(): bool => true,
+    'model-v1',
+    false
+);
+$noQueueResult = $noQueue->insight('school-user');
+school_ai_assert($noQueueResult['state'] === 'provider_unavailable' && $noQueueResult['error_code'] === 'ai_queue_unavailable', 'missing queue with no cache fails closed instead of pending forever');
+
+$invalidCacheQueued = 0;
+$invalidCache = new SchoolAiInsightService(
+    $repository,
+    static fn(): array => ['id' => 'school-a'],
+    static fn(): array => ['summary' => 'must not run'],
+    static fn(): array => ['state' => 'ready_model', 'analysis_origin' => 'rule', 'aggregate' => $repository->aggregate('school-a', 5), 'generated_at' => gmdate('Y-m-d H:i:s')],
+    5,
+    null,
+    static fn(): bool => true,
+    'model-v1',
+    false,
+    604800,
+    static function () use (&$invalidCacheQueued): void { $invalidCacheQueued++; }
+);
+$invalidCacheResult = $invalidCache->insight('school-user');
+school_ai_assert($invalidCacheResult['state'] === 'pending' && $invalidCacheQueued === 1, 'non-model or malformed cache is never presented as stale model output');
+
+$cacheFailure = new SchoolAiInsightService(
+    $repository,
+    static fn(): array => ['id' => 'school-a'],
+    static fn(): array => ['summary' => 'must not run'],
+    static function (): array { throw new RuntimeException('database unavailable'); },
+    5,
+    null,
+    static fn(): bool => true,
+    'model-v1',
+    false,
+    604800,
+    static function (): void {}
+);
+$cacheFailureResult = $cacheFailure->insight('school-user');
+school_ai_assert($cacheFailureResult['state'] === 'provider_unavailable' && $cacheFailureResult['error_code'] === 'ai_cache_unavailable', 'cache read failure fails closed with a canonical unavailable state');
+
 // Stale SLA expiration
 $oldAsync = new SchoolAiInsightService(
     $repository,
@@ -176,6 +305,9 @@ school_ai_assert($oldAsync->insight('school-user')['state'] === 'provider_unavai
 
 $prompt = json_encode($captured);
 school_ai_assert(!str_contains($prompt, 'student-a') && !str_contains($prompt, 'student-b') && !str_contains($prompt, '@'), 'school prompt contains aggregate evidence only and no PII values');
+foreach ($protectedLabels as $label) {
+    school_ai_assert(!str_contains(mb_strtolower((string) $prompt), mb_strtolower($label)), "provider payload suppresses protected label {$label}");
+}
 
 $other = $service->insight('other-school-user');
 school_ai_assert(($other['state'] ?? null) === 'insufficient_data', 'tenant resolver cannot read another school aggregate');
@@ -208,5 +340,7 @@ school_ai_assert(str_contains($matrix, "GET /api/v1/schools/me/ai-insights") && 
 school_ai_assert(str_contains($migration, 'school_ai_insights') && str_contains($migration, 'stale_since') && str_contains($migration, 'aggregate_hash'), 'Phase 6 insight persistence migration declares last-known-good fields');
 school_ai_assert(str_contains($worker, 'SchoolAiRefreshWorker') && str_contains($worker, 'runOnce'), 'school insight Gemini work is executed by a queue worker, not the browser request');
 school_ai_assert(!str_contains($client, 'generativelanguage.googleapis') && !str_contains($client, 'x-goog-api-key'), 'school browser never calls Gemini or contains provider credentials');
+school_ai_assert(str_contains($application, '$schoolCircuit=null;') && str_contains($application, '$enterpriseCircuit=null;') && str_contains($application, 'if($schoolCircuit!==null&&$enterpriseCircuit!==null)') && !str_contains($application, 'new CircuitBreaker();'), 'unavailable provider health keeps both AI adapters null');
+school_ai_assert(str_contains($application, '$enqueueSchoolRefresh=$schoolRefreshQueue===null?null:'), 'unavailable school refresh queue is passed as a null callback');
 
 echo "school_ai_insight_test: OK\n";

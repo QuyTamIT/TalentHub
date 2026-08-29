@@ -18,13 +18,20 @@ final class SchoolAiAggregateRepository
             if (!$this->tableExists('classes')
                 || !$this->tableExists('student_profiles')
                 || !$this->tableExists('learner_ai_capability_profiles')
-                || (!$this->tableExists('learner_ai_consent_events') && !$this->tableExists('privacy_consents'))
+                || !$this->tableExists('school_ai_insights')
+                || !$this->tableExists('school_ai_refresh_jobs')
+                || !$this->tableExists('learner_ai_provider_health')
+                || !$this->tableExists('learner_ai_consent_events')
             ) {
                 return ['ready' => false, 'error_code' => 'ai_schema_unavailable'];
             }
             $this->pdo->query('SELECT classId, studyStatus FROM student_profiles LIMIT 0');
             $this->pdo->query('SELECT schoolId, gradeLevel FROM classes LIMIT 0');
             $this->pdo->query('SELECT student_id, status, talent_map_json, trend_signals_json, evidence_json, generated_at, superseded_at FROM learner_ai_capability_profiles LIMIT 0');
+            $this->pdo->query('SELECT studentId, scope, action, occurredAt, requestId FROM learner_ai_consent_events LIMIT 0');
+            $this->pdo->query('SELECT school_id, aggregate_hash, payload_json, model_version, generated_at FROM school_ai_insights LIMIT 0');
+            $this->pdo->query('SELECT school_id, aggregate_hash, status, attempts, next_retry_at FROM school_ai_refresh_jobs LIMIT 0');
+            $this->pdo->query('SELECT provider_key, state, failure_count, opened_at, updated_at FROM learner_ai_provider_health LIMIT 0');
             return ['ready' => true, 'error_code' => null];
         } catch (\Throwable) {
             return ['ready' => false, 'error_code' => 'ai_schema_unavailable'];
@@ -34,14 +41,11 @@ final class SchoolAiAggregateRepository
     /** @return array<string,mixed> */
     public function aggregate(string $schoolId, int $minimumCohort = 5, ?string $retentionCutoff = null): array
     {
-        if ($minimumCohort < 3) {
-            throw new \InvalidArgumentException('School AI minimum cohort must be at least three.');
+        if ($minimumCohort < 5) {
+            throw new \InvalidArgumentException('School AI minimum cohort must be at least five.');
         }
         $cutoff = $retentionCutoff ?? gmdate('Y-m-d H:i:s', time() - 31536000);
-        $eventConsent = $this->tableExists('learner_ai_consent_events');
-        $consentCondition = $eventConsent
-            ? "AND (SELECT COUNT(DISTINCT latest.scope) FROM learner_ai_consent_events latest WHERE latest.studentId=sp.id AND latest.action='granted' AND latest.scope IN ('assessment','skills','activity','evaluation') AND NOT EXISTS (SELECT 1 FROM learner_ai_consent_events newer WHERE newer.studentId=latest.studentId AND newer.scope=latest.scope AND (newer.occurredAt>latest.occurredAt OR (newer.occurredAt=latest.occurredAt AND newer.requestId>latest.requestId))))=4"
-            : "AND NOT EXISTS (SELECT 1 FROM privacy_consents pc WHERE pc.studentId=sp.id AND pc.scope IN ('assessment','skills','activity','evaluation') AND (pc.isGranted=0 OR pc.revokedAt IS NOT NULL)) AND (SELECT COUNT(DISTINCT granted.scope) FROM privacy_consents granted WHERE granted.studentId=sp.id AND granted.scope IN ('assessment','skills','activity','evaluation') AND granted.isGranted=1 AND granted.revokedAt IS NULL)=4";
+        $consentCondition = "AND (SELECT COUNT(DISTINCT latest.scope) FROM learner_ai_consent_events latest WHERE latest.studentId=sp.id AND latest.action='granted' AND latest.scope IN ('assessment','skills','activity','evaluation') AND NOT EXISTS (SELECT 1 FROM learner_ai_consent_events newer WHERE newer.studentId=latest.studentId AND newer.scope=latest.scope AND (newer.occurredAt>latest.occurredAt OR (newer.occurredAt=latest.occurredAt AND newer.requestId>latest.requestId))))=4";
 
         $statement = $this->pdo->prepare(
             "SELECT c.id AS class_id, c.name AS class_name, c.gradeLevel AS grade_level, p.student_id, p.talent_map_json, p.trend_signals_json, p.evidence_json, p.generated_at, p.status "
@@ -175,7 +179,7 @@ final class SchoolAiAggregateRepository
     private function safeLabel(string $value): string
     {
         $value = trim(preg_replace('/\s+/u', ' ', $value) ?? '');
-        if ($value === '' || mb_strlen($value) > 120 || preg_match('/@|\b(?:student|học sinh|email|phone|điện thoại|sdt|cccd|giới tính|tôn giáo|dân tộc|khuyết tật)\b/i', $value)) {
+        if ($value === '' || mb_strlen($value) > 120 || preg_match('/@|\b(?:student|học sinh|email|phone|điện thoại|sdt|cccd|age|gender|sex|race|ethnicity|religion|disability|health|nationality|dob|date of birth|tuổi|giới tính|dân tộc|tôn giáo|khuyết tật|sức khỏe|ngày sinh)\b/iu', $value)) {
             return '';
         }
         return $value;

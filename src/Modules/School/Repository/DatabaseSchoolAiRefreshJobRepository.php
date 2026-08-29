@@ -13,14 +13,14 @@ final class DatabaseSchoolAiRefreshJobRepository
 
     public function enqueue(string $schoolId, string $aggregateHash): ?int
     {
-        // First check if an existing job with this exact hash is already pending or processing
+        // Every existing school/hash row is terminally idempotent, regardless of status.
         $stmt = $this->pdo->prepare(
-            "SELECT id FROM school_ai_refresh_jobs WHERE school_id = ? AND aggregate_hash = ? AND status IN ('pending', 'processing') LIMIT 1"
+            'SELECT id FROM school_ai_refresh_jobs WHERE school_id = ? AND aggregate_hash = ? LIMIT 1'
         );
         $stmt->execute([$schoolId, $aggregateHash]);
         $existing = $stmt->fetch(PDO::FETCH_ASSOC);
         if (is_array($existing)) {
-            return (int) $existing['id'];
+            return null;
         }
 
         // Cancel older pending jobs for this school with different hash

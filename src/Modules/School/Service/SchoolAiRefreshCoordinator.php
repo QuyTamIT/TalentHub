@@ -52,15 +52,9 @@ final class SchoolAiRefreshCoordinator
                 $aggregate = $this->aggregates->aggregate($schoolId, $this->minimumCohort);
                 $hash = $this->aggregates->aggregateHash($aggregate);
 
-                $checkStmt = $this->pdo->prepare(
-                    "SELECT 1 FROM school_ai_refresh_jobs WHERE school_id = ? AND aggregate_hash = ? AND status IN ('pending', 'processing') LIMIT 1"
-                );
-                $checkStmt->execute([$schoolId, $hash]);
-                if ($checkStmt->fetchColumn() !== false) {
-                    continue;
+                if ($this->jobs->enqueue($schoolId, $hash) !== null) {
+                    $jobCount++;
                 }
-                $this->jobs->enqueue($schoolId, $hash);
-                $jobCount++;
             } catch (\Throwable) {
                 throw new \RuntimeException('school_refresh_dispatch_failed');
             }

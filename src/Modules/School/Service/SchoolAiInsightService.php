@@ -97,14 +97,13 @@ final class SchoolAiInsightService
         }
 
         if (!$this->synchronousModel) {
-            if ($this->enqueueRefresh !== null) {
-                try {
-                    ($this->enqueueRefresh)($schoolId, $aggregateHash);
-                } catch (\Throwable) {
-                }
+            try {
+                $cached = $this->lastKnownGood ? ($this->lastKnownGood)($schoolId) : null;
+            } catch (\Throwable) {
+                return $this->cacheUnavailable($cohortVersion, $aggregate);
             }
-            $cached = $this->lastKnownGood ? ($this->lastKnownGood)($schoolId) : null;
-            if (is_array($cached)) {
+            $cached = is_array($cached) && $this->isValidModelCache($cached) ? $cached : null;
+            if ($cached !== null) {
                 $generatedAt = strtotime((string) ($cached['generated_at'] ?? ''));
                 if ($generatedAt !== false && (time() - $generatedAt) > $this->maxStaleSeconds) {
                     return [
@@ -121,6 +120,31 @@ final class SchoolAiInsightService
                         'model_version' => $this->modelVersion,
                     ];
                 }
+                $cachedAggregate = $cached['aggregate'] ?? null;
+                if (is_array($cachedAggregate) && hash_equals($aggregateHash, $this->aggregates->aggregateHash($cachedAggregate))) {
+                    return array_replace($cached, [
+                        'capability' => 'school_insight',
+                        'state' => 'ready_model',
+                        'status' => 'ready_model',
+                        'freshness_status' => 'current',
+                        'analysis_origin' => 'model',
+                        'cohort_version' => $cohortVersion,
+                        'aggregate' => $aggregate,
+                        'evidence' => $this->evidence($aggregate),
+                        'model_version' => $this->modelVersion,
+                    ]);
+                }
+            }
+
+            $queueAvailable = $this->enqueueRefresh !== null;
+            if ($queueAvailable) {
+                try {
+                    ($this->enqueueRefresh)($schoolId, $aggregateHash);
+                } catch (\Throwable) {
+                    $queueAvailable = false;
+                }
+            }
+            if ($cached !== null) {
                 return array_replace($cached, [
                     'capability' => 'school_insight',
                     'state' => 'stale_model',
@@ -133,6 +157,20 @@ final class SchoolAiInsightService
                     'last_known_good' => true,
                     'stale_since' => $cached['stale_since'] ?? gmdate('c'),
                 ]);
+            }
+            if (!$queueAvailable) {
+                return [
+                    'capability' => 'school_insight',
+                    'state' => 'provider_unavailable',
+                    'status' => 'provider_unavailable',
+                    'error_code' => 'ai_queue_unavailable',
+                    'analysis_origin' => null,
+                    'cohort_version' => $cohortVersion,
+                    'aggregate' => $aggregate,
+                    'explanation' => null,
+                    'evidence' => $this->evidence($aggregate),
+                    'model_version' => $this->modelVersion,
+                ];
             }
             return [
                 'capability' => 'school_insight',
@@ -171,8 +209,13 @@ final class SchoolAiInsightService
             }
             return $result;
         } catch (\Throwable) {
-            $cached = $this->lastKnownGood ? ($this->lastKnownGood)($schoolId) : null;
-            if (is_array($cached)) {
+            try {
+                $cached = $this->lastKnownGood ? ($this->lastKnownGood)($schoolId) : null;
+            } catch (\Throwable) {
+                return $this->cacheUnavailable($cohortVersion, $aggregate);
+            }
+            $cached = is_array($cached) && $this->isValidModelCache($cached) ? $cached : null;
+            if ($cached !== null) {
                 $generatedAt = strtotime((string) ($cached['generated_at'] ?? ''));
                 if ($generatedAt !== false && (time() - $generatedAt) > $this->maxStaleSeconds) {
                     return [
@@ -345,9 +388,36 @@ final class SchoolAiInsightService
     private function safeText(string $value): string
     {
         $value = trim(preg_replace('/\s+/u', ' ', $value) ?? '');
-        if ($value === '' || mb_strlen($value) > 2000 || preg_match('/@|\b(?:student|học sinh|email|phone|điện thoại|sdt|cccd|giới tính|tôn giáo|dân tộc|khuyết tật)\b/i', $value)) {
+        if ($value === '' || mb_strlen($value) > 2000 || preg_match('/@|\b(?:student|học sinh|email|phone|điện thoại|sdt|cccd|age|gender|sex|race|ethnicity|religion|disability|health|nationality|dob|date of birth|tuổi|giới tính|dân tộc|tôn giáo|khuyết tật|sức khỏe|ngày sinh)\b/iu', $value)) {
             return '';
         }
         return $value;
+    }
+
+    /** @param array<string,mixed> $cached */
+    private function isValidModelCache(array $cached): bool
+    {
+        return ($cached['analysis_origin'] ?? null) === 'model'
+            && in_array($cached['state'] ?? null, ['ready_model', 'stale_model'], true)
+            && strtotime((string) ($cached['generated_at'] ?? '')) !== false;
+    }
+
+    /** @param array<string,mixed> $aggregate @return array<string,mixed> */
+    private function cacheUnavailable(string $cohortVersion, array $aggregate): array
+    {
+        return [
+            'capability' => 'school_insight',
+            'state' => 'provider_unavailable',
+            'status' => 'provider_unavailable',
+            'freshness_status' => 'unavailable',
+            'error_code' => 'ai_cache_unavailable',
+            'analysis_origin' => null,
+            'cohort_version' => $cohortVersion,
+            'aggregate' => $aggregate,
+            'explanation' => null,
+            'evidence' => $this->evidence($aggregate),
+            'model_version' => $this->modelVersion,
+            'generated_at' => null,
+        ];
     }
 }

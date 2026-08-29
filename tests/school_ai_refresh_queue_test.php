@@ -38,9 +38,10 @@ $pdo->exec('CREATE TABLE school_ai_insights (id TEXT PRIMARY KEY, school_id TEXT
 
 $queue = new DatabaseSchoolAiRefreshJobRepository($pdo);
 $hash = str_repeat('a', 64);
-$queue->enqueue('school-a', $hash);
-$queue->enqueue('school-a', $hash);
+$firstJobId = $queue->enqueue('school-a', $hash);
+$duplicatePending = $queue->enqueue('school-a', $hash);
 school_queue_assert((int) $pdo->query('SELECT COUNT(*) FROM school_ai_refresh_jobs')->fetchColumn() === 1, 'queue enqueue is idempotent by school and aggregate hash');
+school_queue_assert($firstJobId !== null && $duplicatePending === null, 'same-hash pending job is an idempotent no-op');
 
 for ($attempt = 1; $attempt <= 3; $attempt++) {
     $job = $queue->claim();
@@ -51,6 +52,7 @@ for ($attempt = 1; $attempt <= 3; $attempt++) {
     }
 }
 school_queue_assert($pdo->query("SELECT status FROM school_ai_refresh_jobs")->fetchColumn() === 'dead_letter', 'third failed attempt moves school insight refresh to dead-letter');
+school_queue_assert($queue->enqueue('school-a', $hash) === null, 'same-hash dead-letter job is an idempotent no-op');
 
 // Test cancelSuperseded, complete, and cancel
 $hash1 = str_repeat('1', 64);
@@ -59,6 +61,7 @@ $queue->enqueue('school-b', $hash1);
 $queue->cancelSuperseded('school-b', $hash2);
 $cancelled = $pdo->query("SELECT status FROM school_ai_refresh_jobs WHERE school_id='school-b' AND aggregate_hash='$hash1'")->fetchColumn();
 school_queue_assert($cancelled === 'cancelled', 'cancelSuperseded marks older pending hash as cancelled');
+school_queue_assert($queue->enqueue('school-b', $hash1) === null, 'same-hash cancelled job is an idempotent no-op');
 
 $job2Id = $queue->enqueue('school-b', $hash2);
 school_queue_assert($job2Id !== null, 'new aggregate hash enqueues new job');
@@ -67,6 +70,7 @@ school_queue_assert($claim2 !== null && (int) $claim2['id'] === $job2Id, 'new jo
 $queue->complete((int) $claim2['id']);
 $completedStatus = $pdo->query("SELECT status FROM school_ai_refresh_jobs WHERE id=$job2Id")->fetchColumn();
 school_queue_assert($completedStatus === 'completed', 'complete marks job as completed');
+school_queue_assert($queue->enqueue('school-b', $hash2) === null, 'same-hash completed job is an idempotent no-op without unique-key failure');
 
 // Test SchoolAiRefreshCoordinator
 $pdo->exec("INSERT INTO classes VALUES ('c1', 'school-coord-1', '10A1', 10)");
@@ -89,5 +93,11 @@ school_queue_assert($dispatchResult['job_count'] === 1, 'coordinator enqueues 1 
 // Redundant dispatch for same aggregate state should not create new row
 $dispatchResult2 = $coordinator->dispatchForStudents(['student-coord-3']);
 school_queue_assert($dispatchResult2['job_count'] === 0, 'unchanged aggregate hash does not create duplicate pending job');
+
+$coordinatorJob = $queue->claim();
+school_queue_assert($coordinatorJob !== null, 'coordinator job can be claimed for terminal dedupe coverage');
+$queue->complete((int) $coordinatorJob['id']);
+$dispatchResult3 = $coordinator->dispatchForStudents(['student-coord-4']);
+school_queue_assert($dispatchResult3['job_count'] === 0, 'coordinator delegates terminal same-hash dedupe to repository and counts no row');
 
 echo "school_ai_refresh_queue_test: OK\n";
