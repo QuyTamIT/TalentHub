@@ -68,6 +68,10 @@ function e2e_pdo(): PDO
     foreach ($opportunityExtension->migration->statements('sqlite') as $statement) {
         $pdo->exec($statement);
     }
+    $analysisExtension = require dirname(__DIR__) . '/Database/migrations/learner/016_add_learner_opportunity_analysis.php';
+    foreach ($analysisExtension->migration->statements('sqlite') as $statement) {
+        $pdo->exec($statement);
+    }
     return $pdo;
 }
 
@@ -512,7 +516,13 @@ $provider = new E2eFakeGeminiProvider(ProviderResponse::success(e2e_model_items(
 $service = e2e_service($pdo, $provider);
 
 $generated = $service->generate($studentId, 'request-e2e-0001', 'idempotency-e2e-0001');
-e2e_assert(($generated['state'] ?? null) === 'ready_model', 'generate returns ready_model, got ' . var_export($generated['state'] ?? null, true));
+$generatedRuns = $pdo->query("SELECT status, safeErrorCode FROM learner_recommendation_runs WHERE capability = 'opportunity_match' ORDER BY createdAt")->fetchAll(PDO::FETCH_ASSOC);
+e2e_assert(
+    ($generated['state'] ?? null) === 'ready_model',
+    'generate returns ready_model, got ' . var_export($generated['state'] ?? null, true)
+        . '; provider_requests=' . count($provider->requests())
+        . '; runs=' . json_encode($generatedRuns, JSON_UNESCAPED_SLASHES),
+);
 e2e_assert(count($generated['items']) === 3, 'generation returns exactly three items');
 $generatedIds = e2e_catalog_ids($generated['items']);
 e2e_assert(count(array_unique($generatedIds)) === 3, 'three distinct catalog ids are generated');

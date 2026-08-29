@@ -303,6 +303,54 @@ service_assert(($analysisCompleted['status'] ?? '') === 'completed', 'zero-item 
 service_assert(($analysisCompleted['state'] ?? '') === 'no_fit_model', 'zero-item explanation run preserves state');
 service_assert(($analysisCompleted['analysis']['headline'] ?? '') === 'Chưa có cơ hội đủ phù hợp', 'run-level analysis round-trips');
 
+$aliasPdo = service_test_pdo();
+$aliasRepository = new \TalentHub\Learner\Ai\Persistence\DatabaseOpportunityMatchRepository(
+    $aliasPdo,
+    '9router_gemini',
+    'ag/gemini-3.7-flash-high',
+    \TalentHub\Learner\Ai\Model\OpportunityMatchPromptRegistry::VERSION,
+    static fn (): string => '2026-08-29T00:00:00.000000+00:00',
+);
+$aliasBaseInput = service_test_input();
+$aliasInput = new RecommendationInput(
+    $aliasBaseInput->payload(),
+    $aliasBaseInput->sourceUpdatedAt(),
+    $aliasBaseInput->qualityFlags(),
+    [
+        ...$aliasBaseInput->evidenceReferences(),
+        [
+            'source_type' => 'activity_experience',
+            'source_id' => 'shared-checkin-1',
+            'observed_at' => '2026-08-20T00:00:00.000000+00:00',
+            'safe_value' => ['activity_category' => 'STEM', 'hours' => 2],
+        ],
+        [
+            'source_type' => 'checkin',
+            'source_id' => 'shared-checkin-1',
+            'observed_at' => '2026-08-20T00:00:00.000000+00:00',
+            'safe_value' => [
+                'activity_category' => 'STEM',
+                'activity_id' => 'shared-checkin-1',
+                'hours' => 2,
+                'status' => 'confirmed',
+            ],
+        ],
+    ],
+);
+$aliasPending = $aliasRepository->createPendingRun('student-1', $aliasInput, new RecommendationContext(
+    $analysisDecision->allowedScopes(),
+    'request-alias-0001',
+    'idempotency-alias-000001',
+    'student-1',
+    $analysisDecision->decisionHash(),
+    $analysisDecision->policyVersion(),
+));
+service_assert(($aliasPending['status'] ?? '') === 'pending', 'checkin and activity_experience aliases do not block a pending run');
+$aliasEvidence = $aliasPdo->query("SELECT sourceType, sourceId, safeValueJson FROM learner_recommendation_snapshot_evidence WHERE sourceType = 'activity_experience' AND sourceId = 'shared-checkin-1'")->fetchAll(PDO::FETCH_ASSOC);
+service_assert(count($aliasEvidence) === 1, 'same activity evidence aliases normalize to one snapshot row');
+$aliasSafeValue = json_decode((string) ($aliasEvidence[0]['safeValueJson'] ?? ''), true);
+service_assert(($aliasSafeValue['status'] ?? '') === 'confirmed', 'alias normalization preserves the richer consent-safe evidence');
+
 function service_test_catalog_ids(array $items): array
 {
     return array_map(static fn (array $item): string => (string) $item['catalog_id'], $items);

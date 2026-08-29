@@ -327,7 +327,18 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
                 $logicalPair = [$existing['logicalType'], $sourceType];
                 sort($logicalPair, SORT_STRING);
                 if ($logicalPair !== ['catalog', 'opportunity']) {
-                    throw new RuntimeException('Opportunity match evidence normalization collision: ' . $storageKey);
+                    if (!self::compatibleEvidenceAliases($existing['logicalType'], $sourceType, $persistableType)) {
+                        throw new RuntimeException('Opportunity match evidence normalization collision: ' . $storageKey);
+                    }
+                    $candidate = [
+                        'logicalType' => $sourceType,
+                        'sourceType' => $persistableType,
+                        'sourceId' => $sourceId,
+                        'observedAt' => $observedAt,
+                        'safeValueJson' => $safeValueJson,
+                    ];
+                    $normalized[$storageKey] = self::preferRicherEvidence($existing, $candidate);
+                    continue;
                 }
                 if ($sourceType === 'opportunity') {
                     $normalized[$storageKey] = [
@@ -498,6 +509,63 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
             'catalog' => 'opportunity',
             default => $sourceType,
         };
+    }
+
+    private static function compatibleEvidenceAliases(string $leftType, string $rightType, string $persistableType): bool
+    {
+        $families = [
+            'skill' => ['skill', 'certificate', 'badge', 'achievement'],
+            'assessment' => ['assessment', 'profile'],
+            'activity_experience' => ['activity_experience', 'project', 'activity', 'progress', 'checkin'],
+            'evaluation' => ['evaluation', 'mentor_evaluation', 'teacher_feedback', 'roadmap_feedback'],
+        ];
+        $family = $families[$persistableType] ?? null;
+        return is_array($family)
+            && in_array($leftType, $family, true)
+            && in_array($rightType, $family, true);
+    }
+
+    /**
+     * Two consent-safe aliases can describe the same canonical evidence row.
+     * Keep the more informative record without merging possibly conflicting
+     * fields. Ties are resolved deterministically so snapshot hashes remain
+     * stable regardless of source registration order.
+     *
+     * @param array{logicalType:string,sourceType:string,sourceId:string,observedAt:?string,safeValueJson:string} $left
+     * @param array{logicalType:string,sourceType:string,sourceId:string,observedAt:?string,safeValueJson:string} $right
+     * @return array{logicalType:string,sourceType:string,sourceId:string,observedAt:?string,safeValueJson:string}
+     */
+    private static function preferRicherEvidence(array $left, array $right): array
+    {
+        $leftValue = self::decodeJson($left['safeValueJson']);
+        $rightValue = self::decodeJson($right['safeValueJson']);
+        $leftRichness = self::evidenceRichness($leftValue);
+        $rightRichness = self::evidenceRichness($rightValue);
+        if ($leftRichness !== $rightRichness) {
+            return $rightRichness > $leftRichness ? $right : $left;
+        }
+
+        $leftObserved = $left['observedAt'] ?? '';
+        $rightObserved = $right['observedAt'] ?? '';
+        if ($leftObserved !== $rightObserved) {
+            return strcmp($rightObserved, $leftObserved) > 0 ? $right : $left;
+        }
+
+        $leftTieBreak = $left['logicalType'] . "\0" . $left['safeValueJson'];
+        $rightTieBreak = $right['logicalType'] . "\0" . $right['safeValueJson'];
+        return strcmp($rightTieBreak, $leftTieBreak) < 0 ? $right : $left;
+    }
+
+    private static function evidenceRichness(mixed $value): int
+    {
+        if (!is_array($value)) {
+            return $value === null || $value === '' ? 0 : 1;
+        }
+        $score = count($value);
+        foreach ($value as $child) {
+            $score += self::evidenceRichness($child);
+        }
+        return $score;
     }
 
     private function findSnapshotId(string $studentId, string $contentHash): ?string
