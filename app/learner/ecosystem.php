@@ -35,7 +35,7 @@ function learner_ecosystem_date(string $date): string
     <meta name="description" content="Khám phá doanh nghiệp và các cơ hội phù hợp dành cho học sinh, sinh viên trên TalentHub.">
     <title>Hệ sinh thái &amp; Cơ hội | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-ecosystem" data-ecosystem-page data-initial-tab="<?= learner_escape($initialTab); ?>">
     <div class="learner-layout">

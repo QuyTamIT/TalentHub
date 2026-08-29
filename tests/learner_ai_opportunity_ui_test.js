@@ -154,6 +154,7 @@ test('no-fit analysis renders visual metrics, structured insights and evidence s
     assert.match(source, /humanizeOpportunityLabel/);
     assert.match(learnerCss, /learner-opportunity-ai__analysis-metrics/);
     assert.match(learnerCss, /learner-opportunity-ai__analysis-chip/);
+    assert.match(ecosystemSource, /learner\.css\?v=/);
 });
 
 test('no-fit renderer converts a legacy English Gemini result into a Vietnamese visual analysis', () => {
