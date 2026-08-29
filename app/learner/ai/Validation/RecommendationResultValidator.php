@@ -55,16 +55,21 @@ final class RecommendationResultValidator
             if ($this->allowedCatalogIds !== [] && !isset($this->allowedCatalogIds[$item->catalogId()])) {
                 throw new \RuntimeException('Recommendation catalog id is invalid or unavailable.');
             }
-            $hasMatchingCatalogEvidence = false;
+            $matchingCatalogEvidence = null;
             foreach ($item->evidence() as $evidence) {
                 if (in_array($evidence->sourceType(), ['opportunity', 'catalog'], true)
                     && hash_equals($item->catalogId(), $evidence->sourceId())) {
-                    $hasMatchingCatalogEvidence = true;
+                    $matchingCatalogEvidence = $evidence;
                     break;
                 }
             }
-            if (!$hasMatchingCatalogEvidence) {
+            if ($matchingCatalogEvidence === null) {
                 throw new \RuntimeException('Recommendation catalog id must match catalog evidence on the same item.');
+            }
+            if ($matchingCatalogEvidence->sourceType() === 'opportunity'
+                && ($matchingCatalogEvidence->safeValue()['opportunity_type'] ?? null) === 'internship'
+                && ($item->action()['type'] ?? null) !== 'open_catalog_item') {
+                throw new \RuntimeException('Enterprise internship recommendations must use their canonical catalog action.');
             }
         }
         if ($item->reason() !== null && $this->containsUnsupportedClaim($item->reason())) {

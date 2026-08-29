@@ -54,6 +54,9 @@ assert.equal(
 assert.match(ecosystemPage, /learner_ecosystem_partner_has_value/, 'ecosystem cards use the shared source-aware optional predicate');
 assert.match(partnerPage, /learner_ecosystem_partner_has_value/, 'partner detail uses the shared source-aware optional predicate');
 assert.match(ecosystemPage, /data-ecosystem-item-type="internship"/, 'ecosystem marks enterprise internship items');
+assert.match(ecosystemPage, /id="opportunity-<\?= learner_escape\(\$opportunity\['id'\]\); \?>"/, 'ecosystem gives each real opportunity a stable deep-link target');
+assert.match(learnerSource, /searchParams\.get\('focus'\)/, 'ecosystem reads the requested opportunity focus from the canonical URL');
+assert.match(learnerSource, /learner-ecosystem-focus/, 'ecosystem visually focuses the opportunity selected by an AI recommendation');
 assert.doesNotMatch(ecosystemPage, /learner_ecosystem_school_activities/, 'ecosystem opportunities do not load school activities');
 assert.doesNotMatch(ecosystemPage, /data-ecosystem-item-type="school-activity"/, 'ecosystem opportunities exclude school activity items');
 assert.doesNotMatch(ecosystemPage, /activity-detail\.php\?id=/, 'ecosystem opportunities never route into school QR activities');

@@ -158,7 +158,7 @@ function learner_ecosystem_date(string $date): string
                     </div>
                     <div class="learner-opportunity-grid" data-ecosystem-results>
                         <?php foreach ($activeOpportunities as $opportunity): ?>
-                            <article class="learner-opportunity-card learner-card" data-ecosystem-item data-ecosystem-item-type="internship" data-search="<?= learner_escape($opportunity['title'] . ' ' . $opportunity['partner_name'] . ' ' . $opportunity['field'] . ' ' . $opportunity['location']); ?>" data-field="<?= learner_escape($opportunity['field']); ?>" data-location="<?= learner_escape($opportunity['location']); ?>">
+                            <article class="learner-opportunity-card learner-card" id="opportunity-<?= learner_escape($opportunity['id']); ?>" data-ecosystem-item data-ecosystem-item-type="internship" data-opportunity-id="<?= learner_escape($opportunity['id']); ?>" data-search="<?= learner_escape($opportunity['title'] . ' ' . $opportunity['partner_name'] . ' ' . $opportunity['field'] . ' ' . $opportunity['location']); ?>" data-field="<?= learner_escape($opportunity['field']); ?>" data-location="<?= learner_escape($opportunity['location']); ?>">
                                 <div class="learner-opportunity-card__top">
                                     <span class="learner-badge <?= $opportunity['partner_type'] === 'enterprise' ? 'learner-badge--primary' : 'learner-badge--secondary'; ?>">
                                         <?= learner_escape($opportunity['partner_type'] === 'enterprise' ? 'Thực tập' : 'Trường học'); ?>

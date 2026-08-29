@@ -19,6 +19,7 @@ use TalentHub\Learner\Ai\Validation\RecommendationResultValidator;
 
 require_once dirname(__DIR__) . '/app/learner/ai/bootstrap.php';
 require_once __DIR__ . '/learner_ai_test_consent.php';
+require_once dirname(__DIR__) . '/app/learner/data/Enums/Statuses.php';
 
 function provider_assert(bool $condition, string $message): void
 {
@@ -40,6 +41,10 @@ function provider_expect(callable $operation, string $message): void
 provider_assert(class_exists(RecommendationConfig::class), 'provider config exists');
 provider_assert(interface_exists('TalentHub\\Learner\\Ai\\Contracts\\RecommendationProvider'), 'provider contract exists');
 provider_assert(class_exists(ModelRecommendationEngine::class), 'model engine exists');
+provider_assert(
+    \TalentHub\Learner\Data\Enums\OpportunityStatus::normalize('published') === \TalentHub\Learner\Data\Enums\OpportunityStatus::Active,
+    'published enterprise opportunities normalize to the learner-visible active state',
+);
 
 $disabled = RecommendationConfig::fromEnvironment([]);
 provider_assert($disabled->enabled() === false, 'AI provider is disabled by default');
@@ -138,7 +143,11 @@ $input = new RecommendationInput(
 $context = new RecommendationContext(['activity', 'assessment', 'evaluation', 'skills'], 'request-provider-0001', 'idempotency-provider-0001', 'student-provider-1');
 $promptRegistry = new PromptRegistry();
 $request = $promptRegistry->create($input, $context);
-provider_assert($request->promptVersion() === 'learner-recommendation-1.0.0', 'provider request records a versioned prompt');
+provider_assert($request->promptVersion() === 'learner-recommendation-1.0.1', 'provider request records the evidence-only prompt version');
+provider_assert(
+    str_contains(implode(' ', $request->payload()['instructions'] ?? []), 'never invent a project or opportunity'),
+    'recommendation prompt forbids fabricated projects and enterprise opportunities',
+);
 provider_assert($request->evidenceReferenceIds() === ['evidence-001'], 'provider uses opaque evidence references');
 $requestJson = json_encode($request->payload(), JSON_THROW_ON_ERROR);
 provider_assert(!str_contains($requestJson, 'private-skill-id') && !str_contains($requestJson, 'private@example.test'), 'provider request excludes private IDs and values');

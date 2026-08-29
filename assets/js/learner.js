@@ -511,6 +511,21 @@
                 updateEcosystemResults();
             });
             activateEcosystemTab(ecosystemPage.dataset.initialTab || 'enterprises');
+
+            const focusedOpportunityId = new URL(global.location.href).searchParams.get('focus');
+            if (typeof focusedOpportunityId === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(focusedOpportunityId)) {
+                const focusedOpportunity = Array.from(ecosystemPage.querySelectorAll('[data-opportunity-id]'))
+                    .find((item) => item.dataset.opportunityId === focusedOpportunityId);
+                if (focusedOpportunity) {
+                    focusedOpportunity.classList.add('learner-ecosystem-focus');
+                    focusedOpportunity.setAttribute('tabindex', '-1');
+                    global.requestAnimationFrame(() => {
+                        const reduceMotion = global.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+                        focusedOpportunity.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+                        focusedOpportunity.focus({ preventScroll: true });
+                    });
+                }
+            }
         }
 
         const applicationItems = Array.from(document.querySelectorAll('[data-application-item]'));

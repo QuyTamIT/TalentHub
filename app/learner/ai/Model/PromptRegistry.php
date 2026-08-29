@@ -11,7 +11,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
 
 final class PromptRegistry
 {
-    public const VERSION = 'learner-recommendation-1.0.0';
+    public const VERSION = 'learner-recommendation-1.0.1';
 
     public function create(RecommendationInput $input, RecommendationContext $context): ProviderRequest
     {
@@ -43,6 +43,9 @@ final class PromptRegistry
                 'If no catalog opportunity is eligible, use evidence-backed development, activity, presentation-practice, or career-group actions instead of returning no items.',
                 'Every item must include a concise reason or explanation grounded in its evidence.',
                 'Use catalog_id only when it matches a supplied catalog evidence source; never invent catalog IDs.',
+                'Use only supplied evidence records; never invent a project or opportunity, title, partner, identifier, deadline, location, or URL.',
+                'Treat an item as an enterprise opportunity only when it cites supplied evidence whose source_type is opportunity and opportunity_type is internship.',
+                'For an enterprise internship, set catalog_id to that opportunity source ID and use action.type open_catalog_item with the same catalog_id.',
                 'Every item must cite one or more supplied evidence_ref_ids.',
                 'item_type must be one of strength, improvement, development, activity, roadmap, group, community.',
                 'action.type must be one of develop_skill, continue_technical_activity, practice_presentation, explore_career_group, register_activity, join_group, open_catalog_item.',

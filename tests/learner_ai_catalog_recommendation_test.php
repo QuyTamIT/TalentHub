@@ -32,6 +32,12 @@ $catalogActionItem = new RecommendationItem('activity', 'Catalog action', 'Catal
 catalog_assert(true, 'stable non-UUID catalog IDs are accepted only when allowlisted and evidenced');
 $mismatched = new RecommendationItem('activity', 'Wrong evidence', 'Must be rejected.', 11, 'medium', ['type' => 'register_activity', 'career_group' => 'technical', 'activity_source_id' => 'workshop-a'], [new RecommendationEvidence('catalog', 'workshop-b', '2029-01-01T00:00:00.000000+00:00', 'catalog_match', ['catalog_id' => 'workshop-b'])], 'career_technical', 'workshop-a', 'Wrong evidence.', ['eligible_catalog']);
 try { (new RecommendationResultValidator(['workshop-a', 'workshop-b']))->validate(new RecommendationResult('rule', 'learner-rules-1.0.0', null, null, null, null, [$mismatched])); catalog_assert(false, 'catalog id must match evidence on the same item'); } catch (RuntimeException) {}
+$enterpriseEvidence = new RecommendationEvidence('opportunity', 'internship-a', '2029-01-01T00:00:00.000000+00:00', 'catalog_match', ['catalog_id' => 'internship-a', 'opportunity_type' => 'internship']);
+$wrongEnterpriseAction = new RecommendationItem('activity', 'Internship', 'Must use its canonical ecosystem action.', 11, 'medium', ['type' => 'register_activity', 'career_group' => 'technical', 'activity_source_id' => '123e4567-e89b-12d3-a456-426614174000'], [$enterpriseEvidence], 'career_technical', 'internship-a');
+try { (new RecommendationResultValidator(['internship-a']))->validate(new RecommendationResult('model', null, 'provider', 'model', 'prompt', null, [$wrongEnterpriseAction])); catalog_assert(false, 'enterprise internship evidence cannot be redirected into the school activity workflow'); } catch (RuntimeException) {}
+$enterpriseAction = new RecommendationItem('activity', 'Internship', 'Uses its canonical ecosystem action.', 11, 'medium', ['type' => 'open_catalog_item', 'catalog_id' => 'internship-a'], [$enterpriseEvidence], 'career_technical', 'internship-a');
+(new RecommendationResultValidator(['internship-a']))->validate(new RecommendationResult('model', null, 'provider', 'model', 'prompt', null, [$enterpriseAction]));
+catalog_assert(true, 'enterprise internship evidence accepts only its catalog-backed navigation action');
 
 $pdo = new PDO('sqlite::memory:');
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);

@@ -305,7 +305,7 @@ test('current hero payload renders two activities and one strength with no empty
     global.document = originalDocument;
   }
 
-  assert.deepEqual(list.children.map((section) => section.children[0].textContent), [
+  assert.deepEqual(list.children.map((section) => section.children[0].children[0].textContent), [
     'Điểm mạnh nổi bật', 'Hoạt động phù hợp',
   ]);
   assert.deepEqual(list.children.map((section) => section.children[1].children.length), [1, 2]);
@@ -313,4 +313,45 @@ test('current hero payload renders two activities and one strength with no empty
   const actionLink = activityCard.children.find((child) => child.dataset?.aiRecommendationCta === 'true');
   assert.equal(actionLink.dataset.aiRecommendationItem, 'activity-1');
   assert.equal(actionLink.dataset.aiRecommendationAction, 'register_activity');
+});
+
+test('enterprise opportunity card binds canonical title and CTA to its catalog id', () => {
+  const { createDomView } = require(modulePath);
+  class FakeElement {
+    constructor() { this.children = []; this.dataset = {}; this.attributes = {}; this.hidden = false; }
+    get firstChild() { return this.children[0] || null; }
+    append(...children) { this.children.push(...children); }
+    appendChild(child) { this.children.push(child); return child; }
+    removeChild(child) { this.children.splice(this.children.indexOf(child), 1); }
+    setAttribute(name, value) { this.attributes[name] = value; }
+    focus() {}
+  }
+  const list = new FakeElement();
+  const root = { querySelector: (selector) => selector === '[data-ai-result-list]' ? list : null };
+  const originalDocument = global.document;
+  global.document = { createElement: () => new FakeElement() };
+
+  try {
+    createDomView(root).render('ready-model', {
+      state: 'ready_model',
+      items: [{
+        item_id: 'recommendation-1', item_type: 'activity', title: 'Tên AI tự đặt', catalog_id: 'internship-b',
+        action: { type: 'register_activity', activity_source_id: '123e4567-e89b-12d3-a456-426614174000' },
+        evidence: [
+          { source_type: 'catalog', source_id: 'project-a', safe_value: { title: 'Sai nguồn', item_type: 'project', url: '/wrong' } },
+          { source_type: 'opportunity', source_id: 'internship-b', safe_value: { title: 'Kỹ sư AI thực tập', opportunity_type: 'internship', url: '/app/learner/ecosystem.php?tab=opportunities&focus=internship-b#opportunity-internship-b' } },
+        ],
+      }],
+    });
+  } finally {
+    global.document = originalDocument;
+  }
+
+  const card = list.children[0].children[1].children[0];
+  assert.equal(card.children[0].textContent, 'Kỹ sư AI thực tập');
+  const actionLink = card.children.find((child) => child.dataset?.aiRecommendationCta === 'true');
+  assert.equal(actionLink.href, '/app/learner/ecosystem.php?tab=opportunities&focus=internship-b#opportunity-internship-b');
+  assert.equal(actionLink.textContent, 'Xem trong Hệ sinh thái');
+  assert.equal(actionLink.dataset.aiRecommendationCatalog, 'internship-b');
+  assert.equal(actionLink.dataset.aiRecommendationAction, 'view_opportunity');
 });

@@ -159,8 +159,9 @@ SQL;
                             'opportunity_type' => 'internship',
                             'status' => 'active',
                             'availability' => ['capacity' => $capacity, 'enrolled' => $applicationState['accepted'], 'remaining' => max(0, $capacity - $applicationState['accepted'])],
-                            'url' => '/app/learner/opportunities.php?postId=' . rawurlencode((string) $row['opportunity_id']),
-                            'action' => ['type' => 'view_opportunity', 'post_id' => (string) $row['opportunity_id']],
+                            'url' => '/app/learner/ecosystem.php?tab=opportunities&focus=' . rawurlencode((string) $row['opportunity_id'])
+                                . '#opportunity-' . rawurlencode((string) $row['opportunity_id']),
+                            'action' => ['type' => 'view_opportunity', 'opportunity_id' => (string) $row['opportunity_id']],
                         ];
                     }
                 }
