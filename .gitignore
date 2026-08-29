@@ -34,6 +34,7 @@ Thumbs.db
 !/tests/learner_ai_group_matching_api_test.php
 !/tests/learner_ai_group_matching_ui_test.ps1
 !/tests/learner_ai_queue_worker_test.php
+!/tests/learner_ai_opportunity_matching_migration_test.php
 !/tests/school_ai_insight_ui_test.ps1
 !/tests/enterprise_ai_gemini_matcher_test.php
 !/tests/enterprise_ai_matches_api_test.php

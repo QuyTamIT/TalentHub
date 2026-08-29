@@ -154,16 +154,18 @@ schema_contract_check_indexes($inspector, 'learner_recommendation_input_snapshot
     'idx_learner_recommendation_input_snapshots_student_created',
 ], $report);
 
-// 2. learner_recommendation_runs: analysis_origin + modelVersion + provider
+// 2. learner_recommendation_runs: analysis_origin + modelVersion + provider + opportunity matching capability
 schema_contract_check_columns($inspector, 'learner_recommendation_runs', [
     'id', 'studentId', 'snapshotId', 'idempotencyKey', 'engineType', 'status',
     'ruleVersion', 'provider', 'modelVersion', 'promptVersion', 'fallbackReason',
     'safeErrorCode', 'startedAt', 'completedAt', 'createdAt',
+    'capability',
 ], $report);
 schema_contract_check_indexes($inspector, 'learner_recommendation_runs', [
     'uq_learner_recommendation_runs_student_idempotency',
     'idx_learner_recommendation_runs_student_created',
     'idx_learner_recommendation_runs_snapshot_student',
+    'idx_learner_recommendation_runs_student_capability_created',
 ], $report);
 
 // 3. learner_ai_refresh_jobs: queue + retry + lease + attempt + dead-letter
@@ -217,11 +219,13 @@ schema_contract_check_columns($inspector, 'learner_ai_provider_health', [
     'provider_key', 'state', 'failure_count', 'opened_at', 'updated_at',
 ], $report);
 
-// 8. learner_ai_catalog_items
+// 8. learner_ai_catalog_items (migration 015 adds opportunity matching fields)
 schema_contract_check_columns($inspector, 'learner_ai_catalog_items', [
     'catalog_id', 'item_type', 'category', 'title', 'summary', 'publish_status',
     'deadline_at', 'eligibility_json', 'capacity', 'enrolled_count', 'url',
     'action_json', 'school_id', 'tenant_id', 'updated_at',
+    'provider_name', 'location', 'difficulty',
+    'required_skills_json', 'learning_outcomes_json', 'education_bands_json',
 ], $report);
 
 // 9. school_ai_insights
@@ -245,6 +249,12 @@ schema_contract_check_columns($inspector, 'enterprise_ai_match_rankings', [
 ], $report);
 schema_contract_check_indexes($inspector, 'enterprise_ai_match_rankings', [
     'idx_enterprise_ai_match_rankings_updated',
+], $report);
+
+// 12. learner_recommendation_items (migration 015 opportunity matching columns)
+schema_contract_check_columns($inspector, 'learner_recommendation_items', [
+    'catalogId', 'rankPosition', 'structuredScore', 'geminiScore',
+    'matchScore', 'analysisJson',
 ], $report);
 
 // ---------------------------------------------------------------------
