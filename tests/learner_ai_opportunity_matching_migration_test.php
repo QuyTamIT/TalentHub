@@ -79,6 +79,17 @@ foreach (['catalogId', 'rankPosition', 'structuredScore', 'geminiScore', 'matchS
 $index = $pdo->query("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_learner_recommendation_runs_student_capability_created'")->fetchColumn();
 migration_contract_assert($index === 'idx_learner_recommendation_runs_student_capability_created', 'idx_learner_recommendation_runs_student_capability_created');
 
+$analysisMigration = require dirname(__DIR__) . '/Database/migrations/learner/016_add_learner_opportunity_analysis.php';
+migration_contract_assert($analysisMigration instanceof \TalentHub\Learner\Data\Migrations\ForwardMigrationDefinition, 'migration 016 must return a ForwardMigrationDefinition');
+migration_contract_assert($analysisMigration->version === '016_add_learner_opportunity_analysis', 'migration 016 version');
+foreach ($analysisMigration->migration->statements('sqlite') as $sql) {
+    $pdo->exec($sql);
+}
+$runColumns = $columns($pdo, 'learner_recommendation_runs');
+migration_contract_assert(in_array('analysisJson', $runColumns, true), 'learner_recommendation_runs.analysisJson');
+$mysqlAnalysisStatements = implode("\n", $analysisMigration->migration->statements('mysql'));
+migration_contract_assert(str_contains($mysqlAnalysisStatements, 'analysisJson LONGTEXT NULL'), 'mysql run analysis uses LONGTEXT');
+
 $mysqlStatements = implode("\n", $definition->migration->statements('mysql'));
 $sqliteStatements = implode("\n", $definition->migration->statements('sqlite'));
 migration_contract_assert(str_contains($mysqlStatements, "required_skills_json LONGTEXT NULL"), 'mysql json columns use LONGTEXT');

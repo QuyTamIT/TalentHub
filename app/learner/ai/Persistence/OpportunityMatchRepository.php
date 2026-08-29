@@ -16,8 +16,8 @@ interface OpportunityMatchRepository
     /** @return array<string,mixed> */
     public function createPendingRun(string $studentId, RecommendationInput $input, RecommendationContext $context): array;
 
-    /** @param list<OpportunityMatch> $matches @return array<string,mixed> */
-    public function completeRun(string $studentId, string $runId, array $matches): array;
+    /** @param list<OpportunityMatch> $matches @param array<string,mixed> $analysis @return array<string,mixed> */
+    public function completeRun(string $studentId, string $runId, array $matches, array $analysis = [], string $state = 'ready_model'): array;
 
     public function failRun(string $studentId, string $runId, string $safeCode): void;
 }

@@ -48,10 +48,6 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
                 $active[$catalogId] = true;
             }
         }
-        if ($active === []) {
-            return null;
-        }
-
         $statement = $this->pdo->prepare(
             "SELECT id FROM learner_recommendation_runs AS runs
              WHERE runs.studentId = :studentId
@@ -67,7 +63,17 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
             if ($run === null) {
                 continue;
             }
-            $valid = count($run['items']) === 3;
+            $runState = (string) ($run['analysis']['state'] ?? ($run['items'] === [] ? '' : 'ready_model'));
+            $valid = count($run['items']) >= 0 && count($run['items']) <= 3;
+            if ($run['items'] === [] && $runState !== 'no_fit_model') {
+                $valid = false;
+            }
+            if ($run['items'] !== [] && !in_array($runState, ['ready_model', 'partial_model', 'low_fit_model'], true)) {
+                $valid = false;
+            }
+            if (count($run['items']) !== 3 && !in_array($runState, ['partial_model', 'low_fit_model'], true)) {
+                $valid = false;
+            }
             $catalogIds = [];
             $ranks = [];
             foreach ($run['items'] as $item) {
@@ -90,7 +96,11 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
                 $ranks[] = $rank;
             }
             sort($ranks);
-            $valid = $valid && $ranks === [1, 2, 3];
+            $expectedRanks = $run['items'] === [] ? [] : range(1, count($run['items']));
+            $valid = $valid && $ranks === $expectedRanks;
+            if ($run['items'] === [] && !is_array($run['analysis'] ?? null)) {
+                $valid = false;
+            }
             if ($valid) {
                 return $run;
             }
@@ -169,16 +179,22 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
         throw new RuntimeException('Opportunity match snapshot retry was exhausted');
     }
 
-    /** @param list<OpportunityMatch> $matches @return array<string,mixed> */
-    public function completeRun(string $studentId, string $runId, array $matches): array
+    /** @param list<OpportunityMatch> $matches @param array<string,mixed> $analysis @return array<string,mixed> */
+    public function completeRun(string $studentId, string $runId, array $matches, array $analysis = [], string $state = 'ready_model'): array
     {
         $studentId = $this->required($studentId, 'Opportunity match student id is required.');
         $runId = $this->required($runId, 'Opportunity match run id is required.');
-        if (count($matches) !== 3) {
-            throw new \InvalidArgumentException('Opportunity match completion requires exactly three items.');
+        if (count($matches) > 3) {
+            throw new \InvalidArgumentException('Opportunity match completion accepts at most three items.');
+        }
+        if (!in_array($state, ['ready_model', 'partial_model', 'low_fit_model', 'no_fit_model'], true)) {
+            throw new \InvalidArgumentException('Opportunity match completion state is not supported.');
+        }
+        if ($matches === [] && ($state !== 'no_fit_model' || $analysis === [])) {
+            throw new \InvalidArgumentException('A no-fit opportunity run requires run-level analysis.');
         }
 
-        return $this->transaction(function () use ($studentId, $runId, $matches): array {
+        return $this->transaction(function () use ($studentId, $runId, $matches, $analysis, $state): array {
             $run = $this->ownedRun($studentId, $runId);
             if ($run['status'] !== 'pending') {
                 throw new RuntimeException('Opportunity match run is not pending');
@@ -204,12 +220,13 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
             $this->supersedePreviousRuns($studentId, $runId);
 
             $update = $this->pdo->prepare(
-                "UPDATE learner_recommendation_runs SET engineType = 'model', status = 'completed', ruleVersion = NULL, provider = :provider, modelVersion = :modelVersion, promptVersion = :promptVersion, fallbackReason = NULL, safeErrorCode = NULL, completedAt = :completedAt WHERE id = :runId AND studentId = :studentId AND status = 'pending' AND capability = :capability"
+                "UPDATE learner_recommendation_runs SET engineType = 'model', status = 'completed', ruleVersion = NULL, provider = :provider, modelVersion = :modelVersion, promptVersion = :promptVersion, fallbackReason = NULL, safeErrorCode = NULL, analysisJson = :analysisJson, completedAt = :completedAt WHERE id = :runId AND studentId = :studentId AND status = 'pending' AND capability = :capability"
             );
             $update->execute([
                 'provider' => $this->providerVersion,
                 'modelVersion' => $this->modelVersion,
                 'promptVersion' => $this->promptVersion,
+                'analysisJson' => $analysis === [] ? null : self::json(array_merge($analysis, ['state' => $state])),
                 'completedAt' => $now,
                 'runId' => $runId,
                 'studentId' => $studentId,
@@ -222,7 +239,7 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
                 'provider' => $this->providerVersion,
                 'model_version' => $this->modelVersion,
                 'prompt_version' => $this->promptVersion,
-                'response_hash' => self::responseHash($matches),
+                'response_hash' => self::responseHash($matches, $analysis, $state),
             ], 'completed');
 
             $completed = $this->runForStudent($studentId, $runId);
@@ -534,6 +551,7 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
         unset($run['id']);
         $run['pendingStatus'] = $run['status'];
         $run['freshness_status'] = $run['status'] === 'completed' ? 'fresh' : 'unavailable';
+        $run['analysis'] = self::decodeJson($run['analysisJson'] ?? null);
         $run['items'] = [];
         foreach ($items->fetchAll(PDO::FETCH_ASSOC) as $item) {
             $evidence = $this->pdo->prepare(
@@ -545,6 +563,7 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
             $item['evidence'] = $evidence->fetchAll(PDO::FETCH_ASSOC);
             $run['items'][] = $item;
         }
+        $run['state'] = (string) ($run['analysis']['state'] ?? ($run['items'] === [] ? 'no_fit_model' : 'ready_model'));
         return $run;
     }
 
@@ -561,8 +580,8 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
         ];
     }
 
-    /** @param list<OpportunityMatch> $matches */
-    private static function responseHash(array $matches): string
+    /** @param list<OpportunityMatch> $matches @param array<string,mixed> $analysis */
+    private static function responseHash(array $matches, array $analysis = [], string $state = 'ready_model'): string
     {
         $canonical = [];
         foreach ($matches as $match) {
@@ -576,7 +595,7 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
                 'evidence_ref_ids' => $match->evidenceRefs(),
             ];
         }
-        return hash('sha256', self::json($canonical));
+        return hash('sha256', self::json(['state' => $state, 'items' => $canonical, 'analysis' => $analysis]));
     }
 
     private static function confidenceBand(int $matchScore): string
@@ -659,5 +678,19 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
         } catch (JsonException $exception) {
             throw new \InvalidArgumentException('Opportunity match persistence value must be JSON serializable.', 0, $exception);
         }
+    }
+
+    /** @return array<string,mixed> */
+    private static function decodeJson(mixed $value): array
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return [];
+        }
+        try {
+            $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return [];
+        }
+        return is_array($decoded) ? $decoded : [];
     }
 }

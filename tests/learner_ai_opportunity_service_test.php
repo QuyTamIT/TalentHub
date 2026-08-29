@@ -44,6 +44,10 @@ function service_test_pdo(): PDO
     foreach ($opportunityExtension->migration->statements('sqlite') as $statement) {
         $pdo->exec($statement);
     }
+    $analysisExtension = require dirname(__DIR__) . '/Database/migrations/learner/016_add_learner_opportunity_analysis.php';
+    foreach ($analysisExtension->migration->statements('sqlite') as $statement) {
+        $pdo->exec($statement);
+    }
     return $pdo;
 }
 
@@ -269,6 +273,35 @@ function service_make_scenario(
         $clock ?? new DateTimeImmutable('2026-08-29T00:00:00Z', new DateTimeZone('UTC')),
     );
 }
+
+$analysisPdo = service_test_pdo();
+$analysisRepository = new \TalentHub\Learner\Ai\Persistence\DatabaseOpportunityMatchRepository(
+    $analysisPdo,
+    '9router_gemini',
+    'ag/gemini-3.7-flash-high',
+    \TalentHub\Learner\Ai\Model\OpportunityMatchPromptRegistry::VERSION,
+    static fn (): string => '2026-08-29T00:00:00.000000+00:00',
+);
+$analysisDecision = service_test_decision(true);
+$analysisContext = new RecommendationContext(
+    $analysisDecision->allowedScopes(),
+    'request-no-fit-0001',
+    'idempotency-no-fit-000001',
+    'student-1',
+    $analysisDecision->decisionHash(),
+    $analysisDecision->policyVersion(),
+);
+$analysisPending = $analysisRepository->createPendingRun('student-1', service_test_input(), $analysisContext);
+$analysisCompleted = $analysisRepository->completeRun(
+    'student-1',
+    (string) $analysisPending['runId'],
+    [],
+    ['headline' => 'Chưa có cơ hội đủ phù hợp', 'evidence' => ['skill:python-skill-1']],
+    'no_fit_model',
+);
+service_assert(($analysisCompleted['status'] ?? '') === 'completed', 'zero-item explanation run completes');
+service_assert(($analysisCompleted['state'] ?? '') === 'no_fit_model', 'zero-item explanation run preserves state');
+service_assert(($analysisCompleted['analysis']['headline'] ?? '') === 'Chưa có cơ hội đủ phù hợp', 'run-level analysis round-trips');
 
 function service_test_catalog_ids(array $items): array
 {
