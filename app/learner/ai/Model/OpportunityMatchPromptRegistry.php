@@ -32,6 +32,8 @@ final class OpportunityMatchPromptRegistry
         array $rankedCandidates,
         array $structuredScores,
         RecommendationContext $context,
+        string $mode = 'top3',
+        array $analysisContext = [],
     ): ProviderRequest {
         $sliced = array_slice($rankedCandidates, 0, self::MAX_CANDIDATES);
         $allowList = [];
@@ -86,7 +88,7 @@ final class OpportunityMatchPromptRegistry
             'system' => [
                 'role' => 'You are a learner opportunity matching analyst. You rank canonical database opportunities and write evidence-backed, project-specific analyses for the student. You never invent canonical data; the database is the only source of truth for titles, providers, URLs, deadlines and capacity.',
             ],
-            'instructions' => self::instructions(),
+            'instructions' => self::instructions($mode),
             'input' => [
                 'student_profile' => self::profilePayload($profile),
                 'candidate_allow_list' => $allowList,
@@ -94,12 +96,13 @@ final class OpportunityMatchPromptRegistry
                 'outcome_allow_list' => array_values(array_keys($outcomeCodes)),
                 'evidence_allow_list' => array_values(array_keys($evidenceRefs)),
                 'structured_scores' => $scoreById,
+                'analysis_context' => $analysisContext,
                 'context' => [
                     'request_id' => $context->requestId(),
                     'idempotency_key' => $context->idempotencyKey(),
                 ],
             ],
-            'output_schema' => self::outputSchema(),
+            'output_schema' => self::outputSchema($mode),
         ];
 
         $evidenceByReference = [];
@@ -128,8 +131,39 @@ final class OpportunityMatchPromptRegistry
     }
 
     /** @return list<string> */
-    private static function instructions(): array
+    private static function instructions(string $mode): array
     {
+        if ($mode === 'no_fit') {
+            return [
+                'Return a grounded summary explaining why no current opportunity reaches the suitable threshold.',
+                'Use only the supplied learner strengths, catalog demand aggregates and exclusion reason counts.',
+                'Never invent a title, provider, URL, deadline, capacity, project or opportunity.',
+                'Do not promise hiring, admission, awards, grades or employment.',
+                'Reference only evidence_ref_ids present in the supplied evidence_allow_list.',
+            ];
+        }
+        if ($mode === 'low_fit') {
+            return [
+                'Return one to three distinct catalog IDs from the supplied candidate_allow_list.',
+                'Explain why each project is not suitable yet and give concrete improvement steps.',
+                'Use only supplied skill, outcome and evidence codes and condition codes from analysis_context.',
+                'Never invent a title, provider, URL, deadline, capacity, project or opportunity.',
+                'Do not promise hiring, admission, awards, grades or employment.',
+                'Reference only evidence_ref_ids present in the supplied evidence_allow_list.',
+                'gemini_score must be an integer between 0 and 100 inclusive.',
+            ];
+        }
+        if ($mode === 'recommendation') {
+            return [
+                'Return one to three distinct catalog IDs from the supplied candidate_allow_list.',
+                'Write a project-specific why_fit for each candidate; do not reuse sentence templates.',
+                'Use only supplied skill, outcome and evidence codes.',
+                'Never invent a title, provider, URL, deadline, capacity, project or opportunity.',
+                'Do not promise hiring, admission, awards, grades or employment.',
+                'Reference only evidence_ref_ids present in the supplied evidence_allow_list.',
+                'gemini_score must be an integer between 0 and 100 inclusive.',
+            ];
+        }
         return [
             'Return exactly three distinct catalog IDs from the supplied candidate_allow_list.',
             'Write a project-specific why_fit for each candidate; do not reuse sentence templates.',
@@ -142,8 +176,25 @@ final class OpportunityMatchPromptRegistry
     }
 
     /** @return array<string,mixed> */
-    private static function outputSchema(): array
+    private static function outputSchema(string $mode): array
     {
+        if ($mode === 'no_fit') {
+            return [
+                'type' => 'object',
+                'additionalProperties' => false,
+                'required' => ['headline', 'explanation', 'learner_strengths', 'catalog_demands', 'main_gaps', 'next_steps', 'evidence_ref_ids'],
+                'properties' => [
+                    'headline' => ['type' => 'string', 'minLength' => 12],
+                    'explanation' => ['type' => 'string', 'minLength' => 24],
+                    'learner_strengths' => ['type' => 'array', 'items' => ['type' => 'string']],
+                    'catalog_demands' => ['type' => 'array', 'items' => ['type' => 'string']],
+                    'main_gaps' => ['type' => 'array', 'items' => ['type' => 'string']],
+                    'next_steps' => ['type' => 'array', 'minItems' => 1, 'items' => ['type' => 'string']],
+                    'evidence_ref_ids' => ['type' => 'array', 'minItems' => 1, 'items' => ['type' => 'string']],
+                ],
+            ];
+        }
+        $lowFit = $mode === 'low_fit';
         return [
             'type' => 'object',
             'additionalProperties' => false,
@@ -151,22 +202,26 @@ final class OpportunityMatchPromptRegistry
             'properties' => [
                 'items' => [
                     'type' => 'array',
-                    'minItems' => 3,
+                    'minItems' => $mode === 'top3' ? 3 : 1,
                     'maxItems' => 3,
                     'items' => [
                         'type' => 'object',
                         'additionalProperties' => false,
                         'required' => [
-                            'catalog_id', 'gemini_score', 'why_fit',
+                            'catalog_id', 'gemini_score', $lowFit ? 'why_not_fit_yet' : 'why_fit',
                             'matched_skill_codes', 'missing_skill_codes',
-                            'expected_outcome_codes', 'evidence_ref_ids',
+                            ...($lowFit ? ['missing_conditions', 'improvement_steps'] : ['expected_outcome_codes']),
+                            'evidence_ref_ids',
                         ],
                         'properties' => [
                             'catalog_id' => ['type' => 'string'],
                             'gemini_score' => ['type' => 'integer', 'minimum' => 0, 'maximum' => 100],
                             'why_fit' => ['type' => 'string', 'minLength' => 12],
+                            'why_not_fit_yet' => ['type' => 'string', 'minLength' => 12],
                             'matched_skill_codes' => ['type' => 'array', 'items' => ['type' => 'string']],
                             'missing_skill_codes' => ['type' => 'array', 'items' => ['type' => 'string']],
+                            'missing_conditions' => ['type' => 'array', 'items' => ['type' => 'string']],
+                            'improvement_steps' => ['type' => 'array', 'minItems' => 1, 'items' => ['type' => 'string']],
                             'expected_outcome_codes' => ['type' => 'array', 'items' => ['type' => 'string']],
                             'evidence_ref_ids' => ['type' => 'array', 'minItems' => 1, 'items' => ['type' => 'string']],
                         ],

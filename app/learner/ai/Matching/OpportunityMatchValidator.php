@@ -19,6 +19,12 @@ final class OpportunityMatchValidator
         'expected_outcome_codes', 'evidence_ref_ids',
     ];
 
+    private const LOW_FIT_KEYS = [
+        'catalog_id', 'gemini_score', 'why_not_fit_yet',
+        'matched_skill_codes', 'missing_skill_codes',
+        'missing_conditions', 'improvement_steps', 'evidence_ref_ids',
+    ];
+
     private const MIN_WHY_FIT_LENGTH = 12;
 
     private const NEAR_DUPLICATE_JACCARD = 0.85;
@@ -33,10 +39,17 @@ final class OpportunityMatchValidator
      * @param list<OpportunityCandidate> $allowList
      * @return list<OpportunityMatch>
      */
-    public function validate(array $items, array $allowList, LearnerOpportunityProfile $profile): array
+    public function validate(array $items, array $allowList, LearnerOpportunityProfile $profile, string $mode = 'top3'): array
     {
-        if (count($items) !== 3) {
-            throw new InvalidArgumentException('Opportunity match validator requires exactly three items.');
+        $isTop3 = $mode === 'top3';
+        $isLowFit = $mode === 'low_fit';
+        if (!in_array($mode, ['top3', 'recommendation', 'low_fit'], true)) {
+            throw new InvalidArgumentException('Unsupported opportunity match validation mode.');
+        }
+        if (($isTop3 && count($items) !== 3) || (!$isTop3 && (count($items) < 1 || count($items) > 3))) {
+            throw new InvalidArgumentException($isTop3
+                ? 'Opportunity match validator requires exactly three items.'
+                : 'Opportunity match validator requires one to three items.');
         }
 
         $candidateMap = self::indexCandidates($allowList);
@@ -49,11 +62,15 @@ final class OpportunityMatchValidator
             if (!is_array($item)) {
                 throw new InvalidArgumentException('Opportunity match validator expects structured items.');
             }
-            $extraKeys = array_diff(array_keys($item), self::ALLOWED_ITEM_KEYS);
+            $allowedKeys = $isLowFit ? self::LOW_FIT_KEYS : self::ALLOWED_ITEM_KEYS;
+            $extraKeys = array_diff(array_keys($item), $allowedKeys);
             if ($extraKeys !== []) {
                 throw new InvalidArgumentException('Opportunity match item carries unsupported properties: ' . implode(',', $extraKeys));
             }
-            foreach (self::ALLOWED_ITEM_KEYS as $requiredKey) {
+            $requiredKeys = $isLowFit
+                ? self::LOW_FIT_KEYS
+                : self::ALLOWED_ITEM_KEYS;
+            foreach ($requiredKeys as $requiredKey) {
                 if (!array_key_exists($requiredKey, $item)) {
                     throw new InvalidArgumentException("Opportunity match item is missing required key {$requiredKey}.");
                 }
@@ -74,7 +91,8 @@ final class OpportunityMatchValidator
                 throw new InvalidArgumentException('Opportunity match gemini_score must be an integer within 0..100.');
             }
 
-            $whyFit = self::canonicalString($item['why_fit'] ?? null, 'why_fit');
+            $whyField = $isLowFit ? 'why_not_fit_yet' : 'why_fit';
+            $whyFit = self::canonicalString($item[$whyField] ?? null, $whyField);
             if (mb_strlen(trim($whyFit), 'UTF-8') < self::MIN_WHY_FIT_LENGTH) {
                 throw new InvalidArgumentException('Opportunity match why_fit is too short to be project-specific.');
             }
@@ -84,7 +102,9 @@ final class OpportunityMatchValidator
 
             $matchedCodes = self::codeList($item['matched_skill_codes'] ?? null, 'matched_skill_codes');
             $missingCodes = self::codeList($item['missing_skill_codes'] ?? null, 'missing_skill_codes');
-            $outcomeCodes = self::codeList($item['expected_outcome_codes'] ?? null, 'expected_outcome_codes');
+            $outcomeCodes = $isLowFit
+                ? []
+                : self::codeList($item['expected_outcome_codes'] ?? null, 'expected_outcome_codes');
             $evidenceRefs = self::codeList($item['evidence_ref_ids'] ?? null, 'evidence_ref_ids');
 
             $requiredSkills = [];
@@ -136,6 +156,16 @@ final class OpportunityMatchValidator
                 throw new InvalidArgumentException('Opportunity match item must cite at least one evidence reference.');
             }
 
+            $missingConditions = [];
+            $improvementSteps = [];
+            if ($isLowFit) {
+                $missingConditions = self::textList($item['missing_conditions'] ?? null, 'missing_conditions');
+                $improvementSteps = self::textList($item['improvement_steps'] ?? null, 'improvement_steps', true);
+                foreach ($improvementSteps as $step) {
+                    self::assertSafeClaim($step);
+                }
+            }
+
             $matches[] = new OpportunityMatch(
                 $candidate,
                 $geminiScore,
@@ -144,12 +174,66 @@ final class OpportunityMatchValidator
                 $missingCodes,
                 $outcomeCodes,
                 $evidenceRefs,
+                null,
+                $isLowFit ? 'low_fit' : 'recommendation',
+                $isLowFit ? $whyFit : '',
+                $missingConditions,
+                $improvementSteps,
             );
         }
 
         self::assertNoDuplicateWhyFits($normalisedWhyFits);
 
         return $matches;
+    }
+
+    /** @param array<string,mixed> $analysis @param list<string> $evidenceAllowList @return array<string,mixed> */
+    public function validateSummary(array $analysis, LearnerOpportunityProfile $profile, array $evidenceAllowList): array
+    {
+        $required = ['headline', 'explanation', 'learner_strengths', 'catalog_demands', 'main_gaps', 'next_steps', 'evidence_ref_ids'];
+        $extra = array_diff(array_keys($analysis), $required);
+        if ($extra !== []) {
+            throw new InvalidArgumentException('No-fit summary carries unsupported properties: ' . implode(',', $extra));
+        }
+        foreach ($required as $key) {
+            if (!array_key_exists($key, $analysis)) {
+                throw new InvalidArgumentException("No-fit summary is missing required key {$key}.");
+            }
+        }
+        $headline = self::canonicalString($analysis['headline'], 'headline');
+        $explanation = self::canonicalString($analysis['explanation'], 'explanation');
+        if (mb_strlen($headline, 'UTF-8') < 12 || mb_strlen($explanation, 'UTF-8') < 24) {
+            throw new InvalidArgumentException('No-fit summary text is too short.');
+        }
+        self::assertSafeClaim($headline);
+        self::assertSafeClaim($explanation);
+        $strengths = self::textList($analysis['learner_strengths'], 'learner_strengths');
+        $demands = self::textList($analysis['catalog_demands'], 'catalog_demands');
+        $gaps = self::textList($analysis['main_gaps'], 'main_gaps');
+        $steps = self::textList($analysis['next_steps'], 'next_steps', true);
+        foreach (array_merge($strengths, $demands, $gaps, $steps) as $text) {
+            self::assertSafeClaim($text);
+        }
+        $refs = self::codeList($analysis['evidence_ref_ids'], 'evidence_ref_ids');
+        $allowed = array_fill_keys(array_map('strval', $evidenceAllowList), true);
+        if ($refs === []) {
+            throw new InvalidArgumentException('No-fit summary must cite at least one evidence reference.');
+        }
+        foreach ($refs as $ref) {
+            if (!isset($allowed[$ref])) {
+                throw new InvalidArgumentException("No-fit summary evidence_ref_ids contains unsupported reference: {$ref}.");
+            }
+        }
+        return [
+            'headline' => $headline,
+            'explanation' => $explanation,
+            'learner_strengths' => $strengths,
+            'catalog_demands' => $demands,
+            'main_gaps' => $gaps,
+            'next_steps' => $steps,
+            'evidence_ref_ids' => $refs,
+            'state' => 'no_fit_model',
+        ];
     }
 
     /** @param list<OpportunityCandidate> $allowList @return array<string,OpportunityCandidate> */
@@ -203,6 +287,21 @@ final class OpportunityMatchValidator
             }
         }
         return array_values(array_keys($codes));
+    }
+
+    /** @return list<string> */
+    private static function textList(mixed $value, string $field, bool $requireOne = false): array
+    {
+        $items = self::codeList($value, $field);
+        if ($requireOne && $items === []) {
+            throw new InvalidArgumentException("Opportunity match {$field} must contain at least one item.");
+        }
+        foreach ($items as $item) {
+            if (mb_strlen($item, 'UTF-8') < 2) {
+                throw new InvalidArgumentException("Opportunity match {$field} entries are too short.");
+            }
+        }
+        return $items;
     }
 
     private static function normaliseWhyFit(string $whyFit): string

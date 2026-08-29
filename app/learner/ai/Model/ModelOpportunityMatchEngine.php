@@ -44,9 +44,17 @@ final class ModelOpportunityMatchEngine
         array $rankedCandidates,
         array $structuredScores,
         RecommendationContext $context,
+        string $mode = 'top3',
+        array $analysisContext = [],
     ): array {
-        if (count($rankedCandidates) < 3) {
+        if ($mode === 'top3' && count($rankedCandidates) < 3) {
             throw new InvalidArgumentException('Opportunity match engine requires at least three valid candidates.');
+        }
+        if (!in_array($mode, ['top3', 'recommendation', 'low_fit'], true)) {
+            throw new InvalidArgumentException('Unsupported opportunity match engine mode.');
+        }
+        if ($mode !== 'top3' && count($rankedCandidates) < 1) {
+            throw new InvalidArgumentException('Opportunity match engine requires at least one valid candidate.');
         }
 
         $candidateAllowList = array_slice($rankedCandidates, 0, OpportunityMatchPromptRegistry::MAX_CANDIDATES);
@@ -55,6 +63,8 @@ final class ModelOpportunityMatchEngine
             $candidateAllowList,
             $structuredScores,
             $context,
+            $mode,
+            $analysisContext,
         );
 
         $response = $this->provider->generate($request, $this->authorizer);
@@ -65,7 +75,35 @@ final class ModelOpportunityMatchEngine
         $items = self::stripProviderFabricatedFields($response->items());
 
         $validator = $this->validator ?? new OpportunityMatchValidator();
-        return $validator->validate($items, $candidateAllowList, $profile);
+        return $validator->validate($items, $candidateAllowList, $profile, $mode);
+    }
+
+    /** @return array<string,mixed> */
+    public function generateNoFitSummary(
+        LearnerOpportunityProfile $profile,
+        array $structuredScores,
+        RecommendationContext $context,
+        array $analysisContext = [],
+        array $evidenceAllowList = [],
+    ): array {
+        $request = OpportunityMatchPromptRegistry::create(
+            $profile,
+            [],
+            $structuredScores,
+            $context,
+            'no_fit',
+            $analysisContext,
+        );
+        $response = $this->provider->generate($request, $this->authorizer);
+        if (!$response->isSuccess()) {
+            throw new InvalidArgumentException('Opportunity match provider returned a failure: ' . (string) $response->errorCode());
+        }
+        $items = $response->items();
+        if (count($items) !== 1 || !is_array($items[0])) {
+            throw new InvalidArgumentException('Opportunity match no-fit summary must contain exactly one object.');
+        }
+        $validator = $this->validator ?? new OpportunityMatchValidator();
+        return $validator->validateSummary($items[0], $profile, $evidenceAllowList);
     }
 
     private const PROVIDER_FABRICATED_FIELDS = [

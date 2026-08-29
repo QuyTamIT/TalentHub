@@ -410,6 +410,79 @@ provider_assert(!str_contains($enginePayloadJson, 'student@example.com'), 'engin
 provider_assert(!str_contains($enginePayloadJson, 'phone'), 'engine payload excludes phone field');
 provider_assert(!str_contains($enginePayloadJson, 'gender'), 'engine payload excludes gender');
 
+$partialRequest = OpportunityMatchPromptRegistry::create(
+    $profile,
+    $candidates,
+    $scored,
+    provider_test_context(),
+    'recommendation',
+);
+$partialSchema = $partialRequest->payload()['output_schema']['properties']['items'];
+provider_assert($partialSchema['minItems'] === 1 && $partialSchema['maxItems'] === 3, 'recommendation mode accepts one to three analyses');
+$partialValidated = $validator->validate(array_slice($positiveItems, 0, 2), $candidates, $profile, 'recommendation');
+provider_assert(count($partialValidated) === 2, 'recommendation mode validates a partial result');
+
+$lowFitItems = [
+    [
+        'catalog_id' => 'internship-1',
+        'gemini_score' => 55,
+        'why_not_fit_yet' => 'Python da co nen tang nhung SQL van chua dat muc yeu cau cua du an.',
+        'matched_skill_codes' => ['python'],
+        'missing_skill_codes' => ['sql'],
+        'missing_conditions' => ['sql_minimum_score'],
+        'improvement_steps' => ['Luyen truy van SQL voi du lieu mau.'],
+        'evidence_ref_ids' => ['opportunity:internship-1', 'skill:python-skill-1'],
+    ],
+    [
+        'catalog_id' => 'internship-2',
+        'gemini_score' => 48,
+        'why_not_fit_yet' => 'Ky nang Python phu hop mot phan nhung ban con thieu marketing nen tang.',
+        'matched_skill_codes' => ['python'],
+        'missing_skill_codes' => ['marketing'],
+        'missing_conditions' => ['marketing_basics'],
+        'improvement_steps' => ['Hoan thanh khoa marketing can ban.'],
+        'evidence_ref_ids' => ['opportunity:internship-2', 'skill:python-skill-1'],
+    ],
+];
+$lowFitRequest = OpportunityMatchPromptRegistry::create(
+    $profile,
+    $candidates,
+    $scored,
+    provider_test_context(),
+    'low_fit',
+);
+$lowFitSchema = $lowFitRequest->payload()['output_schema']['properties']['items'];
+provider_assert($lowFitSchema['minItems'] === 1 && $lowFitSchema['maxItems'] === 3, 'low-fit mode accepts one to three diagnostics');
+$lowFitValidated = $validator->validate($lowFitItems, $candidates, $profile, 'low_fit');
+provider_assert(count($lowFitValidated) === 2, 'low-fit mode validates project diagnostics');
+provider_assert($lowFitValidated[0]->analysisKind() === 'low_fit', 'low-fit analysis kind round-trips');
+provider_assert($lowFitValidated[0]->missingConditions() === ['sql_minimum_score'], 'low-fit missing conditions round-trip');
+
+$noFitRequest = OpportunityMatchPromptRegistry::create(
+    $profile,
+    [],
+    [],
+    provider_test_context(),
+    'no_fit',
+    [
+        'catalog_demands' => ['sql', 'marketing'],
+        'exclusion_reasons' => ['education_band_mismatch' => 4],
+    ],
+);
+$noFitSchema = $noFitRequest->payload()['output_schema'];
+provider_assert(($noFitSchema['required'] ?? []) === ['headline', 'explanation', 'learner_strengths', 'catalog_demands', 'main_gaps', 'next_steps', 'evidence_ref_ids'], 'no-fit summary schema is explicit');
+provider_assert(str_contains(json_encode($noFitRequest->payload(), JSON_THROW_ON_ERROR), 'education_band_mismatch'), 'no-fit prompt carries safe exclusion aggregates');
+$summary = $validator->validateSummary([
+    'headline' => 'Chua co co hoi du phu hop',
+    'explanation' => 'Cac co hoi hien tai yeu cau SQL va marketing nhieu hon ky nang da xac minh cua ban.',
+    'learner_strengths' => ['python'],
+    'catalog_demands' => ['sql', 'marketing'],
+    'main_gaps' => ['sql'],
+    'next_steps' => ['Luyen SQL co ban.'],
+    'evidence_ref_ids' => ['skill:python-skill-1'],
+], $profile, ['skill:python-skill-1']);
+provider_assert(($summary['headline'] ?? '') === 'Chua co co hoi du phu hop', 'no-fit summary validates and round-trips');
+
 $countingAuthorizer = new class($stubAuthorizer) implements ProviderAttemptAuthorizer {
     public int $calls = 0;
 

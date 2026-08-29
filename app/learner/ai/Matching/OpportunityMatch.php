@@ -25,6 +25,12 @@ final class OpportunityMatch
     /** @var list<string> */
     private readonly array $evidenceRefs;
 
+    /** @var list<string> */
+    private readonly array $missingConditions;
+
+    /** @var list<string> */
+    private readonly array $improvementSteps;
+
     private readonly ?OpportunityScore $score;
 
     public function __construct(
@@ -36,11 +42,17 @@ final class OpportunityMatch
         array $expectedOutcomeCodes,
         array $evidenceRefs,
         ?OpportunityScore $score = null,
+        private readonly string $analysisKind = 'recommendation',
+        private readonly string $whyNotFitYet = '',
+        array $missingConditions = [],
+        array $improvementSteps = [],
     ) {
         $this->matchedSkillCodes = array_values(array_map('strval', $matchedSkillCodes));
         $this->missingSkillCodes = array_values(array_map('strval', $missingSkillCodes));
         $this->expectedOutcomeCodes = array_values(array_map('strval', $expectedOutcomeCodes));
         $this->evidenceRefs = array_values(array_map('strval', $evidenceRefs));
+        $this->missingConditions = array_values(array_map('strval', $missingConditions));
+        $this->improvementSteps = array_values(array_map('strval', $improvementSteps));
         $this->score = $score;
     }
 
@@ -83,6 +95,28 @@ final class OpportunityMatch
         return $this->evidenceRefs;
     }
 
+    public function analysisKind(): string
+    {
+        return $this->analysisKind;
+    }
+
+    public function whyNotFitYet(): string
+    {
+        return $this->whyNotFitYet;
+    }
+
+    /** @return list<string> */
+    public function missingConditions(): array
+    {
+        return $this->missingConditions;
+    }
+
+    /** @return list<string> */
+    public function improvementSteps(): array
+    {
+        return $this->improvementSteps;
+    }
+
     public function score(): ?OpportunityScore
     {
         return $this->score;
@@ -99,6 +133,10 @@ final class OpportunityMatch
             $this->expectedOutcomeCodes,
             $this->evidenceRefs,
             $score,
+            $this->analysisKind,
+            $this->whyNotFitYet,
+            $this->missingConditions,
+            $this->improvementSteps,
         );
     }
 }
