@@ -45,4 +45,10 @@ final class DatabaseAiDataOutboxRepository implements AiDataOutboxRepository
         $s = $this->pdo->prepare("UPDATE learner_ai_data_outbox SET delivery_status='delivered', delivered_at=:at WHERE id=:id");
         $s->execute(['at' => gmdate('Y-m-d H:i:s'), 'id' => $eventId]);
     }
+
+    public function failed(string $eventId): void
+    {
+        $s = $this->pdo->prepare("UPDATE learner_ai_data_outbox SET delivery_status='error', delivered_at=:at WHERE id=:id AND delivery_status='pending'");
+        $s->execute(['at' => gmdate('Y-m-d H:i:s'), 'id' => $eventId]);
+    }
 }

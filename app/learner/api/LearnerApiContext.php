@@ -406,10 +406,15 @@ final class LearnerApiContext
     }
 
     /** @return array<string,mixed> */
-    public function appendFeedback(string $studentId, string $itemId, string $verdict, string $reasonCode, ?string $safeComment): array
+    public function appendFeedback(string $studentId, string $itemId, string $verdict, string $reasonCode, ?string $safeComment, ?string $requestId = null): array
     {
-        $result = (new DatabaseRecommendationRepository($this->pdo))->appendFeedback($studentId, $itemId, $verdict, $reasonCode, $safeComment);
-        AiMetricsCollector::shared()->record(['recommendation_feedback' => $verdict]);
+        $repository = new DatabaseRecommendationRepository($this->pdo);
+        $result = $requestId !== null
+            ? $repository->appendFeedbackWithRequestId($studentId, $itemId, $verdict, $reasonCode, $safeComment, $requestId)
+            : $repository->appendFeedback($studentId, $itemId, $verdict, $reasonCode, $safeComment);
+        if (($result['state'] ?? null) !== 'idempotency_conflict') {
+            AiMetricsCollector::shared()->record(['recommendation_feedback' => $verdict]);
+        }
         return $result;
     }
 

@@ -94,7 +94,12 @@ $mapped = (new RecommendationResponseMapper())->run(['status' => 'completed', 'e
 ]]]);
 catalog_assert(($mapped['items'][0]['evidence'][0]['safe_value']['url'] ?? null) === '/catalog/created-group', 'persisted camelCase/JSON evidence is normalized for the live catalog CTA');
 $jobs = new InMemoryAiRefreshJobRepository();
-$consumer = new AiDataOutboxConsumer(new DatabaseAiDataOutboxRepository($pdo), new AiRefreshDispatcher($jobs), static fn (string $studentId, string $capability): string => hash('sha256', $studentId . ':' . $capability));
+$consumer = new AiDataOutboxConsumer(
+    new DatabaseAiDataOutboxRepository($pdo),
+    new AiRefreshDispatcher($jobs),
+    static fn (string $studentId, string $capability): string => hash('sha256', $studentId . ':' . $capability),
+    static fn (string $studentId): bool => $studentId === 'student-a',
+);
 catalog_assert($consumer->consume() >= 1 && count($jobs->all()) >= 3, 'catalog create outbox is consumed into learner refresh jobs');
 $repository->update('workshop-b', ['title' => 'Updated workshop'], ['student-a']);
 catalog_assert($pdo->query("SELECT title FROM learner_ai_catalog_items WHERE catalog_id='workshop-b'")->fetchColumn() === 'Updated workshop', 'catalog updates use the canonical repository');

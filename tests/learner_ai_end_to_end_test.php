@@ -402,6 +402,34 @@ e2e_assert(($fb1['reused'] ?? false) === false, 'initial feedback is not reused'
 
 $fb1Repeat = $service->feedback($studentId, $roadmapId, 'helpful', 'useful_direction', 'req-fb-001');
 e2e_assert(($fb1Repeat['reused'] ?? false) === true, 'repeated feedback request is reused');
+$v1InputHash = (string) $pdo->query("SELECT snapshots.contentHash FROM learner_ai_roadmaps AS roadmaps INNER JOIN learner_recommendation_runs AS runs ON runs.id = roadmaps.runId INNER JOIN learner_recommendation_input_snapshots AS snapshots ON snapshots.id = runs.snapshotId WHERE roadmaps.id = '{$roadmapId}'")->fetchColumn();
+
+// Recommendation-item feedback must also be exactly-once for the API idempotency key.
+$feedbackRunId = 'run-feedback-e2e-001';
+$feedbackItemId = 'item-feedback-e2e-001';
+$pdo->exec("INSERT INTO learner_recommendation_runs (id, studentId, snapshotId, idempotencyKey, engineType, status, startedAt, createdAt) VALUES ('{$feedbackRunId}', '{$studentId}', NULL, 'feedback-fixture-key', 'model', 'completed', '2026-08-20T00:00:00Z', '2026-08-20T00:00:00Z')");
+$pdo->exec("INSERT INTO learner_recommendation_items (id, runId, itemType, title, summary, priority, confidenceBand, actionJson, lifecycleStatus, createdAt) VALUES ('{$feedbackItemId}', '{$feedbackRunId}', 'activity', 'Feedback fixture', 'Feedback fixture', 1, 'high', '{}', 'active', '2026-08-20T00:00:00Z')");
+$itemFeedback1 = $runsRepo->appendFeedbackWithRequestId($studentId, $feedbackItemId, 'helpful', 'relevant', null, 'item-feedback-request-0001');
+$itemFeedback2 = $runsRepo->appendFeedbackWithRequestId($studentId, $feedbackItemId, 'helpful', 'relevant', null, 'item-feedback-request-0001');
+$itemFeedbackConflict = $runsRepo->appendFeedbackWithRequestId($studentId, $feedbackItemId, 'not_helpful', 'not_relevant', null, 'item-feedback-request-0001');
+e2e_assert(($itemFeedback1['reused'] ?? true) === false, 'first item feedback request is persisted');
+e2e_assert(($itemFeedback2['reused'] ?? false) === true, 'same item feedback request is reused');
+e2e_assert(($itemFeedbackConflict['state'] ?? null) === 'idempotency_conflict', 'same idempotency key rejects a different feedback payload');
+e2e_assert((int) $pdo->query("SELECT COUNT(*) FROM learner_recommendation_feedback WHERE itemId = '{$feedbackItemId}'")->fetchColumn() === 1, 'idempotent item feedback creates one domain row');
+e2e_assert((int) $pdo->query("SELECT COUNT(*) FROM learner_ai_data_outbox WHERE event_type = 'recommendation.feedback' AND aggregate_id = (SELECT id FROM learner_recommendation_feedback WHERE itemId = '{$feedbackItemId}')")->fetchColumn() === 1, 'idempotent item feedback creates one outbox row');
+
+// Failure injection: domain feedback and its outbox event commit atomically.
+$feedbackCountBeforeFailure = (int) $pdo->query('SELECT COUNT(*) FROM learner_recommendation_feedback')->fetchColumn();
+$pdo->exec('ALTER TABLE learner_ai_data_outbox RENAME TO learner_ai_data_outbox_unavailable');
+$rollbackObserved = false;
+try {
+    $runsRepo->appendFeedbackWithRequestId($studentId, $feedbackItemId, 'not_helpful', 'not_relevant', null, 'item-feedback-request-rollback');
+} catch (Throwable) {
+    $rollbackObserved = true;
+}
+$pdo->exec('ALTER TABLE learner_ai_data_outbox_unavailable RENAME TO learner_ai_data_outbox');
+e2e_assert($rollbackObserved, 'outbox failure is surfaced to the caller');
+e2e_assert((int) $pdo->query('SELECT COUNT(*) FROM learner_recommendation_feedback')->fetchColumn() === $feedbackCountBeforeFailure, 'outbox failure rolls back the domain feedback row');
 
 // -------------------------------------------------------------
 // Step 5: Forced Refresh Version 2
@@ -409,6 +437,8 @@ e2e_assert(($fb1Repeat['reused'] ?? false) === true, 'repeated feedback request 
 $v2Result = $service->generate($studentId, 'req-e2e-002', 'idemp-e2e-0000000000000002', forceRefresh: true);
 e2e_assert(($v2Result['state'] ?? '') === 'ready_model', 'forced refresh creates ready_model');
 e2e_assert(($v2Result['version'] ?? 0) === 2, 'new roadmap has version 2');
+$v2InputHash = (string) $pdo->query("SELECT snapshots.contentHash FROM learner_ai_roadmaps AS roadmaps INNER JOIN learner_recommendation_runs AS runs ON runs.id = roadmaps.runId INNER JOIN learner_recommendation_input_snapshots AS snapshots ON snapshots.id = runs.snapshotId WHERE roadmaps.id = '" . $v2Result['roadmap_id'] . "'")->fetchColumn();
+e2e_assert($v1InputHash !== '' && $v2InputHash !== '' && !hash_equals($v1InputHash, $v2InputHash), 'feedback changes the next roadmap snapshot hash');
 
 $v1Fetch = $service->version($studentId, 1);
 e2e_assert(($v1Fetch['version'] ?? 0) === 1, 'version 1 is still retrievable');
@@ -475,5 +505,15 @@ $cleanUnavailable = $cleanService->generate($cleanStudentId, 'req-e2e-clean-1', 
 e2e_assert(($cleanUnavailable['state'] ?? '') === 'provider_unavailable', 'provider failure without LKG returns provider_unavailable');
 e2e_assert(($cleanUnavailable['analysis_origin'] ?? null) === null, 'clean failure has null analysis_origin');
 e2e_assert(($cleanUnavailable['engine']['rule_version'] ?? null) === null, 'clean failure does not fallback to rule');
+
+foreach (['recommendation-feedback.php', 'ai-roadmap-task.php'] as $mutationEndpoint) {
+    $source = (string) file_get_contents(dirname(__DIR__) . '/app/learner/api/v1/' . $mutationEndpoint);
+    e2e_assert(!str_contains($source, 'refresh_snapshot_hash'), $mutationEndpoint . ' does not expose raw snapshot hashes');
+}
+$feedbackEndpointSource = (string) file_get_contents(dirname(__DIR__) . '/app/learner/api/v1/recommendation-feedback.php');
+$feedbackLimiterPosition = strpos($feedbackEndpointSource, 'new PersistentActionRateLimiter');
+$feedbackBranchPosition = strpos($feedbackEndpointSource, "if (\$roadmapId !== '')");
+e2e_assert(is_int($feedbackLimiterPosition) && is_int($feedbackBranchPosition) && $feedbackLimiterPosition < $feedbackBranchPosition, 'both item and roadmap feedback are rate limited before branching');
+e2e_assert(str_contains($feedbackEndpointSource, "'IDEMPOTENCY_CONFLICT'"), 'feedback API maps changed idempotency payloads to conflict');
 
 echo "learner_ai_end_to_end_test: OK\n";

@@ -16,13 +16,24 @@ use TalentHub\Learner\Ai\Queue\DatabaseAiRefreshJobRepository;
 use TalentHub\Learner\Ai\Service\AiCapabilityProfileService;
 use TalentHub\Learner\Ai\Service\ProfileAnalysisRefreshService;
 use TalentHub\Learner\Ai\Provider\ProviderRetryAfterException;
+use TalentHub\Learner\Ai\Observability\AiMetricsCollector;
 use TalentHub\Rbac\Service\PermissionService;
 
 $pdo=(new Connection(require __DIR__.'/database.php'))->connect();
 $sessionConfig=require __DIR__.'/session.php';$sessionConfig['name']=SessionManager::SESSION_STUDENT;
 $context=new LearnerApiContext($pdo,new SessionManager($sessionConfig),new PermissionService($pdo),'learner-ai-worker');
 $jobs=new DatabaseAiRefreshJobRepository($pdo);
-$outbox=new AiDataOutboxConsumer(new DatabaseAiDataOutboxRepository($pdo),new AiRefreshDispatcher($jobs),static fn(string $studentId,string $capability):string=>$context->aiSnapshotHash($studentId,$capability));
+$outbox=new AiDataOutboxConsumer(
+ new DatabaseAiDataOutboxRepository($pdo),
+ new AiRefreshDispatcher($jobs),
+ static fn(string $studentId,string $capability):string=>$context->aiSnapshotHash($studentId,$capability),
+ static function(string $studentId) use ($pdo): bool {
+  $s=$pdo->prepare('SELECT 1 FROM student_profiles WHERE id=:id LIMIT 1');
+  $s->execute(['id'=>$studentId]);
+  return $s->fetchColumn()!==false;
+ },
+ AiMetricsCollector::shared(),
+);
 $profiles=new DatabaseAiCapabilityProfileRepository($pdo);
 $profileService=new AiCapabilityProfileService();
 $refreshState=new DatabaseAiRefreshStateRepository($pdo);
@@ -36,15 +47,16 @@ $profileRefresh=new ProfileAnalysisRefreshService(
 );
  $handler=static function(AiRefreshJob $job,callable $leaseGuard)use($context,$profiles,$refreshState,$profileRefresh):void{
   if(!$leaseGuard())throw new RuntimeException('refresh_lease_lost');
+  if(!in_array($job->capability,['recommendation','roadmap','profile_analysis'],true))throw new RuntimeException('capability_refresh_unavailable');
   if(!hash_equals($job->snapshotHash,$context->aiSnapshotHash($job->studentId,$job->capability)))throw new RuntimeException('superseded_snapshot');
-  $key='worker-'.$job->jobKey;
+ $key='worker-'.$job->jobKey;
  if(!$leaseGuard())throw new RuntimeException('refresh_lease_lost');
  if($job->capability==='profile_analysis')$profiles->markPending($job->studentId,$job->snapshotHash,$job->jobKey);else $refreshState->pending($job->studentId,$job->capability,$job->snapshotHash,$job->jobKey);
  try {
   if($job->capability==='recommendation'){$result=$context->recommendationService($job->studentId)->generate($job->studentId,'worker',$key,$leaseGuard,true);}
   elseif($job->capability==='roadmap'){$result=$context->roadmapService($job->studentId)->generate($job->studentId,'worker',$key,true,$leaseGuard,true);}
   elseif($job->capability==='profile_analysis'){$result=$profileRefresh->refresh($job->studentId,$job->snapshotHash,$job->jobKey,$leaseGuard);}
-  else{return;}
+  else{throw new RuntimeException('capability_refresh_unavailable');}
   if(($result['state']??null)!=='ready_model')throw new RuntimeException('capability_refresh_unavailable');
   if(!$leaseGuard())throw new RuntimeException('refresh_lease_lost');
   if(!hash_equals($job->snapshotHash,$context->aiSnapshotHash($job->studentId,$job->capability)))throw new RuntimeException('superseded_snapshot');

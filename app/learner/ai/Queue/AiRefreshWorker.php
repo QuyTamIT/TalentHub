@@ -56,22 +56,23 @@ final class AiRefreshWorker
                 throw new \RuntimeException('refresh_lease_lost');
             }
 
-            $this->jobs->complete($job->jobKey, $job->leaseToken);
+            if (!$this->jobs->complete($job->jobKey, $job->leaseToken)) {
+                throw new \RuntimeException('refresh_lease_lost');
+            }
             $this->metrics->record(['queue_event' => 'completed']);
         } catch (Throwable $e) {
             $retry = $e instanceof ProviderRetryAfterException ? $e->retryAfterSeconds() : null;
             $error = $e instanceof ProviderRetryAfterException ? $e->safeCategory() : self::safeError($e);
 
             if ($error === 'superseded_snapshot') {
-                $this->jobs->cancelSuperseded($job->studentId, $job->capability, $job->snapshotHash);
+                $this->jobs->cancel($job->jobKey, $job->leaseToken);
                 $this->metrics->record(['queue_event' => 'cancelled', 'reason' => 'superseded_snapshot']);
             } else {
                 $isDead = $job->attempts >= $this->maxAttempts;
                 $this->jobs->fail($job->jobKey, $error, $isDead, $job->leaseToken, $retry);
-                $this->metrics->record([
-                    'queue_event' => $isDead ? 'dead_letter' : 'failed',
-                    'provider_error' => $error,
-                ]);
+                $metric = ['queue_event' => $isDead ? 'dead_letter' : 'failed'];
+                $metric[in_array($error, ['refresh_lease_lost', 'capability_refresh_unavailable'], true) ? 'queue_error' : 'provider_error'] = $error;
+                $this->metrics->record($metric);
             }
         } finally {
             $this->recordQueueGauge();

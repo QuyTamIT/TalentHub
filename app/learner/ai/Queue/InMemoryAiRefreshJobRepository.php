@@ -8,11 +8,18 @@ final class InMemoryAiRefreshJobRepository implements AiRefreshJobRepository
 {
     /** @var array<string,AiRefreshJob> */
     private array $jobs = [];
+    private int $sequence = 0;
 
     public function enqueue(string $studentId, string $snapshotHash, string $capability): AiRefreshJob
     {
         $key = AiRefreshJob::key($studentId, $snapshotHash, $capability);
-        return $this->jobs[$key] ??= new AiRefreshJob($key, $studentId, $capability, $snapshotHash);
+        if (!isset($this->jobs[$key])) {
+            // Keep a deterministic creation marker so ordering matches the database
+            // repository even when several jobs are enqueued within one second.
+            $createdAt = sprintf('%.6F-%08d', microtime(true), $this->sequence++);
+            $this->jobs[$key] = new AiRefreshJob($key, $studentId, $capability, $snapshotHash, 'pending', 0, null, null, null, null, null, $createdAt);
+        }
+        return $this->jobs[$key];
     }
 
     public function claimNext(string $workerId, int $leaseSeconds = 60): ?AiRefreshJob
@@ -37,7 +44,11 @@ final class InMemoryAiRefreshJobRepository implements AiRefreshJobRepository
         uasort($candidates, static function (AiRefreshJob $a, AiRefreshJob $b) use ($priorityMap): int {
             $pA = $priorityMap[$a->capability] ?? 4;
             $pB = $priorityMap[$b->capability] ?? 4;
-            return $pA <=> $pB;
+            if ($pA !== $pB) {
+                return $pA <=> $pB;
+            }
+            $created = strcmp((string) $a->createdAt, (string) $b->createdAt);
+            return $created !== 0 ? $created : strcmp($a->jobKey, $b->jobKey);
         });
 
         $key = array_key_first($candidates);
@@ -55,7 +66,8 @@ final class InMemoryAiRefreshJobRepository implements AiRefreshJobRepository
             gmdate('Y-m-d H:i:s', $now + max(1, $leaseSeconds)),
             null,
             $workerId,
-            $token
+            $token,
+            $job->createdAt,
         );
 
         return $this->jobs[$key] = $claimed;
@@ -78,7 +90,8 @@ final class InMemoryAiRefreshJobRepository implements AiRefreshJobRepository
             gmdate('Y-m-d H:i:s', time() + max(1, $leaseSeconds)),
             $j->errorCode,
             $j->leaseOwner,
-            $j->leaseToken
+            $j->leaseToken,
+            $j->createdAt,
         );
         return true;
     }
@@ -89,15 +102,17 @@ final class InMemoryAiRefreshJobRepository implements AiRefreshJobRepository
         return $j instanceof AiRefreshJob && $j->status === 'processing' && $j->leaseToken !== null && hash_equals($j->leaseToken, $leaseToken) && $j->leaseUntil !== null && strtotime($j->leaseUntil) >= time();
     }
 
-    public function complete(string $jobKey, ?string $leaseToken = null): void
+    public function complete(string $jobKey, ?string $leaseToken = null): bool
     {
-        if (isset($this->jobs[$jobKey])) {
-            $j = $this->jobs[$jobKey];
-            if ($leaseToken !== null && !hash_equals((string) $j->leaseToken, $leaseToken)) {
-                return;
-            }
-            $this->jobs[$jobKey] = new AiRefreshJob($j->jobKey, $j->studentId, $j->capability, $j->snapshotHash, 'completed', $j->attempts);
+        $j = $this->jobs[$jobKey] ?? null;
+        if (!$j instanceof AiRefreshJob || $j->status !== 'processing') {
+            return false;
         }
+        if ($leaseToken !== null && (!hash_equals((string) $j->leaseToken, $leaseToken) || $j->leaseUntil === null || strtotime($j->leaseUntil) < time())) {
+            return false;
+        }
+        $this->jobs[$jobKey] = new AiRefreshJob($j->jobKey, $j->studentId, $j->capability, $j->snapshotHash, 'completed', $j->attempts, null, null, null, null, null, $j->createdAt);
+        return true;
     }
 
     public function fail(string $jobKey, string $errorCode, bool $deadLetter = false, ?string $leaseToken = null, ?int $retryAfterSeconds = null): void
@@ -118,7 +133,10 @@ final class InMemoryAiRefreshJobRepository implements AiRefreshJobRepository
                 $j->attempts,
                 $retry,
                 null,
-                $errorCode
+                $errorCode,
+                null,
+                null,
+                $j->createdAt,
             );
         }
     }
@@ -127,9 +145,18 @@ final class InMemoryAiRefreshJobRepository implements AiRefreshJobRepository
     {
         foreach ($this->jobs as $key => $j) {
             if ($j->studentId === $studentId && $j->capability === $capability && $j->snapshotHash !== $currentSnapshotHash && $j->status === 'pending') {
-                $this->jobs[$key] = new AiRefreshJob($j->jobKey, $j->studentId, $j->capability, $j->snapshotHash, 'cancelled', $j->attempts);
+                $this->jobs[$key] = new AiRefreshJob($j->jobKey, $j->studentId, $j->capability, $j->snapshotHash, 'cancelled', $j->attempts, null, null, null, null, null, $j->createdAt);
             }
         }
+    }
+
+    public function cancel(string $jobKey, ?string $leaseToken = null): void
+    {
+        $j = $this->jobs[$jobKey] ?? null;
+        if (!$j instanceof AiRefreshJob || ($leaseToken !== null && !hash_equals((string) $j->leaseToken, $leaseToken))) {
+            return;
+        }
+        $this->jobs[$jobKey] = new AiRefreshJob($j->jobKey, $j->studentId, $j->capability, $j->snapshotHash, 'cancelled', $j->attempts, null, null, 'superseded_snapshot', null, null, $j->createdAt);
     }
 
     public function all(): array
@@ -140,9 +167,15 @@ final class InMemoryAiRefreshJobRepository implements AiRefreshJobRepository
     /** @return array{depth:int,oldest_age_seconds:int} */
     public function pendingStats(): array
     {
+        $pending = array_filter($this->jobs, static fn(AiRefreshJob $job): bool => $job->status === 'pending');
+        $oldest = 0.0;
+        foreach ($pending as $job) {
+            $created = $job->createdAt === null ? 0.0 : (float) (explode('-', $job->createdAt, 2)[0] ?? 0.0);
+            if ($created > 0.0 && ($oldest === 0.0 || $created < $oldest)) $oldest = $created;
+        }
         return [
-            'depth' => count(array_filter($this->jobs, static fn(AiRefreshJob $job): bool => $job->status === 'pending')),
-            'oldest_age_seconds' => 0,
+            'depth' => count($pending),
+            'oldest_age_seconds' => $oldest > 0.0 ? max(0, (int) floor(microtime(true) - $oldest)) : 0,
         ];
     }
 }

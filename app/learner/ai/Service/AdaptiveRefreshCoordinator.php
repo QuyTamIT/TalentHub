@@ -30,6 +30,11 @@ final class AdaptiveRefreshCoordinator
             ];
             return [];
         }
+        // A new event after the debounce window supersedes any queued burst. Keep
+        // its capabilities in the same dispatch while using the newest snapshot.
+        $queuedCapabilities = $this->pending[$event->studentId]['capabilities'] ?? [];
+        $capabilities = array_values(array_unique(array_merge($queuedCapabilities, $capabilities)));
+        unset($this->pending[$event->studentId]);
         $this->lastDispatch[$event->studentId] = $now;
         return $this->dispatcher->dispatch($event->studentId, $snapshotHash, $capabilities);
     }

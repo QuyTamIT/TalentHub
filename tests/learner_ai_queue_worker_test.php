@@ -8,11 +8,14 @@ use DateTimeZone;
 use PDO;
 use TalentHub\Learner\Ai\Events\LearnerAiDataChanged;
 use TalentHub\Learner\Ai\Observability\AiMetricsCollector;
+use TalentHub\Learner\Ai\Provider\CircuitBreaker;
+use TalentHub\Learner\Ai\Provider\DatabaseCircuitBreakerStore;
 use TalentHub\Learner\Ai\Provider\ProviderRetryAfterException;
 use TalentHub\Learner\Ai\Queue\AiDataOutbox;
 use TalentHub\Learner\Ai\Queue\AiDataOutboxConsumer;
 use TalentHub\Learner\Ai\Queue\AiRefreshDispatcher;
 use TalentHub\Learner\Ai\Queue\AiRefreshJob;
+use TalentHub\Learner\Ai\Queue\AiRefreshJobRepository;
 use TalentHub\Learner\Ai\Queue\AiRefreshWorker;
 use TalentHub\Learner\Ai\Queue\DatabaseAiDataOutboxRepository;
 use TalentHub\Learner\Ai\Queue\DatabaseAiRefreshJobRepository;
@@ -87,6 +90,14 @@ function createQueueTestPdo(): PDO
         published_at TEXT NOT NULL
     )');
 
+    $pdo->exec('CREATE TABLE learner_ai_provider_health (
+        provider_key TEXT PRIMARY KEY,
+        state TEXT NOT NULL,
+        failure_count INTEGER NOT NULL,
+        opened_at INTEGER,
+        updated_at TEXT NOT NULL
+    )');
+
     return $pdo;
 }
 
@@ -94,6 +105,16 @@ $pdo = createQueueTestPdo();
 $studentId = '00000000-0000-4000-8000-000000000001';
 $hashA = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 $hashB = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+
+// Mandatory parity case: capability priority must precede age in both repositories.
+// Seed an older profile-analysis job before a newer roadmap job and require roadmap first.
+foreach ([new DatabaseAiRefreshJobRepository($pdo), new InMemoryAiRefreshJobRepository()] as $priorityRepo) {
+    $priorityRepo->enqueue('priority-student', 'priority-profile', 'profile_analysis');
+    usleep(1100000);
+    $priorityRepo->enqueue('priority-student', 'priority-roadmap', 'roadmap');
+    $priorityClaim = $priorityRepo->claimNext('priority-worker', 60);
+    queue_assert($priorityClaim !== null && $priorityClaim->capability === 'roadmap', 'roadmap priority wins over older profile job');
+}
 
 // =========================================================================
 // Block A: Database & InMemory Repository Enqueue, Deduplication & Priority Claiming
@@ -127,17 +148,18 @@ foreach ([$dbRepo, $memRepo] as $idx => $repo) {
     queue_assert($renewed, "[$label] renewLease succeeds with valid leaseToken");
 
     // Complete job
-    $repo->complete($claimedFirst->jobKey, $claimedFirst->leaseToken);
+    queue_assert(!$repo->complete($claimedFirst->jobKey, 'wrong-lease-token'), "[$label] completion rejects the wrong lease");
+    queue_assert($repo->complete($claimedFirst->jobKey, $claimedFirst->leaseToken), "[$label] completion atomically consumes the valid lease");
 
     // Next claimed is recommendation (priority 2)
     $claimedSecond = $repo->claimNext('worker-1', 60);
     queue_assert($claimedSecond !== null && $claimedSecond->capability === 'recommendation', "[$label] recommendation claimed second");
-    $repo->complete($claimedSecond->jobKey, $claimedSecond->leaseToken);
+    queue_assert($repo->complete($claimedSecond->jobKey, $claimedSecond->leaseToken), "[$label] recommendation completion succeeds");
 
     // Next claimed is profile_analysis (priority 3)
     $claimedThird = $repo->claimNext('worker-1', 60);
     queue_assert($claimedThird !== null && $claimedThird->capability === 'profile_analysis', "[$label] profile_analysis claimed third");
-    $repo->complete($claimedThird->jobKey, $claimedThird->leaseToken);
+    queue_assert($repo->complete($claimedThird->jobKey, $claimedThird->leaseToken), "[$label] profile completion succeeds");
 }
 
 // =========================================================================
@@ -199,7 +221,18 @@ queue_assert($cancelledRow['status'] === 'cancelled', 'superseded pending job is
 // =========================================================================
 $outboxRepo = new DatabaseAiDataOutboxRepository($pdo);
 $dispatcher = new AiRefreshDispatcher($repo);
-$consumer = new AiDataOutboxConsumer($outboxRepo, $dispatcher, static fn(string $s, string $c): string => hash('sha256', "$s:$c"));
+$outboxMetrics = new AiMetricsCollector(100);
+$transientHashFailures = 1;
+$consumer = new AiDataOutboxConsumer(
+    $outboxRepo,
+    $dispatcher,
+    static function(string $s, string $c) use (&$transientHashFailures): string {
+        if ($s === 'transient-student' && $c === 'recommendation' && $transientHashFailures-- > 0) throw new RuntimeException('temporary_snapshot_store_failure');
+        return hash('sha256', "$s:$c");
+    },
+    static fn(string $studentId): bool => $studentId !== 'missing-student',
+    $outboxMetrics,
+);
 
 // Insert 1 valid outbox row with duplicates/whitespace and 1 empty row
 $outboxRepo->append(new AiDataOutbox(
@@ -207,7 +240,7 @@ $outboxRepo->append(new AiDataOutbox(
     'assessment',
     'att-1',
     1,
-    ['student-1', 'student-2', 'student-1', ' '],
+    ['  student-1  ', 'student-2', 'student-1', ' ', ' student-2 '],
     'assessment.submitted',
     'hash-evt-1'
 ));
@@ -220,12 +253,57 @@ $outboxRepo->append(new AiDataOutbox(
     'badge.awarded',
     'hash-evt-2'
 ));
+$outboxRepo->append(new AiDataOutbox(
+    'evt-malformed-3',
+    'badge',
+    'bdg-2',
+    1,
+    ['student-ignored'],
+    'badge.awarded',
+    'hash-evt-3'
+));
+$pdo->prepare("UPDATE learner_ai_data_outbox SET affected_student_ids = 'not-json' WHERE id = 'evt-malformed-3'")->execute();
+$outboxRepo->append(new AiDataOutbox(
+    'evt-unresolvable-4',
+    'badge',
+    'bdg-3',
+    1,
+    ['missing-student'],
+    'badge.awarded',
+    'hash-evt-4'
+));
+$outboxRepo->append(new AiDataOutbox(
+    'evt-transient-5',
+    'assessment',
+    'att-transient',
+    1,
+    ['transient-student'],
+    'assessment.submitted',
+    'hash-evt-5'
+));
 
 $consumed = $consumer->consume(10);
-queue_assert($consumed === 2, 'all outbox rows processed without crash');
+queue_assert($consumed === 1, 'only valid outbox rows are marked delivered');
 
 $pendingOutbox = $outboxRepo->pending(10);
-queue_assert(count($pendingOutbox) === 0, 'no pending outbox rows remain');
+queue_assert(count($pendingOutbox) === 1 && $pendingOutbox[0]['id'] === 'evt-transient-5', 'transient dispatch failure remains pending for replay');
+$errorRows = $pdo->query("SELECT id FROM learner_ai_data_outbox WHERE delivery_status='error' ORDER BY id")->fetchAll(PDO::FETCH_COLUMN);
+queue_assert($errorRows === ['evt-empty-2', 'evt-malformed-3', 'evt-unresolvable-4'], 'empty, malformed, and unresolvable rows remain visible as error evidence');
+$outboxMetricEvents = $outboxMetrics->events();
+queue_assert(count($outboxMetricEvents) === 4, 'each poison/transient outbox failure emits one metric');
+queue_assert(isset($outboxMetricEvents[0]['queue_error']) && !isset($outboxMetricEvents[0]['provider_error']), 'outbox data errors do not inflate provider health metrics');
+$transientJobsBeforeReplay = (int) $pdo->query("SELECT COUNT(*) FROM learner_ai_refresh_jobs WHERE student_id='transient-student'")->fetchColumn();
+queue_assert($transientJobsBeforeReplay === 1, 'partial transient dispatch persists one idempotent roadmap job');
+queue_assert($consumer->consume(10) === 1 && $outboxRepo->pending(10) === [], 'transient outbox failure succeeds on replay');
+queue_assert((int) $pdo->query("SELECT COUNT(*) FROM learner_ai_refresh_jobs WHERE student_id='transient-student'")->fetchColumn() === 3, 'outbox replay reuses the existing key and creates only missing capability jobs');
+
+// Whitespace-wrapped duplicate IDs dispatch exactly once per normalized student/capability.
+$studentJobKeys = [];
+$studentRows = $pdo->query("SELECT student_id, capability FROM learner_ai_refresh_jobs WHERE student_id IN ('student-1','student-2')")->fetchAll(PDO::FETCH_ASSOC);
+foreach ($studentRows as $queuedJob) {
+    $studentJobKeys[$queuedJob['student_id'] . ':' . $queuedJob['capability']] = true;
+}
+queue_assert(count($studentJobKeys) === 6, 'normalized affected IDs dispatch once per capability');
 
 // =========================================================================
 // Block F: Burst Debouncing & Unioned Capability Coalescing
@@ -289,5 +367,118 @@ $stmtStrict->execute(['k' => $failJob->jobKey]);
 $strictRow = $stmtStrict->fetch(PDO::FETCH_ASSOC);
 queue_assert($strictRow['status'] === 'pending', 'failed worker job remains pending for retry');
 queue_assert($strictRow['error_code'] === 'provider_unavailable', 'error_code is preserved truthfully');
+
+// =========================================================================
+// Block H: Superseded work is cancelled, never left processing for replay
+// =========================================================================
+$supersededRepo = new InMemoryAiRefreshJobRepository();
+$superseded = $supersededRepo->enqueue('student-superseded', 'old-snapshot', 'roadmap');
+$supersededWorker = new AiRefreshWorker(
+    $supersededRepo,
+    static function (AiRefreshJob $job, callable $leaseGuard): void {
+        queue_assert($leaseGuard(), 'superseded handler initially owns its lease');
+        throw new \RuntimeException('superseded_snapshot');
+    },
+    5,
+);
+queue_assert($supersededWorker->runOnce('worker-superseded'), 'superseded worker claims a job');
+$supersededStored = $supersededRepo->all()[$superseded->jobKey] ?? null;
+queue_assert($supersededStored instanceof AiRefreshJob && $supersededStored->status === 'cancelled', 'superseded claimed job is cancelled');
+queue_assert($supersededStored->errorCode === 'superseded_snapshot', 'superseded cancellation keeps safe reason');
+
+// Provider retry-after is classified safely and persisted for the next worker generation.
+$retryRepo = new InMemoryAiRefreshJobRepository();
+$retryJob = $retryRepo->enqueue('student-retry-after', 'retry-hash', 'recommendation');
+$retryWorker = new AiRefreshWorker(
+    $retryRepo,
+    static function (AiRefreshJob $job, callable $leaseGuard): void {
+        throw new ProviderRetryAfterException('rate_limit_exceeded', 999999);
+    },
+    5,
+);
+queue_assert($retryWorker->runOnce('worker-retry-after'), 'retry-after worker claims a job');
+$retryStored = $retryRepo->all()[$retryJob->jobKey] ?? null;
+queue_assert($retryStored instanceof AiRefreshJob && $retryStored->status === 'pending', 'provider retry-after remains pending');
+queue_assert($retryStored->errorCode === 'rate_limit_exceeded' && $retryStored->nextRetryAt !== null, 'provider retry-after category and time are persisted');
+queue_assert($retryRepo->enqueue('student-retry-after', 'retry-hash', 'recommendation')->jobKey === $retryJob->jobKey, 'worker restart reuses idempotent job key');
+
+// A lost lease must stop provider work and remain explicitly retryable.
+$leaseLossRepo = new class implements AiRefreshJobRepository {
+    private InMemoryAiRefreshJobRepository $delegate;
+    public function __construct() { $this->delegate = new InMemoryAiRefreshJobRepository(); }
+    public function enqueue(string $studentId, string $snapshotHash, string $capability): AiRefreshJob { return $this->delegate->enqueue($studentId, $snapshotHash, $capability); }
+    public function claimNext(string $workerId, int $leaseSeconds = 60): ?AiRefreshJob { return $this->delegate->claimNext($workerId, $leaseSeconds); }
+    public function renewLease(string $jobKey, string $leaseToken, int $leaseSeconds = 60): bool { return false; }
+    public function ownsLease(string $jobKey, string $leaseToken): bool { return $this->delegate->ownsLease($jobKey, $leaseToken); }
+    public function complete(string $jobKey, ?string $leaseToken = null): bool { return $this->delegate->complete($jobKey, $leaseToken); }
+    public function fail(string $jobKey, string $errorCode, bool $deadLetter = false, ?string $leaseToken = null, ?int $retryAfterSeconds = null): void { $this->delegate->fail($jobKey, $errorCode, $deadLetter, $leaseToken, $retryAfterSeconds); }
+    public function cancelSuperseded(string $studentId, string $capability, string $currentSnapshotHash): void { $this->delegate->cancelSuperseded($studentId, $capability, $currentSnapshotHash); }
+    public function cancel(string $jobKey, ?string $leaseToken = null): void { $this->delegate->cancel($jobKey, $leaseToken); }
+    /** @return array<string,AiRefreshJob> */
+    public function all(): array { return $this->delegate->all(); }
+};
+$leaseLossJob = $leaseLossRepo->enqueue('student-lease-loss', 'lease-loss-hash', 'roadmap');
+$leaseLossHandlerCalled = false;
+$leaseLossWorker = new AiRefreshWorker($leaseLossRepo, static function () use (&$leaseLossHandlerCalled): void { $leaseLossHandlerCalled = true; });
+queue_assert($leaseLossWorker->runOnce('worker-lease-loss'), 'lease-loss worker claims the job');
+$leaseLossStored = $leaseLossRepo->all()[$leaseLossJob->jobKey] ?? null;
+queue_assert(!$leaseLossHandlerCalled, 'provider handler is not called after lease loss');
+queue_assert($leaseLossStored instanceof AiRefreshJob && $leaseLossStored->status === 'pending', 'lease-loss job remains pending for retry');
+queue_assert($leaseLossStored->errorCode === 'refresh_lease_lost', 'lease-loss uses the safe categorized error');
+
+// Completion must be atomic: a lease lost between the guard and UPDATE cannot emit completed.
+$completionRaceRepo = new class implements AiRefreshJobRepository {
+    private InMemoryAiRefreshJobRepository $delegate;
+    public function __construct() { $this->delegate = new InMemoryAiRefreshJobRepository(); }
+    public function enqueue(string $studentId, string $snapshotHash, string $capability): AiRefreshJob { return $this->delegate->enqueue($studentId, $snapshotHash, $capability); }
+    public function claimNext(string $workerId, int $leaseSeconds = 60): ?AiRefreshJob { return $this->delegate->claimNext($workerId, $leaseSeconds); }
+    public function renewLease(string $jobKey, string $leaseToken, int $leaseSeconds = 60): bool { return $this->delegate->renewLease($jobKey, $leaseToken, $leaseSeconds); }
+    public function ownsLease(string $jobKey, string $leaseToken): bool { return true; }
+    public function complete(string $jobKey, ?string $leaseToken = null): bool { return false; }
+    public function fail(string $jobKey, string $errorCode, bool $deadLetter = false, ?string $leaseToken = null, ?int $retryAfterSeconds = null): void { $this->delegate->fail($jobKey, $errorCode, $deadLetter, $leaseToken, $retryAfterSeconds); }
+    public function cancelSuperseded(string $studentId, string $capability, string $currentSnapshotHash): void { $this->delegate->cancelSuperseded($studentId, $capability, $currentSnapshotHash); }
+    public function cancel(string $jobKey, ?string $leaseToken = null): void { $this->delegate->cancel($jobKey, $leaseToken); }
+};
+$completionRaceMetrics = new AiMetricsCollector(100);
+$completionRaceRepo->enqueue('student-completion-race', 'completion-race-hash', 'roadmap');
+$completionRaceWorker = new AiRefreshWorker($completionRaceRepo, static function (): void {}, 5, null, $completionRaceMetrics);
+queue_assert($completionRaceWorker->runOnce('worker-completion-race'), 'completion-race worker claims the job');
+$completionEvents = array_column($completionRaceMetrics->events(), 'queue_event');
+queue_assert(!in_array('completed', $completionEvents, true) && in_array('failed', $completionEvents, true), 'failed atomic completion never emits a completed metric');
+
+// Provider health survives worker generations and permits one half-open probe.
+$providerHealthPdo = createQueueTestPdo();
+$providerClock = 1000;
+$providerHealth = new CircuitBreaker(2, 30, static function () use (&$providerClock): int { return $providerClock; }, new DatabaseCircuitBreakerStore($providerHealthPdo), 'learner:test-provider');
+queue_assert($providerHealth->allow(), 'closed provider circuit allows work');
+$providerHealth->recordFailure();
+queue_assert($providerHealth->state() === 'closed', 'first provider failure remains below threshold');
+$providerHealth->recordFailure();
+queue_assert($providerHealth->state() === 'open' && !$providerHealth->allow(), 'provider circuit opens at threshold');
+$providerClock = 1031;
+queue_assert($providerHealth->state() === 'half_open', 'provider circuit exposes half-open state after cooldown');
+queue_assert($providerHealth->allow(), 'one worker acquires the persisted half-open probe');
+queue_assert(!$providerHealth->allow(), 'second worker is blocked while half-open probe is active');
+$providerHealth->recordSuccess();
+queue_assert($providerHealth->state() === 'closed' && $providerHealth->allow(), 'successful probe closes persisted provider circuit');
+
+// Bootstrap failures must not leak exception messages, provider payloads, or credentials.
+$throwingBootstrap = tempnam(sys_get_temp_dir(), 'talenthub-worker-bootstrap-');
+queue_assert(is_string($throwingBootstrap), 'worker bootstrap fixture is created');
+file_put_contents($throwingBootstrap, "<?php throw new RuntimeException('secret-provider-payload');\n");
+$workerCommand = [PHP_BINARY, dirname(__DIR__) . '/bin/worker-learner-ai-refresh.php'];
+$workerDescriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+$workerEnvironment = array_merge($_ENV, ['TALENTHUB_AI_WORKER_BOOTSTRAP' => $throwingBootstrap]);
+$workerProcess = proc_open($workerCommand, $workerDescriptors, $workerPipes, dirname(__DIR__), $workerEnvironment);
+queue_assert(is_resource($workerProcess), 'worker bootstrap failure process starts');
+$workerStdout = stream_get_contents($workerPipes[1]);
+$workerStderr = stream_get_contents($workerPipes[2]);
+fclose($workerPipes[1]);
+fclose($workerPipes[2]);
+$workerExit = proc_close($workerProcess);
+unlink($throwingBootstrap);
+queue_assert($workerExit === 78, 'worker bootstrap failure uses configuration exit code');
+queue_assert($workerStdout === '' && str_contains($workerStderr, 'failed safely'), 'worker reports a bounded bootstrap error');
+queue_assert(!str_contains($workerStderr, 'secret-provider-payload'), 'worker never prints the underlying provider/bootstrap payload');
 
 echo "learner_ai_queue_worker_test: OK\n";
