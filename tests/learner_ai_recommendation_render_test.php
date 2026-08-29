@@ -24,6 +24,7 @@ roadmap_render_assert(!str_contains($page . $client . $recommendationClient, 'TA
 roadmap_render_assert(!str_contains($page . $client, 'input_hash'), 'input hash is never rendered');
 roadmap_render_assert(!str_contains($client, "'ready_rule'"), 'strict roadmap client must not recognize ready_rule as a renderable state');
 roadmap_render_assert(!str_contains($client, "'fallback_rule'"), 'strict roadmap client must not recognize fallback_rule as a renderable state');
+roadmap_render_assert(!str_contains($client, "'rule_fallback'"), 'strict roadmap client must not recognize rule_fallback as a renderable state');
 roadmap_render_assert(!str_contains($client, "'fallback-rule'"), 'strict roadmap client must not present a rule fallback state');
 roadmap_render_assert(!str_contains($page, 'data-roadmap-fallback'), 'strict roadmap page must not render the legacy fallback region');
 roadmap_render_assert(!str_contains($page . $client, 'Gợi ý dự phòng theo quy tắc'), 'strict roadmap must not present rule fallback copy');
