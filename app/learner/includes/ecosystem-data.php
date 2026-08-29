@@ -508,9 +508,29 @@ if (!function_exists('learner_application_repository')) {
 if (!function_exists('learner_ecosystem_enterprises')) {
     function learner_ecosystem_enterprises(): array
     {
-        return \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::partners(
+        $partners = \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::partners(
             learner_ecosystem_repository()->partners('enterprise')
         );
+
+        $unique = [];
+        $seenNames = [];
+        foreach ($partners as $p) {
+            $id = (string) ($p['id'] ?? '');
+            $name = mb_strtolower(trim((string) ($p['name'] ?? '')));
+            $cleanName = trim((string) preg_replace('/\s*\(.*?\)\s*/', '', $name));
+            if ($id !== '' && isset($unique[$id])) {
+                continue;
+            }
+            if ($cleanName !== '' && isset($seenNames[$cleanName])) {
+                continue;
+            }
+            $unique[$id] = $p;
+            if ($cleanName !== '') {
+                $seenNames[$cleanName] = true;
+            }
+        }
+
+        return array_values($unique);
     }
 }
 

@@ -1,0 +1,36 @@
+/**
+ * TalentHub Student / Learner Portal Styling
+ */
+@import url('learner.css');
+
+.learner-progress {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    background: #E2E8F0;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.learner-progress > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    transition: width 0.55s ease;
+}
+
+.learner-progress > .learner-progress--success {
+    background-color: #10B981 !important;
+}
+
+.learner-progress > .learner-progress--primary {
+    background-color: #F97316 !important;
+}
+
+.learner-progress > .learner-progress--secondary {
+    background-color: #6366F1 !important;
+}
+
+.learner-progress > .learner-progress--warning {
+    background-color: #F59E0B !important;
+}

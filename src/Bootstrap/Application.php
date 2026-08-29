@@ -14,6 +14,7 @@ use TalentHub\Http\CorsPolicy;
 use TalentHub\Http\JsonResponse;
 use TalentHub\Http\Request;
 use TalentHub\Http\Router;
+use TalentHub\Modules\School\Repository\SchoolAuditRepository;
 use TalentHub\Modules\School\Repository\SchoolPartnershipRepository;
 use TalentHub\Modules\School\Repository\SchoolActivityApprovalRepository;
 use TalentHub\Modules\School\Repository\SchoolCredentialManagementRepository;
@@ -25,6 +26,7 @@ use TalentHub\Modules\School\Repository\DatabaseSchoolAiRefreshJobRepository;
 use TalentHub\Modules\School\Service\SchoolAuthorization;
 use TalentHub\Modules\School\Service\SchoolActivityApprovalService;
 use TalentHub\Modules\School\Service\SchoolCredentialManagementService;
+use TalentHub\Modules\School\Service\SchoolAuditService;
 use TalentHub\Modules\School\Service\SchoolAccountInvitationService;
 use TalentHub\Modules\School\Service\SchoolDashboardService;
 use TalentHub\Modules\School\Service\SchoolAiInsightService;
@@ -148,7 +150,7 @@ final class Application
     {
         $config=require dirname(__DIR__,2).'/config/database.php';$pdo=$this->customPdo??(new Connection($config))->connect();
         $session=new SessionManager(require dirname(__DIR__,2).'/config/session.php');$session->start();
-        $auth=new AuthService(new AuthRepository($pdo));$loginLimiter=new LoginRateLimiter($pdo);$permissions=new PermissionService($pdo);$teachers=new TeacherProfileService(new TeacherRepository($pdo));$teacherActivities=new TeacherActivityService(new TeacherActivityRepository($pdo));$schoolRepository=new SchoolRepository($pdo);$schoolAuthorization=new SchoolAuthorization($pdo);$schools=new SchoolDashboardService($schoolRepository,$pdo,$schoolAuthorization);$schoolActivityApprovals=new SchoolActivityApprovalService(new SchoolActivityApprovalRepository($pdo));$schoolCredentials=new SchoolCredentialManagementService(new SchoolCredentialManagementRepository($pdo));
+        $auth=new AuthService(new AuthRepository($pdo));$loginLimiter=new LoginRateLimiter($pdo);$permissions=new PermissionService($pdo);$teachers=new TeacherProfileService(new TeacherRepository($pdo));$teacherActivities=new TeacherActivityService(new TeacherActivityRepository($pdo));$schoolRepository=new SchoolRepository($pdo);$schoolAuthorization=new SchoolAuthorization($pdo);$schools=new SchoolDashboardService($schoolRepository,$pdo,$schoolAuthorization);$schoolActivityApprovals=new SchoolActivityApprovalService(new SchoolActivityApprovalRepository($pdo));$schoolCredentials=new SchoolCredentialManagementService(new SchoolCredentialManagementRepository($pdo));$schoolAudit=new SchoolAuditService(new SchoolAuditRepository($pdo));
         $aiConfig=null;$schoolExplainer=null;$schoolCircuit=null;$enterpriseCircuit=null;$enterpriseMatcher=null;
         try{
             $aiConfig=RecommendationConfig::fromEnvironment($_ENV);
@@ -230,6 +232,7 @@ final class Application
         $router->add('GET','/api/v1/schools/me/student-enterprise-approvals',function()use($session,$permissions,$safeguarding,$requestId){$user=$this->requireSchool($session);$permissions->require($user['id'],'safeguarding.read_own_school');return JsonResponse::success(['items'=>$safeguarding->approvals($user['id'])],$requestId);});
         $router->add('POST','/api/v1/schools/me/student-enterprise-approvals',function(Request $r)use($session,$permissions,$safeguarding,$requestId){$user=$this->requireSchool($session);$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'safeguarding.approve_own_student');$input=$r->json();return JsonResponse::success($safeguarding->approve($user['id'],(string)($input['studentId']??''),(string)($input['enterpriseId']??''),(string)($input['expiresAt']??'')),$requestId,201);});
         $router->add('DELETE','/api/v1/schools/me/student-enterprise-approvals/{approvalId}',function(Request $r)use($session,$permissions,$safeguarding,$requestId){$user=$this->requireSchool($session);$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'safeguarding.approve_own_student');return JsonResponse::success($safeguarding->revokeApproval($user['id'],(string)$r->pathParam('approvalId')),$requestId);});
+        $router->add('GET','/api/v1/schools/me/profile-access-logs',function(Request $r)use($session,$permissions,$schoolAudit,$requestId){$user=$this->requireSchool($session);$permissions->require($user['id'],'school_profile_access_log.read_own_school');return JsonResponse::success($schoolAudit->profileAccessOverview($user['id'],['search'=>$r->queryParam('search'),'accessType'=>$r->queryParam('accessType'),'from'=>$r->queryParam('from'),'to'=>$r->queryParam('to'),'limit'=>$r->queryParam('limit'),'offset'=>$r->queryParam('offset')]),$requestId);});
         $router->add('GET','/api/v1/businesses/me/talents',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'talent.search_consented');$params=['search'=>$r->queryParam('search'),'school'=>$r->queryParam('school'),'skills'=>$r->queryParam('skills'),'sort'=>$r->queryParam('sort'),'limit'=>$r->queryParam('limit'),'offset'=>$r->queryParam('offset')];return JsonResponse::success($talents->listTalents($user['id'],$params),$requestId);});
         $router->add('POST','/api/v1/businesses/me/ai-matches',function(Request $r)use($session,$permissions,$pdo,$enterpriseMatchService,$requestId){
             $user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');
@@ -265,7 +268,7 @@ final class Application
             }
             return JsonResponse::success($enterpriseMatchService->match((string)$enterprise['id'],$job),$requestId);
         });
-        $router->add('GET','/api/v1/businesses/me/talents/{studentId}',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'talent.read_consented');$studentId=(string)$r->pathParam('studentId');return JsonResponse::success(['talent'=>$talents->getTalent($user['id'],$studentId)],$requestId);});
+        $router->add('GET','/api/v1/businesses/me/talents/{studentId}',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'talent.read_consented');$studentId=(string)$r->pathParam('studentId');return JsonResponse::success(['talent'=>$talents->getTalent($user['id'],$studentId,$requestId,isset($_SERVER['REMOTE_ADDR'])?(string)$_SERVER['REMOTE_ADDR']:null)],$requestId);});
         $router->add('POST','/api/v1/businesses/me/talents/{studentId}/contact-requests',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'contact_request.create_own_business');$studentId=(string)$r->pathParam('studentId');return JsonResponse::success($talents->requestContact($user['id'],$studentId,$r->json(),$requestId),$requestId,201);});
         $router->add('GET','/api/v1/students/me/enterprise-profile-grants',function()use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,'student','học viên');$permissions->require($user['id'],'privacy_consent.read_own');return JsonResponse::success($talents->listGrants($user['id']),$requestId);});
         $router->add('POST','/api/v1/students/me/enterprise-profile-grants',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,'student','học viên');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'privacy_consent.manage_own');return JsonResponse::success($talents->grantAccess($user['id'],$r->json()),$requestId,201);});

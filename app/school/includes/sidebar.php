@@ -69,6 +69,11 @@ $sidebarNav = [
         'icon' => 'lock',
     ],
     [
+        'title' => 'Nhật ký truy cập',
+        'route' => '/app/school/audit-logs.php',
+        'icon' => 'lock',
+    ],
+    [
         'title' => 'Phân tích',
         'route' => '/app/school/analytics.php',
         'icon'  => 'trending-up',
@@ -184,7 +189,7 @@ $sidebarNav = [
 
     <!-- Bottom Action: Logout -->
     <div class="school-sidebar__footer">
-        <a href="<?= function_exists('app_href') ? app_href('/app/auth/logout.php?role=school') : '/app/auth/logout.php?role=school'; ?>" 
+        <a href="<?= function_exists('app_href') ? app_href('/app/auth/logout.php?role=school') : '/app/auth/logout.php?role=school'; ?>"
            class="school-sidebar__link school-sidebar__link--logout"
            aria-label="Đăng xuất khỏi hệ thống">
             <span class="school-sidebar__icon">

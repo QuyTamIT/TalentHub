@@ -243,6 +243,40 @@ final class EnterpriseTalentRepository
         return $id;
     }
 
+    public function recordProfileAccess(
+        string $enterpriseId,
+        string $userId,
+        string $studentId,
+        string $accessType,
+        ?string $requestId = null,
+        ?string $ipAddress = null
+    ): void {
+        if (!$this->tableExists('student_profile_access_logs')) {
+            return;
+        }
+        if (!in_array($accessType, ['talent_detail', 'application_cv', 'shared_profile'], true)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Loại truy cập hồ sơ không hợp lệ.');
+        }
+
+        $statement = $this->pdo->prepare(<<<'SQL'
+            INSERT INTO student_profile_access_logs
+                (id, enterpriseId, studentId, accessedByUserId, accessType, requestId, ipAddress, metadata, accessedAt)
+            VALUES
+                (:id, :enterpriseId, :studentId, :userId, :accessType, :requestId, :ipAddress, :metadata, :accessedAt)
+        SQL);
+        $statement->execute([
+            'id' => Uuid::v4(),
+            'enterpriseId' => $enterpriseId,
+            'studentId' => $studentId,
+            'userId' => $userId,
+            'accessType' => $accessType,
+            'requestId' => $requestId,
+            'ipAddress' => $ipAddress,
+            'metadata' => json_encode(['source' => 'enterprise_talent_service'], JSON_THROW_ON_ERROR),
+            'accessedAt' => $this->now(),
+        ]);
+    }
+
     /**
      * @param array<string,mixed> $filters
      * @return array{items:list<array<string,mixed>>,total:int}
@@ -258,30 +292,171 @@ final class EnterpriseTalentRepository
 
         $params = [];
 
-        if ($hasPartnership) {
+        // Optional filter: Partnered schools only (if explicitly requested)
+        if (!empty($filters['partnered_only']) && $hasPartnership) {
             $where[] = '(s.id IS NULL OR EXISTS (SELECT 1 FROM school_enterprise_partnerships sep WHERE sep.schoolId = s.id AND sep.enterpriseId = :enterpriseIdPartnership AND sep.status = \'approved\'))';
             $params['enterpriseIdPartnership'] = $enterpriseId;
         }
 
-        if (isset($filters['school']) && is_string($filters['school']) && trim($filters['school']) !== '') {
-            $schoolFilter = trim($filters['school']);
+        // Filter: School ID or School Name (only when specified and not 'all')
+        $schoolFilter = trim((string) ($filters['school_id'] ?? $filters['school'] ?? ''));
+        if ($schoolFilter !== '' && $schoolFilter !== 'all') {
             if (Uuid::isValid($schoolFilter)) {
                 $where[] = 's.id = :schoolIdFilter';
                 $params['schoolIdFilter'] = $schoolFilter;
             } else {
-                $where[] = 's.name LIKE :schoolNameFilter';
+                $where[] = '(s.name LIKE :schoolNameFilter OR s.id LIKE :schoolNameFilter2)';
                 $params['schoolNameFilter'] = '%' . $schoolFilter . '%';
+                $params['schoolNameFilter2'] = '%' . $schoolFilter . '%';
             }
         }
 
-        if (isset($filters['search']) && is_string($filters['search']) && trim($filters['search']) !== '') {
-            $search = '%' . trim($filters['search']) . '%';
-            $where[] = '(u.fullName LIKE :search1 OR spd.headline LIKE :search2 OR spd.bio LIKE :search3 OR s.name LIKE :search4 OR c.name LIKE :search5)';
-            $params['search1'] = $search;
-            $params['search2'] = $search;
-            $params['search3'] = $search;
-            $params['search4'] = $search;
-            $params['search5'] = $search;
+        // Filter: Education level / Bậc học (only when specified and not 'all')
+        $eduFilter = trim((string) ($filters['education_level'] ?? $filters['educationLevel'] ?? $filters['level'] ?? $filters['studyStatus'] ?? ''));
+        if ($eduFilter !== '' && $eduFilter !== 'all') {
+            if (strcasecmp($eduFilter, 'THPT') === 0 || stripos($eduFilter, 'Phổ thông') !== false) {
+                $where[] = "(s.level LIKE '%Trung học Phổ thông%' OR s.level LIKE '%THPT%' OR s.name LIKE '%THPT%' OR c.name REGEXP '^(10|11|12)[A-Za-z0-9_-]*')";
+            } elseif (strcasecmp($eduFilter, 'THCS') === 0 || stripos($eduFilter, 'Cơ sở') !== false) {
+                $where[] = "(s.level LIKE '%Trung học Cơ sở%' OR s.level LIKE '%THCS%' OR s.name LIKE '%THCS%' OR c.name REGEXP '^(6|7|8|9)[A-Za-z0-9_-]*')";
+            } elseif (strcasecmp($eduFilter, 'Cao đẳng') === 0 || stripos($eduFilter, 'Cao đẳng') !== false) {
+                $where[] = "(s.level LIKE '%Cao đẳng%' OR s.name LIKE '%Cao đẳng%' OR s.name LIKE '%BTEC%')";
+            } elseif (strcasecmp($eduFilter, 'Đại học') === 0 || stripos($eduFilter, 'Đại học') !== false) {
+                $where[] = "(s.level LIKE '%Đại học%' OR s.name LIKE '%Đại học%')";
+            } else {
+                $where[] = '(s.level LIKE :eduFilter1 OR student.studyStatus LIKE :eduFilter2 OR c.name LIKE :eduFilter3 OR s.name LIKE :eduFilter4)';
+                $params['eduFilter1'] = '%' . $eduFilter . '%';
+                $params['eduFilter2'] = '%' . $eduFilter . '%';
+                $params['eduFilter3'] = '%' . $eduFilter . '%';
+                $params['eduFilter4'] = '%' . $eduFilter . '%';
+            }
+        }
+
+        // Filter: Skill tag (only when specified and not 'all')
+        $skillTag = trim((string) ($filters['skill_tag'] ?? $filters['skill'] ?? ''));
+        if ($skillTag !== '' && $skillTag !== 'all') {
+            $where[] = 'EXISTS (
+                SELECT 1 FROM student_skills ss
+                JOIN skills sk ON ss.skillId = sk.id
+                WHERE ss.studentId = student.id
+                  AND (sk.name LIKE :skillTag1 OR sk.code LIKE :skillTag2)
+            )';
+            $params['skillTag1'] = '%' . $skillTag . '%';
+            $params['skillTag2'] = '%' . $skillTag . '%';
+        }
+
+        // Filter: Keyword search across candidate name, headline, bio, school, class, skills
+        $search = trim((string) ($filters['search'] ?? $filters['q'] ?? $filters['keyword'] ?? ''));
+        if ($search !== '' && $search !== 'all') {
+            $searchWildcard = '%' . $search . '%';
+            $where[] = '(u.fullName LIKE :search1 OR spd.headline LIKE :search2 OR spd.bio LIKE :search3 OR s.name LIKE :search4 OR c.name LIKE :search5 OR EXISTS (
+                SELECT 1 FROM student_skills ssk
+                JOIN skills skk ON ssk.skillId = skk.id
+                WHERE ssk.studentId = student.id
+                  AND (skk.name LIKE :searchSkill1 OR skk.code LIKE :searchSkill2)
+            ))';
+            $params['search1'] = $searchWildcard;
+            $params['search2'] = $searchWildcard;
+            $params['search3'] = $searchWildcard;
+            $params['search4'] = $searchWildcard;
+            $params['search5'] = $searchWildcard;
+            $params['searchSkill1'] = $searchWildcard;
+            $params['searchSkill2'] = $searchWildcard;
+        }
+
+        // Filter: Major / Domain / Lĩnh vực năng lực
+        $majorField = trim((string) ($filters['major_field'] ?? $filters['field'] ?? $filters['major'] ?? $filters['domain'] ?? ''));
+        if ($majorField !== '' && $majorField !== 'all') {
+            if (stripos($majorField, 'AI') !== false || stripos($majorField, 'dữ liệu') !== false || stripos($majorField, 'Data') !== false || stripos($majorField, 'Trí tuệ Nhân tạo') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%AI%'
+                    OR spd.headline LIKE '%Trí tuệ Nhân tạo%'
+                    OR spd.headline LIKE '%Data%'
+                    OR spd.headline LIKE '%Machine Learning%'
+                    OR spd.bio LIKE '%AI%'
+                    OR spd.bio LIKE '%Trí tuệ Nhân tạo%'
+                    OR c.name LIKE '%AI%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('Python', 'Machine Learning', 'AI / Machine Learning', 'PyTorch', 'Computer Vision', 'Phân tích dữ liệu', 'LangChain', 'Prompt Engineering')
+                    )
+                )";
+            } elseif (stripos($majorField, 'Marketing') !== false || stripos($majorField, 'Kinh doanh') !== false || stripos($majorField, 'QTKD') !== false || stripos($majorField, 'TMĐT') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%Marketing%'
+                    OR spd.headline LIKE '%Kinh doanh%'
+                    OR spd.headline LIKE '%Quản trị%'
+                    OR spd.bio LIKE '%Marketing%'
+                    OR spd.bio LIKE '%Kinh doanh%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('Digital Marketing', 'Sáng tạo nội dung', 'Nghiên cứu thị trường', 'SEO', 'Google Analytics', 'Khởi nghiệp & Quản trị', 'Quản trị Kinh doanh')
+                    )
+                )";
+            } elseif (stripos($majorField, 'Logistics') !== false || stripos($majorField, 'kho vận') !== false || stripos($majorField, 'cung ứng') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%Logistics%'
+                    OR spd.headline LIKE '%Kho vận%'
+                    OR spd.headline LIKE '%Chuỗi cung ứng%'
+                    OR spd.bio LIKE '%Logistics%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('Quản trị kho vận', 'Logistics', 'Tối ưu hóa đơn hàng', 'Phân tích dữ liệu vận hành')
+                    )
+                )";
+            } elseif (stripos($majorField, 'Tài chính') !== false || stripos($majorField, 'Kế toán') !== false || stripos($majorField, 'Ngân hàng') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%Tài chính%'
+                    OR spd.headline LIKE '%Kế toán%'
+                    OR spd.headline LIKE '%Ngân hàng%'
+                    OR spd.bio LIKE '%Tài chính%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('Tài chính', 'Kế toán', 'PowerBI', 'Excel nâng cao')
+                    )
+                )";
+            } elseif (stripos($majorField, 'An toàn') !== false || stripos($majorField, 'Security') !== false || stripos($majorField, 'Bảo mật') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%An toàn%'
+                    OR spd.headline LIKE '%Security%'
+                    OR spd.headline LIKE '%Bảo mật%'
+                    OR spd.bio LIKE '%Security%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('An toàn thông tin', 'Cyber Security', 'Network Security')
+                    )
+                )";
+            } elseif (stripos($majorField, 'Công nghệ') !== false || stripos($majorField, 'Phần mềm') !== false || stripos($majorField, 'Web') !== false || stripos($majorField, 'Lập trình') !== false) {
+                $where[] = "(
+                    spd.headline LIKE '%Công nghệ%'
+                    OR spd.headline LIKE '%Phần mềm%'
+                    OR spd.headline LIKE '%Lập trình%'
+                    OR spd.headline LIKE '%Web%'
+                    OR spd.headline LIKE '%AI%'
+                    OR spd.bio LIKE '%Công nghệ%'
+                    OR c.name LIKE '%BTEC%'
+                    OR EXISTS (
+                        SELECT 1 FROM student_skills ss
+                        JOIN skills ON ss.skillId = skills.id
+                        WHERE ss.studentId = student.id
+                          AND skills.name IN ('React', 'Node.js', 'Python', 'TypeScript', 'JavaScript', 'HTML', 'CSS', 'Java', 'PHP', 'Docker', 'Git', 'REST API', 'MySQL', 'AI / Machine Learning')
+                    )
+                )";
+            } else {
+                $where[] = "(spd.headline LIKE :maj1 OR spd.bio LIKE :maj2 OR c.name LIKE :maj3)";
+                $params['maj1'] = '%' . $majorField . '%';
+                $params['maj2'] = '%' . $majorField . '%';
+                $params['maj3'] = '%' . $majorField . '%';
+            }
         }
 
         $whereClause = implode(' AND ', $where);
@@ -423,7 +598,6 @@ final class EnterpriseTalentRepository
     public function getTalentDetail(string $enterpriseId, string $studentId): ?array
     {
         $now = $this->now();
-        $hasPartnership = $this->tableExists('school_enterprise_partnerships');
 
         $where = [
             '(student.id = :studentId OR u.id = :studentIdAlt)',
@@ -434,11 +608,6 @@ final class EnterpriseTalentRepository
             'studentId' => $studentId,
             'studentIdAlt' => $studentId,
         ];
-
-        if ($hasPartnership) {
-            $where[] = '(s.id IS NULL OR EXISTS (SELECT 1 FROM school_enterprise_partnerships sep WHERE sep.schoolId = s.id AND sep.enterpriseId = :enterpriseIdPartnership AND sep.status = \'approved\'))';
-            $params['enterpriseIdPartnership'] = $enterpriseId;
-        }
 
         $whereClause = implode(' AND ', $where);
 
@@ -839,7 +1008,7 @@ final class EnterpriseTalentRepository
         $stmt = $this->pdo->prepare(<<<'SQL'
             SELECT ss.id, s.name AS skillName, s.name AS name, ss.levelScore,
                    ss.verificationStatus, ss.verifiedAt, ss.createdAt,
-                   CASE 
+                   CASE
                        WHEN ss.levelScore >= 85 THEN 'Nâng cao'
                        WHEN ss.levelScore >= 65 THEN 'Trung bình'
                        ELSE 'Cơ bản'
@@ -911,7 +1080,7 @@ final class EnterpriseTalentRepository
 
         if (empty($entries) && $this->tableExists('activity_registrations') && $this->tableExists('activities')) {
             $stmt = $this->pdo->prepare(<<<'SQL'
-                SELECT 
+                SELECT
                     ar.id,
                     a.title,
                     COALESCE(s.name, 'Hoạt động trải nghiệm') AS organization,
@@ -951,8 +1120,27 @@ final class EnterpriseTalentRepository
         if (!$this->tableExists('projects') || !$this->tableExists('project_members')) {
             return [];
         }
-        $stmt = $this->pdo->prepare("SELECT p.id, p.title, p.category, p.description, p.projectUrl, p.startAt, p.endAt, p.status, p.createdAt, p.updatedAt, pm.role, pm.contribution FROM projects p INNER JOIN project_members pm ON pm.projectId = p.id WHERE pm.studentId = ? ORDER BY p.createdAt DESC");
-        $stmt->execute([$studentId]);
+        $stmt = $this->pdo->prepare("
+            SELECT p.id, p.title, p.category, p.description, p.projectUrl, p.startAt, p.endAt, p.status, p.createdAt, p.updatedAt, pm.role, pm.contribution,
+                   (
+                       SELECT e.name
+                       FROM project_sponsorships ps
+                       JOIN enterprises e ON e.id = ps.enterpriseId
+                       WHERE ps.projectId = p.id AND ps.status = 'paid'
+                       ORDER BY ps.amount DESC, ps.createdAt DESC
+                       LIMIT 1
+                   ) AS sponsorName,
+                   (
+                       SELECT SUM(ps.amount)
+                       FROM project_sponsorships ps
+                       WHERE ps.projectId = p.id AND ps.status = 'paid'
+                   ) AS totalFundedAmount
+            FROM projects p
+            INNER JOIN project_members pm ON pm.projectId = p.id
+            WHERE pm.studentId = ? OR pm.studentId IN (SELECT sp.id FROM student_profiles sp WHERE sp.userId = ?)
+            ORDER BY p.createdAt DESC
+        ");
+        $stmt->execute([$studentId, $studentId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 

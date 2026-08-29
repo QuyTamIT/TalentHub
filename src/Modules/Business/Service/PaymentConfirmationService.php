@@ -42,7 +42,7 @@ final class PaymentConfirmationService
 
         // Lock payment order row for update
         $lockSuffix = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite' ? '' : ' FOR UPDATE';
-        
+
         $this->pdo->beginTransaction();
         try {
             $stmt = $this->pdo->prepare(
@@ -61,6 +61,7 @@ final class PaymentConfirmationService
 
             // Idempotency check: if already paid, return existing state without duplicate side-effects
             if (($order['paymentStatus'] ?? '') === 'paid') {
+                $funding = $this->projectFundingState((string) $order['projectId']);
                 $this->pdo->commit();
                 return [
                     'id' => $orderId,
@@ -72,6 +73,8 @@ final class PaymentConfirmationService
                     'provider' => (string) $order['provider'],
                     'providerReference' => (string) ($order['providerReference'] ?? $providerReference),
                     'paidAt' => (string) ($order['paidAt'] ?? $this->now()),
+                    'projectFundingStatus' => $funding['fundingStatus'],
+                    'projectFundingPercentage' => $funding['percentage'],
                     'isIdempotent' => true,
                 ];
             }
@@ -114,15 +117,30 @@ final class PaymentConfirmationService
                 'id' => $sponsorshipId,
             ]);
 
+            if ($updateSpon->rowCount() !== 1) {
+                $this->pdo->rollBack();
+                throw new ApiException(409, 'CONCURRENT_MODIFICATION', 'Trạng thái tài trợ đã bị thay đổi.');
+            }
+
+            $funding = $this->synchronizeProjectFundingState($projectId, $now);
+
             // 3. Write Audit Log
             if ($this->tableExists('audit_logs')) {
+                $userIdForAudit = null;
+                $stmtUser = $this->pdo->prepare('SELECT userId FROM enterprise_members WHERE enterpriseId = ? LIMIT 1');
+                $stmtUser->execute([$enterpriseId]);
+                $foundUid = $stmtUser->fetchColumn();
+                if ($foundUid) {
+                    $userIdForAudit = (string) $foundUid;
+                }
+
                 $audit = $this->pdo->prepare(
                     "INSERT INTO audit_logs(id, userId, action, entityType, entityId, requestId, metadata, createdAt)
                      VALUES (?, ?, 'payment.confirmed', 'payment_order', ?, ?, ?, ?)"
                 );
                 $audit->execute([
                     Uuid::v4(),
-                    $enterpriseId,
+                    $userIdForAudit,
                     $orderId,
                     $requestId,
                     json_encode([
@@ -130,6 +148,8 @@ final class PaymentConfirmationService
                         'projectId' => $projectId,
                         'amount' => $order['amount'],
                         'providerReference' => $providerReference,
+                        'projectFundingStatus' => $funding['fundingStatus'],
+                        'projectFundingPercentage' => $funding['percentage'],
                     ], JSON_THROW_ON_ERROR),
                     $now,
                 ]);
@@ -138,7 +158,7 @@ final class PaymentConfirmationService
             $this->pdo->commit();
 
             // 4. Notify School / Project stakeholders
-            $this->notifyStakeholders($projectId, $enterpriseId, (string) $order['amount'], (string) $order['currency']);
+            $this->notifyStakeholders($projectId, $enterpriseId, (string) $order['amount'], (string) $order['currency'], $orderId);
 
             return [
                 'id' => $orderId,
@@ -150,6 +170,8 @@ final class PaymentConfirmationService
                 'provider' => (string) $order['provider'],
                 'providerReference' => $providerReference,
                 'paidAt' => $now,
+                'projectFundingStatus' => $funding['fundingStatus'],
+                'projectFundingPercentage' => $funding['percentage'],
                 'isIdempotent' => false,
             ];
         } catch (Throwable $e) {
@@ -160,7 +182,7 @@ final class PaymentConfirmationService
         }
     }
 
-    private function notifyStakeholders(string $projectId, string $enterpriseId, string $amount, string $currency): void
+    private function notifyStakeholders(string $projectId, string $enterpriseId, string $amount, string $currency, string $orderId): void
     {
         try {
             if (!$this->tableExists('projects') || !$this->tableExists('notifications')) {
@@ -182,6 +204,27 @@ final class PaymentConfirmationService
             $projectTitle = (string) ($proj['title'] ?? 'Dự án');
             $formattedAmount = number_format((float) $amount, 0, ',', '.') . ' ' . $currency;
 
+            // Notify school administrators that the project funding aggregate changed.
+            if ($this->tableExists('school_members')) {
+                $stmtSchoolUsers = $this->pdo->prepare(
+                    "SELECT userId FROM school_members WHERE schoolId = ? AND memberRole IN ('admin', 'owner')"
+                );
+                $stmtSchoolUsers->execute([(string) $proj['schoolId']]);
+                $schoolUserIds = $stmtSchoolUsers->fetchAll(PDO::FETCH_COLUMN) ?: [];
+                foreach ($schoolUserIds as $schoolUserId) {
+                    if (is_string($schoolUserId) && $schoolUserId !== '') {
+                        $this->getNotificationService()->publish(
+                            $schoolUserId,
+                            'project_sponsored',
+                            'Dự án nhà trường nhận tài trợ mới',
+                            "{$entName} đã tài trợ {$formattedAmount} cho dự án \"{$projectTitle}\".",
+                            '/app/school/projects.php',
+                            "project_sponsored:school:{$projectId}:{$orderId}"
+                        );
+                    }
+                }
+            }
+
             // Notify mentor teacher if assigned
             $mentorTeacherId = $proj['mentorTeacherId'] ?? null;
             if ($mentorTeacherId !== null && $this->tableExists('teacher_profiles')) {
@@ -195,7 +238,7 @@ final class PaymentConfirmationService
                         'Dự án nhận được tài trợ mới!',
                         "{$entName} đã tài trợ thành công {$formattedAmount} cho dự án \"{$projectTitle}\".",
                         "/app/teacher/projects/index.php?id={$projectId}",
-                        "project_sponsored:{$projectId}:{$enterpriseId}"
+                        "project_sponsored:teacher:{$projectId}:{$orderId}"
                     );
                 }
             }
@@ -218,7 +261,7 @@ final class PaymentConfirmationService
                             'Dự án của bạn vừa nhận tài trợ!',
                             "Dự án \"{$projectTitle}\" vừa nhận được gói tài trợ {$formattedAmount} từ {$entName}.",
                             "/app/learner/talent-passport.php",
-                            "project_sponsored:{$projectId}:{$enterpriseId}"
+                            "project_sponsored:student:{$projectId}:{$orderId}"
                         );
                     }
                 }
@@ -252,6 +295,85 @@ final class PaymentConfirmationService
         $stmt = $this->pdo->prepare('SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ? LIMIT 1');
         $stmt->execute([$tableName]);
         return (bool) $stmt->fetchColumn();
+    }
+
+    /** @return array{fundingStatus:string,raisedAmount:string,fundingGoal:?string,percentage:int} */
+    private function synchronizeProjectFundingState(string $projectId, string $now): array
+    {
+        $state = $this->projectFundingState($projectId);
+        if ($this->hasColumn('projects', 'fundingStatus')) {
+            $reached = $state['fundingStatus'] === 'goal_reached';
+            $fundingReachedSql = $reached
+                ? 'COALESCE(fundingReachedAt, :reachedAt)'
+                : 'NULL';
+            $statement = $this->pdo->prepare(
+                'UPDATE projects SET fundingStatus = :fundingStatus, '
+                . "fundingReachedAt = {$fundingReachedSql}, "
+                . 'updatedAt = :updatedAt WHERE id = :id'
+            );
+            $parameters = [
+                'fundingStatus' => $state['fundingStatus'],
+                'updatedAt' => $now,
+                'id' => $projectId,
+            ];
+            if ($reached) {
+                $parameters['reachedAt'] = $now;
+            }
+            $statement->execute($parameters);
+        }
+        return $state;
+    }
+
+    /** @return array{fundingStatus:string,raisedAmount:string,fundingGoal:?string,percentage:int} */
+    private function projectFundingState(string $projectId): array
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+            SELECT p.fundingGoal,
+                   COALESCE(SUM(CASE WHEN sponsorship.status = 'paid' THEN sponsorship.amount ELSE 0 END), 0) AS raisedAmount
+            FROM projects p
+            LEFT JOIN project_sponsorships sponsorship ON sponsorship.projectId = p.id
+            WHERE p.id = :projectId
+            GROUP BY p.id, p.fundingGoal
+        SQL);
+        $statement->execute(['projectId' => $projectId]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy dự án nhận tài trợ.');
+        }
+
+        $goal = $row['fundingGoal'] !== null ? (string) $row['fundingGoal'] : null;
+        $raised = (string) ($row['raisedAmount'] ?? '0.00');
+        $percentage = $goal !== null && (float) $goal > 0
+            ? (int) min(100, round(((float) $raised / (float) $goal) * 100))
+            : 0;
+        $status = $goal === null ? 'not_required' : ($percentage >= 100 ? 'goal_reached' : 'open');
+
+        return [
+            'fundingStatus' => $status,
+            'raisedAmount' => $raised,
+            'fundingGoal' => $goal,
+            'percentage' => $percentage,
+        ];
+    }
+
+    private function hasColumn(string $tableName, string $columnName): bool
+    {
+        $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $statement = $this->pdo->query("PRAGMA table_info({$tableName})");
+            foreach ($statement?->fetchAll(PDO::FETCH_ASSOC) ?: [] as $column) {
+                if (($column['name'] ?? null) === $columnName) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        $statement = $this->pdo->prepare(
+            'SELECT 1 FROM information_schema.columns '
+            . 'WHERE table_schema = DATABASE() AND table_name = :table AND column_name = :column LIMIT 1'
+        );
+        $statement->execute(['table' => $tableName, 'column' => $columnName]);
+        return (bool) $statement->fetchColumn();
     }
 
     private function now(): string

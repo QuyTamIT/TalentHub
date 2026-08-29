@@ -13,6 +13,36 @@ final class ActivityReadModel
     public static function activity(array $record): array
     {
         $record = LearnerViewAdapter::record($record);
+        if (!array_key_exists('start_at', $record) && array_key_exists('startAt', $record)) {
+            $record['start_at'] = $record['startAt'];
+        }
+        if (!array_key_exists('end_at', $record) && array_key_exists('endAt', $record)) {
+            $record['end_at'] = $record['endAt'];
+        }
+        if (!array_key_exists('school_id', $record) && array_key_exists('schoolId', $record)) {
+            $record['school_id'] = $record['schoolId'];
+        }
+        if (!array_key_exists('school_name', $record) && array_key_exists('schoolName', $record)) {
+            $record['school_name'] = $record['schoolName'];
+        }
+        if (!array_key_exists('responsible_teacher_name', $record) && array_key_exists('responsibleTeacherName', $record)) {
+            $record['responsible_teacher_name'] = $record['responsibleTeacherName'];
+        }
+        if (!array_key_exists('registration_opens_at', $record) && array_key_exists('registrationOpensAt', $record)) {
+            $record['registration_opens_at'] = $record['registrationOpensAt'];
+        }
+        if (!array_key_exists('registration_closes_at', $record) && array_key_exists('registrationClosesAt', $record)) {
+            $record['registration_closes_at'] = $record['registrationClosesAt'];
+        }
+        if (!array_key_exists('cancellation_closes_at', $record) && array_key_exists('cancellationClosesAt', $record)) {
+            $record['cancellation_closes_at'] = $record['cancellationClosesAt'];
+        }
+        if (!array_key_exists('approval_mode', $record) && array_key_exists('approvalMode', $record)) {
+            $record['approval_mode'] = $record['approvalMode'];
+        }
+        if (!array_key_exists('confirmed_hours', $record) && array_key_exists('confirmedHours', $record)) {
+            $record['confirmed_hours'] = $record['confirmedHours'];
+        }
         if (!array_key_exists('filter_category', $record) && array_key_exists('filterCategory', $record)) {
             $record['filter_category'] = $record['filterCategory'];
         }
@@ -22,7 +52,7 @@ final class ActivityReadModel
         if (!is_string($record['filter_category'] ?? null) || trim((string) $record['filter_category']) === '') {
             $record['filter_category'] = \learner_activity_category_label((string) ($record['category'] ?? ''));
         }
-        $record['registration_closes_at'] ??= $record['start_at'] ?? null;
+        $record['registration_closes_at'] ??= $record['end_at'] ?? $record['start_at'] ?? null;
 
         $view = ReadModelDefaults::apply($record, [
             'id' => '',
@@ -66,7 +96,7 @@ final class ActivityReadModel
             'confirmed_hours' => null,
             'cost' => 'Chưa cập nhật',
             'registration_opens_at' => null,
-            'registration_closes_at' => '1970-01-01 00:00:00',
+            'registration_closes_at' => null,
             'cancellation_closes_at' => null,
             'status' => 'unknown',
             'can_register' => false,
@@ -75,6 +105,11 @@ final class ActivityReadModel
         if ((int) $view['capacity'] <= 0) {
             $view['capacity'] = 1;
             $view['data_notes'][] = 'activity.capacity uses 1 to keep the current progress UI safe from division by zero.';
+        }
+
+        $rawCloses = $view['registration_closes_at'] ?? null;
+        if ($rawCloses === null || $rawCloses === '' || str_starts_with((string)$rawCloses, '1970')) {
+            $view['registration_closes_at'] = $view['end_at'] ?? $view['start_at'] ?? null;
         }
 
         $view['skills'] = self::normalizeTextList($metadata['skills'] ?? null);
@@ -188,9 +223,19 @@ final class ActivityReadModel
         ], 'activity_registration');
     }
 
+
+    /** @param list<array<string,mixed>> $records @return list<array<string,mixed>> */
     public static function activities(array $records): array
     {
-        return array_map([self::class, 'activity'], $records);
+        $unique = [];
+        foreach ($records as $record) {
+            $view = self::activity($record);
+            $id = (string) ($view['id'] ?? '');
+            if ($id !== '' && !isset($unique[$id])) {
+                $unique[$id] = $view;
+            }
+        }
+        return array_values($unique);
     }
 
     public static function registrations(array $records): array

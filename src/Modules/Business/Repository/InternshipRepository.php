@@ -252,12 +252,20 @@ final class InternshipRepository
 
     public function applications(string $enterpriseId): array
     {
-        $statement = $this->pdo->prepare(<<<'SQL'
-            SELECT ia.*, ip.title AS postTitle, u.fullName AS studentName, u.email AS studentEmail
+        $hasLocks = $this->tableExists('internship_application_locks');
+        $lockSelect = $hasLocks
+            ? ', placementLock.lockedByApplicationId, placementLock.reason AS lockReason, placementLock.lockedAt'
+            : ', NULL AS lockedByApplicationId, NULL AS lockReason, NULL AS lockedAt';
+        $lockJoin = $hasLocks
+            ? ' LEFT JOIN internship_application_locks placementLock ON placementLock.applicationId = ia.id'
+            : '';
+        $statement = $this->pdo->prepare(<<<SQL
+            SELECT ia.*, ip.title AS postTitle, u.fullName AS studentName, u.email AS studentEmail{$lockSelect}
             FROM internship_applications ia
             INNER JOIN internship_posts ip ON ip.id = ia.postId
             INNER JOIN student_profiles sp ON sp.id = ia.studentId
             INNER JOIN users u ON u.id = sp.userId
+            {$lockJoin}
             WHERE ip.enterpriseId = :enterpriseId
             ORDER BY ia.createdAt DESC, ia.id
         SQL);
@@ -268,14 +276,22 @@ final class InternshipRepository
     public function application(string $enterpriseId, string $applicationId): array
     {
         $hasSnap = $this->tableExists('application_profile_snapshots');
+        $hasLocks = $this->tableExists('internship_application_locks');
+        $lockSelect = $hasLocks
+            ? ', placementLock.lockedByApplicationId, placementLock.reason AS lockReason, placementLock.lockedAt'
+            : ', NULL AS lockedByApplicationId, NULL AS lockReason, NULL AS lockedAt';
+        $lockJoin = $hasLocks
+            ? ' LEFT JOIN internship_application_locks placementLock ON placementLock.applicationId = ia.id'
+            : '';
         if ($hasSnap) {
-            $statement = $this->pdo->prepare(<<<'SQL'
+            $statement = $this->pdo->prepare(<<<SQL
                 SELECT ia.id, ia.postId, ia.studentId, ia.status, ia.message, ia.reviewerNote,
                        ia.reviewedAt, ia.appliedAt, ip.title, aps.schemaVersion, aps.snapshotPayload,
-                       aps.createdAt AS snapshotCreatedAt
+                       aps.createdAt AS snapshotCreatedAt{$lockSelect}
                 FROM internship_applications ia
                 INNER JOIN internship_posts ip ON ip.id = ia.postId
                 LEFT JOIN application_profile_snapshots aps ON aps.applicationId = ia.id
+                {$lockJoin}
                 WHERE ia.id = :applicationId AND ip.enterpriseId = :enterpriseId
                 LIMIT 1
             SQL);
@@ -292,12 +308,13 @@ final class InternshipRepository
             return $row;
         }
 
-        $statement = $this->pdo->prepare(<<<'SQL'
-            SELECT ia.*, ip.title AS postTitle, u.fullName AS studentName, u.email AS studentEmail
+        $statement = $this->pdo->prepare(<<<SQL
+            SELECT ia.*, ip.title AS postTitle, u.fullName AS studentName, u.email AS studentEmail{$lockSelect}
             FROM internship_applications ia
             INNER JOIN internship_posts ip ON ip.id = ia.postId
             INNER JOIN student_profiles sp ON sp.id = ia.studentId
             INNER JOIN users u ON u.id = sp.userId
+            {$lockJoin}
             WHERE ia.id = :id AND ip.enterpriseId = :enterpriseId
             LIMIT 1
         SQL);
@@ -310,13 +327,60 @@ final class InternshipRepository
         return $row;
     }
 
+    public function recordApplicationProfileAccess(
+        string $enterpriseId,
+        string $userId,
+        string $studentId,
+        string $applicationId,
+        ?string $requestId = null,
+        ?string $ipAddress = null
+    ): void {
+        if (!$this->tableExists('student_profile_access_logs')) {
+            return;
+        }
+        $statement = $this->pdo->prepare(<<<'SQL'
+            INSERT INTO student_profile_access_logs
+                (id, enterpriseId, studentId, accessedByUserId, accessType, requestId, ipAddress, metadata, accessedAt)
+            VALUES
+                (:id, :enterpriseId, :studentId, :userId, 'application_cv', :requestId, :ipAddress, :metadata, :accessedAt)
+        SQL);
+        $statement->execute([
+            'id' => Uuid::v4(),
+            'enterpriseId' => $enterpriseId,
+            'studentId' => $studentId,
+            'userId' => $userId,
+            'requestId' => $requestId,
+            'ipAddress' => $ipAddress,
+            'metadata' => json_encode([
+                'source' => 'internship_application_detail',
+                'applicationId' => $applicationId,
+            ], JSON_THROW_ON_ERROR),
+            'accessedAt' => $this->now(),
+        ]);
+    }
+
     public function review(string $enterpriseId, string $userId, string $applicationId, string $expectedStatus, string $targetStatus, string $reviewerNote): array
     {
         $this->pdo->beginTransaction();
         try {
+            if ($targetStatus === 'accepted') {
+                $candidate = $this->ownedApplication($enterpriseId, $applicationId);
+                if ($candidate === null) {
+                    throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hồ sơ ứng tuyển.');
+                }
+                $this->lockStudentPlacement((string) $candidate['studentId']);
+            }
             $application = $this->lockOwnedApplication($enterpriseId, $applicationId);
             if ($application === null) {
                 throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hồ sơ ứng tuyển.');
+            }
+            $placementLock = $this->applicationLock($applicationId);
+            if ($placementLock !== null) {
+                throw new ApiException(
+                    409,
+                    'INTERNSHIP_PLACEMENT_LOCKED',
+                    (string) ($placementLock['reason'] ?? 'Hồ sơ đã bị khóa vì sinh viên đã xác nhận một vị trí thực tập khác.')
+                );
             }
             $current = (string) $application['status'];
             if ($current !== $expectedStatus) {
@@ -329,6 +393,9 @@ final class InternshipRepository
             ];
             if (!in_array($targetStatus, $allowed[$current] ?? [], true)) {
                 throw new ApiException(422, 'ILLEGAL_STATUS_TRANSITION', 'Chuyển trạng thái hồ sơ không hợp lệ.');
+            }
+            if ($targetStatus === 'accepted' && $this->hasOtherAcceptedPlacement((string) $application['studentId'], $applicationId)) {
+                throw new ApiException(409, 'INTERNSHIP_PLACEMENT_LOCKED', 'Sinh viên đã được tiếp nhận cho một vị trí thực tập khác.');
             }
             $now = $this->now();
             $hasRevCols = $this->hasColumn('internship_applications', 'reviewerNote');
@@ -376,6 +443,11 @@ final class InternshipRepository
                 $studentId
             );
 
+            if ($targetStatus === 'accepted') {
+                $this->lockCompetingApplications($studentId, $applicationId, $now);
+                $this->notifySchoolPlacement($applicationId, $studentId, (string) ($application['title'] ?? 'Vị trí thực tập'));
+            }
+
             $this->pdo->commit();
             return $this->application($enterpriseId, $applicationId);
         } catch (\Throwable $exception) {
@@ -412,10 +484,46 @@ final class InternshipRepository
 
     private function lockOwnedApplication(string $enterpriseId, string $applicationId): ?array
     {
-        $statement = $this->pdo->prepare('SELECT ia.id, ia.studentId, ia.status, ip.title FROM internship_applications ia INNER JOIN internship_posts ip ON ip.id = ia.postId WHERE ia.id = :id AND ip.enterpriseId = :enterpriseId LIMIT 1' . $this->lockSuffix());
+        $statement = $this->pdo->prepare('SELECT ia.id, ia.postId, ia.studentId, ia.status, ip.title FROM internship_applications ia INNER JOIN internship_posts ip ON ip.id = ia.postId WHERE ia.id = :id AND ip.enterpriseId = :enterpriseId LIMIT 1' . $this->lockSuffix());
         $statement->execute(['id' => $applicationId, 'enterpriseId' => $enterpriseId]);
         $row = $statement->fetch(PDO::FETCH_ASSOC);
         return is_array($row) ? $row : null;
+    }
+
+    /** @return array<string,mixed>|null */
+    private function ownedApplication(string $enterpriseId, string $applicationId): ?array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT ia.id, ia.postId, ia.studentId, ia.status, ip.title '
+            . 'FROM internship_applications ia '
+            . 'INNER JOIN internship_posts ip ON ip.id = ia.postId '
+            . 'WHERE ia.id = :id AND ip.enterpriseId = :enterpriseId LIMIT 1'
+        );
+        $statement->execute(['id' => $applicationId, 'enterpriseId' => $enterpriseId]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    private function lockStudentPlacement(string $studentId): void
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT id FROM student_profiles WHERE id = :studentId LIMIT 1' . $this->lockSuffix()
+        );
+        $statement->execute(['studentId' => $studentId]);
+        if ($statement->fetchColumn() === false) {
+            throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hồ sơ sinh viên.');
+        }
+    }
+
+    private function hasOtherAcceptedPlacement(string $studentId, string $applicationId): bool
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT id FROM internship_applications "
+            . "WHERE studentId = :studentId AND id <> :applicationId AND status = 'accepted' "
+            . 'LIMIT 1' . $this->lockSuffix()
+        );
+        $statement->execute(['studentId' => $studentId, 'applicationId' => $applicationId]);
+        return $statement->fetchColumn() !== false;
     }
 
     private function history(string $applicationId): array
@@ -439,6 +547,84 @@ final class InternshipRepository
         $diff = array_diff($schoolIds, $approvedIds);
         if (!empty($diff)) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Trường đối tác được chọn chưa được phê duyệt quan hệ hợp tác.');
+        }
+    }
+
+    /** @return array<string,mixed>|null */
+    private function applicationLock(string $applicationId): ?array
+    {
+        if (!$this->tableExists('internship_application_locks')) {
+            return null;
+        }
+        $statement = $this->pdo->prepare(
+            'SELECT lockedByApplicationId, reason, lockedAt '
+            . 'FROM internship_application_locks WHERE applicationId = :applicationId LIMIT 1'
+            . $this->lockSuffix()
+        );
+        $statement->execute(['applicationId' => $applicationId]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    private function lockCompetingApplications(string $studentId, string $placementApplicationId, string $now): void
+    {
+        if (!$this->tableExists('internship_application_locks')) {
+            return;
+        }
+        $statement = $this->pdo->prepare(
+            "SELECT id FROM internship_applications "
+            . "WHERE studentId = :studentId AND id <> :placementId "
+            . "AND status IN ('submitted','reviewing','interview')" . $this->lockSuffix()
+        );
+        $statement->execute(['studentId' => $studentId, 'placementId' => $placementApplicationId]);
+        $ids = $statement->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        $reason = 'Sinh viên đã xác nhận một vị trí thực tập khác.';
+        $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $sql = $driver === 'sqlite'
+            ? 'INSERT OR IGNORE INTO internship_application_locks (applicationId, lockedByApplicationId, reason, lockedAt) VALUES (:applicationId, :placementId, :reason, :lockedAt)'
+            : 'INSERT IGNORE INTO internship_application_locks (applicationId, lockedByApplicationId, reason, lockedAt) VALUES (:applicationId, :placementId, :reason, :lockedAt)';
+        $insert = $this->pdo->prepare($sql);
+        foreach ($ids as $id) {
+            if (!is_string($id) || $id === '') {
+                continue;
+            }
+            $insert->execute([
+                'applicationId' => $id,
+                'placementId' => $placementApplicationId,
+                'reason' => $reason,
+                'lockedAt' => $now,
+            ]);
+        }
+    }
+
+    private function notifySchoolPlacement(string $applicationId, string $studentId, string $postTitle): void
+    {
+        if (!$this->tableExists('school_members')) {
+            return;
+        }
+        $statement = $this->pdo->prepare(<<<'SQL'
+            SELECT schoolMember.userId, studentUser.fullName AS studentName
+            FROM student_profiles student
+            INNER JOIN users studentUser ON studentUser.id = student.userId
+            INNER JOIN classes class ON class.id = student.classId
+            INNER JOIN school_members schoolMember ON schoolMember.schoolId = class.schoolId
+            WHERE student.id = :studentId AND schoolMember.memberRole IN ('admin', 'owner')
+        SQL);
+        $statement->execute(['studentId' => $studentId]);
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $recipient) {
+            $userId = (string) ($recipient['userId'] ?? '');
+            if ($userId === '') {
+                continue;
+            }
+            $studentName = (string) ($recipient['studentName'] ?? 'Sinh viên');
+            $this->getNotificationService()->publish(
+                $userId,
+                'internship_placement_confirmed',
+                'Sinh viên đã được tiếp nhận thực tập',
+                "{$studentName} đã được tiếp nhận cho vị trí {$postTitle}. Vui lòng phân công giảng viên mentor.",
+                '/app/school/internships.php',
+                "internship_placement:school:{$applicationId}"
+            );
         }
     }
 

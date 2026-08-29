@@ -55,10 +55,13 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                         </div>
 
                         <div class="learner-profile-actions">
+                            <a class="learner-btn learner-btn--primary" href="talent-passport.php" style="background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%); color: #FFFFFF; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);">
+                                <?= learner_icon('award', 18); ?> Xem &amp; Tải Talent Passport
+                            </a>
                             <button class="learner-btn learner-btn--outline" type="button" data-open-modal="learner-share-modal">
                                 <?= learner_icon('share', 18); ?> Chia sẻ hồ sơ
                             </button>
-                            <button class="learner-btn learner-btn--primary" type="button" data-open-modal="learner-edit-modal">
+                            <button class="learner-btn learner-btn--outline" type="button" data-open-modal="learner-edit-modal">
                                 <?= learner_icon('edit', 18); ?> Chỉnh sửa
                             </button>
                         </div>
@@ -133,14 +136,22 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                             <div class="learner-profile-skills__grid">
                                 <?php foreach ($skills as $skill):
                                     $skillScoreClamped = max(0, min(100, (int) round((float) ($skill['score'] ?? 0))));
+                                    $skillTone = learner_escape($skill['tone'] ?? 'secondary');
+                                    $skillColor = $skill['color'] ?? match ($skillTone) {
+                                        'success' => '#10B981',
+                                        'primary' => '#F97316',
+                                        'secondary' => '#6366F1',
+                                        'warning' => '#F59E0B',
+                                        default => '#6366F1'
+                                    };
                                 ?>
                                     <article class="learner-skill-bar">
                                         <div class="learner-skill-bar__header">
                                             <span><?= learner_escape($skill['name']); ?></span>
-                                            <strong><?= $skillScoreClamped; ?>/100</strong>
+                                            <strong style="color: #0F172A;"><?= $skillScoreClamped; ?>/100</strong>
                                         </div>
-                                        <div class="learner-progress" role="progressbar" aria-valuenow="<?= $skillScoreClamped; ?>" aria-valuemin="0" aria-valuemax="100">
-                                            <span class="learner-progress--secondary" style="--learner-progress: <?= $skillScoreClamped; ?>%;"></span>
+                                        <div class="learner-progress" role="progressbar" aria-valuenow="<?= $skillScoreClamped; ?>" aria-valuemin="0" aria-valuemax="100" style="position: relative; width: 100%; height: 8px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
+                                            <span class="learner-progress--<?= $skillTone; ?>" style="--learner-progress: <?= $skillScoreClamped; ?>%; width: <?= $skillScoreClamped; ?>%; background-color: <?= $skillColor; ?>; display: block; height: 100%; border-radius: inherit; transition: width 0.55s ease;"></span>
                                         </div>
                                     </article>
                                 <?php endforeach; ?>
@@ -215,14 +226,39 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                     <?php else: ?>
                         <div class="learner-project-grid">
                             <?php foreach ($projects as $project): ?>
-                                <article class="learner-project-card">
+                                <?php
+                                    $pName = $project['name'] ?? $project['title'] ?? '';
+                                    $pDesc = $project['description'] ?? '';
+                                    $pRole = $project['role'] ?? 'Thành viên';
+                                    $pStatusLabel = $project['status_label'] ?? $project['status'] ?? 'Đang thực hiện';
+                                    $pTone = $project['status_tone'] ?? $project['tone'] ?? 'primary';
+                                    $pSponsor = $project['sponsor_name'] ?? '';
+
+                                    $statusBadgeStyle = match($pTone) {
+                                        'success' => 'background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC;',
+                                        'purple' => 'background: #F3E8FF; color: #7E22CE; border: 1px solid #D8B4FE;',
+                                        'warning' => 'background: #FEF3C7; color: #B45309; border: 1px solid #FDE68A;',
+                                        default => 'background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE;'
+                                    };
+                                ?>
+                                <article class="learner-project-card" style="display: flex; flex-direction: column; justify-content: space-between; gap: 0.85rem; padding: 1.25rem 1.4rem; border: 1px solid #E2E8F0; border-radius: 12px; background: #FFFFFF; transition: all 0.2s ease;">
                                     <div>
-                                        <h3><?= learner_escape($project['name'] ?? $project['title'] ?? ''); ?></h3>
-                                        <p><?= learner_escape($project['description'] ?? ''); ?></p>
+                                        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+                                            <h3 style="font-size: 1rem; font-weight: 700; color: #0F172A; margin: 0; line-height: 1.4; flex: 1; min-width: 180px;"><?= learner_escape($pName); ?></h3>
+                                            <?php if (!empty($pSponsor)): ?>
+                                                <span class="learner-sponsor-badge" style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; background: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE;">
+                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #4F46E5;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                                    Được bảo trợ bởi <?= learner_escape($pSponsor); ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <p style="color: #64748B; font-size: 0.85rem; line-height: 1.5; margin: 0;"><?= learner_escape($pDesc); ?></p>
                                     </div>
-                                    <div class="learner-project-card__badges">
-                                        <span class="learner-badge learner-badge--<?= learner_escape($project['tone'] ?? 'primary'); ?>"><?= learner_escape($project['role'] ?? 'Thành viên'); ?></span>
-                                        <span class="learner-badge learner-badge--<?= learner_escape($project['tone'] ?? 'primary'); ?>"><?= learner_escape($project['status'] ?? 'Đang tiến hành'); ?></span>
+                                    <div class="learner-project-card__badges" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-direction: row; border-top: 1px solid #F1F5F9; padding-top: 0.75rem; margin-top: 0.25rem;">
+                                        <span class="learner-badge" style="background: #F1F5F9; color: #475569; font-weight: 600; font-size: 0.75rem; padding: 3px 9px; border-radius: 6px;"><?= learner_escape($pRole); ?></span>
+                                        <span class="learner-badge learner-badge--<?= learner_escape($pTone); ?>" style="font-weight: 600; font-size: 0.75rem; padding: 3px 9px; border-radius: 6px; <?= $statusBadgeStyle ?>">
+                                            ● <?= learner_escape($pStatusLabel); ?>
+                                        </span>
                                     </div>
                                 </article>
                             <?php endforeach; ?>
@@ -266,9 +302,24 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                         <input id="learner-field-location" name="location" type="text" value="<?= learner_escape($student['location']); ?>">
                         <small class="learner-field__error" id="learner-error-location" data-error-for="location" role="alert"></small>
                     </label>
+                    <label class="learner-field">
+                        <span>Cấp học</span>
+                        <select id="learner-field-level" name="educationLevel" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; width: 100%; font-size: 0.875rem;">
+                            <option value="college" selected>Cao đẳng / Đại học (Sinh viên)</option>
+                            <option value="high_school">THCS / THPT (Học sinh)</option>
+                        </select>
+                    </label>
+                    <label class="learner-field">
+                        <span>Trường học</span>
+                        <input id="learner-field-school" name="schoolName" type="text" value="<?= learner_escape($student['school']); ?>" placeholder="Ví dụ: THPT Nguyễn Du hoặc Cao đẳng BTEC FPT">
+                    </label>
+                    <label class="learner-field">
+                        <span>Lớp học</span>
+                        <input id="learner-field-class" name="className" type="text" value="<?= learner_escape($student['class']); ?>" placeholder="Ví dụ: Lớp 11A2 hoặc BTEC-AI-2026A">
+                    </label>
                     <label class="learner-field learner-field--wide">
                         <span>Chức danh / Headline</span>
-                        <input id="learner-field-headline" name="headline" type="text" value="<?= learner_escape($student['headline'] ?? ''); ?>" placeholder="Ví dụ: Học sinh chuyên Tin, Đam mê AI">
+                        <input id="learner-field-headline" name="headline" type="text" value="<?= learner_escape($student['headline'] ?? ''); ?>" placeholder="Ví dụ: Học sinh THPT Đam mê AI / Lập trình viên Trẻ">
                         <small class="learner-field__error" data-error-for="headline" role="alert"></small>
                     </label>
                     <label class="learner-field learner-field--wide">

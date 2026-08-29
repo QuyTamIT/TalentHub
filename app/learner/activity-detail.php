@@ -79,7 +79,9 @@ $boot = learner_activity_detail_boot_payload(
 $formatDateTime = static function (mixed $value, string $format): string {
     if (!is_string($value) || trim($value) === '') return 'Chưa cập nhật';
     try {
-        return (new DateTimeImmutable($value))->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'))->format($format);
+        $clean = trim($value);
+        $dt = new DateTimeImmutable($clean, new DateTimeZone('Asia/Ho_Chi_Minh'));
+        return $dt->format($format);
     } catch (Throwable) {
         return 'Chưa cập nhật';
     }
@@ -128,8 +130,22 @@ $formatDateTime = static function (mixed $value, string $format): string {
                     $deliveryMode = $activity['has_format'] ? (string) $activity['delivery_mode_label'] : 'Chưa cập nhật';
                     $feeLabel = $activity['has_cost'] ? (string) $activity['fee_label'] : 'Chưa cập nhật';
                     $startDate = $formatDateTime($activity['start_at'], 'd/m/Y');
+                    $endDate = $formatDateTime($activity['end_at'], 'd/m/Y');
                     $startTime = $formatDateTime($activity['start_at'], 'H:i');
                     $endTime = $formatDateTime($activity['end_at'], 'H:i');
+                    $startFull = $formatDateTime($activity['start_at'], 'd/m/Y H:i');
+                    $endFull = $formatDateTime($activity['end_at'], 'd/m/Y H:i');
+
+                    if (!empty($activity['start_at']) && !empty($activity['end_at'])) {
+                        if ($startDate === $endDate) {
+                            $eventScheduleRange = "{$startDate} {$startTime} đến {$endTime}";
+                        } else {
+                            $eventScheduleRange = "{$startFull} đến {$endFull}";
+                        }
+                    } else {
+                        $eventScheduleRange = $startFull ?: 'Chưa cập nhật';
+                    }
+
                     $registrationOpens = $formatDateTime($activity['registration_opens_at'], 'd/m/Y H:i');
                     $registrationCloses = $formatDateTime($activity['registration_closes_at'], 'd/m/Y H:i');
                     $cancellationCloses = $formatDateTime($activity['cancellation_closes_at'], 'd/m/Y H:i');
@@ -147,10 +163,11 @@ $formatDateTime = static function (mixed $value, string $format): string {
                     $coverAlt = trim((string) $activity['cover_image_alt']) ?: 'Minh họa cho hoạt động ' . (string) $activity['title'];
                     $registrationStatus = (string) ($currentRegistration['status'] ?? '');
                     $registrationLabels = [
-                        'approved' => 'Đã đăng ký', 'registered' => 'Đã đăng ký', 'pending' => 'Chờ duyệt',
+                        'approved' => '✓ Đã đăng ký tham gia', 'registered' => '✓ Đã đăng ký tham gia', 'pending' => '✓ Đã gửi yêu cầu đăng ký',
                         'waitlisted' => 'Danh sách chờ', 'rejected' => 'Không được duyệt', 'cancelled' => 'Đã hủy',
-                        'attended' => 'Đã tham gia', 'checked_in' => 'Đã check-in',
+                        'attended' => '✓ Đã tham gia', 'checked_in' => '✓ Đã check-in',
                     ];
+                    $isRegisteredSuccess = in_array($registrationStatus, ['approved', 'registered', 'attended', 'checked_in', 'pending'], true);
                     $ctaLabel = $registrationStatus !== ''
                         ? ($registrationLabels[$registrationStatus] ?? 'Không thể đăng ký')
                         : ((string) $availability['code'] === 'open' ? 'Đăng ký hoạt động' : (string) $availability['label']);
@@ -168,7 +185,7 @@ $formatDateTime = static function (mixed $value, string $format): string {
                                     <p class="learner-activity-detail-hero__school"><?= learner_icon('building', 18) ?> <span><?= learner_escape($schoolName) ?></span></p>
                                     <?php if ($activity['has_summary']): ?><p class="learner-activity-detail-hero__summary"><?= learner_escape((string) $activity['summary']) ?></p><?php endif; ?>
                                     <div class="learner-activity-detail-hero__meta">
-                                        <span><?= learner_icon('calendar', 17) ?> <?= learner_escape($startDate) ?></span>
+                                        <span><?= learner_icon('calendar', 17) ?> <?= learner_escape($eventScheduleRange) ?></span>
                                         <span><?= learner_icon('clock', 17) ?> <?= learner_escape($startTime . ' – ' . $endTime) ?></span>
                                         <span><?= learner_icon('map-pin', 17) ?> <?= learner_escape($locationName) ?></span>
                                     </div>
@@ -180,8 +197,8 @@ $formatDateTime = static function (mixed $value, string $format): string {
 
                             <article class="learner-card learner-activity-detail-panel">
                                 <div class="learner-activity-detail-info-strip" aria-label="Thông tin nhanh">
-                                    <div><span><?= learner_icon('calendar', 18) ?></span><p>Ngày tổ chức<strong><?= learner_escape($startDate) ?></strong></p></div>
-                                    <div><span><?= learner_icon('clock', 18) ?></span><p>Thời gian<strong><?= learner_escape($startTime . ' – ' . $endTime) ?></strong></p></div>
+                                    <div><span><?= learner_icon('calendar', 18) ?></span><p>Thời gian tổ chức<strong><?= learner_escape($eventScheduleRange) ?></strong></p></div>
+                                    <div><span><?= learner_icon('clock', 18) ?></span><p>Khung giờ<strong><?= learner_escape($startTime . ' – ' . $endTime) ?></strong></p></div>
                                     <div><span><?= learner_icon('map-pin', 18) ?></span><p>Địa điểm<strong><?= learner_escape($locationName) ?></strong></p></div>
                                     <div><span><?= learner_icon('users', 18) ?></span><p>Số lượng<strong data-activity-count><?= learner_escape($participants . '/' . $capacity . ' học sinh') ?></strong></p></div>
                                 </div>
@@ -261,8 +278,20 @@ $formatDateTime = static function (mixed $value, string $format): string {
                                     <div><dt>Chi phí</dt><dd><?= learner_escape($feeLabel) ?></dd></div>
                                     <div><dt>Giờ trải nghiệm</dt><dd><?= learner_escape($hoursLabel) ?></dd></div>
                                 </dl>
-                                <button class="learner-btn learner-btn--primary learner-btn--block" type="button" data-register-current<?= $ctaDisabled ? ' disabled' : '' ?>><?= learner_escape($ctaLabel) ?></button>
-                                <p class="learner-registration-message" role="status" aria-live="polite" data-registration-message data-tone="outline"><?= learner_escape((string) $availability['explanation']) ?></p>
+                                <div class="learner-activity-feedback-box learner-activity-feedback-box--success" data-registration-feedback-box<?= $isRegisteredSuccess ? '' : ' hidden' ?>>
+                                    <div class="learner-activity-feedback-box__icon-wrapper">
+                                        <span class="learner-activity-feedback-box__icon">
+                                            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                            </svg>
+                                        </span>
+                                    </div>
+                                    <h3 class="learner-activity-feedback-box__title" data-feedback-title><?= $registrationStatus === 'pending' ? 'Đã gửi yêu cầu đăng ký!' : 'Đăng ký tham gia thành công!' ?></h3>
+                                    <p class="learner-activity-feedback-box__desc" data-feedback-desc><?= $registrationStatus === 'pending' ? 'Hệ thống đã chuyển yêu cầu đến giáo viên phụ trách để xét duyệt.' : 'Hệ thống đã ghi nhận tên bạn vào danh sách. Vui lòng có mặt đúng giờ để check-in QR.' ?></p>
+                                </div>
+                                <button class="learner-btn learner-btn--primary learner-btn--block <?= $isRegisteredSuccess ? 'learner-btn--registered-disabled' : '' ?>" type="button" data-register-current<?= $ctaDisabled ? ' disabled' : '' ?>><?= learner_escape($ctaLabel) ?></button>
+                                <p class="learner-registration-message" role="status" aria-live="polite" data-registration-message data-tone="outline"<?= $isRegisteredSuccess ? ' hidden' : '' ?>><?= learner_escape((string) $availability['explanation']) ?></p>
                                 <div class="learner-data-note"><?= learner_icon('info', 16) ?><p><?= $allowsLocalDemoMutation ? 'Chế độ demo: thay đổi chỉ được lưu cục bộ trên trình duyệt.' : 'Dữ liệu đăng ký từ máy chủ là nguồn chính thức.' ?></p></div>
                             </section>
 

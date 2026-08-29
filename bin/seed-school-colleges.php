@@ -25,7 +25,7 @@ $stmt = $pdo->prepare("SELECT id FROM schools WHERE id = ?");
 $stmt->execute([$btecSchoolId]);
 if ($stmt->fetch()) {
     $pdo->prepare("
-        UPDATE schools SET 
+        UPDATE schools SET
             name = 'Cao đẳng Quốc tế BTEC FPT',
             email = 'btec@talenthub.local',
             level = 'Cao đẳng',
@@ -50,7 +50,7 @@ $stmt = $pdo->prepare("SELECT id FROM schools WHERE id = ?");
 $stmt->execute([$ctuSchoolId]);
 if ($stmt->fetch()) {
     $pdo->prepare("
-        UPDATE schools SET 
+        UPDATE schools SET
             name = 'Đại học Cần Thơ',
             email = 'ctu@talenthub.local',
             level = 'Đại học',
@@ -77,7 +77,7 @@ function ensureSchoolUser(PDO $pdo, string $userId, string $email, string $fullN
     if ($existing) {
         $actualUserId = (string) $existing['id'];
         $pdo->prepare("
-            UPDATE users SET 
+            UPDATE users SET
                 fullName = ?,
                 passwordHash = ?,
                 roleId = ?,
@@ -93,7 +93,7 @@ function ensureSchoolUser(PDO $pdo, string $userId, string $email, string $fullN
     }
 
     // Ensure school_members link
-    $pdo->prepare("DELETE FROM school_members WHERE userId = ? OR (schoolId = ? AND memberRole = 'admin')")->execute([$actualUserId, $schoolId]);
+    $pdo->prepare("DELETE FROM school_members WHERE userId = ?")->execute([$actualUserId]);
     $memberId = Uuid::v4();
     $pdo->prepare("
         INSERT INTO school_members (id, schoolId, userId, memberRole, createdAt)
@@ -102,10 +102,10 @@ function ensureSchoolUser(PDO $pdo, string $userId, string $email, string $fullN
     echo "[OK] Linked School Admin: $email ($fullName) -> School ID: $schoolId\n";
 }
 
-// BTEC FPT Admin
+// BTEC FPT Admins (Standardized credentials)
+ensureSchoolUser($pdo, '31000000-0000-4000-8000-000000000001', 'btec@school.edu.vn', 'Ban Đào tạo Cao đẳng Quốc tế BTEC FPT', $schoolRoleId, $passwordHash, $btecSchoolId);
 ensureSchoolUser($pdo, '31000000-0000-4000-8000-000000000002', 'btec@talenthub.local', 'Ban Đào tạo BTEC FPT', $schoolRoleId, $passwordHash, $btecSchoolId);
-// Also link school@talenthub.local to BTEC FPT for compatibility
-ensureSchoolUser($pdo, 'cf711da3-ef58-429b-b52f-d3bff8b60e05', 'school@talenthub.local', 'Ban Đào tạo Cao đẳng Quốc tế BTEC FPT', $schoolRoleId, $passwordHash, $btecSchoolId);
+ensureSchoolUser($pdo, 'cf711da3-ef58-429b-b52f-d3bff8b60e05', 'school@talenthub.local', 'Ban Giám hiệu Cao đẳng Quốc tế BTEC FPT', $schoolRoleId, $passwordHash, $btecSchoolId);
 
 // CTU Admin
 ensureSchoolUser($pdo, '31000000-0000-4000-8000-000000000003', 'ctu@talenthub.local', 'Ban Giám hiệu Đại học Cần Thơ', $schoolRoleId, $passwordHash, $ctuSchoolId);
@@ -254,16 +254,16 @@ echo "\n[OK] All Students mapped to BTEC FPT and CTU classes successfully!\n";
 
 // 6. Recalculate School studentCount & teacherCount
 $pdo->query("
-    UPDATE schools s SET 
+    UPDATE schools s SET
         studentCount = (
-            SELECT COUNT(*) 
-            FROM student_profiles sp 
-            JOIN classes c ON c.id = sp.classId 
+            SELECT COUNT(*)
+            FROM student_profiles sp
+            JOIN classes c ON c.id = sp.classId
             WHERE c.schoolId = s.id AND sp.studyStatus = 'active'
         ),
         teacherCount = COALESCE((
-            SELECT COUNT(*) 
-            FROM school_members sm 
+            SELECT COUNT(*)
+            FROM school_members sm
             WHERE sm.schoolId = s.id AND sm.memberRole = 'teacher'
         ), 0)
 ");
