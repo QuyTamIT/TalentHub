@@ -34,10 +34,10 @@ $profileRefresh=new ProfileAnalysisRefreshService(
  },
  static function(string $studentId,array $profile,string $snapshotHash,string $modelVersion,string $generatedAt)use($profiles,$profileService):void{$validated=$profileService->publish($studentId,$profile,$snapshotHash,$modelVersion,$generatedAt);$profiles->publish($studentId,$validated,$snapshotHash,$modelVersion,$generatedAt);},
 );
-$handler=static function(AiRefreshJob $job,callable $leaseGuard)use($context,$profiles,$refreshState,$profileRefresh):void{
- if(!$leaseGuard())throw new RuntimeException('refresh_lease_lost');
- if(!hash_equals($job->snapshotHash,$context->aiSnapshotHash($job->studentId,$job->capability)))return;
- $key='worker-'.$job->jobKey;
+ $handler=static function(AiRefreshJob $job,callable $leaseGuard)use($context,$profiles,$refreshState,$profileRefresh):void{
+  if(!$leaseGuard())throw new RuntimeException('refresh_lease_lost');
+  if(!hash_equals($job->snapshotHash,$context->aiSnapshotHash($job->studentId,$job->capability)))throw new RuntimeException('superseded_snapshot');
+  $key='worker-'.$job->jobKey;
  if(!$leaseGuard())throw new RuntimeException('refresh_lease_lost');
  if($job->capability==='profile_analysis')$profiles->markPending($job->studentId,$job->snapshotHash,$job->jobKey);else $refreshState->pending($job->studentId,$job->capability,$job->snapshotHash,$job->jobKey);
  try {

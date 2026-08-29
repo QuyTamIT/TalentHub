@@ -33,6 +33,7 @@ Thumbs.db
 !/tests/learner_ai_group_matching_test.php
 !/tests/learner_ai_group_matching_api_test.php
 !/tests/learner_ai_group_matching_ui_test.ps1
+!/tests/learner_ai_queue_worker_test.php
 /docs/
 /design/
 /Document/
