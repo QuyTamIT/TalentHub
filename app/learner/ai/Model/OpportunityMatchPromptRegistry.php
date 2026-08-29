@@ -182,15 +182,27 @@ final class OpportunityMatchPromptRegistry
             return [
                 'type' => 'object',
                 'additionalProperties' => false,
-                'required' => ['headline', 'explanation', 'learner_strengths', 'catalog_demands', 'main_gaps', 'next_steps', 'evidence_ref_ids'],
+                'required' => ['items'],
                 'properties' => [
-                    'headline' => ['type' => 'string', 'minLength' => 12],
-                    'explanation' => ['type' => 'string', 'minLength' => 24],
-                    'learner_strengths' => ['type' => 'array', 'items' => ['type' => 'string']],
-                    'catalog_demands' => ['type' => 'array', 'items' => ['type' => 'string']],
-                    'main_gaps' => ['type' => 'array', 'items' => ['type' => 'string']],
-                    'next_steps' => ['type' => 'array', 'minItems' => 1, 'items' => ['type' => 'string']],
-                    'evidence_ref_ids' => ['type' => 'array', 'minItems' => 1, 'items' => ['type' => 'string']],
+                    'items' => [
+                        'type' => 'array',
+                        'minItems' => 1,
+                        'maxItems' => 1,
+                        'items' => [
+                            'type' => 'object',
+                            'additionalProperties' => false,
+                            'required' => ['headline', 'explanation', 'learner_strengths', 'catalog_demands', 'main_gaps', 'next_steps', 'evidence_ref_ids'],
+                            'properties' => [
+                                'headline' => ['type' => 'string', 'minLength' => 12],
+                                'explanation' => ['type' => 'string', 'minLength' => 24],
+                                'learner_strengths' => ['type' => 'array', 'items' => ['type' => 'string']],
+                                'catalog_demands' => ['type' => 'array', 'items' => ['type' => 'string']],
+                                'main_gaps' => ['type' => 'array', 'items' => ['type' => 'string']],
+                                'next_steps' => ['type' => 'array', 'minItems' => 1, 'items' => ['type' => 'string']],
+                                'evidence_ref_ids' => ['type' => 'array', 'minItems' => 1, 'items' => ['type' => 'string']],
+                            ],
+                        ],
+                    ],
                 ],
             ];
         }

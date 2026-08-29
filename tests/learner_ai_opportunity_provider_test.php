@@ -470,7 +470,10 @@ $noFitRequest = OpportunityMatchPromptRegistry::create(
     ],
 );
 $noFitSchema = $noFitRequest->payload()['output_schema'];
-provider_assert(($noFitSchema['required'] ?? []) === ['headline', 'explanation', 'learner_strengths', 'catalog_demands', 'main_gaps', 'next_steps', 'evidence_ref_ids'], 'no-fit summary schema is explicit');
+provider_assert(($noFitSchema['required'] ?? []) === ['items'], 'no-fit summary keeps the provider items envelope');
+$noFitItemSchema = $noFitSchema['properties']['items']['items'] ?? [];
+provider_assert(($noFitSchema['properties']['items']['minItems'] ?? null) === 1 && ($noFitSchema['properties']['items']['maxItems'] ?? null) === 1, 'no-fit response contains exactly one summary item');
+provider_assert(($noFitItemSchema['required'] ?? []) === ['headline', 'explanation', 'learner_strengths', 'catalog_demands', 'main_gaps', 'next_steps', 'evidence_ref_ids'], 'no-fit summary item schema is explicit');
 provider_assert(str_contains(json_encode($noFitRequest->payload(), JSON_THROW_ON_ERROR), 'education_band_mismatch'), 'no-fit prompt carries safe exclusion aggregates');
 $summary = $validator->validateSummary([
     'headline' => 'Chua co co hoi du phu hop',
