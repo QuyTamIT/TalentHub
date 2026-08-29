@@ -11233,6 +11233,9 @@ body.learner-sidebar-open {
 .learner-opportunity-ai__message > div { display: grid; min-width: 0; gap: 3px; }
 .learner-opportunity-ai__message strong { color: var(--text-primary); font-size: 0.83rem; }
 .learner-opportunity-ai__message span { color: var(--text-secondary); font-size: 0.75rem; line-height: 1.5; }
+.learner-opportunity-ai__analysis-summary { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 10px 0 0; }
+.learner-opportunity-ai__analysis-summary dt { color: var(--text-secondary); font-size: 0.72rem; font-weight: 600; }
+.learner-opportunity-ai__analysis-summary dd { margin: 0; color: var(--text-primary); font-size: 0.72rem; line-height: 1.45; }
 .learner-opportunity-ai__message .learner-btn { margin-left: auto; flex: 0 0 auto; }
 .learner-opportunity-ai__message--warning { color: var(--warning); background: #fffbeb; border-color: #fde68a; }
 .learner-opportunity-ai__message--error { color: var(--danger); background: #fef2f2; border-color: #fecaca; }

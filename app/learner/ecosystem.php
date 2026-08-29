@@ -183,7 +183,22 @@ function learner_ecosystem_date(string $date): string
                         </div>
                         <div class="learner-opportunity-ai__message learner-opportunity-ai__message--warning" data-opportunity-ai-catalog-insufficient hidden>
                             <?= learner_icon('info', 20); ?>
-                            <div><strong>Chưa đủ dự án đang mở</strong><span>TalentHub cần ít nhất ba dự án hợp lệ để tạo bảng xếp hạng Top 3.</span></div>
+                            <div><strong>Chưa đủ dự án đang mở</strong><span>Gemini sẽ phân tích ngay cả khi chỉ có một hoặc hai cơ hội để bạn biết mức độ phù hợp.</span></div>
+                        </div>
+                        <div class="learner-opportunity-ai__message learner-opportunity-ai__message--warning" data-opportunity-ai-low-fit hidden>
+                            <?= learner_icon('info', 20); ?>
+                            <div><strong>Cơ hội gần phù hợp</strong><span>Danh sách dưới đây có điểm 40–59. Gemini nêu rõ kỹ năng, điều kiện còn thiếu và bước cải thiện cho từng dự án.</span></div>
+                        </div>
+                        <div class="learner-opportunity-ai__message learner-opportunity-ai__message--warning" data-opportunity-ai-no-fit hidden>
+                            <?= learner_icon('info', 20); ?>
+                            <div><strong data-opportunity-ai-analysis-headline>Chưa có cơ hội đủ phù hợp</strong><span data-opportunity-ai-analysis-explanation>Các cơ hội hiện tại chưa phù hợp với hồ sơ của bạn.</span>
+                                <dl class="learner-opportunity-ai__analysis-summary">
+                                    <dt>Điểm mạnh hiện tại</dt><dd data-opportunity-ai-analysis-strengths>—</dd>
+                                    <dt>Danh mục đang cần</dt><dd data-opportunity-ai-analysis-demands>—</dd>
+                                    <dt>Khoảng trống chính</dt><dd data-opportunity-ai-analysis-gaps>—</dd>
+                                    <dt>Bước tiếp theo</dt><dd data-opportunity-ai-analysis-next-steps>—</dd>
+                                </dl>
+                            </div>
                         </div>
                         <div class="learner-opportunity-ai__message learner-opportunity-ai__message--error" data-opportunity-ai-error hidden>
                             <?= learner_icon('info', 20); ?>

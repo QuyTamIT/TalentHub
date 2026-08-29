@@ -167,6 +167,7 @@ foreach ([
     '004_create_recommendation_store.php',
     '011_create_ai_catalog_items.php',
     '015_extend_learner_opportunity_matching.php',
+    '016_add_learner_opportunity_analysis.php',
 ] as $migrationFile) {
     $definition = require dirname(__DIR__) . '/Database/migrations/learner/' . $migrationFile;
     foreach ($definition->migration->statements('sqlite') as $statement) {

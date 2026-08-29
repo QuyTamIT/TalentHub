@@ -226,7 +226,7 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
                 'provider' => $this->providerVersion,
                 'modelVersion' => $this->modelVersion,
                 'promptVersion' => $this->promptVersion,
-                'analysisJson' => $analysis === [] ? null : self::json(array_merge($analysis, ['state' => $state])),
+                'analysisJson' => self::json(array_merge($analysis, ['state' => $state])),
                 'completedAt' => $now,
                 'runId' => $runId,
                 'studentId' => $studentId,
@@ -375,9 +375,13 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
             : $candidate->title();
         $breakdown = $score->breakdown();
         $analysis = [
+            'analysis_kind' => $match->analysisKind(),
             'why_fit' => $match->whyFit(),
+            'why_not_fit_yet' => $match->whyNotFitYet(),
             'matched_skill_codes' => $match->matchedSkillCodes(),
             'missing_skill_codes' => $match->missingSkillCodes(),
+            'missing_conditions' => $match->missingConditions(),
+            'improvement_steps' => $match->improvementSteps(),
             'expected_outcome_codes' => $match->expectedOutcomeCodes(),
             'breakdown' => $breakdown,
             'evidence_ref_ids' => $match->evidenceRefs(),

@@ -10,6 +10,8 @@
         consent_required: 'consent-required',
         insufficient_data: 'insufficient-data',
         catalog_insufficient: 'catalog-insufficient',
+        low_fit_model: 'low-fit-model',
+        no_fit_model: 'no-fit-model',
         pending: 'loading',
         ready_model: 'ready-model',
         stale_model: 'stale-model',
@@ -24,6 +26,8 @@
         'consent-required': 'Bạn cần cho phép sử dụng dữ liệu học tập trước khi nhận đề xuất cá nhân hóa.',
         'insufficient-data': 'Hồ sơ chưa đủ dữ liệu để phân tích. Hãy bổ sung kỹ năng hoặc hoàn thành một bài đánh giá.',
         'catalog-insufficient': 'Hiện chưa có đủ ba dự án đang mở phù hợp để AI xếp hạng.',
+        'low-fit-model': 'Gemini đã phân tích các cơ hội gần phù hợp và chỉ ra khoảng trống cần bổ sung.',
+        'no-fit-model': 'Gemini chưa tìm thấy cơ hội đạt ngưỡng phù hợp với hồ sơ hiện tại.',
         'source-error': 'Chưa thể hoàn tất phân tích lúc này. Bạn có thể thử lại sau.',
         'ready-model': 'Phân tích vừa xong',
         'stale-model': 'Đang hiển thị phân tích gần nhất vì Gemini tạm thời chưa phản hồi.',
@@ -56,7 +60,7 @@
     }
 
     function normalizeReadyItems(items) {
-        if (!Array.isArray(items) || items.length !== 3) return null;
+        if (!Array.isArray(items) || items.length < 1 || items.length > 3) return null;
         const ids = new Set();
         const normalized = [];
         for (let index = 0; index < items.length; index += 1) {
@@ -70,6 +74,11 @@
                 rank: Number.isInteger(Number(item.rank)) ? Number(item.rank) : index + 1,
                 match_score: score,
                 why_fit: normalizeText(item.why_fit),
+                why_not_fit_yet: normalizeText(item.why_not_fit_yet),
+                analysis_kind: normalizeText(item.analysis_kind) || 'recommendation',
+                missing_conditions: normalizeTextList(item.missing_conditions),
+                improvement_steps: normalizeTextList(item.improvement_steps),
+                tier: normalizeText(item.tier) || (score >= 60 ? 'suitable' : (score >= 40 ? 'low_fit' : 'no_fit')),
                 matched_skills: normalizeTextList(item.matched_skills),
                 missing_skills: normalizeTextList(item.missing_skills),
                 expected_outcomes: normalizeTextList(item.expected_outcomes),
@@ -180,7 +189,9 @@
     function scoreBand(score) {
         if (score >= 90) return { className: 'is-excellent', label: 'Rất phù hợp' };
         if (score >= 80) return { className: 'is-high', label: 'Phù hợp cao' };
-        return { className: 'is-potential', label: 'Có tiềm năng' };
+        if (score >= 60) return { className: 'is-potential', label: 'Phù hợp' };
+        if (score >= 40) return { className: 'is-low-fit', label: 'Phù hợp ít' };
+        return { className: 'is-no-fit', label: 'Chưa phù hợp' };
     }
 
     function renderCard(item) {
@@ -206,9 +217,14 @@
         card.appendChild(scoreWrap);
 
         const details = element('div', 'learner-opportunity-ai-card__details');
-        details.appendChild(detailColumn('Vì sao phù hợp', item.why_fit, 'neutral', 'AI chưa cung cấp diễn giải.'));
+        const whyLabel = item.tier === 'low_fit' ? 'Vì sao chưa phù hợp' : 'Vì sao phù hợp';
+        details.appendChild(detailColumn(whyLabel, item.tier === 'low_fit' ? item.why_not_fit_yet : item.why_fit, 'neutral', 'AI chưa cung cấp diễn giải.'));
         details.appendChild(detailColumn('Kỹ năng phù hợp', item.matched_skills, 'matched', 'Chưa có kỹ năng trùng khớp.'));
         details.appendChild(detailColumn('Cần bổ sung', item.missing_skills, 'missing', 'Chưa ghi nhận khoảng trống kỹ năng.'));
+        if (item.tier === 'low_fit') {
+            details.appendChild(detailColumn('Điều kiện còn thiếu', item.missing_conditions, 'missing', 'Không có điều kiện bổ sung được nêu.'));
+            details.appendChild(detailColumn('Bước cải thiện', item.improvement_steps, 'outcome', 'Hãy cập nhật hồ sơ và thử lại.'));
+        }
         details.appendChild(detailColumn('Bạn sẽ đạt được', item.expected_outcomes, 'outcome', 'Kết quả sẽ được cập nhật theo dự án.'));
         const evidence = [...new Set(item.evidence.map(evidenceLabel))];
         details.appendChild(detailColumn('Nguồn phân tích', evidence, 'evidence', 'Dữ liệu hồ sơ đã cho phép.'));
@@ -247,6 +263,8 @@
             'consent-required': root.querySelector('[data-opportunity-ai-consent]'),
             'insufficient-data': root.querySelector('[data-opportunity-ai-insufficient]'),
             'catalog-insufficient': root.querySelector('[data-opportunity-ai-catalog-insufficient]'),
+            'low-fit-model': root.querySelector('[data-opportunity-ai-low-fit]'),
+            'no-fit-model': root.querySelector('[data-opportunity-ai-no-fit]'),
             'source-error': root.querySelector('[data-opportunity-ai-error]'),
             results: root.querySelector('[data-opportunity-ai-results]'),
         };
@@ -260,12 +278,35 @@
                 status.className = `learner-opportunity-ai__status is-${state}`;
             }
             root.dataset.state = state;
-            if (state === 'ready-model' || state === 'stale-model') {
+            if (state === 'ready-model' || state === 'stale-model' || state === 'low-fit-model') {
                 if (list) {
                     list.replaceChildren();
                     payload.items.forEach((item) => list.appendChild(renderCard(item)));
                 }
+                if (state === 'low-fit-model' && panels['low-fit-model']) panels['low-fit-model'].hidden = false;
                 if (panels.results) panels.results.hidden = false;
+                return;
+            }
+            if (state === 'no-fit-model') {
+                const panel = panels['no-fit-model'];
+                if (panel) {
+                    const analysis = payload.analysis && typeof payload.analysis === 'object' ? payload.analysis : {};
+                    const headline = panel.querySelector('[data-opportunity-ai-analysis-headline]');
+                    const explanation = panel.querySelector('[data-opportunity-ai-analysis-explanation]');
+                    if (headline) headline.textContent = normalizeText(analysis.headline) || 'Chưa có cơ hội đủ phù hợp';
+                    if (explanation) explanation.textContent = normalizeText(analysis.explanation) || 'Gemini chưa cung cấp đủ lý do để hiển thị.';
+                    const summaryFields = {
+                        strengths: analysis.learner_strengths,
+                        demands: analysis.catalog_demands,
+                        gaps: analysis.main_gaps,
+                        'next-steps': analysis.next_steps,
+                    };
+                    Object.entries(summaryFields).forEach(([name, values]) => {
+                        const target = panel.querySelector(`[data-opportunity-ai-analysis-${name}]`);
+                        if (target) target.textContent = normalizeTextList(values).join(' · ') || 'Chưa có dữ liệu';
+                    });
+                    panel.hidden = false;
+                }
                 return;
             }
             const panel = panels[state] || panels['source-error'];

@@ -28,6 +28,7 @@ final class OpportunityMatchService
 {
     private const MALFORMED_MARKERS = [
         'requires exactly three items',
+        'requires one to three items',
         'validator expects structured items',
         'carries unsupported properties',
         'is missing required key',
@@ -38,6 +39,8 @@ final class OpportunityMatchService
         'must cite at least one evidence reference',
         'must be an integer within 0..100',
         'is too short to be project-specific',
+        'No-fit summary',
+        'no-fit summary',
     ];
 
     private readonly DateTimeImmutable $clock;
@@ -102,13 +105,12 @@ final class OpportunityMatchService
         } catch (Throwable) {
             return $this->response('not_generated', []);
         }
-        if (count($candidates) < 3) {
-            return $this->response('catalog_insufficient', []);
-        }
-
         $activeCatalogIds = array_map(static fn (OpportunityCandidate $candidate): string => $candidate->catalogId(), $candidates);
         $run = $this->repository->latestValid($studentId, $activeCatalogIds);
         if ($run === null) {
+            if (count($candidates) < 3) {
+                return $this->response('catalog_insufficient', []);
+            }
             return $this->response('not_generated', []);
         }
         return $this->mapReady($run);
@@ -141,9 +143,6 @@ final class OpportunityMatchService
         } catch (Throwable) {
             return $this->response('catalog_insufficient', []);
         }
-        if (count($candidates) < 3) {
-            return $this->response('catalog_insufficient', []);
-        }
         $scored = [];
         $scoredCandidates = [];
         foreach ($candidates as $candidate) {
@@ -157,9 +156,6 @@ final class OpportunityMatchService
             } catch (Throwable) {
                 return $this->response('provider_unavailable', []);
             }
-        }
-        if (count($scoredCandidates) < 3) {
-            return $this->response('catalog_insufficient', []);
         }
         $activeCatalogIds = array_map(static fn (OpportunityCandidate $candidate): string => $candidate->catalogId(), $scoredCandidates);
         $allowList = $this->sortAndSlice($scoredCandidates, $scored);
@@ -195,8 +191,22 @@ final class OpportunityMatchService
             return $this->response('provider_unavailable', []);
         }
 
+        $analysisContext = $this->analysisContext($profile, $candidates, $scoredCandidates, $scored);
+        $maxStructured = 0;
+        foreach ($scored as $score) {
+            $maxStructured = max($maxStructured, $score->structuredScore());
+        }
+        $mode = $allowList === []
+            ? 'no_fit'
+            : (count($allowList) < 3 ? ($maxStructured < 60 ? 'low_fit' : 'recommendation') : 'top3');
+
         try {
-            $matches = $this->runEngine($profile, $allowList, $scored, $context);
+            if ($mode === 'no_fit') {
+                $analysis = $this->runNoFitSummary($profile, $scored, $context, $analysisContext);
+                $run = $this->repository->completeRun($studentId, (string) ($pending['runId'] ?? ''), [], $analysis, 'no_fit_model');
+                return $this->mapReady($run);
+            }
+            $matches = $this->runEngine($profile, $allowList, $scored, $context, $mode, $analysisContext);
         } catch (Throwable $exception) {
             $this->failPending($studentId, $pending, $exception);
             if (self::isProviderFailure($exception)) {
@@ -209,8 +219,23 @@ final class OpportunityMatchService
         }
 
         $ranked = $this->composeFinalRanks($matches, $scored, $allowList);
+        $maxFinal = 0;
+        foreach ($ranked as $match) {
+            $maxFinal = max($maxFinal, $match->score()?->finalScore() ?? 0);
+        }
+        $completionState = $maxFinal < 40 ? 'no_fit_model' : ($mode === 'low_fit' || $maxFinal < 60 ? 'low_fit_model' : (count($ranked) < 3 ? 'partial_model' : 'ready_model'));
+        $runAnalysis = [];
+        if ($completionState === 'no_fit_model') {
+            try {
+                $runAnalysis = $this->runNoFitSummary($profile, $scored, $context, $analysisContext);
+                $ranked = [];
+            } catch (Throwable $exception) {
+                $this->failPending($studentId, $pending, $exception);
+                return $this->response('provider_unavailable', []);
+            }
+        }
         try {
-            $run = $this->repository->completeRun($studentId, (string) ($pending['runId'] ?? ''), $ranked);
+            $run = $this->repository->completeRun($studentId, (string) ($pending['runId'] ?? ''), $ranked, $runAnalysis, $completionState);
         } catch (Throwable $exception) {
             $this->failPending($studentId, $pending, $exception);
             return $this->response('provider_unavailable', []);
@@ -301,9 +326,11 @@ final class OpportunityMatchService
     /** @param array<string,mixed> $run @return array<string,mixed> */
     private function mapReady(array $run): array
     {
+        $state = (string) ($run['state'] ?? ($run['analysis']['state'] ?? 'ready_model'));
         return [
-            'state' => 'ready_model',
+            'state' => $state,
             'items' => $this->mapItems($run['items'] ?? []),
+            'analysis' => is_array($run['analysis'] ?? null) ? $run['analysis'] : [],
         ];
     }
 
@@ -313,6 +340,7 @@ final class OpportunityMatchService
         return [
             'state' => 'stale_model',
             'items' => $this->mapItems($run['items'] ?? []),
+            'analysis' => is_array($run['analysis'] ?? null) ? $run['analysis'] : [],
         ];
     }
 
@@ -330,6 +358,11 @@ final class OpportunityMatchService
                 'structured_score' => isset($item['structuredScore']) ? (int) $item['structuredScore'] : null,
                 'gemini_score' => isset($item['geminiScore']) ? (int) $item['geminiScore'] : null,
                 'why_fit' => is_array($analysis) ? (string) ($analysis['why_fit'] ?? '') : '',
+                'analysis_kind' => is_array($analysis) ? (string) ($analysis['analysis_kind'] ?? 'recommendation') : 'recommendation',
+                'why_not_fit_yet' => is_array($analysis) ? (string) ($analysis['why_not_fit_yet'] ?? '') : '',
+                'missing_conditions' => is_array($analysis) && is_array($analysis['missing_conditions'] ?? null) ? array_values($analysis['missing_conditions']) : [],
+                'improvement_steps' => is_array($analysis) && is_array($analysis['improvement_steps'] ?? null) ? array_values($analysis['improvement_steps']) : [],
+                'tier' => (int) ($item['matchScore'] ?? 0) >= 60 ? 'suitable' : ((int) ($item['matchScore'] ?? 0) >= 40 ? 'low_fit' : 'no_fit'),
                 'matched_skills' => is_array($analysis) && is_array($analysis['matched_skill_codes'] ?? null) ? array_values($analysis['matched_skill_codes']) : [],
                 'missing_skills' => is_array($analysis) && is_array($analysis['missing_skill_codes'] ?? null) ? array_values($analysis['missing_skill_codes']) : [],
                 'expected_outcomes' => is_array($analysis) && is_array($analysis['expected_outcome_codes'] ?? null) ? array_values($analysis['expected_outcome_codes']) : [],
@@ -383,12 +416,12 @@ final class OpportunityMatchService
     }
 
     /** @param array<string,OpportunityScore> $scored @param list<OpportunityCandidate> $allowList @return list<OpportunityMatch> */
-    private function runEngine(LearnerOpportunityProfile $profile, array $allowList, array $scored, RecommendationContext $context): array
+    private function runEngine(LearnerOpportunityProfile $profile, array $allowList, array $scored, RecommendationContext $context, string $mode = 'top3', array $analysisContext = []): array
     {
         $attempts = 0;
         while (true) {
             try {
-                return $this->engine->generate($profile, $allowList, $scored, $context);
+                return $this->engine->generate($profile, $allowList, $scored, $context, $mode, $analysisContext);
             } catch (Throwable $exception) {
                 if ($attempts === 0 && self::isMalformedOutput($exception)) {
                     $attempts++;
@@ -397,6 +430,42 @@ final class OpportunityMatchService
                 throw $exception;
             }
         }
+    }
+
+    /** @return array<string,mixed> */
+    private function runNoFitSummary(LearnerOpportunityProfile $profile, array $scored, RecommendationContext $context, array $analysisContext): array
+    {
+        try {
+            return $this->engine->generateNoFitSummary($profile, $scored, $context, $analysisContext, $profile->evidenceRefs());
+        } catch (Throwable $exception) {
+            if (!self::isMalformedOutput($exception)) {
+                throw $exception;
+            }
+            return $this->engine->generateNoFitSummary($profile, $scored, $context, $analysisContext, $profile->evidenceRefs());
+        }
+    }
+
+    /** @param list<OpportunityCandidate> $all @param list<OpportunityCandidate> $eligible @param array<string,OpportunityScore> $scored @return array<string,mixed> */
+    private function analysisContext(LearnerOpportunityProfile $profile, array $all, array $eligible, array $scored): array
+    {
+        $demands = [];
+        foreach ($eligible as $candidate) {
+            foreach ($candidate->requiredSkills() as $skill) {
+                $code = (string) ($skill['code'] ?? '');
+                if ($code !== '') {
+                    $demands[$code] = true;
+                }
+            }
+        }
+        $scores = array_map(static fn (OpportunityScore $score): int => $score->structuredScore(), $scored);
+        return [
+            'candidate_count' => count($all),
+            'eligible_count' => count($eligible),
+            'exclusion_reasons' => ['education_or_requirement_mismatch' => max(0, count($all) - count($eligible))],
+            'learner_strengths' => array_values(array_keys($profile->skills())),
+            'catalog_demands' => array_keys($demands),
+            'structured_score_range' => $scores === [] ? null : [min($scores), max($scores)],
+        ];
     }
 
     /** @return array<string,mixed> */

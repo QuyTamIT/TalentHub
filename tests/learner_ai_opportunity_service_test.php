@@ -341,10 +341,12 @@ $twoCandidateEvidence = [
     service_test_candidate_evidence('internship-101', ['deadline_at' => '2026-08-01T00:00:00.000000+00:00']),
 ];
 $twoPdo = service_test_pdo();
-$twoProvider = service_test_engine(ProviderResponse::success(service_test_model_items()));
+$twoProvider = service_test_engine(ProviderResponse::success(array_slice(service_test_model_items(), 0, 2)));
 $twoService = service_make_scenario($twoPdo, $twoProvider, candidateEvidence: $twoCandidateEvidence);
-service_assert($twoService->generate('student-1', 'request-3', 'idempotency-two-000003')['state'] === 'catalog_insufficient', 'two valid candidates return catalog_insufficient');
-service_assert($twoProvider->requests() === [], 'catalog_insufficient never calls the provider');
+$twoResult = $twoService->generate('student-1', 'request-3', 'idempotency-two-000003');
+service_assert($twoResult['state'] === 'partial_model', 'two valid candidates return partial_model with Gemini analysis');
+service_assert(count($twoResult['items']) === 2, 'partial model returns both analyzed opportunities');
+service_assert(count($twoProvider->requests()) === 1, 'partial model calls Gemini once');
 
 $readyPdo = service_test_pdo();
 $readyProvider = service_test_engine(ProviderResponse::success(service_test_model_items()));
