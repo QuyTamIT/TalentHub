@@ -34,11 +34,11 @@ foreach ($migration->migration->statements('sqlite') as $sql) {
 }
 
 $now = gmdate('Y-m-d H:i:s');
-$pdo->exec("INSERT INTO users VALUES ('u1', 'Alice', 'active'), ('u2', 'Bob', 'active')");
-$pdo->exec("INSERT INTO student_profiles VALUES ('s1', 'u1', null, 'active'), ('s2', 'u2', null, 'active')");
+$pdo->exec("INSERT INTO users VALUES ('u1', 'Alice', 'active'), ('u2', 'Bob', 'active'), ('u3', 'Cathy', 'active')");
+$pdo->exec("INSERT INTO student_profiles VALUES ('s1', 'u1', null, 'active'), ('s2', 'u2', null, 'active'), ('s3', 'u3', null, 'active')");
 $pdo->exec("INSERT INTO skills VALUES ('k1', 'PHP', 'php', 'active'), ('k2', 'SQL', 'sql', 'active'), ('k3', 'Python', 'python', 'active')");
-$pdo->exec("INSERT INTO privacy_consents VALUES ('c1', 's1', 'enterprise_talent_discovery', 1, NULL), ('c2', 's2', 'enterprise_talent_discovery', 0, '2026-01-01')");
-$pdo->exec("INSERT INTO enterprise_talent_access_grants VALUES ('g1', 's1', 'e1', 'c1', 'enterprise_talent_discovery', '2026-01-01', '2099-01-01', NULL), ('g2', 's2', 'e1', 'c2', 'enterprise_talent_discovery', '2026-01-01', '2099-01-01', NULL)");
+$pdo->exec("INSERT INTO privacy_consents VALUES ('c1', 's1', 'enterprise_talent_discovery', 1, NULL), ('c2', 's2', 'enterprise_talent_discovery', 0, '2026-01-01'), ('c3', 's3', 'enterprise_talent_discovery', 1, NULL)");
+$pdo->exec("INSERT INTO enterprise_talent_access_grants VALUES ('g1', 's1', 'e1', 'c1', 'enterprise_talent_discovery', '2026-01-01', '2099-01-01', NULL), ('g2', 's2', 'e1', 'c2', 'enterprise_talent_discovery', '2026-01-01', '2099-01-01', NULL), ('g3', 's3', 'e1', 'c3', 'enterprise_talent_discovery', '2026-01-01', '2099-01-01', NULL)");
 $pdo->exec("INSERT INTO student_skills VALUES ('ss1', 's1', 'k1', 90, 'verified'), ('ss2', 's1', 'k3', 40, 'verified')");
 
 $pdo->exec("INSERT INTO internship_posts VALUES ('job-1', 'e1', 'PHP Developer', 'PHP Backend', '[\"PHP\", \"SQL\"]', '[]', 'active', '2099-12-31 00:00:00', '$now', '$now')");
@@ -76,10 +76,11 @@ enterprise_match_assert($ready['items'][0]['match_score'] === 88.5, 'model score
 enterprise_match_assert($ready['items'][0]['matched_skills'] === ['PHP'], 'matched skills are server-derived');
 enterprise_match_assert(in_array('SQL', $ready['items'][0]['skill_gaps'], true), 'skill gaps are server-derived');
 enterprise_match_assert(in_array('verified_skill_match', $ready['items'][0]['reason_codes'], true), 'reason code explains matching skill');
+enterprise_match_assert(!array_filter($ready['items'], static fn(array $item): bool => ($item['student_id'] ?? null) === 's3'), 'service never invents a deterministic AI score for a candidate omitted by the model');
 
 // 2. Privacy of provider payload
 $candidateProjections = $capturedPayload['candidates'] ?? [];
-enterprise_match_assert(count($candidateProjections) === 1, '1 candidate sent to provider');
+enterprise_match_assert(count($candidateProjections) === 2, 'skill-gap candidate remains eligible for provider evaluation');
 enterprise_match_assert($candidateProjections[0]['candidate_ref'] === 'candidate_1', 'opaque candidate_ref is used');
 enterprise_match_assert(!isset($candidateProjections[0]['student_id']), 'student_id is not exposed to provider');
 enterprise_match_assert(!isset($candidateProjections[0]['display_name']), 'display_name is not exposed to provider');
@@ -94,6 +95,17 @@ enterprise_match_assert($cached['state'] === 'stale_model', 'provider outage use
 enterprise_match_assert($cached['freshness_status'] === 'stale', 'stale model has freshness_status=stale');
 enterprise_match_assert($cached['last_known_good'] === true, 'stale model marks last_known_good=true');
 
+$expiredHash = hash('sha256', json_encode(['job_id' => '', 'required_skills' => ['PHP', 'SQL']], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+$repository->storeMatchRanking('e1', $expiredHash, [
+    'schema_version' => 'enterprise-match-2.0.0',
+    'analysis_origin' => 'model',
+    'model_version' => 'gemini-1.5-pro',
+    'generated_at' => '2020-01-01T00:00:00+00:00',
+    'items' => $ready['items'],
+]);
+$expired = $staleService->match('e1', ['title' => 'Backend developer', 'required_skills' => ['PHP', 'SQL']]);
+enterprise_match_assert($expired['state'] === 'provider_unavailable' && $expired['items'] === [], 'expired LKG is never presented as a current or stale model result');
+
 // 4. Provider outage without LKG (new job query)
 $unavailable = $staleService->match('e1', ['title' => 'Python Dev', 'required_skills' => ['Python']]);
 enterprise_match_assert($unavailable['state'] === 'provider_unavailable', 'new query with outage returns provider_unavailable');
@@ -101,7 +113,7 @@ enterprise_match_assert($unavailable['items'] === [], 'no deterministic outage r
 enterprise_match_assert(($unavailable['analysis_origin'] ?? null) === null, 'no rule origin on outage');
 
 // 5. No eligible candidates
-$none = $service->match('e1', ['required_skills' => ['Rust']]);
+$none = $service->match('e2', ['required_skills' => ['Rust']]);
 enterprise_match_assert($none['state'] === 'no_candidates' && $none['items'] === [], 'no candidates is explicit');
 
 // 6. Protected-input rejection

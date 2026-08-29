@@ -50,9 +50,11 @@ final class EnterpriseAiGeminiMatcher
 
         $validRefs = [];
         foreach ($candidateProjections as $cp) {
-            if (isset($cp['candidate_ref']) && is_string($cp['candidate_ref'])) {
-                $validRefs[$cp['candidate_ref']] = true;
+            $ref = is_string($cp['candidate_ref'] ?? null) ? trim($cp['candidate_ref']) : '';
+            if ($ref === '' || isset($validRefs[$ref])) {
+                throw new RuntimeException('invalid_candidate_ref');
             }
+            $validRefs[$ref] = true;
         }
 
         $safeJob = [
@@ -113,30 +115,36 @@ final class EnterpriseAiGeminiMatcher
                     $result = is_string($text) ? json_decode($text, true, 32, JSON_THROW_ON_ERROR) : null;
                     if (is_array($result)) {
                         if (!isset($result['items']) || !is_array($result['items'])) {
-                            throw new RuntimeException('Missing items in model response');
+                            throw new RuntimeException('invalid_items');
                         }
                         $seenRefs = [];
                         $items = [];
                         foreach ($result['items'] as $item) {
                             if (!is_array($item)) {
-                                throw new RuntimeException('Invalid item structure');
+                                throw new RuntimeException('invalid_items');
                             }
                             $ref = (string) ($item['candidate_ref'] ?? '');
                             if (!isset($validRefs[$ref])) {
-                                throw new RuntimeException('Unknown candidate_ref: ' . $ref);
+                                throw new RuntimeException('invalid_candidate_ref');
                             }
                             if (isset($seenRefs[$ref])) {
-                                throw new RuntimeException('Duplicate candidate_ref: ' . $ref);
+                                throw new RuntimeException('invalid_candidate_ref');
                             }
                             $seenRefs[$ref] = true;
-                            $score = (float) ($item['match_score'] ?? 0.0);
-                            if ($score < 0.0 || $score > 100.0) {
-                                throw new RuntimeException('Invalid match_score range');
+                            if (!array_key_exists('match_score', $item) || !is_numeric($item['match_score'])) {
+                                throw new RuntimeException('invalid_match_score');
                             }
-                            $reasons = (array) ($item['reason_codes'] ?? []);
+                            $score = (float) $item['match_score'];
+                            if ($score < 0.0 || $score > 100.0) {
+                                throw new RuntimeException('invalid_match_score');
+                            }
+                            $reasons = $item['reason_codes'] ?? null;
+                            if (!is_array($reasons) || !array_is_list($reasons)) {
+                                throw new RuntimeException('invalid_reason_code');
+                            }
                             foreach ($reasons as $reason) {
-                                if (!in_array($reason, $allowedReasons, true)) {
-                                    throw new RuntimeException('Unknown reason_code: ' . $reason);
+                                if (!is_string($reason) || !in_array($reason, $allowedReasons, true)) {
+                                    throw new RuntimeException('invalid_reason_code');
                                 }
                             }
                             $items[] = [
@@ -161,7 +169,7 @@ final class EnterpriseAiGeminiMatcher
             } catch (\JsonException) {
                 break;
             } catch (\Throwable $e) {
-                if (str_contains($e->getMessage(), 'candidate_ref') || str_contains($e->getMessage(), 'reason_code') || str_contains($e->getMessage(), 'match_score') || str_contains($e->getMessage(), 'items')) {
+                if (str_contains($e->getMessage(), 'invalid_candidate_ref') || str_contains($e->getMessage(), 'invalid_reason_code') || str_contains($e->getMessage(), 'invalid_match_score') || str_contains($e->getMessage(), 'invalid_items')) {
                     $circuit->recordFailure();
                     throw $e;
                 }

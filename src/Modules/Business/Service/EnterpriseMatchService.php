@@ -35,7 +35,10 @@ final class EnterpriseMatchService
     public function match(string $enterpriseId, array|string $job, ?callable $provider = null): array
     {
         $normalized = $this->normalizeJobRequirements($job);
-        $jobHash = hash('sha256', json_encode($normalized, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $jobHash = hash('sha256', json_encode([
+            'job_id' => $normalized['id'],
+            'required_skills' => $normalized['required_skills'],
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         $candidates = $this->repository->matchCandidates($enterpriseId, $normalized['required_skills']);
         $generatedAt = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('c');
 
@@ -69,12 +72,14 @@ final class EnterpriseMatchService
         }
 
         $callback = $provider ?? $this->provider;
-        $providerFailed = false;
         if ($callback !== null) {
             try {
                 $modelOutput = $callback($normalized, $candidateProjections);
-                $modelVersion = (string) ($modelOutput['model_version'] ?? $this->modelVersion ?? 'gemini-1.5-pro');
-                $items = $this->rank($candidates, $normalized, $modelOutput, $refMap);
+                $modelVersion = trim((string) ($modelOutput['model_version'] ?? $this->modelVersion ?? ''));
+                if ($modelVersion === '') {
+                    throw new \RuntimeException('Enterprise AI model version is missing.');
+                }
+                $items = $this->rank($normalized, $modelOutput, $refMap);
                 $rankingPayload = [
                     'schema_version' => 'enterprise-match-2.0.0',
                     'analysis_origin' => 'model',
@@ -93,22 +98,15 @@ final class EnterpriseMatchService
                     'generated_at' => $generatedAt,
                 ];
             } catch (\Throwable) {
-                $providerFailed = true;
+                // The model, cache, and persistence paths must not fall back to deterministic ranking.
             }
         }
 
         // Check durable LKG cache in DB
         $cached = $this->repository->cachedMatchRanking($enterpriseId, $jobHash);
-        if ($cached !== null && is_array($cached['items'] ?? null)) {
-            $allowed = array_fill_keys(array_column($candidates, 'student_id'), true);
-            $cachedItems = array_values(array_filter($cached['items'], static function (mixed $item) use ($allowed): bool {
-                if (!is_array($item)) {
-                    return false;
-                }
-                $studentId = (string) ($item['student_id'] ?? '');
-                return $studentId !== '' && isset($allowed[$studentId]);
-            }));
-            if ($cachedItems !== []) {
+        if ($cached !== null && $this->isCurrentLkg($cached)) {
+            $cachedItems = $this->validatedCachedItems($cached['items'] ?? null, $candidates);
+            if ($cachedItems !== null) {
                 return [
                     'state' => 'stale_model',
                     'analysis_origin' => 'model',
@@ -124,6 +122,10 @@ final class EnterpriseMatchService
 
         return [
             'state' => 'provider_unavailable',
+            'analysis_origin' => null,
+            'freshness_status' => 'unavailable',
+            'model_version' => $this->modelVersion,
+            'error_code' => 'provider_unavailable',
             'job' => $normalized,
             'items' => [],
             'generated_at' => $generatedAt,
@@ -167,6 +169,7 @@ final class EnterpriseMatchService
         ksort($skills, SORT_NATURAL | SORT_FLAG_CASE);
 
         return [
+            'id' => trim((string) ($job['id'] ?? $job['job_id'] ?? '')),
             'title' => $title,
             'description' => $description,
             'required_skills' => array_values($skills),
@@ -193,142 +196,143 @@ final class EnterpriseMatchService
     }
 
     /**
-     * @param list<array<string,mixed>> $candidates
+     * The model may choose which eligible opaque candidates to rank, but it never
+     * supplies identity, evidence, matched skills, gaps, or computed fallback scores.
+     *
      * @param array<string,mixed> $job
-     * @param array<mixed,mixed> $scores
+     * @param array<string,mixed> $modelOutput
      * @param array<string,array<string,mixed>> $refMap
      * @return list<array<string,mixed>>
      */
-    private function rank(array $candidates, array $job, array $scores = [], array $refMap = []): array
+    private function rank(array $job, array $modelOutput, array $refMap): array
     {
-        $requiredList = (array) ($job['required_skills'] ?? []);
+        $rawItems = $modelOutput['items'] ?? null;
+        if (!is_array($rawItems) || !array_is_list($rawItems)) {
+            throw new \RuntimeException('Enterprise AI response items are invalid.');
+        }
+
         $requiredMap = [];
-        foreach ($requiredList as $rSkill) {
-            $requiredMap[mb_strtolower(trim((string) $rSkill))] = (string) $rSkill;
-        }
-
-        $scoreMap = [];
-        $rawItems = $scores['items'] ?? (isset($scores[0]) ? $scores : []);
-        if (is_array($rawItems)) {
-            foreach ($rawItems as $rawItem) {
-                if (!is_array($rawItem)) {
-                    continue;
-                }
-                $ref = (string) ($rawItem['candidate_ref'] ?? '');
-                $sId = (string) ($rawItem['student_id'] ?? $rawItem['studentId'] ?? '');
-                if ($ref !== '' && isset($refMap[$ref])) {
-                    $sId = (string) ($refMap[$ref]['student_id'] ?? '');
-                }
-                if ($sId !== '') {
-                    $scoreVal = $rawItem['match_score'] ?? $rawItem['matchScore'] ?? $rawItem['score'] ?? null;
-                    $reasons = (array) ($rawItem['reason_codes'] ?? $rawItem['reasonCodes'] ?? []);
-                    $scoreMap[$sId] = [
-                        'score' => is_numeric($scoreVal) ? round(max(0.0, min(100.0, (float) $scoreVal)), 2) : null,
-                        'reason_codes' => array_values(array_filter($reasons, 'is_string')),
-                    ];
-                }
-            }
-        }
-        foreach ($scores as $k => $v) {
-            if (is_string($k) && !is_numeric($k) && $k !== 'items' && $k !== 'model_version') {
-                $sId = $k;
-                if (isset($refMap[$k])) {
-                    $sId = (string) ($refMap[$k]['student_id'] ?? '');
-                }
-                if ($sId !== '' && !isset($scoreMap[$sId])) {
-                    $scoreVal = is_numeric($v) ? (float) $v : (is_array($v) ? ($v['match_score'] ?? $v['score'] ?? null) : null);
-                    $reasons = is_array($v) && isset($v['reason_codes']) ? (array) $v['reason_codes'] : [];
-                    $scoreMap[$sId] = [
-                        'score' => is_numeric($scoreVal) ? round(max(0.0, min(100.0, (float) $scoreVal)), 2) : null,
-                        'reason_codes' => array_values(array_filter($reasons, 'is_string')),
-                    ];
-                }
+        foreach ((array) ($job['required_skills'] ?? []) as $requiredSkill) {
+            $skill = trim((string) $requiredSkill);
+            if ($skill !== '') {
+                $requiredMap[mb_strtolower($skill)] = $skill;
             }
         }
 
-        $nowIso = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('c');
-        $allowedReasonCodes = [
+        $allowedReasonCodes = array_fill_keys([
             'verified_skill_match',
             'partial_skill_match',
             'skill_gap',
             'strong_verified_level',
-        ];
-
+        ], true);
+        $seenRefs = [];
         $items = [];
-        foreach ($candidates as $candidate) {
-            $studentId = (string) ($candidate['student_id'] ?? '');
+
+        foreach ($rawItems as $rawItem) {
+            if (!is_array($rawItem)) {
+                throw new \RuntimeException('Enterprise AI response item is invalid.');
+            }
+            $ref = trim((string) ($rawItem['candidate_ref'] ?? ''));
+            if ($ref === '' || !isset($refMap[$ref]) || isset($seenRefs[$ref])) {
+                throw new \RuntimeException('Enterprise AI candidate reference is invalid.');
+            }
+            if (!array_key_exists('match_score', $rawItem) || !is_numeric($rawItem['match_score'])) {
+                throw new \RuntimeException('Enterprise AI match score is invalid.');
+            }
+            $score = (float) $rawItem['match_score'];
+            if ($score < 0.0 || $score > 100.0) {
+                throw new \RuntimeException('Enterprise AI match score is out of range.');
+            }
+            $reasons = $rawItem['reason_codes'] ?? null;
+            if (!is_array($reasons) || !array_is_list($reasons) || array_filter($reasons, static fn(mixed $reason): bool => !is_string($reason) || !isset($allowedReasonCodes[$reason])) !== []) {
+                throw new \RuntimeException('Enterprise AI reason codes are invalid.');
+            }
+            $seenRefs[$ref] = true;
+            $candidate = $refMap[$ref];
             $matchedSkills = [];
             $matchedLowers = [];
             $evidence = [];
-            $hasStrongLevel = false;
-
+            $nowIso = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('c');
             foreach ((array) ($candidate['skills'] ?? []) as $skill) {
-                $name = (string) ($skill['name'] ?? '');
-                $low = mb_strtolower(trim($name));
-                if (isset($requiredMap[$low])) {
-                    $matchedSkills[] = $requiredMap[$low];
-                    $matchedLowers[$low] = true;
-                    $levelScore = (float) ($skill['level_score'] ?? 0.0);
-                    if ($levelScore >= 85.0) {
-                        $hasStrongLevel = true;
-                    }
-                    $evidence[] = [
-                        'source_type' => 'verified_skill',
-                        'source_id' => (string) ($skill['skill_id'] ?? ''),
-                        'observed_at' => $nowIso,
-                        'safe_value' => ['skill' => $name, 'level_score' => $levelScore],
-                    ];
+                $name = trim((string) ($skill['name'] ?? ''));
+                $lower = mb_strtolower($name);
+                if ($name === '' || !isset($requiredMap[$lower])) {
+                    continue;
                 }
+                $matchedSkills[] = $requiredMap[$lower];
+                $matchedLowers[$lower] = true;
+                $evidence[] = [
+                    'source_type' => 'verified_skill',
+                    'source_id' => (string) ($skill['skill_id'] ?? ''),
+                    'observed_at' => $nowIso,
+                    'safe_value' => [
+                        'skill' => $name,
+                        'level_score' => (float) ($skill['level_score'] ?? 0.0),
+                    ],
+                ];
             }
-
             $skillGaps = [];
-            foreach ($requiredMap as $low => $orig) {
-                if (!isset($matchedLowers[$low])) {
-                    $skillGaps[] = $orig;
+            foreach ($requiredMap as $lower => $skill) {
+                if (!isset($matchedLowers[$lower])) {
+                    $skillGaps[] = $skill;
                 }
             }
-
-            $derivedReasons = [];
-            if ($matchedSkills !== []) {
-                $derivedReasons[] = 'verified_skill_match';
-            }
-            if ($skillGaps !== []) {
-                $derivedReasons[] = 'skill_gap';
-            }
-            if ($hasStrongLevel) {
-                $derivedReasons[] = 'strong_verified_level';
-            }
-            if ($matchedSkills !== [] && $skillGaps !== []) {
-                $derivedReasons[] = 'partial_skill_match';
-            }
-
-            $modelReasons = $scoreMap[$studentId]['reason_codes'] ?? [];
-            $filteredModelReasons = array_values(array_filter($modelReasons, static fn($r) => in_array($r, $allowedReasonCodes, true)));
-
-            $combinedReasons = array_values(array_unique(array_merge($filteredModelReasons, $derivedReasons)));
-
-            $score = $scoreMap[$studentId]['score'] ?? null;
-            if ($score === null) {
-                // If model did not rank this candidate, compute level score average
-                $score = count($requiredMap) === 0 ? 0.0 : round(max(0.0, min(100.0, (count($matchedSkills) / count($requiredMap)) * 100.0)), 2);
-            }
-
             $items[] = [
-                'student_id' => $studentId,
+                'student_id' => (string) ($candidate['student_id'] ?? ''),
                 'display_name' => (string) ($candidate['display_name'] ?? 'Ứng viên'),
-                'match_score' => $score,
-                'matched_skills' => $matchedSkills,
+                'match_score' => round($score, 2),
+                'matched_skills' => array_values(array_unique($matchedSkills)),
                 'skill_gaps' => $skillGaps,
-                'reason_codes' => $combinedReasons,
+                'reason_codes' => array_values(array_unique($reasons)),
                 'evidence' => $evidence,
             ];
         }
 
-        usort($items, static function (array $a, array $b): int {
-            $scoreDiff = ((float) $b['match_score']) <=> ((float) $a['match_score']);
-            return $scoreDiff !== 0 ? $scoreDiff : strcmp((string) $a['student_id'], (string) $b['student_id']);
+        usort($items, static function (array $left, array $right): int {
+            $scoreOrder = ((float) $right['match_score']) <=> ((float) $left['match_score']);
+            return $scoreOrder !== 0 ? $scoreOrder : strcmp((string) $left['student_id'], (string) $right['student_id']);
         });
-
         return $items;
+    }
+
+    /** @param array<string,mixed> $cached */
+    private function isCurrentLkg(array $cached): bool
+    {
+        if (($cached['analysis_origin'] ?? null) !== 'model' || !is_array($cached['items'] ?? null)) {
+            return false;
+        }
+        $generatedAt = strtotime((string) ($cached['generated_at'] ?? $cached['updated_at'] ?? ''));
+        return $generatedAt !== false && (time() - $generatedAt) <= 604800;
+    }
+
+    /**
+     * @param mixed $rawItems
+     * @param list<array<string,mixed>> $candidates
+     * @return list<array<string,mixed>>|null
+     */
+    private function validatedCachedItems(mixed $rawItems, array $candidates): ?array
+    {
+        if (!is_array($rawItems) || !array_is_list($rawItems)) {
+            return null;
+        }
+        $eligible = [];
+        foreach ($candidates as $candidate) {
+            $eligible[(string) ($candidate['student_id'] ?? '')] = true;
+        }
+        $allowedReasonCodes = array_fill_keys(['verified_skill_match', 'partial_skill_match', 'skill_gap', 'strong_verified_level'], true);
+        $seenStudents = [];
+        foreach ($rawItems as $item) {
+            if (!is_array($item)) {
+                return null;
+            }
+            $studentId = (string) ($item['student_id'] ?? '');
+            $score = $item['match_score'] ?? null;
+            $reasons = $item['reason_codes'] ?? null;
+            if ($studentId === '' || !isset($eligible[$studentId]) || isset($seenStudents[$studentId]) || !is_numeric($score) || (float) $score < 0.0 || (float) $score > 100.0 || !is_array($reasons) || !array_is_list($reasons) || array_filter($reasons, static fn(mixed $reason): bool => !is_string($reason) || !isset($allowedReasonCodes[$reason])) !== []) {
+                return null;
+            }
+            $seenStudents[$studentId] = true;
+        }
+        return array_values($rawItems);
     }
 }

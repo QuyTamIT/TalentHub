@@ -49,29 +49,28 @@ final class EnterpriseTalentRepository
             }
         }
         $skills = [];
-        if (!empty($row['skillsJson'])) {
+        foreach (['skillsJson', 'requirementsJson'] as $column) {
+            $raw = trim((string) ($row[$column] ?? ''));
+            if ($raw === '') {
+                continue;
+            }
             try {
-                $decoded = json_decode((string) $row['skillsJson'], true, 64, JSON_THROW_ON_ERROR);
-                if (is_array($decoded)) {
-                    foreach ($decoded as $s) {
-                        if (is_string($s) && trim($s) !== '') {
-                            $skills[] = trim($s);
-                        }
-                    }
+                $decoded = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
+            } catch (\JsonException) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Dữ liệu kỹ năng của tin tuyển dụng không hợp lệ.');
+            }
+            if (!is_array($decoded)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Dữ liệu kỹ năng của tin tuyển dụng không hợp lệ.');
+            }
+            foreach ($decoded as $skill) {
+                if (!is_string($skill)) {
+                    continue;
                 }
-            } catch (\Throwable) {}
-        }
-        if (!empty($row['requirementsJson'])) {
-            try {
-                $decoded = json_decode((string) $row['requirementsJson'], true, 64, JSON_THROW_ON_ERROR);
-                if (is_array($decoded)) {
-                    foreach ($decoded as $s) {
-                        if (is_string($s) && trim($s) !== '') {
-                            $skills[] = trim($s);
-                        }
-                    }
+                $skill = trim($skill);
+                if ($skill !== '') {
+                    $skills[] = $skill;
                 }
-            } catch (\Throwable) {}
+            }
         }
         return [
             'id' => (string) $row['id'],
@@ -117,7 +116,7 @@ final class EnterpriseTalentRepository
         if ($this->tableExists('school_enterprise_partnerships') && $this->tableExists('classes')) {
             $sql = str_replace(
                 '            ORDER BY sp.id ASC, sk.name ASC, sk.id ASC',
-                "            WHERE sp.classId IS NULL OR EXISTS (SELECT 1 FROM classes cl INNER JOIN school_enterprise_partnerships sep ON sep.schoolId = cl.schoolId WHERE cl.id = sp.classId AND sep.enterpriseId = :partnershipEnterprise AND sep.status = 'approved')\n            ORDER BY sp.id ASC, sk.name ASC, sk.id ASC",
+                "            WHERE EXISTS (SELECT 1 FROM classes cl INNER JOIN school_enterprise_partnerships sep ON sep.schoolId = cl.schoolId WHERE cl.id = sp.classId AND sep.enterpriseId = :partnershipEnterprise AND sep.status = 'approved')\n            ORDER BY sp.id ASC, sk.name ASC, sk.id ASC",
                 $sql
             );
         }
@@ -148,29 +147,6 @@ final class EnterpriseTalentRepository
                     'name' => $name,
                     'level_score' => (float) ($row['level_score'] ?? 0),
                 ];
-            }
-        }
-
-        if ($requiredSkills !== []) {
-            $required = [];
-            foreach ($requiredSkills as $skill) {
-                $normalized = mb_strtolower(trim((string) $skill));
-                if ($normalized !== '') {
-                    $required[$normalized] = true;
-                }
-            }
-            if ($required !== []) {
-                $filtered = [];
-                foreach ($candidates as $candidate) {
-                    foreach ($candidate['skills'] as $skill) {
-                        $name = mb_strtolower(trim((string) ($skill['name'] ?? '')));
-                        if (isset($required[$name])) {
-                            $filtered[] = $candidate;
-                            continue 2;
-                        }
-                    }
-                }
-                return $filtered;
             }
         }
 
@@ -238,7 +214,7 @@ final class EnterpriseTalentRepository
             SELECT e.id, e.name, e.status, e.verificationStatus
             FROM enterprise_members em
             INNER JOIN enterprises e ON e.id = em.enterpriseId
-            WHERE em.userId = :userId
+            WHERE em.userId = :userId AND em.status = 'active'
             LIMIT 2
         SQL);
         $statement->execute(['userId' => $userId]);
@@ -329,8 +305,7 @@ final class EnterpriseTalentRepository
                 COALESCE(
                     student.talentScore,
                     (SELECT ROUND(AVG(sa.overallScore) * 10, 0) FROM assessments sa WHERE sa.studentId = student.id AND sa.overallScore IS NOT NULL),
-                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0),
-                    85
+                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0)
                 ) AS talentScore,
                 COUNT(DISTINCT studentSkill.id) AS skillCount,
                 COUNT(DISTINCT CASE WHEN studentSkill.verificationStatus = 'verified' THEN studentSkill.id END) AS verifiedSkillCount,
@@ -417,7 +392,7 @@ final class EnterpriseTalentRepository
                 }
             }
 
-            $score = (int) $row['talentScore'];
+            $score = is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null;
             $items[] = [
                 'studentId' => $studentId,
                 'userId' => (string) ($row['userId'] ?? ''),
@@ -429,8 +404,7 @@ final class EnterpriseTalentRepository
                 'headline' => (string) ($row['headline'] ?? ''),
                 'bio' => (string) ($row['bio'] ?? ''),
                 'avatarUrl' => $row['avatarUrl'] !== null ? (string) $row['avatarUrl'] : null,
-                'talentScore' => min(100, max(60, $score)),
-                'match_score' => min(100, max(60, $score)),
+                'talentScore' => $score === null ? null : min(100, max(0, $score)),
                 'skillCount' => (int) $row['skillCount'],
                 'verifiedSkillCount' => (int) $row['verifiedSkillCount'],
                 'verifiedSkills' => $skills,
@@ -487,8 +461,7 @@ final class EnterpriseTalentRepository
                 COALESCE(
                     student.talentScore,
                     (SELECT ROUND(AVG(sa.overallScore) * 10, 0) FROM assessments sa WHERE sa.studentId = student.id AND sa.overallScore IS NOT NULL),
-                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0),
-                    85
+                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0)
                 ) AS talentScore,
                 EXISTS(
                     SELECT 1 FROM enterprise_talent_access_grants contactGrant
@@ -551,7 +524,7 @@ final class EnterpriseTalentRepository
             'headline' => (string) ($row['headline'] ?? ''),
             'bio' => (string) ($row['bio'] ?? ''),
             'avatarUrl' => $row['avatarUrl'] !== null ? (string) $row['avatarUrl'] : null,
-            'talent_score' => (int) ($row['talentScore'] ?? 85),
+            'talent_score' => is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null,
             'contactAllowed' => $contactAllowed,
             'hasPendingContactRequest' => $hasPendingContact,
             'skills' => $skills,

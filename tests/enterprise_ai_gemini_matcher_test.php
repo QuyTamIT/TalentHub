@@ -145,7 +145,47 @@ try {
 }
 matcher_assert($reasonCaught, 'invented reason code throws RuntimeException');
 
-// Test 4: Circuit breaker / 429 Retry-After handling
+// Test 4: Duplicate refs and invalid model score never become partial rankings.
+$mockDuplicate = static function (): array {
+    $modelText = json_encode([
+        'items' => [
+            ['candidate_ref' => 'candidate_1', 'match_score' => 70, 'reason_codes' => []],
+            ['candidate_ref' => 'candidate_1', 'match_score' => 80, 'reason_codes' => []],
+        ],
+    ]);
+    return [
+        'status' => 200,
+        'headers' => [],
+        'body' => json_encode(['candidates' => [['content' => ['parts' => [['text' => $modelText]]]]]]),
+    ];
+};
+$duplicateCaught = false;
+try {
+    (new EnterpriseAiGeminiMatcher($config, $mockDuplicate))($job, $candidateProjections);
+} catch (RuntimeException) {
+    $duplicateCaught = true;
+}
+matcher_assert($duplicateCaught, 'duplicate candidate_ref throws RuntimeException');
+
+$mockOutOfRange = static function (): array {
+    $modelText = json_encode([
+        'items' => [['candidate_ref' => 'candidate_1', 'match_score' => 101, 'reason_codes' => []]],
+    ]);
+    return [
+        'status' => 200,
+        'headers' => [],
+        'body' => json_encode(['candidates' => [['content' => ['parts' => [['text' => $modelText]]]]]]),
+    ];
+};
+$outOfRangeCaught = false;
+try {
+    (new EnterpriseAiGeminiMatcher($config, $mockOutOfRange))($job, $candidateProjections);
+} catch (RuntimeException) {
+    $outOfRangeCaught = true;
+}
+matcher_assert($outOfRangeCaught, 'out-of-range model match_score throws RuntimeException');
+
+// Test 5: Circuit breaker / 429 Retry-After handling
 $mock429 = static function (): array {
     return ['status' => 429, 'headers' => ['retry-after' => '30'], 'body' => 'Rate limit exceeded'];
 };

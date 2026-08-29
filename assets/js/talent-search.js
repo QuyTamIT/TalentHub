@@ -195,7 +195,9 @@ function initTalentSearchModule() {
         const headline = raw.headline || '';
         const majorField = raw.major_field || (headline ? extractMajorFromHeadline(headline) : (isEconomicSector ? 'Kinh tế & Quản trị' : 'Công nghệ thông tin'));
         const expHours = typeof raw.experienceHours === 'number' ? raw.experienceHours : (raw.experience_hours || (skills.length * 15 + 20));
-        const score = typeof raw.talentScore === 'number' ? raw.talentScore : (typeof raw.talent_score === 'number' ? raw.talent_score : (typeof raw.match_score === 'number' ? raw.match_score : 0));
+        const score = typeof raw.talentScore === 'number'
+            ? raw.talentScore
+            : (typeof raw.talent_score === 'number' ? raw.talent_score : null);
 
         return {
             id: id,
@@ -210,7 +212,7 @@ function initTalentSearchModule() {
             skills: skills,
             experience_hours: expHours,
             talent_score: score,
-            match_score: score,
+            match_score: null,
             internship_status: raw.internship_status || 'ready_now',
             internship_status_label: raw.internship_status_label || 'Sẵn sàng thực tập',
             saved: Boolean(raw.saved),
@@ -389,7 +391,7 @@ function initTalentSearchModule() {
                 }
             }
 
-            if (activeFilters.matchScore > 0 && talent.match_score < activeFilters.matchScore) return false;
+            if (activeFilters.matchScore > 0 && (!Number.isFinite(talent.talent_score) || talent.talent_score < activeFilters.matchScore)) return false;
             if (activeFilters.expHours > 0 && talent.experience_hours < activeFilters.expHours) return false;
 
             return true;
@@ -397,21 +399,7 @@ function initTalentSearchModule() {
     }
 
     function calculateRelevanceScore(talent) {
-        let boost = 0;
-        const text = ((talent.headline || '') + ' ' + (talent.major_field || '') + ' ' + talent.skills.join(' ')).toLowerCase();
-
-        if (isEconomicSector) {
-            if (/marketing|kinh doanh|qtkd|quản trị|thị trường|phân tích dữ liệu|powerbi|toeic|logistics|tài chính|kế toán/i.test(text)) boost += 150;
-            if (/lê hoàng yến nhi/i.test(talent.name)) boost += 200;
-            if (/hoàng thị mai linh/i.test(talent.name)) boost += 180;
-            if (/phạm quốc bảo/i.test(talent.name)) boost += 120;
-        } else {
-            if (/frontend|backend|react|node|python|ai|an toàn thông tin|lập trình|phần mềm|fullstack/i.test(text)) boost += 150;
-            if (/nguyễn văn an/i.test(talent.name)) boost += 180;
-            if (/trần minh đức/i.test(talent.name)) boost += 170;
-            if (/võ đức anh/i.test(talent.name)) boost += 160;
-        }
-        return Number(talent.talent_score || talent.match_score || 0) + boost;
+        return Number.isFinite(talent.talent_score) ? talent.talent_score : 0;
     }
 
     function sortTalentsList(list) {
@@ -500,13 +488,14 @@ function initTalentSearchModule() {
             nameLink.className = 'ent-talent-card-item__name';
             nameLink.textContent = talent.name;
 
-            const scoreBadge = document.createElement('span');
-            scoreBadge.className = 'ent-talent-card-item__score';
-            scoreBadge.title = 'Điểm đánh giá năng lực';
-            scoreBadge.textContent = `${talent.match_score || talent.talent_score}% phù hợp`;
-
             nameRow.appendChild(nameLink);
-            nameRow.appendChild(scoreBadge);
+            if (Number.isFinite(talent.talent_score)) {
+                const scoreBadge = document.createElement('span');
+                scoreBadge.className = 'ent-talent-card-item__score';
+                scoreBadge.title = 'Điểm đánh giá năng lực';
+                scoreBadge.textContent = `${Math.round(talent.talent_score)}% năng lực`;
+                nameRow.appendChild(scoreBadge);
+            }
 
             const schoolDiv = document.createElement('div');
             schoolDiv.className = 'ent-talent-card-item__school';
@@ -954,7 +943,14 @@ function initTalentSearchModule() {
             }
             aiRunBtn.disabled = true;
 
-            const idempotencyKey = 'ent-match-' + Date.now() + '-' + Math.random().toString(36).substring(2, 12);
+            if (!window.crypto || (typeof window.crypto.randomUUID !== 'function' && typeof window.crypto.getRandomValues !== 'function')) {
+                showToast('Trình duyệt không hỗ trợ yêu cầu bảo mật để chạy AI.');
+                aiRunBtn.disabled = false;
+                return;
+            }
+            const idempotencyKey = typeof window.crypto.randomUUID === 'function'
+                ? window.crypto.randomUUID()
+                : `ent-match-${Date.now()}-${Array.from(window.crypto.getRandomValues(new Uint32Array(2))).join('')}`;
             const payload = {
                 jobId: jobId,
             };
@@ -963,9 +959,11 @@ function initTalentSearchModule() {
             }
 
             try {
-                const response = await fetch('/api/v1/businesses/me/ai-matches', {
+                const response = await fetch(`${sessionBoot.apiBase}/ai-matches`, {
                     method: 'POST',
+                    credentials: 'same-origin',
                     headers: {
+                        'Accept': 'application/json',
                         'Content-Type': 'application/json',
                         'X-CSRF-Token': sessionBoot.csrfToken,
                         'X-Idempotency-Key': idempotencyKey,
@@ -985,13 +983,13 @@ function initTalentSearchModule() {
                 }
 
                 const matchData = result.data || result;
-                const status = matchData.status || 'ready_model';
+                const status = matchData.state || 'provider_unavailable';
 
                 if (aiProvenanceEl && matchData.model_version) {
                     aiProvenanceEl.textContent = matchData.model_version + (status === 'stale_model' ? ' (cached LKG)' : '');
                 }
-                if (aiFreshnessEl && matchData.updated_at) {
-                    aiFreshnessEl.textContent = matchData.updated_at;
+                if (aiFreshnessEl && (matchData.generated_at || matchData.updated_at)) {
+                    aiFreshnessEl.textContent = matchData.generated_at || matchData.updated_at;
                 }
 
                 if (aiStateEl) {
@@ -1001,7 +999,6 @@ function initTalentSearchModule() {
 
                 renderAiMatchResults(status, matchData.items || [], matchData);
             } catch (err) {
-                console.error('Enterprise AI Match failed:', err);
                 showToast('Lỗi mạng khi kết nối dịch vụ AI.');
                 if (aiStateEl) {
                     aiStateEl.textContent = 'provider_unavailable';
@@ -1023,6 +1020,14 @@ function initTalentSearchModule() {
             const alert = document.createElement('div');
             alert.className = 'alert alert-danger';
             alert.textContent = 'Dịch vụ AI hiện tại tạm thời không khả dụng. Không có dữ liệu phân tích đã lưu trước đó.';
+            aiResultsEl.appendChild(alert);
+            return;
+        }
+
+        if (status !== 'ready_model' && status !== 'stale_model') {
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-info';
+            alert.textContent = 'Kết quả AI chưa sẵn sàng để hiển thị.';
             aiResultsEl.appendChild(alert);
             return;
         }
@@ -1076,7 +1081,9 @@ function initTalentSearchModule() {
             const scoreEl = document.createElement('div');
             scoreEl.className = 'badge bg-success text-white px-2 py-1';
             scoreEl.style.fontSize = '0.9rem';
-            scoreEl.textContent = `${Math.round(item.match_score || 0)}% Phù hợp`;
+            scoreEl.textContent = typeof item.match_score === 'number'
+                ? `${Math.round(item.match_score)}% Phù hợp`
+                : 'Điểm AI không hợp lệ';
 
             headerRow.appendChild(nameBox);
             headerRow.appendChild(scoreEl);
@@ -1123,7 +1130,8 @@ function initTalentSearchModule() {
                 evidenceList.className = 'small text-secondary mb-0 ps-3';
                 item.evidence.forEach(ev => {
                     const li = document.createElement('li');
-                    li.textContent = `${ev.skill}: Trình độ ${ev.level_score}/100 (${ev.status === 'verified' ? 'Đã xác thực' : ev.status})`;
+                    const safeValue = ev.safe_value || ev;
+                    li.textContent = `${safeValue.skill || 'Kỹ năng'}: Trình độ ${safeValue.level_score || 0}/100 (Đã xác thực)`;
                     evidenceList.appendChild(li);
                 });
                 card.appendChild(evidenceList);

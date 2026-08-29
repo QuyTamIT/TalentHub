@@ -66,6 +66,7 @@ $pdo->exec("INSERT INTO student_skills VALUES ('ssk-1', 'stu-1', 'sk-php', 90.0,
 $pdo->exec("INSERT INTO privacy_consents VALUES ('con-1', 'stu-1', 'enterprise_talent_discovery', 1, '1.0', '$now', null, '$now')");
 $pdo->exec("INSERT INTO enterprise_talent_access_grants VALUES ('gr-1', 'stu-1', 'ent-1', 'con-1', 'enterprise_talent_discovery', '$now', '2099-12-31 00:00:00', null, '$now', '$now')");
 
+$_ENV['TALENTHUB_AI_ENABLED'] = 'false';
 $app = Application::createWithPdo($pdo);
 
 // Helper to simulate request
@@ -122,5 +123,17 @@ $otherJobReq = new Request('POST', '/api/v1/businesses/me/ai-matches', [
 ], json_encode(['jobId' => 'job-other-ent', 'requiredSkills' => ['PHP']]));
 $res5 = $dispatch($otherJobReq);
 api_assert($res5->status === 404, 'other enterprise job returns 404');
+
+// 6. A syntactically valid request reaches the strict service and never receives a rule result.
+$validReq = new Request('POST', '/api/v1/businesses/me/ai-matches', [
+    'content-type' => 'application/json',
+    'x-csrf-token' => $csrfToken,
+    'x-idempotency-key' => 'valid-idempotency-key-987654321',
+], json_encode(['jobId' => 'job-active-1', 'requiredSkills' => ['PHP']]));
+$res6 = $dispatch($validReq);
+api_assert($res6->status === 200, 'valid request returns a canonical strict state');
+$data6 = $res6->payload['data'] ?? [];
+api_assert(($data6['state'] ?? null) === 'provider_unavailable' && ($data6['items'] ?? null) === [], 'disabled provider exposes unavailable state without deterministic AI matches');
+api_assert(!str_contains(json_encode($data6), 'ready_rule'), 'endpoint never emits a rule fallback state');
 
 echo "enterprise_ai_matches_api_test: OK\n";

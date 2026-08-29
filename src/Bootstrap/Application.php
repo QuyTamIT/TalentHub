@@ -250,8 +250,18 @@ final class Application
             $talentRepo=new EnterpriseTalentRepository($pdo);
             $enterprise=$talentRepo->enterpriseForUser($user['id']);
             $job=$talentRepo->matchingJob((string)$enterprise['id'],$jobId);
-            if(isset($input['requiredSkills'])&&is_array($input['requiredSkills'])){
-                $job['required_skills']=array_values(array_unique(array_merge($job['required_skills']??[],$input['requiredSkills'])));
+            if(isset($input['requiredSkills'])){
+                if(!is_array($input['requiredSkills'])||!array_is_list($input['requiredSkills'])){
+                    throw new ApiException(422,'VALIDATION_FAILED','requiredSkills phải là danh sách kỹ năng.');
+                }
+                $requestedSkills=[];
+                foreach($input['requiredSkills'] as $skill){
+                    if(!is_string($skill)||trim($skill)===''||mb_strlen(trim($skill))>120){
+                        throw new ApiException(422,'VALIDATION_FAILED','requiredSkills không hợp lệ.');
+                    }
+                    $requestedSkills[]=trim($skill);
+                }
+                $job['required_skills']=array_values(array_unique(array_merge($job['required_skills']??[],$requestedSkills)));
             }
             return JsonResponse::success($enterpriseMatchService->match((string)$enterprise['id'],$job),$requestId);
         });
