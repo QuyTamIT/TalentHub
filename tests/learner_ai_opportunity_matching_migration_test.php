@@ -89,7 +89,7 @@ $runId = 'run-opportunity-match-0001';
 $pdo->prepare("INSERT INTO learner_recommendation_runs (id, studentId, snapshotId, idempotencyKey, engineType, status, provider, modelVersion, promptVersion, capability, startedAt, completedAt, createdAt) VALUES (:id, 'student-1', 'snapshot-1', 'idempotency-0001-key', 'model', 'completed', '9router_gemini', 'gemini-3-flash', 'learner-opportunity-match-1.0.0', 'opportunity_match', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")
     ->execute(['id' => $runId]);
 
-$pdo->prepare("INSERT INTO learner_recommendation_items (id, runId, itemType, title, summary, priority, confidenceBand, actionJson, lifecycleStatus, catalogId, rankPosition, structuredScore, geminiScore, matchScore, analysisJson) VALUES (:id, :runId, 'activity', 'Smart Campus IoT', 'Grounded match summary.', 1, 'high', :actionJson, 'active', 'internship-1', 1, 86, 95, 92, :analysisJson)")
+$pdo->prepare("INSERT INTO learner_recommendation_items (id, runId, itemType, title, summary, priority, confidenceBand, actionJson, lifecycleStatus, catalogId, rankPosition, structuredScore, geminiScore, matchScore, analysisJson) VALUES (:id, :runId, 'activity', 'Smart Campus IoT', 'Grounded match summary.', 1, 'high', :actionJson, 'active', 'internship-1', 1, 86, 95, 89, :analysisJson)")
     ->execute([
         'id' => 'item-opportunity-match-0001',
         'runId' => $runId,
@@ -100,7 +100,7 @@ $pdo->prepare("INSERT INTO learner_recommendation_items (id, runId, itemType, ti
 $row = $pdo->query("SELECT itemType, catalogId, rankPosition, structuredScore, geminiScore, matchScore, analysisJson FROM learner_recommendation_items WHERE id = 'item-opportunity-match-0001'")->fetch(PDO::FETCH_ASSOC);
 migration_contract_assert(is_array($row) && $row['itemType'] === 'activity', 'opportunity-match item persists with itemType activity');
 migration_contract_assert($row['catalogId'] === 'internship-1' && (int) $row['rankPosition'] === 1, 'match item catalog/rank round-trip');
-migration_contract_assert((int) $row['structuredScore'] === 86 && (int) $row['geminiScore'] === 95 && (int) $row['matchScore'] === 92, 'match component/final scores round-trip');
+migration_contract_assert((int) $row['structuredScore'] === 86 && (int) $row['geminiScore'] === 95 && (int) $row['matchScore'] === 89, 'match component/final scores respect the 70/30 formula and round-trip');
 migration_contract_assert($row['analysisJson'] !== null && json_decode((string) $row['analysisJson'], true) !== null, 'analysisJson round-trips as JSON');
 
 $capability = $pdo->query("SELECT capability FROM learner_recommendation_runs WHERE id = '{$runId}'")->fetchColumn();

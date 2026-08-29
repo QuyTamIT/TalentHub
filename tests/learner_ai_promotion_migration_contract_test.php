@@ -24,6 +24,7 @@ $bridges = [
     '20260827000800_bridge_school_ai_insights.php' => '012_create_school_ai_insights',
     '20260827000900_bridge_school_ai_refresh_jobs.php' => '013_create_school_ai_refresh_jobs',
     '20260827001000_bridge_enterprise_ai_match_rankings.php' => '014_create_enterprise_ai_match_rankings',
+    '20260829000100_bridge_learner_opportunity_matching.php' => '015_extend_learner_opportunity_matching',
 ];
 
 foreach ($bridges as $filename => $version) {
