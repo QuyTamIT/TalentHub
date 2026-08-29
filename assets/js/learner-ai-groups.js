@@ -156,7 +156,7 @@
                             'X-Idempotency-Key': idempotencyKey,
                         },
                         body: JSON.stringify({
-                            catalog_id: item.catalog_id,
+                            catalogId: item.catalog_id,
                             action: actionType,
                         }),
                     })

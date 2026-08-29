@@ -222,6 +222,149 @@ group_assert($fullActionRes['url'] === null, 'unavailable group has null url');
 $nonexistentRes = $service->resolveAction($studentId, 'nonexistent-id', 'join_group');
 group_assert($nonexistentRes['state'] === 'join_unavailable', 'nonexistent group resolves join_unavailable');
 
+// Mandatory hardening RED cases. Collect all contract gaps in one run so every
+// fail-closed behavior is observed before production code changes.
+$hardeningFailures = [];
+$collectHardeningFailure = static function (bool $condition, string $message) use (&$hardeningFailures): void {
+    if (!$condition) {
+        $hardeningFailures[] = $message;
+    }
+};
+
+$missingProfileId = '00000000-0000-4000-8000-000000000099';
+$pdo->exec("INSERT INTO learner_ai_consent_events VALUES ('c-missing-profile', '{$missingProfileId}', 'activity', 'granted', '1.0', '2026-01-01 00:00:00', 'req-missing-profile')");
+$missingProfileAction = $service->resolveAction($missingProfileId, 'grp-high-match', 'join_group');
+$collectHardeningFailure(
+    $missingProfileAction['state'] === 'join_unavailable' && $missingProfileAction['url'] === null,
+    'missing student profile with activity consent cannot obtain action',
+);
+
+$validHighAction = json_encode([
+    'type' => 'join_group',
+    'catalog_id' => 'grp-high-match',
+    'match_profile' => [
+        'skill_codes' => ['data_analysis'],
+        'assessment_directions' => ['holland' => ['I', 'A']],
+        'education_bands' => ['high'],
+        'schedule_slots' => [['weekday' => 6, 'start' => '09:00', 'end' => '11:00']],
+    ],
+], JSON_THROW_ON_ERROR);
+$updateAction = $pdo->prepare('UPDATE learner_ai_catalog_items SET action_json = :action WHERE catalog_id = :catalog_id');
+
+$openPersistedAction = json_encode([
+    'type' => 'open_catalog_item',
+    'catalog_id' => 'grp-high-match',
+    'match_profile' => [
+        'skill_codes' => ['data_analysis'],
+        'assessment_directions' => ['holland' => ['I']],
+    ],
+], JSON_THROW_ON_ERROR);
+$updateAction->execute(['action' => $openPersistedAction, 'catalog_id' => 'grp-high-match']);
+$actionTypeMismatch = $service->resolveAction($studentId, 'grp-high-match', 'join_group');
+$collectHardeningFailure(
+    $actionTypeMismatch['state'] === 'join_unavailable' && $actionTypeMismatch['url'] === null,
+    'persisted open_catalog_item cannot be executed as requested join_group',
+);
+
+$catalogMismatchAction = json_encode([
+    'type' => 'join_group',
+    'catalog_id' => 'another-catalog-id',
+    'match_profile' => [
+        'skill_codes' => ['data_analysis'],
+        'assessment_directions' => ['holland' => ['I']],
+    ],
+], JSON_THROW_ON_ERROR);
+$updateAction->execute(['action' => $catalogMismatchAction, 'catalog_id' => 'grp-high-match']);
+$catalogMetadataMismatch = $service->resolveAction($studentId, 'grp-high-match', 'join_group');
+$collectHardeningFailure(
+    $catalogMetadataMismatch['state'] === 'join_unavailable' && $catalogMetadataMismatch['url'] === null,
+    'persisted action catalog_id must equal the current catalog row',
+);
+$mismatchedMatches = $service->match($studentId, 10);
+$collectHardeningFailure(
+    !in_array('grp-high-match', array_column($mismatchedMatches, 'catalog_id'), true),
+    'matching rejects catalog rows whose action_json catalog_id mismatches the row',
+);
+$updateAction->execute(['action' => $validHighAction, 'catalog_id' => 'grp-high-match']);
+
+$updateUrl = $pdo->prepare('UPDATE learner_ai_catalog_items SET url = :url WHERE catalog_id = :catalog_id');
+$unsafeUrls = [
+    '/app/learner/../admin/users.php',
+    '/app/learner/%2e%2e/admin/users.php',
+    '/app/learner/%252e%252e/admin/users.php',
+    '/app/learner\\..\\admin/users.php',
+    '/%2f%2fevil.example/path',
+];
+$canonicalGroupUrl = '/app/learner/groups.php?id=grp-high-match';
+foreach ($unsafeUrls as $unsafeUrl) {
+    $updateUrl->execute(['url' => $unsafeUrl, 'catalog_id' => 'grp-high-match']);
+    $unsafeResolution = $service->resolveAction($studentId, 'grp-high-match', 'join_group');
+    $collectHardeningFailure(
+        $unsafeResolution['url'] === null || $unsafeResolution['url'] === $canonicalGroupUrl,
+        'unsafe catalog URL is unavailable or replaced by the canonical learner group route: ' . $unsafeUrl,
+    );
+}
+$updateUrl->execute(['url' => $canonicalGroupUrl, 'catalog_id' => 'grp-high-match']);
+
+$malformedAction = json_encode([
+    'type' => 'unsupported_action',
+    'catalog_id' => 'grp-malformed-action',
+    'match_profile' => [
+        'skill_codes' => ['data_analysis'],
+        'assessment_directions' => ['holland' => ['I']],
+        'education_bands' => ['high'],
+    ],
+], JSON_THROW_ON_ERROR);
+$insertMalformed = $pdo->prepare(
+    'INSERT INTO learner_ai_catalog_items VALUES (:catalog_id, :item_type, :category, :title, :summary, :publish_status, :deadline_at, :eligibility_json, :capacity, :enrolled_count, :url, :action_json, :school_id, :tenant_id, :updated_at)'
+);
+$insertMalformed->execute([
+    'catalog_id' => 'grp-malformed-action',
+    'item_type' => 'group',
+    'category' => 'study_group',
+    'title' => 'Nhóm action lỗi',
+    'summary' => 'Metadata action không hợp lệ',
+    'publish_status' => 'published',
+    'deadline_at' => '2026-09-30 23:59:59',
+    'eligibility_json' => '[]',
+    'capacity' => 20,
+    'enrolled_count' => 1,
+    'url' => '/app/learner/groups.php?id=grp-malformed-action',
+    'action_json' => $malformedAction,
+    'school_id' => $schoolId,
+    'tenant_id' => $schoolId,
+    'updated_at' => '2026-08-01 00:00:00',
+]);
+$matchesWithMalformedAction = $service->match($studentId, 10);
+$collectHardeningFailure(
+    !in_array('grp-malformed-action', array_column($matchesWithMalformedAction, 'catalog_id'), true),
+    'malformed action metadata is rejected instead of fabricating join_group',
+);
+
+$pdo->exec("DELETE FROM experience_logs WHERE studentId = '{$studentId}'");
+$pdo->exec("DELETE FROM checkins WHERE registrationId = 'reg-1'");
+$pdo->exec("DELETE FROM activity_registrations WHERE studentId = '{$studentId}'");
+$matchesWithoutSchedule = $service->match($studentId, 10);
+$highWithoutSchedule = null;
+foreach ($matchesWithoutSchedule as $candidateWithoutSchedule) {
+    if (($candidateWithoutSchedule['catalog_id'] ?? '') === 'grp-high-match') {
+        $highWithoutSchedule = $candidateWithoutSchedule;
+        break;
+    }
+}
+$collectHardeningFailure(is_array($highWithoutSchedule), 'candidate still matches from skill and assessment when schedule evidence is absent');
+if (is_array($highWithoutSchedule)) {
+    $collectHardeningFailure(
+        !in_array('activity_experience', array_column($highWithoutSchedule['evidence'], 'source_type'), true),
+        'missing learner schedule does not add schedule evidence or weight',
+    );
+}
+
+group_assert(
+    $hardeningFailures === [],
+    "mandatory hardening contract gaps:\n- " . implode("\n- ", $hardeningFailures),
+);
+
 // Test 7: Consent revocation
 $pdo->exec("INSERT INTO learner_ai_consent_events VALUES ('c-rev', '{$studentId}', 'activity', 'revoked', '1.0', '2026-08-28 12:00:00', 'req-rev')");
 $revokedMatches = $service->match($studentId, 10);

@@ -19,14 +19,33 @@ try {
     $context = LearnerApiContext::fromGlobals();
 
     if ($request->method === 'GET') {
+        // The desktop test harness injects query values through $_GET while
+        // production requests are parsed from REQUEST_URI.  Treat both as
+        // the same request boundary.
+        $queryParams = $request->queryParams();
+        if ($queryParams === [] && is_array($_GET)) {
+            $queryParams = $_GET;
+        }
+        $unknownQueryFields = array_diff(array_keys($queryParams), ['limit']);
+        if ($unknownQueryFields !== []) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Tham số truy vấn không hợp lệ.');
+        }
+        $rawLimit = array_key_exists('limit', $queryParams) ? (string) $queryParams['limit'] : null;
+        $limit = 10;
+        if ($rawLimit !== null) {
+            if (preg_match('/\A(?:[1-9]|10)\z/', (string) $rawLimit) !== 1) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'limit phải là số từ 1 đến 10.');
+            }
+            $limit = (int) $rawLimit;
+        }
         $studentId = $context->studentId('student_profile.read_own');
         $scopes = $context->consentScopes($studentId);
 
         if (!in_array('activity', $scopes, true)) {
-            JsonResponder::sendSuccess(['state' => 'consent_required', 'items' => []], $context->requestId());
+            JsonResponder::sendSuccess(['state' => 'consent_required', 'analysis_origin' => 'evidence_match', 'generated_from' => 'database_snapshot', 'items' => []], $context->requestId());
         }
 
-        $items = $context->groupMatchingService($studentId)->match($studentId, 10);
+        $items = $context->groupMatchingService($studentId)->match($studentId, $limit);
         $state = 'ready';
         if ($items === []) {
             if (!in_array('skills', $scopes, true) && !in_array('assessment', $scopes, true)) {
@@ -36,7 +55,7 @@ try {
             }
         }
 
-        JsonResponder::sendSuccess(['state' => $state, 'items' => $items], $context->requestId());
+        JsonResponder::sendSuccess(['state' => $state, 'analysis_origin' => 'evidence_match', 'generated_from' => 'database_snapshot', 'items' => $items], $context->requestId());
     }
 
     if ($request->method !== 'POST') {
@@ -45,14 +64,14 @@ try {
 
     $studentId = $context->studentId('student_profile.update_own');
     $context->mutation($request->header('x-csrf-token'));
-    $input = $context->allowedInput($request->json(), ['catalog_id', 'action']);
+    $input = $context->allowedInput($request->json(), ['catalogId', 'action']);
 
-    $catalogId = is_string($input['catalog_id'] ?? null) ? trim((string) $input['catalog_id']) : '';
+    $catalogId = is_string($input['catalogId'] ?? null) ? trim((string) $input['catalogId']) : '';
     $action = is_string($input['action'] ?? null) ? trim((string) $input['action']) : '';
 
     if ($catalogId === '' || strlen($catalogId) > 128) {
         throw new ApiException(422, 'VALIDATION_FAILED', 'Mã danh mục không hợp lệ.', [
-            ['field' => 'catalog_id', 'code' => 'INVALID_VALUE', 'message' => 'catalog_id là bắt buộc.'],
+            ['field' => 'catalogId', 'code' => 'INVALID_VALUE', 'message' => 'catalogId là bắt buộc.'],
         ]);
     }
 

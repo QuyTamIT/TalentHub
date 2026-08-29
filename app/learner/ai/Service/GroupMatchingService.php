@@ -98,8 +98,15 @@ final class GroupMatchingService
                 continue;
             }
 
+            // The action metadata is server-owned.  Never infer an executable
+            // action (or its catalog id) from a malformed row.
+            $validatedAction = $this->validateActionMetadata($action, (string) ($candidate['catalog_id'] ?? ''));
+            if ($validatedAction === null) {
+                continue;
+            }
+
             // Parse and validate match_profile
-            $matchProfile = $this->extractAndValidateMatchProfile($action);
+            $matchProfile = $this->extractAndValidateMatchProfile($validatedAction);
             if ($matchProfile === null) {
                 continue;
             }
@@ -201,33 +208,88 @@ final class GroupMatchingService
             return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
         }
 
-        // Student school/tenant verification
+        // Student profile, school and tenant are mandatory for a fail-closed
+        // action.  The catalog source performs the same scope/eligibility
+        // checks against the current database snapshot.
         try {
             $studentStmt = $this->pdo->prepare('SELECT sp.id, sp.classId, sp.tenantId, c.schoolId FROM student_profiles sp LEFT JOIN classes c ON c.id = sp.classId WHERE sp.id = :id');
             $studentStmt->execute(['id' => $studentId]);
             $studentRow = $studentStmt->fetch(PDO::FETCH_ASSOC);
-            if (is_array($studentRow)) {
-                $schoolId = (string) ($studentRow['schoolId'] ?? '');
-                $tenantId = trim((string) ($studentRow['tenantId'] ?? ''));
-                if ($tenantId === '') $tenantId = $schoolId;
-                if (($row['school_id'] ?? null) !== null && (string) $row['school_id'] !== '' && !hash_equals((string) $row['school_id'], $schoolId)) {
-                    return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
-                }
-                if (($row['tenant_id'] ?? null) !== null && (string) $row['tenant_id'] !== '' && !hash_equals((string) $row['tenant_id'], $tenantId)) {
-                    return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
-                }
+            if (!is_array($studentRow)) {
+                return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
+            }
+            $schoolId = trim((string) ($studentRow['schoolId'] ?? ''));
+            $tenantId = trim((string) ($studentRow['tenantId'] ?? ''));
+            if ($schoolId === '' || $tenantId === '') {
+                return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
+            }
+            if (($row['school_id'] ?? null) === null || (string) $row['school_id'] === '' || !hash_equals((string) $row['school_id'], $schoolId)) {
+                return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
+            }
+            if (($row['tenant_id'] ?? null) === null || (string) $row['tenant_id'] === '' || !hash_equals((string) $row['tenant_id'], $tenantId)) {
+                return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
             }
         } catch (Throwable) {
-            // Ignore DB error and proceed with safe fallback URL validation
+            return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
         }
 
-        $rawUrl = trim((string) ($row['url'] ?? ''));
-        $safeUrl = null;
-        if ($rawUrl !== '' && str_starts_with($rawUrl, '/') && !str_starts_with($rawUrl, '//')) {
-            $safeUrl = $rawUrl;
-        } else {
-            $safeUrl = '/app/learner/groups.php?id=' . rawurlencode($catalogId);
+        // Re-read the current student-scoped catalog eligibility/availability
+        // immediately before exposing the action.
+        try {
+            $current = $this->catalogSource->readForStudent($studentId);
+            $currentRow = null;
+            foreach ($current as $eligible) {
+                if ((string) ($eligible['catalog_id'] ?? '') === $catalogId) {
+                    $currentRow = $eligible;
+                    break;
+                }
+            }
+            if (!is_array($currentRow)) {
+                return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
+            }
+
+            // Fetch the row again after the student-scoped eligibility read so
+            // action metadata, capacity and routing are all based on the same
+            // latest database state rather than the initial stale read.
+            $latestStatement = $this->pdo->prepare(
+                'SELECT catalog_id, item_type, publish_status, deadline_at, eligibility_json, capacity, enrolled_count, action_json, school_id, tenant_id FROM learner_ai_catalog_items WHERE catalog_id = :id'
+            );
+            $latestStatement->execute(['id' => $catalogId]);
+            $latestRow = $latestStatement->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($latestRow)) {
+                return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
+            }
+            $row = array_replace($row, $latestRow);
+            $eligibility = json_decode((string) ($row['eligibility_json'] ?? '{}'), true);
+            $actionJson = json_decode((string) ($row['action_json'] ?? '{}'), true);
+            if (DatabaseCatalogSource::containsProtectedTraits($eligibility)
+                || DatabaseCatalogSource::containsProtectedTraits($actionJson)) {
+                return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
+            }
+            if (($row['publish_status'] ?? '') !== 'published'
+                || (int) ($row['capacity'] ?? 0) <= (int) ($row['enrolled_count'] ?? 0)) {
+                return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
+            }
+            $latestDeadline = $row['deadline_at'] ?? null;
+            if ($latestDeadline !== null && $latestDeadline !== '' && (string) $latestDeadline <= $this->clock->format('Y-m-d\\TH:i:s.uP')) {
+                return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
+            }
+        } catch (Throwable) {
+            return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
         }
+
+        $validatedAction = $this->validateActionMetadata($actionJson, $catalogId);
+        if ($validatedAction === null || ($validatedAction['type'] ?? '') !== $action) {
+            return ['state' => 'join_unavailable', 'catalog_id' => $catalogId, 'action' => $action, 'url' => null];
+        }
+
+        // Always use a canonical server-owned learner route.  Catalog URLs
+        // are content, not navigation authority, and may contain traversal,
+        // encoded protocol or control characters.
+        $safeRoute = (($row['item_type'] ?? '') === 'community')
+            ? '/app/learner/group-detail.php?id='
+            : '/app/learner/groups.php?id=';
+        $safeUrl = $safeRoute . rawurlencode($catalogId);
 
         $state = match ($action) {
             'join_group' => 'action_ready',
@@ -351,8 +413,9 @@ final class GroupMatchingService
             }
         }
 
-        // Dimension 5: Schedule Compatibility (Max: 10)
-        if (!empty($matchProfile['schedule_slots'])) {
+        // Dimension 5: Schedule Compatibility (Max: 10).  Missing learner
+        // schedule evidence is omitted from both numerator and denominator.
+        if (!empty($matchProfile['schedule_slots']) && $studentSchedule !== []) {
             $applicableWeight += 10;
             $hasConflict = $this->hasScheduleConflict($matchProfile['schedule_slots'], $studentSchedule);
             if (!$hasConflict) {
@@ -377,10 +440,8 @@ final class GroupMatchingService
         $score = (int) max(0, min(100, (int) round(100.0 * $earnedWeight / $applicableWeight)));
         $confidenceBand = $score >= 80 ? 'high' : ($score >= 50 ? 'medium' : 'low');
 
-        $rawAction = $candidate['action'] ?? [];
-        $actionType = in_array($rawAction['type'] ?? '', self::ALLOWED_ACTIONS, true)
-            ? $rawAction['type']
-            : 'join_group';
+        $rawAction = $candidate['action'];
+        $actionType = (string) $rawAction['type'];
 
         $cleanAction = [
             'type' => $actionType,
@@ -402,6 +463,24 @@ final class GroupMatchingService
             'url' => (string) ($candidate['url'] ?? ''),
             'action' => $cleanAction,
         ];
+    }
+
+    /** @param mixed $action @return array<string,mixed>|null */
+    private function validateActionMetadata(mixed $action, string $catalogId): ?array
+    {
+        if (!is_array($action) || preg_match('/\A[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\z/', $catalogId) !== 1) return null;
+        foreach (array_keys($action) as $key) {
+            if (!is_string($key) || !in_array($key, ['type', 'catalog_id', 'match_profile'], true)) return null;
+        }
+        $type = $action['type'] ?? null;
+        $actionCatalogId = $action['catalog_id'] ?? null;
+        if (!is_string($type) || !in_array($type, self::ALLOWED_ACTIONS, true)
+            || !is_string($actionCatalogId)
+            || preg_match('/\A[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\z/', $actionCatalogId) !== 1
+            || !hash_equals($catalogId, $actionCatalogId)) {
+            return null;
+        }
+        return $action;
     }
 
     /** @param array<string,mixed> $action @return array<string,mixed>|null */
@@ -728,7 +807,9 @@ final class GroupMatchingService
         $raw = $payload['activities'] ?? [];
         if (is_array($raw)) {
             foreach ($raw as $item) {
-                if (is_array($item)) {
+                if (is_array($item)
+                    && is_string($item['start_at'] ?? $item['startAt'] ?? null)
+                    && is_string($item['end_at'] ?? $item['endAt'] ?? null)) {
                     $activities[] = $item;
                 }
             }
@@ -753,7 +834,9 @@ final class GroupMatchingService
                     );
                     $stmt->execute(['studentId' => $studentId]);
                     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-                        $activities[] = $row;
+                        if (is_string($row['startAt'] ?? null) && is_string($row['endAt'] ?? null)) {
+                            $activities[] = $row;
+                        }
                     }
                 }
             }
