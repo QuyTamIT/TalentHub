@@ -22,6 +22,11 @@ final class Uuid
         );
     }
 
+    public static function uuid4(): string
+    {
+        return self::v4();
+    }
+
     /**
      * @return string|false Returns the canonical UUID string, or false if input is not a valid UUID.
      */

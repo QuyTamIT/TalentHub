@@ -5,10 +5,15 @@ use TalentHub\Config\Environment;
 
 $environment = Environment::appEnvironment();
 
+$isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower((string)$_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
+    || (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && strtolower((string)$_SERVER['HTTP_X_FORWARDED_SSL']) === 'on')
+    || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
+
 return [
     'name' => getenv('SESSION_NAME') ?: 'TALENTHUBSESSID',
     'lifetime' => Environment::integer('SESSION_LIFETIME', 86400 * 7, 300, 2592000),
-    'secure' => Environment::boolean('SESSION_SECURE', $environment === 'production'),
+    'secure' => $isHttps && Environment::boolean('SESSION_SECURE', true),
     'sameSite' => 'Lax',
     'path' => '/',
     'domain' => '',

@@ -8,7 +8,8 @@ interface AiRefreshJobRepository
     public function claimNext(string $workerId, int $leaseSeconds = 60): ?AiRefreshJob;
     public function renewLease(string $jobKey, string $leaseToken, int $leaseSeconds = 60): bool;
     public function ownsLease(string $jobKey, string $leaseToken): bool;
-    public function complete(string $jobKey, ?string $leaseToken = null): void;
+    public function complete(string $jobKey, ?string $leaseToken = null): bool;
     public function fail(string $jobKey, string $errorCode, bool $deadLetter = false, ?string $leaseToken = null, ?int $retryAfterSeconds = null): void;
     public function cancelSuperseded(string $studentId, string $capability, string $currentSnapshotHash): void;
+    public function cancel(string $jobKey, ?string $leaseToken = null): void;
 }

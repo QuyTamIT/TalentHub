@@ -136,4 +136,32 @@ roadmap_contract_expect(
     'model metadata',
 );
 
+$missingTalentAxis = learner_ai_roadmap_provider_fixture();
+array_pop($missingTalentAxis['talent_map']);
+roadmap_contract_expect(
+    static fn () => $validator->fromProviderPayload($missingTalentAxis, learner_ai_roadmap_model_metadata()),
+    'exactly three talent map records',
+);
+
+$duplicateTalentAxis = learner_ai_roadmap_provider_fixture();
+$duplicateTalentAxis['talent_map'][2]['field'] = 'Tư duy Logic & Hệ thống';
+roadmap_contract_expect(
+    static fn () => $validator->fromProviderPayload($duplicateTalentAxis, learner_ai_roadmap_model_metadata()),
+    'talent map fields',
+);
+
+$unknownTalentAxis = learner_ai_roadmap_provider_fixture();
+$unknownTalentAxis['talent_map'][2]['field'] = 'Năng lực chưa được định nghĩa';
+roadmap_contract_expect(
+    static fn () => $validator->fromProviderPayload($unknownTalentAxis, learner_ai_roadmap_model_metadata()),
+    'talent map fields',
+);
+
+$stringTalentScore = learner_ai_roadmap_provider_fixture();
+$stringTalentScore['talent_map'][0]['score'] = '0.82';
+roadmap_contract_expect(
+    static fn () => $validator->fromProviderPayload($stringTalentScore, learner_ai_roadmap_model_metadata()),
+    'talent map',
+);
+
 echo "learner_ai_roadmap_contract_test: OK\n";

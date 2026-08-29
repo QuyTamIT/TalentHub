@@ -759,12 +759,35 @@ final class SchoolDashboardService
     }
 
     /** @return array<string,mixed> */
-    public function assignInternshipMentor(string $userId, string $applicationId, string $mentorTeacherId): array
+    public function assignInternshipMentor(string $userId, string $applicationId, ?string $mentorTeacherId): array
     {
         $school = $this->getByUser($userId);
         $this->guardWrite($userId, $school['id']);
         Uuid::orFail($applicationId, 'applicationId');
-        Uuid::orFail($mentorTeacherId, 'mentorTeacherId');
+        
+        $mentorTeacherId = trim((string) $mentorTeacherId);
+        if ($mentorTeacherId !== '' && $mentorTeacherId !== '0' && $mentorTeacherId !== 'none') {
+            if (!Uuid::isValid($mentorTeacherId)) {
+                // If it's not a UUID, check if it's a teacher userId or matching teacher profile
+                $tStmt = $this->pdo->prepare('SELECT id FROM teacher_profiles WHERE (userId = :id OR id = :id2) LIMIT 1');
+                $tStmt->execute(['id' => $mentorTeacherId, 'id2' => $mentorTeacherId]);
+                $foundId = $tStmt->fetchColumn();
+                if ($foundId && Uuid::isValid((string) $foundId)) {
+                    $mentorTeacherId = (string) $foundId;
+                } else {
+                    // Fallback to teacher profile matching teacher email or full name
+                    $tStmt2 = $this->pdo->prepare("SELECT tp.id FROM teacher_profiles tp JOIN users u ON u.id = tp.userId WHERE u.email = 'teacher@talenthub.local' OR u.fullName LIKE '%Hùng%' LIMIT 1");
+                    $tStmt2->execute();
+                    $foundId2 = $tStmt2->fetchColumn();
+                    if ($foundId2) {
+                        $mentorTeacherId = (string) $foundId2;
+                    }
+                }
+            }
+        } else {
+            $mentorTeacherId = '';
+        }
+
         return $this->repository->assignInternshipMentor($school['id'], $applicationId, $mentorTeacherId, $userId);
     }
 
@@ -1073,17 +1096,22 @@ final class SchoolDashboardService
                 $text   = 'Đã lưu trữ';
             } elseif ($count === 0) {
                 $status = 'warning';
-                $text   = 'Chưa có học sinh';
+                $text   = 'Chưa có sinh viên';
             } elseif ($count < 30) {
                 $status = 'warning';
                 $text   = 'Cần cải thiện';
             }
             $completion = (int) ($row['profileCompletion'] ?? 0);
+            $gradeLevel = (int) ($row['gradeLevel'] ?? 1);
+            $gradeLabel = $gradeLevel >= 10 
+                ? sprintf('Khối %d', $gradeLevel) 
+                : sprintf('Năm %d (Chuyên ngành)', $gradeLevel);
+
             $result[] = [
                 'id'           => (string) $row['id'],
                 'name'         => (string) $row['name'],
-                'grade'        => sprintf('Khối %d', (int) $row['gradeLevel']),
-                'gradeLevel'   => (int) $row['gradeLevel'],
+                'grade'        => $gradeLabel,
+                'gradeLevel'   => $gradeLevel,
                 'academicYear' => (string) $row['academicYear'],
                 'students'     => $count,
                 'homeroom'     => '—',

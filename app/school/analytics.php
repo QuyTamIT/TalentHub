@@ -68,7 +68,7 @@ foreach ($grouped as $grade => $items) {
 $schoolInfo = [
     'name'          => $school['name'],
     'logo_initials' => mb_substr($school['name'], 0, 2),
-    'level'         => $school['level'] ?? 'Trung học',
+    'level'         => $school['level'] ?? 'Đại học / Cao đẳng',
     'district'      => $school['address'] ?? '',
     'academic_year' => $school['academicYear'] ?? '',
 ];
@@ -146,7 +146,17 @@ include __DIR__ . '/includes/page-banner.php';
 <section class="school-section-box school-ai-insight" data-school-ai-insight aria-labelledby="school-ai-insight-title">
     <div class="school-section-box__header"><h3 class="school-section-box__title" id="school-ai-insight-title">AI giải thích xu hướng năng lực</h3><p class="school-section-box__subtitle">Chỉ dùng dữ liệu tổng hợp của nhóm đủ lớn; không hiển thị hồ sơ cá nhân.</p></div>
     <p data-school-ai-state role="status" aria-live="polite">Đang tải phân tích...</p>
-    <div data-school-ai-content hidden><p data-school-ai-summary></p><ul data-school-ai-priorities></ul><div data-school-ai-cohorts></div><small data-school-ai-provenance></small></div>
+    <div data-school-ai-content hidden>
+        <p data-school-ai-summary></p>
+        <ul data-school-ai-priorities></ul>
+        <div data-school-ai-cohorts></div>
+        <div class="school-ai-meta" style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--text-muted);">
+            <span data-school-ai-freshness></span>
+            <span data-school-ai-model-version></span>
+            <span data-school-ai-generated-at></span>
+        </div>
+        <small data-school-ai-provenance style="display: block; margin-top: 0.25rem;"></small>
+    </div>
 </section>
 <?php
 $pageBody = ob_get_clean();
@@ -158,6 +168,7 @@ $extraStyles = <<<'HTML'
 }
 </style>
 HTML;
-$extraScripts = '<script src="../../assets/js/school-ai-insights.js" defer></script>';
+$schoolAiAsset = dirname(__DIR__, 2) . '/assets/js/school-ai-insights.js';
+$extraScripts = '<script src="../../assets/js/school-ai-insights.js?v=' . rawurlencode((string) (file_exists($schoolAiAsset) ? filemtime($schoolAiAsset) : time())) . '" defer></script>';
 
 require __DIR__ . '/includes/layout.php';

@@ -41,7 +41,12 @@ declare(strict_types=1);
                 $value = substr($value, 1, -1);
             }
         }
-        if (array_key_exists($name, $_ENV) || array_key_exists($name, $_SERVER) || getenv($name) !== false) {
+        // A web server may export an empty placeholder (for example APP_ENV="").
+        // Treat that as unset so the project .env can still provide the value;
+        // non-empty process-level overrides continue to win.
+        $existing = array_key_exists($name, $_ENV) ? $_ENV[$name]
+            : (array_key_exists($name, $_SERVER) ? $_SERVER[$name] : getenv($name));
+        if ($existing !== false && $existing !== null && (string) $existing !== '') {
             continue;
         }
         $_ENV[$name]    = $value;

@@ -5,9 +5,9 @@
 
 $kpis = [
     [
-        'label' => 'Học sinh đang hoạt động',
+        'label' => 'Sinh viên đang hoạt động',
         'value' => '1,247',
-        'change' => '+12 học sinh tuần này',
+        'change' => '+12 sinh viên tuần này',
         'change_type' => 'positive',
         'icon' => 'users'
     ],

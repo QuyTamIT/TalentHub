@@ -9,7 +9,7 @@ use TalentHub\Learner\Ai\Persistence\DatabaseRecommendationRepository;
 
 final class RecommendationClickService
 {
-    private const ACTIONS = ['view_activity', 'view_opportunity', 'register_activity', 'open_catalog_item'];
+    private const ACTIONS = ['view_activity', 'view_opportunity', 'register_activity', 'open_catalog_item', 'join_group'];
 
     public function __construct(
         private readonly DatabaseRecommendationRepository $repository,

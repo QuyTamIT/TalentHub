@@ -43,13 +43,15 @@ final class NoSilentFallbackRepository implements RecommendationRepository
 {
     public ?array $latest = null;
     public int $completeCalls = 0;
+    /** @var list<string> */
+    public array $failedCodes = [];
     public function createPendingRun(string $studentId, RecommendationInput $input, RecommendationContext $context): array { return ['runId' => 'run-1', 'snapshotId' => 'snapshot-1', 'status' => 'pending', 'reused' => false]; }
     public function completeRun(string $studentId, string $runId, RecommendationResult $result): array
     {
         $this->completeCalls++;
         return ['runId' => $runId, 'snapshotId' => 'snapshot-1', 'status' => 'completed', 'engineType' => $result->engineType(), 'ruleVersion' => $result->ruleVersion(), 'provider' => $result->provider(), 'modelVersion' => $result->modelVersion(), 'promptVersion' => $result->promptVersion(), 'fallbackReason' => $result->fallbackReason(), 'completedAt' => '2026-08-27T00:00:00+00:00', 'items' => []];
     }
-    public function failRun(string $studentId, string $runId, string $safeErrorCode): void {}
+    public function failRun(string $studentId, string $runId, string $safeErrorCode): void { $this->failedCodes[] = $safeErrorCode; }
     public function latestForStudent(string $studentId): ?array { return $this->latest; }
     public function appendFeedback(string $studentId, string $itemId, string $verdict, string $reasonCode, ?string $safeComment): array { return []; }
 }
@@ -77,19 +79,54 @@ $config = RecommendationConfig::fromEnvironment([
     'TALENTHUB_AI_PILOT_PAUSED' => 'false',
 ]);
 $rolloutEvidence = ['stage'=>'50','error_budget'=>true,'freshness_sla'=>true,'validator_pass_rate'=>true,'privacy_review'=>true,'rollback_drill'=>true,'approval_reference'=>'test-approval','enabled'=>true,'shadow_gate_approved'=>true,'pilot_paused'=>false,'completed_stages'=>['pilot','10','25','50'],'visible_percent'=>100,'unified_policy_verified'=>true,'last_known_good_verified'=>true,'queue_monitoring_verified'=>true];
+$strictRepository = new NoSilentFallbackRepository();
+$strictRefreshes = [];
 $service = new RecommendationService(
-    new NoSilentFallbackRepository(), new NoSilentFallbackEngine(), new RecommendationResultValidator(), new RecommendationResponseMapper(),
+    $strictRepository, new NoSilentFallbackEngine(), new RecommendationResultValidator(), new RecommendationResponseMapper(),
     static fn (string $studentId): bool => true,
     static fn (string $studentId): array => ['assessment', 'skills', 'activity', 'evaluation'],
     static fn (string $studentId, array $scopes): RecommendationInput => $input,
     static fn (RecommendationInput $value): DataQualityResult => new DataQualityResult('ready'),
     static fn (RecommendationInput $value): bool => true,
     new NoSilentFallbackEngine('provider_unavailable'), $config, new RecommendationRolloutSelector(new AiAvailabilityPolicy(), $rolloutEvidence), new AiAvailabilityPolicy(),
+    static function (string $studentId, RecommendationInput $snapshot) use (&$strictRefreshes): void { $strictRefreshes[] = [$studentId, $snapshot->contentHash()]; },
 );
 $response = $service->generate('student-a', 'request-a', 'idempotency-a');
-no_silent_fallback_assert(($response['state'] ?? null) === 'ready_rule', 'rule fallback remains an explicit ready_rule state');
-no_silent_fallback_assert(($response['analysis_origin'] ?? null) === 'rule', 'rule fallback is labeled with rule origin');
-no_silent_fallback_assert(($response['fallback_reason'] ?? null) === 'provider_unavailable', 'model failure reason is exposed safely instead of silently falling back');
+no_silent_fallback_assert(($response['state'] ?? null) === 'provider_unavailable', 'strict mode exposes provider_unavailable instead of a rule fallback');
+no_silent_fallback_assert(($response['analysis_origin'] ?? null) === null, 'strict model failure has no rule or model origin');
+no_silent_fallback_assert(($response['items'] ?? null) === [], 'strict model failure returns no rule items');
+no_silent_fallback_assert($strictRepository->completeCalls === 0, 'strict model failure never persists a rule result');
+no_silent_fallback_assert($strictRepository->failedCodes === ['provider_unavailable'], 'strict model failure is persisted with the canonical safe error code');
+no_silent_fallback_assert($strictRefreshes === [['student-a', $input->contentHash()]], 'strict provider failure enqueues a refresh using the exact snapshot hash');
+$strictRepository->latest = [
+    'runId' => 'run-1',
+    'snapshotId' => 'snapshot-1',
+    'status' => 'failed',
+    'engineType' => 'rule',
+    'safeErrorCode' => 'provider_unavailable',
+    'items' => [],
+];
+$strictLatest = $service->latest('student-a');
+no_silent_fallback_assert(($strictLatest['state'] ?? null) === 'provider_unavailable', 'strict failed history remains provider_unavailable on a later GET');
+no_silent_fallback_assert(($strictLatest['analysis_origin'] ?? null) === null && ($strictLatest['items'] ?? null) === [], 'strict failed history never revives a rule origin or rule items');
+
+$strictRepository->latest = [
+    'runId' => 'legacy-rule-run',
+    'snapshotId' => 'legacy-rule-snapshot',
+    'status' => 'completed',
+    'engineType' => 'rule',
+    'ruleVersion' => 'legacy-rule-1',
+    'completedAt' => '2026-08-26T00:00:00+00:00',
+    'items' => [[
+        'id' => 'legacy-rule-item',
+        'itemType' => 'development',
+        'title' => 'Legacy rule recommendation',
+        'rationale' => 'Must never be revealed while strict mode is required.',
+    ]],
+];
+$strictLegacyLatest = $service->latest('student-a');
+no_silent_fallback_assert(($strictLegacyLatest['state'] ?? null) === 'provider_unavailable', 'strict GET never exposes a completed historical rule run');
+no_silent_fallback_assert(($strictLegacyLatest['analysis_origin'] ?? null) === null && ($strictLegacyLatest['items'] ?? null) === [], 'strict GET never revives legacy rule items');
 
 $revokedRepository = new NoSilentFallbackRepository();
 $revokedRepository->latest = ['runId' => 'old-run', 'status' => 'completed', 'engineType' => 'model', 'provider' => 'gemini', 'modelVersion' => 'old-model', 'promptVersion' => 'old-prompt', 'completedAt' => '2026-08-26T00:00:00+00:00', 'items' => []];

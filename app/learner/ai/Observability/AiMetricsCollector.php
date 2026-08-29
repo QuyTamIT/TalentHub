@@ -66,13 +66,16 @@ final class AiMetricsCollector
         if (isset($input['provider_error']) && is_string($input['provider_error'])) {
             $event['provider_error'] = $this->category($input['provider_error']);
         }
+        if (isset($input['queue_error']) && is_string($input['queue_error'])) {
+            $event['queue_error'] = $this->category($input['queue_error']);
+        }
         if (isset($input['circuit_state']) && is_string($input['circuit_state'])) {
             $state = strtolower(trim($input['circuit_state']));
             if (in_array($state, ['closed', 'open', 'half_open'], true)) { $event['circuit_state'] = $state; $this->gauges['circuit_state'] = $state; }
         }
         if (isset($input['queue_event']) && is_string($input['queue_event'])) {
             $queueEvent = strtolower(trim($input['queue_event']));
-            if (in_array($queueEvent, ['claimed', 'completed', 'failed', 'dead_letter', 'idle'], true)) {
+            if (in_array($queueEvent, ['claimed', 'completed', 'failed', 'dead_letter', 'cancelled', 'idle'], true)) {
                 $event['queue_event'] = $queueEvent;
                 $this->queueEvents[$queueEvent] = ($this->queueEvents[$queueEvent] ?? 0) + 1;
             }
@@ -83,7 +86,7 @@ final class AiMetricsCollector
         }
         if (isset($input['recommendation_action']) && is_string($input['recommendation_action'])) {
             $action = strtolower(trim($input['recommendation_action']));
-            if (in_array($action, ['view_activity', 'view_opportunity', 'register_activity', 'open_catalog_item'], true)) $event['recommendation_action'] = $action;
+            if (in_array($action, ['view_activity', 'view_opportunity', 'register_activity', 'open_catalog_item', 'join_group'], true)) $event['recommendation_action'] = $action;
         }
         $this->events[] = $event;
         if (count($this->events) > $this->maxEvents) array_shift($this->events);
@@ -164,6 +167,6 @@ final class AiMetricsCollector
     private function category(string $value): string
     {
         $value = strtolower(trim($value));
-        return in_array($value, ['quota_exhausted', 'rate_limited', 'timeout', 'provider_unavailable', 'invalid_credentials', 'malformed_output', 'server_error'], true) ? $value : 'provider_error';
+        return in_array($value, ['quota_exhausted', 'rate_limited', 'rate_limit_exceeded', 'timeout', 'provider_unavailable', 'invalid_credentials', 'malformed_output', 'malformed_outbox', 'outbox_dispatch_failed', 'school_refresh_dispatch_failed', 'refresh_lease_lost', 'capability_refresh_unavailable', 'server_error'], true) ? $value : 'provider_error';
     }
 }

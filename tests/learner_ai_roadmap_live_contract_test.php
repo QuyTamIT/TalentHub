@@ -34,7 +34,9 @@ function roadmap_live_assert(bool $condition, string $message): void
     if (!$condition) throw new RuntimeException('Live contract assertion failed: ' . $message);
 }
 
-$config = RecommendationConfig::fromEnvironment($_ENV);
+$liveEnvironment = $_ENV;
+$liveEnvironment['TALENTHUB_AI_MAX_ATTEMPTS'] = '1';
+$config = RecommendationConfig::fromEnvironment($liveEnvironment);
 $studentId = 'f0000000-0000-4000-8000-000000000001';
 $fixture = roadmap_repository_input('f');
 $context = new RecommendationContext(['assessment'], 'live-contract-request', 'live-contract-idempotency', $studentId);

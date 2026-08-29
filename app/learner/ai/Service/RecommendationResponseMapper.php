@@ -30,10 +30,15 @@ final class RecommendationResponseMapper
         $engineType = (string) ($run['engineType'] ?? 'rule');
         $fallbackReason = $this->nullableString($run['fallbackReason'] ?? null);
         $status = (string) ($run['status'] ?? 'unknown');
+        if ($status === 'failed') {
+            return $this->providerUnavailable(
+                $this->nullableString($run['safeErrorCode'] ?? null) ?? 'provider_unavailable',
+                $run,
+            );
+        }
         $persistedFreshness=(string)($run['freshness_status']??'');
         $state = match (true) {
             $status === 'pending' => 'pending',
-            $status === 'failed' => 'ai_unavailable',
             $engineType === 'model' && $persistedFreshness === 'stale_model' => 'stale_model',
             $engineType === 'model' => 'ready_model',
             default => 'ready_rule',
@@ -116,6 +121,21 @@ final class RecommendationResponseMapper
     public function engineFailure(): array
     {
         return $this->unavailable();
+    }
+
+    /** @param array<string,mixed>|null $pending */
+    public function providerUnavailable(string $reason = 'provider_unavailable', ?array $pending = null): array
+    {
+        $response = $this->unavailable();
+        $response['state'] = 'provider_unavailable';
+        $response['availability_reason'] = $reason;
+        $response['safe_error_code'] = $reason;
+        if ($pending !== null) {
+            $response['run_id'] = $this->nullableString($pending['runId'] ?? null);
+            $response['snapshot_id'] = $this->nullableString($pending['snapshotId'] ?? null);
+            $response['status'] = (string) ($pending['status'] ?? 'failed');
+        }
+        return $response;
     }
 
     /** @return array<string,mixed> */

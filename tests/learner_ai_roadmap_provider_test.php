@@ -34,7 +34,38 @@ function roadmap_provider_request(): ProviderRequest
     return new ProviderRequest('learner-roadmap-prompt-1.0.0', [
         'instructions' => ['Chỉ trả về JSON hợp lệ.'],
         'contract_version' => 'learner-roadmap-1.0.0',
-        'output_schema' => ['type' => 'object', 'additionalProperties' => false],
+        'output_schema' => [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'properties' => [
+                'phases' => [
+                    'type' => 'array',
+                    'uniqueItems' => true,
+                    'items' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'tasks' => [
+                                'type' => 'array',
+                                'items' => [
+                                    'type' => 'object',
+                                    'properties' => [
+                                        'action' => [
+                                            'oneOf' => [[
+                                                'type' => 'object',
+                                                'properties' => [
+                                                    'type' => ['const' => 'self_task'],
+                                                    'title' => ['type' => 'string', 'minLength' => 1, 'pattern' => '.+'],
+                                                ],
+                                            ]],
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
         'input' => ['assessments' => [['test_type' => 'holland', 'dimension_scores' => ['R' => 80]]]],
         'evidence' => [['reference_id' => 'evidence-001']],
     ], [
@@ -110,8 +141,40 @@ $geminiBody = json_decode((string) ($geminiCaptured['body'] ?? ''), true, 512, J
 roadmap_provider_assert(isset($geminiBody['systemInstruction']['parts'][0]['text']), 'native Gemini roadmap includes system instruction');
 roadmap_provider_assert(isset($geminiBody['contents'][0]['parts'][0]['text']), 'native Gemini roadmap includes user contents');
 roadmap_provider_assert(($geminiBody['generationConfig']['responseFormat']['text']['mimeType'] ?? null) === 'APPLICATION_JSON', 'native Gemini roadmap uses the official JSON response-format enum');
-roadmap_provider_assert(($geminiBody['generationConfig']['maxOutputTokens'] ?? null) === 4096, 'native Gemini roadmap bounds output tokens');
+roadmap_provider_assert(
+    is_array($geminiBody['generationConfig']['responseFormat']['text']['schema'] ?? null)
+        && ($geminiBody['generationConfig']['responseFormat']['text']['schema']['type'] ?? null) === 'object',
+    'native Gemini roadmap sends the canonical output schema inside responseFormat.text.schema'
+);
+$geminiSchema = $geminiBody['generationConfig']['responseFormat']['text']['schema'];
+$encodedGeminiSchema = json_encode($geminiSchema, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+foreach (['const', 'minLength', 'pattern', 'uniqueItems', 'oneOf'] as $unsupportedKeyword) {
+    roadmap_provider_assert(
+        !str_contains($encodedGeminiSchema, '"' . $unsupportedKeyword . '"'),
+        "native Gemini schema recursively removes unsupported keyword {$unsupportedKeyword}",
+    );
+}
+$selfTaskType = $geminiSchema['properties']['phases']['items']['properties']['tasks']['items']['properties']['action']['anyOf'][0]['properties']['type'] ?? null;
+roadmap_provider_assert(
+    is_array($selfTaskType) && ($selfTaskType['enum'] ?? null) === ['self_task'],
+    'native Gemini schema converts oneOf/const discriminators into documented anyOf/enum constraints',
+);
+roadmap_provider_assert(($geminiBody['generationConfig']['maxOutputTokens'] ?? null) === 8192, 'native Gemini roadmap reserves enough output tokens for the full three-phase contract');
+roadmap_provider_assert(($geminiBody['generationConfig']['thinkingConfig']['thinkingLevel'] ?? null) === 'low', 'native Gemini roadmap uses the documented low thinking level for bounded latency and output headroom');
 roadmap_provider_assert(!isset($geminiBody['response_format'], $geminiBody['max_tokens'], $geminiBody['messages']), 'native Gemini roadmap omits OpenAI-only fields');
+
+$thoughtEnvelope = json_encode([
+    'candidates' => [[
+        'content' => ['parts' => [
+            ['thought' => true, 'text' => 'Internal summary that must not be parsed as the roadmap.'],
+            ['text' => $rawDirect],
+        ]],
+        'finishReason' => 'STOP',
+    ]],
+], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+$thoughtProvider = new HttpRoadmapProvider($geminiConfig, static fn (): array => ['status' => 200, 'headers' => [], 'body' => $thoughtEnvelope]);
+$thoughtResponse = $thoughtProvider->generate(roadmap_provider_request(), roadmap_provider_authorizer());
+roadmap_provider_assert($thoughtResponse->isSuccess() && $thoughtResponse->payload() === $fixture, 'native Gemini parser skips thought parts and reads the final structured JSON part');
 
 $fenced = "```json\n{$rawDirect}\n```";
 $envelopeBody = json_encode(['id' => 'body_req_456', 'choices' => [['message' => ['content' => $fenced]]]], JSON_THROW_ON_ERROR);

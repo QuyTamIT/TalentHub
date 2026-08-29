@@ -58,6 +58,7 @@ final class RoadmapService
         try {
             if (!(($this->authorizer)($studentId))) return null;
             $roadmap = $this->roadmaps->latestForStudent($studentId);
+            if ($roadmap !== null && $this->isModelOnlyRollout() && !$this->isModelRoadmap($roadmap)) $roadmap = null;
             if ($roadmap !== null) return $this->readyWithHistory($studentId, $roadmap);
             $pending = $this->roadmaps->latestPendingForStudent($studentId);
             return $pending === null ? null : $this->pending($pending);
@@ -72,6 +73,7 @@ final class RoadmapService
         try {
             if (!(($this->authorizer)($studentId))) return null;
             $roadmap = $this->roadmaps->versionForStudent($studentId, $version);
+            if ($roadmap !== null && $this->isModelOnlyRollout() && !$this->isModelRoadmap($roadmap)) return null;
             return $roadmap === null ? null : $this->readyWithHistory($studentId, $roadmap);
         } catch (\Throwable) {
             return $this->unavailable();
@@ -137,6 +139,9 @@ final class RoadmapService
             && !$availability->canServeActiveModel() && !$availability->canServeStaleModel()) {
             return $this->unavailable($availability->reason());
         }
+        if ($this->isModelOnlyRollout() && ($availability === null || !$availability->canShowModel())) {
+            return $this->unavailable($availability?->reason() ?? 'availability_policy_unavailable');
+        }
 
         $context = new RecommendationContext(
             $scopes, $requestId, 'roadmap-' . hash('sha256', $idempotencyKey), $studentId,
@@ -149,14 +154,15 @@ final class RoadmapService
             $pending = ($this->pendingRunCreator)($studentId, $input, $context);
             if (!is_array($pending)) throw new \RuntimeException('Roadmap pending run is unavailable.');
         } catch (\Throwable) {
-            return $active === null ? $this->unavailable() : $this->retained($studentId, $active, 'persistence_unavailable');
+            return $this->retainedOrUnavailable($studentId, $active, 'persistence_unavailable');
         }
         if (($pending['reused'] ?? false) === true) {
             return $this->pending($pending);
         }
 
+        $modelAttempt = $availability?->canShowModel() === true && $this->modelEngine !== null;
         try {
-            $selectedEngine = $availability?->canShowModel() === true && $this->modelEngine !== null
+            $selectedEngine = $modelAttempt
                 ? $this->modelEngine
                 : $this->engine;
             $analysis = $selectedEngine->generate($input, $context);
@@ -173,10 +179,23 @@ final class RoadmapService
                 $this->providerAudit($input, $analysis),
             );
             return $this->readyWithHistory($studentId, $saved);
+        } catch (\TalentHub\Learner\Ai\Model\RoadmapModelUnavailable $exception) {
+            try { $this->guardLease($leaseGuard); ($this->runFailer)($studentId, (string) ($pending['runId'] ?? ''), $exception->reason()); } catch (\Throwable) {}
+            if ($this->isConsentFailure($exception->reason())) {
+                return $this->unavailable($exception->reason());
+            }
+            if ($exception->reason() === 'rate_limited' && $propagateProviderRetry) {
+                throw new ProviderRetryAfterException('rate_limited', 60);
+            }
+            return $this->retainedOrUnavailable($studentId, $active, $exception->reason(), true);
+        } catch (ProviderRetryAfterException $exception) {
+            try { $this->guardLease($leaseGuard);($this->runFailer)($studentId, (string) ($pending['runId'] ?? ''), 'rate_limited'); } catch (\Throwable) {}
+            if ($propagateProviderRetry) throw $exception;
+            return $this->retainedOrUnavailable($studentId, $active, 'rate_limited', true);
         } catch (\Throwable $exception) {
-            try { $this->guardLease($leaseGuard);($this->runFailer)($studentId, (string) ($pending['runId'] ?? ''), $exception instanceof ProviderRetryAfterException?'rate_limited':'roadmap_engine_failure'); } catch (\Throwable) {}
+            try { $this->guardLease($leaseGuard);($this->runFailer)($studentId, (string) ($pending['runId'] ?? ''), 'roadmap_engine_failure'); } catch (\Throwable) {}
             if($propagateProviderRetry&&$exception instanceof ProviderRetryAfterException)throw $exception;
-            return $active === null ? $this->unavailable() : $this->retained($studentId, $active, 'engine_failure');
+            return $this->retainedOrUnavailable($studentId, $active, 'engine_failure', $modelAttempt);
         }
     }
 
@@ -355,6 +374,32 @@ final class RoadmapService
         return $response;
     }
 
+    /** @param array<string,mixed>|null $active @return array<string,mixed> */
+    private function retainedOrUnavailable(string $studentId, ?array $active, string $reason, bool $modelAttempt = false): array
+    {
+        if ($active === null || (($modelAttempt || $this->isModelOnlyRollout()) && !$this->isModelRoadmap($active))) {
+            return $this->unavailable($reason);
+        }
+        return $this->retained($studentId, $active, $reason);
+    }
+
+    private function isConsentFailure(string $reason): bool
+    {
+        return in_array($reason, ['consent_revoked', 'consent_missing', 'consent_changed'], true);
+    }
+
+    private function isModelOnlyRollout(): bool
+    {
+        return $this->modelConfig?->enabled() === true
+            && $this->modelConfig->visiblePercent() >= 100;
+    }
+
+    /** @param array<string,mixed> $roadmap */
+    private function isModelRoadmap(array $roadmap): bool
+    {
+        return ($roadmap['analysis_origin'] ?? null) === 'model';
+    }
+
     private function guardLease(?callable $leaseGuard):void
     {
         if($leaseGuard!==null&&!$leaseGuard())throw new \RuntimeException('refresh_lease_lost');
@@ -383,10 +428,21 @@ final class RoadmapService
     /** @return array<string,mixed> */
     private function unavailable(?string $reason = null): array
     {
+        $state = 'provider_unavailable';
+        if (in_array($reason, ['consent_required', 'consent_missing', 'consent_revoked', 'consent_changed'], true)) {
+            $state = 'consent_required';
+        } elseif (in_array($reason, ['data_insufficient', 'insufficient_assessments', 'missing_assessment', 'empty_snapshot', 'insufficient_data'], true)) {
+            $state = 'data_insufficient';
+        } elseif ($reason === 'pending') {
+            $state = 'pending';
+        } elseif ($reason === 'stale_model') {
+            $state = 'stale_model';
+        }
+
         $response = [
             'contract_version' => RoadmapAnalysis::CONTRACT_VERSION,
             'capability' => 'roadmap',
-            'state' => 'ai_unavailable',
+            'state' => $state,
             'freshness_status' => 'unavailable',
             'analysis_origin' => null,
             'evidence' => [],

@@ -13,10 +13,29 @@ if (!function_exists('app_href') && is_file(dirname(__DIR__, 3) . '/bin/bootstra
     require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
 }
 
-$teacherFullName = $teacherInfo['full_name'] ?? 'Thầy Nguyễn Văn Bình';
-$teacherAvatar = $teacherInfo['avatar_initials'] ?? 'TB';
+$rawSessionName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
+$teacherFullName = $rawSessionName !== '' && $rawSessionName !== 'Test Teacher'
+    ? $rawSessionName 
+    : ($teacherInfo['full_name'] ?? 'Giáo viên');
+
+if (($teacherFullName === 'Test Teacher' || $teacherFullName === 'Thầy Nguyễn Văn Bình' || $teacherFullName === 'Giáo viên') && !empty($_SESSION['user']['email']) && !str_contains((string)$_SESSION['user']['email'], 'test')) {
+    $parts = explode('@', (string)$_SESSION['user']['email']);
+    $teacherFullName = ucwords(str_replace(['.', '_', '-'], ' ', $parts[0] ?? 'Giáo viên'));
+}
+if ($teacherFullName === 'minh triet') {
+    $teacherFullName = 'Minh Triết';
+}
+
+$cleanName = preg_replace('/^(Thầy|Cô|Gv\.|GV|Ths\.|TS\.|ThS\.)\s+/iu', '', $teacherFullName);
+$cleanName = trim((string)$cleanName) ?: $teacherFullName;
+$parts = preg_split('/\s+/u', trim($cleanName)) ?: [];
+if (count($parts) === 1) {
+    $teacherAvatar = mb_strtoupper(mb_substr($parts[0], 0, min(2, mb_strlen($parts[0]))));
+} else {
+    $teacherAvatar = $parts === [] ? 'GV' : mb_strtoupper(mb_substr($parts[0], 0, 1) . mb_substr($parts[count($parts) - 1], 0, 1));
+}
 $teacherRoleLabel = $teacherInfo['role_label'] ?? 'Giáo viên / Hướng dẫn viên';
-$teacherSchoolName = $teacherInfo['school_name'] ?? 'THPT Nguyễn Trãi';
+$teacherSchoolName = $teacherInfo['school_name'] ?? 'Cao đẳng Quốc tế BTEC FPT';
 
 $profileRoute = '/app/teacher/profile.php';
 $profileUrl = function_exists('app_href') ? app_href($profileRoute) : '/app/teacher/profile.php';

@@ -10,10 +10,20 @@ use PDO;
 use TalentHub\Learner\Ai\Sources\LearnerAiExtendedSource;
 use Throwable;
 
-/** Reads the canonical, publishable opportunity catalog on every snapshot. */
+    /** Reads the canonical, publishable opportunity catalog on every snapshot. */
 final class DatabaseCatalogSource implements LearnerAiExtendedSource
 {
     private const TYPES = ['group', 'community', 'workshop', 'project', 'contest', 'skill_resource'];
+    /** Keys that must never appear in eligibility JSON. They correspond to
+     * protected traits the snapshot must not consume as selection
+     * criteria. */
+    private const PROTECTED_ELIGIBILITY_KEYS = [
+        'gender', 'sex', 'male', 'female', 'women', 'men',
+        'race', 'ethnicity', 'religion', 'disability', 'health',
+        'marital', 'pregnant', 'pregnancy', 'nationality', 'dob', 'birthdate',
+        'date_of_birth', 'ngay_sinh', 'gioi_tinh', 'dan_toc', 'ton_giao',
+        'khuyet_tat', 'nam', 'nu',
+    ];
     private readonly DateTimeImmutable $clock;
 
     public function __construct(private readonly PDO $pdo, ?DateTimeImmutable $clock = null)
@@ -139,11 +149,36 @@ final class DatabaseCatalogSource implements LearnerAiExtendedSource
         $rawRules = $item['eligibility_json'] ?? null;
         $rules = $this->json($rawRules);
         if (!is_string($rawRules) || trim($rawRules) === '' || $rules === null) return false;
-        foreach (array_keys($rules) as $rule) if (!in_array($rule, ['student_ids', 'class_ids', 'grade_levels'], true)) return false;
+        if (self::containsProtectedTraits($rules)) return false;
+        $action = $this->json($item['action_json'] ?? null);
+        if ($action !== null && self::containsProtectedTraits($action)) return false;
+        foreach (array_keys($rules) as $rule) {
+            if (!in_array($rule, ['student_ids', 'class_ids', 'grade_levels'], true)) {
+                if (in_array(strtolower($rule), self::PROTECTED_ELIGIBILITY_KEYS, true)) {
+                    return false;
+                }
+                return false;
+            }
+        }
         foreach (['student_ids' => 'id', 'class_ids' => 'class_id', 'grade_levels' => 'grade_level'] as $field => $studentField) {
             if (isset($rules[$field]) && is_array($rules[$field]) && !in_array($student[$studentField] ?? '', array_map('strval', $rules[$field]), true)) return false;
         }
         return true;
+    }
+
+    public static function containsProtectedTraits(mixed $data): bool
+    {
+        if (is_array($data)) {
+            foreach ($data as $key => $value) {
+                if (is_string($key) && in_array(strtolower(trim($key)), self::PROTECTED_ELIGIBILITY_KEYS, true)) {
+                    return true;
+                }
+                if (self::containsProtectedTraits($value)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** @return array<string,mixed> */

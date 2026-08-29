@@ -22,6 +22,22 @@ Thumbs.db
 # Local-only planning, QA, and coding-agent material.
 /tests/*
 !/tests/learner_journey_dashboard_ui_test.ps1
+!/tests/learner_credential_cards_ui_test.ps1
+!/tests/teacher_grading_hardening_test.php
+!/tests/learner_ai_strict_mode_test.php
+!/tests/learner_ai_end_to_end_test.php
+!/tests/learner_ai_provider_test.php
+!/tests/learner_ai_9router_shadow_integration_test.php
+!/tests/learner_ai_database_schema_test.php
+!/tests/learner_ai_database_sync_test.php
+!/tests/learner_ai_group_matching_test.php
+!/tests/learner_ai_group_matching_api_test.php
+!/tests/learner_ai_group_matching_ui_test.ps1
+!/tests/learner_ai_queue_worker_test.php
+!/tests/school_ai_insight_ui_test.ps1
+!/tests/enterprise_ai_gemini_matcher_test.php
+!/tests/enterprise_ai_matches_api_test.php
+!/tests/enterprise_ai_matches_ui_test.ps1
 /docs/
 /design/
 /Document/
@@ -31,6 +47,10 @@ Thumbs.db
 /.qwen/
 /.codex/
 /.codex-*/
+/.codex_tmp/
 /.codex_tmp/activity-qr-fixtures/
+/opencode.json
+/opencode.backup.json
+/assets/mockups/
 /.docx_review/
 /.worktrees/

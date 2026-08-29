@@ -853,14 +853,16 @@ body.ent-sidebar-open {
     position: relative;
 }
 
-.ent-hero-banner__building-svg {
+.ent-hero-banner__building-svg,
+.ent-hero-banner__brand-svg {
     width: 100%;
     height: 100%;
     filter: drop-shadow(0 2px 10px rgba(15, 23, 42, 0.05));
     transition: transform var(--transition-base);
 }
 
-.ent-hero-banner:hover .ent-hero-banner__building-svg {
+.ent-hero-banner:hover .ent-hero-banner__building-svg,
+.ent-hero-banner:hover .ent-hero-banner__brand-svg {
     transform: translateY(-2px);
 }
 
@@ -1860,6 +1862,49 @@ body.ent-sidebar-open {
     accent-color: var(--primary);
     width: 0.8125rem;
     height: 0.8125rem;
+}
+
+.ent-selected-skills-wrapper {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background-color: #F8FAFC;
+    border: 1px dashed #CBD5E1;
+    border-radius: var(--radius-sm);
+}
+
+.ent-selected-skill-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.25rem;
+}
+
+.ent-selected-skill-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background-color: #EFF6FF;
+    color: #1D4ED8;
+    border: 1px solid #BFDBFE;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+}
+
+.ent-remove-skill-tag {
+    background: transparent;
+    border: none;
+    color: #1D4ED8;
+    font-size: 0.875rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 0.15rem;
+}
+
+.ent-remove-skill-tag:hover {
+    color: #DC2626;
 }
 
 .ent-filter-actions {
@@ -4382,19 +4427,30 @@ body.ent-sidebar-open {
 }
 .ent-app-status-pill--interviewing .dot { background-color: #9333EA; }
 
-.ent-app-status-pill--accepted {
+.ent-app-status-pill--accepted,
+.ent-app-status-pill--hired {
     background-color: #DCFCE7;
     color: #15803D;
     border: 1px solid #BBF7D0;
 }
-.ent-app-status-pill--accepted .dot { background-color: #16A34A; }
+.ent-app-status-pill--accepted .dot,
+.ent-app-status-pill--hired .dot { background-color: #16A34A; }
 
-.ent-app-status-pill--rejected {
+.ent-app-status-pill--invited {
+    background-color: #FEF3C7;
+    color: #B45309;
+    border: 1px solid #FDE68A;
+}
+.ent-app-status-pill--invited .dot { background-color: #F59E0B; }
+
+.ent-app-status-pill--rejected,
+.ent-app-status-pill--declined {
     background-color: #FEE2E2;
     color: #B91C1C;
     border: 1px solid #FCA5A5;
 }
-.ent-app-status-pill--rejected .dot { background-color: #DC2626; }
+.ent-app-status-pill--rejected .dot,
+.ent-app-status-pill--declined .dot { background-color: #DC2626; }
 
 /* Action Button Group Alignment */
 .ent-action-group {

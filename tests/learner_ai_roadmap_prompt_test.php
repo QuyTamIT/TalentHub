@@ -102,12 +102,13 @@ $payload = $request->payload();
 $instructions = implode("\n", $payload['instructions'] ?? []);
 $json = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-roadmap_prompt_assert($request->promptVersion() === 'learner-roadmap-prompt-1.2.0', 'prompt version is immutable');
+roadmap_prompt_assert($request->promptVersion() === 'learner-roadmap-prompt-1.4.0', 'prompt version is immutable');
 roadmap_prompt_assert(str_contains($instructions, 'learner-roadmap-1.0.0'), 'contract version is required');
 roadmap_prompt_assert(str_contains($instructions, 'Không thêm trường ngoài schema'), 'extra JSON fields are explicitly prohibited');
 roadmap_prompt_assert(str_contains($instructions, 'tiếng Việt tự nhiên'), 'learner-facing content must be Vietnamese');
 roadmap_prompt_assert(str_contains($instructions, '0–30, 31–60 và 61–90'), 'three exact phases are required');
 roadmap_prompt_assert(str_contains($instructions, 'Mỗi insight, phase và task phải trích dẫn evidence_ref_ids'), 'every generated block requires evidence');
+roadmap_prompt_assert(str_contains($instructions, 'mỗi field xuất hiện đúng một lần'), 'each canonical talent axis must appear exactly once');
 roadmap_prompt_assert(str_contains($instructions, 'Không nhắc lại mã MBTI, điểm Holland, biểu đồ DISC hoặc điểm Multiple Intelligence'), 'discover-page content cannot be repeated');
 roadmap_prompt_assert(str_contains($instructions, 'Không chẩn đoán'), 'diagnosis is prohibited');
 roadmap_prompt_assert(str_contains($instructions, 'không khẳng định chắc chắn nghề nghiệp, tuyển sinh hoặc việc làm'), 'guaranteed outcomes are prohibited');
@@ -118,7 +119,7 @@ roadmap_prompt_assert(is_array($schema) && ($schema['type'] ?? null) === 'object
 roadmap_prompt_assert(($schema['additionalProperties'] ?? null) === false, 'top-level output rejects additional fields');
 $required = $schema['required'] ?? [];
 sort($required, SORT_STRING);
-$expectedTopLevel = ['alternative_directions', 'executive_summary', 'insights', 'phases', 'primary_direction', 'recommended_activity_source_ids'];
+$expectedTopLevel = ['alternative_directions', 'executive_summary', 'insights', 'phases', 'primary_direction', 'recommended_activity_source_ids', 'talent_map'];
 sort($expectedTopLevel, SORT_STRING);
 roadmap_prompt_assert($required === $expectedTopLevel, 'schema requires every validator top-level field');
 $phaseSchema = $schema['properties']['phases']['items'] ?? [];
@@ -129,6 +130,17 @@ roadmap_prompt_assert(($phaseSchema['properties']['tasks']['maxItems'] ?? null) 
 $actionVariants = $phaseSchema['properties']['tasks']['items']['properties']['action']['oneOf'] ?? [];
 roadmap_prompt_assert(($actionVariants[0]['properties']['type']['const'] ?? null) === 'self_task', 'self-task action contract is explicit');
 roadmap_prompt_assert(($schema['properties']['recommended_activity_source_ids']['items']['enum'] ?? null) === [$activityId], 'activity output is constrained to the server allow-list');
+$talentSchema = $schema['properties']['talent_map'] ?? [];
+roadmap_prompt_assert(($talentSchema['minItems'] ?? null) === 3, 'talent map requires three records');
+roadmap_prompt_assert(($talentSchema['maxItems'] ?? null) === 3, 'talent map allows only three records');
+roadmap_prompt_assert(
+    ($talentSchema['items']['properties']['field']['enum'] ?? null) === [
+        'Tư duy Logic & Hệ thống',
+        'Kỹ năng Thực hành & Thao tác',
+        'Tổ chức & Điều phối',
+    ],
+    'talent map fields use the three canonical learner axes',
+);
 
 roadmap_prompt_assert(($payload['allowed_scopes'] ?? null) === ['assessment', 'skills'], 'only current consent scopes are disclosed');
 roadmap_prompt_assert(($payload['input_quality']['missing_consent_scopes'] ?? null) === ['activity', 'evaluation'], 'input quality exposes consent gaps to the model');

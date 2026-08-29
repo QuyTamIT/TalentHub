@@ -91,6 +91,7 @@ function roadmap_api_database(string $path): PDO
     $pdo->exec('CREATE TABLE learner_ai_roadmap_phases (id TEXT PRIMARY KEY, roadmapId TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE learner_ai_roadmap_tasks (id TEXT PRIMARY KEY, phaseId TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE learner_ai_roadmap_task_events (id TEXT PRIMARY KEY, taskId TEXT NOT NULL, studentId TEXT NOT NULL, status TEXT NOT NULL, requestId TEXT NOT NULL, occurredAt TEXT NOT NULL, createdAt TEXT NOT NULL)');
+    $pdo->exec('CREATE TABLE learner_ai_data_outbox (id TEXT PRIMARY KEY, aggregate_type TEXT NOT NULL, aggregate_id TEXT NOT NULL, tenant_id TEXT NULL, event_type TEXT NOT NULL, aggregate_version INTEGER NOT NULL, payload_hash TEXT NOT NULL, affected_student_ids TEXT NOT NULL, delivery_status TEXT NOT NULL, occurred_at TEXT NOT NULL)');
     $pdo->exec("INSERT INTO roles VALUES ('student-role','student'),('teacher-role','teacher')");
     $pdo->exec("INSERT INTO users VALUES ('student-user','student-role','active'),('teacher-user','teacher-role','active')");
     $pdo->exec("INSERT INTO permissions VALUES ('read-permission','student_profile.read_own'),('write-permission','student_profile.update_own')");
@@ -246,12 +247,12 @@ putenv('APP_ENV=test');
 $_ENV['APP_ENV'] = 'test';
 $modelStudentId = '11111111-1111-4111-8111-111111111111';
 $blockedGates = [
-    'shadow_gate_unapproved' => ['TALENTHUB_AI_SHADOW_GATE_APPROVED'=>'false'],
-    'visibility_zero' => ['TALENTHUB_AI_VISIBLE_PERCENT'=>'0'],
-    'pilot_paused' => ['TALENTHUB_AI_PILOT_PAUSED'=>'true'],
-    'approval_missing' => ['TALENTHUB_AI_PILOT_APPROVAL_REFERENCE'=>''],
+    'shadow_gate_unapproved' => [['TALENTHUB_AI_SHADOW_GATE_APPROVED'=>'false'], 'provider_unavailable'],
+    'visibility_zero' => [['TALENTHUB_AI_VISIBLE_PERCENT'=>'0'], 'ready_rule'],
+    'pilot_paused' => [['TALENTHUB_AI_PILOT_PAUSED'=>'true'], 'provider_unavailable'],
+    'approval_missing' => [['TALENTHUB_AI_PILOT_APPROVAL_REFERENCE'=>''], 'provider_unavailable'],
 ];
-foreach ($blockedGates as $gateName => $gateOverride) {
+foreach ($blockedGates as $gateName => [$gateOverride, $expectedState]) {
     $GLOBALS['__TALENTHUB_TEST_ENV__'] = array_replace($modelGateBase, $gateOverride);
     $callsBefore = $providerCallCount;
     $context = new \TalentHub\Learner\Api\LearnerApiContext(
@@ -266,10 +267,15 @@ foreach ($blockedGates as $gateName => $gateOverride) {
         'roadmap-api-idempotency-' . $gateName,
         true,
     );
-    roadmap_api_assert(($modelRoadmap['state'] ?? null) === 'ready_rule', "{$gateName} returns an explicit rule roadmap: " . json_encode($modelRoadmap));
-    roadmap_api_assert(($modelRoadmap['analysis_origin'] ?? null) === 'rule', "{$gateName} normalizes internal rule fallback origin");
-    roadmap_api_assert(($modelRoadmap['freshness_status'] ?? null) === 'fresh', "{$gateName} exposes canonical rule freshness");
-    roadmap_api_assert(array_key_exists('model_version', $modelRoadmap) && $modelRoadmap['model_version'] === null && is_string($modelRoadmap['rule_version'] ?? null), "{$gateName} exposes only the applicable rule version");
+    roadmap_api_assert(($modelRoadmap['state'] ?? null) === $expectedState, "{$gateName} returns the expected explicit state: " . json_encode($modelRoadmap));
+    if ($expectedState === 'ready_rule') {
+        roadmap_api_assert(($modelRoadmap['analysis_origin'] ?? null) === 'rule', "{$gateName} normalizes internal rule fallback origin");
+        roadmap_api_assert(($modelRoadmap['freshness_status'] ?? null) === 'fresh', "{$gateName} exposes canonical rule freshness");
+        roadmap_api_assert(array_key_exists('model_version', $modelRoadmap) && $modelRoadmap['model_version'] === null && is_string($modelRoadmap['rule_version'] ?? null), "{$gateName} exposes only the applicable rule version");
+    } else {
+        roadmap_api_assert(($modelRoadmap['analysis_origin'] ?? null) === null, "{$gateName} does not silently expose a rule roadmap during the 100% Gemini rollout");
+        roadmap_api_assert(($modelRoadmap['freshness_status'] ?? null) === 'unavailable', "{$gateName} reports explicit unavailability");
+    }
     roadmap_api_assert($providerCallCount === $callsBefore, "{$gateName} does not call Gemini");
 }
 roadmap_api_assert((int) $modelPdo->query('SELECT COUNT(*) FROM learner_ai_consent_events')->fetchColumn() === 0, 'purpose-bound assessment access does not create or require a consent event');

@@ -9,6 +9,7 @@ use TalentHub\Learner\Ai\Contracts\RoadmapProvider;
 use TalentHub\Learner\Ai\Domain\RecommendationContext;
 use TalentHub\Learner\Ai\Domain\RecommendationInput;
 use TalentHub\Learner\Ai\Model\ModelRoadmapEngine;
+use TalentHub\Learner\Ai\Model\RoadmapModelUnavailable;
 use TalentHub\Learner\Ai\Model\RoadmapPromptRegistry;
 use TalentHub\Learner\Ai\Provider\RoadmapProviderResponse;
 use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
@@ -33,7 +34,7 @@ function roadmap_engine_config(bool $enabled = true): RecommendationConfig
     ]);
 }
 
-function roadmap_engine_input(): RecommendationInput
+function roadmap_engine_input(bool $withCatalog = false): RecommendationInput
 {
     $codes = ['holland', 'mbti', 'disc', 'multiple_intelligence'];
     $records = $evidence = [];
@@ -42,9 +43,18 @@ function roadmap_engine_input(): RecommendationInput
         $records[] = $record;
         $evidence[] = ['source_type' => 'assessment', 'source_id' => 'result-' . $index, 'observed_at' => '2026-08-20T00:00:00+00:00', 'safe_value' => $record];
     }
+    $opportunities = [];
+    $sourceUpdatedAt = ['assessment' => '2026-08-20T00:00:00+00:00'];
+    if ($withCatalog) {
+        $catalogId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+        $catalog = ['title' => 'IoT Lab', 'category' => 'technology', 'opportunity_type' => 'activity'];
+        $opportunities[] = $catalog;
+        $evidence[] = ['source_type' => 'opportunity', 'source_id' => $catalogId, 'observed_at' => '2026-08-21T00:00:00+00:00', 'safe_value' => $catalog];
+        $sourceUpdatedAt['opportunity'] = '2026-08-21T00:00:00+00:00';
+    }
     return new RecommendationInput(
-        ['profile' => ['study_status' => 'active'], 'assessments' => $records, 'skills' => [], 'activities' => [], 'evaluations' => [], 'opportunities' => []],
-        ['assessment' => '2026-08-20T00:00:00+00:00'],
+        ['profile' => ['study_status' => 'active'], 'assessments' => $records, 'skills' => [], 'activities' => [], 'evaluations' => [], 'opportunities' => $opportunities],
+        $sourceUpdatedAt,
         ['allowed_scopes' => ['assessment'], 'missing_consent_scopes' => ['activity', 'evaluation', 'skills']],
         $evidence,
     );
@@ -107,40 +117,78 @@ roadmap_engine_assert($model->providerRequestId() === 'router_req_model', 'safe 
 roadmap_engine_assert($model->responseHash() === str_repeat('a', 64), 'response hash is retained for audit');
 roadmap_engine_assert($model->fallbackReason() === null, 'model result has no fallback reason');
 
+$catalogFixture = $fixture;
+$catalogFixture['potential_paths'] = [[
+    'label' => 'Thử nghiệm IoT qua hoạt động thực tế',
+    'catalog_id' => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    'evidence_ref_ids' => ['evidence-005'],
+]];
+$catalogModel = roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::success($catalogFixture, null, str_repeat('e', 64))))
+    ->generate(roadmap_engine_input(true), roadmap_engine_context());
+roadmap_engine_assert($catalogModel->origin() === 'model', 'catalog id supplied to Gemini and allowed by the prompt is accepted by the validator');
+$fabricatedCatalog = $catalogFixture;
+$fabricatedCatalog['potential_paths'][0]['catalog_id'] = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+try {
+    roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::success($fabricatedCatalog, null, str_repeat('f', 64))))
+        ->generate(roadmap_engine_input(true), roadmap_engine_context());
+    roadmap_engine_assert(false, 'a fabricated catalog id must be rejected');
+} catch (RoadmapModelUnavailable $exception) {
+    roadmap_engine_assert($exception->reason() === 'invalid_model_response', 'fabricated catalog ids fail with the canonical safe reason');
+}
+
 $unsafe = $fixture;
 $unsafe['executive_summary'] = 'Lộ trình này đảm bảo bạn đỗ đại học 100%.';
-$unsafeModel = roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::success($unsafe, null, str_repeat('d', 64))))
-    ->generate(roadmap_engine_input(), roadmap_engine_context());
-roadmap_engine_assert(
-    $unsafeModel->origin() === 'rule_fallback' && $unsafeModel->fallbackReason() === 'invalid_model_response',
-    'deterministic safety violations are rejected before a model roadmap can be persisted',
-);
+try {
+    $unsafeModel = roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::success($unsafe, null, str_repeat('d', 64))))
+        ->generate(roadmap_engine_input(), roadmap_engine_context());
+    roadmap_engine_assert(false, 'deterministic safety violations must throw rather than fall back to a rule roadmap');
+} catch (RoadmapModelUnavailable $exception) {
+    roadmap_engine_assert($exception->reason() === 'invalid_model_response', 'unsafe output throws with the canonical reason');
+}
 
 $unknown = $fixture;
 $unknown['unexpected_model_field'] = 'must fail';
-$invalid = roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::success($unknown, null, str_repeat('b', 64))))
-    ->generate(roadmap_engine_input(), roadmap_engine_context());
-roadmap_engine_assert($invalid->origin() === 'rule_fallback', 'unknown model fields trigger fallback');
-roadmap_engine_assert($invalid->fallbackReason() === 'invalid_model_response', 'invalid output has an allow-listed reason');
+try {
+    $invalid = roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::success($unknown, null, str_repeat('b', 64))))
+        ->generate(roadmap_engine_input(), roadmap_engine_context());
+    roadmap_engine_assert(false, 'unknown model fields must throw');
+} catch (RoadmapModelUnavailable $exception) {
+    roadmap_engine_assert($exception->reason() === 'invalid_model_response', 'unknown fields throw with the allow-listed reason');
+}
 
 $missingCitation = $fixture;
 $missingCitation['insights'][0]['evidence_ref_ids'] = [];
-$uncited = roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::success($missingCitation, null, str_repeat('c', 64))))
-    ->generate(roadmap_engine_input(), roadmap_engine_context());
-roadmap_engine_assert($uncited->origin() === 'rule_fallback' && $uncited->fallbackReason() === 'invalid_model_response', 'missing citations trigger fallback');
+try {
+    $uncited = roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::success($missingCitation, null, str_repeat('c', 64))))
+        ->generate(roadmap_engine_input(), roadmap_engine_context());
+    roadmap_engine_assert(false, 'missing citations must throw');
+} catch (RoadmapModelUnavailable $exception) {
+    roadmap_engine_assert($exception->reason() === 'invalid_model_response', 'missing citations throw with the canonical reason');
+}
 
-$failure = roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::failure('provider_unavailable')))
-    ->generate(roadmap_engine_input(), roadmap_engine_context());
-roadmap_engine_assert($failure->origin() === 'rule_fallback' && $failure->fallbackReason() === 'provider_unavailable', 'provider failure is visibly fallback');
-roadmap_engine_assert(count($failure->phases()) === 3 && count($failure->phases()[0]->tasks()) === 3, 'fallback remains actionable');
+try {
+    $failure = roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::failure('provider_unavailable')))
+        ->generate(roadmap_engine_input(), roadmap_engine_context());
+    roadmap_engine_assert(false, 'provider failure must throw rather than fall back to a rule roadmap');
+} catch (RoadmapModelUnavailable $exception) {
+    roadmap_engine_assert($exception->reason() === 'provider_unavailable', 'provider failure throws with the allow-listed reason');
+}
 
-$unsafeReason = roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::failure('secret-internal-error')))
-    ->generate(roadmap_engine_input(), roadmap_engine_context());
-roadmap_engine_assert($unsafeReason->fallbackReason() === 'provider_unavailable', 'unrecognized errors are normalized');
+try {
+    $unsafeReason = roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::failure('secret-internal-error')))
+        ->generate(roadmap_engine_input(), roadmap_engine_context());
+    roadmap_engine_assert(false, 'unrecognised provider errors must throw');
+} catch (RoadmapModelUnavailable $exception) {
+    roadmap_engine_assert($exception->reason() === 'provider_unavailable', 'unrecognised errors are normalised to the allow-listed reason');
+}
 
 $disabledProvider = roadmap_engine_provider(RoadmapProviderResponse::failure('should-not-run'));
-$disabled = roadmap_engine_build($disabledProvider, false)->generate(roadmap_engine_input(), roadmap_engine_context());
-roadmap_engine_assert($disabled->origin() === 'rule_fallback' && $disabled->fallbackReason() === 'model_disabled', 'disabled model is visibly fallback');
-roadmap_engine_assert($disabledProvider->calls === 0, 'disabled model never calls provider');
+try {
+    $disabled = roadmap_engine_build($disabledProvider, false)->generate(roadmap_engine_input(), roadmap_engine_context());
+    roadmap_engine_assert(false, 'disabled configuration must throw');
+} catch (RoadmapModelUnavailable $exception) {
+    roadmap_engine_assert($exception->reason() === 'model_disabled', 'disabled configuration throws with the canonical reason');
+    roadmap_engine_assert($disabledProvider->calls === 0, 'disabled model never calls provider');
+}
 
 echo "learner_ai_roadmap_engine_test: OK\n";

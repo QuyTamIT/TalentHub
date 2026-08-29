@@ -7,6 +7,8 @@ const root = path.join(__dirname, '..');
 const modulePath = path.join(root, 'assets', 'js', 'learner-ai-roadmap.js');
 const pagePath = path.join(root, 'app', 'learner', 'ai-recommendations.php');
 const cssPath = path.join(root, 'assets', 'css', 'learner.css');
+const promptPath = path.join(root, 'app', 'learner', 'ai', 'Model', 'RoadmapPromptRegistry.php');
+const envExamplePath = path.join(root, '.env.example');
 
 function payload(origin = 'model') {
   const phases = [
@@ -78,11 +80,11 @@ function viewRecorder() {
 test('roadmap module maps all stable API states', () => {
   const { presentationState } = require(modulePath);
   assert.deepEqual([
-    'not_generated', 'pending', 'consent_required', 'insufficient_data',
+    'not_generated', 'pending', 'consent_required', 'data_insufficient',
     'source_unavailable', 'engine_failure', 'ready_model', 'stale_model', 'fallback_rule',
   ].map((state) => presentationState({ state })), [
     'not-generated', 'pending', 'consent-required', 'insufficient-data',
-    'source-error', 'source-error', 'ready-model', 'stale-model', 'fallback-rule',
+    'source-error', 'source-error', 'ready-model', 'stale-model', 'source-error',
   ]);
 });
 
@@ -105,17 +107,51 @@ test('roadmap API client receives session CSRF and the dedicated model timeout',
   });
 });
 
+test('processing progress moves through four honest estimated stages and stays below 100', () => {
+  const { processingProgressAt } = require(modulePath);
+  const snapshots = [0, 6000, 30000, 70000].map(processingProgressAt);
+  assert.deepEqual(snapshots.map((item) => item.activeIndex), [0, 1, 2, 3]);
+  assert.equal(snapshots.every((item) => item.percent >= 0 && item.percent <= 94), true);
+  assert.deepEqual(snapshots[3].steps.map((step) => step.status), ['completed', 'completed', 'completed', 'active']);
+  assert.equal(snapshots[2].elapsedSeconds, 30);
+  assert.match(snapshots[1].steps[1].label, /Gemini đang phân tích/);
+});
+
+test('processing tracker emits timed progress and terminal success without leaking timers', () => {
+  const { createProcessingTracker } = require(modulePath);
+  let time = 0;
+  let scheduled = null;
+  let cancelled = 0;
+  const updates = [];
+  const tracker = createProcessingTracker({
+    now: () => time,
+    schedule: (callback) => { scheduled = callback; return 9; },
+    cancelSchedule: (handle) => { assert.equal(handle, 9); cancelled += 1; },
+    onUpdate: (snapshot) => updates.push(snapshot),
+  });
+  tracker.start();
+  time = 30000;
+  scheduled();
+  tracker.succeed();
+  assert.equal(updates[0].activeIndex, 0);
+  assert.equal(updates[1].activeIndex, 2);
+  assert.equal(updates.at(-1).status, 'success');
+  assert.equal(updates.at(-1).percent, 100);
+  assert.equal(cancelled > 0, true);
+});
+
 test('view model keeps exactly three roadmap phases and derives real next actions', () => {
   const { buildRoadmapViewModel } = require(modulePath);
   const model = buildRoadmapViewModel(payload());
   assert.equal(model.phases.length, 3);
-  assert.deepEqual(model.phases.map((phase) => phase.rangeLabel), ['0–30 ngày', '31–60 ngày', '61–90 ngày']);
+  assert.deepEqual(model.phases.map((phase) => phase.rangeLabel), ['1–30 ngày', '31–60 ngày', '61–90 ngày']);
   assert.equal(model.nextActions.length, 3);
   assert.equal(model.nextActions.every((task) => task.status !== 'completed'), true);
   assert.equal(model.activities.length, 1);
   assert.equal(model.evidenceTotal, 8);
   assert.equal(model.confidenceLabel, 'Độ tin cậy cao');
-  assert.equal(model.talentMap.length, 2);
+  assert.equal(model.talentMap.length, 3);
+  assert.deepEqual(model.talentMap.map((item) => item.score), [0, 72, 0]);
   assert.equal(model.strengths.length, 1);
   assert.equal(model.improvements.length, 1);
   assert.equal(model.potentialPaths.length, 1);
@@ -124,8 +160,61 @@ test('view model keeps exactly three roadmap phases and derives real next action
   assert.equal(Object.hasOwn(model, 'fitPercentage'), false, 'UI never invents a fit percentage');
 });
 
-test('canonical ready_rule state renders as an explicit fallback rule', () => {
-    assert.equal(require(modulePath).presentationState({ state: 'ready_rule' }), 'fallback-rule');
+test('view model normalizes fractional talent scores without changing percentage scores', () => {
+  const { normalizeTalentScore } = require(modulePath);
+  assert.deepEqual([0.01, 0.5, 1, 0.82, 72, -4, 120].map(normalizeTalentScore), [1, 50, 100, 82, 72, 0, 100]);
+});
+
+test('talent map always exposes three canonical axes with zero for missing data', () => {
+  const { completeTalentMap } = require(modulePath);
+  assert.deepEqual(completeTalentMap([]), [
+    { field: 'Tư duy Logic & Hệ thống', score: 0, hasEvidence: false, evidence_ref_ids: [] },
+    { field: 'Kỹ năng Thực hành & Thao tác', score: 0, hasEvidence: false, evidence_ref_ids: [] },
+    { field: 'Tổ chức & Điều phối', score: 0, hasEvidence: false, evidence_ref_ids: [] },
+  ]);
+});
+
+test('legacy talent records map once and never duplicate a combined score', () => {
+  const { completeTalentMap } = require(modulePath);
+  const result = completeTalentMap([
+    { field: 'Tư duy Logic & Kỹ thuật Thực hành', score: 0.85, evidence_ref_ids: ['evidence-001'] },
+    { field: 'Tổ chức & Quản lý Quy trình', score: 0.82, evidence_ref_ids: ['evidence-002'] },
+  ]);
+  assert.deepEqual(result.map((item) => item.score), [85, 0, 82]);
+  assert.deepEqual(result.map((item) => item.hasEvidence), [true, false, true]);
+  assert.deepEqual(result[0].evidence_ref_ids, ['evidence-001']);
+});
+
+test('legacy Vietnamese labels preserve uppercase D-stroke and reject malformed scores', () => {
+  const { completeTalentMap } = require(modulePath);
+  const mapped = completeTalentMap([
+    { field: 'Điều phối', score: 0.7, evidence_ref_ids: ['evidence-003'] },
+    { field: 'Kỹ thuật', score: 0.65, evidence_ref_ids: ['evidence-002'] },
+    { field: 'Tư duy', score: 0.8, evidence_ref_ids: ['evidence-001'] },
+  ]);
+  assert.deepEqual(mapped.map((item) => item.score), [80, 65, 70]);
+  assert.deepEqual(mapped.map((item) => item.hasEvidence), [true, true, true]);
+
+  const malformed = completeTalentMap([
+    { field: 'Tư duy', score: null },
+    { field: 'Kỹ thuật', score: '' },
+    { field: 'Điều phối', score: true },
+  ]);
+  assert.deepEqual(malformed.map((item) => item.score), [0, 0, 0]);
+  assert.deepEqual(malformed.map((item) => item.hasEvidence), [false, false, false]);
+});
+
+test('view model exposes one current phase and compact direction rows', () => {
+  const { buildRoadmapViewModel } = require(modulePath);
+  const model = buildRoadmapViewModel(payload());
+  assert.equal(model.currentPhaseIndex, 0);
+  assert.deepEqual(model.phases.map((phase) => phase.status), ['current', 'upcoming', 'upcoming']);
+  assert.equal(model.phases.every((phase) => phase.displayTasks.length === 3), true);
+  assert.equal(model.overallPercent, 11);
+});
+
+test('strict roadmap rejects canonical ready_rule as unavailable', () => {
+    assert.equal(require(modulePath).presentationState({ state: 'ready_rule' }), 'source-error');
 });
 
 test('pending roadmap polls with bounded exponential backoff and stops when ready', async () => {
@@ -171,13 +260,52 @@ test('controller loads roadmap and reuses one in-flight refresh', async () => {
   release();
   await Promise.all([first, second]);
   assert.equal(calls.filter((call) => call[0] === 'POST').length, 1);
-  assert.deepEqual(calls.at(-1), ['POST', '/ai-roadmap.php', { action: 'refresh' }, { idempotencyKey: 'roadmap-page-key-0001' }]);
+  assert.deepEqual(calls.at(-1), ['POST', '/ai-roadmap.php', { action: 'refresh' }, {
+    idempotencyKey: 'roadmap-page-key-0001',
+    timeoutMs: 90000,
+  }]);
+});
+
+test('controller distinguishes initial loading from first generation and refresh generation', async () => {
+  const { createRoadmapController } = require(modulePath);
+  const view = viewRecorder();
+  const api = {
+    async get() { return { state: 'not_generated' }; },
+    async send() { return payload(); },
+  };
+  const controller = createRoadmapController({ api, view });
+  await controller.load();
+  assert.deepEqual(view.events[0], ['loading', { mode: 'initial-load' }]);
+  let before = view.events.length;
+  await controller.generate('generate');
+  assert.deepEqual(view.events[before], ['processing', { mode: 'first-generation', preserveReady: false }]);
+  before = view.events.length;
+  await controller.generate('refresh');
+  assert.deepEqual(view.events[before], ['processing', { mode: 'refresh-generation', preserveReady: true }]);
+  controller.dispose();
+});
+
+test('failed refresh keeps the last ready roadmap visible as stale', async () => {
+  const { createRoadmapController } = require(modulePath);
+  const view = viewRecorder();
+  const api = {
+    async get() { return payload(); },
+    async send() { return { state: 'ai_unavailable', availability_reason: 'provider_unavailable' }; },
+  };
+  const controller = createRoadmapController({ api, view });
+  await controller.load();
+  await controller.generate('refresh');
+  const last = view.events.at(-1);
+  assert.equal(last[0], 'stale-model');
+  assert.equal(last[1].phases.length, 3);
+  assert.equal(last[1].last_refresh_error, 'provider_unavailable');
+  controller.dispose();
 });
 
 test('DOM view renders the canonical model payload into semantic roadmap regions', () => {
   const { createDomView, buildRoadmapViewModel } = require(modulePath);
   class FakeNode {
-    constructor(tag = 'div') { this.tagName = tag.toUpperCase(); this.children = []; this.dataset = {}; this.attributes = {}; this.hidden = false; this.textContent = ''; }
+    constructor(tag = 'div') { this.tagName = tag.toUpperCase(); this.className = ''; this.children = []; this.dataset = {}; this.attributes = {}; this.style = { setProperty: (name, value) => { this[name] = value; } }; this.hidden = false; this.textContent = ''; }
     get firstChild() { return this.children[0] || null; }
     append(...nodes) { this.children.push(...nodes); }
     appendChild(node) { this.children.push(node); return node; }
@@ -188,41 +316,251 @@ test('DOM view renders the canonical model payload into semantic roadmap regions
     'status', 'loading', 'not-generated', 'consent', 'insufficient', 'pending', 'error', 'ready', 'fallback',
     'freshness', 'summary-label', 'summary-text', 'evidence-total', 'confidence', 'direction-label',
     'direction-rationale', 'direction-alternatives', 'insights', 'phases', 'overall-progress', 'next-actions',
-    'activities', 'evidence-content', 'engine-content',
-    'talent-map', 'strengths', 'improvements', 'trends', 'potential-paths', 'growth-hypotheses',
+    'activities', 'activities-copy', 'evidence-content', 'engine-content',
+    'talent-map', 'zero-talent-map', 'strengths', 'improvements', 'trends', 'potential-paths', 'growth-hypotheses',
   ];
   const nodes = Object.fromEntries(selectors.map((name) => [`[data-roadmap-${name}]`, new FakeNode()]));
-  const doc = { createElement: (tag) => new FakeNode(tag) };
+  const doc = { createElement: (tag) => new FakeNode(tag), createElementNS: (_namespace, tag) => new FakeNode(tag) };
   const rootNode = { ownerDocument: doc, querySelector: (selector) => nodes[selector] || null };
-  createDomView(rootNode).render('ready-model', buildRoadmapViewModel(payload()));
+  const radarPayload = payload();
+  radarPayload.talent_map = [
+    { field: 'Tư duy Logic & Hệ thống', score: 82, evidence_ref_ids: ['assessment:holland'] },
+    { field: 'Kỹ năng Thực hành & Thao tác', score: 76, evidence_ref_ids: ['assessment:disc'] },
+    { field: 'Tổ chức & Điều phối', score: 68, evidence_ref_ids: ['evaluation:coordination'] },
+  ];
+  createDomView(rootNode).render('ready-model', buildRoadmapViewModel(radarPayload));
   assert.match(nodes['[data-roadmap-summary-text]'].textContent, /sản phẩm công nghệ/);
   assert.equal(nodes['[data-roadmap-phases]'].children.length, 3);
-  assert.equal(nodes['[data-roadmap-next-actions]'].children.length, 3);
+  assert.equal(nodes['[data-roadmap-next-actions]'].children.length, 1);
   assert.equal(nodes['[data-roadmap-activities]'].children.length, 1);
-  assert.equal(nodes['[data-roadmap-talent-map]'].children.length, 2);
+  assert.equal(nodes['[data-roadmap-talent-map]'].children.length, 1);
+  assert.equal(nodes['[data-roadmap-talent-map]'].children[0].tagName, 'SVG');
+  assert.equal(nodes['[data-roadmap-talent-map]'].children[0].attributes.role, 'img');
+  assert.match(nodes['[data-roadmap-talent-map]'].children[0].attributes['aria-label'], /Bản đồ năng khiếu/);
+  assert.match(nodes['[data-roadmap-phases]'].children[0].className, /is-current/);
+  assert.equal(nodes['[data-roadmap-phases]'].children[0].children.some((item) => item.textContent === 'Bạn đang ở đây'), true);
+  assert.equal(nodes['[data-roadmap-overall-progress]'].attributes['aria-valuenow'], '11');
   assert.equal(nodes['[data-roadmap-strengths]'].children.length, 1);
   assert.equal(nodes['[data-roadmap-improvements]'].children.length, 1);
   assert.equal(nodes['[data-roadmap-trends]'].children.length, 1);
   assert.equal(nodes['[data-roadmap-engine-content]'].children.length, 6);
+  const currentPhaseBody = nodes['[data-roadmap-phases]'].children[0].children.find((item) => item.className === 'learner-roadmap-phase__body');
+  assert.equal(currentPhaseBody.children.some((item) => item.className === 'learner-roadmap-phase__facts'), true);
+  const currentTaskList = currentPhaseBody.children.find((item) => item.className === 'learner-roadmap-task-list');
+  assert.equal(currentTaskList.children.length, 3);
+  assert.match(currentTaskList.children[0].children[1].children[0].textContent, /Nhiệm vụ 1\.1/);
+
+  const emptyTalentPayload = payload();
+  emptyTalentPayload.talent_map = [];
+  createDomView(rootNode).render('ready-model', buildRoadmapViewModel(emptyTalentPayload));
+  const zeroRadar = nodes['[data-roadmap-talent-map]'].children[0];
+  assert.equal(zeroRadar.tagName, 'SVG');
+  assert.match(zeroRadar.attributes['aria-label'], /Tư duy Logic & Hệ thống 0%/);
+  assert.match(zeroRadar.attributes['aria-label'], /Kỹ năng Thực hành & Thao tác 0%/);
+  assert.match(zeroRadar.attributes['aria-label'], /Tổ chức & Điều phối 0%/);
+  assert.equal(nodes['[data-roadmap-talent-map]'].children[1].className, 'learner-roadmap-radar-note');
+  assert.match(nodes['[data-roadmap-talent-map]'].children[1].textContent, /chưa được xác định/i);
+
+  createDomView(rootNode).render('insufficient-data', {});
+  assert.equal(nodes['[data-roadmap-insufficient]'].hidden, false);
+  assert.equal(nodes['[data-roadmap-ready]'].hidden, true);
+  const insufficientRadar = nodes['[data-roadmap-zero-talent-map]'].children[0];
+  assert.equal(insufficientRadar.tagName, 'SVG');
+  assert.match(insufficientRadar.attributes['aria-label'], /Tư duy Logic & Hệ thống 0%/);
+  assert.match(insufficientRadar.attributes['aria-label'], /Kỹ năng Thực hành & Thao tác 0%/);
+  assert.match(insufficientRadar.attributes['aria-label'], /Tổ chức & Điều phối 0%/);
+  assert.match(nodes['[data-roadmap-zero-talent-map]'].children[1].textContent, /chưa được xác định/i);
 });
 
-test('page exposes every Roadmap-first region and the live recommendation client', () => {
+test('DOM processing lifecycle preserves ready content and reports success or retryable failure', () => {
+  const { createDomView, buildRoadmapViewModel } = require(modulePath);
+  class FakeNode {
+    constructor(tag = 'div') {
+      this.tagName = tag.toUpperCase();
+      this.className = '';
+      this.children = [];
+      this.dataset = {};
+      this.attributes = {};
+      this.style = {};
+      this.hidden = false;
+      this.disabled = false;
+      this.textContent = '';
+      this.classList = {
+        toggle: (name, force) => {
+          const names = new Set(this.className.split(/\s+/).filter(Boolean));
+          if (force) names.add(name); else names.delete(name);
+          this.className = [...names].join(' ');
+        },
+      };
+    }
+    get firstChild() { return this.children[0] || null; }
+    append(...nodes) { this.children.push(...nodes); }
+    appendChild(node) { this.children.push(node); return node; }
+    removeChild(node) { this.children.splice(this.children.indexOf(node), 1); }
+    setAttribute(name, value) { this.attributes[name] = String(value); }
+    getAttribute(name) { return this.attributes[name]; }
+    querySelectorAll(selector) { return selector === '[data-processing-step]' ? this.children : []; }
+  }
+  const keys = [
+    'loading', 'not-generated', 'consent', 'insufficient', 'pending', 'error', 'ready', 'fallback',
+    'processing', 'processing-title', 'processing-copy', 'processing-percent', 'processing-elapsed',
+    'processing-bar', 'processing-steps', 'processing-note', 'processing-retry', 'status',
+  ];
+  const nodes = Object.fromEntries(keys.map((key) => [`[data-roadmap-${key}]`, new FakeNode()]));
+  const stepNodes = [0, 1, 2, 3].map(() => new FakeNode('li'));
+  nodes['[data-roadmap-processing-steps]'].children = stepNodes;
+  const generateButton = new FakeNode('button');
+  const doc = { createElement: (tag) => new FakeNode(tag), createElementNS: (_namespace, tag) => new FakeNode(tag) };
+  const root = {
+    ownerDocument: doc,
+    querySelector: (selector) => nodes[selector] || null,
+    querySelectorAll: (selector) => selector === '[data-roadmap-generate]' ? [generateButton] : [],
+  };
+  let time = 0;
+  const scheduled = [];
+  const cancelled = new Set();
+  const view = createDomView(root, {
+    now: () => time,
+    schedule: (callback, delay) => { scheduled.push({ callback, delay }); return scheduled.length; },
+    cancelSchedule: (handle) => { cancelled.add(handle); },
+  });
+
+  view.render('processing', { mode: 'refresh-generation', preserveReady: true });
+  assert.equal(nodes['[data-roadmap-processing]'].hidden, false);
+  assert.equal(nodes['[data-roadmap-ready]'].hidden, false);
+  assert.equal(generateButton.disabled, true);
+  assert.match(nodes['[data-roadmap-processing-note]'].textContent, /tiếp tục xem roadmap hiện tại/i);
+  time = 30000;
+  scheduled[0].callback();
+  assert.match(nodes['[data-roadmap-processing-copy]'].textContent, /roadmap 90 ngày/i);
+
+  view.render('ready-model', buildRoadmapViewModel(payload()));
+  assert.match(nodes['[data-roadmap-processing]'].className, /is-success/);
+  assert.equal(nodes['[data-roadmap-processing-percent]'].textContent, '100%');
+  assert.equal(nodes['[data-roadmap-ready]'].hidden, false);
+  assert.equal(generateButton.disabled, false);
+  const successHide = scheduled.find((entry) => entry.delay === 1500);
+  assert.ok(successHide);
+  successHide.callback();
+  assert.equal(nodes['[data-roadmap-processing]'].hidden, true);
+
+  view.render('processing', { mode: 'refresh-generation', preserveReady: true });
+  view.render('stale-model', buildRoadmapViewModel({
+    ...payload(), state: 'stale_model', refresh_state: 'fallback_not_applied', last_refresh_error: 'provider_unavailable',
+  }));
+  assert.equal(nodes['[data-roadmap-processing]'].hidden, false);
+  assert.match(nodes['[data-roadmap-processing]'].className, /is-error/);
+  assert.equal(nodes['[data-roadmap-processing-retry]'].hidden, false);
+  assert.equal(nodes['[data-roadmap-ready]'].hidden, false);
+  view.dispose();
+  assert.equal(cancelled.size > 0, true);
+});
+
+test('roadmap explains the development direction when no catalog activity is linked', () => {
+  const { createDomView, buildRoadmapViewModel } = require(modulePath);
+  class FakeNode {
+    constructor(tag = 'div') {
+      this.tagName = tag.toUpperCase();
+      this.className = '';
+      this.children = [];
+      this.dataset = {};
+      this.attributes = {};
+      this.style = { setProperty: () => {} };
+      this.hidden = false;
+      this.textContent = '';
+    }
+    get firstChild() { return this.children[0] || null; }
+    append(...nodes) { this.children.push(...nodes); }
+    appendChild(node) { this.children.push(node); return node; }
+    removeChild(node) { this.children.splice(this.children.indexOf(node), 1); }
+    setAttribute(name, value) { this.attributes[name] = String(value); }
+  }
+  const list = new FakeNode();
+  const copy = new FakeNode();
+  const doc = { createElement: (tag) => new FakeNode(tag), createElementNS: (_namespace, tag) => new FakeNode(tag) };
+  const rootNode = {
+    ownerDocument: doc,
+    querySelector(selector) {
+      if (selector === '[data-roadmap-activities]') return list;
+      if (selector === '[data-roadmap-activities-copy]') return copy;
+      return null;
+    },
+  };
+  const roadmapPayload = payload();
+  for (const phase of roadmapPayload.phases) {
+    for (const task of phase.tasks) task.action = { type: 'self_task' };
+  }
+  const model = buildRoadmapViewModel(roadmapPayload);
+  createDomView(rootNode).render('ready-model', model);
+  assert.equal(list.children.length, 0);
+  assert.equal(copy.hidden, false);
+  assert.match(copy.textContent, /chưa có hoạt động hệ thống liên kết/i);
+  assert.match(copy.textContent, /Nhiệm vụ 1\.2/);
+});
+
+test('page exposes the Roadmap-first experience with the live catalog section', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
+  assert.match(page, /LỘ TRÌNH PHÁT TRIỂN 90 NGÀY/);
+  assert.match(page, /learner-roadmap-hero/);
+  assert.match(page, /learner-roadmap-analysis/);
+  assert.match(page, /learner-roadmap-credentials-disclosure/);
+  assert.doesNotMatch(page, /data-roadmap-secondary/);
+  assert.match(page, /data-ai-page/);
+  assert.doesNotMatch(page, /learner-roadmap-capability__grid/);
   for (const marker of [
     'data-ai-roadmap-page', 'data-roadmap-summary', 'data-roadmap-direction',
-    'data-roadmap-phases', 'data-roadmap-next-actions', 'data-roadmap-activities',
+    'data-roadmap-phases', 'data-roadmap-next-actions',
     'data-roadmap-evidence', 'data-roadmap-feedback', 'data-roadmap-engine',
-    'data-roadmap-talent-map', 'data-roadmap-strengths', 'data-roadmap-improvements',
+    'data-roadmap-talent-map', 'data-roadmap-zero-talent-map', 'data-roadmap-strengths', 'data-roadmap-improvements',
     'data-roadmap-trends', 'data-roadmap-potential-paths', 'data-roadmap-growth-hypotheses',
     'data-roadmap-generate', 'data-roadmap-retry', 'learner-ai-roadmap.js',
   ]) assert.match(page, new RegExp(marker));
   assert.match(page, /learner-recommendations\.js/);
 });
 
-test('page loads live catalog recommendations through the server API client', () => {
+test('AI page provides an accessible four-step processing panel above the saved roadmap', () => {
+  const page = fs.readFileSync(pagePath, 'utf8');
+  for (const marker of [
+    'data-roadmap-processing', 'data-roadmap-processing-title', 'data-roadmap-processing-copy',
+    'data-roadmap-processing-percent', 'data-roadmap-processing-elapsed',
+    'data-roadmap-processing-bar', 'data-roadmap-processing-steps',
+    'data-roadmap-processing-note', 'data-roadmap-processing-retry',
+  ]) assert.match(page, new RegExp(marker));
+  assert.match(page, /role="status"/);
+  assert.match(page, /aria-live="polite"/);
+  assert.match(page, /Tiến độ ước tính/);
+});
+
+test('processing panel CSS supports four-step desktop, mobile and reduced motion layouts', () => {
+  const css = fs.readFileSync(cssPath, 'utf8');
+  assert.match(css, /\.learner-roadmap-processing__steps/);
+  assert.match(css, /grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*learner-roadmap-processing__steps[\s\S]*grid-template-columns:\s*1fr/);
+  assert.match(css, /prefers-reduced-motion:\s*reduce[\s\S]*learner-roadmap-processing/);
+});
+
+test('AI page mounts the live recommendation catalog section', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
   assert.match(page, /data-ai-page/);
-  assert.match(page, /data-ai-result-list/);
+  assert.match(page, /data-ai-results/);
+  assert.match(page, /learner-recommendations\.js/);
+  assert.match(page, /Gợi ý hoạt động, dự án và cơ hội/);
+});
+
+test('roadmap prompt targets Gemini 3.7 Flash and detailed student-friendly milestones', () => {
+  const prompt = fs.readFileSync(promptPath, 'utf8');
+  const envExample = fs.readFileSync(envExamplePath, 'utf8');
+  assert.match(envExample, /^TALENTHUB_AI_MODEL=gemini-3\.7-flash$/m);
+  assert.match(envExample, /models\/gemini-3\.7-flash:generateContent/);
+  assert.match(prompt, /mỗi giai đoạn có từ 3 đến 5 task cụ thể/);
+  assert.match(prompt, /học sinh, sinh viên/);
+  assert.match(prompt, /đầu ra.*tiêu chí hoàn thành|tiêu chí hoàn thành.*đầu ra/i);
+  assert.match(prompt, /tuần|7 ngày|14 ngày/i);
+});
+
+test('recommendation client remains isolated from the Roadmap-first page', () => {
+  const page = fs.readFileSync(pagePath, 'utf8');
+  assert.match(page, /data-ai-page/);
   assert.match(page, /learner-recommendations\.js/);
   const client = fs.readFileSync(path.join(root, 'assets', 'js', 'learner-recommendations.js'), 'utf8');
   assert.match(client, /api\.get\('\/recommendations\.php'\)/);
@@ -239,9 +577,10 @@ test('renderer uses safe text nodes and never duplicates assessment result conte
     assert.equal(source.includes(duplicated), false, `renderer omits ${duplicated}`);
   }
   assert.match(source, /Tóm tắt từ AI/);
-  assert.match(source, /Gợi ý dự phòng theo quy tắc/);
-  assert.match(source, /AI chưa được bật cho tài khoản này/);
+  assert.doesNotMatch(source, /Gợi ý dự phòng theo quy tắc/);
+  assert.doesNotMatch(source, /AI chưa được bật cho tài khoản này/);
   assert.match(source, /(?:document|doc)\.createElement\('details'\)/);
+  assert.doesNotMatch(source, /Chưa đủ dữ liệu để vẽ bản đồ năng khiếu/);
 });
 
 test('Roadmap-first CSS is scoped, responsive and accessible', () => {
@@ -251,6 +590,13 @@ test('Roadmap-first CSS is scoped, responsive and accessible', () => {
   assert.match(css, /@media \(max-width: 1100px\)/);
   assert.match(css, /@media \(max-width: 720px\)/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  assert.match(css, /font-family:\s*['"]Be Vietnam Pro['"],\s*sans-serif/);
+  assert.match(css, /\.learner-page-ai \.learner-roadmap-timeline/);
+  assert.match(css, /\.learner-page-ai \.learner-roadmap-radar/);
+  assert.match(css, /\.learner-page-ai \.learner-roadmap-radar-note/);
+  assert.match(css, /\.learner-roadmap-radar__point\.is-unmeasured/);
+  assert.match(css, /\.learner-page-ai \.learner-roadmap-secondary/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*grid-template-columns:\s*1fr/);
   for (const token of ['#F97316', '#EA580C', '#FFF7ED', '#2563EB', '#EFF6FF', '#16A34A']) {
     assert.match(css.toUpperCase(), new RegExp(token));
   }

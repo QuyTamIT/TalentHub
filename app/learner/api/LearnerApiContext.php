@@ -39,12 +39,15 @@ use TalentHub\Learner\Ai\Quality\DataQualityGate;
 use TalentHub\Learner\Ai\Quality\RoadmapQualityGate;
 use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
 use TalentHub\Learner\Ai\Rollout\RecommendationRolloutSelector;
+use TalentHub\Learner\Ai\Rollout\RolloutEvidenceFactory;
 use TalentHub\Learner\Ai\Rules\RuleRecommendationEngine;
 use TalentHub\Learner\Ai\Rules\RuleRoadmapEngine;
 use TalentHub\Learner\Ai\Service\RecommendationResponseMapper;
 use TalentHub\Learner\Ai\Service\RecommendationService;
 use TalentHub\Learner\Ai\Service\RecommendationClickService;
 use TalentHub\Learner\Ai\Service\RoadmapService;
+use TalentHub\Learner\Ai\Service\GroupMatchingService;
+use TalentHub\Learner\Ai\Service\StrictRecommendationRefreshDispatcher;
 use TalentHub\Learner\Ai\Snapshot\RecommendationSnapshotBuilder;
 use TalentHub\Learner\Ai\Sources\AiSourceRegistry;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseActivityExperienceSource;
@@ -258,6 +261,15 @@ final class LearnerApiContext
             $modelConfig,
             $rolloutSelector,
             $availabilityPolicy,
+            function (string $candidate, $input): void {
+                if (!$input instanceof \TalentHub\Learner\Ai\Domain\RecommendationInput) {
+                    throw new \InvalidArgumentException('Strict refresh requires a recommendation snapshot.');
+                }
+                (new StrictRecommendationRefreshDispatcher(
+                    new AiRefreshDispatcher(new DatabaseAiRefreshJobRepository($this->pdo)),
+                    new \TalentHub\Learner\Ai\Persistence\DatabaseAiRefreshStateRepository($this->pdo),
+                ))->dispatch($candidate, $input->contentHash());
+            },
         );
     }
 
@@ -267,14 +279,10 @@ final class LearnerApiContext
         $snapshotBuilder = $this->snapshotBuilder();
         $runs = new DatabaseRecommendationRepository($this->pdo);
         $roadmaps = new DatabaseRoadmapRepository($this->pdo);
-        try {
-            $env = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
-                ? $GLOBALS['__TALENTHUB_TEST_ENV__']
-                : $_ENV;
-            $config = RecommendationConfig::fromEnvironment($env);
-        } catch (\Throwable) {
-            $config = RecommendationConfig::fromEnvironment(['TALENTHUB_AI_ENABLED' => 'false']);
-        }
+        $env = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
+            ? $GLOBALS['__TALENTHUB_TEST_ENV__']
+            : $_ENV;
+        $config = RecommendationConfig::fromEnvironment($env);
         $ruleEngine = new RuleRoadmapEngine();
         $modelEngine = null;
         if ($config->enabled()) {
@@ -348,6 +356,7 @@ final class LearnerApiContext
             new DatabaseOpportunitySource($this->pdo),
             new DatabaseCatalogSource($this->pdo),
         ]);
+        $registry->setTransactionPdo($this->pdo);
         $registry->registerTalentPassportSources((new RepositoryFactory('database', $this->pdo))->talentPassport());
         return new RecommendationSnapshotBuilder($registry);
     }
@@ -407,10 +416,15 @@ final class LearnerApiContext
     }
 
     /** @return array<string,mixed> */
-    public function appendFeedback(string $studentId, string $itemId, string $verdict, string $reasonCode, ?string $safeComment): array
+    public function appendFeedback(string $studentId, string $itemId, string $verdict, string $reasonCode, ?string $safeComment, ?string $requestId = null): array
     {
-        $result = (new DatabaseRecommendationRepository($this->pdo))->appendFeedback($studentId, $itemId, $verdict, $reasonCode, $safeComment);
-        AiMetricsCollector::shared()->record(['recommendation_feedback' => $verdict]);
+        $repository = new DatabaseRecommendationRepository($this->pdo);
+        $result = $requestId !== null
+            ? $repository->appendFeedbackWithRequestId($studentId, $itemId, $verdict, $reasonCode, $safeComment, $requestId)
+            : $repository->appendFeedback($studentId, $itemId, $verdict, $reasonCode, $safeComment);
+        if (($result['state'] ?? null) !== 'idempotency_conflict') {
+            AiMetricsCollector::shared()->record(['recommendation_feedback' => $verdict]);
+        }
         return $result;
     }
 
@@ -435,28 +449,7 @@ final class LearnerApiContext
     {
         $injected = $GLOBALS['__TALENTHUB_TEST_ROLLOUT_EVIDENCE__'] ?? null;
         if (is_array($injected)) return $injected;
-        $value = static function (string $key) use ($environment): string {
-            if (array_key_exists($key, $environment)) return trim((string)$environment[$key]);
-            $raw = getenv($key); return is_string($raw) ? trim($raw) : '';
-        };
-        $stage = strtolower($value('TALENTHUB_AI_ROLLOUT_STAGE'));
-        if (!in_array($stage, ['shadow','pilot','10','25','50'], true)) return null;
-        $verified = static fn(string $key): bool => strtolower($value($key)) === 'true';
-        return [
-            'stage'=>$stage,
-            'error_budget'=>$verified('TALENTHUB_AI_ERROR_BUDGET_VERIFIED'),
-            'freshness_sla'=>$verified('TALENTHUB_AI_FRESHNESS_SLA_VERIFIED'),
-            'validator_pass_rate'=>$verified('TALENTHUB_AI_VALIDATOR_PASS_RATE_VERIFIED'),
-            'privacy_review'=>$verified('TALENTHUB_AI_PRIVACY_REVIEW_VERIFIED'),
-            'rollback_drill'=>$verified('TALENTHUB_AI_ROLLBACK_DRILL_VERIFIED'),
-            'approval_reference'=>$config->pilotApprovalReference(),
-            'enabled'=>$config->enabled(), 'shadow_gate_approved'=>$config->shadowGateApproved(),
-            'pilot_paused'=>$config->pilotPaused(), 'visible_percent'=>$config->visiblePercent(),
-            'completed_stages'=>array_values(array_filter(array_map('trim', explode(',', $value('TALENTHUB_AI_COMPLETED_STAGES'))))),
-            'unified_policy_verified'=>$verified('TALENTHUB_AI_UNIFIED_POLICY_VERIFIED'),
-            'last_known_good_verified'=>$verified('TALENTHUB_AI_LAST_KNOWN_GOOD_VERIFIED'),
-            'queue_monitoring_verified'=>$verified('TALENTHUB_AI_QUEUE_MONITORING_VERIFIED'),
-        ];
+        return RolloutEvidenceFactory::fromEnvironment($config, $environment);
     }
 
     /** @return list<string> */
@@ -476,21 +469,24 @@ final class LearnerApiContext
         $eventId = Uuid::v4();
         $this->pdo->beginTransaction();
         try {
-        $insert = $this->pdo->prepare(
-            'INSERT INTO learner_ai_consent_events (id, studentId, scope, action, policyVersion, occurredAt, requestId) VALUES (:id, :studentId, :scope, :action, :policyVersion, :occurredAt, :requestId)'
-        );
-        $insert->execute([
-            'id' => $eventId,
-            'studentId' => $studentId,
-            'scope' => $scope,
-            'action' => $action,
-            'policyVersion' => 'learner-ai-consent-1.0',
-            'occurredAt' => $occurredAt,
-            'requestId' => $this->requestId,
-        ]);
-        TransactionalAiOutboxPublisher::publish($this->pdo,'ai_consent',$eventId,TransactionalAiOutboxPublisher::version(),[$studentId],'consent.'.$action,['scope'=>$scope]);
-        $this->pdo->commit();
-        } catch (\Throwable $exception) { if ($this->pdo->inTransaction()) $this->pdo->rollBack(); throw $exception; }
+            $insert = $this->pdo->prepare(
+                'INSERT INTO learner_ai_consent_events (id, studentId, scope, action, policyVersion, occurredAt, requestId) VALUES (:id, :studentId, :scope, :action, :policyVersion, :occurredAt, :requestId)'
+            );
+            $insert->execute([
+                'id' => $eventId,
+                'studentId' => $studentId,
+                'scope' => $scope,
+                'action' => $action,
+                'policyVersion' => 'learner-ai-consent-1.0',
+                'occurredAt' => $occurredAt,
+                'requestId' => $this->requestId,
+            ]);
+            TransactionalAiOutboxPublisher::publish($this->pdo, 'ai_consent', $eventId, TransactionalAiOutboxPublisher::version(), [$studentId], 'consent.' . $action, ['scope' => $scope]);
+            $this->pdo->commit();
+        } catch (\Throwable $exception) {
+            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
+            throw $exception;
+        }
         return ['event_id' => $eventId, 'scope' => $scope, 'action' => $action];
     }
 
@@ -522,5 +518,22 @@ final class LearnerApiContext
     public function onboardingService(): LearnerOnboardingService
     {
         return new LearnerOnboardingService(new LearnerOnboardingRepository($this->pdo));
+    }
+
+    public function groupMatchingService(string $studentId): GroupMatchingService
+    {
+        $consent = new ConsentPolicy(new DatabaseConsentSource($this->pdo));
+        $catalogSource = new DatabaseCatalogSource($this->pdo);
+        $snapshotBuilder = $this->snapshotBuilder();
+        $educationBandResolver = $this->educationBandResolver();
+
+        return new GroupMatchingService(
+            $this->pdo,
+            $catalogSource,
+            $consent,
+            $snapshotBuilder,
+            $educationBandResolver,
+            AiMetricsCollector::shared(),
+        );
     }
 }

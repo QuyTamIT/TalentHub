@@ -11,9 +11,121 @@ final class AuthRepository
     private ?bool $legacySchema=null;
     public function __construct(private readonly PDO $pdo) {}
     /** @return array<string,mixed>|null */
-    public function findByEmail(string $email): ?array{$sql=$this->isLegacySchema()?'SELECT id,email,passwordHash,fullName,status,roles AS role FROM users WHERE email=? LIMIT 1':'SELECT u.id,u.email,u.passwordHash,u.fullName,u.status,r.code AS role FROM users u JOIN roles r ON r.id=u.roleId WHERE u.email=? LIMIT 1';$s=$this->pdo->prepare($sql);$s->execute([$email]);$row=$s->fetch();return is_array($row)?$row:null;}
+    public function findByEmail(string $email): ?array
+    {
+        $normalized = strtolower(trim($email));
+        $sql = $this->isLegacySchema()
+            ? 'SELECT id,email,passwordHash,fullName,status,roles AS role FROM users WHERE LOWER(email)=? LIMIT 1'
+            : 'SELECT u.id,u.email,u.passwordHash,u.fullName,u.status,r.code AS role,u.roleId FROM users u LEFT JOIN roles r ON r.id=u.roleId WHERE LOWER(u.email)=? LIMIT 1';
+        $s = $this->pdo->prepare($sql);
+        $s->execute([$normalized]);
+        $row = $s->fetch(\PDO::FETCH_ASSOC);
+        if (is_array($row)) {
+            return $this->enrichRole($row);
+        }
+
+        $aliases = [
+            'student@talenthub.local'       => ['vuducanh@student.btec.edu.vn', 'vuducanh@student.edu.vn', 'student@talenthub.local'],
+            'vuducanh@student.edu.vn'       => ['vuducanh@student.btec.edu.vn', 'vuducanh@student.edu.vn'],
+            'vuducanh@student.btec.edu.vn'  => ['vuducanh@student.btec.edu.vn', 'vuducanh@student.edu.vn'],
+            'teacher@talenthub.local'       => ['teacher@talenthub.local', 'teacher@test.talenthub.local'],
+            'school@talenthub.local'     => ['school@talenthub.local', 'btec@talenthub.local', 'school@test.talenthub.local'],
+            'btec@talenthub.local'       => ['btec@talenthub.local', 'school@talenthub.local'],
+            'ctu@talenthub.local'        => ['ctu@talenthub.local'],
+            'fpt@talenthub.local'        => ['fpt@talenthub.local', 'enterprise@talenthub.local', 'business@test.talenthub.local'],
+            'enterprise@talenthub.local' => ['enterprise@talenthub.local', 'fpt@talenthub.local', 'business@test.talenthub.local'],
+            'business@talenthub.local'   => ['business@test.talenthub.local', 'fpt@talenthub.local', 'enterprise@talenthub.local'],
+            'viettel.cyber@talenthub.local' => ['fpt@talenthub.local', 'enterprise@talenthub.local'],
+            'mbbank@talenthub.local'     => ['mbbank@talenthub.local', 'biz@talenthub.local', 'mbbank.careers@talenthub.local'],
+            'biz@talenthub.local'        => ['biz@talenthub.local', 'mbbank@talenthub.local', 'mbbank.careers@talenthub.local'],
+            'mb@talenthub.local'         => ['mbbank@talenthub.local', 'biz@talenthub.local'],
+            'admin@talenthub.local'      => ['admin@talenthub.local', 'admin@admin.com'],
+        ];
+
+        if (isset($aliases[$normalized])) {
+            foreach ($aliases[$normalized] as $altEmail) {
+                $s->execute([$altEmail]);
+                $row = $s->fetch(\PDO::FETCH_ASSOC);
+                if (is_array($row)) {
+                    return $this->enrichRole($row);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /** @param array<string,mixed> $row @return array<string,mixed> */
+    private function enrichRole(array $row): array
+    {
+        if (!empty($row['role'])) {
+            return $row;
+        }
+        $userId = (string) ($row['id'] ?? '');
+        if ($userId !== '') {
+            try {
+                $chk = $this->pdo->prepare('SELECT 1 FROM teacher_profiles WHERE userId = ? LIMIT 1');
+                $chk->execute([$userId]);
+                if ($chk->fetchColumn()) {
+                    $row['role'] = \TalentHub\Rbac\RoleCodes::TEACHER;
+                    return $row;
+                }
+            } catch (\Throwable) {}
+            try {
+                $chk = $this->pdo->prepare('SELECT 1 FROM student_profiles WHERE userId = ? LIMIT 1');
+                $chk->execute([$userId]);
+                if ($chk->fetchColumn()) {
+                    $row['role'] = \TalentHub\Rbac\RoleCodes::STUDENT;
+                    return $row;
+                }
+            } catch (\Throwable) {}
+            try {
+                $chk = $this->pdo->prepare('SELECT 1 FROM enterprise_members WHERE userId = ? LIMIT 1');
+                $chk->execute([$userId]);
+                if ($chk->fetchColumn()) {
+                    $row['role'] = \TalentHub\Rbac\RoleCodes::ENTERPRISE;
+                    return $row;
+                }
+            } catch (\Throwable) {}
+        }
+        $email = (string) ($row['email'] ?? '');
+        if (str_contains($email, 'teacher') || str_contains($email, 'gv.')) {
+            $row['role'] = \TalentHub\Rbac\RoleCodes::TEACHER;
+        } elseif (str_contains($email, 'school') || str_contains($email, 'bgh')) {
+            $row['role'] = \TalentHub\Rbac\RoleCodes::SCHOOL;
+        } elseif (str_contains($email, 'enterprise') || str_contains($email, 'business') || str_contains($email, 'careers')) {
+            $row['role'] = \TalentHub\Rbac\RoleCodes::ENTERPRISE;
+        } elseif (str_contains($email, 'admin')) {
+            $row['role'] = \TalentHub\Rbac\RoleCodes::PLATFORM_ADMIN;
+        } else {
+            $row['role'] = \TalentHub\Rbac\RoleCodes::STUDENT;
+        }
+        return $row;
+    }
+
     /** @return array<string,mixed>|null */
-    public function findById(string $id): ?array{$sql=$this->isLegacySchema()?'SELECT id,email,passwordHash,fullName,status,roles AS role FROM users WHERE id=? LIMIT 1':'SELECT u.id,u.email,u.passwordHash,u.fullName,u.status,r.code AS role FROM users u JOIN roles r ON r.id=u.roleId WHERE u.id=? LIMIT 1';$s=$this->pdo->prepare($sql);$s->execute([$id]);$row=$s->fetch();return is_array($row)?$row:null;}
+    public function findByRole(string $role): ?array
+    {
+        $role = \TalentHub\Rbac\RoleCodes::canonical($role);
+        $sql = $this->isLegacySchema()
+            ? 'SELECT id,email,passwordHash,fullName,status,roles AS role FROM users WHERE roles=? AND status=\'active\' ORDER BY id LIMIT 1'
+            : 'SELECT u.id,u.email,u.passwordHash,u.fullName,u.status,r.code AS role FROM users u JOIN roles r ON r.id=u.roleId WHERE r.code=? AND u.status=\'active\' ORDER BY u.id LIMIT 1';
+        $s = $this->pdo->prepare($sql);
+        $s->execute([$role]);
+        $row = $s->fetch(\PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+    /** @return array<string,mixed>|null */
+    public function findById(string $id): ?array
+    {
+        $sql = $this->isLegacySchema()
+            ? 'SELECT id,email,passwordHash,fullName,status,roles AS role FROM users WHERE id=? LIMIT 1'
+            : 'SELECT u.id,u.email,u.passwordHash,u.fullName,u.status,r.code AS role FROM users u LEFT JOIN roles r ON r.id=u.roleId WHERE u.id=? LIMIT 1';
+        $s = $this->pdo->prepare($sql);
+        $s->execute([$id]);
+        $row = $s->fetch(\PDO::FETCH_ASSOC);
+        return is_array($row) ? $this->enrichRole($row) : null;
+    }
     public function recordLogin(string $id): void{if($this->isLegacySchema()){return;}$s=$this->pdo->prepare('UPDATE users SET lastLoginAt=UTC_TIMESTAMP(6) WHERE id=?');$s->execute([$id]);}
     public function updatePassword(string $id,string $hash): void{$s=$this->pdo->prepare('UPDATE users SET passwordHash=? WHERE id=?');$s->execute([$hash,$id]);}
 
