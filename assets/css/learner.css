@@ -11236,6 +11236,37 @@ body.learner-sidebar-open {
 .learner-opportunity-ai__analysis-summary { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 10px 0 0; }
 .learner-opportunity-ai__analysis-summary dt { color: var(--text-secondary); font-size: 0.72rem; font-weight: 600; }
 .learner-opportunity-ai__analysis-summary dd { margin: 0; color: var(--text-primary); font-size: 0.72rem; line-height: 1.45; }
+.learner-opportunity-ai__analysis-panel { align-items: flex-start; padding: 20px; }
+.learner-opportunity-ai__analysis-body { width: 100%; gap: 16px !important; }
+.learner-opportunity-ai__analysis-heading { display: grid; gap: 7px; }
+.learner-opportunity-ai__analysis-heading > p { margin: 0; color: var(--text-secondary); font-size: 0.78rem; line-height: 1.55; }
+.learner-opportunity-ai__gemini-badge { display: inline-flex; width: max-content; align-items: center; gap: 6px; padding: 5px 9px; color: var(--secondary) !important; background: var(--secondary-light); border: 1px solid #bfdbfe; border-radius: 999px; font-size: 0.66rem !important; font-weight: 700; }
+.learner-opportunity-ai__analysis-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.learner-opportunity-ai__analysis-metrics article { display: grid; min-height: 76px; align-content: center; gap: 5px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.learner-opportunity-ai__analysis-metrics small { color: var(--text-secondary); font-size: 0.65rem; font-weight: 600; }
+.learner-opportunity-ai__analysis-metrics strong { color: var(--text-primary); font-size: 0.88rem; }
+.learner-opportunity-ai__analysis-metrics article:nth-child(2) strong { color: var(--warning); font-size: 1.12rem; }
+.learner-opportunity-ai__analysis-metrics article:nth-child(3) strong { color: var(--secondary); }
+.learner-opportunity-ai__analysis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.learner-opportunity-ai__analysis-grid section { display: grid; align-content: start; gap: 9px; padding: 13px 14px; background: rgba(255, 255, 255, 0.72); border: 1px solid #fde68a; border-radius: var(--radius-sm); }
+.learner-opportunity-ai__analysis-grid h4 { margin: 0; color: var(--text-primary); font-size: 0.72rem; }
+.learner-opportunity-ai__analysis-values { display: flex; flex-wrap: wrap; gap: 6px; }
+.learner-opportunity-ai__analysis-chip { display: inline-flex; padding: 5px 8px; color: var(--text-secondary) !important; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; font-size: 0.68rem !important; line-height: 1.35 !important; }
+.learner-opportunity-ai__analysis-values.is-strength .learner-opportunity-ai__analysis-chip { color: #15803d !important; background: #f0fdf4; border-color: #bbf7d0; }
+.learner-opportunity-ai__analysis-values.is-demand .learner-opportunity-ai__analysis-chip { color: #1d4ed8 !important; background: var(--secondary-light); border-color: #bfdbfe; }
+.learner-opportunity-ai__analysis-values.is-gap .learner-opportunity-ai__analysis-chip { color: #c2410c !important; background: var(--primary-light); border-color: #fed7aa; }
+.learner-opportunity-ai__analysis-values.is-next-step .learner-opportunity-ai__analysis-chip { color: var(--text-primary) !important; }
+.learner-opportunity-ai__analysis-sources { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding-top: 2px; }
+.learner-opportunity-ai__analysis-sources > strong { font-size: 0.68rem; }
+.learner-opportunity-ai__analysis-sources > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.learner-opportunity-ai__analysis-sources .learner-opportunity-ai__analysis-chip { padding: 3px 7px; font-size: 0.62rem !important; }
+@media (max-width: 860px) {
+    .learner-opportunity-ai__analysis-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .learner-opportunity-ai__analysis-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+    .learner-opportunity-ai__analysis-metrics { grid-template-columns: 1fr; }
+}
 .learner-opportunity-ai__message .learner-btn { margin-left: auto; flex: 0 0 auto; }
 .learner-opportunity-ai__message--warning { color: var(--warning); background: #fffbeb; border-color: #fde68a; }
 .learner-opportunity-ai__message--error { color: var(--danger); background: #fef2f2; border-color: #fecaca; }
@@ -11254,6 +11285,116 @@ body.learner-sidebar-open {
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     animation: learner-opportunity-ai-skeleton 1.35s ease-in-out infinite;
+}
+
+.learner-opportunity-ai__progress-box {
+    background: #f0f7ff;
+    border: 1px solid #bfdbfe;
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    display: grid;
+    gap: 10px;
+    box-shadow: 0 1px 3px rgba(30, 64, 175, 0.05);
+}
+
+.learner-opportunity-ai__progress-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.learner-opportunity-ai__progress-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.learner-opportunity-ai__progress-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #bfdbfe;
+    border-top-color: #2563eb;
+    border-radius: 50%;
+    animation: learner-opportunity-ai-spin 0.8s linear infinite;
+    flex: 0 0 auto;
+}
+
+@keyframes learner-opportunity-ai-spin {
+    to { transform: rotate(360deg); }
+}
+
+.learner-opportunity-ai__progress-text {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #1e3a8a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.learner-opportunity-ai__progress-pct {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #2563eb;
+    font-variant-numeric: tabular-nums;
+    flex: 0 0 auto;
+}
+
+.learner-opportunity-ai__progress-track {
+    height: 6px;
+    background: #dbeafe;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.learner-opportunity-ai__progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #6366f1, #8b5cf6);
+    border-radius: 999px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.learner-opportunity-ai__progress-stages {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.learner-opportunity-ai__progress-stages span {
+    font-size: 0.72rem;
+    color: #64748b;
+    text-align: center;
+    padding: 4px 6px;
+    border-radius: var(--radius-xs);
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.learner-opportunity-ai__progress-stages span.is-active {
+    color: #1d4ed8;
+    font-weight: 600;
+    border-color: #93c5fd;
+    background: #dbeafe;
+}
+
+.learner-opportunity-ai__progress-stages span.is-done {
+    color: #15803d;
+    font-weight: 500;
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+}
+
+@media (max-width: 640px) {
+    .learner-opportunity-ai__progress-stages {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 @keyframes learner-opportunity-ai-skeleton {

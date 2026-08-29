@@ -110,6 +110,25 @@ final class OpportunityMatchService
         if ($run === null) {
             return $this->response('not_generated', []);
         }
+        $runState = (string) ($run['state'] ?? ($run['analysis']['state'] ?? ''));
+        $analysis = is_array($run['analysis'] ?? null) ? $run['analysis'] : [];
+        if ($runState === 'no_fit_model' && !is_array($analysis['analysis_meta'] ?? null)) {
+            $scored = [];
+            $scoredCandidates = [];
+            foreach ($candidates as $candidate) {
+                try {
+                    $scored[$candidate->catalogId()] = ($this->scorer)($profile, $candidate);
+                    $scoredCandidates[] = $candidate;
+                } catch (Throwable) {
+                    // Preserve the stored Gemini explanation even if one current
+                    // catalog row can no longer be scored.
+                }
+            }
+            $run['analysis'] = $this->enrichNoFitSummary(
+                $analysis,
+                $this->analysisContext($profile, $candidates, $scoredCandidates, $scored),
+            );
+        }
         return $this->mapReady($run);
     }
 
@@ -199,7 +218,7 @@ final class OpportunityMatchService
 
         try {
             if ($mode === 'no_fit') {
-                $analysis = $this->runNoFitSummary($profile, $scored, $context, $analysisContext);
+                $analysis = $this->runNoFitSummary($profile, $scored, $context, $analysisContext, $candidates);
                 $run = $this->repository->completeRun($studentId, (string) ($pending['runId'] ?? ''), [], $analysis, 'no_fit_model');
                 return $this->mapReady($run);
             }
@@ -224,7 +243,7 @@ final class OpportunityMatchService
         $runAnalysis = [];
         if ($completionState === 'no_fit_model') {
             try {
-                $runAnalysis = $this->runNoFitSummary($profile, $scored, $context, $analysisContext);
+                $runAnalysis = $this->runNoFitSummary($profile, $scored, $context, $analysisContext, $allowList);
                 $ranked = [];
             } catch (Throwable $exception) {
                 $this->failPending($studentId, $pending, $exception);
@@ -429,17 +448,52 @@ final class OpportunityMatchService
         }
     }
 
-    /** @return array<string,mixed> */
-    private function runNoFitSummary(LearnerOpportunityProfile $profile, array $scored, RecommendationContext $context, array $analysisContext): array
+    /** @param list<OpportunityCandidate> $candidates @return array<string,mixed> */
+    private function runNoFitSummary(LearnerOpportunityProfile $profile, array $scored, RecommendationContext $context, array $analysisContext, array $candidates = []): array
     {
+        $evidenceAllowList = $profile->evidenceRefs();
+        foreach ($candidates as $candidate) {
+            if ($candidate instanceof OpportunityCandidate) {
+                foreach ($candidate->providerPayload()['evidence_refs'] ?? [] as $ref) {
+                    if (is_string($ref) && $ref !== '') {
+                        $evidenceAllowList[] = $ref;
+                    }
+                }
+            }
+        }
+        $evidenceAllowList = array_values(array_unique($evidenceAllowList));
+
         try {
-            return $this->engine->generateNoFitSummary($profile, $scored, $context, $analysisContext, $profile->evidenceRefs());
+            $summary = $this->engine->generateNoFitSummary($profile, $scored, $context, $analysisContext, $evidenceAllowList);
         } catch (Throwable $exception) {
             if (!self::isMalformedOutput($exception)) {
                 throw $exception;
             }
-            return $this->engine->generateNoFitSummary($profile, $scored, $context, $analysisContext, $profile->evidenceRefs());
+            $summary = $this->engine->generateNoFitSummary($profile, $scored, $context, $analysisContext, $evidenceAllowList);
         }
+        return $this->enrichNoFitSummary($summary, $analysisContext);
+    }
+
+    /** @param array<string,mixed> $summary @param array<string,mixed> $analysisContext @return array<string,mixed> */
+    private function enrichNoFitSummary(array $summary, array $analysisContext): array
+    {
+        $range = $analysisContext['structured_score_range'] ?? null;
+        $normalizedRange = is_array($range) && count($range) === 2
+            ? [max(0, min(100, (int) $range[0])), max(0, min(100, (int) $range[1]))]
+            : null;
+        if (is_array($normalizedRange) && $normalizedRange[0] > $normalizedRange[1]) {
+            $normalizedRange = [$normalizedRange[1], $normalizedRange[0]];
+        }
+        $summary['analysis_meta'] = [
+            'evaluated_count' => max(0, (int) ($analysisContext['candidate_count'] ?? 0)),
+            'eligible_count' => max(0, (int) ($analysisContext['eligible_count'] ?? 0)),
+            'best_score' => is_array($normalizedRange) ? $normalizedRange[1] : null,
+            'score_range' => $normalizedRange,
+            'match_threshold' => 60,
+            'data_weight' => 70,
+            'ai_weight' => 30,
+        ];
+        return $summary;
     }
 
     /** @param list<OpportunityCandidate> $all @param list<OpportunityCandidate> $eligible @param array<string,OpportunityScore> $scored @return array<string,mixed> */

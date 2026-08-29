@@ -351,6 +351,80 @@ service_assert(count($aliasEvidence) === 1, 'same activity evidence aliases norm
 $aliasSafeValue = json_decode((string) ($aliasEvidence[0]['safeValueJson'] ?? ''), true);
 service_assert(($aliasSafeValue['status'] ?? '') === 'confirmed', 'alias normalization preserves the richer consent-safe evidence');
 
+$noFitPdo = service_test_pdo();
+$noFitCandidates = [
+    service_test_candidate_evidence('internship-1'),
+    service_test_candidate_evidence('internship-2'),
+];
+$noFitScorer = static fn (LearnerOpportunityProfile $profile, OpportunityCandidate $candidate): OpportunityScore => new OpportunityScore([
+    'skill_match' => 5,
+    'assessment_alignment' => 2,
+    'experience_relevance' => 1,
+    'growth_potential' => 1,
+    'feasibility' => 1,
+]);
+$noFitDiagnosticItems = [
+    [
+        'catalog_id' => 'internship-1',
+        'gemini_score' => 10,
+        'why_not_fit_yet' => 'Kỹ năng hiện tại chưa đạt yêu cầu của cơ hội này.',
+        'matched_skill_codes' => ['python'],
+        'missing_skill_codes' => [],
+        'missing_conditions' => ['python_minimum_score'],
+        'improvement_steps' => ['Hoàn thành một bài thực hành Python có xác minh.'],
+        'evidence_ref_ids' => ['opportunity:internship-1'],
+    ],
+    [
+        'catalog_id' => 'internship-2',
+        'gemini_score' => 10,
+        'why_not_fit_yet' => 'Hồ sơ chưa có đủ bằng chứng phù hợp với dự án.',
+        'matched_skill_codes' => ['python'],
+        'missing_skill_codes' => [],
+        'missing_conditions' => ['verified_project'],
+        'improvement_steps' => ['Bổ sung một dự án học tập đã được xác nhận.'],
+        'evidence_ref_ids' => ['opportunity:internship-2'],
+    ],
+];
+$noFitSummaryItem = [
+    'headline' => 'Chưa có cơ hội đạt ngưỡng phù hợp',
+    'explanation' => 'Gemini đã đối chiếu hồ sơ với các cơ hội hiện tại nhưng điểm phù hợp vẫn dưới ngưỡng đề xuất.',
+    'learner_strengths' => ['Thiết kế sáng tạo', 'Giao tiếp'],
+    'catalog_demands' => ['Python'],
+    'main_gaps' => ['Thiếu bằng chứng dự án Python đã được xác minh.'],
+    'next_steps' => ['Hoàn thành một dự án Python nhỏ và cập nhật vào hồ sơ năng lực.'],
+    'evidence_ref_ids' => ['skill:python-skill-1', 'opportunity:internship-1'],
+];
+$noFitProvider = service_test_engine(
+    ProviderResponse::success($noFitDiagnosticItems),
+    ProviderResponse::success([$noFitSummaryItem]),
+);
+$noFitService = service_make_scenario(
+    $noFitPdo,
+    $noFitProvider,
+    candidateEvidence: $noFitCandidates,
+    scorer: $noFitScorer,
+);
+$noFitResult = $noFitService->generate('student-1', 'request-no-fit-meta-0001', 'idempotency-no-fit-meta-01');
+service_assert(($noFitResult['state'] ?? '') === 'no_fit_model', 'sub-40 final scores return no_fit_model');
+$noFitMeta = $noFitResult['analysis']['analysis_meta'] ?? [];
+service_assert(($noFitMeta['evaluated_count'] ?? null) === 2, 'no-fit metadata reports evaluated opportunities');
+service_assert(($noFitMeta['eligible_count'] ?? null) === 2, 'no-fit metadata reports eligible opportunities');
+service_assert(($noFitMeta['best_score'] ?? null) === 10, 'no-fit metadata reports the authoritative best score');
+service_assert(($noFitMeta['score_range'] ?? null) === [10, 10], 'no-fit metadata reports the score range');
+service_assert(($noFitMeta['match_threshold'] ?? null) === 60, 'no-fit metadata exposes the approved suitable threshold');
+service_assert(($noFitMeta['data_weight'] ?? null) === 70 && ($noFitMeta['ai_weight'] ?? null) === 30, 'no-fit metadata exposes the approved 70/30 weighting');
+
+$legacyNoFitService = service_make_scenario(
+    $analysisPdo,
+    null,
+    candidateEvidence: $noFitCandidates,
+    scorer: $noFitScorer,
+);
+$legacyNoFitResult = $legacyNoFitService->latest('student-1');
+service_assert(($legacyNoFitResult['state'] ?? '') === 'no_fit_model', 'legacy no-fit analysis remains readable');
+service_assert(($legacyNoFitResult['analysis']['analysis_meta']['evaluated_count'] ?? null) === 2, 'latest enriches a legacy no-fit result with current authoritative metadata');
+service_assert(($legacyNoFitResult['analysis']['analysis_meta']['best_score'] ?? null) === 10, 'latest enriches a legacy no-fit result with the current best score');
+
 function service_test_catalog_ids(array $items): array
 {
     return array_map(static fn (array $item): string => (string) $item['catalog_id'], $items);
@@ -440,7 +514,7 @@ service_assert(count($auditRows) === 1, 'completion writes one audit event');
 $audit = json_decode((string) $auditRows[0]['engineMetadataJson'], true);
 service_assert(($audit['provider'] ?? '') === '9router_gemini', 'audit carries provider version');
 service_assert(($audit['model_version'] ?? '') === 'ag/gemini-3.7-flash-high', 'audit carries model version');
-service_assert(($audit['prompt_version'] ?? '') === 'learner-opportunity-match-1.0.0', 'audit carries prompt version');
+service_assert(($audit['prompt_version'] ?? '') === 'learner-opportunity-match-1.1.0', 'audit carries prompt version');
 service_assert(strlen((string) ($audit['response_hash'] ?? '')) === 64, 'audit carries response hash');
 
 $dumped = '';

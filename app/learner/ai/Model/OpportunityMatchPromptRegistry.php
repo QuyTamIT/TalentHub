@@ -19,7 +19,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
  */
 final class OpportunityMatchPromptRegistry
 {
-    public const VERSION = 'learner-opportunity-match-1.0.0';
+    public const VERSION = 'learner-opportunity-match-1.1.0';
 
     public const MAX_CANDIDATES = 10;
 
@@ -133,17 +133,22 @@ final class OpportunityMatchPromptRegistry
     /** @return list<string> */
     private static function instructions(string $mode): array
     {
+        $locale = [
+            'Ngôn ngữ đầu ra bắt buộc là vi-VN. Viết toàn bộ nội dung hướng tới người học bằng tiếng Việt có dấu, tự nhiên, rõ ràng và phù hợp với học sinh, sinh viên.',
+            'Không hiển thị mã kỹ năng hoặc mã điều kiện trong headline, explanation, why_fit, why_not_fit_yet, main_gaps, next_steps hay improvement_steps; hãy diễn đạt chúng thành tên tiếng Việt dễ hiểu.',
+            'Các trường có hậu tố _codes và evidence_ref_ids vẫn phải giữ đúng mã trong allow-list để hệ thống kiểm chứng.',
+        ];
         if ($mode === 'no_fit') {
-            return [
+            return [...$locale, ...[
                 'Return a grounded summary explaining why no current opportunity reaches the suitable threshold.',
                 'Use only the supplied learner strengths, catalog demand aggregates and exclusion reason counts.',
                 'Never invent a title, provider, URL, deadline, capacity, project or opportunity.',
                 'Do not promise hiring, admission, awards, grades or employment.',
                 'Reference only evidence_ref_ids present in the supplied evidence_allow_list.',
-            ];
+            ]];
         }
         if ($mode === 'low_fit') {
-            return [
+            return [...$locale, ...[
                 'Return one to three distinct catalog IDs from the supplied candidate_allow_list.',
                 'Explain why each project is not suitable yet and give concrete improvement steps.',
                 'Use only supplied skill, outcome and evidence codes and condition codes from analysis_context.',
@@ -151,10 +156,10 @@ final class OpportunityMatchPromptRegistry
                 'Do not promise hiring, admission, awards, grades or employment.',
                 'Reference only evidence_ref_ids present in the supplied evidence_allow_list.',
                 'gemini_score must be an integer between 0 and 100 inclusive.',
-            ];
+            ]];
         }
         if ($mode === 'recommendation') {
-            return [
+            return [...$locale, ...[
                 'Return one to three distinct catalog IDs from the supplied candidate_allow_list.',
                 'Write a project-specific why_fit for each candidate; do not reuse sentence templates.',
                 'Use only supplied skill, outcome and evidence codes.',
@@ -162,9 +167,9 @@ final class OpportunityMatchPromptRegistry
                 'Do not promise hiring, admission, awards, grades or employment.',
                 'Reference only evidence_ref_ids present in the supplied evidence_allow_list.',
                 'gemini_score must be an integer between 0 and 100 inclusive.',
-            ];
+            ]];
         }
-        return [
+        return [...$locale, ...[
             'Return exactly three distinct catalog IDs from the supplied candidate_allow_list.',
             'Write a project-specific why_fit for each candidate; do not reuse sentence templates.',
             'Use only supplied skill, outcome and evidence codes.',
@@ -172,7 +177,7 @@ final class OpportunityMatchPromptRegistry
             'Do not promise hiring, admission, awards, grades or employment.',
             'Reference only evidence_ref_ids present in the supplied evidence_allow_list.',
             'gemini_score must be an integer between 0 and 100 inclusive.',
-        ];
+        ]];
     }
 
     /** @return array<string,mixed> */

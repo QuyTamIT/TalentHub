@@ -167,6 +167,24 @@ function learner_ecosystem_date(string $date): string
                             <div><strong>Khám phá dự án phù hợp với năng lực hiện tại</strong><span>AI chỉ sử dụng dữ liệu bạn đã cho phép và giải thích riêng cho từng dự án.</span></div>
                         </div>
                         <div class="learner-opportunity-ai__loading" data-opportunity-ai-loading hidden aria-hidden="true">
+                            <div class="learner-opportunity-ai__progress-box" data-opportunity-ai-progress-box>
+                                <div class="learner-opportunity-ai__progress-header">
+                                    <div class="learner-opportunity-ai__progress-info">
+                                        <span class="learner-opportunity-ai__progress-spinner" aria-hidden="true"></span>
+                                        <span class="learner-opportunity-ai__progress-text" data-opportunity-ai-progress-text>Đang chuẩn bị dữ liệu hồ sơ và cơ hội...</span>
+                                    </div>
+                                    <span class="learner-opportunity-ai__progress-pct" data-opportunity-ai-progress-pct>15%</span>
+                                </div>
+                                <div class="learner-opportunity-ai__progress-track" role="progressbar" aria-valuenow="15" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="learner-opportunity-ai__progress-fill" data-opportunity-ai-progress-bar style="width: 15%;"></div>
+                                </div>
+                                <div class="learner-opportunity-ai__progress-stages" data-opportunity-ai-progress-stages>
+                                    <span class="is-active" data-stage="1">1. Quét hồ sơ</span>
+                                    <span data-stage="2">2. Lọc cơ hội</span>
+                                    <span data-stage="3">3. Gemini đối chiếu</span>
+                                    <span data-stage="4">4. Xếp hạng Top 3</span>
+                                </div>
+                            </div>
                             <?php for ($skeletonIndex = 0; $skeletonIndex < 3; $skeletonIndex++): ?>
                                 <span></span>
                             <?php endfor; ?>
@@ -189,15 +207,30 @@ function learner_ecosystem_date(string $date): string
                             <?= learner_icon('info', 20); ?>
                             <div><strong>Cơ hội gần phù hợp</strong><span>Danh sách dưới đây có điểm 40–59. Gemini nêu rõ kỹ năng, điều kiện còn thiếu và bước cải thiện cho từng dự án.</span></div>
                         </div>
-                        <div class="learner-opportunity-ai__message learner-opportunity-ai__message--warning" data-opportunity-ai-no-fit hidden>
+                        <div class="learner-opportunity-ai__message learner-opportunity-ai__message--warning learner-opportunity-ai__analysis-panel" data-opportunity-ai-no-fit hidden>
                             <?= learner_icon('info', 20); ?>
-                            <div><strong data-opportunity-ai-analysis-headline>Chưa có cơ hội đủ phù hợp</strong><span data-opportunity-ai-analysis-explanation>Các cơ hội hiện tại chưa phù hợp với hồ sơ của bạn.</span>
-                                <dl class="learner-opportunity-ai__analysis-summary">
-                                    <dt>Điểm mạnh hiện tại</dt><dd data-opportunity-ai-analysis-strengths>—</dd>
-                                    <dt>Danh mục đang cần</dt><dd data-opportunity-ai-analysis-demands>—</dd>
-                                    <dt>Khoảng trống chính</dt><dd data-opportunity-ai-analysis-gaps>—</dd>
-                                    <dt>Bước tiếp theo</dt><dd data-opportunity-ai-analysis-next-steps>—</dd>
-                                </dl>
+                            <div class="learner-opportunity-ai__analysis-body">
+                                <div class="learner-opportunity-ai__analysis-heading">
+                                    <span class="learner-opportunity-ai__gemini-badge"><?= learner_icon('sparkles', 14); ?> Gemini phân tích hồ sơ của bạn</span>
+                                    <strong data-opportunity-ai-analysis-headline>Chưa có cơ hội đủ phù hợp</strong>
+                                    <p data-opportunity-ai-analysis-explanation>Các cơ hội hiện tại chưa phù hợp với hồ sơ của bạn.</p>
+                                </div>
+                                <div class="learner-opportunity-ai__analysis-metrics" aria-label="Tóm tắt kết quả phân tích">
+                                    <article><small>Đã phân tích</small><strong data-opportunity-ai-metric-evaluated>0 cơ hội</strong></article>
+                                    <article><small>Điểm gần nhất</small><strong data-opportunity-ai-metric-best-score>—/100</strong></article>
+                                    <article><small>Ngưỡng đề xuất</small><strong data-opportunity-ai-metric-threshold>60/100</strong></article>
+                                    <article><small>Cách tính điểm</small><strong data-opportunity-ai-metric-weighting>70% dữ liệu · 30% Gemini</strong></article>
+                                </div>
+                                <div class="learner-opportunity-ai__analysis-grid">
+                                    <section><h4>Điểm mạnh hiện tại</h4><div class="learner-opportunity-ai__analysis-values is-strength" data-opportunity-ai-analysis-strengths></div></section>
+                                    <section><h4>Các cơ hội đang cần</h4><div class="learner-opportunity-ai__analysis-values is-demand" data-opportunity-ai-analysis-demands></div></section>
+                                    <section><h4>Khoảng trống chính</h4><div class="learner-opportunity-ai__analysis-values is-gap" data-opportunity-ai-analysis-gaps></div></section>
+                                    <section><h4>Bạn nên làm gì tiếp theo?</h4><div class="learner-opportunity-ai__analysis-values is-next-step" data-opportunity-ai-analysis-next-steps></div></section>
+                                </div>
+                                <div class="learner-opportunity-ai__analysis-sources">
+                                    <strong>Nguồn dữ liệu Gemini đã sử dụng</strong>
+                                    <div data-opportunity-ai-analysis-sources></div>
+                                </div>
                             </div>
                         </div>
                         <div class="learner-opportunity-ai__message learner-opportunity-ai__message--error" data-opportunity-ai-error hidden>
@@ -327,8 +360,8 @@ function learner_ecosystem_date(string $date): string
         </aside>
     </div>
 
-    <script src="../../assets/js/learner-api.js"></script>
-    <script src="../../assets/js/learner.js"></script>
+    <script src="../../assets/js/learner-api.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner-api.js'); ?>"></script>
+    <script src="../../assets/js/learner.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner.js'); ?>"></script>
     <script src="../../assets/js/learner-opportunity-matches.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner-opportunity-matches.js'); ?>"></script>
 </body>
 </html>

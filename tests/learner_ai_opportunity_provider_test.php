@@ -144,7 +144,7 @@ $scored = [
 
 $request = OpportunityMatchPromptRegistry::create($profile, $candidates, $scored, provider_test_context());
 provider_assert($request instanceof ProviderRequest, 'prompt registry returns a ProviderRequest');
-provider_assert($request->promptVersion() === 'learner-opportunity-match-1.0.0', 'prompt version is fixed');
+provider_assert($request->promptVersion() === 'learner-opportunity-match-1.1.0', 'prompt version is fixed');
 $payloadJson = json_encode($request->payload(), JSON_THROW_ON_ERROR);
 provider_assert(!str_contains($payloadJson, 'student@example.com'), 'prompt payload excludes email');
 provider_assert(!str_contains($payloadJson, 'gender'), 'prompt payload excludes protected traits');
@@ -404,7 +404,7 @@ provider_assert($generated[0]->candidate()->title() === 'Title for internship-1'
 $attachedGenerated = $generated[0]->withScore($scored['internship-1']);
 provider_assert($attachedGenerated->score() === $scored['internship-1'], 'engine match can carry deterministic score');
 $engineRequest = $engineProvider->requests()[0];
-provider_assert($engineRequest->promptVersion() === 'learner-opportunity-match-1.0.0', 'engine sends fixed prompt version');
+provider_assert($engineRequest->promptVersion() === 'learner-opportunity-match-1.1.0', 'engine sends fixed prompt version');
 $enginePayloadJson = json_encode($engineRequest->payload(), JSON_THROW_ON_ERROR);
 provider_assert(!str_contains($enginePayloadJson, 'student@example.com'), 'engine payload excludes email');
 provider_assert(!str_contains($enginePayloadJson, 'phone'), 'engine payload excludes phone field');
@@ -475,6 +475,10 @@ $noFitItemSchema = $noFitSchema['properties']['items']['items'] ?? [];
 provider_assert(($noFitSchema['properties']['items']['minItems'] ?? null) === 1 && ($noFitSchema['properties']['items']['maxItems'] ?? null) === 1, 'no-fit response contains exactly one summary item');
 provider_assert(($noFitItemSchema['required'] ?? []) === ['headline', 'explanation', 'learner_strengths', 'catalog_demands', 'main_gaps', 'next_steps', 'evidence_ref_ids'], 'no-fit summary item schema is explicit');
 provider_assert(str_contains(json_encode($noFitRequest->payload(), JSON_THROW_ON_ERROR), 'education_band_mismatch'), 'no-fit prompt carries safe exclusion aggregates');
+$noFitInstructions = implode("\n", $noFitRequest->payload()['instructions'] ?? []);
+provider_assert(str_contains($noFitInstructions, 'vi-VN'), 'no-fit prompt fixes the learner-facing locale to vi-VN');
+provider_assert(str_contains($noFitInstructions, 'tiếng Việt có dấu'), 'no-fit prompt requires natural Vietnamese with diacritics');
+provider_assert(str_contains($noFitInstructions, 'Không hiển thị mã kỹ năng'), 'no-fit prompt forbids raw skill codes in learner-facing prose');
 $summary = $validator->validateSummary([
     'headline' => 'Chua co co hoi du phu hop',
     'explanation' => 'Cac co hoi hien tai yeu cau SQL va marketing nhieu hon ky nang da xac minh cua ban.',

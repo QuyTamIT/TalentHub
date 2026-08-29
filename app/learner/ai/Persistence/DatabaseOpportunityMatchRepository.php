@@ -71,7 +71,7 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
             if ($run['items'] !== [] && !in_array($runState, ['ready_model', 'partial_model', 'low_fit_model'], true)) {
                 $valid = false;
             }
-            if (count($run['items']) !== 3 && !in_array($runState, ['partial_model', 'low_fit_model'], true)) {
+            if (count($run['items']) !== 3 && !in_array($runState, ['partial_model', 'low_fit_model', 'no_fit_model'], true)) {
                 $valid = false;
             }
             $catalogIds = [];
