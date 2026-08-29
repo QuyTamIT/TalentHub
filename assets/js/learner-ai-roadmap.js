@@ -2,7 +2,7 @@
 (function initLearnerAiRoadmap(global) {
     'use strict';
 
-    const READY_STATES = new Set(['ready-model', 'stale-model', 'fallback-rule']);
+    const READY_STATES = new Set(['ready-model', 'stale-model']);
     const PROCESSING_STEPS = [
         'Chuẩn bị dữ liệu năng lực',
         'Gemini đang phân tích',
@@ -86,11 +86,10 @@
         if (state === 'not_generated') return 'not-generated';
         if (state === 'pending') return 'pending';
         if (state === 'consent_required') return 'consent-required';
-        if (state === 'data_insufficient' || state === 'insufficient_data') return 'insufficient-data';
+        if (state === 'data_insufficient') return 'insufficient-data';
         if (state === 'provider_unavailable') return 'source-error';
         if (state === 'ready_model') return 'ready-model';
         if (state === 'stale_model') return 'stale-model';
-        if (state === 'ready_rule' || state === 'fallback_rule') return 'fallback-rule';
         return 'source-error';
     }
 
@@ -364,8 +363,6 @@
             pending: root.querySelector('[data-roadmap-pending]'),
             error: root.querySelector('[data-roadmap-error]'),
             ready: root.querySelector('[data-roadmap-ready]'),
-            fallback: root.querySelector('[data-roadmap-fallback]'),
-            fallbackCopy: root.querySelector('[data-roadmap-fallback-copy]'),
             freshness: root.querySelector('[data-roadmap-freshness]'),
             summaryLabel: root.querySelector('[data-roadmap-summary-label]'),
             summary: root.querySelector('[data-roadmap-summary-text]'),
@@ -517,7 +514,6 @@
                 'consent-required': 'Cần quyền dữ liệu để tạo lộ trình.', 'insufficient-data': 'Chưa đủ dữ liệu để tạo lộ trình.',
                 'source-error': 'Chưa thể tải lộ trình.', 'ready-model': 'Lộ trình từ AI đã sẵn sàng.',
                 'stale-model': 'Đang hiển thị lộ trình AI gần nhất trong khi hệ thống cập nhật.',
-                'fallback-rule': 'Gợi ý dự phòng theo quy tắc đã sẵn sàng.',
             }[state] || 'Trạng thái lộ trình đã thay đổi.';
         }
 
@@ -529,7 +525,6 @@
                 hide(nodes.insufficient, true);
                 hide(nodes.pending, true);
                 hide(nodes.error, true);
-                hide(nodes.fallback, true);
                 set(nodes.status, statusCopy(state));
                 beginProcessing(payload);
                 return;
@@ -546,7 +541,6 @@
                 hide(nodes.insufficient, true);
                 hide(nodes.pending, true);
                 hide(nodes.error, true);
-                hide(nodes.fallback, true);
                 hide(nodes.ready, !processingPreserveReady);
                 set(nodes.status, statusCopy('processing'));
                 return;
@@ -561,7 +555,6 @@
             hide(nodes.pending, state !== 'pending');
             hide(nodes.error, state !== 'source-error');
             hide(nodes.ready, !READY_STATES.has(state));
-            hide(nodes.fallback, state !== 'fallback-rule');
             set(nodes.status, statusCopy(state));
             if (READY_STATES.has(state)) {
                 if (processingActive) completeProcessing(!failedRefresh);
@@ -588,7 +581,7 @@
         }
 
         function renderReady(model, state) {
-            set(nodes.summaryLabel, state === 'fallback-rule' ? 'Gợi ý dự phòng theo quy tắc' : (state === 'stale-model' ? 'Bản AI gần nhất' : 'Tóm tắt từ AI'));
+            set(nodes.summaryLabel, state === 'stale-model' ? 'Bản AI gần nhất' : 'Tóm tắt từ AI');
             set(nodes.summary, text(model.executive_summary, 'Chưa có nội dung tóm tắt.'));
             set(nodes.evidenceTotal, `${model.evidenceTotal} nguồn dữ liệu đã cho phép`);
             set(nodes.confidence, model.confidenceLabel);
@@ -603,11 +596,6 @@
             renderActivities(model.activities, model);
             renderEvidence(model.evidence_summary);
             renderEngine(model.engine, state);
-            if (state === 'fallback-rule') {
-                set(nodes.fallbackCopy, model?.engine?.fallback_reason === 'rule_only'
-                    ? 'AI chưa được bật cho tài khoản này; nội dung đang hiển thị là lộ trình theo quy tắc.'
-                    : 'AI tạm thời chưa phản hồi; nội dung này không được gắn nhãn là kết quả từ mô hình.');
-            }
             renderHistory(model.version_history, model.version, model.changed_sections_from_previous);
             const complete = integer(model?.progress?.completed_tasks);
             const total = integer(model?.progress?.total_tasks);

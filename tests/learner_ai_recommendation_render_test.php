@@ -22,5 +22,10 @@ roadmap_render_assert(str_contains($client, 'textContent'), 'untrusted model str
 roadmap_render_assert(!str_contains($client . $recommendationClient, 'innerHTML'), 'renderers never assign HTML from model output');
 roadmap_render_assert(!str_contains($page . $client . $recommendationClient, 'TALENTHUB_AI_API_KEY'), 'API key is never rendered');
 roadmap_render_assert(!str_contains($page . $client, 'input_hash'), 'input hash is never rendered');
+roadmap_render_assert(!str_contains($client, "'ready_rule'"), 'strict roadmap client must not recognize ready_rule as a renderable state');
+roadmap_render_assert(!str_contains($client, "'fallback_rule'"), 'strict roadmap client must not recognize fallback_rule as a renderable state');
+roadmap_render_assert(!str_contains($client, "'fallback-rule'"), 'strict roadmap client must not present a rule fallback state');
+roadmap_render_assert(!str_contains($page, 'data-roadmap-fallback'), 'strict roadmap page must not render the legacy fallback region');
+roadmap_render_assert(!str_contains($page . $client, 'Gợi ý dự phòng theo quy tắc'), 'strict roadmap must not present rule fallback copy');
 
 echo "learner_ai_recommendation_render_test: OK\n";

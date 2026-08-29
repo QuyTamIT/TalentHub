@@ -73,7 +73,6 @@ $assetVersion = static function (string $relativePath): string {
 
                 <div class="learner-roadmap__ready" data-roadmap-ready hidden>
                     <p class="learner-roadmap-version__changes" data-roadmap-version-changes></p>
-                    <div class="learner-roadmap__fallback" data-roadmap-fallback role="status" hidden><?= learner_icon('info', 18); ?><span><strong>Gợi ý dự phòng theo quy tắc.</strong> <span data-roadmap-fallback-copy>Nội dung này không được gắn nhãn là kết quả từ mô hình.</span></span></div>
                     <div class="learner-roadmap-hero">
                         <section class="learner-card learner-roadmap-summary" data-roadmap-summary aria-labelledby="roadmap-summary-title">
                             <div class="learner-roadmap-card-heading"><span class="learner-roadmap-card-heading__icon"><?= learner_icon('sparkles', 20); ?></span><div><span data-roadmap-summary-label>Tóm tắt từ AI</span><h2 id="roadmap-summary-title">Định hướng của bạn</h2></div></div>
