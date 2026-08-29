@@ -56,6 +56,7 @@ if ($isVerified && $talentService !== null) {
 
 // Dynamic schools list from database
 $schoolsList = [];
+$activeJobs = [];
 $pdo = $context['pdo'] ?? null;
 if ($pdo !== null) {
     try {
@@ -63,6 +64,16 @@ if ($pdo !== null) {
         $schoolsList = $stmtSchools->fetchAll(PDO::FETCH_COLUMN) ?: [];
     } catch (\Throwable $e) {
         $schoolsList = [];
+    }
+    if (!empty($enterprise['id'])) {
+        try {
+            $nowUtc = gmdate('Y-m-d H:i:s');
+            $stmtJobs = $pdo->prepare("SELECT id, title, skillsJson, requirementsJson, deadline FROM internship_posts WHERE enterpriseId = ? AND status = 'active' AND deadline >= ? ORDER BY createdAt DESC");
+            $stmtJobs->execute([(string) $enterprise['id'], $nowUtc]);
+            $activeJobs = $stmtJobs->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (\Throwable $e) {
+            $activeJobs = [];
+        }
     }
 }
 if (empty($schoolsList)) {
@@ -252,6 +263,44 @@ $sidebarNav = [
                                 <span class="ent-result-card__label">Nhân tài phù hợp</span>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Enterprise AI Matcher Section -->
+                    <div class="ent-ai-matcher-card card mb-4 p-4" data-enterprise-ai-matcher style="background: linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%); border: 1px solid #d0dcf8; border-radius: 12px;">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-primary text-white px-2 py-1" style="border-radius: 6px; font-weight: 600;">AI Engine</span>
+                                <h3 class="h5 mb-0 font-weight-bold" style="color: #1e3a8a;">Tìm nhân tài bằng AI</h3>
+                            </div>
+                            <div class="d-flex align-items-center gap-3 text-muted small">
+                                <span>Phiên bản: <strong data-enterprise-ai-provenance>gemini-1.5-pro</strong></span>
+                                <span>Cập nhật: <strong data-enterprise-ai-freshness>--</strong></span>
+                                <span class="badge badge-info" data-enterprise-ai-state>idle</span>
+                            </div>
+                        </div>
+                        <p class="text-secondary small mb-3">
+                            Khớp nối tự động và xếp hạng ứng viên dựa trên kỹ năng đã được kiểm chứng đối chiếu với yêu cầu của vị trí tuyển dụng thực tập.
+                        </p>
+                        <div class="row align-items-end g-3">
+                            <div class="col-md-8">
+                                <label for="enterprise-ai-job-select" class="form-label small font-weight-bold text-dark">Chọn vị trí thực tập đang tuyển dụng:</label>
+                                <select id="enterprise-ai-job-select" class="form-control form-select" data-enterprise-ai-job>
+                                    <option value="">-- Chọn vị trí thực tập --</option>
+                                    <?php foreach ($activeJobs as $job): ?>
+                                        <option value="<?= htmlspecialchars((string) $job['id']); ?>"><?= htmlspecialchars((string) $job['title']); ?> (Hạn: <?= htmlspecialchars((string) substr($job['deadline'] ?? '', 0, 10)); ?>)</option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="button" class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2" data-enterprise-ai-run style="height: 38px;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                                    </svg>
+                                    Tìm nhân tài bằng AI
+                                </button>
+                            </div>
+                        </div>
+                        <div class="ent-ai-results-container mt-3" data-enterprise-ai-results style="display: none;"></div>
                     </div>
 
                     <!-- Quick Filters & Main Search Toolbar -->

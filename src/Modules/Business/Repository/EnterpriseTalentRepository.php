@@ -16,9 +16,6 @@ use Throwable;
 
 final class EnterpriseTalentRepository
 {
-    /** @var array<string,list<array<string,mixed>>> */
-    private static array $matchRankingCache = [];
-
     public function __construct(
         private readonly PDO $pdo,
         private readonly ?NotificationService $notifications = null
@@ -27,6 +24,61 @@ final class EnterpriseTalentRepository
     public function pdo(): PDO
     {
         return $this->pdo;
+    }
+
+    /**
+     * Look up an active, unexpired internship post owned by the enterprise.
+     *
+     * @return array{id:string,title:string,description:string,required_skills:list<string>}
+     */
+    public function matchingJob(string $enterpriseId, string $jobId): array
+    {
+        $stmt = $this->pdo->prepare('SELECT id, enterpriseId, title, description, skillsJson, requirementsJson, status, deadline FROM internship_posts WHERE id = ? AND enterpriseId = ? LIMIT 1');
+        $stmt->execute([$jobId, $enterpriseId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy tin tuyển dụng hoặc không thuộc doanh nghiệp.');
+        }
+        if (($row['status'] ?? '') !== 'active') {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Tin tuyển dụng không ở trạng thái hoạt động.');
+        }
+        if (!empty($row['deadline'])) {
+            $now = gmdate('Y-m-d H:i:s');
+            if ($row['deadline'] < $now) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Tin tuyển dụng đã hết hạn.');
+            }
+        }
+        $skills = [];
+        if (!empty($row['skillsJson'])) {
+            try {
+                $decoded = json_decode((string) $row['skillsJson'], true, 64, JSON_THROW_ON_ERROR);
+                if (is_array($decoded)) {
+                    foreach ($decoded as $s) {
+                        if (is_string($s) && trim($s) !== '') {
+                            $skills[] = trim($s);
+                        }
+                    }
+                }
+            } catch (\Throwable) {}
+        }
+        if (!empty($row['requirementsJson'])) {
+            try {
+                $decoded = json_decode((string) $row['requirementsJson'], true, 64, JSON_THROW_ON_ERROR);
+                if (is_array($decoded)) {
+                    foreach ($decoded as $s) {
+                        if (is_string($s) && trim($s) !== '') {
+                            $skills[] = trim($s);
+                        }
+                    }
+                }
+            } catch (\Throwable) {}
+        }
+        return [
+            'id' => (string) $row['id'],
+            'title' => (string) ($row['title'] ?? ''),
+            'description' => (string) ($row['description'] ?? ''),
+            'required_skills' => array_values(array_unique($skills)),
+        ];
     }
 
     /**
@@ -76,13 +128,6 @@ final class EnterpriseTalentRepository
         }
         $stmt->execute($params);
 
-        $required = [];
-        foreach ($requiredSkills as $skill) {
-            $normalized = mb_strtolower(trim((string) $skill));
-            if ($normalized !== '') {
-                $required[$normalized] = true;
-            }
-        }
         $candidates = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $studentId = (string) ($row['student_id'] ?? '');
@@ -106,20 +151,30 @@ final class EnterpriseTalentRepository
             }
         }
 
-        $result = [];
-        foreach ($candidates as $candidate) {
-            $names = [];
-            foreach ($candidate['skills'] as $skill) {
-                $names[mb_strtolower(trim((string) $skill['name']))] = true;
-            }
-            foreach ($required as $skill => $_) {
-                if (!isset($names[$skill])) {
-                    continue 2;
+        if ($requiredSkills !== []) {
+            $required = [];
+            foreach ($requiredSkills as $skill) {
+                $normalized = mb_strtolower(trim((string) $skill));
+                if ($normalized !== '') {
+                    $required[$normalized] = true;
                 }
             }
-            $result[] = $candidate;
+            if ($required !== []) {
+                $filtered = [];
+                foreach ($candidates as $candidate) {
+                    foreach ($candidate['skills'] as $skill) {
+                        $name = mb_strtolower(trim((string) ($skill['name'] ?? '')));
+                        if (isset($required[$name])) {
+                            $filtered[] = $candidate;
+                            continue 2;
+                        }
+                    }
+                }
+                return $filtered;
+            }
         }
-        return $result;
+
+        return array_values($candidates);
     }
 
     /** Backwards-compatible descriptive alias for matching callers. */
@@ -128,54 +183,47 @@ final class EnterpriseTalentRepository
         return $this->matchCandidates($enterpriseId, $requiredSkills);
     }
 
-    /** @return list<array<string,mixed>> */
-    public function cachedMatchRanking(string $enterpriseId, string $jobHash): array
+    /** @return ?array<string,mixed> */
+    public function cachedMatchRanking(string $enterpriseId, string $jobHash): ?array
     {
-        $key = $enterpriseId . ':' . $jobHash;
         try {
-            $statement = $this->pdo->prepare('SELECT ranking_json FROM enterprise_ai_match_rankings WHERE enterprise_id = ? AND job_hash = ? LIMIT 1');
+            $statement = $this->pdo->prepare('SELECT ranking_json, updated_at FROM enterprise_ai_match_rankings WHERE enterprise_id = ? AND job_hash = ? LIMIT 1');
             $statement->execute([$enterpriseId, $jobHash]);
-            $json = $statement->fetchColumn();
-            if (is_string($json)) {
-                $decoded = json_decode($json, true, 64, JSON_THROW_ON_ERROR);
-                if (is_array($decoded)) {
+            $row = $statement->fetch(PDO::FETCH_ASSOC);
+            if (is_array($row) && is_string($row['ranking_json'] ?? null)) {
+                $decoded = json_decode($row['ranking_json'], true, 64, JSON_THROW_ON_ERROR);
+                if (is_array($decoded) && ($decoded['analysis_origin'] ?? '') === 'model' && isset($decoded['items']) && is_array($decoded['items'])) {
+                    $decoded['updated_at'] = (string) ($row['updated_at'] ?? '');
                     return $decoded;
                 }
             }
         } catch (Throwable) {
         }
-        return self::$matchRankingCache[$key] ?? [];
+        return null;
     }
 
-    /** @return list<array<string,mixed>> */
-    public function getCachedRanking(string $enterpriseId, string $jobHash): array
+    /** @return ?array<string,mixed> */
+    public function getCachedRanking(string $enterpriseId, string $jobHash): ?array
     {
         return $this->cachedMatchRanking($enterpriseId, $jobHash);
     }
 
-    /** @param list<array<string,mixed>> $ranking */
+    /** @param array<string,mixed> $ranking */
     public function storeMatchRanking(string $enterpriseId, string $jobHash, array $ranking): void
     {
-        self::$matchRankingCache[$enterpriseId . ':' . $jobHash] = $ranking;
-        while (count(self::$matchRankingCache) > 1000) {
-            array_shift(self::$matchRankingCache);
-        }
-        try {
-            $sql = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite'
-                ? 'INSERT OR REPLACE INTO enterprise_ai_match_rankings (enterprise_id, job_hash, ranking_json, updated_at) VALUES (?, ?, ?, ?)'
-                : 'INSERT INTO enterprise_ai_match_rankings (enterprise_id, job_hash, ranking_json, updated_at) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE ranking_json = VALUES(ranking_json), updated_at = VALUES(updated_at)';
-            $this->pdo->prepare($sql)->execute([
-                $enterpriseId,
-                $jobHash,
-                json_encode($ranking, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                gmdate('Y-m-d H:i:s'),
-            ]);
-        } catch (Throwable) {
-            // The in-process cache remains a safe fallback when migration is pending.
-        }
+        $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $sql = $driver === 'sqlite'
+            ? 'INSERT OR REPLACE INTO enterprise_ai_match_rankings (enterprise_id, job_hash, ranking_json, updated_at) VALUES (?, ?, ?, ?)'
+            : 'INSERT INTO enterprise_ai_match_rankings (enterprise_id, job_hash, ranking_json, updated_at) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE ranking_json = VALUES(ranking_json), updated_at = VALUES(updated_at)';
+        $this->pdo->prepare($sql)->execute([
+            $enterpriseId,
+            $jobHash,
+            json_encode($ranking, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            gmdate('Y-m-d H:i:s'),
+        ]);
     }
 
-    /** @param list<array<string,mixed>> $ranking */
+    /** @param array<string,mixed> $ranking */
     public function saveCachedRanking(string $enterpriseId, string $jobHash, array $ranking): void
     {
         $this->storeMatchRanking($enterpriseId, $jobHash, $ranking);
