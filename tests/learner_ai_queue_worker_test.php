@@ -305,6 +305,59 @@ foreach ($studentRows as $queuedJob) {
 }
 queue_assert(count($studentJobKeys) === 6, 'normalized affected IDs dispatch once per capability');
 
+// Test 5 source event types and school post-dispatch hook
+$hookCalls = [];
+$transientSchoolFail = 1;
+$schoolConsumer = new AiDataOutboxConsumer(
+    $outboxRepo,
+    $dispatcher,
+    static fn(string $s, string $c): string => hash('sha256', "$s:$c"),
+    static fn(string $studentId): bool => true,
+    $outboxMetrics,
+    static function (array $students) use (&$hookCalls, &$transientSchoolFail): void {
+        if ($transientSchoolFail > 0) {
+            $transientSchoolFail--;
+            throw new \RuntimeException('school_refresh_dispatch_failed');
+        }
+        $hookCalls[] = $students;
+    }
+);
+
+$fiveEvents = [
+    'assessment.submitted',
+    'badge.awarded',
+    'roadmap.progress_updated',
+    'roadmap.feedback',
+    'recommendation.feedback',
+];
+foreach ($fiveEvents as $idx => $evtType) {
+    $outboxRepo->append(new AiDataOutbox(
+        "evt-type-{$idx}",
+        'aggregate',
+        "agg-{$idx}",
+        1,
+        ["student-type-{$idx}"],
+        $evtType,
+        "hash-type-{$idx}"
+    ));
+}
+
+// First consume: evt-type-0 hits transient hook failure
+$consumed1 = $schoolConsumer->consume(10);
+queue_assert($consumed1 === 4, '4 of 5 events delivered while first transient school error kept 1 event pending');
+$pendingEvents = $outboxRepo->pending(10);
+queue_assert(count($pendingEvents) === 1 && $pendingEvents[0]['id'] === 'evt-type-0', 'transient school dispatch failure leaves event pending');
+
+// Check metrics for school_refresh_dispatch_failed
+$schoolErrors = array_filter($outboxMetrics->events(), static fn(array $e): bool => ($e['queue_error'] ?? '') === 'school_refresh_dispatch_failed');
+queue_assert(count($schoolErrors) === 1, 'school_refresh_dispatch_failed metric category is recorded');
+
+// Replay pending event
+$consumed2 = $schoolConsumer->consume(10);
+queue_assert($consumed2 === 1 && $outboxRepo->pending(10) === [], 'replayed outbox event delivers after school dispatch recovers');
+queue_assert(count($hookCalls) === 5, 'all 5 event types invoked the school post-dispatch hook');
+
+
 // =========================================================================
 // Block F: Burst Debouncing & Unioned Capability Coalescing
 // =========================================================================

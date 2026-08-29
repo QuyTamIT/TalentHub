@@ -17,12 +17,18 @@ use TalentHub\Learner\Ai\Service\AiCapabilityProfileService;
 use TalentHub\Learner\Ai\Service\ProfileAnalysisRefreshService;
 use TalentHub\Learner\Ai\Provider\ProviderRetryAfterException;
 use TalentHub\Learner\Ai\Observability\AiMetricsCollector;
+use TalentHub\Modules\School\Repository\SchoolAiAggregateRepository;
+use TalentHub\Modules\School\Repository\DatabaseSchoolAiRefreshJobRepository;
+use TalentHub\Modules\School\Service\SchoolAiRefreshCoordinator;
 use TalentHub\Rbac\Service\PermissionService;
 
 $pdo=(new Connection(require __DIR__.'/database.php'))->connect();
 $sessionConfig=require __DIR__.'/session.php';$sessionConfig['name']=SessionManager::SESSION_STUDENT;
 $context=new LearnerApiContext($pdo,new SessionManager($sessionConfig),new PermissionService($pdo),'learner-ai-worker');
 $jobs=new DatabaseAiRefreshJobRepository($pdo);
+$schoolAggregates=new SchoolAiAggregateRepository($pdo);
+$schoolJobs=new DatabaseSchoolAiRefreshJobRepository($pdo);
+$schoolCoordinator=new SchoolAiRefreshCoordinator($pdo,$schoolAggregates,$schoolJobs,5);
 $outbox=new AiDataOutboxConsumer(
  new DatabaseAiDataOutboxRepository($pdo),
  new AiRefreshDispatcher($jobs),
@@ -33,6 +39,7 @@ $outbox=new AiDataOutboxConsumer(
   return $s->fetchColumn()!==false;
  },
  AiMetricsCollector::shared(),
+ static fn(array $studentIds)=>$schoolCoordinator->dispatchForStudents($studentIds),
 );
 $profiles=new DatabaseAiCapabilityProfileRepository($pdo);
 $profileService=new AiCapabilityProfileService();

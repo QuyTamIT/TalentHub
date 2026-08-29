@@ -167,6 +167,6 @@ final class AiMetricsCollector
     private function category(string $value): string
     {
         $value = strtolower(trim($value));
-        return in_array($value, ['quota_exhausted', 'rate_limited', 'rate_limit_exceeded', 'timeout', 'provider_unavailable', 'invalid_credentials', 'malformed_output', 'malformed_outbox', 'outbox_dispatch_failed', 'refresh_lease_lost', 'capability_refresh_unavailable', 'server_error'], true) ? $value : 'provider_error';
+        return in_array($value, ['quota_exhausted', 'rate_limited', 'rate_limit_exceeded', 'timeout', 'provider_unavailable', 'invalid_credentials', 'malformed_output', 'malformed_outbox', 'outbox_dispatch_failed', 'school_refresh_dispatch_failed', 'refresh_lease_lost', 'capability_refresh_unavailable', 'server_error'], true) ? $value : 'provider_error';
     }
 }
