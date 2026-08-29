@@ -229,3 +229,4 @@ $assert($missingTableFailedClosed, 'Missing notifications table fails closed');
 
 
 echo "All tests in learner_notifications_api_test.php PASSED." . PHP_EOL;
+    
