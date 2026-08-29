@@ -97,7 +97,15 @@ $assetVersion = static function (string $relativePath): string {
                         </article>
                     </section>
                     <div class="learner-visually-hidden" data-roadmap-insights hidden aria-hidden="true"></div>
-                    <div data-ai-result-list></div>
+                    <section class="learner-card learner-ai-live-catalog" data-ai-page aria-labelledby="live-recommendations-title">
+                        <div class="learner-roadmap-section-heading"><div><span>Cập nhật theo dữ liệu mới nhất</span><h2 id="live-recommendations-title">Gợi ý hoạt động, dự án và cơ hội</h2></div><button class="learner-btn learner-btn--outline" type="button" data-ai-generate>Làm mới gợi ý</button></div>
+                        <p data-ai-state-status role="status" aria-live="polite"></p>
+                        <div data-ai-loading hidden>Đang tải gợi ý...</div>
+                        <div data-ai-consent hidden><p data-ai-consent-copy></p><div data-ai-consent-actions></div></div>
+                        <div data-ai-insufficient hidden><p data-ai-insufficient-copy>Chưa đủ dữ liệu để tạo gợi ý.</p></div>
+                        <div data-ai-source-error hidden><p><span data-ai-source-error-copy>Chưa thể tải gợi ý.</span> <button class="learner-btn learner-btn--outline" type="button" data-ai-retry>Thử lại</button></p></div>
+                        <div data-ai-results hidden><div class="learner-ai-live-catalog__meta"><strong data-ai-engine-label></strong><span data-ai-generated-at></span></div><div data-ai-engine-details></div><div data-ai-result-list></div><small data-ai-feedback-status role="status" aria-live="polite"></small></div>
+                    </section>
                     <details class="learner-card learner-roadmap-secondary learner-roadmap-credentials-disclosure">
                         <summary>Huy hiệu &amp; chứng chỉ phù hợp</summary>
                         <section class="learner-school-credential-section learner-school-credential-section--roadmap" aria-labelledby="roadmap-credentials-title">

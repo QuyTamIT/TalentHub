@@ -80,11 +80,11 @@ function viewRecorder() {
 test('roadmap module maps all stable API states', () => {
   const { presentationState } = require(modulePath);
   assert.deepEqual([
-    'not_generated', 'pending', 'consent_required', 'insufficient_data',
+    'not_generated', 'pending', 'consent_required', 'data_insufficient',
     'source_unavailable', 'engine_failure', 'ready_model', 'stale_model', 'fallback_rule',
   ].map((state) => presentationState({ state })), [
     'not-generated', 'pending', 'consent-required', 'insufficient-data',
-    'source-error', 'source-error', 'ready-model', 'stale-model', 'fallback-rule',
+    'source-error', 'source-error', 'ready-model', 'stale-model', 'source-error',
   ]);
 });
 
@@ -213,8 +213,8 @@ test('view model exposes one current phase and compact direction rows', () => {
   assert.equal(model.overallPercent, 11);
 });
 
-test('canonical ready_rule state renders as an explicit fallback rule', () => {
-    assert.equal(require(modulePath).presentationState({ state: 'ready_rule' }), 'fallback-rule');
+test('strict roadmap rejects canonical ready_rule as unavailable', () => {
+    assert.equal(require(modulePath).presentationState({ state: 'ready_rule' }), 'source-error');
 });
 
 test('pending roadmap polls with bounded exponential backoff and stops when ready', async () => {
@@ -498,14 +498,14 @@ test('roadmap explains the development direction when no catalog activity is lin
   assert.match(copy.textContent, /Nhiệm vụ 1\.2/);
 });
 
-test('page exposes the Roadmap-first experience without the unavailable catalog section', () => {
+test('page exposes the Roadmap-first experience with the live catalog section', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
-  assert.match(page, /ROADMAP PHÁT TRIỂN 90 NGÀY/);
+  assert.match(page, /LỘ TRÌNH PHÁT TRIỂN 90 NGÀY/);
   assert.match(page, /learner-roadmap-hero/);
   assert.match(page, /learner-roadmap-analysis/);
   assert.match(page, /learner-roadmap-credentials-disclosure/);
   assert.doesNotMatch(page, /data-roadmap-secondary/);
-  assert.doesNotMatch(page, /data-ai-page/);
+  assert.match(page, /data-ai-page/);
   assert.doesNotMatch(page, /learner-roadmap-capability__grid/);
   for (const marker of [
     'data-ai-roadmap-page', 'data-roadmap-summary', 'data-roadmap-direction',
@@ -515,7 +515,7 @@ test('page exposes the Roadmap-first experience without the unavailable catalog 
     'data-roadmap-trends', 'data-roadmap-potential-paths', 'data-roadmap-growth-hypotheses',
     'data-roadmap-generate', 'data-roadmap-retry', 'learner-ai-roadmap.js',
   ]) assert.match(page, new RegExp(marker));
-  assert.doesNotMatch(page, /learner-recommendations\.js/);
+  assert.match(page, /learner-recommendations\.js/);
 });
 
 test('AI page provides an accessible four-step processing panel above the saved roadmap', () => {
@@ -539,11 +539,12 @@ test('processing panel CSS supports four-step desktop, mobile and reduced motion
   assert.match(css, /prefers-reduced-motion:\s*reduce[\s\S]*learner-roadmap-processing/);
 });
 
-test('AI page omits the unavailable live recommendation catalog section', () => {
+test('AI page mounts the live recommendation catalog section', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
-  assert.doesNotMatch(page, /data-ai-page/);
-  assert.doesNotMatch(page, /learner-recommendations\.js/);
-  assert.doesNotMatch(page, /Gợi ý hoạt động &amp; cơ hội phù hợp/);
+  assert.match(page, /data-ai-page/);
+  assert.match(page, /data-ai-results/);
+  assert.match(page, /learner-recommendations\.js/);
+  assert.match(page, /Gợi ý hoạt động, dự án và cơ hội/);
 });
 
 test('roadmap prompt targets Gemini 3.7 Flash and detailed student-friendly milestones', () => {
@@ -559,8 +560,8 @@ test('roadmap prompt targets Gemini 3.7 Flash and detailed student-friendly mile
 
 test('recommendation client remains isolated from the Roadmap-first page', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
-  assert.doesNotMatch(page, /data-ai-page/);
-  assert.doesNotMatch(page, /learner-recommendations\.js/);
+  assert.match(page, /data-ai-page/);
+  assert.match(page, /learner-recommendations\.js/);
   const client = fs.readFileSync(path.join(root, 'assets', 'js', 'learner-recommendations.js'), 'utf8');
   assert.match(client, /api\.get\('\/recommendations\.php'\)/);
   assert.doesNotMatch(client, /generativelanguage\.googleapis|x-goog-api-key/i);
@@ -576,8 +577,8 @@ test('renderer uses safe text nodes and never duplicates assessment result conte
     assert.equal(source.includes(duplicated), false, `renderer omits ${duplicated}`);
   }
   assert.match(source, /Tóm tắt từ AI/);
-  assert.match(source, /Gợi ý dự phòng theo quy tắc/);
-  assert.match(source, /AI chưa được bật cho tài khoản này/);
+  assert.doesNotMatch(source, /Gợi ý dự phòng theo quy tắc/);
+  assert.doesNotMatch(source, /AI chưa được bật cho tài khoản này/);
   assert.match(source, /(?:document|doc)\.createElement\('details'\)/);
   assert.doesNotMatch(source, /Chưa đủ dữ liệu để vẽ bản đồ năng khiếu/);
 });

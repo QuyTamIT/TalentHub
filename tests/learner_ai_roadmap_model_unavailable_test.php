@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Task 2 contract: when the model roadmap engine cannot serve a real Gemini
  * roadmap, it must throw `RoadmapModelUnavailable` so `RoadmapService` can
- * retain the last-known-good model or return `ai_unavailable` rather than
+ * retain the last-known-good model or return `provider_unavailable` rather than
  * silently substituting a rule roadmap.
  */
 
@@ -272,7 +272,8 @@ $consentFailureService = new RoadmapService(
     \TalentHub\Learner\Ai\Rollout\RolloutEvidenceFactory::fromEnvironment(model_unavailable_config(), model_unavailable_evidence()),
 );
 $consentFailure = $consentFailureService->generate('student-stale', 'request-consent', 'idempotency-consent', true);
-model_unavailable_assert(($consentFailure['state'] ?? null) === 'ai_unavailable', 'provider-attempt consent revocation suppresses last-known-good model content');
+model_unavailable_assert(($consentFailure['state'] ?? null) === 'consent_required', 'provider-attempt consent revocation returns the canonical consent state');
+model_unavailable_assert(($consentFailure['analysis_origin'] ?? null) === null, 'provider-attempt consent revocation suppresses last-known-good model content');
 
 // A saved rule roadmap from the pre-100% rollout must not remain visible or
 // be retained when a selected Gemini refresh fails.
@@ -301,7 +302,7 @@ model_unavailable_assert(
 $retainedRepository->replacePending(null);
 $failedRuleRefresh = $service->generate('student-stale', 'request-old-rule', 'idempotency-old-rule', true);
 model_unavailable_assert(
-    ($failedRuleRefresh['state'] ?? null) === 'ai_unavailable'
+    ($failedRuleRefresh['state'] ?? null) === 'provider_unavailable'
         && ($failedRuleRefresh['analysis_origin'] ?? null) === null,
     'a failed Gemini refresh never retains a legacy rule roadmap',
 );
@@ -332,9 +333,9 @@ $stagedService = new RoadmapService(
     \TalentHub\Learner\Ai\Rollout\RolloutEvidenceFactory::fromEnvironment($stagedConfig, model_unavailable_evidence(50)),
 );
 $stagedFailure = $stagedService->generate($assignedStudentId, 'request-staged', 'idempotency-staged', true);
-model_unavailable_assert(($stagedFailure['state'] ?? null) === 'ai_unavailable', 'an assigned staged-rollout learner never receives a retained rule after Gemini fails');
+model_unavailable_assert(($stagedFailure['state'] ?? null) === 'provider_unavailable', 'an assigned staged-rollout learner never receives a retained rule after Gemini fails');
 
-// 6. When no prior roadmap exists, RoadmapService must return ai_unavailable (no rule substitution).
+// 6. When no prior roadmap exists, RoadmapService must return provider_unavailable (no rule substitution).
 $emptyRepository = new class implements RoadmapRepository {
     public int $saveCalls = 0;
     public function latestForStudent(string $studentId): ?array { return null; }
@@ -365,10 +366,10 @@ $emptyService = new RoadmapService(
     ),
 );
 $emptyResult = $emptyService->generate('student-empty', 'request-empty', 'idempotency-empty', true);
-model_unavailable_assert(($emptyResult['state'] ?? null) === 'ai_unavailable', 'no prior roadmap + failing engine returns ai_unavailable');
-model_unavailable_assert(($emptyResult['analysis_origin'] ?? null) === null, 'ai_unavailable never claims a generated origin');
-model_unavailable_assert(($emptyResult['rule_version'] ?? null) === null, 'ai_unavailable never exposes a rule version');
-model_unavailable_assert($emptyRepository->saveCalls === 0, 'ai_unavailable does not persist a new rule roadmap');
+model_unavailable_assert(($emptyResult['state'] ?? null) === 'provider_unavailable', 'no prior roadmap + failing engine returns provider_unavailable');
+model_unavailable_assert(($emptyResult['analysis_origin'] ?? null) === null, 'provider_unavailable never claims a generated origin');
+model_unavailable_assert(($emptyResult['rule_version'] ?? null) === null, 'provider_unavailable never exposes a rule version');
+model_unavailable_assert($emptyRepository->saveCalls === 0, 'provider_unavailable does not persist a new rule roadmap');
 
 // Internal limiter failures in worker mode need an integer retry delay and
 // must remain typed as rate_limited instead of escaping as TypeError.

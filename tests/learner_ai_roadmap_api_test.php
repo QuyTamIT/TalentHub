@@ -91,6 +91,7 @@ function roadmap_api_database(string $path): PDO
     $pdo->exec('CREATE TABLE learner_ai_roadmap_phases (id TEXT PRIMARY KEY, roadmapId TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE learner_ai_roadmap_tasks (id TEXT PRIMARY KEY, phaseId TEXT NOT NULL)');
     $pdo->exec('CREATE TABLE learner_ai_roadmap_task_events (id TEXT PRIMARY KEY, taskId TEXT NOT NULL, studentId TEXT NOT NULL, status TEXT NOT NULL, requestId TEXT NOT NULL, occurredAt TEXT NOT NULL, createdAt TEXT NOT NULL)');
+    $pdo->exec('CREATE TABLE learner_ai_data_outbox (id TEXT PRIMARY KEY, aggregate_type TEXT NOT NULL, aggregate_id TEXT NOT NULL, tenant_id TEXT NULL, event_type TEXT NOT NULL, aggregate_version INTEGER NOT NULL, payload_hash TEXT NOT NULL, affected_student_ids TEXT NOT NULL, delivery_status TEXT NOT NULL, occurred_at TEXT NOT NULL)');
     $pdo->exec("INSERT INTO roles VALUES ('student-role','student'),('teacher-role','teacher')");
     $pdo->exec("INSERT INTO users VALUES ('student-user','student-role','active'),('teacher-user','teacher-role','active')");
     $pdo->exec("INSERT INTO permissions VALUES ('read-permission','student_profile.read_own'),('write-permission','student_profile.update_own')");
@@ -246,10 +247,10 @@ putenv('APP_ENV=test');
 $_ENV['APP_ENV'] = 'test';
 $modelStudentId = '11111111-1111-4111-8111-111111111111';
 $blockedGates = [
-    'shadow_gate_unapproved' => [['TALENTHUB_AI_SHADOW_GATE_APPROVED'=>'false'], 'ai_unavailable'],
+    'shadow_gate_unapproved' => [['TALENTHUB_AI_SHADOW_GATE_APPROVED'=>'false'], 'provider_unavailable'],
     'visibility_zero' => [['TALENTHUB_AI_VISIBLE_PERCENT'=>'0'], 'ready_rule'],
-    'pilot_paused' => [['TALENTHUB_AI_PILOT_PAUSED'=>'true'], 'ai_unavailable'],
-    'approval_missing' => [['TALENTHUB_AI_PILOT_APPROVAL_REFERENCE'=>''], 'ai_unavailable'],
+    'pilot_paused' => [['TALENTHUB_AI_PILOT_PAUSED'=>'true'], 'provider_unavailable'],
+    'approval_missing' => [['TALENTHUB_AI_PILOT_APPROVAL_REFERENCE'=>''], 'provider_unavailable'],
 ];
 foreach ($blockedGates as $gateName => [$gateOverride, $expectedState]) {
     $GLOBALS['__TALENTHUB_TEST_ENV__'] = array_replace($modelGateBase, $gateOverride);

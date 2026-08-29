@@ -232,11 +232,12 @@ test('AI page version-stamps every runtime JavaScript asset', () => {
   }
 });
 
-test('AI page does not expose the unavailable live recommendation catalog UI', () => {
+test('AI page mounts the live recommendation catalog beside the roadmap', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
-  assert.doesNotMatch(page, /data-ai-page/);
-  assert.doesNotMatch(page, /data-ai-source-error/);
-  assert.doesNotMatch(page, /learner-recommendations\.js/);
+  assert.match(page, /data-ai-page/);
+  assert.match(page, /data-ai-source-error/);
+  assert.match(page, /data-ai-results/);
+  assert.match(page, /learner-recommendations\.js/);
 });
 
 test('recommendations group current item types without inventing a roadmap', () => {
@@ -260,8 +261,8 @@ test('recommendation client stays regression-covered beside the Roadmap-first ex
   assert.match(source, /document\.createElement\('details'\)/);
   assert.match(source, /payload\?\.provider/);
   assert.match(source, /payload\?\.model_version/);
-  assert.match(page, /ROADMAP PHÁT TRIỂN 90 NGÀY/);
-  assert.doesNotMatch(page, /learner-recommendations\.js/);
+  assert.match(page, /LỘ TRÌNH PHÁT TRIỂN 90 NGÀY/);
+  assert.match(page, /learner-recommendations\.js/);
   assert.match(page, /learner-ai-roadmap\.js/);
 });
 
