@@ -46,52 +46,63 @@ final class ModelRoadmapEngine implements RoadmapEngine
         }
 
         $request = $this->prompts->create($input, $context);
-        try {
-            $response = $this->provider->generate(
-                $request,
-                new BoundProviderAttemptAuthorizer($this->consentGate, $studentId, $input, $context),
-            );
-        } catch (\TalentHub\Learner\Ai\Contracts\ProviderUnavailableException $e) {
-            throw new RoadmapModelUnavailable($e->reason());
-        } catch (\Throwable $e) {
-            throw new RoadmapModelUnavailable('provider_unavailable');
-        }
-        if (!$response->isSuccess()) {
-            if ($context->shouldPropagateProviderRetry() && $response->errorCode() === 'rate_limited' && $response->retryAfterSeconds() !== null) {
-                throw new ProviderRetryAfterException('rate_limited', $response->retryAfterSeconds());
+        // Provider transport retries deal with network/5xx failures. A model
+        // can also return a syntactically valid JSON document that violates a
+        // safety or provenance constraint; allow one fresh provider attempt
+        // for that transient case while keeping the validator fail-closed.
+        $validationAttempts = max(1, min(2, $this->config->maxAttempts()));
+        for ($validationAttempt = 1; $validationAttempt <= $validationAttempts; $validationAttempt++) {
+            try {
+                $response = $this->provider->generate(
+                    $request,
+                    new BoundProviderAttemptAuthorizer($this->consentGate, $studentId, $input, $context),
+                );
+            } catch (\TalentHub\Learner\Ai\Contracts\ProviderUnavailableException $e) {
+                throw new RoadmapModelUnavailable($e->reason());
+            } catch (\Throwable $e) {
+                throw new RoadmapModelUnavailable('provider_unavailable');
             }
-            $reason = in_array((string) $response->errorCode(), RoadmapModelUnavailable::REASONS, true)
-                ? (string) $response->errorCode()
-                : 'provider_unavailable';
-            throw new RoadmapModelUnavailable($reason);
+            if (!$response->isSuccess()) {
+                if ($context->shouldPropagateProviderRetry() && $response->errorCode() === 'rate_limited' && $response->retryAfterSeconds() !== null) {
+                    throw new ProviderRetryAfterException('rate_limited', $response->retryAfterSeconds());
+                }
+                $reason = in_array((string) $response->errorCode(), RoadmapModelUnavailable::REASONS, true)
+                    ? (string) $response->errorCode()
+                    : 'provider_unavailable';
+                throw new RoadmapModelUnavailable($reason);
+            }
+
+            try {
+                $requestPayload = $request->payload();
+                $allowedActivities = $requestPayload['allowed_activity_ids'] ?? [];
+                $allowedCatalogIds = $requestPayload['allowed_catalog_ids'] ?? [];
+                $validator = new RoadmapAnalysisValidator(
+                    $request->evidenceReferenceIds(),
+                    is_array($allowedActivities) ? $allowedActivities : [],
+                    is_array($allowedCatalogIds) ? $allowedCatalogIds : [],
+                );
+                $analysis = $validator->fromProviderPayload($response->payload(), [
+                    'origin' => 'model',
+                    'provider' => (string) $this->config->provider(),
+                    'model_version' => (string) $this->config->model(),
+                    'prompt_version' => $request->promptVersion(),
+                    'confidence_band' => $this->confidenceBand($input),
+                    'provider_request_id' => $response->providerRequestId(),
+                    'response_hash' => $response->responseHash(),
+                ]);
+                $validator->validate($analysis);
+                if (($this->evaluator->evaluateRoadmap($analysis, $input)['valid'] ?? false) !== true) {
+                    throw new \RuntimeException('Roadmap safety evaluation failed.');
+                }
+                return $analysis;
+            } catch (\Throwable) {
+                if ($validationAttempt >= $validationAttempts) {
+                    throw new RoadmapModelUnavailable('invalid_model_response');
+                }
+            }
         }
 
-        try {
-            $requestPayload = $request->payload();
-            $allowedActivities = $requestPayload['allowed_activity_ids'] ?? [];
-            $allowedCatalogIds = $requestPayload['allowed_catalog_ids'] ?? [];
-            $validator = new RoadmapAnalysisValidator(
-                $request->evidenceReferenceIds(),
-                is_array($allowedActivities) ? $allowedActivities : [],
-                is_array($allowedCatalogIds) ? $allowedCatalogIds : [],
-            );
-            $analysis = $validator->fromProviderPayload($response->payload(), [
-                'origin' => 'model',
-                'provider' => (string) $this->config->provider(),
-                'model_version' => (string) $this->config->model(),
-                'prompt_version' => $request->promptVersion(),
-                'confidence_band' => $this->confidenceBand($input),
-                'provider_request_id' => $response->providerRequestId(),
-                'response_hash' => $response->responseHash(),
-            ]);
-            $validator->validate($analysis);
-            if (($this->evaluator->evaluateRoadmap($analysis, $input)['valid'] ?? false) !== true) {
-                throw new \RuntimeException('Roadmap safety evaluation failed.');
-            }
-            return $analysis;
-        } catch (\Throwable) {
-            throw new RoadmapModelUnavailable('invalid_model_response');
-        }
+        throw new RoadmapModelUnavailable('invalid_model_response');
     }
 
     private function confidenceBand(RecommendationInput $input): string

@@ -14,6 +14,9 @@ use TalentHub\Learner\Ai\Observability\AiMetricsCollector;
 
 final class HttpRoadmapProvider implements RoadmapProvider
 {
+    private const GEMINI_SCHEMA_MAX_BYTES = 8000;
+    private const GEMINI_SCHEMA_MAX_ENUM_VALUES = 200;
+
     /** @var Closure(string,array<string,string>,string,int):array<string,mixed> */
     private readonly Closure $http;
 
@@ -142,7 +145,83 @@ final class HttpRoadmapProvider implements RoadmapProvider
         }
         $cleaned = $this->cleanSchemaNode($schema);
         $cleaned['type'] = 'object';
+        if ($this->requiresStructuralSchema($cleaned)) {
+            $cleaned = $this->structuralSchemaNode($cleaned);
+            $cleaned['type'] = 'object';
+        }
         return $cleaned;
+    }
+
+    /** @param array<string,mixed> $schema */
+    private function requiresStructuralSchema(array $schema): bool
+    {
+        try {
+            $bytes = strlen(json_encode($schema, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        } catch (JsonException) {
+            return true;
+        }
+        return $bytes > self::GEMINI_SCHEMA_MAX_BYTES
+            || $this->enumValueCount($schema) > self::GEMINI_SCHEMA_MAX_ENUM_VALUES;
+    }
+
+    private function enumValueCount(mixed $node): int
+    {
+        if (!is_array($node)) return 0;
+        $count = 0;
+        foreach ($node as $key => $value) {
+            if ($key === 'enum' && is_array($value)) {
+                $count += count($value);
+            }
+            $count += $this->enumValueCount($value);
+        }
+        return $count;
+    }
+
+    /**
+     * Gemini rejects deeply repeated dynamic enums even though every keyword
+     * is individually supported. Keep the required object/array structure in
+     * responseFormat and leave the complete constraints in the user payload;
+     * RoadmapAnalysisValidator still enforces them before anything is saved.
+     *
+     * @return array<string,mixed>|list<mixed>|string|int|float|bool|null
+     */
+    private function structuralSchemaNode(mixed $node): mixed
+    {
+        if (!is_array($node)) return $node;
+        if (array_is_list($node)) {
+            return array_map(fn (mixed $value): mixed => $this->structuralSchemaNode($value), $node);
+        }
+        $result = [];
+        foreach ($node as $key => $value) {
+            if ($key === 'enum' && is_array($value)) {
+                // Keep small closed vocabularies (action types, directions,
+                // categories) so the model cannot invent them. Large dynamic
+                // learner/catalog/evidence enums are retained in the prompt
+                // and enforced by the server-side validator instead.
+                if (count($value) <= 20) {
+                    $result[$key] = $value;
+                }
+                continue;
+            }
+            if ($key === 'properties' && is_array($value) && !array_is_list($value)) {
+                $properties = [];
+                foreach ($value as $property => $propertySchema) {
+                    if (is_string($property) && is_array($propertySchema)) {
+                        $properties[$property] = $this->structuralSchemaNode($propertySchema);
+                    }
+                }
+                $result[$key] = $properties;
+                continue;
+            }
+            if (in_array($key, ['type', 'required', 'additionalProperties'], true)) {
+                $result[$key] = $value;
+                continue;
+            }
+            if (in_array($key, ['items', 'anyOf'], true)) {
+                $result[$key] = $this->structuralSchemaNode($value);
+            }
+        }
+        return $result === [] ? ['type' => 'object'] : $result;
     }
 
     /** @param array<string,mixed>|list<mixed> $node @return array<string,mixed>|list<mixed>|string|int|float|bool|null */

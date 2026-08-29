@@ -159,6 +159,50 @@ roadmap_provider_assert(
     is_array($selfTaskType) && ($selfTaskType['enum'] ?? null) === ['self_task'],
     'native Gemini schema converts oneOf/const discriminators into documented anyOf/enum constraints',
 );
+$largeEnum = array_map(static fn (int $index): string => sprintf('evidence-%03d', $index), range(1, 50));
+$largeProperties = [];
+foreach (range(1, 12) as $index) {
+    $largeProperties['evidence_group_' . $index] = [
+        'type' => 'array',
+        'items' => ['type' => 'string', 'enum' => $largeEnum],
+        'minItems' => 1,
+        'uniqueItems' => true,
+    ];
+}
+$largeRequest = new ProviderRequest('learner-roadmap-prompt-1.4.0', [
+    'instructions' => ['Chỉ trả về JSON hợp lệ.'],
+    'output_schema' => [
+        'type' => 'object',
+        'additionalProperties' => false,
+        'required' => array_keys($largeProperties),
+        'properties' => $largeProperties,
+    ],
+], [
+    'evidence-001' => new RecommendationEvidence(
+        'assessment',
+        'result-large-schema',
+        '2026-08-20T00:00:00+00:00',
+        'provider_source',
+        ['test_type' => 'holland'],
+    ),
+]);
+$largeCaptured = [];
+$largeProvider = new HttpRoadmapProvider($geminiConfig, static function ($url, $headers, $body, $timeout) use (&$largeCaptured, $rawDirect): array {
+    $largeCaptured = compact('url', 'headers', 'body', 'timeout');
+    return ['status' => 200, 'headers' => [], 'body' => $rawDirect];
+});
+$largeProvider->generate($largeRequest, roadmap_provider_authorizer());
+$largeBody = json_decode((string) ($largeCaptured['body'] ?? ''), true, 512, JSON_THROW_ON_ERROR);
+$largeGeminiSchema = $largeBody['generationConfig']['responseFormat']['text']['schema'] ?? null;
+roadmap_provider_assert(
+    is_array($largeGeminiSchema) && !str_contains(json_encode($largeGeminiSchema, JSON_THROW_ON_ERROR), '"enum"'),
+    'native Gemini roadmap reduces oversized dynamic-enum schemas to a structural schema accepted by Gemini',
+);
+$largePrompt = json_decode((string) ($largeBody['contents'][0]['parts'][0]['text'] ?? ''), true, 512, JSON_THROW_ON_ERROR);
+roadmap_provider_assert(
+    ($largePrompt['output_schema']['properties']['evidence_group_1']['items']['enum'] ?? null) === $largeEnum,
+    'full roadmap constraints remain in the model prompt and are not weakened before server-side validation',
+);
 roadmap_provider_assert(($geminiBody['generationConfig']['maxOutputTokens'] ?? null) === 8192, 'native Gemini roadmap reserves enough output tokens for the full three-phase contract');
 roadmap_provider_assert(($geminiBody['generationConfig']['thinkingConfig']['thinkingLevel'] ?? null) === 'low', 'native Gemini roadmap uses the documented low thinking level for bounded latency and output headroom');
 roadmap_provider_assert(!isset($geminiBody['response_format'], $geminiBody['max_tokens'], $geminiBody['messages']), 'native Gemini roadmap omits OpenAI-only fields');

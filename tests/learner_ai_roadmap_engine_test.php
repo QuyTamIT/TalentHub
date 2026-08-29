@@ -30,7 +30,7 @@ function roadmap_engine_config(bool $enabled = true): RecommendationConfig
     return RecommendationConfig::fromEnvironment([
         'APP_ENV' => 'test', 'TALENTHUB_AI_ENABLED' => 'true', 'TALENTHUB_AI_PROVIDER' => '9router_gemini',
         'TALENTHUB_AI_MODEL' => 'ag/gemini-3.7-flash-high', 'TALENTHUB_AI_API_URL' => 'http://127.0.0.1:20128/v1/chat/completions',
-        'TALENTHUB_AI_API_KEY' => 'test-key', 'TALENTHUB_AI_ALLOWED_HOSTS' => '127.0.0.1',
+        'TALENTHUB_AI_API_KEY' => 'test-key', 'TALENTHUB_AI_ALLOWED_HOSTS' => '127.0.0.1', 'TALENTHUB_AI_MAX_ATTEMPTS' => '2',
     ]);
 }
 
@@ -165,6 +165,21 @@ try {
 } catch (RoadmapModelUnavailable $exception) {
     roadmap_engine_assert($exception->reason() === 'invalid_model_response', 'missing citations throw with the canonical reason');
 }
+
+$invalidThenValidProvider = new class([$missingCitation, $fixture]) implements RoadmapProvider {
+    public int $calls = 0;
+    public function __construct(private array $payloads) {}
+    public function generate($request, $authorizer): RoadmapProviderResponse
+    {
+        $this->calls++;
+        $authorizer->beforeAttempt(1);
+        $payload = $this->payloads[min($this->calls - 1, count($this->payloads) - 1)];
+        return RoadmapProviderResponse::success($payload, null, str_repeat((string) $this->calls, 64));
+    }
+};
+$retriedModel = roadmap_engine_build($invalidThenValidProvider)->generate(roadmap_engine_input(), roadmap_engine_context());
+roadmap_engine_assert($retriedModel->origin() === 'model', 'a transient invalid model response is retried and then accepted');
+roadmap_engine_assert($invalidThenValidProvider->calls === 2, 'invalid model response consumes one bounded validation retry');
 
 try {
     $failure = roadmap_engine_build(roadmap_engine_provider(RoadmapProviderResponse::failure('provider_unavailable')))
