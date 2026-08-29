@@ -23,7 +23,25 @@ final class InternshipService
     public function listPosts(string $userId): array { return $this->repository->posts($this->repository->enterpriseIdForUser($userId)); }
     public function post(string $userId, string $postId): array { return $this->repository->post($this->repository->enterpriseIdForUser($userId), $this->uuid($postId, 'postId')); }
     public function listApplications(string $userId): array { return $this->repository->applications($this->repository->enterpriseIdForUser($userId)); }
-    public function application(string $userId, string $applicationId): array { return $this->repository->application($this->repository->enterpriseIdForUser($userId), $this->uuid($applicationId, 'applicationId')); }
+    public function application(
+        string $userId,
+        string $applicationId,
+        ?string $requestId = null,
+        ?string $ipAddress = null
+    ): array {
+        $enterpriseId = $this->repository->enterpriseIdForUser($userId);
+        $applicationId = $this->uuid($applicationId, 'applicationId');
+        $application = $this->repository->application($enterpriseId, $applicationId);
+        $this->repository->recordApplicationProfileAccess(
+            $enterpriseId,
+            $userId,
+            (string) $application['studentId'],
+            $applicationId,
+            $requestId,
+            $ipAddress
+        );
+        return $application;
+    }
 
     public function createPost(string $userId, array $input): array
     {

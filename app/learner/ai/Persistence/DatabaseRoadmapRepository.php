@@ -20,10 +20,14 @@ final class DatabaseRoadmapRepository implements RoadmapRepository
     /** @var Closure():string */
     private readonly Closure $clock;
 
-    /** @param null|callable():string $clock */
     public function __construct(private readonly PDO $pdo, ?callable $clock = null)
     {
         $this->clock = $clock === null ? static fn (): string => gmdate('Y-m-d\TH:i:s.uP') : Closure::fromCallable($clock);
+    }
+
+    public function pdo(): PDO
+    {
+        return $this->pdo;
     }
 
     public function saveCompleted(string $studentId, string $runId, RoadmapAnalysis $analysis, array $providerAudit): array

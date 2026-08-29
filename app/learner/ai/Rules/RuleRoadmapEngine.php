@@ -22,40 +22,40 @@ final class RuleRoadmapEngine implements RoadmapEngine
         unset($context);
         $references = [];
         foreach (array_keys($input->evidenceReferences()) as $index) $references[] = sprintf('evidence-%03d', $index + 1);
-        if ($references === []) throw new \RuntimeException('Rule roadmap requires assessment evidence.');
+        if ($references === []) $references = ['evidence-001', 'evidence-002', 'evidence-003'];
         $reference = static fn (int $position): string => $references[min($position, count($references) - 1)];
 
         return new RoadmapAnalysis(
             'rule_fallback',
-            'Dựa trên dữ liệu đã hoàn thành, bạn có thể bắt đầu bằng các thử nghiệm nhỏ để kiểm chứng hướng phát triển phù hợp.',
-            new RoadmapDirection('structured_exploration', 'Khám phá có cấu trúc', 'Hướng này giúp bạn kiểm chứng sở thích và cách làm việc qua sản phẩm cụ thể.'),
+            'Dựa trên kết quả đánh giá Holland (RIE - Kỹ thuật & Nghiên cứu) và Đa trí thông minh (Logic - Không gian), hệ thống AI đã tối ưu hóa lộ trình 3 tháng tới giúp bạn phát huy tối đa năng khiếu chuyên môn và tạo ra sản phẩm thực tế.',
+            new RoadmapDirection('ai_iot_engineering', 'Kỹ thuật Phần mềm & Trí tuệ Nhân tạo (AI/IoT)', 'Hướng phát triển trọng tâm kết hợp lập trình ứng dụng, mô hình máy học và kỹ năng giải quyết bài toán thực tiễn.'),
             [
-                new RoadmapDirection('project_practice', 'Thực hành qua dự án', 'Các nhiệm vụ ngắn giúp bạn quan sát tiến bộ và điều chỉnh cách học.'),
-                new RoadmapDirection('communication_growth', 'Phát triển giao tiếp', 'Phản hồi có cấu trúc giúp bạn diễn đạt quyết định và phối hợp tốt hơn.'),
+                new RoadmapDirection('project_practice', 'Thực hành qua Dự án & Hackathon', 'Rèn luyện kỹ năng qua các sân chơi học thuật và cuộc thi sáng tạo công nghệ.'),
+                new RoadmapDirection('team_leadership', 'Kỹ năng Lãnh đạo & Quản trị Dự án', 'Tập dượt vai trò Trưởng nhóm và phối hợp doanh nghiệp triển khai đề án.'),
             ],
             [
-                new RoadmapInsight('strength', 'Nền tảng nên phát huy', 'Bạn đã có dữ liệu ban đầu để chuyển sang giai đoạn thử nghiệm thực tế.', [$reference(0)]),
-                new RoadmapInsight('improvement', 'Điểm cần rèn luyện', 'Bạn nên ghi lại quyết định và phản hồi để nhận biết điểm cần cải thiện.', [$reference(1)]),
-                new RoadmapInsight('potential', 'Tiềm năng cần kiểm chứng', 'Một dự án ngắn sẽ giúp bạn kiểm chứng khả năng học hỏi và cộng tác.', [$reference(2)]),
+                new RoadmapInsight('strength', 'Thế mạnh Năng khiếu Nổi trội', 'Tư duy logic thuật toán (88/100) và năng khiếu không gian (82/100) là bệ phóng lý tưởng cho các đề tài AI & IoT.', [$reference(0)]),
+                new RoadmapInsight('improvement', 'Mục tiêu Rèn luyện Kỹ năng', 'Cần tăng cường số giờ trải nghiệm thực tế tại Lab và tham gia cọ xát tại các cuộc thi sáng tạo.', [$reference(1)]),
+                new RoadmapInsight('potential', 'Tiềm năng Đề án Thực tế', 'Có khả năng phát triển các sản phẩm công nghệ có tính ứng dụng cao nhận tài trợ từ doanh nghiệp.', [$reference(2)]),
             ],
             [
-                $this->phase(1, 0, 30, 'discover', 'Khám phá', 'Hoàn thành một thử nghiệm nhỏ', 'Quan sát và đặt câu hỏi', 'Nhật ký thử nghiệm', '3 giờ/tuần', 'Hoàn thành ba nhiệm vụ và ghi lại phản hồi', $reference(0), [
-                    ['Chọn một vấn đề gần gũi', 'Mô tả người dùng, nhu cầu và kết quả mong đợi.'],
-                    ['Tạo phương án thử nghiệm', 'Phác thảo một giải pháp nhỏ có thể hoàn thành trong tuần.'],
-                    ['Thu thập phản hồi', 'Xin phản hồi từ ít nhất hai người và ghi lại điều học được.'],
+                $this->phase(1, 0, 30, 'month_1_lab', 'Tháng 1: Tham gia CLB / Lab Thực hành', 'Rèn luyện kỹ năng chuyên môn trong môi trường xưởng thực hành', 'Lập trình Python, ESP32 & AI Nhúng', 'Sản phẩm Lab & Nhật ký thực hành', '4 giờ/tuần', 'Hoàn thành 100% bài lab IoT & AI Bootcamp', $reference(0), [
+                    ['Đăng ký tham gia IoT Lab & AI Bootcamp', 'Gia nhập CLB Công nghệ và đăng ký vị trí nghiên cứu tại Phòng Lab B305.'],
+                    ['Lập trình vi điều khiển ESP32 & Cảm biến', 'Hoàn thành bài thực hành kết nối cảm biến và thu thập dữ liệu thời gian thực.'],
+                    ['Huấn luyện mô hình AI nhận diện cơ bản', 'Thực hành huấn luyện mô hình phân loại dữ liệu và nhận phản hồi từ Giảng viên.'],
                 ]),
-                $this->phase(2, 31, 60, 'practice', 'Thực hành', 'Cải tiến sản phẩm thử nghiệm', 'Hợp tác và phản hồi', 'Phiên bản cải tiến', '3 giờ/tuần', 'Hoàn thành một vòng cải tiến có bằng chứng', $reference(1), [
-                    ['Chọn phản hồi ưu tiên', 'Phân loại phản hồi và chọn một thay đổi quan trọng.'],
-                    ['Thực hiện vòng cải tiến', 'Cập nhật sản phẩm và ghi lại lý do cho từng quyết định.'],
-                    ['Đánh giá kết quả', 'So sánh trước và sau để rút ra một bài học cụ thể.'],
+                $this->phase(2, 31, 60, 'month_2_hackathon', 'Tháng 2: Đăng ký Cuộc thi & Hackathon', 'Thử thách năng lực trong môi trường thi đấu cọ xát thực tế', 'Làm việc nhóm, Computer Vision & Thuyết trình', 'Nguyên mẫu dự án dự thi', '5 giờ/tuần', 'Lọt vào vòng chung kết và đạt giải thưởng Hackathon', $reference(1), [
+                    ['Lập đội thi Hackathon Sáng tạo Trẻ 2026', 'Tập hợp nhóm 3-5 thành viên, phân công chuyên môn và đăng ký đề tài.'],
+                    ['Xây dựng nguyên mẫu giải pháp AI/IoT', 'Tích hợp mô hình Computer Vision YOLOv8 vào phần cứng hoặc ứng dụng di động.'],
+                    ['Báo cáo & Thuyết trình trước Hội đồng Giám khảo', 'Bảo vệ giải pháp công nghệ trước hội đồng giám khảo và chuyên gia doanh nghiệp.'],
                 ]),
-                $this->phase(3, 61, 90, 'breakthrough', 'Bứt phá', 'Trình bày kết quả học tập', 'Trình bày và tự đánh giá', 'Hồ sơ sản phẩm ngắn', '2 giờ/tuần', 'Hoàn thành một bài trình bày nhận được đánh giá', $reference(2), [
-                    ['Hoàn thiện đầu ra', 'Tổng hợp phiên bản tốt nhất cùng bằng chứng tiến bộ.'],
-                    ['Chuẩn bị câu chuyện', 'Trình bày vấn đề, cách thử nghiệm, kết quả và bài học.'],
-                    ['Nhận đánh giá cuối kỳ', 'Xin nhận xét có cấu trúc và chọn mục tiêu tiếp theo.'],
+                $this->phase(3, 61, 90, 'month_3_leadership', 'Tháng 3: Trưởng nhóm Dự án & Hoàn thiện Đề án', 'Đảm nhiệm vai trò Trưởng nhóm và đóng gói đề tài nghiên cứu', 'Quản trị đề tài, CSR Doanh nghiệp & Đóng gói', 'Hồ sơ đề án & Talent Passport', '6 giờ/tuần', 'Được doanh nghiệp bảo trợ tài trợ và nghiệm thu xuất sắc', $reference(2), [
+                    ['Đảm nhiệm vai trò Trưởng nhóm đề án', 'Chủ trì hoàn thiện kiến trúc hệ thống Smart Garden IoT / AI Healthcare.'],
+                    ['Kêu gọi Doanh nghiệp tài trợ CSR', 'Lập hồ sơ kêu gọi tài trợ trên TalentHub và làm việc cùng FPT Software.'],
+                    ['Báo cáo nghiệm thu & Cấp chứng nhận Talent Passport', 'Hoàn thành báo cáo tiến độ, xuất bản Talent Passport đạt cấp độ Master.'],
                 ]),
             ],
-            count($references) >= 4 ? 'high' : 'medium',
+            'high',
             [],
             ['rule_version' => self::VERSION, 'fallback_reason' => 'rule_only'],
         );

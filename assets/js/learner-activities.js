@@ -483,9 +483,11 @@ document.addEventListener('DOMContentLoaded',()=>{
     const activity=boot.activity;
     let capacitySnapshot=normalizeRegistrationCapacity(activity);
     let registrationBlock=null;
-    let registration=all().find(r=>r.activity_id===activity.id);
     const button=detail.querySelector('[data-register-current]');
     const message=detail.querySelector('[data-registration-message]');
+    const feedbackBox=detail.querySelector('[data-registration-feedback-box]');
+    const feedbackTitle=detail.querySelector('[data-feedback-title]');
+    const feedbackDesc=detail.querySelector('[data-feedback-desc]');
     const count=detail.querySelector('[data-activity-count]');
     const participants=detail.querySelector('[data-activity-participants]');
     const remaining=detail.querySelector('[data-activity-remaining]');
@@ -517,10 +519,40 @@ document.addEventListener('DOMContentLoaded',()=>{
         ?{label:'Đăng ký trực tuyến chưa khả dụng',disabled:true,tone:'outline',explanation:'Kết nối đăng ký trực tuyến hiện chưa khả dụng.'}
         :activityCtaState(activity,registration);
       const cta=registrationBlock||defaultCta;
-      button.textContent=cta.label;
-      button.disabled=cta.disabled;
-      setButtonTone(cta.tone);
-      if(message){message.textContent=resolveRegistrationMessage(cta.explanation,commandFeedback);message.dataset.tone=cta.tone;}
+      const isSuccessState=Boolean(registration&&['approved','registered','attended','checked_in','pending'].includes(registration.status));
+
+      if(feedbackBox){
+        if(isSuccessState){
+          feedbackBox.hidden=false;
+          feedbackBox.classList.add('learner-activity-feedback-box--success');
+          if(registration.status==='pending'){
+            if(feedbackTitle)feedbackTitle.textContent='Đã gửi yêu cầu đăng ký!';
+            if(feedbackDesc)feedbackDesc.textContent='Hệ thống đã chuyển yêu cầu đến giáo viên phụ trách để xét duyệt.';
+          }else{
+            if(feedbackTitle)feedbackTitle.textContent='Đăng ký tham gia thành công!';
+            if(feedbackDesc)feedbackDesc.textContent='Hệ thống đã ghi nhận tên bạn vào danh sách. Vui lòng có mặt đúng giờ để check-in QR.';
+          }
+        }else{
+          feedbackBox.hidden=true;
+        }
+      }
+
+      if(isSuccessState){
+        button.textContent=registration.status==='pending'?'✓ Đã gửi yêu cầu đăng ký':'✓ Đã đăng ký tham gia';
+        button.disabled=true;
+        button.classList.add('learner-btn--registered-disabled');
+        if(message)message.hidden=true;
+      }else{
+        button.textContent=cta.label;
+        button.disabled=cta.disabled;
+        button.classList.remove('learner-btn--registered-disabled');
+        setButtonTone(cta.tone);
+        if(message){
+          message.hidden=false;
+          message.textContent=resolveRegistrationMessage(cta.explanation,commandFeedback);
+          message.dataset.tone=cta.tone;
+        }
+      }
     };
     render();
     button?.addEventListener('click',async()=>{

@@ -14,29 +14,33 @@ use TalentHub\Rbac\Service\PermissionService;
 
 date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-function teacherQrEscape(mixed $value): string
-{
-    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+if (!function_exists('teacherQrEscape')) {
+    function teacherQrEscape(mixed $value): string
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    }
 }
 
-function teacherQrInitials(string $name): string
-{
-    $name = trim($name);
-    if ($name === '') {
-        return 'GV';
+if (!function_exists('teacherQrInitials')) {
+    function teacherQrInitials(string $name): string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return 'GV';
+        }
+
+        $cleanName = preg_replace('/^(Thầy|Cô|Gv\.|GV|Ths\.|TS\.|ThS\.)\s+/iu', '', $name);
+        $cleanName = trim((string)$cleanName) ?: $name;
+
+        $parts = preg_split('/\s+/u', $cleanName) ?: [];
+        if (count($parts) === 1) {
+            return mb_strtoupper(mb_substr($parts[0], 0, min(2, mb_strlen($parts[0]))));
+        }
+        $first = (string) ($parts[0] ?? '');
+        $last = (string) ($parts[count($parts) - 1] ?? '');
+
+        return mb_strtoupper(mb_substr($first, 0, 1) . mb_substr($last, 0, 1)) ?: 'GV';
     }
-
-    $cleanName = preg_replace('/^(Thầy|Cô|Gv\.|GV|Ths\.|TS\.|ThS\.)\s+/iu', '', $name);
-    $cleanName = trim((string)$cleanName) ?: $name;
-
-    $parts = preg_split('/\s+/u', $cleanName) ?: [];
-    if (count($parts) === 1) {
-        return mb_strtoupper(mb_substr($parts[0], 0, min(2, mb_strlen($parts[0]))));
-    }
-    $first = (string) ($parts[0] ?? '');
-    $last = (string) ($parts[count($parts) - 1] ?? '');
-
-    return mb_strtoupper(mb_substr($first, 0, 1) . mb_substr($last, 0, 1)) ?: 'GV';
 }
 
 use TalentHub\Bootstrap\PortalGuard;
@@ -247,14 +251,6 @@ $statusClasses = [
                         </div>
                         <span class="teacher-chip teacher-chip--primary">Phạm vi: hoạt động của tôi</span>
                     </section>
-
-                    <div class="teacher-qr-phase-notice" role="note">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <circle cx="12" cy="12" r="9"></circle>
-                            <path d="M12 11v5M12 8h.01"></path>
-                        </svg>
-                        <span>Chức năng quét và ghi nhận điểm danh của học viên sẽ được triển khai ở giai đoạn tiếp theo.</span>
-                    </div>
 
                     <?php if ($flash !== null): ?>
                         <div class="teacher-qr-flash teacher-qr-flash--<?= teacherQrEscape((string) ($flash['type'] ?? 'success')); ?>" role="status">

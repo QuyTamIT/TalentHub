@@ -97,12 +97,31 @@ if (stripos($school['name'], 'BTEC') !== false) {
     $initials = count($words) > 1 ? mb_substr($words[0], 0, 1) . mb_substr($words[count($words) - 1], 0, 1) : mb_substr($school['name'], 0, 2);
 }
 
+// Calculate active student count accurately from database
+$totalStudents = 0;
+if ($pdo !== null && !empty($school['id'])) {
+    try {
+        $stCntStmt = $pdo->prepare("
+            SELECT COUNT(sp.id)
+            FROM student_profiles sp
+            JOIN classes c ON c.id = sp.classId
+            WHERE c.schoolId = :schoolId AND sp.studyStatus = 'active'
+        ");
+        $stCntStmt->execute(['schoolId' => $school['id']]);
+        $totalStudents = (int) $stCntStmt->fetchColumn();
+    } catch (\Throwable $e) {}
+}
+if ($totalStudents === 0) {
+    $totalStudents = (int) ($school['studentCount'] ?? 11);
+}
+
 $schoolInfo = [
     'name'          => $school['name'],
     'logo_initials' => $initials,
     'level'         => $school['level'] ?? 'Đại học / Cao đẳng',
     'district'      => $school['address'] ?? '',
     'academic_year' => $school['academicYear'] ?? '2025 - 2026',
+    'total_students'=> $totalStudents,
 ];
 
 $currentRoute = '/app/school/account.php';
@@ -154,7 +173,7 @@ include __DIR__ . '/includes/page-banner.php';
     </div>
     <div style="display: flex; gap: 1.5rem; text-align: right;">
         <div>
-            <div style="font-size: 1.25rem; font-weight: 700; color: #1D4ED8;"><?= (int) ($school['studentCount'] ?? 0); ?></div>
+            <div style="font-size: 1.25rem; font-weight: 700; color: #1D4ED8;"><?= (int) $totalStudents; ?></div>
             <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Sinh viên</div>
         </div>
         <div style="border-left: 1px solid var(--border); padding-left: 1.5rem;">
@@ -166,7 +185,7 @@ include __DIR__ . '/includes/page-banner.php';
 
 <!-- Two-Column Profile & Account Form -->
 <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 1.75rem; align-items: start;">
-    
+
     <!-- PHẦN 1: THÔNG TIN TỔ CHỨC / TRƯỜNG HỌC -->
     <section class="school-section-box" style="margin-bottom: 0;">
         <div class="school-section-box__header" style="border-bottom: 1px solid #F1F5F9; padding-bottom: 1rem; margin-bottom: 1.25rem;">

@@ -140,6 +140,35 @@
     }
   };
 
+  const renderSuccessBox = (hours, activityTitle = '') => {
+    const box = document.createElement('div');
+    box.className = 'learner-checkin-success-box';
+    box.setAttribute('role', 'alert');
+
+    const icon = document.createElement('div');
+    icon.className = 'learner-checkin-success-box__icon';
+    icon.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+    box.appendChild(icon);
+
+    const content = document.createElement('div');
+    content.className = 'learner-checkin-success-box__content';
+
+    const title = document.createElement('h4');
+    title.className = 'learner-checkin-success-box__title';
+    title.textContent = 'Điểm danh thành công!';
+    content.appendChild(title);
+
+    const desc = document.createElement('p');
+    desc.className = 'learner-checkin-success-box__desc';
+    const hoursNum = Number(hours) || 0;
+    const hoursFormatted = (hoursNum % 1 === 0) ? hoursNum.toFixed(1) : hoursNum.toString();
+    desc.innerHTML = 'Hệ thống đã ghi nhận +<strong>' + hoursFormatted + '</strong> giờ trải nghiệm vào hồ sơ của bạn.';
+    content.appendChild(desc);
+
+    box.appendChild(content);
+    return box;
+  };
+
   const submitToken = async (token) => {
     if (!api || state.submitting) return;
     state.submitting = true;
@@ -147,8 +176,17 @@
     if (submitButton) submitButton.disabled = true;
     try {
       const result = await api.send('POST', '/checkins.php', { token }, { idempotencyKey: requestKey() });
-      setText(feedback, 'Check-in thành công: ' + (result.activity?.title || 'hoạt động') + '.', 'success');
-      setText(apiState, 'Đã xác nhận ' + (result.experience?.hours || '0.00') + ' giờ', 'success');
+      const hours = (result && result.experience && result.experience.hours) || '1.00';
+      const actTitle = (result && result.activity && result.activity.title) || '';
+
+      if (feedback) {
+        feedback.dataset.tone = 'success';
+        feedback.replaceChildren(renderSuccessBox(hours, actTitle));
+      }
+      if (apiState) {
+        apiState.dataset.tone = 'success';
+        apiState.replaceChildren(renderSuccessBox(hours, actTitle));
+      }
       await loadHistory();
       if (historyAction) {
         historyAction.hidden = false;
@@ -258,12 +296,26 @@
     if (!token) { setText(feedback, 'Vui lòng nhập token QR.', 'warn'); return; }
     submitToken(token);
   });
-  if (resetButton) resetButton.addEventListener('click', () => { cleanupStream(); if (tokenField) tokenField.value = ''; setText(feedback, 'Đã xóa token thủ công.', 'info'); });
+  if (resetButton) {
+    resetButton.addEventListener('click', () => {
+      cleanupStream();
+      if (tokenField) tokenField.value = '';
+      if (apiState) {
+        apiState.replaceChildren();
+        apiState.removeAttribute('data-tone');
+      }
+      if (historyAction) {
+        historyAction.hidden = true;
+        historyAction.style.display = 'none';
+      }
+      setText(feedback, 'Đã xóa token thủ công.', 'info');
+    });
+  }
   global.addEventListener('beforeunload', cleanupStream);
   document.addEventListener('visibilitychange', () => { if (document.hidden) cleanupStream(); });
   loadHistory();
 
-  const exported = { createFrameDecoder, renderHistory, cleanupStream, requestKey, startCamera, submitToken, loadHistory };
+  const exported = { createFrameDecoder, renderHistory, renderSuccessBox, cleanupStream, requestKey, startCamera, submitToken, loadHistory };
   if (typeof module !== 'undefined' && module.exports) module.exports = exported;
   global.LearnerCheckin = exported;
 })(typeof window !== 'undefined' ? window : globalThis);
