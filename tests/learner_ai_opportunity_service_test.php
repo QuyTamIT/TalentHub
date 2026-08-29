@@ -244,6 +244,7 @@ function service_make_scenario(
     ?RecommendationInput $input = null,
     ?array $candidateEvidence = null,
     ?DateTimeImmutable $clock = null,
+    ?callable $scorer = null,
 ): OpportunityMatchService {
     $decision = $decision ?? service_test_decision(true);
     $input = $input ?? service_test_input();
@@ -263,7 +264,7 @@ function service_make_scenario(
         static fn (string $studentId): ConsentDecision => $decision,
         static fn (string $studentId): RecommendationInput => $input,
         static fn (string $studentId): array => $candidateEvidence,
-        service_test_scorer(),
+        $scorer ?? service_test_scorer(),
         $engine === null ? null : $engine->engine,
         $clock ?? new DateTimeImmutable('2026-08-29T00:00:00Z', new DateTimeZone('UTC')),
     );
@@ -371,9 +372,13 @@ service_assert(!str_contains($dumped, 'candidate_allow_list'), 'no raw prompt pe
 service_assert(!str_contains($dumped, 'Return exactly three distinct catalog IDs'), 'no prompt instructions persisted');
 
 $failingProvider = service_test_engine(ProviderResponse::failure('provider_unavailable'));
-$noCacheService = service_make_scenario(service_test_pdo(), $failingProvider);
+$noCachePdo = service_test_pdo();
+$noCacheService = service_make_scenario($noCachePdo, $failingProvider);
 service_assert($noCacheService->generate('student-1', 'request-5', 'idempotency-fail-00005')['state'] === 'provider_unavailable', 'provider failure without cache returns provider_unavailable');
 service_assert(count($failingProvider->requests()) === 1, 'provider failure is never retried by the service');
+$failedReplay = $noCacheService->generate('student-1', 'request-5b', 'idempotency-fail-00005');
+service_assert($failedReplay['state'] === 'provider_unavailable', 'failed idempotent replay preserves provider_unavailable');
+service_assert(count($failingProvider->requests()) === 1, 'failed idempotent replay does not call the provider again');
 
 $stalePdo = service_test_pdo();
 $goodProvider = service_test_engine(ProviderResponse::success(service_test_model_items()));
@@ -386,6 +391,9 @@ service_assert($stale['state'] === 'stale_model', 'provider failure with canonic
 service_assert(service_test_catalog_ids($stale['items']) === ['internship-1', 'internship-2', 'internship-3'], 'stale model keeps the canonical top three');
 service_assert(array_column($stale['items'], 'match_score') === [92, 84, 76], 'stale model keeps persisted match scores');
 service_assert(count($brokenProvider->requests()) === 1, 'stale fallback never retries the provider');
+$staleReplay = $staleServiceAfter->generate('student-1', 'request-7b', 'idempotency-stale-00007');
+service_assert($staleReplay['state'] === 'stale_model', 'stale idempotent replay preserves stale_model');
+service_assert(count($brokenProvider->requests()) === 1, 'stale idempotent replay does not call the provider again');
 
 $validatorRejectingProvider = service_test_engine(ProviderResponse::success([
     ['catalog_id' => 'invented-9999', 'gemini_score' => 50, 'why_fit' => 'Invented id attempt one for the validator.', 'matched_skill_codes' => ['python'], 'missing_skill_codes' => [], 'expected_outcome_codes' => ['dashboard'], 'evidence_ref_ids' => ['opportunity:internship-1']],
@@ -446,6 +454,33 @@ service_assert(($firstPayload['input']['candidate_allow_list'] ?? []) === ($seco
 service_assert(json_encode($firstPayload['input']['student_profile'] ?? [], JSON_THROW_ON_ERROR) === json_encode($secondPayload['input']['student_profile'] ?? [], JSON_THROW_ON_ERROR), 'malformed retry reuses the same snapshot');
 service_assert(service_test_catalog_ids($malformedResult['items']) === ['internship-1', 'internship-2', 'internship-3'], 'malformed retry persists the canonical top three');
 service_assert(array_column($malformedResult['items'], 'match_score') === [92, 84, 76], 'malformed retry final scores compose 70/30');
+
+$missingEvidenceItems = service_test_model_items();
+$missingEvidenceItems[0]['evidence_ref_ids'] = [];
+$missingEvidenceProvider = service_test_engine(
+    ProviderResponse::success($missingEvidenceItems),
+    ProviderResponse::success(service_test_model_items()),
+);
+$missingEvidenceService = service_make_scenario(service_test_pdo(), $missingEvidenceProvider);
+service_assert($missingEvidenceService->generate('student-1', 'request-missing-evidence-0001', 'idempotency-missing-evidence-01')['state'] === 'ready_model', 'missing evidence is classified as malformed and retried');
+service_assert(count($missingEvidenceProvider->requests()) === 2, 'missing evidence retries the provider exactly once');
+
+$hardGateProvider = service_test_engine(ProviderResponse::success(service_test_model_items()));
+$hardGateScorer = static function (LearnerOpportunityProfile $profile, OpportunityCandidate $candidate): OpportunityScore {
+    if ($candidate->catalogId() === 'internship-5') {
+        throw new DomainException('candidate_ineligible');
+    }
+    return service_test_scorer()($profile, $candidate);
+};
+$hardGateService = service_make_scenario(service_test_pdo(), $hardGateProvider, scorer: $hardGateScorer);
+service_assert($hardGateService->generate('student-1', 'request-hard-gate-0001', 'idempotency-hard-gate-00001')['state'] === 'ready_model', 'scorer hard-gate filters one candidate without escaping the service');
+service_assert(!in_array('internship-5', array_column($hardGateProvider->requests()[0]->payload()['input']['candidate_allow_list'], 'catalog_id'), true), 'hard-gated candidate is not sent to the provider');
+
+$nullEnginePdo = service_test_pdo();
+$nullEngineService = service_make_scenario($nullEnginePdo, null);
+service_assert($nullEngineService->generate('student-1', 'request-null-engine-0001', 'idempotency-null-engine-01')['state'] === 'provider_unavailable', 'missing engine returns provider_unavailable');
+$nullEnginePending = $nullEnginePdo->query("SELECT COUNT(1) FROM learner_recommendation_runs WHERE capability = 'opportunity_match' AND status = 'pending'")->fetchColumn();
+service_assert((int) $nullEnginePending === 0, 'missing engine does not leave a pending run');
 
 $inactiveEvidence = array_map(
     static fn (int $index): array => service_test_candidate_evidence("internship-{$index}"),
@@ -528,5 +563,17 @@ service_assert(array_column($boundaryAllowList, 'catalog_id') === [
     'internship-1', 'internship-2', 'internship-3', 'internship-4', 'internship-5',
     'internship-6', 'internship-7', 'internship-8', 'internship-9', 'internship-10',
 ], 'top ten slice keeps deterministic order');
+
+$partialPdo = service_test_pdo();
+$partialProvider = service_test_engine(ProviderResponse::success(service_test_model_items()));
+$partialService = service_make_scenario($partialPdo, $partialProvider);
+service_assert($partialService->generate('student-1', 'request-partial-0001', 'idempotency-partial-00001')['state'] === 'ready_model', 'partial cache fixture starts with a complete run');
+$partialPdo->exec("DELETE FROM learner_recommendation_items WHERE rankPosition = 3");
+service_assert($partialService->latest('student-1')['state'] === 'not_generated', 'latest rejects a completed run that no longer has exactly three items');
+
+$repositorySource = file_get_contents(dirname(__DIR__) . '/app/learner/ai/Persistence/DatabaseOpportunityMatchRepository.php');
+service_assert(is_string($repositorySource), 'repository source is readable for SQL portability guards');
+service_assert(!str_contains($repositorySource, 'UPDATE learner_recommendation_items AS items'), 'supersede SQL does not use a MySQL self-referencing target alias');
+service_assert(str_contains($repositorySource, 'runs.capability = :capability AND evidence.itemId = :itemId'), 'evidence read is capability scoped');
 
 echo "learner_ai_opportunity_service_test: OK\n";

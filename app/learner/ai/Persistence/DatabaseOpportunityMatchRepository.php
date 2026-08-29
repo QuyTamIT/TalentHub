@@ -57,8 +57,7 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
              WHERE runs.studentId = :studentId
                AND runs.capability = :capability
                AND runs.status = 'completed'
-             ORDER BY runs.createdAt DESC, runs.id DESC
-             LIMIT 20"
+             ORDER BY runs.createdAt DESC, runs.id DESC"
         );
         $statement->execute(['studentId' => $studentId, 'capability' => self::CAPABILITY]);
         $candidateRunIds = array_column($statement->fetchAll(PDO::FETCH_ASSOC), 'id');
@@ -68,13 +67,30 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
             if ($run === null) {
                 continue;
             }
-            $valid = $run['items'] !== [];
+            $valid = count($run['items']) === 3;
+            $catalogIds = [];
+            $ranks = [];
             foreach ($run['items'] as $item) {
-                if (!isset($active[(string) ($item['catalogId'] ?? '')])) {
+                $catalogId = (string) ($item['catalogId'] ?? '');
+                $rank = filter_var($item['rankPosition'] ?? null, FILTER_VALIDATE_INT);
+                $structuredScore = filter_var($item['structuredScore'] ?? null, FILTER_VALIDATE_INT);
+                $geminiScore = filter_var($item['geminiScore'] ?? null, FILTER_VALIDATE_INT);
+                $matchScore = filter_var($item['matchScore'] ?? null, FILTER_VALIDATE_INT);
+                if ($catalogId === ''
+                    || !isset($active[$catalogId])
+                    || isset($catalogIds[$catalogId])
+                    || $rank === false
+                    || $structuredScore === false || $structuredScore < 0 || $structuredScore > 100
+                    || $geminiScore === false || $geminiScore < 0 || $geminiScore > 100
+                    || $matchScore === false || $matchScore < 0 || $matchScore > 100) {
                     $valid = false;
                     break;
                 }
+                $catalogIds[$catalogId] = true;
+                $ranks[] = $rank;
             }
+            sort($ranks);
+            $valid = $valid && $ranks === [1, 2, 3];
             if ($valid) {
                 return $run;
             }
@@ -358,17 +374,15 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
     private function supersedePreviousRuns(string $studentId, string $runId): void
     {
         $statement = $this->pdo->prepare(
-            "UPDATE learner_recommendation_items AS items
+            "UPDATE learner_recommendation_items
              SET lifecycleStatus = 'superseded'
-             WHERE items.id IN (
-                 SELECT items_sub.id
-                 FROM learner_recommendation_items AS items_sub
-                 INNER JOIN learner_recommendation_runs AS runs
-                 ON runs.id = items_sub.runId
+             WHERE lifecycleStatus = 'active'
+               AND runId IN (
+                 SELECT runs.id
+                 FROM learner_recommendation_runs AS runs
                  WHERE runs.studentId = :studentId
                    AND runs.capability = :capability
                    AND runs.id <> :runId
-                   AND items_sub.lifecycleStatus = 'active'
              )"
         );
         $statement->execute(['studentId' => $studentId, 'capability' => self::CAPABILITY, 'runId' => $runId]);
@@ -421,7 +435,7 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
     private function runByIdempotency(string $studentId, string $idempotencyKey): ?array
     {
         $statement = $this->pdo->prepare(
-            "SELECT id, snapshotId, studentId, idempotencyKey, status FROM learner_recommendation_runs WHERE studentId = :studentId AND idempotencyKey = :idempotencyKey AND capability = :capability"
+            "SELECT id, snapshotId, studentId, idempotencyKey, status, safeErrorCode FROM learner_recommendation_runs WHERE studentId = :studentId AND idempotencyKey = :idempotencyKey AND capability = :capability"
         );
         $statement->execute(['studentId' => $studentId, 'idempotencyKey' => $idempotencyKey, 'capability' => self::CAPABILITY]);
         $row = $statement->fetch(PDO::FETCH_ASSOC);
@@ -465,9 +479,9 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
         $run['items'] = [];
         foreach ($items->fetchAll(PDO::FETCH_ASSOC) as $item) {
             $evidence = $this->pdo->prepare(
-                'SELECT evidence.id, evidence.snapshotEvidenceId, evidence.sourceType, evidence.sourceId, evidence.observedAt, evidence.contributionLabel, evidence.safeValueJson, evidence.createdAt FROM learner_recommendation_evidence AS evidence INNER JOIN learner_recommendation_items AS items ON items.id = evidence.itemId INNER JOIN learner_recommendation_runs AS runs ON runs.id = items.runId WHERE evidence.itemId = :itemId AND runs.studentId = :studentId ORDER BY evidence.id ASC'
+                'SELECT evidence.id, evidence.snapshotEvidenceId, evidence.sourceType, evidence.sourceId, evidence.observedAt, evidence.contributionLabel, evidence.safeValueJson, evidence.createdAt FROM learner_recommendation_evidence AS evidence INNER JOIN learner_recommendation_items AS items ON items.id = evidence.itemId INNER JOIN learner_recommendation_runs AS runs ON runs.id = items.runId WHERE runs.capability = :capability AND evidence.itemId = :itemId AND runs.studentId = :studentId ORDER BY evidence.id ASC'
             );
-            $evidence->execute(['itemId' => $item['id'], 'studentId' => $studentId]);
+            $evidence->execute(['capability' => self::CAPABILITY, 'itemId' => $item['id'], 'studentId' => $studentId]);
             $item['itemId'] = $item['id'];
             unset($item['id']);
             $item['evidence'] = $evidence->fetchAll(PDO::FETCH_ASSOC);

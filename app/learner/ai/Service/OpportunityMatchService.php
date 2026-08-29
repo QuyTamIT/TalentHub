@@ -35,6 +35,7 @@ final class OpportunityMatchService
         'must not be empty',
         'must be an array',
         'entries must be strings',
+        'must cite at least one evidence reference',
         'must be an integer within 0..100',
         'is too short to be project-specific',
     ];
@@ -143,13 +144,29 @@ final class OpportunityMatchService
         if (count($candidates) < 3) {
             return $this->response('catalog_insufficient', []);
         }
-        $activeCatalogIds = array_map(static fn (OpportunityCandidate $candidate): string => $candidate->catalogId(), $candidates);
-
         $scored = [];
+        $scoredCandidates = [];
         foreach ($candidates as $candidate) {
-            $scored[$candidate->catalogId()] = ($this->scorer)($profile, $candidate);
+            try {
+                $scored[$candidate->catalogId()] = ($this->scorer)($profile, $candidate);
+                $scoredCandidates[] = $candidate;
+            } catch (\DomainException $exception) {
+                if ($exception->getMessage() !== 'candidate_ineligible') {
+                    return $this->response('provider_unavailable', []);
+                }
+            } catch (Throwable) {
+                return $this->response('provider_unavailable', []);
+            }
         }
-        $allowList = $this->sortAndSlice($candidates, $scored);
+        if (count($scoredCandidates) < 3) {
+            return $this->response('catalog_insufficient', []);
+        }
+        $activeCatalogIds = array_map(static fn (OpportunityCandidate $candidate): string => $candidate->catalogId(), $scoredCandidates);
+        $allowList = $this->sortAndSlice($scoredCandidates, $scored);
+
+        if ($this->engine === null) {
+            return $this->response('provider_unavailable', []);
+        }
 
         $context = new RecommendationContext(
             $decision->allowedScopes(),
@@ -166,14 +183,15 @@ final class OpportunityMatchService
             return $this->response('provider_unavailable', []);
         }
         if (($pending['reused'] ?? false) === true) {
-            $run = $this->repository->latestValid($studentId, $activeCatalogIds);
-            if ($run !== null && ($run['status'] ?? null) === 'completed') {
-                return $this->mapReady($run);
+            $cached = $this->repository->latestValid($studentId, $activeCatalogIds);
+            if (($pending['status'] ?? null) === 'completed' && $cached !== null) {
+                return $this->mapReady($cached);
             }
-            return $this->response('not_generated', []);
-        }
-
-        if ($this->engine === null) {
+            if (($pending['status'] ?? null) === 'failed'
+                && ($pending['safeErrorCode'] ?? null) === 'provider_unavailable'
+                && $cached !== null) {
+                return $this->mapStale($cached);
+            }
             return $this->response('provider_unavailable', []);
         }
 
