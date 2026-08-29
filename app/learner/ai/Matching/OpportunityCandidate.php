@@ -115,7 +115,7 @@ final class OpportunityCandidate
         $rawType = $safeValue['item_type'] ?? $safeValue['opportunity_type'] ?? $evidence['source_type'] ?? null;
         $catalogType = is_string($rawType) ? LearnerOpportunityProfile::normalizeCode($rawType) : '';
         if ($catalogType === '') {
-            $catalogType = 'opportunity';
+            throw new InvalidArgumentException('Opportunity candidate requires a canonical catalog type.');
         }
         if (strlen($catalogType) > 64) {
             throw new InvalidArgumentException('Opportunity candidate requires a canonical catalog type.');
@@ -211,6 +211,9 @@ final class OpportunityCandidate
 
     public function isEligibleFor(LearnerOpportunityProfile $profile, DateTimeImmutable $now): bool
     {
+        if ($this->status === null && $this->publishStatus === null) {
+            return false;
+        }
         if ($this->publishStatus !== null && $this->publishStatus !== 'published') {
             return false;
         }
@@ -267,7 +270,7 @@ final class OpportunityCandidate
     private static function normalizeUrl(mixed $raw): string
     {
         if (!is_string($raw) || trim($raw) === '') {
-            return '';
+            throw new InvalidArgumentException('Opportunity candidate requires a canonical URL.');
         }
         $url = trim($raw);
         if (preg_match('/[\s\x00-\x1F]/', $url) === 1) {
