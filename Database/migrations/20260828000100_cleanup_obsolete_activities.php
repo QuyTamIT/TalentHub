@@ -16,8 +16,8 @@ return new class extends AbstractMigration {
     public function up(MigrationContext $context): void
     {
         $context->execute("
-            UPDATE activities
-            SET status = 'archived'
+            UPDATE activities 
+            SET status = 'archived' 
             WHERE title LIKE '%Triển lãm Công nghệ AI & Robotics%'
         ");
     }
