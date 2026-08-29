@@ -305,15 +305,22 @@
         function renderGroup(sectionName, heading, items) {
             const section = document.createElement('section');
             section.className = `learner-ai-result-group learner-ai-result-group--${sectionName}`;
+            section.dataset.aiResultGroup = sectionName;
             const title = document.createElement('h3');
             title.className = 'learner-ai-result-group__title';
             title.textContent = heading;
+            const count = document.createElement('span');
+            count.className = 'learner-ai-result-group__count';
+            count.textContent = `${items.length} gợi ý`;
+            const headingRow = document.createElement('div');
+            headingRow.className = 'learner-ai-result-group__heading';
+            headingRow.append(title, count);
             const cards = document.createElement('div');
             cards.className = 'learner-ai-result-group__cards';
             for (const item of items) {
                 cards.appendChild(renderItem(item));
             }
-            section.append(title, cards);
+            section.append(headingRow, cards);
             return section;
         }
 
@@ -348,6 +355,10 @@
         function renderItem(item) {
             const article = document.createElement('article');
             article.className = 'learner-card learner-ai-result';
+            const type = text(item.item_type, 'development');
+            const confidence = text(item.confidence_band, '');
+            article.dataset.aiItemType = type;
+            if (confidence !== '') article.dataset.aiConfidence = confidence;
             const title = document.createElement('h4');
             title.textContent = text(item.title, 'Gợi ý phát triển');
             const summary = document.createElement('p');
@@ -355,11 +366,25 @@
             summary.textContent = text(item.summary, 'Gợi ý được xây dựng từ dữ liệu bạn đã cho phép.');
             article.append(title, summary);
 
-            const type = text(item.item_type, 'development');
-            const typeLabel = document.createElement('small');
+            const meta = document.createElement('div');
+            meta.className = 'learner-ai-result__meta';
+            const typeLabel = document.createElement('span');
             typeLabel.className = 'learner-ai-result__type';
-            typeLabel.textContent = ({ activity: 'Hoạt động', strength: 'Điểm mạnh', improvement: 'Cần cải thiện', development: 'Phát triển', roadmap: 'Lộ trình' })[type] || 'Gợi ý';
-            article.appendChild(typeLabel);
+            typeLabel.textContent = ({ activity: 'Hoạt động', strength: 'Điểm mạnh', improvement: 'Cần cải thiện', development: 'Phát triển', roadmap: 'Lộ trình', group: 'Nhóm học tập', community: 'Cộng đồng' })[type] || 'Gợi ý';
+            meta.appendChild(typeLabel);
+            if (confidence !== '') {
+                const confidenceLabel = document.createElement('span');
+                confidenceLabel.className = 'learner-ai-result__confidence';
+                confidenceLabel.textContent = `Độ tin cậy ${({ high: 'cao', medium: 'vừa', low: 'thấp' })[confidence] || confidence}`;
+                meta.appendChild(confidenceLabel);
+            }
+            if (Number.isInteger(item.priority)) {
+                const priorityLabel = document.createElement('span');
+                priorityLabel.className = 'learner-ai-result__priority';
+                priorityLabel.textContent = `Ưu tiên ${item.priority}`;
+                meta.appendChild(priorityLabel);
+            }
+            article.appendChild(meta);
 
             const itemId = text(item.item_id, '');
             const action = item.action && typeof item.action === 'object' ? item.action : null;
