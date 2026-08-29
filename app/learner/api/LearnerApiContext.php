@@ -17,16 +17,21 @@ use TalentHub\Http\Request;
 use TalentHub\Learner\Ai\Availability\AiAvailabilityPolicy;
 use TalentHub\Learner\Ai\Config\RecommendationConfig;
 use TalentHub\Learner\Ai\Consent\ConsentPolicy;
+use TalentHub\Learner\Ai\Consent\ProviderAttemptAuthorizer;
 use TalentHub\Learner\Ai\Consent\ProviderConsentGate;
+use TalentHub\Learner\Ai\Consent\ProviderConsentDenied;
 use TalentHub\Learner\Ai\Contracts\RecommendationEngine;
 use TalentHub\Learner\Ai\Evaluation\RecommendationEvaluator;
 use TalentHub\Learner\Ai\Evaluation\ShadowRunService;
 use TalentHub\Learner\Ai\Model\ModelRecommendationEngine;
+use TalentHub\Learner\Ai\Model\ModelOpportunityMatchEngine;
+use TalentHub\Learner\Ai\Model\OpportunityMatchPromptRegistry;
 use TalentHub\Learner\Ai\Model\PromptRegistry;
 use TalentHub\Learner\Ai\Model\RoadmapPromptRegistry;
 use TalentHub\Learner\Ai\Model\ModelRoadmapEngine;
 use TalentHub\Learner\Ai\Observability\AiMetricsCollector;
 use TalentHub\Learner\Ai\Persistence\DatabaseRecommendationRepository;
+use TalentHub\Learner\Ai\Persistence\DatabaseOpportunityMatchRepository;
 use TalentHub\Learner\Ai\Persistence\DatabaseRoadmapRepository;
 use TalentHub\Learner\Ai\Provider\HttpRecommendationProvider;
 use TalentHub\Learner\Ai\Provider\HttpRoadmapProvider;
@@ -44,6 +49,7 @@ use TalentHub\Learner\Ai\Rules\RuleRecommendationEngine;
 use TalentHub\Learner\Ai\Rules\RuleRoadmapEngine;
 use TalentHub\Learner\Ai\Service\RecommendationResponseMapper;
 use TalentHub\Learner\Ai\Service\RecommendationService;
+use TalentHub\Learner\Ai\Service\OpportunityMatchService;
 use TalentHub\Learner\Ai\Service\RecommendationClickService;
 use TalentHub\Learner\Ai\Service\RoadmapService;
 use TalentHub\Learner\Ai\Service\GroupMatchingService;
@@ -59,6 +65,7 @@ use TalentHub\Learner\Ai\Sources\Database\DatabasePublishedEvaluationSource;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseSkillSource;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseStudentProfileSource;
 use TalentHub\Learner\Ai\Validation\RecommendationResultValidator;
+use TalentHub\Learner\Ai\Matching\StructuredOpportunityScorer;
 use TalentHub\Learner\Assessment\Service\AssessmentCatalogService;
 use TalentHub\Learner\Assessment\Service\EducationBandResolver;
 use TalentHub\Learner\Data\RepositoryFactory;
@@ -359,6 +366,117 @@ final class LearnerApiContext
         $registry->setTransactionPdo($this->pdo);
         $registry->registerTalentPassportSources((new RepositoryFactory('database', $this->pdo))->talentPassport());
         return new RecommendationSnapshotBuilder($registry);
+    }
+
+    public function opportunityMatchService(string $studentId): OpportunityMatchService
+    {
+        $consent = new ConsentPolicy(new DatabaseConsentSource($this->pdo));
+        $snapshotBuilder = $this->snapshotBuilder();
+        $opportunitySource = new DatabaseOpportunitySource($this->pdo);
+        $catalogSource = new DatabaseCatalogSource($this->pdo);
+        $environment = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
+            ? $GLOBALS['__TALENTHUB_TEST_ENV__']
+            : $_ENV;
+
+        try {
+            $config = RecommendationConfig::fromEnvironment($environment);
+        } catch (\Throwable) {
+            $config = RecommendationConfig::fromEnvironment(['TALENTHUB_AI_ENABLED' => 'false']);
+        }
+
+        $engine = null;
+        if ($config->enabled()) {
+            $httpTransport = $GLOBALS['__TALENTHUB_TEST_HTTP__'] ?? null;
+            $provider = new HttpRecommendationProvider(
+                $config,
+                is_callable($httpTransport) ? $httpTransport : null,
+                null,
+                $this->providerCircuitBreaker((string) $config->provider()),
+                null,
+                null,
+                AiMetricsCollector::shared(),
+            );
+            $initialDecision = $consent->decision($studentId);
+            $authorizer = new class($consent, $studentId, $initialDecision->decisionHash()) implements ProviderAttemptAuthorizer {
+                public function __construct(
+                    private readonly ConsentPolicy $consent,
+                    private readonly string $studentId,
+                    private readonly string $decisionHash,
+                ) {
+                }
+
+                public function beforeAttempt(int $attemptNumber): \TalentHub\Learner\Ai\Consent\ConsentDecision
+                {
+                    if ($attemptNumber < 1) {
+                        throw new \InvalidArgumentException('Provider attempt number must be positive.');
+                    }
+                    $decision = $this->consent->decision($this->studentId);
+                    if (!$decision->permitsAllRequiredScopes()) {
+                        throw new ProviderConsentDenied($decision->denialReason() ?? 'consent_missing');
+                    }
+                    if (!hash_equals($this->decisionHash, $decision->decisionHash())) {
+                        throw new ProviderConsentDenied('consent_changed');
+                    }
+                    return $decision;
+                }
+            };
+            $engine = new ModelOpportunityMatchEngine($provider, $authorizer);
+        }
+
+        $inputs = [];
+        $inputResolver = static function (string $candidate) use (&$inputs, $snapshotBuilder, $consent) {
+            if (!isset($inputs[$candidate])) {
+                $decision = $consent->decision($candidate);
+                $inputs[$candidate] = $snapshotBuilder->build($candidate, $decision->allowedScopes());
+            }
+            return $inputs[$candidate];
+        };
+        $candidateResolver = static function (string $candidate) use ($opportunitySource, $catalogSource): array {
+            $evidence = [];
+            $seenCatalogIds = [];
+            foreach ($opportunitySource->forStudent($candidate) as $item) {
+                $catalogId = trim((string) ($item['catalog_id'] ?? $item['opportunity_id'] ?? ''));
+                if ($catalogId === '' || isset($seenCatalogIds[$catalogId])) {
+                    continue;
+                }
+                $seenCatalogIds[$catalogId] = true;
+                $evidence[] = [
+                    'source_type' => 'opportunity',
+                    'source_id' => $catalogId,
+                    'observed_at' => is_string($item['deadline_at'] ?? null) ? $item['deadline_at'] : null,
+                    'safe_value' => $item,
+                ];
+            }
+            foreach ($catalogSource->readForStudent($candidate) as $item) {
+                $catalogId = trim((string) ($item['catalog_id'] ?? $item['source_id'] ?? ''));
+                if ($catalogId === '' || isset($seenCatalogIds[$catalogId])) {
+                    continue;
+                }
+                $seenCatalogIds[$catalogId] = true;
+                $evidence[] = [
+                    'source_type' => 'catalog',
+                    'source_id' => $catalogId,
+                    'observed_at' => is_string($item['observed_at'] ?? null) ? $item['observed_at'] : null,
+                    'safe_value' => $item,
+                ];
+            }
+            return $evidence;
+        };
+        $scorer = new StructuredOpportunityScorer();
+
+        return new OpportunityMatchService(
+            new DatabaseOpportunityMatchRepository(
+                $this->pdo,
+                (string) ($config->provider() ?? 'disabled'),
+                (string) ($config->model() ?? 'disabled'),
+                OpportunityMatchPromptRegistry::VERSION,
+            ),
+            static fn (string $candidate) => $consent->decision($candidate),
+            static fn (string $candidate) => $inputResolver($candidate),
+            $candidateResolver,
+            static fn ($profile, $opportunity) => $scorer->score($profile, $opportunity),
+            $engine,
+        );
     }
 
     public function shadowRunService(?RecommendationEngine $modelEngine = null): ?ShadowRunService
