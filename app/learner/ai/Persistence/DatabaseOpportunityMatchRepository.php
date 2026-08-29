@@ -287,6 +287,7 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
         $insert = $this->pdo->prepare(
             'INSERT INTO learner_recommendation_snapshot_evidence (id, snapshotId, sourceType, sourceId, observedAt, safeValueJson, createdAt) VALUES (:id, :snapshotId, :sourceType, :sourceId, :observedAt, :safeValueJson, :createdAt)'
         );
+        $normalized = [];
         foreach ($input->evidenceReferences() as $reference) {
             $sourceType = $this->required((string) ($reference['source_type'] ?? ''), 'Opportunity match snapshot evidence source type is required.');
             $sourceId = $this->required((string) ($reference['source_id'] ?? ''), 'Opportunity match snapshot evidence source id is required.');
@@ -295,16 +296,50 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
                 throw new \InvalidArgumentException('Opportunity match snapshot evidence safe value is required.');
             }
             $persistableType = self::persistableSourceType($sourceType);
-            if ($this->snapshotEvidenceRowExists($snapshotId, $persistableType, $sourceId)) {
+            $storageKey = $persistableType . ':' . $sourceId;
+            $safeValueJson = self::json($safeValue);
+            $observedAt = $this->databaseTimestamp($reference['observed_at'] ?? null);
+            if (isset($normalized[$storageKey])) {
+                $existing = $normalized[$storageKey];
+                if ($existing['logicalType'] === $sourceType) {
+                    if ($existing['safeValueJson'] === $safeValueJson && $existing['observedAt'] === $observedAt) {
+                        continue;
+                    }
+                    throw new RuntimeException('Opportunity match snapshot contains conflicting duplicate evidence: ' . $sourceType . ':' . $sourceId);
+                }
+                $logicalPair = [$existing['logicalType'], $sourceType];
+                sort($logicalPair, SORT_STRING);
+                if ($logicalPair !== ['catalog', 'opportunity']) {
+                    throw new RuntimeException('Opportunity match evidence normalization collision: ' . $storageKey);
+                }
+                if ($sourceType === 'opportunity') {
+                    $normalized[$storageKey] = [
+                        'logicalType' => $sourceType,
+                        'sourceType' => $persistableType,
+                        'sourceId' => $sourceId,
+                        'observedAt' => $observedAt,
+                        'safeValueJson' => $safeValueJson,
+                    ];
+                }
                 continue;
             }
+            $normalized[$storageKey] = [
+                'logicalType' => $sourceType,
+                'sourceType' => $persistableType,
+                'sourceId' => $sourceId,
+                'observedAt' => $observedAt,
+                'safeValueJson' => $safeValueJson,
+            ];
+        }
+        ksort($normalized, SORT_STRING);
+        foreach ($normalized as $reference) {
             $insert->execute([
                 'id' => self::uuid(),
                 'snapshotId' => $snapshotId,
-                'sourceType' => $persistableType,
-                'sourceId' => $sourceId,
-                'observedAt' => $this->databaseTimestamp($reference['observed_at'] ?? null),
-                'safeValueJson' => self::json($safeValue),
+                'sourceType' => $reference['sourceType'],
+                'sourceId' => $reference['sourceId'],
+                'observedAt' => $reference['observedAt'],
+                'safeValueJson' => $reference['safeValueJson'],
                 'createdAt' => $this->now(),
             ]);
         }
@@ -425,26 +460,23 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
         return $row === false ? null : $row;
     }
 
-    private function snapshotEvidenceRowExists(string $snapshotId, string $sourceType, string $sourceId): bool
-    {
-        $statement = $this->pdo->prepare(
-            'SELECT 1 FROM learner_recommendation_snapshot_evidence WHERE snapshotId = :snapshotId AND sourceType = :sourceType AND sourceId = :sourceId LIMIT 1'
-        );
-        $statement->execute(['snapshotId' => $snapshotId, 'sourceType' => $sourceType, 'sourceId' => $sourceId]);
-        return $statement->fetchColumn() !== false;
-    }
-
     /**
-     * Opportunity matching treats a catalog/project record (source_type
-     * 'catalog') as canonical opportunity evidence. The shared evidence
-     * schema cannot persist 'catalog', so it is normalized to the
-     * persistable 'opportunity' type while keeping the canonical source id.
-     * No other source type is rewritten, so unknown types still fail closed
-     * against the schema CHECK constraint.
+     * The shared recommendation evidence schema stores five stable evidence
+     * families. Opportunity matching keeps the original logical refs in its
+     * analysis JSON, while snapshot/evidence rows use the compatible family
+     * below. Unknown types are deliberately returned unchanged so the schema
+     * CHECK continues to fail closed.
      */
     private static function persistableSourceType(string $sourceType): string
     {
-        return $sourceType === 'catalog' ? 'opportunity' : $sourceType;
+        return match ($sourceType) {
+            'certificate', 'badge', 'achievement' => 'skill',
+            'profile' => 'assessment',
+            'project', 'activity', 'progress', 'checkin' => 'activity_experience',
+            'mentor_evaluation', 'teacher_feedback', 'roadmap_feedback' => 'evaluation',
+            'catalog' => 'opportunity',
+            default => $sourceType,
+        };
     }
 
     private function findSnapshotId(string $studentId, string $contentHash): ?string
