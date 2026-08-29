@@ -93,6 +93,9 @@ function learner_ecosystem_date(string $date): string
                             <option value="Trực tuyến">Trực tuyến</option>
                         </select>
                     </label>
+                    <button class="learner-btn learner-btn--primary learner-opportunity-ai-trigger" type="button" data-opportunity-ai-trigger <?= $initialTab !== 'opportunities' ? 'hidden' : ''; ?>>
+                        <?= learner_icon('sparkles', 18); ?> AI gợi ý dự án phù hợp
+                    </button>
                 </section>
 
                 <section id="panel-enterprises" class="learner-ecosystem-panel" role="tabpanel" aria-labelledby="tab-enterprises" <?= $initialTab !== 'enterprises' ? 'hidden' : ''; ?> data-ecosystem-panel="enterprises">
@@ -149,12 +152,51 @@ function learner_ecosystem_date(string $date): string
                 </section>
 
                 <section id="panel-opportunities" class="learner-ecosystem-panel" role="tabpanel" aria-labelledby="tab-opportunities" <?= $initialTab !== 'opportunities' ? 'hidden' : ''; ?> data-ecosystem-panel="opportunities">
-                    <div class="learner-section-heading learner-ecosystem-panel__heading">
-                        <div>
-                            <h2>Cơ hội dành cho bạn</h2>
-                            <p>Cơ hội tuyển dụng và thực tập do doanh nghiệp công bố.</p>
+                    <section class="learner-opportunity-ai learner-card" data-opportunity-matches aria-labelledby="opportunity-ai-title">
+                        <header class="learner-opportunity-ai__header">
+                            <span class="learner-opportunity-ai__icon" aria-hidden="true"><?= learner_icon('sparkles', 22); ?></span>
+                            <div>
+                                <h2 id="opportunity-ai-title">Top 3 dự án AI đề xuất cho bạn</h2>
+                                <p>Gemini đối chiếu hồ sơ năng lực và điểm đánh giá của bạn với các dự án thật trên TalentHub.</p>
+                            </div>
+                            <p class="learner-opportunity-ai__status" data-opportunity-ai-status role="status" aria-live="polite">Sẵn sàng phân tích</p>
+                        </header>
+
+                        <div class="learner-opportunity-ai__message" data-opportunity-ai-not-generated>
+                            <?= learner_icon('sparkles', 20); ?>
+                            <div><strong>Khám phá dự án phù hợp với năng lực hiện tại</strong><span>AI chỉ sử dụng dữ liệu bạn đã cho phép và giải thích riêng cho từng dự án.</span></div>
                         </div>
-                        <span><?= count($activeOpportunities); ?> cơ hội đang mở</span>
+                        <div class="learner-opportunity-ai__loading" data-opportunity-ai-loading hidden aria-hidden="true">
+                            <?php for ($skeletonIndex = 0; $skeletonIndex < 3; $skeletonIndex++): ?>
+                                <span></span>
+                            <?php endfor; ?>
+                        </div>
+                        <div class="learner-opportunity-ai__message learner-opportunity-ai__message--warning" data-opportunity-ai-consent hidden>
+                            <?= learner_icon('shield-check', 20); ?>
+                            <div><strong>Cần sự đồng ý của bạn</strong><span>Cập nhật quyền sử dụng dữ liệu AI trong hồ sơ năng lực để tiếp tục.</span></div>
+                            <a class="learner-btn learner-btn--outline" href="profile.php">Mở hồ sơ năng lực</a>
+                        </div>
+                        <div class="learner-opportunity-ai__message learner-opportunity-ai__message--warning" data-opportunity-ai-insufficient hidden>
+                            <?= learner_icon('info', 20); ?>
+                            <div><strong>Chưa đủ dữ liệu để phân tích</strong><span>Bổ sung kỹ năng hoặc hoàn thành đánh giá năng lực để nhận kết quả chính xác hơn.</span></div>
+                            <a class="learner-btn learner-btn--outline" href="profile.php">Bổ sung hồ sơ</a>
+                        </div>
+                        <div class="learner-opportunity-ai__message learner-opportunity-ai__message--warning" data-opportunity-ai-catalog-insufficient hidden>
+                            <?= learner_icon('info', 20); ?>
+                            <div><strong>Chưa đủ dự án đang mở</strong><span>TalentHub cần ít nhất ba dự án hợp lệ để tạo bảng xếp hạng Top 3.</span></div>
+                        </div>
+                        <div class="learner-opportunity-ai__message learner-opportunity-ai__message--error" data-opportunity-ai-error hidden>
+                            <?= learner_icon('info', 20); ?>
+                            <div><strong>Phân tích tạm thời chưa khả dụng</strong><span>Hãy thử lại bằng nút AI gợi ý dự án phù hợp ở phía trên.</span></div>
+                        </div>
+                        <div data-opportunity-ai-results hidden>
+                            <div class="learner-opportunity-ai-list" data-opportunity-ai-list></div>
+                        </div>
+                    </section>
+
+                    <div class="learner-section-heading learner-ecosystem-panel__heading learner-opportunity-list-heading">
+                        <h2>Tất cả cơ hội đang mở</h2>
+                        <span><?= count($activeOpportunities); ?> cơ hội</span>
                     </div>
                     <div class="learner-opportunity-grid" data-ecosystem-results>
                         <?php foreach ($activeOpportunities as $opportunity): ?>
@@ -272,5 +314,6 @@ function learner_ecosystem_date(string $date): string
 
     <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
+    <script src="../../assets/js/learner-opportunity-matches.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner-opportunity-matches.js'); ?>"></script>
 </body>
 </html>

@@ -40,6 +40,7 @@ Thumbs.db
 !/tests/learner_ai_opportunity_provider_test.php
 !/tests/learner_ai_opportunity_service_test.php
 !/tests/learner_ai_opportunity_api_test.php
+!/tests/learner_ai_opportunity_ui_test.js
 !/tests/school_ai_insight_ui_test.ps1
 !/tests/enterprise_ai_gemini_matcher_test.php
 !/tests/enterprise_ai_matches_api_test.php

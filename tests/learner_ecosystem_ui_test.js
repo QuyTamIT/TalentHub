@@ -34,6 +34,21 @@ assert.deepEqual(
     ['enterprises', 'opportunities'],
     'learner ecosystem exposes only enterprise and opportunity tabs',
 );
+const opportunityPanelStart = ecosystemPage.indexOf('id="panel-opportunities"');
+const opportunityAiStart = ecosystemPage.indexOf('data-opportunity-matches', opportunityPanelStart);
+const ordinaryResultsStart = ecosystemPage.indexOf('data-ecosystem-results', opportunityPanelStart);
+assert.ok(opportunityAiStart > opportunityPanelStart, 'AI opportunity block is inside the opportunity panel');
+assert.ok(
+    opportunityAiStart < ordinaryResultsStart,
+    'AI opportunity block appears before the ordinary opportunity grid',
+);
+assert.match(ecosystemPage, /AI gợi ý dự án phù hợp/, 'opportunity toolbar exposes the approved AI button copy');
+assert.match(ecosystemPage, /Tất cả cơ hội đang mở/, 'ordinary opportunity list has a separate heading');
+assert.match(
+    ecosystemPage,
+    /learner-opportunity-matches\.js\?v=<\?= filemtime\(dirname\(__DIR__, 2\) \. '\/assets\/js\/learner-opportunity-matches\.js'\); \?>/,
+    'opportunity match bundle uses filemtime cache busting',
+);
 assert.doesNotMatch(ecosystemPage, /data-ecosystem-tab="schools"/, 'school tab is removed from learner ecosystem UI');
 assert.doesNotMatch(ecosystemPage, /data-ecosystem-panel="schools"/, 'school panel is removed from learner ecosystem UI');
 assert.doesNotMatch(ecosystemPage, /Trường học đối tác/, 'school partner heading is not rendered in learner ecosystem UI');
