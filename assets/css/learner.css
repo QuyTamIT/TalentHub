@@ -11342,6 +11342,9 @@ body.learner-sidebar-open {
 
 .learner-opportunity-ai-score.is-excellent { --score-color: var(--success); }
 .learner-opportunity-ai-score.is-high { --score-color: var(--secondary); }
+.learner-opportunity-ai-score.is-potential { --score-color: var(--success); }
+.learner-opportunity-ai-score.is-low-fit { --score-color: var(--warning); }
+.learner-opportunity-ai-score.is-no-fit { --score-color: var(--danger); }
 
 .learner-opportunity-ai-score__ring {
     position: relative;
