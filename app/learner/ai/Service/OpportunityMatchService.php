@@ -108,9 +108,6 @@ final class OpportunityMatchService
         $activeCatalogIds = array_map(static fn (OpportunityCandidate $candidate): string => $candidate->catalogId(), $candidates);
         $run = $this->repository->latestValid($studentId, $activeCatalogIds);
         if ($run === null) {
-            if (count($candidates) < 3) {
-                return $this->response('catalog_insufficient', []);
-            }
             return $this->response('not_generated', []);
         }
         return $this->mapReady($run);

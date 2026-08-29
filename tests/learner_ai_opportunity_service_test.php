@@ -343,6 +343,7 @@ $twoCandidateEvidence = [
 $twoPdo = service_test_pdo();
 $twoProvider = service_test_engine(ProviderResponse::success(array_slice(service_test_model_items(), 0, 2)));
 $twoService = service_make_scenario($twoPdo, $twoProvider, candidateEvidence: $twoCandidateEvidence);
+service_assert($twoService->latest('student-1')['state'] === 'not_generated', 'one or two candidates remain ready for on-demand Gemini generation');
 $twoResult = $twoService->generate('student-1', 'request-3', 'idempotency-two-000003');
 service_assert($twoResult['state'] === 'partial_model', 'two valid candidates return partial_model with Gemini analysis');
 service_assert(count($twoResult['items']) === 2, 'partial model returns both analyzed opportunities');
