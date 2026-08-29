@@ -26,14 +26,20 @@ final class AiRefreshWorker
         $this->metrics = $metrics ?? AiMetricsCollector::shared();
     }
 
-    public function runOnce(string $workerId): bool
+    public function runOnce(string $workerId, ?string $studentId = null): bool
     {
-        if ($this->outbox !== null) {
+        $studentId = $studentId === null ? null : trim($studentId);
+        if ($studentId === '') {
+            throw new \InvalidArgumentException('student_id_required');
+        }
+        if ($studentId === null && $this->outbox !== null) {
             $this->outbox->consume(100);
         }
         $this->recordQueueGauge();
 
-        $job = $this->jobs->claimNext($workerId, 240);
+        $job = $studentId === null
+            ? $this->jobs->claimNext($workerId, 240)
+            : $this->claimNextForStudent($workerId, $studentId);
         if ($job === null) {
             $this->metrics->record(['queue_event' => 'idle']);
             return false;
@@ -42,7 +48,15 @@ final class AiRefreshWorker
         $this->metrics->record(['queue_event' => 'claimed']);
 
         $guard = function () use ($job): bool {
-            return $job->leaseToken !== null && $this->jobs->renewLease($job->jobKey, $job->leaseToken, 240);
+            if ($job->leaseToken === null || !$this->jobs->ownsLease($job->jobKey, $job->leaseToken)) {
+                return false;
+            }
+
+            // MySQL reports zero affected rows when a renewal writes the
+            // current value in the same second. A valid, still-owned lease is
+            // not lost merely because that UPDATE is a no-op.
+            return $this->jobs->renewLease($job->jobKey, $job->leaseToken, 240)
+                || $this->jobs->ownsLease($job->jobKey, $job->leaseToken);
         };
 
         try {
@@ -79,6 +93,14 @@ final class AiRefreshWorker
         }
 
         return true;
+    }
+
+    private function claimNextForStudent(string $workerId, string $studentId): ?AiRefreshJob
+    {
+        if (!$this->jobs instanceof ScopedAiRefreshJobRepository) {
+            throw new \RuntimeException('scoped_refresh_unsupported');
+        }
+        return $this->jobs->claimNextForStudent($workerId, $studentId, 240);
     }
 
     private function recordQueueGauge(): void

@@ -17,6 +17,7 @@ use TalentHub\Learner\Ai\Quality\DataQualityResult;
 use TalentHub\Learner\Ai\Rollout\RecommendationRolloutSelector;
 use TalentHub\Learner\Ai\Validation\RecommendationResultValidator;
 use TalentHub\Learner\Ai\Provider\ProviderRetryAfterException;
+use TalentHub\Learner\Ai\Provider\StrictAiUnavailable;
 
 final class RecommendationService
 {
@@ -56,6 +57,7 @@ final class RecommendationService
         private readonly ?RecommendationConfig $modelConfig = null,
         private readonly ?RecommendationRolloutSelector $rolloutSelector = null,
         ?AiAvailabilityPolicy $availabilityPolicy = null,
+        ?callable $strictRefreshDispatcher = null,
     ) {
         $this->authorizer = Closure::fromCallable($authorizer);
         $this->scopeResolver = Closure::fromCallable($scopeResolver);
@@ -63,9 +65,15 @@ final class RecommendationService
         $this->qualityGate = Closure::fromCallable($qualityGate);
         $this->snapshotFreshness = Closure::fromCallable($snapshotFreshness);
         $this->availabilityPolicy = $availabilityPolicy;
+        $this->strictRefreshDispatcher = $strictRefreshDispatcher === null
+            ? null
+            : Closure::fromCallable($strictRefreshDispatcher);
     }
 
     private readonly ?AiAvailabilityPolicy $availabilityPolicy;
+
+    /** @var Closure(string, RecommendationInput):void|null */
+    private readonly ?Closure $strictRefreshDispatcher;
 
     /** @return array<string,mixed>|null */
     public function latest(string $studentId): ?array
@@ -87,7 +95,17 @@ final class RecommendationService
         } catch (\Throwable) {
             return null;
         }
-        return $run === null ? null : $this->mapper->run($run);
+        if ($run === null) {
+            return null;
+        }
+        if ($this->strictModelRequired()
+            && (($run['status'] ?? null) !== 'completed' || ($run['engineType'] ?? null) !== 'model')) {
+            $reason = is_string($run['safeErrorCode'] ?? null)
+                ? $run['safeErrorCode']
+                : 'provider_unavailable';
+            return $this->mapper->providerUnavailable($reason, $run);
+        }
+        return $this->mapper->run($run);
     }
 
     /** @return array<string,mixed> */
@@ -145,6 +163,9 @@ final class RecommendationService
             $resolvedConsent instanceof ConsentDecision ? $resolvedConsent->policyVersion() : null,
             $propagateProviderRetry,
         );
+        if ($this->strictModelRequired()) {
+            return $this->generateStrictModel($studentId, $input, $context, $active, $leaseGuard, $propagateProviderRetry);
+        }
         if ($hasActiveModel) {
             return $this->refreshActiveModelOrRetain($studentId, $input, $context, $active, $leaseGuard, $propagateProviderRetry);
         }
@@ -247,6 +268,89 @@ final class RecommendationService
             $this->guardLease($leaseGuard);
             $ruleRun = $this->repository->completeRun($studentId, (string) ($pending['runId'] ?? ''), $ruleResult);
             return $this->mapper->readyRule($ruleRun, 'provider_unavailable');
+        }
+    }
+
+    /** @param array<string,mixed>|null $active */
+    private function generateStrictModel(
+        string $studentId,
+        RecommendationInput $input,
+        RecommendationContext $context,
+        ?array $active,
+        ?callable $leaseGuard,
+        bool $propagateProviderRetry,
+    ): array {
+        if ($this->modelEngine === null || $this->modelConfig === null) {
+            return $this->strictUnavailableOrStale($active, 'model_disabled');
+        }
+
+        try {
+            $this->guardLease($leaseGuard);
+            $pending = $this->repository->createPendingRun($studentId, $input, $context);
+        } catch (\Throwable) {
+            return $this->strictUnavailableOrStale($active, 'provider_unavailable');
+        }
+        if (($pending['reused'] ?? false) === true) {
+            return $this->mapper->pending($pending);
+        }
+
+        try {
+            $modelResult = $this->modelEngine->generate($input, $context);
+            if ($modelResult->engineType() !== 'model') {
+                throw new StrictAiUnavailable('provider_unavailable');
+            }
+            $this->validator->validate($modelResult);
+            $this->assertConsentCurrent($studentId, $context);
+            $this->guardLease($leaseGuard);
+            return $this->mapper->run($this->repository->completeRun($studentId, (string) ($pending['runId'] ?? ''), $modelResult));
+        } catch (\Throwable $exception) {
+            if ($propagateProviderRetry && $exception instanceof ProviderRetryAfterException) {
+                throw $exception;
+            }
+            if ($exception instanceof ProviderConsentDenied) {
+                try {
+                    $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), $exception->reason());
+                } catch (\Throwable) {
+                }
+                return $this->consentUnavailable($studentId, $exception->reason());
+            }
+            $reason = $exception instanceof StrictAiUnavailable ? $exception->reason() : 'provider_unavailable';
+            try {
+                $this->guardLease($leaseGuard);
+                $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), $reason);
+            } catch (\Throwable) {
+            }
+            $this->enqueueStrictRefresh($studentId, $input);
+            return $this->strictUnavailableOrStale($active, $reason, $pending);
+        }
+    }
+
+    /** @param array<string,mixed>|null $active @param array<string,mixed>|null $pending */
+    private function strictUnavailableOrStale(?array $active, string $reason, ?array $pending = null): array
+    {
+        if (is_array($active)
+            && ($active['engineType'] ?? null) === 'model'
+            && ($active['status'] ?? null) === 'completed') {
+            return $this->mapper->staleModel($active);
+        }
+        return $this->mapper->providerUnavailable($reason, $pending);
+    }
+
+    private function strictModelRequired(): bool
+    {
+        return $this->modelConfig !== null && $this->modelConfig->strictMode();
+    }
+
+    private function enqueueStrictRefresh(string $studentId, RecommendationInput $input): void
+    {
+        if ($this->strictRefreshDispatcher === null) {
+            return;
+        }
+        try {
+            ($this->strictRefreshDispatcher)($studentId, $input);
+        } catch (\Throwable) {
+            // A caller must still receive the truthful provider failure even
+            // when asynchronous recovery cannot be persisted.
         }
     }
 

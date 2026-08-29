@@ -151,7 +151,13 @@ final class HttpRecommendationProvider implements RecommendationProvider
     private function geminiPayload(array $payload): array
     {
         $instructions = is_array($payload['instructions'] ?? null) ? $payload['instructions'] : [];
+        $schema = is_array($payload['output_schema'] ?? null) ? $payload['output_schema'] : null;
         unset($payload['instructions']);
+
+        $responseTextFormat = ['mimeType' => 'APPLICATION_JSON'];
+        if ($schema !== null) {
+            $responseTextFormat['schema'] = $schema;
+        }
 
         return [
             'systemInstruction' => [
@@ -164,8 +170,12 @@ final class HttpRecommendationProvider implements RecommendationProvider
                 ]],
             ]],
             'generationConfig' => [
-                'responseFormat' => ['text' => ['mimeType' => 'APPLICATION_JSON']],
-                'maxOutputTokens' => 2048,
+                'responseFormat' => ['text' => $responseTextFormat],
+                // Gemini can consume a substantial part of the response budget
+                // before emitting the structured candidate. 2048 caused a
+                // valid recommendation response to end with MAX_TOKENS and
+                // truncated JSON, which strict mode correctly rejected.
+                'maxOutputTokens' => 8192,
             ],
         ];
     }

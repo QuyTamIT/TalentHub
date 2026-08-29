@@ -68,6 +68,7 @@ require_once $learnerAiRoot . '/Provider/CircuitBreaker.php';
 require_once $learnerAiRoot . '/Provider/ProviderHealthStore.php';
 require_once $learnerAiRoot . '/Queue/AiRefreshJob.php';
 require_once $learnerAiRoot . '/Queue/AiRefreshJobRepository.php';
+require_once $learnerAiRoot . '/Queue/ScopedAiRefreshJobRepository.php';
 require_once $learnerAiRoot . '/Queue/InMemoryAiRefreshJobRepository.php';
 require_once $learnerAiRoot . '/Queue/DatabaseAiRefreshJobRepository.php';
 require_once $learnerAiRoot . '/Queue/AiDataOutbox.php';
@@ -106,6 +107,7 @@ require_once $learnerAiRoot . '/Persistence/DatabaseRecommendationRepository.php
 require_once $learnerAiRoot . '/Persistence/DatabaseRoadmapRepository.php';
 require_once $learnerAiRoot . '/Persistence/DatabaseAiCapabilityProfileRepository.php';
 require_once $learnerAiRoot . '/Persistence/DatabaseAiRefreshStateRepository.php';
+require_once $learnerAiRoot . '/Service/StrictRecommendationRefreshDispatcher.php';
 require_once $learnerAiRoot . '/Validation/RecommendationResultValidator.php';
 require_once $learnerAiRoot . '/Validation/RoadmapAnalysisValidator.php';
 require_once $learnerAiRoot . '/Model/ModelRecommendationEngine.php';

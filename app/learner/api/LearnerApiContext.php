@@ -47,6 +47,7 @@ use TalentHub\Learner\Ai\Service\RecommendationService;
 use TalentHub\Learner\Ai\Service\RecommendationClickService;
 use TalentHub\Learner\Ai\Service\RoadmapService;
 use TalentHub\Learner\Ai\Service\GroupMatchingService;
+use TalentHub\Learner\Ai\Service\StrictRecommendationRefreshDispatcher;
 use TalentHub\Learner\Ai\Snapshot\RecommendationSnapshotBuilder;
 use TalentHub\Learner\Ai\Sources\AiSourceRegistry;
 use TalentHub\Learner\Ai\Sources\Database\DatabaseActivityExperienceSource;
@@ -260,6 +261,15 @@ final class LearnerApiContext
             $modelConfig,
             $rolloutSelector,
             $availabilityPolicy,
+            function (string $candidate, $input): void {
+                if (!$input instanceof \TalentHub\Learner\Ai\Domain\RecommendationInput) {
+                    throw new \InvalidArgumentException('Strict refresh requires a recommendation snapshot.');
+                }
+                (new StrictRecommendationRefreshDispatcher(
+                    new AiRefreshDispatcher(new DatabaseAiRefreshJobRepository($this->pdo)),
+                    new \TalentHub\Learner\Ai\Persistence\DatabaseAiRefreshStateRepository($this->pdo),
+                ))->dispatch($candidate, $input->contentHash());
+            },
         );
     }
 

@@ -67,7 +67,7 @@ final class ModelRecommendationEngine implements RecommendationEngine
             }
             if ($strictMode) {
                 $reason = $this->normaliseFailureReason((string) $response->errorCode());
-                AiMetricsCollector::shared()->record(['fallback' => true, 'strict_mode' => true]);
+                AiMetricsCollector::shared()->record(['fallback' => false, 'provider_error' => $reason]);
                 throw new StrictAiUnavailable($reason);
             }
             return $this->fallback($input, $context, (string) $response->errorCode());
@@ -86,7 +86,7 @@ final class ModelRecommendationEngine implements RecommendationEngine
             return $result;
         } catch (\Throwable) {
             if ($strictMode) {
-                AiMetricsCollector::shared()->record(['fallback' => true, 'strict_mode' => true]);
+                AiMetricsCollector::shared()->record(['fallback' => false, 'provider_error' => 'malformed_output']);
                 throw new StrictAiUnavailable('provider_unavailable', 'Strict AI response failed schema or safety validation.', null);
             }
             return $this->fallback($input, $context, 'invalid_model_response');

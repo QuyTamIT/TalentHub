@@ -19,4 +19,9 @@ final class AiRefreshJob
         public readonly ?string $createdAt = null,
     ) {}
     public static function key(string $studentId, string $snapshotHash, string $capability): string { return hash('sha256', implode(':', [$studentId, $snapshotHash, $capability])); }
+
+    public function executionIdempotencyKey(): string
+    {
+        return 'worker-' . $this->jobKey . '-' . $this->attempts;
+    }
 }

@@ -56,7 +56,7 @@ $profileRefresh=new ProfileAnalysisRefreshService(
   if(!$leaseGuard())throw new RuntimeException('refresh_lease_lost');
   if(!in_array($job->capability,['recommendation','roadmap','profile_analysis'],true))throw new RuntimeException('capability_refresh_unavailable');
   if(!hash_equals($job->snapshotHash,$context->aiSnapshotHash($job->studentId,$job->capability)))throw new RuntimeException('superseded_snapshot');
- $key='worker-'.$job->jobKey;
+ $key=$job->executionIdempotencyKey();
  if(!$leaseGuard())throw new RuntimeException('refresh_lease_lost');
  if($job->capability==='profile_analysis')$profiles->markPending($job->studentId,$job->snapshotHash,$job->jobKey);else $refreshState->pending($job->studentId,$job->capability,$job->snapshotHash,$job->jobKey);
  try {

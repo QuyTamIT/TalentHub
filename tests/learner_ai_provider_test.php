@@ -235,6 +235,27 @@ $geminiPayload = json_decode((string) ($geminiCall['body'] ?? ''), true, 512, JS
 provider_assert(isset($geminiPayload['systemInstruction']['parts'][0]['text']), 'native Gemini recommendation includes system instruction');
 provider_assert(isset($geminiPayload['contents'][0]['parts'][0]['text']), 'native Gemini recommendation includes user contents');
 provider_assert(($geminiPayload['generationConfig']['responseFormat']['text']['mimeType'] ?? null) === 'APPLICATION_JSON', 'native Gemini recommendation uses the official JSON response-format enum');
+provider_assert(
+    ($geminiPayload['generationConfig']['responseFormat']['text']['schema'] ?? null) === ($request->payload()['output_schema'] ?? null),
+    'native Gemini recommendation sends the validated output schema in Gemini responseFormat rather than only inside prompt text',
+);
+provider_assert(($geminiPayload['generationConfig']['maxOutputTokens'] ?? 0) >= 8192, 'native Gemini recommendation reserves enough output tokens for a complete structured response');
+provider_assert(
+    str_contains((string) ($geminiPayload['systemInstruction']['parts'][0]['text'] ?? ''), 'item_type must be one of strength, improvement, development, activity, roadmap, group, community.'),
+    'native Gemini recommendation explicitly constrains item types to the domain allow-list',
+);
+provider_assert(
+    ($request->payload()['output_schema']['properties']['items']['items']['properties']['item_type']['enum'] ?? null) === ['strength', 'improvement', 'development', 'activity', 'roadmap', 'group', 'community'],
+    'provider request schema constrains item types to the domain allow-list',
+);
+provider_assert(
+    str_contains((string) ($geminiPayload['systemInstruction']['parts'][0]['text'] ?? ''), 'action.type must be one of develop_skill, continue_technical_activity, practice_presentation, explore_career_group, register_activity, join_group, open_catalog_item.'),
+    'native Gemini recommendation explicitly constrains action types to the validator allow-list',
+);
+provider_assert(
+    count($request->payload()['output_schema']['properties']['items']['items']['properties']['action']['oneOf'] ?? []) === 7,
+    'provider request schema defines each supported action shape',
+);
 provider_assert(!isset($geminiPayload['messages']), 'native Gemini recommendation does not use chat-completions messages');
 
 $rateCalls = 0;

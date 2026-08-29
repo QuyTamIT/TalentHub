@@ -66,6 +66,7 @@ $zeroVisible = RecommendationConfig::fromEnvironment([
 rollout_assert(!$selector->canShowModel($studentId, $zeroVisible, ['assessment', 'skills', 'activity', 'evaluation'], true), 'visible percent zero always keeps rules visible');
 
 $fullVisible = RecommendationConfig::fromEnvironment([
+    'APP_ENV' => 'test',
     'TALENTHUB_AI_ENABLED' => 'true',
     'TALENTHUB_AI_PROVIDER' => 'fake',
     'TALENTHUB_AI_MODEL' => 'learner-test-1',
@@ -76,7 +77,9 @@ $fullVisible = RecommendationConfig::fromEnvironment([
     'TALENTHUB_AI_SHADOW_GATE_APPROVED' => 'true',
     'TALENTHUB_AI_PILOT_APPROVAL_REFERENCE' => 'test-approved-pilot',
     'TALENTHUB_AI_PILOT_PAUSED' => 'false',
+    'TALENTHUB_AI_STRICT_MODE_OVERRIDE' => 'false',
 ]);
+rollout_assert(!$fullVisible->strictMode(), 'rollout fallback fixture explicitly opts out of strict mode');
 $selector = new RecommendationRolloutSelector(null, [
     'stage' => '50', 'error_budget' => true, 'freshness_sla' => true, 'validator_pass_rate' => true,
     'privacy_review' => true, 'rollback_drill' => true, 'approval_reference' => 'test-approved-pilot',

@@ -39,6 +39,7 @@ use TalentHub\Learner\Ai\Domain\RecommendationResult;
 use TalentHub\Learner\Ai\Model\ModelRecommendationEngine;
 use TalentHub\Learner\Ai\Model\ModelRoadmapEngine;
 use TalentHub\Learner\Ai\Model\RoadmapPromptRegistry;
+use TalentHub\Learner\Ai\Observability\AiMetricsCollector;
 use TalentHub\Learner\Ai\Provider\ProviderRequest;
 use TalentHub\Learner\Ai\Provider\ProviderResponse;
 use TalentHub\Learner\Ai\Provider\RoadmapProviderResponse;
@@ -336,7 +337,7 @@ $recommendationEngine = strict_mode_recommendationEngine(
     $failingRuleEngine,
     $strictConfig,
 );
-
+$metricsBeforeProviderFailure = count(AiMetricsCollector::shared()->events());
 try {
     $recommendationEngine->generate(strict_mode_input(), strict_mode_context());
     strict_mode_assert(false, 'strict mode must surface provider_unavailable as an exception, never as a rule result');
@@ -344,6 +345,15 @@ try {
     strict_mode_assert($exception->reason() === 'provider_unavailable', 'strict-mode provider failure is normalised to the provider_unavailable reason');
 }
 strict_mode_assert($failingRuleEngine->calls === 0, 'strict mode must never call the rule fallback when the provider fails');
+$providerFailureMetrics = array_slice(AiMetricsCollector::shared()->events(), $metricsBeforeProviderFailure);
+strict_mode_assert(
+    array_filter($providerFailureMetrics, static fn (array $event): bool => ($event['fallback'] ?? false) === true) === [],
+    'strict-mode provider failures must not be measured as a rule fallback',
+);
+strict_mode_assert(
+    array_filter($providerFailureMetrics, static fn (array $event): bool => ($event['provider_error'] ?? null) === 'provider_unavailable') !== [],
+    'strict-mode provider failures emit a bounded provider_unavailable metric',
+);
 
 // Malformed provider payload must also raise StrictAiUnavailable, not fall back to rule.
 $malformedEngine = strict_mode_recommendationEngine(

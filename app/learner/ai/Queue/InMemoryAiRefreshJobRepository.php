@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace TalentHub\Learner\Ai\Queue;
 
-final class InMemoryAiRefreshJobRepository implements AiRefreshJobRepository
+final class InMemoryAiRefreshJobRepository implements ScopedAiRefreshJobRepository
 {
     /** @var array<string,AiRefreshJob> */
     private array $jobs = [];
@@ -24,10 +24,27 @@ final class InMemoryAiRefreshJobRepository implements AiRefreshJobRepository
 
     public function claimNext(string $workerId, int $leaseSeconds = 60): ?AiRefreshJob
     {
+        return $this->claimNextInternal($workerId, null, $leaseSeconds);
+    }
+
+    public function claimNextForStudent(string $workerId, string $studentId, int $leaseSeconds = 60): ?AiRefreshJob
+    {
+        $studentId = trim($studentId);
+        if ($studentId === '') {
+            throw new \InvalidArgumentException('student_id_required');
+        }
+        return $this->claimNextInternal($workerId, $studentId, $leaseSeconds);
+    }
+
+    private function claimNextInternal(string $workerId, ?string $studentId, int $leaseSeconds): ?AiRefreshJob
+    {
         $now = time();
         $candidates = [];
 
         foreach ($this->jobs as $key => $job) {
+            if ($studentId !== null && $job->studentId !== $studentId) {
+                continue;
+            }
             $isPendingReady = ($job->status === 'pending' && ($job->nextRetryAt === null || strtotime($job->nextRetryAt) <= $now));
             $isLeaseExpired = ($job->status === 'processing' && $job->leaseUntil !== null && strtotime($job->leaseUntil) < $now);
 

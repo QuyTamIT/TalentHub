@@ -186,6 +186,27 @@ $stmt->execute(['k' => $claimed->jobKey]);
 $row = $stmt->fetch(PDO::FETCH_ASSOC);
 queue_assert($row['error_code'] === 'rate_limit_exceeded', 'custom error category recorded');
 
+// A successful retry must clear the previous failure metadata. Otherwise a
+// completed job is indistinguishable from a job still failing in operations.
+$recoveryPdo = createQueueTestPdo();
+$recoveryRepo = new DatabaseAiRefreshJobRepository($recoveryPdo);
+$recoveryJob = $recoveryRepo->enqueue('student-recovered', 'hash-recovered', 'recommendation');
+$recoveryAttempt = $recoveryRepo->claimNext('worker-recovered', 30);
+queue_assert($recoveryAttempt instanceof AiRefreshJob, 'recovery job is claimed for its first attempt');
+$recoveryRepo->fail($recoveryAttempt->jobKey, 'provider_unavailable', false, $recoveryAttempt->leaseToken, 0);
+$recoveryAttempt = $recoveryRepo->claimNext('worker-recovered', 30);
+queue_assert($recoveryAttempt instanceof AiRefreshJob && $recoveryAttempt->attempts === 2, 'retry job is claimed again');
+queue_assert($recoveryRepo->complete($recoveryAttempt->jobKey, $recoveryAttempt->leaseToken), 'recovered retry job completes');
+$recoveryRow = $recoveryPdo->query("SELECT status, error_code, next_retry_at, dead_lettered_at FROM learner_ai_refresh_jobs WHERE job_key = '" . $recoveryJob->jobKey . "'")->fetch(PDO::FETCH_ASSOC);
+queue_assert(($recoveryRow['status'] ?? null) === 'completed', 'recovered job has completed status');
+queue_assert(
+    is_array($recoveryRow)
+    && array_key_exists('error_code', $recoveryRow) && $recoveryRow['error_code'] === null
+    && array_key_exists('next_retry_at', $recoveryRow) && $recoveryRow['next_retry_at'] === null
+    && array_key_exists('dead_lettered_at', $recoveryRow) && $recoveryRow['dead_lettered_at'] === null,
+    'completed retry clears prior error, retry, and dead-letter metadata',
+);
+
 // =========================================================================
 // Block C: Max Attempts & Dead-Lettering
 // =========================================================================
@@ -304,6 +325,36 @@ foreach ($studentRows as $queuedJob) {
     $studentJobKeys[$queuedJob['student_id'] . ':' . $queuedJob['capability']] = true;
 }
 queue_assert(count($studentJobKeys) === 6, 'normalized affected IDs dispatch once per capability');
+
+// A scoped worker must not claim jobs for another learner while validating one
+// consented hero. This is the safety boundary missing from the global worker.
+foreach ([new DatabaseAiRefreshJobRepository(createQueueTestPdo()), new InMemoryAiRefreshJobRepository()] as $scopedRepo) {
+    $outside = $scopedRepo->enqueue('outside-learner', 'outside-hash', 'roadmap');
+    $heroRoadmap = $scopedRepo->enqueue('hero-learner', 'hero-roadmap-hash', 'roadmap');
+    $heroRecommendation = $scopedRepo->enqueue('hero-learner', 'hero-recommendation-hash', 'recommendation');
+    $scopedClaim = $scopedRepo->claimNextForStudent('hero-scope-worker', 'hero-learner', 60);
+    queue_assert($scopedClaim instanceof AiRefreshJob && $scopedClaim->jobKey === $heroRoadmap->jobKey, 'scoped claim honors capability priority inside one learner only');
+    $outsideClaim = $scopedRepo->claimNext('outside-worker', 60);
+    queue_assert($outsideClaim instanceof AiRefreshJob && $outsideClaim->jobKey === $outside->jobKey, 'scoped claim leaves another learner job untouched');
+}
+
+$scopedWorkerRepo = new InMemoryAiRefreshJobRepository();
+$scopedWorkerRepo->enqueue('outside-worker-learner', 'outside-worker-hash', 'recommendation');
+$scopedHeroJob = $scopedWorkerRepo->enqueue('hero-worker-learner', 'hero-worker-hash', 'recommendation');
+$handledScopedStudent = null;
+$scopedWorker = new AiRefreshWorker(
+    $scopedWorkerRepo,
+    static function (AiRefreshJob $job, callable $leaseGuard) use (&$handledScopedStudent): void {
+        queue_assert($leaseGuard(), 'scoped worker owns the hero job lease');
+        $handledScopedStudent = $job->studentId;
+    },
+);
+queue_assert($scopedWorker->runOnce('hero-worker', 'hero-worker-learner'), 'scoped worker runs one hero job');
+queue_assert($handledScopedStudent === 'hero-worker-learner', 'scoped worker never invokes a handler for another learner');
+$scopedStored = $scopedWorkerRepo->all();
+queue_assert(($scopedStored[$scopedHeroJob->jobKey]->status ?? null) === 'completed', 'scoped worker completes the selected hero job');
+$outsideWorkerJob = $scopedWorkerRepo->all()[AiRefreshJob::key('outside-worker-learner', 'outside-worker-hash', 'recommendation')] ?? null;
+queue_assert($outsideWorkerJob instanceof AiRefreshJob && $outsideWorkerJob->status === 'pending', 'scoped worker leaves other learner jobs pending');
 
 // Test 5 source event types and school post-dispatch hook
 $hookCalls = [];
@@ -455,6 +506,11 @@ queue_assert($retryStored instanceof AiRefreshJob && $retryStored->status === 'p
 queue_assert($retryStored->errorCode === 'rate_limit_exceeded' && $retryStored->nextRetryAt !== null, 'provider retry-after category and time are persisted');
 queue_assert($retryRepo->enqueue('student-retry-after', 'retry-hash', 'recommendation')->jobKey === $retryJob->jobKey, 'worker restart reuses idempotent job key');
 
+$firstRecommendationAttempt = new AiRefreshJob('recommendation-job-key', 'student-retry-after', 'recommendation', 'retry-hash', 'processing', 1);
+$secondRecommendationAttempt = new AiRefreshJob('recommendation-job-key', 'student-retry-after', 'recommendation', 'retry-hash', 'processing', 2);
+queue_assert($firstRecommendationAttempt->executionIdempotencyKey() !== $secondRecommendationAttempt->executionIdempotencyKey(), 'a retried refresh receives a fresh provider execution idempotency key');
+queue_assert($secondRecommendationAttempt->executionIdempotencyKey() === 'worker-recommendation-job-key-2', 'worker execution idempotency key binds the claimed attempt number');
+
 // A lost lease must stop provider work and remain explicitly retryable.
 $leaseLossRepo = new class implements AiRefreshJobRepository {
     private InMemoryAiRefreshJobRepository $delegate;
@@ -462,7 +518,7 @@ $leaseLossRepo = new class implements AiRefreshJobRepository {
     public function enqueue(string $studentId, string $snapshotHash, string $capability): AiRefreshJob { return $this->delegate->enqueue($studentId, $snapshotHash, $capability); }
     public function claimNext(string $workerId, int $leaseSeconds = 60): ?AiRefreshJob { return $this->delegate->claimNext($workerId, $leaseSeconds); }
     public function renewLease(string $jobKey, string $leaseToken, int $leaseSeconds = 60): bool { return false; }
-    public function ownsLease(string $jobKey, string $leaseToken): bool { return $this->delegate->ownsLease($jobKey, $leaseToken); }
+    public function ownsLease(string $jobKey, string $leaseToken): bool { return false; }
     public function complete(string $jobKey, ?string $leaseToken = null): bool { return $this->delegate->complete($jobKey, $leaseToken); }
     public function fail(string $jobKey, string $errorCode, bool $deadLetter = false, ?string $leaseToken = null, ?int $retryAfterSeconds = null): void { $this->delegate->fail($jobKey, $errorCode, $deadLetter, $leaseToken, $retryAfterSeconds); }
     public function cancelSuperseded(string $studentId, string $capability, string $currentSnapshotHash): void { $this->delegate->cancelSuperseded($studentId, $capability, $currentSnapshotHash); }
@@ -478,6 +534,31 @@ $leaseLossStored = $leaseLossRepo->all()[$leaseLossJob->jobKey] ?? null;
 queue_assert(!$leaseLossHandlerCalled, 'provider handler is not called after lease loss');
 queue_assert($leaseLossStored instanceof AiRefreshJob && $leaseLossStored->status === 'pending', 'lease-loss job remains pending for retry');
 queue_assert($leaseLossStored->errorCode === 'refresh_lease_lost', 'lease-loss uses the safe categorized error');
+
+// MySQL reports zero affected rows when a renewal lands in the same second and
+// writes the existing lease deadline. Ownership is still valid, so this must
+// not be treated as a lost lease or suppress the provider call.
+$noOpRenewRepo = new class implements AiRefreshJobRepository {
+    private InMemoryAiRefreshJobRepository $delegate;
+    public function __construct() { $this->delegate = new InMemoryAiRefreshJobRepository(); }
+    public function enqueue(string $studentId, string $snapshotHash, string $capability): AiRefreshJob { return $this->delegate->enqueue($studentId, $snapshotHash, $capability); }
+    public function claimNext(string $workerId, int $leaseSeconds = 60): ?AiRefreshJob { return $this->delegate->claimNext($workerId, $leaseSeconds); }
+    public function renewLease(string $jobKey, string $leaseToken, int $leaseSeconds = 60): bool { return false; }
+    public function ownsLease(string $jobKey, string $leaseToken): bool { return $this->delegate->ownsLease($jobKey, $leaseToken); }
+    public function complete(string $jobKey, ?string $leaseToken = null): bool { return $this->delegate->complete($jobKey, $leaseToken); }
+    public function fail(string $jobKey, string $errorCode, bool $deadLetter = false, ?string $leaseToken = null, ?int $retryAfterSeconds = null): void { $this->delegate->fail($jobKey, $errorCode, $deadLetter, $leaseToken, $retryAfterSeconds); }
+    public function cancelSuperseded(string $studentId, string $capability, string $currentSnapshotHash): void { $this->delegate->cancelSuperseded($studentId, $capability, $currentSnapshotHash); }
+    public function cancel(string $jobKey, ?string $leaseToken = null): void { $this->delegate->cancel($jobKey, $leaseToken); }
+    /** @return array<string,AiRefreshJob> */
+    public function all(): array { return $this->delegate->all(); }
+};
+$noOpRenewJob = $noOpRenewRepo->enqueue('student-no-op-renew', 'no-op-renew-hash', 'recommendation');
+$noOpRenewHandled = false;
+$noOpRenewWorker = new AiRefreshWorker($noOpRenewRepo, static function () use (&$noOpRenewHandled): void { $noOpRenewHandled = true; });
+queue_assert($noOpRenewWorker->runOnce('worker-no-op-renew'), 'no-op renewal worker claims the job');
+$noOpRenewStored = $noOpRenewRepo->all()[$noOpRenewJob->jobKey] ?? null;
+queue_assert($noOpRenewHandled, 'valid lease ownership permits provider work when renewal write is a MySQL no-op');
+queue_assert($noOpRenewStored instanceof AiRefreshJob && $noOpRenewStored->status === 'completed', 'no-op renewal job completes without a false refresh_lease_lost failure');
 
 // Completion must be atomic: a lease lost between the guard and UPDATE cannot emit completed.
 $completionRaceRepo = new class implements AiRefreshJobRepository {
