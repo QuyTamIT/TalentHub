@@ -498,24 +498,26 @@ test('roadmap explains the development direction when no catalog activity is lin
   assert.match(copy.textContent, /Nhiệm vụ 1\.2/);
 });
 
-test('page exposes the Roadmap-first experience with the live catalog section', () => {
+test('page exposes only the approved Roadmap-first experience', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
   assert.match(page, /LỘ TRÌNH PHÁT TRIỂN 90 NGÀY/);
   assert.match(page, /learner-roadmap-hero/);
   assert.match(page, /learner-roadmap-analysis/);
-  assert.match(page, /learner-roadmap-credentials-disclosure/);
+  assert.doesNotMatch(page, /learner-roadmap-credentials-disclosure/);
   assert.doesNotMatch(page, /data-roadmap-secondary/);
-  assert.match(page, /data-ai-page/);
+  assert.doesNotMatch(page, /data-ai-page/);
   assert.doesNotMatch(page, /learner-roadmap-capability__grid/);
   for (const marker of [
     'data-ai-roadmap-page', 'data-roadmap-summary', 'data-roadmap-direction',
     'data-roadmap-phases', 'data-roadmap-next-actions',
-    'data-roadmap-evidence', 'data-roadmap-feedback', 'data-roadmap-engine',
     'data-roadmap-talent-map', 'data-roadmap-zero-talent-map', 'data-roadmap-strengths', 'data-roadmap-improvements',
     'data-roadmap-trends', 'data-roadmap-potential-paths', 'data-roadmap-growth-hypotheses',
     'data-roadmap-generate', 'data-roadmap-retry', 'learner-ai-roadmap.js',
   ]) assert.match(page, new RegExp(marker));
-  assert.match(page, /learner-recommendations\.js/);
+  for (const removed of [
+    'data-ai-group-matches', 'data-roadmap-evidence>', 'data-roadmap-feedback ', 'data-roadmap-engine>',
+    'learner-recommendations.js', 'learner-ai-groups.js', 'Gợi ý này hữu ích với bạn chứ?',
+  ]) assert.doesNotMatch(page, new RegExp(removed.replaceAll('.', '\\.')));
 });
 
 test('AI page provides an accessible four-step processing panel above the saved roadmap', () => {
@@ -539,12 +541,12 @@ test('processing panel CSS supports four-step desktop, mobile and reduced motion
   assert.match(css, /prefers-reduced-motion:\s*reduce[\s\S]*learner-roadmap-processing/);
 });
 
-test('AI page mounts the live recommendation catalog section', () => {
+test('AI page omits the live recommendation catalog section', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
-  assert.match(page, /data-ai-page/);
-  assert.match(page, /data-ai-results/);
-  assert.match(page, /learner-recommendations\.js/);
-  assert.match(page, /Gợi ý hoạt động, dự án và cơ hội/);
+  assert.doesNotMatch(page, /data-ai-page/);
+  assert.doesNotMatch(page, /data-ai-results/);
+  assert.doesNotMatch(page, /learner-recommendations\.js/);
+  assert.doesNotMatch(page, /Hoạt động, dự án và cơ hội dành cho bạn/);
 });
 
 test('roadmap prompt targets Gemini 3.7 Flash and detailed student-friendly milestones', () => {
@@ -560,8 +562,8 @@ test('roadmap prompt targets Gemini 3.7 Flash and detailed student-friendly mile
 
 test('recommendation client remains isolated from the Roadmap-first page', () => {
   const page = fs.readFileSync(pagePath, 'utf8');
-  assert.match(page, /data-ai-page/);
-  assert.match(page, /learner-recommendations\.js/);
+  assert.doesNotMatch(page, /data-ai-page/);
+  assert.doesNotMatch(page, /learner-recommendations\.js/);
   const client = fs.readFileSync(path.join(root, 'assets', 'js', 'learner-recommendations.js'), 'utf8');
   assert.match(client, /api\.get\('\/recommendations\.php'\)/);
   assert.doesNotMatch(client, /generativelanguage\.googleapis|x-goog-api-key/i);

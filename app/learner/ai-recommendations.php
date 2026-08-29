@@ -97,50 +97,6 @@ $assetVersion = static function (string $relativePath): string {
                         </article>
                     </section>
                     <div class="learner-visually-hidden" data-roadmap-insights hidden aria-hidden="true"></div>
-                    <section class="learner-card learner-ai-live-catalog" data-ai-page aria-labelledby="live-recommendations-title">
-                        <header class="learner-ai-live-catalog__header">
-                            <div class="learner-ai-live-catalog__identity">
-                                <span class="learner-ai-live-catalog__icon" aria-hidden="true"><?= learner_icon('sparkles', 25); ?></span>
-                                <div><span class="learner-ai-live-catalog__eyebrow">GỢI Ý TỪ DỮ LIỆU ĐÃ XÁC MINH</span><h2 id="live-recommendations-title">Hoạt động, dự án và cơ hội dành cho bạn</h2><p>AI đối chiếu hồ sơ của bạn với dữ liệu đang được công bố trên TalentHub. Cơ hội doanh nghiệp luôn dẫn về nguồn gốc trong Hệ sinh thái.</p></div>
-                            </div>
-                            <div class="learner-ai-live-catalog__actions"><a class="learner-btn learner-btn--secondary" href="ecosystem.php?tab=opportunities">Xem toàn bộ cơ hội <?= learner_icon('arrow-right', 16); ?></a><button class="learner-btn learner-btn--outline" type="button" data-ai-generate><?= learner_icon('sparkles', 17); ?> Làm mới gợi ý</button></div>
-                        </header>
-                        <p class="learner-ai-live-catalog__status" data-ai-state-status role="status" aria-live="polite"></p>
-                        <div data-ai-loading hidden>Đang tải gợi ý...</div>
-                        <div data-ai-consent hidden><p data-ai-consent-copy></p><div data-ai-consent-actions></div></div>
-                        <div data-ai-insufficient hidden><p data-ai-insufficient-copy>Chưa đủ dữ liệu để tạo gợi ý.</p></div>
-                        <div data-ai-source-error hidden><p><span data-ai-source-error-copy>Chưa thể tải gợi ý.</span> <button class="learner-btn learner-btn--outline" type="button" data-ai-retry>Thử lại</button></p></div>
-                        <div data-ai-results hidden><div class="learner-ai-live-catalog__meta"><div><strong data-ai-engine-label></strong><span data-ai-source-summary></span></div><span data-ai-generated-at></span></div><div data-ai-engine-details></div><div data-ai-result-list></div><small data-ai-feedback-status role="status" aria-live="polite"></small></div>
-                    </section>
-                    <details class="learner-card learner-roadmap-secondary learner-roadmap-credentials-disclosure">
-                        <summary>Huy hiệu &amp; chứng chỉ phù hợp</summary>
-                        <section class="learner-school-credential-section learner-school-credential-section--roadmap" aria-labelledby="roadmap-credentials-title">
-                            <div class="learner-school-credential-heading">
-                                <div><span class="learner-school-credential-heading__eyebrow"><?= learner_icon('sparkles', 17); ?> AI đối chiếu bộ thành tích của trường</span><h2 id="roadmap-credentials-title">Huy hiệu &amp; chứng chỉ phù hợp</h2><p>Các gợi ý chỉ lấy từ danh mục chính thức của <?= learner_escape($schoolCredentialData['school']['name'] ?? 'nhà trường'); ?>.</p></div>
-                                <a href="badges.php">Xem toàn bộ <?= learner_icon('arrow-right', 16); ?></a>
-                            </div>
-                            <?php
-                            $credentialItems = $schoolCredentialData['featured'] ?? [];
-                            $credentialCompact = true;
-                            include __DIR__ . '/includes/school-credential-grid.php';
-                            unset($credentialItems, $credentialCompact);
-                            ?>
-                        </section>
-                    </details>
-                    <section class="learner-card learner-roadmap-secondary" data-ai-group-matches aria-labelledby="ai-group-matches-title">
-                        <div class="learner-roadmap-section-heading">
-                            <div>
-                                <span class="learner-roadmap__eyebrow">CỘNG ĐỒNG &amp; NHÓM HỌC TẬP</span>
-                                <h2 id="ai-group-matches-title">Nhóm phù hợp</h2>
-                            </div>
-                        </div>
-                        <div data-group-matches-container></div>
-                    </section>
-                    <div class="learner-roadmap__details">
-                        <details class="learner-card learner-roadmap-disclosure" data-roadmap-evidence><summary>Dữ liệu AI đã sử dụng</summary><div data-roadmap-evidence-content></div></details>
-                        <details class="learner-card learner-roadmap-disclosure" data-roadmap-engine><summary>Thông tin kỹ thuật</summary><dl data-roadmap-engine-content></dl></details>
-                    </div>
-                    <section class="learner-roadmap-feedback" data-roadmap-feedback aria-label="Phản hồi về lộ trình"><span>Gợi ý này hữu ích với bạn chứ?</span><button class="learner-btn learner-btn--outline" type="button" data-roadmap-feedback-value="helpful"><?= learner_icon('check', 16); ?> Hữu ích</button><button class="learner-btn learner-btn--outline" type="button" data-roadmap-feedback-value="not_helpful"><?= learner_icon('x', 16); ?> Chưa phù hợp</button><small data-roadmap-feedback-status role="status" aria-live="polite"></small></section>
                 </div>
             </main>
         </div>
@@ -149,7 +105,5 @@ $assetVersion = static function (string $relativePath): string {
     <script src="../../assets/js/learner-api.js?v=<?= $assetVersion('assets/js/learner-api.js'); ?>"></script>
     <script src="../../assets/js/learner.js?v=<?= $assetVersion('assets/js/learner.js'); ?>"></script>
     <script src="../../assets/js/learner-ai-roadmap.js?v=<?= $assetVersion('assets/js/learner-ai-roadmap.js'); ?>"></script>
-    <script src="../../assets/js/learner-recommendations.js?v=<?= $assetVersion('assets/js/learner-recommendations.js'); ?>"></script>
-    <script src="../../assets/js/learner-ai-groups.js?v=<?= $assetVersion('assets/js/learner-ai-groups.js'); ?>"></script>
 </body>
 </html>

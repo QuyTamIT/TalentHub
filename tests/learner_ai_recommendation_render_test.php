@@ -15,15 +15,25 @@ $opportunitySource = (string) file_get_contents(dirname(__DIR__) . '/app/learner
 roadmap_render_assert(str_contains($page, 'AI GỢI Ý'), 'page uses the approved AI title');
 roadmap_render_assert(str_contains($page, 'LỘ TRÌNH PHÁT TRIỂN 90 NGÀY'), '90-day roadmap is the dominant region');
 roadmap_render_assert(str_contains($page, 'Hướng phát triển ưu tiên'), 'primary direction region exists');
-roadmap_render_assert(str_contains($page, 'Dữ liệu AI đã sử dụng'), 'evidence region exists');
-roadmap_render_assert(str_contains($page, 'Thông tin kỹ thuật'), 'technical provenance is collapsed');
-roadmap_render_assert(str_contains($page, '<details'), 'evidence and engine metadata use native collapsed disclosure');
-roadmap_render_assert(str_contains($page, 'learner-recommendations.js') && str_contains($page, 'data-ai-result-list'), 'live catalog recommendation renderer is mounted beside the roadmap');
+foreach ([
+    'Hoạt động, dự án và cơ hội dành cho bạn',
+    'Huy hiệu &amp; chứng chỉ phù hợp',
+    'CỘNG ĐỒNG &amp; NHÓM HỌC TẬP',
+    'Nhóm phù hợp',
+    'Dữ liệu AI đã sử dụng',
+    'Thông tin kỹ thuật',
+    'Gợi ý này hữu ích với bạn chứ?',
+] as $removedCopy) {
+    roadmap_render_assert(!str_contains($page, $removedCopy), "roadmap page removes secondary copy: {$removedCopy}");
+}
+foreach (['data-ai-page', 'data-ai-group-matches', 'data-roadmap-evidence>', 'data-roadmap-engine>', 'data-roadmap-feedback '] as $removedHook) {
+    roadmap_render_assert(!str_contains($page, $removedHook), "roadmap page removes secondary hook: {$removedHook}");
+}
+roadmap_render_assert(!str_contains($page, 'learner-recommendations.js') && !str_contains($page, 'learner-ai-groups.js'), 'roadmap page does not load secondary recommendation bundles');
 roadmap_render_assert(str_contains($recommendationClient, 'learner-ai-result-list__empty'), 'empty recommendation results render an explicit user-facing state');
 roadmap_render_assert(str_contains($recommendationClient, 'learner-ai-result-group__count') && str_contains($recommendationClient, 'dataset.aiItemType'), 'recommendation cards expose semantic grouping and type metadata');
 roadmap_render_assert(str_contains($recommendationClient, 'learner-ai-result__source-facts') && str_contains($recommendationClient, 'Xem trong Hệ sinh thái'), 'enterprise-backed recommendation cards expose canonical source facts and ecosystem navigation');
 roadmap_render_assert(str_contains($recommendationClient, 'catalog?.safe_value?.title'), 'published project and opportunity cards display the canonical database title instead of a model-invented title');
-roadmap_render_assert(str_contains($page, 'data-ai-source-summary') && str_contains($page, 'Xem toàn bộ cơ hội'), 'recommendation block explains its canonical source and links to the ecosystem');
 roadmap_render_assert(str_contains($opportunitySource, '/app/learner/ecosystem.php?tab=opportunities&focus=') && str_contains($opportunitySource, "'opportunity_id' =>"), 'enterprise recommendation evidence deep-links to its canonical ecosystem record');
 roadmap_render_assert(str_contains($client, 'textContent'), 'untrusted model strings use textContent');
 roadmap_render_assert(!str_contains($client . $recommendationClient, 'innerHTML'), 'renderers never assign HTML from model output');
