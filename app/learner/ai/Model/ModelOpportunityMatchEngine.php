@@ -72,7 +72,7 @@ final class ModelOpportunityMatchEngine
             throw new InvalidArgumentException('Opportunity match provider returned a failure: ' . (string) $response->errorCode());
         }
 
-        $items = self::stripProviderFabricatedFields($response->items());
+        $items = self::stripProviderFabricatedFields($response->items(), $mode);
 
         $validator = $this->validator ?? new OpportunityMatchValidator();
         return $validator->validate($items, $candidateAllowList, $profile, $mode);
@@ -112,18 +112,41 @@ final class ModelOpportunityMatchEngine
     ];
 
     /**
+     * Gemini occasionally includes fields from a neighbouring output mode
+     * even though the request schema declares additionalProperties=false.
+     * They are not safe to pass to the mode-specific validator: a positive
+     * explanation is not a low-fit diagnostic and vice versa. Keep the
+     * validator strict for unknown fields while dropping only these known,
+     * mutually exclusive fields at the provider boundary.
+     */
+    private const LOW_FIT_ONLY_FIELDS = [
+        'why_not_fit_yet', 'missing_conditions', 'improvement_steps',
+    ];
+
+    private const POSITIVE_ONLY_FIELDS = [
+        'why_fit', 'expected_outcome_codes',
+    ];
+
+    /**
      * @param list<array<string,mixed>> $items
      * @return list<array<string,mixed>>
      */
-    private static function stripProviderFabricatedFields(array $items): array
+    private static function stripProviderFabricatedFields(array $items, string $mode): array
     {
+        $fields = self::PROVIDER_FABRICATED_FIELDS;
+        if ($mode === 'low_fit') {
+            $fields = [...$fields, ...self::POSITIVE_ONLY_FIELDS];
+        } else {
+            $fields = [...$fields, ...self::LOW_FIT_ONLY_FIELDS];
+        }
+
         $cleaned = [];
         foreach ($items as $item) {
             if (!is_array($item)) {
                 $cleaned[] = $item;
                 continue;
             }
-            $cleaned[] = array_diff_key($item, array_flip(self::PROVIDER_FABRICATED_FIELDS));
+            $cleaned[] = array_diff_key($item, array_flip($fields));
         }
         return $cleaned;
     }

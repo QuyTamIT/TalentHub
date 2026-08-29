@@ -458,6 +458,19 @@ provider_assert(count($lowFitValidated) === 2, 'low-fit mode validates project d
 provider_assert($lowFitValidated[0]->analysisKind() === 'low_fit', 'low-fit analysis kind round-trips');
 provider_assert($lowFitValidated[0]->missingConditions() === ['sql_minimum_score'], 'low-fit missing conditions round-trip');
 
+$lowFitProviderItems = $lowFitItems;
+$lowFitProviderItems[0]['why_fit'] = 'Cross-mode field that Gemini may emit despite the low-fit schema.';
+$lowFitProviderItems[0]['expected_outcome_codes'] = ['dashboard'];
+$lowFitEngine = new ModelOpportunityMatchEngine(
+    new FakeRecommendationProvider(ProviderResponse::success($lowFitProviderItems)),
+    $stubAuthorizer,
+);
+$lowFitGenerated = $lowFitEngine->generate($profile, $candidates, $scored, provider_test_context(), 'low_fit');
+provider_assert(count($lowFitGenerated) === 2, 'low-fit engine tolerates cross-mode Gemini fields');
+provider_assert($lowFitGenerated[0]->whyNotFitYet() === $lowFitItems[0]['why_not_fit_yet'], 'low-fit engine preserves diagnostic explanation after cleanup');
+provider_assert($lowFitGenerated[0]->whyFit() === $lowFitItems[0]['why_not_fit_yet'], 'low-fit engine maps diagnostic explanation to the low-fit match field');
+provider_assert($lowFitGenerated[0]->expectedOutcomeCodes() === [], 'low-fit engine drops cross-mode expected outcomes');
+
 $noFitRequest = OpportunityMatchPromptRegistry::create(
     $profile,
     [],
