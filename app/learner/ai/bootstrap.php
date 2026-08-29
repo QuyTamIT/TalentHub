@@ -39,6 +39,8 @@ require_once $learnerAiRoot . '/Domain/RoadmapInsight.php';
 require_once $learnerAiRoot . '/Domain/RoadmapTask.php';
 require_once $learnerAiRoot . '/Domain/RoadmapPhase.php';
 require_once $learnerAiRoot . '/Domain/RoadmapAnalysis.php';
+require_once $learnerAiRoot . '/Matching/LearnerOpportunityProfile.php';
+require_once $learnerAiRoot . '/Matching/OpportunityCandidate.php';
 require_once $learnerAiRoot . '/Quality/DataQualityResult.php';
 require_once $learnerAiRoot . '/Quality/DataQualityGate.php';
 require_once $learnerAiRoot . '/Quality/RoadmapQualityGate.php';

@@ -37,7 +37,11 @@ final class DatabaseCatalogSource implements LearnerAiExtendedSource
     public function refreshTrigger(): string { return 'catalog_changed'; }
     public function allowedFields(): array
     {
-        return ['action', 'availability', 'catalog_id', 'category', 'deadline_at', 'eligibility', 'item_type', 'publish_status', 'summary', 'title', 'updated_at', 'url'];
+        return [
+            'action', 'availability', 'catalog_id', 'category', 'deadline_at', 'difficulty',
+            'education_bands', 'eligibility', 'item_type', 'learning_outcomes', 'location',
+            'provider_name', 'publish_status', 'required_skills', 'summary', 'title', 'updated_at', 'url',
+        ];
     }
 
     /** @return list<array<string,mixed>> */
@@ -48,7 +52,22 @@ final class DatabaseCatalogSource implements LearnerAiExtendedSource
         $items = [];
         if ($this->tableExists('learner_ai_catalog_items')) {
             try {
-                $rows = $this->pdo->query('SELECT catalog_id, item_type, category, title, summary, publish_status, deadline_at, eligibility_json, capacity, enrolled_count, url, action_json, school_id, tenant_id, updated_at FROM learner_ai_catalog_items')?->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                $catalogColumns = $this->columnsFor('learner_ai_catalog_items');
+                $selectColumns = ['catalog_id', 'item_type', 'category', 'title', 'summary', 'publish_status', 'deadline_at', 'eligibility_json', 'capacity', 'enrolled_count', 'url', 'action_json', 'school_id', 'tenant_id', 'updated_at'];
+                $extensions = [
+                    'provider_name' => 'provider_name',
+                    'location' => 'location',
+                    'difficulty' => 'difficulty',
+                    'required_skills_json' => 'required_skills',
+                    'learning_outcomes_json' => 'learning_outcomes',
+                    'education_bands_json' => 'education_bands',
+                ];
+                foreach ($extensions as $column => $alias) {
+                    if (in_array($column, $catalogColumns, true)) {
+                        $selectColumns[] = $column . ' AS ' . $alias;
+                    }
+                }
+                $rows = $this->pdo->query('SELECT ' . implode(', ', $selectColumns) . ' FROM learner_ai_catalog_items')?->fetchAll(PDO::FETCH_ASSOC) ?: [];
             } catch (Throwable) { $rows = []; }
             foreach ($rows as $row) {
                 if (!$this->eligible($row, $student)) continue;
@@ -64,6 +83,12 @@ final class DatabaseCatalogSource implements LearnerAiExtendedSource
                     'summary' => (string) ($row['summary'] ?? ''), 'publish_status' => 'published', 'deadline_at' => $deadline,
                     'eligibility' => $eligibility, 'availability' => ['capacity' => (int) $row['capacity'], 'enrolled' => (int) $row['enrolled_count'], 'remaining' => max(0, (int) $row['capacity'] - (int) $row['enrolled_count'])],
                     'url' => (string) ($row['url'] ?? ''), 'action' => $action, 'updated_at' => $updatedAt, 'observed_at' => $updatedAt,
+                    'provider_name' => (string) ($row['provider_name'] ?? ''),
+                    'location' => (string) ($row['location'] ?? ''),
+                    'difficulty' => (string) ($row['difficulty'] ?? 'introductory'),
+                    'required_skills' => self::decodeSkills($row['required_skills'] ?? null),
+                    'learning_outcomes' => self::decodeOutcomes($row['learning_outcomes'] ?? null),
+                    'education_bands' => self::decodeBands($row['education_bands'] ?? null),
                 ];
             }
         }
@@ -105,6 +130,12 @@ final class DatabaseCatalogSource implements LearnerAiExtendedSource
                 'availability' => ['capacity' => null, 'enrolled' => null, 'remaining' => null],
                 'url' => $url, 'action' => ['type' => 'view_project', 'project_id' => $id],
                 'updated_at' => $updatedAt, 'observed_at' => $updatedAt,
+                'provider_name' => '',
+                'location' => '',
+                'difficulty' => 'introductory',
+                'required_skills' => [],
+                'learning_outcomes' => [],
+                'education_bands' => [],
             ];
         }
         return $items;
@@ -184,6 +215,64 @@ final class DatabaseCatalogSource implements LearnerAiExtendedSource
     /** @return array<string,mixed> */
     /** @return array<string,mixed>|null */
     private function json(mixed $value): ?array { try { $decoded = is_string($value) ? json_decode($value, true, 64, JSON_THROW_ON_ERROR) : null; return is_array($decoded) ? $decoded : null; } catch (Throwable) { return null; } }
+
+    /** @return list<array{code:string,minimum_score:int,label:string}> */
+    private static function decodeSkills(mixed $raw): array
+    {
+        $decoded = is_array($raw) ? $raw : (is_string($raw) ? json_decode($raw, true) : null);
+        if (!is_array($decoded)) return [];
+        $skills = [];
+        foreach ($decoded as $entry) {
+            if (is_string($entry) && trim($entry) !== '') {
+                $skills[] = ['code' => trim($entry), 'minimum_score' => 0, 'label' => trim($entry)];
+                continue;
+            }
+            if (is_array($entry)) {
+                $code = isset($entry['code']) ? (string) $entry['code'] : (isset($entry['name']) ? (string) $entry['name'] : '');
+                if ($code === '') continue;
+                $minScore = isset($entry['minimum_score']) && is_numeric($entry['minimum_score']) ? max(0, min(100, (int) $entry['minimum_score'])) : 0;
+                $label = isset($entry['label']) ? (string) $entry['label'] : $code;
+                $skills[] = ['code' => $code, 'minimum_score' => $minScore, 'label' => $label];
+            }
+        }
+        return $skills;
+    }
+
+    /** @return list<array{code:string,label:string}> */
+    private static function decodeOutcomes(mixed $raw): array
+    {
+        $decoded = is_array($raw) ? $raw : (is_string($raw) ? json_decode($raw, true) : null);
+        if (!is_array($decoded)) return [];
+        $outcomes = [];
+        foreach ($decoded as $entry) {
+            if (is_string($entry) && trim($entry) !== '') {
+                $outcomes[] = ['code' => trim($entry), 'label' => trim($entry)];
+                continue;
+            }
+            if (is_array($entry)) {
+                $code = isset($entry['code']) ? (string) $entry['code'] : (isset($entry['name']) ? (string) $entry['name'] : '');
+                if ($code === '') continue;
+                $label = isset($entry['label']) ? (string) $entry['label'] : $code;
+                $outcomes[] = ['code' => $code, 'label' => $label];
+            }
+        }
+        return $outcomes;
+    }
+
+    /** @return list<string> */
+    private static function decodeBands(mixed $raw): array
+    {
+        $decoded = is_array($raw) ? $raw : (is_string($raw) ? json_decode($raw, true) : null);
+        if (!is_array($decoded)) return [];
+        $bands = [];
+        foreach ($decoded as $entry) {
+            if (is_string($entry) && in_array(strtolower(trim($entry)), ['middle', 'high', 'college'], true)) {
+                $band = strtolower(trim($entry));
+                if (!in_array($band, $bands, true)) $bands[] = $band;
+            }
+        }
+        return $bands;
+    }
     private function timestamp(mixed $value): ?string { if (!is_string($value) || trim($value) === '') return null; try { return (new DateTimeImmutable($value, new DateTimeZone('UTC')))->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\\TH:i:s.uP'); } catch (Throwable) { return null; } }
     private function tableExists(string $table): bool { try { if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') { $q = $this->pdo->prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name"); $q->execute(['name' => $table]); return $q->fetchColumn() !== false; } $q = $this->pdo->prepare('SELECT 1 FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=:name'); $q->execute(['name' => $table]); return $q->fetchColumn() !== false; } catch (Throwable) { return false; } }
     /** @return list<string> */
