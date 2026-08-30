@@ -241,8 +241,7 @@ $isDatabaseSource = $ecosystemSource === 'database';
                                 <?php $projectSearch = implode(' ', array_filter([$project['title'] ?? '', $project['school_name'] ?? '', $project['category_label'] ?? '', $project['description'] ?? ''])); ?>
                                 <article class="learner-project-card learner-card" data-ecosystem-item data-ecosystem-item-type="project" data-search="<?= learner_escape($projectSearch); ?>" data-field="<?= learner_escape($project['category_label']); ?>">
                                     <div class="learner-project-card__top">
-                                        <span class="learner-project-card__type">Dự án</span>
-                                        <span class="learner-badge learner-badge--secondary">Dự án trường</span>
+                                        <span class="learner-badge learner-badge--secondary">Dự án</span>
                                         <span class="learner-status-dot learner-status-dot--active"><?= learner_escape($project['status_label']); ?></span>
                                     </div>
                                     <p class="learner-card-kicker"><?= learner_escape($project['category_label']); ?></p>

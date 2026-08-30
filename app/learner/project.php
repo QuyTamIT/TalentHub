@@ -72,7 +72,7 @@ if (!function_exists('learner_project_money')) {
                     <section class="learner-project-detail__hero learner-card" aria-labelledby="project-title">
                         <div class="learner-project-detail__hero-main">
                             <div class="learner-project-detail__badges">
-                                <span class="learner-badge learner-badge--secondary">Dự án trường</span>
+                                <span class="learner-badge learner-badge--secondary">Dự án</span>
                                 <span class="learner-status-dot learner-status-dot--active"><?= learner_escape($project['status_label']); ?></span>
                             </div>
                             <p class="learner-card-kicker"><?= learner_escape($project['category_label']); ?></p>
