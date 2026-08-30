@@ -153,9 +153,13 @@ $isDatabaseSource = $ecosystemSource === 'database';
                                 <h2 id="opportunity-ai-title">Top 3 dự án AI đề xuất cho bạn</h2>
                                 <p>Gemini đối chiếu hồ sơ năng lực và điểm đánh giá của bạn với các dự án thật trên TalentHub.</p>
                             </div>
-                            <p class="learner-opportunity-ai__status" data-opportunity-ai-status role="status" aria-live="polite">Sẵn sàng phân tích</p>
+                            <div class="learner-opportunity-ai__header-actions">
+                                <p class="learner-opportunity-ai__status" data-opportunity-ai-status role="status" aria-live="polite">Sẵn sàng phân tích</p>
+                                <button class="learner-opportunity-ai__collapse" type="button" data-opportunity-ai-collapse aria-expanded="true" aria-controls="opportunity-ai-body">Thu gọn</button>
+                            </div>
                         </header>
 
+                        <div class="learner-opportunity-ai__body" id="opportunity-ai-body" data-opportunity-ai-body>
                         <div class="learner-opportunity-ai__message" data-opportunity-ai-not-generated>
                             <?= learner_icon('sparkles', 20); ?>
                             <div><strong>Khám phá dự án phù hợp với năng lực hiện tại</strong><span>AI chỉ sử dụng dữ liệu bạn đã cho phép và giải thích riêng cho từng dự án.</span></div>
@@ -217,6 +221,7 @@ $isDatabaseSource = $ecosystemSource === 'database';
                         </div>
                         <div data-opportunity-ai-results hidden>
                             <div class="learner-opportunity-ai-list" data-opportunity-ai-list></div>
+                        </div>
                         </div>
                     </section>
 

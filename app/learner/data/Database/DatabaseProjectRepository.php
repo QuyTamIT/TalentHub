@@ -92,4 +92,22 @@ final class DatabaseProjectRepository extends AbstractDatabaseRepository impleme
 
         return $project;
     }
+
+    public function findActiveMembershipForStudent(string $studentId, string $projectId): ?array
+    {
+        $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
+        $projectId = Uuid::normalizeDatabase($projectId, 'project_id');
+        $membership = $this->fetchOne(
+            'findActiveMembershipForStudent',
+            <<<'SQL'
+                SELECT id, projectId, studentId, role, status, joinedAt, leftAt, createdAt, updatedAt
+                FROM project_members
+                WHERE projectId = :project_id AND studentId = :student_id AND status = 'active'
+                LIMIT 1
+                SQL,
+            ['student_id' => $studentId, 'project_id' => $projectId],
+        );
+
+        return is_array($membership) ? $membership : null;
+    }
 }

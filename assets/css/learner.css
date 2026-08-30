@@ -5312,6 +5312,45 @@ body.learner-sidebar-open {
     gap: 22px;
 }
 
+.learner-project-detail__actions {
+    display: grid;
+    min-width: 220px;
+    align-content: start;
+    justify-items: stretch;
+    gap: 10px;
+}
+
+.learner-project-detail__actions .learner-btn {
+    width: 100%;
+}
+
+.learner-project-detail__register {
+    display: contents;
+}
+
+.learner-project-detail__notice {
+    display: flex;
+    margin: 0 0 16px;
+    padding: 13px 16px;
+    align-items: center;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.learner-project-detail__notice--success {
+    color: #166534;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+}
+
+.learner-project-detail__notice--error {
+    color: #991b1b;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+}
+
 .learner-project-detail__badges {
     display: flex;
     margin-bottom: 12px;
@@ -11429,6 +11468,10 @@ body.learner-sidebar-open {
     white-space: nowrap;
 }
 
+.learner-opportunity-ai-trigger[hidden] {
+    display: none !important;
+}
+
 .learner-opportunity-ai {
     margin-bottom: 22px;
     padding: 16px;
@@ -11447,6 +11490,53 @@ body.learner-sidebar-open {
     align-items: center;
     gap: 12px;
     border-bottom: 1px solid var(--border);
+}
+
+.learner-opportunity-ai__header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 9px;
+}
+
+.learner-opportunity-ai__collapse {
+    min-height: 30px;
+    padding: 4px 13px;
+    align-items: center;
+    color: var(--secondary);
+    background: var(--surface);
+    border: 1px solid var(--secondary);
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 650;
+    line-height: 1.2;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.learner-opportunity-ai__collapse:hover {
+    color: var(--surface);
+    background: var(--secondary);
+}
+
+@media (max-width: 640px) {
+    .learner-opportunity-ai__header {
+        grid-template-columns: 46px minmax(0, 1fr);
+        row-gap: 12px;
+    }
+
+    .learner-opportunity-ai__header-actions {
+        grid-column: 1 / -1;
+        flex-direction: row-reverse;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .learner-opportunity-ai__header-actions .learner-opportunity-ai__status {
+        white-space: normal;
+    }
 }
 
 .learner-opportunity-ai__icon {

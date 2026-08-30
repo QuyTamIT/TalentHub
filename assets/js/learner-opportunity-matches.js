@@ -413,6 +413,24 @@
         return `opportunity-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
     }
 
+    function createOpportunityAiCollapse({ button, body } = {}) {
+        if (!button || !body) return null;
+        const expandedLabel = 'Thu gọn';
+        const collapsedLabel = 'Mở rộng';
+
+        function apply(expanded) {
+            button.setAttribute('aria-expanded', String(expanded));
+            button.textContent = expanded ? expandedLabel : collapsedLabel;
+            body.hidden = !expanded;
+        }
+
+        button.addEventListener('click', () => {
+            apply(button.getAttribute('aria-expanded') !== 'true');
+        });
+        apply(true);
+        return { apply, button, body };
+    }
+
     function mountOpportunityMatches() {
         if (typeof document === 'undefined') return null;
         const root = document.querySelector('[data-opportunity-matches]');
@@ -421,6 +439,10 @@
         if (root.__talentHubOpportunityController) return root.__talentHubOpportunityController;
         const api = global.TalentHubLearnerClient;
         const view = createOpportunityMatchView(root);
+        createOpportunityAiCollapse({
+            button: root.querySelector('[data-opportunity-ai-collapse]'),
+            body: root.querySelector('[data-opportunity-ai-body]'),
+        });
         if (!api) {
             view.render('source-error');
             return null;
@@ -451,6 +473,7 @@
     const api = {
         createOpportunityMatchController,
         createOpportunityMatchView,
+        createOpportunityAiCollapse,
         mapOpportunityMatchState,
         isSafeInternalProjectUrl,
         classifySafeOpportunityUrl,

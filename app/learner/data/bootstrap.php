@@ -17,6 +17,7 @@ require_once $learnerDataRoot . '/Contracts/CheckinRepository.php';
 require_once $learnerDataRoot . '/Contracts/ActivityAttendanceReconciliationRepository.php';
 require_once $learnerDataRoot . '/Contracts/EcosystemRepository.php';
 require_once $learnerDataRoot . '/Contracts/ProjectRepository.php';
+require_once $learnerDataRoot . '/Contracts/ProjectMembershipCommandRepository.php';
 require_once $learnerDataRoot . '/Contracts/ApplicationRepository.php';
 require_once $learnerDataRoot . '/Contracts/InternshipApplicationCommandRepository.php';
 require_once $learnerDataRoot . '/Contracts/NotificationRepository.php';
@@ -68,6 +69,7 @@ require_once $learnerDataRoot . '/Database/DatabaseActivityCommandRepository.php
 require_once $learnerDataRoot . '/Database/DatabaseCheckinRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseEcosystemRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseProjectRepository.php';
+require_once $learnerDataRoot . '/Database/DatabaseProjectMembershipCommandRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseApplicationRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseApplicationCommandRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseInternshipApplicationCommandRepository.php';

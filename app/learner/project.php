@@ -15,6 +15,23 @@ try {
     $projectLoadFailed = true;
 }
 
+$learnerProjectMembership = null;
+if ($project !== null) {
+    try {
+        $learnerProjectMembership = learner_project_repository()->findActiveMembershipForStudent(
+            learner_current_student_id(),
+            (string) $project['id']
+        );
+    } catch (Throwable) {
+        $learnerProjectMembership = null;
+    }
+}
+$learnerProjectJoined = is_array($learnerProjectMembership)
+    && (string) ($learnerProjectMembership['status'] ?? '') === 'active';
+$learnerProjectRegistered = ($_GET['registered'] ?? '') === '1';
+$learnerProjectRegisterFailed = ($_GET['register'] ?? '') === 'failed';
+$learnerProjectCsrfToken = (string) ($GLOBALS['learner_page_context']['csrfToken'] ?? '');
+
 $pageTitle = $project ? 'Chi tiết dự án' : 'Không tìm thấy dự án';
 $currentRoute = '/app/learner/ecosystem.php';
 $headerSearchLabel = 'Tìm trong dự án';
@@ -69,6 +86,15 @@ if (!function_exists('learner_project_money')) {
                         <a class="learner-btn learner-btn--primary" href="ecosystem.php?tab=opportunities">Quay lại danh sách dự án</a>
                     </section>
                 <?php else: ?>
+                    <?php if ($learnerProjectRegistered): ?>
+                        <div class="learner-project-detail__notice learner-project-detail__notice--success" role="status">
+                            Đăng ký dự án thành công. Bạn đã trở thành thành viên đang hoạt động của dự án này.
+                        </div>
+                    <?php elseif ($learnerProjectRegisterFailed): ?>
+                        <div class="learner-project-detail__notice learner-project-detail__notice--error" role="alert">
+                            Không thể đăng ký dự án lúc này. Vui lòng thử lại.
+                        </div>
+                    <?php endif; ?>
                     <section class="learner-project-detail__hero learner-card" aria-labelledby="project-title">
                         <div class="learner-project-detail__hero-main">
                             <div class="learner-project-detail__badges">
@@ -79,7 +105,18 @@ if (!function_exists('learner_project_money')) {
                             <h1 id="project-title"><?= learner_escape($project['title']); ?></h1>
                             <p class="learner-project-detail__school"><?= learner_icon('building', 18); ?> <?= learner_escape($project['school_name']); ?></p>
                         </div>
-                        <a class="learner-btn learner-btn--outline" href="ecosystem.php?tab=opportunities"><?= learner_icon('arrow-left', 17); ?> Danh sách dự án</a>
+                        <div class="learner-project-detail__actions">
+                            <?php if ($learnerProjectJoined): ?>
+                                <button class="learner-btn learner-btn--primary" type="button" disabled>Đã tham gia dự án</button>
+                            <?php else: ?>
+                                <form class="learner-project-detail__register" method="post" action="actions/register-project.php">
+                                    <input type="hidden" name="projectId" value="<?= learner_escape($project['id']); ?>">
+                                    <input type="hidden" name="csrfToken" value="<?= learner_escape($learnerProjectCsrfToken); ?>">
+                                    <button class="learner-btn learner-btn--primary" type="submit"><?= learner_icon('users', 18); ?> Đăng ký dự án</button>
+                                </form>
+                            <?php endif; ?>
+                            <a class="learner-btn learner-btn--outline" href="ecosystem.php?tab=opportunities"><?= learner_icon('arrow-left', 17); ?> Danh sách dự án</a>
+                        </div>
 
                         <div class="learner-project-detail__facts">
                             <div><?= learner_icon('briefcase', 19); ?><span>Lĩnh vực<strong><?= learner_escape($project['category_label']); ?></strong></span></div>

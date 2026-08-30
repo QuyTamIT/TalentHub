@@ -11,4 +11,7 @@ interface ProjectRepository
 
     /** @return array<string,mixed>|null */
     public function findVisibleForStudent(string $studentId, string $projectId): ?array;
+
+    /** @return array<string,mixed>|null */
+    public function findActiveMembershipForStudent(string $studentId, string $projectId): ?array;
 }

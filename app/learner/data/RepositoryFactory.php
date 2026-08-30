@@ -18,6 +18,7 @@ use TalentHub\Learner\Data\Contracts\AssessmentWriteRepository;
 use TalentHub\Learner\Data\Contracts\BadgeRepository;
 use TalentHub\Learner\Data\Contracts\EcosystemRepository;
 use TalentHub\Learner\Data\Contracts\NotificationRepository;
+use TalentHub\Learner\Data\Contracts\ProjectMembershipCommandRepository;
 use TalentHub\Learner\Data\Contracts\ProjectRepository;
 use TalentHub\Learner\Data\Contracts\StatisticsRepository;
 use TalentHub\Learner\Data\Contracts\SchoolCredentialRepository;
@@ -205,6 +206,17 @@ final class RepositoryFactory
         }
 
         return new Database\DatabaseProjectRepository($this->pdo);
+    }
+
+    public function projectMembershipCommand(): ProjectMembershipCommandRepository
+    {
+        if ($this->source !== 'database') {
+            throw new LearnerDataConfigurationException(
+                'Learner project registration requires the canonical database source.'
+            );
+        }
+
+        return new Database\DatabaseProjectMembershipCommandRepository($this->pdo);
     }
 
     public function schoolCredential(): SchoolCredentialRepository

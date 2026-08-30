@@ -168,6 +168,15 @@
 
     global.LearnerProfileUiContract = Object.freeze({ resolveMutationBackend });
 
+    function isAiTriggerVisibleForTab(tabId) {
+        return tabId === 'opportunities';
+    }
+
+    function syncEcosystemAiTrigger(trigger, tabId) {
+        if (!trigger) return;
+        trigger.hidden = !isAiTriggerVisibleForTab(tabId);
+    }
+
     global.LearnerUI = {
         validateProfile,
         nextAssessmentState,
@@ -183,6 +192,8 @@
         applicationMatches,
         canApplyToOpportunity,
         validateApplication,
+        isAiTriggerVisibleForTab,
+        syncEcosystemAiTrigger,
     };
 
     function createPageApiClient(baseOverride = '') {
@@ -435,6 +446,7 @@
         });
 
         const ecosystemPage = document.querySelector('[data-ecosystem-page]');
+        const ecosystemAiTrigger = document.querySelector('[data-opportunity-ai-trigger]');
         if (ecosystemPage) {
             const ecosystemTabs = Array.from(document.querySelectorAll('[data-ecosystem-tab]'));
             const ecosystemPanels = Array.from(document.querySelectorAll('[data-ecosystem-panel]'));
@@ -491,6 +503,7 @@
                 ecosystemPanels.forEach((panel) => {
                     panel.hidden = panel.dataset.ecosystemPanel !== nextTab.dataset.ecosystemTab;
                 });
+                syncEcosystemAiTrigger(ecosystemAiTrigger, nextTab.dataset.ecosystemTab);
                 const nextUrl = new URL(global.location.href);
                 nextUrl.searchParams.set('tab', nextTab.dataset.ecosystemTab);
                 global.history.replaceState({}, '', nextUrl);

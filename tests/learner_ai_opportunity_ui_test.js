@@ -8,6 +8,7 @@ const path = require('node:path');
 const {
     createOpportunityMatchController,
     createOpportunityMatchView,
+    createOpportunityAiCollapse,
     mapOpportunityMatchState,
     isSafeInternalProjectUrl,
     classifySafeOpportunityUrl,
@@ -15,8 +16,11 @@ const {
     normalizeReadyItems,
     mountOpportunityMatches,
 } = require('../assets/js/learner-opportunity-matches.js');
+require('../assets/js/learner.js');
+const { isAiTriggerVisibleForTab, syncEcosystemAiTrigger } = global.LearnerUI;
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'assets/js/learner-opportunity-matches.js'), 'utf8');
+const learnerSource = fs.readFileSync(path.join(__dirname, '..', 'assets/js/learner.js'), 'utf8');
 const ecosystemSource = fs.readFileSync(path.join(__dirname, '..', 'app', 'learner', 'ecosystem.php'), 'utf8');
 const learnerCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'css', 'learner.css'), 'utf8');
 
@@ -350,4 +354,106 @@ test('mounting twice reuses one controller and registers one trigger listener', 
         global.document = previousDocument;
         global.TalentHubLearnerClient = previousClient;
     }
+});
+
+test('AI panel renders an accessible collapse control around the whole AI body', () => {
+    const bodyPos = ecosystemSource.indexOf('data-opportunity-ai-body');
+    const statePositions = [
+        'data-opportunity-ai-not-generated',
+        'data-opportunity-ai-loading',
+        'data-opportunity-ai-consent',
+        'data-opportunity-ai-insufficient',
+        'data-opportunity-ai-catalog-insufficient',
+        'data-opportunity-ai-low-fit',
+        'data-opportunity-ai-no-fit',
+        'data-opportunity-ai-error',
+        'data-opportunity-ai-results',
+    ].map((hook) => ecosystemSource.indexOf(hook));
+    const listHeadingPos = ecosystemSource.indexOf('Tất cả dự án đang triển khai');
+
+    assert.ok(bodyPos > 0, 'AI body region exists');
+    assert.ok(listHeadingPos > bodyPos, 'AI body region ends before the ordinary project list');
+    for (const [index, position] of statePositions.entries()) {
+        assert.ok(position > bodyPos, `${statePositions[index]} is inside the controlled AI body region`);
+        assert.ok(position < listHeadingPos, `${statePositions[index]} appears before the ordinary project list`);
+    }
+
+    const collapsePos = ecosystemSource.indexOf('data-opportunity-ai-collapse');
+    assert.ok(collapsePos > 0 && collapsePos < bodyPos, 'collapse control lives in the always-visible AI header');
+    assert.match(ecosystemSource, /aria-expanded="true"/, 'the panel begins expanded with an explicit aria-expanded state');
+    assert.match(ecosystemSource, /aria-controls="opportunity-ai-body"/, 'the disclosure references its controlled content region');
+    assert.match(ecosystemSource, /id="opportunity-ai-body"/, 'the controlled body carries the referenced id');
+    assert.doesNotMatch(ecosystemSource, /id="opportunity-ai-body"[^>]*\shidden/, 'the body starts expanded on page load');
+    assert.match(ecosystemSource, />Thu gọn</, 'the expanded disclosure copy is Thu gọn');
+});
+
+test('collapse hides and restores the complete AI body without touching the AI state', () => {
+    const listeners = new Map();
+    const makeNode = () => ({
+        textContent: '',
+        hidden: false,
+        attributes: {},
+        addEventListener(type, handler) { listeners.set(type, handler); },
+        setAttribute(name, value) { this.attributes[name] = String(value); },
+        getAttribute(name) { return this.attributes[name] ?? null; },
+    });
+    const button = makeNode();
+    button.setAttribute('aria-expanded', 'true');
+    const body = makeNode();
+    const controller = createOpportunityAiCollapse({ button, body });
+
+    assert.equal(button.getAttribute('aria-expanded'), 'true');
+    assert.equal(button.textContent, 'Thu gọn');
+    assert.equal(body.hidden, false);
+
+    listeners.get('click')();
+    assert.equal(button.getAttribute('aria-expanded'), 'false');
+    assert.equal(button.textContent, 'Mở rộng');
+    assert.equal(body.hidden, true);
+
+    listeners.get('click')();
+    assert.equal(button.getAttribute('aria-expanded'), 'true');
+    assert.equal(button.textContent, 'Thu gọn');
+    assert.equal(body.hidden, false);
+});
+
+test('collapse is wired into the mounted AI module', () => {
+    assert.equal(typeof createOpportunityAiCollapse, 'function');
+    assert.match(source, /createOpportunityAiCollapse\(/, 'mount wires the collapse controller');
+    assert.match(source, /data-opportunity-ai-collapse/, 'collapse control is queried by data attribute');
+});
+
+test('AI trigger is hidden for every tab except the internal opportunities tab', () => {
+    assert.equal(isAiTriggerVisibleForTab('opportunities'), true);
+    assert.equal(isAiTriggerVisibleForTab('enterprises'), false);
+    assert.equal(isAiTriggerVisibleForTab(''), false);
+    assert.equal(isAiTriggerVisibleForTab(undefined), false);
+
+    const trigger = { hidden: false };
+    syncEcosystemAiTrigger(trigger, 'enterprises');
+    assert.equal(trigger.hidden, true, 'enterprise activation hides the trigger synchronously');
+    syncEcosystemAiTrigger(trigger, 'opportunities');
+    assert.equal(trigger.hidden, false, 'returning to the project tab restores the trigger');
+    syncEcosystemAiTrigger(null, 'opportunities');
+});
+
+test('tab controller drives the AI trigger visibility for mouse, keyboard, and initial render', () => {
+    assert.match(
+        learnerSource,
+        /syncEcosystemAiTrigger\([^)]*,\s*nextTab\.dataset\.ecosystemTab\)/,
+        'tab activation synchronously syncs the AI trigger',
+    );
+    const activateBody = learnerSource.slice(
+        learnerSource.indexOf('const activateEcosystemTab'),
+        learnerSource.indexOf('ecosystemTabs.forEach((tab, index)'),
+    );
+    assert.ok(activateBody.includes('syncEcosystemAiTrigger'), 'activation wires the trigger sync before any async work');
+    assert.match(ecosystemSource, /data-opportunity-ai-trigger <\?= \$initialTab !== 'opportunities' \? 'hidden' : ''; \?>/, 'initial enterprise render hides the trigger server-side');
+    assert.match(learnerCss, /\.learner-opportunity-ai-trigger\[hidden\]\s*\{[^}]*display:\s*none/, 'the hidden attribute beats button display styling');
+    assert.match(
+        learnerCss,
+        /@media \(max-width: 640px\)\s*\{[^@]*\.learner-opportunity-ai__header-actions\s*\{[^}]*flex-direction:\s*row/,
+        'mobile layout keeps the status and collapse control on one shared row',
+    );
+    assert.match(learnerCss, /\.learner-opportunity-ai__collapse\s*\{[^}]*white-space:\s*nowrap/, 'the collapse label never breaks across lines');
 });

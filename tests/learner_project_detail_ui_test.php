@@ -28,6 +28,21 @@ $assert(str_contains($detailPage, 'Mục tiêu tài trợ'), 'detail renders fun
 $assert(str_contains($detailPage, 'Không tìm thấy dự án'), 'detail has an authorization-safe not-found state');
 $assert(!preg_match('/projectUrl|project_url|github\.com/i', $detailPage), 'detail never renders repository links');
 $assert(!str_contains($detailPage, 'Ứng tuyển'), 'detail has no application action');
-$assert(!str_contains($detailPage, 'Tham gia dự án'), 'detail does not imply an enrollment workflow');
+
+// Registration primary action (2026-08-30 spec).
+$assert(str_contains($detailPage, 'findActiveMembershipForStudent'), 'detail resolves the learner membership state from the read model');
+$assert(str_contains($detailPage, 'Đăng ký dự án'), 'detail renders the primary registration action');
+$assert(str_contains($detailPage, 'Đã tham gia dự án'), 'detail renders the already-joined state for active members');
+$assert(str_contains($detailPage, 'actions/register-project.php'), 'registration posts to the same-origin learner action');
+$assert(str_contains($detailPage, 'name="projectId"'), 'registration form carries the project identifier');
+$assert(str_contains($detailPage, 'name="csrfToken"'), 'registration form carries the session CSRF token');
+$assert(str_contains($detailPage, 'method="post"'), 'registration uses a POST form');
+$assert(!str_contains($detailPage, 'studentId'), 'learner identity is never accepted from browser input');
+
+// PRG feedback notices.
+$assert(str_contains($detailPage, "\$_GET['registered']"), 'detail renders the post-redirect success notice flag');
+$assert(str_contains($detailPage, "\$_GET['register']"), 'detail renders the post-redirect failure notice flag');
+$assert(str_contains($detailPage, 'role="status"'), 'success notice is announced politely');
+$assert(str_contains($detailPage, 'role="alert"'), 'failure notice is announced assertively');
 
 echo "learner_project_detail_ui_test: OK\n";

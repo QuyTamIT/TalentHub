@@ -42,6 +42,8 @@ Thumbs.db
 !/tests/learner_ai_opportunity_api_test.php
 !/tests/learner_ai_opportunity_ui_test.js
 !/tests/learner_ai_opportunity_end_to_end_test.php
+!/tests/learner_project_registration_test.php
+!/tests/learner_project_registration_boundary_test.php
 !/tests/school_ai_insight_ui_test.ps1
 !/tests/enterprise_ai_gemini_matcher_test.php
 !/tests/enterprise_ai_matches_api_test.php
