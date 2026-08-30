@@ -142,7 +142,10 @@ function service_test_model_items(): array
         [
             'catalog_id' => 'internship-1',
             'gemini_score' => 97,
-            'why_fit' => 'Du an phan tich du lieu nay dung ky nang Python da xac minh cua ban.',
+            'why_fit' => 'Dự án phân tích dữ liệu sử dụng trực tiếp nền tảng Python đã được xác minh trong hồ sơ. Điểm đánh giá cho thấy bạn có khả năng xử lý vấn đề theo cấu trúc. Hồ sơ hiện chưa có nhiều sản phẩm dữ liệu hoàn chỉnh để chứng minh kinh nghiệm. Cơ hội này phù hợp để bạn rèn thêm kỹ năng xây dựng dashboard thực tế.',
+            'fit_reasons' => ['Có nền tảng Python đã được xác minh.', 'Có khả năng phân tích vấn đề theo cấu trúc.'],
+            'gap_reasons' => ['Chưa có nhiều sản phẩm dữ liệu hoàn chỉnh.'],
+            'skills_to_develop' => ['Xây dựng dashboard', 'Trình bày kết quả phân tích'],
             'matched_skill_codes' => ['python'],
             'missing_skill_codes' => [],
             'expected_outcome_codes' => ['dashboard'],
@@ -151,7 +154,10 @@ function service_test_model_items(): array
         [
             'catalog_id' => 'internship-2',
             'gemini_score' => 93,
-            'why_fit' => 'AI marketing analytics giup ban ren ky nang trinh bay voi khach hang.',
+            'why_fit' => 'Cơ hội AI marketing tận dụng tốt nền tảng Python và tư duy phân tích trong hồ sơ. Kinh nghiệm làm việc nhóm hỗ trợ bạn trao đổi kết quả với các thành viên khác. Hồ sơ chưa cho thấy kiến thức marketing qua một chiến dịch cụ thể. Dự án sẽ giúp bạn rèn luyện cách chuyển dữ liệu thành đề xuất dễ hiểu cho người dùng.',
+            'fit_reasons' => ['Có nền tảng Python.', 'Có kinh nghiệm làm việc nhóm.'],
+            'gap_reasons' => ['Chưa có minh chứng thực hành marketing.'],
+            'skills_to_develop' => ['Phân tích chiến dịch', 'Trình bày insight'],
             'matched_skill_codes' => ['python'],
             'missing_skill_codes' => [],
             'expected_outcome_codes' => ['dashboard'],
@@ -160,7 +166,10 @@ function service_test_model_items(): array
         [
             'catalog_id' => 'internship-3',
             'gemini_score' => 90,
-            'why_fit' => 'Design sprint truong hoc phat trien tu duy sang tao va lam viec nhom.',
+            'why_fit' => 'Design Sprint phù hợp với thế mạnh sáng tạo và hợp tác đã được ghi nhận. Nền tảng kỹ thuật giúp bạn phối hợp với nhóm phát triển trong quá trình tạo mẫu. Hồ sơ chưa có minh chứng về nghiên cứu người dùng hoặc kiểm thử giải pháp. Dự án này tạo môi trường thực tế để bạn rèn luyện quy trình thiết kế lấy người dùng làm trung tâm.',
+            'fit_reasons' => ['Có thế mạnh sáng tạo.', 'Có kinh nghiệm hợp tác nhóm.'],
+            'gap_reasons' => ['Chưa có minh chứng nghiên cứu người dùng.'],
+            'skills_to_develop' => ['Phỏng vấn người dùng', 'Kiểm thử mẫu thiết kế'],
             'matched_skill_codes' => ['python'],
             'missing_skill_codes' => [],
             'expected_outcome_codes' => ['dashboard'],
@@ -367,7 +376,10 @@ $noFitDiagnosticItems = [
     [
         'catalog_id' => 'internship-1',
         'gemini_score' => 10,
-        'why_not_fit_yet' => 'Kỹ năng hiện tại chưa đạt yêu cầu của cơ hội này.',
+        'why_not_fit_yet' => 'Cơ hội này có liên quan đến nền tảng Python đã được ghi nhận trong hồ sơ. Tuy nhiên, mức kỹ năng hiện tại chưa đáp ứng yêu cầu thực hành của dự án. Hồ sơ cũng chưa có sản phẩm hoàn chỉnh để chứng minh khả năng áp dụng Python. Bạn có thể xem đây là định hướng rèn luyện sau khi hoàn thành một bài thực hành có xác minh.',
+        'fit_reasons' => ['Đã có nền tảng Python ban đầu.'],
+        'gap_reasons' => ['Mức Python chưa đạt yêu cầu.', 'Chưa có sản phẩm hoàn chỉnh đã xác minh.'],
+        'skills_to_develop' => ['Thực hành Python', 'Xây dựng sản phẩm hoàn chỉnh'],
         'matched_skill_codes' => ['python'],
         'missing_skill_codes' => [],
         'missing_conditions' => ['python_minimum_score'],
@@ -377,7 +389,10 @@ $noFitDiagnosticItems = [
     [
         'catalog_id' => 'internship-2',
         'gemini_score' => 10,
-        'why_not_fit_yet' => 'Hồ sơ chưa có đủ bằng chứng phù hợp với dự án.',
+        'why_not_fit_yet' => 'Dự án này có một số hoạt động phù hợp với khả năng làm việc nhóm của bạn. Dữ liệu hồ sơ hiện chưa cung cấp đủ bằng chứng kỹ thuật liên quan trực tiếp. Bạn cũng chưa có dự án học tập đã xác nhận để đối chiếu với yêu cầu. Hãy bổ sung một sản phẩm nhỏ trước khi xem đây là cơ hội phù hợp ở mức cao hơn.',
+        'fit_reasons' => ['Khả năng làm việc nhóm hỗ trợ quá trình tham gia.'],
+        'gap_reasons' => ['Thiếu bằng chứng kỹ thuật trực tiếp.', 'Chưa có dự án học tập đã xác nhận.'],
+        'skills_to_develop' => ['Lập kế hoạch dự án', 'Ghi lại minh chứng kỹ thuật'],
         'matched_skill_codes' => ['python'],
         'missing_skill_codes' => [],
         'missing_conditions' => ['verified_project'],
@@ -387,7 +402,7 @@ $noFitDiagnosticItems = [
 ];
 $noFitSummaryItem = [
     'headline' => 'Chưa có cơ hội đạt ngưỡng phù hợp',
-    'explanation' => 'Gemini đã đối chiếu hồ sơ với các cơ hội hiện tại nhưng điểm phù hợp vẫn dưới ngưỡng đề xuất.',
+    'explanation' => 'Gemini đã đối chiếu hồ sơ với các cơ hội hiện tại nhưng mức độ phù hợp vẫn còn thấp. Nền tảng Python là điểm khởi đầu có liên quan đến hai dự án đang mở. Hồ sơ chưa có sản phẩm hoàn chỉnh để chứng minh khả năng áp dụng kỹ năng. Bạn nên bổ sung một dự án nhỏ đã xác minh rồi thực hiện phân tích lại.',
     'learner_strengths' => ['Thiết kế sáng tạo', 'Giao tiếp'],
     'catalog_demands' => ['Python'],
     'main_gaps' => ['Thiếu bằng chứng dự án Python đã được xác minh.'],
@@ -406,13 +421,17 @@ $noFitService = service_make_scenario(
 );
 $noFitResult = $noFitService->generate('student-1', 'request-no-fit-meta-0001', 'idempotency-no-fit-meta-01');
 service_assert(($noFitResult['state'] ?? '') === 'no_fit_model', 'sub-40 final scores return no_fit_model');
+service_assert(count($noFitResult['items'] ?? []) === 2, 'sub-40 model-selected opportunities remain visible');
+service_assert(($noFitResult['items'][0]['why_fit'] ?? '') === $noFitDiagnosticItems[0]['why_not_fit_yet'], 'sub-40 rationale is mapped');
+service_assert(($noFitResult['items'][0]['fit_reasons'] ?? []) === $noFitDiagnosticItems[0]['fit_reasons'], 'sub-40 fit reasons are mapped');
+service_assert(($noFitResult['items'][0]['gap_reasons'] ?? []) === $noFitDiagnosticItems[0]['gap_reasons'], 'sub-40 gap reasons are mapped');
+service_assert(($noFitResult['items'][0]['skills_to_develop'] ?? []) === $noFitDiagnosticItems[0]['skills_to_develop'], 'sub-40 development skills are mapped');
 $noFitMeta = $noFitResult['analysis']['analysis_meta'] ?? [];
 service_assert(($noFitMeta['evaluated_count'] ?? null) === 2, 'no-fit metadata reports evaluated opportunities');
 service_assert(($noFitMeta['eligible_count'] ?? null) === 2, 'no-fit metadata reports eligible opportunities');
-service_assert(($noFitMeta['best_score'] ?? null) === 10, 'no-fit metadata reports the authoritative best score');
-service_assert(($noFitMeta['score_range'] ?? null) === [10, 10], 'no-fit metadata reports the score range');
 service_assert(($noFitMeta['match_threshold'] ?? null) === 60, 'no-fit metadata exposes the approved suitable threshold');
-service_assert(($noFitMeta['data_weight'] ?? null) === 70 && ($noFitMeta['ai_weight'] ?? null) === 30, 'no-fit metadata exposes the approved 70/30 weighting');
+service_assert(!array_key_exists('best_score', $noFitMeta) && !array_key_exists('score_range', $noFitMeta), 'no-fit metadata hides structured score components');
+service_assert(!array_key_exists('data_weight', $noFitMeta) && !array_key_exists('ai_weight', $noFitMeta), 'no-fit metadata hides scoring weights');
 
 $legacyNoFitService = service_make_scenario(
     $analysisPdo,
@@ -423,7 +442,7 @@ $legacyNoFitService = service_make_scenario(
 $legacyNoFitResult = $legacyNoFitService->latest('student-1');
 service_assert(($legacyNoFitResult['state'] ?? '') === 'no_fit_model', 'legacy no-fit analysis remains readable');
 service_assert(($legacyNoFitResult['analysis']['analysis_meta']['evaluated_count'] ?? null) === 2, 'latest enriches a legacy no-fit result with current authoritative metadata');
-service_assert(($legacyNoFitResult['analysis']['analysis_meta']['best_score'] ?? null) === 10, 'latest enriches a legacy no-fit result with the current best score');
+service_assert(!array_key_exists('best_score', $legacyNoFitResult['analysis']['analysis_meta'] ?? []), 'latest does not expose a legacy structured score');
 
 function service_test_catalog_ids(array $items): array
 {
@@ -514,7 +533,7 @@ service_assert(count($auditRows) === 1, 'completion writes one audit event');
 $audit = json_decode((string) $auditRows[0]['engineMetadataJson'], true);
 service_assert(($audit['provider'] ?? '') === '9router_gemini', 'audit carries provider version');
 service_assert(($audit['model_version'] ?? '') === 'ag/gemini-3.7-flash-high', 'audit carries model version');
-service_assert(($audit['prompt_version'] ?? '') === 'learner-opportunity-match-1.1.0', 'audit carries prompt version');
+service_assert(($audit['prompt_version'] ?? '') === \TalentHub\Learner\Ai\Model\OpportunityMatchPromptRegistry::VERSION, 'audit carries prompt version');
 service_assert(strlen((string) ($audit['response_hash'] ?? '')) === 64, 'audit carries response hash');
 
 $dumped = '';
@@ -554,9 +573,9 @@ service_assert($staleReplay['state'] === 'stale_model', 'stale idempotent replay
 service_assert(count($brokenProvider->requests()) === 1, 'stale idempotent replay does not call the provider again');
 
 $validatorRejectingProvider = service_test_engine(ProviderResponse::success([
-    ['catalog_id' => 'invented-9999', 'gemini_score' => 50, 'why_fit' => 'Invented id attempt one for the validator.', 'matched_skill_codes' => ['python'], 'missing_skill_codes' => [], 'expected_outcome_codes' => ['dashboard'], 'evidence_ref_ids' => ['opportunity:internship-1']],
-    ['catalog_id' => 'internship-2', 'gemini_score' => 50, 'why_fit' => 'Second invented id attempt for the validator.', 'matched_skill_codes' => ['python'], 'missing_skill_codes' => [], 'expected_outcome_codes' => ['dashboard'], 'evidence_ref_ids' => ['opportunity:internship-2']],
-    ['catalog_id' => 'internship-3', 'gemini_score' => 50, 'why_fit' => 'Third invented id attempt for the validator.', 'matched_skill_codes' => ['python'], 'missing_skill_codes' => [], 'expected_outcome_codes' => ['dashboard'], 'evidence_ref_ids' => ['opportunity:internship-3']],
+    ['catalog_id' => 'invented-9999', 'gemini_score' => 50, 'why_fit' => 'Invented id attempt one for the validator.', 'fit_reasons' => ['Có một điểm phù hợp đã ghi nhận.'], 'gap_reasons' => ['Còn thiếu một minh chứng cần thiết.'], 'skills_to_develop' => ['Kỹ năng mới'], 'matched_skill_codes' => ['python'], 'missing_skill_codes' => [], 'expected_outcome_codes' => ['dashboard'], 'evidence_ref_ids' => ['opportunity:internship-1']],
+    ['catalog_id' => 'internship-2', 'gemini_score' => 50, 'why_fit' => 'Second invented id attempt for the validator.', 'fit_reasons' => ['Có một điểm phù hợp đã ghi nhận.'], 'gap_reasons' => ['Còn thiếu một minh chứng cần thiết.'], 'skills_to_develop' => ['Kỹ năng mới'], 'matched_skill_codes' => ['python'], 'missing_skill_codes' => [], 'expected_outcome_codes' => ['dashboard'], 'evidence_ref_ids' => ['opportunity:internship-2']],
+    ['catalog_id' => 'internship-3', 'gemini_score' => 50, 'why_fit' => 'Third invented id attempt for the validator.', 'fit_reasons' => ['Có một điểm phù hợp đã ghi nhận.'], 'gap_reasons' => ['Còn thiếu một minh chứng cần thiết.'], 'skills_to_develop' => ['Kỹ năng mới'], 'matched_skill_codes' => ['python'], 'missing_skill_codes' => [], 'expected_outcome_codes' => ['dashboard'], 'evidence_ref_ids' => ['opportunity:internship-3']],
 ]));
 $deterministicPdo = service_test_pdo();
 $deterministicService = service_make_scenario($deterministicPdo, $validatorRejectingProvider);
@@ -588,7 +607,7 @@ service_assert($crossEvidenceService->generate('student-1', 'request-cross-evide
 service_assert(count($crossEvidenceProvider->requests()) === 1, 'cross-candidate evidence failure is never retried');
 
 $unsafeItems = service_test_model_items();
-$unsafeItems[0]['why_fit'] = 'Completing this project guaranteed admission to the advanced track next term.';
+$unsafeItems[0]['why_fit'] = 'This project relates to the learner evidence and offers relevant technical practice. The current profile also shows experience that could support participation. Completing this project guaranteed admission to the advanced track next term.';
 $unsafeProvider = service_test_engine(ProviderResponse::success($unsafeItems));
 $unsafePdo = service_test_pdo();
 $unsafeService = service_make_scenario($unsafePdo, $unsafeProvider);
@@ -612,6 +631,19 @@ service_assert(($firstPayload['input']['candidate_allow_list'] ?? []) === ($seco
 service_assert(json_encode($firstPayload['input']['student_profile'] ?? [], JSON_THROW_ON_ERROR) === json_encode($secondPayload['input']['student_profile'] ?? [], JSON_THROW_ON_ERROR), 'malformed retry reuses the same snapshot');
 service_assert(service_test_catalog_ids($malformedResult['items']) === ['internship-1', 'internship-2', 'internship-3'], 'malformed retry persists the canonical top three');
 service_assert(array_column($malformedResult['items'], 'match_score') === [92, 84, 76], 'malformed retry final scores compose 70/30');
+
+$shortAnalysisItems = service_test_model_items();
+$shortAnalysisItems[0]['why_fit'] = 'Phân tích này còn quá ngắn.';
+$shortAnalysisProvider = service_test_engine(
+    ProviderResponse::success($shortAnalysisItems),
+    ProviderResponse::success(service_test_model_items()),
+);
+$shortAnalysisService = service_make_scenario(service_test_pdo(), $shortAnalysisProvider);
+service_assert(
+    $shortAnalysisService->generate('student-1', 'request-short-analysis-0001', 'idempotency-short-analysis-01')['state'] === 'ready_model',
+    'incomplete narrative analysis is classified as malformed and retried'
+);
+service_assert(count($shortAnalysisProvider->requests()) === 2, 'incomplete narrative analysis retries the provider exactly once');
 
 $missingEvidenceItems = service_test_model_items();
 $missingEvidenceItems[0]['evidence_ref_ids'] = [];

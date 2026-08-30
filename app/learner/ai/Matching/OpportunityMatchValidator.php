@@ -15,17 +15,21 @@ final class OpportunityMatchValidator
 {
     private const ALLOWED_ITEM_KEYS = [
         'catalog_id', 'gemini_score', 'why_fit',
+        'fit_reasons', 'gap_reasons', 'skills_to_develop',
         'matched_skill_codes', 'missing_skill_codes',
         'expected_outcome_codes', 'evidence_ref_ids',
     ];
 
     private const LOW_FIT_KEYS = [
         'catalog_id', 'gemini_score', 'why_not_fit_yet',
+        'fit_reasons', 'gap_reasons', 'skills_to_develop',
         'matched_skill_codes', 'missing_skill_codes',
         'missing_conditions', 'improvement_steps', 'evidence_ref_ids',
     ];
 
-    private const MIN_WHY_FIT_LENGTH = 12;
+    private const MIN_ANALYSIS_LENGTH = 160;
+
+    private const MAX_ANALYSIS_LENGTH = 900;
 
     private const NEAR_DUPLICATE_JACCARD = 0.85;
 
@@ -93,9 +97,7 @@ final class OpportunityMatchValidator
 
             $whyField = $isLowFit ? 'why_not_fit_yet' : 'why_fit';
             $whyFit = self::canonicalString($item[$whyField] ?? null, $whyField);
-            if (mb_strlen(trim($whyFit), 'UTF-8') < self::MIN_WHY_FIT_LENGTH) {
-                throw new InvalidArgumentException('Opportunity match why_fit is too short to be project-specific.');
-            }
+            self::assertSubstantialAnalysis($whyFit, $whyField);
             $normalised = self::normaliseWhyFit($whyFit);
             $normalisedWhyFits[] = $normalised;
             self::assertSafeClaim($whyFit);
@@ -106,6 +108,12 @@ final class OpportunityMatchValidator
                 ? []
                 : self::codeList($item['expected_outcome_codes'] ?? null, 'expected_outcome_codes');
             $evidenceRefs = self::codeList($item['evidence_ref_ids'] ?? null, 'evidence_ref_ids');
+            $fitReasons = self::textList($item['fit_reasons'] ?? null, 'fit_reasons', true);
+            $gapReasons = self::textList($item['gap_reasons'] ?? null, 'gap_reasons', true);
+            $skillsToDevelop = self::textList($item['skills_to_develop'] ?? null, 'skills_to_develop', true);
+            foreach (array_merge($fitReasons, $gapReasons, $skillsToDevelop) as $analysisText) {
+                self::assertSafeClaim($analysisText);
+            }
 
             $requiredSkills = [];
             foreach ($candidate->requiredSkills() as $skill) {
@@ -123,20 +131,29 @@ final class OpportunityMatchValidator
             }
 
             foreach ($matchedCodes as $code) {
-                $minimum = $requiredSkills[$code] ?? null;
-                $profileScore = $profile->skillScore($code);
-                if ($minimum === null || $profileScore === null || $profileScore < $minimum) {
+                if (!array_key_exists($code, $requiredSkills)) {
                     throw new InvalidArgumentException("Opportunity match matched_skill_codes contains unsupported code: {$code}.");
                 }
             }
             foreach ($missingCodes as $code) {
-                $minimum = $requiredSkills[$code] ?? null;
-                $profileScore = $profile->skillScore($code);
-                if ($minimum === null || ($profileScore !== null && $profileScore >= $minimum)) {
+                if (!array_key_exists($code, $requiredSkills)) {
                     throw new InvalidArgumentException("Opportunity match missing_skill_codes contains unsupported code: {$code}.");
                 }
-                if (in_array($code, $matchedCodes, true)) {
-                    throw new InvalidArgumentException("Opportunity match item lists {$code} as both matched and missing.");
+            }
+
+            // Gemini may interpret a partially developed skill as "matched"
+            // even when its verified score is still below the opportunity's
+            // minimum. Keep the provider's arrays schema-checked, then derive
+            // the actual attained/missing classification exclusively from the
+            // canonical profile and catalog requirements.
+            $matchedCodes = [];
+            $missingCodes = [];
+            foreach ($requiredSkills as $code => $minimum) {
+                $profileScore = $profile->skillScore($code);
+                if ($profileScore !== null && $profileScore >= $minimum) {
+                    $matchedCodes[] = $code;
+                } else {
+                    $missingCodes[] = $code;
                 }
             }
             foreach ($outcomeCodes as $code) {
@@ -179,6 +196,9 @@ final class OpportunityMatchValidator
                 $isLowFit ? $whyFit : '',
                 $missingConditions,
                 $improvementSteps,
+                $fitReasons,
+                $gapReasons,
+                $skillsToDevelop,
             );
         }
 
@@ -202,9 +222,10 @@ final class OpportunityMatchValidator
         }
         $headline = self::canonicalString($analysis['headline'], 'headline');
         $explanation = self::canonicalString($analysis['explanation'], 'explanation');
-        if (mb_strlen($headline, 'UTF-8') < 12 || mb_strlen($explanation, 'UTF-8') < 24) {
+        if (mb_strlen($headline, 'UTF-8') < 12) {
             throw new InvalidArgumentException('No-fit summary text is too short.');
         }
+        self::assertSubstantialAnalysis($explanation, 'explanation');
         self::assertSafeClaim($headline);
         self::assertSafeClaim($explanation);
         $strengths = self::textList($analysis['learner_strengths'], 'learner_strengths');
@@ -309,6 +330,18 @@ final class OpportunityMatchValidator
         $lower = mb_strtolower($whyFit, 'UTF-8');
         $collapsed = (string) preg_replace('/\s+/u', ' ', $lower);
         return trim($collapsed);
+    }
+
+    private static function assertSubstantialAnalysis(string $analysis, string $field): void
+    {
+        $length = mb_strlen(trim($analysis), 'UTF-8');
+        if ($length < self::MIN_ANALYSIS_LENGTH || $length > self::MAX_ANALYSIS_LENGTH) {
+            throw new InvalidArgumentException("Opportunity match {$field} must contain a substantial project-specific analysis.");
+        }
+        $sentenceCount = preg_match_all('/[.!?]+(?=\s|$)/u', $analysis);
+        if (!is_int($sentenceCount) || $sentenceCount < 3 || $sentenceCount > 4) {
+            throw new InvalidArgumentException("Opportunity match {$field} must contain three to four complete sentences.");
+        }
     }
 
     /** @param list<string> $normalised */

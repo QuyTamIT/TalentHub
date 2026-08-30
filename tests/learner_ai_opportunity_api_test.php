@@ -25,15 +25,18 @@ function opportunity_api_request(
 ): array {
     $modelItems = [];
     $reasons = [
-        1 => 'Dự án dữ liệu thứ nhất tận dụng nền tảng Python để xây bảng điều khiển trực quan.',
-        2 => 'Cơ hội thứ hai giúp luyện tư duy phân tích qua bài toán hành vi người dùng thực tế.',
-        3 => 'Chương trình thứ ba tạo môi trường hợp tác nhóm và trình bày kết quả nghiên cứu.',
+        1 => 'Dự án dữ liệu thứ nhất tận dụng nền tảng Python đã có trong hồ sơ. Điểm đánh giá cho thấy người học có tư duy phân tích phù hợp. Hồ sơ chưa có nhiều dashboard hoàn chỉnh để chứng minh kinh nghiệm. Cơ hội này giúp rèn cách chuyển dữ liệu thành báo cáo trực quan.',
+        2 => 'Cơ hội thứ hai liên quan đến khả năng phân tích đã được ghi nhận. Kinh nghiệm hợp tác nhóm hỗ trợ quá trình nghiên cứu hành vi người dùng. Hồ sơ hiện thiếu minh chứng về một nghiên cứu thực tế. Dự án giúp rèn cách tổng hợp dữ liệu thành insight có thể hành động.',
+        3 => 'Chương trình thứ ba phù hợp với kinh nghiệm làm việc nhóm của người học. Khả năng trình bày hỗ trợ việc chia sẻ kết quả nghiên cứu. Hồ sơ chưa chứng minh kỹ năng xây dựng một báo cáo hoàn chỉnh. Đây là môi trường phù hợp để rèn giao tiếp và phản biện dựa trên dữ liệu.',
     ];
     foreach (range(1, 3) as $rank) {
         $modelItems[] = [
             'catalog_id' => "project-{$rank}",
             'gemini_score' => 90 - (($rank - 1) * 5),
             'why_fit' => $reasons[$rank],
+            'fit_reasons' => ['Có năng lực liên quan đã được ghi nhận.', 'Có kinh nghiệm hợp tác nhóm.'],
+            'gap_reasons' => ['Chưa có sản phẩm thực tế hoàn chỉnh.'],
+            'skills_to_develop' => ['Phân tích dữ liệu', 'Trình bày kết quả'],
             'matched_skill_codes' => [],
             'missing_skill_codes' => [],
             'expected_outcome_codes' => [],
@@ -265,5 +268,10 @@ opportunity_api_assert(
     'POST returns 202 ready_model: ' . json_encode(['response' => $ready, 'runs' => $readyRuns], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
 );
 opportunity_api_assert(count($ready['body']['data']['items'] ?? []) === 3, 'POST exposes exactly Top 3 items');
+$firstReadyItem = $ready['body']['data']['items'][0] ?? [];
+opportunity_api_assert(($firstReadyItem['fit_reasons'] ?? []) !== [], 'POST exposes detailed fit reasons');
+opportunity_api_assert(($firstReadyItem['gap_reasons'] ?? []) !== [], 'POST exposes detailed gap reasons');
+opportunity_api_assert(($firstReadyItem['skills_to_develop'] ?? []) !== [], 'POST exposes skills to develop');
+opportunity_api_assert(!array_key_exists('structured_score', $firstReadyItem) && !array_key_exists('gemini_score', $firstReadyItem), 'POST hides score component calculations');
 
 echo "learner_ai_opportunity_api_test: OK\n";

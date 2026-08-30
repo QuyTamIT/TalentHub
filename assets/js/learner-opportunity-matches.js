@@ -60,12 +60,6 @@
         return value.map(normalizeText).filter(Boolean).slice(0, 6);
     }
 
-    function integerOrNull(value, minimum = 0, maximum = 100) {
-        if (value === null || value === undefined || value === '') return null;
-        const parsed = Number(value);
-        return Number.isInteger(parsed) && parsed >= minimum && parsed <= maximum ? parsed : null;
-    }
-
     function humanizeOpportunityLabel(value) {
         const normalized = normalizeText(value).toLowerCase();
         const labels = {
@@ -87,20 +81,9 @@
         return words ? words.charAt(0).toUpperCase() + words.slice(1) : '';
     }
 
-    function isLikelyVietnamese(value) {
-        const text = normalizeText(value);
-        return /[ăâđêôơưáàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(text)
-            || /\b(bạn|cơ hội|kỹ năng|phù hợp|hồ sơ|hiện tại|điểm|dự án)\b/i.test(text);
-    }
-
-    function renderAnalysisValues(target, values, fallback, { humanize = false } = {}) {
-        if (!target) return;
-        const normalized = normalizeTextList(values)
-            .map((value) => humanize ? humanizeOpportunityLabel(value) : value)
-            .filter(Boolean);
-        const visible = normalized.length ? normalized : [fallback];
-        target.replaceChildren();
-        visible.forEach((value) => target.appendChild(element('span', 'learner-opportunity-ai__analysis-chip', value)));
+    function hasThreeToFourSentences(value) {
+        const matches = normalizeText(value).match(/[.!?]+(?=\s|$)/g) || [];
+        return matches.length >= 3 && matches.length <= 4;
     }
 
     function normalizeReadyItems(items) {
@@ -112,13 +95,21 @@
             const catalogId = normalizeText(item.catalog_id);
             const score = Number(item.match_score);
             if (!catalogId || ids.has(catalogId) || !Number.isInteger(score) || score < 0 || score > 100) return null;
+            const rationale = normalizeText(item.why_fit) || normalizeText(item.why_not_fit_yet);
+            const fitReasons = normalizeTextList(item.fit_reasons);
+            const gapReasons = normalizeTextList(item.gap_reasons);
+            const skillsToDevelop = normalizeTextList(item.skills_to_develop);
+            if (!hasThreeToFourSentences(rationale) || fitReasons.length === 0 || gapReasons.length === 0 || skillsToDevelop.length === 0) return null;
             ids.add(catalogId);
             normalized.push({
                 catalog_id: catalogId,
                 rank: Number.isInteger(Number(item.rank)) ? Number(item.rank) : index + 1,
                 match_score: score,
-                why_fit: normalizeText(item.why_fit),
+                why_fit: rationale,
                 why_not_fit_yet: normalizeText(item.why_not_fit_yet),
+                fit_reasons: fitReasons,
+                gap_reasons: gapReasons,
+                skills_to_develop: skillsToDevelop,
                 analysis_kind: normalizeText(item.analysis_kind) || 'recommendation',
                 missing_conditions: normalizeTextList(item.missing_conditions).map(humanizeOpportunityLabel),
                 improvement_steps: normalizeTextList(item.improvement_steps),
@@ -149,7 +140,8 @@
         function renderResponse(response) {
             const payload = response && typeof response === 'object' ? response : {};
             const state = mapOpportunityMatchState(payload.state);
-            if (state === 'ready-model' || state === 'stale-model' || state === 'low-fit-model') {
+            const hasAnalyzedNoFitItems = state === 'no-fit-model' && Array.isArray(payload.items) && payload.items.length > 0;
+            if (state === 'ready-model' || state === 'stale-model' || state === 'low-fit-model' || hasAnalyzedNoFitItems) {
                 const items = normalizeReadyItems(payload.items);
                 if (!items) {
                     view.render('source-error', { items: [] });
@@ -200,34 +192,13 @@
         return node;
     }
 
-    function appendList(container, values, tone, emptyCopy) {
-        const list = element('div', `learner-opportunity-ai-chips learner-opportunity-ai-chips--${tone}`);
-        const safeValues = values.length ? values : [emptyCopy];
-        safeValues.forEach((value) => list.appendChild(element('span', '', value)));
-        container.appendChild(list);
-    }
-
-    function detailColumn(label, values, tone, emptyCopy) {
-        const column = element('section', 'learner-opportunity-ai-card__detail');
-        column.appendChild(element('h4', '', label));
-        if (Array.isArray(values)) appendList(column, values, tone, emptyCopy);
-        else column.appendChild(element('p', '', values || emptyCopy));
-        return column;
-    }
-
-    function evidenceLabel(reference) {
-        const type = String(reference).split(':', 1)[0];
-        const labels = {
-            skill: 'Hồ sơ kỹ năng',
-            skills: 'Hồ sơ kỹ năng',
-            assessment: 'Điểm đánh giá',
-            evaluation: 'Đánh giá đã công bố',
-            activity: 'Hoạt động đã tham gia',
-            experience: 'Kinh nghiệm hoạt động',
-            opportunity: 'Dự án TalentHub',
-            catalog: 'Danh mục cơ hội',
-        };
-        return labels[type] || 'Dữ liệu hồ sơ';
+    function analysisList(label, values, tone) {
+        const section = element('section', `learner-opportunity-ai-card__analysis-list is-${tone}`);
+        section.appendChild(element('h4', '', label));
+        const list = element('ul', '');
+        values.forEach((value) => list.appendChild(element('li', '', value)));
+        section.appendChild(list);
+        return section;
     }
 
     function scoreBand(score) {
@@ -242,48 +213,45 @@
         const card = element('article', 'learner-opportunity-ai-card');
         card.dataset.catalogId = item.catalog_id;
 
+        const header = element('header', 'learner-opportunity-ai-card__header');
         const identity = element('div', 'learner-opportunity-ai-card__identity');
         identity.appendChild(element('span', 'learner-opportunity-ai-rank', `#${item.rank}`));
         identity.appendChild(element('small', '', item.summary || 'Dự án cơ hội trên TalentHub'));
         identity.appendChild(element('h3', '', item.title));
-        card.appendChild(identity);
+        header.appendChild(identity);
 
         const band = scoreBand(item.match_score);
         const scoreWrap = element('div', `learner-opportunity-ai-score ${band.className}`);
-        scoreWrap.style.setProperty('--match-score', String(item.match_score));
-        scoreWrap.setAttribute('role', 'img');
-        scoreWrap.setAttribute('aria-label', `Mức độ phù hợp ${item.match_score} trên 100, ${band.label}`);
-        const ring = element('span', 'learner-opportunity-ai-score__ring');
-        ring.appendChild(element('strong', '', item.match_score));
-        ring.appendChild(element('small', '', '/100'));
-        scoreWrap.appendChild(ring);
-        scoreWrap.appendChild(element('em', '', `${item.match_score}/100 · ${band.label}`));
-        card.appendChild(scoreWrap);
+        const scoreValue = element('div', 'learner-opportunity-ai-score__value');
+        scoreValue.appendChild(element('strong', '', item.match_score));
+        scoreValue.appendChild(element('span', '', '/100'));
+        scoreWrap.appendChild(scoreValue);
+        scoreWrap.appendChild(element('em', '', band.label));
+        const scoreTrack = element('div', 'learner-opportunity-ai-score__track');
+        scoreTrack.setAttribute('role', 'progressbar');
+        scoreTrack.setAttribute('aria-label', `Mức độ phù hợp ${item.match_score} trên 100, ${band.label}`);
+        scoreTrack.setAttribute('aria-valuemin', '0');
+        scoreTrack.setAttribute('aria-valuemax', '100');
+        scoreTrack.setAttribute('aria-valuenow', String(item.match_score));
+        const scoreBar = element('span', 'learner-opportunity-ai-score__bar');
+        scoreBar.style.width = `${item.match_score}%`;
+        scoreTrack.appendChild(scoreBar);
+        scoreWrap.appendChild(scoreTrack);
+        header.appendChild(scoreWrap);
+        card.appendChild(header);
 
-        const details = element('div', 'learner-opportunity-ai-card__details');
-        const whyLabel = item.tier === 'low_fit' ? 'Vì sao chưa phù hợp' : 'Vì sao phù hợp';
-        details.appendChild(detailColumn(whyLabel, item.tier === 'low_fit' ? item.why_not_fit_yet : item.why_fit, 'neutral', 'AI chưa cung cấp diễn giải.'));
-        details.appendChild(detailColumn('Kỹ năng phù hợp', item.matched_skills, 'matched', 'Chưa có kỹ năng trùng khớp.'));
-        details.appendChild(detailColumn('Cần bổ sung', item.missing_skills, 'missing', 'Chưa ghi nhận khoảng trống kỹ năng.'));
-        if (item.tier === 'low_fit') {
-            details.appendChild(detailColumn('Điều kiện còn thiếu', item.missing_conditions, 'missing', 'Không có điều kiện bổ sung được nêu.'));
-            details.appendChild(detailColumn('Bước cải thiện', item.improvement_steps, 'outcome', 'Hãy cập nhật hồ sơ và thử lại.'));
-        }
-        details.appendChild(detailColumn('Bạn sẽ đạt được', item.expected_outcomes, 'outcome', 'Kết quả sẽ được cập nhật theo dự án.'));
-        const evidence = [...new Set(item.evidence.map(evidenceLabel))];
-        details.appendChild(detailColumn('Nguồn phân tích', evidence, 'evidence', 'Dữ liệu hồ sơ đã cho phép.'));
-        card.appendChild(details);
+        const narrative = element('section', 'learner-opportunity-ai-card__narrative');
+        narrative.appendChild(element('h4', '', 'Phân tích của Gemini'));
+        narrative.appendChild(element('p', '', item.why_fit));
+        card.appendChild(narrative);
+
+        const analysisGrid = element('div', 'learner-opportunity-ai-card__analysis-grid');
+        analysisGrid.appendChild(analysisList('Tại sao phù hợp', item.fit_reasons, 'fit'));
+        analysisGrid.appendChild(analysisList('Tại sao chưa phù hợp', item.gap_reasons, 'gap'));
+        analysisGrid.appendChild(analysisList('Kỹ năng sẽ được học hỏi và rèn luyện', item.skills_to_develop, 'skills'));
+        card.appendChild(analysisGrid);
 
         const actions = element('div', 'learner-opportunity-ai-card__actions');
-        const detailButton = element('button', 'learner-btn learner-btn--outline', 'Xem phân tích chi tiết');
-        detailButton.type = 'button';
-        detailButton.setAttribute('aria-expanded', 'false');
-        detailButton.addEventListener('click', () => {
-            const expanded = detailButton.getAttribute('aria-expanded') !== 'true';
-            detailButton.setAttribute('aria-expanded', String(expanded));
-            card.classList.toggle('is-analysis-expanded', expanded);
-        });
-        actions.appendChild(detailButton);
         if (item.canonical_url) {
             const link = element('a', 'learner-btn learner-btn--primary', 'Xem dự án');
             link.href = item.canonical_url;
@@ -387,12 +355,21 @@
             } else {
                 stopProgressAnimation();
             }
-            if (state === 'ready-model' || state === 'stale-model' || state === 'low-fit-model') {
+            const hasAnalyzedNoFitItems = state === 'no-fit-model' && Array.isArray(payload.items) && payload.items.length > 0;
+            if (state === 'ready-model' || state === 'stale-model' || state === 'low-fit-model' || hasAnalyzedNoFitItems) {
                 if (list) {
                     list.replaceChildren();
                     payload.items.forEach((item) => list.appendChild(renderCard(item)));
                 }
                 if (state === 'low-fit-model' && panels['low-fit-model']) panels['low-fit-model'].hidden = false;
+                if (hasAnalyzedNoFitItems && panels['no-fit-model']) {
+                    const analysis = payload.analysis && typeof payload.analysis === 'object' ? payload.analysis : {};
+                    const headline = panels['no-fit-model'].querySelector('[data-opportunity-ai-analysis-headline]');
+                    const explanation = panels['no-fit-model'].querySelector('[data-opportunity-ai-analysis-explanation]');
+                    if (headline) headline.textContent = normalizeText(analysis.headline);
+                    if (explanation) explanation.textContent = normalizeText(analysis.explanation);
+                    panels['no-fit-model'].hidden = false;
+                }
                 if (panels.results) panels.results.hidden = false;
                 return;
             }
@@ -402,35 +379,8 @@
                     const analysis = payload.analysis && typeof payload.analysis === 'object' ? payload.analysis : {};
                     const headline = panel.querySelector('[data-opportunity-ai-analysis-headline]');
                     const explanation = panel.querySelector('[data-opportunity-ai-analysis-explanation]');
-                    const meta = analysis.analysis_meta && typeof analysis.analysis_meta === 'object' ? analysis.analysis_meta : {};
-                    const evaluatedCount = integerOrNull(meta.evaluated_count, 0, 10000) ?? 0;
-                    const bestScore = integerOrNull(meta.best_score);
-                    const threshold = integerOrNull(meta.match_threshold) ?? 60;
-                    const dataWeight = integerOrNull(meta.data_weight) ?? 70;
-                    const aiWeight = integerOrNull(meta.ai_weight) ?? 30;
-                    const fallbackExplanation = evaluatedCount > 0 && bestScore !== null
-                        ? `Gemini đã đối chiếu ${evaluatedCount} cơ hội. Điểm cấu trúc cao nhất là ${bestScore}/100, còn dưới ngưỡng đề xuất ${threshold}/100.`
-                        : 'Gemini đã đối chiếu hồ sơ nhưng các cơ hội hiện tại chưa đạt ngưỡng đề xuất.';
-                    if (headline) headline.textContent = isLikelyVietnamese(analysis.headline) ? normalizeText(analysis.headline) : 'Chưa có cơ hội đạt ngưỡng phù hợp';
-                    if (explanation) explanation.textContent = isLikelyVietnamese(analysis.explanation) ? normalizeText(analysis.explanation) : fallbackExplanation;
-                    const metricValues = {
-                        evaluated: `${evaluatedCount} cơ hội`,
-                        'best-score': bestScore === null ? '—/100' : `${bestScore}/100`,
-                        threshold: `${threshold}/100`,
-                        weighting: `${dataWeight}% dữ liệu · ${aiWeight}% Gemini`,
-                    };
-                    Object.entries(metricValues).forEach(([name, value]) => {
-                        const target = panel.querySelector(`[data-opportunity-ai-metric-${name}]`);
-                        if (target) target.textContent = value;
-                    });
-                    renderAnalysisValues(panel.querySelector('[data-opportunity-ai-analysis-strengths]'), analysis.learner_strengths, 'Chưa ghi nhận điểm mạnh nổi bật', { humanize: true });
-                    renderAnalysisValues(panel.querySelector('[data-opportunity-ai-analysis-demands]'), analysis.catalog_demands, 'Danh mục hiện tại chưa khai báo kỹ năng yêu cầu', { humanize: true });
-                    const gaps = normalizeTextList(analysis.main_gaps).filter(isLikelyVietnamese);
-                    const nextSteps = normalizeTextList(analysis.next_steps).filter(isLikelyVietnamese);
-                    renderAnalysisValues(panel.querySelector('[data-opportunity-ai-analysis-gaps]'), gaps, 'Mức độ tương đồng giữa hồ sơ và các cơ hội hiện tại còn thấp.');
-                    renderAnalysisValues(panel.querySelector('[data-opportunity-ai-analysis-next-steps]'), nextSteps, 'Tiếp tục bổ sung kỹ năng và bằng chứng dự án đã được xác minh trong hồ sơ năng lực.');
-                    const sources = [...new Set(normalizeTextList(analysis.evidence_ref_ids).map(evidenceLabel))];
-                    renderAnalysisValues(panel.querySelector('[data-opportunity-ai-analysis-sources]'), sources, 'Hồ sơ kỹ năng và danh mục cơ hội');
+                    if (headline) headline.textContent = normalizeText(analysis.headline);
+                    if (explanation) explanation.textContent = normalizeText(analysis.explanation);
                     panel.hidden = false;
                 }
                 return;
@@ -489,6 +439,7 @@
         mapOpportunityMatchState,
         isSafeInternalOpportunityUrl,
         humanizeOpportunityLabel,
+        normalizeReadyItems,
         mountOpportunityMatches,
     };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;

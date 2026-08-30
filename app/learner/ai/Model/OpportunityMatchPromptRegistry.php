@@ -19,7 +19,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
  */
 final class OpportunityMatchPromptRegistry
 {
-    public const VERSION = 'learner-opportunity-match-1.1.0';
+    public const VERSION = 'learner-opportunity-match-1.2.0';
 
     public const MAX_CANDIDATES = 10;
 
@@ -141,6 +141,8 @@ final class OpportunityMatchPromptRegistry
         if ($mode === 'no_fit') {
             return [...$locale, ...[
                 'Return a grounded summary explaining why no current opportunity reaches the suitable threshold.',
+                'Write explanation as three to four complete, natural Vietnamese sentences grounded in the supplied evidence and aggregates.',
+                'Do not use a prepared sentence template or present short labels as analysis.',
                 'Use only the supplied learner strengths, catalog demand aggregates and exclusion reason counts.',
                 'Never invent a title, provider, URL, deadline, capacity, project or opportunity.',
                 'Do not promise hiring, admission, awards, grades or employment.',
@@ -150,6 +152,9 @@ final class OpportunityMatchPromptRegistry
         if ($mode === 'low_fit') {
             return [...$locale, ...[
                 'Return one to three distinct catalog IDs from the supplied candidate_allow_list.',
+                'For each project, write why_not_fit_yet as three to four complete, natural Vietnamese sentences grounded in that learner and that project.',
+                'Return detailed fit_reasons, gap_reasons and skills_to_develop; each list must contain specific learner-facing statements, not labels or prepared phrases.',
+                'Do not reuse a sentence structure or analysis template across projects.',
                 'Explain why each project is not suitable yet and give concrete improvement steps.',
                 'Use only supplied skill, outcome and evidence codes and condition codes from analysis_context.',
                 'Never invent a title, provider, URL, deadline, capacity, project or opportunity.',
@@ -161,7 +166,9 @@ final class OpportunityMatchPromptRegistry
         if ($mode === 'recommendation') {
             return [...$locale, ...[
                 'Return one to three distinct catalog IDs from the supplied candidate_allow_list.',
-                'Write a project-specific why_fit for each candidate; do not reuse sentence templates.',
+                'Write a project-specific why_fit of three to four complete, natural Vietnamese sentences for each candidate.',
+                'Return detailed fit_reasons, gap_reasons and skills_to_develop; each list must contain specific learner-facing statements, not labels or prepared phrases.',
+                'Do not reuse a sentence structure or analysis template across projects.',
                 'Use only supplied skill, outcome and evidence codes.',
                 'Never invent a title, provider, URL, deadline, capacity, project or opportunity.',
                 'Do not promise hiring, admission, awards, grades or employment.',
@@ -171,7 +178,9 @@ final class OpportunityMatchPromptRegistry
         }
         return [...$locale, ...[
             'Return exactly three distinct catalog IDs from the supplied candidate_allow_list.',
-            'Write a project-specific why_fit for each candidate; do not reuse sentence templates.',
+            'Write a project-specific why_fit of three to four complete, natural Vietnamese sentences for each candidate.',
+            'Return detailed fit_reasons, gap_reasons and skills_to_develop; each list must contain specific learner-facing statements, not labels or prepared phrases.',
+            'Do not reuse a sentence structure or analysis template across projects.',
             'Use only supplied skill, outcome and evidence codes.',
             'Never invent a title, provider, URL, deadline, capacity, project or opportunity.',
             'Do not promise hiring, admission, awards, grades or employment.',
@@ -199,7 +208,7 @@ final class OpportunityMatchPromptRegistry
                             'required' => ['headline', 'explanation', 'learner_strengths', 'catalog_demands', 'main_gaps', 'next_steps', 'evidence_ref_ids'],
                             'properties' => [
                                 'headline' => ['type' => 'string', 'minLength' => 12],
-                                'explanation' => ['type' => 'string', 'minLength' => 24],
+                                'explanation' => ['type' => 'string', 'minLength' => 160, 'maxLength' => 900],
                                 'learner_strengths' => ['type' => 'array', 'items' => ['type' => 'string']],
                                 'catalog_demands' => ['type' => 'array', 'items' => ['type' => 'string']],
                                 'main_gaps' => ['type' => 'array', 'items' => ['type' => 'string']],
@@ -226,6 +235,7 @@ final class OpportunityMatchPromptRegistry
                         'additionalProperties' => false,
                         'required' => [
                             'catalog_id', 'gemini_score', $lowFit ? 'why_not_fit_yet' : 'why_fit',
+                            'fit_reasons', 'gap_reasons', 'skills_to_develop',
                             'matched_skill_codes', 'missing_skill_codes',
                             ...($lowFit ? ['missing_conditions', 'improvement_steps'] : ['expected_outcome_codes']),
                             'evidence_ref_ids',
@@ -233,8 +243,11 @@ final class OpportunityMatchPromptRegistry
                         'properties' => [
                             'catalog_id' => ['type' => 'string'],
                             'gemini_score' => ['type' => 'integer', 'minimum' => 0, 'maximum' => 100],
-                            'why_fit' => ['type' => 'string', 'minLength' => 12],
-                            'why_not_fit_yet' => ['type' => 'string', 'minLength' => 12],
+                            'why_fit' => ['type' => 'string', 'minLength' => 160, 'maxLength' => 900],
+                            'why_not_fit_yet' => ['type' => 'string', 'minLength' => 160, 'maxLength' => 900],
+                            'fit_reasons' => ['type' => 'array', 'minItems' => 1, 'maxItems' => 6, 'items' => ['type' => 'string', 'minLength' => 12]],
+                            'gap_reasons' => ['type' => 'array', 'minItems' => 1, 'maxItems' => 6, 'items' => ['type' => 'string', 'minLength' => 12]],
+                            'skills_to_develop' => ['type' => 'array', 'minItems' => 1, 'maxItems' => 6, 'items' => ['type' => 'string', 'minLength' => 2]],
                             'matched_skill_codes' => ['type' => 'array', 'items' => ['type' => 'string']],
                             'missing_skill_codes' => ['type' => 'array', 'items' => ['type' => 'string']],
                             'missing_conditions' => ['type' => 'array', 'items' => ['type' => 'string']],

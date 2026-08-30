@@ -372,7 +372,10 @@ function e2e_model_items(): array
         [
             'catalog_id' => 'internship-1',
             'gemini_score' => 97,
-            'why_fit' => 'Du an IoT campus dung ngay ky nang Python da xac minh cua ban.',
+            'why_fit' => 'Dự án IoT Campus sử dụng trực tiếp nền tảng Python đã được xác minh trong hồ sơ. Kết quả đánh giá cho thấy bạn có tư duy phân tích phù hợp với việc xử lý dữ liệu cảm biến. Hồ sơ hiện chưa có một sản phẩm IoT hoàn chỉnh để chứng minh kinh nghiệm triển khai. Cơ hội này giúp bạn rèn khả năng kết nối phần mềm với một bài toán thực tế trong trường học.',
+            'fit_reasons' => ['Có nền tảng Python đã được xác minh.', 'Tư duy phân tích phù hợp với dữ liệu cảm biến.'],
+            'gap_reasons' => ['Chưa có sản phẩm IoT hoàn chỉnh trong hồ sơ.'],
+            'skills_to_develop' => ['Xử lý dữ liệu cảm biến', 'Triển khai sản phẩm IoT'],
             'matched_skill_codes' => ['python'],
             'missing_skill_codes' => [],
             'expected_outcome_codes' => ['dashboard'],
@@ -381,7 +384,10 @@ function e2e_model_items(): array
         [
             'catalog_id' => 'project-2',
             'gemini_score' => 93,
-            'why_fit' => 'Du an phan tich du lieu giup ban ren tu duy va lam viec nhom.',
+            'why_fit' => 'Dự án phân tích dữ liệu phù hợp với nền tảng Python và khả năng làm việc nhóm đã được ghi nhận. Các hoạt động trước đây cho thấy bạn có thể phối hợp để giải quyết một bài toán có cấu trúc. Hồ sơ hiện chưa chứng minh khả năng quản lý phiên bản bằng Git trong sản phẩm thực tế. Dự án giúp bạn rèn quy trình phân tích, tạo mẫu và cộng tác kỹ thuật rõ ràng hơn.',
+            'fit_reasons' => ['Có nền tảng Python phù hợp.', 'Có kinh nghiệm phối hợp giải quyết vấn đề.'],
+            'gap_reasons' => ['Chưa có minh chứng sử dụng Git trong sản phẩm thực tế.'],
+            'skills_to_develop' => ['Quản lý phiên bản bằng Git', 'Tạo mẫu giải pháp dữ liệu'],
             'matched_skill_codes' => ['python'],
             'missing_skill_codes' => ['git'],
             'expected_outcome_codes' => ['git', 'prototyping'],
@@ -390,7 +396,10 @@ function e2e_model_items(): array
         [
             'catalog_id' => 'catalog-3',
             'gemini_score' => 90,
-            'why_fit' => 'Du an dashboard cong dong giup ban bu du ky nang python nang cao.',
+            'why_fit' => 'Dự án dashboard cộng đồng phù hợp với kỹ năng SQL đã được ghi nhận trong hồ sơ. Khả năng phân tích hiện tại hỗ trợ tốt cho việc tổ chức và diễn giải dữ liệu. Mức Python chưa đạt yêu cầu nâng cao và chưa có dashboard hoàn chỉnh để đối chiếu. Cơ hội này giúp bạn rèn Python ứng dụng cùng kỹ năng trực quan hóa dữ liệu cho người dùng thực tế.',
+            'fit_reasons' => ['Kỹ năng SQL đáp ứng một phần yêu cầu.', 'Có nền tảng phân tích dữ liệu.'],
+            'gap_reasons' => ['Python chưa đạt mức nâng cao.', 'Chưa có dashboard hoàn chỉnh trong hồ sơ.'],
+            'skills_to_develop' => ['Python ứng dụng', 'Trực quan hóa dữ liệu'],
             'matched_skill_codes' => ['sql'],
             'missing_skill_codes' => ['python'],
             'expected_outcome_codes' => ['python', 'dashboard_data'],
@@ -527,6 +536,12 @@ e2e_assert(count($generated['items']) === 3, 'generation returns exactly three i
 $generatedIds = e2e_catalog_ids($generated['items']);
 e2e_assert(count(array_unique($generatedIds)) === 3, 'three distinct catalog ids are generated');
 e2e_assert(count(array_unique(array_column($generated['items'], 'why_fit'))) === 3, 'three distinct why_fit analyses are generated');
+foreach ($generated['items'] as $generatedItem) {
+    e2e_assert(($generatedItem['fit_reasons'] ?? []) !== [], 'generated item exposes detailed fit reasons');
+    e2e_assert(($generatedItem['gap_reasons'] ?? []) !== [], 'generated item exposes detailed gap reasons');
+    e2e_assert(($generatedItem['skills_to_develop'] ?? []) !== [], 'generated item exposes skills to develop');
+    e2e_assert(!array_key_exists('structured_score', $generatedItem) && !array_key_exists('gemini_score', $generatedItem), 'generated item hides score component calculations');
+}
 e2e_assert(in_array('internship-1', $generatedIds, true), 'top three include an opportunity-sourced candidate');
 e2e_assert(in_array('project-2', $generatedIds, true) && in_array('catalog-3', $generatedIds, true), 'top three include catalog/project candidates');
 e2e_assert($generatedIds === ['internship-1', 'project-2', 'catalog-3'], 'top three keep the deterministic final order');
@@ -640,6 +655,9 @@ e2e_assert(e2e_catalog_ids($reloaded['items']) === $generatedIds, 'latest keeps 
 foreach ($generated['items'] as $index => $item) {
     $restored = $reloaded['items'][$index];
     e2e_assert($restored['why_fit'] === $item['why_fit'], 'why_fit round-trips through persistence');
+    e2e_assert($restored['fit_reasons'] === $item['fit_reasons'], 'fit reasons round-trip through persistence');
+    e2e_assert($restored['gap_reasons'] === $item['gap_reasons'], 'gap reasons round-trip through persistence');
+    e2e_assert($restored['skills_to_develop'] === $item['skills_to_develop'], 'skills to develop round-trip through persistence');
     e2e_assert($restored['matched_skills'] === $item['matched_skills'], 'matched skills round-trip through persistence');
     e2e_assert($restored['missing_skills'] === $item['missing_skills'], 'missing skills round-trip through persistence');
     e2e_assert($restored['expected_outcomes'] === $item['expected_outcomes'], 'expected outcomes round-trip through persistence');

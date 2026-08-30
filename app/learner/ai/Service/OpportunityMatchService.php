@@ -37,6 +37,9 @@ final class OpportunityMatchService
         'must be an array',
         'entries must be strings',
         'must cite at least one evidence reference',
+        'must contain at least one item',
+        'must contain a substantial project-specific analysis',
+        'must contain three to four complete sentences',
         'must be an integer within 0..100',
         'is too short to be project-specific',
         'No-fit summary',
@@ -244,7 +247,6 @@ final class OpportunityMatchService
         if ($completionState === 'no_fit_model') {
             try {
                 $runAnalysis = $this->runNoFitSummary($profile, $scored, $context, $analysisContext, $allowList);
-                $ranked = [];
             } catch (Throwable $exception) {
                 $this->failPending($studentId, $pending, $exception);
                 return $this->response('provider_unavailable', []);
@@ -371,13 +373,14 @@ final class OpportunityMatchService
                 'catalog_id' => (string) ($item['catalogId'] ?? ''),
                 'rank' => isset($item['rankPosition']) ? (int) $item['rankPosition'] : null,
                 'match_score' => isset($item['matchScore']) ? (int) $item['matchScore'] : null,
-                'structured_score' => isset($item['structuredScore']) ? (int) $item['structuredScore'] : null,
-                'gemini_score' => isset($item['geminiScore']) ? (int) $item['geminiScore'] : null,
                 'why_fit' => is_array($analysis) ? (string) ($analysis['why_fit'] ?? '') : '',
                 'analysis_kind' => is_array($analysis) ? (string) ($analysis['analysis_kind'] ?? 'recommendation') : 'recommendation',
                 'why_not_fit_yet' => is_array($analysis) ? (string) ($analysis['why_not_fit_yet'] ?? '') : '',
                 'missing_conditions' => is_array($analysis) && is_array($analysis['missing_conditions'] ?? null) ? array_values($analysis['missing_conditions']) : [],
                 'improvement_steps' => is_array($analysis) && is_array($analysis['improvement_steps'] ?? null) ? array_values($analysis['improvement_steps']) : [],
+                'fit_reasons' => is_array($analysis) && is_array($analysis['fit_reasons'] ?? null) ? array_values($analysis['fit_reasons']) : [],
+                'gap_reasons' => is_array($analysis) && is_array($analysis['gap_reasons'] ?? null) ? array_values($analysis['gap_reasons']) : [],
+                'skills_to_develop' => is_array($analysis) && is_array($analysis['skills_to_develop'] ?? null) ? array_values($analysis['skills_to_develop']) : [],
                 'tier' => (int) ($item['matchScore'] ?? 0) >= 60 ? 'suitable' : ((int) ($item['matchScore'] ?? 0) >= 40 ? 'low_fit' : 'no_fit'),
                 'matched_skills' => is_array($analysis) && is_array($analysis['matched_skill_codes'] ?? null) ? array_values($analysis['matched_skill_codes']) : [],
                 'missing_skills' => is_array($analysis) && is_array($analysis['missing_skill_codes'] ?? null) ? array_values($analysis['missing_skill_codes']) : [],
@@ -477,21 +480,10 @@ final class OpportunityMatchService
     /** @param array<string,mixed> $summary @param array<string,mixed> $analysisContext @return array<string,mixed> */
     private function enrichNoFitSummary(array $summary, array $analysisContext): array
     {
-        $range = $analysisContext['structured_score_range'] ?? null;
-        $normalizedRange = is_array($range) && count($range) === 2
-            ? [max(0, min(100, (int) $range[0])), max(0, min(100, (int) $range[1]))]
-            : null;
-        if (is_array($normalizedRange) && $normalizedRange[0] > $normalizedRange[1]) {
-            $normalizedRange = [$normalizedRange[1], $normalizedRange[0]];
-        }
         $summary['analysis_meta'] = [
             'evaluated_count' => max(0, (int) ($analysisContext['candidate_count'] ?? 0)),
             'eligible_count' => max(0, (int) ($analysisContext['eligible_count'] ?? 0)),
-            'best_score' => is_array($normalizedRange) ? $normalizedRange[1] : null,
-            'score_range' => $normalizedRange,
             'match_threshold' => 60,
-            'data_weight' => 70,
-            'ai_weight' => 30,
         ];
         return $summary;
     }

@@ -144,7 +144,7 @@ $scored = [
 
 $request = OpportunityMatchPromptRegistry::create($profile, $candidates, $scored, provider_test_context());
 provider_assert($request instanceof ProviderRequest, 'prompt registry returns a ProviderRequest');
-provider_assert($request->promptVersion() === 'learner-opportunity-match-1.1.0', 'prompt version is fixed');
+provider_assert($request->promptVersion() === 'learner-opportunity-match-1.2.0', 'prompt version is fixed');
 $payloadJson = json_encode($request->payload(), JSON_THROW_ON_ERROR);
 provider_assert(!str_contains($payloadJson, 'student@example.com'), 'prompt payload excludes email');
 provider_assert(!str_contains($payloadJson, 'gender'), 'prompt payload excludes protected traits');
@@ -155,7 +155,7 @@ $itemSchema = $schema['items'];
 provider_assert(($itemSchema['additionalProperties'] ?? null) === false, 'item additionalProperties=false');
 $required = $itemSchema['required'] ?? [];
 sort($required);
-provider_assert($required === ['catalog_id', 'evidence_ref_ids', 'expected_outcome_codes', 'gemini_score', 'matched_skill_codes', 'missing_skill_codes', 'why_fit'], 'item required fields');
+provider_assert($required === ['catalog_id', 'evidence_ref_ids', 'expected_outcome_codes', 'fit_reasons', 'gap_reasons', 'gemini_score', 'matched_skill_codes', 'missing_skill_codes', 'skills_to_develop', 'why_fit'], 'item required fields');
 $allowList = $request->payload()['input']['candidate_allow_list'] ?? [];
 provider_assert(count($allowList) === 3, 'candidate allow-list contains the supplied candidates');
 provider_assert(array_column($allowList, 'catalog_id') === ['internship-1', 'internship-2', 'internship-3'], 'candidate allow-list preserves order and ids');
@@ -174,7 +174,10 @@ $positiveItems = [
     [
         'catalog_id' => 'internship-1',
         'gemini_score' => 90,
-        'why_fit' => 'Python phu hop voi ky nang da xac minh cua ban.',
+        'why_fit' => 'Dự án này liên quan trực tiếp đến năng lực phân tích đã được ghi nhận. Kinh nghiệm làm việc nhóm hỗ trợ quá trình xử lý yêu cầu. Hồ sơ hiện chưa chứng minh kinh nghiệm SQL qua sản phẩm thực tế. Đây là cơ hội phù hợp để học hỏi nhưng vẫn cần bổ sung minh chứng kỹ thuật.',
+        'fit_reasons' => ['Năng lực phân tích dữ liệu đã được đánh giá.', 'Có minh chứng làm việc nhóm.'],
+        'gap_reasons' => ['Chưa có sản phẩm SQL trong hồ sơ.'],
+        'skills_to_develop' => ['Viết truy vấn SQL', 'Xây dựng dashboard'],
         'matched_skill_codes' => ['python'],
         'missing_skill_codes' => ['sql'],
         'expected_outcome_codes' => ['dashboard'],
@@ -183,7 +186,10 @@ $positiveItems = [
     [
         'catalog_id' => 'internship-2',
         'gemini_score' => 80,
-        'why_fit' => 'AI Marketing phu hop voi kinh nghiem STEM va logic.',
+        'why_fit' => 'Cơ hội này tận dụng nền tảng Python và tư duy logic trong hồ sơ. Hoạt động STEM cho thấy bạn đã quen với cách giải quyết vấn đề theo nhóm. Kiến thức marketing hiện chưa được chứng minh bằng dự án thực tế. Bạn có thể tham gia để mở rộng năng lực phân tích hành vi người dùng.',
+        'fit_reasons' => ['Có nền tảng Python.', 'Đã tham gia hoạt động STEM.'],
+        'gap_reasons' => ['Chưa có minh chứng marketing thực tế.'],
+        'skills_to_develop' => ['Phân tích hành vi người dùng', 'Đo lường chiến dịch'],
         'matched_skill_codes' => ['python'],
         'missing_skill_codes' => ['marketing'],
         'expected_outcome_codes' => ['insight'],
@@ -192,7 +198,10 @@ $positiveItems = [
     [
         'catalog_id' => 'internship-3',
         'gemini_score' => 70,
-        'why_fit' => 'Design Sprint giup ban phat trien ky nang sang tao va lam viec nhom.',
+        'why_fit' => 'Dự án Design Sprint phù hợp với khả năng hợp tác đã được ghi nhận. Nền tảng Python hỗ trợ bạn trao đổi hiệu quả với nhóm kỹ thuật. Hồ sơ chưa có minh chứng về nghiên cứu người dùng hoặc tạo mẫu. Dự án sẽ giúp bạn rèn luyện quy trình thiết kế dựa trên phản hồi thực tế.',
+        'fit_reasons' => ['Có kinh nghiệm làm việc nhóm.', 'Có nền tảng kỹ thuật để cộng tác.'],
+        'gap_reasons' => ['Chưa có minh chứng nghiên cứu người dùng.'],
+        'skills_to_develop' => ['Phỏng vấn người dùng', 'Tạo mẫu sản phẩm'],
         'matched_skill_codes' => ['python'],
         'missing_skill_codes' => ['user_research'],
         'expected_outcome_codes' => ['prototype'],
@@ -203,12 +212,25 @@ $validated = $validator->validate($positiveItems, $candidates, $profile);
 provider_assert(count($validated) === 3, 'validator returns 3 matches on positive input');
 $ranked = array_map(static fn (OpportunityMatch $match): int => $match->candidate()->catalogId() === 'internship-1' ? 1 : ($match->candidate()->catalogId() === 'internship-2' ? 2 : 3), $validated);
 provider_assert($ranked === [1, 2, 3], 'validator preserves the model order from positive input');
-provider_assert($validated[0]->whyFit() === 'Python phu hop voi ky nang da xac minh cua ban.', 'why_fit round-trips from validator');
+provider_assert($validated[0]->whyFit() === $positiveItems[0]['why_fit'], 'why_fit round-trips from validator');
+provider_assert($validated[0]->fitReasons() === $positiveItems[0]['fit_reasons'], 'fit reasons round-trip from validator');
+provider_assert($validated[0]->gapReasons() === $positiveItems[0]['gap_reasons'], 'gap reasons round-trip from validator');
+provider_assert($validated[0]->skillsToDevelop() === $positiveItems[0]['skills_to_develop'], 'skills to develop round-trip from validator');
 $attached = $validated[0]->withScore($scored['internship-1']->withGeminiScore(90));
 provider_assert($attached->score() !== null, 'withScore attaches deterministic score');
 provider_assert($attached->score()->finalScore() === 83, 'withScore composes 70/30 with attached gemini score');
 provider_assert($validated[0]->score() === null, 'original match has no score before withScore');
 provider_assert($validated[0]->candidate()->title() === 'Title for internship-1', 'match canonical title is server-owned');
+
+$misclassifiedSkills = $positiveItems;
+$misclassifiedSkills[0]['matched_skill_codes'] = ['sql'];
+$misclassifiedSkills[0]['missing_skill_codes'] = ['python'];
+$normalisedSkills = $validator->validate($misclassifiedSkills, $candidates, $profile);
+provider_assert(
+    $normalisedSkills[0]->matchedSkillCodes() === ['python']
+        && $normalisedSkills[0]->missingSkillCodes() === ['sql'],
+    'validator derives attained and missing required skills from canonical profile scores'
+);
 
 $positiveItem = $positiveItems[0];
 $positiveItem['title'] = 'Fabricated by model';
@@ -262,6 +284,24 @@ provider_expect_invalid(
     'validator rejects gemini score above 100'
 );
 
+$shortAnalysis = $positiveItems;
+$shortAnalysis[0]['why_fit'] = 'Dự án này khá phù hợp với bạn.';
+provider_expect_invalid(
+    static fn () => $validator->validate($shortAnalysis, $candidates, $profile),
+    InvalidArgumentException::class,
+    'validator rejects one-sentence analysis'
+);
+
+foreach (['fit_reasons', 'gap_reasons', 'skills_to_develop'] as $requiredAnalysisList) {
+    $missingAnalysis = $positiveItems;
+    $missingAnalysis[0][$requiredAnalysisList] = [];
+    provider_expect_invalid(
+        static fn () => $validator->validate($missingAnalysis, $candidates, $profile),
+        InvalidArgumentException::class,
+        "validator rejects empty {$requiredAnalysisList}"
+    );
+}
+
 $badSkill = $positiveItems;
 $badSkill[0]['matched_skill_codes'] = ['unknown_skill'];
 provider_expect_invalid(
@@ -313,10 +353,11 @@ provider_expect_invalid(
 $sameSkill = $positiveItems;
 $sameSkill[0]['matched_skill_codes'] = ['python'];
 $sameSkill[0]['missing_skill_codes'] = ['python'];
-provider_expect_invalid(
-    static fn () => $validator->validate($sameSkill, $candidates, $profile),
-    InvalidArgumentException::class,
-    'validator rejects same skill in matched and missing'
+$normalisedOverlap = $validator->validate($sameSkill, $candidates, $profile);
+provider_assert(
+    $normalisedOverlap[0]->matchedSkillCodes() === ['python']
+        && $normalisedOverlap[0]->missingSkillCodes() === ['sql'],
+    'validator resolves overlapping model skill labels from canonical profile scores'
 );
 
 $repeated = $positiveItems;
@@ -404,7 +445,7 @@ provider_assert($generated[0]->candidate()->title() === 'Title for internship-1'
 $attachedGenerated = $generated[0]->withScore($scored['internship-1']);
 provider_assert($attachedGenerated->score() === $scored['internship-1'], 'engine match can carry deterministic score');
 $engineRequest = $engineProvider->requests()[0];
-provider_assert($engineRequest->promptVersion() === 'learner-opportunity-match-1.1.0', 'engine sends fixed prompt version');
+provider_assert($engineRequest->promptVersion() === 'learner-opportunity-match-1.2.0', 'engine sends fixed prompt version');
 $enginePayloadJson = json_encode($engineRequest->payload(), JSON_THROW_ON_ERROR);
 provider_assert(!str_contains($enginePayloadJson, 'student@example.com'), 'engine payload excludes email');
 provider_assert(!str_contains($enginePayloadJson, 'phone'), 'engine payload excludes phone field');
@@ -426,7 +467,10 @@ $lowFitItems = [
     [
         'catalog_id' => 'internship-1',
         'gemini_score' => 55,
-        'why_not_fit_yet' => 'Python da co nen tang nhung SQL van chua dat muc yeu cau cua du an.',
+        'why_not_fit_yet' => 'Bạn đã có nền tảng Python phù hợp với một phần công việc. Khả năng SQL hiện chưa đạt mức dự án yêu cầu. Hồ sơ cũng chưa có sản phẩm dữ liệu hoàn chỉnh để kiểm chứng kinh nghiệm. Bạn nên xem đây là cơ hội rèn luyện sau khi bổ sung một dự án SQL nhỏ.',
+        'fit_reasons' => ['Đã có nền tảng Python.'],
+        'gap_reasons' => ['Kỹ năng SQL chưa đạt yêu cầu.', 'Chưa có sản phẩm dữ liệu hoàn chỉnh.'],
+        'skills_to_develop' => ['Viết truy vấn SQL', 'Phân tích dữ liệu mẫu'],
         'matched_skill_codes' => ['python'],
         'missing_skill_codes' => ['sql'],
         'missing_conditions' => ['sql_minimum_score'],
@@ -436,7 +480,10 @@ $lowFitItems = [
     [
         'catalog_id' => 'internship-2',
         'gemini_score' => 48,
-        'why_not_fit_yet' => 'Ky nang Python phu hop mot phan nhung ban con thieu marketing nen tang.',
+        'why_not_fit_yet' => 'Nền tảng Python giúp bạn tiếp cận phần phân tích của cơ hội này. Hồ sơ chưa thể hiện kiến thức marketing căn bản. Bạn cũng chưa có minh chứng về việc đo lường một chiến dịch thực tế. Hãy bổ sung dự án nhỏ trước khi xem đây là lựa chọn phù hợp cao.',
+        'fit_reasons' => ['Có nền tảng Python phục vụ phân tích.'],
+        'gap_reasons' => ['Chưa có kiến thức marketing căn bản.', 'Chưa có minh chứng đo lường chiến dịch.'],
+        'skills_to_develop' => ['Marketing căn bản', 'Đo lường chiến dịch'],
         'matched_skill_codes' => ['python'],
         'missing_skill_codes' => ['marketing'],
         'missing_conditions' => ['marketing_basics'],
@@ -494,7 +541,7 @@ provider_assert(str_contains($noFitInstructions, 'tiếng Việt có dấu'), 'n
 provider_assert(str_contains($noFitInstructions, 'Không hiển thị mã kỹ năng'), 'no-fit prompt forbids raw skill codes in learner-facing prose');
 $summary = $validator->validateSummary([
     'headline' => 'Chua co co hoi du phu hop',
-    'explanation' => 'Cac co hoi hien tai yeu cau SQL va marketing nhieu hon ky nang da xac minh cua ban.',
+    'explanation' => 'Các cơ hội hiện tại yêu cầu SQL và marketing nhiều hơn những kỹ năng đã được xác minh. Hồ sơ đã có nền tảng Python nhưng chưa có sản phẩm liên quan trực tiếp. Vì vậy Gemini chưa đề xuất một dự án cụ thể ở thời điểm này. Bạn nên bổ sung một sản phẩm nhỏ rồi thực hiện phân tích lại.',
     'learner_strengths' => ['python'],
     'catalog_demands' => ['sql', 'marketing'],
     'main_gaps' => ['sql'],
@@ -502,6 +549,15 @@ $summary = $validator->validateSummary([
     'evidence_ref_ids' => ['skill:python-skill-1'],
 ], $profile, ['skill:python-skill-1']);
 provider_assert(($summary['headline'] ?? '') === 'Chua co co hoi du phu hop', 'no-fit summary validates and round-trips');
+
+$shortSummary = $summary;
+unset($shortSummary['state']);
+$shortSummary['explanation'] = 'Hồ sơ hiện chưa đủ phù hợp với các cơ hội.';
+provider_expect_invalid(
+    static fn () => $validator->validateSummary($shortSummary, $profile, ['skill:python-skill-1']),
+    InvalidArgumentException::class,
+    'validator rejects a one-sentence no-fit explanation'
+);
 
 $countingAuthorizer = new class($stubAuthorizer) implements ProviderAttemptAuthorizer {
     public int $calls = 0;

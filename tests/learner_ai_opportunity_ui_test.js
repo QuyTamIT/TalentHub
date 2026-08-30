@@ -11,6 +11,7 @@ const {
     mapOpportunityMatchState,
     isSafeInternalOpportunityUrl,
     humanizeOpportunityLabel,
+    normalizeReadyItems,
     mountOpportunityMatches,
 } = require('../assets/js/learner-opportunity-matches.js');
 
@@ -30,9 +31,9 @@ test('generation renders three distinct database-backed matches', async () => {
             return {
                 state: 'ready_model',
                 items: [
-                    { catalog_id: 'p1', rank: 1, match_score: 92, why_fit: 'Python và IoT', matched_skills: ['data_analysis'], missing_skills: ['user_research'], expected_outcomes: ['problem_solving'], evidence: [], canonical_url: '/app/learner/opportunity.php?id=p1' },
-                    { catalog_id: 'p2', rank: 2, match_score: 84, why_fit: 'Phân tích dữ liệu', matched_skills: [], missing_skills: [], expected_outcomes: [], evidence: [], canonical_url: '/app/learner/opportunity.php?id=p2' },
-                    { catalog_id: 'p3', rank: 3, match_score: 76, why_fit: 'Sáng tạo và hợp tác', matched_skills: [], missing_skills: [], expected_outcomes: [], evidence: [], canonical_url: '/app/learner/opportunity.php?id=p3' },
+                    { catalog_id: 'p1', rank: 1, match_score: 92, why_fit: 'Dự án tận dụng nền tảng Python đã có. Điểm đánh giá cho thấy tư duy phân tích phù hợp. Hồ sơ còn thiếu một sản phẩm IoT hoàn chỉnh. Cơ hội này giúp rèn năng lực triển khai thực tế.', fit_reasons: ['Có nền tảng Python'], gap_reasons: ['Chưa có sản phẩm IoT'], skills_to_develop: ['Thiết kế IoT'], matched_skills: ['data_analysis'], missing_skills: ['user_research'], expected_outcomes: ['problem_solving'], evidence: [], canonical_url: '/app/learner/opportunity.php?id=p1' },
+                    { catalog_id: 'p2', rank: 2, match_score: 84, why_fit: 'Cơ hội phù hợp với tư duy dữ liệu. Kinh nghiệm nhóm hỗ trợ việc triển khai. Hồ sơ chưa có dashboard hoàn chỉnh. Dự án giúp rèn cách trình bày insight.', fit_reasons: ['Có tư duy dữ liệu'], gap_reasons: ['Chưa có dashboard'], skills_to_develop: ['Trình bày insight'], matched_skills: [], missing_skills: [], expected_outcomes: [], evidence: [], canonical_url: '/app/learner/opportunity.php?id=p2' },
+                    { catalog_id: 'p3', rank: 3, match_score: 76, why_fit: 'Dự án phù hợp với thế mạnh sáng tạo. Hoạt động nhóm là một nền tảng hữu ích. Hồ sơ chưa có nghiên cứu người dùng. Cơ hội giúp rèn quy trình thiết kế.', fit_reasons: ['Có thế mạnh sáng tạo'], gap_reasons: ['Chưa có nghiên cứu người dùng'], skills_to_develop: ['Thiết kế sản phẩm'], matched_skills: [], missing_skills: [], expected_outcomes: [], evidence: [], canonical_url: '/app/learner/opportunity.php?id=p3' },
                 ],
             };
         },
@@ -50,6 +51,9 @@ test('generation renders three distinct database-backed matches', async () => {
     assert.deepEqual(states.at(-1).payload.items[0].matched_skills, ['Phân tích dữ liệu']);
     assert.deepEqual(states.at(-1).payload.items[0].missing_skills, ['Nghiên cứu người dùng']);
     assert.deepEqual(states.at(-1).payload.items[0].expected_outcomes, ['Giải quyết vấn đề']);
+    assert.deepEqual(states.at(-1).payload.items[0].fit_reasons, ['Có nền tảng Python']);
+    assert.deepEqual(states.at(-1).payload.items[0].gap_reasons, ['Chưa có sản phẩm IoT']);
+    assert.deepEqual(states.at(-1).payload.items[0].skills_to_develop, ['Thiết kế IoT']);
 });
 
 test('generation deduplicates an in-flight request and reuses its idempotency key', async () => {
@@ -80,6 +84,39 @@ test('generation deduplicates an in-flight request and reuses its idempotency ke
 
     assert.equal(sends, 1);
     assert.deepEqual(states, ['loading', 'source-error']);
+});
+
+test('analyzed no-fit response still renders every Gemini-selected opportunity', async () => {
+    const states = [];
+    const controller = createOpportunityMatchController({
+        api: {
+            async get() {
+                return {
+                    state: 'no_fit_model',
+                    analysis: {
+                        headline: 'Các dự án hiện tại chưa đạt mức phù hợp cao',
+                        explanation: 'Gemini đã phân tích dựa trên hồ sơ được cho phép. Hai dự án có một số điểm liên quan đến năng lực hiện tại. Hồ sơ vẫn thiếu minh chứng kỹ thuật quan trọng. Bạn có thể xem chi tiết từng dự án để biết phần cần rèn luyện.',
+                    },
+                    items: [{
+                        catalog_id: 'p-low', rank: 1, match_score: 28,
+                        why_fit: 'Dự án có liên quan đến khả năng làm việc nhóm hiện tại. Nền tảng phân tích hỗ trợ một phần yêu cầu. Hồ sơ chưa có sản phẩm kỹ thuật tương ứng. Cơ hội này phù hợp để tham khảo và xác định kỹ năng cần rèn luyện.',
+                        fit_reasons: ['Có khả năng làm việc nhóm.'],
+                        gap_reasons: ['Chưa có sản phẩm kỹ thuật tương ứng.'],
+                        skills_to_develop: ['Xây dựng sản phẩm kỹ thuật'],
+                        evidence: [], canonical_url: '/app/learner/opportunity.php?id=p-low',
+                    }],
+                };
+            },
+        },
+        view: { render: (state, payload) => states.push({ state, payload }) },
+        createIdempotencyKey: () => 'unused-key',
+    });
+
+    await controller.load();
+
+    assert.equal(states.at(-1).state, 'no-fit-model');
+    assert.equal(states.at(-1).payload.items.length, 1);
+    assert.equal(states.at(-1).payload.items[0].catalog_id, 'p-low');
 });
 
 test('controller maps every approved API state and rejects malformed ready payloads', async () => {
@@ -121,12 +158,31 @@ test('only same-origin internal opportunity links are accepted', () => {
     assert.equal(isSafeInternalOpportunityUrl('/app/learner/../admin.php'), false);
 });
 
-test('renderer uses safe DOM APIs and never exposes component scores', () => {
+test('normalizer requires substantial project analysis and retains detailed sections', () => {
+    const base = {
+        catalog_id: 'p1', rank: 1, match_score: 38,
+        why_fit: 'Dự án liên quan đến nền tảng hiện có. Hồ sơ cho thấy một số năng lực phù hợp. Bạn vẫn thiếu minh chứng thực tế quan trọng. Cơ hội này giúp rèn kỹ năng qua công việc cụ thể.',
+        fit_reasons: ['Có nền tảng liên quan.'],
+        gap_reasons: ['Chưa có minh chứng thực tế.'],
+        skills_to_develop: ['Phân tích dữ liệu'],
+        evidence: [], canonical_url: '/app/learner/opportunity.php?id=p1',
+    };
+    const normalized = normalizeReadyItems([base]);
+    assert.deepEqual(normalized[0].fit_reasons, base.fit_reasons);
+    assert.deepEqual(normalized[0].gap_reasons, base.gap_reasons);
+    assert.deepEqual(normalized[0].skills_to_develop, base.skills_to_develop);
+    assert.equal(normalizeReadyItems([{ ...base, why_fit: 'Quá ngắn.' }]), null);
+    assert.equal(normalizeReadyItems([{ ...base, fit_reasons: [] }]), null);
+});
+
+test('renderer uses safe DOM APIs, score progressbar and detailed Gemini sections', () => {
     assert.match(source, /document\.createElement/);
     assert.match(source, /textContent/);
     assert.doesNotMatch(source, /\.innerHTML\s*=/);
     assert.doesNotMatch(source, /structured_score|gemini_score/);
-    for (const label of ['Vì sao phù hợp', 'Kỹ năng phù hợp', 'Cần bổ sung', 'Bạn sẽ đạt được', 'Nguồn phân tích', 'Xem phân tích chi tiết', 'Xem dự án']) {
+    assert.match(source, /role', 'progressbar'/);
+    assert.match(source, /learner-opportunity-ai-score__bar/);
+    for (const label of ['Phân tích của Gemini', 'Tại sao phù hợp', 'Tại sao chưa phù hợp', 'Kỹ năng sẽ được học hỏi và rèn luyện', 'Xem dự án']) {
         assert.match(source, new RegExp(label));
     }
 });
@@ -137,27 +193,16 @@ test('no-fit analysis humanizes skill codes for Vietnamese learners', () => {
     assert.equal(humanizeOpportunityLabel('new_student_skill'), 'New student skill');
 });
 
-test('no-fit analysis renders visual metrics, structured insights and evidence sources', () => {
-    for (const marker of [
-        'data-opportunity-ai-metric-evaluated',
-        'data-opportunity-ai-metric-best-score',
-        'data-opportunity-ai-metric-threshold',
-        'data-opportunity-ai-metric-weighting',
-        'data-opportunity-ai-analysis-strengths',
-        'data-opportunity-ai-analysis-gaps',
-        'data-opportunity-ai-analysis-next-steps',
-        'data-opportunity-ai-analysis-sources',
-    ]) {
-        assert.match(ecosystemSource, new RegExp(marker));
-    }
-    assert.match(source, /analysis_meta/);
-    assert.match(source, /humanizeOpportunityLabel/);
-    assert.match(learnerCss, /learner-opportunity-ai__analysis-metrics/);
-    assert.match(learnerCss, /learner-opportunity-ai__analysis-chip/);
+test('prose-only no-fit state removes prepared chips and visible score formula', () => {
+    assert.match(ecosystemSource, /data-opportunity-ai-analysis-explanation/);
+    assert.doesNotMatch(ecosystemSource, /data-opportunity-ai-metric-weighting/);
+    assert.doesNotMatch(ecosystemSource, /Cách tính điểm/);
+    assert.doesNotMatch(ecosystemSource, /data-opportunity-ai-analysis-strengths/);
+    assert.doesNotMatch(learnerCss, /learner-opportunity-ai__analysis-chip/);
     assert.match(ecosystemSource, /learner\.css\?v=/);
 });
 
-test('no-fit renderer converts a legacy English Gemini result into a Vietnamese visual analysis', () => {
+test('no-fit renderer shows Gemini prose without generated metrics or prepared tags', () => {
     const previousDocument = global.document;
     const makeNode = () => ({
         className: '',
@@ -173,15 +218,6 @@ test('no-fit renderer converts a legacy English Gemini result into a Vietnamese 
     const fields = new Map([
         ['[data-opportunity-ai-analysis-headline]', makeNode()],
         ['[data-opportunity-ai-analysis-explanation]', makeNode()],
-        ['[data-opportunity-ai-metric-evaluated]', makeNode()],
-        ['[data-opportunity-ai-metric-best-score]', makeNode()],
-        ['[data-opportunity-ai-metric-threshold]', makeNode()],
-        ['[data-opportunity-ai-metric-weighting]', makeNode()],
-        ['[data-opportunity-ai-analysis-strengths]', makeNode()],
-        ['[data-opportunity-ai-analysis-demands]', makeNode()],
-        ['[data-opportunity-ai-analysis-gaps]', makeNode()],
-        ['[data-opportunity-ai-analysis-next-steps]', makeNode()],
-        ['[data-opportunity-ai-analysis-sources]', makeNode()],
     ]);
     const panel = makeNode();
     panel.querySelector = (selector) => fields.get(selector) || null;
@@ -195,33 +231,13 @@ test('no-fit renderer converts a legacy English Gemini result into a Vietnamese 
         const view = createOpportunityMatchView(root);
         view.render('no-fit-model', {
             analysis: {
-                headline: 'No opportunities currently reach the threshold for suitable match',
-                explanation: 'Candidate scores did not reach the current threshold.',
-                learner_strengths: ['creative_design', 'data_analysis'],
-                catalog_demands: ['python'],
-                main_gaps: ['Current catalog items lack alignment with demonstrated strengths.'],
-                next_steps: ['Review future catalog additions.'],
-                evidence_ref_ids: ['skill:creative-design', 'opportunity:project-1'],
-                analysis_meta: {
-                    evaluated_count: 21,
-                    best_score: 38,
-                    match_threshold: 60,
-                    data_weight: 70,
-                    ai_weight: 30,
-                },
+                headline: 'Chưa có dự án được đề xuất ở thời điểm hiện tại',
+                explanation: 'Hồ sơ hiện chưa có đủ bằng chứng để Gemini đề xuất một dự án cụ thể. Bạn nên bổ sung sản phẩm thực tế rồi thực hiện phân tích lại.',
             },
         });
 
-        assert.equal(fields.get('[data-opportunity-ai-analysis-headline]').textContent, 'Chưa có cơ hội đạt ngưỡng phù hợp');
-        assert.match(fields.get('[data-opportunity-ai-analysis-explanation]').textContent, /Gemini đã đối chiếu 21 cơ hội/);
-        assert.equal(fields.get('[data-opportunity-ai-metric-best-score]').textContent, '38/100');
-        assert.equal(fields.get('[data-opportunity-ai-metric-weighting]').textContent, '70% dữ liệu · 30% Gemini');
-        assert.deepEqual(fields.get('[data-opportunity-ai-analysis-strengths]').children.map((child) => child.textContent), ['Thiết kế sáng tạo', 'Phân tích dữ liệu']);
-        assert.deepEqual(fields.get('[data-opportunity-ai-analysis-gaps]').children.map((child) => child.textContent), ['Mức độ tương đồng giữa hồ sơ và các cơ hội hiện tại còn thấp.']);
-        assert.deepEqual(fields.get('[data-opportunity-ai-analysis-sources]').children.map((child) => child.textContent), ['Hồ sơ kỹ năng', 'Dự án TalentHub']);
-
-        view.render('no-fit-model', { analysis: { analysis_meta: { evaluated_count: 0, best_score: null } } });
-        assert.equal(fields.get('[data-opportunity-ai-metric-best-score]').textContent, '—/100');
+        assert.equal(fields.get('[data-opportunity-ai-analysis-headline]').textContent, 'Chưa có dự án được đề xuất ở thời điểm hiện tại');
+        assert.match(fields.get('[data-opportunity-ai-analysis-explanation]').textContent, /chưa có đủ bằng chứng/);
     } finally {
         global.document = previousDocument;
     }

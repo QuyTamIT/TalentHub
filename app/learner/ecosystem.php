@@ -215,22 +215,6 @@ function learner_ecosystem_date(string $date): string
                                     <strong data-opportunity-ai-analysis-headline>Chưa có cơ hội đủ phù hợp</strong>
                                     <p data-opportunity-ai-analysis-explanation>Các cơ hội hiện tại chưa phù hợp với hồ sơ của bạn.</p>
                                 </div>
-                                <div class="learner-opportunity-ai__analysis-metrics" aria-label="Tóm tắt kết quả phân tích">
-                                    <article><small>Đã phân tích</small><strong data-opportunity-ai-metric-evaluated>0 cơ hội</strong></article>
-                                    <article><small>Điểm gần nhất</small><strong data-opportunity-ai-metric-best-score>—/100</strong></article>
-                                    <article><small>Ngưỡng đề xuất</small><strong data-opportunity-ai-metric-threshold>60/100</strong></article>
-                                    <article><small>Cách tính điểm</small><strong data-opportunity-ai-metric-weighting>70% dữ liệu · 30% Gemini</strong></article>
-                                </div>
-                                <div class="learner-opportunity-ai__analysis-grid">
-                                    <section><h4>Điểm mạnh hiện tại</h4><div class="learner-opportunity-ai__analysis-values is-strength" data-opportunity-ai-analysis-strengths></div></section>
-                                    <section><h4>Các cơ hội đang cần</h4><div class="learner-opportunity-ai__analysis-values is-demand" data-opportunity-ai-analysis-demands></div></section>
-                                    <section><h4>Khoảng trống chính</h4><div class="learner-opportunity-ai__analysis-values is-gap" data-opportunity-ai-analysis-gaps></div></section>
-                                    <section><h4>Bạn nên làm gì tiếp theo?</h4><div class="learner-opportunity-ai__analysis-values is-next-step" data-opportunity-ai-analysis-next-steps></div></section>
-                                </div>
-                                <div class="learner-opportunity-ai__analysis-sources">
-                                    <strong>Nguồn dữ liệu Gemini đã sử dụng</strong>
-                                    <div data-opportunity-ai-analysis-sources></div>
-                                </div>
                             </div>
                         </div>
                         <div class="learner-opportunity-ai__message learner-opportunity-ai__message--error" data-opportunity-ai-error hidden>

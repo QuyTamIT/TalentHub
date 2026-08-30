@@ -31,6 +31,15 @@ final class OpportunityMatch
     /** @var list<string> */
     private readonly array $improvementSteps;
 
+    /** @var list<string> */
+    private readonly array $fitReasons;
+
+    /** @var list<string> */
+    private readonly array $gapReasons;
+
+    /** @var list<string> */
+    private readonly array $skillsToDevelop;
+
     private readonly ?OpportunityScore $score;
 
     public function __construct(
@@ -46,6 +55,9 @@ final class OpportunityMatch
         private readonly string $whyNotFitYet = '',
         array $missingConditions = [],
         array $improvementSteps = [],
+        array $fitReasons = [],
+        array $gapReasons = [],
+        array $skillsToDevelop = [],
     ) {
         $this->matchedSkillCodes = array_values(array_map('strval', $matchedSkillCodes));
         $this->missingSkillCodes = array_values(array_map('strval', $missingSkillCodes));
@@ -53,6 +65,9 @@ final class OpportunityMatch
         $this->evidenceRefs = array_values(array_map('strval', $evidenceRefs));
         $this->missingConditions = array_values(array_map('strval', $missingConditions));
         $this->improvementSteps = array_values(array_map('strval', $improvementSteps));
+        $this->fitReasons = array_values(array_map('strval', $fitReasons));
+        $this->gapReasons = array_values(array_map('strval', $gapReasons));
+        $this->skillsToDevelop = array_values(array_map('strval', $skillsToDevelop));
         $this->score = $score;
     }
 
@@ -117,6 +132,24 @@ final class OpportunityMatch
         return $this->improvementSteps;
     }
 
+    /** @return list<string> */
+    public function fitReasons(): array
+    {
+        return $this->fitReasons;
+    }
+
+    /** @return list<string> */
+    public function gapReasons(): array
+    {
+        return $this->gapReasons;
+    }
+
+    /** @return list<string> */
+    public function skillsToDevelop(): array
+    {
+        return $this->skillsToDevelop;
+    }
+
     public function score(): ?OpportunityScore
     {
         return $this->score;
@@ -137,6 +170,9 @@ final class OpportunityMatch
             $this->whyNotFitYet,
             $this->missingConditions,
             $this->improvementSteps,
+            $this->fitReasons,
+            $this->gapReasons,
+            $this->skillsToDevelop,
         );
     }
 }
