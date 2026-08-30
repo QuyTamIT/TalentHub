@@ -470,7 +470,14 @@
                 if (emptyState) {
                     emptyState.hidden = visibleCount !== 0;
                     emptyState.dataset.emptyReason = ecosystemItems.length === 0 ? 'source' : 'filter';
+                    const sourceMessage = emptyState.querySelector('[data-empty-source]');
+                    const filterMessage = emptyState.querySelector('[data-empty-filter]');
+                    if (sourceMessage) sourceMessage.hidden = ecosystemItems.length !== 0;
+                    if (filterMessage) filterMessage.hidden = ecosystemItems.length === 0;
                 }
+
+                const resultCount = activePanel.querySelector('[data-ecosystem-result-count]');
+                if (resultCount) resultCount.textContent = String(visibleCount);
             };
 
             const activateEcosystemTab = (tabId, focusTab = false) => {

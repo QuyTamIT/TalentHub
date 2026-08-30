@@ -28,7 +28,7 @@ assert.doesNotMatch(opportunityPage, /data-save-opportunity/, 'opportunity page 
 assert.doesNotMatch(ecosystemPage, /Dữ liệu demo|FPT Software/, 'ecosystem database copy does not advertise mock data');
 assert.doesNotMatch(partnerPage, /Dữ liệu demo|mock data|FPT Software/, 'partner database copy does not advertise mock data');
 assert.match(ecosystemPage, /Chưa có doanh nghiệp đã xác minh/, 'database enterprise empty state is authoritative');
-assert.match(ecosystemPage, /Chưa có cơ hội đang mở/, 'database opportunity empty state is authoritative');
+assert.match(ecosystemPage, /Chưa có dự án đang triển khai/, 'database project empty state is authoritative');
 assert.deepEqual(
     [...ecosystemPage.matchAll(/data-ecosystem-tab="([^"]+)"/g)].map((match) => match[1]),
     ['enterprises', 'opportunities'],
@@ -43,7 +43,7 @@ assert.ok(
     'AI opportunity block appears before the ordinary opportunity grid',
 );
 assert.match(ecosystemPage, /AI gợi ý dự án phù hợp/, 'opportunity toolbar exposes the approved AI button copy');
-assert.match(ecosystemPage, /Tất cả cơ hội đang mở/, 'ordinary opportunity list has a separate heading');
+assert.match(ecosystemPage, /Tất cả dự án đang triển khai/, 'ordinary project list has a separate heading');
 assert.match(
     ecosystemPage,
     /learner-opportunity-matches\.js\?v=<\?= filemtime\(dirname\(__DIR__, 2\) \. '\/assets\/js\/learner-opportunity-matches\.js'\); \?>/,
@@ -52,8 +52,8 @@ assert.match(
 assert.doesNotMatch(ecosystemPage, /data-ecosystem-tab="schools"/, 'school tab is removed from learner ecosystem UI');
 assert.doesNotMatch(ecosystemPage, /data-ecosystem-panel="schools"/, 'school panel is removed from learner ecosystem UI');
 assert.doesNotMatch(ecosystemPage, /Trường học đối tác/, 'school partner heading is not rendered in learner ecosystem UI');
-assert.match(ecosystemPage, /Khám phá doanh nghiệp và những cơ hội/, 'ecosystem hero copy focuses on enterprises and opportunities');
-assert.match(ecosystemPage, /Tìm doanh nghiệp hoặc cơ hội/, 'ecosystem header search excludes school wording');
+assert.match(ecosystemPage, /Khám phá doanh nghiệp và những dự án/, 'ecosystem hero copy focuses on enterprises and projects');
+assert.match(ecosystemPage, /Tìm doanh nghiệp hoặc dự án/, 'ecosystem header search uses project wording');
 assert.match(ecosystemPage, /\$allowedTabs = \['enterprises', 'opportunities'\]/, 'invalid school tab query falls back through the reduced allow-list');
 assert.match(partnerPage, /learner_ecosystem_http_url/, 'partner normalizes website through the http/https allowlist');
 assert.doesNotMatch(
@@ -68,10 +68,8 @@ assert.equal(
 );
 assert.match(ecosystemPage, /learner_ecosystem_partner_has_value/, 'ecosystem cards use the shared source-aware optional predicate');
 assert.match(partnerPage, /learner_ecosystem_partner_has_value/, 'partner detail uses the shared source-aware optional predicate');
-assert.match(ecosystemPage, /data-ecosystem-item-type="internship"/, 'ecosystem marks enterprise internship items');
-assert.match(ecosystemPage, /id="opportunity-<\?= learner_escape\(\$opportunity\['id'\]\); \?>"/, 'ecosystem gives each real opportunity a stable deep-link target');
-assert.match(learnerSource, /searchParams\.get\('focus'\)/, 'ecosystem reads the requested opportunity focus from the canonical URL');
-assert.match(learnerSource, /learner-ecosystem-focus/, 'ecosystem visually focuses the opportunity selected by an AI recommendation');
+assert.match(ecosystemPage, /data-ecosystem-item-type="project"/, 'ecosystem marks project items');
+assert.doesNotMatch(ecosystemPage, /data-ecosystem-item-type="internship"/, 'ecosystem project tab excludes internships');
 assert.doesNotMatch(ecosystemPage, /learner_ecosystem_school_activities/, 'ecosystem opportunities do not load school activities');
 assert.doesNotMatch(ecosystemPage, /data-ecosystem-item-type="school-activity"/, 'ecosystem opportunities exclude school activity items');
 assert.doesNotMatch(ecosystemPage, /activity-detail\.php\?id=/, 'ecosystem opportunities never route into school QR activities');

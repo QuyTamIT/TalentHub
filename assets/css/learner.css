@@ -5039,14 +5039,16 @@ body.learner-sidebar-open {
 }
 
 .learner-partner-grid,
-.learner-opportunity-grid {
+.learner-opportunity-grid,
+.learner-project-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 18px;
 }
 
 .learner-partner-card,
-.learner-opportunity-card {
+.learner-opportunity-card,
+.learner-project-card {
     display: flex;
     min-width: 0;
     padding: 22px;
@@ -5055,14 +5057,21 @@ body.learner-sidebar-open {
 }
 
 .learner-partner-card:hover,
-.learner-opportunity-card:hover {
+.learner-opportunity-card:hover,
+.learner-project-card:hover {
     border-color: rgba(249, 115, 22, 0.42);
     box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
     transform: translateY(-3px);
 }
 
+.learner-project-card:focus-within {
+    outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent);
+    outline-offset: 3px;
+}
+
 .learner-partner-card__header,
 .learner-opportunity-card__top,
+.learner-project-card__top,
 .learner-partner-card__footer {
     display: flex;
     align-items: center;
@@ -5133,7 +5142,8 @@ body.learner-sidebar-open {
 }
 
 .learner-partner-card h3,
-.learner-opportunity-card h3 {
+.learner-opportunity-card h3,
+.learner-project-card h3 {
     margin: 5px 0 8px;
     font-size: 1.08rem;
     line-height: 1.42;
@@ -5152,6 +5162,75 @@ body.learner-sidebar-open {
     margin-bottom: 14px;
     color: var(--secondary);
     font-weight: 600;
+}
+
+.learner-project-card__top {
+    flex-wrap: wrap;
+}
+
+.learner-project-card__type {
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.learner-project-card .learner-card-kicker {
+    margin: 20px 0 0;
+}
+
+.learner-project-card__school {
+    display: flex;
+    margin: 0 0 12px;
+    align-items: center;
+    gap: 7px;
+    color: var(--secondary);
+    font-size: 0.8rem;
+    font-weight: 650;
+}
+
+.learner-project-card__school svg {
+    flex: 0 0 auto;
+}
+
+.learner-project-card__description {
+    display: -webkit-box;
+    margin: 0 0 17px;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    line-height: 1.65;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+.learner-project-card__facts {
+    display: grid;
+    margin: auto 0 18px;
+    padding-top: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    border-top: 1px solid var(--border);
+}
+
+.learner-project-card__facts span {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 3px 7px;
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+}
+
+.learner-project-card__facts svg {
+    grid-row: 1 / span 2;
+    color: var(--primary);
+}
+
+.learner-project-card__facts strong {
+    color: var(--text-primary);
+    font-size: 0.76rem;
 }
 
 .learner-meta-list {
@@ -5216,8 +5295,13 @@ body.learner-sidebar-open {
     font-size: 1.05rem;
 }
 
-.learner-opportunity-card .learner-btn {
+.learner-opportunity-card .learner-btn,
+.learner-project-card .learner-btn {
     margin-top: auto;
+}
+
+.learner-project-error .learner-btn {
+    margin-top: 8px;
 }
 
 .learner-application-drawer {
@@ -5615,7 +5699,8 @@ body.learner-sidebar-open {
 
 @media (max-width: 1180px) {
     .learner-partner-grid,
-    .learner-opportunity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .learner-opportunity-grid,
+    .learner-project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .learner-partner-hero { grid-template-columns: auto minmax(0, 1fr); }
     .learner-partner-hero__actions { grid-column: 1 / -1; flex-direction: row; justify-content: flex-end; }
     .learner-opportunity-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 0; }
@@ -5638,7 +5723,9 @@ body.learner-sidebar-open {
     .learner-ecosystem-toolbar { grid-template-columns: 1fr; }
     .learner-ecosystem-search { grid-column: auto; }
     .learner-partner-grid,
-    .learner-opportunity-grid { grid-template-columns: 1fr; }
+    .learner-opportunity-grid,
+    .learner-project-grid { grid-template-columns: 1fr; }
+    .learner-project-card__top { align-items: flex-start; flex-direction: column; }
     .learner-partner-card__footer { align-items: flex-start; flex-direction: column; }
     .learner-partner-card__footer .learner-btn { width: 100%; }
     .learner-partner-hero { padding: 20px; grid-template-columns: 1fr; }
@@ -11130,7 +11217,7 @@ body.learner-sidebar-open {
 /* Learner AI opportunity matching --------------------------------------- */
 
 .learner-page-ecosystem .learner-ecosystem-toolbar {
-    grid-template-columns: minmax(250px, 1fr) minmax(160px, 205px) minmax(155px, 195px) auto;
+    grid-template-columns: minmax(250px, 1fr) minmax(160px, 205px) auto;
     align-items: center;
 }
 
