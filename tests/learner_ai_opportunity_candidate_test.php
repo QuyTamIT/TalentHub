@@ -267,6 +267,13 @@ INSERT INTO projects VALUES (
   'project','This project has expired.','/app/learner/projects.php?id=project-expired','2026-08-01 00:00:00'
 )
 SQL);
+$projectId = '50000000-0000-4000-8000-000000000001';
+$sourcePdo->exec(<<<SQL
+INSERT INTO projects VALUES (
+  '{$projectId}','school-db-1','EcoSmart AI','in_progress','2026-08-21 00:00:00',
+  'career_technical','A current school project.','https://github.com/talenthub-demo/ecosmart-ai','2026-11-01 00:00:00'
+)
+SQL);
 
 $catalogInsert = $sourcePdo->prepare('INSERT INTO learner_ai_catalog_items VALUES (:id,:type,:category,:title,:summary,:status,:deadline,:eligibility,:capacity,:enrolled,:url,:action,:school,:tenant,:updated,:provider,:location,:difficulty,:skills,:outcomes,:bands)');
 $catalogInsert->execute([
@@ -310,12 +317,18 @@ candidate_assert($internshipCandidate->providerName() === 'Verified Enterprise',
 candidate_assert($internshipCandidate->isEligibleFor($profile, $sourceClock), 'database-backed active internship passes hard gates');
 
 $catalogRows = (new DatabaseCatalogSource($sourcePdo, $sourceClock))->readForStudent('student-db-1');
-candidate_assert(array_column($catalogRows, 'catalog_id') === ['catalog-safe'], 'catalog source excludes expired project and protected-trait row');
-$catalogRow = $catalogRows[0];
+candidate_assert(array_column($catalogRows, 'catalog_id') === ['catalog-safe', $projectId], 'catalog source includes the active same-school project and excludes expired/protected rows');
+$catalogRow = array_values(array_filter($catalogRows, static fn (array $row): bool => ($row['catalog_id'] ?? '') === 'catalog-safe'))[0];
 candidate_assert(($catalogRow['provider_name'] ?? null) === 'TalentHub School', 'catalog evidence exposes provider name');
 candidate_assert(($catalogRow['location'] ?? null) === 'Ha Noi' && ($catalogRow['difficulty'] ?? null) === 'intermediate', 'catalog evidence exposes location and difficulty');
 candidate_assert(($catalogRow['required_skills'][0]['code'] ?? null) === 'python', 'catalog evidence exposes required skills');
 candidate_assert(($catalogRow['learning_outcomes'][0]['code'] ?? null) === 'dashboard', 'catalog evidence exposes learning outcomes');
 candidate_assert(($catalogRow['education_bands'] ?? null) === ['high'], 'catalog evidence exposes education bands');
+$projectRow = array_values(array_filter($catalogRows, static fn (array $row): bool => ($row['catalog_id'] ?? '') === $projectId))[0];
+candidate_assert(
+    ($projectRow['url'] ?? '') === '/app/learner/project.php?id=' . rawurlencode($projectId),
+    'school project catalog always emits the internal detail URL'
+);
+candidate_assert(!str_contains((string) ($projectRow['url'] ?? ''), 'github.com'), 'GitHub demo URL is never canonical');
 
 echo "learner_ai_opportunity_candidate_test: OK\n";

@@ -38,14 +38,15 @@
         return STATE_MAP[String(state || '')] || 'source-error';
     }
 
-    function isSafeInternalOpportunityUrl(value) {
+    function isSafeInternalProjectUrl(value) {
         if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return false;
         const pathOnly = value.split(/[?#]/, 1)[0];
         if (/\\|%2e|%2f|%5c|(?:^|\/)\.\.?($|\/)/i.test(pathOnly)) return false;
         try {
             const url = new URL(value, 'https://talenthub.invalid');
             return url.origin === 'https://talenthub.invalid'
-                && (/^\/app\/learner\/(?:opportunity|ecosystem)\.php$/).test(url.pathname);
+                && url.pathname === '/app/learner/project.php'
+                && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(url.searchParams.get('id') || '');
         } catch {
             return false;
         }
@@ -53,16 +54,10 @@
 
     function classifySafeOpportunityUrl(value) {
         const normalized = normalizeText(value);
-        if (isSafeInternalOpportunityUrl(normalized)) {
+        if (isSafeInternalProjectUrl(normalized)) {
             return { url: normalized, external: false };
         }
-        try {
-            const url = new URL(normalized);
-            if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) return null;
-            return { url: normalized, external: true };
-        } catch {
-            return null;
-        }
+        return null;
     }
 
     function normalizeText(value) {
@@ -457,7 +452,7 @@
         createOpportunityMatchController,
         createOpportunityMatchView,
         mapOpportunityMatchState,
-        isSafeInternalOpportunityUrl,
+        isSafeInternalProjectUrl,
         classifySafeOpportunityUrl,
         humanizeOpportunityLabel,
         normalizeReadyItems,

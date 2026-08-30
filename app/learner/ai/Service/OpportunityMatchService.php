@@ -132,7 +132,7 @@ final class OpportunityMatchService
                 $this->analysisContext($profile, $candidates, $scoredCandidates, $scored),
             );
         }
-        return $this->mapReady($run);
+        return $this->mapReady($run, $candidates);
     }
 
     /** @return array<string,mixed> */
@@ -200,12 +200,12 @@ final class OpportunityMatchService
         if (($pending['reused'] ?? false) === true) {
             $cached = $this->repository->latestValid($studentId, $activeCatalogIds);
             if (($pending['status'] ?? null) === 'completed' && $cached !== null) {
-                return $this->mapReady($cached);
+                return $this->mapReady($cached, $scoredCandidates);
             }
             if (($pending['status'] ?? null) === 'failed'
                 && ($pending['safeErrorCode'] ?? null) === 'provider_unavailable'
                 && $cached !== null) {
-                return $this->mapStale($cached);
+                return $this->mapStale($cached, $scoredCandidates);
             }
             return $this->response('provider_unavailable', []);
         }
@@ -223,7 +223,7 @@ final class OpportunityMatchService
             if ($mode === 'no_fit') {
                 $analysis = $this->runNoFitSummary($profile, $scored, $context, $analysisContext, $candidates);
                 $run = $this->repository->completeRun($studentId, (string) ($pending['runId'] ?? ''), [], $analysis, 'no_fit_model');
-                return $this->mapReady($run);
+                return $this->mapReady($run, $scoredCandidates);
             }
             $matches = $this->runEngine($profile, $allowList, $scored, $context, $mode, $analysisContext);
         } catch (Throwable $exception) {
@@ -231,7 +231,7 @@ final class OpportunityMatchService
             if (self::isProviderFailure($exception)) {
                 $stale = $this->repository->latestValid($studentId, $activeCatalogIds);
                 if ($stale !== null && ($stale['status'] ?? null) === 'completed') {
-                    return $this->mapStale($stale);
+                    return $this->mapStale($stale, $scoredCandidates);
                 }
             }
             return $this->response('provider_unavailable', []);
@@ -252,7 +252,7 @@ final class OpportunityMatchService
                 if (self::isProviderFailure($exception)) {
                     $stale = $this->repository->latestValid($studentId, $activeCatalogIds);
                     if ($stale !== null && ($stale['status'] ?? null) === 'completed') {
-                        return $this->mapStale($stale);
+                        return $this->mapStale($stale, $scoredCandidates);
                     }
                 }
                 return $this->response('provider_unavailable', []);
@@ -264,7 +264,7 @@ final class OpportunityMatchService
             $this->failPending($studentId, $pending, $exception);
             return $this->response('provider_unavailable', []);
         }
-        return $this->mapReady($run);
+        return $this->mapReady($run, $scoredCandidates);
     }
 
     /** @param list<OpportunityCandidate> $candidates @return list<OpportunityCandidate> */
@@ -347,36 +347,48 @@ final class OpportunityMatchService
         }
     }
 
-    /** @param array<string,mixed> $run @return array<string,mixed> */
-    private function mapReady(array $run): array
+    /** @param array<string,mixed> $run @param list<OpportunityCandidate> $candidates @return array<string,mixed> */
+    private function mapReady(array $run, array $candidates): array
     {
         $state = (string) ($run['state'] ?? ($run['analysis']['state'] ?? 'ready_model'));
         return [
             'state' => $state,
-            'items' => $this->mapItems($run['items'] ?? []),
+            'items' => $this->mapItems($run['items'] ?? [], $this->canonicalUrls($candidates)),
             'analysis' => is_array($run['analysis'] ?? null) ? $run['analysis'] : [],
         ];
     }
 
-    /** @param array<string,mixed> $run @return array<string,mixed> */
-    private function mapStale(array $run): array
+    /** @param array<string,mixed> $run @param list<OpportunityCandidate> $candidates @return array<string,mixed> */
+    private function mapStale(array $run, array $candidates): array
     {
         return [
             'state' => 'stale_model',
-            'items' => $this->mapItems($run['items'] ?? []),
+            'items' => $this->mapItems($run['items'] ?? [], $this->canonicalUrls($candidates)),
             'analysis' => is_array($run['analysis'] ?? null) ? $run['analysis'] : [],
         ];
     }
 
-    /** @param list<array<string,mixed>> $items @return list<array<string,mixed>> */
-    private function mapItems(array $items): array
+    /** @param list<OpportunityCandidate> $candidates @return array<string,string> */
+    private function canonicalUrls(array $candidates): array
+    {
+        $urls = [];
+        foreach ($candidates as $candidate) {
+            if ($candidate->catalogType() === 'project') {
+                $urls[$candidate->catalogId()] = $candidate->canonicalUrl();
+            }
+        }
+        return $urls;
+    }
+
+    /** @param list<array<string,mixed>> $items @param array<string,string> $canonicalUrls @return list<array<string,mixed>> */
+    private function mapItems(array $items, array $canonicalUrls): array
     {
         $mapped = [];
         foreach ($items as $item) {
             $analysis = $this->decodeJson($item['analysisJson'] ?? null);
-            $action = $this->decodeJson($item['actionJson'] ?? null);
+            $catalogId = (string) ($item['catalogId'] ?? '');
             $mapped[] = [
-                'catalog_id' => (string) ($item['catalogId'] ?? ''),
+                'catalog_id' => $catalogId,
                 'rank' => isset($item['rankPosition']) ? (int) $item['rankPosition'] : null,
                 'match_score' => isset($item['matchScore']) ? (int) $item['matchScore'] : null,
                 'why_fit' => is_array($analysis) ? (string) ($analysis['why_fit'] ?? '') : '',
@@ -394,7 +406,7 @@ final class OpportunityMatchService
                 'evidence' => is_array($analysis) && is_array($analysis['evidence_ref_ids'] ?? null) ? array_values($analysis['evidence_ref_ids']) : [],
                 'title' => (string) ($item['title'] ?? ''),
                 'summary' => (string) ($item['summary'] ?? ''),
-                'canonical_url' => is_array($action) ? (string) ($action['url'] ?? '') : '',
+                'canonical_url' => (string) ($canonicalUrls[$catalogId] ?? ''),
             ];
         }
         return $mapped;

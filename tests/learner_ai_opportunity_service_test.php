@@ -526,6 +526,30 @@ service_assert($replayed['state'] === 'ready_model', 'idempotent replay returns 
 service_assert(service_test_catalog_ids($replayed['items']) === ['internship-1', 'internship-2', 'internship-3'], 'idempotent replay returns the persisted items');
 service_assert(count($readyProvider->requests()) === 1, 'idempotent replay does not call the provider again');
 
+$readyPdo->exec("UPDATE learner_recommendation_items SET actionJson = '{\"url\":\"https://github.com/talenthub-demo/stale-project\",\"catalog_id\":\"' || catalogId || '\"}'");
+$projectEvidence = [];
+foreach (range(1, 12) as $index) {
+    $projectId = sprintf('50000000-0000-4000-8000-%012d', $index);
+    $projectEvidence[] = service_test_candidate_evidence("internship-{$index}", [
+        'item_type' => 'project',
+        'url' => '/app/learner/project.php?id=' . $projectId,
+    ]);
+}
+$rehydratedService = service_make_scenario($readyPdo, null, candidateEvidence: $projectEvidence);
+$rehydrated = $rehydratedService->latest('student-1');
+service_assert($rehydrated['state'] === 'ready_model', 'stored project results remain readable');
+service_assert(
+    ($rehydrated['items'][0]['canonical_url'] ?? '') === '/app/learner/project.php?id=50000000-0000-4000-8000-000000000001',
+    'stored GitHub action is replaced by the current authorized project URL'
+);
+service_assert(!str_contains((string) ($rehydrated['items'][0]['canonical_url'] ?? ''), 'github.com'), 'stored GitHub action never reaches the learner');
+
+$projectEvidence[1]['safe_value']['item_type'] = 'internship';
+$projectEvidence[1]['safe_value']['url'] = '/app/learner/opportunity.php?id=internship-2';
+$mixedCatalogService = service_make_scenario($readyPdo, null, candidateEvidence: $projectEvidence);
+$mixedCatalog = $mixedCatalogService->latest('student-1');
+service_assert(($mixedCatalog['items'][1]['canonical_url'] ?? null) === '', 'a current non-project catalog item is not exposed as a project action');
+
 $persistedItems = $readyPdo->query("SELECT items.itemType, items.catalogId, items.rankPosition, items.structuredScore, items.geminiScore, items.matchScore, items.analysisJson, items.title, items.summary, items.actionJson FROM learner_recommendation_items AS items INNER JOIN learner_recommendation_runs AS runs ON runs.id = items.runId WHERE runs.capability = 'opportunity_match' ORDER BY items.rankPosition ASC")->fetchAll(PDO::FETCH_ASSOC);
 service_assert(count($persistedItems) === 3, 'three opportunity match items persisted');
 service_assert(array_column($persistedItems, 'itemType') === ['activity', 'activity', 'activity'], 'items persist with itemType activity');

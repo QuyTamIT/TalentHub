@@ -107,7 +107,7 @@ final class DatabaseCatalogSource implements LearnerAiExtendedSource
         try {
             $statement = $this->pdo->prepare('SELECT id, schoolId, title, status, updatedAt, '
                 . $select('category', "'project'") . ', ' . $select('description', "''") . ', '
-                . $select('projectUrl', "''") . ', ' . $select('endAt', 'NULL')
+                . $select('endAt', 'NULL')
                 . " FROM projects WHERE schoolId = :schoolId AND status = 'in_progress' ORDER BY updatedAt, id");
             $statement->execute(['schoolId' => $student['school_id']]);
             $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -120,8 +120,7 @@ final class DatabaseCatalogSource implements LearnerAiExtendedSource
             $updatedAt = $this->timestamp($row['updatedAt'] ?? null);
             $deadline = $this->timestamp($row['endAt'] ?? null);
             if ($id === '' || $updatedAt === null || ($deadline !== null && $deadline <= $this->clock->format('Y-m-d\\TH:i:s.uP'))) continue;
-            $url = trim((string) ($row['projectUrl'] ?? ''));
-            if ($url === '') $url = '/app/learner/projects.php?id=' . rawurlencode($id);
+            $url = '/app/learner/project.php?id=' . rawurlencode($id);
             $items[] = [
                 'source_id' => $id, 'catalog_id' => $id, 'item_type' => 'project',
                 'category' => (string) ($row['category'] ?? 'project'), 'title' => (string) $row['title'],

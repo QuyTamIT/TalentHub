@@ -9,7 +9,7 @@ const {
     createOpportunityMatchController,
     createOpportunityMatchView,
     mapOpportunityMatchState,
-    isSafeInternalOpportunityUrl,
+    isSafeInternalProjectUrl,
     classifySafeOpportunityUrl,
     humanizeOpportunityLabel,
     normalizeReadyItems,
@@ -150,23 +150,21 @@ test('controller maps every approved API state and rejects malformed ready paylo
     assert.equal(states.at(-1), 'source-error');
 });
 
-test('only same-origin internal opportunity links are accepted', () => {
-    assert.equal(isSafeInternalOpportunityUrl('/app/learner/opportunity.php?id=p1'), true);
-    assert.equal(isSafeInternalOpportunityUrl('/app/learner/ecosystem.php?tab=opportunities#opportunity-p1'), true);
-    assert.equal(isSafeInternalOpportunityUrl('https://evil.example/p1'), false);
-    assert.equal(isSafeInternalOpportunityUrl('//evil.example/p1'), false);
-    assert.equal(isSafeInternalOpportunityUrl('javascript:alert(1)'), false);
-    assert.equal(isSafeInternalOpportunityUrl('/app/learner/../admin.php'), false);
+test('only the same-origin internal project detail route is accepted', () => {
+    assert.equal(isSafeInternalProjectUrl('/app/learner/project.php?id=50000000-0000-4000-8000-000000000001'), true);
+    assert.equal(isSafeInternalProjectUrl('/app/learner/opportunity.php?id=p1'), false);
+    assert.equal(isSafeInternalProjectUrl('/app/learner/ecosystem.php?tab=opportunities'), false);
+    assert.equal(isSafeInternalProjectUrl('https://evil.example/p1'), false);
+    assert.equal(isSafeInternalProjectUrl('//evil.example/p1'), false);
+    assert.equal(isSafeInternalProjectUrl('javascript:alert(1)'), false);
+    assert.equal(isSafeInternalProjectUrl('/app/learner/../admin.php'), false);
 });
 
-test('verified HTTPS opportunity links are accepted while unsafe external URLs stay blocked', () => {
+test('project actions reject GitHub and every external URL', () => {
+    assert.equal(classifySafeOpportunityUrl('https://github.com/talenthub-demo/ecosmart-ai'), null);
     assert.deepEqual(
-        classifySafeOpportunityUrl('https://github.com/talenthub-demo/ecosmart-ai'),
-        { url: 'https://github.com/talenthub-demo/ecosmart-ai', external: true },
-    );
-    assert.deepEqual(
-        classifySafeOpportunityUrl('/app/learner/opportunity.php?id=p1'),
-        { url: '/app/learner/opportunity.php?id=p1', external: false },
+        classifySafeOpportunityUrl('/app/learner/project.php?id=50000000-0000-4000-8000-000000000001'),
+        { url: '/app/learner/project.php?id=50000000-0000-4000-8000-000000000001', external: false },
     );
     for (const unsafeUrl of [
         'http://github.com/talenthub-demo/ecosmart-ai',
@@ -179,7 +177,7 @@ test('verified HTTPS opportunity links are accepted while unsafe external URLs s
     }
 });
 
-test('external project CTA renders as a clickable new-tab link', () => {
+test('renderer disables a project action when a persisted GitHub URL is received', () => {
     const previousDocument = global.document;
     const makeNode = (tagName = '') => ({
         tagName: String(tagName).toUpperCase(),
@@ -220,10 +218,8 @@ test('external project CTA renders as a clickable new-tab link', () => {
 
         const card = list.children[0];
         const cta = card.children.at(-1).children[0];
-        assert.equal(cta.tagName, 'A');
-        assert.equal(cta.href, 'https://github.com/talenthub-demo/ecosmart-ai');
-        assert.equal(cta.target, '_blank');
-        assert.equal(cta.rel, 'noopener noreferrer');
+        assert.equal(cta.tagName, 'BUTTON');
+        assert.equal(cta.disabled, true);
     } finally {
         global.document = previousDocument;
     }
@@ -236,7 +232,7 @@ test('normalizer requires substantial project analysis and retains detailed sect
         fit_reasons: ['Có nền tảng liên quan.'],
         gap_reasons: ['Chưa có minh chứng thực tế.'],
         skills_to_develop: ['Phân tích dữ liệu'],
-        evidence: [], canonical_url: '/app/learner/opportunity.php?id=p1',
+        evidence: [], canonical_url: '/app/learner/project.php?id=50000000-0000-4000-8000-000000000001',
     };
     const normalized = normalizeReadyItems([base]);
     assert.deepEqual(normalized[0].fit_reasons, base.fit_reasons);
