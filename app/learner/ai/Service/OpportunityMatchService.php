@@ -249,6 +249,12 @@ final class OpportunityMatchService
                 $runAnalysis = $this->runNoFitSummary($profile, $scored, $context, $analysisContext, $allowList);
             } catch (Throwable $exception) {
                 $this->failPending($studentId, $pending, $exception);
+                if (self::isProviderFailure($exception)) {
+                    $stale = $this->repository->latestValid($studentId, $activeCatalogIds);
+                    if ($stale !== null && ($stale['status'] ?? null) === 'completed') {
+                        return $this->mapStale($stale);
+                    }
+                }
                 return $this->response('provider_unavailable', []);
             }
         }
