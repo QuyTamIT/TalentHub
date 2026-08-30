@@ -238,7 +238,7 @@ $isDatabaseSource = $ecosystemSource === 'database';
                     <?php else: ?>
                         <div class="learner-project-grid" data-ecosystem-results>
                             <?php foreach ($projects as $project): ?>
-                                <?php $projectSearch = implode(' ', array_filter([$project['name'] ?? '', $project['school_name'] ?? '', $project['category_label'] ?? '', $project['short_description'] ?? ''])); ?>
+                                <?php $projectSearch = implode(' ', array_filter([$project['title'] ?? '', $project['school_name'] ?? '', $project['category_label'] ?? '', $project['description'] ?? ''])); ?>
                                 <article class="learner-project-card learner-card" data-ecosystem-item data-ecosystem-item-type="project" data-search="<?= learner_escape($projectSearch); ?>" data-field="<?= learner_escape($project['category_label']); ?>">
                                     <div class="learner-project-card__top">
                                         <span class="learner-project-card__type">Dự án</span>
@@ -246,10 +246,10 @@ $isDatabaseSource = $ecosystemSource === 'database';
                                         <span class="learner-status-dot learner-status-dot--active"><?= learner_escape($project['status_label']); ?></span>
                                     </div>
                                     <p class="learner-card-kicker"><?= learner_escape($project['category_label']); ?></p>
-                                    <h3><?= learner_escape($project['name']); ?></h3>
+                                    <h3><?= learner_escape($project['title']); ?></h3>
                                     <p class="learner-project-card__school"><?= learner_icon('building', 16); ?> <?= learner_escape($project['school_name']); ?></p>
-                                    <?php if (trim((string) ($project['short_description'] ?? '')) !== ''): ?>
-                                        <p class="learner-project-card__description"><?= learner_escape($project['short_description']); ?></p>
+                                    <?php if (trim((string) ($project['description'] ?? '')) !== ''): ?>
+                                        <p class="learner-project-card__description"><?= learner_escape($project['description']); ?></p>
                                     <?php endif; ?>
                                     <div class="learner-project-card__facts">
                                         <span><?= learner_icon('users', 16); ?><strong><?= learner_escape($project['members_count']); ?></strong> thành viên</span>
