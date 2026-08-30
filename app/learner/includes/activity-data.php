@@ -67,7 +67,7 @@ if (!function_exists('learner_activity_catalog')) {
         return \TalentHub\Learner\Data\ReadModel\ActivityReadModel::activities(
             learner_activity_repository()->discoverForStudent(
                 learner_current_student_id(),
-                new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+                new \DateTimeImmutable('now', new \DateTimeZone('Asia/Ho_Chi_Minh')),
             )
         );
     }

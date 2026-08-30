@@ -45,6 +45,9 @@ final class Connection
                 $this->config['password'],
                 $this->pdoOptions(),
             );
+            try {
+                $this->pdo->exec("SET time_zone = '+07:00';");
+            } catch (\Throwable) {}
         } catch (PDOException $exception) {
             throw new DatabaseConnectionException($this->extractSqlState($exception));
         }

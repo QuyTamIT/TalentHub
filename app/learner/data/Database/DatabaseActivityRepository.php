@@ -13,7 +13,7 @@ use TalentHub\Learner\Data\Support\Uuid;
 
 final class DatabaseActivityRepository extends AbstractDatabaseRepository implements ActivityRepository
 {
-    private const COLUMNS = 'activity.id, activity.schoolId, activity.createdByTeacherId, activity.title, activity.category, activity.startAt, activity.endAt, activity.capacity, activity.status';
+    private const COLUMNS = 'activity.id, activity.schoolId, activity.createdByTeacherId, activity.title, activity.category, activity.startAt, activity.endAt, activity.registration_deadline, activity.cancel_deadline, activity.capacity, activity.status';
     private const VISIBLE_STATUS_SQL = 'activity.status IN (:status_published, :status_ongoing, :status_completed)';
 
     public function all(): array
@@ -90,7 +90,11 @@ final class DatabaseActivityRepository extends AbstractDatabaseRepository implem
         }
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
         if (!Uuid::isValid($activityId)) {
-            return null;
+            $slugLike = '%' . str_replace('-', '%', $activityId) . '%';
+            $row = $this->fetchOne('findForStudentBySlug', $this->scopedActivitySql(
+                'student.id = :student_id AND (activity.title LIKE :slug1 OR activity.category LIKE :slug2) AND ' . self::VISIBLE_STATUS_SQL
+            ) . ' LIMIT 1', ['student_id' => $studentId, 'slug1' => $slugLike, 'slug2' => $slugLike] + $this->visibleStatusParameters());
+            return $row === null ? null : $this->normalizeActivity($row);
         }
         $activityId = Uuid::normalizeDatabase($activityId, 'activity_id');
         $row = $this->fetchOne('findForStudent', $this->scopedActivitySql(
@@ -241,7 +245,7 @@ final class DatabaseActivityRepository extends AbstractDatabaseRepository implem
         $approval = $this->hasTable('activity_registration_policies') ? "COALESCE(policy.approvalMode, 'automatic')" : "'automatic'";
         $hours = $this->hasTable('activity_experience_policies') ? 'experience.confirmedHours' : 'NULL';
         return implode(', ', [
-            "activity.id AS {$activityIdAlias}", 'activity.schoolId', 'activity.createdByTeacherId', 'activity.title', 'activity.category', 'activity.startAt', 'activity.endAt', 'activity.capacity', 'activity.status',
+            "activity.id AS {$activityIdAlias}", 'activity.schoolId', 'activity.createdByTeacherId', 'activity.title', 'activity.category', 'activity.startAt', 'activity.endAt', 'activity.registration_deadline', 'activity.cancel_deadline', 'activity.capacity', 'activity.status',
             'school.name AS schoolName', "{$teacherName} AS responsibleTeacherName",
             $this->detailColumn('responsibleTeacherId', 'activity.createdByTeacherId'), $this->detailColumn('audienceScope', "'school_only'"),
             $this->detailColumn('displayCategory', 'NULL'), $this->detailColumn('filterCategory', 'NULL'), $this->detailColumn('summary', 'NULL'), $this->detailColumn('description', 'NULL'),

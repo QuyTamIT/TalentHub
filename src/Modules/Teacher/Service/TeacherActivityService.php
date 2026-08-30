@@ -143,11 +143,21 @@ final class TeacherActivityService
             throw new ApiException(422, 'VALIDATION_FAILED', 'Thời gian kết thúc phải sau thời gian bắt đầu.');
         }
 
+        if (isset($input['registration_deadline']) && $input['registration_deadline'] > $input['startAt']) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Thời gian đăng ký phải kết thúc trước hoặc cùng lúc với thời gian bắt đầu sự kiện.');
+        }
+
+        if (isset($input['cancel_deadline']) && isset($input['registration_deadline']) && $input['cancel_deadline'] > $input['registration_deadline']) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Thời gian hủy vé phải trước hoặc cùng lúc với hạn chót đăng ký.');
+        }
+
         return [
             'title' => $title,
             'category' => $category,
-            'startAt' => $input['startAt']->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
-            'endAt' => $input['endAt']->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+            'startAt' => $input['startAt']->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'))->format('Y-m-d H:i:s'),
+            'endAt' => $input['endAt']->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'))->format('Y-m-d H:i:s'),
+            'registration_deadline' => isset($input['registration_deadline']) ? $input['registration_deadline']->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'))->format('Y-m-d H:i:s') : null,
+            'cancel_deadline' => isset($input['cancel_deadline']) ? $input['cancel_deadline']->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'))->format('Y-m-d H:i:s') : null,
             'capacity' => $capacity,
         ];
     }

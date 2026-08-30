@@ -19,7 +19,7 @@ function teacherActivitiesDate(?string $value): ?DateTimeImmutable
     }
 
     try {
-        return (new DateTimeImmutable($value, new DateTimeZone('UTC')))->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'));
+        return new DateTimeImmutable($value, new DateTimeZone('Asia/Ho_Chi_Minh'));
     } catch (Throwable $exception) {
         return null;
     }
@@ -81,6 +81,12 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
         'end_label' => $endAt ? $endAt->format('d/m/Y H:i') : 'Chưa xác định',
         'start_input' => $startAt ? $startAt->format('Y-m-d\TH:i') : '',
         'end_input' => $endAt ? $endAt->format('Y-m-d\TH:i') : '',
+        'registration_deadline_input' => isset($row['registration_deadline']) && $row['registration_deadline'] 
+            ? teacherActivitiesDate($row['registration_deadline'])->format('Y-m-d\TH:i') 
+            : '',
+        'cancel_deadline_input' => isset($row['cancel_deadline']) && $row['cancel_deadline'] 
+            ? teacherActivitiesDate($row['cancel_deadline'])->format('Y-m-d\TH:i') 
+            : '',
     ]);
 }
 

@@ -15,12 +15,26 @@ function teacherActivitiesEscape(mixed $value): string
 
 function teacherActivitiesFormDate(?string $value): ?DateTimeImmutable
 {
-    if (!$value) {
+    if (!$value || trim($value) === '') {
         return null;
     }
 
-    $date = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $value, new DateTimeZone('Asia/Ho_Chi_Minh'));
-    return $date ?: null;
+    $tz = new DateTimeZone('Asia/Ho_Chi_Minh');
+    $value = trim($value);
+
+    $formats = ['Y-m-d\TH:i:s', 'Y-m-d\TH:i', 'Y-m-d H:i:s', 'Y-m-d H:i', 'd/m/Y H:i'];
+    foreach ($formats as $format) {
+        $date = DateTimeImmutable::createFromFormat($format, $value, $tz);
+        if ($date !== false) {
+            return $date;
+        }
+    }
+
+    try {
+        return new DateTimeImmutable($value, $tz);
+    } catch (Throwable) {
+        return null;
+    }
 }
 
 function teacherActivitiesLifecycleAction(array $activity): ?array
@@ -119,6 +133,8 @@ $formValues = [
     'category' => '',
     'startAt' => (new DateTimeImmutable('+1 day'))->format('Y-m-d\TH:i'),
     'endAt' => (new DateTimeImmutable('+1 day 3 hours'))->format('Y-m-d\TH:i'),
+    'registration_deadline' => (new DateTimeImmutable('+1 day'))->format('Y-m-d\TH:i'),
+    'cancel_deadline' => '',
     'capacity' => '30',
 ];
 
@@ -128,6 +144,8 @@ if ($action === 'edit' && $selectedActivity) {
         'category' => (string) ($selectedActivity['category'] ?? ''),
         'startAt' => (string) ($selectedActivity['start_input'] ?? ''),
         'endAt' => (string) ($selectedActivity['end_input'] ?? ''),
+        'registration_deadline' => (string) ($selectedActivity['registration_deadline_input'] ?? ''),
+        'cancel_deadline' => (string) ($selectedActivity['cancel_deadline_input'] ?? ''),
         'capacity' => (string) ($selectedActivity['capacity'] ?? 0),
     ];
 }
@@ -217,11 +235,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'category' => trim((string) ($_POST['category'] ?? '')),
         'startAt' => trim((string) ($_POST['startAt'] ?? '')),
         'endAt' => trim((string) ($_POST['endAt'] ?? '')),
+        'registration_deadline' => trim((string) ($_POST['registration_deadline'] ?? '')),
+        'cancel_deadline' => trim((string) ($_POST['cancel_deadline'] ?? '')),
         'capacity' => trim((string) ($_POST['capacity'] ?? '')),
     ];
 
     $startAt = teacherActivitiesFormDate($formValues['startAt']);
     $endAt = teacherActivitiesFormDate($formValues['endAt']);
+    // Bổ sung logic xử lý an toàn cho 2 cột mới (chuyển chuỗi rỗng thành NULL)
+    $registration_deadline = !empty($_POST['registration_deadline']) ? teacherActivitiesFormDate($_POST['registration_deadline']) : null;
+    $cancel_deadline = !empty($_POST['cancel_deadline']) ? teacherActivitiesFormDate($_POST['cancel_deadline']) : null;
     $capacity = filter_var($formValues['capacity'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
     if (!$pdo || $teacherId === '' || $schoolId === null) {
@@ -251,6 +274,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'category' => $formValues['category'],
             'startAt' => $startAt,
             'endAt' => $endAt,
+            'registration_deadline' => $registration_deadline,
+            'cancel_deadline' => $cancel_deadline,
             'capacity' => $capacity,
         ];
 
@@ -382,7 +407,15 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                         <span>Kết thúc</span>
                                         <input id="activity-end-at" type="datetime-local" name="endAt" value="<?= teacherActivitiesEscape($formValues['endAt']); ?>" required<?= $errors ? ' aria-describedby="teacher-activities-errors"' : ''; ?>>
                                     </label>
-                                    <div class="teacher-form-field">
+                                    <label class="teacher-form-field" for="activity-registration-deadline">
+                                        <span>Hạn chót đăng ký</span>
+                                        <input id="activity-registration-deadline" type="datetime-local" name="registration_deadline" value="<?= teacherActivitiesEscape($formValues['registration_deadline']); ?>" required<?= $errors ? ' aria-describedby="teacher-activities-errors"' : ''; ?>>
+                                    </label>
+                                    <label class="teacher-form-field" for="activity-cancel-deadline">
+                                        <span>Hạn chót hủy vé (Không bắt buộc)</span>
+                                        <input id="activity-cancel-deadline" type="datetime-local" name="cancel_deadline" value="<?= teacherActivitiesEscape($formValues['cancel_deadline']); ?>" <?= $errors ? ' aria-describedby="teacher-activities-errors"' : ''; ?>>
+                                    </label>
+                                    <div class="teacher-form-field teacher-form-field--wide">
                                         <span>Trạng thái vòng đời</span>
                                         <strong><?= teacherActivitiesEscape($action === 'edit' ? ($selectedActivity['status_label'] ?? 'Không xác định') : 'Bản nháp'); ?></strong>
                                     </div>

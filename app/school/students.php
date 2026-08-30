@@ -248,7 +248,7 @@ $pageActions = '
             <line x1="12" y1="8" x2="12" y2="16"></line>
             <line x1="8" y1="12" x2="16" y2="12"></line>
         </svg>
-        <span>+ Thêm sinh viên</span>
+        <span>Thêm sinh viên</span>
     </a>
 </div>';
 include __DIR__ . '/includes/page-banner.php';
@@ -280,7 +280,7 @@ include __DIR__ . '/includes/page-banner.php';
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
             </svg>
             <p style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">Chưa có sinh viên nào trong danh sách. Vui lòng thêm mới hoặc Import file Excel.</p>
-            <p style="font-size: 0.875rem; color: #64748B;">Sử dụng nút <strong>+ Thêm sinh viên</strong> ở trên hoặc tính năng <strong>Import Excel / CSV</strong> để bắt đầu quản lý hồ sơ sinh viên.</p>
+            <p style="font-size: 0.875rem; color: #64748B;">Sử dụng nút <strong>Thêm sinh viên</strong> ở trên hoặc tính năng <strong>Import Excel / CSV</strong> để bắt đầu quản lý hồ sơ sinh viên.</p>
         </div>
     <?php else: ?>
         <table class="school-class-table">

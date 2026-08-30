@@ -118,16 +118,23 @@
 
     function formatTime(value) {
         if (!value) return '';
-        const date = new Date(value);
+        // Đảm bảo chuỗi ngày tháng từ DB (UTC) được parse đúng múi giờ địa phương bằng cách thêm 'Z'
+        let safeValue = value;
+        if (typeof safeValue === 'string' && !safeValue.includes('T') && !safeValue.endsWith('Z')) {
+            safeValue = safeValue.replace(' ', 'T') + 'Z';
+        }
+        
+        const date = new Date(safeValue);
         if (Number.isNaN(date.getTime())) return String(value);
-        const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
-        if (minutes < 1) return 'Vừa xong';
-        if (minutes < 60) return `${minutes} phút trước`;
-        const hours = Math.floor(minutes / 60);
-        if (hours < 24) return `${hours} giờ trước`;
-        const days = Math.floor(hours / 24);
-        if (days < 7) return `${days} ngày trước`;
-        return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        
+        const pad = (n) => String(n).padStart(2, '0');
+        const h = pad(date.getHours());
+        const m = pad(date.getMinutes());
+        const d = pad(date.getDate());
+        const mo = pad(date.getMonth() + 1);
+        const y = date.getFullYear();
+        
+        return `${h}:${m} - ${d}/${mo}/${y}`;
     }
 
     function showToast(message) {

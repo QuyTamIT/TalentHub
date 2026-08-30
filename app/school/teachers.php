@@ -31,15 +31,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'isSchoolAdmin' => $_POST['isSchoolAdmin'] ?? null,
             ]);
             $invitationUrl = app_href((string) $result['invitationUrl']);
-            $flash = 'Đã tạo tài khoản chờ kích hoạt. Gửi liên kết dùng một lần này cho giáo viên trước '
+            $flash = 'Đã tạo tài khoản chờ kích hoạt. Gửi liên kết dùng một lần này cho Giảng viên & Giáo viên trước '
                 . htmlspecialchars((string) $result['expiresAt'], ENT_QUOTES, 'UTF-8') . ': '
                 . '<a href="' . htmlspecialchars($invitationUrl, ENT_QUOTES, 'UTF-8') . '">Mở lời mời</a>';
         } elseif ($action === 'toggle_admin' && !empty($_POST['profileId']) && Uuid::isValid($_POST['profileId'])) {
             $service->setTeacherAdmin($userId, $_POST['profileId'], !empty($_POST['isAdmin']));
-            $flash = 'Đã cập nhật vai trò giáo viên.';
+            $flash = 'Đã cập nhật vai trò Giảng viên & Giáo viên.';
         } elseif ($action === 'toggle_active' && !empty($_POST['profileId']) && Uuid::isValid($_POST['profileId'])) {
             $service->setTeacherActive($userId, $_POST['profileId'], !empty($_POST['isActive']));
-            $flash = 'Đã cập nhật trạng thái giáo viên.';
+            $flash = 'Đã cập nhật trạng thái Giảng viên & Giáo viên.';
         }
     } catch (ApiException $e) {
         $error = $e->getMessage();
@@ -62,12 +62,12 @@ $schoolInfo = [
 ];
 
 $currentRoute = '/app/school/teachers.php';
-$pageTitle    = 'Giáo viên';
+$pageTitle    = 'Giảng viên & Giáo viên';
 
 ob_start();
 ?>
 <?php
-$pageDescription = 'Mời giáo viên mới và quản lý hồ sơ giáo viên trong trường.';
+$pageDescription = 'Thêm Giảng viên / Giáo viên mới và quản lý hồ sơ Giảng viên & Giáo viên trong trường.';
 include __DIR__ . '/includes/page-banner.php';
 ?>
 
@@ -81,7 +81,7 @@ include __DIR__ . '/includes/page-banner.php';
 <div class="school-grid-2col school-grid-2col--teachers">
     <div class="school-section-box">
         <div class="school-section-box__header">
-            <h3 class="school-section-box__title">Mời giáo viên mới</h3>
+            <h3 class="school-section-box__title">Thêm Giảng viên / Giáo viên mới</h3>
         </div>
         <form method="post" class="school-form" novalidate>
             <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
@@ -100,76 +100,89 @@ include __DIR__ . '/includes/page-banner.php';
                     <span>Cấp quyền quản trị trường</span>
                 </label>
             </div>
-            <div class="school-form__actions">
-                <button type="submit" class="btn btn-primary">Mời giáo viên</button>
+            <div class="d-grid mt-3">
+                <button type="submit" class="btn btn-primary w-100 btn-lg">Mời Giảng viên & Giáo viên</button>
             </div>
         </form>
     </div>
 
     <div class="school-section-box">
         <div class="school-section-box__header">
-            <h3 class="school-section-box__title">Danh sách giáo viên</h3>
+            <h3 class="school-section-box__title">Danh sách Giảng viên & Giáo viên</h3>
         </div>
         <?php if ($teachers === []): ?>
-            <p style="color: var(--text-muted);">Trường chưa có giáo viên nào.</p>
+            <p style="color: var(--text-muted);">Trường chưa có Giảng viên & Giáo viên nào.</p>
         <?php else: ?>
-            <table class="school-class-table">
-                <thead>
-                    <tr>
-                        <th>Giáo viên</th>
-                        <th>Email</th>
-                        <th>Chuyên môn</th>
-                        <th>Vai trò</th>
-                        <th style="text-align: right;">Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <div class="table-responsive">
+                <table class="school-class-table table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="text-nowrap">Giảng viên & Giáo viên</th>
+                            <th class="text-nowrap">Email</th>
+                            <th class="text-nowrap">Chuyên môn</th>
+                            <th class="text-nowrap">Vai trò</th>
+                            <th class="text-end text-nowrap" style="width: 80px;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                     <?php foreach ($teachers as $t): ?>
                         <tr>
                             <td>
-                                <strong><?= htmlspecialchars($t['fullName']); ?></strong>
-                                <div style="font-size: 0.75rem; color: var(--text-muted);">
-                                    <?= htmlspecialchars($t['userStatus']); ?>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold text-nowrap"><?= htmlspecialchars($t['fullName']); ?></span>
+                                    <?php if ($t['userStatus'] === 'active'): ?>
+                                        <span class="badge rounded-pill bg-success-subtle text-success px-2 py-1 fw-normal">Đang hoạt động</span>
+                                    <?php else: ?>
+                                        <span class="badge rounded-pill bg-secondary-subtle text-secondary px-2 py-1 fw-normal"><?= htmlspecialchars($t['userStatus']); ?></span>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                             <td><span style="font-size: 0.875rem; color: var(--text-secondary);"><?= htmlspecialchars($t['email']); ?></span></td>
                             <td><?= htmlspecialchars((string) ($t['specialization'] ?? '—')); ?></td>
-                            <td>
+                            <td class="text-nowrap">
                                 <?php if ($t['isSchoolAdmin']): ?>
-                                    <span class="school-class-badge school-class-badge--success">Quản trị</span>
+                                    <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1">Quản trị</span>
                                 <?php else: ?>
-                                    <span class="school-class-badge school-class-badge--neutral">Giáo viên</span>
-                                <?php endif; ?>
-                                <?php if ($t['userStatus'] !== 'active'): ?>
-                                    <span class="school-class-badge school-class-badge--warning">Vô hiệu</span>
+                                    <span class="badge bg-light text-dark border rounded-pill px-3 py-1">Giảng viên</span>
                                 <?php endif; ?>
                             </td>
-                            <td style="text-align: right;">
-                                <div style="display: flex; gap: 0.375rem; justify-content: flex-end;">
-                                    <form method="post" style="display:inline;">
-                                        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
-                                        <input type="hidden" name="action" value="toggle_admin">
-                                        <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
-                                        <input type="hidden" name="isAdmin" value="<?= $t['isSchoolAdmin'] ? '0' : '1'; ?>">
-                                        <button type="submit" class="btn btn-sm btn-outline">
-                                            <?= $t['isSchoolAdmin'] ? 'Bỏ quản trị' : 'Cấp quản trị'; ?>
-                                        </button>
-                                    </form>
-                                    <form method="post" style="display:inline;">
-                                        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
-                                        <input type="hidden" name="action" value="toggle_active">
-                                        <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
-                                        <input type="hidden" name="isActive" value="<?= $t['userStatus'] === 'active' ? '0' : '1'; ?>">
-                                        <button type="submit" class="btn btn-sm btn-outline" data-confirm="Đổi trạng thái giáo viên này?">
-                                            <?= $t['userStatus'] === 'active' ? 'Vô hiệu hoá' : 'Kích hoạt'; ?>
-                                        </button>
-                                    </form>
+                            <td class="text-end text-nowrap align-middle">
+                                <div class="dropdown">
+                                    <button class="btn border-0 bg-transparent p-1" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow">
+                                        <li>
+                                            <form method="post" class="m-0 p-0">
+                                                <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                                                <input type="hidden" name="action" value="toggle_admin">
+                                                <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
+                                                <input type="hidden" name="isAdmin" value="<?= $t['isSchoolAdmin'] ? '0' : '1'; ?>">
+                                                <a class="dropdown-item" href="#" onclick="this.closest('form').submit(); return false;">
+                                                    <?= $t['isSchoolAdmin'] ? 'Bỏ quản trị' : 'Cấp quản trị'; ?>
+                                                </a>
+                                            </form>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <form method="post" class="m-0 p-0">
+                                                <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                                                <input type="hidden" name="action" value="toggle_active">
+                                                <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
+                                                <input type="hidden" name="isActive" value="<?= $t['userStatus'] === 'active' ? '0' : '1'; ?>">
+                                                <a class="dropdown-item text-danger" href="#" onclick="if(confirm('Đổi trạng thái Giảng viên & Giáo viên này?')) { this.closest('form').submit(); } return false;">
+                                                    <?= $t['userStatus'] === 'active' ? 'Vô hiệu hoá' : 'Kích hoạt'; ?>
+                                                </a>
+                                            </form>
+                                        </li>
+                                    </ul>
                                 </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
+            </div>
             <nav class="school-pagination" aria-label="Phân trang">
                 <?php if ($page > 1): ?>
                     <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" class="btn btn-sm btn-outline">‹ Trước</a>

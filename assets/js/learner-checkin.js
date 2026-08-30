@@ -147,7 +147,21 @@
     if (submitButton) submitButton.disabled = true;
     try {
       const result = await api.send('POST', '/checkins.php', { token }, { idempotencyKey: requestKey() });
-      setText(feedback, 'Check-in thành công: ' + (result.activity?.title || 'hoạt động') + '.', 'success');
+      if (feedback) feedback.textContent = '';
+      if (global.Swal) {
+        global.Swal.fire({
+          icon: 'success',
+          title: 'Check-in thành công!',
+          text: 'Bạn đã nhận được +' + (result.experience?.hours || '0.00') + 'h từ ' + (result.activity?.title || 'hoạt động') + '.',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 4000,
+          timerProgressBar: true,
+          background: '#ecfdf5',
+          color: '#065f46'
+        });
+      }
       setText(apiState, 'Đã xác nhận ' + (result.experience?.hours || '0.00') + ' giờ', 'success');
       await loadHistory();
       if (historyAction) {
@@ -157,12 +171,29 @@
       if (tokenField) tokenField.value = '';
     } catch (error) {
       const code = error && error.code ? error.code : '';
-      if (code === 'CHECKIN_ALREADY_EXISTS') { setText(feedback, 'Mã này đã được check-in trước đó.', 'warn'); setText(apiState, 'Duplicate scan blocked', 'warn'); }
-      else if (code === 'QR_SESSION_EXPIRED') { setText(feedback, 'Phiên QR đã hết hạn.', 'warn'); setText(apiState, 'QR expired', 'warn'); }
-      else if (code === 'QR_SESSION_REVOKED') { setText(feedback, 'Phiên QR đã bị thu hồi.', 'warn'); setText(apiState, 'QR revoked', 'warn'); }
-      else if (code === 'QR_SESSION_EXHAUSTED') { setText(feedback, 'Phiên QR đã hết lượt quét.', 'warn'); setText(apiState, 'QR exhausted', 'warn'); }
-      else if (code === 'QR_TOKEN_INVALID') { setText(feedback, 'Token không hợp lệ.', 'warn'); setText(apiState, 'Invalid QR token', 'warn'); }
-      else { setText(feedback, error && error.message ? error.message : 'Không thể hoàn tất check-in.', 'error'); setText(apiState, 'Check-in failed', 'error'); }
+      let errorMsg = error && error.message ? error.message : 'Không thể hoàn tất check-in.';
+      if (code === 'CHECKIN_ALREADY_EXISTS') errorMsg = 'Mã này đã được check-in trước đó.';
+      else if (code === 'QR_SESSION_EXPIRED') errorMsg = 'Phiên QR đã hết hạn.';
+      else if (code === 'QR_SESSION_REVOKED') errorMsg = 'Phiên QR đã bị thu hồi.';
+      else if (code === 'QR_SESSION_EXHAUSTED') errorMsg = 'Phiên QR đã hết lượt quét.';
+      else if (code === 'QR_TOKEN_INVALID') errorMsg = 'Token không hợp lệ.';
+      
+      if (feedback) feedback.textContent = '';
+      if (global.Swal) {
+        global.Swal.fire({
+          icon: 'error',
+          title: 'Lỗi Check-in',
+          text: errorMsg,
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 4000,
+          timerProgressBar: true,
+          background: '#fef2f2',
+          color: '#991b1b'
+        });
+      }
+      setText(apiState, 'Check-in failed', 'error');
     } finally {
       state.submitting = false;
       if (submitButton) submitButton.disabled = false;

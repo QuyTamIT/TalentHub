@@ -147,5 +147,6 @@ $checkinBoot = ['csrfToken' => (string) ($GLOBALS['learner_page_context']['csrfT
     <script src="../../assets/js/learner.js"></script>
     <script src="../../assets/js/vendor/jsQR.js"></script>
     <script src="../../assets/js/learner-checkin.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 </html>

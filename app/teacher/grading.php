@@ -269,7 +269,7 @@ $sidebarNav = [
                             <span class="class-badge" style="padding: 0.5rem 0.85rem; font-size: 0.9rem;">
                                 Sĩ số: <?= count($students); ?> sinh viên
                             </span>
-                            <button type="button" onclick="document.getElementById('batchGradingForm').submit()" class="btn btn-primary" style="font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem;">
+                            <button type="button" onclick="saveBatchGrades()" class="btn btn-primary" style="background: #F97316; border: none; font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem;">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
                                 <span>Lưu toàn bộ lớp</span>
                             </button>
@@ -397,7 +397,8 @@ $sidebarNav = [
     </div>
 
     <!-- Toast Notification -->
-    <div id="gradingToast" style="display: none; position: fixed; bottom: 2rem; right: 2rem; background: #0F172A; color: #FFFFFF; padding: 0.85rem 1.35rem; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); z-index: 9999; font-weight: 600; font-size: 0.875rem;">
+    <div id="gradingToast" style="display: none; position: fixed; bottom: 2rem; right: 2rem; background: #ECFDF5; color: #047857; border: 1px solid #10B981; padding: 0.85rem 1.35rem; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 99999; font-weight: 600; font-size: 0.95rem; align-items: center; gap: 0.5rem;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 0.5rem;"><polyline points="20 6 9 17 4 12"></polyline></svg>
         <span id="gradingToastMsg"></span>
     </div>
 
@@ -409,7 +410,7 @@ $sidebarNav = [
             const toastMsg = document.getElementById('gradingToastMsg');
             if (toast && toastMsg) {
                 toastMsg.textContent = msg;
-                toast.style.display = 'block';
+                toast.style.display = 'flex';
                 setTimeout(() => { toast.style.display = 'none'; }, 3500);
             } else {
                 alert(msg);
@@ -452,8 +453,9 @@ $sidebarNav = [
                 if (data.success) {
                     if (currentBadge) {
                         currentBadge.textContent = Math.round(scoreVal) + '%';
-                        currentBadge.style.background = '#DBEAFE';
-                        currentBadge.style.color = '#1E40AF';
+                        currentBadge.style.background = '#ECFDF5';
+                        currentBadge.style.color = '#047857';
+                        currentBadge.style.border = '1px solid #A7F3D0';
                     }
                     showGradingToast(data.message || 'Đã lưu điểm thành công.');
                 } else {
@@ -465,6 +467,72 @@ $sidebarNav = [
             } finally {
                 btn.textContent = origText;
                 btn.disabled = false;
+            }
+        }
+
+        async function saveBatchGrades() {
+            const form = document.getElementById('batchGradingForm');
+            const scoreInputs = form.querySelectorAll('.score-input');
+            
+            // Validate trước khi lưu hàng loạt
+            let isValid = true;
+            scoreInputs.forEach(input => {
+                const score = parseFloat(input.value);
+                if (isNaN(score) || score < 0 || score > 100) {
+                    isValid = false;
+                }
+            });
+
+            if (!isValid) {
+                alert('Có điểm không hợp lệ (phải từ 0 đến 100). Vui lòng kiểm tra lại!');
+                return;
+            }
+            
+            // Bật hiệu ứng Loading toàn trang
+            const overlay = document.createElement('div');
+            overlay.id = 'batch-loading-overlay';
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0'; overlay.style.left = '0';
+            overlay.style.width = '100%'; overlay.style.height = '100%';
+            overlay.style.background = 'rgba(255, 255, 255, 0.85)';
+            overlay.style.zIndex = '99999';
+            overlay.style.display = 'flex';
+            overlay.style.flexDirection = 'column';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            
+            overlay.innerHTML = `
+                <div style="width: 40px; height: 40px; border: 4px solid #E2E8F0; border-top-color: #F97316; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <div style="margin-top: 1rem; font-weight: 700; color: #0F172A; font-size: 1.1rem;">Đang lưu điểm toàn bộ lớp...</div>
+                <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+            `;
+            document.body.appendChild(overlay);
+
+            // Gửi dữ liệu mảng (thông qua FormData của form POST)
+            const formData = new FormData(form);
+            formData.append('is_ajax', '1');
+
+            try {
+                const res = await fetch('grading.php', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showGradingToast(data.message || 'Đã lưu điểm cho toàn bộ lớp thành công.');
+                    // Tải lại trang sau khi thành công
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    document.body.removeChild(overlay);
+                    alert(data.message || 'Không thể lưu điểm.');
+                }
+            } catch (err) {
+                console.error(err);
+                // Fallback nếu AJAX lỗi
+                form.submit(); 
             }
         }
     </script>

@@ -43,6 +43,8 @@ final class TeacherActivityRepository
                 a.category,
                 a.startAt,
                 a.endAt,
+                a.registration_deadline,
+                a.cancel_deadline,
                 a.capacity,
                 a.status,
                 (
@@ -78,6 +80,8 @@ final class TeacherActivityRepository
                 a.category,
                 a.startAt,
                 a.endAt,
+                a.registration_deadline,
+                a.cancel_deadline,
                 a.capacity,
                 a.status,
                 (
@@ -119,12 +123,12 @@ final class TeacherActivityRepository
         return $statement->fetchAll();
     }
 
-    /** @param array{title:string,category:string,startAt:string,endAt:string,capacity:int} $data */
+    /** @param array{title:string,category:string,startAt:string,endAt:string,capacity:int,registration_deadline?:?string,cancel_deadline?:?string} $data */
     public function create(string $teacherId, string $schoolId, string $activityId, array $data): void
     {
         $statement = $this->pdo->prepare("
-            INSERT INTO activities (id, schoolId, createdByTeacherId, title, category, startAt, endAt, capacity, status)
-            VALUES (:id, :schoolId, :teacherId, :title, :category, :startAt, :endAt, :capacity, 'draft')
+            INSERT INTO activities (id, schoolId, createdByTeacherId, title, category, startAt, endAt, registration_deadline, cancel_deadline, capacity, status)
+            VALUES (:id, :schoolId, :teacherId, :title, :category, :startAt, :endAt, :registration_deadline, :cancel_deadline, :capacity, 'draft')
         ");
         $statement->execute([
             'id' => $activityId,
@@ -134,11 +138,13 @@ final class TeacherActivityRepository
             'category' => $data['category'],
             'startAt' => $data['startAt'],
             'endAt' => $data['endAt'],
+            'registration_deadline' => $data['registration_deadline'] ?? null,
+            'cancel_deadline' => $data['cancel_deadline'] ?? null,
             'capacity' => $data['capacity'],
         ]);
     }
 
-    /** @param array{title:string,category:string,startAt:string,endAt:string,capacity:int} $data */
+    /** @param array{title:string,category:string,startAt:string,endAt:string,capacity:int,registration_deadline?:?string,cancel_deadline?:?string} $data */
     public function update(string $teacherId, string $activityId, array $data): bool
     {
         $statement = $this->pdo->prepare("
@@ -147,6 +153,8 @@ final class TeacherActivityRepository
                 category = :category,
                 startAt = :startAt,
                 endAt = :endAt,
+                registration_deadline = :registration_deadline, /* Bổ sung */
+                cancel_deadline = :cancel_deadline, /* Bổ sung */
                 capacity = :capacity
             WHERE id = :activityId
               AND createdByTeacherId = :teacherId
@@ -156,6 +164,8 @@ final class TeacherActivityRepository
             'category' => $data['category'],
             'startAt' => $data['startAt'],
             'endAt' => $data['endAt'],
+            'registration_deadline' => $data['registration_deadline'] ?? null, /* Bind param */
+            'cancel_deadline' => $data['cancel_deadline'] ?? null, /* Bind param */
             'capacity' => $data['capacity'],
             'activityId' => $activityId,
             'teacherId' => $teacherId,

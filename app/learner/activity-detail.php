@@ -127,12 +127,32 @@ $formatDateTime = static function (mixed $value, string $format): string {
                     $locationName = $activity['has_location'] ? (string) $activity['location_name'] : 'Chưa cập nhật';
                     $deliveryMode = $activity['has_format'] ? (string) $activity['delivery_mode_label'] : 'Chưa cập nhật';
                     $feeLabel = $activity['has_cost'] ? (string) $activity['fee_label'] : 'Chưa cập nhật';
-                    $startDate = $formatDateTime($activity['start_at'], 'd/m/Y');
-                    $startTime = $formatDateTime($activity['start_at'], 'H:i');
-                    $endTime = $formatDateTime($activity['end_at'], 'H:i');
-                    $registrationOpens = $formatDateTime($activity['registration_opens_at'], 'd/m/Y H:i');
-                    $registrationCloses = $formatDateTime($activity['registration_closes_at'], 'd/m/Y H:i');
-                    $cancellationCloses = $formatDateTime($activity['cancellation_closes_at'], 'd/m/Y H:i');
+                    $tz = new DateTimeZone('Asia/Ho_Chi_Minh');
+                    $dtStart = null;
+                    $dtEnd = null;
+                    if (!empty($activity['start_at'])) {
+                        try { $dtStart = (new DateTimeImmutable((string) $activity['start_at']))->setTimezone($tz); } catch (Throwable) {}
+                    }
+                    if (!empty($activity['end_at'])) {
+                        try { $dtEnd = (new DateTimeImmutable((string) $activity['end_at']))->setTimezone($tz); } catch (Throwable) {}
+                    }
+                    if ($dtStart && $dtEnd && $dtStart > $dtEnd) {
+                        $tmp = $dtStart;
+                        $dtStart = $dtEnd;
+                        $dtEnd = $tmp;
+                    }
+                    $startDate = $dtStart ? $dtStart->format('d/m/Y') : 'Chưa cập nhật';
+                    $endDate = $dtEnd ? $dtEnd->format('d/m/Y') : $startDate;
+                    $startTime = $dtStart ? $dtStart->format('H:i') : '00:00';
+                    $endTime = $dtEnd ? $dtEnd->format('H:i') : $startTime;
+                    $timeRangeDisplay = $startTime . ' – ' . $endTime;
+                    if ($dtStart && $dtEnd && $startDate !== $endDate) {
+                        $timeRangeDisplay = $startDate . ' ' . $startTime . ' – ' . $endDate . ' ' . $endTime;
+                    }
+
+                    $registrationOpens = !empty($activity['registration_opens_at']) ? $formatDateTime($activity['registration_opens_at'], 'd/m/Y H:i') : 'Ngay khi công bố';
+                    $registrationCloses = !empty($activity['registration_deadline']) ? date('d/m/Y H:i', strtotime($activity['registration_deadline'])) : 'Chưa thiết lập';
+                    $cancellationCloses = !empty($activity['cancel_deadline']) ? date('d/m/Y H:i', strtotime($activity['cancel_deadline'])) : 'Chưa thiết lập';
                     $capacity = max(1, (int) $activity['capacity']);
                     $participants = max(0, min($capacity, (int) $activity['participants']));
                     $remaining = max(0, (int) $activity['remaining']);
@@ -151,10 +171,12 @@ $formatDateTime = static function (mixed $value, string $format): string {
                         'waitlisted' => 'Danh sách chờ', 'rejected' => 'Không được duyệt', 'cancelled' => 'Đã hủy',
                         'attended' => 'Đã tham gia', 'checked_in' => 'Đã check-in',
                     ];
-                    $ctaLabel = $registrationStatus !== ''
-                        ? ($registrationLabels[$registrationStatus] ?? 'Không thể đăng ký')
-                        : ((string) $availability['code'] === 'open' ? 'Đăng ký hoạt động' : (string) $availability['label']);
-                    $ctaDisabled = $registrationStatus !== '' || (string) $availability['code'] !== 'open';
+                    $isCurrentlyRegistered = in_array($registrationStatus, ['approved', 'registered', 'pending', 'waitlisted', 'attended', 'checked_in'], true);
+                    $isOpen = (string) ($availability['code'] ?? '') === 'open';
+                    $ctaLabel = $isCurrentlyRegistered
+                        ? ($registrationLabels[$registrationStatus] ?? 'Đã đăng ký')
+                        : ($isOpen ? 'Đăng ký tham gia' : (string) ($availability['label'] ?? 'Không thể đăng ký'));
+                    $ctaDisabled = $isCurrentlyRegistered || !$isOpen;
                     ?>
                     <div class="learner-activity-detail-grid">
                         <div class="learner-activity-detail-content">
@@ -169,7 +191,7 @@ $formatDateTime = static function (mixed $value, string $format): string {
                                     <?php if ($activity['has_summary']): ?><p class="learner-activity-detail-hero__summary"><?= learner_escape((string) $activity['summary']) ?></p><?php endif; ?>
                                     <div class="learner-activity-detail-hero__meta">
                                         <span><?= learner_icon('calendar', 17) ?> <?= learner_escape($startDate) ?></span>
-                                        <span><?= learner_icon('clock', 17) ?> <?= learner_escape($startTime . ' – ' . $endTime) ?></span>
+                                        <span><?= learner_icon('clock', 17) ?> <?= learner_escape($timeRangeDisplay) ?></span>
                                         <span><?= learner_icon('map-pin', 17) ?> <?= learner_escape($locationName) ?></span>
                                     </div>
                                 </div>
@@ -181,7 +203,7 @@ $formatDateTime = static function (mixed $value, string $format): string {
                             <article class="learner-card learner-activity-detail-panel">
                                 <div class="learner-activity-detail-info-strip" aria-label="Thông tin nhanh">
                                     <div><span><?= learner_icon('calendar', 18) ?></span><p>Ngày tổ chức<strong><?= learner_escape($startDate) ?></strong></p></div>
-                                    <div><span><?= learner_icon('clock', 18) ?></span><p>Thời gian<strong><?= learner_escape($startTime . ' – ' . $endTime) ?></strong></p></div>
+                                    <div><span><?= learner_icon('clock', 18) ?></span><p>Thời gian<strong><?= learner_escape($timeRangeDisplay) ?></strong></p></div>
                                     <div><span><?= learner_icon('map-pin', 18) ?></span><p>Địa điểm<strong><?= learner_escape($locationName) ?></strong></p></div>
                                     <div><span><?= learner_icon('users', 18) ?></span><p>Số lượng<strong data-activity-count><?= learner_escape($participants . '/' . $capacity . ' học sinh') ?></strong></p></div>
                                 </div>
@@ -261,8 +283,127 @@ $formatDateTime = static function (mixed $value, string $format): string {
                                     <div><dt>Chi phí</dt><dd><?= learner_escape($feeLabel) ?></dd></div>
                                     <div><dt>Giờ trải nghiệm</dt><dd><?= learner_escape($hoursLabel) ?></dd></div>
                                 </dl>
-                                <button class="learner-btn learner-btn--primary learner-btn--block" type="button" data-register-current<?= $ctaDisabled ? ' disabled' : '' ?>><?= learner_escape($ctaLabel) ?></button>
-                                <p class="learner-registration-message" role="status" aria-live="polite" data-registration-message data-tone="outline"><?= learner_escape((string) $availability['explanation']) ?></p>
+                                <style>
+                                .fade-in { animation: fadeIn 0.4s ease-in forwards; }
+                                .fade-out { animation: fadeOut 0.3s ease-out forwards; }
+                                @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+                                @keyframes fadeOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-10px); } }
+                                </style>
+                                
+                                <div id="registration-action-container" style="display: <?= $isCurrentlyRegistered ? 'none' : 'block' ?>;">
+                                    <button id="btn-register-custom" class="learner-btn learner-btn--primary learner-btn--block" type="button" <?= $ctaDisabled ? 'disabled' : '' ?> onclick="registerTicket('<?= $activity['id'] ?>')"><?= learner_escape($ctaLabel) ?></button>
+                                    <p class="learner-registration-message" role="status" aria-live="polite" data-tone="outline"><?= learner_escape((string) $availability['explanation']) ?></p>
+                                </div>
+
+                                <div id="success-banner" style="display: <?= $isCurrentlyRegistered ? 'block' : 'none' ?>; background-color: #ecfdf5; border: 1px solid #10b981; border-radius: 12px; padding: 16px; margin-top: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                                        <div style="color: #10b981; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 24px; height: 24px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        </div>
+                                        <div style="flex-grow: 1;">
+                                            <h4 style="margin: 0 0 4px 0; font-size: 15px; font-weight: 600; color: #065f46;">Đăng ký thành công!</h4>
+                                            <p style="margin: 0 0 12px 0; font-size: 13px; color: #047857;">Hệ thống đã giữ chỗ. Hãy kiểm tra thông báo để nhận mã QR check-in.</p>
+                                            <button type="button" id="btn-cancel-ticket" onclick="cancelTicket('<?= $activity['id'] ?>')" style="background-color: transparent; border: 1px solid #fecaca; color: #dc2626; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s ease;">Hủy vé</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="cancel-banner" style="display: none; background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 12px; padding: 16px; margin-top: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                                        <div style="color: #f59e0b; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 24px; height: 24px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        </div>
+                                        <div style="flex-grow: 1;">
+                                            <h4 style="margin: 0 0 4px 0; font-size: 15px; font-weight: 600; color: #92400e;">Đã hủy vé thành công</h4>
+                                            <p style="margin: 0; font-size: 13px; color: #b45309;">Bạn đã rút tên khỏi danh sách. Có thể đăng ký lại bất kỳ lúc nào.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <script>
+                                function showElementWithFade(id) {
+                                    const el = document.getElementById(id);
+                                    if (!el) return;
+                                    el.style.display = 'block';
+                                    el.classList.remove('fade-out');
+                                    el.classList.add('fade-in');
+                                }
+
+                                function hideElementWithFade(id, hideCompletely = true) {
+                                    const el = document.getElementById(id);
+                                    if (!el) return;
+                                    el.classList.remove('fade-in');
+                                    el.classList.add('fade-out');
+                                    if (hideCompletely) {
+                                        setTimeout(() => { el.style.display = 'none'; }, 300);
+                                    }
+                                }
+
+                                function registerTicket(activityId) {
+                                    const btn = document.getElementById('btn-register-custom');
+                                    if (btn) btn.disabled = true;
+                                    
+                                    fetch('/app/learner/api/v1/activity-registrations.php', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-Token': <?= json_encode((string) ($GLOBALS['learner_page_context']['csrfToken'] ?? '')) ?>
+                                        },
+                                        body: JSON.stringify({ action: 'register', activityId: activityId })
+                                    })
+                                    .then(res => res.json())
+                                    .then(data => {
+                                        if (btn) btn.disabled = false;
+                                        if (data.status === 'success' || data.status === 200 || data.status === 201 || (data.payload && data.payload.data)) {
+                                            hideElementWithFade('registration-action-container');
+                                            hideElementWithFade('cancel-banner');
+                                            setTimeout(() => { showElementWithFade('success-banner'); }, 300);
+                                        } else {
+                                            alert(data.message || (data.payload && data.payload.error && data.payload.error.message) || 'Có lỗi xảy ra.');
+                                        }
+                                    })
+                                    .catch(() => {
+                                        if (btn) btn.disabled = false;
+                                        alert('Có lỗi xảy ra, vui lòng thử lại sau.');
+                                    });
+                                }
+
+                                function cancelTicket(activityId) {
+                                    const btn = document.getElementById('btn-cancel-ticket');
+                                    if (btn) btn.disabled = true;
+                                    
+                                    if (!confirm('Bạn có chắc chắn muốn hủy vé tham gia hoạt động này?')) {
+                                        if (btn) btn.disabled = false;
+                                        return;
+                                    }
+                                    
+                                    fetch('/app/learner/api/v1/activity-registrations.php', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-Token': <?= json_encode((string) ($GLOBALS['learner_page_context']['csrfToken'] ?? '')) ?>
+                                        },
+                                        body: JSON.stringify({ action: 'cancel_ticket', activityId: activityId })
+                                    })
+                                    .then(res => res.json())
+                                    .then(data => {
+                                        if (btn) btn.disabled = false;
+                                        if (data.status === 'success' || data.status === 200) {
+                                            hideElementWithFade('success-banner');
+                                            setTimeout(() => {
+                                                showElementWithFade('cancel-banner');
+                                                showElementWithFade('registration-action-container');
+                                            }, 300);
+                                        } else {
+                                            alert(data.message || (data.payload && data.payload.error && data.payload.error.message) || 'Có lỗi xảy ra.');
+                                        }
+                                    })
+                                    .catch(() => {
+                                        if (btn) btn.disabled = false;
+                                        alert('Có lỗi xảy ra, vui lòng thử lại sau.');
+                                    });
+                                }
+                                </script>
                                 <div class="learner-data-note"><?= learner_icon('info', 16) ?><p><?= $allowsLocalDemoMutation ? 'Chế độ demo: thay đổi chỉ được lưu cục bộ trên trình duyệt.' : 'Dữ liệu đăng ký từ máy chủ là nguồn chính thức.' ?></p></div>
                             </section>
 

@@ -889,9 +889,9 @@ final class SchoolDashboardService
         };
 
         $csv = $this->toCsv($rows);
-        $dir = dirname(__DIR__, 3) . '/storage/school-reports';
+        $dir = dirname(__DIR__, 4) . '/storage/school-reports';
         if (!is_dir($dir)) {
-            mkdir($dir, 0775, true);
+            mkdir($dir, 0777, true);
         }
         $filename = sprintf('%s-%s-%s.csv', $school['id'], $reportType, date('Ymd-His'));
         $absPath = $dir . '/' . $filename;
@@ -935,7 +935,7 @@ final class SchoolDashboardService
         if (!is_string($fileUrl)) {
             throw new ApiException(404, 'REPORT_NOT_FOUND', 'Không tìm thấy báo cáo.');
         }
-        $absPath = dirname(__DIR__, 3) . $fileUrl;
+        $absPath = dirname(__DIR__, 4) . $fileUrl;
         if (!is_file($absPath)) {
             throw new ApiException(410, 'REPORT_FILE_MISSING', 'Tệp báo cáo không còn tồn tại.');
         }

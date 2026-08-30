@@ -22,18 +22,19 @@ function resolveRegistrationMessage(explanation,commandFeedback=''){
 function activityAvailabilityState(activity,now){
   const status=String(activity?.status||'').toLowerCase();
   if(['ongoing','active'].includes(status))return{code:'ongoing',label:'Đang diễn ra',explanation:'Hoạt động đang diễn ra và không nhận đăng ký mới.'};
-  if(status==='completed')return{code:'completed',label:'Đã kết thúc',explanation:'Hoạt động đã kết thúc.'};
-  if(status!=='published')return{code:'unavailable',label:'Không nhận đăng ký',explanation:'Hoạt động hiện không nhận đăng ký.'};
+  if(status==='completed'||status==='archived')return{code:'completed',label:'Đã kết thúc',explanation:'Hoạt động đã kết thúc.'};
+  if(status!=='published'&&status!=='open')return{code:'unavailable',label:'Không nhận đăng ký',explanation:'Hoạt động hiện không nhận đăng ký.'};
   const current=new Date(now??Date.now()).getTime();
-  const starts=new Date(activity?.start_at||'').getTime();
-  const ends=new Date(activity?.end_at||activity?.start_at||'').getTime();
-  const opensValue=activity?.registration_opens_at;
+  const starts=new Date(activity?.start_at||activity?.startAt||'').getTime();
+  const ends=new Date(activity?.end_at||activity?.endAt||activity?.start_at||activity?.startAt||'').getTime();
+  const opensValue=activity?.registration_opens_at||activity?.registrationOpensAt;
   const opens=opensValue?new Date(opensValue).getTime():Number.NaN;
-  const closes=new Date(activity?.registration_closes_at||activity?.start_at||'').getTime();
-  if(!Number.isFinite(current)||!Number.isFinite(closes))return{code:'unavailable',label:'Không nhận đăng ký',explanation:'Không thể xác định thời gian đăng ký.'};
+  const closesValue=activity?.registration_closes_at||activity?.registrationClosesAt;
+  const closes=closesValue?new Date(closesValue).getTime():(Number.isFinite(ends)?ends:starts);
+  if(!Number.isFinite(current))return{code:'unavailable',label:'Không nhận đăng ký',explanation:'Không thể xác định thời gian đăng ký.'};
   if(Number.isFinite(ends)&&current>=ends)return{code:'completed',label:'Đã kết thúc',explanation:'Hoạt động đã kết thúc.'};
   if(Number.isFinite(opens)&&current<opens)return{code:'not_open',label:'Chưa mở đăng ký',explanation:'Hoạt động chưa đến thời gian mở đăng ký.'};
-  if(current>=closes)return{code:'expired',label:'Đã hết hạn đăng ký',explanation:'Hoạt động đã hết hạn đăng ký.'};
+  if(Number.isFinite(closes)&&current>closes&&(Number.isFinite(ends)?current>=ends:true))return{code:'expired',label:'Đã hết hạn đăng ký',explanation:'Hoạt động đã hết hạn đăng ký.'};
   const capacity=Number(activity?.capacity);
   const participants=Number(activity?.participants);
   const remaining=Number(activity?.remaining);
@@ -92,7 +93,7 @@ function activityCtaState(activity,registration,now){
     return{label,disabled:true,tone:'outline',explanation};
   }
   if(canRegisterActivity(activity,now)){
-    return{label:'Đăng ký hoạt động',disabled:false,tone:'primary',explanation:'Đăng ký sẽ được ghi trực tiếp vào hệ thống.'};
+    return{label:'Đăng ký tham gia',disabled:false,tone:'primary',explanation:'Đăng ký sẽ được ghi trực tiếp vào hệ thống.'};
   }
   const availability=activityAvailabilityState(activity,now);
   const labels={

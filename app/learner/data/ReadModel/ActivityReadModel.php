@@ -22,7 +22,8 @@ final class ActivityReadModel
         if (!is_string($record['filter_category'] ?? null) || trim((string) $record['filter_category']) === '') {
             $record['filter_category'] = \learner_activity_category_label((string) ($record['category'] ?? ''));
         }
-        $record['registration_closes_at'] ??= $record['start_at'] ?? null;
+        $record['registration_closes_at'] ??= $record['registration_deadline'] ?? $record['registrationDeadline'] ?? $record['start_at'] ?? null;
+        $record['cancellation_closes_at'] ??= $record['cancel_deadline'] ?? $record['cancelDeadline'] ?? null;
 
         $view = ReadModelDefaults::apply($record, [
             'id' => '',
@@ -68,6 +69,8 @@ final class ActivityReadModel
             'registration_opens_at' => null,
             'registration_closes_at' => '1970-01-01 00:00:00',
             'cancellation_closes_at' => null,
+            'registration_deadline' => null,
+            'cancel_deadline' => null,
             'status' => 'unknown',
             'can_register' => false,
         ], 'activity');
@@ -134,40 +137,48 @@ final class ActivityReadModel
         if (in_array($status, ['ongoing', 'active'], true)) {
             return ['code' => 'ongoing', 'label' => 'Đang diễn ra', 'explanation' => 'Hoạt động đang diễn ra và không nhận đăng ký mới.'];
         }
-        if ($status === 'completed') {
+        if ($status === 'completed' || $status === 'archived') {
             return ['code' => 'completed', 'label' => 'Đã kết thúc', 'explanation' => 'Hoạt động đã kết thúc.'];
         }
-        if ($status !== 'published') {
+        if ($status !== 'published' && $status !== 'open') {
             return ['code' => 'unavailable', 'label' => 'Không nhận đăng ký', 'explanation' => 'Hoạt động hiện không nhận đăng ký.'];
         }
 
         try {
-            $current = ($now ?? new \DateTimeImmutable('now', new \DateTimeZone('UTC')))
-                ->setTimezone(new \DateTimeZone('UTC'));
-            $start = self::date($activity['start_at'] ?? null);
-            $end = self::date($activity['end_at'] ?? null) ?? $start;
-            $opens = self::date($activity['registration_opens_at'] ?? null);
-            $closes = self::date($activity['registration_closes_at'] ?? null) ?? $start;
+            $tz = new \DateTimeZone('Asia/Ho_Chi_Minh');
+            $current = ($now ?? new \DateTimeImmutable('now', $tz))->setTimezone($tz);
+            $start = self::date($activity['start_at'] ?? null)?->setTimezone($tz);
+            $end = self::date($activity['end_at'] ?? null)?->setTimezone($tz) ?? $start;
+            $opens = self::date($activity['registration_opens_at'] ?? null)?->setTimezone($tz);
+            $closes = self::date($activity['registration_closes_at'] ?? null)?->setTimezone($tz);
+            
+            // If closes is missing or equal to start, check if end is valid
+            if ($closes === null) {
+                $closes = $start ?? $end;
+            }
         } catch (\Throwable) {
             return ['code' => 'unavailable', 'label' => 'Không nhận đăng ký', 'explanation' => 'Không thể xác định thời gian đăng ký.'];
         }
+
         if ($end !== null && $current >= $end) {
             return ['code' => 'completed', 'label' => 'Đã kết thúc', 'explanation' => 'Hoạt động đã kết thúc.'];
         }
         if ($opens !== null && $current < $opens) {
             return ['code' => 'not_open', 'label' => 'Chưa mở đăng ký', 'explanation' => 'Hoạt động chưa đến thời gian mở đăng ký.'];
         }
-        if ($closes === null || $current >= $closes) {
+        if ($closes !== null && $current > $closes && ($end === null || $current >= $end)) {
             return ['code' => 'expired', 'label' => 'Đã hết hạn đăng ký', 'explanation' => 'Hoạt động đã hết hạn đăng ký.'];
         }
-        $capacity = (int) ($activity['capacity'] ?? 0);
-        $participants = (int) ($activity['participants'] ?? 0);
+
+        $capacity = max(1, (int) ($activity['capacity'] ?? 0));
+        $participants = max(0, (int) ($activity['participants'] ?? 0));
         $remaining = array_key_exists('remaining', $activity)
             ? (int) $activity['remaining']
-            : $capacity - $participants;
-        if ($capacity <= 0 || $participants >= $capacity || $remaining <= 0) {
+            : max(0, $capacity - $participants);
+        if ($participants >= $capacity || $remaining <= 0) {
             return ['code' => 'full', 'label' => 'Đã hết chỗ', 'explanation' => 'Hoạt động đã đủ số lượng đăng ký.'];
         }
+
         return ['code' => 'open', 'label' => 'Đang mở đăng ký', 'explanation' => 'Hoạt động đang nhận đăng ký.'];
     }
 
@@ -265,7 +276,14 @@ final class ActivityReadModel
     private static function date(mixed $value): ?\DateTimeImmutable
     {
         $value = self::text($value);
-        return $value === '' ? null : new \DateTimeImmutable($value, new \DateTimeZone('UTC'));
+        if ($value === '') {
+            return null;
+        }
+        try {
+            return new \DateTimeImmutable($value, new \DateTimeZone('Asia/Ho_Chi_Minh'));
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private static function deliveryModeLabel(mixed $value): string
