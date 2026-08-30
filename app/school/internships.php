@@ -16,16 +16,16 @@ $error = null;
 $flash = null;
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') 
-              || isset($_POST['ajax']) 
+    $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+              || isset($_POST['ajax'])
               || (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json'));
-    
+
     $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
     try {
         $appId = (string) ($_POST['applicationId'] ?? '');
         $mentorId = (string) ($_POST['mentorTeacherId'] ?? '');
         $res = $service->assignInternshipMentor($userId, $appId, $mentorId);
-        
+
         $mentorName = $res['mentorName'] ?? '';
         $msg = !empty($mentorName) ? "Đã phân công mentor: {$mentorName} thành công." : "Đã phân công mentor thành công.";
         if (empty($mentorId)) {
@@ -61,7 +61,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 $oversight = $service->internshipOversight($userId);
-$teachers = $service->teachers($userId, 100, 0);
+$rawTeachers = $service->teachers($userId, 100, 0);
+
+// Filter out generic admin accounts like "Ban Giám hiệu" from teacher list so only real mentors appear
+$uniqueTeachers = [];
+$seenTeacherNames = [];
+foreach ($rawTeachers as $t) {
+    $tName = trim((string) ($t['fullName'] ?? ''));
+    if ($tName === '' || isset($seenTeacherNames[$tName]) || str_contains($tName, 'Ban Giám hiệu') || str_contains($tName, 'FPT Software')) {
+        continue;
+    }
+    $seenTeacherNames[$tName] = true;
+    $uniqueTeachers[] = $t;
+}
+$teachers = $uniqueTeachers;
 
 // Filter and prioritize active named teachers
 usort($teachers, function($a, $b) {
@@ -80,12 +93,14 @@ $schoolInfo = [
 $currentRoute = '/app/school/internships.php';
 $pageTitle = 'Giám sát thực tập';
 $labels = [
-    'submitted' => 'Đã nộp', 
-    'reviewing' => 'Đang xét', 
-    'interview' => 'Phỏng vấn', 
-    'accepted' => 'Đã nhận', 
-    'declined' => 'Từ chối', 
-    'withdrawn' => 'Đã rút'
+    'submitted' => 'Đã nộp',
+    'reviewing' => 'Đang xét',
+    'interview' => 'Phỏng vấn',
+    'accepted' => 'Đã nhận',
+    'declined' => 'Từ chối',
+    'withdrawn' => 'Đã rút',
+    'lockedApplications' => 'Đã khóa do nhận việc khác',
+    'acceptedWithoutMentor' => 'Chờ phân công mentor',
 ];
 $badgeClasses = [
     'submitted' => 'school-badge--info',
@@ -164,7 +179,7 @@ ob_start();
                                 <?= htmlspecialchars((string) $item['enterpriseName']); ?>
                             </td>
                             <td style="padding: 1rem; vertical-align: middle;">
-                                <?php 
+                                <?php
                                     $st = (string) $item['status'];
                                     $badgeStyle = 'background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE;';
                                     if ($st === 'accepted') {
@@ -180,9 +195,14 @@ ob_start();
                                 <span style="display: inline-block; padding: 0.3rem 0.65rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 700; <?= $badgeStyle ?>">
                                     ● <?= htmlspecialchars($labels[$st] ?? $st); ?>
                                 </span>
+                                <?php if (!empty($item['lockedByApplicationId'])): ?>
+                                    <div style="margin-top:0.4rem; color:#B45309; font-size:0.78rem; line-height:1.35;">
+                                        Đã khóa: <?= htmlspecialchars((string) ($item['lockReason'] ?? 'Sinh viên đã xác nhận vị trí thực tập khác.')); ?>
+                                    </div>
+                                <?php endif; ?>
                             </td>
                             <td style="padding: 1rem; vertical-align: middle;">
-                                <?php if (in_array($item['status'], ['interview', 'accepted'], true)): ?>
+                                <?php if ($item['status'] === 'accepted'): ?>
                                     <form method="post" class="mentor-assign-form" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
                                         <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="applicationId" value="<?= htmlspecialchars((string) $item['id']); ?>">
@@ -190,7 +210,7 @@ ob_start();
                                             <select name="mentorTeacherId" class="school-mentor-select" data-app-id="<?= htmlspecialchars((string) $item['id']); ?>" style="width: 100%; padding: 0.5rem 0.75rem; border: 1.5px solid #CBD5E1; border-radius: 8px; font-size: 0.875rem; font-weight: 600; color: #0F172A; background-color: #FFFFFF; cursor: pointer; transition: all 0.2s ease;">
                                                 <option value="">-- Chưa phân công mentor --</option>
                                                 <?php foreach ($teachers as $teacher): ?>
-                                                    <?php 
+                                                    <?php
                                                         $spec = !empty($teacher['specialization']) ? " - " . $teacher['specialization'] : '';
                                                         $isSelected = ($item['mentorTeacherId'] ?? '') === $teacher['id'];
                                                     ?>
@@ -203,7 +223,7 @@ ob_start();
                                     </form>
                                 <?php else: ?>
                                     <span style="color: #94A3B8; font-size: 0.875rem; font-style: italic;">
-                                        <?= htmlspecialchars((string) ($item['mentorName'] ?? 'Chưa thể gán')); ?>
+                                        Chờ doanh nghiệp tiếp nhận sinh viên
                                     </span>
                                 <?php endif; ?>
                             </td>
@@ -218,7 +238,7 @@ ob_start();
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const toastBox = document.getElementById('school-toast-msg');
-    
+
     function showToast(msg, isSuccess = true) {
         if (!toastBox) return;
         toastBox.style.display = 'block';
@@ -226,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
         toastBox.style.color = isSuccess ? '#15803D' : '#B91C1C';
         toastBox.style.border = isSuccess ? '1px solid #86EFAC' : '1px solid #FCA5A5';
         toastBox.textContent = msg;
-        
+
         // Hide existing server flash messages
         const sSuccess = document.getElementById('server-flash-success');
         const sError = document.getElementById('server-flash-error');
@@ -250,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
             select.disabled = true;
             select.style.opacity = '0.6';
 
-            fetch('/app/school/internships.php', {
+            fetch('<?= htmlspecialchars(app_href('/app/school/internships.php'), ENT_QUOTES, 'UTF-8'); ?>', {
                 method: 'POST',
                 body: formData,
                 headers: {

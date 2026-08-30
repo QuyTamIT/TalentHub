@@ -82,6 +82,13 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
             if (!$this->studentCanAccessPost($studentId, $post)) {
                 throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Cơ hội không thuộc phạm vi trường của học viên.');
             }
+            if ($this->hasAcceptedPlacement($studentId)) {
+                throw new ApiException(
+                    409,
+                    'INTERNSHIP_PLACEMENT_LOCKED',
+                    'Bạn đã xác nhận một vị trí thực tập và không thể nộp thêm hồ sơ mới.'
+                );
+            }
             $consent = $this->lockConsent($studentId);
             if ($consent === null) {
                 throw new ApiException(422, 'CONSENT_REQUIRED', 'Cần xác nhận chia sẻ hồ sơ trước khi ứng tuyển.');
@@ -367,8 +374,18 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
 
     private function hasDuplicate(string $postId, string $studentId): bool
     {
-        $statement = $this->pdo->prepare('SELECT id FROM internship_applications WHERE postId = :postId AND studentId = :studentId LIMIT 1' . $this->lockSuffix());
+        $statement = $this->pdo->prepare('SELECT id FROM internship_applications WHERE postId = :postId AND studentId = :studentId AND status NOT IN (\'rejected\', \'declined\', \'withdrawn\', \'cancelled\') LIMIT 1' . $this->lockSuffix());
         $statement->execute(['postId' => $postId, 'studentId' => $studentId]);
+        return $statement->fetchColumn() !== false;
+    }
+
+    private function hasAcceptedPlacement(string $studentId): bool
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT id FROM internship_applications "
+            . "WHERE studentId = :studentId AND status = 'accepted' LIMIT 1" . $this->lockSuffix()
+        );
+        $statement->execute(['studentId' => $studentId]);
         return $statement->fetchColumn() !== false;
     }
 

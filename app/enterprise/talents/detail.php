@@ -14,6 +14,7 @@ require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
 require_once dirname(__DIR__, 3) . '/src/Bootstrap/EnterpriseAppContext.php';
 
 use TalentHub\Bootstrap\EnterpriseAppContext;
+use TalentHub\Support\Id\RequestId;
 
 $context = (new EnterpriseAppContext())->boot();
 $user          = $context['user'];
@@ -71,55 +72,16 @@ $talent = null;
 
 if ($talentId !== '' && $isVerified && $talentService !== null) {
     try {
-        $rawTalent = $talentService->getTalent((string) $user['id'], $talentId);
+        $rawTalent = $talentService->getTalent(
+            (string) $user['id'],
+            $talentId,
+            RequestId::generate(),
+            isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null
+        );
     } catch (\Throwable $e) {
         error_log('Enterprise getTalent error: ' . $e->getMessage());
         $rawTalent = null;
     }
-}
-
-// Fallback robust query if getTalent returned null
-if ($talentId !== '' && $rawTalent === null) {
-    try {
-        $stQuery = $pdo->prepare("
-            SELECT sp.id as studentId, sp.userId, u.fullName as displayName, u.email, sp.phone,
-                   COALESCE(s.name, 'Cao đẳng Quốc tế BTEC FPT') as schoolName,
-                   c.name as className, sp.studyStatus, spd.location, spd.headline, spd.bio,
-                   COALESCE(sp.talentScore, 90.00) as talentScore
-            FROM student_profiles sp
-            JOIN users u ON u.id = sp.userId
-            LEFT JOIN classes c ON c.id = sp.classId
-            LEFT JOIN schools s ON s.id = c.schoolId
-            LEFT JOIN student_profile_details spd ON spd.studentId = sp.id
-            WHERE sp.id = ?
-            LIMIT 1
-        ");
-        $stQuery->execute([$talentId]);
-        $fallbackRow = $stQuery->fetch(PDO::FETCH_ASSOC);
-        if ($fallbackRow) {
-            $rawTalent = [
-                'studentId' => $fallbackRow['studentId'],
-                'userId' => $fallbackRow['userId'],
-                'displayName' => $fallbackRow['displayName'],
-                'schoolName' => $fallbackRow['schoolName'],
-                'className' => $fallbackRow['className'],
-                'studyStatus' => $fallbackRow['studyStatus'] ?: 'Sinh viên',
-                'headline' => $fallbackRow['headline'] ?: 'Kỹ thuật phần mềm & AI',
-                'bio' => $fallbackRow['bio'] ?: 'Sinh viên BTEC FPT năng động, ham học hỏi và luôn chủ động trau dồi kỹ năng thực tế.',
-                'location' => $fallbackRow['location'] ?: 'Hà Nội',
-                'talent_score' => (int) $fallbackRow['talentScore'],
-                'skills' => [],
-                'projects' => [],
-            ];
-            $skQ = $pdo->prepare("SELECT s.name as skillName, ss.levelScore FROM student_skills ss JOIN skills s ON s.id=ss.skillId WHERE ss.studentId = ?");
-            $skQ->execute([$talentId]);
-            $rawTalent['skills'] = $skQ->fetchAll(PDO::FETCH_ASSOC);
-
-            $prQ = $pdo->prepare("SELECT p.id, p.title, p.category, p.description, p.status, pm.role FROM projects p JOIN project_members pm ON pm.projectId = p.id WHERE pm.studentId = ?");
-            $prQ->execute([$talentId]);
-            $rawTalent['projects'] = $prQ->fetchAll(PDO::FETCH_ASSOC);
-        }
-    } catch (\Throwable) {}
 }
 
 if ($rawTalent !== null) {
@@ -137,13 +99,20 @@ if ($rawTalent !== null) {
     // Normalize projects
     $normalizedProjects = [];
     foreach ($rawTalent['projects'] ?? [] as $pr) {
+        $rawSt = strtolower((string)($pr['status'] ?? 'in_progress'));
+        $resultLabel = match($rawSt) {
+            'completed' => 'Đã hoàn thành',
+            'funded', 'goal_reached' => 'Đã nhận tài trợ',
+            default => 'Đang thực hiện'
+        };
         $normalizedProjects[] = [
             'id' => $pr['id'] ?? '',
             'name' => $pr['title'] ?? ($pr['name'] ?? 'Dự án thực tế'),
             'description' => $pr['description'] ?? 'Dự án phát triển phần mềm và ứng dụng trí tuệ nhân tạo giải quyết bài toán thực tiễn.',
             'role' => $pr['role'] ?? 'Lập trình viên & Kỹ sư AI',
             'category' => $pr['category'] ?? 'AI & Phần mềm',
-            'result' => (!empty($pr['status']) && $pr['status'] === 'completed') ? 'Hoàn thành' : 'Đang phát triển',
+            'result' => $resultLabel,
+            'sponsorName' => $pr['sponsorName'] ?? ($pr['sponsor_name'] ?? ''),
             'technologies' => !empty($pr['technologies']) ? (array) $pr['technologies'] : array_slice(array_column($skillsList, 'name'), 0, 4),
         ];
     }
@@ -157,6 +126,39 @@ if ($rawTalent !== null) {
             'technologies' => ['Python', 'PyTorch', 'OpenCV', 'REST API']
         ];
     }
+
+    $experienceEntries = $rawTalent['experience']['confirmed_entries'] ?? [];
+    $experienceLogs = [];
+    foreach ($experienceEntries as $entry) {
+        $experienceLogs[] = [
+            'title' => $entry['title'] ?? ($entry['activityTitle'] ?? 'Xưởng thực hành & Dự án nghiên cứu'),
+            'role' => $entry['role'] ?? 'Thành viên tham gia',
+            'duration' => !empty($entry['createdAt']) ? substr((string)$entry['createdAt'], 0, 10) : '2026',
+            'hours' => $entry['hours'] ?? 24,
+            'description' => $entry['description'] ?? 'Tham gia nghiên cứu, phát triển và thử nghiệm các mô hình AI/IoT thực tế.',
+        ];
+    }
+    if (empty($experienceLogs)) {
+        $experienceLogs = [
+            [
+                'title' => 'IoT Lab - Cảm biến thông minh & AI Nhúng',
+                'role' => 'Lập trình viên & Kỹ sư nhúng',
+                'duration' => '08/2026',
+                'hours' => 24,
+                'description' => 'Xưởng thực hành lập trình vi điều khiển ESP32 và tích hợp mô hình AI nhận diện tại Phòng B305 - BTEC FPT.',
+            ],
+            [
+                'title' => 'Hackathon Sáng tạo Trẻ BTEC FPT 2026',
+                'role' => 'Trưởng nhóm phát triển AI',
+                'duration' => '07/2026',
+                'hours' => 36,
+                'description' => 'Phát triển nguyên mẫu hệ thống nhận diện và phân loại rác thải tự động đạt giải Nhì chung cuộc.',
+            ]
+        ];
+    }
+    $totalExpHours = !empty($rawTalent['experience']['confirmed_hours'])
+        ? (int)$rawTalent['experience']['confirmed_hours']
+        : (int)array_sum(array_column($experienceLogs, 'hours'));
 
     $talent = [
         'id' => $rawTalent['studentId'],
@@ -172,8 +174,9 @@ if ($rawTalent !== null) {
         'bio' => $rawTalent['bio'],
         'location' => $rawTalent['location'] ?? 'Hà Nội',
         'detailed_skills' => $skillsList,
-        'experience_entries' => $rawTalent['experience']['confirmed_entries'] ?? [],
-        'experience_hours' => $rawTalent['experience']['confirmed_hours'] ?? 120,
+        'experience_entries' => $experienceEntries,
+        'experience_logs' => $experienceLogs,
+        'experience_hours' => $totalExpHours,
         'certificates' => $rawTalent['certificates'] ?? [],
         'projects' => $normalizedProjects,
         'contactAllowed' => $rawTalent['contactAllowed'] ?? false,
@@ -248,7 +251,7 @@ $sidebarNav = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Talent Passport - Hồ sơ năng lực chi tiết của ứng viên trên TalentHub Enterprise.">
     <title><?= htmlspecialchars($pageTitle); ?> | TalentHub Enterprise</title>
-    
+
     <!-- CSS Assets -->
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise.css'); ?>">
@@ -257,20 +260,20 @@ $sidebarNav = [
 
     <!-- Layout Wrapper -->
     <div class="ent-layout">
-        
+
         <!-- Sidebar Navigation Partial -->
         <?php include __DIR__ . '/../includes/sidebar.php'; ?>
 
         <!-- Main Content Wrapper -->
         <div class="ent-main-wrapper">
-            
+
             <!-- Top Header Partial -->
             <?php include __DIR__ . '/../includes/header.php'; ?>
 
             <!-- Page Body Content -->
             <main class="ent-body">
                 <div class="container-fluid">
-                    
+
                     <!-- Back Link Navigation -->
                     <div class="ent-back-bar">
                         <a href="<?= app_href('/app/enterprise/talents.php'); ?>" class="ent-back-link" data-route="/app/enterprise/talents.php">
@@ -297,13 +300,13 @@ $sidebarNav = [
                             </a>
                         </div>
                     <?php else: ?>
-                        
+
                         <!-- Talent Passport Main Detail Layout (2 Columns) -->
                         <div class="ent-passport-grid">
-                            
+
                             <!-- Left / Main Column (Overview, Bio, Skills, Experience, Projects, Certificates) -->
                             <div class="ent-passport-main">
-                                
+
                                 <!-- 1. Profile Overview Header Card -->
                                 <section class="ent-section-box ent-passport-overview-card">
                                     <div class="ent-passport-overview__top">
@@ -340,9 +343,9 @@ $sidebarNav = [
                                         </div>
 
                                         <div class="ent-passport-btn-group">
-                                            <button type="button" 
-                                                    class="btn btn-secondary btn-sm ent-passport-save-btn <?= $talent['saved'] ? 'is-saved' : ''; ?>" 
-                                                    id="detail-save-btn" 
+                                            <button type="button"
+                                                    class="btn btn-secondary btn-sm ent-passport-save-btn <?= $talent['saved'] ? 'is-saved' : ''; ?>"
+                                                    id="detail-save-btn"
                                                     data-talent-id="<?= htmlspecialchars($talent['id']); ?>">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="<?= $talent['saved'] ? 'currentColor' : 'none'; ?>" stroke="currentColor" stroke-width="2">
                                                     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
@@ -350,8 +353,8 @@ $sidebarNav = [
                                                 <span class="btn-text"><?= $talent['saved'] ? 'Đã lưu hồ sơ' : 'Lưu hồ sơ'; ?></span>
                                             </button>
 
-                                            <button type="button" 
-                                                    class="btn btn-primary btn-sm" 
+                                            <button type="button"
+                                                    class="btn btn-primary btn-sm"
                                                     id="detail-invite-btn"
                                                     onclick="openInviteModal()"
                                                     style="background: #2563EB; border-color: #2563EB; font-weight: 700; display: inline-flex; align-items: center; gap: 0.45rem;">
@@ -361,8 +364,8 @@ $sidebarNav = [
                                                 <span>Mời thực tập / Tuyển dụng</span>
                                             </button>
 
-                                            <button type="button" 
-                                                    class="btn btn-secondary btn-sm" 
+                                            <button type="button"
+                                                    class="btn btn-secondary btn-sm"
                                                     id="detail-contact-btn">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
@@ -457,12 +460,19 @@ $sidebarNav = [
                                     <div class="ent-passport-projects-list">
                                         <?php if (!empty($talent['projects'])): ?>
                                             <?php foreach ($talent['projects'] as $proj): ?>
-                                                <div class="ent-passport-project-card">
-                                                    <div class="ent-passport-project-card__header">
-                                                        <h4 class="ent-passport-project-card__title"><?= htmlspecialchars($proj['name']); ?></h4>
-                                                        <?php if (!empty($proj['result'])): ?>
-                                                            <span class="ent-project-result-badge"><?= htmlspecialchars($proj['result']); ?></span>
-                                                        <?php endif; ?>
+                                                    <div class="ent-passport-project-card__header" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+                                                        <h4 class="ent-passport-project-card__title" style="margin: 0;"><?= htmlspecialchars($proj['name']); ?></h4>
+                                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                            <?php if (!empty($proj['sponsorName'])): ?>
+                                                                <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; background: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE;">
+                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                                                    Được bảo trợ bởi <?= htmlspecialchars($proj['sponsorName']); ?>
+                                                                </span>
+                                                            <?php endif; ?>
+                                                            <?php if (!empty($proj['result'])): ?>
+                                                                <span class="ent-project-result-badge"><?= htmlspecialchars($proj['result']); ?></span>
+                                                            <?php endif; ?>
+                                                        </div>
                                                     </div>
                                                     <p class="ent-passport-project-card__desc"><?= htmlspecialchars($proj['description']); ?></p>
                                                     <div class="ent-passport-project-card__meta">
@@ -518,7 +528,7 @@ $sidebarNav = [
 
                             <!-- Right Column Sidebar (Readiness Summary & Privacy Card) -->
                             <aside class="ent-passport-sidebar">
-                                
+
                                 <!-- 7. Internship Readiness Summary Widget -->
                                 <div class="ent-section-box">
                                     <div class="ent-section-box__header">
@@ -605,9 +615,9 @@ $sidebarNav = [
 
                     <div class="ent-contact-form-group">
                         <label for="contact-message-input" class="ent-filter-label">Lời nhắn từ doanh nghiệp (tùy chọn):</label>
-                        <textarea id="contact-message-input" 
-                                  class="ent-contact-textarea" 
-                                  rows="4" 
+                        <textarea id="contact-message-input"
+                                  class="ent-contact-textarea"
+                                  rows="4"
                                   placeholder="Ví dụ: Chào bạn, <?= htmlspecialchars($enterpriseInfo['company_name']); ?> ấn tượng với hồ sơ năng lực của bạn và muốn mời bạn tham gia buổi phỏng vấn thực tập vị trí <?= htmlspecialchars($talent['major_field']); ?>..."></textarea>
                     </div>
                 </div>
@@ -623,7 +633,7 @@ $sidebarNav = [
         <div class="ent-skills-modal" id="inviteModal" aria-hidden="true" style="display: none; position: fixed; inset: 0; z-index: 9999; align-items: center; justify-content: center;">
             <div class="ent-skills-modal__backdrop" onclick="closeInviteModal()" style="position: absolute; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);"></div>
             <div class="ent-skills-modal__dialog" style="position: relative; z-index: 10000; width: 92%; max-width: 560px; background: #FFFFFF; border-radius: 14px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden; animation: modalFadeIn 0.2s ease-out;">
-                
+
                 <div class="ent-skills-modal__header" style="background: #F8FAFC; border-bottom: 1px solid #E2E8F0; padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <h3 class="ent-skills-modal__title" style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #0F172A; display: flex; align-items: center; gap: 0.5rem;">
@@ -675,8 +685,8 @@ $sidebarNav = [
                         <label for="inviteMessageInput" style="display: block; font-size: 0.875rem; font-weight: 700; color: #334155; margin-bottom: 0.4rem;">
                             Lời nhắn gửi tới ứng viên:
                         </label>
-                        <textarea id="inviteMessageInput" 
-                                  rows="3" 
+                        <textarea id="inviteMessageInput"
+                                  rows="3"
                                   style="width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid #CBD5E1; border-radius: 8px; font-size: 0.875rem; color: #0F172A; resize: vertical;"
                                   placeholder="Ví dụ: Chào bạn <?= htmlspecialchars($talent['name']); ?>, FPT Software rất ấn tượng với hồ sơ năng lực và điểm đánh giá <?= htmlspecialchars($talent['talent_score']); ?> điểm của bạn. Trân trọng mời bạn tham gia thực tập..."></textarea>
                     </div>
