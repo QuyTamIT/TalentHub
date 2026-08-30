@@ -397,12 +397,14 @@ SQL;
             return [];
         }
         $skills = [];
+        $seen = [];
         foreach ($decoded as $entry) {
             if (is_string($entry)) {
                 $name = trim($entry);
                 if ($name === '') continue;
                 $code = self::slugify($name);
-                if ($code === '') continue;
+                if ($code === '' || isset($seen[$code])) continue;
+                $seen[$code] = true;
                 $skills[] = ['code' => $code, 'minimum_score' => 0, 'label' => $name];
                 continue;
             }
@@ -411,7 +413,8 @@ SQL;
                 $name = trim($rawName);
                 if ($name === '') continue;
                 $code = self::slugify($name);
-                if ($code === '') continue;
+                if ($code === '' || isset($seen[$code])) continue;
+                $seen[$code] = true;
                 $minScore = isset($entry['minimum_score']) && is_numeric($entry['minimum_score']) ? max(0, min(100, (int) $entry['minimum_score'])) : 0;
                 $skills[] = ['code' => $code, 'minimum_score' => $minScore, 'label' => $name];
             }
@@ -438,6 +441,7 @@ SQL;
     private static function slugify(string $raw): string
     {
         $lower = mb_strtolower(trim($raw), 'UTF-8');
+        $lower = str_replace(['c#', 'c++', 'c/c++'], ['csharp', 'cpp', 'cpp'], $lower);
         $ascii = strtr($lower, self::DIACRITIC_ASCII);
         $slug = (string) preg_replace('/[^a-z0-9]+/', '_', $ascii);
         return trim($slug, '_');

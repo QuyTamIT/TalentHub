@@ -10,6 +10,7 @@ const {
     createOpportunityMatchView,
     mapOpportunityMatchState,
     isSafeInternalOpportunityUrl,
+    classifySafeOpportunityUrl,
     humanizeOpportunityLabel,
     normalizeReadyItems,
     mountOpportunityMatches,
@@ -156,6 +157,76 @@ test('only same-origin internal opportunity links are accepted', () => {
     assert.equal(isSafeInternalOpportunityUrl('//evil.example/p1'), false);
     assert.equal(isSafeInternalOpportunityUrl('javascript:alert(1)'), false);
     assert.equal(isSafeInternalOpportunityUrl('/app/learner/../admin.php'), false);
+});
+
+test('verified HTTPS opportunity links are accepted while unsafe external URLs stay blocked', () => {
+    assert.deepEqual(
+        classifySafeOpportunityUrl('https://github.com/talenthub-demo/ecosmart-ai'),
+        { url: 'https://github.com/talenthub-demo/ecosmart-ai', external: true },
+    );
+    assert.deepEqual(
+        classifySafeOpportunityUrl('/app/learner/opportunity.php?id=p1'),
+        { url: '/app/learner/opportunity.php?id=p1', external: false },
+    );
+    for (const unsafeUrl of [
+        'http://github.com/talenthub-demo/ecosmart-ai',
+        'https://user:password@github.com/talenthub-demo/ecosmart-ai',
+        '//github.com/talenthub-demo/ecosmart-ai',
+        'javascript:alert(1)',
+        'data:text/html,unsafe',
+    ]) {
+        assert.equal(classifySafeOpportunityUrl(unsafeUrl), null);
+    }
+});
+
+test('external project CTA renders as a clickable new-tab link', () => {
+    const previousDocument = global.document;
+    const makeNode = (tagName = '') => ({
+        tagName: String(tagName).toUpperCase(),
+        className: '',
+        textContent: '',
+        hidden: false,
+        children: [],
+        dataset: {},
+        style: {},
+        attributes: {},
+        appendChild(child) { this.children.push(child); return child; },
+        replaceChildren(...children) { this.children = children; },
+        setAttribute(name, value) { this.attributes[name] = String(value); },
+        getAttribute(name) { return this.attributes[name] || null; },
+        querySelector() { return null; },
+    });
+    const list = makeNode('div');
+    const results = makeNode('div');
+    const root = makeNode('section');
+    root.querySelector = (selector) => {
+        if (selector === '[data-opportunity-ai-list]') return list;
+        if (selector === '[data-opportunity-ai-results]') return results;
+        return null;
+    };
+    global.document = { createElement: (tagName) => makeNode(tagName) };
+
+    try {
+        const items = normalizeReadyItems([{
+            catalog_id: 'ecosmart-ai', rank: 1, match_score: 30,
+            why_fit: 'Dự án liên quan đến tư duy dữ liệu của bạn. Kỹ năng thiết kế hỗ trợ trải nghiệm người dùng. Hồ sơ còn thiếu thực hành thị giác máy tính. Dự án giúp xác định kỹ năng cần rèn luyện.',
+            fit_reasons: ['Có tư duy dữ liệu.'],
+            gap_reasons: ['Thiếu thực hành thị giác máy tính.'],
+            skills_to_develop: ['Thị giác máy tính'],
+            canonical_url: 'https://github.com/talenthub-demo/ecosmart-ai',
+        }]);
+        const view = createOpportunityMatchView(root);
+        view.render('ready-model', { items });
+
+        const card = list.children[0];
+        const cta = card.children.at(-1).children[0];
+        assert.equal(cta.tagName, 'A');
+        assert.equal(cta.href, 'https://github.com/talenthub-demo/ecosmart-ai');
+        assert.equal(cta.target, '_blank');
+        assert.equal(cta.rel, 'noopener noreferrer');
+    } finally {
+        global.document = previousDocument;
+    }
 });
 
 test('normalizer requires substantial project analysis and retains detailed sections', () => {

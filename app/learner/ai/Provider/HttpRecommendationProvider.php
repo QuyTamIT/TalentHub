@@ -204,6 +204,7 @@ final class HttpRecommendationProvider implements RecommendationProvider
             }
         }
 
+
         // OpenAI / 9Router chat completion envelope: {"choices": [{"message": {"content": "..."}}]}
         if (isset($decoded['choices'][0]['message']['content']) && is_string($decoded['choices'][0]['message']['content'])) {
             return $this->parseContentString($decoded['choices'][0]['message']['content']);
@@ -278,8 +279,8 @@ final class HttpRecommendationProvider implements RecommendationProvider
             CURLOPT_POSTFIELDS => $body,
             CURLOPT_HTTPHEADER => $formattedHeaders,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => $timeout,
-            CURLOPT_CONNECTTIMEOUT => min(2, $timeout),
+            CURLOPT_TIMEOUT => max(60, $timeout),
+            CURLOPT_CONNECTTIMEOUT => min(15, max(5, $timeout)),
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_HEADERFUNCTION => static function ($curl, string $header) use (&$responseHeaders): int {

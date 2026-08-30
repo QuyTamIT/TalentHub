@@ -433,6 +433,26 @@ service_assert(($noFitMeta['match_threshold'] ?? null) === 60, 'no-fit metadata 
 service_assert(!array_key_exists('best_score', $noFitMeta) && !array_key_exists('score_range', $noFitMeta), 'no-fit metadata hides structured score components');
 service_assert(!array_key_exists('data_weight', $noFitMeta) && !array_key_exists('ai_weight', $noFitMeta), 'no-fit metadata hides scoring weights');
 
+$noFitReloadedService = service_make_scenario(
+    $noFitPdo,
+    null,
+    candidateEvidence: $noFitCandidates,
+    scorer: $noFitScorer,
+);
+$noFitReloadedResult = $noFitReloadedService->latest('student-1');
+service_assert(($noFitReloadedResult['state'] ?? '') === 'no_fit_model', 'persisted no-fit analysis with diagnostic opportunities remains readable');
+service_assert(count($noFitReloadedResult['items'] ?? []) === 2, 'persisted no-fit diagnostic opportunities remain visible');
+
+$noFitFallbackService = service_make_scenario(
+    $noFitPdo,
+    service_test_engine(ProviderResponse::failure('provider_unavailable')),
+    candidateEvidence: $noFitCandidates,
+    scorer: $noFitScorer,
+);
+$noFitFallbackResult = $noFitFallbackService->generate('student-1', 'request-no-fit-fallback-0001', 'idempotency-no-fit-fallback-01');
+service_assert(($noFitFallbackResult['state'] ?? '') === 'stale_model', 'provider failure falls back to the latest no-fit analysis');
+service_assert(count($noFitFallbackResult['items'] ?? []) === 2, 'provider failure keeps the latest no-fit diagnostic opportunities visible');
+
 $legacyNoFitService = service_make_scenario(
     $analysisPdo,
     null,

@@ -1,12 +1,14 @@
 /**
  * Evidence-backed learner recommendation UI. The page receives only the
+/**
+ * Evidence-backed learner recommendation UI. The page receives only the
  * response-mapper contract and never renders raw snapshots or provider responses.
  */
 (function initLearnerRecommendations(global) {
     'use strict';
 
     const READY_STATES = new Set(['ready-rule', 'ready-model', 'stale-model', 'fallback-rule']);
-    const RECOMMENDATION_ACTIONS = new Set(['view_activity', 'view_opportunity', 'register_activity', 'open_catalog_item']);
+    const RECOMMENDATION_ACTIONS = new Set(['view_activity', 'view_opportunity', 'register_activity', 'open_catalog_item', 'view_project']);
 
     function presentationState(payload) {
         const state = typeof payload?.state === 'string' ? payload.state : '';
@@ -22,7 +24,7 @@
 
     function recommendationSection(itemType) {
         if (itemType === 'strength') return 'strength';
-        if (itemType === 'activity') return 'activity';
+        if (itemType === 'activity' || itemType === 'project') return 'activity';
         return 'other';
     }
 
@@ -367,7 +369,7 @@
             const type = text(item.item_type, 'development');
             const confidence = text(item.confidence_band, '');
             const evidence = Array.isArray(item.evidence) ? item.evidence : [];
-            const catalogEvidence = evidence.filter((entry) => ['catalog', 'opportunity'].includes(entry?.source_type)
+            const catalogEvidence = evidence.filter((entry) => ['catalog', 'opportunity', 'project'].includes(entry?.source_type)
                 && entry?.safe_value && typeof entry.safe_value === 'object');
             const catalogId = text(item.catalog_id, '');
             const catalog = catalogId !== ''
@@ -375,6 +377,8 @@
                 : catalogEvidence.length === 1 ? catalogEvidence[0] : null;
             const isEnterpriseOpportunity = catalog?.source_type === 'opportunity'
                 && catalog.safe_value?.opportunity_type === 'internship';
+            const isProject = type === 'project' || catalog?.source_type === 'project'
+                || catalog?.safe_value?.item_type === 'project' || item.action?.type === 'view_project';
             article.dataset.aiItemType = type;
             if (confidence !== '') article.dataset.aiConfidence = confidence;
             if (catalog?.source_type) article.dataset.aiSourceType = catalog.source_type;
@@ -389,7 +393,26 @@
             meta.className = 'learner-ai-result__meta';
             const typeLabel = document.createElement('span');
             typeLabel.className = 'learner-ai-result__type';
-            typeLabel.textContent = ({ activity: 'Hoạt động', strength: 'Điểm mạnh', improvement: 'Cần cải thiện', development: 'Phát triển', roadmap: 'Lộ trình', group: 'Nhóm học tập', community: 'Cộng đồng' })[type] || 'Gợi ý';
+            const catalogItemType = text(catalog?.safe_value?.item_type, '');
+            const resolvedType = isEnterpriseOpportunity
+                ? 'Thực tập'
+                : isProject
+                    ? 'Dự án'
+                    : catalogItemType === 'workshop'
+                        ? 'Workshop'
+                        : catalogItemType === 'contest'
+                            ? 'Cuộc thi'
+                            : ({
+                                activity: 'Hoạt động',
+                                project: 'Dự án',
+                                strength: 'Điểm mạnh',
+                                improvement: 'Cần cải thiện',
+                                development: 'Phát triển',
+                                roadmap: 'Lộ trình',
+                                group: 'Nhóm học tập',
+                                community: 'Cộng đồng',
+                            })[type] || 'Hoạt động';
+            typeLabel.textContent = resolvedType;
             meta.appendChild(typeLabel);
             if (confidence !== '') {
                 const confidenceLabel = document.createElement('span');
@@ -424,22 +447,38 @@
                 hasActionLink = true;
             }
             if (!hasActionLink) {
-                const url = typeof catalog?.safe_value?.url === 'string' ? catalog.safe_value.url.trim() : '';
-                if (/^\/(?!\/)[A-Za-z0-9._~!$&'()*+,;=:@%/?#-]+$/.test(url)) {
+                let url = typeof catalog?.safe_value?.url === 'string' ? catalog.safe_value.url.trim() : '';
+                if (url === '' && isEnterpriseOpportunity && catalogId !== '') {
+                    url = `/app/learner/ecosystem.php?tab=opportunities&focus=${encodeURIComponent(catalogId)}#opportunity-${encodeURIComponent(catalogId)}`;
+                }
+                const isValidInternalUrl = /^\/(?!\/)[A-Za-z0-9._~!$&'()*+,;=:@%/?#-]+$/.test(url);
+                const isValidExternalUrl = /^https?:\/\/[A-Za-z0-9.-]+(?::\d+)?(?:\/[A-Za-z0-9._~!$&'()*+,;=:@%/?#-]*)?$/.test(url);
+
+                if (isValidInternalUrl || isValidExternalUrl) {
                     const link = document.createElement('a');
                     link.className = 'learner-btn learner-btn--primary';
                     link.href = url;
-                    link.textContent = catalog.source_type === 'opportunity'
-                        && catalog.safe_value?.opportunity_type === 'internship'
+                    if (isValidExternalUrl) {
+                        link.target = '_blank';
+                        link.rel = 'noopener noreferrer';
+                    }
+                    link.textContent = isEnterpriseOpportunity
                         ? 'Xem trong Hệ sinh thái'
-                        : 'Xem chi tiết nguồn';
+                        : isProject
+                            ? 'Khám phá dự án'
+                            : 'Xem chi tiết nguồn';
                     decorateRecommendationCta(
                         link,
                         itemId,
-                        typeof catalog.source_id === 'string' ? catalog.source_id : '',
-                        catalog.source_type === 'opportunity' ? 'view_opportunity' : 'open_catalog_item',
+                        typeof catalog?.source_id === 'string' ? catalog.source_id : (catalogId || ''),
+                        isEnterpriseOpportunity
+                            ? 'view_opportunity'
+                            : isProject
+                                ? 'open_catalog_item'
+                                : catalog?.source_type === 'opportunity' ? 'view_opportunity' : 'open_catalog_item',
                     );
                     article.appendChild(link);
+                    hasActionLink = true;
                 }
             }
 
@@ -479,9 +518,9 @@
             const itemType = text(safeValue.item_type, '');
             const sourceName = isEnterpriseOpportunity
                 ? 'Cơ hội do doanh nghiệp công bố'
-                : itemType === 'project'
+                : itemType === 'project' || source.source_type === 'project'
                     ? 'Dự án đã công bố trên TalentHub'
-                    : itemType === 'activity' || safeValue.opportunity_type === 'activity'
+                    : itemType === 'activity' || safeValue.opportunity_type === 'activity' || source.source_type === 'activity'
                         ? 'Hoạt động chính thức'
                         : source.source_type === 'catalog'
                             ? 'Danh mục TalentHub'

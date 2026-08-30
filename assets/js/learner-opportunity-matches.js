@@ -51,6 +51,20 @@
         }
     }
 
+    function classifySafeOpportunityUrl(value) {
+        const normalized = normalizeText(value);
+        if (isSafeInternalOpportunityUrl(normalized)) {
+            return { url: normalized, external: false };
+        }
+        try {
+            const url = new URL(normalized);
+            if (url.protocol !== 'https:' || !url.hostname || url.username || url.password) return null;
+            return { url: normalized, external: true };
+        } catch {
+            return null;
+        }
+    }
+
     function normalizeText(value) {
         return typeof value === 'string' ? value.trim() : '';
     }
@@ -100,6 +114,7 @@
             const gapReasons = normalizeTextList(item.gap_reasons);
             const skillsToDevelop = normalizeTextList(item.skills_to_develop);
             if (!hasThreeToFourSentences(rationale) || fitReasons.length === 0 || gapReasons.length === 0 || skillsToDevelop.length === 0) return null;
+            const canonicalUrl = classifySafeOpportunityUrl(item.canonical_url);
             ids.add(catalogId);
             normalized.push({
                 catalog_id: catalogId,
@@ -120,7 +135,8 @@
                 evidence: normalizeTextList(item.evidence),
                 title: normalizeText(item.title) || `Dự án phù hợp #${index + 1}`,
                 summary: normalizeText(item.summary),
-                canonical_url: isSafeInternalOpportunityUrl(item.canonical_url) ? item.canonical_url : '',
+                canonical_url: canonicalUrl ? canonicalUrl.url : '',
+                canonical_url_external: canonicalUrl ? canonicalUrl.external : false,
             });
         }
         return normalized.sort((left, right) => left.rank - right.rank);
@@ -160,7 +176,7 @@
                 return;
             }
             try {
-                renderResponse(await api.get(ENDPOINT, { timeoutMs: 30000 }));
+                renderResponse(await api.get(ENDPOINT, { timeoutMs: 60000 }));
             } catch {
                 view.render('source-error', { items: [] });
             }
@@ -175,7 +191,7 @@
             if (!idempotencyKey) idempotencyKey = String(keyFactory() || '');
             view.render('loading', { items: [] });
             inFlight = Promise.resolve()
-                .then(() => api.send('POST', ENDPOINT, {}, { idempotencyKey, timeoutMs: 60000 }))
+                .then(() => api.send('POST', ENDPOINT, {}, { idempotencyKey, timeoutMs: 120000 }))
                 .then(renderResponse)
                 .catch(() => view.render('source-error', { items: [] }))
                 .finally(() => { inFlight = null; });
@@ -255,6 +271,10 @@
         if (item.canonical_url) {
             const link = element('a', 'learner-btn learner-btn--primary', 'Xem dự án');
             link.href = item.canonical_url;
+            if (item.canonical_url_external) {
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+            }
             actions.appendChild(link);
         } else {
             const unavailable = element('button', 'learner-btn learner-btn--primary', 'Xem dự án');
@@ -438,6 +458,7 @@
         createOpportunityMatchView,
         mapOpportunityMatchState,
         isSafeInternalOpportunityUrl,
+        classifySafeOpportunityUrl,
         humanizeOpportunityLabel,
         normalizeReadyItems,
         mountOpportunityMatches,

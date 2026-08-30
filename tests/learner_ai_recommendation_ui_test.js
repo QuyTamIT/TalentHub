@@ -355,3 +355,52 @@ test('enterprise opportunity card binds canonical title and CTA to its catalog i
   assert.equal(actionLink.dataset.aiRecommendationCatalog, 'internship-b');
   assert.equal(actionLink.dataset.aiRecommendationAction, 'view_opportunity');
 });
+
+test('project recommendation card renders external project url and Khám phá dự án CTA', () => {
+  const { createDomView } = require(modulePath);
+  class FakeElement {
+    constructor() { this.children = []; this.dataset = {}; this.attributes = {}; this.hidden = false; }
+    get firstChild() { return this.children[0] || null; }
+    append(...children) { this.children.push(...children); }
+    appendChild(child) { this.children.push(child); return child; }
+    removeChild(child) { this.children.splice(this.children.indexOf(child), 1); }
+    setAttribute(name, value) { this.attributes[name] = value; }
+    focus() {}
+  }
+  const list = new FakeElement();
+  const root = { querySelector: (selector) => selector === '[data-ai-result-list]' ? list : null };
+  const originalDocument = global.document;
+  global.document = { createElement: () => new FakeElement() };
+
+  try {
+    createDomView(root).render('ready-model', {
+      state: 'ready_model',
+      items: [{
+        item_id: 'rec-project-1', item_type: 'activity', title: 'EcoSmart AI', catalog_id: '50000000-0000-4000-8000-000000000001',
+        action: { type: 'open_catalog_item', catalog_id: '50000000-0000-4000-8000-000000000001' },
+        evidence: [
+          {
+            source_type: 'catalog',
+            source_id: '50000000-0000-4000-8000-000000000001',
+            safe_value: {
+              title: 'Ứng dụng AI phân loại rác & Tái chế thông minh trong học đường (EcoSmart AI)',
+              item_type: 'project',
+              url: 'https://github.com/talenthub-demo/ecosmart-ai',
+            },
+          },
+        ],
+      }],
+    });
+  } finally {
+    global.document = originalDocument;
+  }
+
+  const card = list.children[0].children[1].children[0];
+  assert.equal(card.children[0].textContent, 'Ứng dụng AI phân loại rác & Tái chế thông minh trong học đường (EcoSmart AI)');
+  const actionLink = card.children.find((child) => child.dataset?.aiRecommendationCta === 'true');
+  assert.equal(actionLink.href, 'https://github.com/talenthub-demo/ecosmart-ai');
+  assert.equal(actionLink.textContent, 'Khám phá dự án');
+  assert.equal(actionLink.target, '_blank');
+  assert.equal(actionLink.dataset.aiRecommendationCatalog, '50000000-0000-4000-8000-000000000001');
+  assert.equal(actionLink.dataset.aiRecommendationAction, 'open_catalog_item');
+});
