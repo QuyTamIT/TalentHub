@@ -11,6 +11,38 @@ use TalentHub\Learner\Data\Support\Uuid;
 require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
 require_once dirname(__DIR__) . '/data/bootstrap.php';
 
+/** @param array<string,mixed> $post */
+function learner_project_registration_failure_destination(array $post): string
+{
+    $rawProjectId = trim((string) ($post['projectId'] ?? ''));
+    return '/app/learner/project.php?id=' . rawurlencode($rawProjectId) . '&register=failed';
+}
+
+/**
+ * @param array<string,mixed> $post
+ * @return array<string,mixed>
+ */
+function learner_project_registration_require_request(
+    SessionManager $session,
+    array $post,
+    string $method,
+    ?string $headerCsrfToken = null,
+): array {
+    if (strtoupper(trim($method)) !== 'POST') {
+        throw new ApiException(405, 'METHOD_NOT_ALLOWED', 'Phương thức không được hỗ trợ.');
+    }
+
+    $rawToken = $post['csrfToken'] ?? $post['csrf_token'] ?? $headerCsrfToken;
+    $session->assertCsrf(is_string($rawToken) ? $rawToken : null);
+
+    $user = $session->requireUser();
+    if (($user['role'] ?? null) !== 'student') {
+        throw new ApiException(403, 'PERMISSION_DENIED', 'Chức năng chỉ dành cho học viên.');
+    }
+
+    return $user;
+}
+
 /**
  * Applies one learner project registration and returns an app-relative PRG
  * destination back to the internal project detail URL.
@@ -28,17 +60,7 @@ function learner_project_registration_submit(
     ?DateTimeImmutable $now = null,
     ?string $headerCsrfToken = null,
 ): string {
-    if (strtoupper(trim($method)) !== 'POST') {
-        throw new ApiException(405, 'METHOD_NOT_ALLOWED', 'Phương thức không được hỗ trợ.');
-    }
-
-    $rawToken = $post['csrfToken'] ?? $post['csrf_token'] ?? $headerCsrfToken;
-    $session->assertCsrf(is_string($rawToken) ? $rawToken : null);
-
-    $user = $session->requireUser();
-    if (($user['role'] ?? null) !== 'student') {
-        throw new ApiException(403, 'PERMISSION_DENIED', 'Chức năng chỉ dành cho học viên.');
-    }
+    $user = learner_project_registration_require_request($session, $post, $method, $headerCsrfToken);
 
     $statement = $pdo->prepare('SELECT id FROM student_profiles WHERE userId = :userId LIMIT 1');
     $statement->execute(['userId' => (string) $user['id']]);
@@ -48,7 +70,7 @@ function learner_project_registration_submit(
     }
 
     $rawProjectId = trim((string) ($post['projectId'] ?? ''));
-    $failureDestination = '/app/learner/project.php?id=' . rawurlencode($rawProjectId) . '&register=failed';
+    $failureDestination = learner_project_registration_failure_destination($post);
 
     try {
         $projectId = Uuid::normalizeDatabase($rawProjectId, 'project_id');
@@ -81,6 +103,12 @@ try {
     $sessionConfig['name'] = SessionManager::SESSION_STUDENT;
     $session = new SessionManager($sessionConfig);
     $session->start();
+    learner_project_registration_require_request(
+        $session,
+        $_POST,
+        (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'),
+        isset($_SERVER['HTTP_X_CSRF_TOKEN']) ? (string) $_SERVER['HTTP_X_CSRF_TOKEN'] : null,
+    );
     $pdo = $GLOBALS['__TALENTHUB_TEST_PDO__'] ?? null;
     if (!$pdo instanceof PDO) {
         $pdo = (new Connection(require dirname(__DIR__, 3) . '/config/database.php'))->connect();
@@ -99,4 +127,7 @@ try {
     http_response_code($exception->status);
     header('Content-Type: text/plain; charset=UTF-8');
     echo $exception->getMessage();
+} catch (Throwable) {
+    header('Location: ' . app_href(learner_project_registration_failure_destination($_POST)), true, 303);
+    exit;
 }

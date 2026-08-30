@@ -41,6 +41,10 @@ $assert(!str_contains($detailPage, 'studentId'), 'learner identity is never acce
 
 // PRG feedback notices.
 $assert(str_contains($detailPage, "\$_GET['registered']"), 'detail renders the post-redirect success notice flag');
+$assert(
+    str_contains($detailPage, '$learnerProjectRegistered && $learnerProjectJoined'),
+    'success notice requires a verified active membership instead of trusting the query flag alone'
+);
 $assert(str_contains($detailPage, "\$_GET['register']"), 'detail renders the post-redirect failure notice flag');
 $assert(str_contains($detailPage, 'role="status"'), 'success notice is announced politely');
 $assert(str_contains($detailPage, 'role="alert"'), 'failure notice is announced assertively');

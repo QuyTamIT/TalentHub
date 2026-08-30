@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace TalentHub\Learner\Data\Database;
 
+require_once dirname(__DIR__, 2) . '/ai/Queue/TransactionalAiOutboxPublisher.php';
+
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
 use PDOException;
 use TalentHub\Http\ApiException;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 use TalentHub\Learner\Data\Contracts\ProjectMembershipCommandRepository;
 use TalentHub\Learner\Data\Support\Uuid;
 use TalentHub\Support\Uuid as UuidGenerator;
@@ -58,6 +61,7 @@ final class DatabaseProjectMembershipCommandRepository implements ProjectMembers
                 ]);
                 $membership = $this->findMembership($projectId, $studentId)
                     ?? throw new ApiException(500, 'MEMBERSHIP_FAILED', 'Không thể cập nhật thành viên dự án vừa đăng ký.');
+                $this->publishMembershipMutation($membership, $projectId, $studentId);
                 $this->pdo->commit();
                 return $membership + ['created' => false];
             }
@@ -80,6 +84,7 @@ final class DatabaseProjectMembershipCommandRepository implements ProjectMembers
             ]);
             $membership = $this->findMembership($projectId, $studentId)
                 ?? throw new ApiException(500, 'MEMBERSHIP_FAILED', 'Không thể đọc thành viên dự án vừa tạo.');
+            $this->publishMembershipMutation($membership, $projectId, $studentId);
             $this->pdo->commit();
             return $membership + ['created' => true];
         } catch (Throwable $exception) {
@@ -154,6 +159,20 @@ final class DatabaseProjectMembershipCommandRepository implements ProjectMembers
     private function unavailable(): ApiException
     {
         return new ApiException(404, 'PROJECT_NOT_AVAILABLE', 'Dự án không khả dụng để đăng ký.');
+    }
+
+    /** @param array<string,mixed> $membership */
+    private function publishMembershipMutation(array $membership, string $projectId, string $studentId): void
+    {
+        TransactionalAiOutboxPublisher::publish(
+            $this->pdo,
+            'project_membership',
+            (string) $membership['id'],
+            TransactionalAiOutboxPublisher::version(),
+            [$studentId],
+            'project.membership_updated',
+            ['project_id' => $projectId, 'status' => 'active'],
+        );
     }
 
     private function lockSuffix(): string

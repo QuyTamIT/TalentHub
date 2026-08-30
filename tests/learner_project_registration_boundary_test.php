@@ -37,6 +37,12 @@ CREATE TABLE project_members (
     joinedAt TEXT, leftAt TEXT, createdAt TEXT, updatedAt TEXT
 );
 CREATE UNIQUE INDEX uq_project_members_student ON project_members (projectId, studentId);
+CREATE TABLE learner_ai_data_outbox (
+    id TEXT PRIMARY KEY, aggregate_type TEXT NOT NULL, aggregate_id TEXT NOT NULL,
+    tenant_id TEXT, event_type TEXT NOT NULL, aggregate_version INTEGER NOT NULL,
+    payload_hash TEXT NOT NULL, affected_student_ids TEXT NOT NULL,
+    delivery_status TEXT NOT NULL, occurred_at TEXT NOT NULL
+);
 SQL);
 
     $schoolId = '22222222-2222-4222-8222-222222222222';
@@ -164,5 +170,12 @@ learner_project_boundary_assert(str_contains($destination, 'register=failed'), '
 // 11. CSRF token may arrive via the standard header.
 $headerDestination = learner_project_registration_submit($pdo, learner_project_boundary_session(), ['projectId' => $fixture['project_id']], 'POST', $now, 'boundary-csrf-token');
 learner_project_boundary_assert(str_contains($headerDestination, 'registered=1'), 'header CSRF token is accepted at the boundary');
+
+// 12. Production bootstrap failures retain the readable PRG error path.
+$actionSource = (string) file_get_contents($root . '/app/learner/actions/register-project.php');
+learner_project_boundary_assert(
+    preg_match('/catch \(ApiException \$exception\).*?catch \(Throwable\).*?learner_project_registration_failure_destination/s', $actionSource) === 1,
+    'unexpected production failures redirect through the safe registration failure destination'
+);
 
 echo "learner_project_registration_boundary_test: OK\n";

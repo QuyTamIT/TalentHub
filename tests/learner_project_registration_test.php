@@ -39,6 +39,12 @@ CREATE TABLE project_members (
     joinedAt TEXT, leftAt TEXT, createdAt TEXT, updatedAt TEXT
 );
 CREATE UNIQUE INDEX uq_project_members_student ON project_members (projectId, studentId);
+CREATE TABLE learner_ai_data_outbox (
+    id TEXT PRIMARY KEY, aggregate_type TEXT NOT NULL, aggregate_id TEXT NOT NULL,
+    tenant_id TEXT, event_type TEXT NOT NULL, aggregate_version INTEGER NOT NULL,
+    payload_hash TEXT NOT NULL, affected_student_ids TEXT NOT NULL,
+    delivery_status TEXT NOT NULL, occurred_at TEXT NOT NULL
+);
 CREATE TABLE enterprises (id TEXT PRIMARY KEY, name TEXT NOT NULL, status TEXT NOT NULL);
 CREATE TABLE project_sponsorships (
     id TEXT PRIMARY KEY, enterpriseId TEXT NOT NULL, projectId TEXT NOT NULL,
@@ -103,6 +109,12 @@ learner_project_registration_assert(!array_key_exists('leftAt', $membership) || 
 
 $storedCount = (int) $pdo->query("SELECT COUNT(*) FROM project_members WHERE projectId = '{$projectId}' AND studentId = '{$studentId}'")->fetchColumn();
 learner_project_registration_assert($storedCount === 1, 'exactly one membership row is stored');
+$outboxRow = $pdo->query("SELECT aggregate_type, aggregate_id, event_type, affected_student_ids, delivery_status FROM learner_ai_data_outbox")->fetch();
+learner_project_registration_assert(($outboxRow['aggregate_type'] ?? '') === 'project_membership', 'registration publishes the membership aggregate to the AI outbox');
+learner_project_registration_assert(($outboxRow['aggregate_id'] ?? '') === ($membership['id'] ?? ''), 'outbox event references the created membership');
+learner_project_registration_assert(($outboxRow['event_type'] ?? '') === 'project.membership_updated', 'registration publishes the canonical membership event type');
+learner_project_registration_assert(($outboxRow['delivery_status'] ?? '') === 'pending', 'registration outbox event is pending delivery');
+learner_project_registration_assert(json_decode((string) ($outboxRow['affected_student_ids'] ?? ''), true) === [$studentId], 'registration outbox event targets the learner');
 
 // 2. Repeat registration is idempotent and returns the same membership.
 $repeat = $repository->registerActiveMember($studentId, $projectId, $now->modify('+1 minute'));
@@ -110,6 +122,7 @@ learner_project_registration_assert(($repeat['id'] ?? '') === ($membership['id']
 learner_project_registration_assert(($repeat['status'] ?? '') === 'active', 'repeat registration stays active');
 $repeatCount = (int) $pdo->query("SELECT COUNT(*) FROM project_members WHERE projectId = '{$projectId}' AND studentId = '{$studentId}'")->fetchColumn();
 learner_project_registration_assert($repeatCount === 1, 'repeat registration does not duplicate the membership row');
+learner_project_registration_assert((int) $pdo->query('SELECT COUNT(*) FROM learner_ai_data_outbox')->fetchColumn() === 1, 'idempotent repeat does not publish a duplicate mutation event');
 
 // 3. A left membership reactivates as an active member.
 $pdo->exec("INSERT INTO project_members VALUES ('member-left', '{$projectId}', 'c1111111-1111-4111-8111-111111111111', 'lead', 'left', '2026-07-01 00:00:00', '2026-07-15 00:00:00', '2026-07-01 00:00:00', '2026-07-15 00:00:00')");
@@ -123,6 +136,7 @@ learner_project_registration_assert(str_starts_with((string) $reactivated['joine
 learner_project_registration_assert(str_starts_with((string) $reactivated['updatedAt'], '2026-08-30 08:30:00'), 'reactivation refreshes updatedAt');
 $reactivatedRow = $pdo->query("SELECT * FROM project_members WHERE id = 'member-left'")->fetch();
 learner_project_registration_assert(($reactivatedRow['createdAt'] ?? '') === '2026-07-01 00:00:00', 'reactivation preserves createdAt');
+learner_project_registration_assert((int) $pdo->query('SELECT COUNT(*) FROM learner_ai_data_outbox')->fetchColumn() === 2, 'left-member reactivation publishes one mutation event');
 
 // 4. A removed membership reactivates as an active member.
 $removedStudentId = 'd1111111-1111-4111-8111-111111111111';

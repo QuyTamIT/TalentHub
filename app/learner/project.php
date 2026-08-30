@@ -86,7 +86,7 @@ if (!function_exists('learner_project_money')) {
                         <a class="learner-btn learner-btn--primary" href="ecosystem.php?tab=opportunities">Quay lại danh sách dự án</a>
                     </section>
                 <?php else: ?>
-                    <?php if ($learnerProjectRegistered): ?>
+                    <?php if ($learnerProjectRegistered && $learnerProjectJoined): ?>
                         <div class="learner-project-detail__notice learner-project-detail__notice--success" role="status">
                             Đăng ký dự án thành công. Bạn đã trở thành thành viên đang hoạt động của dự án này.
                         </div>

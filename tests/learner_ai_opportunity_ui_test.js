@@ -455,5 +455,10 @@ test('tab controller drives the AI trigger visibility for mouse, keyboard, and i
         /@media \(max-width: 640px\)\s*\{[^@]*\.learner-opportunity-ai__header-actions\s*\{[^}]*flex-direction:\s*row/,
         'mobile layout keeps the status and collapse control on one shared row',
     );
+    assert.match(
+        learnerCss,
+        /@media \(max-width: 720px\)\s*\{[^@]*\.learner-opportunity-ai__header-actions\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/,
+        'the AI header action group spans both columns throughout the two-column breakpoint',
+    );
     assert.match(learnerCss, /\.learner-opportunity-ai__collapse\s*\{[^}]*white-space:\s*nowrap/, 'the collapse label never breaks across lines');
 });
