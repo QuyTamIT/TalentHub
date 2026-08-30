@@ -17,8 +17,7 @@ The change removes internship/application positions from this interface only. It
 - Scope visible projects to the signed-in learner's school.
 - Show projects only when their current status is `in_progress`.
 - Use only `Dự án` as the type label. Do not add a required `Trường` or `Doanh nghiệp` source badge to project cards.
-- Keep the current schema: projects are school-owned and may have enterprise sponsorships. Do not invent enterprise-owned projects from sponsorship data.
-- If the data model later exposes a genuine enterprise-owned project, the learner page may render it as a normal `Dự án`; the current change does not add that ownership model.
+- Keep the current schema: projects are school-owned and may have enterprise sponsorships. Render only authorized project records from this schema; do not fabricate enterprise-owned projects from sponsorship data or add a new ownership model.
 - When a paid sponsorship exists for a school project, show the enterprise and sponsorship/funding information in the internal project detail page.
 - Preserve all internship data and existing application functionality outside this page.
 - Make the internal TalentHub project detail page the canonical destination for both normal cards and AI recommendations.
@@ -34,10 +33,9 @@ The project toolbar contains:
 
 1. A text search with project-focused placeholder copy.
 2. A field/category filter.
-3. A project status filter. The default selection is the active state shown to learners.
-4. The existing AI action, renamed to `AI gợi ý dự án phù hợp`.
+3. The existing AI action, renamed to `AI gợi ý dự án phù hợp`.
 
-The location filter is removed because the current project schema has no reliable project-location field. No artificial location value will be inferred from the school or sponsor.
+The location and status filters are removed. The current project schema has no reliable project-location field, and the learner listing policy already limits results to `in_progress`. No artificial location value will be inferred from the school or sponsor.
 
 Below the toolbar, the page displays a responsive project grid. The empty state explains that the learner's school currently has no active projects. It must not fall back to showing internships.
 
@@ -95,7 +93,7 @@ The AI panel remains project-only and uses the label `Top dự án AI đề xu�
 
 Search matches project title, description, category, and school name using the existing accent-insensitive learner search behavior where available.
 
-The category filter uses categories actually present in the visible project set. The status filter uses learner-facing status labels supported by the listing policy. Filters operate together and update both the visible cards and result count. Resetting filters restores all visible school projects.
+The category filter uses categories actually present in the visible project set. Search and category filtering operate together and update both the visible cards and result count. Resetting filters restores all visible school projects.
 
 ## Failure and Empty States
 
@@ -122,7 +120,7 @@ Frontend tests cover:
 
 - Renamed `Dự án` tab and database-derived count.
 - Absence of internship/application-position cards and labels on this page.
-- Project search, category filter, status filter, reset, and result count.
+- Project search, category filter, reset, and result count.
 - Internal `Xem dự án` navigation.
 - AI recommendation navigation to the matching internal project detail page without changing the current AI analysis flow.
 - Absence of repository/GitHub links from learner project cards and details.
