@@ -126,7 +126,46 @@ function initInternshipManagementModule() {
 
             const matchesQuery = !query || title.includes(query);
             const matchesStatus = !statusFilter || status === statusFilter;
-            const matchesField = !fieldFilter || field === fieldFilter;
+            
+            let matchesField = false;
+            if (!fieldFilter) {
+                matchesField = true;
+            } else {
+                const categoryMappings = {
+                    'Công nghệ thông tin': [
+                        'công nghệ thông tin', 'ai', 'machine learning', 
+                        'frontend', 'backend', 'fullstack', 'qa', 'tester',
+                        'software', 'developer', 'kỹ thuật phần mềm', 
+                        'khoa học dữ liệu', 'data', 'it', 'genai', 'trí tuệ nhân tạo', 'llm'
+                    ],
+                    'AI / Machine Learning': [
+                        'ai', 'machine learning', 'trí tuệ nhân tạo', 'genai', 'llm', 'data', 'khoa học dữ liệu'
+                    ],
+                    'Khoa học Dữ liệu': [
+                        'khoa học dữ liệu', 'data science', 'data analyst', 'data engineer', 'phân tích dữ liệu'
+                    ],
+                    'Kỹ thuật Phần mềm': [
+                        'kỹ thuật phần mềm', 'software', 'developer', 'frontend', 'backend', 'fullstack', 'lập trình'
+                    ],
+                    'Marketing Digital': [
+                        'marketing', 'digital', 'seo', 'content', 'truyền thông'
+                    ],
+                    'Thiết kế UI/UX': [
+                        'thiết kế', 'ui', 'ux', 'design', 'graphic'
+                    ]
+                };
+
+                const fieldLower = field.toLowerCase();
+                const titleLower = title.toLowerCase();
+                
+                if (field === fieldFilter) {
+                    matchesField = true;
+                } else if (categoryMappings[fieldFilter]) {
+                    matchesField = categoryMappings[fieldFilter].some(k => 
+                        fieldLower.includes(k) || titleLower.includes(k)
+                    );
+                }
+            }
 
             if (matchesQuery && matchesStatus && matchesField) {
                 row.style.display = '';

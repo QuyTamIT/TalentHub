@@ -248,7 +248,7 @@ $pageActions = '
             <line x1="12" y1="8" x2="12" y2="16"></line>
             <line x1="8" y1="12" x2="16" y2="12"></line>
         </svg>
-        <span>+ Thêm sinh viên</span>
+        <span>Thêm sinh viên</span>
     </a>
 </div>';
 include __DIR__ . '/includes/page-banner.php';
@@ -280,8 +280,8 @@ include __DIR__ . '/includes/page-banner.php';
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
             </svg>
             <p style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">Chưa có sinh viên nào trong danh sách. Vui lòng thêm mới hoặc Import file Excel.</p>
-            <p style="font-size: 0.875rem; color: #64748B;">Sử dụng nút <strong>+ Thêm sinh viên</strong> ở trên hoặc tính năng <strong>Import Excel / CSV</strong> để bắt đầu quản lý hồ sơ sinh viên.</p>
-        </div>
+            <p style="font-size: 0.875rem; color: #64748B;">Sử dụng nút <strong></strong> ở trên hoặc tính năng <strong>Import Excel / CSV</strong> để bắt đầu quản lý hồ sơ sinh viên.</p>
+        </div>Thêm sinh viên
     <?php else: ?>
         <table class="school-class-table">
             <thead>
@@ -300,7 +300,7 @@ include __DIR__ . '/includes/page-banner.php';
                     $d   = $detailsMap[$sid] ?? [];
                     $sk  = $skillsMap[$sid] ?? [];
 
-                    $studentCode = $schoolPrefix . strtoupper(substr(md5($sid), 0, 5));
+                    $studentCode = !empty($s['studentCode']) ? $s['studentCode'] : '';
 
                     // Headline / Chuyên ngành
                     $headline = !empty($d['headline']) ? $d['headline'] : '';
@@ -326,27 +326,13 @@ include __DIR__ . '/includes/page-banner.php';
                         foreach ($sk as $item) {
                             $skillBadges[] = $item['name'];
                         }
-                    } else {
-                        if (stripos($s['className'], 'AI') !== false) {
-                            $skillBadges = ['Python', 'Machine Learning', 'PyTorch', 'Computer Vision', 'Data Structures'];
-                        } elseif (stripos($s['className'], 'SE') !== false) {
-                            $skillBadges = ['JavaScript', 'Vue.js / React', 'HTML5 / CSS3', 'REST API', 'Git & Docker'];
-                        } elseif (stripos($s['className'], 'Kinh doanh') !== false || stripos($s['className'], 'QTKD') !== false) {
-                            $skillBadges = ['Digital Marketing', 'Phân tích thị trường', 'Quản trị thương hiệu', 'PowerBI', 'Kỹ năng thuyết trình'];
-                        } elseif (stripos($s['className'], 'KDQT') !== false) {
-                            $skillBadges = ['Tiếng Anh TOEIC', 'Nghiệp vụ xuất nhập khẩu', 'Phân tích dữ liệu', 'Excel nâng cao'];
-                        } else {
-                            $skillBadges = ['Kỹ năng chuyên ngành', 'Làm việc nhóm', 'Tư duy phản biện', 'Tiếng Anh giao tiếp'];
-                        }
                     }
 
                     // Talent score (%)
+                    $talentScore = null;
                     if (!empty($sk)) {
                         $scores = array_column($sk, 'score');
                         $talentScore = (int) round(array_sum($scores) / count($scores));
-                        if ($talentScore < 75) $talentScore = 88;
-                    } else {
-                        $talentScore = 86 + (hexdec(substr(md5($sid), 0, 2)) % 12);
                     }
 
                     $bio = !empty($d['bio']) ? $d['bio'] : "Sinh viên năng động, có năng lực tự học và tư duy giải quyết vấn đề tốt. Luôn tích cực tham gia các dự án thực hành và sẵn sàng thử sức tại các kỳ thực tập doanh nghiệp.";
@@ -801,9 +787,13 @@ function openStudentDetail(student) {
     }
     document.getElementById('sd_avatar').textContent = initials;
 
-    const score = student.talentScore || 85;
-    document.getElementById('sd_score').textContent = score + '%';
-    document.getElementById('sd_score_bar').style.width = score + '%';
+    if (student.talentScore !== null && student.talentScore !== undefined) {
+        document.getElementById('sd_score').textContent = student.talentScore + '%';
+        document.getElementById('sd_score_bar').style.width = student.talentScore + '%';
+    } else {
+        document.getElementById('sd_score').textContent = 'Chưa đánh giá';
+        document.getElementById('sd_score_bar').style.width = '0%';
+    }
 
     const skillsCont = document.getElementById('sd_skills_container');
     skillsCont.innerHTML = '';
