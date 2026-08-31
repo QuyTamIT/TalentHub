@@ -1,7 +1,7 @@
 <?php
 /**
  * TalentHub Enterprise - Project Sponsorships ("Tài trợ dự án") Module
- * 
+ *
  * Redesigned Innovation Funding Hub & Crowdfunding CSR Dashboard:
  * - Part 1: Clean Impact Header & Mini-Bar Funding Fund Summary
  * - Part 2: Streamlined 1-Row Search & Category Filter Pills Bar
@@ -276,20 +276,20 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
 
     <!-- Layout Wrapper -->
     <div class="ent-layout">
-        
+
         <!-- Sidebar Partial -->
         <?php include __DIR__ . '/../includes/sidebar.php'; ?>
 
         <!-- Main Content Wrapper -->
         <div class="ent-main-wrapper">
-            
+
             <!-- Top Header Partial -->
             <?php include __DIR__ . '/../includes/header.php'; ?>
 
             <!-- Page Body Content -->
             <main class="ent-body">
                 <div class="container-fluid">
-                    
+
                     <?php if (!empty($_SESSION['flash_message'])): ?>
                         <div class="ent-alert ent-alert--success mb-4" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 0.875rem 1.25rem; border-radius: 8px; font-weight: 500; display: flex; align-items: center; justify-content: space-between;">
                             <span><?= htmlspecialchars($_SESSION['flash_message']); ?></span>
@@ -300,7 +300,7 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
 
                     <!-- PHẦN 1: HERO BANNER LIGHT THEME (Nền Trắng - Viền Cam Tinh Tế) -->
                     <div class="ent-hero-banner-light" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #F97316; border-radius: 16px; padding: 28px 32px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 28px; flex-wrap: wrap; margin-bottom: 24px; box-sizing: border-box;">
-                        
+
                         <!-- CỘT TRÁI: Thông điệp & Giá trị thương hiệu -->
                         <div style="flex: 1.2; min-width: 280px;">
                             <div style="display: inline-flex; align-items: center; gap: 6px; background: #FFF7ED; color: #EA580C; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; border: 1px solid rgba(249, 115, 22, 0.2);">
@@ -340,9 +340,9 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                                 <circle cx="11" cy="11" r="8"></circle>
                                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                             </svg>
-                            <input type="text" 
-                                   id="spon-search-input" 
-                                   class="spon-input" 
+                            <input type="text"
+                                   id="spon-search-input"
+                                   class="spon-input"
                                    placeholder="Tìm tên dự án, từ khóa, tên trường..."
                                    aria-label="Tìm kiếm dự án nghiên cứu"
                                    style="width: 100%; height: 38px; padding: 0 14px 0 38px; background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; color: #0F172A; outline: none; box-sizing: border-box;">
@@ -367,22 +367,22 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
 
                     <!-- PHẦN 3: LƯỚI DỰ ÁN KÊU GỌI TÀI TRỢ (Project Showcase Grid) -->
                     <div class="spon-projects-grid" id="spon-projects-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; width: 100%; margin-bottom: 24px;">
-                        <?php foreach ($displayProjects as $project): 
+                        <?php foreach ($displayProjects as $project):
                             $raisedMillions = round($project['raised_amount'] / 1000000, 1);
                             $targetMillions = round($project['target_amount'] / 1000000, 1);
                             $progressText = ($raisedMillions == (int)$raisedMillions ? (int)$raisedMillions : $raisedMillions) . ' triệu / ' . ($targetMillions == (int)$targetMillions ? (int)$targetMillions : $targetMillions) . ' triệu VNĐ';
                             $pct = (int) $project['percentage'];
                         ?>
                             <!-- Thẻ Project Card Độc Lập -->
-                            <article class="spon-project-card" 
-                                     data-project-id="<?= htmlspecialchars($project['id']); ?>" 
-                                     data-title="<?= htmlspecialchars($project['title']); ?>" 
-                                     data-category="<?= htmlspecialchars($project['category']); ?>" 
+                            <article class="spon-project-card"
+                                     data-project-id="<?= htmlspecialchars($project['id']); ?>"
+                                     data-title="<?= htmlspecialchars($project['title']); ?>"
+                                     data-category="<?= htmlspecialchars($project['category']); ?>"
                                      data-school="<?= htmlspecialchars($project['school_name']); ?>"
                                      data-status="<?= htmlspecialchars($project['status']); ?>"
                                      data-target="<?= htmlspecialchars((string)$project['target_amount']); ?>"
                                      style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 22px; box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04); display: flex; flex-direction: column; justify-content: space-between; gap: 16px; transition: transform 0.2s ease, box-shadow 0.2s ease; box-sizing: border-box;">
-                                
+
                                 <!-- Hàng 1: Tiêu đề đề tài + Badge trạng thái -->
                                 <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;">
                                     <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 44px; flex: 1;">
@@ -417,15 +417,15 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
 
                                 <!-- Hàng 4: Cụm nút hành động -->
                                 <div style="display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 14px; border-top: 1px solid #F1F5F9;">
-                                    <button type="button" 
-                                            class="btn-sponsor-now" 
-                                            data-project-id="<?= htmlspecialchars($project['id']); ?>" 
+                                    <button type="button"
+                                            class="btn-sponsor-now"
+                                            data-project-id="<?= htmlspecialchars($project['id']); ?>"
                                             style="width: 100%; background-color: #F97316; color: #FFFFFF; border: none; font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 999px; cursor: pointer; text-align: center; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.25); transition: all 0.2s ease;">
                                         Tài trợ ngay
                                     </button>
-                                    <button type="button" 
-                                            class="btn-view-detail" 
-                                            data-project-id="<?= htmlspecialchars($project['id']); ?>" 
+                                    <button type="button"
+                                            class="btn-view-detail"
+                                            data-project-id="<?= htmlspecialchars($project['id']); ?>"
                                             style="background: none; border: none; font-size: 13px; font-weight: 500; color: #64748B; cursor: pointer; text-align: center; padding: 4px; transition: color 0.15s ease;">
                                         Chi tiết đề án &amp; Đội ngũ &rarr;
                                     </button>

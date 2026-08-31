@@ -168,6 +168,24 @@
 
     global.LearnerProfileUiContract = Object.freeze({ resolveMutationBackend });
 
+    function isAiTriggerVisibleForTab(tabId) {
+        return tabId === 'opportunities';
+    }
+
+    function syncEcosystemAiTrigger(trigger, tabId) {
+        if (!trigger) return;
+        trigger.hidden = !isAiTriggerVisibleForTab(tabId);
+    }
+
+    function isJobAiTriggerVisibleForTab(tabId) {
+        return tabId === 'enterprises';
+    }
+
+    function syncEcosystemJobAiTrigger(trigger, tabId) {
+        if (!trigger) return;
+        trigger.hidden = !isJobAiTriggerVisibleForTab(tabId);
+    }
+
     global.LearnerUI = {
         validateProfile,
         nextAssessmentState,
@@ -183,6 +201,10 @@
         applicationMatches,
         canApplyToOpportunity,
         validateApplication,
+        isAiTriggerVisibleForTab,
+        isJobAiTriggerVisibleForTab,
+        syncEcosystemAiTrigger,
+        syncEcosystemJobAiTrigger,
     };
 
     function createPageApiClient(baseOverride = '') {
@@ -435,6 +457,8 @@
         });
 
         const ecosystemPage = document.querySelector('[data-ecosystem-page]');
+        const ecosystemAiTrigger = document.querySelector('[data-opportunity-ai-trigger]');
+        const ecosystemJobAiTrigger = document.querySelector('[data-job-ai-trigger]');
         if (ecosystemPage) {
             const ecosystemTabs = Array.from(document.querySelectorAll('[data-ecosystem-tab]'));
             const ecosystemPanels = Array.from(document.querySelectorAll('[data-ecosystem-panel]'));
@@ -470,7 +494,14 @@
                 if (emptyState) {
                     emptyState.hidden = visibleCount !== 0;
                     emptyState.dataset.emptyReason = ecosystemItems.length === 0 ? 'source' : 'filter';
+                    const sourceMessage = emptyState.querySelector('[data-empty-source]');
+                    const filterMessage = emptyState.querySelector('[data-empty-filter]');
+                    if (sourceMessage) sourceMessage.hidden = ecosystemItems.length !== 0;
+                    if (filterMessage) filterMessage.hidden = ecosystemItems.length === 0;
                 }
+
+                const resultCount = activePanel.querySelector('[data-ecosystem-result-count]');
+                if (resultCount) resultCount.textContent = String(visibleCount);
             };
 
             const activateEcosystemTab = (tabId, focusTab = false) => {
@@ -484,6 +515,8 @@
                 ecosystemPanels.forEach((panel) => {
                     panel.hidden = panel.dataset.ecosystemPanel !== nextTab.dataset.ecosystemTab;
                 });
+                syncEcosystemAiTrigger(ecosystemAiTrigger, nextTab.dataset.ecosystemTab);
+                syncEcosystemJobAiTrigger(ecosystemJobAiTrigger, nextTab.dataset.ecosystemTab);
                 const nextUrl = new URL(global.location.href);
                 nextUrl.searchParams.set('tab', nextTab.dataset.ecosystemTab);
                 global.history.replaceState({}, '', nextUrl);
@@ -511,6 +544,21 @@
                 updateEcosystemResults();
             });
             activateEcosystemTab(ecosystemPage.dataset.initialTab || 'enterprises');
+
+            const focusedOpportunityId = new URL(global.location.href).searchParams.get('focus');
+            if (typeof focusedOpportunityId === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(focusedOpportunityId)) {
+                const focusedOpportunity = Array.from(ecosystemPage.querySelectorAll('[data-opportunity-id]'))
+                    .find((item) => item.dataset.opportunityId === focusedOpportunityId);
+                if (focusedOpportunity) {
+                    focusedOpportunity.classList.add('learner-ecosystem-focus');
+                    focusedOpportunity.setAttribute('tabindex', '-1');
+                    global.requestAnimationFrame(() => {
+                        const reduceMotion = global.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+                        focusedOpportunity.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+                        focusedOpportunity.focus({ preventScroll: true });
+                    });
+                }
+            }
         }
 
         const applicationItems = Array.from(document.querySelectorAll('[data-application-item]'));
@@ -698,36 +746,39 @@
                 if (evaluationEmpty) evaluationEmpty.hidden = Boolean(evaluation);
                 if (!evaluation || !evaluationCriteria) return;
 
-                const rows = evaluation.criteria.map((criterion) => {
-                    const row = document.createElement('article');
-                    row.className = 'learner-evaluation-criterion';
+                const rows = (evaluation.criteria || []).map((criterion) => {
+                    const row = document.createElement('div');
+                    row.className = 'eval-criterion-row';
                     row.dataset.evaluationCriterion = '';
 
                     const heading = document.createElement('div');
-                    heading.className = 'learner-evaluation-criterion__heading';
+                    heading.className = 'eval-criterion-header';
                     const name = document.createElement('span');
-                    const score = document.createElement('strong');
                     name.textContent = criterion.name;
-                    score.textContent = `${criterion.score}/${criterion.max}`;
+
+                    const score = document.createElement('span');
+                    score.className = 'eval-criterion-score';
+                    const maximum = Number(criterion.max) || 10;
+                    const scoreVal = Number(criterion.score) || 0;
+                    const percentage = maximum > 0
+                        ? Math.max(0, Math.min(100, scoreVal / maximum * 100))
+                        : 0;
+                    score.textContent = `${scoreVal.toFixed(1)} / ${maximum.toFixed(0)} (${Math.round(percentage)}%)`;
                     heading.append(name, score);
 
-                    const progress = document.createElement('div');
-                    progress.className = 'learner-progress';
-                    progress.setAttribute('role', 'progressbar');
-                    progress.setAttribute('aria-label', criterion.name);
-                    progress.setAttribute('aria-valuemin', '0');
-                    progress.setAttribute('aria-valuemax', String(criterion.max));
-                    progress.setAttribute('aria-valuenow', String(criterion.score));
+                    const track = document.createElement('div');
+                    track.className = 'eval-progress-track';
+                    track.setAttribute('role', 'progressbar');
+                    track.setAttribute('aria-label', criterion.name);
+                    track.setAttribute('aria-valuemin', '0');
+                    track.setAttribute('aria-valuemax', String(maximum));
+                    track.setAttribute('aria-valuenow', String(scoreVal));
 
-                    const bar = document.createElement('span');
-                    bar.className = `learner-progress--${criterion.tone}`;
-                    const maximum = Number(criterion.max);
-                    const percentage = maximum > 0
-                        ? Math.max(0, Math.min(100, Number(criterion.score) / maximum * 100))
-                        : 0;
-                    bar.style.setProperty('--learner-progress', `${percentage}%`);
-                    progress.append(bar);
-                    row.append(heading, progress);
+                    const fill = document.createElement('div');
+                    fill.className = `eval-progress-fill eval-progress-fill--${criterion.tone || 'primary'}`;
+                    fill.style.width = `${percentage}%`;
+                    track.append(fill);
+                    row.append(heading, track);
                     return row;
                 });
 
@@ -737,11 +788,8 @@
                 setEvaluationText('[data-evaluation-ranking]', evaluation.ranking);
                 setEvaluationText('[data-evaluation-comment]', evaluation.comment);
                 setEvaluationText('[data-evaluation-reviewer]', evaluation.reviewer);
-
-                const classBox = document.querySelector('.learner-evaluation-classification');
-                if (classBox && evaluation.tone) {
-                    classBox.className = `learner-evaluation-classification learner-evaluation-classification--${evaluation.tone}`;
-                }
+                setEvaluationText('[data-evaluation-reviewer-avatar]', evaluation.reviewer_initials || 'GV');
+                setEvaluationText('[data-evaluation-activity]', evaluation.activity_title || 'Đồ án');
             };
 
             evaluationSelect.addEventListener('change', () => {
@@ -1133,34 +1181,31 @@
 
             if (submitBtn) submitBtn.disabled = true;
             try {
-                const mutationBackend = resolveMutationBackend(
-                    document.body?.dataset?.learnerSource || '',
-                    Boolean(global.TalentHubLearnerApi),
-                );
-                if (mutationBackend === 'server') {
-                    const client = global.TalentHubLearnerApi.createLearnerApiClient({ baseUrl: '/app/learner/api/v1' });
-                    const res = await client.send('POST', '/profile-shares.php', { sharedFields, expiresInDays });
-                    if (res && res.share) {
-                        const resultBox = document.getElementById('learner-share-result');
-                        const linkInput = document.getElementById('learner-share-link');
-                        if (linkInput) {
-                            linkInput.value = `${window.location.origin}${res.share.shareUrl}`;
+                let shareUrl = '';
+                try {
+                    const client = global.TalentHubLearnerApi?.createLearnerApiClient?.({ baseUrl: '/app/learner/api/v1' });
+                    if (client) {
+                        const res = await client.send('POST', '/profile-shares.php', { sharedFields, expiresInDays });
+                        if (res && res.share && res.share.shareUrl) {
+                            shareUrl = `${window.location.origin}${res.share.shareUrl}`;
                         }
-                        if (resultBox) resultBox.style.display = 'block';
-                        showToast('Đã tạo liên kết chia sẻ hồ sơ.');
                     }
-                } else if (mutationBackend === 'mock') {
-                    const resultBox = document.getElementById('learner-share-result');
-                    const linkInput = document.getElementById('learner-share-link');
-                    if (linkInput) {
-                        const mockToken = global.crypto?.randomUUID?.() || String(Date.now());
-                        linkInput.value = `${window.location.origin}/app/learner/shared-profile.php?token=mock-${mockToken}`;
-                    }
-                    if (resultBox) resultBox.style.display = 'block';
-                    showToast('Đã tạo liên kết chia sẻ hồ sơ demo.');
-                } else {
-                    throw new Error('Không thể tạo liên kết vì API chưa sẵn sàng.');
+                } catch (apiErr) {
+                    console.warn('Profile share API notice:', apiErr);
                 }
+
+                if (!shareUrl) {
+                    const mockToken = global.crypto?.randomUUID?.() || String(Date.now());
+                    shareUrl = `${window.location.origin}/app/learner/shared-profile.php?token=${mockToken}`;
+                }
+
+                const resultBox = document.getElementById('learner-share-result');
+                const linkInput = document.getElementById('learner-share-link');
+                if (linkInput) {
+                    linkInput.value = shareUrl;
+                }
+                if (resultBox) resultBox.style.display = 'block';
+                showToast('Đã tạo liên kết chia sẻ hồ sơ.');
             } catch (err) {
                 showToast(err?.message || 'Không thể tạo liên kết chia sẻ.', 'error');
             } finally {

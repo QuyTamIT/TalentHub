@@ -79,6 +79,16 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
             if ($student === null || (string) $student['userId'] !== $userId) {
                 throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hồ sơ học viên.');
             }
+            if (!$this->studentCanAccessPost($studentId, $post)) {
+                throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Cơ hội không thuộc phạm vi trường của học viên.');
+            }
+            if ($this->hasAcceptedPlacement($studentId)) {
+                throw new ApiException(
+                    409,
+                    'INTERNSHIP_PLACEMENT_LOCKED',
+                    'Bạn đã xác nhận một vị trí thực tập và không thể nộp thêm hồ sơ mới.'
+                );
+            }
             $consent = $this->lockConsent($studentId);
             if ($consent === null) {
                 throw new ApiException(422, 'CONSENT_REQUIRED', 'Cần xác nhận chia sẻ hồ sơ trước khi ứng tuyển.');
@@ -119,6 +129,12 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
                 'snapshotPayload' => json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                 'createdAt' => $now,
             ]);
+            $this->ensureEnterpriseApplicationConsent(
+                $studentId,
+                (string) $post['enterpriseId'],
+                (string) $consent['id'],
+                $now
+            );
             $this->appendHistory($applicationId, null, 'submitted', $userId, 'student', 'Ứng tuyển cơ hội', $now);
 
             $this->getNotificationService()->publish(
@@ -130,6 +146,7 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
                 'internship_application:' . $applicationId,
                 $studentId
             );
+            $this->notifyEnterpriseMembers((string) $post['enterpriseId'], $applicationId, (string) ($post['title'] ?? ''));
 
             $this->pdo->commit();
             return $this->readOneForStudent($studentId, $applicationId);
@@ -230,10 +247,102 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
 
     private function lockPost(string $postId): ?array
     {
-        $statement = $this->pdo->prepare('SELECT id, title, status, deadline FROM internship_posts WHERE id = :id LIMIT 1' . $this->lockSuffix());
+        $audience = $this->hasColumn('internship_posts', 'audience') ? 'ip.audience' : "'public' AS audience";
+        $statement = $this->pdo->prepare(
+            "SELECT ip.id, ip.enterpriseId, ip.title, ip.status, ip.deadline, {$audience},
+                    e.status AS enterpriseStatus, e.verificationStatus AS enterpriseVerificationStatus
+             FROM internship_posts ip
+             INNER JOIN enterprises e ON e.id = ip.enterpriseId
+             WHERE ip.id = :id LIMIT 1" . $this->lockSuffix()
+        );
         $statement->execute(['id' => $postId]);
         $row = $statement->fetch(PDO::FETCH_ASSOC);
         return is_array($row) ? $row : null;
+    }
+
+    /** @param array<string,mixed> $post */
+    private function studentCanAccessPost(string $studentId, array $post): bool
+    {
+        if (($post['enterpriseStatus'] ?? '') !== 'active'
+            || ($post['enterpriseVerificationStatus'] ?? '') !== 'verified'
+        ) {
+            return false;
+        }
+        if (($post['audience'] ?? 'public') !== 'partner_schools') {
+            return true;
+        }
+        if (!$this->hasTable('internship_post_target_schools')) {
+            return false;
+        }
+        $statement = $this->pdo->prepare(
+            'SELECT 1
+             FROM student_profiles sp
+             INNER JOIN classes c ON c.id = sp.classId
+             INNER JOIN internship_post_target_schools target ON target.schoolId = c.schoolId
+             WHERE sp.id = :studentId AND target.postId = :postId
+             LIMIT 1'
+        );
+        $statement->execute(['studentId' => $studentId, 'postId' => $post['id']]);
+        return $statement->fetchColumn() !== false;
+    }
+
+    private function ensureEnterpriseApplicationConsent(string $studentId, string $enterpriseId, string $consentId, string $now): void
+    {
+        if (!$this->hasTable('enterprise_talent_access_grants')) {
+            return;
+        }
+        $expiresAt = (new DateTimeImmutable($now, new DateTimeZone('UTC')))->modify('+90 days')->format('Y-m-d H:i:s.u');
+        $statement = $this->pdo->prepare(
+            'SELECT id FROM enterprise_talent_access_grants
+             WHERE studentId = :studentId AND enterpriseId = :enterpriseId AND scope = :scope
+             LIMIT 1' . $this->lockSuffix()
+        );
+        $parameters = ['studentId' => $studentId, 'enterpriseId' => $enterpriseId, 'scope' => self::CONSENT_SCOPE];
+        $statement->execute($parameters);
+        $grantId = $statement->fetchColumn();
+        if (is_string($grantId) && $grantId !== '') {
+            $update = $this->pdo->prepare(
+                'UPDATE enterprise_talent_access_grants
+                 SET consentId = :consentId, grantedAt = :grantedAt, expiresAt = :expiresAt,
+                     revokedAt = NULL, updatedAt = :updatedAt
+                 WHERE id = :id'
+            );
+            $update->execute(['consentId' => $consentId, 'grantedAt' => $now, 'expiresAt' => $expiresAt, 'updatedAt' => $now, 'id' => $grantId]);
+            return;
+        }
+        $insert = $this->pdo->prepare(
+            'INSERT INTO enterprise_talent_access_grants
+                (id, studentId, enterpriseId, consentId, scope, grantedAt, expiresAt, revokedAt, createdAt, updatedAt)
+             VALUES
+                (:id, :studentId, :enterpriseId, :consentId, :scope, :grantedAt, :expiresAt, NULL, :createdAt, :updatedAt)'
+        );
+        $insert->execute($parameters + [
+            'id' => SupportUuid::v4(),
+            'consentId' => $consentId,
+            'grantedAt' => $now,
+            'expiresAt' => $expiresAt,
+            'createdAt' => $now,
+            'updatedAt' => $now,
+        ]);
+    }
+
+    private function notifyEnterpriseMembers(string $enterpriseId, string $applicationId, string $postTitle): void
+    {
+        if (!$this->hasTable('enterprise_members')) {
+            return;
+        }
+        $statement = $this->pdo->prepare('SELECT userId FROM enterprise_members WHERE enterpriseId = :enterpriseId ORDER BY id');
+        $statement->execute(['enterpriseId' => $enterpriseId]);
+        foreach ($statement->fetchAll(PDO::FETCH_COLUMN) ?: [] as $enterpriseUserId) {
+            $this->getNotificationService()->publish(
+                (string) $enterpriseUserId,
+                'internship_application_submitted',
+                'Có hồ sơ ứng tuyển mới',
+                'Một học viên vừa ứng tuyển vị trí ' . $postTitle . '.',
+                '/app/enterprise/applications.php',
+                'enterprise_application_submitted:' . $applicationId . ':' . $enterpriseUserId
+            );
+        }
     }
 
     private function lockStudent(string $studentId): ?array
@@ -267,6 +376,16 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
     {
         $statement = $this->pdo->prepare('SELECT id FROM internship_applications WHERE postId = :postId AND studentId = :studentId AND status NOT IN (\'rejected\', \'declined\', \'withdrawn\', \'cancelled\') LIMIT 1' . $this->lockSuffix());
         $statement->execute(['postId' => $postId, 'studentId' => $studentId]);
+        return $statement->fetchColumn() !== false;
+    }
+
+    private function hasAcceptedPlacement(string $studentId): bool
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT id FROM internship_applications "
+            . "WHERE studentId = :studentId AND status = 'accepted' LIMIT 1" . $this->lockSuffix()
+        );
+        $statement->execute(['studentId' => $studentId]);
         return $statement->fetchColumn() !== false;
     }
 
@@ -379,6 +498,31 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
     private function now(): string { return (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s.u'); }
     private function utc(string $value): DateTimeImmutable { return new DateTimeImmutable($value, new DateTimeZone('UTC')); }
     private function lockSuffix(): string { return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite' ? '' : ' FOR UPDATE'; }
+
+    private function hasTable(string $table): bool
+    {
+        if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $statement = $this->pdo->prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:table LIMIT 1");
+            $statement->execute(['table' => $table]);
+            return $statement->fetchColumn() !== false;
+        }
+        $statement = $this->pdo->prepare('SELECT 1 FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=:table LIMIT 1');
+        $statement->execute(['table' => $table]);
+        return $statement->fetchColumn() !== false;
+    }
+
+    private function hasColumn(string $table, string $column): bool
+    {
+        if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            foreach ($this->pdo->query('PRAGMA table_info(' . $table . ')')->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+                if (($row['name'] ?? null) === $column) return true;
+            }
+            return false;
+        }
+        $statement = $this->pdo->prepare('SELECT 1 FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name=:table AND column_name=:column LIMIT 1');
+        $statement->execute(['table' => $table, 'column' => $column]);
+        return $statement->fetchColumn() !== false;
+    }
 
     protected function getNotificationService(): NotificationService
     {

@@ -14,12 +14,27 @@ use TalentHub\Http\CorsPolicy;
 use TalentHub\Http\JsonResponse;
 use TalentHub\Http\Request;
 use TalentHub\Http\Router;
+use TalentHub\Modules\School\Repository\SchoolAuditRepository;
 use TalentHub\Modules\School\Repository\SchoolPartnershipRepository;
+use TalentHub\Modules\School\Repository\SchoolActivityApprovalRepository;
+use TalentHub\Modules\School\Repository\SchoolCredentialManagementRepository;
 use TalentHub\Modules\School\Repository\SchoolProjectRepository;
 use TalentHub\Modules\School\Repository\SchoolRepository;
+use TalentHub\Modules\School\Repository\SchoolAiAggregateRepository;
+use TalentHub\Modules\School\Repository\DatabaseSchoolAiInsightRepository;
+use TalentHub\Modules\School\Repository\DatabaseSchoolAiRefreshJobRepository;
 use TalentHub\Modules\School\Service\SchoolAuthorization;
+use TalentHub\Modules\School\Service\SchoolActivityApprovalService;
+use TalentHub\Modules\School\Service\SchoolCredentialManagementService;
+use TalentHub\Modules\School\Service\SchoolAuditService;
 use TalentHub\Modules\School\Service\SchoolAccountInvitationService;
 use TalentHub\Modules\School\Service\SchoolDashboardService;
+use TalentHub\Modules\School\Service\SchoolAiInsightService;
+use TalentHub\Modules\School\Service\SchoolAiGeminiExplainer;
+use TalentHub\Learner\Ai\Config\RecommendationConfig;
+use TalentHub\Learner\Ai\Availability\AiAvailabilityPolicy;
+use TalentHub\Learner\Ai\Provider\CircuitBreaker;
+use TalentHub\Learner\Ai\Provider\DatabaseCircuitBreakerStore;
 use TalentHub\Modules\School\Service\SchoolPartnershipService;
 use TalentHub\Modules\School\Service\SchoolProjectService;
 use TalentHub\Modules\School\Service\StudentSafeguardingService;
@@ -32,6 +47,8 @@ use TalentHub\Modules\Business\Repository\InternshipRepository;
 use TalentHub\Modules\Business\Service\BusinessProfileService;
 use TalentHub\Modules\Business\Service\BusinessWorkflowService;
 use TalentHub\Modules\Business\Service\EnterpriseTalentService;
+use TalentHub\Modules\Business\Service\EnterpriseMatchService;
+use TalentHub\Modules\Business\Service\EnterpriseAiGeminiMatcher;
 use TalentHub\Modules\Business\Service\InternshipService;
 use TalentHub\Modules\Business\Service\PaymentConfirmationService;
 use TalentHub\Modules\Notification\Repository\NotificationRepository;
@@ -50,11 +67,20 @@ use Throwable;
 
 final class Application
 {
+    private ?\PDO $customPdo = null;
+
     private function __construct(private readonly CorsPolicy $corsPolicy) {}
 
     public static function create(): self
     {
         return new self(new CorsPolicy());
+    }
+
+    public static function createWithPdo(\PDO $pdo): self
+    {
+        $app = new self(new CorsPolicy());
+        $app->customPdo = $pdo;
+        return $app;
     }
 
     public static function boot(): self
@@ -65,6 +91,29 @@ final class Application
     public static function getInstance(): self
     {
         return self::create();
+    }
+
+    public function handle(Request $request): JsonResponse
+    {
+        $requestId = RequestId::generate();
+        try {
+            $this->corsPolicy->apply($request);
+            $router = $this->buildRouter($requestId);
+            return $router->dispatch($request);
+        }
+        catch (ApiException $exception) {
+            error_log("[API {$requestId}] ApiException (" . $exception->errorCode . "): " . $exception->getMessage() . "\n" . $exception->getTraceAsString());
+            return JsonResponse::error($exception, $requestId);
+        }
+        catch (DatabaseConnectionException $exception) {
+            error_log("[API {$requestId}] DatabaseConnectionException: " . $exception->getMessage() . "\n" . $exception->getTraceAsString());
+            return JsonResponse::error(new ApiException(503, 'SERVICE_UNAVAILABLE', 'Dịch vụ dữ liệu tạm thời không khả dụng.', [], [], $exception), $requestId, $exception);
+        }
+        catch (Throwable $exception) {
+            error_log("[API {$requestId}] Uncaught Throwable: " . $exception->getMessage() . " in " . $exception->getFile() . ":" . $exception->getLine() . "\n" . $exception->getTraceAsString());
+            $message = getenv('APP_ENV') === 'production' ? 'Đã xảy ra lỗi hệ thống.' : ($exception->getMessage() ?: 'Đã xảy ra lỗi hệ thống.');
+            return JsonResponse::error(new ApiException(500, 'INTERNAL_ERROR', $message, [], [], $exception), $requestId, $exception);
+        }
     }
 
     public function run(): void
@@ -99,9 +148,29 @@ final class Application
      */
     public function buildRouter(string $requestId): Router
     {
-        $config=require dirname(__DIR__,2).'/config/database.php';$pdo=(new Connection($config))->connect();
+        $config=require dirname(__DIR__,2).'/config/database.php';$pdo=$this->customPdo??(new Connection($config))->connect();
         $session=new SessionManager(require dirname(__DIR__,2).'/config/session.php');$session->start();
-        $auth=new AuthService(new AuthRepository($pdo));$loginLimiter=new LoginRateLimiter($pdo);$permissions=new PermissionService($pdo);$teachers=new TeacherProfileService(new TeacherRepository($pdo));$teacherActivities=new TeacherActivityService(new TeacherActivityRepository($pdo));$schoolRepository=new SchoolRepository($pdo);$schoolAuthorization=new SchoolAuthorization($pdo);$schools=new SchoolDashboardService($schoolRepository,$pdo,$schoolAuthorization);$accountInvitations=new SchoolAccountInvitationService($schoolRepository);$safeguarding=new StudentSafeguardingService($pdo,$schoolRepository,$schoolAuthorization);$students=new StudentProfileService(new StudentRepository($pdo));$businesses=new BusinessProfileService(new BusinessRepository($pdo));$internships=new InternshipService(new InternshipRepository($pdo));$workflows=new BusinessWorkflowService(new BusinessWorkflowRepository($pdo),$internships);$talents=new EnterpriseTalentService(new EnterpriseTalentRepository($pdo));$partnerships=new SchoolPartnershipService(new SchoolPartnershipRepository($pdo));$schoolProjects=new SchoolProjectService(new SchoolProjectRepository($pdo));$teacherProjects=new TeacherProjectService(new TeacherProjectRepository($pdo));$notifications=new NotificationService(new NotificationRepository($pdo));$admin=new AdminRepository($pdo);$router=new Router();
+        $auth=new AuthService(new AuthRepository($pdo));$loginLimiter=new LoginRateLimiter($pdo);$permissions=new PermissionService($pdo);$teachers=new TeacherProfileService(new TeacherRepository($pdo));$teacherActivities=new TeacherActivityService(new TeacherActivityRepository($pdo));$schoolRepository=new SchoolRepository($pdo);$schoolAuthorization=new SchoolAuthorization($pdo);$schools=new SchoolDashboardService($schoolRepository,$pdo,$schoolAuthorization);$schoolActivityApprovals=new SchoolActivityApprovalService(new SchoolActivityApprovalRepository($pdo));$schoolCredentials=new SchoolCredentialManagementService(new SchoolCredentialManagementRepository($pdo));$schoolAudit=new SchoolAuditService(new SchoolAuditRepository($pdo));
+        $aiConfig=null;$schoolExplainer=null;$schoolCircuit=null;$enterpriseCircuit=null;$enterpriseMatcher=null;
+        try{
+            $aiConfig=RecommendationConfig::fromEnvironment($_ENV);
+            if($aiConfig->enabled()){
+                try{
+                    $pdo->query('SELECT 1 FROM learner_ai_provider_health LIMIT 1');
+                    $schoolCircuit=new CircuitBreaker(3,30,null,new DatabaseCircuitBreakerStore($pdo),'gemini-school-insight');
+                    $enterpriseCircuit=new CircuitBreaker(3,30,null,new DatabaseCircuitBreakerStore($pdo),'gemini-enterprise-match');
+                }catch(\Throwable){
+                    $schoolCircuit=null;
+                    $enterpriseCircuit=null;
+                }
+                if($schoolCircuit!==null&&$enterpriseCircuit!==null){
+                    $schoolExplainer=new SchoolAiGeminiExplainer($aiConfig,null,null,$schoolCircuit);
+                    $enterpriseMatcher=new EnterpriseAiGeminiMatcher($aiConfig,null,null,$enterpriseCircuit);
+                }
+            }
+        }catch(\Throwable){}
+        $schoolModelAllowed=static function(string $schoolId)use($aiConfig):bool{return $aiConfig instanceof RecommendationConfig&&$aiConfig->enabled()&&$aiConfig->shadowGateApproved()&&$aiConfig->visiblePercent()>0&&!$aiConfig->pilotPaused()&&trim((string)$aiConfig->pilotApprovalReference())!==''&&(new AiAvailabilityPolicy())->isAssigned($schoolId,$aiConfig);};
+        $schoolInsightStore=new DatabaseSchoolAiInsightRepository($pdo);$schoolRefreshQueue=null;try{$pdo->query('SELECT 1 FROM school_ai_refresh_jobs LIMIT 1');$schoolRefreshQueue=new DatabaseSchoolAiRefreshJobRepository($pdo);}catch(\Throwable){}$enqueueSchoolRefresh=$schoolRefreshQueue===null?null:static function(string $schoolId,string $hash)use($schoolRefreshQueue):?int{return $schoolRefreshQueue->enqueue($schoolId,$hash);};$schoolAi=new SchoolAiInsightService(new SchoolAiAggregateRepository($pdo),static fn(string $userId):array=>$schools->getByUser($userId),$schoolExplainer,static fn(string $schoolId):?array=>$schoolInsightStore->latest($schoolId),5,static fn(string $schoolId,array $payload)=>$schoolInsightStore->save($schoolId,$payload,(string)($aiConfig?->model()??'unknown')),$schoolModelAllowed,$aiConfig?->model(),false,604800,$enqueueSchoolRefresh);$accountInvitations=new SchoolAccountInvitationService($schoolRepository);$safeguarding=new StudentSafeguardingService($pdo,$schoolRepository,$schoolAuthorization);$students=new StudentProfileService(new StudentRepository($pdo));$businesses=new BusinessProfileService(new BusinessRepository($pdo));$internships=new InternshipService(new InternshipRepository($pdo));$workflows=new BusinessWorkflowService(new BusinessWorkflowRepository($pdo),$internships);$enterpriseMatchService=new EnterpriseMatchService(new EnterpriseTalentRepository($pdo),$enterpriseMatcher,$aiConfig?->model());$talents=new EnterpriseTalentService(new EnterpriseTalentRepository($pdo));$partnerships=new SchoolPartnershipService(new SchoolPartnershipRepository($pdo));$schoolProjects=new SchoolProjectService(new SchoolProjectRepository($pdo));$teacherProjects=new TeacherProjectService(new TeacherProjectRepository($pdo));$notifications=new NotificationService(new NotificationRepository($pdo));$admin=new AdminRepository($pdo);$router=new Router();
         $router->add('GET','/api/v1/health',fn()=>JsonResponse::success(['status'=>'ok','database'=>'available'],$requestId));
         $router->add('GET','/api/v1/auth/csrf',fn()=>JsonResponse::success(['csrfToken'=>$session->csrfToken()],$requestId));
         $router->add('POST','/api/v1/auth/register',function(Request $r)use($auth,$requestId){$user=$auth->registerStudent($r->json(),$requestId,$_SERVER['REMOTE_ADDR']??null);return JsonResponse::success(['user'=>$user],$requestId,201);});
@@ -117,7 +186,12 @@ final class Application
         $router->add('GET','/api/v1/schools/me',function()use($session,$permissions,$schools,$requestId){$user=$this->requireSchool($session);$permissions->require($user['id'],'school_profile.read_own');return JsonResponse::success($schools->getByUser($user['id']),$requestId);});
         $router->add('PATCH','/api/v1/schools/me',function(Request $r)use($session,$permissions,$schools,$requestId){$user=$this->requireSchool($session);$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'school_profile.update_own');return JsonResponse::success($schools->update($user['id'],$r->json()),$requestId);});
         $router->add('GET','/api/v1/schools/me/dashboard',function()use($session,$permissions,$schools,$requestId){$user=$this->requireSchool($session);$permissions->require($user['id'],'school_dashboard.read_own');return JsonResponse::success($schools->dashboard($user['id']),$requestId);});
+        $router->add('GET','/api/v1/schools/me/activities',function(Request $r)use($session,$permissions,$schoolActivityApprovals,$requestId){$user=$this->requireSchool($session);$permissions->require($user['id'],'activity.review_school');$status=$r->queryParam('status');$search=$r->queryParam('search');return JsonResponse::success(['items'=>$schoolActivityApprovals->list($user['id'],is_string($status)?$status:null,is_string($search)?$search:null)],$requestId);});
+        $router->add('PATCH','/api/v1/schools/me/activities/{activityId}/review',function(Request $r)use($session,$permissions,$schoolActivityApprovals,$requestId){$user=$this->requireSchool($session);$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'activity.review_school');$input=$r->json();return JsonResponse::success($schoolActivityApprovals->review($user['id'],(string)$r->pathParam('activityId'),(string)($input['decision']??''),isset($input['reason'])?(string)$input['reason']:null,$requestId),$requestId);});
+        $router->add('GET','/api/v1/schools/me/credentials',function()use($session,$permissions,$schoolCredentials,$requestId){$user=$this->requireSchool($session);$permissions->require($user['id'],'school_credential.manage_own');return JsonResponse::success($schoolCredentials->dashboard($user['id']),$requestId);});
+        $router->add('POST','/api/v1/schools/me/credentials',function(Request $r)use($session,$permissions,$schoolCredentials,$requestId){$user=$this->requireSchool($session);$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'school_credential.manage_own');$input=$r->json();$action=(string)($input['action']??'');$result=match($action){'create_badge'=>$schoolCredentials->createBadge($user['id'],$input,$requestId),'create_certificate'=>$schoolCredentials->createCertificateCatalog($user['id'],$input,$requestId),'award_badge'=>$schoolCredentials->awardBadge($user['id'],(string)($input['badgeId']??''),(string)($input['studentId']??''),(array)($input['evidence']??[]),$requestId),'issue_certificate'=>$schoolCredentials->issueCertificate($user['id'],(string)($input['catalogId']??''),(string)($input['studentId']??''),(array)($input['evidence']??[]),$requestId),'revoke_certificate'=>$schoolCredentials->revokeCertificate($user['id'],(string)($input['awardId']??''),(string)($input['reason']??''),$requestId),default=>throw new ApiException(422,'VALIDATION_FAILED','Thao tác credential không hợp lệ.')};return JsonResponse::success($result,$requestId,201);});
         $router->add('GET','/api/v1/schools/me/analytics',function()use($session,$permissions,$schools,$requestId){$user=$this->requireSchool($session);$permissions->require($user['id'],'school_analytics.read_own');return JsonResponse::success($schools->analytics($user['id']),$requestId);});
+        $router->add('GET','/api/v1/schools/me/ai-insights',function()use($session,$permissions,$schoolAi,$requestId){$user=$this->requireSchool($session);$permissions->require($user['id'],'school_analytics.read_own');return JsonResponse::success($schoolAi->insight($user['id']),$requestId);});
         $router->add('GET','/api/v1/schools/me/classes',function(Request $r)use($session,$permissions,$schools,$requestId){$user=$this->requireSchool($session);$permissions->require($user['id'],'class.read_own_school');$limit=$this->parseInt($r->queryParam('limit'),1,200,50);$offset=$this->parseInt($r->queryParam('offset'),0,1000000,0);return JsonResponse::success($schools->classes($user['id']),$requestId);});
         $router->add('POST','/api/v1/schools/me/classes',function(Request $r)use($session,$permissions,$schools,$requestId){$user=$this->requireSchool($session);$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'class.create_own_school');return JsonResponse::success($schools->createClass($user['id'],$r->json()),$requestId,201);});
         $router->add('PATCH','/api/v1/schools/me/classes/{classId}',function(Request $r)use($session,$permissions,$schools,$requestId){$user=$this->requireSchool($session);$session->assertCsrf($r->header('x-csrf-token'));$classId=(string)$r->pathParam('classId');$permissions->require($user['id'],'class.update_own_school');return JsonResponse::success($schools->updateClass($user['id'],$classId,$r->json()),$requestId);});
@@ -158,8 +232,43 @@ final class Application
         $router->add('GET','/api/v1/schools/me/student-enterprise-approvals',function()use($session,$permissions,$safeguarding,$requestId){$user=$this->requireSchool($session);$permissions->require($user['id'],'safeguarding.read_own_school');return JsonResponse::success(['items'=>$safeguarding->approvals($user['id'])],$requestId);});
         $router->add('POST','/api/v1/schools/me/student-enterprise-approvals',function(Request $r)use($session,$permissions,$safeguarding,$requestId){$user=$this->requireSchool($session);$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'safeguarding.approve_own_student');$input=$r->json();return JsonResponse::success($safeguarding->approve($user['id'],(string)($input['studentId']??''),(string)($input['enterpriseId']??''),(string)($input['expiresAt']??'')),$requestId,201);});
         $router->add('DELETE','/api/v1/schools/me/student-enterprise-approvals/{approvalId}',function(Request $r)use($session,$permissions,$safeguarding,$requestId){$user=$this->requireSchool($session);$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'safeguarding.approve_own_student');return JsonResponse::success($safeguarding->revokeApproval($user['id'],(string)$r->pathParam('approvalId')),$requestId);});
+        $router->add('GET','/api/v1/schools/me/profile-access-logs',function(Request $r)use($session,$permissions,$schoolAudit,$requestId){$user=$this->requireSchool($session);$permissions->require($user['id'],'school_profile_access_log.read_own_school');return JsonResponse::success($schoolAudit->profileAccessOverview($user['id'],['search'=>$r->queryParam('search'),'accessType'=>$r->queryParam('accessType'),'from'=>$r->queryParam('from'),'to'=>$r->queryParam('to'),'limit'=>$r->queryParam('limit'),'offset'=>$r->queryParam('offset')]),$requestId);});
         $router->add('GET','/api/v1/businesses/me/talents',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'talent.search_consented');$params=['search'=>$r->queryParam('search'),'school'=>$r->queryParam('school'),'skills'=>$r->queryParam('skills'),'sort'=>$r->queryParam('sort'),'limit'=>$r->queryParam('limit'),'offset'=>$r->queryParam('offset')];return JsonResponse::success($talents->listTalents($user['id'],$params),$requestId);});
-        $router->add('GET','/api/v1/businesses/me/talents/{studentId}',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'talent.read_consented');$studentId=(string)$r->pathParam('studentId');return JsonResponse::success(['talent'=>$talents->getTalent($user['id'],$studentId)],$requestId);});
+        $router->add('POST','/api/v1/businesses/me/ai-matches',function(Request $r)use($session,$permissions,$pdo,$enterpriseMatchService,$requestId){
+            $user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');
+            $session->assertCsrf($r->header('x-csrf-token'));
+            $permissions->require($user['id'],'talent.search_consented');
+            $idempotencyKey=trim((string)$r->header('x-idempotency-key'));
+            if(!preg_match('/^[A-Za-z0-9._:-]{16,100}$/',$idempotencyKey)){
+                throw new ApiException(422,'VALIDATION_FAILED','X-Idempotency-Key không hợp lệ.');
+            }
+            $input=$r->json();
+            if(array_diff(array_keys($input),['jobId','requiredSkills'])!==[]){
+                throw new ApiException(422,'VALIDATION_FAILED','Request chứa field không được phép.');
+            }
+            $jobId=trim((string)($input['jobId']??''));
+            if($jobId===''){
+                throw new ApiException(422,'VALIDATION_FAILED','jobId là bắt buộc.');
+            }
+            $talentRepo=new EnterpriseTalentRepository($pdo);
+            $enterprise=$talentRepo->enterpriseForUser($user['id']);
+            $job=$talentRepo->matchingJob((string)$enterprise['id'],$jobId);
+            if(isset($input['requiredSkills'])){
+                if(!is_array($input['requiredSkills'])||!array_is_list($input['requiredSkills'])){
+                    throw new ApiException(422,'VALIDATION_FAILED','requiredSkills phải là danh sách kỹ năng.');
+                }
+                $requestedSkills=[];
+                foreach($input['requiredSkills'] as $skill){
+                    if(!is_string($skill)||trim($skill)===''||mb_strlen(trim($skill))>120){
+                        throw new ApiException(422,'VALIDATION_FAILED','requiredSkills không hợp lệ.');
+                    }
+                    $requestedSkills[]=trim($skill);
+                }
+                $job['required_skills']=array_values(array_unique(array_merge($job['required_skills']??[],$requestedSkills)));
+            }
+            return JsonResponse::success($enterpriseMatchService->match((string)$enterprise['id'],$job),$requestId);
+        });
+        $router->add('GET','/api/v1/businesses/me/talents/{studentId}',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'talent.read_consented');$studentId=(string)$r->pathParam('studentId');return JsonResponse::success(['talent'=>$talents->getTalent($user['id'],$studentId,$requestId,isset($_SERVER['REMOTE_ADDR'])?(string)$_SERVER['REMOTE_ADDR']:null)],$requestId);});
         $router->add('POST','/api/v1/businesses/me/talents/{studentId}/contact-requests',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'contact_request.create_own_business');$studentId=(string)$r->pathParam('studentId');return JsonResponse::success($talents->requestContact($user['id'],$studentId,$r->json(),$requestId),$requestId,201);});
         $router->add('GET','/api/v1/students/me/enterprise-profile-grants',function()use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,'student','học viên');$permissions->require($user['id'],'privacy_consent.read_own');return JsonResponse::success($talents->listGrants($user['id']),$requestId);});
         $router->add('POST','/api/v1/students/me/enterprise-profile-grants',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,'student','học viên');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'privacy_consent.manage_own');return JsonResponse::success($talents->grantAccess($user['id'],$r->json()),$requestId,201);});
@@ -171,7 +280,7 @@ final class Application
         $router->add('POST','/api/v1/businesses/me/internship-posts',function(Request $r)use($session,$permissions,$workflows,$requestId){$u=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($u['id'],'internship_post.create_own_business');return JsonResponse::success($workflows->createPost($u['id'],$r->json(),$requestId),$requestId,201);});
         $router->add('PATCH','/api/v1/businesses/me/internship-posts/{postId}',function(Request $r)use($session,$permissions,$workflows,$requestId){$u=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($u['id'],'internship_post.update_own_business');return JsonResponse::success($workflows->updatePost($u['id'],(string)$r->pathParam('postId'),$r->json(),$requestId),$requestId);});
         foreach(['publish','close'] as $action){$router->add('POST',"/api/v1/businesses/me/internship-posts/{postId}/{$action}",function(Request $r)use($session,$permissions,$workflows,$requestId,$action){$u=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($u['id'],"internship_post.{$action}_own_business");return JsonResponse::success($workflows->transitionPost($u['id'],(string)$r->pathParam('postId'),$action,$requestId),$requestId);});}
-        $router->add('GET','/api/v1/internship-posts',function(Request $r)use($session,$permissions,$workflows,$requestId){$u=$this->requireRole($session,'student','học viên');$permissions->require($u['id'],'internship_post.read_available');$q=CollectionQuery::fromRequest($r,['createdAt','title','deadline']);return JsonResponse::success(['items'=>$workflows->publicPosts($q),'page'=>$q->meta()],$requestId);});
+        $router->add('GET','/api/v1/internship-posts',function(Request $r)use($session,$permissions,$workflows,$requestId){$u=$this->requireRole($session,'student','học viên');$permissions->require($u['id'],'internship_post.read_available');$q=CollectionQuery::fromRequest($r,['createdAt','title','deadline']);return JsonResponse::success(['items'=>$workflows->publicPosts($q,$u['id']),'page'=>$q->meta()],$requestId);});
         $router->add('POST','/api/v1/internship-posts/{postId}/applications',function(Request $r)use($session,$permissions,$workflows,$requestId){$u=$this->requireRole($session,'student','học viên');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($u['id'],'internship_application.create_own');return JsonResponse::success($workflows->apply($u['id'],(string)$r->pathParam('postId'),$r->json(),$requestId),$requestId,201);});
         $router->add('GET','/api/v1/students/me/internship-applications',function()use($session,$permissions,$workflows,$requestId){$u=$this->requireRole($session,'student','học viên');$permissions->require($u['id'],'internship_application.read_own');return JsonResponse::success($workflows->studentApplications($u['id']),$requestId);});
         $router->add('POST','/api/v1/students/me/internship-applications/{applicationId}/withdraw',function(Request $r)use($session,$permissions,$workflows,$requestId){$u=$this->requireRole($session,'student','học viên');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($u['id'],'internship_application.withdraw_own');return JsonResponse::success($workflows->withdraw($u['id'],(string)$r->pathParam('applicationId'),$requestId),$requestId);});

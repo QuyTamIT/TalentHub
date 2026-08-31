@@ -35,6 +35,22 @@ final class SchoolCredentialService
             $completedFamilies
         )) === 4;
         $analysisCompleted = $ready && $this->credentials->hasCompletedRoadmap($studentId);
+        $roadmapAnalysis = $analysisCompleted
+            ? $this->credentials->latestRoadmapAnalysis($studentId)
+            : null;
+        if (is_array($roadmapAnalysis)) {
+            $insights = is_array($roadmapAnalysis['insights'] ?? null) ? $roadmapAnalysis['insights'] : [];
+            foreach (['strength' => 'strengths', 'improvement' => 'improvements'] as $category => $field) {
+                if (($roadmapAnalysis[$field] ?? []) !== []) {
+                    continue;
+                }
+                $roadmapAnalysis[$field] = array_values(array_filter(
+                    $insights,
+                    static fn (mixed $item): bool => is_array($item)
+                        && strtolower(trim((string) ($item['category'] ?? ''))) === $category
+                ));
+            }
+        }
 
         $profile = $assessmentProfile;
         $profile['skills'] = $this->credentials->verifiedSkillProfile($studentId);
@@ -90,6 +106,7 @@ final class SchoolCredentialService
         return [
             'ready' => $ready,
             'analysis_completed' => $analysisCompleted,
+            'roadmap_analysis' => $roadmapAnalysis,
             'completed_test_count' => count($completedFamilies),
             'required_test_count' => 4,
             'school' => [
@@ -157,6 +174,7 @@ final class SchoolCredentialService
             'name' => (string) ($item['name'] ?? ''),
             'description' => (string) ($item['description'] ?? ''),
             'category' => (string) ($item['category'] ?? ''),
+            'level' => (int) ($item['level'] ?? 1),
             'issuer_name' => (string) ($item['issuer_name'] ?? $schoolName),
             'icon_key' => (string) ($item['icon_key'] ?? 'award'),
             'status' => $status,
@@ -252,6 +270,7 @@ final class SchoolCredentialService
         return [
             'ready' => false,
             'analysis_completed' => false,
+            'roadmap_analysis' => null,
             'completed_test_count' => 0,
             'required_test_count' => 4,
             'school' => null,

@@ -27,6 +27,185 @@ final class EnterpriseTalentRepository
     }
 
     /**
+     * Look up an active, unexpired internship post owned by the enterprise.
+     *
+     * @return array{id:string,title:string,description:string,required_skills:list<string>}
+     */
+    public function matchingJob(string $enterpriseId, string $jobId): array
+    {
+        $stmt = $this->pdo->prepare('SELECT id, enterpriseId, title, description, skillsJson, requirementsJson, status, deadline FROM internship_posts WHERE id = ? AND enterpriseId = ? LIMIT 1');
+        $stmt->execute([$jobId, $enterpriseId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy tin tuyển dụng hoặc không thuộc doanh nghiệp.');
+        }
+        if (($row['status'] ?? '') !== 'active') {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Tin tuyển dụng không ở trạng thái hoạt động.');
+        }
+        if (!empty($row['deadline'])) {
+            $now = gmdate('Y-m-d H:i:s');
+            if ($row['deadline'] < $now) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Tin tuyển dụng đã hết hạn.');
+            }
+        }
+        $skills = [];
+        foreach (['skillsJson', 'requirementsJson'] as $column) {
+            $raw = trim((string) ($row[$column] ?? ''));
+            if ($raw === '') {
+                continue;
+            }
+            try {
+                $decoded = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
+            } catch (\JsonException) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Dữ liệu kỹ năng của tin tuyển dụng không hợp lệ.');
+            }
+            if (!is_array($decoded)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Dữ liệu kỹ năng của tin tuyển dụng không hợp lệ.');
+            }
+            foreach ($decoded as $skill) {
+                if (!is_string($skill)) {
+                    continue;
+                }
+                $skill = trim($skill);
+                if ($skill !== '') {
+                    $skills[] = $skill;
+                }
+            }
+        }
+        return [
+            'id' => (string) $row['id'],
+            'title' => (string) ($row['title'] ?? ''),
+            'description' => (string) ($row['description'] ?? ''),
+            'required_skills' => array_values(array_unique($skills)),
+        ];
+    }
+
+    /**
+     * Return the minimum, consented candidate projection used by enterprise matching.
+     * The query intentionally exposes no protected traits or hidden profile fields.
+     *
+     * @param list<string> $requiredSkills
+     * @return list<array{student_id:string,display_name:string,skills:list<array<string,mixed>>}>
+     */
+    public function matchCandidates(string $enterpriseId, array $requiredSkills = []): array
+    {
+        $now = $this->now();
+        $sql = <<<'SQL'
+            SELECT sp.id AS student_id, u.fullName AS display_name,
+                   sk.id AS skill_id, sk.name AS skill_name, ss.levelScore AS level_score
+            FROM student_profiles sp
+            INNER JOIN users u ON u.id = sp.userId AND u.status = 'active'
+            INNER JOIN enterprise_talent_access_grants grant_row
+              ON grant_row.studentId = sp.id
+             AND grant_row.enterpriseId = :enterpriseId
+             AND grant_row.scope = 'enterprise_talent_discovery'
+             AND grant_row.revokedAt IS NULL
+             AND grant_row.expiresAt > :now
+            INNER JOIN privacy_consents consent
+              ON consent.id = grant_row.consentId
+             AND consent.studentId = sp.id
+             AND consent.scope = 'enterprise_talent_discovery'
+             AND consent.isGranted = 1
+             AND consent.revokedAt IS NULL
+            LEFT JOIN student_skills ss
+              ON ss.studentId = sp.id AND ss.verificationStatus = 'verified'
+            LEFT JOIN skills sk ON sk.id = ss.skillId AND sk.status = 'active'
+            ORDER BY sp.id ASC, sk.name ASC, sk.id ASC
+        SQL;
+        // A partnership is an additional tenant boundary when schools are present.
+        if ($this->tableExists('school_enterprise_partnerships') && $this->tableExists('classes')) {
+            $sql = str_replace(
+                '            ORDER BY sp.id ASC, sk.name ASC, sk.id ASC',
+                "            WHERE EXISTS (SELECT 1 FROM classes cl INNER JOIN school_enterprise_partnerships sep ON sep.schoolId = cl.schoolId WHERE cl.id = sp.classId AND sep.enterpriseId = :partnershipEnterprise AND sep.status = 'approved')\n            ORDER BY sp.id ASC, sk.name ASC, sk.id ASC",
+                $sql
+            );
+        }
+        $stmt = $this->pdo->prepare($sql);
+        $params = ['enterpriseId' => $enterpriseId, 'now' => $now];
+        if (str_contains($sql, ':partnershipEnterprise')) {
+            $params['partnershipEnterprise'] = $enterpriseId;
+        }
+        $stmt->execute($params);
+
+        $candidates = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $studentId = (string) ($row['student_id'] ?? '');
+            if ($studentId === '') {
+                continue;
+            }
+            if (!isset($candidates[$studentId])) {
+                $candidates[$studentId] = [
+                    'student_id' => $studentId,
+                    'display_name' => (string) ($row['display_name'] ?? 'Ứng viên'),
+                    'skills' => [],
+                ];
+            }
+            if (!empty($row['skill_id']) && !empty($row['skill_name'])) {
+                $name = (string) $row['skill_name'];
+                $candidates[$studentId]['skills'][] = [
+                    'skill_id' => (string) $row['skill_id'],
+                    'name' => $name,
+                    'level_score' => (float) ($row['level_score'] ?? 0),
+                ];
+            }
+        }
+
+        return array_values($candidates);
+    }
+
+    /** Backwards-compatible descriptive alias for matching callers. */
+    public function findMatchCandidates(string $enterpriseId, array $requiredSkills = []): array
+    {
+        return $this->matchCandidates($enterpriseId, $requiredSkills);
+    }
+
+    /** @return ?array<string,mixed> */
+    public function cachedMatchRanking(string $enterpriseId, string $jobHash): ?array
+    {
+        try {
+            $statement = $this->pdo->prepare('SELECT ranking_json, updated_at FROM enterprise_ai_match_rankings WHERE enterprise_id = ? AND job_hash = ? LIMIT 1');
+            $statement->execute([$enterpriseId, $jobHash]);
+            $row = $statement->fetch(PDO::FETCH_ASSOC);
+            if (is_array($row) && is_string($row['ranking_json'] ?? null)) {
+                $decoded = json_decode($row['ranking_json'], true, 64, JSON_THROW_ON_ERROR);
+                if (is_array($decoded) && ($decoded['analysis_origin'] ?? '') === 'model' && isset($decoded['items']) && is_array($decoded['items'])) {
+                    $decoded['updated_at'] = (string) ($row['updated_at'] ?? '');
+                    return $decoded;
+                }
+            }
+        } catch (Throwable) {
+        }
+        return null;
+    }
+
+    /** @return ?array<string,mixed> */
+    public function getCachedRanking(string $enterpriseId, string $jobHash): ?array
+    {
+        return $this->cachedMatchRanking($enterpriseId, $jobHash);
+    }
+
+    /** @param array<string,mixed> $ranking */
+    public function storeMatchRanking(string $enterpriseId, string $jobHash, array $ranking): void
+    {
+        $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $sql = $driver === 'sqlite'
+            ? 'INSERT OR REPLACE INTO enterprise_ai_match_rankings (enterprise_id, job_hash, ranking_json, updated_at) VALUES (?, ?, ?, ?)'
+            : 'INSERT INTO enterprise_ai_match_rankings (enterprise_id, job_hash, ranking_json, updated_at) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE ranking_json = VALUES(ranking_json), updated_at = VALUES(updated_at)';
+        $this->pdo->prepare($sql)->execute([
+            $enterpriseId,
+            $jobHash,
+            json_encode($ranking, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            gmdate('Y-m-d H:i:s'),
+        ]);
+    }
+
+    /** @param array<string,mixed> $ranking */
+    public function saveCachedRanking(string $enterpriseId, string $jobHash, array $ranking): void
+    {
+        $this->storeMatchRanking($enterpriseId, $jobHash, $ranking);
+    }
+
+    /**
      * @return array{id:string,name:string,status:string,verificationStatus:string}
      */
     public function enterpriseForUser(string $userId): array
@@ -35,7 +214,7 @@ final class EnterpriseTalentRepository
             SELECT e.id, e.name, e.status, e.verificationStatus
             FROM enterprise_members em
             INNER JOIN enterprises e ON e.id = em.enterpriseId
-            WHERE em.userId = :userId
+            WHERE em.userId = :userId AND em.status = 'active'
             LIMIT 2
         SQL);
         $statement->execute(['userId' => $userId]);
@@ -62,6 +241,40 @@ final class EnterpriseTalentRepository
             throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hồ sơ học viên.');
         }
         return $id;
+    }
+
+    public function recordProfileAccess(
+        string $enterpriseId,
+        string $userId,
+        string $studentId,
+        string $accessType,
+        ?string $requestId = null,
+        ?string $ipAddress = null
+    ): void {
+        if (!$this->tableExists('student_profile_access_logs')) {
+            return;
+        }
+        if (!in_array($accessType, ['talent_detail', 'application_cv', 'shared_profile'], true)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Loại truy cập hồ sơ không hợp lệ.');
+        }
+
+        $statement = $this->pdo->prepare(<<<'SQL'
+            INSERT INTO student_profile_access_logs
+                (id, enterpriseId, studentId, accessedByUserId, accessType, requestId, ipAddress, metadata, accessedAt)
+            VALUES
+                (:id, :enterpriseId, :studentId, :userId, :accessType, :requestId, :ipAddress, :metadata, :accessedAt)
+        SQL);
+        $statement->execute([
+            'id' => Uuid::v4(),
+            'enterpriseId' => $enterpriseId,
+            'studentId' => $studentId,
+            'userId' => $userId,
+            'accessType' => $accessType,
+            'requestId' => $requestId,
+            'ipAddress' => $ipAddress,
+            'metadata' => json_encode(['source' => 'enterprise_talent_service'], JSON_THROW_ON_ERROR),
+            'accessedAt' => $this->now(),
+        ]);
     }
 
     /**
@@ -267,8 +480,7 @@ final class EnterpriseTalentRepository
                 COALESCE(
                     student.talentScore,
                     (SELECT ROUND(AVG(sa.overallScore) * 10, 0) FROM assessments sa WHERE sa.studentId = student.id AND sa.overallScore IS NOT NULL),
-                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0),
-                    85
+                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0)
                 ) AS talentScore,
                 COUNT(DISTINCT studentSkill.id) AS skillCount,
                 COUNT(DISTINCT CASE WHEN studentSkill.verificationStatus = 'verified' THEN studentSkill.id END) AS verifiedSkillCount,
@@ -355,7 +567,7 @@ final class EnterpriseTalentRepository
                 }
             }
 
-            $score = (int) $row['talentScore'];
+            $score = is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null;
             $items[] = [
                 'studentId' => $studentId,
                 'userId' => (string) ($row['userId'] ?? ''),
@@ -367,8 +579,7 @@ final class EnterpriseTalentRepository
                 'headline' => (string) ($row['headline'] ?? ''),
                 'bio' => (string) ($row['bio'] ?? ''),
                 'avatarUrl' => $row['avatarUrl'] !== null ? (string) $row['avatarUrl'] : null,
-                'talentScore' => min(100, max(60, $score)),
-                'match_score' => min(100, max(60, $score)),
+                'talentScore' => $score === null ? null : min(100, max(0, $score)),
                 'skillCount' => (int) $row['skillCount'],
                 'verifiedSkillCount' => (int) $row['verifiedSkillCount'],
                 'verifiedSkills' => $skills,
@@ -419,8 +630,7 @@ final class EnterpriseTalentRepository
                 COALESCE(
                     student.talentScore,
                     (SELECT ROUND(AVG(sa.overallScore) * 10, 0) FROM assessments sa WHERE sa.studentId = student.id AND sa.overallScore IS NOT NULL),
-                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0),
-                    85
+                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0)
                 ) AS talentScore,
                 EXISTS(
                     SELECT 1 FROM enterprise_talent_access_grants contactGrant
@@ -483,7 +693,7 @@ final class EnterpriseTalentRepository
             'headline' => (string) ($row['headline'] ?? ''),
             'bio' => (string) ($row['bio'] ?? ''),
             'avatarUrl' => $row['avatarUrl'] !== null ? (string) $row['avatarUrl'] : null,
-            'talent_score' => (int) ($row['talentScore'] ?? 85),
+            'talent_score' => is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null,
             'contactAllowed' => $contactAllowed,
             'hasPendingContactRequest' => $hasPendingContact,
             'skills' => $skills,
@@ -798,7 +1008,7 @@ final class EnterpriseTalentRepository
         $stmt = $this->pdo->prepare(<<<'SQL'
             SELECT ss.id, s.name AS skillName, s.name AS name, ss.levelScore,
                    ss.verificationStatus, ss.verifiedAt, ss.createdAt,
-                   CASE 
+                   CASE
                        WHEN ss.levelScore >= 85 THEN 'Nâng cao'
                        WHEN ss.levelScore >= 65 THEN 'Trung bình'
                        ELSE 'Cơ bản'
@@ -870,7 +1080,7 @@ final class EnterpriseTalentRepository
 
         if (empty($entries) && $this->tableExists('activity_registrations') && $this->tableExists('activities')) {
             $stmt = $this->pdo->prepare(<<<'SQL'
-                SELECT 
+                SELECT
                     ar.id,
                     a.title,
                     COALESCE(s.name, 'Hoạt động trải nghiệm') AS organization,
@@ -913,11 +1123,11 @@ final class EnterpriseTalentRepository
         $stmt = $this->pdo->prepare("
             SELECT p.id, p.title, p.category, p.description, p.projectUrl, p.startAt, p.endAt, p.status, p.createdAt, p.updatedAt, pm.role, pm.contribution,
                    (
-                       SELECT e.name 
-                       FROM project_sponsorships ps 
-                       JOIN enterprises e ON e.id = ps.enterpriseId 
-                       WHERE ps.projectId = p.id AND ps.status = 'paid' 
-                       ORDER BY ps.amount DESC, ps.createdAt DESC 
+                       SELECT e.name
+                       FROM project_sponsorships ps
+                       JOIN enterprises e ON e.id = ps.enterpriseId
+                       WHERE ps.projectId = p.id AND ps.status = 'paid'
+                       ORDER BY ps.amount DESC, ps.createdAt DESC
                        LIMIT 1
                    ) AS sponsorName,
                    (
@@ -925,8 +1135,8 @@ final class EnterpriseTalentRepository
                        FROM project_sponsorships ps
                        WHERE ps.projectId = p.id AND ps.status = 'paid'
                    ) AS totalFundedAmount
-            FROM projects p 
-            INNER JOIN project_members pm ON pm.projectId = p.id 
+            FROM projects p
+            INNER JOIN project_members pm ON pm.projectId = p.id
             WHERE pm.studentId = ? OR pm.studentId IN (SELECT sp.id FROM student_profiles sp WHERE sp.userId = ?)
             ORDER BY p.createdAt DESC
         ");

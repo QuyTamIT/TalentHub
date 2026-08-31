@@ -44,6 +44,16 @@ $sidebarNav = [
         'icon' => 'users',
     ],
     [
+        'title' => 'Duyệt hoạt động',
+        'route' => '/app/school/activities.php',
+        'icon' => 'clipboard-check',
+    ],
+    [
+        'title' => 'Chứng nhận',
+        'route' => '/app/school/credentials.php',
+        'icon' => 'trophy',
+    ],
+    [
         'title' => 'Dự án',
         'route' => '/app/school/projects.php',
         'icon' => 'book',
@@ -56,6 +66,11 @@ $sidebarNav = [
     [
         'title' => 'An toàn sinh viên',
         'route' => '/app/school/safeguarding.php',
+        'icon' => 'lock',
+    ],
+    [
+        'title' => 'Nhật ký truy cập',
+        'route' => '/app/school/audit-logs.php',
         'icon' => 'lock',
     ],
     [
@@ -174,7 +189,7 @@ $sidebarNav = [
 
     <!-- Bottom Action: Logout -->
     <div class="school-sidebar__footer">
-        <a href="<?= function_exists('app_href') ? app_href('/app/auth/logout.php?role=school') : '/app/auth/logout.php?role=school'; ?>" 
+        <a href="<?= function_exists('app_href') ? app_href('/app/auth/logout.php?role=school') : '/app/auth/logout.php?role=school'; ?>"
            class="school-sidebar__link school-sidebar__link--logout"
            aria-label="Đăng xuất khỏi hệ thống">
             <span class="school-sidebar__icon">

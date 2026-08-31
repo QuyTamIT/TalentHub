@@ -114,7 +114,7 @@ final class SessionManager
                 }
             }
         }
-        
+
         $path = '/';
         $secure = self::isHttps() && (isset($this->config['secure']) ? (bool)$this->config['secure'] : true);
         $sameSite = $this->config['sameSite'] ?? 'Lax';
@@ -164,9 +164,9 @@ final class SessionManager
             try {
                 // 1. If active user id is present in session, query exact DB record
                 if ($activeUserId !== '') {
-                    $s = $pdo->prepare('SELECT u.id, u.email, u.fullName, r.code AS role 
-                                        FROM users u 
-                                        LEFT JOIN roles r ON r.id = u.roleId 
+                    $s = $pdo->prepare('SELECT u.id, u.email, u.fullName, r.code AS role
+                                        FROM users u
+                                        LEFT JOIN roles r ON r.id = u.roleId
                                         WHERE u.id = :userId LIMIT 1');
                     $s->execute(['userId' => $activeUserId]);
                     $row = $s->fetch(\PDO::FETCH_ASSOC);
@@ -183,9 +183,9 @@ final class SessionManager
 
                 // 2. If active email is present in session, query exact DB record
                 if ($activeEmail !== '' && !str_contains($activeEmail, '@test.')) {
-                    $s = $pdo->prepare('SELECT u.id, u.email, u.fullName, r.code AS role 
-                                        FROM users u 
-                                        LEFT JOIN roles r ON r.id = u.roleId 
+                    $s = $pdo->prepare('SELECT u.id, u.email, u.fullName, r.code AS role
+                                        FROM users u
+                                        LEFT JOIN roles r ON r.id = u.roleId
                                         WHERE u.email = :email LIMIT 1');
                     $s->execute(['email' => $activeEmail]);
                     $row = $s->fetch(\PDO::FETCH_ASSOC);
@@ -211,9 +211,9 @@ final class SessionManager
                 };
 
                 foreach ($targetEmails as $targetEmail) {
-                    $s = $pdo->prepare('SELECT u.id, u.email, u.fullName, r.code AS role 
-                                        FROM users u 
-                                        LEFT JOIN roles r ON r.id = u.roleId 
+                    $s = $pdo->prepare('SELECT u.id, u.email, u.fullName, r.code AS role
+                                        FROM users u
+                                        LEFT JOIN roles r ON r.id = u.roleId
                                         WHERE u.email = :email LIMIT 1');
                     $s->execute(['email' => $targetEmail]);
                     $row = $s->fetch(\PDO::FETCH_ASSOC);
@@ -229,11 +229,11 @@ final class SessionManager
                 }
 
                 // 4. If no target email matched, find any active user with matching role from DB
-                $sRole = $pdo->prepare('SELECT u.id, u.email, u.fullName, r.code AS role 
-                                        FROM users u 
-                                        JOIN roles r ON r.id = u.roleId 
-                                        WHERE (r.code = :role OR (r.code = "school_admin" AND :role = "school") OR (r.code = "business" AND :role = "enterprise")) AND u.status = "active" 
-                                        ORDER BY (u.email LIKE "%btec%") DESC, (u.email LIKE "%school%") DESC, u.id ASC 
+                $sRole = $pdo->prepare('SELECT u.id, u.email, u.fullName, r.code AS role
+                                        FROM users u
+                                        JOIN roles r ON r.id = u.roleId
+                                        WHERE (r.code = :role OR (r.code = "school_admin" AND :role = "school") OR (r.code = "business" AND :role = "enterprise")) AND u.status = "active"
+                                        ORDER BY (u.email LIKE "%btec%") DESC, (u.email LIKE "%school%") DESC, u.id ASC
                                         LIMIT 1');
                 $sRole->execute(['role' => $role]);
                 $row = $sRole->fetch(\PDO::FETCH_ASSOC);
@@ -400,12 +400,12 @@ final class SessionManager
     public function assertCsrf(?string $token): void
     {
         if ($token === null || $token === '') {
-            return;
+            throw new ApiException(403, 'CSRF_TOKEN_INVALID', 'CSRF token is required.');
         }
         $sessionToken = $this->csrfToken();
         $altToken = (string) ($_SESSION['csrf_token'] ?? $_SESSION['csrfToken'] ?? $sessionToken);
         if (!hash_equals($sessionToken, $token) && !hash_equals($altToken, $token)) {
-            return;
+            throw new ApiException(403, 'CSRF_TOKEN_INVALID', 'CSRF token mismatch.');
         }
     }
 

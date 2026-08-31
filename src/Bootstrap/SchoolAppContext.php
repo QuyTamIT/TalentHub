@@ -8,10 +8,16 @@ use TalentHub\Auth\Service\AuthPortalRouter;
 use TalentHub\Auth\Service\AuthService;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
+use TalentHub\Modules\School\Repository\SchoolAuditRepository;
 use TalentHub\Modules\School\Repository\SchoolPartnershipRepository;
+use TalentHub\Modules\School\Repository\SchoolActivityApprovalRepository;
+use TalentHub\Modules\School\Repository\SchoolCredentialManagementRepository;
 use TalentHub\Modules\School\Repository\SchoolProjectRepository;
 use TalentHub\Modules\School\Repository\SchoolRepository;
 use TalentHub\Modules\School\Service\SchoolAuthorization;
+use TalentHub\Modules\School\Service\SchoolActivityApprovalService;
+use TalentHub\Modules\School\Service\SchoolCredentialManagementService;
+use TalentHub\Modules\School\Service\SchoolAuditService;
 use TalentHub\Modules\School\Service\SchoolDashboardService;
 use TalentHub\Modules\School\Service\SchoolPartnershipService;
 use TalentHub\Modules\School\Service\SchoolProjectService;
@@ -36,6 +42,9 @@ final class SchoolAppContext
     private SchoolPartnershipService $partnerships;
     private SchoolProjectService $projects;
     private StudentSafeguardingService $safeguarding;
+    private SchoolActivityApprovalService $activityApprovals;
+    private SchoolCredentialManagementService $credentials;
+    private SchoolAuditService $audit;
 
     public function __construct()
     {
@@ -57,6 +66,9 @@ final class SchoolAppContext
         $this->partnerships = new SchoolPartnershipService(new SchoolPartnershipRepository($pdo));
         $this->projects = new SchoolProjectService(new SchoolProjectRepository($pdo));
         $this->safeguarding = new StudentSafeguardingService($pdo, $repository, new SchoolAuthorization($pdo));
+        $this->activityApprovals = new SchoolActivityApprovalService(new SchoolActivityApprovalRepository($pdo));
+        $this->credentials = new SchoolCredentialManagementService(new SchoolCredentialManagementRepository($pdo));
+        $this->audit = new SchoolAuditService(new SchoolAuditRepository($pdo));
     }
 
     /**
@@ -71,7 +83,8 @@ final class SchoolAppContext
     *   session: SessionManager,
     *   partnerships: SchoolPartnershipService,
     *   projects: SchoolProjectService,
-    *   safeguarding: StudentSafeguardingService
+    *   safeguarding: StudentSafeguardingService,
+    *   audit: SchoolAuditService
      * }
      */
     public function boot(): array
@@ -104,9 +117,9 @@ final class SchoolAppContext
         $user = null;
         if ($cached !== null && !empty($cached['id'])) {
             try {
-                $stmt = $pdo->prepare('SELECT u.id, u.email, u.fullName, u.status, r.code AS role 
-                                       FROM users u 
-                                       LEFT JOIN roles r ON r.id = u.roleId 
+                $stmt = $pdo->prepare('SELECT u.id, u.email, u.fullName, u.status, r.code AS role
+                                       FROM users u
+                                       LEFT JOIN roles r ON r.id = u.roleId
                                        WHERE u.id = :id LIMIT 1');
                 $stmt->execute(['id' => (string) $cached['id']]);
                 $row = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -124,11 +137,11 @@ final class SchoolAppContext
 
         if ($user === null) {
             // Find existing school admin user in users table
-            $sStmt = $pdo->prepare("SELECT u.id, u.email, u.fullName, u.status, r.code AS role 
-                                    FROM users u 
-                                    JOIN roles r ON r.id = u.roleId 
-                                    WHERE r.code IN ('school', 'school_admin') AND u.status = 'active' 
-                                    ORDER BY (u.email LIKE '%btec%') DESC, (u.email LIKE '%school%') DESC, u.id ASC 
+            $sStmt = $pdo->prepare("SELECT u.id, u.email, u.fullName, u.status, r.code AS role
+                                    FROM users u
+                                    JOIN roles r ON r.id = u.roleId
+                                    WHERE r.code IN ('school', 'school_admin') AND u.status = 'active'
+                                    ORDER BY (u.email LIKE '%btec%') DESC, (u.email LIKE '%school%') DESC, u.id ASC
                                     LIMIT 1");
             $sStmt->execute();
             $dbSchoolUser = $sStmt->fetch(\PDO::FETCH_ASSOC);
@@ -204,9 +217,9 @@ final class SchoolAppContext
 
                 $userEmail = (string) ($user['email'] ?? '');
                 $targetSchoolStmt = $pdo->prepare("
-                    SELECT id FROM schools 
-                    WHERE LOWER(name) LIKE :kw OR LOWER(email) LIKE :em 
-                    ORDER BY (LOWER(email) = LOWER(:userEmail)) DESC 
+                    SELECT id FROM schools
+                    WHERE LOWER(name) LIKE :kw OR LOWER(email) LIKE :em
+                    ORDER BY (LOWER(email) = LOWER(:userEmail)) DESC
                     LIMIT 1
                 ");
                 $kw = str_contains(strtolower($userEmail), 'ctu') ? '%cần thơ%' : '%btec%';
@@ -249,6 +262,10 @@ final class SchoolAppContext
             'partnerships' => $this->partnerships,
             'projects'     => $this->projects,
             'safeguarding' => $this->safeguarding,
+            'activityApprovals' => $this->activityApprovals,
+            'permissions' => $this->permissions,
+            'credentials' => $this->credentials,
+            'audit'        => $this->audit,
         ];
     }
 

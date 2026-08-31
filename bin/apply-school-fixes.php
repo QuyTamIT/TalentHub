@@ -18,7 +18,7 @@ $teacherId = 'ef67c7f4-bc9b-4353-a484-e6ee21291c32'; // ThS. Nguyễn Văn Hùng
 // 1. Update School Student & Teacher Count in schools table
 echo "1. Synchronizing schools table counter for BTEC FPT...\n";
 $cntStmt = $pdo->prepare("
-    SELECT COUNT(sp.id) 
+    SELECT COUNT(sp.id)
     FROM student_profiles sp
     JOIN classes c ON c.id = sp.classId
     WHERE c.schoolId = ? AND sp.studyStatus = 'active'

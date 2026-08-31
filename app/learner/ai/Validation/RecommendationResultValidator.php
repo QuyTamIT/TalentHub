@@ -9,10 +9,25 @@ use TalentHub\Learner\Ai\Domain\RecommendationResult;
 
 final class RecommendationResultValidator
 {
-    private const ITEM_TYPES = ['strength', 'improvement', 'development', 'activity', 'roadmap'];
+    private const ITEM_TYPES = ['strength', 'improvement', 'development', 'activity', 'roadmap', 'group', 'community'];
     private const CONFIDENCE_BANDS = ['low', 'medium', 'high'];
     private const MAX_ITEMS = 12;
     private const MAX_ROADMAP_STEPS = 3;
+    /** @var array<string,bool> */
+    private readonly array $allowedCatalogIds;
+
+    /** @param list<string> $allowedCatalogIds */
+    public function __construct(array $allowedCatalogIds = [])
+    {
+        $normalized = [];
+        foreach ($allowedCatalogIds as $catalogId) {
+            if (!is_string($catalogId) || trim($catalogId) === '') {
+                throw new \InvalidArgumentException('Recommendation catalog allow-list is invalid.');
+            }
+            $normalized[trim($catalogId)] = true;
+        }
+        $this->allowedCatalogIds = $normalized;
+    }
 
     public function validate(RecommendationResult $result): void
     {
@@ -36,14 +51,38 @@ final class RecommendationResultValidator
             || $item->evidence() === []) {
             throw new \RuntimeException('Recommendation result item is invalid.');
         }
+        if ($item->catalogId() !== null) {
+            if ($this->allowedCatalogIds !== [] && !isset($this->allowedCatalogIds[$item->catalogId()])) {
+                throw new \RuntimeException('Recommendation catalog id is invalid or unavailable.');
+            }
+            $matchingCatalogEvidence = null;
+            foreach ($item->evidence() as $evidence) {
+                if (in_array($evidence->sourceType(), ['opportunity', 'catalog'], true)
+                    && hash_equals($item->catalogId(), $evidence->sourceId())) {
+                    $matchingCatalogEvidence = $evidence;
+                    break;
+                }
+            }
+            if ($matchingCatalogEvidence === null) {
+                throw new \RuntimeException('Recommendation catalog id must match catalog evidence on the same item.');
+            }
+            if ($matchingCatalogEvidence->sourceType() === 'opportunity'
+                && ($matchingCatalogEvidence->safeValue()['opportunity_type'] ?? null) === 'internship'
+                && ($item->action()['type'] ?? null) !== 'open_catalog_item') {
+                throw new \RuntimeException('Enterprise internship recommendations must use their canonical catalog action.');
+            }
+        }
+        if ($item->reason() !== null && $this->containsUnsupportedClaim($item->reason())) {
+            throw new \RuntimeException('Recommendation reason contains an unsupported absolute claim.');
+        }
         if ($this->containsUnsupportedClaim($item->title()) || $this->containsUnsupportedClaim($item->summary())) {
             throw new \RuntimeException('Recommendation result contains an unsupported absolute claim.');
         }
-        $this->validateAction($item->action());
+        $this->validateAction($item->action(), $item);
     }
 
     /** @param array<string,mixed> $action */
-    private function validateAction(array $action): void
+    private function validateAction(array $action, RecommendationItem $item): void
     {
         $type = $action['type'] ?? null;
         if (!is_string($type)) {
@@ -55,6 +94,7 @@ final class RecommendationResultValidator
             'practice_presentation' => ['type', 'weeks', 'steps'],
             'explore_career_group' => ['type', 'career_group'],
             'register_activity' => ['type', 'career_group', 'activity_source_id'],
+            'join_group', 'open_catalog_item' => ['type', 'catalog_id'],
             default => throw new \RuntimeException('Recommendation action type is unsupported.'),
         };
         foreach (array_keys($action) as $key) {
@@ -83,9 +123,22 @@ final class RecommendationResultValidator
             if (!is_string($careerGroup) || !in_array(trim($careerGroup), $validCareerGroups, true)) {
                 throw new \RuntimeException('Recommendation activity action career group is invalid.');
             }
-            if (!is_string($activitySourceId)
-                || preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i', $activitySourceId) !== 1) {
+            $isUuid = is_string($activitySourceId)
+                && preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i', $activitySourceId) === 1;
+            $isValidatedCatalogId = is_string($activitySourceId)
+                && $item->catalogId() !== null
+                && hash_equals($item->catalogId(), $activitySourceId);
+            if (!$isUuid && !$isValidatedCatalogId) {
                 throw new \RuntimeException('Recommendation activity action activity source ID is invalid.');
+            }
+        }
+        if (in_array($type, ['join_group', 'open_catalog_item'], true)) {
+            $catalogId = $action['catalog_id'] ?? null;
+            if (!is_string($catalogId) || trim($catalogId) === '') {
+                throw new \RuntimeException('Recommendation group/catalog action catalog ID is required.');
+            }
+            if ($item->catalogId() === null || !hash_equals($item->catalogId(), $catalogId)) {
+                throw new \RuntimeException('Recommendation group/catalog action catalog ID must match item catalog ID.');
             }
         }
         if ($type === 'practice_presentation') {

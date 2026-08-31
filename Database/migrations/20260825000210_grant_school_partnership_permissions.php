@@ -9,7 +9,7 @@ return new class extends AbstractMigration {
     public function description(): string { return 'Grant school partnership review permissions'; }
     public function preflight(MigrationContext $context): void
     {
-        foreach (['school_enterprise_partnerships', 'roles', 'permissions', 'role_permissions'] as $table) { $context->assertTableExists($table); }
+        foreach (['roles', 'permissions', 'role_permissions'] as $table) { $context->assertTableExists($table); }
     }
     public function up(MigrationContext $context): void
     {

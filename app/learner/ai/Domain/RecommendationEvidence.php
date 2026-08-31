@@ -8,7 +8,11 @@ use JsonException;
 
 final class RecommendationEvidence
 {
-    private const SOURCE_TYPES = ['skill', 'assessment', 'activity_experience', 'evaluation', 'opportunity'];
+    private const SOURCE_TYPES = [
+        'profile', 'skill', 'assessment', 'achievement', 'certificate', 'project',
+        'activity', 'activity_experience', 'checkin', 'badge', 'progress',
+        'evaluation', 'mentor_evaluation', 'teacher_feedback', 'roadmap_feedback', 'opportunity', 'catalog',
+    ];
 
     /** @var array<string,mixed> */
     private readonly array $safeValue;

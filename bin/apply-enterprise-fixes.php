@@ -25,8 +25,8 @@ $stTeacherUser->execute();
 echo "   Updated users: " . $stTeacherUser->rowCount() . " rows\n";
 
 $stTeacherProf = $pdo->prepare("
-    UPDATE teacher_profiles 
-    SET specialization = 'Kỹ thuật phần mềm & Trí tuệ nhân tạo (AI)', 
+    UPDATE teacher_profiles
+    SET specialization = 'Kỹ thuật phần mềm & Trí tuệ nhân tạo (AI)',
         bio = 'Giảng viên chuyên ngành CNTT & AI - Cao đẳng Quốc tế BTEC FPT'
     WHERE userId = 'd5c748e4-ee8a-4411-8db5-bc6c15dd5379'
 ");

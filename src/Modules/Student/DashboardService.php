@@ -24,7 +24,7 @@ class DashboardService
     {
         $context = new LearnerApiContext($this->pdo);
         learner_configure_data(['source' => 'database', 'pdo' => $this->pdo]);
-        
+
         return learner_repository_factory()
             ->schoolCredentialService()
             ->forStudent($studentId);

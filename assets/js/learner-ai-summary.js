@@ -6,7 +6,7 @@
     'use strict';
 
     const STORAGE_KEY = 'talenthub.ai.summary.idempotency.v1';
-    const READY_STATES = new Set(['ready_model', 'fallback_rule']);
+    const READY_STATES = new Set(['ready_model', 'stale_model', 'fallback_rule']);
 
     function shouldAutoAnalyze(search) {
         if (typeof search !== 'string' || !search.startsWith('?')) return false;
@@ -126,13 +126,18 @@
             render(state, payload) {
                 const isLoading = state === 'loading' || state === 'pending';
                 if (nodes.spinner) nodes.spinner.hidden = !isLoading;
-                if (nodes.retry) nodes.retry.hidden = !['error', 'engine_failure', 'source_unavailable', 'fallback_rule'].includes(state);
+                if (nodes.retry) nodes.retry.hidden = !['error', 'engine_failure', 'source_unavailable', 'fallback_rule', 'stale_model', 'ai_unavailable'].includes(state);
                 if (nodes.detail) nodes.detail.hidden = !READY_STATES.has(state);
 
                 if (state === 'ready_model') {
                     setText(nodes.eyebrow, 'Tóm tắt từ AI');
                     setText(nodes.title, 'Lộ trình phát triển của bạn đã sẵn sàng');
                     setText(nodes.message, 'AI đã tổng hợp dữ liệu đánh giá và tạo lộ trình 90 ngày.');
+                    setText(nodes.summary, payload?.executive_summary);
+                } else if (state === 'stale_model') {
+                    setText(nodes.eyebrow, 'Bản phân tích AI gần nhất');
+                    setText(nodes.title, 'AI đang cập nhật theo dữ liệu mới');
+                    setText(nodes.message, payload?.next_retry_at ? `Hệ thống sẽ thử lại lúc ${payload.next_retry_at}.` : 'Bạn vẫn có thể xem kết quả gần nhất và thử cập nhật lại.');
                     setText(nodes.summary, payload?.executive_summary);
                 } else if (state === 'fallback_rule') {
                     setText(nodes.eyebrow, 'Gợi ý dự phòng theo quy tắc');

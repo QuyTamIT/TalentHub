@@ -593,6 +593,8 @@
             timer: root.querySelector('[data-assessment-timer]'),
             questionError: root.querySelector('[data-assessment-question-error]'),
             navigator: root.querySelector('[data-assessment-navigator]'),
+            questionCard: root.querySelector('.learner-question-card'),
+            questionTitle: root.querySelector('#assessment-question-heading'),
             submitModal: doc.querySelector('[data-assessment-submit-modal]'),
             submitAnswered: doc.querySelector('[data-submit-answered]'),
             submitUnanswered: doc.querySelector('[data-submit-unanswered]'),
@@ -691,6 +693,15 @@
             render,
             renderDetail,
             renderQuestion,
+            revealQuestion() {
+                const reducedMotion = typeof global.matchMedia === 'function'
+                    && global.matchMedia('(prefers-reduced-motion: reduce)').matches === true;
+                nodes.questionCard?.scrollIntoView?.({
+                    behavior: reducedMotion ? 'auto' : 'smooth',
+                    block: 'start',
+                });
+                nodes.questionTitle?.focus?.({ preventScroll: true });
+            },
             setQuestionIndex: (index) => { questionIndex = Number(index) || 0; },
             getQuestionIndex: () => questionIndex,
             showBandModal: () => {
@@ -965,6 +976,7 @@
             if (attempt?.id) {
                 currentAttempt = attempt;
                 view.render('ready', attempt);
+                view.revealQuestion();
             }
         };
         const loadDetail = async (band) => {
@@ -1012,6 +1024,7 @@
             if (!currentAttempt) return;
             view.setQuestionIndex(view.getQuestionIndex() - 1);
             view.renderQuestion(currentAttempt);
+            view.revealQuestion();
         });
         root.querySelector('[data-assessment-next]')?.addEventListener('click', () => {
             if (!currentAttempt) return;
@@ -1023,6 +1036,7 @@
             }
             view.setQuestionIndex(view.getQuestionIndex() + 1);
             view.renderQuestion(currentAttempt);
+            view.revealQuestion();
         });
         view.nodes.options?.addEventListener('change', (event) => {
             const input = event.target;
@@ -1036,6 +1050,7 @@
             if (!button || !currentAttempt) return;
             view.setQuestionIndex(button.dataset.questionIndex);
             view.renderQuestion(currentAttempt);
+            view.revealQuestion();
         });
         view.nodes.openSubmit?.addEventListener('click', () => {
             const answers = currentAttempt?.answers || {};

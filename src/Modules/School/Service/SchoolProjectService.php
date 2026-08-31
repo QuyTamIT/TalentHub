@@ -31,6 +31,12 @@ final class SchoolProjectService
         return $this->repository->listSchoolProjects($schoolId);
     }
 
+    /** @return array{totalRaised:string,totalFundingGoal:string,projectsWithFunding:int,goalReachedProjects:int,activeSponsors:int} */
+    public function fundingSummary(string $userId): array
+    {
+        return $this->repository->fundingSummary($this->schoolId($userId));
+    }
+
     public function getProject(string $userId, string $projectId): array
     {
         if (!Uuid::isValid($projectId)) {

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace TalentHub\Learner\Ai\Persistence;
+require_once dirname(__DIR__) . '/Queue/TransactionalAiOutboxPublisher.php';
 
 use JsonException;
 use PDO;
@@ -14,6 +15,7 @@ use TalentHub\Learner\Ai\Domain\RecommendationInput;
 use TalentHub\Learner\Ai\Domain\RecommendationItem;
 use TalentHub\Learner\Ai\Domain\RecommendationResult;
 use TalentHub\Learner\Ai\Domain\RoadmapAnalysis;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 
 final class DatabaseRecommendationRepository implements RecommendationRepository
 {
@@ -266,15 +268,64 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
     {
         $studentId = $this->required($studentId, 'Student id is required.');
         $statement = $this->pdo->prepare(
-            "SELECT id FROM learner_recommendation_runs WHERE studentId = :studentId AND idempotencyKey NOT LIKE 'shadow-%' ORDER BY createdAt DESC, id DESC LIMIT 1"
+            "SELECT runs.id
+             FROM learner_recommendation_runs AS runs
+             WHERE runs.studentId = :studentId
+               AND runs.idempotencyKey NOT LIKE 'shadow-%'
+               AND NOT EXISTS (
+                   SELECT 1
+                   FROM learner_recommendation_audit_events AS roadmap_events
+                   WHERE roadmap_events.runId = runs.id
+                     AND roadmap_events.studentId = runs.studentId
+                     AND roadmap_events.action = 'roadmap_run_created'
+               )
+               AND (
+                   runs.engineType <> 'model'
+                   OR runs.status <> 'completed'
+                   OR EXISTS (
+                       SELECT 1
+                       FROM learner_recommendation_items AS recommendation_items
+                       WHERE recommendation_items.runId = runs.id
+                   )
+               )
+             ORDER BY CASE WHEN runs.engineType = 'model' AND runs.status = 'completed' THEN 0 ELSE 1 END,
+                      runs.createdAt DESC,
+                      runs.id DESC
+             LIMIT 1"
         );
         $statement->execute(['studentId' => $studentId]);
         $runId = $statement->fetchColumn();
         return $runId === false ? null : $this->runForStudent($studentId, (string) $runId);
     }
 
+    public function ownsClickTarget(string $studentId, string $itemId, ?string $catalogId): bool
+    {
+        $studentId = $this->required($studentId, 'Student id is required.');
+        $itemId = $this->required($itemId, 'Recommendation item id is required.');
+        if ($catalogId === null) {
+            $statement = $this->pdo->prepare('SELECT 1 FROM learner_recommendation_items AS items INNER JOIN learner_recommendation_runs AS runs ON runs.id = items.runId WHERE items.id = :itemId AND runs.studentId = :studentId LIMIT 1');
+            $statement->execute(['itemId' => $itemId, 'studentId' => $studentId]);
+            return $statement->fetchColumn() !== false;
+        }
+        $catalogId = $this->required($catalogId, 'Recommendation catalog id is required.');
+        $statement = $this->pdo->prepare("SELECT 1 FROM learner_recommendation_items AS items INNER JOIN learner_recommendation_runs AS runs ON runs.id = items.runId INNER JOIN learner_recommendation_evidence AS evidence ON evidence.itemId = items.id WHERE items.id = :itemId AND runs.studentId = :studentId AND evidence.sourceType IN ('catalog','opportunity') AND evidence.sourceId = :catalogId LIMIT 1");
+        $statement->execute(['itemId' => $itemId, 'studentId' => $studentId, 'catalogId' => $catalogId]);
+        return $statement->fetchColumn() !== false;
+    }
+
     /** @return array<string,mixed> */
     public function appendFeedback(string $studentId, string $itemId, string $verdict, string $reasonCode, ?string $safeComment): array
+    {
+        return $this->appendFeedbackInternal($studentId, $itemId, $verdict, $reasonCode, $safeComment, null);
+    }
+
+    /** Idempotent variant used by mutation APIs when an idempotency key is supplied. */
+    public function appendFeedbackWithRequestId(string $studentId, string $itemId, string $verdict, string $reasonCode, ?string $safeComment, string $requestId): array
+    {
+        return $this->appendFeedbackInternal($studentId, $itemId, $verdict, $reasonCode, $safeComment, $requestId);
+    }
+
+    private function appendFeedbackInternal(string $studentId, string $itemId, string $verdict, string $reasonCode, ?string $safeComment, ?string $requestId): array
     {
         $studentId = $this->required($studentId, 'Student id is required.');
         $itemId = $this->required($itemId, 'Recommendation item id is required.');
@@ -288,7 +339,7 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
             throw new \InvalidArgumentException('Recommendation feedback comment is too long.');
         }
 
-        return $this->transaction(function () use ($studentId, $itemId, $verdict, $reasonCode, $safeComment): array {
+        return $this->transaction(function () use ($studentId, $itemId, $verdict, $reasonCode, $safeComment, $requestId): array {
             $owned = $this->pdo->prepare(
                 'SELECT items.id FROM learner_recommendation_items AS items INNER JOIN learner_recommendation_runs AS runs ON runs.id = items.runId WHERE items.id = :itemId AND runs.studentId = :studentId'
             );
@@ -296,12 +347,13 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
             if ($owned->fetchColumn() === false) {
                 throw new RuntimeException('Recommendation item not found for learner');
             }
-            $feedbackId = self::uuid();
+            $feedbackId = $requestId === null ? self::uuid() : self::deterministicUuid($studentId . '|' . $itemId . '|' . $requestId);
             $createdAt = $this->now();
             $insert = $this->pdo->prepare(
                 'INSERT INTO learner_recommendation_feedback (id, studentId, itemId, verdict, reasonCode, safeComment, createdAt) VALUES (:id, :studentId, :itemId, :verdict, :reasonCode, :safeComment, :createdAt)'
             );
-            $insert->execute([
+            try {
+                $insert->execute([
                 'id' => $feedbackId,
                 'studentId' => $studentId,
                 'itemId' => $itemId,
@@ -309,7 +361,22 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
                 'reasonCode' => $reasonCode,
                 'safeComment' => $safeComment,
                 'createdAt' => $createdAt,
-            ]);
+                ]);
+            } catch (\PDOException $exception) {
+                if ($requestId === null || (!str_contains(strtolower($exception->getMessage()), 'unique') && !str_contains(strtolower($exception->getMessage()), 'duplicate'))) throw $exception;
+                $existing = $this->pdo->prepare('SELECT id, studentId, itemId, verdict, reasonCode, safeComment, createdAt FROM learner_recommendation_feedback WHERE id = :id LIMIT 1');
+                $existing->execute(['id' => $feedbackId]);
+                $row = $existing->fetch(PDO::FETCH_ASSOC);
+                if (is_array($row)) {
+                    $samePayload = hash_equals((string) $row['verdict'], $verdict)
+                        && hash_equals((string) $row['reasonCode'], $reasonCode)
+                        && (($row['safeComment'] === null && $safeComment === null) || (is_string($row['safeComment']) && is_string($safeComment) && hash_equals($row['safeComment'], $safeComment)));
+                    if (!$samePayload) return ['state' => 'idempotency_conflict'];
+                    return ['feedbackId'=>$row['id'],'studentId'=>$row['studentId'],'itemId'=>$row['itemId'],'verdict'=>$row['verdict'],'reasonCode'=>$row['reasonCode'],'safeComment'=>$row['safeComment'],'createdAt'=>$row['createdAt'],'reused'=>true];
+                }
+                throw $exception;
+            }
+            TransactionalAiOutboxPublisher::publish($this->pdo,'recommendation_feedback',$feedbackId,TransactionalAiOutboxPublisher::version(),[$studentId],'recommendation.feedback',['item_id'=>$itemId,'verdict'=>$verdict,'reason_code'=>$reasonCode]);
             return [
                 'feedbackId' => $feedbackId,
                 'studentId' => $studentId,
@@ -318,6 +385,7 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
                 'reasonCode' => $reasonCode,
                 'safeComment' => $safeComment,
                 'createdAt' => $createdAt,
+                'reused' => false,
             ];
         });
     }
@@ -381,10 +449,40 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
             'summary' => $item->summary(),
             'priority' => $item->priority(),
             'confidenceBand' => $item->confidenceBand(),
-            'actionJson' => $item->actionJson(),
+            'actionJson' => self::json($this->persistedAction($item)),
             'lifecycleStatus' => 'active',
             'createdAt' => $createdAt,
         ]);
+    }
+
+    private static function deterministicUuid(string $seed): string
+    {
+        $hex = substr(hash('sha256', $seed), 0, 32);
+        $hex[12] = '4';
+        $hex[16] = ['8','9','a','b'][hexdec($hex[16]) % 4];
+        return sprintf('%s-%s-%s-%s-%s', substr($hex,0,8), substr($hex,8,4), substr($hex,12,4), substr($hex,16,4), substr($hex,20));
+    }
+
+    /**
+     * The Phase 2 output fields do not have dedicated columns in the existing
+     * recommendation table. Keep the legacy action shape intact and carry the
+     * additive fields in a reserved envelope so old rows remain readable.
+     *
+     * @return array<string,mixed>
+     */
+    private function persistedAction(RecommendationItem $item): array
+    {
+        $action = $item->action();
+        $metadata = array_filter([
+            'category' => $item->category(),
+            'catalog_id' => $item->catalogId(),
+            'reason' => $item->reason(),
+            'reason_codes' => $item->reasonCodes(),
+        ], static fn (mixed $value): bool => $value !== null);
+        if ($metadata !== []) {
+            $action['__ai_metadata'] = $metadata;
+        }
+        return $action;
     }
 
     /** @param array{id:string,sourceType:string,sourceId:string,observedAt:?string,safeValueJson:string} $snapshotEvidence */
@@ -501,7 +599,7 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
     private function runForStudent(string $studentId, string $runId): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, snapshotId, studentId, idempotencyKey, engineType, status, ruleVersion, provider, modelVersion, promptVersion, fallbackReason, safeErrorCode, startedAt, completedAt, createdAt FROM learner_recommendation_runs WHERE id = :runId AND studentId = :studentId'
+            'SELECT * FROM learner_recommendation_runs WHERE id = :runId AND studentId = :studentId'
         );
         $statement->execute(['runId' => $runId, 'studentId' => $studentId]);
         $run = $statement->fetch(PDO::FETCH_ASSOC);

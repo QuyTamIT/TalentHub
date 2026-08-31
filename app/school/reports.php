@@ -105,7 +105,7 @@ include __DIR__ . '/includes/page-banner.php';
 <?php endif; ?>
 
 <div class="school-grid-2col school-grid-2col--reports" style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 1.75rem; align-items: start;">
-    
+
     <!-- Form Tạo báo cáo mới -->
     <div class="school-section-box" style="margin-bottom: 0;">
         <div class="school-section-box__header" style="border-bottom: 1px solid #F1F5F9; padding-bottom: 1rem; margin-bottom: 1.25rem;">
@@ -126,7 +126,7 @@ include __DIR__ . '/includes/page-banner.php';
 
         <form method="post" class="school-form" novalidate>
             <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
-            
+
             <div class="school-form__grid" style="grid-template-columns: 1fr; gap: 1.15rem;">
                 <label class="school-form__field">
                     <span style="font-weight: 600; font-size: 0.875rem; color: #334155; margin-bottom: 0.35rem; display: block;">

@@ -18,19 +18,28 @@ Thumbs.db
 
 # Local audit artifacts, backups, and linked Codex worktrees.
 /.tmp/
+/scratch-storage.json
 
 # Local-only planning, QA, and coding-agent material.
 /tests/*
-!/tests/learner_journey_dashboard_ui_test.ps1
 /docs/
 /design/
 /Document/
+/artifacts/
+/scratch_*.php
+/live-*.png
+/login.png
+/assets/images/mockups/
 /.agents/
 /.superpowers/
 /.claude/
 /.qwen/
 /.codex/
 /.codex-*/
+/.codex_tmp/
 /.codex_tmp/activity-qr-fixtures/
+/opencode.json
+/opencode.backup.json
+/assets/mockups/
 /.docx_review/
 /.worktrees/

@@ -3,8 +3,19 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 
+use TalentHub\Config\Environment;
 use TalentHub\Database\Connection;
 use TalentHub\Support\Uuid;
+
+$apply = in_array('--apply', array_slice($argv, 1), true);
+if (!$apply) {
+    echo "DRY RUN: no database changes will be made. Re-run with --apply to activate the synthetic demo profile.\n";
+    exit(0);
+}
+if (Environment::appEnvironment() === 'production' && !Environment::boolean('ALLOW_SYNTHETIC_DATA_MUTATION')) {
+    fwrite(STDERR, "Synthetic profile activation is blocked in production unless ALLOW_SYNTHETIC_DATA_MUTATION=true.\n");
+    exit(1);
+}
 
 $config = require dirname(__DIR__) . '/config/database.php';
 $pdo = (new Connection($config))->connect();
@@ -28,26 +39,34 @@ $st->execute([$email]);
 $student = $st->fetch(PDO::FETCH_ASSOC);
 
 if (!$student) {
-    echo "ERROR: Student account {$email} not found!\n";
-    exit(1);
+    throw new RuntimeException("Student account {$email} not found.");
 }
 
 $studentId = (string) $student['studentId'];
 $userId = (string) $student['userId'];
-$schoolId = (string) ($student['schoolId'] ?: 'da811c4f-2f74-4fdd-80b0-dd6f26109783');
+$schoolId = trim((string) ($student['schoolId'] ?? ''));
+$hasTalentScoreColumn = (bool) $pdo->query(
+    "SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'student_profiles' AND column_name = 'talentScore' LIMIT 1"
+)->fetchColumn();
+if ($schoolId === '') {
+    throw new RuntimeException('Student is not assigned to a school.');
+}
 $issuerUserId = '2b102e3b-9e3a-43fe-a7f2-2bad676bbf97'; // ThS. Nguyễn Văn Hùng / Ban Đào tạo BTEC
 
 echo "[Step 1] Found Student: {$student['fullName']} (ID: {$studentId})\n";
 echo " -> Class: {$student['className']} | School: {$student['schoolName']}\n\n";
 
-// 2. Update Student Profile Score to 94.00
-$updProfile = $pdo->prepare("
-    UPDATE student_profiles 
-    SET talentScore = 94.00, studyStatus = 'active', updatedAt = NOW() 
-    WHERE id = ?
-");
-$updProfile->execute([$studentId]);
-echo "[Step 2] Updated Student Profile talentScore = 94.00 (Điểm trung bình năng lực AI: 94 điểm)\n\n";
+$pdo->beginTransaction();
+try {
+
+// 2. Update Student Profile Score to 94.00 when the compatibility column exists.
+if ($hasTalentScoreColumn) {
+    $updProfile = $pdo->prepare("UPDATE student_profiles SET talentScore = 94.00, studyStatus = 'active', updatedAt = NOW() WHERE id = ?");
+    $updProfile->execute([$studentId]);
+    echo "[Step 2] Updated Student Profile talentScore = 94.00 (Điểm trung bình năng lực AI: 94 điểm)\n\n";
+} else {
+    echo "[Step 2] Skipped legacy student_profiles.talentScore (column is not present; use student_skills).\n\n";
+}
 
 // 3. Update & Verify Skills with Exact Scores:
 // langchain: 92/100, nlp: 95/100, prompt_engineering: 96/100, python: 94/100, pytorch: 93/100
@@ -273,6 +292,78 @@ foreach ($btecCerts as $c) {
 }
 echo "\n";
 
+// 6.5 Published Teacher Evaluation & Criteria Scores
+echo "[Step 6.5] Creating Published Teacher Evaluation & Criteria Scores...\n";
+$managedActivityStmt = $pdo->prepare(<<<'SQL'
+    SELECT teacher.id AS teacherId, activity.id AS activityId
+    FROM activities activity
+    INNER JOIN teacher_profiles teacher
+      ON teacher.id = activity.createdByTeacherId
+     AND teacher.schoolId = activity.schoolId
+    WHERE activity.schoolId = ?
+      AND (activity.title LIKE '%Đồ án%' OR activity.title LIKE '%Robot%')
+    ORDER BY activity.createdAt DESC
+    LIMIT 1
+    SQL);
+$managedActivityStmt->execute([$schoolId]);
+$managedActivity = $managedActivityStmt->fetch(PDO::FETCH_ASSOC);
+if (!$managedActivity) {
+    throw new RuntimeException("No teacher-managed activity found in the student's school for evaluation.");
+}
+$evalTeacherId = (string) $managedActivity['teacherId'];
+$evalActId = (string) $managedActivity['activityId'];
+
+// Only an existing managed registration can be assessed; never manufacture attendance.
+$regCheck = $pdo->prepare("SELECT id FROM activity_registrations WHERE activityId = ? AND studentId = ? AND status IN ('approved', 'attended') LIMIT 1 FOR UPDATE");
+$regCheck->execute([$evalActId, $studentId]);
+if (!$regCheck->fetch()) {
+    throw new RuntimeException('Student does not have an approved or attended registration for the managed activity.');
+}
+
+$evalCheck = $pdo->prepare("SELECT id, status, version FROM assessments WHERE teacherId = ? AND studentId = ? AND activityId = ? LIMIT 1 FOR UPDATE");
+$evalCheck->execute([$evalTeacherId, $studentId, $evalActId]);
+$existingEval = $evalCheck->fetch(PDO::FETCH_ASSOC);
+
+$evalComment = "Em thể hiện tư duy phân tích hệ thống rất tốt, chủ động dẫn dắt nhóm trong việc xây dựng mô hình AI và pipeline xử lý ngôn ngữ tự nhiên. Tinh thần trách nhiệm cao và hoàn thành xuất sắc đồ án. Cần tiếp tục duy trì và tự tin hơn khi thuyết trình phản biện.";
+$evalScore = 94.0;
+$skipPublishedEvaluation = ($existingEval['status'] ?? null) === 'published';
+
+if ($skipPublishedEvaluation) {
+    $evalId = (string) $existingEval['id'];
+    echo " -> Skipped: published assessment is immutable.\n\n";
+} elseif ($existingEval) {
+    $evalId = $existingEval['id'];
+    $updateEval = $pdo->prepare("UPDATE assessments SET overallScore = ?, comment = ?, status = 'published', publishedAt = NOW(), version = version + 1, updatedAt = NOW() WHERE id = ? AND teacherId = ? AND status = 'draft' AND version = ?");
+    $updateEval->execute([$evalScore, $evalComment, $evalId, $evalTeacherId, $existingEval['version']]);
+    if ($updateEval->rowCount() !== 1) {
+        throw new RuntimeException('Draft assessment changed during activation.');
+    }
+} else {
+    $evalId = Uuid::v4();
+    $pdo->prepare("INSERT INTO assessments (id, teacherId, studentId, activityId, overallScore, comment, status, publishedAt, version, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, 'published', NOW(), 1, NOW(), NOW())")->execute([$evalId, $evalTeacherId, $studentId, $evalActId, $evalScore, $evalComment]);
+}
+
+$critList = $pdo->query("SELECT id, code FROM assessment_criteria WHERE status = 'active' ORDER BY displayOrder ASC")->fetchAll(PDO::FETCH_ASSOC);
+$critScores = [
+    'teamwork' => 9.2,
+    'initiative' => 9.5,
+    'execution' => 9.6,
+];
+foreach ($skipPublishedEvaluation ? [] : $critList as $crit) {
+    $cCode = $crit['code'] ?? 'execution';
+    $cScore = $critScores[$cCode] ?? 9.4;
+    $scCheck = $pdo->prepare("SELECT id FROM assessment_scores WHERE assessmentId = ? AND criteriaId = ?");
+    $scCheck->execute([$evalId, $crit['id']]);
+    if ($scRow = $scCheck->fetch()) {
+        $pdo->prepare("UPDATE assessment_scores SET score = ?, updatedAt = NOW() WHERE id = ?")->execute([$cScore, $scRow['id']]);
+    } else {
+        $pdo->prepare("INSERT INTO assessment_scores (id, assessmentId, criteriaId, score, createdAt, updatedAt) VALUES (UUID(), ?, ?, ?, NOW(), NOW())")->execute([$evalId, $crit['id'], $cScore]);
+    }
+}
+if (!$skipPublishedEvaluation) {
+    echo " -> Published Teacher Evaluation: 94/100 (Xuất sắc) [VERIFIED]\n\n";
+}
+
 // 7. Create Active AI Roadmap for Vũ Đức Anh
 echo "[Step 7] Generating AI Career Roadmap...\n";
 $hasRoadmap = $pdo->query("SELECT id FROM learner_ai_roadmaps WHERE studentId = '{$studentId}'")->fetchColumn();
@@ -370,3 +461,11 @@ echo "    + LangChain: 92/100 [Verified]\n";
 echo " - Huy hiệu & Chứng chỉ: Đã mở khóa toàn bộ chứng chỉ BTEC FPT & Huy hiệu năng lực\n";
 echo " - Sẵn sàng cho Doanh nghiệp (FPT Software) quét tuyển dụng & gửi lời mời thực tập!\n";
 echo "======================================================================\n";
+    $pdo->commit();
+} catch (Throwable $exception) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    fwrite(STDERR, 'FAIL: ' . $exception->getMessage() . "\n");
+    exit(1);
+}

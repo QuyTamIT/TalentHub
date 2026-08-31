@@ -6,16 +6,70 @@ require dirname(__DIR__, 3) . '/bin/bootstrap.php';
 
 use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Database\Connection;
+use TalentHub\Database\Exception\DatabaseConnectionException;
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\Teacher\Exception\TeacherGradingConflictException;
 use TalentHub\Modules\Teacher\Repository\TeacherGradingRepository;
 use TalentHub\Modules\Teacher\Service\TeacherGradingService;
 use TalentHub\Rbac\Service\PermissionService;
+use TalentHub\Support\Id\RequestId;
 
 use TalentHub\Bootstrap\PortalGuard;
 use TalentHub\Rbac\RoleCodes;
 
 date_default_timezone_set('Asia/Ho_Chi_Minh');
+
+require __DIR__ . '/page-state.php';
+
+function teacherGradingLogUnexpected(string $stage, Throwable $exception, string $requestId): void
+{
+    $environment = strtolower((string) ($_ENV['APP_ENV'] ?? $_SERVER['APP_ENV'] ?? getenv('APP_ENV') ?: 'production'));
+    if (!in_array($environment, ['local', 'test'], true)) {
+        return;
+    }
+
+    $file = str_replace('\\', '/', $exception->getFile());
+    $root = rtrim(str_replace('\\', '/', dirname(__DIR__, 3)), '/') . '/';
+    if (str_starts_with($file, $root)) {
+        $file = substr($file, strlen($root));
+    } else {
+        $file = basename($file);
+    }
+
+    $sqlState = null;
+    $vendorCode = null;
+    $cause = $exception;
+    while ($cause instanceof Throwable) {
+        if ($cause instanceof DatabaseConnectionException) {
+            $sqlState = $cause->sqlState();
+            break;
+        }
+        if ($cause instanceof \PDOException) {
+            $sqlState = is_string($cause->errorInfo[0] ?? null) ? $cause->errorInfo[0] : null;
+            $vendorCode = is_int($cause->errorInfo[1] ?? null) ? $cause->errorInfo[1] : null;
+            break;
+        }
+        $cause = $cause->getPrevious();
+    }
+
+    try {
+        $payload = json_encode([
+            'requestId' => $requestId,
+            'stage' => $stage,
+            'exception' => get_class($exception),
+            'code' => (string) $exception->getCode(),
+            'sqlState' => $sqlState,
+            'vendorCode' => $vendorCode,
+            'file' => $file,
+            'line' => $exception->getLine(),
+        ], JSON_UNESCAPED_SLASHES);
+        if (is_string($payload)) {
+            @error_log('[teacher-grading] ' . $payload);
+        }
+    } catch (Throwable) {
+        // Diagnostics must never turn a handled page error into another failure.
+    }
+}
 
 $user = PortalGuard::requireRole(RoleCodes::TEACHER, '/app/teacher/assessments/index.php');
 $session = new SessionManager(array_merge(require dirname(__DIR__, 3) . '/config/session.php', ['name' => SessionManager::SESSION_TEACHER]));
@@ -42,9 +96,16 @@ $flash = $_SESSION['teacherGradingFlash'] ?? null;
 unset($_SESSION['teacherGradingFlash']);
 
 $error = null;
+$saveError = null;
 $bootError = null;
 $service = null;
 $permissions = null;
+$dataLoaded = false;
+$unexpectedLoadError = false;
+$saveStarted = false;
+$stage = 'initialization';
+$requestId = RequestId::make(null);
+$unexpectedException = null;
 $data = [
     'teacher' => [],
     'activities' => [],
@@ -57,20 +118,28 @@ $selectedActivityId = isset($_GET['activityId']) ? trim((string) $_GET['activity
 $search = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
 
 try {
+    $stage = 'connection';
     $pdo = (new Connection(require dirname(__DIR__, 3) . '/config/database.php'))->connect();
     $permissions = new PermissionService($pdo);
+    $stage = 'permission:activity.read_managed';
     $permissions->require($user['id'], 'activity.read_managed');
+    $stage = 'permission:activity_registration.read_managed';
     $permissions->require($user['id'], 'activity_registration.read_managed');
+    $stage = 'permission:assessment.read_managed';
     $permissions->require($user['id'], 'assessment.read_managed');
 
     $service = new TeacherGradingService(new TeacherGradingRepository($pdo));
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $saveStarted = true;
         $selectedActivityId = isset($_POST['activityId']) ? trim((string) $_POST['activityId']) : null;
         $search = isset($_POST['q']) ? trim((string) $_POST['q']) : '';
+        $stage = 'save:csrf';
         $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
+        $stage = 'save:permission';
         $permissions->require($user['id'], 'assessment.update_managed');
-        $savedActivityId = $service->save($user['id'], $_POST);
+        $stage = 'save:assessment';
+        $savedActivityId = $service->save($user['id'], $_POST, $requestId);
 
         $_SESSION['teacherGradingFlash'] = 'Đã lưu đánh giá cho học viên.';
         $redirectQuery = ['activityId' => $savedActivityId];
@@ -81,23 +150,42 @@ try {
         exit;
     }
 
+    $stage = 'load:page_data';
     $data = $service->pageData($user['id'], $selectedActivityId, $search);
     if (($selectedActivityId === null || $selectedActivityId === '') && $data['activities'] !== []) {
         $selectedActivityId = (string) $data['activities'][0]['id'];
+        $stage = 'load:selected_page_data';
         $data = $service->pageData($user['id'], $selectedActivityId, $search);
     }
+    $dataLoaded = true;
 } catch (TeacherGradingConflictException) {
     $error = 'Đánh giá này vừa được cập nhật ở nơi khác. Vui lòng tải lại trang và thử lại.';
 } catch (ApiException $exception) {
     $error = $exception->getMessage();
-} catch (Throwable) {
+} catch (Throwable $exception) {
+    $unexpectedException = $exception;
     $bootError = 'Chưa thể tải dữ liệu chấm điểm. Vui lòng kiểm tra kết nối và trạng thái migration của database.';
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $service !== null && $error !== null) {
+if ($unexpectedException !== null) {
+    teacherGradingLogUnexpected($stage, $unexpectedException, $requestId);
+    if ($saveStarted) {
+        $saveError = "\u{004b}h\u{00f4}ng th\u{1ec3} l\u{01b0}u \u{0111}\u{00e1}nh gi\u{00e1}. Vui l\u{00f2}ng th\u{1eed} l\u{1ea1}i.";
+        $bootError = null;
+    } else {
+        $unexpectedLoadError = true;
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $service !== null && ($error !== null || $saveError !== null)) {
     try {
+        $stage = 'load:post_error_reload';
         $data = $service->pageData($user['id'], $selectedActivityId, $search);
-    } catch (Throwable) {
+        $dataLoaded = true;
+    } catch (Throwable $exception) {
+        $unexpectedLoadError = true;
+        teacherGradingLogUnexpected('load:post_error_reload', $exception, $requestId);
+        $bootError = "\u{0043}h\u{01b0}a th\u{1ec3} t\u{1ea3}i d\u{1eef} li\u{1ec7}u ch\u{1ea5}m \u{0111}i\u{1ec3}m. Vui l\u{00f2}ng ki\u{1ec3}m tra k\u{1ebf}t n\u{1ed1}i v\u{00e0} tr\u{1ea1}ng th\u{00e1}i migration c\u{1ee7}a database.";
         // Keep the validation message visible even when the page cannot reload its context.
     }
 }
@@ -132,6 +220,19 @@ $assessmentStatusLabels = [
     'draft' => 'Bản nháp',
     'published' => 'Đã công bố',
 ];
+
+$pageState = teacherGradingPageState($dataLoaded, $unexpectedLoadError, $data);
+$retryParams = [];
+if ($selectedActivityId !== null && $selectedActivityId !== '') {
+    $retryParams['activityId'] = $selectedActivityId;
+}
+if ($search !== '') {
+    $retryParams['q'] = $search;
+}
+$retryUrl = app_href('/app/teacher/assessments/index.php');
+if ($retryParams !== []) {
+    $retryUrl .= '?' . http_build_query($retryParams);
+}
 
 function teacherGradingInitials(string $name): string
 {
@@ -171,12 +272,18 @@ function teacherGradingInitials(string $name): string
             <main class="teacher-body">
                 <div class="teacher-container">
                     <section class="teacher-section-box teacher-grading-intro">
-                        <div>
-                            <span class="teacher-section-box__eyebrow">ĐÁNH GIÁ HỌC VIÊN</span>
-                            <h2 class="teacher-grading-intro__title">Chấm điểm theo hoạt động</h2>
-                            <p class="teacher-grading-intro__description">Chọn hoạt động do bạn phụ trách để xem học viên đã đăng ký và cập nhật đánh giá.</p>
+                        <div class="teacher-grading-intro__content">
+                            <div class="teacher-grading-intro__mark" aria-hidden="true">✦</div>
+                            <div>
+                                <span class="teacher-section-box__eyebrow">ĐÁNH GIÁ HỌC VIÊN</span>
+                                <h2 class="teacher-grading-intro__title">Chấm điểm theo hoạt động</h2>
+                                <p class="teacher-grading-intro__description">Chọn hoạt động do bạn phụ trách để xem học viên đã đăng ký và cập nhật đánh giá.</p>
+                            </div>
                         </div>
-                        <span class="teacher-chip teacher-chip--primary">Phạm vi: hoạt động của tôi</span>
+                        <div class="teacher-grading-intro__aside">
+                            <span class="teacher-chip teacher-chip--primary">Phạm vi: hoạt động của tôi</span>
+                            <span class="teacher-grading-intro__tip">Mỗi nhận xét là một bước tiến</span>
+                        </div>
                     </section>
 
                     <?php if ($flash): ?>
@@ -185,11 +292,23 @@ function teacherGradingInitials(string $name): string
                     <?php if ($error): ?>
                         <div class="teacher-grading-flash teacher-grading-flash--error" role="alert"><?= $escape($error); ?></div>
                     <?php endif; ?>
-                    <?php if ($bootError): ?>
-                        <div class="teacher-grading-flash teacher-grading-flash--error" role="alert"><?= $escape($bootError); ?></div>
+                    <?php if ($saveError): ?>
+                        <div class="teacher-grading-flash teacher-grading-flash--error" role="alert"><?= $escape($saveError); ?></div>
                     <?php endif; ?>
-
+                    <?php if ($pageState === 'load_error'): ?>
+                        <div class="teacher-grading-flash teacher-grading-flash--error" role="alert">
+                            <?= $escape($bootError ?? ''); ?>
+                        </div>
+                        <a class="teacher-grading-button teacher-grading-button--secondary" href="<?= $escape($retryUrl); ?>"><?= $escape("\u{0054}h\u{1eed} l\u{1ea1}i"); ?></a>
+                    <?php elseif ($pageState !== 'request_error'): ?>
                     <section class="teacher-section-box teacher-grading-toolbar" aria-label="Bộ lọc chấm điểm">
+                        <div class="teacher-grading-toolbar__header">
+                            <div>
+                                <span class="teacher-section-box__eyebrow">KHÔNG GIAN LÀM VIỆC</span>
+                                <p class="teacher-grading-toolbar__title">Chọn hoạt động</p>
+                            </div>
+                            <span class="teacher-grading-toolbar__note">Lọc nhanh theo hoạt động hoặc tên học viên</span>
+                        </div>
                         <form method="get" class="teacher-grading-toolbar__form">
                             <label class="teacher-grading-field teacher-grading-field--activity">
                                 <span>Hoạt động phụ trách</span>
@@ -212,18 +331,26 @@ function teacherGradingInitials(string $name): string
 
                     <?php if ($data['selectedActivity'] !== null): ?>
                         <section class="teacher-section-box teacher-grading-activity-summary">
-                            <div>
-                                <span class="teacher-section-box__eyebrow">HOẠT ĐỘNG ĐANG CHỌN</span>
-                                <h2 class="teacher-grading-activity-summary__title"><?= $escape($data['selectedActivity']['title']); ?></h2>
-                                <p class="teacher-grading-activity-summary__meta">
-                                    <?= $escape($data['selectedActivity']['category']); ?> ·
-                                    <?= $escape($activityStatusLabels[$data['selectedActivity']['status']] ?? $data['selectedActivity']['status']); ?> ·
-                                    <?= number_format(count($data['students'])); ?> học viên hiển thị
-                                </p>
+                            <div class="teacher-grading-activity-summary__identity">
+                                <div class="teacher-grading-activity-summary__icon" aria-hidden="true">✦</div>
+                                <div>
+                                    <span class="teacher-section-box__eyebrow">HOẠT ĐỘNG ĐANG CHỌN</span>
+                                    <h2 class="teacher-grading-activity-summary__title"><?= $escape($data['selectedActivity']['title']); ?></h2>
+                                    <div class="teacher-grading-activity-summary__meta">
+                                        <span><?= $escape($data['selectedActivity']['category']); ?></span>
+                                        <span class="teacher-status-pill teacher-status-pill--info"><?= $escape($activityStatusLabels[$data['selectedActivity']['status']] ?? $data['selectedActivity']['status']); ?></span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="teacher-grading-activity-summary__range">
-                                <span>Sức chứa</span>
-                                <strong><?= $escape($data['selectedActivity']['capacity']); ?></strong>
+                            <div class="teacher-grading-activity-summary__stats">
+                                <div class="teacher-grading-activity-summary__stat">
+                                    <strong><?= number_format(count($data['students'])); ?></strong>
+                                    <span>học viên hiển thị</span>
+                                </div>
+                                <div class="teacher-grading-activity-summary__stat">
+                                    <strong><?= $escape($data['selectedActivity']['capacity']); ?></strong>
+                                    <span>sức chứa</span>
+                                </div>
                             </div>
                         </section>
 
@@ -241,9 +368,13 @@ function teacherGradingInitials(string $name): string
                                 ?>
                                     <article class="teacher-section-box teacher-grading-card">
                                         <div class="teacher-grading-card__header">
-                                            <div>
-                                                <h3 class="teacher-grading-card__title"><?= $escape($student['fullName']); ?></h3>
-                                                <p class="teacher-grading-card__meta"><?= $escape($student['email']); ?> · Đăng ký: <?= $escape($registrationStatusLabels[$student['registrationStatus']] ?? $student['registrationStatus']); ?></p>
+                                            <div class="teacher-grading-card__identity">
+                                                <div class="teacher-grading-card__avatar" aria-hidden="true"><?= $escape(teacherGradingInitials((string) $student['fullName'])); ?></div>
+                                                <div>
+                                                    <h3 class="teacher-grading-card__title"><?= $escape($student['fullName']); ?></h3>
+                                                    <p class="teacher-grading-card__meta"><?= $escape($student['email']); ?></p>
+                                                    <span class="teacher-grading-card__registration">Đăng ký: <?= $escape($registrationStatusLabels[$student['registrationStatus']] ?? $student['registrationStatus']); ?></span>
+                                                </div>
                                             </div>
                                             <span class="teacher-status-pill <?= $assessmentStatus === 'published' ? 'teacher-status-pill--positive' : ($assessmentStatus === 'draft' ? 'teacher-status-pill--warning' : ''); ?>">
                                                 <?= $escape($assessmentLabel); ?>
@@ -258,6 +389,13 @@ function teacherGradingInitials(string $name): string
                                             <input type="hidden" name="expectedVersion" value="<?= $escape($student['assessmentVersion'] ?? 0); ?>">
                                             <input type="hidden" name="q" value="<?= $escape($search); ?>">
 
+                                            <div class="teacher-grading-form__heading">
+                                                <div>
+                                                    <span class="teacher-section-box__eyebrow">PHIẾU ĐÁNH GIÁ</span>
+                                                    <strong>Ghi nhận tiến bộ của học viên</strong>
+                                                </div>
+                                                <span>Điền những gì bạn quan sát được</span>
+                                            </div>
                                             <div class="teacher-grading-form__topline">
                                                 <label class="teacher-grading-field">
                                                     <span>Trạng thái đánh giá</span>
@@ -315,6 +453,7 @@ function teacherGradingInitials(string $name): string
                             <h3 class="teacher-empty-state__title">Chọn một hoạt động để bắt đầu</h3>
                             <p class="teacher-empty-state__desc">Danh sách chỉ bao gồm hoạt động do giáo viên hiện tại phụ trách.</p>
                         </div>
+                    <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </main>

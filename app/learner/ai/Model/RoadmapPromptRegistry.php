@@ -12,7 +12,13 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
 
 final class RoadmapPromptRegistry
 {
-    public const VERSION = 'learner-roadmap-prompt-1.2.0';
+    public const VERSION = 'learner-roadmap-prompt-1.4.0';
+
+    private const TALENT_MAP_FIELDS = [
+        'Tư duy Logic & Hệ thống',
+        'Kỹ năng Thực hành & Thao tác',
+        'Tổ chức & Điều phối',
+    ];
 
     private const SAFE_FIELDS = [
         'assessment' => ['test_type', 'result_code', 'dimension_scores', 'submitted_at'],
@@ -20,6 +26,17 @@ final class RoadmapPromptRegistry
         'activity_experience' => ['activity_category', 'hours', 'confirmed_at'],
         'evaluation' => ['overall_score', 'presentation_score', 'published_at'],
         'opportunity' => ['title', 'location', 'deadline_at', 'category', 'opportunity_type'],
+        'profile' => ['study_status', 'school_name', 'class_name', 'grade_level', 'academic_year', 'updated_at'],
+        'achievement' => ['code', 'title', 'label', 'category', 'description', 'level', 'status', 'awardedAt', 'updatedAt', 'updated_at'],
+        'certificate' => ['title', 'issuer', 'issuingOrganization', 'issue_date', 'issueDate', 'expiry_date', 'expiryDate', 'credentialId', 'verification_status', 'verificationStatus', 'verifiedAt', 'updatedAt', 'updated_at'],
+        'project' => ['title', 'category', 'description', 'projectUrl', 'startAt', 'endAt', 'role', 'contribution', 'status', 'updatedAt', 'updated_at'],
+        'activity' => ['title', 'category', 'location', 'status', 'updatedAt', 'updated_at'],
+        'checkin' => ['activityId', 'activity_id', 'activityCategory', 'activity_category', 'displayCategory', 'display_category', 'filterCategory', 'filter_category', 'hours', 'checkedInAt', 'checked_in_at', 'checked_at', 'confirmedAt', 'confirmed_at', 'status', 'updatedAt', 'updated_at'],
+        'badge' => ['code', 'name', 'category', 'description', 'level', 'awardedAt', 'awarded_at', 'updatedAt', 'updated_at'],
+        'progress' => ['code', 'label', 'current', 'target', 'percent', 'progressPercent', 'progress_percent', 'skill_code', 'progress_score', 'status', 'updatedAt', 'updated_at'],
+        'mentor_evaluation' => ['activityId', 'overallScore', 'overall_score', 'publishedAt', 'published_at', 'comment', 'status', 'version', 'updatedAt', 'updated_at'],
+        'teacher_feedback' => ['activityId', 'overallScore', 'overall_score', 'publishedAt', 'published_at', 'comment', 'status', 'version', 'updatedAt', 'updated_at'],
+        'roadmap_feedback' => ['runId', 'run_id', 'verdict', 'reasonCode', 'reason_code', 'createdAt', 'created_at', 'updatedAt', 'updated_at'],
     ];
 
     public function create(RecommendationInput $input, RecommendationContext $context): ProviderRequest
@@ -27,6 +44,7 @@ final class RoadmapPromptRegistry
         $evidence = [];
         $byReference = [];
         $allowedActivityIds = [];
+        $allowedCatalogIds = [];
         foreach ($input->evidenceReferences() as $index => $reference) {
             $referenceId = sprintf('evidence-%03d', $index + 1);
             $sourceType = (string) ($reference['source_type'] ?? '');
@@ -46,6 +64,10 @@ final class RoadmapPromptRegistry
                 'provider_source',
                 $safeValue,
             );
+            if (in_array($sourceType, ['activity', 'activity_experience'], true)
+                || ($sourceType === 'opportunity' && ($safeValue['opportunity_type'] ?? null) === 'activity')) {
+                $allowedCatalogIds[] = $sourceId;
+            }
             $byReference[$referenceId] = $record;
             $evidence[] = [
                 'reference_id' => $referenceId,
@@ -55,6 +77,8 @@ final class RoadmapPromptRegistry
             ];
         }
         sort($allowedActivityIds, SORT_STRING);
+        $allowedCatalogIds = array_values(array_unique($allowedCatalogIds));
+        sort($allowedCatalogIds, SORT_STRING);
 
         return new ProviderRequest(self::VERSION, [
             'prompt_version' => self::VERSION,
@@ -65,8 +89,16 @@ final class RoadmapPromptRegistry
                 'Viết toàn bộ nội dung dành cho học viên bằng tiếng Việt tự nhiên.',
                 'Phân tích đầy đủ bốn bài Holland, MBTI, DISC, Multiple Intelligence cùng trường, lớp, khối và năm học để cá nhân hóa lộ trình.',
                 'Tạo đúng ba giai đoạn 0–30, 31–60 và 61–90 ngày; mỗi giai đoạn có từ 3 đến 5 task cụ thể.',
+                'Tạo lộ trình phù hợp với học sinh, sinh viên: ưu tiên bài tập học tập, dự án nhỏ, hoạt động nhóm và sản phẩm có thể hoàn thành trong lịch học; không giao nhiệm vụ như một nhân sự toàn thời gian.',
+                'Mỗi giai đoạn phải có 3–5 task theo trình tự tăng dần; khi phù hợp, sắp xếp task theo các mốc 7 ngày, 14 ngày, 30 ngày, 60 ngày và 90 ngày để người học dễ theo dõi tiến độ.',
+                'Mỗi task phải bắt đầu bằng một hành động cụ thể, mô tả cách thực hiện và nêu rõ đầu ra hoặc tiêu chí hoàn thành có thể kiểm tra được; không viết mô tả chung chung.',
+                'Cân bằng thời lượng task với lịch học; ưu tiên 30–120 phút cho một task, chia nhiệm vụ lớn thành bước nhỏ, và dùng metric_label để mô tả cách người học tự theo dõi tiến bộ.',
+                'Kết nối mỗi giai đoạn với mục tiêu học tập, kỹ năng trọng tâm, sản phẩm/đầu ra và thước đo; diễn đạt thân thiện, khích lệ, dễ hiểu với lứa tuổi học sinh–sinh viên.',
                 'Không nhắc lại mã MBTI, điểm Holland, biểu đồ DISC hoặc điểm Multiple Intelligence.',
                 'Mỗi insight, phase và task phải trích dẫn evidence_ref_ids được cung cấp.',
+                'talent_map phải có đúng ba record, mỗi record dùng duy nhất một trong ba field chuẩn: Tư duy Logic & Hệ thống; Kỹ năng Thực hành & Thao tác; Tổ chức & Điều phối; mỗi field xuất hiện đúng một lần. Không gộp hai nhóm vào cùng một record.',
+                'Nếu có talent_map, strengths, improvements, potential_paths, trend_signals hoặc growth_hypotheses thì mỗi record phải trích dẫn evidence_ref_ids được cung cấp.',
+                'Chỉ dùng catalog_id trùng một catalog evidence đã cung cấp và còn hiệu lực; không tự tạo mã catalog.',
                 'Không chẩn đoán, không khẳng định chắc chắn nghề nghiệp, tuyển sinh hoặc việc làm.',
                 'Chỉ dùng activity_source_id có trong allowed_activity_ids; nếu danh sách rỗng thì chỉ tạo self_task.',
                 'Không đưa tên, thông tin liên hệ, mã học viên, mã nguồn dữ liệu hoặc nội dung ngoài JSON vào kết quả.',
@@ -75,14 +107,16 @@ final class RoadmapPromptRegistry
             ],
             'allowed_scopes' => $this->allowedScopes($input, $context),
             'allowed_activity_ids' => $allowedActivityIds,
-            'output_schema' => $this->outputSchema(array_keys($byReference), $allowedActivityIds),
+            'allowed_catalog_ids' => $allowedCatalogIds,
+            'output_schema' => $this->outputSchema(array_keys($byReference), $allowedActivityIds, $allowedCatalogIds),
+            'input_quality' => $this->safeQualityFlags($input->qualityFlags()),
             'input' => $this->safeInput($input->payload()),
             'evidence' => $evidence,
         ], $byReference);
     }
 
-    /** @param list<string> $evidenceIds @param list<string> $activityIds @return array<string,mixed> */
-    private function outputSchema(array $evidenceIds, array $activityIds): array
+    /** @param list<string> $evidenceIds @param list<string> $activityIds @param list<string> $catalogIds @return array<string,mixed> */
+    private function outputSchema(array $evidenceIds, array $activityIds, array $catalogIds): array
     {
         $text = ['type' => 'string', 'minLength' => 1];
         $evidence = [
@@ -152,13 +186,16 @@ final class RoadmapPromptRegistry
         $activityItems = $activityIds === []
             ? ['type' => 'string', 'pattern' => 'a^']
             : ['type' => 'string', 'enum' => $activityIds];
+        $catalogItems = $catalogIds === []
+            ? ['type' => 'string', 'pattern' => 'a^']
+            : ['type' => 'string', 'enum' => $catalogIds];
 
         return [
             'type' => 'object',
             'additionalProperties' => false,
             'required' => [
                 'executive_summary', 'primary_direction', 'alternative_directions', 'insights',
-                'phases', 'recommended_activity_source_ids',
+                'phases', 'recommended_activity_source_ids', 'talent_map',
             ],
             'properties' => [
                 'executive_summary' => $text,
@@ -181,6 +218,27 @@ final class RoadmapPromptRegistry
                     ],
                 ],
                 'phases' => ['type' => 'array', 'items' => $phase, 'minItems' => 3, 'maxItems' => 3],
+                'talent_map' => [
+                    'type' => 'array',
+                    'minItems' => 3,
+                    'maxItems' => 3,
+                    'items' => [
+                        'type' => 'object',
+                        'additionalProperties' => false,
+                        'required' => ['field', 'score', 'evidence_ref_ids'],
+                        'properties' => [
+                            'field' => ['type' => 'string', 'enum' => self::TALENT_MAP_FIELDS],
+                            'score' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
+                            'evidence_ref_ids' => $evidence,
+                        ],
+                    ],
+                ],
+                'strengths' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['text', 'evidence_ref_ids'], 'properties' => ['text' => $text, 'evidence_ref_ids' => $evidence]]],
+                'improvements' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['text', 'evidence_ref_ids'], 'properties' => ['text' => $text, 'evidence_ref_ids' => $evidence]]],
+                'potential_paths' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['label', 'evidence_ref_ids'], 'properties' => ['label' => $text, 'catalog_id' => $catalogItems, 'evidence_ref_ids' => $evidence]]],
+                'trend_signals' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['direction', 'label', 'evidence_ref_ids'], 'properties' => ['direction' => ['type' => 'string', 'enum' => ['up', 'down', 'flat']], 'label' => $text, 'evidence_ref_ids' => $evidence]]],
+                'growth_hypotheses' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['text', 'confidence', 'evidence_ref_ids'], 'properties' => ['text' => $text, 'confidence' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1], 'evidence_ref_ids' => $evidence]]],
+                'confidence' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
                 'recommended_activity_source_ids' => [
                     'type' => 'array',
                     'items' => $activityItems,
@@ -211,8 +269,29 @@ final class RoadmapPromptRegistry
             'activities' => $this->safeRecords($payload['activities'] ?? [], self::SAFE_FIELDS['activity_experience']),
             'evaluations' => $this->safeRecords($payload['evaluations'] ?? [], self::SAFE_FIELDS['evaluation']),
             'opportunities' => $this->safeRecords($payload['opportunities'] ?? [], self::SAFE_FIELDS['opportunity']),
+            'sources' => $this->safeSourceRecords($payload['sources'] ?? []),
             'preference_signals' => $this->safePreferenceSignals($payload['preference_signals'] ?? []),
         ];
+    }
+
+    /** @return list<array<string,mixed>> */
+    private function safeSourceRecords(mixed $records): array
+    {
+        if (!is_array($records)) return [];
+        $safe = [];
+        foreach ($records as $record) {
+            if (!is_array($record)) continue;
+            $type = is_string($record['source_type'] ?? null) ? $record['source_type'] : '';
+            $allowed = self::SAFE_FIELDS[$type] ?? [];
+            $safe[] = [
+                'source_type' => $type,
+                'observed_at' => is_string($record['observed_at'] ?? null) ? $record['observed_at'] : null,
+                'schema_version' => is_string($record['schema_version'] ?? null) ? $record['schema_version'] : null,
+                'consent_scope' => is_string($record['consent_scope'] ?? null) ? $record['consent_scope'] : null,
+                'data' => $this->safeRecord(is_array($record['data'] ?? null) ? $record['data'] : [], $allowed),
+            ];
+        }
+        return $safe;
     }
 
     /** @return list<array{verdict:string,reason_code:string,count:int}> */
@@ -260,6 +339,19 @@ final class RoadmapPromptRegistry
             }
         }
         return $safe;
+    }
+
+    /** @param array<string,mixed> $flags @return array<string,mixed> */
+    private function safeQualityFlags(array $flags): array
+    {
+        return [
+            'allowed_scopes' => is_array($flags['allowed_scopes'] ?? null) ? array_values($flags['allowed_scopes']) : [],
+            'missing_consent_scopes' => is_array($flags['missing_consent_scopes'] ?? null) ? array_values($flags['missing_consent_scopes']) : [],
+            'missing_source_types' => is_array($flags['missing_source_types'] ?? null) ? array_values($flags['missing_source_types']) : [],
+            'source_counts' => is_array($flags['source_counts'] ?? null) ? $flags['source_counts'] : [],
+            'source_availability' => is_array($flags['source_availability'] ?? null) ? $flags['source_availability'] : [],
+            'blocked_catalog_types' => is_array($flags['blocked_catalog_types'] ?? null) ? array_values($flags['blocked_catalog_types']) : [],
+        ];
     }
 
     /** @return list<string> */

@@ -55,8 +55,8 @@ $learnerBadgeFilters = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Theo dõi cấp độ và bộ sưu tập huy hiệu cá nhân của học sinh, sinh viên trên TalentHub.">
     <title>Huy hiệu và cấp độ | TalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-badges">
     <div class="learner-layout">
@@ -135,10 +135,27 @@ $learnerBadgeFilters = [
                             <h2 id="school-badges-title">Huy hiệu chính thức của trường</h2>
                             <p>Các huy hiệu được gợi ý theo hồ sơ năng lực; huy hiệu đủ điều kiện sẽ do hệ thống hoặc nhà trường ghi nhận.</p>
                         </div>
-                        <a href="profile.php">Xem chứng chỉ <?= learner_icon('arrow-right', 16); ?></a>
+                        <a href="#school-certificates-title">Xem chứng chỉ <?= learner_icon('arrow-right', 16); ?></a>
                     </div>
                     <?php
                     $credentialItems = $schoolCredentialData['badges'] ?? [];
+                    $credentialCompact = false;
+                    include __DIR__ . '/includes/school-credential-grid.php';
+                    unset($credentialItems, $credentialCompact);
+                    ?>
+                </section>
+
+                <section class="learner-card learner-school-credential-section learner-school-credential-section--certificates" aria-labelledby="school-certificates-title">
+                    <div class="learner-school-credential-heading">
+                        <div>
+                            <span class="learner-school-credential-heading__eyebrow"><?= learner_icon('graduation-cap', 17); ?> Chương trình của <?= learner_escape($schoolCredentialData['school']['name'] ?? 'nhà trường'); ?></span>
+                            <h2 id="school-certificates-title">Chứng chỉ chính thức của trường</h2>
+                            <p>Chứng chỉ đã cấp, đang hoàn thiện và chưa mở khóa đều được hiển thị theo mẫu Diploma chính thức.</p>
+                        </div>
+                        <a href="profile.php#school-certificates-title">Xem trong hồ sơ <?= learner_icon('arrow-right', 16); ?></a>
+                    </div>
+                    <?php
+                    $credentialItems = $schoolCredentialData['certificates'] ?? [];
                     $credentialCompact = false;
                     include __DIR__ . '/includes/school-credential-grid.php';
                     unset($credentialItems, $credentialCompact);
@@ -170,12 +187,13 @@ $learnerBadgeFilters = [
                     if ($badgeData !== null && isset($badgeData['progress'])) {
                         foreach ($badgeData['progress'] as $p) {
                             $tone = $p['status'] === 'achieved' ? 'success' : ($p['status'] === 'in_progress' ? 'primary' : 'neutral');
-                            $statusLabel = $p['status'] === 'achieved' ? 'Đạt được' : ($p['status'] === 'in_progress' ? 'Đang thực hiện' : 'Chưa mở');
+                            $statusLabel = $p['status'] === 'achieved' ? 'Đã đạt' : ($p['status'] === 'in_progress' ? 'Đang tiến hành' : 'Chưa mở khóa');
                             $displayBadges[] = [
                                 'id' => $p['badgeId'],
                                 'code' => $p['badgeCode'],
                                 'name' => $p['badgeName'],
                                 'category' => $p['badgeCategory'],
+                                'level' => $p['badgeLevel'],
                                 'description' => $p['badgeDescription'],
                                 'status' => $p['status'],
                                 'status_label' => $statusLabel,
@@ -199,28 +217,33 @@ $learnerBadgeFilters = [
                             <?php
                             $badgeProgress = (int) ($badge['progress'] ?? 0);
                             $badgeTone = $badge['tone'] ?? ($badge['status'] === 'achieved' ? 'success' : ($badge['status'] === 'in_progress' ? 'primary' : 'neutral'));
-                            $statusLabel = $badge['status_label'] ?? ($badge['status'] === 'achieved' ? 'Đạt được' : ($badge['status'] === 'in_progress' ? 'Đang thực hiện' : 'Chưa mở'));
+                            $statusLabel = match ((string) ($badge['status'] ?? 'locked')) {
+                                'achieved' => 'Đã đạt',
+                                'in_progress' => 'Đang tiến hành',
+                                default => 'Chưa mở khóa',
+                            };
+                            $badgeLevel = max(1, (int) ($badge['level'] ?? 1));
                             ?>
                             <article class="learner-card learner-badge-card learner-badge-card--<?= learner_escape($badge['status']); ?>" data-badge-card data-badge-status="<?= learner_escape($badge['status']); ?>">
-                                <span class="learner-badge-card__icon learner-badge-card__icon--<?= learner_escape($badgeTone); ?>" aria-hidden="true">
-                                    <?= learner_icon($badge['icon'] ?? 'award', 38); ?>
-                                </span>
-                                <h3><?= learner_escape($badge['name']); ?></h3>
-                                <p><?= learner_escape($badge['description']); ?></p>
-                                <span class="learner-badge-card__status learner-badge-card__status--<?= learner_escape($badgeTone); ?>">
-                                    <?= learner_escape($statusLabel); ?>
-                                </span>
-                                <div class="learner-badge-card__progress">
-                                    <div class="learner-progress" role="progressbar" aria-label="Tiến độ huy hiệu <?= learner_escape($badge['name']); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($badgeProgress); ?>">
-                                        <span class="learner-progress--<?= learner_escape($badgeTone); ?>" style="--learner-progress: <?= learner_escape($badgeProgress); ?>%;"></span>
-                                    </div>
-                                    <strong><?= learner_escape($badge['current']); ?>/<?= learner_escape($badge['target']); ?></strong>
+                                <div class="learner-badge-card__ring" style="--badge-progress: <?= learner_escape($badgeProgress); ?>%;" role="progressbar" aria-label="Tiến độ huy hiệu <?= learner_escape($badge['name']); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($badgeProgress); ?>">
+                                    <span class="learner-badge-card__medal learner-badge-card__medal--<?= learner_escape($badgeTone); ?>" aria-hidden="true">
+                                        <span class="learner-badge-card__ribbons"></span>
+                                        <span class="learner-badge-card__medal-face">
+                                            <?= learner_icon($badge['status'] === 'locked' ? 'lock' : ($badge['icon'] ?? 'award'), 42); ?>
+                                        </span>
+                                    </span>
                                 </div>
-                                <?php if (!empty($badge['awardedAt'])): ?>
-                                    <small style="display: block; margin-top: 8px; color: #64748b; font-size: 0.75rem;">
-                                        Ngày nhận: <?= learner_escape(date('d/m/Y', strtotime((string)$badge['awardedAt']))); ?>
-                                    </small>
-                                <?php endif; ?>
+                                <span class="learner-badge-card__compact-state learner-badge-card__status--<?= learner_escape($badgeTone); ?>"><?= learner_escape($statusLabel); ?></span>
+                                <h3><?= learner_escape($badge['name']); ?></h3>
+                                <div class="learner-badge-card__compact-summary">
+                                    <?php if ($badge['status'] === 'achieved'): ?>
+                                        <span class="learner-badge-card__verified"><?= learner_icon('shield-check', 17); ?> Đã xác minh</span>
+                                    <?php else: ?>
+                                        <span>Cấp <?= $badgeLevel; ?></span>
+                                        <i aria-hidden="true">•</i>
+                                        <span class="learner-badge-card__criteria"><strong><?= $badge['status'] === 'in_progress' ? learner_escape($badgeProgress) . '%' : learner_escape($badge['current']) . '/' . learner_escape($badge['target']); ?></strong> <?= $badge['status'] === 'in_progress' ? 'hoàn thành' : 'tiêu chí'; ?></span>
+                                    <?php endif; ?>
+                                </div>
                             </article>
                         <?php endforeach; ?>
                     </div>

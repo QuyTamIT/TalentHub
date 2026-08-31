@@ -13,17 +13,14 @@ use TalentHub\Learner\Ai\Domain\RecommendationContext;
 use TalentHub\Learner\Ai\Domain\RecommendationInput;
 use TalentHub\Learner\Ai\Domain\RoadmapAnalysis;
 use TalentHub\Learner\Ai\Evaluation\RecommendationEvaluator;
+use TalentHub\Learner\Ai\Provider\ProviderRetryAfterException;
+use TalentHub\Learner\Ai\Provider\StrictAiUnavailable;
+use TalentHub\Learner\Ai\Quality\StrictAiReadinessGate;
 use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
 use TalentHub\Learner\Ai\Validation\RoadmapAnalysisValidator;
 
 final class ModelRoadmapEngine implements RoadmapEngine
 {
-    private const FALLBACK_REASONS = [
-        'model_disabled', 'rate_limited', 'provider_disabled', 'provider_unavailable', 'provider_rejected',
-        'consent_revoked', 'consent_missing', 'consent_changed', 'malformed_response', 'invalid_request',
-        'invalid_model_response',
-    ];
-
     public function __construct(
         private readonly RoadmapProvider $provider,
         private readonly RoadmapEngine $fallback,
@@ -37,49 +34,75 @@ final class ModelRoadmapEngine implements RoadmapEngine
     public function generate(RecommendationInput $input, RecommendationContext $context): RoadmapAnalysis
     {
         $studentId = trim((string) $context->studentId());
-        if (!$this->config->enabled() || $studentId === '') return $this->fallback($input, $context, 'model_disabled');
-        if (!$this->rateLimiter->acquire($studentId)->allowed()) return $this->fallback($input, $context, 'rate_limited');
+        if (!$this->config->enabled() || $studentId === '') {
+            throw new RoadmapModelUnavailable('model_disabled');
+        }
+        $this->assertStrictReadiness($input, $context, $studentId);
+        if (!$this->rateLimiter->acquire($studentId)->allowed()) {
+            if ($context->shouldPropagateProviderRetry()) {
+                throw new ProviderRetryAfterException('rate_limited', 60);
+            }
+            throw new RoadmapModelUnavailable('rate_limited');
+        }
 
         $request = $this->prompts->create($input, $context);
-        try {
-            $response = $this->provider->generate(
-                $request,
-                new BoundProviderAttemptAuthorizer($this->consentGate, $studentId, $input, $context),
-            );
-        } catch (\Throwable) {
-            return $this->fallback($input, $context, 'provider_unavailable');
-        }
-        if (!$response->isSuccess()) return $this->fallback($input, $context, (string) $response->errorCode());
-
-        try {
-            $allowedActivities = $request->payload()['allowed_activity_ids'] ?? [];
-            $validator = new RoadmapAnalysisValidator(
-                $request->evidenceReferenceIds(),
-                is_array($allowedActivities) ? $allowedActivities : [],
-            );
-            $analysis = $validator->fromProviderPayload($response->payload(), [
-                'origin' => 'model',
-                'provider' => (string) $this->config->provider(),
-                'model_version' => (string) $this->config->model(),
-                'prompt_version' => $request->promptVersion(),
-                'confidence_band' => $this->confidenceBand($input),
-                'provider_request_id' => $response->providerRequestId(),
-                'response_hash' => $response->responseHash(),
-            ]);
-            $validator->validate($analysis);
-            if (($this->evaluator->evaluateRoadmap($analysis, $input)['valid'] ?? false) !== true) {
-                throw new \RuntimeException('Roadmap safety evaluation failed.');
+        // Provider transport retries deal with network/5xx failures. A model
+        // can also return a syntactically valid JSON document that violates a
+        // safety or provenance constraint; allow one fresh provider attempt
+        // for that transient case while keeping the validator fail-closed.
+        $validationAttempts = max(1, min(2, $this->config->maxAttempts()));
+        for ($validationAttempt = 1; $validationAttempt <= $validationAttempts; $validationAttempt++) {
+            try {
+                $response = $this->provider->generate(
+                    $request,
+                    new BoundProviderAttemptAuthorizer($this->consentGate, $studentId, $input, $context),
+                );
+            } catch (\TalentHub\Learner\Ai\Contracts\ProviderUnavailableException $e) {
+                throw new RoadmapModelUnavailable($e->reason());
+            } catch (\Throwable $e) {
+                throw new RoadmapModelUnavailable('provider_unavailable');
             }
-            return $analysis;
-        } catch (\Throwable) {
-            return $this->fallback($input, $context, 'invalid_model_response');
-        }
-    }
+            if (!$response->isSuccess()) {
+                if ($context->shouldPropagateProviderRetry() && $response->errorCode() === 'rate_limited' && $response->retryAfterSeconds() !== null) {
+                    throw new ProviderRetryAfterException('rate_limited', $response->retryAfterSeconds());
+                }
+                $reason = in_array((string) $response->errorCode(), RoadmapModelUnavailable::REASONS, true)
+                    ? (string) $response->errorCode()
+                    : 'provider_unavailable';
+                throw new RoadmapModelUnavailable($reason);
+            }
 
-    private function fallback(RecommendationInput $input, RecommendationContext $context, string $reason): RoadmapAnalysis
-    {
-        $reason = in_array($reason, self::FALLBACK_REASONS, true) ? $reason : 'provider_unavailable';
-        return $this->fallback->generate($input, $context)->withFallbackReason($reason);
+            try {
+                $requestPayload = $request->payload();
+                $allowedActivities = $requestPayload['allowed_activity_ids'] ?? [];
+                $allowedCatalogIds = $requestPayload['allowed_catalog_ids'] ?? [];
+                $validator = new RoadmapAnalysisValidator(
+                    $request->evidenceReferenceIds(),
+                    is_array($allowedActivities) ? $allowedActivities : [],
+                    is_array($allowedCatalogIds) ? $allowedCatalogIds : [],
+                );
+                $analysis = $validator->fromProviderPayload($response->payload(), [
+                    'origin' => 'model',
+                    'provider' => (string) $this->config->provider(),
+                    'model_version' => (string) $this->config->model(),
+                    'prompt_version' => $request->promptVersion(),
+                    'confidence_band' => $this->confidenceBand($input),
+                    'provider_request_id' => $response->providerRequestId(),
+                    'response_hash' => $response->responseHash(),
+                ]);
+                $validator->validate($analysis);
+                if (($this->evaluator->evaluateRoadmap($analysis, $input)['valid'] ?? false) !== true) {
+                    throw new \RuntimeException('Roadmap safety evaluation failed.');
+                }
+                return $analysis;
+            } catch (\Throwable) {
+                if ($validationAttempt >= $validationAttempts) {
+                    throw new RoadmapModelUnavailable('invalid_model_response');
+                }
+            }
+        }
+
+        throw new RoadmapModelUnavailable('invalid_model_response');
     }
 
     private function confidenceBand(RecommendationInput $input): string
@@ -89,5 +112,25 @@ final class ModelRoadmapEngine implements RoadmapEngine
             ? (int) $counts['assessments']
             : count($input->payload()['assessments'] ?? []);
         return $assessmentCount >= 4 ? 'high' : 'low';
+    }
+
+    private function assertStrictReadiness(RecommendationInput $input, RecommendationContext $context, string $studentId): void
+    {
+        if (!$this->config->strictMode()) {
+            return;
+        }
+        $evidenceCount = count($input->evidenceReferences());
+        $signals = [
+            'snapshot_present' => $evidenceCount > 0,
+            'snapshot_evidence_count' => $evidenceCount,
+            'consent_ready' => true,
+            'required_scopes' => $context->allowedScopes(),
+            'allowed_scopes' => $context->allowedScopes(),
+        ];
+        StrictAiReadinessGate::create($this->config)->assertReady(
+            $studentId,
+            'roadmap.generate',
+            $signals,
+        );
     }
 }

@@ -91,13 +91,35 @@ final class Environment
     private static function readRaw(string $name): ?string
     {
         if (array_key_exists($name, $_ENV)) {
-            return is_string($_ENV[$name]) ? $_ENV[$name] : null;
+            $value = is_string($_ENV[$name]) ? $_ENV[$name] : null;
+            if ($value !== null && $value !== '') return $value;
         }
         if (array_key_exists($name, $_SERVER)) {
-            return is_string($_SERVER[$name]) ? $_SERVER[$name] : null;
+            $value = is_string($_SERVER[$name]) ? $_SERVER[$name] : null;
+            if ($value !== null && $value !== '') return $value;
         }
 
         $value = getenv($name);
+        if ($value !== false && $value !== '') return $value;
+
+        // Some threaded web SAPIs expose empty placeholders and may skip the
+        // bootstrap loader on a later request. Recover the project value
+        // directly so required configuration never becomes intermittently
+        // unavailable.
+        $envPath = dirname(__DIR__, 2) . '/.env';
+        if (!is_file($envPath) || !is_readable($envPath)) return $value === false ? null : $value;
+        foreach (file($envPath, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
+            $trim = ltrim(trim($line), "\xEF\xBB\xBF");
+            if ($trim === '' || str_starts_with($trim, '#')) continue;
+            if (str_starts_with($trim, 'export ')) $trim = trim(substr($trim, 7));
+            $eq = strpos($trim, '=');
+            if ($eq === false || trim(substr($trim, 0, $eq)) !== $name) continue;
+            $candidate = trim(substr($trim, $eq + 1));
+            if (strlen($candidate) >= 2 && (($candidate[0] === '"' && $candidate[-1] === '"') || ($candidate[0] === "'" && $candidate[-1] === "'"))) {
+                $candidate = substr($candidate, 1, -1);
+            }
+            return $candidate;
+        }
         return $value === false ? null : $value;
     }
 }

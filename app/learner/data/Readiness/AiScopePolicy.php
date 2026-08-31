@@ -6,8 +6,12 @@ namespace TalentHub\Learner\Data\Readiness;
 
 final class AiScopePolicy
 {
-    private const ALLOWED_PREFIXES = ['app/learner/', 'assets/js/learner', 'tests/learner_', 'docs/superpowers/'];
-    private const ALLOWED_EXACT_PATHS = ['assets/css/learner.css'];
+    private const ALLOWED_PREFIXES = ['app/learner/', 'assets/js/learner'];
+    private const ALLOWED_EXACT_PATHS = [
+        'assets/css/learner.css',
+        'bin/worker-learner-ai-refresh.php',
+        'config/learner-ai-worker.php',
+    ];
     private const PROTECTED_PREFIXES = ['app/teacher/', 'app/school/', 'app/enterprise/', 'src/', 'api/'];
     private const APPROVAL_PREFIXES = ['Database/migrations/learner/', 'Database/seeds/learner/'];
     private const FORBIDDEN_SQL = ['DELETE', 'DROP', 'TRUNCATE', 'RENAME'];

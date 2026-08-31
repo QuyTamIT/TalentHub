@@ -185,7 +185,7 @@ include __DIR__ . '/includes/page-banner.php';
 
 <!-- Two-Column Profile & Account Form -->
 <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 1.75rem; align-items: start;">
-    
+
     <!-- PHẦN 1: THÔNG TIN TỔ CHỨC / TRƯỜNG HỌC -->
     <section class="school-section-box" style="margin-bottom: 0;">
         <div class="school-section-box__header" style="border-bottom: 1px solid #F1F5F9; padding-bottom: 1rem; margin-bottom: 1.25rem;">

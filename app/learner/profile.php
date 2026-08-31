@@ -14,8 +14,8 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Hồ sơ năng lực đã xác minh của <?= learner_escape($student['name']); ?> trên TalentHub.">
     <title>Hồ sơ năng lực | TalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-profile" data-learner-source="<?= ($isDatabaseMode ?? false) ? 'database' : 'mock'; ?>">
     <div class="learner-layout">
@@ -55,8 +55,8 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                         </div>
 
                         <div class="learner-profile-actions">
-                            <a class="learner-btn learner-btn--primary" href="talent-passport.php" style="background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%); color: #FFFFFF; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);">
-                                <?= learner_icon('award', 18); ?> Xem &amp; Tải Talent Passport
+                            <a class="learner-btn learner-btn--primary" href="talent-passport.php" style="background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%); color: #FFFFFF; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);" title="Xem bản in & tải file PDF Hồ sơ Năng lực số">
+                                <?= learner_icon('award', 18); ?> Xuất PDF Hồ sơ (Talent Passport)
                             </a>
                             <button class="learner-btn learner-btn--outline" type="button" data-open-modal="learner-share-modal">
                                 <?= learner_icon('share', 18); ?> Chia sẻ hồ sơ
@@ -79,6 +79,33 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                         <?php endforeach; ?>
                     </div>
                 </section>
+
+                <?php if (is_array($aiCapabilityProfile)): ?>
+                    <section class="learner-card" aria-labelledby="ai-capability-profile-title">
+                        <div class="learner-section-heading learner-section-heading--icon">
+                            <span class="learner-section-heading__icon"><?= learner_icon('sparkles', 22); ?></span>
+                            <div>
+                                <h2 id="ai-capability-profile-title">AI phân tích hồ sơ năng lực</h2>
+                                <p>Cập nhật <?= learner_escape($aiCapabilityProfile['generated_at'] ?? ''); ?> · <?= ($aiCapabilityProfile['status'] ?? '') === 'stale_model' ? 'Đang hiển thị bản AI gần nhất' : 'Dữ liệu AI mới nhất'; ?></p>
+                            </div>
+                        </div>
+                        <div class="learner-profile-grid">
+                            <article>
+                                <h3>Điểm mạnh</h3>
+                                <ul><?php foreach (($aiCapabilityProfile['strengths'] ?? []) as $insight): ?><li><?= learner_escape(is_array($insight) ? ($insight['label'] ?? $insight['title'] ?? '') : $insight); ?></li><?php endforeach; ?></ul>
+                            </article>
+                            <article>
+                                <h3>Cần cải thiện</h3>
+                                <ul><?php foreach (($aiCapabilityProfile['improvements'] ?? []) as $insight): ?><li><?= learner_escape(is_array($insight) ? ($insight['label'] ?? $insight['title'] ?? '') : $insight); ?></li><?php endforeach; ?></ul>
+                            </article>
+                        </div>
+                        <details>
+                            <summary>Xem nguồn bằng chứng AI đã sử dụng</summary>
+                            <ul><?php foreach (($aiCapabilityProfile['evidence'] ?? []) as $evidence): ?><li><?= learner_escape(is_array($evidence) ? ($evidence['source_type'] ?? $evidence['ref_id'] ?? 'Nguồn dữ liệu') : $evidence); ?></li><?php endforeach; ?></ul>
+                        </details>
+                        <p><small>Phân tích AI chỉ hỗ trợ định hướng và không thay thế điểm đánh giá chính thức của giáo viên/mentor.</small></p>
+                    </section>
+                <?php endif; ?>
 
                 <section class="learner-card learner-school-credential-section" aria-labelledby="school-certificates-title">
                     <div class="learner-school-credential-heading">
@@ -149,15 +176,37 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                         <?php else: ?>
                             <div class="learner-certificate-list">
                                 <?php foreach ($certificates as $certificate): ?>
-                                    <article class="learner-certificate">
-                                        <span class="learner-certificate__icon"><?= learner_icon('award', 20); ?></span>
-                                        <div>
-                                            <h3><?= learner_escape($certificate['name'] ?? $certificate['title'] ?? ''); ?></h3>
-                                            <p><?= learner_escape($certificate['issuer'] ?? $certificate['issuing_organization'] ?? ''); ?> <span aria-hidden="true">•</span> <?= learner_escape($certificate['year'] ?? $certificate['issue_date'] ?? ''); ?></p>
+                                    <?php
+                                    $certificateVerified = !empty($certificate['verified']) || ($certificate['verification_status'] ?? $certificate['verificationStatus'] ?? '') === 'verified';
+                                    $certificateTitle = $certificate['name'] ?? $certificate['title'] ?? '';
+                                    $certificateIssuer = $certificate['issuer'] ?? $certificate['issuing_organization'] ?? $certificate['issuingOrganization'] ?? '';
+                                    $certificateDate = $certificate['year'] ?? $certificate['issue_date'] ?? $certificate['issueDate'] ?? '';
+                                    $certificateCode = $certificate['credential_id'] ?? $certificate['credentialId'] ?? '';
+                                    ?>
+                                    <article class="learner-certificate learner-certificate--diploma<?= $certificateVerified ? ' learner-certificate--verified' : ''; ?>">
+                                        <div class="learner-certificate__frame">
+                                            <div class="learner-certificate__topline">
+                                                <span><?= learner_icon('graduation-cap', 18); ?> Chứng chỉ bên ngoài</span>
+                                                <span class="learner-certificate__status"><?= $certificateVerified ? 'Đã xác minh' : 'Chờ xác minh'; ?></span>
+                                            </div>
+                                            <span class="learner-certificate__icon" aria-hidden="true"><?= learner_icon('graduation-cap', 24); ?></span>
+                                            <div class="learner-certificate__content">
+                                                <h3><?= learner_escape($certificateTitle); ?></h3>
+                                                <div class="learner-certificate__meta">
+                                                    <span><?= learner_icon('building', 14); ?> <?= learner_escape($certificateIssuer); ?></span>
+                                                    <?php if ((string) $certificateDate !== ''): ?>
+                                                        <span><?= learner_icon('calendar', 14); ?> Cấp ngày <?= learner_escape($certificateDate); ?></span>
+                                                    <?php endif; ?>
+                                                    <?php if ((string) $certificateCode !== ''): ?>
+                                                        <span><?= learner_icon('file-text', 14); ?> Mã: <?= learner_escape($certificateCode); ?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                            <span class="learner-certificate__seal">
+                                                <?= learner_icon($certificateVerified ? 'shield-check' : 'clock', 20); ?>
+                                                <?= $certificateVerified ? 'Đã xác minh' : 'Đang chờ'; ?>
+                                            </span>
                                         </div>
-                                        <?php if (!empty($certificate['verified']) || ($certificate['verification_status'] ?? '') === 'verified'): ?>
-                                            <span class="learner-verified-badge">Đã xác minh</span>
-                                        <?php endif; ?>
                                     </article>
                                 <?php endforeach; ?>
                             </div>
@@ -177,7 +226,7 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                     <?php else: ?>
                         <div class="learner-project-grid">
                             <?php foreach ($projects as $project): ?>
-                                <?php 
+                                <?php
                                     $pName = $project['name'] ?? $project['title'] ?? '';
                                     $pDesc = $project['description'] ?? '';
                                     $pRole = $project['role'] ?? 'Thành viên';
@@ -327,9 +376,14 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                     </select>
                 </label>
 
-                <div class="learner-modal__actions" style="margin-bottom: 1rem;">
-                    <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Hủy</button>
-                    <button class="learner-btn learner-btn--primary" type="submit">Tạo liên kết chia sẻ</button>
+                <div class="learner-modal__actions" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                    <a class="learner-btn learner-btn--outline" href="talent-passport.php" target="_blank" style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.875rem;">
+                        <?= learner_icon('printer', 16); ?> Tải bản in PDF
+                    </a>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Hủy</button>
+                        <button class="learner-btn learner-btn--primary" type="submit">Tạo liên kết chia sẻ</button>
+                    </div>
                 </div>
             </form>
 

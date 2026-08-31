@@ -158,6 +158,42 @@ SQL, ['student_id' => $studentId]);
         return $row !== null;
     }
 
+    public function latestRoadmapAnalysis(string $studentId): ?array
+    {
+        $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
+        $row = $this->fetchOne('latestRoadmapAnalysis', <<<'SQL'
+SELECT executiveSummary AS executive_summary,
+       primaryDirectionJson AS primary_direction,
+       insightsJson AS insights,
+       confidenceBand AS confidence_band,
+       generatedAt AS generated_at
+FROM learner_ai_roadmaps
+WHERE studentId = :student_id AND status = 'active'
+ORDER BY versionNumber DESC
+LIMIT 1
+SQL, ['student_id' => $studentId]);
+        if ($row === null) {
+            return null;
+        }
+
+        $primaryDirection = $this->decodeJson($row['primary_direction'] ?? null, 'primaryDirectionJson');
+        $storedInsights = $this->decodeJson($row['insights'] ?? null, 'insightsJson');
+        $extended = is_array($storedInsights['__ai_extended'] ?? null) ? $storedInsights['__ai_extended'] : [];
+        $insights = is_array($storedInsights['items'] ?? null) ? $storedInsights['items'] : $storedInsights;
+
+        return [
+            'executive_summary' => trim((string) ($row['executive_summary'] ?? '')),
+            'primary_direction' => $primaryDirection,
+            'talent_map' => is_array($extended['talent_map'] ?? null) ? $extended['talent_map'] : [],
+            'strengths' => is_array($extended['strengths'] ?? null) ? $extended['strengths'] : [],
+            'improvements' => is_array($extended['improvements'] ?? null) ? $extended['improvements'] : [],
+            'trend_signals' => is_array($extended['trend_signals'] ?? null) ? $extended['trend_signals'] : [],
+            'insights' => array_is_list($insights) ? $insights : [],
+            'confidence_band' => (string) ($row['confidence_band'] ?? ''),
+            'generated_at' => $row['generated_at'] ?? null,
+        ];
+    }
+
     /** @param array<string,mixed> $scores @return array<string,float> */
     private function numericScores(array $scores): array
     {

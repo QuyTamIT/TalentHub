@@ -1476,9 +1476,6 @@
     transition: all .2s ease;
 }
 
-/* ==========================================================================
-   Activity Registration Feedback Box (Emerald / Mint Aesthetic)
-   ========================================================================== */
 .learner-activities-shell .learner-activity-feedback-box {
     align-items: center;
     border-radius: 12px;
@@ -1500,7 +1497,6 @@
     background: #F0FDF4;
     border: 1.5px solid #86EFAC;
     box-shadow: 0 4px 14px rgba(16, 185, 129, 0.09);
-    animation: learnerSuccessFeedbackIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .learner-activities-shell .learner-activity-feedback-box__icon-wrapper {
@@ -1517,7 +1513,6 @@
 
 .learner-activities-shell .learner-activity-feedback-box__icon {
     align-items: center;
-    animation: learnerSuccessIconScale 0.35s ease-out;
     color: #16A34A;
     display: inline-flex;
     height: 30px;
@@ -1557,32 +1552,6 @@
     cursor: default !important;
     font-weight: 600 !important;
     opacity: 1 !important;
-}
-
-@keyframes learnerSuccessFeedbackIn {
-    0% {
-        opacity: 0;
-        transform: translateY(6px) scale(0.98);
-    }
-    100% {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-@keyframes learnerSuccessIconScale {
-    0% {
-        opacity: 0;
-        transform: scale(0.5);
-    }
-    60% {
-        opacity: 1;
-        transform: scale(1.15);
-    }
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
 }
 
 .learner-activities-shell .learner-registration-message {
