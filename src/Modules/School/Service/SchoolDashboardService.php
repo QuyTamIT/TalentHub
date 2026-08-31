@@ -466,10 +466,18 @@ final class SchoolDashboardService
     /**
      * @return list<array<string,mixed>>
      */
-    public function students(string $userId, int $limit = 50, int $offset = 0): array
+    public function students(
+        string $userId,
+        int $limit = 50,
+        int $offset = 0,
+        ?string $classId = null,
+    ): array
     {
         $school = $this->getByUser($userId);
-        $rows = $this->repository->listStudents($school['id'], $limit, $offset);
+        if ($classId !== null) {
+            Uuid::orFail($classId, 'classId');
+        }
+        $rows = $this->repository->listStudents($school['id'], $limit, $offset, $classId);
         return array_map(static function (array $row): array {
             return [
                 'id'          => (string) $row['id'],
@@ -483,6 +491,15 @@ final class SchoolDashboardService
                 'studyStatus' => (string) $row['studyStatus'],
             ];
         }, $rows);
+    }
+
+    public function studentCount(string $userId, ?string $classId = null): int
+    {
+        $school = $this->getByUser($userId);
+        if ($classId !== null) {
+            Uuid::orFail($classId, 'classId');
+        }
+        return $this->repository->countStudents($school['id'], $classId);
     }
 
     /**

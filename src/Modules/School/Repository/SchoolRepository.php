@@ -71,14 +71,21 @@ final class SchoolRepository
     /** @return list<array<string,mixed>> */
     public function listClasses(string $schoolId, bool $includeArchived = false): array
     {
-        $sql = 'SELECT id, schoolId, name, gradeLevel, academicYear, status,
-                       (SELECT COUNT(*) FROM student_profiles sp INNER JOIN users su ON su.id = sp.userId WHERE sp.classId = c.id AND sp.studyStatus = \'active\' AND su.status = \'active\') AS studentCount,
-                       (SELECT COALESCE(ROUND(AVG(CASE
-                           WHEN sp.phone IS NOT NULL AND sp.phone <> \'\' AND sp.dateOfBirth IS NOT NULL THEN 100
-                           WHEN (sp.phone IS NOT NULL AND sp.phone <> \'\') OR sp.dateOfBirth IS NOT NULL THEN 50
-                           ELSE 0 END)), 0)
-                        FROM student_profiles sp INNER JOIN users su ON su.id = sp.userId WHERE sp.classId = c.id AND sp.studyStatus = \'active\' AND su.status = \'active\') AS profileCompletion
+        $sql = 'SELECT c.id, c.schoolId, c.name, c.gradeLevel, c.academicYear, c.status,
+                       COALESCE(class_students.studentCount, 0) AS studentCount,
+                       COALESCE(class_students.profileCompletion, 0) AS profileCompletion
                 FROM classes c
+                LEFT JOIN (
+                    SELECT sp.classId,
+                           COUNT(*) AS studentCount,
+                           COALESCE(ROUND(AVG(CASE
+                               WHEN sp.phone IS NOT NULL AND sp.phone <> \'\' AND sp.dateOfBirth IS NOT NULL THEN 100
+                               WHEN (sp.phone IS NOT NULL AND sp.phone <> \'\') OR sp.dateOfBirth IS NOT NULL THEN 50
+                               ELSE 0 END)), 0) AS profileCompletion
+                    FROM student_profiles sp
+                    WHERE sp.classId IS NOT NULL
+                    GROUP BY sp.classId
+                ) class_students ON class_students.classId = c.id
                 WHERE c.schoolId = :schoolId';
         if (!$includeArchived) {
             $sql .= ' AND c.status = \'active\'';
@@ -442,31 +449,45 @@ final class SchoolRepository
     }
 
     /** @return list<array<string,mixed>> */
-    public function listStudents(string $schoolId, int $limit = 50, int $offset = 0): array
+    public function listStudents(
+        string $schoolId,
+        int $limit = 50,
+        int $offset = 0,
+        ?string $classId = null,
+    ): array
     {
-        $stmt = $this->pdo->prepare(
-            'SELECT sp.id, sp.userId, sp.classId, sp.dateOfBirth, sp.phone, sp.studyStatus,
-                    u.email, u.fullName, u.status AS userStatus,
-                    c.name AS className, c.gradeLevel
-             FROM student_profiles sp
-             JOIN users u ON u.id = sp.userId
-             JOIN classes c ON c.id = sp.classId
-             WHERE c.schoolId = :schoolId
-             ORDER BY c.gradeLevel ASC, c.name ASC, u.fullName ASC
-             LIMIT ' . (int) $limit . ' OFFSET ' . (int) $offset
-        );
-        $stmt->execute(['schoolId' => $schoolId]);
+        $sql = 'SELECT sp.id, sp.userId, sp.classId, sp.dateOfBirth, sp.phone, sp.studyStatus,
+                       u.email, u.fullName, u.status AS userStatus,
+                       c.name AS className, c.gradeLevel
+                FROM student_profiles sp
+                INNER JOIN users u ON u.id = sp.userId
+                INNER JOIN classes c ON c.id = sp.classId
+                WHERE c.schoolId = :schoolId';
+        $params = ['schoolId' => $schoolId];
+        if ($classId !== null) {
+            $sql .= ' AND sp.classId = :classId';
+            $params['classId'] = $classId;
+        }
+        $sql .= ' ORDER BY c.gradeLevel ASC, c.name ASC, u.fullName ASC
+                  LIMIT ' . (int) $limit . ' OFFSET ' . (int) $offset;
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
         return array_values($stmt->fetchAll());
     }
 
-    public function countStudents(string $schoolId): int
+    public function countStudents(string $schoolId, ?string $classId = null): int
     {
-        $stmt = $this->pdo->prepare(
-            'SELECT COUNT(*) FROM student_profiles sp
-             JOIN classes c ON c.id = sp.classId
-             WHERE c.schoolId = :schoolId'
-        );
-        $stmt->execute(['schoolId' => $schoolId]);
+        $sql = 'SELECT COUNT(*) FROM student_profiles sp
+                INNER JOIN users u ON u.id = sp.userId
+                INNER JOIN classes c ON c.id = sp.classId
+                WHERE c.schoolId = :schoolId';
+        $params = ['schoolId' => $schoolId];
+        if ($classId !== null) {
+            $sql .= ' AND sp.classId = :classId';
+            $params['classId'] = $classId;
+        }
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
         return (int) $stmt->fetchColumn();
     }
 
