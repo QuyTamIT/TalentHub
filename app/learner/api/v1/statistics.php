@@ -36,7 +36,7 @@ try {
         ));
     }
 
-    $period = $request->queryParam('period') ?? 'month';
+    $period = $request->queryParam('period') ?? 'semester';
     $period = strtolower(trim((string) $period));
 
     if (!in_array($period, StatisticsService::ALLOWED_PERIODS, true)) {

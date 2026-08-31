@@ -16,7 +16,7 @@ $learnerOnboarding = $GLOBALS['learner_page_context']['onboarding'] ?? [];
 $learnerOnboardingRestricted = ($learnerOnboarding['required'] ?? false) === true
     && ($learnerOnboarding['status'] ?? null) !== 'completed';
 
-$studentName = !empty($student['name']) ? $student['name'] : 'Nguyễn Văn An';
+$studentName = !empty($student['name']) ? $student['name'] : 'Học viên';
 $studentInitials = !empty($student['initials']) ? $student['initials'] : (mb_strtoupper(mb_substr($studentName, 0, 1)));
 $accountType = 'Tài khoản Sinh viên';
 ?>

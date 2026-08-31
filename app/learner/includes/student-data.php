@@ -21,19 +21,19 @@ if (!function_exists('learner_escape')) {
 
 $studentMock = [
     'id' => 'student-demo-001',
-    'school_id' => 'school-demo-nguyen-du',
-    'class_id' => 'class-demo-11a2',
-    'user_id' => 'user-demo-nguyen-van-a',
+    'school_id' => 'school-demo-001',
+    'class_id' => 'class-demo-001',
+    'user_id' => 'user-demo-student',
     'study_status' => 'active',
-    'name' => 'Nguyễn Văn A',
-    'initials' => 'A',
-    'class' => 'Lớp 11A2',
-    'school' => 'Trường THPT Nguyễn Du',
-    'email' => 'a.nguyen@school.edu.vn',
-    'location' => 'Hà Nội',
+    'name' => 'Học viên',
+    'initials' => 'HV',
+    'class' => 'Chưa cập nhật lớp',
+    'school' => 'Chưa cập nhật trường',
+    'email' => 'student@talenthub.edu.vn',
+    'location' => 'Việt Nam',
     'verified' => true,
-    'streak_days' => 7,
-    'experience_hours' => 64,
+    'streak_days' => 0,
+    'experience_hours' => 0,
 ];
 $appEnvironment = strtolower((string) (getenv('APP_ENV') ?: ''));
 $learnerSource = strtolower((string) (getenv('TALENTHUB_LEARNER_SOURCE') ?: 'database'));

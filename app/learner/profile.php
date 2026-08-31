@@ -5,7 +5,7 @@ require_once __DIR__ . '/includes/icons.php';
 
 $pageTitle = 'Hồ sơ năng lực';
 $currentRoute = '/app/learner/profile.php';
-$shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/learner/profile.php?student=nguyen-van-a';
+$shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app_href('/app/learner/profile.php?student=' . urlencode((string)($student['id'] ?? 'me'))) : '');
 ?>
 <!DOCTYPE html>
 <html lang="vi">

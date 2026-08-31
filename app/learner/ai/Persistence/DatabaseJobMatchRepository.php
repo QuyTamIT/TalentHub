@@ -72,13 +72,29 @@ final class DatabaseJobMatchRepository implements JobMatchRepository
                     $snapshotId, $studentId, $input->schemaVersion(), $input->contentHash(), self::json($context->allowedScopes()), self::json($input->qualityFlags()), self::json($input->payload()), self::json($input->sourceUpdatedAt()), $this->now(),
                 ]);
                 $insertEvidence = $this->pdo->prepare('INSERT INTO learner_recommendation_snapshot_evidence (id,snapshotId,sourceType,sourceId,observedAt,safeValueJson,createdAt) VALUES (?,?,?,?,?,?,?)');
-                $seen = [];
+                $normalized = [];
                 foreach ($input->evidenceReferences() as $ref) {
-                    $type = self::persistableType((string) ($ref['source_type'] ?? ''));
+                    $logicalType = trim((string) ($ref['source_type'] ?? ''));
+                    $type = EvidenceSourceTypeNormalizer::canonical($logicalType);
                     $id = (string) ($ref['source_id'] ?? '');
-                    if ($type === '' || $id === '' || !is_array($ref['safe_value'] ?? null) || isset($seen[$type . ':' . $id])) continue;
-                    $seen[$type . ':' . $id] = true;
-                    $insertEvidence->execute([self::uuid(), $snapshotId, $type, $id, $this->databaseTimestamp($ref['observed_at'] ?? null), self::json($ref['safe_value']), $this->now()]);
+                    if ($type === '' || $id === '' || !is_array($ref['safe_value'] ?? null)) continue;
+                    $key = $type . ':' . $id;
+                    $candidate = [
+                        'logicalType' => $logicalType,
+                        'sourceType' => $type,
+                        'sourceId' => $id,
+                        'observedAt' => $this->databaseTimestamp($ref['observed_at'] ?? null),
+                        'safeValueJson' => self::json($ref['safe_value']),
+                    ];
+                    if (isset($normalized[$key])) {
+                        $normalized[$key] = EvidenceSourceTypeNormalizer::preferSnapshotEvidence($normalized[$key], $candidate);
+                    } else {
+                        $normalized[$key] = $candidate;
+                    }
+                }
+                ksort($normalized, SORT_STRING);
+                foreach ($normalized as $evidence) {
+                    $insertEvidence->execute([self::uuid(), $snapshotId, $evidence['sourceType'], $evidence['sourceId'], $evidence['observedAt'], $evidence['safeValueJson'], $this->now()]);
                 }
             }
             $runId = self::uuid();
@@ -128,7 +144,7 @@ final class DatabaseJobMatchRepository implements JobMatchRepository
                 $linkedEvidence = [];
                 foreach ($analysis->evidenceRefIds() as $ref) {
                     [$sourceType, $sourceId] = array_pad(explode(':', $ref, 2), 2, '');
-                    $canonicalEvidenceKey = self::persistableType($sourceType) . ':' . $sourceId;
+                    $canonicalEvidenceKey = EvidenceSourceTypeNormalizer::canonical($sourceType) . ':' . $sourceId;
                     if (isset($linkedEvidence[$canonicalEvidenceKey])) continue;
                     $linkedEvidence[$canonicalEvidenceKey] = true;
                     $this->linkEvidence($snapshotId, $itemId, $ref, $now);
@@ -167,9 +183,14 @@ final class DatabaseJobMatchRepository implements JobMatchRepository
 
     private function linkEvidence(string $snapshotId, string $itemId, string $ref, string $now): void
     {
-        [$type, $sourceId] = array_pad(explode(':', $ref, 2), 2, ''); $type = self::persistableType($type);
+        [$type, $sourceId] = array_pad(explode(':', $ref, 2), 2, '');
         $q = $this->pdo->prepare('SELECT * FROM learner_recommendation_snapshot_evidence WHERE snapshotId=? AND sourceType=? AND sourceId=? LIMIT 1');
-        $q->execute([$snapshotId, $type, $sourceId]); $row = $q->fetch(PDO::FETCH_ASSOC);
+        $row = false;
+        foreach (EvidenceSourceTypeNormalizer::lookupTypes($type) as $lookupType) {
+            $q->execute([$snapshotId, $lookupType, $sourceId]);
+            $row = $q->fetch(PDO::FETCH_ASSOC);
+            if ($row !== false) break;
+        }
         if ($row === false) throw new RuntimeException('Job match evidence is not part of the snapshot: ' . $ref);
         $this->pdo->prepare('INSERT INTO learner_recommendation_evidence (id,itemId,snapshotEvidenceId,sourceType,sourceId,observedAt,contributionLabel,safeValueJson,createdAt) VALUES (?,?,?,?,?,?,?,?,?)')->execute([
             self::uuid(), $itemId, $row['id'], $row['sourceType'], $row['sourceId'], $row['observedAt'], 'job_match_evidence', $row['safeValueJson'], $now,
@@ -183,7 +204,6 @@ final class DatabaseJobMatchRepository implements JobMatchRepository
     private function databaseTimestamp(mixed $value):?string{if($value===null||$value==='')return null;if(!is_string($value))throw new \InvalidArgumentException('Evidence timestamp must be a string or null.');try{return(new \DateTimeImmutable($value))->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s.u');}catch(\Throwable $e){throw new \InvalidArgumentException('Evidence timestamp must be UTC-compatible.',0,$e);}}
     private function transaction(callable $fn):mixed{$own=!$this->pdo->inTransaction();if($own)$this->pdo->beginTransaction();try{$v=$fn();if($own)$this->pdo->commit();return $v;}catch(\Throwable $e){if($own&&$this->pdo->inTransaction())$this->pdo->rollBack();throw $e;}}
     private static function confidence(int $score):string{return $score>=80?'high':($score>=60?'medium':'low');}
-    private static function persistableType(string $type):string{return match($type){'catalog'=>'opportunity','profile'=>'assessment','project','activity'=>'activity_experience','certificate','badge','achievement'=>'skill','mentor_evaluation','teacher_feedback'=>'evaluation',default=>$type};}
     private static function required(string $v,string $m):string{$v=trim($v);if($v==='')throw new \InvalidArgumentException($m);return $v;}
     private static function json(mixed $v):string{return json_encode($v,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);}
     /** @return array<string,mixed> */ private static function decode(mixed $v):array{if(!is_string($v)||$v==='')return[];$d=json_decode($v,true);return is_array($d)?$d:[];}

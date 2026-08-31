@@ -14,23 +14,23 @@ $pageTitle = 'Talent Passport - Hộ chiếu Năng lực Số 360°';
 $currentRoute = '/app/learner/talent-passport.php';
 
 $studentId = (string) ($student['id'] ?? learner_current_student_id());
-$studentName = $student['name'] ?? 'Lê Quý Tam';
-$studentClass = $student['class'] ?? 'Lớp BTEC-AI-2026A';
-$studentSchool = $student['school'] ?? 'Cao đẳng Quốc tế BTEC FPT';
-$studentEmail = $student['email'] ?? 'tamlangtu2005@gmail.com';
-$studentLocation = $student['location'] ?? 'Cần Thơ';
+$studentName = !empty($student['name']) ? $student['name'] : 'Học viên';
+$studentClass = !empty($student['class']) ? $student['class'] : ($student['className'] ?? 'Chưa cập nhật lớp');
+$studentSchool = !empty($student['school']) ? $student['school'] : ($student['schoolName'] ?? 'Chưa cập nhật trường');
+$studentEmail = !empty($student['email']) ? $student['email'] : '';
+$studentLocation = !empty($student['location']) ? $student['location'] : 'Việt Nam';
 $passportCode = 'TLH-' . strtoupper(substr(md5($studentId . 'talenthub'), 0, 8)) . '-2026';
 
 // 1. Dữ liệu từ Talent Passport Aggregate & Database
 $talentPassport = $GLOBALS['learner_talent_passport'] ?? [];
 
 // 2. Điểm Tổng hợp & Đánh giá của Giảng viên
-$overallScore = 88.0;
-$gradeClassification = 'Xuất sắc';
-$rankingPercentile = 'Top 10% Chuyên ngành AI';
-$evalComment = 'Sinh viên thể hiện tư duy logic và năng lực giải thuật xuất sắc; làm chủ các công nghệ Deep Learning, Computer Vision và tích cực tham gia các đề án đổi mới sáng tạo nhận bảo trợ từ doanh nghiệp.';
-$evalReviewer = 'ThS. Nguyễn Văn Hùng';
-$evalOrg = $studentSchool;
+$overallScore = 0.0;
+$gradeClassification = 'Chưa xếp loại';
+$rankingPercentile = 'Đang cập nhật';
+$evalComment = 'Chưa có nhận xét từ giảng viên.';
+$evalReviewer = 'Giảng viên hướng dẫn';
+$evalOrg = !empty($studentSchool) && $studentSchool !== 'Chưa cập nhật trường' ? $studentSchool : 'Đơn vị đào tạo';
 
 if (!empty($talentPassport['teacher_evaluations'][0])) {
     $firstEval = $talentPassport['teacher_evaluations'][0];

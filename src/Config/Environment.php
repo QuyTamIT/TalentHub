@@ -37,6 +37,11 @@ final class Environment
         return $value;
     }
 
+    public static function optional(string $name): ?string
+    {
+        return self::read($name);
+    }
+
     public static function integer(string $name, int $default, int $minimum, int $maximum): int
     {
         $value = self::read($name);

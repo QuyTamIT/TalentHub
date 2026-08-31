@@ -11,6 +11,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
 use TalentHub\Auth\Session\SessionManager;
+use TalentHub\Config\Environment;
 use TalentHub\Database\Connection;
 use TalentHub\Http\ApiException;
 use TalentHub\Http\Request;
@@ -222,9 +223,7 @@ final class LearnerApiContext
         $availabilityPolicy = new AiAvailabilityPolicy();
 
         try {
-            $env = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
-                ? $GLOBALS['__TALENTHUB_TEST_ENV__']
-                : $_ENV;
+            $env = self::recommendationEnvironment();
             $config = RecommendationConfig::fromEnvironment($env);
             if ($config->enabled()) {
                 $modelConfig = $config;
@@ -293,9 +292,7 @@ final class LearnerApiContext
         $snapshotBuilder = $this->snapshotBuilder();
         $runs = new DatabaseRecommendationRepository($this->pdo);
         $roadmaps = new DatabaseRoadmapRepository($this->pdo);
-        $env = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
-            ? $GLOBALS['__TALENTHUB_TEST_ENV__']
-            : $_ENV;
+        $env = self::recommendationEnvironment();
         $config = RecommendationConfig::fromEnvironment($env);
         $ruleEngine = new RuleRoadmapEngine();
         $modelEngine = null;
@@ -381,9 +378,7 @@ final class LearnerApiContext
         $snapshotBuilder = $this->snapshotBuilder();
         $opportunitySource = new DatabaseOpportunitySource($this->pdo);
         $catalogSource = new DatabaseCatalogSource($this->pdo);
-        $environment = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
-            ? $GLOBALS['__TALENTHUB_TEST_ENV__']
-            : $_ENV;
+        $environment = self::recommendationEnvironment();
 
         try {
             $config = RecommendationConfig::fromEnvironment($environment);
@@ -502,8 +497,7 @@ final class LearnerApiContext
         $registry->setTransactionPdo($this->pdo);
         $registry->registerTalentPassportSources((new RepositoryFactory('database', $this->pdo))->talentPassport());
         $snapshotBuilder = new RecommendationSnapshotBuilder($registry);
-        $environment = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
-            ? $GLOBALS['__TALENTHUB_TEST_ENV__'] : $_ENV;
+        $environment = self::recommendationEnvironment();
         try { $config = RecommendationConfig::fromEnvironment($environment); }
         catch (\Throwable) { $config = RecommendationConfig::fromEnvironment(['TALENTHUB_AI_ENABLED' => 'false']); }
 
@@ -576,9 +570,7 @@ final class LearnerApiContext
             return new ShadowRunService($repository, $modelEngine, new RecommendationEvaluator());
         }
         try {
-            $env = isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])
-                ? $GLOBALS['__TALENTHUB_TEST_ENV__']
-                : $_ENV;
+            $env = self::recommendationEnvironment();
             $config = RecommendationConfig::fromEnvironment($env);
             $availability = (new AiAvailabilityPolicy())->decide(
                 'shadow-evaluation',
@@ -658,6 +650,43 @@ final class LearnerApiContext
         $injected = $GLOBALS['__TALENTHUB_TEST_ROLLOUT_EVIDENCE__'] ?? null;
         if (is_array($injected)) return $injected;
         return RolloutEvidenceFactory::fromEnvironment($config, $environment);
+    }
+
+    /** @return array<string,string> */
+    private static function recommendationEnvironment(): array
+    {
+        if (isset($GLOBALS['__TALENTHUB_TEST_ENV__']) && is_array($GLOBALS['__TALENTHUB_TEST_ENV__'])) {
+            return $GLOBALS['__TALENTHUB_TEST_ENV__'];
+        }
+
+        $environment = [];
+        foreach ([
+            'APP_ENV',
+            'TALENTHUB_AI_ENABLED',
+            'TALENTHUB_AI_PROVIDER',
+            'TALENTHUB_AI_MODEL',
+            'TALENTHUB_AI_API_URL',
+            'TALENTHUB_AI_API_KEY',
+            'TALENTHUB_AI_ALLOWED_HOSTS',
+            'TALENTHUB_AI_TIMEOUT_SECONDS',
+            'TALENTHUB_AI_MAX_ATTEMPTS',
+            'TALENTHUB_AI_PER_STUDENT_LIMIT',
+            'TALENTHUB_AI_GLOBAL_LIMIT',
+            'TALENTHUB_AI_ROADMAP_TIMEOUT_SECONDS',
+            'TALENTHUB_AI_ROADMAP_PER_STUDENT_LIMIT',
+            'TALENTHUB_AI_ROADMAP_GLOBAL_LIMIT',
+            'TALENTHUB_AI_SHADOW',
+            'TALENTHUB_AI_SHADOW_GATE_APPROVED',
+            'TALENTHUB_AI_VISIBLE_PERCENT',
+            'TALENTHUB_AI_PILOT_APPROVAL_REFERENCE',
+            'TALENTHUB_AI_PILOT_PAUSED',
+            'TALENTHUB_AI_STRICT_MODE_OVERRIDE',
+        ] as $name) {
+            $value = Environment::optional($name);
+            if ($value !== null) $environment[$name] = $value;
+        }
+
+        return $environment;
     }
 
     /** @return list<string> */

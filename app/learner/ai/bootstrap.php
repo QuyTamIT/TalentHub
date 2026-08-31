@@ -127,6 +127,7 @@ require_once $learnerAiRoot . '/Rules/RuleRecommendationEngine.php';
 require_once $learnerAiRoot . '/Rules/RuleRoadmapEngine.php';
 require_once $learnerAiRoot . '/Persistence/RecommendationRepository.php';
 require_once $learnerAiRoot . '/Persistence/RoadmapRepository.php';
+require_once $learnerAiRoot . '/Persistence/EvidenceSourceTypeNormalizer.php';
 require_once $learnerAiRoot . '/Persistence/DatabaseRecommendationRepository.php';
 require_once $learnerAiRoot . '/Persistence/DatabaseRoadmapRepository.php';
 require_once $learnerAiRoot . '/Persistence/OpportunityMatchRepository.php';

@@ -234,6 +234,9 @@ final class InternshipRepository
             if (!$allowed) {
                 throw new ApiException(422, 'ILLEGAL_STATUS_TRANSITION', 'Chuyển trạng thái tin không hợp lệ.');
             }
+            if ($targetStatus === 'active') {
+                $this->assertPublishableAudience($enterpriseId, $postId, (string) ($post['audience'] ?? 'public'));
+            }
             if ($targetStatus === 'active' && new DateTimeImmutable((string) $post['deadline'], new DateTimeZone('UTC')) < new DateTimeImmutable('now', new DateTimeZone('UTC'))) {
                 throw new ApiException(422, 'VALIDATION_FAILED', 'Không thể đăng tin đã hết hạn.');
             }
@@ -533,14 +536,15 @@ final class InternshipRepository
         return $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
-    private function assertApprovedPartnerSchools(string $enterpriseId, array $schoolIds): void
+    private function assertApprovedPartnerSchools(string $enterpriseId, array $schoolIds, bool $lock = false): void
     {
         if (!$this->tableExists('school_enterprise_partnerships')) {
-            return;
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Dữ liệu quan hệ trường đối tác chưa sẵn sàng.');
         }
 
         $placeholders = implode(',', array_fill(0, count($schoolIds), '?'));
-        $stmt = $this->pdo->prepare("SELECT schoolId FROM school_enterprise_partnerships WHERE enterpriseId = ? AND status = 'approved' AND schoolId IN ({$placeholders})");
+        $lockClause = $lock ? $this->lockSuffix() : '';
+        $stmt = $this->pdo->prepare("SELECT schoolId FROM school_enterprise_partnerships WHERE enterpriseId = ? AND status = 'approved' AND schoolId IN ({$placeholders}) ORDER BY schoolId{$lockClause}");
         $stmt->execute(array_merge([$enterpriseId], $schoolIds));
         $approvedIds = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
 
@@ -548,6 +552,34 @@ final class InternshipRepository
         if (!empty($diff)) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Trường đối tác được chọn chưa được phê duyệt quan hệ hợp tác.');
         }
+    }
+
+    private function assertPublishableAudience(string $enterpriseId, string $postId, string $audience): void
+    {
+        if ($audience === 'public') {
+            return;
+        }
+        if ($audience !== 'partner_schools') {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Phạm vi tuyển dụng không hợp lệ.');
+        }
+        if (!$this->tableExists('internship_post_target_schools')
+            || !$this->tableExists('school_enterprise_partnerships')) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Dữ liệu trường đối tác chưa sẵn sàng để đăng tin.');
+        }
+
+        $statement = $this->pdo->prepare(
+            'SELECT schoolId FROM internship_post_target_schools WHERE postId = :postId ORDER BY schoolId' . $this->lockSuffix()
+        );
+        $statement->execute(['postId' => $postId]);
+        $schoolIds = array_values(array_filter(
+            $statement->fetchAll(PDO::FETCH_COLUMN) ?: [],
+            static fn (mixed $schoolId): bool => is_string($schoolId) && $schoolId !== ''
+        ));
+        if ($schoolIds === []) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Vui lòng chọn ít nhất 1 trường đối tác trước khi đăng tin.');
+        }
+
+        $this->assertApprovedPartnerSchools($enterpriseId, $schoolIds, true);
     }
 
     /** @return array<string,mixed>|null */

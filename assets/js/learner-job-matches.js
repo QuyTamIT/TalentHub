@@ -13,7 +13,19 @@
 
     function text(value, fallback = '') { return typeof value === 'string' && value.trim() !== '' ? value.trim() : fallback; }
     function integerScore(value) { const score = Number(value); return Number.isInteger(score) && score >= 0 && score <= 100 ? score : null; }
+    function boundedCount(value) { const count = Number(value); return Number.isInteger(count) && count >= 0 && count <= 20 ? count : null; }
     function mapJobMatchState(value) { return STATE_MAP[String(value || '')] || 'source-error'; }
+    function jobMatchStatusLabel(state, payload = {}) {
+        if (state === 'ready-model') return 'Phân tích vừa xong';
+        if (state === 'stale-model') return 'Đang hiển thị kết quả gần nhất';
+        if (state === 'no-matches') return payload.near_match ? 'Đã phân tích vị trí gần ngưỡng nhất' : 'Chưa có vị trí đạt ngưỡng';
+        if (state === 'catalog-insufficient') return 'Chưa có vị trí phù hợp';
+        if (state === 'consent-required') return 'Cần quyền dữ liệu AI';
+        if (state === 'insufficient-data') return 'Chưa đủ dữ liệu hồ sơ';
+        if (state === 'loading') return 'AI đang phân tích';
+        if (state === 'not-generated') return 'Sẵn sàng phân tích';
+        return 'Phân tích chưa khả dụng';
+    }
     function labelCode(value) {
         const labels = { php: 'PHP', sql: 'SQL', python: 'Python', mlops: 'MLOps', machine_learning: 'Machine Learning', algorithms: 'Giải thuật', git: 'Git', teamwork: 'Làm việc nhóm', communication: 'Giao tiếp', data_analysis: 'Phân tích dữ liệu' };
         const code = text(value).toLowerCase();
@@ -22,6 +34,75 @@
         return words ? words.charAt(0).toUpperCase() + words.slice(1) : '';
     }
     function stringList(value, limit = 8) { return Array.isArray(value) ? value.map(text).filter(Boolean).slice(0, limit) : []; }
+    function normalizeStrengthDetails(value) {
+        if (!Array.isArray(value)) return [];
+        const details = []; const seen = new Set();
+        for (const raw of value.slice(0, 20)) {
+            const code = text(raw?.code).toLowerCase(); const label = text(raw?.label);
+            const current = integerScore(raw?.current_score); const target = integerScore(raw?.target_score);
+            if (!/^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(code) || !label || current === null || target === null || current < target || seen.has(code)) continue;
+            seen.add(code); details.push({ code, label, current_score: current, target_score: target });
+        }
+        return details;
+    }
+    function normalizeStrengthSummary(raw) {
+        const strength_details = normalizeStrengthDetails(raw?.strength_details);
+        let met_skill_count = boundedCount(raw?.met_skill_count);
+        let benchmark_skill_count = boundedCount(raw?.benchmark_skill_count);
+        if (met_skill_count === null || benchmark_skill_count === null || met_skill_count > benchmark_skill_count
+            || (strength_details.length > 0 && met_skill_count !== strength_details.length)) {
+            met_skill_count = null; benchmark_skill_count = null;
+        }
+        return { strength_details, met_skill_count, benchmark_skill_count };
+    }
+    function emptyStrengthGuidance(position) {
+        let msg = 'Hiện tại hồ sơ chưa ghi nhận kỹ năng nào đạt mức benchmark yêu cầu';
+        if (position?.title) msg += ` của vị trí ${position.title}`;
+        const gapNames = Array.isArray(position?.gap_explanations) && position.gap_explanations.length > 0
+            ? position.gap_explanations.map((item) => item.skill).filter(Boolean)
+            : (Array.isArray(position?.gaps) ? position.gaps.filter(Boolean) : []);
+        if (gapNames.length > 0) {
+            const topGaps = gapNames.slice(0, 3).join(', ');
+            msg += `. Để mở rộng cơ hội ứng tuyển, bạn nên bắt đầu tích lũy nền tảng ở các kỹ năng cốt lõi như ${topGaps}.`;
+        } else {
+            msg += '. Để nâng cao mức độ phù hợp và mở rộng cơ hội ứng tuyển, bạn nên tích lũy thêm các kỹ năng chuyên môn cốt lõi.';
+        }
+        msg += ' Hãy tích cực tham gia các dự án môn học, hoạt động thực tế hoặc làm bài đánh giá năng lực cùng giảng viên để hệ thống ghi nhận đầy đủ hồ sơ chuyên môn.';
+        return msg;
+    }
+    const EMPTY_STRENGTH_GUIDANCE = emptyStrengthGuidance(null);
+    function jobStrengthDisplayItems(values, rawDetails = [], position = null) {
+        const details = normalizeStrengthDetails(rawDetails);
+        if (details.length > 0) return details.map((detail) => `${detail.label} — ${detail.current_score}/${detail.target_score} · Đạt chuẩn`);
+        return Array.isArray(values) && values.length > 0 ? values : [emptyStrengthGuidance(position)];
+    }
+    function jobStrengthProgressMessage(position) {
+        const met = boundedCount(position?.met_skill_count); const total = boundedCount(position?.benchmark_skill_count);
+        if (met === null || total === null || met <= 0 || met >= total) return '';
+        const strengthNames = Array.isArray(position?.strength_details) && position.strength_details.length > 0
+            ? position.strength_details.map((item) => item.label).filter(Boolean)
+            : (Array.isArray(position?.strengths) ? position.strengths.filter(Boolean) : []);
+        const gapNames = Array.isArray(position?.gap_explanations) && position.gap_explanations.length > 0
+            ? position.gap_explanations.map((item) => item.skill).filter(Boolean)
+            : (Array.isArray(position?.gaps) ? position.gaps.filter(Boolean) : []);
+        let msg = `Hồ sơ hiện đã đạt chuẩn ${met}/${total} kỹ năng theo khung benchmark`;
+        if (position?.title) msg += ` của vị trí ${position.title}`;
+        msg += '. ';
+        if (strengthNames.length > 0) {
+            const topStrengths = strengthNames.slice(0, 3).join(', ');
+            msg += `Bạn đã thể hiện năng lực tốt ở nhóm kỹ năng (${topStrengths}), tạo nền tảng chuyên môn bước đầu. `;
+        } else {
+            msg += 'Bạn đã có nền tảng ban đầu ở kỹ năng đạt chuẩn. ';
+        }
+        if (gapNames.length > 0) {
+            const topGaps = gapNames.slice(0, 2).join(', ');
+            msg += `Để nâng cao mức độ phù hợp và đáp ứng toàn diện hơn, bạn nên ưu tiên bồi dưỡng thêm các kỹ năng trọng yếu còn thiếu như ${topGaps}. `;
+        } else {
+            msg += 'Để nâng cao mức độ phù hợp, bạn nên tiếp tục trau dồi các kỹ năng chuyên môn còn lại. ';
+        }
+        msg += 'Hãy chủ động tham gia các dự án thực chiến, hoàn thành chứng chỉ chuyên môn hoặc đề xuất giảng viên đánh giá trực tiếp để bổ sung dữ liệu năng lực hoàn chỉnh.';
+        return msg.trim();
+    }
 
     function isSafeInternshipUrl(value) {
         if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || /\\|%2e|%2f|%5c/i.test(value)) return false;
@@ -42,10 +123,12 @@
         const id = text(raw?.catalog_id); const score = integerScore(raw?.match_score);
         const title = text(raw?.title); const analysis = text(raw?.analysis);
         if (!id || score === null || score >= 40 || !title || !analysis || !isSafeInternshipUrl(raw?.url)) return null;
+        const strengthSummary = normalizeStrengthSummary(raw);
         return {
             enterprise_id: text(raw?.enterprise_id), enterprise_name: text(raw?.enterprise_name, 'Doanh nghiệp tuyển dụng'),
             catalog_id: id, title, url: raw.url, match_score: score, fit_label: 'Chưa phù hợp', fit_class: 'is-low', analysis,
             strengths: stringList(raw?.strength_skill_codes).map(labelCode),
+            ...strengthSummary,
             gaps: stringList(raw?.gap_skill_codes).map(labelCode),
             gap_explanations: Array.isArray(raw?.gap_explanations) ? raw.gap_explanations.filter((item) => item && typeof item === 'object').slice(0, 8).map((item) => ({ skill: labelCode(item.skill_code), explanation: text(item.explanation) })).filter((item) => item.skill && item.explanation) : [],
         };
@@ -62,10 +145,12 @@
                 const title = text(raw?.title); const analysis = text(raw?.analysis);
                 if (!title || !analysis) continue;
                 seen.add(id);
+                const strengthSummary = normalizeStrengthSummary(raw);
                 positions.push({
                     catalog_id: id, title, url: raw.url, match_score: score,
                     fit_label: fitLabel(score), fit_class: fitClass(score), analysis,
                     strengths: stringList(raw?.strength_skill_codes).map(labelCode),
+                    ...strengthSummary,
                     gaps: stringList(raw?.gap_skill_codes).map(labelCode),
                     gap_explanations: Array.isArray(raw?.gap_explanations) ? raw.gap_explanations.filter((item) => item && typeof item === 'object').slice(0, 8).map((item) => ({ skill: labelCode(item.skill_code), explanation: text(item.explanation) })).filter((item) => item.skill && item.explanation) : [],
                 });
@@ -135,7 +220,7 @@
                     const track = node('div', 'learner-job-score__track'); const fill = node('span', ''); fill.style.width = `${position.match_score}%`; track.appendChild(fill); card.appendChild(track);
                     const narrative = node('div', 'learner-job-position__analysis'); narrative.append(node('strong', '', 'Gemini phân tích'), node('p', '', position.analysis)); card.appendChild(narrative);
                     const columns = node('div', 'learner-job-position__columns');
-                    const strengths = node('div', 'learner-job-position__facts is-strength'); strengths.appendChild(node('h5', '', 'Điểm mạnh phù hợp')); const strengthList = node('ul'); (position.strengths.length ? position.strengths : ['Chưa có kỹ năng đạt benchmark được xác nhận.']).forEach((value) => strengthList.appendChild(node('li', '', value))); strengths.appendChild(strengthList);
+                    const strengths = node('div', 'learner-job-position__facts is-strength'); strengths.appendChild(node('h5', '', 'Điểm mạnh phù hợp')); const strengthList = node('ul'); jobStrengthDisplayItems(position.strengths, position.strength_details, position).forEach((value) => strengthList.appendChild(node('li', '', value))); strengths.appendChild(strengthList); const progressMessage = jobStrengthProgressMessage(position); if (progressMessage) strengths.appendChild(node('p', 'learner-job-strength-guidance', progressMessage));
                     const gaps = node('div', 'learner-job-position__facts is-gap'); gaps.appendChild(node('h5', '', 'Khoảng cần cải thiện')); const gapList = node('ul'); (position.gap_explanations.length ? position.gap_explanations.map((item) => `${item.skill}: ${item.explanation}`) : position.gaps).forEach((value) => gapList.appendChild(node('li', '', value))); if (gapList.children.length === 0) gapList.appendChild(node('li', '', 'Không có khoảng kỹ năng đáng kể.')); gaps.appendChild(gapList); columns.append(strengths, gaps); card.appendChild(columns);
                     const actions = node('div', 'learner-job-position__actions'); const link = node('a', 'learner-btn learner-btn--primary', 'Xem chi tiết vị trí'); link.href = position.url; actions.appendChild(link); card.appendChild(actions); positions.appendChild(card);
                 }
@@ -155,12 +240,12 @@
             const track = node('div', 'learner-job-score__track is-low'); const fill = node('span'); fill.style.width = `${position.match_score}%`; track.appendChild(fill); card.appendChild(track);
             const narrative = node('div', 'learner-job-position__analysis is-low'); narrative.append(node('strong', '', 'Gemini phân tích vì sao chưa phù hợp'), node('p', '', position.analysis)); card.appendChild(narrative);
             const columns = node('div', 'learner-job-position__columns');
-            const strengths = node('div', 'learner-job-position__facts is-strength'); strengths.appendChild(node('h5', '', 'Năng lực đã có')); const strengthList = node('ul'); (position.strengths.length ? position.strengths : ['Chưa có kỹ năng đạt benchmark được xác nhận.']).forEach((value) => strengthList.appendChild(node('li', '', value))); strengths.appendChild(strengthList);
+            const strengths = node('div', 'learner-job-position__facts is-strength'); strengths.appendChild(node('h5', '', 'Năng lực đã có')); const strengthList = node('ul'); jobStrengthDisplayItems(position.strengths, position.strength_details, position).forEach((value) => strengthList.appendChild(node('li', '', value))); strengths.appendChild(strengthList); const progressMessage = jobStrengthProgressMessage(position); if (progressMessage) strengths.appendChild(node('p', 'learner-job-strength-guidance', progressMessage));
             const gaps = node('div', 'learner-job-position__facts is-gap'); gaps.appendChild(node('h5', '', 'Nguyên nhân chưa phù hợp')); const gapList = node('ul'); (position.gap_explanations.length ? position.gap_explanations.map((item) => `${item.skill}: ${item.explanation}`) : position.gaps).forEach((value) => gapList.appendChild(node('li', '', value))); gaps.appendChild(gapList); columns.append(strengths, gaps); card.appendChild(columns);
             const actions = node('div', 'learner-job-position__actions'); const detail = node('a', 'learner-btn learner-btn--outline', 'Xem chi tiết vị trí'); detail.href = position.url; const skillGap = node('a', 'learner-btn learner-btn--primary', 'Xem Skill Gap và hoạt động'); skillGap.href = 'ai-recommendations.php'; actions.append(detail, skillGap); card.appendChild(actions);
             article.appendChild(card); nearMatch.appendChild(article); nearMatch.hidden = false;
         }
-        return { render(state, payload = {}) { stopProgress(); hideAll(); root.dataset.state = state; status.textContent = state === 'ready-model' ? 'Phân tích vừa xong' : state === 'stale-model' ? 'Đang hiển thị kết quả gần nhất' : state === 'no-matches' && payload.near_match ? 'Đã phân tích vị trí gần ngưỡng nhất' : state === 'loading' ? 'AI đang phân tích' : 'Sẵn sàng phân tích'; if (state === 'loading') { progress.hidden = false; started = Date.now(); updateProgress(); if (!payload.initial) timer = global.setInterval(updateProgress, 1000); return; } if (state === 'ready-model' || state === 'stale-model') { renderResults(payload); return; } if (state === 'no-matches' && payload.near_match) { renderNearMatch(payload.near_match); return; } const panel = panels[state] || panels['source-error']; if (panel) panel.hidden = false; } };
+        return { render(state, payload = {}) { stopProgress(); hideAll(); root.dataset.state = state; status.textContent = jobMatchStatusLabel(state, payload); if (state === 'loading') { progress.hidden = false; started = Date.now(); updateProgress(); if (!payload.initial) timer = global.setInterval(updateProgress, 1000); return; } if (state === 'ready-model' || state === 'stale-model') { renderResults(payload); return; } if (state === 'no-matches' && payload.near_match) { renderNearMatch(payload.near_match); return; } const panel = panels[state] || panels['source-error']; if (panel) panel.hidden = false; } };
     }
 
     function defaultKey() { return `job-ui-${global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`}`; }
@@ -172,7 +257,7 @@
         controller.load(); root.__jobController = controller; return controller;
     }
 
-    const exported = { mapJobMatchState, normalizeJobMatchPayload, isSafeInternshipUrl, jobProgressAt, createJobMatchController, createJobMatchView, mountJobMatches };
+    const exported = { mapJobMatchState, jobMatchStatusLabel, normalizeJobMatchPayload, isSafeInternshipUrl, jobProgressAt, jobStrengthDisplayItems, jobStrengthProgressMessage, createJobMatchController, createJobMatchView, mountJobMatches };
     if (typeof module !== 'undefined' && module.exports) module.exports = exported;
     global.TalentHubJobMatches = exported;
     if (global.document) { if (global.document.readyState === 'loading') global.document.addEventListener('DOMContentLoaded', mountJobMatches, { once: true }); else mountJobMatches(); }

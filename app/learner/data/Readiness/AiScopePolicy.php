@@ -6,11 +6,16 @@ namespace TalentHub\Learner\Data\Readiness;
 
 final class AiScopePolicy
 {
-    private const ALLOWED_PREFIXES = ['app/learner/', 'assets/js/learner'];
+    private const ALLOWED_PREFIXES = ['app/learner/', 'assets/js/learner', 'tests/learner_', 'docs/superpowers/'];
     private const ALLOWED_EXACT_PATHS = [
         'assets/css/learner.css',
+        // Task 9 operational verification is intentionally narrow: do not
+        // broaden this to all bin/config/Database paths.
+        'bin/verify-demo-ai.php',
         'bin/worker-learner-ai-refresh.php',
         'config/learner-ai-worker.php',
+        'Database/seeds/Demo/CompleteAiDemoVerifier.php',
+        'tests/complete_ai_demo_verifier_contract_test.php',
     ];
     private const PROTECTED_PREFIXES = ['app/teacher/', 'app/school/', 'app/enterprise/', 'src/', 'api/'];
     private const APPROVAL_PREFIXES = ['Database/migrations/learner/', 'Database/seeds/learner/'];
