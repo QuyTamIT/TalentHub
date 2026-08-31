@@ -880,11 +880,24 @@ function initInternshipManagementModule() {
                 if (targetStatus === 'active' && post.status === 'draft') {
                     post = (await request('POST', `/businesses/me/internships/${encodeURIComponent(post.id)}/publish`, { expectedCurrentStatus: 'draft' })).post;
                 }
-                showToast(targetStatus === 'active' ? 'Đã phát hành tin tuyển dụng thành công!' : 'Đã lưu tin tuyển dụng!');
-                window.setTimeout(() => { window.location.href = 'index.php'; }, 600);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Đăng tin thành công!',
+                    text: 'Tin tuyển dụng của bạn đã được cập nhật lên hệ thống.',
+                    confirmButtonText: 'Hoàn tất',
+                    confirmButtonColor: '#f97316'
+                }).then((result) => {
+                    window.location.href = 'index.php';
+                });
             } catch (error) {
                 console.error('Submit internship post error:', error);
-                showToast(error?.message || 'Không thể lưu tin tuyển dụng. Vui lòng thử lại.');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Thất bại!',
+                    text: error?.message || 'Không thể lưu tin tuyển dụng. Vui lòng thử lại.',
+                    confirmButtonText: 'Đóng',
+                    confirmButtonColor: '#f97316'
+                });
             } finally {
                 btnSaveDraft && (btnSaveDraft.disabled = false);
                 btnPublishPost && (btnPublishPost.disabled = false);

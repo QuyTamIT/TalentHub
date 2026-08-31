@@ -110,14 +110,6 @@ try {
     if (empty($postId) || $postId === 'all') {
         $whereClause = "(ip.enterpriseId = :enterpriseId OR ip.enterpriseId IN (SELECT id FROM enterprises WHERE email = :entEmail))";
         $params = ['enterpriseId' => $entId, 'entEmail' => $entEmail];
-    } else {
-        // If specific postId has 0 apps, also include enterprise-wide apps
-        $checkCount = $pdo->prepare("SELECT COUNT(*) FROM internship_applications WHERE postId = ?");
-        $checkCount->execute([$postId]);
-        if ((int)$checkCount->fetchColumn() === 0) {
-            $whereClause = "(ia.postId = :postId OR ip.enterpriseId = :enterpriseId OR ip.enterpriseId IN (SELECT id FROM enterprises WHERE email = :entEmail))";
-            $params = ['postId' => $postId, 'enterpriseId' => $entId, 'entEmail' => $entEmail];
-        }
     }
 
     $stmtApps = $pdo->prepare("
@@ -234,7 +226,7 @@ try {
     }
 } catch (\Throwable $e) {}
 
-$pipelineCounts = ['all' => count($applicants), 'submitted' => 0, 'reviewing' => 0, 'interview' => 0, 'accepted' => 0, 'declined' => 0];
+$pipelineCounts = ['all' => count($applicants), 'submitted' => 0, 'reviewing' => 0, 'interview' => 0, 'accepted' => 0, 'declined' => 0, 'invited' => 0];
 foreach ($applicants as $applicant) {
     if ($applicant['status'] === 'accepted' || $applicant['status'] === 'hired') {
         $pipelineCounts['accepted']++;
@@ -416,6 +408,12 @@ $sidebarNav = [
                                             <span class="ent-pipeline-tab__count"><?= $pipelineCounts['declined']; ?></span>
                                         </button>
                                     </li>
+                                    <li>
+                                        <button type="button" class="ent-pipeline-tab" data-status-filter="invited">
+                                            <span>Đã mời</span>
+                                            <span class="ent-pipeline-tab__count"><?= $pipelineCounts['invited']; ?></span>
+                                        </button>
+                                    </li>
                                 </ul>
                             </div>
 
@@ -445,6 +443,7 @@ $sidebarNav = [
                                             <option value="interview">Phỏng vấn</option>
                                             <option value="accepted">Đã nhận</option>
                                             <option value="declined">Từ chối</option>
+                                            <option value="invited">Đã mời</option>
                                         </select>
                                     </div>
 
