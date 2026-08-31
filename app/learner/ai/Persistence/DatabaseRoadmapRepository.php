@@ -300,8 +300,11 @@ SQL);
             throw new RuntimeException('Roadmap evidence reference is not mapped to run snapshot');
         }
         $statement = $this->pdo->prepare('SELECT 1 FROM learner_recommendation_snapshot_evidence WHERE snapshotId = :snapshotId AND sourceType = :sourceType AND sourceId = :sourceId');
-        $statement->execute(['snapshotId' => $snapshotId, 'sourceType' => $record['source_type'], 'sourceId' => $record['source_id']]);
-        if ($statement->fetchColumn() === false) throw new RuntimeException('Roadmap evidence is not part of run snapshot');
+        foreach (EvidenceSourceTypeNormalizer::lookupTypes($record['source_type']) as $sourceType) {
+            $statement->execute(['snapshotId' => $snapshotId, 'sourceType' => $sourceType, 'sourceId' => $record['source_id']]);
+            if ($statement->fetchColumn() !== false) return;
+        }
+        throw new RuntimeException('Roadmap evidence is not part of run snapshot');
     }
 
     private function assertActivityTarget(string $snapshotId, string $activityId): void
