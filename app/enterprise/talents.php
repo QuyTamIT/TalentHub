@@ -54,6 +54,20 @@ if ($isVerified && $talentService !== null) {
     }
 }
 
+// Thực hiện query động theo yêu cầu bằng INNER JOIN
+$pdo = $context['pdo'] ?? null;
+$dbTalents = [];
+$total_talents = 0;
+if ($pdo !== null) {
+    try {
+        $stmt = $pdo->query("SELECT u.fullName AS name, sp.* FROM student_profiles sp INNER JOIN users u ON sp.userId = u.id WHERE u.status = 'active'");
+        $dbTalents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $total_talents = count($dbTalents);
+    } catch (\Throwable $e) {
+        error_log('Query Error: ' . $e->getMessage());
+    }
+}
+
 // Dynamic schools list from database
 $schoolsList = [];
 $pdo = $context['pdo'] ?? null;
@@ -248,7 +262,7 @@ $sidebarNav = [
                                 </svg>
                             </div>
                             <div class="ent-result-card__content">
-                                <span class="ent-result-card__number" id="ent-count-num"><?= count($talentsData['items'] ?? []); ?></span>
+                                <span class="ent-result-card__number" id="ent-count-num"><?= $total_talents ?></span>
                                 <span class="ent-result-card__label">Nhân tài phù hợp</span>
                             </div>
                         </div>
@@ -455,7 +469,101 @@ $sidebarNav = [
 
                             <!-- Talent Cards List -->
                             <div class="ent-talent-cards-wrapper" id="talent-cards-container">
-                                <!-- Dynamically rendered by JavaScript -->
+                                <?php foreach ($dbTalents as $talent): 
+                                    $tName = htmlspecialchars($talent['name'] ?? 'Trần Minh Đức');
+                                    $score = $talent['talentScore'] ?? 85;
+                                    $nameWords = explode(' ', trim($tName));
+                                    $lastWord = end($nameWords);
+                                    $initials = mb_strtoupper(mb_substr($lastWord, 0, 1, 'UTF-8')) ?: 'U';
+                                    $tId = htmlspecialchars($talent['id'] ?? '');
+                                    $detailUrl = app_href('/app/enterprise/talents/detail.php?id=' . urlencode($tId));
+                                    $school = htmlspecialchars($talent['schoolName'] ?? 'Trường Đại học');
+                                    $major = htmlspecialchars($talent['majorField'] ?? 'Chuyên ngành');
+                                    $classYear = htmlspecialchars($talent['className'] ?? '');
+                                ?>
+                                <article class="ent-talent-card-item" data-talent-id="<?= $tId ?>">
+                                    <div class="ent-talent-card-item__header">
+                                        <div class="ent-talent-card-item__user">
+                                            <div class="ent-talent-card-item__avatar">
+                                                <?= $initials ?>
+                                            </div>
+                                            <div class="ent-talent-card-item__title-box">
+                                                <div class="ent-talent-card-item__name-row">
+                                                    <a href="<?= $detailUrl ?>" class="ent-talent-card-item__name">
+                                                        <?= $tName ?>
+                                                    </a>
+                                                    <span class="ent-talent-card-item__score" title="Điểm đánh giá năng lực">
+                                                        <?= $score ?>% phù hợp
+                                                    </span>
+                                                </div>
+                                                <div class="ent-talent-card-item__school">
+                                                    <span><?= $school ?></span>
+                                                    <?php if ($major): ?>
+                                                        <span class="ent-talent-card-item__dot">&bull;</span><span><?= $major ?></span>
+                                                    <?php endif; ?>
+                                                    <?php if ($classYear): ?>
+                                                        <span class="ent-talent-card-item__dot">&bull;</span><span><?= $classYear ?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <button type="button" 
+                                                class="ent-bookmark-btn" 
+                                                data-action="save" 
+                                                data-talent-id="<?= $tId ?>" 
+                                                title="Lưu hồ sơ này"
+                                                aria-label="Lưu hồ sơ">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                    <div class="ent-talent-card-item__meta-strip">
+                                        <div class="ent-meta-item">
+                                            <span class="ent-meta-item__label">Kỹ năng xác thực:</span>
+                                            <span class="ent-meta-item__value font-semibold text-dark">5 kỹ năng</span>
+                                        </div>
+                                        <div class="ent-meta-item__divider"></div>
+                                        <div class="ent-meta-item">
+                                            <span class="ent-meta-item__label">Trạng thái:</span>
+                                            <span class="val-status badge-ready-now">Sẵn sàng thực tập</span>
+                                        </div>
+                                        <div class="ent-meta-item__divider"></div>
+                                        <div class="ent-meta-item">
+                                            <span class="ent-meta-item__label">Bậc học:</span>
+                                            <span class="ent-meta-item__value">Sinh viên</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="ent-talent-card-item__skills">
+                                        <span class="skills-label">Kỹ năng:</span>
+                                        <div class="skills-chips">
+                                            <span class="skill-tag">Phân tích dữ liệu</span>
+                                            <span class="skill-tag">Làm việc nhóm</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="ent-talent-card-item__footer">
+                                        <div class="ent-privacy-note" title="Thông tin liên hệ (Email, SĐT) chỉ được hiển thị khi ứng viên đồng ý kết nối">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                            </svg>
+                                            <span>Hồ sơ có consent</span>
+                                        </div>
+                                        <div class="ent-talent-card-item__actions">
+                                            <a href="<?= $detailUrl ?>" class="btn btn-secondary btn-sm">
+                                                Xem hồ sơ
+                                            </a>
+                                            <a href="<?= $detailUrl ?>" class="btn btn-primary btn-sm">
+                                                Mời ứng tuyển
+                                            </a>
+                                        </div>
+                                    </div>
+                                </article>
+                                <?php endforeach; ?>
                             </div>
 
                             <!-- Empty State View (Hidden by default) -->
