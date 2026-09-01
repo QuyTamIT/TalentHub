@@ -90,6 +90,9 @@ final class SchoolProjectRepository
             throw new ApiException(422, 'VALIDATION_FAILED', 'Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.');
         }
 
+        $topic = isset($input['topic']) && is_string($input['topic']) ? trim($input['topic']) : null;
+        $authorIds = isset($input['authorIds']) && is_array($input['authorIds']) ? $input['authorIds'] : [];
+
         $id = Uuid::v4();
         $now = $this->now();
 
@@ -97,10 +100,10 @@ final class SchoolProjectRepository
         try {
             $stmt = $this->pdo->prepare(<<<'SQL'
             INSERT INTO projects (
-                id, schoolId, mentorTeacherId, title, category, description,
+                id, schoolId, mentorTeacherId, title, category, topic, description,
                 projectUrl, fundingGoal, startAt, endAt, status, createdAt, updatedAt
             ) VALUES (
-                :id, :schoolId, :mentorTeacherId, :title, :category, :description,
+                :id, :schoolId, :mentorTeacherId, :title, :category, :topic, :description,
                 :projectUrl, :fundingGoal, :startAt, :endAt, :status, :createdAt, :updatedAt
             )
 SQL);
@@ -111,6 +114,7 @@ SQL);
                 'mentorTeacherId' => $mentorTeacherId,
                 'title' => $title,
                 'category' => $category,
+                'topic' => $topic,
                 'description' => $description,
                 'projectUrl' => $projectUrl,
                 'fundingGoal' => $fundingGoal,
@@ -126,6 +130,19 @@ SQL);
                 'mentorTeacherId' => $mentorTeacherId,
                 'status' => $status,
             ]);
+
+            // Insert authorIds
+            if (!empty($authorIds)) {
+                $memberStmt = $this->pdo->prepare('INSERT INTO project_members (id, projectId, studentId, role, status, joinedAt, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+                foreach ($authorIds as $studentId) {
+                    if (is_string($studentId) && trim($studentId) !== '') {
+                        $memberStmt->execute([
+                            Uuid::v4(), $id, trim($studentId), 'member', 'active', $now, $now, $now
+                        ]);
+                    }
+                }
+            }
+
             $this->pdo->commit();
         } catch (\Throwable $exception) {
             if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
@@ -188,6 +205,7 @@ SQL);
 
         $title = isset($input['title']) ? trim((string) $input['title']) : (string) $current['title'];
         $category = isset($input['category']) ? trim((string) $input['category']) : (string) ($current['category'] ?? 'general');
+        $topic = array_key_exists('topic', $input) ? (is_string($input['topic']) ? trim($input['topic']) : null) : ($current['topic'] ?? null);
         $description = array_key_exists('description', $input) ? (is_string($input['description']) ? trim($input['description']) : null) : $current['description'];
         $status = isset($input['status']) ? trim((string) $input['status']) : (string) $current['status'];
         if (!in_array($status, ['draft', 'in_progress', 'completed', 'archived'], true)) {
@@ -205,13 +223,14 @@ SQL);
         try {
             $stmt = $this->pdo->prepare(
                 "UPDATE projects
-                 SET title = :title, category = :category, description = :description, status = :status,
+                 SET title = :title, category = :category, topic = :topic, description = :description, status = :status,
                      fundingGoal = :fundingGoal, updatedAt = :updatedAt
                  WHERE id = :id AND schoolId = :schoolId"
             );
             $stmt->execute([
                 'title' => $title,
                 'category' => $category,
+                'topic' => $topic,
                 'description' => $description,
                 'status' => $status,
                 'fundingGoal' => $fundingGoal,

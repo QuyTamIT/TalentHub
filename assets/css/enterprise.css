@@ -2653,7 +2653,7 @@ body.ent-sidebar-open {
 }
 
 /* Main 2-Column Passport Layout */
-.ent-passport-grid {
+/* .ent-passport-grid {
     display: grid;
     grid-template-columns: 1fr 340px;
     gap: 1.5rem;
@@ -2709,7 +2709,7 @@ body.ent-sidebar-open {
     background-color: var(--background);
     padding: 0.2rem 0.6rem;
     border-radius: var(--radius-full);
-}
+} */
 
 /* Profile Overview Card Header */
 .ent-passport-overview-card {

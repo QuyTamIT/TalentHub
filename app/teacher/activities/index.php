@@ -84,12 +84,6 @@ $sidebarNav = [
         'icon' => 'users',
         'active' => false,
     ],
-    [
-        'title' => 'Điểm danh QR',
-        'route' => '../checkins',
-        'icon' => 'qr',
-        'active' => false,
-    ],
 ];
 
 $action = strtolower(trim((string) ($_GET['action'] ?? '')));
@@ -577,6 +571,9 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                                         <a href="?action=view&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-action">Chi tiết</a>
                                                         <a href="?action=edit&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-action">Chỉnh sửa</a>
                                                         <a href="?action=registrations&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-action">Đăng ký</a>
+                                                        <?php if (in_array($activity['status'] ?? '', ['published', 'ongoing'], true)): ?>
+                                                            <a href="../checkins/index.php?activity_id=<?= urlencode((string) $activity['id']); ?>" class="teacher-activity-action" style="color: #047857;">Tạo QR điểm danh</a>
+                                                        <?php endif; ?>
                                                         <?php if ($rowLifecycleAction !== null): ?>
                                                             <form method="post" class="teacher-activities-inline-form">
                                                                 <input type="hidden" name="csrfToken" value="<?= teacherActivitiesEscape($csrfToken); ?>">

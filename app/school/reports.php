@@ -64,6 +64,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $reports = $service->listReports($userId);
 
+$perPage = 6;
+$page    = max(1, (int) ($_GET['page'] ?? 1));
+$offset  = ($page - 1) * $perPage;
+$totalReports = count($reports);
+$pagedReports = array_slice($reports, $offset, $perPage);
+
 $schoolInfo = [
     'name'          => $context['school']['name'],
     'logo_initials' => mb_substr($context['school']['name'], 0, 2),
@@ -163,7 +169,7 @@ include __DIR__ . '/includes/page-banner.php';
     </div>
 
     <!-- Danh sách Báo cáo gần đây -->
-    <div class="school-section-box" style="margin-bottom: 0;">
+    <div class="school-section-box" style="margin-bottom: 0; display: flex; flex-direction: column;">
         <div class="school-section-box__header" style="border-bottom: 1px solid #F1F5F9; padding-bottom: 1rem; margin-bottom: 1.25rem;">
             <h3 class="school-section-box__title" style="display: flex; align-items: center; gap: 0.5rem; font-size: 1.15rem; font-weight: 700; color: #0F172A;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -186,7 +192,7 @@ include __DIR__ . '/includes/page-banner.php';
                 <p style="font-size: 0.875rem; margin: 0;">Chưa có báo cáo nào được tạo. Hãy chọn loại báo cáo và nhấn <strong>Tạo báo cáo</strong>.</p>
             </div>
         <?php else: ?>
-            <div style="overflow-x: auto;">
+            <div style="overflow-x: auto; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
                 <table class="school-class-table" style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
                     <thead>
                         <tr style="border-bottom: 2px solid #E2E8F0; text-align: left;">
@@ -197,7 +203,7 @@ include __DIR__ . '/includes/page-banner.php';
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($reports as $r): ?>
+                        <?php foreach ($pagedReports as $r): ?>
                             <tr style="border-bottom: 1px solid #F1F5F9;">
                                 <td style="padding: 0.85rem 0.5rem;">
                                     <?php
@@ -229,6 +235,16 @@ include __DIR__ . '/includes/page-banner.php';
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                
+                <nav class="school-pagination" aria-label="Phân trang" style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: center; gap: 1rem;">
+                    <?php if ($page > 1): ?>
+                        <a href="?page=<?= $page - 1 ?>" class="btn btn-sm btn-outline" style="padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; text-decoration: none; color: #475569;">‹ Trước</a>
+                    <?php endif; ?>
+                    <span class="school-pagination__info" style="font-size: 0.875rem; color: #64748B;">Trang <?= $page; ?> · <?= $perPage; ?> / trang</span>
+                    <?php if (($offset + $perPage) < $totalReports): ?>
+                        <a href="?page=<?= $page + 1 ?>" class="btn btn-sm btn-outline" style="padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #CBD5E1; text-decoration: none; color: #475569;">Sau ›</a>
+                    <?php endif; ?>
+                </nav>
             </div>
         <?php endif; ?>
     </div>
