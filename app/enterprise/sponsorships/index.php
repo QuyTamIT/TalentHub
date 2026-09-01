@@ -95,11 +95,46 @@ $sidebarNav = [
 ];
 
 // Fetch real database projects and sponsorships
-$projectsQuery = \TalentHub\Http\CollectionQuery::fromRequest(
-    new \TalentHub\Http\Request('GET', '/api/v1/projects', [], '', [], ['limit' => '100']),
-    ['createdAt', 'title', 'fundingGoal']
-);
-$dbProjects = $workflowService->projects($projectsQuery);
+$db = $context['pdo'];
+$sql = "
+    SELECT p.*, 
+           COALESCE(ps_sub.total_sponsored, 0) as total_sponsored,
+           COALESCE(pm_sub.member_count, 0) as member_count
+    FROM projects p
+    LEFT JOIN (
+        SELECT projectId, SUM(amount) as total_sponsored
+        FROM project_sponsorships
+        WHERE status = 'paid'
+        GROUP BY projectId
+    ) ps_sub ON p.id = ps_sub.projectId
+    LEFT JOIN (
+        SELECT projectId, COUNT(DISTINCT studentId) as member_count
+        FROM project_members
+        GROUP BY projectId
+    ) pm_sub ON p.id = pm_sub.projectId
+";
+$stmt = $db->prepare($sql);
+$stmt->execute();
+$dbProjects = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+$projectIds = array_column($dbProjects, 'id');
+$allMembers = [];
+if (!empty($projectIds)) {
+    $inStr = implode(',', array_fill(0, count($projectIds), '?'));
+    $sqlMembers = "
+        SELECT pm.projectId, u.fullName, u.email, pm.role
+        FROM project_members pm
+        INNER JOIN student_profiles sp ON pm.studentId = sp.id
+        INNER JOIN users u ON sp.userId = u.id
+        WHERE pm.projectId IN ($inStr)
+    ";
+    $stmtMembers = $db->prepare($sqlMembers);
+    $stmtMembers->execute($projectIds);
+    foreach ($stmtMembers->fetchAll(\PDO::FETCH_ASSOC) as $m) {
+        $allMembers[$m['projectId']][] = $m;
+    }
+}
+
 $dbSponsorships = $workflowService->sponsorships((string) $enterprise['id']);
 
 $projectDetails = [
@@ -150,24 +185,24 @@ $projectDetails = [
 $projects = [];
 foreach ($dbProjects as $p) {
     $pId = (string) $p['id'];
-    $raised = (float) ($p['raisedAmount'] ?? 0);
+    $raised = (float) ($p['total_sponsored'] ?? 0);
     $target = (float) ($p['fundingGoal'] ?? 0);
     $pct = $target > 0 ? (int) min(100, round(($raised / $target) * 100)) : 0;
     $cat = (string) ($p['category'] ?? 'Công nghệ & Đổi mới sáng tạo');
     $schName = (string) ($p['schoolName'] ?? 'Đại học đối tác');
     $schCode = (string) ($p['schoolLevel'] ?? $p['schoolCode'] ?? 'Đại học');
 
-    $members = $p['members'] ?? [];
+    $members = $allMembers[$pId] ?? [];
     $teamLeader = !empty($members) ? [
-        'name' => (string) $members[0]['name'],
+        'name' => (string) $members[0]['fullName'],
         'role' => (string) $members[0]['role'],
         'school' => $schName,
-        'avatar_initial' => mb_strtoupper(mb_substr($members[0]['name'], 0, 2)),
+        'avatar_initial' => mb_strtoupper(mb_substr($members[0]['fullName'], 0, 2)),
     ] : [
-        'name' => 'Nhóm sinh viên nghiên cứu',
-        'role' => 'Trưởng nhóm đề án',
+        'name' => 'Chưa cập nhật thành viên',
+        'role' => 'Thành viên dự án',
         'school' => $schName,
-        'avatar_initial' => 'SV',
+        'avatar_initial' => 'NA',
     ];
 
     $extra = $projectDetails[$pId] ?? [
@@ -197,13 +232,13 @@ foreach ($dbProjects as $p) {
         'raised_amount' => $raised,
         'target_amount' => $target,
         'percentage' => $pct,
-        'members_count' => (int) ($p['membersCount'] ?? count($members)),
+        'member_count' => (int) ($p['member_count'] ?? 0),
         'description' => (string) ($p['description'] ?? 'Dự án nghiên cứu và phát triển giải pháp thực tiễn từ giảng đường.'),
         'problem_statement' => $extra['problem_statement'],
         'solution' => $extra['solution'],
         'team_leader' => $teamLeader,
         'team_members' => array_map(static fn($m): array => [
-            'name' => (string) $m['name'],
+            'name' => (string) $m['fullName'],
             'role' => (string) $m['role'],
             'skills' => ['AI / ML', 'Phần mềm', 'Thực hành', 'Nghiên cứu']
         ], $members),
@@ -254,7 +289,7 @@ foreach ($dbSponsorships as $s) {
 }
 
 $openProjectsCount = count($displayProjects);
-$totalTalentsCount = array_sum(array_column($displayProjects, 'members_count'));
+$totalTalentsCount = array_sum(array_column($displayProjects, 'member_count'));
 $totalCapitalMobilized = array_sum(array_column($displayProjects, 'raised_amount'));
 
 $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VNĐ';
@@ -367,11 +402,31 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
 
                     <!-- PHẦN 3: LƯỚI DỰ ÁN KÊU GỌI TÀI TRỢ (Project Showcase Grid) -->
                     <div class="spon-projects-grid" id="spon-projects-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; width: 100%; margin-bottom: 24px;">
+<<<<<<< HEAD
                         <?php foreach ($displayProjects as $project):
                             $raisedMillions = round($project['raised_amount'] / 1000000, 1);
                             $targetMillions = round($project['target_amount'] / 1000000, 1);
                             $progressText = ($raisedMillions == (int)$raisedMillions ? (int)$raisedMillions : $raisedMillions) . ' triệu / ' . ($targetMillions == (int)$targetMillions ? (int)$targetMillions : $targetMillions) . ' triệu VNĐ';
                             $pct = (int) $project['percentage'];
+=======
+                        <?php 
+                        if (!function_exists('formatMillions')) {
+                            function formatMillions($amount) {
+                                if ($amount >= 1000000) {
+                                    $m = $amount / 1000000;
+                                    return ($m == (int)$m ? (int)$m : round($m, 1)) . ' triệu';
+                                }
+                                return number_format($amount, 0, ',', '.');
+                            }
+                        }
+                        
+                        foreach ($displayProjects as $project): 
+                            $total_sponsored = $project['raised_amount'];
+                            $fundingGoal = $project['target_amount'];
+                            $percent = $fundingGoal > 0 ? round(($total_sponsored / $fundingGoal) * 100) : 0;
+                            $progress_width = min($percent, 100);
+                            $progressText = formatMillions($total_sponsored) . ' / ' . formatMillions($fundingGoal) . ($fundingGoal >= 1000000 ? ' VNĐ' : '');
+>>>>>>> a865e2f4e7ccb6b3fe6e0f71c15ce60dc4c9b054
                         ?>
                             <!-- Thẻ Project Card Độc Lập -->
                             <article class="spon-project-card"
@@ -400,7 +455,7 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                                     </span>
                                     <span>&bull;</span>
                                     <span style="display: inline-flex; align-items: center; gap: 4px;">
-                                        👥 <?= (int)$project['members_count']; ?> thành viên
+                                        👥 <?= $project['member_count'] ?? 0 ?> thành viên
                                     </span>
                                 </div>
 
@@ -408,10 +463,10 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                                 <div style="display: flex; flex-direction: column; gap: 6px;">
                                     <div style="display: flex; align-items: center; justify-content: space-between; font-size: 13px;">
                                         <span style="color: #334155; font-weight: 500;"><?= $progressText; ?></span>
-                                        <span style="color: #F97316; font-weight: 700;"><?= $pct; ?>%</span>
+                                        <span style="color: #F97316; font-weight: 700;"><?= $percent; ?>%</span>
                                     </div>
                                     <div style="width: 100%; height: 8px; background-color: #F1F5F9; border-radius: 999px; overflow: hidden;">
-                                        <div style="width: <?= min(100, $pct); ?>%; height: 100%; background: linear-gradient(90deg, #F97316 0%, #EA580C 100%); border-radius: 999px; transition: width 0.4s ease;"></div>
+                                        <div style="width: <?= $progress_width ?>%; height: 100%; background: linear-gradient(90deg, #F97316 0%, #EA580C 100%); border-radius: 999px; transition: width 0.4s ease;"></div>
                                     </div>
                                 </div>
 

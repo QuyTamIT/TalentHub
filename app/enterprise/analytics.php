@@ -81,6 +81,44 @@ try {
     error_log('Enterprise analytics page fetch failed: ' . $e->getMessage());
 }
 
+try {
+    $pdo = $context['pdo'];
+    $entId = $enterprise['id'];
+    
+    $sqlFunnel = "
+        SELECT 
+            COUNT(ia.id) AS count_applied,
+            SUM(CASE WHEN ia.status IN ('reviewing', 'interview', 'accepted', 'hired') THEN 1 ELSE 0 END) AS count_qualified,
+            SUM(CASE WHEN ia.status IN ('interview', 'accepted', 'hired') THEN 1 ELSE 0 END) AS count_interviewing,
+            SUM(CASE WHEN ia.status IN ('accepted', 'hired') THEN 1 ELSE 0 END) AS count_passed
+        FROM internship_applications ia
+        INNER JOIN internship_posts ip ON ia.postId = ip.id
+        WHERE ip.enterpriseId = :eid 
+           OR ip.enterpriseId IN (SELECT id FROM enterprises WHERE email = (SELECT email FROM enterprises WHERE id = :eid2))
+    ";
+    
+    $stmtFunnel = $pdo->prepare($sqlFunnel);
+    $stmtFunnel->execute(['eid' => $entId, 'eid2' => $entId]);
+    $funnelData = $stmtFunnel->fetch(PDO::FETCH_ASSOC);
+    
+    $t_applied = (int) ($funnelData['count_applied'] ?? 0);
+    $t_qual = (int) ($funnelData['count_qualified'] ?? 0);
+    $t_inter = (int) ($funnelData['count_interviewing'] ?? 0);
+    $t_pass = (int) ($funnelData['count_passed'] ?? 0);
+    
+    $summary['total_applicants'] = $t_applied;
+    $summary['qualified_candidates'] = $t_qual;
+    $summary['interviewing'] = $t_inter;
+    $summary['passed_candidates'] = $t_pass;
+    
+    $summary['qualified_percentage'] = $t_applied > 0 ? round(($t_qual / $t_applied) * 100, 1) . '%' : '0%';
+    $summary['interview_percentage'] = $t_qual > 0 ? round(($t_inter / $t_qual) * 100, 1) . '%' : '0%';
+    $summary['pass_rate_formatted'] = $t_inter > 0 ? round(($t_pass / $t_inter) * 100, 1) . '%' : '0%';
+    
+} catch (\Throwable $e) {
+    error_log('Error dynamic funnel: ' . $e->getMessage());
+}
+
 $enterpriseInfo = [
     'id'                => $enterprise['id'],
     'company_name'      => $enterprise['name'],
@@ -295,7 +333,7 @@ $sidebarNav = [
                                     <?= (int) $summary['interviewing']; ?>
                                 </div>
                                 <span style="font-size: 11px; font-weight: 600; color: #475569; background: #E2E8F0; padding: 2px 8px; border-radius: 4px; width: fit-content; margin-top: 4px;">
-                                    Đang đánh giá
+                                    <?= htmlspecialchars($summary['interview_percentage'] ?? '0%'); ?> chuyển đổi
                                 </span>
                             </div>
 
@@ -339,15 +377,50 @@ $sidebarNav = [
                                 <!-- Biểu đồ cột trực quan đơn sắc -->
                                 <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; height: 160px; padding: 12px 6px 0 6px; border-bottom: 1px solid #E2E8F0;">
                                     <?php 
-                                    $months = [
-                                        ['label' => 'Thg 3', 'applied' => 12, 'qual' => 8],
-                                        ['label' => 'Thg 4', 'applied' => 18, 'qual' => 12],
-                                        ['label' => 'Thg 5', 'applied' => 25, 'qual' => 16],
-                                        ['label' => 'Thg 6', 'applied' => 32, 'qual' => 20],
-                                        ['label' => 'Thg 7', 'applied' => 45, 'qual' => 28],
-                                        ['label' => 'Thg 8', 'applied' => max(56, $summary['total_applicants']), 'qual' => max(34, $summary['qualified_candidates'])],
-                                    ];
-                                    $maxVal = 60;
+                                    $monthsDict = [];
+                                    for ($i = 5; $i >= 0; $i--) {
+                                        $m = (int) date('n', strtotime("-$i months"));
+                                        $y = (int) date('Y', strtotime("-$i months"));
+                                        $key = $y . '-' . $m;
+                                        $monthsDict[$key] = [
+                                            'label' => 'Thg ' . $m,
+                                            'applied' => 0,
+                                            'qual' => 0
+                                        ];
+                                    }
+
+                                    $sqlMonths = "
+                                        SELECT 
+                                            YEAR(ia.createdAt) AS y,
+                                            MONTH(ia.createdAt) AS m,
+                                            COUNT(ia.id) AS applied,
+                                            SUM(CASE WHEN ia.status IN ('reviewing', 'interview', 'accepted', 'hired') THEN 1 ELSE 0 END) AS qual
+                                        FROM internship_applications ia
+                                        INNER JOIN internship_posts ip ON ia.postId = ip.id
+                                        WHERE (ip.enterpriseId = :eid OR ip.enterpriseId IN (SELECT id FROM enterprises WHERE email = (SELECT email FROM enterprises WHERE id = :eid2)))
+                                          AND ia.createdAt >= DATE_FORMAT(DATE_SUB(CURRENT_DATE(), INTERVAL 5 MONTH), '%Y-%m-01')
+                                        GROUP BY YEAR(ia.createdAt), MONTH(ia.createdAt)
+                                        ORDER BY y ASC, m ASC
+                                    ";
+                                    $stmtMonths = $context['pdo']->prepare($sqlMonths);
+                                    $stmtMonths->execute(['eid' => $enterprise['id'], 'eid2' => $enterprise['id']]);
+                                    
+                                    foreach ($stmtMonths->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                                        $key = $row['y'] . '-' . $row['m'];
+                                        if (isset($monthsDict[$key])) {
+                                            $monthsDict[$key]['applied'] = (int) $row['applied'];
+                                            $monthsDict[$key]['qual'] = (int) $row['qual'];
+                                        }
+                                    }
+                                    
+                                    $months = array_values($monthsDict);
+                                    $maxVal = 10;
+                                    foreach ($months as $m) {
+                                        if ($m['applied'] > $maxVal) {
+                                            $maxVal = $m['applied'];
+                                        }
+                                    }
+
                                     foreach ($months as $m): 
                                         $h1 = min(100, round(($m['applied'] / $maxVal) * 100));
                                         $h2 = min(100, round(($m['qual'] / $maxVal) * 100));

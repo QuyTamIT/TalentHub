@@ -71,11 +71,13 @@ return new class extends AbstractMigration {
             return;
         }
 
-        $this->reconcileCheckinColumns($context);
-
         if (!$this->columnExists($context, 'checkins', 'qrSessionId')) {
             $context->execute('ALTER TABLE checkins ADD COLUMN qrSessionId CHAR(36) NULL AFTER registrationId');
         }
+
+        // The legacy table only has qrTokenId. Create the canonical linkage
+        // column before positioning status after it during reconciliation.
+        $this->reconcileCheckinColumns($context);
 
         if ($this->columnExists($context, 'checkins', 'qrTokenId')) {
             $legacyHash = $this->columnExists($context, 'activity_qr_tokens', 'tokenHash')

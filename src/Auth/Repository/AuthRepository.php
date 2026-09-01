@@ -133,9 +133,22 @@ final class AuthRepository
     /** @return list<array{id:string,name:string,gradeLevel:int,academicYear:string,schoolId:string,schoolName:string}> */
     public function registrationClasses(): array
     {
-        $classCondition=$this->isLegacySchema()?"s.status='active'":"c.status='active' AND s.status='active'";
+        $classCondition=$this->registrationClassCondition();
         $statement=$this->pdo->query("SELECT c.id,c.name,c.gradeLevel,c.academicYear,s.id AS schoolId,s.name AS schoolName FROM classes c JOIN schools s ON s.id=c.schoolId WHERE {$classCondition} ORDER BY s.name,c.gradeLevel,c.name");
         return array_map(static fn(array $row):array=>['id'=>(string)$row['id'],'name'=>(string)$row['name'],'gradeLevel'=>(int)$row['gradeLevel'],'academicYear'=>(string)$row['academicYear'],'schoolId'=>(string)$row['schoolId'],'schoolName'=>(string)$row['schoolName']],$statement->fetchAll());
+    }
+
+    /** @return list<array{id:string,name:string}> */
+    public function registrationSchools(): array
+    {
+        $condition=$this->isLegacySchema()
+            ? "status IN ('active','verified')"
+            : "status='active'";
+        $statement=$this->pdo->query("SELECT id,name FROM schools WHERE {$condition} ORDER BY name");
+        return array_map(
+            static fn(array $row):array=>['id'=>(string)$row['id'],'name'=>(string)$row['name']],
+            $statement->fetchAll(PDO::FETCH_ASSOC),
+        );
     }
 
     /** @param array{email:string,passwordHash:string,fullName:string,classId:string,dateOfBirth:string,phone:string} $data */
@@ -153,7 +166,7 @@ final class AuthRepository
                 $role=$this->pdo->query("SELECT id FROM roles WHERE code='student' LIMIT 1 FOR UPDATE")->fetchColumn();
                 if(!is_string($role)||$role===''){throw new \RuntimeException('Student role is missing from a non-empty roles table. Run the system RBAC seed.');}
             }
-            $classCondition=$legacy?"s.status='active'":"c.status='active' AND s.status='active'";
+            $classCondition=$this->registrationClassCondition();
             $lockSuffix=$this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)==='sqlite'?'':' FOR UPDATE';
             $class=$this->pdo->prepare("SELECT c.id FROM classes c JOIN schools s ON s.id=c.schoolId WHERE c.id=? AND {$classCondition} LIMIT 1{$lockSuffix}");$class->execute([$data['classId']]);
             if($class->fetchColumn()===false){$this->pdo->rollBack();return '';}
@@ -185,6 +198,17 @@ final class AuthRepository
         }
         $s=$this->pdo->prepare("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='users' AND column_name='roles'");$s->execute();
         return $this->legacySchema=(int)$s->fetchColumn()===1;
+    }
+
+    private function registrationClassCondition(): string
+    {
+        // In the legacy schema, school verification and availability share the
+        // same status column. A verified school is therefore also eligible for
+        // public student registration. The canonical schema keeps class status
+        // separately and still requires both records to be active.
+        return $this->isLegacySchema()
+            ? "s.status IN ('active','verified')"
+            : "c.status='active' AND s.status='active'";
     }
 
     private ?bool $onboardingIdColumn=null;

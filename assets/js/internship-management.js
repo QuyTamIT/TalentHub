@@ -126,7 +126,46 @@ function initInternshipManagementModule() {
 
             const matchesQuery = !query || title.includes(query);
             const matchesStatus = !statusFilter || status === statusFilter;
-            const matchesField = !fieldFilter || field === fieldFilter;
+            
+            let matchesField = false;
+            if (!fieldFilter) {
+                matchesField = true;
+            } else {
+                const categoryMappings = {
+                    'Công nghệ thông tin': [
+                        'công nghệ thông tin', 'ai', 'machine learning', 
+                        'frontend', 'backend', 'fullstack', 'qa', 'tester',
+                        'software', 'developer', 'kỹ thuật phần mềm', 
+                        'khoa học dữ liệu', 'data', 'it', 'genai', 'trí tuệ nhân tạo', 'llm'
+                    ],
+                    'AI / Machine Learning': [
+                        'ai', 'machine learning', 'trí tuệ nhân tạo', 'genai', 'llm', 'data', 'khoa học dữ liệu'
+                    ],
+                    'Khoa học Dữ liệu': [
+                        'khoa học dữ liệu', 'data science', 'data analyst', 'data engineer', 'phân tích dữ liệu'
+                    ],
+                    'Kỹ thuật Phần mềm': [
+                        'kỹ thuật phần mềm', 'software', 'developer', 'frontend', 'backend', 'fullstack', 'lập trình'
+                    ],
+                    'Marketing Digital': [
+                        'marketing', 'digital', 'seo', 'content', 'truyền thông'
+                    ],
+                    'Thiết kế UI/UX': [
+                        'thiết kế', 'ui', 'ux', 'design', 'graphic'
+                    ]
+                };
+
+                const fieldLower = field.toLowerCase();
+                const titleLower = title.toLowerCase();
+                
+                if (field === fieldFilter) {
+                    matchesField = true;
+                } else if (categoryMappings[fieldFilter]) {
+                    matchesField = categoryMappings[fieldFilter].some(k => 
+                        fieldLower.includes(k) || titleLower.includes(k)
+                    );
+                }
+            }
 
             if (matchesQuery && matchesStatus && matchesField) {
                 row.style.display = '';
@@ -880,11 +919,24 @@ function initInternshipManagementModule() {
                 if (targetStatus === 'active' && post.status === 'draft') {
                     post = (await request('POST', `/businesses/me/internships/${encodeURIComponent(post.id)}/publish`, { expectedCurrentStatus: 'draft' })).post;
                 }
-                showToast(targetStatus === 'active' ? 'Đã phát hành tin tuyển dụng thành công!' : 'Đã lưu tin tuyển dụng!');
-                window.setTimeout(() => { window.location.href = 'index.php'; }, 600);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Đăng tin thành công!',
+                    text: 'Tin tuyển dụng của bạn đã được cập nhật lên hệ thống.',
+                    confirmButtonText: 'Hoàn tất',
+                    confirmButtonColor: '#f97316'
+                }).then((result) => {
+                    window.location.href = 'index.php';
+                });
             } catch (error) {
                 console.error('Submit internship post error:', error);
-                showToast(error?.message || 'Không thể lưu tin tuyển dụng. Vui lòng thử lại.');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Thất bại!',
+                    text: error?.message || 'Không thể lưu tin tuyển dụng. Vui lòng thử lại.',
+                    confirmButtonText: 'Đóng',
+                    confirmButtonColor: '#f97316'
+                });
             } finally {
                 btnSaveDraft && (btnSaveDraft.disabled = false);
                 btnPublishPost && (btnPublishPost.disabled = false);

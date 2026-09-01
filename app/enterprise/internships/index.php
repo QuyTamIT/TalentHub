@@ -115,13 +115,25 @@ $sidebarNav = [
     ],
 ];
 
-$internshipService = $context['internships'];
 $statusLabels = ['draft' => 'Bản nháp', 'active' => 'Đang tuyển', 'closed' => 'Đã đóng', 'cancelled' => 'Đã hủy'];
 $postRows = [];
-try {
-    $postRows = $internshipService->listPosts((string) $user['id'])['items'];
-} catch (PDOException $exception) {
-    if ((string) $exception->getCode() !== '42S02') { throw $exception; }
+$pdo = $context['pdo'] ?? null;
+
+if ($pdo) {
+    try {
+        $entId = $enterprise['id'];
+        $sql = "SELECT p.*, COUNT(DISTINCT a.studentId) AS applicantCount 
+                FROM internship_posts p 
+                LEFT JOIN internship_applications a ON p.id = a.postId 
+                WHERE p.enterpriseId = :eid 
+                GROUP BY p.id 
+                ORDER BY p.createdAt DESC";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute(['eid' => $entId]);
+        $postRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (\Throwable $e) {
+        error_log('Error fetching internship posts: ' . $e->getMessage());
+    }
 }
 $posts = array_map(static function (array $post) use ($statusLabels): array {
     return $post + [

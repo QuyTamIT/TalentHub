@@ -13,8 +13,8 @@ use TalentHub\Support\Id\RequestId;
 $session=new SessionManager(require __DIR__.'/config/session.php');$session->start();
 if(($current=$session->user())!==null){header('Location: '.app_href(AuthPortalRouter::destination((string)$current['role'])));exit;}
 
-$values=['fullName'=>'','email'=>'','phone'=>'','dateOfBirth'=>'','schoolId'=>'','classId'=>''];$fieldErrors=[];$errorMessage=null;$classes=[];$repository=null;
-try{$pdo=(new Connection(require __DIR__.'/config/database.php'))->connect();$repository=new AuthRepository($pdo);$classes=$repository->registrationClasses();}
+$values=['fullName'=>'','email'=>'','phone'=>'','dateOfBirth'=>'','schoolId'=>'','classId'=>''];$fieldErrors=[];$errorMessage=null;$schools=[];$classes=[];$repository=null;
+try{$pdo=(new Connection(require __DIR__.'/config/database.php'))->connect();$repository=new AuthRepository($pdo);$schools=$repository->registrationSchools();$classes=$repository->registrationClasses();}
 catch(Throwable $e){error_log('[Register DB Load Error] '.$e->getMessage());$errorMessage='Chưa thể tải danh sách lớp: '.$e->getMessage();}
 
 if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
@@ -45,7 +45,6 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
 }
 
 function registerEscape(mixed $value): string{return htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8');}
-$schools=[];foreach($classes as $class){$schools[$class['schoolId']]=['id'=>$class['schoolId'],'name'=>$class['schoolName']];}
 ?>
 <!DOCTYPE html>
 <html lang="vi">

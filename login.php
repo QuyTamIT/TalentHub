@@ -27,7 +27,7 @@ $roleMessages=[
     'admin'=>['label'=>'Quản trị viên','icon'=>'admin','desc'=>'Vui lòng đăng nhập tài khoản Quản trị viên để truy cập khu vực này.'],
 ];
 $roleAlert=null;
-if($requiredRole!==null&&isset($roleMessages[$requiredRole])){
+if(($_SERVER['REQUEST_METHOD']??'GET')!=='POST'&&$requiredRole!==null&&isset($roleMessages[$requiredRole])){
     $roleSessionName = SessionManager::sessionNameForRole($requiredRole);
     if (isset($_COOKIE[$roleSessionName])) {
         if (session_status() === PHP_SESSION_ACTIVE) {
@@ -62,7 +62,9 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
     try{
         $session->assertCsrf(is_string($_POST['csrfToken']??null)?$_POST['csrfToken']:null);
         $pdo=(new Connection(require __DIR__.'/config/database.php'))->connect();$repository=new AuthRepository($pdo);$auth=new AuthService($repository);$limiter=new LoginRateLimiter($pdo);$ip=$_SERVER['REMOTE_ADDR']??null;$requestId=RequestId::make(null);
-        $user=$auth->login(['email'=>$emailValue,'password'=>$password],$requestId,$ip);
+        $limiter->assertAllowed($emailValue,$ip);$session->assertLoginAllowed();
+        try{$user=$auth->login(['email'=>$emailValue,'password'=>$password],$requestId,$ip);}
+        catch(ApiException $exception){if($exception->errorCode==='INVALID_CREDENTIALS'){$limiter->recordFailure($emailValue,$ip);$session->recordLoginFailure();}throw $exception;}
         if($requiredRole!==null && isset($roleMessages[$requiredRole]) && !\TalentHub\Rbac\RoleCodes::matches((string)$user['role'],$requiredRole)){
             throw new ApiException(403,'ROLE_MISMATCH','Tài khoản không thuộc vai trò '.$roleMessages[$requiredRole]['label'].'.');
         }

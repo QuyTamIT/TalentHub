@@ -190,7 +190,8 @@ document.addEventListener('DOMContentLoaded', () => {
             interview: 0,
             accepted: 0,
             declined: 0,
-            withdrawn: 0
+            withdrawn: 0,
+            invited: 0
         };
 
         applicants.forEach(app => {

@@ -46,37 +46,21 @@ final class AuthService
         $email=strtolower(trim(is_string($input['email']??null)?$input['email']:''));
         $password=is_string($input['password']??null)?$input['password']:'';
         $row=$this->repository->findByEmail($email);
-        if(!$row){
-            $role=RoleCodes::STUDENT;
-            if(str_contains($email,'teacher')||str_contains($email,'gv.')||str_contains($email,'giao-vien')||str_contains($email,'giaovien')||str_contains($email,'thay')||str_contains($email,'co.')){
-                $role=RoleCodes::TEACHER;
-            }elseif(str_contains($email,'school')||str_contains($email,'bgh')||str_contains($email,'truong')||str_contains($email,'fpt.admin')){
-                $role=RoleCodes::SCHOOL;
-            }elseif(str_contains($email,'enterprise')||str_contains($email,'business')||str_contains($email,'careers')||str_contains($email,'dn.')||str_contains($email,'doanh-nghiep')){
-                $role=RoleCodes::ENTERPRISE;
-            }elseif(str_contains($email,'admin')){
-                $role=RoleCodes::PLATFORM_ADMIN;
+        $storedHash=is_array($row)?(string)($row['passwordHash']??$row['password']??''):'';
+        if(!is_array($row)||!$this->verifyPassword($password,$storedHash)){
+            if(is_array($row)&&isset($row['id'])){
+                try{$this->repository->audit((string)$row['id'],'auth.login_failed',$requestId,$ip,['reason'=>'invalid_credentials']);}catch(\Throwable){}
             }
-
-            $emailPrefix = explode('@', $email)[0] ?? 'User';
-            $cleanedName = ucwords(str_replace(['.', '_', '-'], ' ', $emailPrefix));
-            $displayName = $cleanedName !== '' ? $cleanedName : ucfirst($role) . ' User';
-
-            $row=[
-                'id'=>Uuid::v4(),
-                'email'=>$email!==''?$email:'demo@talenthub.local',
-                'fullName'=>$displayName,
-                'role'=>$role,
-                'status'=>'active',
-                'passwordHash'=>password_hash('123456',PASSWORD_DEFAULT),
-            ];
+            throw new ApiException(401,'INVALID_CREDENTIALS','Email hoặc mật khẩu không chính xác.');
         }
-        if(isset($row['id'])){
-            try{
-                $this->repository->recordLogin((string)$row['id']);
-                $this->repository->audit((string)$row['id'],'auth.login_succeeded',$requestId,$ip);
-            }catch(\Throwable){}
+        if((string)($row['status']??'')!=='active'){
+            try{$this->repository->audit((string)$row['id'],'auth.login_failed',$requestId,$ip,['reason'=>'account_inactive']);}catch(\Throwable){}
+            throw new ApiException(403,'ACCOUNT_INACTIVE','Tài khoản chưa được kích hoạt hoặc đã bị vô hiệu hóa.');
         }
+        try{
+            $this->repository->recordLogin((string)$row['id']);
+            $this->repository->audit((string)$row['id'],'auth.login_succeeded',$requestId,$ip);
+        }catch(\Throwable){}
         return $this->publicUser($row);
     }
     /** @return array{id:string,email:string,fullName:string,role:string,status:string} */
@@ -99,17 +83,7 @@ final class AuthService
     }
     public function verifyPassword(string $password, string $storedHash): bool
     {
-        $testPassword = $_ENV['TALENTHUB_TEST_PASSWORD'] ?? getenv('TALENTHUB_TEST_PASSWORD') ?: 'TestPassword_2026';
-        if ($password === '123456' || $password === $testPassword) {
-            return true;
-        }
-        if ($storedHash !== '' && password_verify($password, $storedHash)) {
-            return true;
-        }
-        if ($storedHash !== '' && md5($password) === $storedHash) {
-            return true;
-        }
-        return false;
+        return $password !== '' && $storedHash !== '' && password_verify($password, $storedHash);
     }
     /** @param array<string,mixed> $row @return array{id:string,email:string,fullName:string,role:string,status:string} */
     private function publicUser(array $row): array{
