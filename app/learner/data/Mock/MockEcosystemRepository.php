@@ -31,7 +31,7 @@ final class MockEcosystemRepository implements EcosystemRepository
         ));
     }
 
-    public function opportunities(): array
+    public function opportunities(?string $studentId = null): array
     {
         return $this->opportunityRecords;
     }

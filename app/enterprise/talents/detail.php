@@ -319,6 +319,9 @@ $sidebarNav = [
     <!-- CSS Assets -->
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise.css'); ?>">
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="enterprise-dashboard">
 
@@ -828,7 +831,13 @@ $sidebarNav = [
             const btn = document.getElementById('confirmSendInviteBtn');
 
             if (!postSelect || !postSelect.value) {
-                alert('Vui lòng chọn một vị trí thực tập.');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Cảnh báo',
+                    text: 'Vui lòng chọn một vị trí thực tập.',
+                    confirmButtonColor: '#059669',
+                    confirmButtonText: 'Đóng'
+                });
                 return;
             }
 
@@ -852,7 +861,13 @@ $sidebarNav = [
 
                 if (data.success) {
                     closeInviteModal();
-                    showDetailToast(data.message || 'Đã gửi lời mời thực tập thành công!');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Thành công!',
+                        text: data.message || 'Đã gửi lời mời thực tập thành công!',
+                        confirmButtonColor: '#059669',
+                        confirmButtonText: 'Đóng'
+                    });
                     const mainInviteBtn = document.getElementById('detail-invite-btn');
                     if (mainInviteBtn) {
                         mainInviteBtn.innerHTML = `
@@ -865,11 +880,23 @@ $sidebarNav = [
                         mainInviteBtn.style.borderColor = '#059669';
                     }
                 } else {
-                    alert(data.message || 'Không thể gửi lời mời lúc này.');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Lỗi',
+                        text: data.message || 'Không thể gửi lời mời lúc này.',
+                        confirmButtonColor: '#059669',
+                        confirmButtonText: 'Đóng'
+                    });
                 }
             } catch (err) {
                 console.error(err);
-                alert('Lỗi kết nối tới máy chủ khi gửi lời mời.');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Lỗi',
+                    text: 'Lỗi kết nối tới máy chủ khi gửi lời mời.',
+                    confirmButtonColor: '#059669',
+                    confirmButtonText: 'Đóng'
+                });
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Xác nhận gửi lời mời';
