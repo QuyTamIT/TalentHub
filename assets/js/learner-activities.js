@@ -513,7 +513,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       button.classList.add(`learner-btn--${['primary','secondary','outline'].includes(tone)?tone:'outline'}`);
     };
     const render=(commandFeedback='')=>{
-      registration=all().find(r=>r.activity_id===activity.id);
+      let registration=all().find(r=>r.activity_id===activity.id);
       if(!button)return;
       const defaultCta=!localMutationsEnabled&&!serverMutationsEnabled&&!registration&&canRegisterActivity(activity)
         ?{label:'Đăng ký trực tuyến chưa khả dụng',disabled:true,tone:'outline',explanation:'Kết nối đăng ký trực tuyến hiện chưa khả dụng.'}

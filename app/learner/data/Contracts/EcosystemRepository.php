@@ -8,7 +8,7 @@ interface EcosystemRepository
 {
     public function partners(?string $type = null): array;
 
-    public function opportunities(): array;
+    public function opportunities(?string $studentId = null): array;
 
     public function findPartner(string $type, string $partnerId): ?array;
 

@@ -65,12 +65,35 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
         }
     }
 
-    public function opportunities(): array
+    public function opportunities(?string $studentId = null): array
     {
         try {
+            $sql = self::OPPORTUNITIES_SQL;
+            $params = $this->opportunityVisibilityParameters();
+
+            if ($studentId !== null) {
+                $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
+                $sql = 'SELECT DISTINCT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId ' .
+                       'WHERE ' . self::OPPORTUNITY_VISIBLE_SQL . ' ' .
+                       'AND EXISTS (' .
+                       '    SELECT 1 FROM student_skills ss ' .
+                       '    JOIN skills s ON ss.skillId = s.id ' .
+                       '    WHERE ss.studentId = :student_id ' .
+                       '    AND (' .
+                       '        JSON_CONTAINS(ip.skillsJson, JSON_QUOTE(s.name)) ' .
+                       '        OR (s.category = \'technical\' AND ip.field IN (\'it_software\', \'Công nghệ thông tin\', \'Trí tuệ Nhân tạo\', \'Kỹ thuật Phần mềm\')) ' .
+                       '        OR (s.category = \'business\' AND ip.field IN (\'business_marketing\', \'finance_banking\')) ' .
+                       '        OR (s.category = \'creative\' AND ip.field IN (\'design_media\')) ' .
+                       '        OR ip.field = s.category' .
+                       '    )' .
+                       ') ' .
+                       'ORDER BY ip.createdAt DESC, ip.id DESC';
+                $params['student_id'] = $studentId;
+            }
+
             return array_map(
                 [$this, 'normalizeOpportunity'],
-                $this->fetchAll('opportunities', self::OPPORTUNITIES_SQL, $this->opportunityVisibilityParameters())
+                $this->fetchAll('opportunities', $sql, $params)
             );
         } catch (\Throwable $e) {
             error_log('DatabaseEcosystemRepository.opportunities failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());

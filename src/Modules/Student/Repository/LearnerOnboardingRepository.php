@@ -145,6 +145,36 @@ SQL);
         }
     }
 
+    public function assignInitialSoftSkills(string $studentId): void
+    {
+        try {
+            $statement = $this->pdo->prepare("SELECT id FROM skills WHERE category = 'soft' AND status = 'active' LIMIT 3");
+            $statement->execute();
+            $skillIds = $statement->fetchAll(PDO::FETCH_COLUMN);
+
+            if (empty($skillIds)) {
+                return;
+            }
+
+            $timestamp = $this->timestampExpression();
+            $insert = $this->pdo->prepare("
+                INSERT IGNORE INTO student_skills (id, studentId, skillId, levelScore, sourceType, verificationStatus, verifiedAt)
+                VALUES (:id, :studentId, :skillId, :levelScore, 'assessment', 'verified', {$timestamp})
+            ");
+
+            foreach ($skillIds as $skillId) {
+                $insert->execute([
+                    'id' => Uuid::v4(),
+                    'studentId' => $studentId,
+                    'skillId' => (string) $skillId,
+                    'levelScore' => rand(75, 95)
+                ]);
+            }
+        } catch (\Throwable $e) {
+            error_log('LearnerOnboardingRepository::assignInitialSoftSkills error: ' . $e->getMessage());
+        }
+    }
+
     /** @param array{from:string,to:string,completedCodes:list<string>} $metadata */
     public function audit(
         string $studentId,
