@@ -50,12 +50,6 @@ $sidebarNav = [
         'icon' => 'users',
         'active' => false,
     ],
-    [
-        'title' => 'Điểm danh QR',
-        'route' => 'checkins',
-        'icon' => 'qr',
-        'active' => false,
-    ],
 ];
 
 $kpis = [

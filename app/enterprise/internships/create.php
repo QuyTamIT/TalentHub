@@ -341,14 +341,30 @@ $sidebarNav = [
                                 <!-- Địa điểm làm việc -->
                                 <div class="ent-form-group col-12">
                                     <label for="form-location" class="ent-form-label required">Địa điểm làm việc</label>
-                                    <input type="text"
-                                           id="form-location"
-                                           name="location"
-                                           class="ent-form-input"
-                                           maxlength="255"
-                                           placeholder="Ví dụ: Tòa nhà FPT, Khu CNC Hòa Lạc, Hà Nội hoặc Làm việc từ xa (Remote)"
-                                           value="<?= $isEdit ? htmlspecialchars((string) $editingPost['location']) : 'Hà Nội'; ?>"
-                                           required>
+                                    <select id="form-location" name="location" class="ent-form-select" required>
+                                        <option value="">-- Chọn địa điểm --</option>
+                                        <?php 
+                                        $provinces = [
+                                            'Hà Nội', 'TP Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ',
+                                            'An Giang', 'Bà Rịa - Vũng Tàu', 'Bắc Giang', 'Bắc Kạn', 'Bạc Liêu',
+                                            'Bắc Ninh', 'Bến Tre', 'Bình Định', 'Bình Dương', 'Bình Phước',
+                                            'Bình Thuận', 'Cà Mau', 'Cao Bằng', 'Đắk Lắk', 'Đắk Nông',
+                                            'Điện Biên', 'Đồng Nai', 'Đồng Tháp', 'Gia Lai', 'Hà Giang',
+                                            'Hà Nam', 'Hà Tĩnh', 'Hải Dương', 'Hậu Giang', 'Hòa Bình',
+                                            'Hưng Yên', 'Khánh Hòa', 'Kiên Giang', 'Kon Tum', 'Lai Châu',
+                                            'Lâm Đồng', 'Lạng Sơn', 'Lào Cai', 'Long An', 'Nam Định',
+                                            'Nghệ An', 'Ninh Bình', 'Ninh Thuận', 'Phú Thọ', 'Quảng Bình',
+                                            'Quảng Nam', 'Quảng Ngãi', 'Quảng Ninh', 'Quảng Trị', 'Sóc Trăng',
+                                            'Sơn La', 'Tây Ninh', 'Thái Bình', 'Thái Nguyên', 'Thanh Hóa',
+                                            'Thừa Thiên Huế', 'Tiền Giang', 'Trà Vinh', 'Tuyên Quang', 'Vĩnh Long',
+                                            'Vĩnh Phúc', 'Yên Bái', 'Phú Yên', 'Làm việc từ xa (Remote)'
+                                        ];
+                                        foreach ($provinces as $prov) {
+                                            $selected = ($isEdit && ($editingPost['location'] ?? '') === $prov) ? 'selected' : '';
+                                            echo '<option value="' . htmlspecialchars($prov) . '" ' . $selected . '>' . htmlspecialchars($prov) . '</option>';
+                                        }
+                                        ?>
+                                    </select>
                                 </div>
 
                                 <!-- Hình thức làm việc -->
@@ -522,12 +538,24 @@ $sidebarNav = [
                             </div>
 
                             <!-- Target Schools Picker Area -->
-                            <div id="target-schools-container" class="mt-3 p-3 bg-light border rounded" style="<?= $postAudience === 'partner_schools' ? 'display:block;' : 'display:none;'; ?>">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <label class="ent-form-label required mb-0">Danh sách Trường đối tác áp dụng:</label>
-                                    <span class="text-muted small">Đã chọn: <strong id="target-schools-count"><?= count($selectedTargetSchoolIds); ?></strong> trường</span>
+                            <div id="target-schools-container" class="mt-3 p-4" style="<?= $postAudience === 'partner_schools' ? 'display:block;' : 'display:none;'; ?> background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 0.5rem;">
+                                <!-- Header & Summary -->
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #E2E8F0; padding-bottom: 0.75rem;">
+                                    <label class="ent-form-label required mb-0" style="font-size: 1rem; font-weight: 700; color: #0F172A;">Danh sách Trường đối tác áp dụng</label>
+                                    <div style="background: #FFFFFF; border: 1px solid #CBD5E1; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: #475569;">
+                                        Đã chọn: <span id="target-schools-count" style="color: #0284C7; font-weight: 800;"><?= count($selectedTargetSchoolIds); ?></span> trường
+                                    </div>
                                 </div>
 
+                                <?php 
+                                // Mock data for testing
+                                $approvedPartners = [
+                                    ['id' => 'BTEC-01', 'name' => 'Cao đẳng Quốc tế BTEC FPT', 'code' => 'BTEC', 'level' => 'Cao đẳng'],
+                                    ['id' => 'FPTU-01', 'name' => 'Đại học FPT', 'code' => 'FPTU', 'level' => 'Đại học'],
+                                    ['id' => 'CTU-01', 'name' => 'Đại học Cần Thơ', 'code' => 'CTU', 'level' => 'Đại học'],
+                                    ['id' => 'UEH-01', 'name' => 'Đại học Kinh tế TP.HCM', 'code' => 'UEH', 'level' => 'Đại học']
+                                ];
+                                ?>
                                 <?php if (empty($approvedPartners)): ?>
                                     <div class="alert alert-warning mb-0 py-2 small">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1 inline-block">
@@ -539,23 +567,84 @@ $sidebarNav = [
                                         <a href="/app/enterprise/partnerships.php" class="fw-semibold text-primary ms-1">Kết nối với Nhà trường ngay &rarr;</a>
                                     </div>
                                 <?php else: ?>
-                                    <div class="row g-2 mt-1">
+                                    <div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto; padding-right: 0.5rem;">
+                                        <!-- Select All Item -->
+                                        <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1px solid #CBD5E1; border-radius: 0.5rem; background-color: #FFFFFF; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.02);" onmouseover="this.style.backgroundColor='#F1F5F9'" onmouseout="this.style.backgroundColor='#FFFFFF'">
+                                            <input type="checkbox" id="selectAllSchools" class="form-check-input mt-0" style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
+                                            <strong style="font-size: 0.95rem; color: #0284C7;">Tất cả các trường đối tác</strong>
+                                        </label>
+
+                                        <!-- School Items -->
                                         <?php foreach ($approvedPartners as $school):
                                             $checked = in_array((string) $school['id'], array_map('strval', $selectedTargetSchoolIds), true) ? 'checked' : '';
                                         ?>
-                                            <div class="col-md-6 col-lg-4">
-                                                <label class="d-flex align-items-center gap-2 p-2 border rounded bg-white w-100" style="cursor:pointer;">
-                                                    <input type="checkbox" name="targetSchoolIds[]" value="<?= htmlspecialchars((string) $school['id']); ?>" <?= $checked; ?> class="target-school-checkbox">
-                                                    <div class="d-flex flex-column text-truncate">
-                                                        <span class="fw-semibold text-truncate small"><?= htmlspecialchars((string) $school['name']); ?></span>
-                                                        <span class="text-muted" style="font-size:11px;"><?= htmlspecialchars((string) ($school['code'] ?? '')); ?> &bull; <?= htmlspecialchars((string) ($school['level'] ?? 'Đại học')); ?></span>
+                                            <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1px solid #E2E8F0; border-radius: 0.5rem; background-color: transparent; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#FFFFFF'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';" onmouseout="this.style.backgroundColor='transparent'; this.style.boxShadow='none';">
+                                                <input type="checkbox" name="targetSchoolIds[]" value="<?= htmlspecialchars((string) $school['id']); ?>" <?= $checked; ?> class="target-school-checkbox form-check-input mt-0" style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
+                                                <div style="display: flex; align-items: center; justify-content: space-between; flex-grow: 1;">
+                                                    <span style="font-weight: 600; font-size: 0.95rem; color: #1E293B;"><?= htmlspecialchars((string) $school['name']); ?></span>
+                                                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                                        <?php if (!empty($school['code'])): ?>
+                                                            <span style="background: #F1F5F9; color: #475569; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px;"><?= htmlspecialchars((string) $school['code']); ?></span>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($school['level'])): ?>
+                                                            <span style="color: #94A3B8; font-size: 0.8rem; font-weight: 500;"><?= htmlspecialchars((string) $school['level']); ?></span>
+                                                        <?php endif; ?>
                                                     </div>
-                                                </label>
-                                            </div>
+                                                </div>
+                                            </label>
                                         <?php endforeach; ?>
                                     </div>
                                 <?php endif; ?>
                             </div>
+                            <script>
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    // 1. Target Schools Toggle Logic
+                                    const audienceRadios = document.querySelectorAll('input[name="audience"]');
+                                    const targetContainer = document.getElementById('target-schools-container');
+                                    const radioCards = document.querySelectorAll('.ent-radio-card');
+                                    
+                                    audienceRadios.forEach(radio => {
+                                        radio.addEventListener('change', function() {
+                                            // Toggle visibility
+                                            if (this.value === 'partner_schools') {
+                                                targetContainer.style.display = 'block';
+                                            } else {
+                                                targetContainer.style.display = 'none';
+                                            }
+                                            
+                                            // Update styling of the radio cards
+                                            radioCards.forEach(card => {
+                                                card.classList.remove('border-primary', 'bg-light');
+                                                if (card.querySelector('input').checked) {
+                                                    card.classList.add('border-primary', 'bg-light');
+                                                }
+                                            });
+                                        });
+                                    });
+
+                                    // 2. Select All Schools Logic
+                                    const selectAllBtn = document.getElementById('selectAllSchools');
+                                    const checkboxes = document.querySelectorAll('.target-school-checkbox');
+                                    const countDisplay = document.getElementById('target-schools-count');
+                                    
+                                    if (selectAllBtn && checkboxes.length > 0) {
+                                        const updateState = () => {
+                                            const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+                                            if (countDisplay) countDisplay.textContent = checkedCount;
+                                            selectAllBtn.checked = checkedCount === checkboxes.length;
+                                        };
+                                        
+                                        selectAllBtn.addEventListener('change', function(e) {
+                                            const isChecked = e.target.checked;
+                                            checkboxes.forEach(cb => cb.checked = isChecked);
+                                            updateState();
+                                        });
+                                        
+                                        checkboxes.forEach(cb => cb.addEventListener('change', updateState));
+                                        updateState();
+                                    }
+                                });
+                            </script>
                         </section>
 
                         <!-- Form Actions Bar -->

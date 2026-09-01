@@ -180,7 +180,6 @@ $sidebarNav = [
     ['title' => 'Sân chơi của tôi', 'route' => 'playgrounds', 'href' => '/app/teacher/activities/index.php', 'icon' => 'trophy', 'active' => false],
     ['title' => 'Chấm điểm theo Lớp', 'route' => 'assessments', 'href' => '/app/teacher/grading.php', 'icon' => 'clipboard-check', 'active' => true],
     ['title' => 'Học viên', 'route' => 'students', 'href' => '/app/teacher/students/index.php', 'icon' => 'users', 'active' => false],
-    ['title' => 'Điểm danh QR', 'route' => 'checkins', 'href' => '/app/teacher/checkins/index.php', 'icon' => 'qr', 'active' => false],
 ];
 ?>
 <!DOCTYPE html>

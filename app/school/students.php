@@ -163,7 +163,7 @@ if ($classFilter !== null && !Uuid::isValid($classFilter)) {
     $classFilter = null;
 }
 
-$perPage = max(10, min(100, (int) ($_GET['perPage'] ?? 25)));
+$perPage = 10;
 $page    = max(1, (int) ($_GET['page'] ?? 1));
 $offset  = ($page - 1) * $perPage;
 
@@ -172,11 +172,12 @@ if ($classFilter === null) {
     $totalApprox = ($page * $perPage) + (count($students) === $perPage ? 1 : 0);
 } else {
     $allStudents = $service->students($userId, 1000);
-    $students = array_values(array_filter(
+    $filteredStudents = array_values(array_filter(
         $allStudents,
         static fn(array $s) => $s['classId'] === $classFilter
     ));
-    $totalApprox = count($students);
+    $totalApprox = count($filteredStudents);
+    $students = array_slice($filteredStudents, $offset, $perPage);
 }
 
 // 3.1. Enrich student records with profile details (headline, bio) and skills
@@ -281,8 +282,10 @@ include __DIR__ . '/includes/page-banner.php';
             </svg>
             <p style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">Chưa có sinh viên nào trong danh sách. Vui lòng thêm mới hoặc Import file Excel.</p>
             <p style="font-size: 0.875rem; color: #64748B;">Sử dụng nút <strong></strong> ở trên hoặc tính năng <strong>Import Excel / CSV</strong> để bắt đầu quản lý hồ sơ sinh viên.</p>
-        </div>Thêm sinh viên
+        </div>
     <?php else: ?>
+    <!-- Bảng danh sách sinh viên -->
+    <div style="min-height: 600px; display: flex; flex-direction: column; justify-content: space-between;">
         <table class="school-class-table">
             <thead>
                 <tr>
@@ -400,18 +403,17 @@ include __DIR__ . '/includes/page-banner.php';
             </tbody>
         </table>
 
-        <?php if ($classFilter === null): ?>
-            <nav class="school-pagination" aria-label="Phân trang">
-                <?php if ($page > 1): ?>
-                    <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" class="btn btn-sm btn-outline">‹ Trước</a>
-                <?php endif; ?>
-                <span class="school-pagination__info">Trang <?= $page; ?> · <?= $perPage; ?> / trang</span>
-                <?php if (count($students) === $perPage): ?>
-                    <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" class="btn btn-sm btn-outline">Sau ›</a>
-                <?php endif; ?>
-            </nav>
-        <?php endif; ?>
-    <?php endif; ?>
+        <nav class="school-pagination" aria-label="Phân trang" style="margin-top: 1.5rem;">
+            <?php if ($page > 1): ?>
+                <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" class="btn btn-sm btn-outline">‹ Trước</a>
+            <?php endif; ?>
+            <span class="school-pagination__info">Trang <?= $page; ?> · 10 / trang</span>
+            <?php if (count($students) === $perPage): ?>
+                <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" class="btn btn-sm btn-outline">Sau ›</a>
+            <?php endif; ?>
+        </nav>
+    </div>
+<?php endif; ?>
 </div>
 
 <!-- Modal Import Excel / CSV -->

@@ -29,7 +29,7 @@ $sidebarNav = [
         'icon'  => 'user',
     ],
     [
-        'title' => 'Giáo viên',
+        'title' => 'Giảng viên',
         'route' => '/app/school/teachers.php',
         'icon'  => 'users',
     ],
@@ -52,11 +52,6 @@ $sidebarNav = [
         'title' => 'Thực tập',
         'route' => '/app/school/internships.php',
         'icon' => 'file-text',
-    ],
-    [
-        'title' => 'An toàn sinh viên',
-        'route' => '/app/school/safeguarding.php',
-        'icon' => 'lock',
     ],
     [
         'title' => 'Phân tích',

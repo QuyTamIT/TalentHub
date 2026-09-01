@@ -182,13 +182,6 @@ $sidebarNav = [
         'icon' => 'users',
         'active' => false,
     ],
-    [
-        'title' => 'Điểm danh QR',
-        'route' => 'checkins',
-        'href' => '/app/teacher/checkins/index.php',
-        'icon' => 'qr',
-        'active' => false,
-    ],
 ];
 ?>
 <!DOCTYPE html>

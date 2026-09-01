@@ -314,8 +314,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const project = window.ENTERPRISE_PROJECTS.find(p => p.id === projectId);
         if (!project) return;
 
-        if (formProjectTitle) formProjectTitle.textContent = project.title;
         const remaining = Math.max(0, project.target_amount - project.raised_amount);
+        
+        if (remaining <= 0) {
+            // Cannot sponsor fully funded projects
+            alert('Dự án này đã nhận đủ ngân sách tài trợ.');
+            return;
+        }
+
+        if (formProjectTitle) formProjectTitle.textContent = project.title;
         if (formNeededAmount) {
             formNeededAmount.textContent = remaining.toLocaleString('vi-VN') + ' VNĐ';
         }
@@ -323,22 +330,32 @@ document.addEventListener('DOMContentLoaded', function () {
             formTargetInfo.textContent = `${project.school_name} • Mục tiêu: ${(project.target_amount / 1000000).toFixed(0)} triệu VNĐ (Còn thiếu: ${(remaining / 1000000).toFixed(0)} triệu VNĐ)`;
         }
 
-        // Set Default Preset Value (10.000.000 VNĐ)
-        if (amountInput) amountInput.value = '10000000';
-        presetBtns.forEach(b => {
-            const btnVal = b.getAttribute('data-val') || b.getAttribute('data-amount');
-            if (btnVal === '10000000') {
-                b.classList.add('is-selected');
-                b.style.backgroundColor = '#F97316';
-                b.style.color = '#FFFFFF';
-                b.style.borderColor = '#F97316';
-            } else {
-                b.classList.remove('is-selected');
-                b.style.backgroundColor = '#FFFFFF';
-                b.style.color = '#0F172A';
-                b.style.borderColor = '#E2E8F0';
+        // Helper to update the range slider track fill
+        function updateSliderFill(slider) {
+            const val = parseInt(slider.value, 10);
+            const max = parseInt(slider.max, 10);
+            const percentage = max > 0 ? (val / max) * 100 : 0;
+            slider.style.background = `linear-gradient(to right, #F97316 ${percentage}%, #E2E8F0 ${percentage}%)`;
+        }
+
+        // Configure the Range Slider
+        if (amountInput) {
+            amountInput.max = remaining;
+            amountInput.value = Math.min(10000000, remaining);
+            updateSliderFill(amountInput);
+            
+            const displayEl = document.getElementById('spon-amount-display');
+            if (displayEl) {
+                displayEl.textContent = parseInt(amountInput.value, 10).toLocaleString('vi-VN') + ' VNĐ';
             }
-        });
+            
+            const maxLabel = document.getElementById('spon-amount-max-label');
+            if (maxLabel) {
+                maxLabel.textContent = remaining.toLocaleString('vi-VN') + ' VNĐ';
+            }
+            
+            validateSponsorshipAmount(amountInput.value);
+        }
 
         formModal.style.display = 'flex';
         formModal.classList.add('is-open');
@@ -352,6 +369,28 @@ document.addEventListener('DOMContentLoaded', function () {
             document.body.style.overflow = '';
         }
     }
+    
+    function validateSponsorshipAmount(val) {
+        const amountNum = parseInt(val, 10) || 0;
+        const btnSubmit = document.getElementById('btn-submit-sponsorship');
+        const errorMsg = document.getElementById('spon-amount-error');
+        
+        if (amountNum <= 0) {
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.style.opacity = '0.5';
+                btnSubmit.style.cursor = 'not-allowed';
+            }
+            if (errorMsg) errorMsg.style.display = 'block';
+        } else {
+            if (btnSubmit) {
+                btnSubmit.disabled = false;
+                btnSubmit.style.opacity = '1';
+                btnSubmit.style.cursor = 'pointer';
+            }
+            if (errorMsg) errorMsg.style.display = 'none';
+        }
+    }
 
     // Global ESC Key Listener to Close Open Modals
     document.addEventListener('keydown', function (e) {
@@ -361,35 +400,19 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Preset Amount Click Handler
-    presetBtns.forEach(btn => {
-        btn.addEventListener('click', function () {
-            const rawVal = parseInt(this.getAttribute('data-val') || this.getAttribute('data-amount') || '5000000', 10);
-            if (amountInput) {
-                amountInput.value = rawVal;
-            }
-            presetBtns.forEach(b => {
-                b.classList.remove('is-selected');
-                b.style.backgroundColor = '#FFFFFF';
-                b.style.color = '#0F172A';
-                b.style.borderColor = '#E2E8F0';
-            });
-            this.classList.add('is-selected');
-            this.style.backgroundColor = '#F97316';
-            this.style.color = '#FFFFFF';
-            this.style.borderColor = '#F97316';
-        });
-    });
-
     // Format Amount Input
     if (amountInput) {
         amountInput.addEventListener('input', function () {
-            presetBtns.forEach(b => {
-                b.classList.remove('is-selected');
-                b.style.backgroundColor = '#FFFFFF';
-                b.style.color = '#0F172A';
-                b.style.borderColor = '#E2E8F0';
-            });
+            const displayEl = document.getElementById('spon-amount-display');
+            if (displayEl) {
+                displayEl.textContent = parseInt(this.value, 10).toLocaleString('vi-VN') + ' VNĐ';
+            }
+            const val = parseInt(this.value, 10);
+            const max = parseInt(this.max, 10);
+            const percentage = max > 0 ? (val / max) * 100 : 0;
+            this.style.background = `linear-gradient(to right, #F97316 ${percentage}%, #E2E8F0 ${percentage}%)`;
+            
+            validateSponsorshipAmount(this.value);
         });
     }
 
@@ -405,8 +428,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const amountNum = parseInt(valString, 10);
 
             if (!amountNum || amountNum <= 0) {
-                alert('Vui lòng nhập số tiền tài trợ hợp lệ.');
-                return;
+                return; // Disabled via UI, but double check just in case. Removed ugly alert.
             }
 
             const noteInput = document.getElementById('spon-note-input');
