@@ -167,17 +167,8 @@ $perPage = max(10, min(100, (int) ($_GET['perPage'] ?? 25)));
 $page    = max(1, (int) ($_GET['page'] ?? 1));
 $offset  = ($page - 1) * $perPage;
 
-if ($classFilter === null) {
-    $students = $service->students($userId, $perPage, $offset);
-    $totalApprox = ($page * $perPage) + (count($students) === $perPage ? 1 : 0);
-} else {
-    $allStudents = $service->students($userId, 1000);
-    $students = array_values(array_filter(
-        $allStudents,
-        static fn(array $s) => $s['classId'] === $classFilter
-    ));
-    $totalApprox = count($students);
-}
+$students = $service->students($userId, $perPage, $offset, $classFilter);
+$totalStudents = $service->studentCount($userId, $classFilter);
 
 // 3.1. Enrich student records with profile details (headline, bio) and skills
 $studentIds = array_column($students, 'id');
@@ -257,7 +248,7 @@ include __DIR__ . '/includes/page-banner.php';
 <div class="school-section-box">
     <div class="school-section-box__header">
         <p class="school-section-box__subtitle">
-            <strong><?= count($students); ?> sinh viên</strong> <?= $classFilter ? '(trong lớp / chuyên ngành đã chọn)' : '(trang ' . $page . ')'; ?>
+            <strong><?= $totalStudents; ?> sinh viên</strong> <?= $classFilter ? '(trong lớp / chuyên ngành đã chọn)' : '(toàn trường)'; ?>
         </p>
         <form method="get">
             <select name="classId" onchange="this.form.submit()" class="school-inline-select" aria-label="Lọc theo lớp">
@@ -400,13 +391,13 @@ include __DIR__ . '/includes/page-banner.php';
             </tbody>
         </table>
 
-        <?php if ($classFilter === null): ?>
+        <?php if ($totalStudents > $perPage): ?>
             <nav class="school-pagination" aria-label="Phân trang">
                 <?php if ($page > 1): ?>
                     <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" class="btn btn-sm btn-outline">‹ Trước</a>
                 <?php endif; ?>
                 <span class="school-pagination__info">Trang <?= $page; ?> · <?= $perPage; ?> / trang</span>
-                <?php if (count($students) === $perPage): ?>
+                <?php if (($offset + count($students)) < $totalStudents): ?>
                     <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" class="btn btn-sm btn-outline">Sau ›</a>
                 <?php endif; ?>
             </nav>
