@@ -326,9 +326,16 @@
             root.querySelectorAll('[data-editor-phase]').forEach((button) => { const phaseNumber = Number(button.dataset.editorPhase); const active = phaseNumber === state.activePhase; const hasError = state.errors.some((error) => error.phase === phaseNumber); button.setAttribute('aria-selected', active ? 'true' : 'false'); button.classList.toggle('is-active', active); button.classList.toggle('has-error', hasError); });
             root.querySelectorAll('[data-editor-step]').forEach((node) => { node.hidden = node.dataset.editorStep !== state.step; });
             root.querySelectorAll('[data-preview-source]').forEach((button) => { button.classList.toggle('is-active', button.dataset.previewSource === state.previewSource); });
-            root.querySelectorAll('[data-editor-refine],[data-editor-apply]').forEach((button) => { button.disabled = Boolean(state.pending); });
+            root.querySelectorAll('[data-editor-refine],[data-editor-apply],[data-editor-save]').forEach((button) => { button.disabled = Boolean(state.pending); });
             if (status) status.textContent = state.pending === 'refine' ? 'AI đang tinh chỉnh nội dung...' : state.pending === 'apply' ? 'Đang áp dụng roadmap...' : state.errors[0]?.message || '';
             if (body) state.step === 'edit' ? renderEditor() : renderPreview();
+        }
+        async function saveLearnerDraft() {
+            if (pendingPromise) return pendingPromise; const validation = validateRoadmapEditorDraft(state.draft);
+            if (!validation.valid) { dispatch({ type: 'validation', ...validation }); const first = validation.first; const scope = first.taskId ? `[data-editor-task-card="${first.taskId}"] ` : ''; body.querySelector(`${scope}[data-editor-field="${first.field}"]`)?.focus(); return null; }
+            dispatch({ type: 'pending', value: 'apply' });
+            pendingPromise = api.send('POST','/ai-roadmap-apply.php',applyRequest(state.model,state.draft,'learner_draft',null),{ idempotencyKey: options.createIdempotencyKey?.() }).then((payload) => { options.onApplied?.(payload); close(true); return payload; }).catch((error) => { dispatch({ type: 'pending', value: null }); if (status) status.textContent = error?.message || 'Chưa thể áp dụng roadmap.'; throw error; }).finally(() => { pendingPromise = null; });
+            return pendingPromise;
         }
         async function refine() {
             if (pendingPromise) return pendingPromise; const validation = validateRoadmapEditorDraft(state.draft);
@@ -358,6 +365,7 @@
             else if (button.matches('[data-editor-add-task]')) { const taskId = options.createTaskId?.() || createTaskId(); dispatch({ type:'add-task', phase:state.activePhase, taskId }); body.querySelector(`[data-editor-task-card="${taskId}"] [data-editor-field="title"]`)?.focus(); }
             else if (button.matches('[data-editor-reset-task]')) dispatch({ type:'reset-task', phase:state.activePhase, taskId:button.dataset.editorResetTask });
             else if (button.matches('[data-editor-reset-field]')) dispatch({ type:'reset-field', phase:state.activePhase, taskId:button.dataset.taskId || null, field:button.dataset.editorResetField });
+            else if (button.matches('[data-editor-save]')) saveLearnerDraft().catch(() => {});
             else if (button.matches('[data-editor-refine]')) refine().catch(() => {}); else if (button.matches('[data-editor-back]')) dispatch({ type:'back-to-edit' });
             else if (button.matches('[data-preview-source]')) dispatch({ type:'select-preview', source:button.dataset.previewSource }); else if (button.matches('[data-editor-apply]')) apply().catch(() => {});
         };
@@ -375,7 +383,7 @@
         };
         root.addEventListener('click',onClick); root.addEventListener('input',onInput); global.document.addEventListener('keydown',onKey);
         if (typeof global.addEventListener === 'function') global.addEventListener('resize', onResize);
-        return { open, close, dispose() { root.removeEventListener('click',onClick); root.removeEventListener('input',onInput); global.document.removeEventListener('keydown',onKey); if (typeof global.removeEventListener === 'function') global.removeEventListener('resize', onResize); }, getState:()=>clone(state) };
+        return { open, close, saveLearnerDraft, refine, apply, dispose() { root.removeEventListener('click',onClick); root.removeEventListener('input',onInput); global.document.removeEventListener('keydown',onKey); if (typeof global.removeEventListener === 'function') global.removeEventListener('resize', onResize); }, getState:()=>clone(state) };
     }
 
     const exported = { MIN_TASKS, MAX_TASKS, createRoadmapEditorDraft, createDraftTask, validateRoadmapEditorDraft, initialEditorState, roadmapEditorReducer, refineRequest, applyRequest, autoSizeTextarea, createRoadmapEditor };

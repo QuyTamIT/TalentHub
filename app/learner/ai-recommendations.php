@@ -217,6 +217,7 @@ $assetVersion = static function (string $relativePath): string {
                 <p data-roadmap-editor-status role="status" aria-live="polite"></p>
                 <div data-editor-step="edit">
                     <button class="learner-btn learner-btn--text" type="button" data-editor-close>Hủy</button>
+                    <button class="learner-btn learner-btn--outline" type="button" data-editor-save>Lưu nội dung của tôi</button>
                     <button class="learner-btn learner-btn--primary" type="button" data-editor-refine><?= learner_icon('sparkles', 17); ?> AI tinh chỉnh & xem trước</button>
                 </div>
                 <div data-editor-step="preview" hidden>

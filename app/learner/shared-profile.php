@@ -255,6 +255,9 @@ if (!function_exists('shared_hours_label')) {
               <?php if (!empty($student['email'])): ?>
                 <span><?= learner_icon('mail', 15) ?> <?= shared_escape($student['email']) ?></span>
               <?php endif; ?>
+              <?php if (!empty($student['phone'])): ?>
+                <span><?= learner_icon('phone', 15) ?> <?= shared_escape($student['phone']) ?></span>
+              <?php endif; ?>
             </div>
           </div>
         </div>
