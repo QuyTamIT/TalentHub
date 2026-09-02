@@ -13,6 +13,12 @@ final class SharedStudentAdapter
         $last = $parts === [] ? '?' : (string) end($parts);
         $initial = mb_strtoupper(mb_substr($last, 0, 1));
 
+        $avatarUrl = !empty($profile['avatarUrl']) ? (string) $profile['avatarUrl'] : (!empty($profile['avatar_url']) ? (string) $profile['avatar_url'] : null);
+        // Chỉ hiển thị giá trị thật từ DB; khi trống trả về chuỗi rỗng/0/false, tuyệt đối không dữ liệu mẫu.
+        $location = trim((string) ($profile['location'] ?? ''));
+        $headline = trim((string) ($profile['headline'] ?? ''));
+        $bio = trim((string) ($profile['bio'] ?? ''));
+
         return [
             'id' => (string) ($profile['id'] ?? ''),
             'school_id' => (string) ($profile['school']['id'] ?? ''),
@@ -21,12 +27,16 @@ final class SharedStudentAdapter
             'study_status' => (string) ($profile['studyStatus'] ?? 'unknown'),
             'name' => $name,
             'initials' => $initial,
+            'avatar_url' => $avatarUrl,
+            'avatarUrl' => $avatarUrl,
             'class' => (string) ($profile['class']['name'] ?? ''),
             'school' => (string) ($profile['school']['name'] ?? ''),
             'email' => (string) ($profile['email'] ?? ''),
             'phone' => (string) ($profile['phone'] ?? ''),
             'date_of_birth' => (string) ($profile['dateOfBirth'] ?? ''),
-            'location' => '',
+            'location' => $location,
+            'headline' => $headline,
+            'bio' => $bio,
             'verified' => false,
             'streak_days' => 0,
             'experience_hours' => 0,

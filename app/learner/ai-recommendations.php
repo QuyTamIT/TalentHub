@@ -27,11 +27,18 @@ $assetVersion = static function (string $relativePath): string {
             <?php include __DIR__ . '/includes/header.php'; ?>
             <main class="learner-content learner-roadmap" id="main-content" data-ai-roadmap-page>
                 <header class="learner-roadmap__header">
-                    <div><span class="learner-roadmap__eyebrow">AI GỢI Ý</span><h1>Lộ trình phát triển cá nhân dành riêng cho bạn</h1></div>
+                    <div class="learner-roadmap__intro">
+                        <span class="learner-roadmap__eyebrow">LỘ TRÌNH AI</span>
+                        <h1>Lộ trình phát triển 90 ngày của&nbsp;bạn</h1>
+                        <p class="learner-roadmap__description">Kế hoạch cá nhân hóa từ năng lực, sở thích và mục tiêu nghề nghiệp của bạn.</p>
+                    </div>
                     <div class="learner-roadmap__header-actions">
-                        <label class="learner-roadmap-version"><span>Phiên bản</span><select data-roadmap-version-select aria-label="Chọn phiên bản lộ trình"><option>Chưa có</option></select></label>
+                        <label class="learner-roadmap-version">
+                            <span>Phiên bản lộ trình</span>
+                            <select data-roadmap-version-select aria-label="Chọn phiên bản lộ trình"><option>Chưa có</option></select>
+                        </label>
                         <span class="learner-roadmap__freshness" data-roadmap-freshness><?= learner_icon('check', 16); ?> Chưa có phân tích</span>
-                        <button class="learner-btn learner-btn--outline" type="button" data-roadmap-generate="refresh"><?= learner_icon('activity', 17); ?> Cập nhật phân tích</button>
+                        <button class="learner-btn learner-btn--primary learner-roadmap__refresh" type="button" data-roadmap-generate="refresh"><?= learner_icon('activity', 17); ?> Tạo bản phân tích mới</button>
                     </div>
                 </header>
 
@@ -41,7 +48,7 @@ $assetVersion = static function (string $relativePath): string {
                         <span class="learner-roadmap-processing__icon" aria-hidden="true"><?= learner_icon('sparkles', 24); ?></span>
                         <div>
                             <span class="learner-roadmap__eyebrow">AI ĐANG XỬ LÝ</span>
-                            <h2 data-roadmap-processing-title>Đang chuẩn bị roadmap của bạn</h2>
+                            <h2 data-roadmap-processing-title>Đang chuẩn bị lộ trình của bạn</h2>
                             <p data-roadmap-processing-copy>TalentHub đang tổng hợp dữ liệu đã được bạn cho phép.</p>
                         </div>
                         <div class="learner-roadmap-processing__meta">
@@ -53,11 +60,11 @@ $assetVersion = static function (string $relativePath): string {
                     <ol class="learner-roadmap-processing__steps" data-roadmap-processing-steps>
                         <li data-processing-step="0"><span>1</span><strong>Chuẩn bị dữ liệu năng lực</strong></li>
                         <li data-processing-step="1"><span>2</span><strong>Gemini đang phân tích</strong></li>
-                        <li data-processing-step="2"><span>3</span><strong>Xây dựng roadmap 90 ngày</strong></li>
+                        <li data-processing-step="2"><span>3</span><strong>Xây dựng lộ trình 90 ngày</strong></li>
                         <li data-processing-step="3"><span>4</span><strong>Kiểm tra và hoàn thiện</strong></li>
                     </ol>
                     <div class="learner-roadmap-processing__footer">
-                        <p data-roadmap-processing-note>Bạn có thể tiếp tục xem roadmap hiện tại trong lúc chờ.</p>
+                        <p data-roadmap-processing-note>Bạn có thể tiếp tục xem lộ trình hiện tại trong lúc chờ.</p>
                         <button class="learner-btn learner-btn--outline" type="button" data-roadmap-processing-retry data-roadmap-retry hidden>Thử cập nhật lại</button>
                     </div>
                 </section>
@@ -80,14 +87,14 @@ $assetVersion = static function (string $relativePath): string {
                             <div class="learner-roadmap-summary__meta"><span data-roadmap-evidence-total></span><span data-roadmap-confidence></span></div>
                             <div class="learner-roadmap-summary__direction" data-roadmap-direction aria-labelledby="roadmap-direction-title"><strong id="roadmap-direction-title" data-roadmap-direction-label></strong><p data-roadmap-direction-rationale></p><div data-roadmap-direction-alternatives></div></div>
                         </section>
-                        <aside class="learner-card learner-roadmap-next" aria-labelledby="roadmap-next-title"><h2 id="roadmap-next-title">Việc nên làm tiếp theo</h2><div class="learner-roadmap-next__list" data-roadmap-next-actions></div><button class="learner-btn learner-btn--primary" type="button" data-roadmap-continue>Tiếp tục lộ trình</button></aside>
                     </div>
                     <section class="learner-card learner-roadmap-plan" aria-labelledby="roadmap-plan-title">
                         <div class="learner-roadmap-section-heading">
-                            <div><span>Định hướng theo từng chặng</span><h2 id="roadmap-plan-title">LỘ TRÌNH PHÁT TRIỂN 90 NGÀY</h2></div>
+                            <div><span>Định hướng theo từng chặng</span><h2 id="roadmap-plan-title">Lộ trình phát triển 90 ngày</h2></div>
                             <div class="learner-roadmap-plan__actions">
                                 <span class="learner-roadmap-progress-label" data-roadmap-overall-progress></span>
                                 <div class="learner-roadmap-plan__controls" aria-label="Điều khiển chi tiết lộ trình">
+                                    <button class="learner-btn learner-btn--outline learner-roadmap-edit" type="button" data-roadmap-edit hidden><?= learner_icon('edit', 17); ?> Chỉnh sửa lộ trình</button>
                                     <button class="learner-btn learner-btn--text" type="button" data-roadmap-collapse-all>Thu gọn tất cả</button>
                                     <button class="learner-btn learner-btn--outline" type="button" data-roadmap-expand-all>Mở rộng tất cả</button>
                                 </div>
@@ -185,9 +192,44 @@ $assetVersion = static function (string $relativePath): string {
             </main>
         </div>
     </div>
+    <div class="learner-roadmap-editor" data-roadmap-editor role="dialog" aria-modal="true" aria-labelledby="roadmap-editor-title" aria-describedby="roadmap-editor-help" hidden>
+        <div class="learner-roadmap-editor__backdrop" data-editor-close></div>
+        <section class="learner-roadmap-editor__dialog">
+            <header class="learner-roadmap-editor__header">
+                <div>
+                    <span class="learner-roadmap__eyebrow">LỘ TRÌNH CỦA BẠN</span>
+                    <h2 id="roadmap-editor-title" data-roadmap-editor-title>Chỉnh sửa lộ trình 90 ngày</h2>
+                    <p id="roadmap-editor-help">Chỉnh trực tiếp nội dung. AI sẽ giúp sửa chính tả, trình bày và làm rõ ý.</p>
+                </div>
+                <button class="learner-roadmap-editor__close" type="button" data-editor-close aria-label="Đóng trình chỉnh sửa"><?= learner_icon('x', 22); ?></button>
+            </header>
+            <nav class="learner-roadmap-editor__tabs" aria-label="Ba chặng của lộ trình" data-editor-step="edit">
+                <button type="button" role="tab" aria-selected="true" data-editor-phase="1">Tháng 1 · Ngày 1–30</button>
+                <button type="button" role="tab" aria-selected="false" data-editor-phase="2">Tháng 2 · Ngày 31–60</button>
+                <button type="button" role="tab" aria-selected="false" data-editor-phase="3">Tháng 3 · Ngày 61–90</button>
+            </nav>
+            <div class="learner-roadmap-editor__preview-tabs" data-editor-step="preview" hidden>
+                <button type="button" data-preview-source="ai_refined" class="is-active">Bản AI đã làm rõ</button>
+                <button type="button" data-preview-source="learner_draft">Nội dung của tôi</button>
+            </div>
+            <main class="learner-roadmap-editor__body" data-roadmap-editor-body></main>
+            <footer class="learner-roadmap-editor__footer">
+                <p data-roadmap-editor-status role="status" aria-live="polite"></p>
+                <div data-editor-step="edit">
+                    <button class="learner-btn learner-btn--text" type="button" data-editor-close>Hủy</button>
+                    <button class="learner-btn learner-btn--primary" type="button" data-editor-refine><?= learner_icon('sparkles', 17); ?> AI tinh chỉnh & xem trước</button>
+                </div>
+                <div data-editor-step="preview" hidden>
+                    <button class="learner-btn learner-btn--text" type="button" data-editor-back>Quay lại chỉnh sửa</button>
+                    <button class="learner-btn learner-btn--primary" type="button" data-editor-apply>Áp dụng lộ trình</button>
+                </div>
+            </footer>
+        </section>
+    </div>
     <script id="learner-session-boot" type="application/json"><?= json_encode(['csrfToken' => $GLOBALS['learner_page_context']['csrfToken'] ?? ''], JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
     <script src="../../assets/js/learner-api.js?v=<?= $assetVersion('assets/js/learner-api.js'); ?>"></script>
     <script src="../../assets/js/learner.js?v=<?= $assetVersion('assets/js/learner.js'); ?>"></script>
+    <script src="../../assets/js/learner-ai-roadmap-editor.js?v=<?= $assetVersion('assets/js/learner-ai-roadmap-editor.js'); ?>"></script>
     <script src="../../assets/js/learner-ai-roadmap.js?v=<?= $assetVersion('assets/js/learner-ai-roadmap.js'); ?>"></script>
     <script src="../../assets/js/learner-skill-gap.js?v=<?= $assetVersion('assets/js/learner-skill-gap.js'); ?>"></script>
 </body>

@@ -1556,7 +1556,7 @@ CREATE TABLE `learner_ai_roadmap_tasks` (
   CONSTRAINT `chk_learner_ai_roadmap_tasks_action` CHECK ((((`actionType` = _utf8mb4'self_task') and (`targetType` is null) and (`targetId` is null)) or ((`actionType` = _utf8mb4'register_activity') and (`targetType` = _utf8mb4'activity') and (`targetId` is not null)))),
   CONSTRAINT `chk_learner_ai_roadmap_tasks_evidence_json` CHECK (json_valid(`evidenceJson`)),
   CONSTRAINT `chk_learner_ai_roadmap_tasks_minutes` CHECK ((`estimatedMinutes` between 5 and 1440)),
-  CONSTRAINT `chk_learner_ai_roadmap_tasks_position` CHECK ((`position` between 1 and 5))
+  CONSTRAINT `chk_learner_ai_roadmap_tasks_position` CHECK ((`position` between 1 and 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

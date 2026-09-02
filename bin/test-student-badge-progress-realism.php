@@ -115,8 +115,8 @@ $badgesHtml = ob_get_clean();
 $decodedBadges = html_entity_decode($badgesHtml, ENT_QUOTES, 'UTF-8');
 
 assertCondition("app/learner/badges.php renders cleanly", strlen($badgesHtml) > 10000);
-assertCondition("Badges page displays 'Đang tích lũy' or progress percentages", 
-    str_contains($decodedBadges, 'Đang tích lũy') || 
+assertCondition("Badges page displays 'Đang tích lũy' or progress percentages",
+    str_contains($decodedBadges, 'Đang tích lũy') ||
     str_contains($decodedBadges, 'Đã đạt') ||
     str_contains($decodedBadges, '%')
 );

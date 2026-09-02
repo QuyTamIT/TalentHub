@@ -87,10 +87,10 @@ try {
             'status' => 'active',
         ],
     ];
-    
+
     $context = (new SchoolAppContext())->boot();
     echo "  -> Auto-heal successfully linked user $tempEmail to school: {$context['school']['name']}!\n";
-    
+
     // Verify row was inserted into school_members
     $chkStmt = $pdo->prepare("SELECT id, schoolId, memberRole FROM school_members WHERE userId = ? LIMIT 1");
     $chkStmt->execute([$tempUserId]);

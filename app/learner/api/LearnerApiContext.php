@@ -32,6 +32,8 @@ use TalentHub\Learner\Ai\Model\OpportunityMatchPromptRegistry;
 use TalentHub\Learner\Ai\Model\PromptRegistry;
 use TalentHub\Learner\Ai\Model\RoadmapPromptRegistry;
 use TalentHub\Learner\Ai\Model\ModelRoadmapEngine;
+use TalentHub\Learner\Ai\Model\ModelRoadmapRefinementEngine;
+use TalentHub\Learner\Ai\Model\RoadmapRefinementPromptRegistry;
 use TalentHub\Learner\Ai\Observability\AiMetricsCollector;
 use TalentHub\Learner\Ai\Persistence\DatabaseRecommendationRepository;
 use TalentHub\Learner\Ai\Persistence\DatabaseOpportunityMatchRepository;
@@ -57,6 +59,7 @@ use TalentHub\Learner\Ai\Service\OpportunityMatchService;
 use TalentHub\Learner\Ai\Service\JobMatchingService;
 use TalentHub\Learner\Ai\Service\RecommendationClickService;
 use TalentHub\Learner\Ai\Service\RoadmapService;
+use TalentHub\Learner\Ai\Service\RoadmapCustomizationService;
 use TalentHub\Learner\Ai\Service\GroupMatchingService;
 use TalentHub\Learner\Ai\Service\StrictRecommendationRefreshDispatcher;
 use TalentHub\Learner\Ai\Snapshot\RecommendationSnapshotBuilder;
@@ -650,6 +653,31 @@ final class LearnerApiContext
         $injected = $GLOBALS['__TALENTHUB_TEST_ROLLOUT_EVIDENCE__'] ?? null;
         if (is_array($injected)) return $injected;
         return RolloutEvidenceFactory::fromEnvironment($config, $environment);
+    }
+
+    public function roadmapCustomizationService(string $studentId): RoadmapCustomizationService
+    {
+        $consent = new ConsentPolicy(new DatabaseConsentSource($this->pdo));
+        $snapshotBuilder = $this->snapshotBuilder();
+        $config = RecommendationConfig::fromEnvironment(self::recommendationEnvironment());
+        $engine = null;
+        if ($config->enabled()) {
+            $httpTransport = $GLOBALS['__TALENTHUB_TEST_HTTP__'] ?? null;
+            $provider = new HttpRoadmapProvider($config,is_callable($httpTransport)?$httpTransport:null,null,$this->providerCircuitBreaker((string)$config->provider()),null,null,AiMetricsCollector::shared());
+            $engine = new ModelRoadmapRefinementEngine(
+                $provider,
+                new RoadmapRefinementPromptRegistry(),
+                new RecommendationRateLimiter($config->roadmapPerStudentLimit(),$config->roadmapGlobalLimit(),60,static fn():int=>(new DateTimeImmutable('now',new DateTimeZone('UTC')))->getTimestamp()),
+                $config,
+                new ProviderConsentGate($consent,['assessment'],['assessment']),
+            );
+        }
+        return new RoadmapCustomizationService(
+            new DatabaseRoadmapRepository($this->pdo), $engine, $config,
+            static fn(string $candidate):bool=>hash_equals($studentId,$candidate),
+            static fn(string $candidate)=>$consent->decision($candidate),
+            static fn(string $candidate,array $scopes)=>$snapshotBuilder->buildForRoadmap($candidate,$scopes),
+        );
     }
 
     /** @return array<string,string> */

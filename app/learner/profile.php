@@ -13,6 +13,7 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Hồ sơ năng lực đã xác minh của <?= learner_escape($student['name']); ?> trên TalentHub.">
+    <meta name="csrf-token" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ''); ?>">
     <title>Hồ sơ năng lực | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
@@ -31,14 +32,19 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                     'eyebrow' => 'Hành trình phát triển',
                     'title' => 'Hồ sơ năng lực',
                     'description' => 'Theo dõi những năng lực, thành tích và trải nghiệm tạo nên hồ sơ của bạn.',
-                    'icon' => 'user',
                 ];
                 include __DIR__ . '/includes/page-banner.php';
                 ?>
                 <section class="learner-card learner-profile-hero" aria-labelledby="profile-name">
                     <div class="learner-profile-hero__top">
                         <div class="learner-profile-identity">
-                            <div class="learner-profile-avatar" aria-hidden="true"><?= learner_escape($student['initials']); ?></div>
+                            <div class="learner-profile-avatar" aria-hidden="true" style="overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                                <?php if (!empty($student['avatar_url']) || !empty($student['avatarUrl'])): ?>
+                                    <img src="<?= learner_escape($student['avatar_url'] ?? $student['avatarUrl']); ?>" alt="<?= learner_escape($student['name']); ?>" style="width: 100%; height: 100%; object-fit: cover;" data-profile-avatar-img>
+                                <?php else: ?>
+                                    <span data-profile-avatar-text><?= learner_escape($student['initials']); ?></span>
+                                <?php endif; ?>
+                            </div>
                             <div class="learner-profile-identity__content">
                                 <div class="learner-profile-identity__name-row">
                                     <h2 id="profile-name" data-profile-name><?= learner_escape($student['name']); ?></h2>
@@ -281,7 +287,56 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                 <button class="learner-icon-button" type="button" data-close-modal aria-label="Đóng cửa sổ chỉnh sửa"><?= learner_icon('x', 22); ?></button>
             </div>
             <form class="learner-form" id="learner-profile-form" novalidate>
+                <input type="hidden" name="csrfToken" value="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ''); ?>">
                 <div class="learner-form__grid">
+                    <div class="learner-field learner-field--wide" style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 1.1rem; border-radius: 12px; margin-bottom: 0.25rem;">
+                        <span style="font-weight: 700; color: #1E293B; margin-bottom: 0.65rem; display: flex; align-items: center; gap: 0.4rem; font-size: 0.875rem;">
+                            <?= learner_icon('user', 16); ?> Ảnh đại diện (Avatar)
+                        </span>
+                        <div style="display: flex; gap: 1.25rem; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap;">
+                            <div style="position: relative; width: 68px; height: 68px; border-radius: 50%; border: 3px solid #3B82F6; overflow: hidden; background: #EFF6FF; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2); flex-shrink: 0;">
+                                <img id="learner-avatar-preview-img" src="<?= learner_escape($student['avatar_url'] ?? $student['avatarUrl'] ?? 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=Student&backgroundColor=eff6ff'); ?>" alt="Avatar xem trước" style="width: 100%; height: 100%; object-fit: cover; <?= (empty($student['avatar_url']) && empty($student['avatarUrl'])) ? 'display: none;' : '' ?>">
+                                <span id="learner-avatar-preview-text" style="font-size: 1.5rem; font-weight: 800; color: #2563EB; <?= (!empty($student['avatar_url']) || !empty($student['avatarUrl'])) ? 'display: none;' : '' ?>">
+                                    <?= learner_escape($student['initials']); ?>
+                                </span>
+                            </div>
+                            <div style="flex: 1; min-width: 220px;">
+                                <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; flex-wrap: wrap;">
+                                    <input type="file" id="learner-avatar-file-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display: none;">
+                                    <button type="button" id="btn-upload-avatar-file" class="learner-btn learner-btn--primary" style="font-size: 0.8125rem; padding: 0.45rem 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem; background: #2563EB; color: #FFF; border-radius: 7px;">
+                                        <?= learner_icon('upload', 15); ?> Chọn ảnh từ máy tính
+                                    </button>
+                                    <span id="learner-avatar-file-status" style="font-size: 0.775rem; color: #059669; font-weight: 600; display: none;"></span>
+                                </div>
+                                <div style="font-size: 0.775rem; color: #64748B; font-weight: 600; margin-bottom: 0.35rem;">Hoặc chọn nhanh mẫu đại diện AI:</div>
+                                <div class="learner-avatar-presets" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/bottts/svg?seed=Talent1&amp;backgroundColor=b6e3f4" title="Robot AI 1" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Talent1&amp;backgroundColor=b6e3f4" alt="Robot AI 1" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </button>
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/avataaars/svg?seed=Student2&amp;backgroundColor=c0aede" title="Minh họa 2" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student2&amp;backgroundColor=c0aede" alt="Minh họa 2" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </button>
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=Student3&amp;backgroundColor=d1d4f9" title="Robot AI 3" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=Student3&amp;backgroundColor=d1d4f9" alt="Robot AI 3" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </button>
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/adventurer/svg?seed=Student4&amp;backgroundColor=ffd5dc" title="Phiêu lưu 4" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Student4&amp;backgroundColor=ffd5dc" alt="Phiêu lưu 4" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </button>
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Student5&amp;backgroundColor=ffdfbf" title="Emoji vui 5" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Student5&amp;backgroundColor=ffdfbf" alt="Emoji vui 5" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </button>
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/thumbs/svg?seed=Student6&amp;backgroundColor=d3d3d3" title="Ngón tay 6" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=Student6&amp;backgroundColor=d3d3d3" alt="Ngón tay 6" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input id="learner-field-avatar" name="avatarUrl" type="text" inputmode="url" value="<?= learner_escape($student['avatar_url'] ?? $student['avatarUrl'] ?? ''); ?>" placeholder="Dán link ảnh https://... hoặc tải ảnh từ máy" style="font-size: 0.8125rem; flex: 1; padding: 0.5rem 0.75rem; border: 1px solid #D1D5DB; border-radius: 6px;">
+                            <button type="button" id="btn-clear-avatar" class="learner-btn learner-btn--secondary" style="font-size: 0.75rem; padding: 0.5rem 0.75rem; white-space: nowrap;">Đặt lại</button>
+                        </div>
+                        <small class="learner-field__error" data-error-for="avatarUrl" role="alert"></small>
+                    </div>
                     <label class="learner-field">
                         <span>Họ và tên *</span>
                         <input id="learner-field-name" name="fullName" type="text" value="<?= learner_escape($student['name']); ?>" aria-describedby="learner-error-name" required>
