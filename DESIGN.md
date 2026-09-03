@@ -26,11 +26,13 @@ Use **Be Vietnam Pro**, falling back to the system sans stack. Body text uses `1
 - **BrandHeader:** 36px orange gradient mark, 8px radius, 12px gap, `FTalent` in ink/white and `Hub` in brand orange, with a 12px role subtitle.
 - **Buttons:** minimum 44px height for frequent actions; use orange only for the primary action, white/outlined controls for secondary actions.
 - **Cards and panels:** white surfaces, 12-16px radius, subtle border, and restrained shadow. Use containment only when it helps grouping or scanning.
+- **Controls:** shared buttons, text fields, native selects, and textareas use a 44px interaction height, 8px radius, quiet borders, and a visible orange focus ring. Compact controls may use 40px where density requires it.
+- **Tables and modals:** tables scroll horizontally rather than clipping columns; modals keep a bounded viewport height, move toward the bottom edge on mobile, and retain full-width actions at narrow widths.
 - **Focus:** visible orange outline with a 3px offset; never rely on hover or color alone.
 
 ## Layout Principles
 
-Use a 4px spacing base, consistent content rhythm, and a maximum content width near `1200px`. Keep navigation, page title, filters, and primary action visually distinct. Avoid layout shifts by reserving space for icons, badges, images, and async states.
+Use a 4px spacing base, consistent content rhythm, and a maximum content width near `1200px`. Shared responsive breakpoints are 480px, 768px, and 1024px, but components should adapt to available space first. Keep navigation, page title, filters, and primary action visually distinct. Avoid layout shifts by reserving space for icons, badges, images, and async states.
 
 ## Depth & Elevation
 

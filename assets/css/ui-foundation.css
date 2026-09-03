@@ -1,0 +1,208 @@
+/*
+ * FTalentHub shared UI foundation
+ * A small, late-loaded layer for consistent states and responsive behavior.
+ * Portal styles can still specialize their components without changing the
+ * shared interaction contract.
+ */
+
+:root {
+    --control-height: 44px;
+    --control-height-sm: 40px;
+    --content-gutter: clamp(1rem, 2.4vw, 1.75rem);
+    --surface-subtle: #f8fafc;
+    --border-focus: #c2410c;
+}
+
+body {
+    min-width: 320px;
+    overflow-x: hidden;
+    background: var(--background, #f8fafc);
+    color: var(--text-primary, #0f172a);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled),
+a.btn,
+[role="button"] {
+    touch-action: manipulation;
+}
+
+/* Shared control contract */
+:where(.btn, button.btn, input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    min-height: var(--control-height);
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus-visible {
+    border-color: var(--border-focus);
+    outline: 2px solid var(--color-brand, #f97316);
+    outline-offset: 2px;
+    box-shadow: var(--focus-ring, 0 0 0 3px rgb(249 115 22 / 0.28));
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):user-invalid {
+    border-color: var(--color-danger, #dc2626);
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):disabled {
+    cursor: not-allowed;
+}
+
+.btn {
+    min-height: var(--control-height);
+}
+
+.btn-sm {
+    min-height: var(--control-height-sm);
+}
+
+.btn-icon-only,
+.modal-close {
+    min-width: var(--control-height);
+    min-height: var(--control-height);
+}
+
+/* Avoid a jumpy hover effect on touch devices. */
+@media (hover: hover) and (pointer: fine) {
+    .btn:not(:disabled):not([aria-disabled="true"]):hover {
+        transform: translateY(-1px);
+    }
+}
+
+/* Shared content rhythm and readable long text. */
+:where(.page-header, .ent-page-header, .teacher-page-header, .school-page-header) {
+    margin-inline: 0;
+}
+
+:where(.page-header__title, .ent-page-title, .teacher-page-title, .school-page-title) {
+    overflow-wrap: anywhere;
+}
+
+:where(.page-header__subtitle, .ent-page-subtitle, .teacher-page-subtitle, .school-page-subtitle) {
+    color: var(--text-secondary, #475569);
+    max-width: 72ch;
+}
+
+/* Panels use the same surface treatment without forcing card containment. */
+:where(.card, .section-box, .teacher-section-box, .school-section-box,
+    .ent-section-box, .learner-card, .stat-card, .bento-card) {
+    border-radius: var(--radius-md, 12px);
+    border-color: var(--border, #e2e8f0);
+    background: var(--surface, #fff);
+}
+
+/* Dense tables remain usable on narrow screens and preserve their columns. */
+:where(.table-wrapper, .table-scroll, .data-table-wrapper, .table-responsive) {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+:where(.data-table, .teacher-students-table, .school-class-table) {
+    min-width: 640px;
+}
+
+:where(.data-table, .teacher-students-table, .school-class-table) th {
+    line-height: 1.35;
+}
+
+:where(.data-table, .teacher-students-table, .school-class-table) td {
+    overflow-wrap: anywhere;
+}
+
+/* Keep floating layers above sticky headers and inside the viewport. */
+:where(.modal-backdrop, .portal-sidebar-backdrop) {
+    overscroll-behavior: contain;
+}
+
+.modal {
+    width: min(100%, 860px);
+    margin: auto;
+}
+
+.modal-body {
+    overflow-wrap: anywhere;
+}
+
+/* Consistent mobile gutters, stacked actions, and bottom-safe modals. */
+@media (max-width: 768px) {
+    :where(.container, .portal-main, .learner-main, .teacher-main,
+        .school-main, .ent-main, .admin-main) {
+        padding-inline: var(--content-gutter);
+    }
+
+    :where(.page-header, .ent-page-header, .teacher-page-header, .school-page-header) {
+        align-items: stretch;
+    }
+
+    :where(.page-header__actions, .ent-page-header__actions, .teacher-page-header__actions,
+        .school-page-header__actions) {
+        width: 100%;
+    }
+
+    :where(.page-header__actions, .ent-page-header__actions, .teacher-page-header__actions,
+        .school-page-header__actions) > .btn {
+        flex: 1 1 auto;
+    }
+
+    .card-header,
+    .modal-header {
+        padding-inline: var(--space-4);
+    }
+
+    .card-body,
+    .modal-body {
+        padding: var(--space-4);
+    }
+
+    .modal-backdrop {
+        align-items: flex-end;
+        padding: 0.75rem;
+    }
+
+    .modal {
+        max-height: calc(100dvh - 1.5rem);
+        border-radius: var(--radius-lg, 16px);
+    }
+
+    .modal-footer {
+        padding: var(--space-3) var(--space-4);
+    }
+}
+
+@media (max-width: 480px) {
+    :where(.page-header__actions, .ent-page-header__actions, .teacher-page-header__actions,
+        .school-page-header__actions) {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    :where(.page-header__actions, .ent-page-header__actions, .teacher-page-header__actions,
+        .school-page-header__actions) > .btn {
+        width: 100%;
+    }
+
+    .modal-footer {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .modal-footer .btn {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .btn,
+    .card,
+    .modal {
+        transition-duration: 0.01ms !important;
+    }
+}

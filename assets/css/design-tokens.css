@@ -40,6 +40,15 @@
     --motion-base: 220ms ease;
     --content-max: 1400px;
     --touch-target: 44px;
+
+    /* Shared UI foundation aliases */
+    --control-height: 44px;
+    --control-height-sm: 40px;
+    --breakpoint-mobile: 480px;
+    --breakpoint-tablet: 768px;
+    --breakpoint-desktop: 1024px;
+    --surface-subtle: #f8fafc;
+    --border-focus: #c2410c;
 }
 
 html {
