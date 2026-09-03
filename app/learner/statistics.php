@@ -96,7 +96,11 @@ $fieldLabelMap = [
     <meta name="description" content="Theo dõi thống kê học tập và trải nghiệm cá nhân của học sinh, sinh viên trên TalentHub.">
     <title>Thống kê cá nhân | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
 </head>
 <body class="learner-app learner-page-statistics">
     <div class="learner-layout">
@@ -132,10 +136,10 @@ $fieldLabelMap = [
                         <span>Dữ liệu tổng hợp từ hồ sơ cá nhân của bạn</span>
                     </div>
 
-                    <label class="learner-statistics-period" for="learner-statistics-period">
+                    <label class="learner-statistics-period typeui-select-shell" for="learner-statistics-period">
                         <?= learner_icon('calendar', 19); ?>
                         <span class="learner-visually-hidden">Chọn khoảng thời gian thống kê</span>
-                        <select id="learner-statistics-period" name="period">
+                        <select id="learner-statistics-period" name="period" class="typeui-select typeui-select--bare">
                             <option value="month" <?= $selectedPeriod === 'month' ? 'selected' : ''; ?>>Tháng này</option>
                             <option value="week" <?= $selectedPeriod === 'week' ? 'selected' : ''; ?>>Tuần này</option>
                         </select>

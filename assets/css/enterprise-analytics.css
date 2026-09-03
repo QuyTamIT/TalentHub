@@ -1,6 +1,7 @@
 /* ==========================================================================
    TalentHub Enterprise - Recruitment Analytics Module Styles
    Design System: Enterprise SaaS Analytics, Data-First, Restrained Orange & Neutral Surfaces
+   Tokens: --ent-text-* are defined in home.css :root (ent typography scale).
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
@@ -247,7 +248,7 @@
 
 .ana-select:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1);
+    box-shadow: 0 0 0 2px rgba(255, 107, 0, 0.1);
 }
 
 .ana-btn-reset {
@@ -341,7 +342,7 @@
 
 .ana-funnel-step__conv {
     font-weight: 700;
-    color: #EA580C;
+    color: #E55F00;
 }
 
 .ana-funnel-step__sub {
@@ -361,7 +362,7 @@
 
 .ana-funnel-step__fill {
     height: 100%;
-    background-color: #EA580C;
+    background-color: #E55F00;
     border-radius: 2px;
     transition: width var(--transition-base);
 }
@@ -412,7 +413,7 @@
 }
 
 .ana-legend-dot.legend--qualified {
-    background-color: #EA580C;
+    background-color: #E55F00;
 }
 
 .ana-bars-container {
@@ -459,7 +460,7 @@
 }
 
 .ana-bar.qualified {
-    background-color: #EA580C;
+    background-color: #E55F00;
 }
 
 .ana-bar-val {
@@ -502,9 +503,9 @@
 .ana-current-badge {
     font-size: 0.5625rem;
     font-weight: 600;
-    color: #EA580C;
+    color: #E55F00;
     background-color: #FFF7ED;
-    border: 1px solid rgba(249, 115, 22, 0.25);
+    border: 1px solid rgba(255, 107, 0, 0.25);
     padding: 0.05rem 0.3rem;
     border-radius: 3px;
     line-height: 1.2;
@@ -532,7 +533,7 @@
 .ana-score-number {
     font-size: 1.875rem;
     font-weight: 800;
-    color: #EA580C;
+    color: #E55F00;
     line-height: 1;
     letter-spacing: -0.02em;
 }
@@ -646,7 +647,7 @@
 
 .ana-dimension-score {
     font-weight: 700;
-    color: #EA580C;
+    color: #E55F00;
     font-size: 0.71875rem;
 }
 
@@ -659,7 +660,7 @@
 
 .ana-dimension-fill {
     height: 100%;
-    background-color: #EA580C;
+    background-color: #E55F00;
     border-radius: 2px;
 }
 
@@ -695,7 +696,7 @@
 
 .ana-search-input:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1);
+    box-shadow: 0 0 0 2px rgba(255, 107, 0, 0.1);
 }
 
 .ana-search-icon {
@@ -813,7 +814,7 @@
 
 .ana-match-bar-fill {
     height: 100%;
-    background-color: #EA580C;
+    background-color: #E55F00;
     border-radius: 2px;
 }
 

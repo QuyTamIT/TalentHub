@@ -1,0 +1,362 @@
+/* ==========================================================================
+   TalentHub — Unified Sidebar Brand Component (brand-component.css)
+   Single source of truth cho nhận diện thương hiệu trên thanh sidebar
+   của tất cả portals: Learner, Teacher, School, Enterprise, Admin.
+
+   CHUẨN LẤY TỪ: Learner sidebar (learner-brand / learner-brand__*)
+   
+   LAYOUT TARGET:
+     ┌──────────────────────────────────┐
+     │ [★]  TalentHub                   │  ← icon 36x36 + name cùng hàng
+     │      Khu vực [vai trò]           │  ← subtitle thụt vào đúng text edge
+     ├──────────────────────────────────┤
+   
+   HTML STRUCTURES ĐƯỢC HỖ TRỢ:
+   
+   1. LEARNER (native chuẩn):
+      <a class="learner-brand">
+        <span class="learner-brand__mark">⭐</span>
+        <div class="learner-brand__text">
+          <span class="learner-brand__name">Talent<span>Hub</span></span>
+          <span class="learner-brand__subtitle">Khu vực sinh viên</span>
+        </div>
+      </a>
+   
+   2. TEACHER / SCHOOL / ENTERPRISE (site-header__brand pattern):
+      <div class="[portal]-sidebar__brand">
+        <a class="site-header__brand">
+          <div class="site-header__brand-icon">SVG</div>
+          <div class="site-header__brand-text">Talent<span>Hub</span></div>
+        </a>
+        <div class="[portal]-sidebar__subtitle">Khu vực [vai trò]</div>
+      </div>
+   
+   3. ADMIN (.brand pattern):
+      <a class="brand">
+        <span class="brand-mark"><img …></span>
+        <span>
+          <strong>TalentHub</strong>
+          <small>Bảng quản trị</small>
+        </span>
+      </a>
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   TOKEN CHUẨN (tất cả portals kế thừa)
+   -------------------------------------------------------------------------- */
+:root {
+    /* Brand icon */
+    --brand-icon-size:    36px;
+    --brand-icon-radius:  8px;
+    --brand-icon-bg:      linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+    --brand-icon-shadow:  0 2px 8px rgba(255, 107, 0, 0.30), 0 0 0 3px rgba(255, 107, 0, 0.10);
+    --brand-icon-color:   #FFFFFF;
+
+    /* Brand name */
+    --brand-name-size:    1.35rem;    /* 21.6px */
+    --brand-name-weight:  800;
+    --brand-name-spacing: -0.03em;
+    --brand-name-color:   var(--text-primary);
+    --brand-name-hub-color: var(--primary);   /* "Hub" màu cam */
+
+    /* Brand subtitle */
+    --brand-sub-size:     var(--text-xs);     /* 12px */
+    --brand-sub-weight:   500;
+    --brand-sub-color:    var(--text-secondary);
+    --brand-sub-mt:       2px;
+
+    /* Brand link gap (icon ↔ text column) */
+    --brand-gap:          0.75rem;            /* 12px */
+}
+
+/* ==========================================================================
+   CASE 1 — LEARNER (native classes — spec chuẩn, chỉ reinforce)
+   ========================================================================== */
+
+.learner-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--brand-gap);
+    color: var(--brand-name-color);
+    text-decoration: none;
+    width: 100%;
+}
+
+.learner-brand:hover .learner-brand__mark {
+    transform: rotate(8deg) scale(1.04);
+}
+
+.learner-brand__mark {
+    display: inline-flex;
+    width: var(--brand-icon-size);
+    height: var(--brand-icon-size);
+    flex: 0 0 var(--brand-icon-size);
+    align-items: center;
+    justify-content: center;
+    background: var(--brand-icon-bg);
+    border-radius: var(--brand-icon-radius);
+    color: var(--brand-icon-color);
+    box-shadow: var(--brand-icon-shadow);
+    transition: transform var(--transition-base);
+}
+
+.learner-brand__text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1;
+}
+
+.learner-brand__name {
+    font-size: var(--brand-name-size);
+    font-weight: var(--brand-name-weight);
+    letter-spacing: var(--brand-name-spacing);
+    color: var(--brand-name-color);
+    line-height: 1.2;
+}
+
+/* "Hub" = cam */
+.learner-brand__name > span {
+    color: var(--brand-name-hub-color);
+}
+
+.learner-brand__subtitle {
+    display: block;
+    margin-top: var(--brand-sub-mt);
+    font-size: var(--brand-sub-size);
+    font-weight: var(--brand-sub-weight);
+    color: var(--brand-sub-color);
+    line-height: 1.2;
+}
+
+/* Public header and portal sidebars share the same mark geometry. */
+.site-header__brand-icon {
+    width: var(--brand-icon-size);
+    height: var(--brand-icon-size);
+    flex: 0 0 var(--brand-icon-size);
+    border-radius: var(--brand-icon-radius);
+    background: var(--brand-icon-bg);
+    color: var(--brand-icon-color);
+    box-shadow: var(--brand-icon-shadow);
+}
+
+.site-header__brand-text {
+    font-size: var(--brand-name-size);
+    font-weight: var(--brand-name-weight);
+    letter-spacing: var(--brand-name-spacing);
+    line-height: 1.2;
+}
+
+/* ==========================================================================
+   CASE 2 — TEACHER / SCHOOL / ENTERPRISE  (site-header__brand pattern)
+
+   Cấu trúc HTML:
+     <div class="[portal]-sidebar__brand">          wrapper
+       <a class="site-header__brand">               link — flex row
+         <div class="site-header__brand-icon">      icon box
+         <div class="site-header__brand-text">      "TalentHub"
+       </a>
+       <div class="[portal]-sidebar__subtitle">     subtitle — NGOÀI link
+   
+   CSS trick: brand wrapper → flex-column
+              link → flex row (icon + text col)
+              text col → flex-column (name + hidden subtitle slot)
+              subtitle → padding-left = icon + gap để căn đúng text edge
+   ========================================================================== */
+
+/* — Brand wrapper: flex-column, link trên / subtitle dưới — */
+.teacher-sidebar__brand,
+.school-sidebar__brand,
+.ent-sidebar__brand {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding-bottom: 0.875rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1rem;
+}
+
+/* — Link: flex row (icon | text-col) — */
+.teacher-sidebar__brand .site-header__brand,
+.school-sidebar__brand  .site-header__brand,
+.ent-sidebar__brand     .site-header__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--brand-gap);
+    text-decoration: none;
+    color: var(--brand-name-color);
+    width: 100%;
+    line-height: 1;
+}
+
+.teacher-sidebar__brand .site-header__brand:hover .site-header__brand-icon,
+.school-sidebar__brand  .site-header__brand:hover .site-header__brand-icon,
+.ent-sidebar__brand     .site-header__brand:hover .site-header__brand-icon {
+    transform: rotate(8deg) scale(1.04);
+}
+
+/* — Icon box: pixel-perfect match với learner-brand__mark — */
+.teacher-sidebar__brand .site-header__brand-icon,
+.school-sidebar__brand  .site-header__brand-icon,
+.ent-sidebar__brand     .site-header__brand-icon {
+    display: inline-flex;
+    width: var(--brand-icon-size);
+    height: var(--brand-icon-size);
+    flex: 0 0 var(--brand-icon-size);
+    align-items: center;
+    justify-content: center;
+    background: var(--brand-icon-bg);
+    border-radius: var(--brand-icon-radius);
+    color: var(--brand-icon-color);
+    box-shadow: var(--brand-icon-shadow);
+    transition: transform var(--transition-base);
+    margin-top: 0 !important;  /* reset legacy school override */
+    border: none;              /* reset any legacy border */
+}
+
+/* — Brand text: name, "Hub" span màu cam — */
+.teacher-sidebar__brand .site-header__brand-text,
+.school-sidebar__brand  .site-header__brand-text,
+.ent-sidebar__brand     .site-header__brand-text {
+    font-size: var(--brand-name-size);
+    font-weight: var(--brand-name-weight);
+    letter-spacing: var(--brand-name-spacing);
+    color: var(--brand-name-color);
+    line-height: 1.2;
+    display: block;
+}
+
+/* "Hub" span trong "TalentHub" → màu cam */
+.teacher-sidebar__brand .site-header__brand-text > span,
+.school-sidebar__brand  .site-header__brand-text > span,
+.ent-sidebar__brand     .site-header__brand-text > span {
+    color: var(--brand-name-hub-color);
+}
+
+/* — Subtitle: thụt vào = icon(36px) + gap(12px) = 48px — */
+.teacher-sidebar__subtitle,
+.school-sidebar__subtitle,
+.ent-sidebar__subtitle {
+    display: block;
+    margin-top: var(--brand-sub-mt) !important;
+    padding-left: calc(var(--brand-icon-size) + var(--brand-gap)) !important;
+    font-size: var(--brand-sub-size) !important;
+    font-weight: var(--brand-sub-weight) !important;
+    color: var(--brand-sub-color) !important;
+    line-height: 1.2 !important;
+    text-align: left !important;
+}
+
+/* ==========================================================================
+   CASE 3 — ADMIN  (.brand pattern)
+
+   HTML:
+     <a class="brand">
+       <span class="brand-mark"><img src="logo.svg"></span>
+       <span>
+         <strong>TalentHub</strong>
+         <small>Bảng quản trị</small>
+       </span>
+     </a>
+
+   Vấn đề: brand-mark dùng ảnh PNG/SVG nền trắng, không phải icon box cam.
+   Fix: giả lập icon box cam giống learner bằng cách overlay background
+   trên brand-mark, ẩn img và dùng pseudo ⭐.
+   ========================================================================== */
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--brand-gap);
+    text-decoration: none;
+    color: var(--brand-name-color);
+    width: 100%;
+    line-height: 1;
+    height: var(--admin-topbar, var(--header-height));
+    padding: 0 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+}
+
+/* brand-mark: transform thành icon box cam giống learner */
+.brand-mark {
+    display: inline-flex;
+    width: var(--brand-icon-size);
+    height: var(--brand-icon-size);
+    flex: 0 0 var(--brand-icon-size);
+    align-items: center;
+    justify-content: center;
+    background: var(--brand-icon-bg);
+    border-radius: var(--brand-icon-radius);
+    box-shadow: var(--brand-icon-shadow);
+    transition: transform var(--transition-base);
+    overflow: hidden;
+    border: none !important;   /* reset legacy white border */
+    position: relative;
+}
+
+.brand:hover .brand-mark {
+    transform: rotate(8deg) scale(1.04);
+}
+
+/* Admin dùng img logo — thu nhỏ và căn giữa trong box cam */
+.brand-mark img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    /* Invert để ảnh trắng hiện trên nền cam */
+    filter: brightness(0) invert(1);
+}
+
+/* Text column: flex-column (name + subtitle) */
+.brand > span:not(.brand-mark) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1;
+}
+
+/* Name: "TalentHub" */
+.brand > span:not(.brand-mark) > strong {
+    display: block;
+    font-size: var(--brand-name-size);
+    font-weight: var(--brand-name-weight);
+    letter-spacing: var(--brand-name-spacing);
+    color: #f1f5f9;           /* trắng nhạt trên nền dark sidebar */
+    line-height: 1.2;
+}
+
+/* Subtitle: "Bảng quản trị" */
+.brand > span:not(.brand-mark) > small {
+    display: block;
+    margin-top: var(--brand-sub-mt);
+    font-size: var(--brand-sub-size);
+    font-weight: var(--brand-sub-weight);
+    color: #94a3b8;           /* slate-400 trên nền dark */
+    line-height: 1.2;
+}
+
+/* ==========================================================================
+   RESPONSIVE — tất cả portals
+   ========================================================================== */
+
+@media (max-width: 480px) {
+    :root {
+        --brand-name-size: 1.2rem;    /* thu nhỏ nhẹ trên mobile */
+    }
+}
+
+/* ==========================================================================
+   ACCESSIBILITY — prefers-reduced-motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    .learner-brand__mark,
+    .teacher-sidebar__brand .site-header__brand-icon,
+    .school-sidebar__brand  .site-header__brand-icon,
+    .ent-sidebar__brand     .site-header__brand-icon,
+    .brand-mark {
+        transition: none !important;
+    }
+}

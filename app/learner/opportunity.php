@@ -21,6 +21,9 @@ $deadlineLabel = $opportunity ? (new DateTimeImmutable($opportunity['deadline'])
     <meta name="description" content="Chi tiết cơ hội học tập và nghề nghiệp dành cho học sinh, sinh viên trên TalentHub.">
     <title><?= learner_escape($opportunity['title'] ?? 'Không tìm thấy cơ hội'); ?> | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
 </head>
 <body class="learner-app learner-page-opportunity" data-opportunity-page data-opportunity-id="<?= learner_escape((string) ($opportunity['id'] ?? '')); ?>">

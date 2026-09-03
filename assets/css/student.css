@@ -1,36 +1,12 @@
 /**
  * TalentHub Student / Learner Portal Styling
+ * Design tokens from home.css, shared components from global.css.
+ * All learner portal styles are in learner.css — this file just imports them.
  */
 @import url('learner.css');
 
-.learner-progress {
-    position: relative;
-    width: 100%;
-    height: 8px;
-    background: #E2E8F0;
-    border-radius: 9999px;
-    overflow: hidden;
-}
-
-.learner-progress > span {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-    transition: width 0.55s ease;
-}
-
-.learner-progress > .learner-progress--success {
-    background-color: #10B981 !important;
-}
-
-.learner-progress > .learner-progress--primary {
-    background-color: #F97316 !important;
-}
-
-.learner-progress > .learner-progress--secondary {
-    background-color: #6366F1 !important;
-}
-
-.learner-progress > .learner-progress--warning {
-    background-color: #F59E0B !important;
-}
+/*
+ * NOTE: .learner-progress with color overrides has been removed from this file.
+ * Progress bar colors are handled by global .progress-fill--* variants and
+ * learner.css .learner-progress--* modifier classes.
+ */

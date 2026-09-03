@@ -163,9 +163,14 @@ foreach ($posts as $post) {
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../../assets/css/home.css">
+    <link rel="stylesheet" href="../../../assets/css/global.css">
+    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../../assets/css/polish.css">
     <link rel="stylesheet" href="../../../assets/css/enterprise.css">
+    <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
 </head>
 <body class="enterprise-dashboard">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <!-- Layout Wrapper -->
     <div class="ent-layout">
@@ -180,7 +185,7 @@ foreach ($posts as $post) {
             <?php include __DIR__ . '/../includes/header.php'; ?>
 
             <!-- Page Body Content -->
-            <main class="ent-body">
+            <main class="ent-body" id="main-content">
                 <div class="container-fluid">
                     
                     <?php if (!empty($_SESSION['flash_message'])): ?>
@@ -235,7 +240,7 @@ foreach ($posts as $post) {
 
                             <!-- Lọc Trạng thái -->
                             <div class="ent-filter-select-wrapper" style="flex-shrink: 0;">
-                                <select id="filter-status-select" class="ent-filter-select" aria-label="Lọc theo trạng thái" style="height: 38px; padding: 0 32px 0 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; font-weight: 500; color: #0F172A; outline: none; cursor: pointer;">
+                                <select id="filter-status-select" class="ent-filter-select typeui-select typeui-select--compact" aria-label="Lọc theo trạng thái">
                                     <option value="">Tất cả trạng thái</option>
                                     <option value="active">Đang tuyển</option>
                                     <option value="draft">Bản nháp</option>
@@ -245,7 +250,7 @@ foreach ($posts as $post) {
 
                             <!-- Lọc Lĩnh vực -->
                             <div class="ent-filter-select-wrapper" style="flex-shrink: 0;">
-                                <select id="filter-field-select" class="ent-filter-select" aria-label="Lọc theo lĩnh vực" style="height: 38px; padding: 0 32px 0 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; font-weight: 500; color: #0F172A; outline: none; cursor: pointer;">
+                                <select id="filter-field-select" class="ent-filter-select typeui-select typeui-select--compact" aria-label="Lọc theo lĩnh vực">
                                     <option value="">Tất cả lĩnh vực</option>
                                     <option value="Công nghệ thông tin">Công nghệ thông tin</option>
                                     <option value="AI / Machine Learning">AI / Machine Learning</option>
@@ -256,7 +261,7 @@ foreach ($posts as $post) {
 
                             <!-- Sắp xếp -->
                             <div class="ent-filter-select-wrapper" style="flex-shrink: 0;">
-                                <select id="sort-select" class="ent-filter-select" aria-label="Sắp xếp danh sách" style="height: 38px; padding: 0 32px 0 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; font-weight: 500; color: #0F172A; outline: none; cursor: pointer;">
+                                <select id="sort-select" class="ent-filter-select typeui-select typeui-select--compact" aria-label="Sắp xếp danh sách">
                                     <option value="newest">Mới nhất</option>
                                     <option value="deadline">Sắp hết hạn</option>
                                     <option value="applicants">Số ứng viên</option>

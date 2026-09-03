@@ -44,7 +44,7 @@ $logoutUrl = function_exists('app_href') ? app_href('/logout.php?role=teacher') 
 <header class="teacher-header">
     <div class="teacher-header__left">
         <!-- Mobile Sidebar Toggle -->
-        <button class="teacher-header__toggle" id="teacher-sidebar-toggle" aria-label="Mở danh mục điều hướng">
+        <button class="teacher-header__toggle" id="teacher-sidebar-toggle" type="button" aria-label="Mở danh mục điều hướng">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
                 <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -57,7 +57,7 @@ $logoutUrl = function_exists('app_href') ? app_href('/logout.php?role=teacher') 
 
     <div class="teacher-header__right">
         <!-- Notification Bell -->
-        <div class="teacher-header__notif" id="teacher-notif-trigger" title="Thông báo mới (Mock UI)">
+        <div class="teacher-header__notif" id="teacher-notif-trigger" title="Thông báo mới">
             <button class="teacher-header__icon-btn" type="button" aria-label="Thông báo mới">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>

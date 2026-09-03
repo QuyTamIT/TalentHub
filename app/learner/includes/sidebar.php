@@ -6,6 +6,7 @@ if (!function_exists('app_href') && is_file(__DIR__ . '/../../../bin/bootstrap.p
 }
 $activeRoute = $currentRoute ?? '/app/learner/index.php';
 ?>
+<a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 <div class="learner-sidebar-backdrop" id="learner-sidebar-backdrop" aria-hidden="true"></div>
 
 <aside class="learner-sidebar" id="learner-sidebar" aria-label="Điều hướng Học sinh/Sinh viên">

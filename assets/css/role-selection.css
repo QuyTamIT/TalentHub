@@ -15,7 +15,7 @@
 .role-selection-header {
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: var(--z-sticky);
     background-color: rgba(255, 255, 255, 0.92);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -26,7 +26,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 4.5rem;
+    height: var(--header-height);
 }
 
 .role-selection-header__back-btn {
@@ -49,7 +49,7 @@
 
 .role-selection-title {
     font-size: 2.25rem;
-    font-weight: 800;
+    font-weight: var(--font-extrabold);
     color: var(--text-primary);
     line-height: 1.25;
     letter-spacing: -0.02em;
@@ -84,28 +84,35 @@
     cursor: pointer;
     transition: all var(--transition-base);
     outline: none;
+    color: inherit;
+    text-decoration: none;
 }
 
 .role-card:hover,
-.role-card:focus-visible,
+.role-card:focus-visible {
+    border-color: var(--primary);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
 .role-card.is-selected {
     border-color: var(--primary);
-    transform: translateY(-6px);
-    box-shadow: var(--shadow-xl);
+    transform: translateY(-4px);
+    box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.2), var(--shadow-lg);
 }
 
 /* Popular Card Highlight */
 .role-card--popular {
-    border-color: rgba(249, 115, 22, 0.4);
+    border-color: rgba(255, 107, 0, 0.4);
     background: linear-gradient(180deg, #FFFFFF 0%, #FFF7ED 100%);
-    box-shadow: 0 12px 28px -4px rgba(249, 115, 22, 0.15);
+    box-shadow: 0 12px 28px -4px rgba(255, 107, 0, 0.15);
 }
 
 .role-card--popular:hover,
 .role-card--popular:focus-visible,
 .role-card--popular.is-selected {
     border-color: var(--primary);
-    box-shadow: 0 20px 36px -6px rgba(249, 115, 22, 0.25);
+    box-shadow: 0 20px 36px -6px rgba(255, 107, 0, 0.25);
 }
 
 .role-card__badge {
@@ -113,12 +120,12 @@
     top: 1.25rem;
     right: 1.25rem;
     font-size: 0.75rem;
-    font-weight: 700;
+    font-weight: var(--font-bold);
     padding: 0.35rem 0.875rem;
     border-radius: var(--radius-full);
-    background: linear-gradient(135deg, var(--primary) 0%, #EA580C 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, #9A3412 100%);
     color: #FFFFFF;
-    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+    box-shadow: 0 2px 8px rgba(255, 107, 0, 0.3);
 }
 
 /* Role Card Icon */
@@ -145,7 +152,7 @@
 
 .role-card__icon--teacher {
     background-color: #FFF7ED;
-    color: #F97316;
+    color: var(--primary);
 }
 
 .role-card__icon--school {
@@ -161,7 +168,7 @@
 /* Role Card Typography & Action */
 .role-card__title {
     font-size: 1.375rem;
-    font-weight: 700;
+    font-weight: var(--font-bold);
     color: var(--text-primary);
     margin-bottom: 0.75rem;
 }
@@ -201,41 +208,6 @@
     flex-shrink: 0;
 }
 
-/* Notification Toast (Route Fallback Message) */
-.role-toast {
-    position: fixed;
-    bottom: 2rem;
-    right: 2rem;
-    z-index: 9999;
-    background: #0F172A;
-    color: #FFFFFF;
-    padding: 1rem 1.5rem;
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-xl);
-    transform: translateY(100px);
-    opacity: 0;
-    pointer-events: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.role-toast.is-visible {
-    transform: translateY(0);
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.role-toast__content {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 0.9375rem;
-    font-weight: 500;
-}
-
-.role-toast__content svg {
-    color: var(--primary);
-}
-
 /* Responsive Media Queries */
 @media (max-width: 860px) {
     .role-cards-grid {
@@ -262,18 +234,22 @@
         padding-bottom: 2.5rem;
     }
 
-    .role-toast {
-        left: 1rem;
-        right: 1rem;
-        bottom: 1rem;
+    .role-selection-title { font-size: 1.625rem; }
+
+    .role-card { padding: 1.5rem; }
+
+    .role-card__badge {
+        position: static;
+        align-self: flex-start;
+        margin-bottom: 1rem;
     }
+
 }
 
 /* Reduced Motion Support */
 @media (prefers-reduced-motion: reduce) {
     .role-card,
-    .role-card__icon,
-    .role-toast {
+    .role-card__icon {
         transition-duration: 0.01ms !important;
         transform: none !important;
     }

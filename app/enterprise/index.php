@@ -240,9 +240,13 @@ if ($pdo !== null) {
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/enterprise.css">
 </head>
 <body class="enterprise-dashboard">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <!-- Layout Wrapper -->
     <div class="ent-layout">
@@ -257,7 +261,7 @@ if ($pdo !== null) {
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <!-- Page Body Content - Single Column Stack -->
-            <main class="ent-body">
+            <main class="ent-body" id="main-content">
                 <div class="container-fluid ent-dashboard-container">
                     
                     <!-- 1. Hero Banner Chào Mừng -->

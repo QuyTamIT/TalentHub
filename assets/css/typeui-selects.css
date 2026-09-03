@@ -1,0 +1,199 @@
+/* ========================================================================
+   TalentHub Select System
+   Built from TypeUI fundamentals for native, accessible form controls.
+   ======================================================================== */
+
+:root {
+    --typeui-select-surface: #ffffff;
+    --typeui-select-surface-hover: #f8fafc;
+    --typeui-select-surface-disabled: #e2e8f0;
+    --typeui-select-text: #0f172a;
+    --typeui-select-text-disabled: #475569;
+    --typeui-select-border: #64748b;
+    --typeui-select-border-hover: #334155;
+    --typeui-select-accent: #2563eb;
+    --typeui-select-accent-strong: #1d4ed8;
+    --typeui-select-danger: #b91c1c;
+    --typeui-select-radius: 0.5rem;
+    --typeui-select-height: 2.75rem;
+    --typeui-select-height-large: 3rem;
+    --typeui-select-chevron-size: 1rem;
+    --typeui-select-chevron-inset: 0.75rem;
+    --typeui-select-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --typeui-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    --typeui-select-chevron-disabled: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* The :root scope lets this shared component consistently override legacy
+   portal-level select rules while keeping the cascade free of !important. */
+:root select.typeui-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    box-sizing: border-box;
+    inline-size: 100%;
+    min-inline-size: 0;
+    min-block-size: var(--typeui-select-height);
+    padding: 0.625rem 2.75rem 0.625rem 0.875rem;
+    border: 1px solid var(--typeui-select-border);
+    border-radius: var(--typeui-select-radius);
+    outline: 0;
+    background-color: var(--typeui-select-surface);
+    background-image: var(--typeui-select-chevron);
+    background-position: right var(--typeui-select-chevron-inset) center;
+    background-repeat: no-repeat;
+    background-size: var(--typeui-select-chevron-size);
+    color: var(--typeui-select-text);
+    color-scheme: light;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    box-shadow: var(--typeui-select-shadow);
+    transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+
+:root select.typeui-select:hover:not(:disabled):not([aria-disabled="true"]) {
+    border-color: var(--typeui-select-border-hover);
+    background-color: var(--typeui-select-surface-hover);
+}
+
+:root select.typeui-select:active:not(:disabled):not([aria-disabled="true"]) {
+    border-color: var(--typeui-select-accent-strong);
+    background-color: #eff6ff;
+}
+
+:root select.typeui-select:focus {
+    border-color: var(--typeui-select-accent);
+    background-color: var(--typeui-select-surface);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+
+:root select.typeui-select:focus-visible {
+    outline: 3px solid var(--typeui-select-accent);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+:root select.typeui-select[aria-invalid="true"],
+:root select.typeui-select:user-invalid {
+    border-color: var(--typeui-select-danger);
+}
+
+:root select.typeui-select[aria-invalid="true"]:focus-visible,
+:root select.typeui-select:user-invalid:focus-visible {
+    outline-color: var(--typeui-select-accent);
+}
+
+:root select.typeui-select:disabled,
+:root select.typeui-select[aria-disabled="true"] {
+    border-color: var(--typeui-select-border);
+    background-color: var(--typeui-select-surface-disabled);
+    background-image: var(--typeui-select-chevron-disabled);
+    color: var(--typeui-select-text-disabled);
+    cursor: not-allowed;
+    opacity: 1;
+    box-shadow: none;
+}
+
+:root select.typeui-select option,
+:root select.typeui-select optgroup {
+    background-color: var(--typeui-select-surface);
+    color: var(--typeui-select-text);
+}
+
+:root select.typeui-select.typeui-select--large {
+    min-block-size: var(--typeui-select-height-large);
+    font-size: 0.9375rem;
+}
+
+:root select.typeui-select.typeui-select--compact {
+    min-block-size: var(--typeui-select-height);
+    padding-block: 0.5rem;
+}
+
+:root select.typeui-select.typeui-select--inline {
+    inline-size: auto;
+    min-inline-size: 10rem;
+    max-inline-size: 100%;
+}
+
+:root select.typeui-select.typeui-select--status {
+    background-color: var(--typeui-select-surface-hover);
+    font-weight: 600;
+}
+
+/* Composite controls own the visible border; the select remains native. */
+.typeui-select-shell {
+    min-block-size: var(--typeui-select-height);
+    border-color: var(--typeui-select-border) !important;
+    border-radius: var(--typeui-select-radius) !important;
+    background-color: var(--typeui-select-surface) !important;
+    box-shadow: var(--typeui-select-shadow);
+    transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.typeui-select-shell:hover {
+    border-color: var(--typeui-select-border-hover) !important;
+    background-color: var(--typeui-select-surface-hover) !important;
+}
+
+.typeui-select-shell:focus-within {
+    border-color: var(--typeui-select-accent) !important;
+    outline: 3px solid var(--typeui-select-accent);
+    outline-offset: 2px;
+    box-shadow: none !important;
+}
+
+:root select.typeui-select.typeui-select--bare {
+    min-block-size: var(--typeui-select-height);
+    padding: 0.5rem 2.25rem 0.5rem 0.25rem;
+    border-color: transparent;
+    border-radius: 0.25rem;
+    background-color: transparent;
+    background-position: right 0.25rem center;
+    box-shadow: none;
+}
+
+:root select.typeui-select.typeui-select--bare:hover:not(:disabled):not([aria-disabled="true"]),
+:root select.typeui-select.typeui-select--bare:active:not(:disabled):not([aria-disabled="true"]),
+:root select.typeui-select.typeui-select--bare:focus,
+:root select.typeui-select.typeui-select--bare:focus-visible {
+    border-color: transparent;
+    outline: 0;
+    background-color: transparent;
+    box-shadow: none;
+}
+
+:root select.typeui-select[hidden] {
+    display: none;
+}
+
+@media (max-width: 620px), (pointer: coarse) {
+    :root select.typeui-select {
+        min-block-size: var(--typeui-select-height);
+        font-size: 1rem;
+    }
+
+    :root select.typeui-select.typeui-select--inline {
+        inline-size: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root select.typeui-select,
+    .typeui-select-shell {
+        transition-duration: 0.01ms;
+    }
+}
+
+@media print {
+    :root select.typeui-select {
+        background-image: none;
+        padding-inline-end: 0.875rem;
+        box-shadow: none;
+    }
+}

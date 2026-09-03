@@ -41,17 +41,22 @@ $bodyClass    = trim('school-dashboard ' . ($bodyClass ?? ''));
     <meta name="description" content="TalentHub School Dashboard - Quản lý hoạt động năng khiếu cho Nhà trường.">
     <title><?= htmlspecialchars($pageTitle); ?> - <?= htmlspecialchars($schoolInfo['name']); ?> | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/school.css">
     <?= $extraStyles; ?>
+    <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
 </head>
 <body class="<?= htmlspecialchars($bodyClass); ?>">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
     <div class="school-layout">
         <?php include __DIR__ . '/sidebar.php'; ?>
 
         <div class="school-main-wrapper">
             <?php include __DIR__ . '/header.php'; ?>
 
-            <main class="school-body">
+            <main class="school-body" id="main-content">
                 <div class="container-fluid">
                     <?= $pageBody; ?>
                 </div>

@@ -206,7 +206,7 @@ ob_start();
                                         <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="hidden" name="applicationId" value="<?= htmlspecialchars((string) $item['id']); ?>">
                                         <div style="position: relative; width: 100%;">
-                                            <select name="mentorTeacherId" class="school-mentor-select" data-app-id="<?= htmlspecialchars((string) $item['id']); ?>" style="width: 100%; padding: 0.5rem 0.75rem; border: 1.5px solid #CBD5E1; border-radius: 8px; font-size: 0.875rem; font-weight: 600; color: #0F172A; background-color: #FFFFFF; cursor: pointer; transition: all 0.2s ease;">
+                                            <select name="mentorTeacherId" class="school-mentor-select typeui-select typeui-select--compact" data-app-id="<?= htmlspecialchars((string) $item['id']); ?>">
                                                 <option value="">-- Chưa phân công mentor --</option>
                                                 <?php foreach ($teachers as $teacher): ?>
                                                     <?php 
@@ -500,7 +500,7 @@ ob_start();
             <div style="padding: 1.5rem; display: grid; gap: 1.25rem;">
                 <div>
                     <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #334155; margin-bottom: 0.5rem;">Trạng thái đợt thực tập</label>
-                    <select name="status" id="updateStatus" style="width: 100%; padding: 0.75rem; border: 1.5px solid #CBD5E1; border-radius: 8px; font-size: 0.95rem; font-weight: 500; color: #0F172A; background-color: #F8FAFC; outline: none; transition: border-color 0.2s;">
+                    <select name="status" id="updateStatus" class="typeui-select typeui-select--status">
                         <?php foreach ($labels as $key => $label): ?>
                             <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($label) ?></option>
                         <?php endforeach; ?>
@@ -509,7 +509,7 @@ ob_start();
                 
                 <div>
                     <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #334155; margin-bottom: 0.5rem;">Giảng viên hướng dẫn (Mentor)</label>
-                    <select name="mentorTeacherId" id="updateMentorId" style="width: 100%; padding: 0.75rem; border: 1.5px solid #CBD5E1; border-radius: 8px; font-size: 0.95rem; font-weight: 500; color: #0F172A; background-color: #F8FAFC; outline: none; transition: border-color 0.2s;">
+                    <select name="mentorTeacherId" id="updateMentorId" class="typeui-select">
                         <option value="">-- Chưa phân công mentor --</option>
                         <?php foreach ($teachers as $teacher): ?>
                             <?php $spec = !empty($teacher['specialization']) ? " - " . $teacher['specialization'] : ''; ?>

@@ -102,9 +102,12 @@ $sidebarNav = [
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/enterprise.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/enterprise.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/typeui-selects.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/typeui-selects.css'); ?>">
 </head>
 <body class="enterprise-dashboard">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <!-- Layout Wrapper -->
     <div class="ent-layout">
@@ -119,7 +122,7 @@ $sidebarNav = [
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <!-- Page Body Content -->
-            <main class="ent-body">
+            <main class="ent-body" id="main-content">
                 <div class="container-fluid" style="max-width: 1200px;">
                     
                     <!-- 1. Company Profile Header Hero Card -->
@@ -450,7 +453,7 @@ $sidebarNav = [
 
                             <div class="ent-form-group col-md-6">
                                 <label for="field-companySize" class="ent-form-label">Quy mô nhân sự</label>
-                                <select id="field-companySize" class="ent-form-select">
+                                <select id="field-companySize" class="ent-form-select typeui-select">
                                     <option value="">-- Chọn quy mô --</option>
                                     <?php 
                                     $sizes = ['Dưới 20 nhân viên', '20 - 50 nhân viên', '50 - 200 nhân viên', '200 - 500 nhân viên', '500 - 1000 nhân viên', 'Trên 1000 nhân viên'];

@@ -231,10 +231,13 @@ $sidebarNav = [
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise-analytics.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
 </head>
 <body class="enterprise-dashboard enterprise-analytics-page">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <!-- Layout Wrapper -->
     <div class="ent-layout">
@@ -249,7 +252,7 @@ $sidebarNav = [
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <!-- Page Body Content -->
-            <main class="ent-body">
+            <main class="ent-body" id="main-content">
                 <div class="container-fluid">
                     
                     <!-- PHẦN 1: HEADER & ACTION EXPORT -->
@@ -263,7 +266,7 @@ $sidebarNav = [
                             </p>
                         </div>
                         <div class="ent-page-header__actions" style="display: flex; align-items: center; gap: 10px;">
-                            <select id="ana-filter-time" class="ana-select" style="height: 36px; padding: 0 30px 0 12px; border: 1px solid #CBD5E1; border-radius: 8px; background-color: #FFFFFF; font-size: 13px; font-weight: 500; color: #0F172A; outline: none; cursor: pointer;">
+                            <select id="ana-filter-time" class="ana-select typeui-select typeui-select--compact typeui-select--inline">
                                 <option value="30_days" selected>30 ngày qua (Mới nhất)</option>
                                 <option value="q3_2026">Quý 3/2026</option>
                                 <option value="6_months">6 tháng gần đây</option>

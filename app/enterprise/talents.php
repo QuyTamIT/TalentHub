@@ -214,9 +214,14 @@ $sidebarNav = [
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/enterprise.css">
+    <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
 </head>
 <body class="enterprise-dashboard">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <!-- Layout Wrapper -->
     <div class="ent-layout">
@@ -231,7 +236,7 @@ $sidebarNav = [
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <!-- Page Body Content -->
-            <main class="ent-body">
+            <main class="ent-body" id="main-content">
                 <div class="container-fluid">
                     
                     <!-- Talent Search Intro Hero Banner -->
@@ -318,7 +323,7 @@ $sidebarNav = [
                                 <!-- Primary Filter: Bậc học -->
                                 <div class="ent-filter-group">
                                     <label for="filter-edu-level" class="ent-filter-label">Bậc học</label>
-                                    <select id="filter-edu-level" class="ent-filter-select">
+                                    <select id="filter-edu-level" class="ent-filter-select typeui-select typeui-select--compact">
                                         <option value="">Tất cả bậc học</option>
                                         <option value="THCS">THCS</option>
                                         <option value="THPT">THPT</option>
@@ -330,7 +335,7 @@ $sidebarNav = [
                                 <!-- Primary Filter: Trường học -->
                                 <div class="ent-filter-group">
                                     <label for="filter-school" class="ent-filter-label">Trường học</label>
-                                    <select id="filter-school" class="ent-filter-select">
+                                    <select id="filter-school" class="ent-filter-select typeui-select typeui-select--compact">
                                         <option value="">Tất cả trường học</option>
                                         <?php foreach ($schoolsList as $sch): ?>
                                             <option value="<?= htmlspecialchars($sch); ?>"><?= htmlspecialchars($sch); ?></option>
@@ -341,7 +346,7 @@ $sidebarNav = [
                                 <!-- Primary Filter: Lĩnh vực năng lực -->
                                 <div class="ent-filter-group">
                                     <label for="filter-major-field" class="ent-filter-label">Lĩnh vực năng lực</label>
-                                    <select id="filter-major-field" class="ent-filter-select">
+                                    <select id="filter-major-field" class="ent-filter-select typeui-select typeui-select--compact">
                                         <option value="">Tất cả lĩnh vực</option>
                                         <?php foreach ($majorFieldsList as $mf): ?>
                                             <option value="<?= htmlspecialchars($mf); ?>"><?= htmlspecialchars($mf); ?></option>
@@ -352,7 +357,7 @@ $sidebarNav = [
                                 <!-- Primary Filter: Điểm đánh giá -->
                                 <div class="ent-filter-group">
                                     <label for="filter-match-score" class="ent-filter-label">Điểm đánh giá năng lực</label>
-                                    <select id="filter-match-score" class="ent-filter-select">
+                                    <select id="filter-match-score" class="ent-filter-select typeui-select typeui-select--compact">
                                         <option value="0">Tất cả mức điểm</option>
                                         <option value="90">Từ 90 điểm trở lên</option>
                                         <option value="80">Từ 80 điểm trở lên</option>
@@ -363,7 +368,7 @@ $sidebarNav = [
                                 <!-- Primary Filter: Trạng thái thực tập -->
                                 <div class="ent-filter-group">
                                     <label for="filter-readiness" class="ent-filter-label">Trạng thái thực tập</label>
-                                    <select id="filter-readiness" class="ent-filter-select">
+                                    <select id="filter-readiness" class="ent-filter-select typeui-select typeui-select--compact">
                                         <option value="">Tất cả trạng thái</option>
                                         <option value="ready_now">Sẵn sàng thực tập ngay</option>
                                         <option value="ready_1_3m">Sẵn sàng trong 1-3 tháng</option>
@@ -383,7 +388,7 @@ $sidebarNav = [
                                         <!-- Khối / Năm học -->
                                         <div class="ent-filter-group">
                                             <label for="filter-class-year" class="ent-filter-label">Khối / Năm học</label>
-                                            <select id="filter-class-year" class="ent-filter-select">
+                                            <select id="filter-class-year" class="ent-filter-select typeui-select typeui-select--compact">
                                                 <option value="">Tất cả khối / năm</option>
                                                 <option value="Lớp 9">Lớp 9</option>
                                                 <option value="Lớp 11">Lớp 11</option>
@@ -398,7 +403,7 @@ $sidebarNav = [
                                         <!-- Giờ trải nghiệm -->
                                         <div class="ent-filter-group mt-2">
                                             <label for="filter-exp-hours" class="ent-filter-label">Giờ trải nghiệm thực án</label>
-                                            <select id="filter-exp-hours" class="ent-filter-select">
+                                            <select id="filter-exp-hours" class="ent-filter-select typeui-select typeui-select--compact">
                                                 <option value="0">Tất cả số giờ</option>
                                                 <option value="50">Từ 50h trở lên</option>
                                                 <option value="100">Từ 100h trở lên</option>
@@ -458,7 +463,7 @@ $sidebarNav = [
 
                                 <div class="ent-sort-wrapper">
                                     <label for="talent-sort-select" class="ent-sort-label">Sắp xếp:</label>
-                                    <select id="talent-sort-select" class="ent-sort-select">
+                                    <select id="talent-sort-select" class="ent-sort-select typeui-select typeui-select--compact typeui-select--inline">
                                         <option value="matching">Điểm đánh giá cao nhất</option>
                                         <option value="score_desc">Điểm cao nhất</option>
                                         <option value="exp_desc">Nhiều giờ trải nghiệm nhất</option>

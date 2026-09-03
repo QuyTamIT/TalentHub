@@ -54,8 +54,12 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
     <meta name="description" content="Khám phá hoạt động trải nghiệm đang mở dành riêng cho trường của bạn trên TalentHub.">
     <title>Khám phá hoạt động | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
     <link rel="stylesheet" href="assets/activities/activities.css">
+    <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
 </head>
 <body class="learner-app learner-page-activities">
     <div class="learner-layout">
@@ -109,10 +113,10 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                                 <input type="search" placeholder="Tìm hoạt động, kỹ năng, trường..." autocomplete="off" data-activity-search-input>
                             </label>
 
-                            <label class="learner-activity-discovery-time">
+                            <label class="learner-activity-discovery-time typeui-select-shell">
                                 <?= learner_icon('calendar', 19); ?>
                                 <span class="learner-visually-hidden">Thời gian</span>
-                                <select data-activity-time-filter aria-label="Thời gian">
+                                <select class="typeui-select typeui-select--bare" data-activity-time-filter aria-label="Thời gian">
                                     <option value="all">Thời gian</option>
                                     <option value="7d">7 ngày tới</option>
                                     <option value="30d">30 ngày tới</option>

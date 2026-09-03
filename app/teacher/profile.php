@@ -192,9 +192,13 @@ $sidebarNav = [
     <title><?= htmlspecialchars($pageTitle); ?> | TalentHub Teacher</title>
     
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/teacher.css">
 </head>
 <body class="teacher-dashboard">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <div class="teacher-layout">
         <!-- Sidebar Navigation -->
@@ -204,7 +208,7 @@ $sidebarNav = [
             <!-- Header -->
             <?php require_once __DIR__ . '/includes/header.php'; ?>
 
-            <main class="teacher-body">
+            <main class="teacher-body" id="main-content">
                 <div class="teacher-container" style="max-width: 960px;">
                     
                     <?php if ($successMessage): ?>

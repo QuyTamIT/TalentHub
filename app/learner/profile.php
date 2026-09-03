@@ -15,7 +15,11 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
     <meta name="description" content="Hồ sơ năng lực đã xác minh của <?= learner_escape($student['name']); ?> trên TalentHub.">
     <title>Hồ sơ năng lực | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
 </head>
 <body class="learner-app learner-page-profile" data-learner-source="<?= ($isDatabaseMode ?? false) ? 'database' : 'mock'; ?>">
     <div class="learner-layout">
@@ -255,7 +259,7 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                     </label>
                     <label class="learner-field">
                         <span>Cấp học</span>
-                        <select id="learner-field-level" name="educationLevel" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; width: 100%; font-size: 0.875rem;">
+                        <select id="learner-field-level" name="educationLevel" class="typeui-select">
                             <option value="college" selected>Cao đẳng / Đại học (Sinh viên)</option>
                             <option value="high_school">THCS / THPT (Học sinh)</option>
                         </select>
@@ -319,7 +323,7 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
 
                 <label class="learner-field" style="margin-bottom: 1rem;">
                     <span>Thời hạn chia sẻ:</span>
-                    <select name="expiresInDays" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; width: 100%;">
+                    <select name="expiresInDays" class="typeui-select">
                         <option value="7">7 ngày</option>
                         <option value="14">14 ngày</option>
                         <option value="30" selected>30 ngày</option>

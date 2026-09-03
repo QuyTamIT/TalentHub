@@ -287,9 +287,14 @@ $sidebarNav = [
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../../assets/css/home.css">
+    <link rel="stylesheet" href="../../../assets/css/global.css">
+    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../../assets/css/polish.css">
     <link rel="stylesheet" href="../../../assets/css/enterprise.css">
+    <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
 </head>
 <body class="enterprise-dashboard">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <!-- Layout Wrapper -->
     <div class="ent-layout">
@@ -304,7 +309,7 @@ $sidebarNav = [
             <?php include __DIR__ . '/../includes/header.php'; ?>
 
             <!-- Page Body Content -->
-            <main class="ent-body">
+            <main class="ent-body" id="main-content">
                 <div class="container-fluid">
                     
                     <!-- Back Breadcrumb Bar -->
@@ -436,7 +441,7 @@ $sidebarNav = [
 
                                     <!-- Status Filter Dropdown -->
                                     <div class="ent-filter-select-wrapper">
-                                        <select id="filter-app-status-select" class="ent-filter-select">
+                                        <select id="filter-app-status-select" class="ent-filter-select typeui-select typeui-select--compact">
                                             <option value="">Tất cả trạng thái</option>
                                             <option value="submitted">Mới</option>
                                             <option value="reviewing">Đang xem xét</option>
@@ -449,7 +454,7 @@ $sidebarNav = [
 
                                     <!-- Score Match Filter -->
                                     <div class="ent-filter-select-wrapper">
-                                        <select id="filter-score-select" class="ent-filter-select">
+                                        <select id="filter-score-select" class="ent-filter-select typeui-select typeui-select--compact">
                                             <option value="all">Tất cả độ phù hợp</option>
                                             <option value="90_plus">&ge; 90% phù hợp</option>
                                             <option value="80_89">80% - 89% phù hợp</option>
@@ -459,7 +464,7 @@ $sidebarNav = [
 
                                     <!-- Sort Dropdown -->
                                     <div class="ent-filter-select-wrapper">
-                                        <select id="sort-applicant-select" class="ent-filter-select">
+                                        <select id="sort-applicant-select" class="ent-filter-select typeui-select typeui-select--compact">
                                             <option value="score_desc">% phù hợp cao nhất</option>
                                             <option value="date_desc">Mới ứng tuyển</option>
                                             <option value="date_asc">Cũ nhất</option>

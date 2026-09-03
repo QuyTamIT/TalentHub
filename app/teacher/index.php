@@ -173,16 +173,20 @@ $activityOverview = [
     <title>Tổng quan Giáo viên | TalentHub</title>
 
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/teacher.css">
 </head>
 <body class="teacher-dashboard">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
     <div class="teacher-layout">
         <?php require_once __DIR__ . '/includes/sidebar.php'; ?>
 
         <div class="teacher-main-wrapper">
             <?php require_once __DIR__ . '/includes/header.php'; ?>
 
-            <main class="teacher-body">
+            <main class="teacher-body" id="main-content">
                 <div class="teacher-container">
                     <?php require_once __DIR__ . '/includes/welcome.php'; ?>
                     <?php require_once __DIR__ . '/includes/kpi-cards.php'; ?>

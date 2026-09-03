@@ -55,6 +55,9 @@ $qrCodeApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data='
     <meta name="description" content="Talent Passport - Hộ chiếu Năng lực Số của <?= learner_escape($studentName); ?> được chứng thực bởi <?= learner_escape($studentSchool); ?>.">
     <title>Talent Passport | <?= learner_escape($studentName); ?> | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
     <style>
         .passport-wrapper {

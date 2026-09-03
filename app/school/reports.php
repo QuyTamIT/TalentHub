@@ -138,7 +138,7 @@ include __DIR__ . '/includes/page-banner.php';
                     <span style="font-weight: 600; font-size: 0.875rem; color: #334155; margin-bottom: 0.35rem; display: block;">
                         Loại báo cáo cần xuất <em>*</em>
                     </span>
-                    <select name="reportType" required style="width: 100%; padding: 0.65rem 0.85rem; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 0.875rem; background: #FFFFFF;">
+                    <select name="reportType" class="typeui-select" required>
                         <?php foreach ($reportTypes as $code => [$label, $desc]): ?>
                             <option value="<?= htmlspecialchars($code); ?>">
                                 <?= htmlspecialchars($label); ?>

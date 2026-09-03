@@ -7,8 +7,8 @@ use TalentHub\Bootstrap\PortalGuard;
 use TalentHub\Rbac\RoleCodes;
 
 $adminUser = PortalGuard::requireRole(RoleCodes::PLATFORM_ADMIN, '/app/admin/index.php');
-$adminName = trim((string) ($adminUser['fullName'] ?? 'Platform Admin'));
-$adminFirstName = preg_split('/\s+/u', $adminName)[0] ?? 'Admin';
+$adminName = trim((string) ($adminUser['fullName'] ?? 'Quản trị viên'));
+$adminFirstName = preg_split('/\s+/u', $adminName)[0] ?? 'Quản trị viên';
 $adminInitials = implode('', array_map(
     static fn (string $part): string => mb_strtoupper(mb_substr($part, 0, 1)),
     array_slice(preg_split('/\s+/u', $adminName) ?: ['A'], 0, 2)
@@ -108,7 +108,11 @@ $nav = [
     <title>Trung tâm vận hành | TalentHub Admin</title>
     <link rel="icon" href="/assets/images/logo.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/css/home.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/assets/css/brand-component.css">
+    <link rel="stylesheet" href="/assets/css/polish.css">
     <link rel="stylesheet" href="/assets/css/admin.css">
+    <link rel="stylesheet" href="/assets/css/typeui-selects.css">
     <script src="/assets/js/admin.js" defer></script>
 </head>
 <body>
@@ -116,9 +120,16 @@ $nav = [
 <div class="admin-shell">
     <div class="sidebar-scrim" data-sidebar-close hidden></div>
     <aside class="sidebar" id="admin-sidebar" aria-label="Điều hướng quản trị">
-        <a class="brand" href="/app/admin/index.php" aria-label="TalentHub Admin - Tổng quan">
-            <span class="brand-mark"><img src="/assets/images/logo.svg" alt=""></span>
-            <span><strong>TalentHub</strong><small>Admin Console</small></span>
+        <a class="brand learner-brand" href="/app/admin/index.php" aria-label="TalentHub Admin - Tổng quan">
+            <span class="brand-mark learner-brand__mark" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
+                </svg>
+            </span>
+            <span class="learner-brand__text">
+                <span class="learner-brand__name">Talent<span>Hub</span></span>
+                <span class="learner-brand__subtitle">Bảng quản trị</span>
+            </span>
         </a>
         <nav class="side-nav">
             <p class="nav-label">Điều hành</p>
@@ -147,7 +158,7 @@ $nav = [
         <header class="topbar">
             <button class="icon-button mobile-menu" type="button" aria-label="Mở điều hướng" aria-controls="admin-sidebar" aria-expanded="false" data-sidebar-toggle><?= icon('menu') ?></button>
             <button class="command-trigger" type="button" data-command-open aria-haspopup="dialog">
-                <?= icon('search') ?><span>Tìm người dùng, tổ chức, request ID...</span><kbd>⌘ K</kbd>
+                <?= icon('search') ?><span>Tìm người dùng, tổ chức, mã yêu cầu...</span><kbd>⌘ K</kbd>
             </button>
             <div class="topbar-actions">
                 <span class="prototype-chip"><span class="status-dot is-ok"></span>Connected · dữ liệu thật</span>
@@ -191,7 +202,7 @@ $nav = [
                     <div class="chart-wrap" data-role-distribution>
                         <svg class="line-chart" viewBox="0 0 720 260" role="img" aria-labelledby="chart-title chart-desc">
                             <title id="chart-title">Xu hướng người dùng hoạt động 7 ngày</title>
-                            <desc id="chart-desc">Student tăng từ khoảng 5.100 lên 6.800. School giữ ổn định quanh 1.500. Enterprise tăng nhẹ lên khoảng 1.200.</desc>
+                            <desc id="chart-desc">Học viên tăng từ khoảng 5.100 lên 6.800. Nhà trường giữ ổn định quanh 1.500. Doanh nghiệp tăng nhẹ lên khoảng 1.200.</desc>
                             <g class="grid-lines"><path d="M52 28H700M52 82H700M52 136H700M52 190H700M52 244H700"/></g>
                             <g class="axis-labels"><text x="18" y="32">8K</text><text x="18" y="86">6K</text><text x="18" y="140">4K</text><text x="18" y="194">2K</text><text x="31" y="248">0</text><text x="52" y="258">T2</text><text x="158" y="258">T3</text><text x="264" y="258">T4</text><text x="370" y="258">T5</text><text x="476" y="258">T6</text><text x="582" y="258">T7</text><text x="688" y="258">CN</text></g>
                             <path class="area student-area" d="M52 105L158 98L264 102L370 84L476 76L582 66L700 58L700 244L52 244Z"/>
@@ -267,7 +278,7 @@ $nav = [
 
 <dialog class="command-dialog" data-command-dialog aria-labelledby="command-title">
     <div class="command-box">
-        <div class="command-search"><?= icon('search') ?><label class="sr-only" for="command-input">Tìm kiếm toàn cục</label><input id="command-input" type="search" placeholder="Tìm user, tổ chức, request ID hoặc lệnh..." autocomplete="off" data-command-input><button class="icon-button" type="button" data-command-close aria-label="Đóng trung tâm lệnh"><?= icon('close') ?></button></div>
+        <div class="command-search"><?= icon('search') ?><label class="sr-only" for="command-input">Tìm kiếm toàn cục</label><input id="command-input" type="search" placeholder="Tìm người dùng, tổ chức, mã yêu cầu hoặc lệnh..." autocomplete="off" data-command-input><button class="icon-button" type="button" data-command-close aria-label="Đóng trung tâm lệnh"><?= icon('close') ?></button></div>
         <div class="command-results" data-command-results>
             <p class="command-group-label">Đi tới nhanh</p>
             <button type="button" data-command-item><span class="command-item-icon"><?= icon('users') ?></span><span><strong>Quản lý người dùng</strong><small>Tìm, kiểm tra trạng thái và quyền truy cập</small></span><kbd>G U</kbd></button>
@@ -283,7 +294,7 @@ $nav = [
         <div class="action-dialog-header"><div><p class="eyebrow">Xác nhận thao tác</p><h2 id="action-title" data-action-title>Thay đổi trạng thái</h2></div><button class="icon-button" value="cancel" aria-label="Đóng"><?= icon('close') ?></button></div>
         <p data-action-description></p>
         <label class="field-label" for="organization-decision" data-decision-field hidden>Quyết định</label>
-        <select id="organization-decision" data-organization-decision hidden><option value="verified">Phê duyệt</option><option value="rejected">Từ chối</option><option value="pending">Chuyển về chờ duyệt</option></select>
+        <select id="organization-decision" class="typeui-select" data-organization-decision hidden><option value="verified">Phê duyệt</option><option value="rejected">Từ chối</option><option value="pending">Chuyển về chờ duyệt</option></select>
         <label class="field-label" for="action-reason">Lý do <span aria-hidden="true">*</span></label>
         <textarea id="action-reason" rows="4" minlength="5" required placeholder="Nhập lý do để ghi vào audit log..."></textarea>
         <div class="dialog-actions"><button class="button secondary" value="cancel">Hủy</button><button class="button primary" type="submit" value="confirm" data-action-submit>Xác nhận</button></div>
@@ -297,7 +308,7 @@ $nav = [
         <div class="account-form-grid">
             <label>Họ và tên<input name="fullName" minlength="2" maxlength="150" required></label>
             <label>Email<input name="email" type="email" maxlength="255" required></label>
-            <label>Vai trò<select name="role" required><option value="student">Student</option><option value="teacher">Teacher</option><option value="school">School</option><option value="enterprise">Enterprise</option><option value="platform_admin">Platform Admin</option></select></label>
+            <label>Vai trò<select name="role" class="typeui-select" required><option value="student">Học viên</option><option value="teacher">Giáo viên</option><option value="school">Nhà trường</option><option value="enterprise">Doanh nghiệp</option><option value="platform_admin">Quản trị hệ thống</option></select></label>
             <label data-password-field>Mật khẩu tạm thời<input name="password" type="password" minlength="12" autocomplete="new-password"><small>Tối thiểu 12 ký tự; chỉ bắt buộc khi tạo mới.</small></label>
         </div>
         <div class="dialog-actions"><button class="button secondary" type="button" data-account-close>Hủy</button><button class="button primary" type="submit">Lưu tài khoản</button></div>

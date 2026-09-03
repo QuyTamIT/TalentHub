@@ -79,7 +79,7 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
         SessionManager::writeUserToRoleSession($user, require __DIR__.'/config/session.php');
         header('Location: '.app_href(AuthPortalRouter::destination($user['role'],$requestedNext)));exit;
     }catch(ApiException $exception){http_response_code($exception->status);$errorMessage=$exception->getMessage();foreach($exception->details as $detail){$fieldErrors[$detail['field']]=$detail['message'];}if(isset($exception->headers['Retry-After'])){header('Retry-After: '.$exception->headers['Retry-After']);}}
-    catch(Throwable $e){$errorMessage='Không thể kết nối dịch vụ đăng nhập: '.$e->getMessage();}
+    catch(Throwable $e){error_log('[Login Error] '.$e->getMessage());$errorMessage='Dịch vụ đăng nhập đang tạm thời gián đoạn. Vui lòng thử lại sau.';}
 }
 
 function authEscape(mixed $value): string{return htmlspecialchars((string)$value,ENT_QUOTES,'UTF-8');}
@@ -93,10 +93,14 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
     <meta name="description" content="Đăng nhập TalentHub để tiếp tục vào không gian học tập và quản lý của bạn.">
     <title>Đăng nhập | TalentHub</title>
     <link rel="stylesheet" href="assets/css/home.css">
+    <link rel="stylesheet" href="assets/css/global.css">
+    <link rel="stylesheet" href="assets/css/brand-component.css">
+    <link rel="stylesheet" href="assets/css/polish.css">
     <link rel="stylesheet" href="assets/css/auth.css">
 </head>
 <body class="auth-page">
-<main class="auth-layout">
+<a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
+<main class="auth-layout" id="main-content">
     <section class="auth-brand" aria-labelledby="auth-brand-title">
         <a class="auth-brand__logo" href="./index.php" aria-label="TalentHub - Về trang chủ"><img src="./assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
         <div class="auth-brand__content">

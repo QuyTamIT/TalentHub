@@ -190,6 +190,7 @@ $sidebarNav = [
     <title>Chấm điểm theo Lớp - <?= htmlspecialchars($activeClassName); ?> | TalentHub Giảng viên</title>
 
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/teacher.css'); ?>">
     <style>
         .grading-table {
@@ -288,15 +289,17 @@ $sidebarNav = [
             background: #1D4ED8;
         }
     </style>
+    <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
 </head>
 <body class="teacher-dashboard">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
     <div class="teacher-layout">
         <?php require __DIR__ . '/includes/sidebar.php'; ?>
 
         <div class="teacher-main-wrapper">
             <?php require __DIR__ . '/includes/header.php'; ?>
 
-            <main class="teacher-body">
+            <main class="teacher-body" id="main-content">
                 <div class="teacher-container">
                     
                     <!-- Header Section -->
@@ -314,9 +317,9 @@ $sidebarNav = [
                         </div>
 
                         <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 0.5rem; background: #FFFFFF; border: 1.5px solid #CBD5E1; border-radius: 8px; padding: 0.35rem 0.75rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <div class="typeui-select-shell" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.75rem;">
                                 <label for="classFilterSelect" style="font-size: 0.85rem; font-weight: 700; color: #475569; margin: 0; white-space: nowrap;">Chọn Lớp:</label>
-                                <select id="classFilterSelect" onchange="location.href='grading.php?class=' + encodeURIComponent(this.value)" style="border: none; font-weight: 700; color: #1D4ED8; background: transparent; font-size: 0.9rem; cursor: pointer; outline: none;">
+                                <select id="classFilterSelect" class="typeui-select typeui-select--bare" onchange="location.href='grading.php?class=' + encodeURIComponent(this.value)">
                                     <?php foreach ($classList as $c): ?>
                                         <option value="<?= htmlspecialchars($c['name']); ?>" <?= $c['name'] === $activeClassName ? 'selected' : ''; ?>>
                                             <?= htmlspecialchars($c['name']); ?> (<?= (int)$c['studentCount']; ?> SV)

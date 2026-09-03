@@ -11,9 +11,13 @@ header('Retry-After: 30');
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Dịch vụ tạm thời gián đoạn | TalentHub</title>
     <link rel="stylesheet" href="/assets/css/home.css">
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="assets/css/brand-component.css">
+    <link rel="stylesheet" href="assets/css/polish.css">
     <link rel="stylesheet" href="/assets/css/learner.css">
 </head>
 <body class="learner-app">
+<a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 <main class="learner-content" id="main-content">
     <section class="learner-card learner-not-found" role="alert">
         <h1>Dịch vụ dữ liệu tạm thời không khả dụng</h1>

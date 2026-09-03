@@ -91,7 +91,11 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
     <meta name="description" content="Theo dõi điểm đánh giá năng lực và nhận xét từ giáo viên, huấn luyện viên trên TalentHub.">
     <title>Đánh giá năng lực | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
 </head>
 <body class="learner-app learner-page-evaluation">
     <div class="learner-layout">
@@ -113,10 +117,10 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
                 ?>
                 <div class="learner-evaluation-heading learner-evaluation-heading--actions">
                     <div class="learner-evaluation-heading__actions">
-                        <label class="learner-term-select" for="learner-evaluation-term">
+                        <label class="learner-term-select typeui-select-shell" for="learner-evaluation-term">
                             <?= learner_icon('calendar', 18); ?>
                             <span class="learner-visually-hidden">Chọn học kỳ</span>
-                            <select id="learner-evaluation-term" name="term">
+                            <select id="learner-evaluation-term" name="term" class="typeui-select typeui-select--bare">
                                 <?php if ($evaluationTerms === []): ?>
                                     <option value="">Chưa có dữ liệu</option>
                                 <?php endif; ?>

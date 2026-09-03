@@ -111,7 +111,7 @@ include __DIR__ . '/includes/page-banner.php';
                     </label>
                     <label class="school-form__field">
                         <span>Lĩnh vực / Danh mục</span>
-                        <select name="category">
+                        <select name="category" class="typeui-select">
                             <option value="Công nghệ thông tin">Công nghệ thông tin</option>
                             <option value="Kinh tế - Quản trị">Kinh tế - Quản trị</option>
                             <option value="Kỹ thuật - Robot">Kỹ thuật - Robot</option>
@@ -132,7 +132,7 @@ include __DIR__ . '/includes/page-banner.php';
                 <div class="school-form__grid">
                     <label class="school-form__field">
                         <span>Giảng viên hướng dẫn</span>
-                        <select name="mentorTeacherId" class="select-enhanced">
+                        <select name="mentorTeacherId" class="select-enhanced typeui-select">
                             <option value="">-- Chọn giảng viên --</option>
                             <?php foreach ($teachers as $teacher): ?>
                                 <option value="<?= htmlspecialchars((string) $teacher['id']); ?>">
@@ -177,7 +177,7 @@ include __DIR__ . '/includes/page-banner.php';
                     </label>
                     <label class="school-form__field">
                         <span>Trạng thái dự án</span>
-                        <select name="status">
+                        <select name="status" class="typeui-select typeui-select--status">
                             <?php foreach ($statusLabels as $value => $label): ?>
                                 <option value="<?= $value; ?>"><?= htmlspecialchars($label); ?></option>
                             <?php endforeach; ?>
@@ -324,7 +324,7 @@ include __DIR__ . '/includes/page-banner.php';
                                 <input type="hidden" name="action" value="status">
                                 <input type="hidden" name="projectId" value="<?= htmlspecialchars((string) $project['id']); ?>">
                                 <label style="font-size:0.8rem; color:var(--text-secondary); white-space:nowrap;">Cập nhật:</label>
-                                <select name="status" class="status-select" onchange="this.form.submit()">
+                                <select name="status" class="status-select typeui-select typeui-select--compact typeui-select--status" onchange="this.form.submit()">
                                     <?php foreach ($statusLabels as $value => $label): ?>
                                         <option value="<?= $value; ?>" <?= $project['status'] === $value ? 'selected' : ''; ?>>
                                             <?= htmlspecialchars($label); ?>

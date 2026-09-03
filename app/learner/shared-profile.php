@@ -75,11 +75,15 @@ function shared_safe_image_url(mixed $value): ?string
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= $resolved ? shared_escape($resolved['student']['fullName'] ?? 'Hồ sơ học viên') : 'Hồ sơ không khả dụng' ?> | TalentHub</title>
   <link rel="stylesheet" href="../../assets/css/home.css">
+  <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
   <link rel="stylesheet" href="../../assets/css/learner.css">
 </head>
 <body class="learner-app shared-profile-page">
-  <div class="learner-layout" style="grid-template-columns: 1fr;">
-    <main class="learner-main" style="max-width: 900px; margin: 2rem auto; padding: 0 1rem; width: 100%;">
+  <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
+  <div class="learner-layout">
+    <main class="learner-main learner-shared-profile" id="main-content">
       <?php if (!$resolved): ?>
         <section class="learner-card learner-not-found" style="text-align: center; padding: 3rem 1rem;">
           <h1>Không tìm thấy hồ sơ</h1>
@@ -88,22 +92,22 @@ function shared_safe_image_url(mixed $value): ?string
         </section>
       <?php else: ?>
         <?php $student = $resolved['student']; ?>
-        <section class="learner-card learner-profile-header-card" style="margin-bottom: 1.5rem;">
-          <div style="display: flex; gap: 1.5rem; align-items: center;">
-            <div class="learner-avatar" style="width: 80px; height: 80px; font-size: 2rem; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center;">
+        <section class="learner-card learner-profile-header-card learner-shared-section">
+          <div class="learner-shared-profile__identity">
+            <div class="learner-avatar learner-shared-profile__avatar">
               <?php $avatarUrl = shared_safe_image_url($student['avatarUrl'] ?? null); ?>
               <?php if ($avatarUrl !== null): ?>
-                <img src="<?= shared_escape($avatarUrl) ?>" alt="<?= shared_escape($student['fullName']) ?>" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                <img src="<?= shared_escape($avatarUrl) ?>" alt="<?= shared_escape($student['fullName']) ?>">
               <?php else: ?>
                 <?= mb_substr(shared_escape($student['fullName'] ?? 'S'), 0, 1) ?>
               <?php endif; ?>
             </div>
-            <div>
-              <h1 style="margin: 0; font-size: 1.75rem;"><?= shared_escape($student['fullName'] ?? '') ?></h1>
+            <div class="learner-shared-profile__details">
+              <h1><?= shared_escape($student['fullName'] ?? '') ?></h1>
               <?php if (!empty($student['headline'])): ?>
-                <p style="margin: 0.25rem 0 0.5rem; color: #4b5563; font-weight: 500;"><?= shared_escape($student['headline']) ?></p>
+                <p class="learner-shared-profile__headline"><?= shared_escape($student['headline']) ?></p>
               <?php endif; ?>
-              <div class="learner-meta-list" style="display: flex; gap: 1rem; flex-wrap: wrap; color: #6b7280; font-size: 0.875rem;">
+              <div class="learner-meta-list learner-shared-profile__meta">
                 <?php if (!empty($student['school'])): ?>
                   <span><?= learner_icon('school', 16) ?> <?= shared_escape($student['school']) ?></span>
                 <?php endif; ?>
@@ -123,14 +127,14 @@ function shared_safe_image_url(mixed $value): ?string
             </div>
           </div>
           <?php if (!empty($student['bio'])): ?>
-            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
-              <p style="margin: 0; color: #374151;"><?= nl2br(shared_escape($student['bio'])) ?></p>
+            <div class="learner-shared-profile__bio">
+              <p><?= nl2br(shared_escape($student['bio'])) ?></p>
             </div>
           <?php endif; ?>
         </section>
 
         <?php if (isset($resolved['skills'])): ?>
-          <section class="learner-card" style="margin-bottom: 1.5rem;">
+          <section class="learner-card learner-shared-section">
             <h2 style="font-size: 1.25rem; margin-bottom: 1rem;">Kỹ năng</h2>
             <?php if (empty($resolved['skills'])): ?>
               <p class="learner-empty-text">Chưa có dữ liệu kỹ năng.</p>
@@ -150,7 +154,7 @@ function shared_safe_image_url(mixed $value): ?string
         <?php endif; ?>
 
         <?php if (isset($resolved['experience'])): ?>
-          <section class="learner-card" style="margin-bottom: 1.5rem;">
+          <section class="learner-card learner-shared-section">
             <h2 style="font-size: 1.25rem; margin-bottom: 0.5rem;">Trải nghiệm đã xác nhận</h2>
             <p style="margin: 0 0 1rem; color: #4b5563;">Tổng giờ: <?= shared_escape($resolved['experience']['confirmed_hours'] ?? 0) ?></p>
             <?php $experienceEntries = $resolved['experience']['confirmed_entries'] ?? []; ?>
@@ -170,14 +174,14 @@ function shared_safe_image_url(mixed $value): ?string
         <?php endif; ?>
 
         <?php if (isset($resolved['certificates'])): ?>
-          <section class="learner-card" style="margin-bottom: 1.5rem;">
+          <section class="learner-card learner-shared-section">
             <h2 style="font-size: 1.25rem; margin-bottom: 1rem;">Chứng chỉ & Chứng nhận</h2>
             <?php if (empty($resolved['certificates'])): ?>
               <p class="learner-empty-text">Chưa có chứng chỉ nào được chia sẻ.</p>
             <?php else: ?>
               <div style="display: grid; gap: 0.75rem;">
                 <?php foreach ($resolved['certificates'] as $cert): ?>
-                  <div class="learner-card learner-card--subtle" style="padding: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                  <div class="learner-card learner-card--subtle learner-shared-profile__certificate" style="padding: 1rem;">
                     <div>
                       <h3 style="margin: 0 0 0.25rem; font-size: 1rem;"><?= shared_escape($cert['title'] ?? '') ?></h3>
                       <p style="margin: 0; font-size: 0.875rem; color: #6b7280;"><?= shared_escape($cert['issuingOrganization'] ?? $cert['issuer'] ?? '') ?> · Ngày cấp: <?= shared_escape($cert['issueDate'] ?? '') ?></p>
@@ -194,7 +198,7 @@ function shared_safe_image_url(mixed $value): ?string
         <?php endif; ?>
 
         <?php if (isset($resolved['projects'])): ?>
-          <section class="learner-card" style="margin-bottom: 1.5rem;">
+          <section class="learner-card learner-shared-section">
             <h2 style="font-size: 1.25rem; margin-bottom: 1rem;">Dự án tiêu biểu</h2>
             <?php if (empty($resolved['projects'])): ?>
               <p class="learner-empty-text">Chưa có dự án nào được chia sẻ.</p>

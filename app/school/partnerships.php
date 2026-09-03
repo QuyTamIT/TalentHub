@@ -124,7 +124,7 @@ ob_start();
                      The options inside this select MUST be filtered to exclude existing partners.
                      e.g. options = allEnterprises.filter(enterprise => !currentPartnerIds.includes(enterprise.id))
                 -->
-                <select name="enterpriseId" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #CBD5E1; border-radius: 6px; background: #fff;" required>
+                <select name="enterpriseId" class="typeui-select" required>
                     <option value="">-- Chọn doanh nghiệp khả dụng --</option>
                     <option value="ent_g">Google Vietnam</option>
                     <option value="ent_m">Microsoft Vietnam</option>

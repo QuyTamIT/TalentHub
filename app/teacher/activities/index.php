@@ -301,16 +301,21 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
     <meta name="description" content="Quản lý hoạt động và sân chơi do giáo viên phụ trách trên TalentHub.">
     <title><?= teacherActivitiesEscape($pageTitle); ?> | TalentHub</title>
     <link rel="stylesheet" href="../../../assets/css/home.css">
+    <link rel="stylesheet" href="../../../assets/css/global.css">
+    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../../assets/css/polish.css">
     <link rel="stylesheet" href="../../../assets/css/teacher.css">
+    <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
 </head>
 <body class="teacher-dashboard teacher-activities-page">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
     <div class="teacher-layout">
         <?php require_once __DIR__ . '/../includes/sidebar.php'; ?>
 
         <div class="teacher-main-wrapper">
             <?php require_once __DIR__ . '/../includes/header.php'; ?>
 
-            <main class="teacher-body">
+            <main class="teacher-body" id="main-content">
                 <div class="teacher-container">
                     <section class="teacher-activities-heading">
                         <div>
@@ -508,7 +513,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                             </label>
                             <label class="teacher-activities-filter">
                                 <span class="sr-only">Lọc theo trạng thái</span>
-                                <select name="status">
+                                <select name="status" class="typeui-select typeui-select--compact">
                                     <option value="">Tất cả trạng thái</option>
                                     <option value="draft" <?= $statusFilter === 'draft' ? 'selected' : ''; ?>>Bản nháp</option>
                                     <option value="published" <?= $statusFilter === 'published' ? 'selected' : ''; ?>>Đã công bố</option>

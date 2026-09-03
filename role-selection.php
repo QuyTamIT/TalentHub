@@ -6,6 +6,7 @@
  * Note for Junior Developers:
  * - This page is accessed after clicking "Vào app" or "Trải nghiệm ngay" from Home.
  * - Shared CSS design tokens are loaded from assets/css/home.css
+ * - Shared CSS design tokens are loaded from assets/css/global.css
  * - Scoped role selection styles are defined in assets/css/role-selection.css
  * - Interaction and fallback handlers are in assets/js/role-selection.js
  */
@@ -21,15 +22,15 @@ $roleSelectionHint = isset($_GET['hint']) ? (string) $_GET['hint'] : null;
 $roleSelectionErrorMessages = [
     'student_profile_missing' => [
         'title' => 'Tài khoản chưa có hồ sơ học viên',
-        'description' => 'Hệ thống nhận diện tài khoản của bạn là Học viên nhưng chưa có hồ sơ trong bảng student_profiles. Vui lòng chạy seed testing hoặc liên hệ quản trị viên.',
+        'description' => 'Tài khoản của bạn chưa được liên kết với hồ sơ học viên. Vui lòng liên hệ quản trị viên để được hỗ trợ.',
     ],
     'school_missing' => [
         'title' => 'Tài khoản chưa liên kết nhà trường',
-        'description' => 'Hệ thống nhận diện tài khoản của bạn thuộc nhóm Nhà trường nhưng chưa liên kết với trường nào. Vui lòng chạy seed testing hoặc liên hệ quản trị viên.',
+        'description' => 'Tài khoản của bạn chưa được liên kết với nhà trường. Vui lòng liên hệ quản trị viên để được hỗ trợ.',
     ],
     'enterprise_missing' => [
         'title' => 'Tài khoản chưa liên kết doanh nghiệp',
-        'description' => 'Hệ thống nhận diện tài khoản của bạn thuộc nhóm Doanh nghiệp nhưng chưa liên kết với doanh nghiệp nào. Vui lòng chạy seed testing hoặc liên hệ quản trị viên.',
+        'description' => 'Tài khoản của bạn chưa được liên kết với doanh nghiệp. Vui lòng liên hệ quản trị viên để được hỗ trợ.',
     ],
 ];
 $roleSelectionErrorMessage = $roleSelectionError !== null
@@ -52,7 +53,7 @@ $roles = [
     ],
     [
         'id' => 'teacher',
-        'title' => 'Giáo viên / HLV',
+        'title' => 'Giáo viên / Cố vấn',
         'description' => 'Quản lý hoạt động, theo dõi và đánh giá năng lực người học.',
         'cta' => 'Đăng ký giáo viên',
         'route' => 'register-teacher.php',
@@ -91,13 +92,15 @@ unset($role);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="TalentHub - Chọn vai trò để bắt đầu đăng ký tài khoản phù hợp.">
-    <title>Chọn Vai Trò Đăng Ký - TalentHub</title>
+    <title>Chọn vai trò đăng ký | TalentHub</title>
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="assets/css/home.css">
+    <link rel="stylesheet" href="assets/css/global.css">
     <link rel="stylesheet" href="assets/css/role-selection.css">
 </head>
 <body class="role-selection-page">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <!-- Header / Top Bar -->
     <header class="role-selection-header">
@@ -105,8 +108,8 @@ unset($role);
             <!-- Brand Logo -->
             <a href="index.php" class="site-header__brand" aria-label="Về trang chủ TalentHub">
                 <div class="site-header__brand-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
                     </svg>
                 </div>
                 <div class="site-header__brand-text">Talent<span>Hub</span></div>
@@ -117,13 +120,13 @@ unset($role);
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M19 12H5M12 19l-7-7 7-7"/>
                 </svg>
-                Quay lại trang chủ
+                <span>Quay lại trang chủ</span>
             </a>
         </div>
     </header>
 
     <!-- Main Content Area -->
-    <main class="role-selection-main">
+    <main class="role-selection-main" id="main-content">
         <div class="container">
             <!-- Section Header -->
             <div class="role-selection-intro">
@@ -147,11 +150,10 @@ unset($role);
             <!-- Role Cards Grid -->
             <div class="role-cards-grid">
                 <?php foreach ($roles as $role): ?>
-                    <div class="role-card <?= $role['is_popular'] ? 'role-card--popular' : ''; ?>"
+                    <a href="<?= htmlspecialchars($role['registration_href']); ?>"
+                         class="role-card <?= $role['is_popular'] ? 'role-card--popular' : ''; ?>"
                          data-route="<?= htmlspecialchars($role['registration_href']); ?>"
                          data-role-name="<?= htmlspecialchars($role['title']); ?>"
-                         tabindex="0"
-                         role="button"
                          aria-label="Chọn vai trò <?= htmlspecialchars($role['title']); ?>">
 
                         <?php if ($role['is_popular']): ?>
@@ -188,13 +190,13 @@ unset($role);
                         <h2 class="role-card__title"><?= htmlspecialchars($role['title']); ?></h2>
                         <p class="role-card__description"><?= htmlspecialchars($role['description']); ?></p>
 
-                        <a href="<?= htmlspecialchars($role['registration_href']); ?>" class="btn <?= $role['is_popular'] ? 'btn-primary' : 'btn-secondary'; ?> role-card__cta">
+                        <span class="btn <?= $role['is_popular'] ? 'btn-primary' : 'btn-secondary'; ?> role-card__cta" aria-hidden="true">
                             <?= htmlspecialchars($role['cta']); ?>
                             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M5 12h14M12 5l7 7-7 7"/>
                             </svg>
-                        </a>
-                    </div>
+                        </span>
+                    </a>
                 <?php endforeach; ?>
             </div>
 

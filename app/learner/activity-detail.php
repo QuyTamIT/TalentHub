@@ -94,6 +94,9 @@ $formatDateTime = static function (mixed $value, string $format): string {
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title><?= learner_escape($activity['title'] ?? 'Không tìm thấy') ?> | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
     <link rel="stylesheet" href="assets/activities/activities.css">
 </head>

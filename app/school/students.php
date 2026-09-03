@@ -261,7 +261,7 @@ include __DIR__ . '/includes/page-banner.php';
             <strong><?= count($students); ?> sinh viên</strong> <?= $classFilter ? '(trong lớp / chuyên ngành đã chọn)' : '(trang ' . $page . ')'; ?>
         </p>
         <form method="get">
-            <select name="classId" onchange="this.form.submit()" class="school-inline-select" aria-label="Lọc theo lớp">
+            <select name="classId" onchange="this.form.submit()" class="school-inline-select typeui-select typeui-select--compact typeui-select--inline" aria-label="Lọc theo lớp">
                 <option value="">Tất cả lớp & chuyên ngành</option>
                 <?php foreach ($classes as $c): ?>
                     <option value="<?= htmlspecialchars($c['id']); ?>" <?= $classFilter === $c['id'] ? 'selected' : ''; ?>>

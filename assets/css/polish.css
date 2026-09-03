@@ -1,0 +1,629 @@
+/* ==========================================================================
+   TalentHub — Modern UI Polish (polish.css)
+   Tập trung: micro-animations, depth, smooth transitions, modern feel.
+   Load sau tất cả portal CSS. Không thay đổi layout hay logic.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. ANIMATION KEYFRAMES
+   -------------------------------------------------------------------------- */
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-16px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position: 600px 0; }
+}
+
+@keyframes pulseRing {
+    0%   { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.4); }
+    70%  { box-shadow: 0 0 0 8px rgba(255, 107, 0, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0); }
+}
+
+/* --------------------------------------------------------------------------
+   2. GLOBAL TRANSITION TUNING
+      Áp dụng will-change cho các phần tử animate thường xuyên
+   -------------------------------------------------------------------------- */
+
+.btn,
+.card,
+.card--hoverable,
+.stat-card,
+.badge,
+.tab-btn,
+.pagination__btn,
+.portal-nav-link,
+.teacher-sidebar__link,
+.school-sidebar__link,
+.ent-sidebar__link,
+.learner-sidebar__link {
+    will-change: transform, box-shadow, background-color;
+}
+
+/* Smooth tất cả transition trong app */
+:root {
+    --transition-fast:   0.12s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base:   0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow:   0.38s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+    --transition-spring: 0.4s  cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* --------------------------------------------------------------------------
+   3. SIDEBAR — smooth slide + entrance animations
+   -------------------------------------------------------------------------- */
+
+/* Sidebar enter animation on page load */
+.learner-sidebar,
+.teacher-sidebar,
+.school-sidebar,
+.ent-sidebar {
+    animation: slideInLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Nav links: staggered entrance */
+.learner-sidebar__nav ul li,
+.teacher-sidebar__nav ul li,
+.school-sidebar__nav ul li,
+.ent-sidebar__nav ul li {
+    animation: fadeInUp 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.learner-sidebar__nav ul li:nth-child(1)  { animation-delay: 0.06s; }
+.learner-sidebar__nav ul li:nth-child(2)  { animation-delay: 0.10s; }
+.learner-sidebar__nav ul li:nth-child(3)  { animation-delay: 0.14s; }
+.learner-sidebar__nav ul li:nth-child(4)  { animation-delay: 0.18s; }
+.learner-sidebar__nav ul li:nth-child(5)  { animation-delay: 0.22s; }
+.learner-sidebar__nav ul li:nth-child(6)  { animation-delay: 0.26s; }
+.learner-sidebar__nav ul li:nth-child(7)  { animation-delay: 0.30s; }
+.learner-sidebar__nav ul li:nth-child(n+8){ animation-delay: 0.32s; }
+
+.teacher-sidebar__nav ul li:nth-child(1)  { animation-delay: 0.06s; }
+.teacher-sidebar__nav ul li:nth-child(2)  { animation-delay: 0.10s; }
+.teacher-sidebar__nav ul li:nth-child(3)  { animation-delay: 0.14s; }
+.teacher-sidebar__nav ul li:nth-child(4)  { animation-delay: 0.18s; }
+.teacher-sidebar__nav ul li:nth-child(n+5){ animation-delay: 0.22s; }
+
+.school-sidebar__nav ul li:nth-child(1)   { animation-delay: 0.06s; }
+.school-sidebar__nav ul li:nth-child(2)   { animation-delay: 0.10s; }
+.school-sidebar__nav ul li:nth-child(3)   { animation-delay: 0.14s; }
+.school-sidebar__nav ul li:nth-child(4)   { animation-delay: 0.18s; }
+.school-sidebar__nav ul li:nth-child(5)   { animation-delay: 0.22s; }
+.school-sidebar__nav ul li:nth-child(n+6) { animation-delay: 0.26s; }
+
+.ent-sidebar__nav ul li:nth-child(1)      { animation-delay: 0.06s; }
+.ent-sidebar__nav ul li:nth-child(2)      { animation-delay: 0.10s; }
+.ent-sidebar__nav ul li:nth-child(3)      { animation-delay: 0.14s; }
+.ent-sidebar__nav ul li:nth-child(4)      { animation-delay: 0.18s; }
+.ent-sidebar__nav ul li:nth-child(5)      { animation-delay: 0.22s; }
+.ent-sidebar__nav ul li:nth-child(n+6)    { animation-delay: 0.26s; }
+
+/* --------------------------------------------------------------------------
+   4. CARDS — smooth hover với spring physics
+   -------------------------------------------------------------------------- */
+
+.card--hoverable {
+    transition:
+        transform    var(--transition-spring),
+        box-shadow   var(--transition-base),
+        border-color var(--transition-fast);
+}
+
+.card--hoverable:hover {
+    transform: translateY(-3px) scale(1.005);
+    box-shadow:
+        0 4px 6px  -1px rgba(15, 23, 42, 0.06),
+        0 10px 28px -4px rgba(15, 23, 42, 0.10),
+        0 0 0 1px rgba(255, 107, 0, 0.06);
+}
+
+/* KPI cards */
+.teacher-kpi-card,
+.school-kpi-card,
+.ent-metric-card,
+.learner-kpi-card,
+.stat-card {
+    transition:
+        transform    var(--transition-spring),
+        box-shadow   var(--transition-base),
+        border-color var(--transition-fast);
+}
+
+.teacher-kpi-card:hover,
+.school-kpi-card:hover,
+.ent-metric-card:hover,
+.learner-kpi-card:hover,
+.stat-card:hover {
+    transform: translateY(-3px) scale(1.01);
+}
+
+/* Page entrance animation cho main content */
+.learner-content,
+.teacher-body,
+.school-body,
+.ent-body {
+    animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+    animation-delay: 0.05s;
+}
+
+/* Section boxes */
+.teacher-section-box,
+.school-section-box,
+.section-box,
+.ent-featured-talents-box {
+    transition:
+        box-shadow   var(--transition-base),
+        border-color var(--transition-fast),
+        transform    var(--transition-spring);
+}
+
+.teacher-section-box:hover,
+.school-section-box:hover,
+.section-box:hover {
+    transform: translateY(-1px);
+    box-shadow:
+        0 4px 12px rgba(15, 23, 42, 0.06),
+        0 1px 3px  rgba(15, 23, 42, 0.04);
+}
+
+/* --------------------------------------------------------------------------
+   5. BUTTONS — crisp, responsive feel
+   -------------------------------------------------------------------------- */
+
+.btn {
+    transition:
+        background-color var(--transition-fast),
+        border-color     var(--transition-fast),
+        color            var(--transition-fast),
+        transform        var(--transition-spring),
+        box-shadow       var(--transition-base);
+}
+
+.btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    transition-duration: 0.08s;
+}
+
+/* Primary: pulse on click */
+.btn-primary:active:not(:disabled) {
+    animation: pulseRing 0.4s ease-out;
+}
+
+/* --------------------------------------------------------------------------
+   6. ACCOUNT DROPDOWN — smooth pop
+   -------------------------------------------------------------------------- */
+
+.learner-account-menu.is-open,
+.teacher-account-menu.is-open,
+.school-account-menu.is-open,
+.ent-account-menu.is-open {
+    animation: scaleIn 0.18s cubic-bezier(0.4, 0, 0.2, 1) both;
+    transform-origin: top right;
+}
+
+/* Items: stagger */
+.learner-account-menu__list li,
+.teacher-account-menu__list li,
+.school-account-menu__list li,
+.ent-account-menu__list li {
+    animation: fadeInDown 0.15s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.learner-account-menu__list li:nth-child(1),
+.teacher-account-menu__list li:nth-child(1),
+.school-account-menu__list li:nth-child(1),
+.ent-account-menu__list li:nth-child(1)  { animation-delay: 0.04s; }
+
+.learner-account-menu__list li:nth-child(2),
+.teacher-account-menu__list li:nth-child(2),
+.school-account-menu__list li:nth-child(2),
+.ent-account-menu__list li:nth-child(2)  { animation-delay: 0.08s; }
+
+/* --------------------------------------------------------------------------
+   7. BADGES & STATUS PILLS — soft pop
+   -------------------------------------------------------------------------- */
+
+.badge,
+.teacher-status-pill,
+.school-class-badge,
+.ent-metric-card__trend {
+    transition:
+        transform    var(--transition-spring),
+        box-shadow   var(--transition-fast),
+        background-color var(--transition-fast);
+}
+
+.badge:hover {
+    transform: scale(1.05);
+}
+
+/* --------------------------------------------------------------------------
+   8. FORM INPUTS — focus ring animation
+   -------------------------------------------------------------------------- */
+
+.form-input,
+.form-select,
+.form-textarea,
+.auth-field input,
+.auth-field select {
+    transition:
+        border-color     var(--transition-fast),
+        box-shadow       0.2s cubic-bezier(0.4, 0, 0.2, 1),
+        background-color var(--transition-fast);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+    box-shadow:
+        0 0 0 3px rgba(255, 107, 0, 0.15),
+        0 1px 2px rgba(15, 23, 42, 0.04) inset;
+}
+
+/* --------------------------------------------------------------------------
+   9. TABS — sliding indicator
+   -------------------------------------------------------------------------- */
+
+.tab-btn {
+    transition:
+        color            var(--transition-fast),
+        background-color var(--transition-fast),
+        box-shadow       var(--transition-base),
+        transform        var(--transition-spring);
+}
+
+.tab-btn.is-active {
+    animation: scaleIn 0.15s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* --------------------------------------------------------------------------
+   10. MODALS — smooth entrance
+   -------------------------------------------------------------------------- */
+
+.modal-backdrop.is-open .modal {
+    animation: scaleIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    transform-origin: center top;
+}
+
+/* --------------------------------------------------------------------------
+   11. HEADER — sticky với glassmorphism transition
+   -------------------------------------------------------------------------- */
+
+.learner-header,
+.teacher-header,
+.school-header,
+.ent-header {
+    transition:
+        background-color var(--transition-base),
+        backdrop-filter  var(--transition-slow),
+        box-shadow       var(--transition-base);
+}
+
+/* --------------------------------------------------------------------------
+   12. PROGRESS BARS — animated fill
+   -------------------------------------------------------------------------- */
+
+.progress-fill,
+.learner-progress > span {
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --------------------------------------------------------------------------
+   13. SKELETON — smoother shimmer
+   -------------------------------------------------------------------------- */
+
+@keyframes shimmerModern {
+    0%   { background-position: -800px 0; }
+    100% { background-position: 800px 0; }
+}
+
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        #f1f5f9 0%,
+        #e8ecf0 20%,
+        #f8fafc 40%,
+        #e8ecf0 60%,
+        #f1f5f9 80%
+    );
+    background-size: 800px 100%;
+    animation: shimmerModern 1.4s linear infinite;
+}
+
+/* --------------------------------------------------------------------------
+   14. TOAST — bounce in
+   -------------------------------------------------------------------------- */
+
+.toast.is-visible {
+    animation: fadeInUp 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.portal-toast.is-visible,
+.school-toast.is-visible,
+.teacher-toast.is-visible,
+.ent-toast.is-visible {
+    animation: fadeInUp 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* --------------------------------------------------------------------------
+   15. ICON BUTTONS — hover rotation for brand mark
+   -------------------------------------------------------------------------- */
+
+.learner-brand__mark,
+.teacher-sidebar__brand .site-header__brand-icon,
+.school-sidebar__brand  .site-header__brand-icon,
+.ent-sidebar__brand     .site-header__brand-icon,
+.brand-mark {
+    transition: transform var(--transition-spring), box-shadow var(--transition-base);
+}
+
+.learner-brand:hover .learner-brand__mark,
+.teacher-sidebar__brand .site-header__brand:hover .site-header__brand-icon,
+.school-sidebar__brand  .site-header__brand:hover .site-header__brand-icon,
+.ent-sidebar__brand     .site-header__brand:hover .site-header__brand-icon,
+.brand:hover .brand-mark {
+    transform: rotate(10deg) scale(1.08);
+    box-shadow:
+        0 4px 14px rgba(255, 107, 0, 0.40),
+        0 0 0 4px rgba(255, 107, 0, 0.12);
+}
+
+/* --------------------------------------------------------------------------
+   16. SIDEBAR NAV LINKS — slide feedback
+   -------------------------------------------------------------------------- */
+
+.teacher-sidebar__link,
+.school-sidebar__link,
+.ent-sidebar__link,
+.learner-sidebar__link {
+    transition:
+        background-color var(--transition-fast),
+        color            var(--transition-fast),
+        transform        var(--transition-spring),
+        box-shadow       var(--transition-base);
+}
+
+.teacher-sidebar__link:hover:not(.is-active),
+.school-sidebar__link:hover:not(.is-active),
+.ent-sidebar__link:hover:not(.is-active),
+.learner-sidebar__link:hover:not(.is-active) {
+    transform: translateX(3px);
+}
+
+/* Active: subtle scale */
+.teacher-sidebar__link.is-active,
+.school-sidebar__link.is-active,
+.ent-sidebar__link.is-active,
+.learner-sidebar__link.is-active {
+    animation: fadeInUp 0.2s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* --------------------------------------------------------------------------
+   17. NOTIFICATION DOT — pulse animation
+   -------------------------------------------------------------------------- */
+
+.learner-notification-dot,
+.teacher-header__badge,
+.school-header__badge,
+.ent-header__badge {
+    animation: pulseRing 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* --------------------------------------------------------------------------
+   18. EMPTY STATE ICON — float
+   -------------------------------------------------------------------------- */
+
+@keyframes floatY {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-6px); }
+}
+
+.empty-state__icon,
+.teacher-empty-state__icon {
+    animation: floatY 3s ease-in-out infinite;
+}
+
+/* --------------------------------------------------------------------------
+   19. SCROLL BEHAVIOR — smooth + momentum
+   -------------------------------------------------------------------------- */
+
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: calc(var(--header-height) + 1rem);
+}
+
+.learner-sidebar__nav,
+.teacher-sidebar__nav,
+.school-sidebar__nav,
+.ent-sidebar__nav {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* --------------------------------------------------------------------------
+   20. TABLE ROWS — hover transition
+   -------------------------------------------------------------------------- */
+
+.data-table tbody tr,
+.teacher-students-table tbody tr,
+.school-class-table tbody tr {
+    transition: background-color var(--transition-fast);
+}
+
+/* --------------------------------------------------------------------------
+   21. LANDING PAGE — hero animations
+   -------------------------------------------------------------------------- */
+
+.hero-content {
+    animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.1s both;
+}
+
+.hero-visual {
+    animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
+}
+
+.hero-badge {
+    animation: scaleIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s both;
+}
+
+.stats-strip {
+    animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.15s both;
+}
+
+.bento-card {
+    animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+    transition:
+        transform    var(--transition-spring),
+        box-shadow   var(--transition-base),
+        border-color var(--transition-fast);
+}
+
+.bento-card:nth-child(1) { animation-delay: 0.05s; }
+.bento-card:nth-child(2) { animation-delay: 0.10s; }
+.bento-card:nth-child(3) { animation-delay: 0.15s; }
+.bento-card:nth-child(4) { animation-delay: 0.20s; }
+.bento-card:nth-child(5) { animation-delay: 0.25s; }
+
+.bento-card:hover {
+    transform: translateY(-5px) scale(1.005);
+    box-shadow:
+        0 8px 16px -2px rgba(15, 23, 42, 0.08),
+        0 20px 40px -8px rgba(255, 107, 0, 0.10);
+}
+
+/* --------------------------------------------------------------------------
+   22. AUTH FORM — input field animations
+   -------------------------------------------------------------------------- */
+
+.auth-field {
+    animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.auth-form .auth-field:nth-child(1) { animation-delay: 0.05s; }
+.auth-form .auth-field:nth-child(2) { animation-delay: 0.10s; }
+.auth-form .auth-field:nth-child(3) { animation-delay: 0.15s; }
+.auth-form .auth-field:nth-child(4) { animation-delay: 0.20s; }
+.auth-form .auth-field:nth-child(n+5){ animation-delay: 0.25s; }
+
+.auth-submit {
+    transition:
+        background    var(--transition-fast),
+        box-shadow    var(--transition-base),
+        transform     var(--transition-spring);
+}
+
+.auth-submit:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.auth-submit:active:not(:disabled) {
+    transform: translateY(0) scale(0.99);
+}
+
+/* --------------------------------------------------------------------------
+   23. CHEVRON ROTATION — account trigger
+   -------------------------------------------------------------------------- */
+
+.learner-header__chevron,
+.teacher-header__chevron,
+.school-header__chevron,
+.ent-header__chevron {
+    transition: transform var(--transition-base), color var(--transition-fast);
+}
+
+/* --------------------------------------------------------------------------
+   24. FOCUS VISIBLE — sharp, branded
+   -------------------------------------------------------------------------- */
+
+:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(255, 107, 0, 0.15);
+    border-radius: var(--radius-xs);
+    transition: box-shadow var(--transition-fast), outline var(--transition-fast);
+}
+
+/* --------------------------------------------------------------------------
+   25. SCROLL INDICATOR — thin top progress bar
+   -------------------------------------------------------------------------- */
+
+html::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary) 0%, #FF8C38 50%, var(--primary-hover) 100%);
+    z-index: calc(var(--z-toast) + 10);
+    transform: scaleX(0);
+    transform-origin: left;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    pointer-events: none;
+}
+
+/* Activated by JS — class .page-loading on <html> */
+html.page-loading::before {
+    opacity: 1;
+    animation: pageLoadBar 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes pageLoadBar {
+    0%   { transform: scaleX(0); }
+    60%  { transform: scaleX(0.8); }
+    100% { transform: scaleX(1); opacity: 0; }
+}
+
+/* --------------------------------------------------------------------------
+   26. ACCESSIBILITY — reduced motion override
+      Tất cả animation tắt khi prefers-reduced-motion
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration:       0.01ms !important;
+        animation-iteration-count: 1     !important;
+        transition-duration:      0.01ms !important;
+        scroll-behavior:          auto   !important;
+    }
+
+    .learner-notification-dot,
+    .teacher-header__badge,
+    .school-header__badge,
+    .ent-header__badge,
+    .empty-state__icon,
+    .teacher-empty-state__icon {
+        animation: none !important;
+    }
+}

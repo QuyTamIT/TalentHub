@@ -226,7 +226,7 @@ include __DIR__ . '/includes/page-banner.php';
 
                 <label class="school-form__field">
                     <span>Loại hình đào tạo <em>*</em></span>
-                    <select name="level" required>
+                    <select name="level" class="typeui-select" required>
                         <option value="Cao đẳng Quốc tế" <?= ($school['level'] ?? '') === 'Cao đẳng Quốc tế' || stripos($school['level'] ?? '', 'Cao đẳng') !== false ? 'selected' : ''; ?>>Cao đẳng Quốc tế</option>
                         <option value="Đại học Công lập" <?= ($school['level'] ?? '') === 'Đại học Công lập' || stripos($school['name'], 'Cần Thơ') !== false ? 'selected' : ''; ?>>Đại học Công lập</option>
                         <option value="Đại học Tư thục" <?= ($school['level'] ?? '') === 'Đại học Tư thục' ? 'selected' : ''; ?>>Đại học Tư thục</option>

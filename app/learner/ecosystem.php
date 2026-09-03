@@ -35,7 +35,11 @@ function learner_ecosystem_date(string $date): string
     <meta name="description" content="Khám phá doanh nghiệp và các cơ hội phù hợp dành cho học sinh, sinh viên trên TalentHub.">
     <title>Hệ sinh thái &amp; Cơ hội | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
 </head>
 <body class="learner-app learner-page-ecosystem" data-ecosystem-page data-initial-tab="<?= learner_escape($initialTab); ?>">
     <div class="learner-layout">
@@ -73,10 +77,10 @@ function learner_ecosystem_date(string $date): string
                         <label class="learner-visually-hidden" for="ecosystem-local-search">Tìm trong hệ sinh thái</label>
                         <input id="ecosystem-local-search" type="search" placeholder="Nhập tên, lĩnh vực hoặc địa điểm..." data-ecosystem-search>
                     </div>
-                    <label class="learner-select-control">
+                    <label class="learner-select-control typeui-select-shell">
                         <span class="learner-visually-hidden">Lọc theo lĩnh vực</span>
                         <?= learner_icon('filter', 18); ?>
-                        <select data-ecosystem-filter="field">
+                        <select class="typeui-select typeui-select--bare" data-ecosystem-filter="field">
                             <option value="all">Tất cả lĩnh vực</option>
                             <option value="Công nghệ">Công nghệ</option>
                             <option value="AI">AI / Machine Learning</option>
@@ -84,10 +88,10 @@ function learner_ecosystem_date(string $date): string
                             <option value="Học bổng">Học bổng</option>
                         </select>
                     </label>
-                    <label class="learner-select-control">
+                    <label class="learner-select-control typeui-select-shell">
                         <span class="learner-visually-hidden">Lọc theo địa điểm</span>
                         <?= learner_icon('map-pin', 18); ?>
-                        <select data-ecosystem-filter="location">
+                        <select class="typeui-select typeui-select--bare" data-ecosystem-filter="location">
                             <option value="all">Tất cả địa điểm</option>
                             <option value="Hà Nội">Hà Nội</option>
                             <option value="Trực tuyến">Trực tuyến</option>

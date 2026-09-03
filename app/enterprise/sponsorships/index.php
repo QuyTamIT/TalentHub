@@ -304,10 +304,14 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
 
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../../assets/css/home.css">
+    <link rel="stylesheet" href="../../../assets/css/global.css">
+    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../../assets/css/polish.css">
     <link rel="stylesheet" href="../../../assets/css/enterprise.css">
     <link rel="stylesheet" href="../../../assets/css/enterprise-sponsorships.css">
 </head>
 <body class="enterprise-dashboard">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <!-- Layout Wrapper -->
     <div class="ent-layout">
@@ -322,7 +326,7 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
             <?php include __DIR__ . '/../includes/header.php'; ?>
 
             <!-- Page Body Content -->
-            <main class="ent-body">
+            <main class="ent-body" id="main-content">
                 <div class="container-fluid">
                     
                     <?php if (!empty($_SESSION['flash_message'])): ?>

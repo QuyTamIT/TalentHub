@@ -75,7 +75,7 @@ $audiences = [
     ],
     [
         'role' => 'teacher',
-        'title' => 'Giáo viên / HLV',
+        'title' => 'Giáo viên / Cố vấn',
         'subtitle' => 'Đồng hành & Quản lý phát triển học viên',
         'icon_class' => 'teacher',
         'badge' => 'Dành cho nhà giáo',
@@ -124,12 +124,16 @@ $audiences = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="TalentHub - Nền tảng phát triển và kết nối năng khiếu hàng đầu dành cho Học sinh, Giáo viên, Nhà trường và Doanh nghiệp.">
-    <title>TalentHub - Nền Tảng Phát Triển & Kết Nối Năng Khiếu</title>
+    <title>TalentHub | Nền tảng phát triển và kết nối năng khiếu</title>
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="assets/css/home.css">
+    <link rel="stylesheet" href="assets/css/global.css">
+    <link rel="stylesheet" href="assets/css/brand-component.css">
+    <link rel="stylesheet" href="assets/css/polish.css">
 </head>
 <body>
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <!-- ====================================================================
          1. Header & Navigation Section
@@ -139,8 +143,8 @@ $audiences = [
             <!-- Brand Logo -->
             <a href="#hero" class="site-header__brand" aria-label="Trang chủ TalentHub">
                 <div class="site-header__brand-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
                     </svg>
                 </div>
                 <div class="site-header__brand-text">Talent<span>Hub</span></div>
@@ -150,7 +154,7 @@ $audiences = [
             <nav class="site-nav" aria-label="Điều hướng chính">
                 <a href="#hero" class="site-nav__link">Về TalentHub</a>
                 <a href="#statistics" class="site-nav__link">Thống kê</a>
-                <a href="#modules" class="site-nav__link">Tính năng (8 Modules)</a>
+                <a href="#modules" class="site-nav__link">Tính năng (8 mô-đun)</a>
                 <a href="#audiences" class="site-nav__link">Đối tượng</a>
             </nav>
 
@@ -183,7 +187,7 @@ $audiences = [
             <nav class="mobile-menu__nav" aria-label="Điều hướng di động">
                 <a href="#hero" class="mobile-menu__link">Về TalentHub</a>
                 <a href="#statistics" class="mobile-menu__link">Thống kê</a>
-                <a href="#modules" class="mobile-menu__link">Tính năng (8 Modules)</a>
+                <a href="#modules" class="mobile-menu__link">Tính năng (8 mô-đun)</a>
                 <a href="#audiences" class="mobile-menu__link">Đối tượng</a>
                 
                 <div class="mobile-menu__actions">
@@ -199,7 +203,7 @@ $audiences = [
         </div>
     </header>
 
-    <main>
+    <main id="main-content">
         <!-- ================================================================
              2. Hero Section (Editorial 2-Column + Product Window Canvas)
              ================================================================ -->
@@ -356,7 +360,7 @@ $audiences = [
             <div class="container">
                 <div class="section-header">
                     <span class="section-tag">Tính năng Cốt lõi</span>
-                    <h2 class="section-title">Hệ Thống 8 Module Trọng Tâm</h2>
+                    <h2 class="section-title">Hệ thống 8 mô-đun trọng tâm</h2>
                     <p class="section-description">
                         Giải pháp toàn diện số hóa lộ trình phát triển tài năng. Hiện tại 6/8 module đã sẵn sàng phục vụ.
                     </p>
@@ -421,7 +425,7 @@ $audiences = [
                                         </svg>
                                     <?php endif; ?>
                                 </div>
-                                <span class="module-tag">Module <?= htmlspecialchars($mod['id']); ?></span>
+                                <span class="module-tag">Mô-đun <?= htmlspecialchars($mod['id']); ?></span>
                             </div>
 
                             <div class="bento-card-body">
@@ -454,7 +458,7 @@ $audiences = [
                     <div class="modules-expansion-banner">
                         <div class="expansion-info">
                             <h4>
-                                ✨ Module 07 & 08
+                                ✨ Mô-đun 07 & 08
                                 <span class="expansion-badge">Sắp ra mắt</span>
                             </h4>
                             <p>
@@ -475,8 +479,8 @@ $audiences = [
         <section class="audiences-section section-padding" id="audiences">
             <div class="container">
                 <div class="section-header">
-                    <span class="section-tag">Đối tượng Sử dụng</span>
-                    <h2 class="section-title">Giải Pháp Cho Mọi Đối Tượng</h2>
+                    <span class="section-tag">Đối tượng sử dụng</span>
+                    <h2 class="section-title">Giải pháp cho mọi đối tượng</h2>
                     <p class="section-description">
                         TalentHub thiết kế hệ sinh thái chuyên biệt mang lại giá trị thiết thực và kết nối hiệu quả 4 nhóm người dùng.
                     </p>
@@ -487,11 +491,15 @@ $audiences = [
                     <!-- Left Vertical Tab Selector -->
                     <div class="audience-tabs" role="tablist" aria-label="Danh mục đối tượng">
                         <?php foreach ($audiences as $idx => $aud): ?>
-                            <button class="audience-tab-btn <?= $idx === 0 ? 'is-active' : ''; ?>" 
+                            <button class="audience-tab-btn <?= $idx === 0 ? 'is-active' : ''; ?>"
+                                    id="audience-tab-<?= htmlspecialchars($aud['role']); ?>"
+                                    type="button"
                                     data-target="role-panel-<?= htmlspecialchars($aud['role']); ?>"
-                                    role="tab" 
-                                    aria-selected="<?= $idx === 0 ? 'true' : 'false'; ?>">
-                                <div class="audience-icon <?= htmlspecialchars($aud['icon_class']); ?>">
+                                    role="tab"
+                                    aria-controls="role-panel-<?= htmlspecialchars($aud['role']); ?>"
+                                    aria-selected="<?= $idx === 0 ? 'true' : 'false'; ?>"
+                                    tabindex="<?= $idx === 0 ? '0' : '-1'; ?>">
+                                <span class="audience-icon <?= htmlspecialchars($aud['icon_class']); ?>">
                                     <?php if ($aud['role'] === 'student'): ?>
                                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
                                     <?php elseif ($aud['role'] === 'teacher'): ?>
@@ -501,11 +509,11 @@ $audiences = [
                                     <?php else: ?>
                                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
                                     <?php endif; ?>
-                                </div>
-                                <div class="tab-label">
-                                    <div class="tab-title"><?= htmlspecialchars($aud['title']); ?></div>
-                                    <div class="tab-subtitle"><?= htmlspecialchars($aud['subtitle']); ?></div>
-                                </div>
+                                </span>
+                                <span class="tab-label">
+                                    <span class="tab-title"><?= htmlspecialchars($aud['title']); ?></span>
+                                    <span class="tab-subtitle"><?= htmlspecialchars($aud['subtitle']); ?></span>
+                                </span>
                             </button>
                         <?php endforeach; ?>
                     </div>
@@ -515,7 +523,10 @@ $audiences = [
                         <?php foreach ($audiences as $idx => $aud): ?>
                             <article class="audience-panel <?= $idx === 0 ? 'is-active' : ''; ?>" 
                                      id="role-panel-<?= htmlspecialchars($aud['role']); ?>"
-                                     role="tabpanel">
+                                     role="tabpanel"
+                                     aria-labelledby="audience-tab-<?= htmlspecialchars($aud['role']); ?>"
+                                     tabindex="0"
+                                     <?= $idx === 0 ? '' : 'hidden'; ?>>
                                 <div class="panel-header">
                                     <span class="panel-badge"><?= htmlspecialchars($aud['badge']); ?></span>
                                     <h3 class="panel-title"><?= htmlspecialchars($aud['title']); ?></h3>
@@ -553,7 +564,7 @@ $audiences = [
         <section class="cta-section" id="app">
             <div class="container">
                 <div class="cta-box">
-                    <h2 class="cta-title">Sẵn Sàng Bứt Phá Cùng TalentHub?</h2>
+                    <h2 class="cta-title">Sẵn sàng bứt phá cùng TalentHub?</h2>
                     <p class="cta-description">
                         Gia nhập nền tảng ngay hôm nay để khai phá tiềm năng, xây dựng hồ sơ năng lực 360° và kết nối hàng ngàn cơ hội phát triển đột phá.
                     </p>
@@ -583,8 +594,8 @@ $audiences = [
                 <div class="footer-brand">
                     <a href="#hero" class="brand-logo" aria-label="Trang chủ TalentHub">
                         <div class="brand-icon">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
                             </svg>
                         </div>
                         <div class="brand-text">Talent<span>Hub</span></div>
@@ -596,18 +607,18 @@ $audiences = [
 
                 <!-- Column 1: Links -->
                 <div>
-                    <h4 class="footer-title">Khám Phá</h4>
+                    <h4 class="footer-title">Khám phá</h4>
                     <ul class="footer-links">
                         <li><a href="#hero">Về TalentHub</a></li>
                         <li><a href="#statistics">Thống kê nền tảng</a></li>
-                        <li><a href="#modules">8 Module hệ thống</a></li>
+                        <li><a href="#modules">8 mô-đun hệ thống</a></li>
                         <li><a href="#audiences">Đối tượng người dùng</a></li>
                     </ul>
                 </div>
 
                 <!-- Column 2: Legal & Support -->
                 <div>
-                    <h4 class="footer-title">Chính Sách & Hỗ Trợ</h4>
+                    <h4 class="footer-title">Chính sách & hỗ trợ</h4>
                     <ul class="footer-links">
                         <li><a href="#">Điều khoản sử dụng</a></li>
                         <li><a href="#">Chính sách bảo mật</a></li>
@@ -618,7 +629,7 @@ $audiences = [
 
                 <!-- Column 3: Contact Info -->
                 <div>
-                    <h4 class="footer-title">Thông Tin Liên Hệ</h4>
+                    <h4 class="footer-title">Thông tin liên hệ</h4>
                     <ul class="footer-links">
                         <li>Email: contact@talenthub.vn</li>
                         <li>Hotline: 1900 8899</li>

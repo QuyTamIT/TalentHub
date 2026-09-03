@@ -318,12 +318,15 @@ $sidebarNav = [
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise.css'); ?>">
     
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
 </head>
 <body class="enterprise-dashboard">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <!-- Layout Wrapper -->
     <div class="ent-layout">
@@ -338,7 +341,7 @@ $sidebarNav = [
             <?php include __DIR__ . '/../includes/header.php'; ?>
 
             <!-- Page Body Content -->
-            <main class="ent-body">
+            <main class="ent-body" id="main-content">
                 <div class="container-fluid">
                     
                     <!-- Back Link Navigation -->
@@ -738,7 +741,7 @@ $sidebarNav = [
                         <label for="invitePostSelect" style="display: block; font-size: 0.875rem; font-weight: 700; color: #334155; margin-bottom: 0.4rem;">
                             Chọn vị trí tuyển dụng đang mở <span style="color: #EF4444;">*</span>
                         </label>
-                        <select id="invitePostSelect" style="width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid #CBD5E1; border-radius: 8px; font-size: 0.9rem; color: #0F172A; font-weight: 600; background: #FFFFFF;">
+                        <select id="invitePostSelect" class="typeui-select">
                             <?php foreach ($activePosts as $post): ?>
                                 <option value="<?= htmlspecialchars($post['id']); ?>">
                                     <?= htmlspecialchars($post['title']); ?> (<?= htmlspecialchars($post['location'] ?? 'Toàn thời gian'); ?>)
