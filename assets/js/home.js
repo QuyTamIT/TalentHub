@@ -21,13 +21,19 @@ function initHeaderScroll() {
     const header = document.querySelector('.site-header');
     if (!header) return;
 
+    let ticking = false;
+    const updateHeaderState = () => {
+        header.classList.toggle('is-scrolled', window.scrollY > 20);
+        ticking = false;
+    };
+
     window.addEventListener('scroll', () => {
-        if (window.scrollY > 20) {
-            header.classList.add('is-scrolled');
-        } else {
-            header.classList.remove('is-scrolled');
-        }
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(updateHeaderState);
     }, { passive: true });
+
+    updateHeaderState();
 }
 
 /* ==========================================================================
