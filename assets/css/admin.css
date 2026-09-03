@@ -1776,6 +1776,59 @@ tbody tr:hover { background: #f8fafc; }
     background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%);
 }
 
+/* Match the light sidebar surface used by the other portals. */
+:root {
+    --admin-sidebar-bg: #ffffff;
+    --admin-sidebar-text: var(--text-secondary);
+    --admin-sidebar-border: var(--border);
+    --admin-sidebar-hover: rgba(15, 23, 42, 0.04);
+}
+
+.sidebar {
+    background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+    color: var(--text-primary);
+    border-right-color: var(--border);
+    box-shadow: 2px 0 12px rgba(15, 23, 42, 0.04);
+}
+
+.brand {
+    color: var(--text-primary);
+    border-bottom-color: var(--border);
+}
+
+.brand strong,
+.brand .learner-brand__name {
+    color: var(--text-primary);
+}
+
+.brand small,
+.brand .learner-brand__subtitle {
+    color: var(--text-secondary);
+}
+
+.nav-label {
+    color: var(--text-muted);
+}
+
+.nav-item {
+    color: var(--text-secondary);
+    border: 1px solid transparent;
+}
+
+.nav-item:hover {
+    background: rgba(15, 23, 42, 0.04);
+    color: var(--text-primary);
+}
+
+.nav-item.is-active {
+    background: linear-gradient(90deg, rgba(255, 107, 0, 0.12) 0%, rgba(255, 107, 0, 0.04) 100%);
+    color: var(--primary);
+}
+
+.sidebar-footer {
+    border-top-color: var(--border);
+}
+
 /* Topbar: frosted glass */
 .topbar {
     background: rgba(255, 255, 255, 0.97);
