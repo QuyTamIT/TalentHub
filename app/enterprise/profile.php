@@ -103,6 +103,8 @@ $sidebarNav = [
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/polish.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/enterprise.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/enterprise.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/typeui-selects.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/typeui-selects.css'); ?>">
 </head>

@@ -60,6 +60,21 @@ $schoolId = '10000000-0000-4000-8000-000000000001';
 $classId = '10000000-0000-4000-8000-000000000002';
 $enterpriseId = '10000000-0000-4000-8000-000000000003';
 
+// Ensure the fixed demo scope exists before linking role accounts to it.
+$pdo->prepare(
+    "INSERT INTO enterprises (id, name, status, email, verificationStatus)
+     VALUES (?, ?, 'active', ?, 'verified')
+     ON DUPLICATE KEY UPDATE
+        name = VALUES(name),
+        status = 'active',
+        email = VALUES(email),
+        verificationStatus = 'verified'"
+)->execute([
+    $enterpriseId,
+    'TalentHub Demo Enterprise',
+    'enterprise@talenthub.local',
+]);
+
 foreach ($accounts as $acc) {
     $email = $acc['email'];
     $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");

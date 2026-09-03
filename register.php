@@ -66,7 +66,7 @@ $schools=[];foreach($classes as $class){$schools[$class['schoolId']]=['id'=>$cla
 <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 <main class="auth-layout" id="main-content">
     <section class="auth-brand auth-brand--register" aria-labelledby="auth-brand-title">
-        <a class="auth-brand__logo" href="./index.php" aria-label="TalentHub - Về trang chủ"><img src="./assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
+        <a class="auth-brand__logo" href="./index.php" aria-label="FTalentHub - Về trang chủ"><img src="./assets/images/logo.svg" alt="FTalentHub" width="200" height="40"></a>
         <div class="auth-brand__content">
             <p class="auth-eyebrow">Khởi tạo hồ sơ học viên</p>
             <h1 id="auth-brand-title">Bắt đầu từ năng lực của chính bạn</h1>
@@ -81,7 +81,7 @@ $schools=[];foreach($classes as $class){$schools[$class['schoolId']]=['id'=>$cla
     </section>
     <section class="auth-panel" aria-labelledby="register-title">
         <div class="auth-panel__inner auth-panel__inner--wide">
-            <a class="auth-mobile-logo" href="./index.php"><img src="./assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
+            <a class="auth-mobile-logo" href="./index.php"><img src="./assets/images/logo.svg" alt="FTalentHub" width="200" height="40"></a>
             <div class="auth-heading"><div class="auth-heading__row"><div><p class="auth-kicker">Tài khoản mới</p><h2 id="register-title">Đăng ký học viên</h2></div><span class="auth-role-badge">Học viên</span></div><p>Điền đúng thông tin đang sử dụng tại trường của bạn.</p></div>
             <?php if($errorMessage!==null||$fieldErrors!==[]): ?><div class="auth-alert auth-alert--error" role="alert" tabindex="-1" data-error-summary><strong><?=registerEscape($errorMessage??'Vui lòng kiểm tra lại thông tin đăng ký.')?></strong><?php if($fieldErrors!==[]): ?><ul><?php foreach($fieldErrors as $field=>$message): ?><li><a href="#<?=registerEscape($field)?>"><?=registerEscape($message)?></a></li><?php endforeach; ?></ul><?php endif; ?></div><?php endif; ?>
             <form class="auth-form auth-form--register" method="post" action="<?= app_href('/register.php') ?>" data-auth-form>

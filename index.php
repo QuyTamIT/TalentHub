@@ -141,13 +141,13 @@ $audiences = [
     <header class="site-header" id="site-header">
         <div class="container site-header__container">
             <!-- Brand Logo -->
-            <a href="#hero" class="site-header__brand" aria-label="Trang chủ TalentHub">
+            <a href="#hero" class="site-header__brand" aria-label="Trang chủ FTalentHub">
                 <div class="site-header__brand-icon">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                         <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
                     </svg>
                 </div>
-                <div class="site-header__brand-text">Talent<span>Hub</span></div>
+                <div class="site-header__brand-text">FTalent<span>Hub</span></div>
             </a>
 
             <!-- Navigation Links (Desktop) -->
@@ -592,13 +592,13 @@ $audiences = [
             <div class="footer-grid">
                 <!-- Brand Info -->
                 <div class="footer-brand">
-                    <a href="#hero" class="brand-logo" aria-label="Trang chủ TalentHub">
+                    <a href="#hero" class="brand-logo" aria-label="Trang chủ FTalentHub">
                         <div class="brand-icon">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                 <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
                             </svg>
                         </div>
-                        <div class="brand-text">Talent<span>Hub</span></div>
+                        <div class="brand-text">FTalent<span>Hub</span></div>
                     </a>
                     <p>
                         Nền tảng phát triển và kết nối năng khiếu hàng đầu dành cho Học sinh, Giáo viên, Nhà trường và Doanh nghiệp.

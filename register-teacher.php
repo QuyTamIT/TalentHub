@@ -76,8 +76,8 @@ function teacherEscape(mixed $value): string
 <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 <main class="auth-layout" id="main-content">
     <section class="auth-brand" aria-labelledby="teacher-brand-title">
-        <a class="auth-brand__logo" href="./index.php" aria-label="TalentHub - Về trang chủ">
-            <img src="./assets/images/logo.svg" alt="TalentHub" width="200" height="40">
+        <a class="auth-brand__logo" href="./index.php" aria-label="FTalentHub - Về trang chủ">
+            <img src="./assets/images/logo.svg" alt="FTalentHub" width="200" height="40">
         </a>
         <div class="auth-brand__content">
             <p class="auth-eyebrow">Đồng hành cùng người học</p>
@@ -94,8 +94,8 @@ function teacherEscape(mixed $value): string
 
     <section class="auth-panel" aria-labelledby="register-title">
         <div class="auth-panel__inner auth-panel__inner--wide">
-            <a class="auth-mobile-logo" href="./index.php" aria-label="TalentHub - Về trang chủ">
-                <img src="./assets/images/logo.svg" alt="TalentHub" width="180" height="36">
+            <a class="auth-mobile-logo" href="./index.php" aria-label="FTalentHub - Về trang chủ">
+                <img src="./assets/images/logo.svg" alt="FTalentHub" width="180" height="36">
             </a>
 
             <div class="auth-heading">

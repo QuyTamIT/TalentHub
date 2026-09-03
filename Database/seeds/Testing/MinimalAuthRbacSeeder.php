@@ -20,10 +20,12 @@ final class MinimalAuthRbacSeeder
         'teacherUser' => '10000000-0000-4000-8000-000000000012',
         'schoolUser' => '10000000-0000-4000-8000-000000000013',
         'businessUser' => '10000000-0000-4000-8000-000000000014',
+        'enterpriseUser' => '10000000-0000-4000-8000-000000000015',
         'studentProfile' => '10000000-0000-4000-8000-000000000021',
         'teacherProfile' => '10000000-0000-4000-8000-000000000022',
         'schoolMember' => '10000000-0000-4000-8000-000000000023',
         'enterpriseMember' => '10000000-0000-4000-8000-000000000024',
+        'enterpriseAliasMember' => '10000000-0000-4000-8000-000000000025',
     ];
 
     public function run(PDO $pdo, string $environment, string $password): void
@@ -70,6 +72,7 @@ final class MinimalAuthRbacSeeder
             [self::IDS['teacherUser'], $roleIds['teacher'], 'teacher@test.talenthub.local', $hash, 'Test Teacher'],
             [self::IDS['schoolUser'], $roleIds['school'], 'school@test.talenthub.local', $hash, 'Test School User'],
             [self::IDS['businessUser'], $roleIds['enterprise'], 'business@test.talenthub.local', $hash, 'Test Enterprise User'],
+            [self::IDS['enterpriseUser'], $roleIds['enterprise'], 'enterprise@talenthub.local', $hash, 'Demo Enterprise Manager'],
         ];
         foreach ($users as $user) {
             $this->insertIgnore($pdo,
@@ -146,6 +149,18 @@ final class MinimalAuthRbacSeeder
         $this->insertIgnore($pdo,
             'INSERT IGNORE INTO enterprise_members (id, enterpriseId, userId, memberRole) VALUES (?, ?, ?, ?)',
             [self::IDS['enterpriseMember'], self::IDS['enterprise'], self::IDS['businessUser'], 'member']);
+        $this->insertIgnore($pdo,
+            'INSERT IGNORE INTO enterprise_members (id, enterpriseId, userId, memberRole) VALUES (?, ?, ?, ?)',
+            [self::IDS['enterpriseAliasMember'], self::IDS['enterprise'], self::IDS['enterpriseUser'], 'admin']);
+
+        $canonicalUser = $pdo->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
+        $canonicalUser->execute(['enterprise@talenthub.local']);
+        $canonicalUserId = $canonicalUser->fetchColumn();
+        if (is_string($canonicalUserId) && $canonicalUserId !== '') {
+            $this->insertIgnore($pdo,
+                'INSERT IGNORE INTO enterprise_members (id, enterpriseId, userId, memberRole) VALUES (?, ?, ?, ?)',
+                [self::IDS['enterpriseAliasMember'], self::IDS['enterprise'], $canonicalUserId, 'admin']);
+        }
     }
 
     /** @return array<string, string> */

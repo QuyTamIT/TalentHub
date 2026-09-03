@@ -102,12 +102,12 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
 <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 <main class="auth-layout" id="main-content">
     <section class="auth-brand" aria-labelledby="auth-brand-title">
-        <a class="auth-brand__logo" href="./index.php" aria-label="TalentHub - Về trang chủ"><img src="./assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
+        <a class="auth-brand__logo" href="./index.php" aria-label="FTalentHub - Về trang chủ"><img src="./assets/images/logo.svg" alt="FTalentHub" width="200" height="40"></a>
         <div class="auth-brand__content">
             <p class="auth-eyebrow">Một tài khoản, đúng không gian</p>
             <h1 id="auth-brand-title">Tiếp tục hành trình phát triển tài năng</h1>
             <p>TalentHub tự nhận diện vai trò và đưa bạn đến dashboard phù hợp ngay sau khi đăng nhập.</p>
-            <ul class="auth-role-list" aria-label="Các khu vực trên TalentHub">
+            <ul class="auth-role-list" aria-label="Các khu vực trên FTalentHub">
                 <li><span class="auth-role-dot auth-role-dot--student"></span><strong>Học viên</strong><span>Hồ sơ năng lực và trải nghiệm</span></li>
                 <li><span class="auth-role-dot auth-role-dot--teacher"></span><strong>Giáo viên</strong><span>Đồng hành và đánh giá</span></li>
                 <li><span class="auth-role-dot auth-role-dot--school"></span><strong>Nhà trường</strong><span>Quản trị và phân tích</span></li>
@@ -118,7 +118,7 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
     </section>
     <section class="auth-panel" aria-labelledby="login-title">
         <div class="auth-panel__inner">
-            <a class="auth-mobile-logo" href="./index.php"><img src="./assets/images/logo.svg" alt="TalentHub" width="200" height="40"></a>
+            <a class="auth-mobile-logo" href="./index.php"><img src="./assets/images/logo.svg" alt="FTalentHub" width="200" height="40"></a>
             <div class="auth-heading"><p class="auth-kicker">Chào mừng trở lại</p><h2 id="login-title">Đăng nhập tài khoản</h2><p>Nhập thông tin đã đăng ký hoặc được tổ chức cấp.</p></div>
             <?php if($registrationSucceeded): ?><div class="auth-alert auth-alert--success" role="status"><strong>Đăng ký thành công.</strong> <?= $registrationPending ? 'Yêu cầu đã được gửi đến Admin. Tài khoản chỉ được tạo sau khi hồ sơ được duyệt và yêu cầu chưa xử lý sẽ hết hạn sau 3 ngày.' : 'Bạn có thể đăng nhập bằng tài khoản vừa tạo.' ?></div><?php endif; ?>
             <?php if(is_array($roleAlert)): ?><div class="auth-alert auth-alert--warning" role="alert"><strong>Yêu cầu đăng nhập <?=authEscape($roleAlert['label'])?>:</strong> <?=authEscape($roleAlert['desc'])?></div><?php endif; ?>
