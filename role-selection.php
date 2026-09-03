@@ -100,6 +100,7 @@ unset($role);
     <link rel="stylesheet" href="assets/css/global.css">
     <link rel="stylesheet" href="assets/css/brand-component.css">
     <link rel="stylesheet" href="assets/css/role-selection.css">
+    <link rel="stylesheet" href="assets/css/polish.css">
 </head>
 <body class="role-selection-page">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>

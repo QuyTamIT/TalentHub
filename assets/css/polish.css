@@ -826,3 +826,137 @@ textarea:focus {
     .portal-notifications-panel__list li:last-child { border-bottom: 0; }
     .portal-notifications-panel__list span { color: var(--text-secondary); font-size: var(--text-sm); }
 }
+
+/* Shared ver2 theme: warm product surfaces and orange-first navigation. */
+:root {
+    --primary: #f97316;
+    --primary-hover: #ea580c;
+    --primary-light: #fff7ed;
+    --primary-dark: #c2410c;
+    --secondary: #2563eb;
+    --secondary-hover: #1d4ed8;
+    --secondary-light: #eff6ff;
+    --background: #fffaf5;
+    --surface: #ffffff;
+    --surface-hover: #fff7ed;
+    --text-primary: #1c1917;
+    --text-main: #1c1917;
+    --text-secondary: #57534e;
+    --text-muted: #78716c;
+    --border: #e7e5e4;
+    --border-strong: #cfc8c2;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --shadow-sm: 0 2px 8px rgb(28 25 23 / 0.06);
+    --shadow-md: 0 12px 28px rgb(28 25 23 / 0.10);
+    --shadow-lg: 0 20px 44px rgb(28 25 23 / 0.14);
+    --focus-ring: 0 0 0 2px #fff, 0 0 0 4px #f97316;
+    --brand-icon-bg: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    --brand-name-hub-color: #f97316;
+}
+
+body:not(.landing-page) {
+    background:
+        radial-gradient(circle at 100% 0, rgb(249 115 22 / 0.07), transparent 28rem),
+        var(--background);
+}
+
+body:not(.landing-page) .portal-header,
+body:not(.landing-page) .teacher-header,
+body:not(.landing-page) .school-header,
+body:not(.landing-page) .ent-header {
+    background: rgb(255 255 255 / 0.94);
+    border-bottom-color: var(--border);
+    box-shadow: 0 1px 0 rgb(28 25 23 / 0.04);
+}
+
+:where(.learner-sidebar, .teacher-sidebar, .school-sidebar, .ent-sidebar, .portal-sidebar) {
+    background: #211914;
+    border-right-color: #49352b;
+}
+
+:where(.learner-sidebar__link, .teacher-sidebar__link, .school-sidebar__link, .ent-sidebar__link) {
+    color: #d6c7bf;
+    border-radius: 8px;
+}
+
+:where(.learner-sidebar__link:hover, .teacher-sidebar__link:hover, .school-sidebar__link:hover, .ent-sidebar__link:hover) {
+    background: #4a362b;
+    color: #fff;
+}
+
+:where(.learner-sidebar__link.is-active, .teacher-sidebar__link.is-active, .school-sidebar__link.is-active, .ent-sidebar__link.is-active) {
+    background: var(--primary);
+    color: #fff;
+    box-shadow: inset 3px 0 0 #fed7aa;
+}
+
+:where(.learner-card, .card, .section-box, .teacher-section-box, .school-section-box,
+    .ent-section-box, .stat-card, .bento-card, .ent-metric-card, .metric-card) {
+    border-color: var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+:where(.learner-card, .card, .section-box, .teacher-section-box, .school-section-box,
+    .ent-section-box, .stat-card, .ent-metric-card, .metric-card):hover {
+    border-color: #fdba74;
+    box-shadow: var(--shadow-md);
+}
+
+:where(.page-header, .ent-page-header, .teacher-page-header, .school-page-header) {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+:where(.page-header__title, .ent-page-title, .teacher-page-title, .school-page-title) {
+    color: var(--text-primary);
+    letter-spacing: -0.035em;
+}
+
+:where(input, select, textarea) {
+    border-color: var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: #fff;
+}
+
+:where(.btn-primary, .teacher-grading-button--primary) {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+:where(.btn-primary, .teacher-grading-button--primary):hover:not(:disabled) {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.auth-brand {
+    background:
+        radial-gradient(circle at 100% 0, rgb(249 115 22 / 0.22), transparent 22rem),
+        #211914;
+}
+
+.auth-panel {
+    background: var(--background);
+}
+
+.auth-eyebrow,
+.auth-kicker {
+    color: #fb923c;
+}
+
+.role-selection-page {
+    background:
+        radial-gradient(circle at 12% 8%, rgb(249 115 22 / 0.12), transparent 22rem),
+        var(--background);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .learner-sidebar,
+    .teacher-sidebar,
+    .school-sidebar,
+    .ent-sidebar {
+        animation: none;
+    }
+}

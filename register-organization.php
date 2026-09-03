@@ -71,6 +71,7 @@ $label = $type === 'school' ? 'Nhà trường' : 'Doanh nghiệp';
     <link rel="stylesheet" href="assets/css/home.css">
     <link rel="stylesheet" href="assets/css/global.css">
     <link rel="stylesheet" href="assets/css/auth.css">
+    <link rel="stylesheet" href="assets/css/polish.css">
 </head>
 <body class="auth-page auth-page--register" data-submit-label="Gửi yêu cầu đăng ký">
 <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>

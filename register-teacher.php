@@ -70,6 +70,7 @@ function teacherEscape(mixed $value): string
     <link rel="stylesheet" href="assets/css/home.css">
     <link rel="stylesheet" href="assets/css/global.css">
     <link rel="stylesheet" href="assets/css/auth.css">
+    <link rel="stylesheet" href="assets/css/polish.css">
     <link rel="stylesheet" href="assets/css/typeui-selects.css">
 </head>
 <body class="auth-page auth-page--register" data-submit-label="Gửi hồ sơ giáo viên">
