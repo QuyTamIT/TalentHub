@@ -960,3 +960,476 @@ body:not(.landing-page) .ent-header {
         animation: none;
     }
 }
+
+/* Alternate visual direction: Neo-brutalist orange campus. */
+:root {
+    --primary: #f97316;
+    --primary-hover: #c2410c;
+    --primary-light: #fff1e6;
+    --primary-dark: #9a3412;
+    --secondary: #111827;
+    --secondary-hover: #000;
+    --secondary-light: #f3f4f6;
+    --background: #fffdf8;
+    --surface: #fff;
+    --surface-hover: #fff7ed;
+    --text-primary: #111;
+    --text-main: #111;
+    --text-secondary: #3f3f46;
+    --text-muted: #71717a;
+    --border: #111;
+    --border-strong: #111;
+    --radius-sm: 2px;
+    --radius-md: 4px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --shadow-xs: 2px 2px 0 rgb(17 17 17 / 0.12);
+    --shadow-sm: 4px 4px 0 rgb(17 17 17 / 0.12);
+    --shadow-md: 6px 6px 0 rgb(249 115 22 / 0.32);
+    --shadow-lg: 10px 10px 0 rgb(249 115 22 / 0.32);
+    --focus-ring: 0 0 0 2px #fff, 0 0 0 4px #f97316;
+    --brand-icon-bg: #f97316;
+    --brand-icon-shadow: 3px 3px 0 #111;
+    --brand-name-hub-color: #f97316;
+}
+
+body:not(.landing-page) {
+    background:
+        linear-gradient(135deg, rgb(249 115 22 / 0.06) 0 1px, transparent 1px 18px),
+        var(--background);
+    background-size: 18px 18px;
+}
+
+body:not(.landing-page) .portal-header,
+body:not(.landing-page) .teacher-header,
+body:not(.landing-page) .school-header,
+body:not(.landing-page) .ent-header {
+    background: #fffdf8;
+    border-bottom: 2px solid #111;
+    box-shadow: none;
+}
+
+:where(.learner-sidebar, .teacher-sidebar, .school-sidebar, .ent-sidebar, .portal-sidebar) {
+    background: #111;
+    border-right: 2px solid #f97316;
+}
+
+:where(.learner-sidebar__link, .teacher-sidebar__link, .school-sidebar__link, .ent-sidebar__link) {
+    color: #d4d4d8;
+    border-radius: 2px;
+}
+
+:where(.learner-sidebar__link:hover, .teacher-sidebar__link:hover, .school-sidebar__link:hover, .ent-sidebar__link:hover) {
+    background: #27272a;
+    color: #fff;
+}
+
+:where(.learner-sidebar__link.is-active, .teacher-sidebar__link.is-active, .school-sidebar__link.is-active, .ent-sidebar__link.is-active) {
+    background: #f97316;
+    color: #111;
+    box-shadow: 4px 4px 0 #fff;
+}
+
+:where(.learner-card, .card, .section-box, .teacher-section-box, .school-section-box,
+    .ent-section-box, .stat-card, .bento-card, .ent-metric-card, .metric-card) {
+    border: 2px solid #111;
+    border-radius: 4px;
+    box-shadow: var(--shadow-sm);
+}
+
+:where(.learner-card, .card, .section-box, .teacher-section-box, .school-section-box,
+    .ent-section-box, .stat-card, .ent-metric-card, .metric-card):hover {
+    border-color: #111;
+    box-shadow: var(--shadow-md);
+}
+
+:where(.page-header, .ent-page-header, .teacher-page-header, .school-page-header) {
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #111;
+}
+
+:where(.page-header__title, .ent-page-title, .teacher-page-title, .school-page-title) {
+    color: #111;
+    letter-spacing: -0.05em;
+}
+
+:where(input, select, textarea) {
+    border: 2px solid #111;
+    border-radius: 2px;
+    background: #fff;
+}
+
+:where(.btn-primary, .teacher-grading-button--primary) {
+    background: #f97316;
+    border: 2px solid #111;
+    color: #111;
+    box-shadow: 3px 3px 0 #111;
+}
+
+:where(.btn-primary, .teacher-grading-button--primary):hover:not(:disabled) {
+    background: #fb923c;
+    border-color: #111;
+    color: #111;
+    transform: translate(-1px, -1px);
+    box-shadow: 5px 5px 0 #111;
+}
+
+.auth-brand {
+    background: #111;
+    border-right: 2px solid #f97316;
+}
+
+.auth-panel {
+    background: #fffdf8;
+}
+
+.auth-eyebrow,
+.auth-kicker {
+    color: #fb923c;
+}
+
+.role-selection-page {
+    background:
+        radial-gradient(circle at 10% 8%, rgb(249 115 22 / 0.14), transparent 20rem),
+        #fffdf8;
+}
+
+.role-card {
+    border: 2px solid #111;
+    border-radius: 4px;
+    box-shadow: 5px 5px 0 rgb(17 17 17 / 0.14);
+}
+
+.role-card:hover,
+.role-card:focus-visible,
+.role-card.is-selected {
+    border-color: #111;
+    box-shadow: 8px 8px 0 rgb(249 115 22 / 0.45);
+}
+
+.role-card__badge {
+    border: 2px solid #111;
+    border-radius: 2px;
+    background: #f97316;
+    color: #111;
+    box-shadow: 3px 3px 0 #111;
+}
+
+.landing-page--editorial {
+    background: #fffdf8;
+}
+
+.landing-page--editorial .hero-section,
+.landing-page--editorial .modules-section,
+.landing-page--editorial .audiences-section {
+    background: #fffdf8;
+}
+
+.landing-page--editorial .site-header,
+.landing-page--editorial .site-header.is-scrolled {
+    background: rgb(255 253 248 / 0.94);
+    border-bottom: 2px solid #111;
+}
+
+.landing-page--editorial .hero-window-frame {
+    border: 2px solid #111;
+    border-radius: 4px;
+    box-shadow: 12px 12px 0 #f97316;
+}
+
+.landing-page--editorial .bento-card {
+    border-right: 2px solid #111;
+    border-bottom: 2px solid #111;
+    border-radius: 0;
+}
+
+.landing-page--editorial .bento-card--hero {
+    background: #111;
+}
+
+.landing-page--editorial .audience-showcase {
+    border: 2px solid #111;
+    border-radius: 4px;
+    box-shadow: 10px 10px 0 #f97316;
+}
+
+.landing-page--editorial .cta-section {
+    background: #f97316;
+}
+
+@media (max-width: 768px) {
+    .landing-page--editorial .hero-window-frame {
+        box-shadow: 7px 7px 0 #f97316;
+    }
+}
+
+/* Graphic Editorial / Aurora Orange
+   A richer art direction layered over the shared system without changing
+   markup: soft color fields, paper grain, luminous accents and clear type. */
+:root {
+    --primary: #f45d22;
+    --primary-hover: #d9480f;
+    --primary-light: #fff0e8;
+    --primary-dark: #a8320c;
+    --secondary: #ffb703;
+    --secondary-hover: #d98f00;
+    --secondary-light: #fff8df;
+    --background: #f7f4ef;
+    --surface: #fffefa;
+    --surface-hover: #fff5ed;
+    --text-primary: #201814;
+    --text-main: #201814;
+    --text-secondary: #65574f;
+    --text-muted: #8c7c72;
+    --border: #eadfd6;
+    --border-strong: #cdbcb0;
+    --radius-sm: 10px;
+    --radius-md: 16px;
+    --radius-lg: 22px;
+    --radius-xl: 28px;
+    --shadow-xs: 0 2px 8px rgb(75 43 26 / 0.06);
+    --shadow-sm: 0 8px 20px rgb(75 43 26 / 0.08);
+    --shadow-md: 0 16px 36px rgb(75 43 26 / 0.12);
+    --shadow-lg: 0 26px 60px rgb(75 43 26 / 0.16);
+    --focus-ring: 0 0 0 2px #fffefa, 0 0 0 5px #f45d22;
+    --brand-icon-bg: linear-gradient(135deg, #ff8a3d 0%, #e84716 100%);
+    --brand-icon-shadow: 0 6px 16px rgb(244 93 34 / 0.28);
+    --brand-name-hub-color: #e84716;
+}
+
+html {
+    background: var(--background);
+}
+
+body:not(.landing-page) {
+    position: relative;
+    isolation: isolate;
+    background:
+        radial-gradient(circle at 0% 0%, rgb(255 183 3 / 0.14), transparent 24rem),
+        radial-gradient(circle at 100% 20%, rgb(244 93 34 / 0.09), transparent 30rem),
+        var(--background);
+}
+
+body:not(.landing-page)::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.22;
+    background-image: radial-gradient(rgb(32 24 20 / 0.12) 0.7px, transparent 0.7px);
+    background-size: 7px 7px;
+    mask-image: linear-gradient(to bottom, black, transparent 85%);
+}
+
+body:not(.landing-page) .portal-header,
+body:not(.landing-page) .teacher-header,
+body:not(.landing-page) .school-header,
+body:not(.landing-page) .ent-header {
+    background: rgb(255 254 250 / 0.8);
+    border-bottom: 1px solid rgb(32 24 20 / 0.1);
+    box-shadow: 0 10px 26px rgb(75 43 26 / 0.06);
+    backdrop-filter: blur(18px) saturate(1.2);
+    -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+
+:where(.learner-sidebar, .teacher-sidebar, .school-sidebar, .ent-sidebar, .portal-sidebar) {
+    background:
+        radial-gradient(circle at 100% 0%, rgb(244 93 34 / 0.28), transparent 18rem),
+        linear-gradient(165deg, #2b1c16 0%, #17110e 72%);
+    border-right: 1px solid rgb(255 255 255 / 0.14);
+}
+
+:where(.learner-sidebar__link, .teacher-sidebar__link, .school-sidebar__link, .ent-sidebar__link) {
+    color: #d8c8bf;
+    border-radius: 12px;
+    transition: background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+:where(.learner-sidebar__link:hover, .teacher-sidebar__link:hover, .school-sidebar__link:hover, .ent-sidebar__link:hover) {
+    background: rgb(255 255 255 / 0.09);
+    color: #fff;
+    transform: translateX(3px);
+}
+
+:where(.learner-sidebar__link.is-active, .teacher-sidebar__link.is-active, .school-sidebar__link.is-active, .ent-sidebar__link.is-active) {
+    background: linear-gradient(100deg, #f45d22, #ff8a3d);
+    color: #fff;
+    box-shadow: 0 8px 18px rgb(244 93 34 / 0.25), inset 3px 0 0 #ffd9bd;
+}
+
+:where(.learner-card, .card, .section-box, .teacher-section-box, .school-section-box,
+    .ent-section-box, .stat-card, .bento-card, .ent-metric-card, .metric-card) {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: rgb(255 254 250 / 0.9);
+    box-shadow: var(--shadow-sm);
+}
+
+:where(.learner-card, .card, .section-box, .teacher-section-box, .school-section-box,
+    .ent-section-box, .stat-card, .ent-metric-card, .metric-card)::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 3px;
+    background: linear-gradient(90deg, #f45d22, #ffb703, transparent 78%);
+    opacity: 0.8;
+}
+
+:where(.learner-card, .card, .section-box, .teacher-section-box, .school-section-box,
+    .ent-section-box, .stat-card, .ent-metric-card, .metric-card):hover {
+    border-color: #f3b08b;
+    box-shadow: var(--shadow-md);
+}
+
+:where(.page-header, .ent-page-header, .teacher-page-header, .school-page-header) {
+    padding-bottom: 1.15rem;
+    border-bottom: 1px solid rgb(32 24 20 / 0.14);
+}
+
+:where(.page-header__title, .ent-page-title, .teacher-page-title, .school-page-title) {
+    color: var(--text-primary);
+    letter-spacing: -0.055em;
+}
+
+:where(input, select, textarea) {
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: rgb(255 254 250 / 0.95);
+    box-shadow: inset 0 1px 2px rgb(75 43 26 / 0.04);
+}
+
+:where(input, select, textarea):focus {
+    background: #fff;
+}
+
+:where(.btn-primary, .teacher-grading-button--primary) {
+    background: linear-gradient(110deg, #f45d22, #ff8a3d);
+    border-color: #d9480f;
+    color: #fff;
+    box-shadow: 0 8px 16px rgb(244 93 34 / 0.22);
+}
+
+:where(.btn-primary, .teacher-grading-button--primary):hover:not(:disabled) {
+    background: linear-gradient(110deg, #d9480f, #f45d22);
+    border-color: #a8320c;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 22px rgb(244 93 34 / 0.28);
+}
+
+.auth-brand {
+    background:
+        radial-gradient(circle at 88% 10%, rgb(255 183 3 / 0.22), transparent 18rem),
+        linear-gradient(150deg, #2b1c16 0%, #17110e 72%);
+}
+
+.auth-panel {
+    background:
+        radial-gradient(circle at 100% 0%, rgb(244 93 34 / 0.08), transparent 22rem),
+        var(--background);
+}
+
+.auth-eyebrow,
+.auth-kicker {
+    color: #ffb27d;
+}
+
+.role-selection-page {
+    background:
+        radial-gradient(circle at 10% 8%, rgb(255 183 3 / 0.16), transparent 22rem),
+        radial-gradient(circle at 100% 80%, rgb(244 93 34 / 0.10), transparent 24rem),
+        var(--background);
+}
+
+.role-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: rgb(255 254 250 / 0.9);
+    box-shadow: var(--shadow-sm);
+}
+
+.role-card:hover,
+.role-card:focus-visible,
+.role-card.is-selected {
+    border-color: #f3a477;
+    box-shadow: 0 0 0 3px rgb(244 93 34 / 0.13), var(--shadow-md);
+}
+
+.role-card__badge {
+    background: linear-gradient(110deg, #f45d22, #ff8a3d);
+    border: 0;
+    box-shadow: 0 6px 14px rgb(244 93 34 / 0.22);
+}
+
+.landing-page .site-header,
+.landing-page .site-header.is-scrolled {
+    background: rgb(255 254 250 / 0.8);
+    border-bottom-color: rgb(32 24 20 / 0.1);
+    backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.landing-page .hero-section {
+    background:
+        radial-gradient(circle at 82% 12%, rgb(244 93 34 / 0.18), transparent 23rem),
+        radial-gradient(circle at 8% 80%, rgb(255 183 3 / 0.14), transparent 20rem),
+        #fffaf4;
+}
+
+.landing-page .hero-title-highlight {
+    color: #e84716;
+}
+
+.landing-page .hero-window-frame {
+    border-color: #2b1c16;
+    box-shadow: 14px 14px 0 #ffb703, 0 28px 56px rgb(75 43 26 / 0.18);
+}
+
+.landing-page .bento-card {
+    background: rgb(255 254 250 / 0.92);
+}
+
+.landing-page .bento-card--hero {
+    background: linear-gradient(145deg, #2b1c16, #17110e);
+}
+
+.landing-page .bento-card--hero::after {
+    content: "";
+    position: absolute;
+    width: 11rem;
+    height: 11rem;
+    right: -4rem;
+    bottom: -5rem;
+    border: 1.5rem solid rgb(244 93 34 / 0.28);
+    border-radius: 50%;
+}
+
+.landing-page .audience-showcase {
+    border-color: #d7c7bc;
+    background: rgb(255 254 250 / 0.88);
+    box-shadow: 12px 12px 0 #ffb703;
+}
+
+.landing-page .cta-section {
+    background:
+        radial-gradient(circle at 92% 10%, rgb(255 183 3 / 0.3), transparent 18rem),
+        linear-gradient(145deg, #2b1c16, #17110e);
+}
+
+@media (max-width: 768px) {
+    .landing-page .hero-window-frame {
+        box-shadow: 7px 7px 0 #ffb703, 0 18px 36px rgb(75 43 26 / 0.14);
+    }
+
+    .landing-page .audience-showcase {
+        box-shadow: 6px 6px 0 #ffb703;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :where(.learner-sidebar__link, .teacher-sidebar__link, .school-sidebar__link, .ent-sidebar__link):hover {
+        transform: none;
+    }
+}
