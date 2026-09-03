@@ -133,7 +133,7 @@ $audiences = [
     <link rel="stylesheet" href="assets/css/brand-component.css">
     <link rel="stylesheet" href="assets/css/polish.css">
 </head>
-<body>
+<body class="landing-page">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <!-- ====================================================================

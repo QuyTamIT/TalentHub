@@ -1838,6 +1838,260 @@ button, input {
 }
 
 /* Audience tab buttons: hover */
+
+/* ==========================================================================
+   LANDING PAGE ART DIRECTION
+   Inspired by career marketplaces and calm product workspaces, while keeping
+   the FTalentHub brand system and all portal styles untouched.
+   ========================================================================== */
+.landing-page {
+    --landing-ink: #101828;
+    --landing-cream: #fffaf4;
+    background: var(--landing-cream);
+}
+
+.landing-page .site-header {
+    background: rgb(255 250 244 / 0.88);
+    border-bottom-color: rgb(16 24 40 / 0.08);
+}
+
+.landing-page .site-header.is-scrolled {
+    background: rgb(255 250 244 / 0.97);
+    box-shadow: 0 8px 24px rgb(16 24 40 / 0.08);
+}
+
+.landing-page .site-header__container {
+    height: 5rem;
+}
+
+.landing-page .site-nav {
+    gap: 1.25rem;
+}
+
+.landing-page .site-nav__link {
+    color: #475467;
+    font-size: 0.875rem;
+}
+
+.landing-page .hero-section {
+    padding-top: clamp(3.5rem, 8vw, 7rem);
+    padding-bottom: clamp(4rem, 8vw, 7rem);
+    background:
+        radial-gradient(circle at 82% 18%, rgb(249 115 22 / 0.14), transparent 26rem),
+        linear-gradient(135deg, #fffaf4 0%, #fff 56%, #f4f7fb 100%);
+}
+
+.landing-page .hero-section::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.38;
+    background-image: linear-gradient(rgb(16 24 40 / 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgb(16 24 40 / 0.045) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: linear-gradient(to bottom, black, transparent 78%);
+}
+
+.landing-page .hero-grid {
+    position: relative;
+    z-index: 1;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    gap: clamp(2rem, 6vw, 6rem);
+}
+
+.landing-page .hero-content {
+    max-width: 620px;
+}
+
+.landing-page .hero-badge {
+    background: #fff;
+    border-color: rgb(249 115 22 / 0.22);
+    box-shadow: 0 4px 14px rgb(16 24 40 / 0.06);
+    letter-spacing: 0.01em;
+}
+
+.landing-page .hero-title {
+    max-width: 11ch;
+    margin-bottom: 1.5rem;
+    font-size: clamp(2.75rem, 5.3vw, 4.75rem);
+    line-height: 0.99;
+    letter-spacing: -0.065em;
+    background: none;
+    -webkit-text-fill-color: initial;
+    color: var(--landing-ink);
+}
+
+.landing-page .hero-title-highlight {
+    color: var(--primary);
+    background: none;
+    -webkit-text-fill-color: initial;
+}
+
+.landing-page .hero-description {
+    max-width: 54ch;
+    color: #475467;
+    font-size: 1.0625rem;
+}
+
+.landing-page .hero-cta-group .btn-primary {
+    box-shadow: 0 10px 24px rgb(249 115 22 / 0.22);
+}
+
+.landing-page .hero-visual {
+    transform: rotate(1.2deg);
+}
+
+.landing-page .hero-window-frame {
+    border: 8px solid #162033;
+    border-radius: 1.5rem;
+    box-shadow: 0 28px 0 -12px rgb(249 115 22 / 0.18), 0 30px 70px rgb(16 24 40 / 0.2);
+}
+
+.landing-page .window-bar {
+    background: #1d2939;
+    border-bottom-color: #344054;
+}
+
+.landing-page .window-address-bar {
+    background: #344054;
+    border-color: #475467;
+    color: #f2f4f7;
+}
+
+.landing-page .window-tag {
+    background: rgb(249 115 22 / 0.18);
+    color: #ffb37a;
+}
+
+.landing-page .window-content {
+    background: #fff;
+}
+
+.landing-page .stats-section,
+.landing-page .audiences-section {
+    background: #fff;
+}
+
+.landing-page .stats-split-container {
+    padding: 1.5rem 0;
+}
+
+.landing-page .stat-number {
+    font-size: clamp(2rem, 4vw, 3.5rem);
+}
+
+.landing-page .modules-section {
+    background: #f4f7fb;
+    position: relative;
+}
+
+.landing-page .modules-section::before {
+    content: "TALENT / GROW / CONNECT";
+    position: absolute;
+    top: 4rem;
+    right: clamp(1rem, 5vw, 5rem);
+    color: rgb(16 24 40 / 0.07);
+    font-size: clamp(0.7rem, 1.2vw, 0.9rem);
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    transform: rotate(90deg) translateX(100%);
+    transform-origin: right top;
+}
+
+.landing-page .section-tag {
+    background: #fff;
+    color: var(--primary-dark);
+    box-shadow: 0 3px 10px rgb(16 24 40 / 0.05);
+}
+
+.landing-page .section-title {
+    color: var(--landing-ink);
+    letter-spacing: -0.045em;
+}
+
+.landing-page .bento-card {
+    border: 1px solid rgb(16 24 40 / 0.09);
+    border-radius: 1.25rem;
+    box-shadow: 0 10px 25px rgb(16 24 40 / 0.05);
+}
+
+.landing-page .bento-card--hero {
+    background: #162033;
+    color: #fff;
+}
+
+.landing-page .bento-card--hero .module-title,
+.landing-page .bento-card--hero .module-description,
+.landing-page .bento-card--hero .module-subtitle,
+.landing-page .bento-card--hero .module-feature-item {
+    color: #f2f4f7;
+}
+
+.landing-page .bento-card--hero .module-icon-box {
+    background: var(--primary);
+    color: #fff;
+}
+
+.landing-page .bento-card--hero .module-tag {
+    color: #ffb37a;
+}
+
+.landing-page .audience-showcase {
+    border-radius: 1.5rem;
+    border: 1px solid rgb(16 24 40 / 0.1);
+    box-shadow: 0 16px 40px rgb(16 24 40 / 0.08);
+    overflow: hidden;
+}
+
+.landing-page .cta-section {
+    background: #162033;
+    position: relative;
+    overflow: hidden;
+}
+
+.landing-page .cta-section::before {
+    content: "";
+    position: absolute;
+    width: 26rem;
+    height: 26rem;
+    right: -8rem;
+    top: -12rem;
+    border-radius: 50%;
+    background: rgb(249 115 22 / 0.24);
+}
+
+.landing-page .cta-box {
+    position: relative;
+    z-index: 1;
+}
+
+.landing-page .footer {
+    background: #0c1320;
+}
+
+@media (max-width: 768px) {
+    .landing-page .hero-title {
+        max-width: 14ch;
+    }
+
+    .landing-page .hero-visual {
+        margin: 1rem 0.25rem 0;
+        transform: none;
+    }
+
+    .landing-page .modules-section::before {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .landing-page .hero-visual,
+    .landing-page .hero-window-frame:hover,
+    .landing-page .bento-card:hover {
+        transform: none;
+    }
+}
 .audience-tab-btn {
     transition: all var(--transition-base);
 }
