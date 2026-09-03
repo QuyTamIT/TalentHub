@@ -4,6 +4,7 @@
  * Entry point for public visitors (Students, Teachers, Schools, Enterprises).
  * Impeccable Craft Redesign (Editorial Hierarchy & Asymmetric Layouts)
  */
+require_once __DIR__ . '/app/shared/BrandHeader.php';
 
 // Core Modules Data
 $modules = [
@@ -141,14 +142,17 @@ $audiences = [
     <header class="site-header" id="site-header">
         <div class="container site-header__container">
             <!-- Brand Logo -->
-            <a href="#hero" class="site-header__brand" aria-label="Trang chủ FTalentHub">
-                <div class="site-header__brand-icon">
+            <?php renderBrandHeader('#hero', 'Nền tảng phát triển năng khiếu', 'Trang chủ FTalentHub', 'site-header__brand learner-brand'); if (false): ?>
+                <span class="learner-brand__mark" aria-hidden="true">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                         <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
                     </svg>
+                </span>
+                <div class="learner-brand__text">
+                    <span class="learner-brand__name">FTalent<span>Hub</span></span>
+                    <span class="learner-brand__subtitle">Nền tảng phát triển năng khiếu</span>
                 </div>
-                <div class="site-header__brand-text">FTalent<span>Hub</span></div>
-            </a>
+            <?php endif; ?>
 
             <!-- Navigation Links (Desktop) -->
             <nav class="site-nav" aria-label="Điều hướng chính">
@@ -592,14 +596,17 @@ $audiences = [
             <div class="footer-grid">
                 <!-- Brand Info -->
                 <div class="footer-brand">
-                    <a href="#hero" class="brand-logo" aria-label="Trang chủ FTalentHub">
-                        <div class="brand-icon">
+                    <?php renderBrandHeader('#hero', 'Nền tảng phát triển năng khiếu', 'Trang chủ FTalentHub', 'brand-logo learner-brand'); if (false): ?>
+                        <span class="learner-brand__mark" aria-hidden="true">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
+                                <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
                             </svg>
+                        </span>
+                        <div class="learner-brand__text">
+                            <span class="learner-brand__name">FTalent<span>Hub</span></span>
+                            <span class="learner-brand__subtitle">Nền tảng phát triển năng khiếu</span>
                         </div>
-                        <div class="brand-text">FTalent<span>Hub</span></div>
-                    </a>
+                    <?php endif; ?>
                     <p>
                         Nền tảng phát triển và kết nối năng khiếu hàng đầu dành cho Học sinh, Giáo viên, Nhà trường và Doanh nghiệp.
                     </p>

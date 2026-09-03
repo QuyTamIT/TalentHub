@@ -522,7 +522,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                     <option value="archived" <?= $statusFilter === 'archived' ? 'selected' : ''; ?>>Đã lưu trữ</option>
                                 </select>
                             </label>
-                            <button type="submit" class="btn btn-secondary btn-sm">Lọc</button>
+                            <button type="submit" class="btn btn-secondary btn-sm d-inline-flex align-items-center teacher-activities-filter-submit">Lọc</button>
                             <?php if ($search !== '' || $statusFilter !== ''): ?>
                                 <a href="index.php" class="teacher-activities-reset">Xóa lọc</a>
                             <?php endif; ?>

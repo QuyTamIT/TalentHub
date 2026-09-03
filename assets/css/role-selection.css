@@ -29,6 +29,11 @@
     height: var(--header-height);
 }
 
+.role-selection-header__container > .learner-brand {
+    width: auto;
+    min-width: 0;
+}
+
 .role-selection-header__back-btn {
     font-size: 0.875rem;
     padding: 0.625rem 1.25rem;

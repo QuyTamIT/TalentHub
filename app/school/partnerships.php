@@ -61,16 +61,16 @@ ob_start();
     <div class="school-section-box__header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
         <h2 class="school-section-box__title" style="margin: 0;">Quan hệ hợp tác</h2>
         <div style="display: flex; gap: 0.75rem; align-items: center;">
-            <div style="position: relative;" id="statusFilterDropdownContainer">
-                <button type="button" onclick="const m = document.getElementById('statusFilterMenu'); m.style.display = m.style.display === 'none' ? 'block' : 'none';" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid #D1D5DB; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); background-color: #fff; font-size: 0.875rem; font-weight: 500; color: #374151; cursor: pointer; transition: background-color 0.15s ease;" onmouseover="this.style.backgroundColor='#F9FAFB'" onmouseout="this.style.backgroundColor='#fff'">
+            <div class="school-status-dropdown" id="statusFilterDropdownContainer">
+                <button type="button" class="school-status-dropdown__toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="statusFilterMenu">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
                     <span><?= $statusFilter ? htmlspecialchars($labels[$statusFilter]) : 'Tất cả trạng thái' ?></span>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </button>
-                <ul id="statusFilterMenu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 0.25rem; width: max-content; min-width: 150px; background: #fff; border: 1px solid #E5E7EB; border-radius: 0.375rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); padding: 0.25rem 0; z-index: 10; list-style: none; margin-left: 0; padding-left: 0;">
-                    <li onclick="window.location.href='?status='" style="padding: 0.5rem 1rem; font-size: 0.875rem; color: #374151; cursor: pointer; transition: all 0.15s; <?php if($statusFilter === null) echo 'background-color: #FFF7ED; color: #EA580C; font-weight: 600;'; ?>" onmouseover="this.style.backgroundColor='#FFF7ED'; this.style.color='#EA580C'" onmouseout="<?php if($statusFilter !== null) echo "this.style.backgroundColor='transparent'; this.style.color='#374151'"; ?>">Tất cả trạng thái</li>
+                <ul id="statusFilterMenu" class="school-status-dropdown__menu" role="menu" hidden>
+                    <li role="none"><a href="?status=" role="menuitem" class="school-status-dropdown__item<?= $statusFilter === null ? ' is-selected' : ''; ?>">Tất cả trạng thái</a></li>
                     <?php foreach ($labels as $value => $label): ?>
-                        <li onclick="window.location.href='?status=<?= $value ?>'" style="padding: 0.5rem 1rem; font-size: 0.875rem; color: #374151; cursor: pointer; transition: all 0.15s; <?php if($statusFilter === $value) echo 'background-color: #FFF7ED; color: #EA580C; font-weight: 600;'; ?>" onmouseover="this.style.backgroundColor='#FFF7ED'; this.style.color='#EA580C'" onmouseout="<?php if($statusFilter !== $value) echo "this.style.backgroundColor='transparent'; this.style.color='#374151'"; ?>"><?= htmlspecialchars($label); ?></li>
+                        <li role="none"><a href="?status=<?= htmlspecialchars($value); ?>" role="menuitem" class="school-status-dropdown__item<?= $statusFilter === $value ? ' is-selected' : ''; ?>"><?= htmlspecialchars($label); ?></a></li>
                     <?php endforeach; ?>
                 </ul>
             </div>
@@ -154,12 +154,28 @@ function openAddPartnerModal() {
 function closeAddPartnerModal() {
     document.getElementById('addPartnerModal').style.display = 'none';
 }
+const container = document.getElementById('statusFilterDropdownContainer');
+const menu = document.getElementById('statusFilterMenu');
+const toggle = container?.querySelector('.school-status-dropdown__toggle');
+if (container && menu && toggle) {
+    toggle.addEventListener('click', function () {
+        const isOpen = !menu.hidden;
+        menu.hidden = isOpen;
+        toggle.setAttribute('aria-expanded', String(!isOpen));
+    });
+}
 // Close dropdown when clicking outside
 document.addEventListener('click', function(event) {
-    const container = document.getElementById('statusFilterDropdownContainer');
-    const menu = document.getElementById('statusFilterMenu');
     if (container && menu && !container.contains(event.target)) {
-        menu.style.display = 'none';
+        menu.hidden = true;
+        toggle?.setAttribute('aria-expanded', 'false');
+    }
+});
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape' && menu && !menu.hidden) {
+        menu.hidden = true;
+        toggle?.setAttribute('aria-expanded', 'false');
+        toggle?.focus();
     }
 });
 </script>

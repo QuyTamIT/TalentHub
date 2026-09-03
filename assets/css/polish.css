@@ -778,4 +778,51 @@ textarea:focus {
     .auth-submit:hover:not(:disabled) {
         filter: saturate(1.04);
     }
+
+    .portal-notifications-panel {
+        position: absolute;
+        top: calc(100% + 0.625rem);
+        right: 0;
+        z-index: var(--z-dropdown, 1000);
+        width: min(22rem, calc(100vw - 2rem));
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: var(--surface);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .learner-header__notif,
+    .teacher-header__notif,
+    .school-header__notif,
+    .ent-header__notif {
+        position: relative;
+    }
+
+    .portal-notifications-panel[hidden] { display: none; }
+    .portal-notifications-panel__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.875rem 1rem;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-primary);
+    }
+    .portal-notifications-panel__close {
+        border: 0;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 1.25rem;
+        line-height: 1;
+        cursor: pointer;
+    }
+    .portal-notifications-panel__list { margin: 0; padding: 0; list-style: none; }
+    .portal-notifications-panel__list li {
+        display: grid;
+        gap: 0.2rem;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border);
+    }
+    .portal-notifications-panel__list li:last-child { border-bottom: 0; }
+    .portal-notifications-panel__list span { color: var(--text-secondary); font-size: var(--text-sm); }
 }

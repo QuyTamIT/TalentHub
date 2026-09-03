@@ -319,6 +319,8 @@ $sidebarNav = [
     <!-- CSS Assets -->
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise.css'); ?>">
     
     <!-- SweetAlert2 -->

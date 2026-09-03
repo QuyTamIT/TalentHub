@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/icons.php';
+require_once dirname(__DIR__, 2) . '/shared/BrandHeader.php';
 // Ensure app_href() is available regardless of whether the caller loaded bootstrap.
 if (!function_exists('app_href') && is_file(__DIR__ . '/../../../bin/bootstrap.php')) {
     require_once __DIR__ . '/../../../bin/bootstrap.php';
@@ -15,13 +16,7 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
     </button>
 
     <div class="learner-sidebar__brand">
-        <a class="learner-brand" href="../../index.php" aria-label="Về trang chủ FTalentHub">
-            <span class="learner-brand__mark" aria-hidden="true"><?= learner_icon('star', 20); ?></span>
-            <div class="learner-brand__text">
-                <span class="learner-brand__name">FTalent<span>Hub</span></span>
-                <span class="learner-brand__subtitle">Khu vực sinh viên</span>
-            </div>
-        </a>
+        <?php renderBrandHeader('../../index.php', 'Khu vực sinh viên', 'Về trang chủ FTalentHub'); ?>
     </div>
 
     <nav class="learner-sidebar__nav" aria-label="Danh mục Học sinh/Sinh viên">

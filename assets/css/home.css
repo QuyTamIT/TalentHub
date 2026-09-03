@@ -1,3 +1,7 @@
+@import url("./design-tokens.css");
+@import url("./typeui-selects.css");
+@import url("./dropdown-system.css");
+
 /* ==========================================================================
    TalentHub – Design System Foundation (home.css)
    Layer 1: CSS Custom Properties (Design Tokens)
@@ -14,14 +18,14 @@
    -------------------------------------------------------------------------- */
 :root {
     /* ── Fonts ── */
-    --font-primary: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-primary: var(--font-sans);
 
     /* ── Brand Colors ── */
-    --primary:        #FF6B00;
-    --primary-hover:  #E55F00;
-    --primary-light:  #FFF4EC;
-    --primary-dark:   #CC5500;
-    --primary-accent: #FF8C38;
+    --primary:        var(--color-brand);
+    --primary-hover:  var(--color-brand-hover);
+    --primary-light:  var(--color-brand-soft);
+    --primary-dark:   #C2410C;
+    --primary-accent: #FB923C;
 
     --secondary:       #2563EB;
     --secondary-hover: #1D4ED8;
@@ -58,23 +62,23 @@
     --color-neutral-border: #E2E8F0;
 
     /* ── Surfaces & Backgrounds ── */
-    --background:      #F8FAFC;
-    --surface:         #FFFFFF;
+    --background:      var(--color-canvas);
+    --surface:         var(--color-surface);
     --surface-raised:  #FFFFFF;
     --surface-overlay: #FFFFFF;
     --surface-hover:   #F8FAFC;
 
     /* ── Text ── */
-    --text-primary:   #0F172A;
-    --text-main:      #0F172A;
+    --text-primary:   var(--color-ink);
+    --text-main:      var(--color-ink);
     --text-secondary: #475569;
-    --text-muted:     #64748B;
+    --text-muted:     var(--color-muted);
     --text-disabled:  #94A3B8;
     --text-inverse:   #FFFFFF;
     --text-on-primary:#FFFFFF;
 
     /* ── Border ── */
-    --border:        #E2E8F0;
+    --border:        var(--color-border);
     --border-strong: #CBD5E1;
     --border-subtle: #F1F5F9;
     --control-border:#8795A8;
@@ -423,6 +427,11 @@ button, input {
 
 .site-header__brand-text span {
     color: var(--primary);
+}
+
+.site-header__container > .learner-brand,
+.role-selection-header__container > .learner-brand {
+    width: auto;
 }
 
 /* Desktop Navigation */
@@ -1346,6 +1355,9 @@ button, input {
     letter-spacing: -0.02em;
 }
 
+.footer-brand .learner-brand__name { color: #FFFFFF; }
+.footer-brand .learner-brand__name > span { color: var(--primary); }
+
 .footer-brand .brand-icon {
     width: var(--brand-icon-size, 36px);
     height: var(--brand-icon-size, 36px);
@@ -1362,10 +1374,6 @@ button, input {
 
 .footer-brand .brand-logo:hover .brand-icon {
     transform: rotate(10deg) scale(1.08);
-}
-
-.footer-brand .brand-text span {
-    color: var(--primary);
 }
 
 .footer-brand p {

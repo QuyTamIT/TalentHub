@@ -158,3 +158,4 @@ $logoutUrl = function_exists('app_href') ? app_href('/logout.php?role=teacher') 
         </div>
     </div>
 </header>
+<script src="<?= function_exists('app_href') ? app_href('/assets/js/portal-notifications.js') : '/assets/js/portal-notifications.js'; ?>" defer></script>

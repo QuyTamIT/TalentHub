@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/app/shared/BrandHeader.php';
 /**
  * TalentHub - Role Selection Page
  * Allows visitors to choose the role they want to register.
@@ -97,6 +98,7 @@ unset($role);
     <!-- CSS Assets -->
     <link rel="stylesheet" href="assets/css/home.css">
     <link rel="stylesheet" href="assets/css/global.css">
+    <link rel="stylesheet" href="assets/css/brand-component.css">
     <link rel="stylesheet" href="assets/css/role-selection.css">
 </head>
 <body class="role-selection-page">
@@ -106,14 +108,7 @@ unset($role);
     <header class="role-selection-header">
         <div class="container role-selection-header__container">
             <!-- Brand Logo -->
-            <a href="index.php" class="site-header__brand" aria-label="Về trang chủ FTalentHub">
-                <div class="site-header__brand-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
-                    </svg>
-                </div>
-                <div class="site-header__brand-text">FTalent<span>Hub</span></div>
-            </a>
+            <?php renderBrandHeader('index.php', 'Lựa chọn khu vực', 'Về trang chủ FTalentHub'); ?>
 
             <!-- Back to Home Button -->
             <a href="index.php" class="btn btn-secondary role-selection-header__back-btn" aria-label="Quay lại trang chủ">
