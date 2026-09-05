@@ -24,6 +24,13 @@ final class StatisticsService
         'sports' => 'Thể thao & Sức khỏe',
         'arts' => 'Nghệ thuật',
         'general' => 'Khác',
+        'career_technical' => 'Công nghệ & Kỹ thuật',
+        'career_business' => 'Kinh doanh & Quản lý',
+        'career_arts' => 'Sáng tạo & Nghệ thuật',
+        'career_sports_academic' => 'Thể thao & Học thuật',
+        'workshop' => 'Hội thảo & Kỹ năng',
+        'competition' => 'Cuộc thi & Phong trào',
+        'project' => 'Dự án thực tế',
     ];
 
     private const FIELD_TONES = [
@@ -34,6 +41,13 @@ final class StatisticsService
         'sports' => 'teal',
         'arts' => 'purple',
         'general' => 'neutral',
+        'career_technical' => 'primary',
+        'career_business' => 'secondary',
+        'career_arts' => 'purple',
+        'career_sports_academic' => 'teal',
+        'workshop' => 'warning',
+        'competition' => 'accent',
+        'project' => 'primary',
     ];
 
     private const SKILL_CATEGORY_TONES = [

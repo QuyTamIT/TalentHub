@@ -12,6 +12,13 @@
         sports: 'teal',
         arts: 'purple',
         general: 'neutral',
+        career_technical: 'primary',
+        career_business: 'secondary',
+        career_arts: 'purple',
+        career_sports_academic: 'teal',
+        workshop: 'warning',
+        competition: 'accent',
+        project: 'primary',
     };
 
     const FIELD_LABEL_BY_CATEGORY = {
@@ -22,6 +29,13 @@
         sports: 'Thể thao & Sức khỏe',
         arts: 'Nghệ thuật',
         general: 'Khác',
+        career_technical: 'Công nghệ & Kỹ thuật',
+        career_business: 'Kinh doanh & Quản lý',
+        career_arts: 'Sáng tạo & Nghệ thuật',
+        career_sports_academic: 'Thể thao & Học thuật',
+        workshop: 'Hội thảo & Kỹ năng',
+        competition: 'Cuộc thi & Phong trào',
+        project: 'Dự án thực tế',
     };
 
     const SKILL_CATEGORY_LABELS = {
@@ -153,6 +167,9 @@
 
         const chartTitle = document.querySelector('[data-experience-chart-title]');
         if (chartTitle) chartTitle.textContent = `Biểu đồ giờ trải nghiệm cá nhân ${periodLabel}`;
+
+        const hasHours = hours.some(h => h > 0);
+        setHidden('[data-experience-empty]', hasHours);
     }
 
     function replaceLifetimeFacts(facts) {
@@ -475,6 +492,10 @@
         if (periodTitle) periodTitle.textContent = `Chỉ số trong ${label}`;
         const experienceTitle = document.querySelector('[data-experience-period-title]');
         if (experienceTitle) experienceTitle.textContent = `Giờ trải nghiệm (${label})`;
+        const periodSelect = document.getElementById('learner-statistics-period');
+        if (periodSelect && data?.period?.id && periodSelect.value !== data.period.id) {
+            periodSelect.value = data.period.id;
+        }
         setStatus(`Đang hiển thị thống kê ${label}.`);
     }
 
@@ -508,10 +529,23 @@
 
     function initStatistics() {
         const periodSelect = document.getElementById('learner-statistics-period');
-        if (!periodSelect) return;
+        if (periodSelect) {
+            periodSelect.addEventListener('change', () => {
+                loadPeriod(periodSelect.value);
+            });
+        }
 
-        periodSelect.addEventListener('change', () => {
-            loadPeriod(periodSelect.value);
+        document.addEventListener('click', (event) => {
+            const trigger = event.target.closest('[data-switch-period]');
+            if (!trigger) return;
+            event.preventDefault();
+            const targetPeriod = trigger.getAttribute('data-switch-period');
+            if (targetPeriod && ALLOWED_PERIODS.includes(targetPeriod)) {
+                if (periodSelect) {
+                    periodSelect.value = targetPeriod;
+                }
+                loadPeriod(targetPeriod);
+            }
         });
     }
 

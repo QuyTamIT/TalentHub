@@ -6,9 +6,10 @@ require_once __DIR__ . '/includes/icons.php';
 $pageTitle = 'Thống kê cá nhân';
 $currentRoute = '/app/learner/statistics.php';
 
-$selectedPeriod = $_GET['period'] ?? 'semester';
-$selectedPeriod = in_array(strtolower(trim((string) $selectedPeriod)), \TalentHub\Learner\Data\Service\StatisticsService::ALLOWED_PERIODS, true)
-    ? strtolower(trim((string) $selectedPeriod))
+$rawPeriod = $_GET['period'] ?? null;
+$hasExplicitPeriod = $rawPeriod !== null && trim((string) $rawPeriod) !== '';
+$selectedPeriod = $hasExplicitPeriod && in_array(strtolower(trim((string) $rawPeriod)), \TalentHub\Learner\Data\Service\StatisticsService::ALLOWED_PERIODS, true)
+    ? strtolower(trim((string) $rawPeriod))
     : 'semester';
 
 $periodOptionLabels = [
@@ -21,10 +22,23 @@ $periodOptionLabels = [
 
 $statsData = null;
 $statisticsLoadError = false;
+$smartFallbackApplied = false;
 if ($isDatabaseMode ?? false) {
     try {
         $studentId = (string) ($student['id'] ?? learner_current_student_id());
         $statsData = learner_repository_factory()->statisticsService()->forStudentPeriod($studentId, $selectedPeriod);
+
+        // Smart Fallback: nếu người dùng không chọn kỳ cụ thể, mà kỳ hiện tại chưa có dữ liệu (0 giờ)
+        // trong khi lịch sử đã có giờ tích lũy (> 0 giờ) -> tự động chuyển sang 'all' để hiển thị trọn vẹn dữ liệu
+        if (!$hasExplicitPeriod && $statsData !== null) {
+            $periodHoursSum = array_sum($statsData['experience']['hours'] ?? []);
+            $lifetimeHours = (float) ($statsData['facts']['confirmed_experience_hours'] ?? 0.0);
+            if ($periodHoursSum <= 0.0 && $lifetimeHours > 0.0) {
+                $selectedPeriod = 'all';
+                $smartFallbackApplied = true;
+                $statsData = learner_repository_factory()->statisticsService()->forStudentPeriod($studentId, 'all');
+            }
+        }
     } catch (Throwable $e) {
         $statsData = null;
         $statisticsLoadError = true;
@@ -119,6 +133,8 @@ if ($axisLabelCount === 1) {
     }
 }
 
+$hasPeriodHours = array_sum($hoursList) > 0;
+
 // Field donut calculations
 $fieldTotal = array_sum(array_column($fields, 'hours'));
 $donutRadius = 70;
@@ -133,15 +149,29 @@ $fieldColorMap = [
     'sports' => 'teal',
     'arts' => 'purple',
     'general' => 'neutral',
+    'career_technical' => 'primary',
+    'career_business' => 'secondary',
+    'career_arts' => 'purple',
+    'career_sports_academic' => 'teal',
+    'workshop' => 'warning',
+    'competition' => 'accent',
+    'project' => 'primary',
 ];
 $fieldLabelMap = [
     'technology' => 'Công nghệ & Kỹ thuật',
-    'career' => 'Hướng nghiệp',
+    'career' => 'Hướng nghiệp & Thực tập',
     'personal' => 'Kỹ năng mềm',
-    'academic' => 'Học thuật',
-    'sports' => 'Thể thao',
+    'academic' => 'Học thuật & Nghiên cứu',
+    'sports' => 'Thể thao & Sức khỏe',
     'arts' => 'Nghệ thuật',
     'general' => 'Khác',
+    'career_technical' => 'Công nghệ & Kỹ thuật',
+    'career_business' => 'Kinh doanh & Quản lý',
+    'career_arts' => 'Sáng tạo & Nghệ thuật',
+    'career_sports_academic' => 'Thể thao & Học thuật',
+    'workshop' => 'Hội thảo & Kỹ năng',
+    'competition' => 'Cuộc thi & Phong trào',
+    'project' => 'Dự án thực tế',
 ];
 ?>
 <!DOCTYPE html>
@@ -192,6 +222,13 @@ $fieldLabelMap = [
                         <a class="learner-btn learner-btn--outline" href="checkin.php"><?= learner_icon('qr', 18); ?> Check-in tham gia</a>
                     </div>
                 </section>
+
+                <?php if ($smartFallbackApplied): ?>
+                    <div class="learner-statistics-fallback-notice" role="status">
+                        <?= learner_icon('sparkles', 18); ?>
+                        <span>Học kỳ hiện tại chưa có hoạt động rèn luyện. Hệ thống đã tự động chuyển sang hiển thị <strong>Toàn bộ quá trình</strong> để bạn theo dõi đầy đủ thành quả tích lũy.</span>
+                    </div>
+                <?php endif; ?>
 
                 <div class="learner-statistics-heading learner-statistics-heading--actions">
                     <div class="learner-owner-badge">
@@ -308,6 +345,14 @@ $fieldLabelMap = [
                                     <li><?= learner_escape($accessibleTitle); ?></li>
                                 <?php endforeach; ?>
                             </ol>
+                            <div class="learner-statistics-chart-empty" data-experience-empty <?= $hasPeriodHours ? 'hidden' : ''; ?>>
+                                <p>Chưa có giờ trải nghiệm trong <?= learner_escape($periodLabel); ?>.</p>
+                                <?php if (($facts['confirmed_experience_hours'] ?? 0) > 0): ?>
+                                    <button type="button" class="learner-btn learner-btn--outline" data-switch-period="all">
+                                        <?= learner_icon('clock', 16); ?> Xem tổng tích lũy (<?= learner_escape($facts['confirmed_experience_hours']); ?> giờ)
+                                    </button>
+                                <?php endif; ?>
+                            </div>
                         </section>
 
                         <section class="learner-card learner-statistics-panel learner-field-panel" aria-labelledby="learner-field-title">
@@ -353,6 +398,11 @@ $fieldLabelMap = [
                             </div>
                             <div class="learner-statistics-field-empty" data-field-empty <?= $fields !== [] ? 'hidden' : ''; ?>>
                                 <p>Chưa có dữ liệu phân bổ lĩnh vực trong khoảng thời gian này.</p>
+                                <?php if (($facts['confirmed_experience_hours'] ?? 0) > 0): ?>
+                                    <button type="button" class="learner-btn learner-btn--outline" data-switch-period="all" style="margin-top: 10px;">
+                                        <?= learner_icon('chart', 16); ?> Xem phân bổ toàn bộ quá trình
+                                    </button>
+                                <?php endif; ?>
                             </div>
                         </section>
                     </div>

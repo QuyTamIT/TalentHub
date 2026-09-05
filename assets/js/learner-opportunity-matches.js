@@ -38,6 +38,16 @@
         return STATE_MAP[String(state || '')] || 'source-error';
     }
 
+    function isRecoverableGenerationState(payload) {
+        return ['provider_unavailable', 'invalid_response']
+            .includes(String(payload?.state || ''));
+    }
+
+    function isRetryableTransportError(error) {
+        return ['NETWORK_ERROR', 'REQUEST_TIMEOUT'].includes(String(error?.code || ''))
+            || [502, 503, 504].includes(Number(error?.status));
+    }
+
     function isSafeInternalProjectUrl(value) {
         if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return false;
         const pathOnly = value.split(/[?#]/, 1)[0];
@@ -146,7 +156,6 @@
         }
         const keyFactory = typeof createIdempotencyKey === 'function' ? createIdempotencyKey : defaultIdempotencyKey;
         let inFlight = null;
-        let idempotencyKey = '';
         let lastRenderablePayload = null;
 
         function renderResponse(response) {
@@ -194,16 +203,31 @@
                 view.render('source-error', { items: [] });
                 return Promise.resolve();
             }
-            if (!idempotencyKey) idempotencyKey = String(keyFactory() || '');
-            const requestKey = idempotencyKey;
             view.render('loading', { items: [] });
+            const request = async () => {
+                let lastError = null;
+                let requestKey = String(keyFactory() || '');
+                for (let attempt = 1; attempt <= 2; attempt += 1) {
+                    try {
+                        const response = await api.send('POST', ENDPOINT, {}, {
+                            idempotencyKey: requestKey,
+                            timeoutMs: 120000,
+                        });
+                        if (!isRecoverableGenerationState(response) || attempt === 2) return response;
+                        requestKey = String(keyFactory() || '');
+                    } catch (error) {
+                        lastError = error;
+                        if (attempt === 2 || !isRetryableTransportError(error)) throw error;
+                    }
+                }
+                throw lastError || new Error('Opportunity analysis did not complete.');
+            };
             inFlight = Promise.resolve()
-                .then(() => api.send('POST', ENDPOINT, {}, { idempotencyKey: requestKey, timeoutMs: 120000 }))
+                .then(request)
                 .then(renderResponse)
                 .catch(() => renderResponse({ state: 'provider_unavailable', items: [] }))
                 .finally(() => {
                     inFlight = null;
-                    if (idempotencyKey === requestKey) idempotencyKey = '';
                 });
             return inFlight;
         }
@@ -220,9 +244,19 @@
 
     function analysisList(label, values, tone) {
         const section = element('section', `learner-opportunity-ai-card__analysis-list is-${tone}`);
-        section.appendChild(element('h4', '', label));
+        const head = element('h4', '');
+        head.appendChild(element('span', 'learner-opportunity-ai-card__analysis-title', label));
+        if (Array.isArray(values) && values.length > 0) {
+            head.appendChild(element('span', 'learner-opportunity-ai-card__analysis-badge', `${values.length}`));
+        }
+        section.appendChild(head);
         const list = element('ul', '');
-        values.forEach((value) => list.appendChild(element('li', '', value)));
+        const items = Array.isArray(values) && values.length > 0 ? values : ['Không có ghi chú'];
+        items.forEach((value) => {
+            const item = element('li', '');
+            item.appendChild(element('span', 'learner-opportunity-ai-card__analysis-item-text', value));
+            list.appendChild(item);
+        });
         section.appendChild(list);
         return section;
     }
@@ -428,19 +462,32 @@
         return `opportunity-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
     }
 
-    function createOpportunityAiCollapse({ button, body } = {}) {
+    function createOpportunityAiCollapse({ button, body, root } = {}) {
         if (!button || !body) return null;
+        const targetRoot = root || button.closest('[data-opportunity-matches]');
         const expandedLabel = 'Thu gọn';
         const collapsedLabel = 'Mở rộng';
 
-        function apply(expanded) {
+        function apply(expanded, options = {}) {
+            const wasExpanded = button.getAttribute('aria-expanded') === 'true';
             button.setAttribute('aria-expanded', String(expanded));
             button.textContent = expanded ? expandedLabel : collapsedLabel;
             body.hidden = !expanded;
+            if (targetRoot) targetRoot.classList.toggle('is-collapsed', !expanded);
+
+            if (wasExpanded && !expanded && options.userInitiated && targetRoot) {
+                const headerHeight = parseInt(global.getComputedStyle?.(document.documentElement)?.getPropertyValue('--learner-header-height')) || 68;
+                const rect = targetRoot.getBoundingClientRect();
+                if (rect.top < headerHeight) {
+                    const targetY = (global.pageYOffset || global.scrollY || 0) + rect.top - headerHeight - 12;
+                    global.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
+                }
+            }
         }
 
         button.addEventListener('click', () => {
-            apply(button.getAttribute('aria-expanded') !== 'true');
+            const isCurrentlyExpanded = button.getAttribute('aria-expanded') === 'true';
+            apply(!isCurrentlyExpanded, { userInitiated: true });
         });
         apply(true);
         return { apply, button, body };
@@ -457,6 +504,7 @@
         createOpportunityAiCollapse({
             button: root.querySelector('[data-opportunity-ai-collapse]'),
             body: root.querySelector('[data-opportunity-ai-body]'),
+            root,
         });
         if (!api) {
             view.render('source-error');

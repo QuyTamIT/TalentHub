@@ -52,7 +52,10 @@ final class HttpRoadmapProvider implements RoadmapProvider
         if (!$this->config->enabled() || $this->config->apiUrl() === null || $this->config->apiKey() === null) {
             return RoadmapProviderResponse::failure('provider_disabled', null, 'config');
         }
-        if (!$this->circuitBreaker->allow()) return RoadmapProviderResponse::failure('provider_circuit_open', null, 'health');
+        if (!$this->circuitBreaker->allow()
+            && !ProviderRuntimeMode::alwaysAttempt($this->config->environment())) {
+            return RoadmapProviderResponse::failure('provider_circuit_open', null, 'health');
+        }
         try {
             $body = json_encode($this->transportPayload($request), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         } catch (JsonException) {
@@ -351,6 +354,11 @@ final class HttpRoadmapProvider implements RoadmapProvider
         return null;
     }
 
+    public static function connectTimeoutSeconds(int $requestTimeoutSeconds): int
+    {
+        return min(15, max(1, $requestTimeoutSeconds));
+    }
+
     /** @param array<string,string> $headers @return array{status:int,headers:array<string,string>,body:string} */
     private function defaultHttpTransport(string $url, array $headers, string $body, int $timeout): array
     {
@@ -360,16 +368,21 @@ final class HttpRoadmapProvider implements RoadmapProvider
         $formattedHeaders = [];
         foreach ($headers as $key => $value) $formattedHeaders[] = "{$key}: {$value}";
         $responseHeaders = [];
-        curl_setopt_array($ch, [
+        $options = [
             CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body, CURLOPT_HTTPHEADER => $formattedHeaders,
-            CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => min(2, $timeout),
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => self::connectTimeoutSeconds($timeout),
             CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
             CURLOPT_HEADERFUNCTION => static function ($curl, string $header) use (&$responseHeaders): int {
                 $length = strlen($header); $parts = explode(':', $header, 2);
                 if (count($parts) === 2) $responseHeaders[trim($parts[0])] = trim($parts[1]);
                 return $length;
             },
-        ]);
+        ];
+        if (PHP_OS_FAMILY === 'Windows' && defined('CURLSSLOPT_NATIVE_CA')) {
+            $options[CURLOPT_SSL_OPTIONS] = CURLSSLOPT_NATIVE_CA;
+        }
+        curl_setopt_array($ch, $options);
         $responseBody = curl_exec($ch);
         if ($responseBody === false) { $error = curl_error($ch); curl_close($ch); throw new \RuntimeException('HTTP request failed: ' . $error); }
         $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);

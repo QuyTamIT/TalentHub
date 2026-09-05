@@ -10,6 +10,7 @@ use TalentHub\Learner\Ai\Persistence\DatabaseAiRefreshStateRepository;
 use TalentHub\Learner\Ai\Queue\AiDataOutboxConsumer;
 use TalentHub\Learner\Ai\Queue\AiRefreshDispatcher;
 use TalentHub\Learner\Ai\Queue\AiRefreshJob;
+use TalentHub\Learner\Ai\Queue\AiRefreshResultPolicy;
 use TalentHub\Learner\Ai\Queue\AiRefreshWorker;
 use TalentHub\Learner\Ai\Queue\DatabaseAiDataOutboxRepository;
 use TalentHub\Learner\Ai\Queue\DatabaseAiRefreshJobRepository;
@@ -64,7 +65,7 @@ $profileRefresh=new ProfileAnalysisRefreshService(
   elseif($job->capability==='roadmap'){$result=$context->roadmapService($job->studentId)->generate($job->studentId,'worker',$key,true,$leaseGuard,true);}
   elseif($job->capability==='profile_analysis'){$result=$profileRefresh->refresh($job->studentId,$job->snapshotHash,$job->jobKey,$leaseGuard);}
   else{throw new RuntimeException('capability_refresh_unavailable');}
-  if(($result['state']??null)!=='ready_model')throw new RuntimeException('capability_refresh_unavailable');
+  AiRefreshResultPolicy::assertSuccessful($result);
   if(!$leaseGuard())throw new RuntimeException('refresh_lease_lost');
   if(!hash_equals($job->snapshotHash,$context->aiSnapshotHash($job->studentId,$job->capability)))throw new RuntimeException('superseded_snapshot');
  } catch(Throwable $exception) { if($leaseGuard()){$retry=$exception instanceof ProviderRetryAfterException?$exception->retryAfterSeconds():60;$next=gmdate('Y-m-d H:i:s',time()+$retry);if($job->capability==='profile_analysis')$profiles->markFailed($job->studentId,$exception instanceof ProviderRetryAfterException?$exception->safeCategory():'refresh_failed',$next);else $refreshState->failed($job->studentId,$job->capability,$job->snapshotHash,$job->jobKey,$exception instanceof ProviderRetryAfterException?$exception->safeCategory():'refresh_failed',$next);}throw $exception; }

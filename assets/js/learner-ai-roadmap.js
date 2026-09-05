@@ -2,7 +2,7 @@
 (function initLearnerAiRoadmap(global) {
     'use strict';
 
-    const READY_STATES = new Set(['ready-model', 'stale-model']);
+    const READY_STATES = new Set(['ready-model', 'stale-model', 'ready-rule']);
     const PROCESSING_STEPS = [
         'Chuẩn bị dữ liệu năng lực',
         'Gemini đang phân tích',
@@ -89,9 +89,20 @@
         if (state === 'data_insufficient') return 'insufficient-data';
         if (state === 'provider_unavailable') return 'source-error';
         if (state === 'ready_model') return 'ready-model';
+        if (state === 'ready_rule' || state === 'fallback_rule') return 'ready-rule';
         if (state === 'roadmap_customized') return 'ready-model';
         if (state === 'stale_model') return 'stale-model';
         return 'source-error';
+    }
+
+    function isRecoverableGenerationState(payload) {
+        return ['provider_unavailable', 'invalid_response', 'source_unavailable']
+            .includes(String(payload?.state || ''));
+    }
+
+    function isRetryableTransportError(error) {
+        return ['NETWORK_ERROR', 'REQUEST_TIMEOUT'].includes(String(error?.code || ''))
+            || [502, 503, 504].includes(Number(error?.status));
     }
 
     function text(value, fallback = '') {
@@ -331,6 +342,7 @@
         let lastReadyPayload = null;
         let pendingAttempt = 0;
         let pendingHandle = null;
+        let lastGenerationAction = 'refresh';
         const pendingTaskRequests = new Map();
         const pendingCompletionSchedules = new Map();
 
@@ -463,22 +475,42 @@
         function generate(action = 'generate') {
             if (generation !== null) return generation;
             const safeAction = action === 'refresh' ? 'refresh' : 'generate';
+            lastGenerationAction = safeAction;
             const preserveReady = lastReadyPayload !== null;
             view.render('processing', {
                 mode: preserveReady ? 'refresh-generation' : 'first-generation',
                 preserveReady,
             });
-            generation = Promise.resolve(api.send(
-                'POST', '/ai-roadmap.php', { action: safeAction }, {
-                    idempotencyKey: createIdempotencyKey(),
-                    // Gemini có thể dùng hai lần thử, mỗi lần tối đa 30 giây.
-                    // Timeout phía trình duyệt phải dài hơn toàn bộ vòng đời backend.
-                    timeoutMs: 90000,
-                },
-            )).then(render)
+            const request = async () => {
+                let lastError = null;
+                let requestKey = createIdempotencyKey();
+                for (let attempt = 1; attempt <= 2; attempt += 1) {
+                    try {
+                        const response = await api.send(
+                            'POST', '/ai-roadmap.php', { action: safeAction }, {
+                                idempotencyKey: requestKey,
+                                // Gemini có thể dùng hai lần thử, mỗi lần tối đa 30 giây.
+                                // Timeout phía trình duyệt phải dài hơn toàn bộ vòng đời backend.
+                                timeoutMs: 90000,
+                            },
+                        );
+                        if (!isRecoverableGenerationState(response) || attempt === 2) return response;
+                        requestKey = createIdempotencyKey();
+                    } catch (error) {
+                        lastError = error;
+                        if (attempt === 2 || !isRetryableTransportError(error)) throw error;
+                    }
+                }
+                throw lastError || new Error('Roadmap analysis did not complete.');
+            };
+            generation = Promise.resolve().then(request).then(render)
                 .catch((error) => render({ state: 'source_unavailable', message: error?.message }))
                 .finally(() => { generation = null; });
             return generation;
+        }
+
+        function retry() {
+            return generate(lastGenerationAction);
         }
 
         function dispose() {
@@ -488,7 +520,7 @@
             view.dispose?.();
         }
 
-        return { load, loadVersion, generate, retry: load, updateTask, submitFeedback, render, dispose };
+        return { load, loadVersion, generate, retry, updateTask, submitFeedback, render, dispose };
     }
 
     function createDomView(root, options = {}) {
@@ -660,6 +692,7 @@
                 processing: 'AI đang xử lý và xây dựng lộ trình 90 ngày.',
                 'consent-required': 'Cần quyền dữ liệu để tạo lộ trình.', 'insufficient-data': 'Chưa đủ dữ liệu để tạo lộ trình.',
                 'source-error': 'Chưa thể tải lộ trình.', 'ready-model': 'Lộ trình từ AI đã sẵn sàng.',
+                'ready-rule': 'Lộ trình dự phòng theo quy tắc đã sẵn sàng.',
                 'stale-model': 'Đang hiển thị lộ trình AI gần nhất trong khi hệ thống cập nhật.',
             }[state] || 'Trạng thái lộ trình đã thay đổi.';
         }
@@ -729,7 +762,9 @@
 
         function renderReady(model, state) {
             renderedModel = model;
-            set(nodes.summaryLabel, state === 'stale-model' ? 'Bản AI gần nhất' : 'Tóm tắt từ AI');
+            set(nodes.summaryLabel, state === 'ready-rule'
+                ? 'Lộ trình định hướng theo quy tắc'
+                : state === 'stale-model' ? 'Bản AI gần nhất' : 'Tóm tắt từ AI');
             set(nodes.summary, text(model.executive_summary, 'Chưa có nội dung tóm tắt.'));
             set(nodes.evidenceTotal, `${model.evidenceTotal} nguồn dữ liệu đã cho phép`);
             set(nodes.confidence, model.confidenceLabel);

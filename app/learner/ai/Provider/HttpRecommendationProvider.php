@@ -51,7 +51,10 @@ final class HttpRecommendationProvider implements RecommendationProvider
         if (!$this->config->enabled() || $this->config->apiUrl() === null || $this->config->apiKey() === null) {
             return ProviderResponse::failure('provider_disabled', null, 'config');
         }
-        if (!$this->circuitBreaker->allow()) return ProviderResponse::failure('provider_circuit_open', null, 'health');
+        if (!$this->circuitBreaker->allow()
+            && !ProviderRuntimeMode::alwaysAttempt($this->config->environment())) {
+            return ProviderResponse::failure('provider_circuit_open', null, 'health');
+        }
         try {
             $payload = $this->transportPayload($request);
             $body = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -156,7 +159,7 @@ final class HttpRecommendationProvider implements RecommendationProvider
 
         $responseTextFormat = ['mimeType' => 'APPLICATION_JSON'];
         if ($schema !== null) {
-            $responseTextFormat['schema'] = $schema;
+            $responseTextFormat['schema'] = $this->geminiSchema($schema);
         }
 
         return [
@@ -178,6 +181,54 @@ final class HttpRecommendationProvider implements RecommendationProvider
                 'maxOutputTokens' => 8192,
             ],
         ];
+    }
+
+    /**
+     * Gemini accepts only a subset of JSON Schema. The complete learner
+     * contract remains in the prompt and is enforced again server-side; this
+     * transport copy contains only keywords accepted by Gemini.
+     *
+     * @return array<string,mixed>|list<mixed>|string|int|float|bool|null
+     */
+    private function geminiSchema(mixed $node): mixed
+    {
+        if (!is_array($node)) return $node;
+        if (array_is_list($node)) {
+            return array_map(fn (mixed $value): mixed => $this->geminiSchema($value), $node);
+        }
+
+        $result = [];
+        $supported = [
+            '$id', '$defs', '$ref', '$anchor',
+            'type', 'format', 'title', 'description', 'enum',
+            'items', 'prefixItems', 'minItems', 'maxItems',
+            'minimum', 'maximum', 'anyOf',
+            'properties', 'additionalProperties', 'required',
+        ];
+        foreach ($node as $key => $value) {
+            if (!is_string($key)) continue;
+            if ($key === 'const' && (is_string($value) || is_int($value) || is_float($value) || is_bool($value) || $value === null)) {
+                $result['enum'] = [$value];
+                continue;
+            }
+            if ($key === 'oneOf' && is_array($value) && array_is_list($value)) {
+                $result['anyOf'] = $this->geminiSchema($value);
+                continue;
+            }
+            if (!in_array($key, $supported, true)) continue;
+            if (($key === 'properties' || $key === '$defs') && is_array($value) && !array_is_list($value)) {
+                $children = [];
+                foreach ($value as $name => $child) {
+                    if (is_string($name) && is_array($child)) {
+                        $children[$name] = $this->geminiSchema($child);
+                    }
+                }
+                $result[$key] = $children;
+                continue;
+            }
+            $result[$key] = $this->geminiSchema($value);
+        }
+        return $result;
     }
 
     private function success(mixed $body): ProviderResponse
@@ -211,11 +262,23 @@ final class HttpRecommendationProvider implements RecommendationProvider
         }
 
         // Gemini native response envelope: {"candidates": [{"content": {"parts": [{"text": "..."}]}}]}
-        if (isset($decoded['candidates'][0]['content']['parts'][0]['text']) && is_string($decoded['candidates'][0]['content']['parts'][0]['text'])) {
-            return $this->parseContentString($decoded['candidates'][0]['content']['parts'][0]['text']);
-        }
+        $geminiContent = $this->geminiContent($decoded);
+        if ($geminiContent !== null) return $this->parseContentString($geminiContent);
 
         return ProviderResponse::failure('malformed_response', null, '2xx');
+    }
+
+    /** @param array<string,mixed> $decoded */
+    private function geminiContent(array $decoded): ?string
+    {
+        $parts = $decoded['candidates'][0]['content']['parts'] ?? null;
+        if (!is_array($parts)) return null;
+        $chunks = [];
+        foreach ($parts as $part) {
+            if (!is_array($part) || ($part['thought'] ?? false) === true || !is_string($part['text'] ?? null)) continue;
+            $chunks[] = $part['text'];
+        }
+        return $chunks === [] ? null : implode('', $chunks);
     }
 
     private function parseContentString(string $content): ProviderResponse
@@ -274,7 +337,7 @@ final class HttpRecommendationProvider implements RecommendationProvider
             $formattedHeaders[] = "{$k}: {$v}";
         }
         $responseHeaders = [];
-        curl_setopt_array($ch, [
+        $options = [
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $body,
             CURLOPT_HTTPHEADER => $formattedHeaders,
@@ -283,6 +346,7 @@ final class HttpRecommendationProvider implements RecommendationProvider
             CURLOPT_CONNECTTIMEOUT => min(15, max(5, $timeout)),
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
             CURLOPT_HEADERFUNCTION => static function ($curl, string $header) use (&$responseHeaders): int {
                 $len = strlen($header);
                 $parts = explode(':', $header, 2);
@@ -291,7 +355,11 @@ final class HttpRecommendationProvider implements RecommendationProvider
                 }
                 return $len;
             },
-        ]);
+        ];
+        if (PHP_OS_FAMILY === 'Windows' && defined('CURLSSLOPT_NATIVE_CA')) {
+            $options[CURLOPT_SSL_OPTIONS] = CURLSSLOPT_NATIVE_CA;
+        }
+        curl_setopt_array($ch, $options);
         $responseBody = curl_exec($ch);
         if ($responseBody === false) {
             $err = curl_error($ch);

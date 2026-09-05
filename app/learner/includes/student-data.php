@@ -64,10 +64,7 @@ if ($useMock) {
     learner_configure_authenticated_student_context($context);
     $authenticatedStudentId = learner_current_student_id();
 
-    $passportRepo = learner_repository_factory()->talentPassport();
-    $rawPassport = $passportRepo->aggregateForStudent($authenticatedStudentId);
-    $talentPassport = \TalentHub\Learner\Data\ReadModel\TalentPassportReadModel::fromAggregate($rawPassport);
-    $GLOBALS['learner_talent_passport'] = $talentPassport;
+    // Talent passport aggregation is now lazy-loaded on demand via learner_talent_passport() to optimize page TTFB
 }
 $learnerNav = [
     ['label' => 'Tổng quan', 'route' => '/app/learner/index.php', 'icon' => 'grid', 'implemented' => true],
@@ -111,12 +108,25 @@ $level = [
 
 $isDatabaseMode = !$useMock && learner_repository_factory()->source() === 'database';
 $aiCapabilityProfile = null;
+$deferTalentPassport = ($learnerDeferTalentPassport ?? false) === true;
+$tp = \TalentHub\Learner\Data\ReadModel\TalentPassportReadModel::fromAggregate([]);
 
-if ($isDatabaseMode) {
-    $tp = $GLOBALS['learner_talent_passport'] ?? \TalentHub\Learner\Data\ReadModel\TalentPassportReadModel::fromAggregate(
-        learner_repository_factory()->talentPassport()->aggregateForStudent((string) ($student['id'] ?? learner_current_student_id()))
-    );
+/** @return array<string,mixed> */
+function learner_talent_passport(): array
+{
+    if (isset($GLOBALS['learner_talent_passport']) && is_array($GLOBALS['learner_talent_passport'])) {
+        return $GLOBALS['learner_talent_passport'];
+    }
+    $authenticatedStudentId = learner_current_student_id();
+    $passportRepo = learner_repository_factory()->talentPassport();
+    $rawPassport = $passportRepo->aggregateForStudent($authenticatedStudentId);
+    $tp = \TalentHub\Learner\Data\ReadModel\TalentPassportReadModel::fromAggregate($rawPassport);
     $GLOBALS['learner_talent_passport'] = $tp;
+    return $tp;
+}
+
+if ($isDatabaseMode && !$deferTalentPassport) {
+    $tp = learner_talent_passport();
     $aiCapabilityProfile = is_array($tp['ai_capability_profile'] ?? null) ? $tp['ai_capability_profile'] : null;
     if (!empty($tp['student']['full_name'])) {
         $student['name'] = $tp['student']['full_name'];
@@ -196,6 +206,17 @@ if ($isDatabaseMode) {
     $certificates = $tp['certificates'];
     $projects = $tp['projects'];
     $learnerBadges = $badgeOverview['badges'] ?? $tp['badges'];
+} elseif ($isDatabaseMode) {
+    $dashboardKpis = [
+        ['id' => 'competency', 'label' => 'Điểm năng lực', 'value' => 'Chưa tải', 'icon' => 'star', 'tone' => 'primary'],
+        ['id' => 'experience', 'label' => 'Giờ trải nghiệm', 'value' => 'Chưa tải', 'icon' => 'clock', 'tone' => 'secondary'],
+        ['id' => 'badges', 'label' => 'Huy hiệu đạt được', 'value' => 'Chưa tải', 'icon' => 'trophy', 'tone' => 'success'],
+    ];
+    $profileKpis = [];
+    $skills = [];
+    $certificates = [];
+    $projects = [];
+    $learnerBadges = [];
 } else {
     $dashboardKpis = [
         ['id' => 'competency', 'label' => 'Điểm năng lực', 'value' => '92/100', 'icon' => 'star', 'tone' => 'primary'],

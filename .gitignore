@@ -4,6 +4,7 @@
 
 /vendor/
 /node_modules/
+/.chrome-test-profile/
 
 .DS_Store
 Thumbs.db
@@ -81,6 +82,7 @@ Thumbs.db
 /.agents/
 /.superpowers/
 /.claude/
+/.gemini/
 /.qwen/
 /.codex/
 /.codex-*/

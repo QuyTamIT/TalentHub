@@ -11,6 +11,8 @@
         no_matching_jobs: 'no-matches',
         pending: 'loading',
         ready_model: 'ready-model',
+        ready_rule: 'ready-model',
+        fallback_rule: 'ready-model',
         stale_model: 'stale-model',
         provider_unavailable: 'source-error',
         rate_limited: 'source-error',

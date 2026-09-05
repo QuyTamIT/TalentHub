@@ -26,6 +26,34 @@ final class AiAvailabilityPolicy
     ): AiAvailabilityDecision {
         $requiredScopes ??= ConsentDecision::REQUIRED_SCOPES;
         $consentReady = $this->permits($allowedScopes, $requiredScopes);
+
+        // Local is the interactive product/demo runtime. Once AI is configured,
+        // consent scopes and a current snapshot are the only prerequisites: an
+        // explicit learner action must not be stopped by rollout, pilot,
+        // shadow, approval, bucket, or rule-fallback gates.
+        if ($config->environment() === 'local') {
+            $canShowModel = $config->enabled() && $consentReady && $snapshotCurrent;
+            $canServeActiveModel = $hasActiveModel && $canShowModel;
+            $canServeStaleModel = $hasActiveModel && $config->enabled() && $consentReady && !$snapshotCurrent;
+            [$state, $reason] = match (true) {
+                $canServeActiveModel => ['ready_model', 'active_model_ready'],
+                $canServeStaleModel => ['stale_model', 'snapshot_stale'],
+                $canShowModel => ['pending', 'local_refresh_allowed'],
+                !$config->enabled() => ['ai_unavailable', 'ai_disabled'],
+                !$consentReady => ['ai_unavailable', 'consent_missing'],
+                default => ['ai_unavailable', 'snapshot_stale'],
+            };
+            return new AiAvailabilityDecision(
+                $state,
+                $reason,
+                $canShowModel,
+                false,
+                $canShowModel,
+                $canServeActiveModel,
+                $canServeStaleModel,
+            );
+        }
+
         $assigned = $this->isAssigned($studentId, $config);
         $approvalReady = is_string($config->pilotApprovalReference())
             && trim((string) $config->pilotApprovalReference()) !== '';

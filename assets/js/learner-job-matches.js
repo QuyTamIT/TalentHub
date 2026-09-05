@@ -15,6 +15,13 @@
     function integerScore(value) { const score = Number(value); return Number.isInteger(score) && score >= 0 && score <= 100 ? score : null; }
     function boundedCount(value) { const count = Number(value); return Number.isInteger(count) && count >= 0 && count <= 20 ? count : null; }
     function mapJobMatchState(value) { return STATE_MAP[String(value || '')] || 'source-error'; }
+    function isRecoverableGenerationState(payload) {
+        return ['provider_unavailable', 'invalid_response'].includes(String(payload?.state || ''));
+    }
+    function isRetryableTransportError(error) {
+        return ['NETWORK_ERROR', 'REQUEST_TIMEOUT'].includes(String(error?.code || ''))
+            || [502, 503, 504].includes(Number(error?.status));
+    }
     function jobMatchStatusLabel(state, payload = {}) {
         if (state === 'ready-model') return 'Phân tích vừa xong';
         if (state === 'stale-model') return 'Đang hiển thị kết quả gần nhất';
@@ -186,7 +193,24 @@
             generate() {
                 if (generation) return generation;
                 view.render('loading', { initial: false });
-                generation = api.send('POST', ENDPOINT, {}, { idempotencyKey: createIdempotencyKey(), timeoutMs: 90000 })
+                const request = async () => {
+                    let lastError = null;
+                    let requestKey = createIdempotencyKey();
+                    for (let attempt = 1; attempt <= 2; attempt += 1) {
+                        try {
+                            const response = await api.send('POST', ENDPOINT, {}, {
+                                idempotencyKey: requestKey, timeoutMs: 90000,
+                            });
+                            if (!isRecoverableGenerationState(response) || attempt === 2) return response;
+                            requestKey = createIdempotencyKey();
+                        } catch (error) {
+                            lastError = error;
+                            if (attempt === 2 || !isRetryableTransportError(error)) throw error;
+                        }
+                    }
+                    throw lastError || new Error('Job analysis did not complete.');
+                };
+                generation = Promise.resolve().then(request)
                     .then(renderPayload).catch(() => { view.render('source-error', {}); return null; }).finally(() => { generation = null; });
                 return generation;
             },
@@ -205,6 +229,60 @@
         function hideAll() { Object.values(panels).forEach((item) => { if (item) item.hidden = true; }); progress.hidden = true; list.hidden = true; if (nearMatch) nearMatch.hidden = true; }
         function stopProgress() { if (timer !== null) global.clearInterval(timer); timer = null; }
         function updateProgress() { const snapshot = jobProgressAt(Date.now() - started); progressPct.textContent = `${snapshot.percent}%`; progressBar.style.width = `${snapshot.percent}%`; progress.querySelector('[role="progressbar"]')?.setAttribute('aria-valuenow', String(snapshot.percent)); progressText.textContent = `Đang ${snapshot.stages[snapshot.activeIndex].label.toLowerCase()}...`; Array.from(stageRoot.children).forEach((item, index) => { item.className = snapshot.stages[index]?.status === 'active' ? 'is-active' : snapshot.stages[index]?.status === 'done' ? 'is-done' : ''; }); }
+        function renderFactStrengthList(items) {
+            const strengthList = node('ul');
+            items.forEach((value) => {
+                const li = node('li');
+                const raw = String(value || '').trim();
+                const match = raw.match(/^(.+?)\s*[—–-]\s*(\d+\/\d+)\s*·\s*(.+)$/);
+                if (match) {
+                    const title = node('span', 'learner-job-fact-title', match[1]);
+                    const meta = node('span', 'learner-job-fact-meta');
+                    meta.append(node('span', 'learner-job-fact-score', match[2]), node('span', 'learner-job-fact-status', match[3]));
+                    li.append(title, meta);
+                } else {
+                    li.append(node('span', 'learner-job-fact-title', raw));
+                }
+                strengthList.appendChild(li);
+            });
+            return strengthList;
+        }
+        function renderFactGapList(position) {
+            const gapList = node('ul');
+            const gaps = position.gap_explanations && position.gap_explanations.length > 0
+                ? position.gap_explanations.map((item) => ({ skill: item.skill, explanation: item.explanation }))
+                : (position.gaps && position.gaps.length > 0
+                    ? position.gaps.map((skill) => ({ skill, explanation: '' }))
+                    : []);
+            if (gaps.length === 0) {
+                const li = node('li');
+                li.appendChild(node('span', 'learner-job-gap-desc', 'Không có khoảng kỹ năng đáng kể.'));
+                gapList.appendChild(li);
+                return gapList;
+            }
+            gaps.forEach((item) => {
+                const li = node('li');
+                if (item.skill && item.explanation) {
+                    li.append(
+                        node('strong', 'learner-job-gap-title', item.skill),
+                        node('span', 'learner-job-gap-desc', item.explanation)
+                    );
+                } else {
+                    li.append(node('span', 'learner-job-gap-desc', item.skill || item.explanation));
+                }
+                gapList.appendChild(li);
+            });
+            return gapList;
+        }
+        function renderGuidanceBox(position) {
+            const progressMessage = jobStrengthProgressMessage(position);
+            if (!progressMessage) return null;
+            const guidance = node('div', 'learner-job-strength-guidance');
+            const guidanceHeader = node('div', 'learner-job-strength-guidance__header');
+            guidanceHeader.append(node('span', 'learner-job-strength-guidance__icon', '💡'), node('strong', '', 'Khuyến nghị định hướng phát triển năng lực'));
+            guidance.append(guidanceHeader, node('p', '', progressMessage));
+            return guidance;
+        }
         function renderResults(payload) {
             clear(list);
             for (const group of payload.enterprise_groups) {
@@ -219,9 +297,37 @@
                     const score = node('div', `learner-job-score ${position.fit_class}`); score.append(node('strong', '', String(position.match_score)), node('span', '', '/100')); top.append(identity, score); card.appendChild(top);
                     const track = node('div', 'learner-job-score__track'); const fill = node('span', ''); fill.style.width = `${position.match_score}%`; track.appendChild(fill); card.appendChild(track);
                     const narrative = node('div', 'learner-job-position__analysis'); narrative.append(node('strong', '', 'Gemini phân tích'), node('p', '', position.analysis)); card.appendChild(narrative);
-                    const columns = node('div', 'learner-job-position__columns');
-                    const strengths = node('div', 'learner-job-position__facts is-strength'); strengths.appendChild(node('h5', '', 'Điểm mạnh phù hợp')); const strengthList = node('ul'); jobStrengthDisplayItems(position.strengths, position.strength_details, position).forEach((value) => strengthList.appendChild(node('li', '', value))); strengths.appendChild(strengthList); const progressMessage = jobStrengthProgressMessage(position); if (progressMessage) strengths.appendChild(node('p', 'learner-job-strength-guidance', progressMessage));
-                    const gaps = node('div', 'learner-job-position__facts is-gap'); gaps.appendChild(node('h5', '', 'Khoảng cần cải thiện')); const gapList = node('ul'); (position.gap_explanations.length ? position.gap_explanations.map((item) => `${item.skill}: ${item.explanation}`) : position.gaps).forEach((value) => gapList.appendChild(node('li', '', value))); if (gapList.children.length === 0) gapList.appendChild(node('li', '', 'Không có khoảng kỹ năng đáng kể.')); gaps.appendChild(gapList); columns.append(strengths, gaps); card.appendChild(columns);
+                    const isNearMatch = false;
+                    const hasMetSkills = (Array.isArray(position.strength_details) && position.strength_details.length > 0)
+                        || (Array.isArray(position.strengths) && position.strengths.length > 0);
+
+                    if (!hasMetSkills) {
+                        const notice = node('div', 'learner-job-strength-notice');
+                        const noticeHeader = node('div', 'learner-job-strength-notice__header');
+                        noticeHeader.append(node('span', 'learner-job-strength-notice__icon', '🎯'), node('strong', '', 'Năng lực đã có'));
+                        notice.append(noticeHeader, node('p', '', emptyStrengthGuidance(position)));
+                        card.appendChild(notice);
+
+                        const gaps = node('div', 'learner-job-position__facts is-gap is-full-width');
+                        const heading = isNearMatch ? 'Nguyên nhân chưa phù hợp' : 'Khoảng cần cải thiện';
+                        gaps.appendChild(node('h5', '', heading));
+                        gaps.appendChild(renderFactGapList(position));
+                        card.appendChild(gaps);
+                    } else {
+                        const columns = node('div', 'learner-job-position__columns');
+                        const strengthsHeading = isNearMatch ? 'Năng lực đã có' : 'Điểm mạnh phù hợp';
+                        const gapsHeading = isNearMatch ? 'Nguyên nhân chưa phù hợp' : 'Khoảng cần cải thiện';
+                        const strengths = node('div', 'learner-job-position__facts is-strength');
+                        strengths.appendChild(node('h5', '', strengthsHeading));
+                        strengths.appendChild(renderFactStrengthList(jobStrengthDisplayItems(position.strengths, position.strength_details, position)));
+                        const gaps = node('div', 'learner-job-position__facts is-gap');
+                        gaps.appendChild(node('h5', '', gapsHeading));
+                        gaps.appendChild(renderFactGapList(position));
+                        columns.append(strengths, gaps);
+                        card.appendChild(columns);
+                        const guidance = renderGuidanceBox(position);
+                        if (guidance) card.appendChild(guidance);
+                    }
                     const actions = node('div', 'learner-job-position__actions'); const link = node('a', 'learner-btn learner-btn--primary', 'Xem chi tiết vị trí'); link.href = position.url; actions.appendChild(link); card.appendChild(actions); positions.appendChild(card);
                 }
                 article.appendChild(positions); list.appendChild(article);
@@ -239,25 +345,77 @@
             const score = node('div', 'learner-job-score is-low'); score.append(node('strong', '', String(position.match_score)), node('span', '', '/100')); top.append(identity, score); card.appendChild(top);
             const track = node('div', 'learner-job-score__track is-low'); const fill = node('span'); fill.style.width = `${position.match_score}%`; track.appendChild(fill); card.appendChild(track);
             const narrative = node('div', 'learner-job-position__analysis is-low'); narrative.append(node('strong', '', 'Gemini phân tích vì sao chưa phù hợp'), node('p', '', position.analysis)); card.appendChild(narrative);
-            const columns = node('div', 'learner-job-position__columns');
-            const strengths = node('div', 'learner-job-position__facts is-strength'); strengths.appendChild(node('h5', '', 'Năng lực đã có')); const strengthList = node('ul'); jobStrengthDisplayItems(position.strengths, position.strength_details, position).forEach((value) => strengthList.appendChild(node('li', '', value))); strengths.appendChild(strengthList); const progressMessage = jobStrengthProgressMessage(position); if (progressMessage) strengths.appendChild(node('p', 'learner-job-strength-guidance', progressMessage));
-            const gaps = node('div', 'learner-job-position__facts is-gap'); gaps.appendChild(node('h5', '', 'Nguyên nhân chưa phù hợp')); const gapList = node('ul'); (position.gap_explanations.length ? position.gap_explanations.map((item) => `${item.skill}: ${item.explanation}`) : position.gaps).forEach((value) => gapList.appendChild(node('li', '', value))); gaps.appendChild(gapList); columns.append(strengths, gaps); card.appendChild(columns);
+            const isNearMatch = true;
+            const hasMetSkills = (Array.isArray(position.strength_details) && position.strength_details.length > 0)
+                || (Array.isArray(position.strengths) && position.strengths.length > 0);
+
+            if (!hasMetSkills) {
+                const notice = node('div', 'learner-job-strength-notice');
+                const noticeHeader = node('div', 'learner-job-strength-notice__header');
+                noticeHeader.append(node('span', 'learner-job-strength-notice__icon', '🎯'), node('strong', '', 'Năng lực đã có'));
+                notice.append(noticeHeader, node('p', '', emptyStrengthGuidance(position)));
+                card.appendChild(notice);
+
+                const gaps = node('div', 'learner-job-position__facts is-gap is-full-width');
+                const heading = isNearMatch ? 'Nguyên nhân chưa phù hợp' : 'Khoảng cần cải thiện';
+                gaps.appendChild(node('h5', '', heading));
+                gaps.appendChild(renderFactGapList(position));
+                card.appendChild(gaps);
+            } else {
+                const columns = node('div', 'learner-job-position__columns');
+                const strengthsHeading = isNearMatch ? 'Năng lực đã có' : 'Điểm mạnh phù hợp';
+                const gapsHeading = isNearMatch ? 'Nguyên nhân chưa phù hợp' : 'Khoảng cần cải thiện';
+                const strengths = node('div', 'learner-job-position__facts is-strength');
+                strengths.appendChild(node('h5', '', strengthsHeading));
+                strengths.appendChild(renderFactStrengthList(jobStrengthDisplayItems(position.strengths, position.strength_details, position)));
+                const gaps = node('div', 'learner-job-position__facts is-gap');
+                gaps.appendChild(node('h5', '', gapsHeading));
+                gaps.appendChild(renderFactGapList(position));
+                columns.append(strengths, gaps);
+                card.appendChild(columns);
+                const guidance = renderGuidanceBox(position);
+                if (guidance) card.appendChild(guidance);
+            }
             const actions = node('div', 'learner-job-position__actions'); const detail = node('a', 'learner-btn learner-btn--outline', 'Xem chi tiết vị trí'); detail.href = position.url; const skillGap = node('a', 'learner-btn learner-btn--primary', 'Xem Skill Gap và hoạt động'); skillGap.href = 'ai-recommendations.php'; actions.append(detail, skillGap); card.appendChild(actions);
             article.appendChild(card); nearMatch.appendChild(article); nearMatch.hidden = false;
         }
         return { render(state, payload = {}) { stopProgress(); hideAll(); root.dataset.state = state; status.textContent = jobMatchStatusLabel(state, payload); if (state === 'loading') { progress.hidden = false; started = Date.now(); updateProgress(); if (!payload.initial) timer = global.setInterval(updateProgress, 1000); return; } if (state === 'ready-model' || state === 'stale-model') { renderResults(payload); return; } if (state === 'no-matches' && payload.near_match) { renderNearMatch(payload.near_match); return; } const panel = panels[state] || panels['source-error']; if (panel) panel.hidden = false; } };
     }
 
+    function createJobAiCollapse({ button, body, root } = {}) {
+        if (!button || !body) return null;
+        const targetRoot = root || button.closest('[data-job-matches]');
+
+        function apply(expanded) {
+            button.setAttribute('aria-expanded', String(expanded));
+            button.textContent = expanded ? 'Thu gọn' : 'Mở rộng';
+            body.hidden = !expanded;
+            if (targetRoot) targetRoot.classList.toggle('is-collapsed', !expanded);
+        }
+
+        button.addEventListener('click', () => {
+            apply(button.getAttribute('aria-expanded') !== 'true');
+        });
+        apply(true);
+        return { apply, button, body };
+    }
+
     function defaultKey() { return `job-ui-${global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`}`; }
     function mountJobMatches() {
         const root = global.document?.querySelector('[data-job-matches]'); if (!root || root.__jobController) return root?.__jobController || null;
-        const api = global.TalentHubLearnerClient; const view = createJobMatchView(root); if (!api) { view.render('source-error'); return null; }
+        const api = global.TalentHubLearnerClient; const view = createJobMatchView(root);
+        createJobAiCollapse({
+            button: root.querySelector('[data-job-ai-collapse]'),
+            body: root.querySelector('[data-job-ai-body]'),
+            root,
+        });
+        if (!api) { view.render('source-error'); return null; }
         const controller = createJobMatchController({ api, view, createIdempotencyKey: defaultKey });
         global.document.querySelectorAll('[data-job-ai-trigger]').forEach((button) => button.addEventListener('click', () => { button.disabled = true; controller.generate().finally(() => { button.disabled = false; }); }));
         controller.load(); root.__jobController = controller; return controller;
     }
 
-    const exported = { mapJobMatchState, jobMatchStatusLabel, normalizeJobMatchPayload, isSafeInternshipUrl, jobProgressAt, jobStrengthDisplayItems, jobStrengthProgressMessage, createJobMatchController, createJobMatchView, mountJobMatches };
+    const exported = { mapJobMatchState, jobMatchStatusLabel, normalizeJobMatchPayload, isSafeInternshipUrl, jobProgressAt, jobStrengthDisplayItems, jobStrengthProgressMessage, createJobMatchController, createJobMatchView, createJobAiCollapse, mountJobMatches };
     if (typeof module !== 'undefined' && module.exports) module.exports = exported;
     global.TalentHubJobMatches = exported;
     if (global.document) { if (global.document.readyState === 'loading') global.document.addEventListener('DOMContentLoaded', mountJobMatches, { once: true }); else mountJobMatches(); }

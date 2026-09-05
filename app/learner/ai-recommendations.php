@@ -1,5 +1,6 @@
 <?php
 /** TalentHub Learner - AI Roadmap-first */
+$learnerDeferTalentPassport = true;
 require __DIR__ . '/includes/student-data.php';
 require_once __DIR__ . '/includes/icons.php';
 
@@ -29,7 +30,7 @@ $assetVersion = static function (string $relativePath): string {
                 <header class="learner-roadmap__header">
                     <div class="learner-roadmap__intro">
                         <span class="learner-roadmap__eyebrow">LỘ TRÌNH AI</span>
-                        <h1>Lộ trình phát triển 90 ngày của&nbsp;bạn</h1>
+                        <h1>Lộ trình phát triển 90 ngày của bạn</h1>
                         <p class="learner-roadmap__description">Kế hoạch cá nhân hóa từ năng lực, sở thích và mục tiêu nghề nghiệp của bạn.</p>
                     </div>
                     <div class="learner-roadmap__header-actions">

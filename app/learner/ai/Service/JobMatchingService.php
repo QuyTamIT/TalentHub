@@ -172,7 +172,6 @@ final class JobMatchingService
         if (!$decision instanceof ConsentDecision || !$decision->permitsAllRequiredScopes()) return self::emptyResponse('consent_required');
         try { $input = ($this->inputBuilder)($studentId); $profile = LearnerOpportunityProfile::fromInput($input); }
         catch (Throwable) { return self::emptyResponse('insufficient_data'); }
-        if ($profile->skills() === []) return self::emptyResponse('insufficient_data');
         try { $raw = ($this->candidateSupplier)($studentId); } catch (Throwable) { return self::emptyResponse('catalog_insufficient'); }
         $candidates = [];
         foreach ($raw as $evidence) {

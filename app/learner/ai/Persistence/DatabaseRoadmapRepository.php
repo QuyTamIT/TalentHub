@@ -531,21 +531,49 @@ SQL);
         if ($row === false) throw new RuntimeException('Roadmap not found for learner');
         $phases = $this->pdo->prepare('SELECT * FROM learner_ai_roadmap_phases WHERE roadmapId = :roadmapId ORDER BY position ASC');
         $phases->execute(['roadmapId' => $roadmapId]);
-        $eligibleActivityIds = [];
-        try {
-            foreach ((new DatabaseOpportunitySource($this->pdo))->forStudent($studentId) as $opportunity) {
-                if (($opportunity['opportunity_type'] ?? null) === 'activity' && is_string($opportunity['opportunity_id'] ?? null)) {
-                    $eligibleActivityIds[(string) $opportunity['opportunity_id']] = true;
-                }
+        $phasesList = $phases->fetchAll(PDO::FETCH_ASSOC);
+        // Load every phase task and its latest event status in one database round trip.
+        $tasksStmt = $this->pdo->prepare(<<<'SQL'
+SELECT t.*,
+       COALESCE(
+           (SELECT e.status
+            FROM learner_ai_roadmap_task_events e
+            WHERE e.taskId = t.id
+            ORDER BY e.occurredAt DESC, e.createdAt DESC, e.id DESC
+            LIMIT 1),
+           'not_started'
+       ) AS latest_status
+FROM learner_ai_roadmap_tasks t
+INNER JOIN learner_ai_roadmap_phases p ON p.id = t.phaseId
+WHERE p.roadmapId = :roadmapId
+ORDER BY p.position ASC, t.position ASC
+SQL);
+        $tasksStmt->execute(['roadmapId' => $roadmapId]);
+        $allTasks = $tasksStmt->fetchAll(PDO::FETCH_ASSOC);
+        $hasActivityTasks = false;
+        $tasksByPhase = [];
+        foreach ($allTasks as $t) {
+            if (($t['actionType'] ?? '') === 'register_activity') {
+                $hasActivityTasks = true;
             }
-        } catch (\Throwable) {}
+            $tasksByPhase[(string)$t['phaseId']][] = $t;
+        }
+        $eligibleActivityIds = [];
+        if ($hasActivityTasks) {
+            try {
+                foreach ((new DatabaseOpportunitySource($this->pdo))->forStudent($studentId) as $opportunity) {
+                    if (($opportunity['opportunity_type'] ?? null) === 'activity' && is_string($opportunity['opportunity_id'] ?? null)) {
+                        $eligibleActivityIds[(string) $opportunity['opportunity_id']] = true;
+                    }
+                }
+            } catch (\Throwable) {}
+        }
         $phaseData = []; $total = 0; $completed = 0;
-        foreach ($phases->fetchAll(PDO::FETCH_ASSOC) as $phase) {
-            $tasks = $this->pdo->prepare('SELECT * FROM learner_ai_roadmap_tasks WHERE phaseId = :phaseId ORDER BY position ASC');
-            $tasks->execute(['phaseId' => $phase['id']]);
+        foreach ($phasesList as $phase) {
             $taskData = []; $phaseCompleted = 0;
-            foreach ($tasks->fetchAll(PDO::FETCH_ASSOC) as $task) {
-                $status = $this->latestTaskStatus((string) $task['id']);
+            $phaseTasks = $tasksByPhase[(string)$phase['id']] ?? [];
+            foreach ($phaseTasks as $task) {
+                $status = (string)($task['latest_status'] ?? 'not_started');
                 $total++; if ($status === 'completed') { $completed++; $phaseCompleted++; }
                 $action = ['type' => $task['actionType']];
                 if ($task['actionType'] === 'register_activity') {

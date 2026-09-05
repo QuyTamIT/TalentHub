@@ -44,7 +44,7 @@ $isDatabaseSource = $ecosystemSource === 'database';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Khám phá doanh nghiệp và các dự án đang triển khai tại trường trên TalentHub.">
     <title>Hệ sinh thái &amp; Dự án | TalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-ecosystem" data-ecosystem-page data-initial-tab="<?= learner_escape($initialTab); ?>">
@@ -102,21 +102,26 @@ $isDatabaseSource = $ecosystemSource === 'database';
                         <header class="learner-job-ai__header">
                             <span class="learner-job-ai__icon" aria-hidden="true"><?= learner_icon('sparkles', 22); ?></span>
                             <div><span class="learner-eyebrow">AI JOB MATCHING</span><h2 id="job-ai-title">Vị trí phù hợp với hồ sơ của bạn</h2><p>Gemini giải thích kết quả từ điểm 40/35/25 và dữ liệu bạn đã cho phép.</p></div>
-                            <p class="learner-job-ai__status" data-job-ai-status role="status" aria-live="polite">Sẵn sàng phân tích</p>
+                            <div class="learner-job-ai__header-actions">
+                                <p class="learner-job-ai__status" data-job-ai-status role="status" aria-live="polite">Sẵn sàng phân tích</p>
+                                <button class="learner-job-ai__collapse" type="button" data-job-ai-collapse aria-expanded="true" aria-controls="job-ai-body">Thu gọn</button>
+                            </div>
                         </header>
-                        <div class="learner-job-ai__progress" data-job-ai-progress hidden>
-                            <div class="learner-job-ai__progress-heading"><span data-job-ai-progress-text>Đang quét hồ sơ...</span><strong data-job-ai-progress-pct>8%</strong></div>
-                            <div class="learner-job-ai__progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8"><span data-job-ai-progress-bar style="width:8%"></span></div>
-                            <div class="learner-job-ai__progress-stages" data-job-ai-progress-stages><span>1. Quét hồ sơ</span><span>2. Lọc vị trí</span><span>3. Gemini phân tích</span><span>4. Xếp hạng</span></div>
+                        <div class="learner-job-ai__body" id="job-ai-body" data-job-ai-body>
+                            <div class="learner-job-ai__progress" data-job-ai-progress hidden>
+                                <div class="learner-job-ai__progress-heading"><span data-job-ai-progress-text>Đang quét hồ sơ...</span><strong data-job-ai-progress-pct>8%</strong></div>
+                                <div class="learner-job-ai__progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8"><span data-job-ai-progress-bar style="width:8%"></span></div>
+                                <div class="learner-job-ai__progress-stages" data-job-ai-progress-stages><span>1. Quét hồ sơ</span><span>2. Lọc vị trí</span><span>3. Gemini phân tích</span><span>4. Xếp hạng</span></div>
+                            </div>
+                            <div class="learner-job-ai__message" data-job-ai-not-generated><strong>Khám phá cơ hội ứng tuyển phù hợp</strong><span>Bấm nút AI phía trên để đối chiếu hồ sơ với các vị trí đang tuyển thật.</span></div>
+                            <div class="learner-job-ai__message is-warning" data-job-ai-consent-required hidden><strong>Cần quyền sử dụng dữ liệu AI</strong><span>Hãy cập nhật quyền dữ liệu trong hồ sơ năng lực trước khi phân tích.</span><a class="learner-btn learner-btn--outline" href="profile.php">Quản lý quyền</a></div>
+                            <div class="learner-job-ai__message is-warning" data-job-ai-insufficient-data hidden><strong>Chưa đủ dữ liệu benchmark</strong><span>Bổ sung kỹ năng và hoàn thành đánh giá để hệ thống chấm mức độ phù hợp.</span><a class="learner-btn learner-btn--outline" href="profile.php">Bổ sung hồ sơ</a></div>
+                            <div class="learner-job-ai__message is-warning" data-job-ai-catalog-insufficient hidden><strong>Chưa có vị trí đang mở phù hợp phạm vi</strong><span>Danh sách sẽ được cập nhật khi doanh nghiệp công bố cơ hội mới.</span></div>
+                            <div class="learner-job-ai__message is-warning" data-job-ai-no-matches hidden><strong>Chưa có vị trí đạt ngưỡng 40 điểm</strong><span>Chưa thể tạo phân tích vị trí gần ngưỡng. Hãy bổ sung hồ sơ rồi thử lại.</span><a class="learner-btn learner-btn--outline" href="profile.php">Bổ sung hồ sơ</a></div>
+                            <div class="learner-job-ai__near-match" data-job-ai-near-match hidden></div>
+                            <div class="learner-job-ai__message is-error" data-job-ai-source-error hidden><strong>Phân tích tạm thời chưa khả dụng</strong><span>Kết quả cũ không bị mất. Bạn có thể bấm lại nút AI để thử lại.</span></div>
+                            <div class="learner-job-ai__list" data-job-ai-list hidden></div>
                         </div>
-                        <div class="learner-job-ai__message" data-job-ai-not-generated><strong>Khám phá cơ hội ứng tuyển phù hợp</strong><span>Bấm nút AI phía trên để đối chiếu hồ sơ với các vị trí đang tuyển thật.</span></div>
-                        <div class="learner-job-ai__message is-warning" data-job-ai-consent-required hidden><strong>Cần quyền sử dụng dữ liệu AI</strong><span>Hãy cập nhật quyền dữ liệu trong hồ sơ năng lực trước khi phân tích.</span><a class="learner-btn learner-btn--outline" href="profile.php">Quản lý quyền</a></div>
-                        <div class="learner-job-ai__message is-warning" data-job-ai-insufficient-data hidden><strong>Chưa đủ dữ liệu benchmark</strong><span>Bổ sung kỹ năng và hoàn thành đánh giá để hệ thống chấm mức độ phù hợp.</span><a class="learner-btn learner-btn--outline" href="profile.php">Bổ sung hồ sơ</a></div>
-                        <div class="learner-job-ai__message is-warning" data-job-ai-catalog-insufficient hidden><strong>Chưa có vị trí đang mở phù hợp phạm vi</strong><span>Danh sách sẽ được cập nhật khi doanh nghiệp công bố cơ hội mới.</span></div>
-                        <div class="learner-job-ai__message is-warning" data-job-ai-no-matches hidden><strong>Chưa có vị trí đạt ngưỡng 40 điểm</strong><span>Chưa thể tạo phân tích vị trí gần ngưỡng. Hãy bổ sung hồ sơ rồi thử lại.</span><a class="learner-btn learner-btn--outline" href="profile.php">Bổ sung hồ sơ</a></div>
-                        <div class="learner-job-ai__near-match" data-job-ai-near-match hidden></div>
-                        <div class="learner-job-ai__message is-error" data-job-ai-source-error hidden><strong>Phân tích tạm thời chưa khả dụng</strong><span>Kết quả cũ không bị mất. Bạn có thể bấm lại nút AI để thử lại.</span></div>
-                        <div class="learner-job-ai__list" data-job-ai-list hidden></div>
                     </section>
                     <div class="learner-section-heading learner-ecosystem-panel__heading">
                         <div>

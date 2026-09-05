@@ -54,7 +54,6 @@ final class RoadmapCustomizationService
         try {
             $decision = ($this->consentResolver)($studentId);
             if (!$decision instanceof ConsentDecision) throw new \RuntimeException('Consent decision unavailable.');
-            $decision = $decision->withServiceScopes(['assessment']);
             $input = ($this->snapshotBuilder)($studentId, $decision->allowedScopes());
             if (!$input instanceof RecommendationInput) throw new \RuntimeException('Roadmap snapshot unavailable.');
             $context = new RecommendationContext(
