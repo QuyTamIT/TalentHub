@@ -18,6 +18,9 @@ final class MigrationRunner
             '475ffb17c426c92e96fcb66b9c5b04a0bd98f665bd697b3d0ea75942c966df80',
             '82c823601e730b8cb68862f6e2e4d855de6cb769b3261705be297f4e1ace66cb',
         ],
+        '20260825000210' => [
+            '5e06f6811336e87339ec73a3bc82eaf49b3a526fb5534e43a04d02df3bb7fd95',
+        ],
     ];
 
     private MigrationRepository $repository;
