@@ -65,19 +65,13 @@ final class PortalGuard
             }
 
             try {
-                $user = (new AuthService(new AuthRepository($pdo)))->current((string) ($cached['id'] ?? ''));
+                $user = (new AuthService(new AuthRepository($pdo)))->current((string) $cached['id']);
                 if (!empty($cached['email']) && !empty($cached['fullName']) && (empty($user['email']) || $user['email'] === 'teacher@test.talenthub.local')) {
                     $user['email'] = $cached['email'];
                     $user['fullName'] = $cached['fullName'];
                 }
             } catch (\Throwable) {
-                $appEnv = strtolower((string) (\TalentHub\Config\Environment::optional('APP_ENV') ?: (getenv('APP_ENV') ?: 'production')));
-                if (in_array($appEnv, ['local', 'dev', 'development', 'test'], true)) {
-                    $user = SessionManager::getFallbackUserForRole($role, $pdo);
-                    $session->login($user);
-                } else {
-                    $user = $cached;
-                }
+                $user = $cached;
             }
         }
 

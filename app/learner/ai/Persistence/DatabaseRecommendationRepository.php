@@ -268,34 +268,7 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
     {
         $studentId = $this->required($studentId, 'Student id is required.');
         $statement = $this->pdo->prepare(
-<<<<<<< HEAD
             "SELECT id FROM learner_recommendation_runs WHERE studentId = :studentId AND idempotencyKey NOT LIKE 'shadow-%' ORDER BY CASE WHEN engineType = 'model' AND status = 'completed' THEN 0 ELSE 1 END, createdAt DESC, id DESC LIMIT 1"
-=======
-            "SELECT runs.id
-             FROM learner_recommendation_runs AS runs
-             WHERE runs.studentId = :studentId
-               AND runs.idempotencyKey NOT LIKE 'shadow-%'
-               AND NOT EXISTS (
-                   SELECT 1
-                   FROM learner_recommendation_audit_events AS roadmap_events
-                   WHERE roadmap_events.runId = runs.id
-                     AND roadmap_events.studentId = runs.studentId
-                     AND roadmap_events.action = 'roadmap_run_created'
-               )
-               AND (
-                   runs.engineType <> 'model'
-                   OR runs.status <> 'completed'
-                   OR EXISTS (
-                       SELECT 1
-                       FROM learner_recommendation_items AS recommendation_items
-                       WHERE recommendation_items.runId = runs.id
-                   )
-               )
-             ORDER BY CASE WHEN runs.engineType = 'model' AND runs.status = 'completed' THEN 0 ELSE 1 END,
-                      runs.createdAt DESC,
-                      runs.id DESC
-             LIMIT 1"
->>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
         );
         $statement->execute(['studentId' => $studentId]);
         $runId = $statement->fetchColumn();
@@ -417,10 +390,8 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
         $insert = $this->pdo->prepare(
             'INSERT INTO learner_recommendation_snapshot_evidence (id, snapshotId, sourceType, sourceId, observedAt, safeValueJson, createdAt) VALUES (:id, :snapshotId, :sourceType, :sourceId, :observedAt, :safeValueJson, :createdAt)'
         );
-        $normalized = [];
         foreach ($input->evidenceReferences() as $reference) {
-            $logicalType = $this->required((string) ($reference['source_type'] ?? ''), 'Recommendation snapshot evidence source type is required.');
-            $sourceType = EvidenceSourceTypeNormalizer::canonical($logicalType);
+            $sourceType = $this->required((string) ($reference['source_type'] ?? ''), 'Recommendation snapshot evidence source type is required.');
             $sourceId = $this->required((string) ($reference['source_id'] ?? ''), 'Recommendation snapshot evidence source id is required.');
             $observedAt = $reference['observed_at'] ?? null;
             if ($observedAt !== null && !is_string($observedAt)) {
@@ -430,29 +401,13 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
             if (!is_array($safeValue)) {
                 throw new \InvalidArgumentException('Recommendation snapshot evidence safe value is required.');
             }
-            $candidate = [
-                'logicalType' => $logicalType,
+            $insert->execute([
+                'id' => self::uuid(),
+                'snapshotId' => $snapshotId,
                 'sourceType' => $sourceType,
                 'sourceId' => $sourceId,
                 'observedAt' => $this->databaseTimestamp($observedAt),
                 'safeValueJson' => self::json($safeValue),
-            ];
-            $storageKey = $sourceType . ':' . $sourceId;
-            if (isset($normalized[$storageKey])) {
-                $normalized[$storageKey] = EvidenceSourceTypeNormalizer::preferSnapshotEvidence($normalized[$storageKey], $candidate);
-                continue;
-            }
-            $normalized[$storageKey] = $candidate;
-        }
-        ksort($normalized, SORT_STRING);
-        foreach ($normalized as $reference) {
-            $insert->execute([
-                'id' => self::uuid(),
-                'snapshotId' => $snapshotId,
-                'sourceType' => $reference['sourceType'],
-                'sourceId' => $reference['sourceId'],
-                'observedAt' => $reference['observedAt'],
-                'safeValueJson' => $reference['safeValueJson'],
                 'createdAt' => $this->now(),
             ]);
         }
@@ -586,19 +541,14 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
         $statement = $this->pdo->prepare(
             'SELECT evidence.id, evidence.sourceType, evidence.sourceId, evidence.observedAt, evidence.safeValueJson FROM learner_recommendation_snapshot_evidence AS evidence INNER JOIN learner_recommendation_input_snapshots AS snapshots ON snapshots.id = evidence.snapshotId WHERE evidence.snapshotId = :snapshotId AND snapshots.studentId = :studentId AND evidence.sourceType = :sourceType AND evidence.sourceId = :sourceId'
         );
-        foreach (EvidenceSourceTypeNormalizer::lookupTypes($evidence->sourceType()) as $sourceType) {
-            $statement->execute([
-                'snapshotId' => $snapshotId,
-                'studentId' => $studentId,
-                'sourceType' => $sourceType,
-                'sourceId' => $evidence->sourceId(),
-            ]);
-            $snapshotEvidence = $statement->fetch(PDO::FETCH_ASSOC);
-            if ($snapshotEvidence !== false) {
-                return $snapshotEvidence;
-            }
-        }
-        return null;
+        $statement->execute([
+            'snapshotId' => $snapshotId,
+            'studentId' => $studentId,
+            'sourceType' => $evidence->sourceType(),
+            'sourceId' => $evidence->sourceId(),
+        ]);
+        $snapshotEvidence = $statement->fetch(PDO::FETCH_ASSOC);
+        return $snapshotEvidence === false ? null : $snapshotEvidence;
     }
 
     private function assertContextScopesMatchInput(RecommendationInput $input, RecommendationContext $context): void

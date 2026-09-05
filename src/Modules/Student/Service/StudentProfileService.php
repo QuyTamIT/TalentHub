@@ -39,99 +39,6 @@ final class StudentProfileService
         return $this->get($userId);
     }
 
-    /**
-     * @param array{avatarUrl?:string,mime?:string,contents?:string,dataUrl?:string} $file
-     */
-    public function uploadAvatar(string $userId, array $file): string
-    {
-        $student = $this->get($userId);
-
-        $contents = null;
-        $mime = null;
-
-        if (!empty($file['dataUrl']) && is_string($file['dataUrl'])) {
-            if (preg_match('#^data:(image/[a-zA-Z0-9\+\-\.]+);base64,(.+)$#', $file['dataUrl'], $matches)) {
-                $mime = $matches[1];
-                $decoded = base64_decode($matches[2], true);
-                if ($decoded !== false) {
-                    $contents = $decoded;
-                }
-            }
-        } elseif (!empty($file['contents']) && is_string($file['contents'])) {
-            $contents = base64_decode($file['contents'], true) ?: $file['contents'];
-            $mime = is_string($file['mime'] ?? null) ? $file['mime'] : null;
-        }
-
-        if ($contents === null || $contents === '' || $mime === null) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Vui lòng chọn tệp ảnh đại diện hợp lệ.');
-        }
-
-        $allowed = [
-            'image/png'  => 'png',
-            'image/jpeg' => 'jpg',
-            'image/webp' => 'webp',
-            'image/gif'  => 'gif',
-        ];
-
-        $imageInfo = @getimagesizefromstring($contents);
-        $detectedMime = is_array($imageInfo) && is_string($imageInfo['mime'] ?? null)
-            ? strtolower($imageInfo['mime'])
-            : null;
-        $declaredMime = strtolower($mime) === 'image/jpg' ? 'image/jpeg' : strtolower($mime);
-
-        if ($detectedMime === null || !isset($allowed[$detectedMime]) || $declaredMime !== $detectedMime) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Định dạng hoặc nội dung ảnh không hợp lệ. Vui lòng chọn tệp PNG, JPEG, WebP hoặc GIF.');
-        }
-
-        $width = (int) ($imageInfo[0] ?? 0);
-        $height = (int) ($imageInfo[1] ?? 0);
-        if ($width < 1 || $height < 1 || $width > 4096 || $height > 4096 || ($width * $height) > 16_000_000) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Kích thước ảnh không hợp lệ hoặc vượt quá giới hạn 4096px.');
-        }
-
-        if (strlen($contents) > 5 * 1024 * 1024) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Dung lượng tệp ảnh vượt quá 5MB.');
-        }
-
-        $ext = $allowed[$detectedMime];
-        $dir = dirname(__DIR__, 4) . '/storage/student-avatars';
-        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
-            throw new ApiException(500, 'AVATAR_STORAGE_FAILED', 'Không thể lưu ảnh đại diện lúc này.');
-        }
-
-        $filename = 'avatar-' . substr($student['id'], 0, 8) . '-' . bin2hex(random_bytes(12)) . '.' . $ext;
-        $abs = $dir . '/' . $filename;
-        $temporaryPath = $abs . '.tmp';
-        $written = @file_put_contents($temporaryPath, $contents, LOCK_EX);
-        if ($written !== strlen($contents) || !@rename($temporaryPath, $abs)) {
-            @unlink($temporaryPath);
-            @unlink($abs);
-            throw new ApiException(500, 'AVATAR_STORAGE_FAILED', 'Không thể lưu ảnh đại diện lúc này.');
-        }
-        $url = '/storage/student-avatars/' . $filename;
-
-        try {
-            $this->update($userId, ['avatarUrl' => $url]);
-        } catch (\Throwable $exception) {
-            @unlink($abs);
-            throw $exception;
-        }
-
-        $previousAvatarUrl = is_string($student['avatarUrl'] ?? null) ? $student['avatarUrl'] : '';
-        $managedPrefix = '/storage/student-avatars/';
-        if (str_starts_with($previousAvatarUrl, $managedPrefix)) {
-            $previousFilename = basename($previousAvatarUrl);
-            if ($previousFilename !== $filename) {
-                $previousPath = $dir . '/' . $previousFilename;
-                if (is_file($previousPath)) {
-                    @unlink($previousPath);
-                }
-            }
-        }
-
-        return $url;
-    }
-
     public function dashboard(string $userId): array
     {
         $profile = $this->get($userId);
@@ -229,11 +136,7 @@ final class StudentProfileService
             'phone' => (string) $row['phone'],
             'location' => isset($row['location']) && is_string($row['location']) ? $row['location'] : null,
             'bio' => isset($row['bio']) && is_string($row['bio']) ? $row['bio'] : null,
-            'avatarUrl' => isset($row['avatarUrl']) && is_string($row['avatarUrl'])
-                ? $row['avatarUrl']
-                : (isset($row['avatarurl']) && is_string($row['avatarurl'])
-                    ? $row['avatarurl']
-                    : (isset($row['avatar_url']) && is_string($row['avatar_url']) ? $row['avatar_url'] : null)),
+            'avatarUrl' => isset($row['avatarUrl']) && is_string($row['avatarUrl']) ? $row['avatarUrl'] : null,
             'headline' => isset($row['headline']) && is_string($row['headline']) ? $row['headline'] : null,
             'studyStatus' => (string) $row['studyStatus'],
             'createdAt' => gmdate('Y-m-d\TH:i:s\Z', strtotime((string) $row['createdAt'])),

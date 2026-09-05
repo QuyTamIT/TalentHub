@@ -147,7 +147,7 @@
 
     const icon = document.createElement('div');
     icon.className = 'learner-checkin-success-box__icon';
-    icon.textContent = '✓';
+    icon.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
     box.appendChild(icon);
 
     const content = document.createElement('div');
@@ -162,10 +162,7 @@
     desc.className = 'learner-checkin-success-box__desc';
     const hoursNum = Number(hours) || 0;
     const hoursFormatted = (hoursNum % 1 === 0) ? hoursNum.toFixed(1) : hoursNum.toString();
-    desc.append('Hệ thống đã ghi nhận +');
-    const hoursValue = document.createElement('strong');
-    hoursValue.textContent = hoursFormatted;
-    desc.append(hoursValue, ' giờ trải nghiệm vào hồ sơ của bạn.');
+    desc.innerHTML = 'Hệ thống đã ghi nhận +<strong>' + hoursFormatted + '</strong> giờ trải nghiệm vào hồ sơ của bạn.';
     content.appendChild(desc);
 
     box.appendChild(content);

@@ -403,9 +403,6 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                     <!-- PHẦN 3: LƯỚI DỰ ÁN KÊU GỌI TÀI TRỢ (Project Showcase Grid) -->
                     <div class="spon-projects-grid" id="spon-projects-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; width: 100%; margin-bottom: 24px;">
 <<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
                         <?php foreach ($displayProjects as $project):
                             $raisedMillions = round($project['raised_amount'] / 1000000, 1);
                             $targetMillions = round($project['target_amount'] / 1000000, 1);

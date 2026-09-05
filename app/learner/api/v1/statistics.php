@@ -36,9 +36,8 @@ try {
         ));
     }
 
-    $rawPeriod = $request->queryParam('period');
-    $hasExplicitPeriod = $rawPeriod !== null && trim((string) $rawPeriod) !== '';
-    $period = $hasExplicitPeriod ? strtolower(trim((string) $rawPeriod)) : 'semester';
+    $period = $request->queryParam('period') ?? 'month';
+    $period = strtolower(trim((string) $period));
 
     if (!in_array($period, StatisticsService::ALLOWED_PERIODS, true)) {
         throw new ApiException(422, 'VALIDATION_FAILED', 'Khoảng thời gian thống kê không hợp lệ.', [
@@ -58,14 +57,6 @@ try {
 
     $factory = learner_repository_factory();
     $data = $factory->statisticsService()->forStudentPeriod($studentId, $period);
-
-    if (!$hasExplicitPeriod) {
-        $periodHoursSum = array_sum($data['experience']['hours'] ?? []);
-        $lifetimeHours = (float) ($data['facts']['confirmed_experience_hours'] ?? 0.0);
-        if ($periodHoursSum <= 0.0 && $lifetimeHours > 0.0) {
-            $data = $factory->statisticsService()->forStudentPeriod($studentId, 'all');
-        }
-    }
 
     JsonResponder::sendSuccess($data, $context->requestId());
 } catch (ApiException $exception) {

@@ -90,14 +90,10 @@ final class ProfileSharingService
             throw $e;
         }
 
-        $sharePath = \function_exists('app_href')
-            ? \app_href('/app/learner/shared-profile.php')
-            : '/app/learner/shared-profile.php';
-
         return [
             'id' => $id,
             'rawToken' => $rawToken,
-            'shareUrl' => $sharePath . '?token=' . $rawToken,
+            'shareUrl' => '/app/learner/shared-profile.php?token=' . $rawToken,
             'expiresAt' => $expiresAt,
             'sharedFields' => array_values($sharedFields),
         ];
@@ -268,7 +264,6 @@ final class ProfileSharingService
         if (isset($sharedFieldsLookup['phone'])) {
             $studentView['phone'] = $rawStudent['phone'] ?? null;
         }
-        $studentView['avatarUrl'] = $rawStudent['avatarUrl'] ?? null;
 
         $result = [
             'student' => $studentView,
@@ -277,26 +272,13 @@ final class ProfileSharingService
         ];
 
         if (isset($sharedFieldsLookup['skills'])) {
-            $result['skills'] = array_values(array_filter(
-                is_array($aggregate['skills'] ?? null) ? $aggregate['skills'] : [],
-                static function (array $skill): bool {
-                    $verification = strtolower((string) ($skill['verification_status'] ?? $skill['verificationStatus'] ?? ''));
-                    $status = strtolower((string) ($skill['skill_status'] ?? $skill['skillStatus'] ?? 'active'));
-                    return $verification === 'verified' && $status === 'active';
-                },
-            ));
+            $result['skills'] = $aggregate['skills'] ?? [];
         }
         if (isset($sharedFieldsLookup['experience'])) {
             $result['experience'] = $aggregate['experience'] ?? [];
         }
         if (isset($sharedFieldsLookup['certificates'])) {
-            $result['certificates'] = array_values(array_filter(
-                is_array($aggregate['certificates'] ?? null) ? $aggregate['certificates'] : [],
-                static function (array $cert): bool {
-                    $status = strtolower((string) ($cert['verification_status'] ?? $cert['verificationStatus'] ?? 'verified'));
-                    return $status === 'verified';
-                },
-            ));
+            $result['certificates'] = $aggregate['certificates'] ?? [];
         }
         if (isset($sharedFieldsLookup['projects'])) {
             $result['projects'] = $aggregate['projects'] ?? [];
@@ -315,7 +297,6 @@ final class ProfileSharingService
               spd.location,
               spd.bio,
               spd.headline,
-              spd.avatarUrl,
               s.name AS school,
               c.name AS class
             FROM student_profiles sp

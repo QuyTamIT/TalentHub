@@ -18,7 +18,7 @@ final class PersistentActionRateLimiter
     private const DEFAULT_POLICIES = [
         'learner.checkin' => ['identity' => 10, 'ip' => 60, 'window' => 60, 'block' => 60],
         'learner.application' => ['identity' => 5, 'ip' => 30, 'window' => 300, 'block' => 300],
-        'learner.ai' => ['identity' => 20, 'ip' => 120, 'window' => 60, 'block' => 10],
+        'learner.ai' => ['identity' => 3, 'ip' => 30, 'window' => 60, 'block' => 60],
     ];
 
     /** @var Closure():int */

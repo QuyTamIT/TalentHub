@@ -21,19 +21,19 @@ if (!function_exists('learner_escape')) {
 
 $studentMock = [
     'id' => 'student-demo-001',
-    'school_id' => 'school-demo-001',
-    'class_id' => 'class-demo-001',
-    'user_id' => 'user-demo-student',
+    'school_id' => 'school-demo-nguyen-du',
+    'class_id' => 'class-demo-11a2',
+    'user_id' => 'user-demo-nguyen-van-a',
     'study_status' => 'active',
-    'name' => 'Học viên',
-    'initials' => 'HV',
-    'class' => 'Chưa cập nhật lớp',
-    'school' => 'Chưa cập nhật trường',
-    'email' => 'student@talenthub.edu.vn',
-    'location' => 'Việt Nam',
+    'name' => 'Nguyễn Văn A',
+    'initials' => 'A',
+    'class' => 'Lớp 11A2',
+    'school' => 'Trường THPT Nguyễn Du',
+    'email' => 'a.nguyen@school.edu.vn',
+    'location' => 'Hà Nội',
     'verified' => true,
-    'streak_days' => 0,
-    'experience_hours' => 0,
+    'streak_days' => 7,
+    'experience_hours' => 64,
 ];
 $appEnvironment = strtolower((string) (getenv('APP_ENV') ?: ''));
 $learnerSource = strtolower((string) (getenv('TALENTHUB_LEARNER_SOURCE') ?: 'database'));
@@ -64,7 +64,10 @@ if ($useMock) {
     learner_configure_authenticated_student_context($context);
     $authenticatedStudentId = learner_current_student_id();
 
-    // Talent passport aggregation is now lazy-loaded on demand via learner_talent_passport() to optimize page TTFB
+    $passportRepo = learner_repository_factory()->talentPassport();
+    $rawPassport = $passportRepo->aggregateForStudent($authenticatedStudentId);
+    $talentPassport = \TalentHub\Learner\Data\ReadModel\TalentPassportReadModel::fromAggregate($rawPassport);
+    $GLOBALS['learner_talent_passport'] = $talentPassport;
 }
 $learnerNav = [
     ['label' => 'Tổng quan', 'route' => '/app/learner/index.php', 'icon' => 'grid', 'implemented' => true],
@@ -74,7 +77,7 @@ $learnerNav = [
     ['label' => 'Check-in QR', 'route' => '/app/learner/checkin.php', 'icon' => 'qr', 'implemented' => true],
     ['label' => 'Đánh giá', 'route' => '/app/learner/evaluation.php', 'icon' => 'clipboard', 'implemented' => true],
     ['label' => 'AI gợi ý', 'route' => '/app/learner/ai-recommendations.php', 'icon' => 'sparkles', 'implemented' => true],
-    ['label' => 'Hệ sinh thái & Dự án', 'route' => '/app/learner/ecosystem.php', 'icon' => 'ecosystem', 'implemented' => true],
+    ['label' => 'Hệ sinh thái & Cơ hội', 'route' => '/app/learner/ecosystem.php', 'icon' => 'ecosystem', 'implemented' => true],
     ['label' => 'Huy hiệu', 'route' => '/app/learner/badges.php', 'icon' => 'award', 'implemented' => true],
     ['label' => 'Thống kê', 'route' => '/app/learner/statistics.php', 'icon' => 'chart', 'implemented' => true],
 ];
@@ -108,31 +111,12 @@ $level = [
 
 $isDatabaseMode = !$useMock && learner_repository_factory()->source() === 'database';
 $aiCapabilityProfile = null;
-<<<<<<< HEAD
-=======
-$deferTalentPassport = ($learnerDeferTalentPassport ?? false) === true;
-$tp = \TalentHub\Learner\Data\ReadModel\TalentPassportReadModel::fromAggregate([]);
->>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
 
-/** @return array<string,mixed> */
-function learner_talent_passport(): array
-{
-    if (isset($GLOBALS['learner_talent_passport']) && is_array($GLOBALS['learner_talent_passport'])) {
-        return $GLOBALS['learner_talent_passport'];
-    }
-    $authenticatedStudentId = learner_current_student_id();
-    $passportRepo = learner_repository_factory()->talentPassport();
-    $rawPassport = $passportRepo->aggregateForStudent($authenticatedStudentId);
-    $tp = \TalentHub\Learner\Data\ReadModel\TalentPassportReadModel::fromAggregate($rawPassport);
+if ($isDatabaseMode) {
+    $tp = $GLOBALS['learner_talent_passport'] ?? \TalentHub\Learner\Data\ReadModel\TalentPassportReadModel::fromAggregate(
+        learner_repository_factory()->talentPassport()->aggregateForStudent((string) ($student['id'] ?? learner_current_student_id()))
+    );
     $GLOBALS['learner_talent_passport'] = $tp;
-<<<<<<< HEAD
-=======
-    return $tp;
-}
-
-if ($isDatabaseMode && !$deferTalentPassport) {
-    $tp = learner_talent_passport();
->>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
     $aiCapabilityProfile = is_array($tp['ai_capability_profile'] ?? null) ? $tp['ai_capability_profile'] : null;
     if (!empty($tp['student']['full_name'])) {
         $student['name'] = $tp['student']['full_name'];
@@ -212,17 +196,6 @@ if ($isDatabaseMode && !$deferTalentPassport) {
     $certificates = $tp['certificates'];
     $projects = $tp['projects'];
     $learnerBadges = $badgeOverview['badges'] ?? $tp['badges'];
-} elseif ($isDatabaseMode) {
-    $dashboardKpis = [
-        ['id' => 'competency', 'label' => 'Điểm năng lực', 'value' => 'Chưa tải', 'icon' => 'star', 'tone' => 'primary'],
-        ['id' => 'experience', 'label' => 'Giờ trải nghiệm', 'value' => 'Chưa tải', 'icon' => 'clock', 'tone' => 'secondary'],
-        ['id' => 'badges', 'label' => 'Huy hiệu đạt được', 'value' => 'Chưa tải', 'icon' => 'trophy', 'tone' => 'success'],
-    ];
-    $profileKpis = [];
-    $skills = [];
-    $certificates = [];
-    $projects = [];
-    $learnerBadges = [];
 } else {
     $dashboardKpis = [
         ['id' => 'competency', 'label' => 'Điểm năng lực', 'value' => '92/100', 'icon' => 'star', 'tone' => 'primary'],

@@ -168,24 +168,6 @@
 
     global.LearnerProfileUiContract = Object.freeze({ resolveMutationBackend });
 
-    function isAiTriggerVisibleForTab(tabId) {
-        return tabId === 'opportunities';
-    }
-
-    function syncEcosystemAiTrigger(trigger, tabId) {
-        if (!trigger) return;
-        trigger.hidden = !isAiTriggerVisibleForTab(tabId);
-    }
-
-    function isJobAiTriggerVisibleForTab(tabId) {
-        return tabId === 'enterprises';
-    }
-
-    function syncEcosystemJobAiTrigger(trigger, tabId) {
-        if (!trigger) return;
-        trigger.hidden = !isJobAiTriggerVisibleForTab(tabId);
-    }
-
     global.LearnerUI = {
         validateProfile,
         nextAssessmentState,
@@ -201,10 +183,6 @@
         applicationMatches,
         canApplyToOpportunity,
         validateApplication,
-        isAiTriggerVisibleForTab,
-        isJobAiTriggerVisibleForTab,
-        syncEcosystemAiTrigger,
-        syncEcosystemJobAiTrigger,
     };
 
     function createPageApiClient(baseOverride = '') {
@@ -457,8 +435,6 @@
         });
 
         const ecosystemPage = document.querySelector('[data-ecosystem-page]');
-        const ecosystemAiTrigger = document.querySelector('[data-opportunity-ai-trigger]');
-        const ecosystemJobAiTrigger = document.querySelector('[data-job-ai-trigger]');
         if (ecosystemPage) {
             const ecosystemTabs = Array.from(document.querySelectorAll('[data-ecosystem-tab]'));
             const ecosystemPanels = Array.from(document.querySelectorAll('[data-ecosystem-panel]'));
@@ -494,14 +470,7 @@
                 if (emptyState) {
                     emptyState.hidden = visibleCount !== 0;
                     emptyState.dataset.emptyReason = ecosystemItems.length === 0 ? 'source' : 'filter';
-                    const sourceMessage = emptyState.querySelector('[data-empty-source]');
-                    const filterMessage = emptyState.querySelector('[data-empty-filter]');
-                    if (sourceMessage) sourceMessage.hidden = ecosystemItems.length !== 0;
-                    if (filterMessage) filterMessage.hidden = ecosystemItems.length === 0;
                 }
-
-                const resultCount = activePanel.querySelector('[data-ecosystem-result-count]');
-                if (resultCount) resultCount.textContent = String(visibleCount);
             };
 
             const activateEcosystemTab = (tabId, focusTab = false) => {
@@ -515,8 +484,6 @@
                 ecosystemPanels.forEach((panel) => {
                     panel.hidden = panel.dataset.ecosystemPanel !== nextTab.dataset.ecosystemTab;
                 });
-                syncEcosystemAiTrigger(ecosystemAiTrigger, nextTab.dataset.ecosystemTab);
-                syncEcosystemJobAiTrigger(ecosystemJobAiTrigger, nextTab.dataset.ecosystemTab);
                 const nextUrl = new URL(global.location.href);
                 nextUrl.searchParams.set('tab', nextTab.dataset.ecosystemTab);
                 global.history.replaceState({}, '', nextUrl);
@@ -544,21 +511,6 @@
                 updateEcosystemResults();
             });
             activateEcosystemTab(ecosystemPage.dataset.initialTab || 'enterprises');
-
-            const focusedOpportunityId = new URL(global.location.href).searchParams.get('focus');
-            if (typeof focusedOpportunityId === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(focusedOpportunityId)) {
-                const focusedOpportunity = Array.from(ecosystemPage.querySelectorAll('[data-opportunity-id]'))
-                    .find((item) => item.dataset.opportunityId === focusedOpportunityId);
-                if (focusedOpportunity) {
-                    focusedOpportunity.classList.add('learner-ecosystem-focus');
-                    focusedOpportunity.setAttribute('tabindex', '-1');
-                    global.requestAnimationFrame(() => {
-                        const reduceMotion = global.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-                        focusedOpportunity.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
-                        focusedOpportunity.focus({ preventScroll: true });
-                    });
-                }
-            }
         }
 
         const applicationItems = Array.from(document.querySelectorAll('[data-application-item]'));
@@ -1100,105 +1052,6 @@
         });
 
         const profileForm = document.getElementById('learner-profile-form');
-
-        // Avatar live preview and preset picker logic
-        const avatarInput = document.getElementById('learner-field-avatar');
-        const avatarFileInput = document.getElementById('learner-avatar-file-input');
-        const uploadAvatarFileBtn = document.getElementById('btn-upload-avatar-file');
-        const avatarFileStatus = document.getElementById('learner-avatar-file-status');
-        const avatarPreviewImg = document.getElementById('learner-avatar-preview-img');
-        const avatarPreviewText = document.getElementById('learner-avatar-preview-text');
-        const presetButtons = document.querySelectorAll('.learner-avatar-preset-btn');
-        const clearAvatarBtn = document.getElementById('btn-clear-avatar');
-
-        const updateAvatarPreview = (url) => {
-            if (url && url.trim()) {
-                if (avatarPreviewImg) {
-                    avatarPreviewImg.src = url.trim();
-                    avatarPreviewImg.style.display = 'block';
-                }
-                if (avatarPreviewText) avatarPreviewText.style.display = 'none';
-            } else {
-                if (avatarPreviewImg) avatarPreviewImg.style.display = 'none';
-                if (avatarPreviewText) avatarPreviewText.style.display = 'block';
-            }
-        };
-
-        uploadAvatarFileBtn?.addEventListener('click', () => {
-            avatarFileInput?.click();
-        });
-
-        avatarFileInput?.addEventListener('change', (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-
-            if (file.size > 5 * 1024 * 1024) {
-                showToast('Dung lượng ảnh vượt quá 5MB. Vui lòng chọn ảnh nhỏ hơn.', 'error');
-                return;
-            }
-
-            const allowedAvatarTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
-            if (!allowedAvatarTypes.includes(file.type)) {
-                showToast('Vui lòng chọn tệp hình ảnh PNG, JPG, WebP hoặc GIF.', 'error');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-                const dataUrl = String(evt.target?.result || '');
-                if (avatarInput) {
-                    avatarInput.value = dataUrl;
-                }
-                presetButtons.forEach(b => b.style.borderColor = '#CBD5E1');
-                updateAvatarPreview(dataUrl);
-                if (avatarFileStatus) {
-                    avatarFileStatus.textContent = `✓ Đã chọn: ${file.name}`;
-                    avatarFileStatus.style.display = 'inline';
-                }
-            };
-            reader.readAsDataURL(file);
-        });
-
-        presetButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const url = btn.getAttribute('data-avatar-url') || '';
-                if (avatarFileInput) avatarFileInput.value = '';
-                if (avatarFileStatus) {
-                    avatarFileStatus.textContent = '';
-                    avatarFileStatus.style.display = 'none';
-                }
-                if (avatarInput) {
-                    avatarInput.value = url;
-                }
-                presetButtons.forEach(b => b.style.borderColor = '#CBD5E1');
-                btn.style.borderColor = '#2563EB';
-                btn.style.transform = 'scale(1.08)';
-                setTimeout(() => btn.style.transform = '', 200);
-                updateAvatarPreview(url);
-            });
-        });
-
-        avatarInput?.addEventListener('input', (e) => {
-            presetButtons.forEach(b => b.style.borderColor = '#CBD5E1');
-            if (avatarFileInput) avatarFileInput.value = '';
-            if (avatarFileStatus) {
-                avatarFileStatus.textContent = '';
-                avatarFileStatus.style.display = 'none';
-            }
-            updateAvatarPreview(e.target.value);
-        });
-
-        clearAvatarBtn?.addEventListener('click', () => {
-            if (avatarInput) avatarInput.value = '';
-            if (avatarFileInput) avatarFileInput.value = '';
-            if (avatarFileStatus) {
-                avatarFileStatus.textContent = '';
-                avatarFileStatus.style.display = 'none';
-            }
-            presetButtons.forEach(b => b.style.borderColor = '#CBD5E1');
-            updateAvatarPreview('');
-        });
-
         profileForm?.addEventListener('submit', async (event) => {
             event.preventDefault();
             const submitBtn = profileForm.querySelector('button[type="submit"]');
@@ -1210,8 +1063,6 @@
                 location: String(formData.get('location') || '').trim() || undefined,
                 headline: String(formData.get('headline') || '').trim() || undefined,
                 bio: String(formData.get('bio') || '').trim() || undefined,
-                // Keep the empty string: the API interprets it as an explicit avatar removal.
-                avatarUrl: String(formData.get('avatarUrl') || '').trim(),
             };
 
             profileForm.querySelectorAll('.learner-field__error').forEach((error) => {
@@ -1230,52 +1081,6 @@
                 return;
             }
 
-            const updateDomProfile = () => {
-                const nameTarget = document.querySelector('[data-profile-name]');
-                if (nameTarget && payload.fullName) nameTarget.textContent = payload.fullName;
-                const locTarget = document.querySelector('[data-profile-location]');
-                if (locTarget && payload.location) locTarget.textContent = payload.location;
-
-                // Update Avatar in Profile hero using safe DOM APIs.
-                const avatarContainer = document.querySelector('.learner-profile-avatar');
-                const nextAvatarUrl = String(payload.avatarUrl || '').trim();
-                const initials = String(payload.fullName || 'HV').trim().slice(0, 2).toUpperCase();
-
-                if (avatarContainer) {
-                    avatarContainer.replaceChildren();
-                    if (nextAvatarUrl) {
-                        const img = document.createElement('img');
-                        img.src = nextAvatarUrl;
-                        img.alt = payload.fullName || 'Avatar';
-                        img.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
-                        img.setAttribute('data-profile-avatar-img', '');
-                        avatarContainer.appendChild(img);
-                    } else {
-                        const initialsSpan = document.createElement('span');
-                        initialsSpan.setAttribute('data-profile-avatar-text', '');
-                        initialsSpan.textContent = initials;
-                        avatarContainer.appendChild(initialsSpan);
-                    }
-                }
-
-                // Update Header and Menu avatars as well
-                const headerAvatars = document.querySelectorAll('.learner-header__avatar, .learner-account-menu__avatar');
-                headerAvatars.forEach(container => {
-                    container.replaceChildren();
-                    if (nextAvatarUrl) {
-                        const img = document.createElement('img');
-                        img.src = nextAvatarUrl;
-                        img.alt = payload.fullName || 'Avatar';
-                        img.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
-                        container.appendChild(img);
-                    } else {
-                        const span = document.createElement('span');
-                        span.textContent = initials;
-                        container.appendChild(span);
-                    }
-                });
-            };
-
             const mutationBackend = resolveMutationBackend(
                 document.body?.dataset?.learnerSource || '',
                 Boolean(global.TalentHubLearnerApi),
@@ -1283,38 +1088,15 @@
             if (mutationBackend === 'server') {
                 if (submitBtn) submitBtn.disabled = true;
                 try {
-                    let csrfToken = '';
-                    try {
-                        const bootNode = document.getElementById('learner-session-boot');
-                        const parsed = JSON.parse(bootNode?.textContent || '{}');
-                        csrfToken = parsed.csrfToken || parsed.csrf_token || '';
-                    } catch {}
-                    if (!csrfToken) {
-                        const meta = document.querySelector('meta[name="csrf-token"], meta[name="csrfToken"]');
-                        if (meta && meta.content) csrfToken = meta.content;
-                    }
-                    if (!csrfToken) {
-                        const input = profileForm.querySelector('input[name="csrfToken"], input[name="csrf_token"]');
-                        if (input && input.value) csrfToken = input.value;
-                    }
-
-                    const client = global.TalentHubLearnerApi.createLearnerApiClient({ baseUrl: '/api/v1', csrfToken });
-
-                    // If avatar is a local data URL (uploaded file from device), upload it first.
-                    if (payload.avatarUrl && payload.avatarUrl.startsWith('data:image/')) {
-                        const uploadRes = await client.send('POST', '/students/me/avatar', {
-                            dataUrl: payload.avatarUrl,
-                        });
-                        if (uploadRes && uploadRes.avatarUrl) {
-                            payload.avatarUrl = uploadRes.avatarUrl;
-                        }
-                    }
-
+                    const client = global.TalentHubLearnerApi.createLearnerApiClient({ baseUrl: '/api/v1' });
                     const res = await client.send('PATCH', '/students/me', payload);
                     if (res) {
-                        updateDomProfile();
+                        const nameTarget = document.querySelector('[data-profile-name]');
+                        if (nameTarget) nameTarget.textContent = payload.fullName;
+                        const locTarget = document.querySelector('[data-profile-location]');
+                        if (locTarget && payload.location) locTarget.textContent = payload.location;
                         closeModal(profileForm.closest('.learner-modal'));
-                        showToast('Hồ sơ và ảnh đại diện đã được cập nhật thành công.');
+                        showToast('Hồ sơ đã được cập nhật thành công.');
                     }
                 } catch (err) {
                     showToast(err?.message || 'Không thể cập nhật hồ sơ.', 'error');
@@ -1330,7 +1112,10 @@
             }
 
             // Explicit mock mode only.
-            updateDomProfile();
+            const nameTarget = document.querySelector('[data-profile-name]');
+            if (nameTarget) nameTarget.textContent = payload.fullName;
+            const locTarget = document.querySelector('[data-profile-location]');
+            if (locTarget && payload.location) locTarget.textContent = payload.location;
             closeModal(profileForm.closest('.learner-modal'));
             showToast('Hồ sơ đã được cập nhật trên giao diện.');
         });
@@ -1348,31 +1133,34 @@
 
             if (submitBtn) submitBtn.disabled = true;
             try {
-                let shareUrl = '';
-                try {
-                    const client = global.TalentHubLearnerApi?.createLearnerApiClient?.({ baseUrl: '/app/learner/api/v1' });
-                    if (client) {
-                        const res = await client.send('POST', '/profile-shares.php', { sharedFields, expiresInDays });
-                        if (res && res.share && res.share.shareUrl) {
-                            shareUrl = `${window.location.origin}${res.share.shareUrl}`;
+                const mutationBackend = resolveMutationBackend(
+                    document.body?.dataset?.learnerSource || '',
+                    Boolean(global.TalentHubLearnerApi),
+                );
+                if (mutationBackend === 'server') {
+                    const client = global.TalentHubLearnerApi.createLearnerApiClient({ baseUrl: '/app/learner/api/v1' });
+                    const res = await client.send('POST', '/profile-shares.php', { sharedFields, expiresInDays });
+                    if (res && res.share) {
+                        const resultBox = document.getElementById('learner-share-result');
+                        const linkInput = document.getElementById('learner-share-link');
+                        if (linkInput) {
+                            linkInput.value = `${window.location.origin}${res.share.shareUrl}`;
                         }
+                        if (resultBox) resultBox.style.display = 'block';
+                        showToast('Đã tạo liên kết chia sẻ hồ sơ.');
                     }
-                } catch (apiErr) {
-                    console.warn('Profile share API notice:', apiErr);
+                } else if (mutationBackend === 'mock') {
+                    const resultBox = document.getElementById('learner-share-result');
+                    const linkInput = document.getElementById('learner-share-link');
+                    if (linkInput) {
+                        const mockToken = global.crypto?.randomUUID?.() || String(Date.now());
+                        linkInput.value = `${window.location.origin}/app/learner/shared-profile.php?token=mock-${mockToken}`;
+                    }
+                    if (resultBox) resultBox.style.display = 'block';
+                    showToast('Đã tạo liên kết chia sẻ hồ sơ demo.');
+                } else {
+                    throw new Error('Không thể tạo liên kết vì API chưa sẵn sàng.');
                 }
-
-                if (!shareUrl) {
-                    const mockToken = global.crypto?.randomUUID?.() || String(Date.now());
-                    shareUrl = `${window.location.origin}/app/learner/shared-profile.php?token=${mockToken}`;
-                }
-
-                const resultBox = document.getElementById('learner-share-result');
-                const linkInput = document.getElementById('learner-share-link');
-                if (linkInput) {
-                    linkInput.value = shareUrl;
-                }
-                if (resultBox) resultBox.style.display = 'block';
-                showToast('Đã tạo liên kết chia sẻ hồ sơ.');
             } catch (err) {
                 showToast(err?.message || 'Không thể tạo liên kết chia sẻ.', 'error');
             } finally {

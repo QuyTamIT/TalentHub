@@ -6,7 +6,7 @@ namespace TalentHub\Learner\Data\Contracts;
 
 interface EcosystemRepository
 {
-    public function partners(?string $type = null, ?string $schoolId = null): array;
+    public function partners(?string $type = null): array;
 
     public function opportunities(): array;
 

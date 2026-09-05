@@ -89,11 +89,7 @@ enum OpportunityStatus: string
 
     public static function normalize(?string $value): self
     {
-        $normalized = strtolower(trim((string) $value));
-        if ($normalized === 'published') {
-            return self::Active;
-        }
-        return self::tryFrom($normalized) ?? self::Unknown;
+        return self::tryFrom(strtolower(trim((string) $value))) ?? self::Unknown;
     }
 }
 

@@ -11,7 +11,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
 
 final class PromptRegistry
 {
-    public const VERSION = 'learner-recommendation-1.0.1';
+    public const VERSION = 'learner-recommendation-1.0.0';
 
     public function create(RecommendationInput $input, RecommendationContext $context): ProviderRequest
     {
@@ -39,26 +39,11 @@ final class PromptRegistry
             'prompt_version' => self::VERSION,
             'instructions' => [
                 'Return JSON with an items array only.',
-<<<<<<< HEAD
                 'Every item must include a concise reason or explanation grounded in its evidence.',
                 'Use catalog_id only when it matches a supplied catalog evidence source; never invent catalog IDs.',
                 'Every item must cite one or more supplied evidence_ref_ids.',
                 'item_type must be one of strength, improvement, development, activity, roadmap, group, community.',
                 'action.type must be one of develop_skill, continue_technical_activity, practice_presentation, explore_career_group, register_activity, join_group, open_catalog_item.',
-=======
-                'Return 3 to 6 actionable recommendations matching the student profile from the supplied catalog and opportunity evidence (school activities, student projects, enterprise internships).',
-                'Every recommendation must correspond to an actual actionable item (activity, project, internship, workshop) from the supplied evidence with a concrete next step.',
-                'Every item must include a concise reason or explanation grounded in its evidence.',
-                'Use catalog_id only when it matches a supplied catalog evidence source; never invent catalog IDs.',
-                'Use only supplied evidence records; never invent a project or opportunity, title, partner, identifier, deadline, location, or URL.',
-                'Treat an item as an enterprise opportunity only when it cites supplied evidence whose source_type is opportunity and opportunity_type is internship.',
-                'For an enterprise internship, set catalog_id to that opportunity source ID and use action.type open_catalog_item with the same catalog_id.',
-                'For a school activity or workshop, use action.type register_activity with the activity_source_id from supplied catalog evidence.',
-                'For a student project or catalog resource, use action.type open_catalog_item with the catalog_id from supplied catalog evidence.',
-                'Every item must cite one or more supplied evidence_ref_ids.',
-                'item_type must be one of activity, development, group, community, strength, improvement, roadmap.',
-                'action.type must be one of register_activity, open_catalog_item, join_group, explore_career_group, develop_skill, continue_technical_activity, practice_presentation.',
->>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
                 'Use only the fields required by the selected action type; action catalog_id and activity_source_id must come from supplied catalog evidence.',
                 'Do not infer diagnoses, protected traits, admissions outcomes, or hiring outcomes.',
                 'Do not include a source ID, prompt, raw snapshot, or provider metadata in an item.',

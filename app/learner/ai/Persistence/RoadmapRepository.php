@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace TalentHub\Learner\Ai\Persistence;
 
 use TalentHub\Learner\Ai\Domain\RoadmapAnalysis;
-use TalentHub\Learner\Ai\Domain\RoadmapEditorDraft;
 
 interface RoadmapRepository
 {
@@ -25,10 +24,4 @@ interface RoadmapRepository
     public function appendRoadmapFeedback(string $studentId, string $roadmapId, string $verdict, string $reasonCode, string $requestId): array;
     /** @return list<array{verdict:string,reason_code:string,count:int}> */
     public function feedbackSignalsForStudent(string $studentId): array;
-    /** @param array<string,mixed> $audit @return array<string,mixed> */
-    public function storeRefinementPreview(string $studentId, string $roadmapId, int $baseVersion, RoadmapEditorDraft $learnerDraft, RoadmapEditorDraft $aiDraft, array $audit): array;
-    /** @return array<string,mixed>|null */
-    public function refinementPreview(string $studentId, string $previewId): ?array;
-    /** @param array<string,mixed>|null $refinement @return array<string,mixed> */
-    public function applyCustomization(string $studentId, string $roadmapId, int $baseVersion, string $source, RoadmapEditorDraft $draft, ?array $refinement, string $requestId): array;
 }

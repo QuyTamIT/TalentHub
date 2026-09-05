@@ -55,7 +55,6 @@ final class RecommendationResultValidator
             if ($this->allowedCatalogIds !== [] && !isset($this->allowedCatalogIds[$item->catalogId()])) {
                 throw new \RuntimeException('Recommendation catalog id is invalid or unavailable.');
             }
-<<<<<<< HEAD
             $hasMatchingCatalogEvidence = false;
             foreach ($item->evidence() as $evidence) {
                 if (in_array($evidence->sourceType(), ['opportunity', 'catalog'], true)
@@ -67,24 +66,6 @@ final class RecommendationResultValidator
             if (!$hasMatchingCatalogEvidence) {
                 throw new \RuntimeException('Recommendation catalog id must match catalog evidence on the same item.');
             }
-=======
-            $matchingCatalogEvidence = null;
-            foreach ($item->evidence() as $evidence) {
-                if (in_array($evidence->sourceType(), ['opportunity', 'catalog'], true)
-                    && hash_equals($item->catalogId(), $evidence->sourceId())) {
-                    $matchingCatalogEvidence = $evidence;
-                    break;
-                }
-            }
-            if ($matchingCatalogEvidence === null) {
-                throw new \RuntimeException('Recommendation catalog id must match catalog evidence on the same item.');
-            }
-            if ($matchingCatalogEvidence->sourceType() === 'opportunity'
-                && ($matchingCatalogEvidence->safeValue()['opportunity_type'] ?? null) === 'internship'
-                && ($item->action()['type'] ?? null) !== 'open_catalog_item') {
-                throw new \RuntimeException('Enterprise internship recommendations must use their canonical catalog action.');
-            }
->>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
         }
         if ($item->reason() !== null && $this->containsUnsupportedClaim($item->reason())) {
             throw new \RuntimeException('Recommendation reason contains an unsupported absolute claim.');

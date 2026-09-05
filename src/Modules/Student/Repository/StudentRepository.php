@@ -89,15 +89,8 @@ final class StudentRepository
 
             $studentStatement = $this->pdo->prepare('SELECT id FROM student_profiles WHERE userId=? LIMIT 1');
             $studentStatement->execute([$userId]);
-<<<<<<< HEAD
             $affectedStudentId=$studentStatement->fetchColumn();
             if(is_string($affectedStudentId)&&$affectedStudentId!=='') TransactionalAiOutboxPublisher::publish($this->pdo,'student_profile',$affectedStudentId,TransactionalAiOutboxPublisher::version(),[$affectedStudentId],'profile.updated');
-=======
-            $affectedStudentId = $studentStatement->fetchColumn();
-            if (is_string($affectedStudentId) && $affectedStudentId !== '') {
-                TransactionalAiOutboxPublisher::publish($this->pdo, 'student_profile', $affectedStudentId, TransactionalAiOutboxPublisher::version(), [$affectedStudentId], 'profile.updated');
-            }
->>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
             $this->pdo->commit();
         } catch (\Throwable $exception) {
             if ($this->pdo->inTransaction()) {
@@ -109,35 +102,14 @@ final class StudentRepository
 
     private function hasProfileDetailsTable(): bool
     {
-        $isSqlite = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite';
-        if ($isSqlite) {
+        if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
             $stmt = $this->pdo->prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='student_profile_details'");
             $stmt->execute();
-            $exists = (bool) $stmt->fetchColumn();
-        } else {
-            $statement = $this->pdo->query("SELECT 1 FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='student_profile_details'");
-            $exists = (bool) ($statement ? $statement->fetchColumn() : false);
+            return (bool) $stmt->fetchColumn();
         }
 
-        if (!$exists) {
-            $idType = $isSqlite ? 'TEXT PRIMARY KEY' : 'CHAR(36) PRIMARY KEY';
-            $sql = "CREATE TABLE IF NOT EXISTS student_profile_details (
-                studentId {$idType},
-                location VARCHAR(255) NULL,
-                bio TEXT NULL,
-                avatarUrl VARCHAR(500) NULL,
-                headline VARCHAR(255) NULL,
-                createdAt DATETIME NOT NULL,
-                updatedAt DATETIME NOT NULL
-            )";
-            try {
-                $this->pdo->exec($sql);
-                return true;
-            } catch (\Throwable) {
-                return false;
-            }
-        }
-        return true;
+        $statement = $this->pdo->query("SELECT 1 FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='student_profile_details'");
+        return (bool) ($statement ? $statement->fetchColumn() : false);
     }
 
     private function profileHasTimestamps(): bool
