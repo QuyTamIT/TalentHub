@@ -6,10 +6,18 @@
 
 use TalentHub\Modules\Teacher\Repository\TeacherActivityRepository;
 use TalentHub\Modules\Teacher\Service\TeacherActivityService;
+use TalentHub\Auth\Session\SessionManager;
 
 function teacherActivitiesService(PDO $pdo): TeacherActivityService
 {
     return new TeacherActivityService(new TeacherActivityRepository($pdo));
+}
+
+function teacherActivitiesAssertCsrf(SessionManager $session, mixed $token): void
+{
+    if (!is_string($token) || trim($token) === '' || !hash_equals($session->csrfToken(), trim($token))) {
+        throw new RuntimeException('Invalid CSRF token.');
+    }
 }
 
 function teacherActivitiesDate(?string $value): ?DateTimeImmutable
@@ -31,6 +39,7 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
     $startAt = teacherActivitiesDate($row['startAt'] ?? null);
     $endAt = teacherActivitiesDate($row['endAt'] ?? null);
     $rawStatus = strtolower(trim((string) ($row['status'] ?? '')));
+    $locationName = trim((string) ($row['locationName'] ?? ''));
 
     $statusLabels = [
         'draft' => 'Bản nháp',
@@ -77,6 +86,22 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
         'capacity' => $capacity,
         'registration_available' => $registrationAvailable,
         'registration_label' => $registrationLabel,
+        'approval_status' => strtolower(trim((string) ($row['approvalStatus'] ?? 'draft'))),
+        'approval_status_label' => match (strtolower(trim((string) ($row['approvalStatus'] ?? 'draft')))) {
+            'pending_school_review' => 'Đang chờ nhà trường duyệt',
+            'rejected' => 'Nhà trường từ chối',
+            'approved' => 'Đã được nhà trường duyệt',
+            default => 'Chưa gửi duyệt',
+        },
+        'approval_status_class' => match (strtolower(trim((string) ($row['approvalStatus'] ?? 'draft')))) {
+            'pending_school_review' => 'warning',
+            'rejected' => 'danger',
+            'approved' => 'success',
+            default => 'muted',
+        },
+        'rejection_reason' => trim((string) ($row['approvalReason'] ?? '')),
+        'location_name_input' => $locationName,
+        'location_label' => $locationName !== '' ? $locationName : 'Chưa cập nhật',
         'start_label' => $startAt ? $startAt->format('d/m/Y H:i') : 'Chưa xác định',
         'end_label' => $endAt ? $endAt->format('d/m/Y H:i') : 'Chưa xác định',
         'start_input' => $startAt ? $startAt->format('Y-m-d\TH:i') : '',

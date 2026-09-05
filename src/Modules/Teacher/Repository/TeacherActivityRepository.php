@@ -13,7 +13,6 @@ final class TeacherActivityRepository
 {
     /** @var array<string,string> */
     private const STATUS_TRANSITIONS = [
-        'draft' => 'published',
         'published' => 'ongoing',
         'ongoing' => 'completed',
         'completed' => 'archived',
@@ -45,7 +44,10 @@ final class TeacherActivityRepository
                 a.endAt,
                 a.capacity,
                 a.status,
-                COALESCE(ad.locationName, ad.locationAddress, 'Phòng Thực hành B305 - BTEC Cần Thơ') AS locationName,
+                a.approvalStatus,
+                a.approvalRequestedAt,
+                a.approvalReason,
+                ad.locationName AS locationName,
                 ad.description,
                 ad.summary,
                 (
@@ -84,7 +86,10 @@ final class TeacherActivityRepository
                 a.endAt,
                 a.capacity,
                 a.status,
-                COALESCE(ad.locationName, ad.locationAddress, 'Phòng Thực hành B305 - BTEC Cần Thơ') AS locationName,
+                a.approvalStatus,
+                a.approvalRequestedAt,
+                a.approvalReason,
+                ad.locationName AS locationName,
                 ad.description,
                 ad.summary,
                 (
@@ -127,49 +132,81 @@ final class TeacherActivityRepository
         return $statement->fetchAll();
     }
 
-    /** @param array{title:string,category:string,startAt:string,endAt:string,capacity:int} $data */
+    /** @param array{title:string,category:string,startAt:string,endAt:string,capacity:int,summary:string,locationName:string} $data */
     public function create(string $teacherId, string $schoolId, string $activityId, array $data): void
     {
-        $statement = $this->pdo->prepare("
-            INSERT INTO activities (id, schoolId, createdByTeacherId, title, category, startAt, endAt, capacity, status)
-            VALUES (:id, :schoolId, :teacherId, :title, :category, :startAt, :endAt, :capacity, 'draft')
-        ");
-        $statement->execute([
-            'id' => $activityId,
-            'schoolId' => $schoolId,
-            'teacherId' => $teacherId,
-            'title' => $data['title'],
-            'category' => $data['category'],
-            'startAt' => $data['startAt'],
-            'endAt' => $data['endAt'],
-            'capacity' => $data['capacity'],
-        ]);
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) {
+            $this->pdo->beginTransaction();
+        }
+        try {
+            $statement = $this->pdo->prepare("
+                INSERT INTO activities (id, schoolId, createdByTeacherId, title, category, startAt, endAt, capacity, status, approvalStatus)
+                VALUES (:id, :schoolId, :teacherId, :title, :category, :startAt, :endAt, :capacity, 'draft', 'draft')
+            ");
+            $statement->execute([
+                'id' => $activityId, 'schoolId' => $schoolId, 'teacherId' => $teacherId,
+                'title' => $data['title'], 'category' => $data['category'], 'startAt' => $data['startAt'],
+                'endAt' => $data['endAt'], 'capacity' => $data['capacity'],
+            ]);
+            $this->upsertDetails($activityId, $teacherId, $data);
+            if ($ownsTransaction) {
+                $this->pdo->commit();
+            }
+        } catch (\Throwable $exception) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
+        }
     }
 
-    /** @param array{title:string,category:string,startAt:string,endAt:string,capacity:int} $data */
+    /** @param array{title:string,category:string,startAt:string,endAt:string,capacity:int,summary:string,locationName:string} $data */
     public function update(string $teacherId, string $activityId, array $data): bool
     {
-        $statement = $this->pdo->prepare("
-            UPDATE activities
-            SET title = :title,
-                category = :category,
-                startAt = :startAt,
-                endAt = :endAt,
-                capacity = :capacity
-            WHERE id = :activityId
-              AND createdByTeacherId = :teacherId
-        ");
-        $statement->execute([
-            'title' => $data['title'],
-            'category' => $data['category'],
-            'startAt' => $data['startAt'],
-            'endAt' => $data['endAt'],
-            'capacity' => $data['capacity'],
-            'activityId' => $activityId,
-            'teacherId' => $teacherId,
-        ]);
+        if ($this->find($teacherId, $activityId) === null) {
+            return false;
+        }
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) {
+            $this->pdo->beginTransaction();
+        }
+        try {
+            $statement = $this->pdo->prepare("
+                UPDATE activities
+                SET title = :title, category = :category, startAt = :startAt, endAt = :endAt, capacity = :capacity
+                WHERE id = :activityId AND createdByTeacherId = :teacherId
+            ");
+            $statement->execute([
+                'title' => $data['title'], 'category' => $data['category'], 'startAt' => $data['startAt'],
+                'endAt' => $data['endAt'], 'capacity' => $data['capacity'], 'activityId' => $activityId, 'teacherId' => $teacherId,
+            ]);
+            $this->upsertDetails($activityId, $teacherId, $data);
+            if ($ownsTransaction) {
+                $this->pdo->commit();
+            }
+            return true;
+        } catch (\Throwable $exception) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
+        }
+    }
 
-        return $this->find($teacherId, $activityId) !== null;
+    /** @param array{category:string,summary:string,locationName:string} $data */
+    private function upsertDetails(string $activityId, string $teacherId, array $data): void
+    {
+        $parameters = [
+            'activityId' => $activityId, 'teacherId' => $teacherId, 'displayCategory' => $data['category'], 'filterCategory' => $data['category'],
+            'summary' => $data['summary'], 'description' => $data['summary'], 'locationName' => $data['locationName'],
+        ];
+        if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $sql = "INSERT INTO activity_details (activityId,responsibleTeacherId,audienceScope,displayCategory,filterCategory,summary,description,experienceHighlights,skillTags,eligibilityRules,benefitItems,locationName,deliveryMode,organizerName,feeAmount,currency,targetAudience) VALUES (:activityId,:teacherId,'school_only',:displayCategory,:filterCategory,:summary,:description,'[]','[]','[]','[]',:locationName,'in_person','TalentHub',0,'VND','Học viên') ON CONFLICT(activityId) DO UPDATE SET responsibleTeacherId=excluded.responsibleTeacherId,displayCategory=excluded.displayCategory,filterCategory=excluded.filterCategory,summary=excluded.summary,description=excluded.description,locationName=excluded.locationName";
+        } else {
+            $sql = "INSERT INTO activity_details (activityId,responsibleTeacherId,audienceScope,displayCategory,filterCategory,summary,description,experienceHighlights,skillTags,eligibilityRules,benefitItems,locationName,deliveryMode,organizerName,feeAmount,currency,targetAudience) VALUES (:activityId,:teacherId,'school_only',:displayCategory,:filterCategory,:summary,:description,'[]','[]','[]','[]',:locationName,'in_person','TalentHub',0,'VND','Học viên') ON DUPLICATE KEY UPDATE responsibleTeacherId=VALUES(responsibleTeacherId),displayCategory=VALUES(displayCategory),filterCategory=VALUES(filterCategory),summary=VALUES(summary),description=VALUES(description),locationName=VALUES(locationName),updatedAt=CURRENT_TIMESTAMP(6)";
+        }
+        $this->pdo->prepare($sql)->execute($parameters);
     }
 
     public function advanceStatus(string $teacherId, string $activityId, string $expectedStatus, string $nextStatus): bool
@@ -190,6 +227,30 @@ final class TeacherActivityRepository
             'activityId' => $activityId,
             'teacherId' => $teacherId,
             'expectedStatus' => $expectedStatus,
+        ]);
+
+        return $statement->rowCount() === 1;
+    }
+
+    public function submitForApproval(string $teacherId, string $activityId, string $expectedApprovalStatus): bool
+    {
+        if (!in_array($expectedApprovalStatus, ['draft', 'rejected'], true)) {
+            throw new \InvalidArgumentException('Invalid activity approval transition.');
+        }
+
+        $statement = $this->pdo->prepare(
+            "UPDATE activities
+             SET approvalStatus = 'pending_school_review', approvalReason = NULL, approvalRequestedAt = :approvalRequestedAt
+             WHERE id = :activityId
+               AND createdByTeacherId = :teacherId
+               AND status = 'draft'
+               AND approvalStatus = :expectedApprovalStatus"
+        );
+        $statement->execute([
+            'approvalRequestedAt' => gmdate('Y-m-d H:i:s.u'),
+            'activityId' => $activityId,
+            'teacherId' => $teacherId,
+            'expectedApprovalStatus' => $expectedApprovalStatus,
         ]);
 
         return $statement->rowCount() === 1;

@@ -49,12 +49,33 @@ assertCondition("Icon scale animation keyframes exist", str_contains($css, '@key
 // ----------------------------------------------------------------------
 echo "\n--- TEST 2: Unregistered State Render ---\n";
 
-$studentUserId = 'fd6823de-d3d9-4d3a-b916-9f811853a24c';
-$studentProfileId = 'f3150ce0-7a99-4d5f-8b03-c293b91e37e5';
-$teacherUserId = 'a8360cd2-7835-4eb2-892b-c2209089d381';
-$schoolId = 'da811c4f-2f74-4fdd-80b0-dd6f26109783';
+$fixture = $pdo->query("
+    SELECT tp.id AS teacherId, tp.userId AS teacherUserId, tp.schoolId,
+           sp.id AS studentProfileId, su.id AS studentUserId, su.email AS studentEmail
+    FROM teacher_profiles tp
+    INNER JOIN users tu ON tu.id = tp.userId
+    INNER JOIN student_profiles sp
+    INNER JOIN users su ON su.id = sp.userId
+    INNER JOIN classes c ON c.id = sp.classId AND c.schoolId = tp.schoolId
+    WHERE tp.schoolId = 'da811c4f-2f74-4fdd-80b0-dd6f26109783'
+    ORDER BY tp.id, sp.id
+    LIMIT 1
+")->fetch(PDO::FETCH_ASSOC);
+if (!is_array($fixture)) {
+    throw new RuntimeException('Fixture requires a teacher and student in the same BTEC school.');
+}
+$studentUserId = (string) $fixture['studentUserId'];
+$studentProfileId = (string) $fixture['studentProfileId'];
+$teacherId = (string) $fixture['teacherId'];
+$schoolId = (string) $fixture['schoolId'];
+$studentEmail = (string) $fixture['studentEmail'];
 
 learner_configure_data(['source' => 'database', 'pdo' => $pdo, 'student_id' => $studentProfileId]);
+$sessionConfig = require dirname(__DIR__) . '/config/session.php';
+$sessionConfig['name'] = \TalentHub\Auth\Session\SessionManager::SESSION_STUDENT;
+$testSession = new \TalentHub\Auth\Session\SessionManager($sessionConfig);
+$testSession->start();
+$testSession->login(['id' => $studentUserId, 'email' => $studentEmail, 'fullName' => $studentEmail, 'role' => 'student', 'status' => 'active']);
 (new \TalentHub\Bootstrap\StudentAppContext($pdo))->boot();
 
 $teacherRepo = new TeacherActivityRepository($pdo);
@@ -63,17 +84,20 @@ $teacherService = new TeacherActivityService($teacherRepo);
 // Create a test activity
 $startAt = new DateTimeImmutable('+3 days 09:00:00', new DateTimeZone('Asia/Ho_Chi_Minh'));
 $endAt   = new DateTimeImmutable('+3 days 17:00:00', new DateTimeZone('Asia/Ho_Chi_Minh'));
-$activityId = $teacherService->create($teacherUserId, $schoolId, [
+$activityId = $teacherService->create($teacherId, $schoolId, [
     'title' => '[Feedback UX Test] IoT Bootcamp & AI Lab 2026',
     'category' => 'Kỹ thuật',
     'startAt' => $startAt,
     'endAt' => $endAt,
     'capacity' => 40,
+    'summary' => 'Hoạt động kiểm thử phản hồi đăng ký.',
+    'locationName' => 'Phòng BTEC 02',
 ]);
-$teacherService->advanceStatus($teacherUserId, $activityId); // publish
+// Use a published fixture so this student UX test does not bypass Teacher approval.
+$pdo->prepare("UPDATE activities SET status = 'published', approvalStatus = 'approved' WHERE id = ?")->execute([$activityId]);
 
 $_GET['id'] = $activityId;
-$_SESSION['user'] = ['id' => $studentUserId, 'email' => 'tamlangtu2005@gmail.com', 'role' => 'student'];
+$_SESSION['user'] = ['id' => $studentUserId, 'email' => $studentEmail, 'role' => 'student'];
 
 ob_start();
 include dirname(__DIR__) . '/app/learner/activity-detail.php';

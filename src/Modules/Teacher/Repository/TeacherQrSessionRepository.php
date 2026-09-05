@@ -70,6 +70,25 @@ final class TeacherQrSessionRepository
         return $statement->fetchAll();
     }
 
+    /** @return array<string,mixed>|null */
+    public function findSessionForTeacher(string $teacherId, string $sessionId): ?array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT id, tokenHash, status, expiresAt
+             FROM activity_qr_sessions
+             WHERE id = :sessionId
+               AND createdByTeacherId = :teacherId
+             LIMIT 1'
+        );
+        $statement->execute([
+            'sessionId' => $sessionId,
+            'teacherId' => $teacherId,
+        ]);
+        $row = $statement->fetch();
+
+        return $row === false ? null : $row;
+    }
+
     public function createSession(
         string $teacherId,
         string $activityId,
