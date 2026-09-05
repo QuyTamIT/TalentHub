@@ -89,7 +89,6 @@ $sidebarNav = [
     ['title' => 'Sân chơi của tôi', 'route' => 'playgrounds', 'icon' => 'trophy', 'active' => false],
     ['title' => 'Chấm điểm', 'route' => 'assessments', 'href' => '/app/teacher/assessments/index.php', 'icon' => 'clipboard-check', 'active' => true],
     ['title' => 'Học viên', 'route' => 'students', 'icon' => 'users', 'active' => false],
-    ['title' => 'Điểm danh QR', 'route' => 'checkins', 'icon' => 'qr', 'active' => false],
 ];
 
 $flash = $_SESSION['teacherGradingFlash'] ?? null;

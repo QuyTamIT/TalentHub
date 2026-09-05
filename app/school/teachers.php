@@ -1,7 +1,7 @@
 <?php
 /**
  * TalentHub - School Dashboard Teachers Page
- * Quản lý giáo viên của nhà trường + mời giáo viên mới.
+ * Quản lý giảng viên của nhà trường + mời giảng viên mới.
  */
 declare(strict_types=1);
 
@@ -31,15 +31,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'isSchoolAdmin' => $_POST['isSchoolAdmin'] ?? null,
             ]);
             $invitationUrl = app_href((string) $result['invitationUrl']);
-            $flash = 'Đã tạo tài khoản chờ kích hoạt. Gửi liên kết dùng một lần này cho giáo viên trước '
+            $flash = 'Đã tạo tài khoản chờ kích hoạt. Gửi liên kết dùng một lần này cho giảng viên trước '
                 . htmlspecialchars((string) $result['expiresAt'], ENT_QUOTES, 'UTF-8') . ': '
                 . '<a href="' . htmlspecialchars($invitationUrl, ENT_QUOTES, 'UTF-8') . '">Mở lời mời</a>';
         } elseif ($action === 'toggle_admin' && !empty($_POST['profileId']) && Uuid::isValid($_POST['profileId'])) {
             $service->setTeacherAdmin($userId, $_POST['profileId'], !empty($_POST['isAdmin']));
-            $flash = 'Đã cập nhật vai trò giáo viên.';
+            $flash = 'Đã cập nhật vai trò giảng viên.';
         } elseif ($action === 'toggle_active' && !empty($_POST['profileId']) && Uuid::isValid($_POST['profileId'])) {
             $service->setTeacherActive($userId, $_POST['profileId'], !empty($_POST['isActive']));
-            $flash = 'Đã cập nhật trạng thái giáo viên.';
+            $flash = 'Đã cập nhật trạng thái giảng viên.';
         }
     } catch (ApiException $e) {
         $error = $e->getMessage();
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$perPage = max(10, min(100, (int) ($_GET['perPage'] ?? 25)));
+$perPage = 4;
 $page    = max(1, (int) ($_GET['page'] ?? 1));
 $offset  = ($page - 1) * $perPage;
 $teachers = $service->teachers($userId, $perPage, $offset);
@@ -62,12 +62,12 @@ $schoolInfo = [
 ];
 
 $currentRoute = '/app/school/teachers.php';
-$pageTitle    = 'Giáo viên';
+$pageTitle    = 'Giảng viên';
 
 ob_start();
 ?>
 <?php
-$pageDescription = 'Mời giáo viên mới và quản lý hồ sơ giáo viên trong trường.';
+$pageDescription = 'Thêm giảng viên mới và quản lý hồ sơ giảng viên trong trường.';
 include __DIR__ . '/includes/page-banner.php';
 ?>
 
@@ -79,14 +79,14 @@ include __DIR__ . '/includes/page-banner.php';
 <?php endif; ?>
 
 <div class="school-grid-2col school-grid-2col--teachers">
-    <div class="school-section-box">
+    <div class="school-section-box" style="align-self: start;">
         <div class="school-section-box__header">
-            <h3 class="school-section-box__title">Mời giáo viên mới</h3>
+            <h3 class="school-section-box__title">Thêm giảng viên mới</h3>
         </div>
         <form method="post" class="school-form" novalidate>
             <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
             <input type="hidden" name="action" value="invite">
-            <div class="school-form__grid" style="grid-template-columns: 1fr;">
+            <div class="school-form__grid" style="display: flex; flex-direction: column; gap: 1rem;">
                 <label class="school-form__field">
                     <span>Họ và tên <em>*</em></span>
                     <input type="text" name="fullName" maxlength="150" required placeholder="Nguyễn Văn A">
@@ -100,23 +100,23 @@ include __DIR__ . '/includes/page-banner.php';
                     <span>Cấp quyền quản trị trường</span>
                 </label>
             </div>
-            <div class="school-form__actions">
-                <button type="submit" class="btn btn-primary">Mời giáo viên</button>
+            <div class="school-form__actions" style="margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Gửi email cấp quyền</button>
             </div>
         </form>
     </div>
 
     <div class="school-section-box">
         <div class="school-section-box__header">
-            <h3 class="school-section-box__title">Danh sách giáo viên</h3>
+            <h3 class="school-section-box__title">Danh sách giảng viên</h3>
         </div>
         <?php if ($teachers === []): ?>
-            <p style="color: var(--text-muted);">Trường chưa có giáo viên nào.</p>
+            <p style="color: var(--text-muted);">Trường chưa có giảng viên nào.</p>
         <?php else: ?>
             <table class="school-class-table">
                 <thead>
                     <tr>
-                        <th>Giáo viên</th>
+                        <th>Giảng viên</th>
                         <th>Email</th>
                         <th>Chuyên môn</th>
                         <th>Vai trò</th>
@@ -138,7 +138,7 @@ include __DIR__ . '/includes/page-banner.php';
                                 <?php if ($t['isSchoolAdmin']): ?>
                                     <span class="school-class-badge school-class-badge--success">Quản trị</span>
                                 <?php else: ?>
-                                    <span class="school-class-badge school-class-badge--neutral">Giáo viên</span>
+                                    <span class="school-class-badge school-class-badge--neutral">Giảng viên</span>
                                 <?php endif; ?>
                                 <?php if ($t['userStatus'] !== 'active'): ?>
                                     <span class="school-class-badge school-class-badge--warning">Vô hiệu</span>
@@ -160,7 +160,7 @@ include __DIR__ . '/includes/page-banner.php';
                                         <input type="hidden" name="action" value="toggle_active">
                                         <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
                                         <input type="hidden" name="isActive" value="<?= $t['userStatus'] === 'active' ? '0' : '1'; ?>">
-                                        <button type="submit" class="btn btn-sm btn-outline" data-confirm="Đổi trạng thái giáo viên này?">
+                                        <button type="submit" class="btn btn-sm btn-outline" data-confirm="Đổi trạng thái giảng viên này?">
                                             <?= $t['userStatus'] === 'active' ? 'Vô hiệu hoá' : 'Kích hoạt'; ?>
                                         </button>
                                     </form>
@@ -170,11 +170,11 @@ include __DIR__ . '/includes/page-banner.php';
                     <?php endforeach; ?>
                 </tbody>
             </table>
-            <nav class="school-pagination" aria-label="Phân trang">
+            <nav class="school-pagination" aria-label="Phân trang" style="display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; margin-top: 1.25rem;">
                 <?php if ($page > 1): ?>
                     <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>" class="btn btn-sm btn-outline">‹ Trước</a>
                 <?php endif; ?>
-                <span class="school-pagination__info">Trang <?= $page; ?> · <?= $perPage; ?> / trang</span>
+                <span class="school-pagination__info" style="font-size: 0.875rem; color: var(--text-muted); margin: 0 0.5rem;">Trang <?= $page; ?></span>
                 <?php if (count($teachers) === $perPage): ?>
                     <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>" class="btn btn-sm btn-outline">Sau ›</a>
                 <?php endif; ?>

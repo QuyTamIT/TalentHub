@@ -402,13 +402,6 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
 
                     <!-- PHẦN 3: LƯỚI DỰ ÁN KÊU GỌI TÀI TRỢ (Project Showcase Grid) -->
                     <div class="spon-projects-grid" id="spon-projects-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; width: 100%; margin-bottom: 24px;">
-<<<<<<< HEAD
-                        <?php foreach ($displayProjects as $project):
-                            $raisedMillions = round($project['raised_amount'] / 1000000, 1);
-                            $targetMillions = round($project['target_amount'] / 1000000, 1);
-                            $progressText = ($raisedMillions == (int)$raisedMillions ? (int)$raisedMillions : $raisedMillions) . ' triệu / ' . ($targetMillions == (int)$targetMillions ? (int)$targetMillions : $targetMillions) . ' triệu VNĐ';
-                            $pct = (int) $project['percentage'];
-=======
                         <?php 
                         if (!function_exists('formatMillions')) {
                             function formatMillions($amount) {
@@ -426,7 +419,6 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                             $percent = $fundingGoal > 0 ? round(($total_sponsored / $fundingGoal) * 100) : 0;
                             $progress_width = min($percent, 100);
                             $progressText = formatMillions($total_sponsored) . ' / ' . formatMillions($fundingGoal) . ($fundingGoal >= 1000000 ? ' VNĐ' : '');
->>>>>>> a865e2f4e7ccb6b3fe6e0f71c15ce60dc4c9b054
                         ?>
                             <!-- Thẻ Project Card Độc Lập -->
                             <article class="spon-project-card"
@@ -601,18 +593,52 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                         <div style="font-size: 1.25rem; font-weight: 800; color: var(--primary);" id="form-needed-amount">12.000.000 VNĐ</div>
                     </div>
 
+                    <style>
+                        /* Custom Range Slider Styles */
+                        .spon-custom-range {
+                            -webkit-appearance: none;
+                            appearance: none;
+                            width: 100%;
+                            height: 6px;
+                            background: #E2E8F0;
+                            border-radius: 999px;
+                            outline: none;
+                            margin: 10px 0;
+                            padding: 0;
+                        }
+                        .spon-custom-range::-webkit-slider-thumb {
+                            -webkit-appearance: none;
+                            appearance: none;
+                            width: 20px;
+                            height: 20px;
+                            border-radius: 50%;
+                            background: #F97316;
+                            cursor: pointer;
+                            border: 2px solid #FFFFFF;
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+                        }
+                        .spon-custom-range::-moz-range-thumb {
+                            width: 20px;
+                            height: 20px;
+                            border-radius: 50%;
+                            background: #F97316;
+                            cursor: pointer;
+                            border: 2px solid #FFFFFF;
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+                        }
+                    </style>
                     <div class="form-group" style="margin-bottom: 1.25rem;">
-                        <label for="spon-amount-input" class="form-label" style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.5rem; display: block;">Số tiền tài trợ (VNĐ) <span style="color: #DC2626;">*</span></label>
-                        <input type="number" id="spon-amount-input" class="spon-input" placeholder="Ví dụ: 10000000" min="500000" step="500000" required style="padding-left: 1rem;">
-                    </div>
-
-                    <div style="margin-bottom: 1.25rem;">
-                        <span style="font-size: 0.78125rem; color: var(--text-muted); display: block; margin-bottom: 0.4rem;">Gợi ý mức tài trợ phổ biến:</span>
-                        <div class="spon-preset-row">
-                            <button type="button" class="spon-preset-btn" data-val="5000000">5 triệu</button>
-                            <button type="button" class="spon-preset-btn" data-val="10000000">10 triệu</button>
-                            <button type="button" class="spon-preset-btn" data-val="20000000">20 triệu</button>
-                            <button type="button" class="spon-preset-btn" data-val="50000000">50 triệu</button>
+                        <label for="spon-amount-input" class="form-label" style="font-weight: 600; font-size: 0.875rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                            <span>Mức tài trợ (VNĐ) <span style="color: #DC2626;">*</span></span>
+                            <span id="spon-amount-display" style="font-size: 1.125rem; color: var(--primary); font-weight: 800;">0 VNĐ</span>
+                        </label>
+                        <input type="range" id="spon-amount-input" class="spon-custom-range" min="0" max="0" step="500000" value="0">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                            <span>0 VNĐ</span>
+                            <span id="spon-amount-max-label">0 VNĐ</span>
+                        </div>
+                        <div id="spon-amount-error" style="display: none; color: #DC2626; font-size: 0.75rem; margin-top: 0.5rem; font-weight: 500;">
+                            ⚠️ Vui lòng chọn số tiền lớn hơn 0 VNĐ
                         </div>
                     </div>
 

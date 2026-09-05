@@ -388,7 +388,7 @@ $sidebarNav = [
                                 </div>
                             </div>
 
-                            <!-- Quick Tip Box -->
+                            <!-- Quick Tip Box
                             <div class="ent-section-box" style="background-color: #FFF7ED; border-color: rgba(249, 115, 22, 0.25);">
                                 <div class="d-flex align-items-center gap-2 mb-2">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2">
@@ -401,7 +401,7 @@ $sidebarNav = [
                                 <p style="font-size: 0.8125rem; line-height: 1.5; color: #7C2D12; margin: 0;">
                                     Doanh nghiệp cập nhật đầy đủ thông tin giới thiệu, lĩnh vực và website chính thức sẽ có tỷ lệ học viên nộp hồ sơ thực tập cao hơn <strong>45%</strong>.
                                 </p>
-                            </div>
+                            </div> -->
                         </aside>
 
                     </div>

@@ -547,7 +547,7 @@ if (!function_exists('learner_ecosystem_opportunities')) {
     function learner_ecosystem_opportunities(): array
     {
         return \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::opportunities(
-            learner_ecosystem_repository()->opportunities()
+            learner_ecosystem_repository()->opportunities(learner_current_student_id())
         );
     }
 }

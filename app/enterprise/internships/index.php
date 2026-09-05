@@ -73,7 +73,7 @@ $enterpriseInfo = [
     'total_talents'     => 1247,
 ];
 
-$pageTitle = 'Tuyển thực tập sinh';
+// $pageTitle = 'Tuyển thực tập sinh';
 $currentRoute = '/app/enterprise/internships/';
 
 $sidebarNav = [

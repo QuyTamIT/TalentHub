@@ -58,9 +58,24 @@ ob_start();
 <?php if ($flash): ?><div class="school-flash school-flash--success"><?= htmlspecialchars($flash); ?></div><?php endif; ?>
 <?php if ($error): ?><div class="school-flash school-flash--error"><?= htmlspecialchars($error); ?></div><?php endif; ?>
 <div class="school-section-box">
-    <div class="school-section-box__header">
-        <h2 class="school-section-box__title">Quan hệ hợp tác</h2>
-        <form method="get"><select name="status" onchange="this.form.submit()"><option value="">Tất cả trạng thái</option><?php foreach ($labels as $value => $label): ?><option value="<?= $value; ?>" <?= $statusFilter === $value ? 'selected' : ''; ?>><?= htmlspecialchars($label); ?></option><?php endforeach; ?></select></form>
+    <div class="school-section-box__header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <h2 class="school-section-box__title" style="margin: 0;">Quan hệ hợp tác</h2>
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <div style="position: relative;" id="statusFilterDropdownContainer">
+                <button type="button" onclick="const m = document.getElementById('statusFilterMenu'); m.style.display = m.style.display === 'none' ? 'block' : 'none';" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid #D1D5DB; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); background-color: #fff; font-size: 0.875rem; font-weight: 500; color: #374151; cursor: pointer; transition: background-color 0.15s ease;" onmouseover="this.style.backgroundColor='#F9FAFB'" onmouseout="this.style.backgroundColor='#fff'">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                    <span><?= $statusFilter ? htmlspecialchars($labels[$statusFilter]) : 'Tất cả trạng thái' ?></span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+                <ul id="statusFilterMenu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 0.25rem; width: max-content; min-width: 150px; background: #fff; border: 1px solid #E5E7EB; border-radius: 0.375rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); padding: 0.25rem 0; z-index: 10; list-style: none; margin-left: 0; padding-left: 0;">
+                    <li onclick="window.location.href='?status='" style="padding: 0.5rem 1rem; font-size: 0.875rem; color: #374151; cursor: pointer; transition: all 0.15s; <?php if($statusFilter === null) echo 'background-color: #FFF7ED; color: #EA580C; font-weight: 600;'; ?>" onmouseover="this.style.backgroundColor='#FFF7ED'; this.style.color='#EA580C'" onmouseout="<?php if($statusFilter !== null) echo "this.style.backgroundColor='transparent'; this.style.color='#374151'"; ?>">Tất cả trạng thái</li>
+                    <?php foreach ($labels as $value => $label): ?>
+                        <li onclick="window.location.href='?status=<?= $value ?>'" style="padding: 0.5rem 1rem; font-size: 0.875rem; color: #374151; cursor: pointer; transition: all 0.15s; <?php if($statusFilter === $value) echo 'background-color: #FFF7ED; color: #EA580C; font-weight: 600;'; ?>" onmouseover="this.style.backgroundColor='#FFF7ED'; this.style.color='#EA580C'" onmouseout="<?php if($statusFilter !== $value) echo "this.style.backgroundColor='transparent'; this.style.color='#374151'"; ?>"><?= htmlspecialchars($label); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" onclick="openAddPartnerModal()">+ Thêm đối tác</button>
+        </div>
     </div>
     <?php if ($partnerships === []): ?>
         <p>Chưa có yêu cầu hợp tác phù hợp.</p>
@@ -69,7 +84,15 @@ ob_start();
         <?php foreach ($partnerships as $item): ?><tr>
             <td><strong><?= htmlspecialchars((string) $item['enterpriseName']); ?></strong><?php if (!empty($item['website'])): ?><br><a href="<?= htmlspecialchars((string) $item['website']); ?>" rel="noopener" target="_blank">Website</a><?php endif; ?></td>
             <td><?= htmlspecialchars((string) ($item['industry'] ?? '—')); ?></td>
-            <td><span class="school-class-badge school-class-badge--neutral"><?= htmlspecialchars($labels[(string) $item['status']] ?? (string) $item['status']); ?></span></td>
+            <?php
+            $badgeClass = match($item['status']) {
+                'approved' => 'background-color: #D1FAE5; color: #065F46; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;',
+                'pending' => 'background-color: #FEF3C7; color: #92400E; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;',
+                'rejected' => 'background-color: #FEE2E2; color: #991B1B; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;',
+                default => 'background-color: #F3F4F6; color: #374151; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;',
+            };
+            ?>
+            <td><span style="<?= $badgeClass ?>"><?= htmlspecialchars($labels[(string) $item['status']] ?? (string) $item['status']); ?></span></td>
             <td><?= htmlspecialchars((string) $item['updatedAt']); ?> UTC</td>
             <td style="text-align:right"><div style="display:flex;gap:.4rem;justify-content:flex-end">
                 <?php foreach ((($item['status'] ?? '') === 'pending' ? ['approved' => 'Chấp thuận', 'rejected' => 'Từ chối'] : (($item['status'] ?? '') === 'approved' ? ['suspended' => 'Tạm dừng'] : [])) as $status => $label): ?>
@@ -80,7 +103,65 @@ ob_start();
         </tbody></table>
     <?php endif; ?>
 </div>
+
+<!-- Modal Thêm Đối Tác (Mock UI) -->
+<div id="addPartnerModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; align-items: center; justify-content: center;">
+    <div style="background: #fff; width: 100%; max-width: 500px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: #1E293B;">Thêm đối tác doanh nghiệp mới</h3>
+            <button type="button" onclick="closeAddPartnerModal()" style="background: none; border: none; cursor: pointer; color: #64748B;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        
+        <form method="post">
+            <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+            <input type="hidden" name="action" value="request_partnership">
+            
+            <div style="margin-bottom: 3rem;">
+                <label style="display: block; font-size: 0.9rem; font-weight: 500; color: #475569; margin-bottom: 0.5rem;">Tìm kiếm doanh nghiệp...</label>
+                <!-- MOCK LOGIC REQUIREMENTS:
+                     The options inside this select MUST be filtered to exclude existing partners.
+                     e.g. options = allEnterprises.filter(enterprise => !currentPartnerIds.includes(enterprise.id))
+                -->
+                <select name="enterpriseId" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #CBD5E1; border-radius: 6px; background: #fff;" required>
+                    <option value="">-- Chọn doanh nghiệp khả dụng --</option>
+                    <option value="ent_g">Google Vietnam</option>
+                    <option value="ent_m">Microsoft Vietnam</option>
+                    <option value="ent_s">Samsung R&D Institute</option>
+                    <option value="ent_i">Intel Products Vietnam</option>
+                    <option value="ent_b">Bosch Global Software</option>
+                    <option value="ent_v">VinBrain</option>
+                </select>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid #E2E8F0;">
+                <button type="button" class="btn btn-outline" onclick="closeAddPartnerModal()">Hủy</button>
+                <button type="submit" class="btn" style="background-color: #F97316; border-color: #F97316; color: #fff;">Gửi lời mời</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <?php
 $pageBody = ob_get_clean();
 $extraStyles = '';
+$extraScripts = <<<'HTML'
+<script>
+function openAddPartnerModal() {
+    document.getElementById('addPartnerModal').style.display = 'flex';
+}
+function closeAddPartnerModal() {
+    document.getElementById('addPartnerModal').style.display = 'none';
+}
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const container = document.getElementById('statusFilterDropdownContainer');
+    const menu = document.getElementById('statusFilterMenu');
+    if (container && menu && !container.contains(event.target)) {
+        menu.style.display = 'none';
+    }
+});
+</script>
+HTML;
 require __DIR__ . '/includes/layout.php';

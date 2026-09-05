@@ -3,16 +3,12 @@
 declare(strict_types=1);
 
 namespace TalentHub\Modules\School\Repository;
-require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/TransactionalAiOutboxPublisher.php';
-require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/AiAudienceResolver.php';
 
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
 use TalentHub\Http\ApiException;
 use TalentHub\Support\Uuid;
-use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
-use TalentHub\Learner\Ai\Queue\AiAudienceResolver;
 
 final class SchoolProjectRepository
 {
@@ -94,6 +90,9 @@ final class SchoolProjectRepository
             throw new ApiException(422, 'VALIDATION_FAILED', 'Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.');
         }
 
+        $topic = isset($input['topic']) && is_string($input['topic']) ? trim($input['topic']) : null;
+        $authorIds = isset($input['authorIds']) && is_array($input['authorIds']) ? $input['authorIds'] : [];
+
         $id = Uuid::v4();
         $now = $this->now();
 
@@ -101,11 +100,11 @@ final class SchoolProjectRepository
         try {
             $stmt = $this->pdo->prepare(<<<'SQL'
             INSERT INTO projects (
-                id, schoolId, mentorTeacherId, title, category, description,
-                projectUrl, fundingGoal, fundingStatus, startAt, endAt, status, createdAt, updatedAt
+                id, schoolId, mentorTeacherId, title, category, topic, description,
+                projectUrl, fundingGoal, startAt, endAt, status, createdAt, updatedAt
             ) VALUES (
-                :id, :schoolId, :mentorTeacherId, :title, :category, :description,
-                :projectUrl, :fundingGoal, :fundingStatus, :startAt, :endAt, :status, :createdAt, :updatedAt
+                :id, :schoolId, :mentorTeacherId, :title, :category, :topic, :description,
+                :projectUrl, :fundingGoal, :startAt, :endAt, :status, :createdAt, :updatedAt
             )
 SQL);
 
@@ -115,10 +114,10 @@ SQL);
                 'mentorTeacherId' => $mentorTeacherId,
                 'title' => $title,
                 'category' => $category,
+                'topic' => $topic,
                 'description' => $description,
                 'projectUrl' => $projectUrl,
                 'fundingGoal' => $fundingGoal,
-                'fundingStatus' => $fundingGoal === null ? 'not_required' : 'open',
                 'startAt' => $startAt,
                 'endAt' => $endAt,
                 'status' => $status,
@@ -131,12 +130,19 @@ SQL);
                 'mentorTeacherId' => $mentorTeacherId,
                 'status' => $status,
             ]);
-            if ($status === 'in_progress') {
-                $studentIds = (new AiAudienceResolver($this->pdo))->schoolStudents($schoolId);
-                if ($studentIds !== []) {
-                    TransactionalAiOutboxPublisher::publish($this->pdo, 'project', $id, TransactionalAiOutboxPublisher::version(), $studentIds, 'project.published', ['status' => $status], $schoolId);
+
+            // Insert authorIds
+            if (!empty($authorIds)) {
+                $memberStmt = $this->pdo->prepare('INSERT INTO project_members (id, projectId, studentId, role, status, joinedAt, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+                foreach ($authorIds as $studentId) {
+                    if (is_string($studentId) && trim($studentId) !== '') {
+                        $memberStmt->execute([
+                            Uuid::v4(), $id, trim($studentId), 'member', 'active', $now, $now, $now
+                        ]);
+                    }
                 }
             }
+
             $this->pdo->commit();
         } catch (\Throwable $exception) {
             if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
@@ -167,7 +173,8 @@ SQL);
 
         $row['raisedAmount'] = (string) $stats['raisedAmount'];
         $row['sponsorsCount'] = (int) $stats['sponsorsCount'];
-        return $this->withFundingProgress($row);
+
+        return $row;
     }
 
     /**
@@ -188,42 +195,7 @@ SQL);
              ORDER BY p.createdAt DESC"
         );
         $stmt->execute(['schoolId' => $schoolId]);
-        $items = array_map(
-            fn (array $row): array => $this->withFundingProgress($row),
-            $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []
-        );
-        return ['items' => $items];
-    }
-
-    /** @return array{totalRaised:string,totalFundingGoal:string,projectsWithFunding:int,goalReachedProjects:int,activeSponsors:int} */
-    public function fundingSummary(string $schoolId): array
-    {
-        $statement = $this->pdo->prepare(<<<'SQL'
-            SELECT COALESCE(SUM(projectTotals.raisedAmount), 0) AS totalRaised,
-                   COALESCE(SUM(projectTotals.fundingGoal), 0) AS totalFundingGoal,
-                   COUNT(*) AS projectsWithFunding,
-                   SUM(CASE WHEN projectTotals.fundingGoal > 0 AND projectTotals.raisedAmount >= projectTotals.fundingGoal THEN 1 ELSE 0 END) AS goalReachedProjects,
-                   COALESCE(SUM(projectTotals.sponsorsCount), 0) AS activeSponsors
-            FROM (
-                SELECT p.id,
-                       p.fundingGoal,
-                       COALESCE(SUM(CASE WHEN sponsorship.status = 'paid' THEN sponsorship.amount ELSE 0 END), 0) AS raisedAmount,
-                       COUNT(DISTINCT CASE WHEN sponsorship.status = 'paid' THEN sponsorship.enterpriseId END) AS sponsorsCount
-                FROM projects p
-                LEFT JOIN project_sponsorships sponsorship ON sponsorship.projectId = p.id
-                WHERE p.schoolId = :schoolId AND p.fundingGoal IS NOT NULL
-                GROUP BY p.id, p.fundingGoal
-            ) projectTotals
-        SQL);
-        $statement->execute(['schoolId' => $schoolId]);
-        $row = $statement->fetch(PDO::FETCH_ASSOC) ?: [];
-        return [
-            'totalRaised' => (string) ($row['totalRaised'] ?? '0.00'),
-            'totalFundingGoal' => (string) ($row['totalFundingGoal'] ?? '0.00'),
-            'projectsWithFunding' => (int) ($row['projectsWithFunding'] ?? 0),
-            'goalReachedProjects' => (int) ($row['goalReachedProjects'] ?? 0),
-            'activeSponsors' => (int) ($row['activeSponsors'] ?? 0),
-        ];
+        return ['items' => $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []];
     }
 
     public function updateProject(string $schoolId, string $userId, string $projectId, array $input): array
@@ -233,6 +205,7 @@ SQL);
 
         $title = isset($input['title']) ? trim((string) $input['title']) : (string) $current['title'];
         $category = isset($input['category']) ? trim((string) $input['category']) : (string) ($current['category'] ?? 'general');
+        $topic = array_key_exists('topic', $input) ? (is_string($input['topic']) ? trim($input['topic']) : null) : ($current['topic'] ?? null);
         $description = array_key_exists('description', $input) ? (is_string($input['description']) ? trim($input['description']) : null) : $current['description'];
         $status = isset($input['status']) ? trim((string) $input['status']) : (string) $current['status'];
         if (!in_array($status, ['draft', 'in_progress', 'completed', 'archived'], true)) {
@@ -245,48 +218,31 @@ SQL);
         if ($fundingGoal !== null && (!preg_match('/^\d+(\.\d{1,2})?$/', (string) $fundingGoal) || (float) $fundingGoal <= 0)) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Mục tiêu tài trợ phải là số dương.');
         }
-        $raisedAmount = (float) ($current['raisedAmount'] ?? 0);
-        $fundingStatus = $fundingGoal === null
-            ? 'not_required'
-            : ($raisedAmount >= (float) $fundingGoal ? 'goal_reached' : 'open');
-        $fundingReachedSql = $fundingStatus === 'goal_reached'
-            ? 'COALESCE(fundingReachedAt, :fundingReachedAt)'
-            : 'NULL';
 
         $this->pdo->beginTransaction();
         try {
             $stmt = $this->pdo->prepare(
                 "UPDATE projects
-                 SET title = :title, category = :category, description = :description, status = :status,
-                     fundingGoal = :fundingGoal, fundingStatus = :fundingStatus,
-                     fundingReachedAt = {$fundingReachedSql},
-                     updatedAt = :updatedAt
+                 SET title = :title, category = :category, topic = :topic, description = :description, status = :status,
+                     fundingGoal = :fundingGoal, updatedAt = :updatedAt
                  WHERE id = :id AND schoolId = :schoolId"
             );
-            $parameters = [
+            $stmt->execute([
                 'title' => $title,
                 'category' => $category,
+                'topic' => $topic,
                 'description' => $description,
                 'status' => $status,
                 'fundingGoal' => $fundingGoal,
-                'fundingStatus' => $fundingStatus,
                 'updatedAt' => $now,
                 'id' => $projectId,
                 'schoolId' => $schoolId,
-            ];
-            if ($fundingStatus === 'goal_reached') {
-                $parameters['fundingReachedAt'] = $now;
-            }
-            $stmt->execute($parameters);
+            ]);
 
             $this->writeAudit($userId, 'PROJECT_UPDATE', $projectId, 'school-project-ui', [
                 'schoolId' => $schoolId,
                 'changes' => array_keys($input),
             ]);
-            $studentIds = (new AiAudienceResolver($this->pdo))->schoolStudents($schoolId);
-            if ($studentIds !== []) {
-                TransactionalAiOutboxPublisher::publish($this->pdo, 'project', $projectId, TransactionalAiOutboxPublisher::version(), $studentIds, $status === 'in_progress' ? 'project.updated' : 'project.archived', ['changes' => array_values(array_keys($input)), 'status' => $status], $schoolId);
-            }
             $this->pdo->commit();
         } catch (\Throwable $exception) {
             if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
@@ -312,19 +268,6 @@ SQL);
     {
         $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value, new DateTimeZone('UTC'));
         return $date !== false && $date->format('Y-m-d') === $value;
-    }
-
-    /** @param array<string,mixed> $row @return array<string,mixed> */
-    private function withFundingProgress(array $row): array
-    {
-        $goal = isset($row['fundingGoal']) && $row['fundingGoal'] !== null ? (float) $row['fundingGoal'] : 0.0;
-        $raised = (float) ($row['raisedAmount'] ?? 0);
-        $percentage = $goal > 0 ? (int) min(100, round(($raised / $goal) * 100)) : 0;
-        $row['fundingPercentage'] = $percentage;
-        $row['fundingStatus'] = $goal <= 0
-            ? 'not_required'
-            : ($percentage >= 100 ? 'goal_reached' : 'open');
-        return $row;
     }
 
     /** @param array<string,mixed> $metadata */

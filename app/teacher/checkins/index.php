@@ -65,7 +65,6 @@ $sidebarNav = [
     ['title' => 'Sân chơi của tôi', 'route' => 'playgrounds', 'icon' => 'trophy', 'active' => false],
     ['title' => 'Chấm điểm', 'route' => 'assessments', 'icon' => 'clipboard-check', 'active' => false],
     ['title' => 'Học viên', 'route' => 'students', 'icon' => 'users', 'active' => false],
-    ['title' => 'Điểm danh QR', 'route' => 'checkins', 'icon' => 'qr', 'active' => true],
 ];
 
 $csrfToken = $session->csrfToken();
@@ -74,7 +73,7 @@ $data = ['activities' => [], 'sessions' => [], 'managedCheckins' => []];
 $errors = [];
 $bootError = null;
 $formValues = [
-    'activity_id' => '',
+    'activity_id' => is_string($_GET['activity_id'] ?? null) ? $_GET['activity_id'] : '',
     'duration_minutes' => (string) TeacherQrSessionService::DEFAULT_DURATION_MINUTES,
     'max_scans' => (string) TeacherQrSessionService::DEFAULT_MAX_SCANS,
     'confirmed_hours' => TeacherQrSessionService::DEFAULT_CONFIRMED_HOURS,
