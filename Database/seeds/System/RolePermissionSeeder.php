@@ -95,7 +95,7 @@ final class RolePermissionSeeder
             'admin.organization.read', 'admin.organization.verify', 'admin.organization.suspend',
             'admin.rbac.read', 'admin.rbac.update', 'admin.audit.read', 'admin.audit.export',
             'admin.incident.manage', 'admin.payment.read', 'admin.payment.reconcile',
-            'admin.system.health.read',
+            'admin.system.health.read', 'admin.consultation.read', 'admin.consultation.update',
         ],
     ];
 
