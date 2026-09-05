@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initTeacherAccountDropdown();
     initTeacherRoutes();
     initTeacherFocusOnLoad();
+    initTeacherConfirmations();
 });
 
 function initTeacherSidebar() {
@@ -184,6 +185,17 @@ function initTeacherFocusOnLoad() {
         const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         target.focus({ preventScroll: true });
         target.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
+    });
+}
+
+function initTeacherConfirmations() {
+    document.querySelectorAll('form[data-confirm]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            const message = form.getAttribute('data-confirm');
+            if (message && !window.confirm(message)) {
+                event.preventDefault();
+            }
+        });
     });
 }
 

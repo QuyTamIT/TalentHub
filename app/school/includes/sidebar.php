@@ -39,6 +39,11 @@ $sidebarNav = [
         'icon'  => 'book',
     ],
     [
+        'title' => 'Duyệt hoạt động',
+        'route' => '/app/school/activities.php',
+        'icon'  => 'clipboard',
+    ],
+    [
         'title' => 'Đối tác',
         'route' => '/app/school/partnerships.php',
         'icon' => 'users',

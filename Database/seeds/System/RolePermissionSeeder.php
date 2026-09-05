@@ -70,7 +70,8 @@ final class RolePermissionSeeder
             'student_profile.create_own_school', 'student_profile.update_own_school',
             'teacher_profile.read_own_school', 'teacher_profile.invite_own_school',
             'teacher_profile.update_role_own_school', 'teacher_profile.deactivate_own_school',
-            'activity.read_own_school',
+            'partnership.read_own_school', 'partnership.review_own_school',
+            'activity.read_own_school', 'activity.review_school',
             'activity.create_own_school', 'activity.update_own_school', 'activity.archive_own_school',
             'activity_registration.read_own_school', 'report.create_own_school',
             'report.read_own_school', 'report.download_own_school', 'project.read_own_school',
@@ -95,7 +96,7 @@ final class RolePermissionSeeder
             'admin.organization.read', 'admin.organization.verify', 'admin.organization.suspend',
             'admin.rbac.read', 'admin.rbac.update', 'admin.audit.read', 'admin.audit.export',
             'admin.incident.manage', 'admin.payment.read', 'admin.payment.reconcile',
-            'admin.system.health.read',
+            'admin.system.health.read', 'admin.consultation.read', 'admin.consultation.update',
         ],
     ];
 

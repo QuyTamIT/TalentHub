@@ -15,7 +15,6 @@ final class TeacherActivityService
 
     /** @var array<string,string> */
     private const NEXT_STATUSES = [
-        'draft' => 'published',
         'published' => 'ongoing',
         'ongoing' => 'completed',
         'completed' => 'archived',
@@ -50,7 +49,7 @@ final class TeacherActivityService
         return $this->repository->registrations($teacherId, trim($activityId));
     }
 
-    /** @param array{title:string,category:string,startAt:DateTimeImmutable,endAt:DateTimeImmutable,capacity:int} $input */
+    /** @param array{title:string,category:string,startAt:DateTimeImmutable,endAt:DateTimeImmutable,capacity:int,summary?:string,locationName?:string} $input */
     public function create(string $teacherId, string $schoolId, array $input): string
     {
         $id = self::uuid();
@@ -58,7 +57,7 @@ final class TeacherActivityService
         return $id;
     }
 
-    /** @param array{title:string,category:string,startAt:DateTimeImmutable,endAt:DateTimeImmutable,capacity:int} $input */
+    /** @param array{title:string,category:string,startAt:DateTimeImmutable,endAt:DateTimeImmutable,capacity:int,summary?:string,locationName?:string} $input */
     public function update(string $teacherId, string $activityId, array $input): void
     {
         if (!$this->repository->update($teacherId, trim($activityId), $this->payload($input))) {
@@ -81,7 +80,7 @@ final class TeacherActivityService
 
         $nextStatus = self::NEXT_STATUSES[$currentStatus] ?? null;
         if ($nextStatus === null) {
-            throw new ApiException(422, 'INVALID_TRANSITION', 'Hoạt động đã lưu trữ và không thể chuyển tiếp.');
+            throw new ApiException(422, 'INVALID_TRANSITION', 'Giáo viên không thể tự công bố hoặc chuyển tiếp hoạt động từ trạng thái hiện tại.');
         }
 
         if (!$this->repository->advanceStatus($teacherId, $activityId, $currentStatus, $nextStatus)) {
@@ -89,6 +88,29 @@ final class TeacherActivityService
         }
 
         return $nextStatus;
+    }
+
+    public function submitForApproval(string $teacherId, string $activityId): string
+    {
+        $teacherId = $this->requireUuid($teacherId, 'teacherId');
+        $activityId = $this->requireUuid($activityId, 'activityId');
+        $activity = $this->repository->find($teacherId, $activityId);
+        if ($activity === null) {
+            throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.');
+        }
+
+        $currentStatus = strtolower(trim((string) ($activity['status'] ?? '')));
+        $approvalStatus = strtolower(trim((string) ($activity['approvalStatus'] ?? '')));
+        if ($currentStatus !== 'draft' || !in_array($approvalStatus, ['draft', 'rejected'], true)) {
+            throw new ApiException(409, 'INVALID_TRANSITION', 'Chỉ hoạt động bản nháp hoặc bị từ chối mới có thể gửi yêu cầu duyệt.');
+        }
+
+        $this->assertCompleteForApproval($activity);
+        if (!$this->repository->submitForApproval($teacherId, $activityId, $approvalStatus)) {
+            throw new ApiException(409, 'STATUS_CONFLICT', 'Hoạt động đã thay đổi hoặc không còn ở trạng thái có thể gửi duyệt.');
+        }
+
+        return 'pending_school_review';
     }
 
     /** @param array<string,mixed> $input @return array{id:string,activityId:string,status:string,updatedAt:string} */
@@ -123,14 +145,16 @@ final class TeacherActivityService
     }
 
     /**
-     * @param array{title:string,category:string,startAt:DateTimeImmutable,endAt:DateTimeImmutable,capacity:int} $input
-     * @return array{title:string,category:string,startAt:string,endAt:string,capacity:int}
+     * @param array{title:string,category:string,startAt:DateTimeImmutable,endAt:DateTimeImmutable,capacity:int,summary?:string,locationName?:string} $input
+     * @return array{title:string,category:string,startAt:string,endAt:string,capacity:int,summary:string,locationName:string}
      */
     private function payload(array $input): array
     {
         $title = trim($input['title']);
         $category = trim($input['category']);
         $capacity = $input['capacity'];
+        $summary = trim((string) ($input['summary'] ?? ''));
+        $locationName = trim((string) ($input['locationName'] ?? ''));
 
         if ($title === '') {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Vui lòng nhập tên hoạt động.');
@@ -144,6 +168,12 @@ final class TeacherActivityService
         if ($input['endAt'] <= $input['startAt']) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Thời gian kết thúc phải sau thời gian bắt đầu.');
         }
+        if (mb_strlen($summary) > 500) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Mô tả ngắn không được vượt quá 500 ký tự.');
+        }
+        if (mb_strlen($locationName) > 255) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Địa điểm không được vượt quá 255 ký tự.');
+        }
 
         return [
             'title' => $title,
@@ -151,7 +181,27 @@ final class TeacherActivityService
             'startAt' => $input['startAt']->format('Y-m-d H:i:s'),
             'endAt' => $input['endAt']->format('Y-m-d H:i:s'),
             'capacity' => $capacity,
+            'summary' => $summary,
+            'locationName' => $locationName,
         ];
+    }
+
+    /** @param array<string,mixed> $activity */
+    private function assertCompleteForApproval(array $activity): void
+    {
+        $missing = [];
+        foreach (['title' => 'tên hoạt động', 'category' => 'nhóm hoạt động', 'summary' => 'mô tả ngắn', 'locationName' => 'địa điểm', 'startAt' => 'thời gian bắt đầu', 'endAt' => 'thời gian kết thúc', 'capacity' => 'sức chứa'] as $field => $label) {
+            $value = $activity[$field] ?? null;
+            if ($value === null || (is_string($value) && trim($value) === '')) {
+                $missing[] = $label;
+            }
+        }
+        if ((int) ($activity['capacity'] ?? 0) < 1) {
+            $missing[] = 'sức chứa hợp lệ';
+        }
+        if ($missing !== []) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Hoạt động chưa đủ dữ liệu bắt buộc: ' . implode(', ', array_unique($missing)) . '.');
+        }
     }
 
     private static function uuid(): string

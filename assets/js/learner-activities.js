@@ -482,6 +482,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(detail){
     const activity=boot.activity;
     let capacitySnapshot=normalizeRegistrationCapacity(activity);
+    let registration=null;
     let registrationBlock=null;
     const button=detail.querySelector('[data-register-current]');
     const message=detail.querySelector('[data-registration-message]');

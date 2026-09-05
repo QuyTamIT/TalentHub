@@ -11,7 +11,9 @@ use TalentHub\Http\ApiException;
 use TalentHub\Modules\School\Repository\SchoolPartnershipRepository;
 use TalentHub\Modules\School\Repository\SchoolProjectRepository;
 use TalentHub\Modules\School\Repository\SchoolRepository;
+use TalentHub\Modules\School\Repository\SchoolActivityApprovalRepository;
 use TalentHub\Modules\School\Service\SchoolAuthorization;
+use TalentHub\Modules\School\Service\SchoolActivityApprovalService;
 use TalentHub\Modules\School\Service\SchoolDashboardService;
 use TalentHub\Modules\School\Service\SchoolPartnershipService;
 use TalentHub\Modules\School\Service\SchoolProjectService;
@@ -36,6 +38,7 @@ final class SchoolAppContext
     private SchoolPartnershipService $partnerships;
     private SchoolProjectService $projects;
     private StudentSafeguardingService $safeguarding;
+    private SchoolActivityApprovalService $activityApprovals;
 
     public function __construct()
     {
@@ -54,6 +57,7 @@ final class SchoolAppContext
         );
         $this->auth = new AuthService(new AuthRepository($pdo));
         $this->permissions = new PermissionService($pdo);
+        $this->activityApprovals = new SchoolActivityApprovalService(new SchoolActivityApprovalRepository($pdo));
         $this->partnerships = new SchoolPartnershipService(new SchoolPartnershipRepository($pdo));
         $this->projects = new SchoolProjectService(new SchoolProjectRepository($pdo));
         $this->safeguarding = new StudentSafeguardingService($pdo, $repository, new SchoolAuthorization($pdo));
@@ -246,6 +250,8 @@ final class SchoolAppContext
             'session'      => $this->session,
             'csrfToken'    => $this->session->csrfToken(),
             'pdo'          => $pdo,
+            'permissions'  => $this->permissions,
+            'activityApprovals' => $this->activityApprovals,
             'partnerships' => $this->partnerships,
             'projects'     => $this->projects,
             'safeguarding' => $this->safeguarding,

@@ -39,7 +39,7 @@ final class TeacherQrSessionService
         ];
     }
 
-    /** @return array{sessionId:string,rawToken:string} */
+    /** @return array{sessionId:string,rawToken:string,expiresAt:string} */
     public function create(string $userId, mixed $activityId, mixed $durationMinutes, mixed $maxScans, mixed $confirmedHours = self::DEFAULT_CONFIRMED_HOURS): array
     {
         $activityId = $this->validateUuid($activityId, 'activity_id', 'Mã hoạt động không hợp lệ.');
@@ -69,7 +69,7 @@ final class TeacherQrSessionService
             throw new ApiException(422, 'INVALID_ACTIVITY', 'Chỉ có thể tạo QR cho hoạt động đang diễn ra do bạn quản lý.');
         }
 
-        return ['sessionId' => $sessionId, 'rawToken' => $rawToken];
+        return ['sessionId' => $sessionId, 'rawToken' => $rawToken, 'expiresAt' => $expiresAt];
     }
 
     public function revoke(string $userId, mixed $sessionId): void
@@ -79,6 +79,54 @@ final class TeacherQrSessionService
         if (!$this->repository->revokeSession($this->teacherId($userId), $sessionId)) {
             throw new ApiException(409, 'QR_SESSION_NOT_REVOCABLE', 'Phiên QR không còn hoạt động, đã hết hạn hoặc không thuộc giáo viên hiện tại.');
         }
+    }
+
+    /**
+     * Resolve a raw token retained in the authenticated teacher's PHP session.
+     * The database remains the source of truth for ownership, status and expiry.
+     *
+     * @return array{sessionId:string,rawToken:string,expiresAt:string}|null
+     */
+    public function resolveDisplayToken(string $userId, mixed $display): ?array
+    {
+        if (!is_array($display)) {
+            return null;
+        }
+
+        $sessionId = $display['sessionId'] ?? null;
+        $rawToken = $display['rawToken'] ?? null;
+        $storedExpiresAt = $display['expiresAt'] ?? null;
+        if (
+            !is_string($sessionId)
+            || preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i', $sessionId) !== 1
+            || !is_string($rawToken)
+            || $rawToken === ''
+            || !is_string($storedExpiresAt)
+        ) {
+            return null;
+        }
+
+        $row = $this->repository->findSessionForTeacher($this->teacherId($userId), $sessionId);
+        if ($row === null || strtolower(trim((string) ($row['status'] ?? ''))) !== 'active') {
+            return null;
+        }
+
+        $databaseExpiresAt = $this->parseUtc((string) ($row['expiresAt'] ?? ''));
+        $sessionExpiresAt = $this->parseUtc($storedExpiresAt);
+        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        if ($databaseExpiresAt === null || $sessionExpiresAt === null || $databaseExpiresAt <= $now || $sessionExpiresAt <= $now) {
+            return null;
+        }
+
+        if (!hash_equals((string) ($row['tokenHash'] ?? ''), hash('sha256', $rawToken))) {
+            return null;
+        }
+
+        return [
+            'sessionId' => $sessionId,
+            'rawToken' => $rawToken,
+            'expiresAt' => $databaseExpiresAt->format('Y-m-d H:i:s.u'),
+        ];
     }
 
     private function teacherId(string $userId): string

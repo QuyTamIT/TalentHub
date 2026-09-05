@@ -31,12 +31,22 @@ if (!function_exists('teacherActivitiesLifecycleAction')) {
     function teacherActivitiesLifecycleAction(array $activity): ?array
     {
         $rawStatus = strtolower(trim((string) ($activity['raw_status'] ?? '')));
+        $approvalStatus = strtolower(trim((string) ($activity['approval_status'] ?? 'draft')));
 
+        if ($rawStatus === 'draft' && in_array($approvalStatus, ['draft', 'rejected'], true)) {
+            return [
+                'form_action' => 'submit_for_approval',
+                'label' => 'Gửi yêu cầu duyệt',
+                'confirm' => 'Bạn có chắc muốn gửi hoạt động này để Nhà trường xem xét không?',
+            ];
+        }
+        if ($rawStatus === 'draft' && $approvalStatus === 'pending_school_review') {
+            return ['badge' => 'Đang chờ nhà trường duyệt'];
+        }
         return match ($rawStatus) {
-            'draft' => ['label' => 'Công bố hoạt động'],
-            'published' => ['label' => 'Bắt đầu hoạt động'],
-            'ongoing' => ['label' => 'Kết thúc hoạt động'],
-            'completed' => ['label' => 'Lưu trữ hoạt động'],
+            'published' => ['form_action' => 'advance_status', 'label' => 'Bắt đầu hoạt động'],
+            'ongoing' => ['form_action' => 'advance_status', 'label' => 'Kết thúc hoạt động'],
+            'completed' => ['form_action' => 'advance_status', 'label' => 'Lưu trữ hoạt động'],
             'archived' => null,
             default => null,
         };
@@ -90,7 +100,7 @@ $action = strtolower(trim((string) ($_GET['action'] ?? '')));
 $activityId = trim((string) ($_GET['id'] ?? ''));
 $search = trim((string) ($_GET['q'] ?? ''));
 $statusFilter = strtolower(trim((string) ($_GET['status'] ?? '')));
-    $statusFilters = ['draft', 'published', 'ongoing', 'completed', 'archived'];
+$statusFilters = ['draft', 'published', 'ongoing', 'completed', 'archived'];
 if (!in_array($statusFilter, $statusFilters, true)) {
     $statusFilter = '';
 }
@@ -104,6 +114,7 @@ if (isset($_GET['saved'])) {
         'created' => 'Đã tạo hoạt động mới.',
         'updated' => 'Đã cập nhật hoạt động.',
         'advanced' => 'Đã chuyển hoạt động sang trạng thái mới.',
+        'submitted' => 'Đã gửi yêu cầu duyệt cho Nhà trường.',
         'registration' => 'Đã cập nhật trạng thái đăng ký.',
     ];
     $notice = $noticeMessages[(string) $_GET['saved']] ?? 'Đã lưu thay đổi hoạt động.';
@@ -117,6 +128,8 @@ if ($pdo && $teacherId !== '' && $activityId !== '') {
 $formValues = [
     'title' => '',
     'category' => '',
+    'summary' => '',
+    'locationName' => '',
     'startAt' => (new DateTimeImmutable('+1 day'))->format('Y-m-d\TH:i'),
     'endAt' => (new DateTimeImmutable('+1 day 3 hours'))->format('Y-m-d\TH:i'),
     'capacity' => '30',
@@ -126,6 +139,8 @@ if ($action === 'edit' && $selectedActivity) {
     $formValues = [
         'title' => (string) ($selectedActivity['title'] ?? ''),
         'category' => (string) ($selectedActivity['category'] ?? ''),
+        'summary' => (string) ($selectedActivity['summary'] ?? ''),
+        'locationName' => (string) ($selectedActivity['location_name_input'] ?? ''),
         'startAt' => (string) ($selectedActivity['start_input'] ?? ''),
         'endAt' => (string) ($selectedActivity['end_input'] ?? ''),
         'capacity' => (string) ($selectedActivity['capacity'] ?? 0),
@@ -138,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$session instanceof \TalentHub\Auth\Session\SessionManager) {
             throw new RuntimeException('Teacher session is unavailable.');
         }
-        $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
+        teacherActivitiesAssertCsrf($session, $_POST['csrfToken'] ?? null);
     } catch (Throwable) {
         $csrfValid = false;
         $errors[] = 'Yêu cầu không hợp lệ hoặc phiên làm việc đã hết hạn. Vui lòng tải lại trang và thử lại.';
@@ -149,6 +164,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $formAction = (string) ($_POST['form_action'] ?? 'create');
         $postedActivityId = trim((string) ($_POST['activity_id'] ?? ''));
+        $knownFormActions = ['create', 'edit', 'registration_transition', 'submit_for_approval', 'advance_status'];
+        if (!in_array($formAction, $knownFormActions, true)) {
+            $errors[] = 'Thao tác hoạt động không hợp lệ.';
+        }
 
     if ($formAction === 'registration_transition') {
         $postedRegistrationId = trim((string) ($_POST['registration_id'] ?? ''));
@@ -183,7 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($formAction === 'advance_status') {
-        if (!$pdo || $teacherId === '') {
+        if (!$pdo || $teacherId === '' || $teacherUserId === '') {
             $errors[] = 'Chưa kết nối được hồ sơ giáo viên để cập nhật trạng thái hoạt động.';
         }
         if ($postedActivityId === '') {
@@ -192,6 +211,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$errors) {
             try {
+                (new \TalentHub\Rbac\Service\PermissionService($pdo))->require(
+                    $teacherUserId,
+                    'activity.update_managed'
+                );
                 $activityService->advanceStatus($teacherId, $postedActivityId);
                 header('Location: index.php?saved=advanced');
                 exit;
@@ -201,20 +224,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($formAction === 'submit_for_approval') {
+        if (!$pdo || !$activityService || $teacherId === '' || $teacherUserId === '') {
+            $errors[] = 'Chưa kết nối được hồ sơ giáo viên để gửi yêu cầu duyệt.';
+        }
+        if ($postedActivityId === '') {
+            $errors[] = 'Thiếu mã hoạt động cần gửi yêu cầu duyệt.';
+        }
+        if (!$errors) {
+            try {
+                (new \TalentHub\Rbac\Service\PermissionService($pdo))->require(
+                    $teacherUserId,
+                    'activity.update_managed'
+                );
+                $activityService->submitForApproval($teacherId, $postedActivityId);
+                header('Location: index.php?saved=submitted');
+                exit;
+            } catch (Throwable $exception) {
+                $errors[] = $exception->getMessage() ?: 'Không thể gửi hoạt động cho Nhà trường duyệt.';
+            }
+        }
+    }
+
     if ($formAction === 'registration_transition') {
         $action = 'registrations';
         $activityId = $postedActivityId;
         $selectedActivity = $pdo && $teacherId !== '' ? teacherActivitiesFind($pdo, $teacherId, $activityId) : null;
-    } elseif ($formAction === 'advance_status') {
+    } elseif (in_array($formAction, ['advance_status', 'submit_for_approval'], true)) {
         $action = '';
         if ($postedActivityId !== '') {
             $activityId = $postedActivityId;
             $selectedActivity = $pdo && $teacherId !== '' ? teacherActivitiesFind($pdo, $teacherId, $activityId) : null;
         }
-    } else {
+    } elseif (in_array($formAction, ['create', 'edit'], true)) {
         $formValues = [
         'title' => trim((string) ($_POST['title'] ?? '')),
         'category' => trim((string) ($_POST['category'] ?? '')),
+        'summary' => trim((string) ($_POST['summary'] ?? '')),
+        'locationName' => trim((string) ($_POST['locationName'] ?? '')),
         'startAt' => trim((string) ($_POST['startAt'] ?? '')),
         'endAt' => trim((string) ($_POST['endAt'] ?? '')),
         'capacity' => trim((string) ($_POST['capacity'] ?? '')),
@@ -245,10 +292,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($capacity === false) {
         $errors[] = 'Sức chứa phải là số nguyên lớn hơn 0.';
     }
+    if (mb_strlen($formValues['summary']) > 500) {
+        $errors[] = 'Mô tả ngắn không được vượt quá 500 ký tự.';
+    }
+    if (mb_strlen($formValues['locationName']) > 255) {
+        $errors[] = 'Địa điểm không được vượt quá 255 ký tự.';
+    }
     if (!$errors) {
         $payload = [
             'title' => $formValues['title'],
             'category' => $formValues['category'],
+            'summary' => $formValues['summary'],
+            'locationName' => $formValues['locationName'],
             'startAt' => $startAt,
             'endAt' => $endAt,
             'capacity' => $capacity,
@@ -274,7 +329,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $activityId = $postedActivityId;
             $selectedActivity = $pdo && $teacherId !== '' ? teacherActivitiesFind($pdo, $teacherId, $activityId) : null;
         }
-        }
+    } else {
+        $action = '';
+    }
     }
 }
 
@@ -370,6 +427,14 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                         <span>Nhóm hoạt động</span>
                                         <input id="activity-category" type="text" name="category" value="<?= teacherActivitiesEscape($formValues['category']); ?>" required<?= $errors ? ' aria-describedby="teacher-activities-errors"' : ''; ?>>
                                     </label>
+                                    <label class="teacher-form-field teacher-form-field--wide" for="activity-summary">
+                                        <span>Mô tả ngắn <small>(bắt buộc khi gửi duyệt)</small></span>
+                                        <textarea id="activity-summary" name="summary" maxlength="500" rows="4"<?= $errors ? ' aria-describedby="teacher-activities-errors"' : ''; ?>><?= teacherActivitiesEscape($formValues['summary']); ?></textarea>
+                                    </label>
+                                    <label class="teacher-form-field teacher-form-field--wide" for="activity-location">
+                                        <span>Địa điểm <small>(bắt buộc khi gửi duyệt)</small></span>
+                                        <input id="activity-location" type="text" name="locationName" maxlength="255" value="<?= teacherActivitiesEscape($formValues['locationName']); ?>"<?= $errors ? ' aria-describedby="teacher-activities-errors"' : ''; ?> placeholder="Ví dụ: Phòng B305, Hội trường A hoặc Sân trường">
+                                    </label>
                                     <label class="teacher-form-field" for="activity-capacity">
                                         <span>Sức chứa</span>
                                         <input id="activity-capacity" type="number" name="capacity" min="1" step="1" value="<?= teacherActivitiesEscape($formValues['capacity']); ?>" required<?= $errors ? ' aria-describedby="teacher-activities-errors"' : ''; ?>>
@@ -388,7 +453,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                     </div>
                                 </div>
 
-                                <p class="teacher-activities-form__note" id="teacher-activities-form-note">Địa điểm chưa được lưu vì bảng <code>activities</code> hiện chưa có cột địa điểm.</p>
+                                <p class="teacher-activities-form__note" id="teacher-activities-form-note">Mô tả ngắn và địa điểm sẽ được lưu cùng thông tin hoạt động. Có thể bổ sung trước khi gửi yêu cầu duyệt.</p>
                                 <div class="teacher-activities-form__actions">
                                     <a href="index.php" class="btn btn-secondary">Hủy</a>
                                     <button type="submit" class="btn btn-primary">Lưu hoạt động</button>
@@ -404,25 +469,32 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                 </div>
                                 <div class="teacher-activities-header-actions">
                                     <?php $detailLifecycleAction = teacherActivitiesLifecycleAction($selectedActivity); ?>
-                                    <?php if ($detailLifecycleAction !== null): ?>
-                                        <form method="post" class="teacher-activities-inline-form">
+                                    <?php if (is_array($detailLifecycleAction) && isset($detailLifecycleAction['form_action'])): ?>
+                                        <form method="post" class="teacher-activities-inline-form"<?= !empty($detailLifecycleAction['confirm']) ? ' data-confirm="' . teacherActivitiesEscape((string) $detailLifecycleAction['confirm']) . '"' : ''; ?>>
                                             <input type="hidden" name="csrfToken" value="<?= teacherActivitiesEscape($csrfToken); ?>">
-                                            <input type="hidden" name="form_action" value="advance_status">
+                                            <input type="hidden" name="form_action" value="<?= teacherActivitiesEscape((string) $detailLifecycleAction['form_action']); ?>">
                                             <input type="hidden" name="activity_id" value="<?= teacherActivitiesEscape($selectedActivity['id']); ?>">
                                             <button type="submit" class="btn btn-secondary btn-sm"><?= teacherActivitiesEscape($detailLifecycleAction['label']); ?></button>
                                         </form>
+                                    <?php elseif (is_array($detailLifecycleAction) && isset($detailLifecycleAction['badge'])): ?>
+                                        <span class="teacher-status-pill teacher-status-pill--warning"><?= teacherActivitiesEscape((string) $detailLifecycleAction['badge']); ?></span>
                                     <?php endif; ?>
                                     <a href="index.php" class="btn btn-secondary btn-sm">Quay lại danh sách</a>
                                 </div>
                             </div>
                             <div class="teacher-activity-detail-grid">
-                                <div><span>Trạng thái</span><strong><span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($selectedActivity['status_class']); ?>"><?= teacherActivitiesEscape($selectedActivity['status_label']); ?></span></strong></div>
+                                <div><span>Trạng thái vòng đời</span><strong><span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($selectedActivity['status_class']); ?>"><?= teacherActivitiesEscape($selectedActivity['status_label']); ?></span></strong></div>
+                                <div><span>Trạng thái duyệt</span><strong><span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($selectedActivity['approval_status_class']); ?>"><?= teacherActivitiesEscape($selectedActivity['approval_status_label']); ?></span></strong></div>
                                 <div><span>Thời gian</span><strong><?= teacherActivitiesEscape($selectedActivity['start_label']); ?> – <?= teacherActivitiesEscape($selectedActivity['end_label']); ?></strong></div>
-                                <div><span>Địa điểm</span><strong><?= teacherActivitiesEscape($selectedActivity['locationName'] ?? 'Phòng Thực hành B305 - BTEC Cần Thơ'); ?></strong></div>
+                                <div><span>Địa điểm</span><strong><?= teacherActivitiesEscape($selectedActivity['location_label'] ?? 'Chưa cập nhật'); ?></strong></div>
+                                <div><span>Mô tả ngắn</span><strong><?= nl2br(teacherActivitiesEscape((string) ($selectedActivity['summary'] ?? 'Chưa cập nhật'))); ?></strong></div>
                                 <div><span>Đăng ký</span><strong><?= teacherActivitiesEscape((string) $selectedActivity['registered_count']); ?> / <?= teacherActivitiesEscape((string) $selectedActivity['capacity']); ?></strong></div>
                                 <div><span>Khả năng đăng ký</span><strong><span class="teacher-registration-pill teacher-registration-pill--<?= $selectedActivity['registration_available'] ? 'available' : 'unavailable'; ?>"><?= teacherActivitiesEscape($selectedActivity['registration_label']); ?></span></strong></div>
                                 <div><span>Nhóm</span><strong><?= teacherActivitiesEscape($selectedActivity['category']); ?></strong></div>
                             </div>
+                            <?php if (($selectedActivity['rejection_reason'] ?? '') !== ''): ?>
+                                <p class="teacher-activities-notice teacher-activities-notice--error"><strong>Lý do từ chối:</strong> <?= teacherActivitiesEscape($selectedActivity['rejection_reason']); ?></p>
+                            <?php endif; ?>
                         </section>
                     <?php elseif ($action === 'registrations' && $selectedActivity): ?>
                         <section class="teacher-section-box teacher-registrations-panel">
@@ -560,11 +632,15 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                                     <span class="teacher-activity-time"><?= teacherActivitiesEscape($activity['start_label']); ?></span>
                                                     <span class="teacher-activity-time teacher-text-muted">đến <?= teacherActivitiesEscape($activity['end_label']); ?></span>
                                                 </td>
-                                                <td data-label="Địa điểm"><span><?= teacherActivitiesEscape($activity['locationName'] ?? 'Phòng Thực hành B305 - BTEC Cần Thơ'); ?></span></td>
+                                                <td data-label="Địa điểm"><span><?= teacherActivitiesEscape($activity['location_label'] ?? 'Chưa cập nhật'); ?></span></td>
                                                 <td data-label="Đăng ký"><strong><?= teacherActivitiesEscape((string) $activity['registered_count']); ?> / <?= teacherActivitiesEscape((string) $activity['capacity']); ?></strong></td>
                                                 <td data-label="Trạng thái">
                                                     <span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($activity['status_class']); ?>"><?= teacherActivitiesEscape($activity['status_label']); ?></span>
+                                                    <span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($activity['approval_status_class']); ?>"><?= teacherActivitiesEscape($activity['approval_status_label']); ?></span>
                                                     <span class="teacher-registration-pill teacher-registration-pill--<?= $activity['registration_available'] ? 'available' : 'unavailable'; ?>"><?= teacherActivitiesEscape($activity['registration_label']); ?></span>
+                                                    <?php if (($activity['rejection_reason'] ?? '') !== ''): ?>
+                                                        <small class="teacher-text-muted">Lý do: <?= teacherActivitiesEscape($activity['rejection_reason']); ?></small>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td data-label="Thao tác">
                                                     <div class="teacher-activities-row-actions">
@@ -574,13 +650,15 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                                         <?php if (in_array($activity['status'] ?? '', ['published', 'ongoing'], true)): ?>
                                                             <a href="../checkins/index.php?activity_id=<?= urlencode((string) $activity['id']); ?>" class="teacher-activity-action" style="color: #047857;">Tạo QR điểm danh</a>
                                                         <?php endif; ?>
-                                                        <?php if ($rowLifecycleAction !== null): ?>
-                                                            <form method="post" class="teacher-activities-inline-form">
+                                                        <?php if (is_array($rowLifecycleAction) && isset($rowLifecycleAction['form_action'])): ?>
+                                                            <form method="post" class="teacher-activities-inline-form"<?= !empty($rowLifecycleAction['confirm']) ? ' data-confirm="' . teacherActivitiesEscape((string) $rowLifecycleAction['confirm']) . '"' : ''; ?>>
                                                                 <input type="hidden" name="csrfToken" value="<?= teacherActivitiesEscape($csrfToken); ?>">
-                                                                <input type="hidden" name="form_action" value="advance_status">
+                                                                <input type="hidden" name="form_action" value="<?= teacherActivitiesEscape((string) $rowLifecycleAction['form_action']); ?>">
                                                                 <input type="hidden" name="activity_id" value="<?= teacherActivitiesEscape($activity['id']); ?>">
                                                                 <button type="submit" class="teacher-activity-action teacher-activity-action--button"><?= teacherActivitiesEscape($rowLifecycleAction['label']); ?></button>
                                                             </form>
+                                                        <?php elseif (is_array($rowLifecycleAction) && isset($rowLifecycleAction['badge'])): ?>
+                                                            <span class="teacher-registration-pill teacher-registration-pill--unavailable"><?= teacherActivitiesEscape((string) $rowLifecycleAction['badge']); ?></span>
                                                         <?php endif; ?>
                                                     </div>
                                                 </td>

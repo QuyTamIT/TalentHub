@@ -129,6 +129,10 @@ $nav = [
                     <?php if (isset($item['count'])): ?><span class="nav-count" data-nav-count="<?= htmlspecialchars($item['section']) ?>" aria-label="<?= $item['count'] ?> mục"><?= $item['count'] ?></span><?php endif; ?>
                 </a>
             <?php endforeach; ?>
+            <a class="nav-item" href="<?= htmlspecialchars(app_href('/app/admin/consultations.php')) ?>">
+                <?= icon('tasks') ?>
+                <span>Yêu cầu tư vấn</span>
+            </a>
         </nav>
         <div class="sidebar-footer">
             <div class="environment-card">
