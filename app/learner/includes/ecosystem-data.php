@@ -506,10 +506,14 @@ if (!function_exists('learner_application_repository')) {
 }
 
 if (!function_exists('learner_ecosystem_enterprises')) {
-    function learner_ecosystem_enterprises(): array
+    function learner_ecosystem_enterprises(?string $schoolId = null): array
     {
+        if ($schoolId === null || $schoolId === '') {
+            $schoolId = (string) ($GLOBALS['student']['school_id'] ?? ($GLOBALS['learner_page_context']['student']['school']['id'] ?? ''));
+        }
+
         $partners = \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::partners(
-            learner_ecosystem_repository()->partners('enterprise')
+            learner_ecosystem_repository()->partners('enterprise', $schoolId !== '' ? $schoolId : null)
         );
 
         $unique = [];

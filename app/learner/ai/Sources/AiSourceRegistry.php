@@ -144,7 +144,11 @@ final class AiSourceRegistry
         ));
         $this->register(new DatabaseLearnerAiExtendedSource(
             'project', 'project-1.0.0', 'activity',
+<<<<<<< HEAD
             ['title', 'category', 'description', 'projectUrl', 'project_url', 'startAt', 'start_at', 'endAt', 'end_at', 'status', 'role', 'contribution', 'updatedAt', 'updated_at'],
+=======
+            ['title', 'category', 'description', 'projectUrl', 'project_url', 'startAt', 'start_at', 'endAt', 'end_at', 'status', 'role', 'contribution', 'skill_tags', 'skill_codes', 'skills', 'updatedAt', 'updated_at'],
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
             'project_changed',
             static function (string $studentId) use ($aggregateReader): array {
                 $aggregate = $aggregateReader($studentId);
@@ -190,10 +194,17 @@ final class AiSourceRegistry
             return is_array($rows) ? $rows : [];
         });
         $this->registerAggregateSource($aggregateReader, 'mentor_evaluation', 'mentor-evaluation-1.0.0', 'evaluation', 'mentor_evaluation_changed', 'mentor_evaluations', [
+<<<<<<< HEAD
             'activityId', 'activity_id', 'overallScore', 'overall_score', 'comment', 'status', 'publishedAt', 'published_at', 'version', 'updatedAt', 'updated_at',
         ]);
         $this->registerAggregateSource($aggregateReader, 'teacher_feedback', 'teacher-feedback-1.0.0', 'evaluation', 'teacher_feedback_changed', 'teacher_evaluations', [
             'activityId', 'activity_id', 'overallScore', 'overall_score', 'comment', 'status', 'publishedAt', 'published_at', 'version', 'updatedAt', 'updated_at',
+=======
+            'activityId', 'activity_id', 'overallScore', 'overall_score', 'comment', 'status', 'publishedAt', 'published_at', 'version', 'skill_tags', 'skill_codes', 'skills', 'updatedAt', 'updated_at',
+        ]);
+        $this->registerAggregateSource($aggregateReader, 'teacher_feedback', 'teacher-feedback-1.0.0', 'evaluation', 'teacher_feedback_changed', 'teacher_evaluations', [
+            'activityId', 'activity_id', 'overallScore', 'overall_score', 'comment', 'status', 'publishedAt', 'published_at', 'version', 'skill_tags', 'skill_codes', 'skills', 'updatedAt', 'updated_at',
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
         ], static function (array $aggregate): array {
             $rows = $aggregate['teacher_feedback'] ?? $aggregate['teacher_evaluations'] ?? [];
             return is_array($rows) ? $rows : [];
@@ -359,12 +370,20 @@ final class AiSourceRegistry
         }
         if ($source instanceof ActivityExperienceSource) {
             return self::legacyListAdapter($source, 'activity_experience', 'activity', [
+<<<<<<< HEAD
                 'activity_category', 'confirmed_at', 'hours',
+=======
+                'activity_category', 'confirmed_at', 'hours', 'skill_tags', 'skill_codes', 'skills',
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
             ], 'experience_id', 'confirmed_at');
         }
         if ($source instanceof PublishedEvaluationSource) {
             return self::legacyListAdapter($source, 'evaluation', 'evaluation', [
+<<<<<<< HEAD
                 'overall_score', 'presentation_score', 'published_at',
+=======
+                'overall_score', 'presentation_score', 'published_at', 'skill_tags', 'skill_codes', 'skills',
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
             ], 'evaluation_id', 'published_at');
         }
         if ($source instanceof OpportunitySource) {

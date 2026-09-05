@@ -20,10 +20,15 @@ require_once $learnerAiRoot . '/Sources/Database/DatabaseAssessmentSource.php';
 require_once $learnerAiRoot . '/Sources/Database/DatabaseActivityExperienceSource.php';
 require_once $learnerAiRoot . '/Sources/Database/DatabasePublishedEvaluationSource.php';
 require_once $learnerAiRoot . '/Sources/Database/DatabaseOpportunitySource.php';
+<<<<<<< HEAD
+=======
+require_once $learnerAiRoot . '/Sources/Database/DatabaseInternshipPostSource.php';
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
 require_once $learnerAiRoot . '/Sources/Database/DatabaseCatalogSource.php';
 require_once $learnerAiRoot . '/Sources/Database/DatabaseCatalogRepository.php';
 require_once $learnerAiRoot . '/Sources/Database/DatabaseConsentSource.php';
 require_once $learnerAiRoot . '/Consent/ConsentDecision.php';
+require_once $learnerAiRoot . '/Consent/ConsentMode.php';
 require_once $learnerAiRoot . '/Consent/ProviderConsentDenied.php';
 require_once $learnerAiRoot . '/Consent/ProviderAttemptAuthorizer.php';
 require_once $learnerAiRoot . '/Consent/ConsentPolicy.php';
@@ -39,6 +44,25 @@ require_once $learnerAiRoot . '/Domain/RoadmapInsight.php';
 require_once $learnerAiRoot . '/Domain/RoadmapTask.php';
 require_once $learnerAiRoot . '/Domain/RoadmapPhase.php';
 require_once $learnerAiRoot . '/Domain/RoadmapAnalysis.php';
+require_once $learnerAiRoot . '/Matching/LearnerOpportunityProfile.php';
+require_once $learnerAiRoot . '/Matching/JobSkillNormalization.php';
+require_once $learnerAiRoot . '/Matching/JobSkillNormalizer.php';
+require_once $learnerAiRoot . '/Matching/JobRequirementsSanitizer.php';
+require_once $learnerAiRoot . '/Matching/CareerRoleBenchmark.php';
+require_once $learnerAiRoot . '/Matching/CareerRoleBenchmarkRepository.php';
+require_once $learnerAiRoot . '/Matching/JobMatchScore.php';
+require_once $learnerAiRoot . '/Matching/JobMatchResult.php';
+require_once $learnerAiRoot . '/Matching/JobRoleResolver.php';
+require_once $learnerAiRoot . '/Matching/JobMatchScorer.php';
+require_once $learnerAiRoot . '/Matching/SkillGapResolver.php';
+require_once $learnerAiRoot . '/Matching/ActivityRecommender.php';
+require_once $learnerAiRoot . '/Matching/JobMatchAnalysis.php';
+require_once $learnerAiRoot . '/Matching/JobMatchAnalysisValidator.php';
+require_once $learnerAiRoot . '/Matching/OpportunityCandidate.php';
+require_once $learnerAiRoot . '/Matching/OpportunityScore.php';
+require_once $learnerAiRoot . '/Matching/StructuredOpportunityScorer.php';
+require_once $learnerAiRoot . '/Matching/OpportunityMatch.php';
+require_once $learnerAiRoot . '/Matching/OpportunityMatchValidator.php';
 require_once $learnerAiRoot . '/Quality/DataQualityResult.php';
 require_once $learnerAiRoot . '/Quality/DataQualityGate.php';
 require_once $learnerAiRoot . '/Quality/RoadmapQualityGate.php';
@@ -65,6 +89,10 @@ require_once $learnerAiRoot . '/Provider/CircuitBreakerStore.php';
 require_once $learnerAiRoot . '/Provider/InMemoryCircuitBreakerStore.php';
 require_once $learnerAiRoot . '/Provider/DatabaseCircuitBreakerStore.php';
 require_once $learnerAiRoot . '/Provider/CircuitBreaker.php';
+<<<<<<< HEAD
+=======
+require_once $learnerAiRoot . '/Provider/ProviderRuntimeMode.php';
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
 require_once $learnerAiRoot . '/Provider/ProviderHealthStore.php';
 require_once $learnerAiRoot . '/Queue/AiRefreshJob.php';
 require_once $learnerAiRoot . '/Queue/AiRefreshJobRepository.php';
@@ -81,6 +109,10 @@ require_once $learnerAiRoot . '/Queue/AiRefreshWorker.php';
 require_once $learnerAiRoot . '/Queue/AiAudienceResolver.php';
 require_once $learnerAiRoot . '/Domain/AiFreshness.php';
 require_once $learnerAiRoot . '/Domain/AiExecutionState.php';
+<<<<<<< HEAD
+=======
+require_once $learnerAiRoot . '/Domain/RoadmapEditorDraft.php';
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
 require_once $learnerAiRoot . '/Events/LearnerAiDataChanged.php';
 require_once $learnerAiRoot . '/Listeners/LearnerAiDataChangedListener.php';
 require_once $learnerAiRoot . '/Service/AdaptiveRefreshCoordinator.php';
@@ -91,6 +123,12 @@ require_once $learnerAiRoot . '/RateLimit/RecommendationRateLimitDecision.php';
 require_once $learnerAiRoot . '/RateLimit/RecommendationRateLimiter.php';
 require_once $learnerAiRoot . '/Model/PromptRegistry.php';
 require_once $learnerAiRoot . '/Model/RoadmapPromptRegistry.php';
+require_once $learnerAiRoot . '/Model/RoadmapRefinementUnavailable.php';
+require_once $learnerAiRoot . '/Model/RoadmapRefinementPromptRegistry.php';
+require_once $learnerAiRoot . '/Model/OpportunityMatchPromptRegistry.php';
+require_once $learnerAiRoot . '/Model/JobMatchPromptRegistry.php';
+require_once $learnerAiRoot . '/Model/ModelOpportunityMatchEngine.php';
+require_once $learnerAiRoot . '/Model/ModelJobMatchEngine.php';
 require_once $learnerAiRoot . '/Rollout/RecommendationRolloutSelector.php';
 require_once $learnerAiRoot . '/Rollout/PilotEligibility.php';
 require_once $learnerAiRoot . '/Rollout/AiPilotPolicy.php';
@@ -103,8 +141,16 @@ require_once $learnerAiRoot . '/Rules/RuleRecommendationEngine.php';
 require_once $learnerAiRoot . '/Rules/RuleRoadmapEngine.php';
 require_once $learnerAiRoot . '/Persistence/RecommendationRepository.php';
 require_once $learnerAiRoot . '/Persistence/RoadmapRepository.php';
+require_once $learnerAiRoot . '/Persistence/EvidenceSourceTypeNormalizer.php';
 require_once $learnerAiRoot . '/Persistence/DatabaseRecommendationRepository.php';
 require_once $learnerAiRoot . '/Persistence/DatabaseRoadmapRepository.php';
+<<<<<<< HEAD
+=======
+require_once $learnerAiRoot . '/Persistence/OpportunityMatchRepository.php';
+require_once $learnerAiRoot . '/Persistence/DatabaseOpportunityMatchRepository.php';
+require_once $learnerAiRoot . '/Persistence/JobMatchRepository.php';
+require_once $learnerAiRoot . '/Persistence/DatabaseJobMatchRepository.php';
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
 require_once $learnerAiRoot . '/Persistence/DatabaseAiCapabilityProfileRepository.php';
 require_once $learnerAiRoot . '/Persistence/DatabaseAiRefreshStateRepository.php';
 require_once $learnerAiRoot . '/Service/StrictRecommendationRefreshDispatcher.php';
@@ -113,6 +159,7 @@ require_once $learnerAiRoot . '/Validation/RoadmapAnalysisValidator.php';
 require_once $learnerAiRoot . '/Model/ModelRecommendationEngine.php';
 require_once $learnerAiRoot . '/Model/RoadmapModelUnavailable.php';
 require_once $learnerAiRoot . '/Model/ModelRoadmapEngine.php';
+require_once $learnerAiRoot . '/Model/ModelRoadmapRefinementEngine.php';
 require_once $learnerAiRoot . '/Evaluation/RecommendationEvaluator.php';
 require_once $learnerAiRoot . '/Evaluation/PersistedRecommendationRun.php';
 require_once $learnerAiRoot . '/Evaluation/EvaluationExecutionMetadata.php';
@@ -142,7 +189,13 @@ require_once $learnerAiRoot . '/Evaluation/ShadowRunService.php';
 require_once $learnerAiRoot . '/Service/RecommendationResponseMapper.php';
 require_once $learnerAiRoot . '/Service/RecommendationService.php';
 require_once $learnerAiRoot . '/Service/RoadmapService.php';
+<<<<<<< HEAD
+=======
+require_once $learnerAiRoot . '/Service/RoadmapCustomizationService.php';
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
 require_once $learnerAiRoot . '/Service/GroupMatchingService.php';
 require_once $learnerAiRoot . '/Service/PostAssessmentAiTrigger.php';
+require_once $learnerAiRoot . '/Service/OpportunityMatchService.php';
+require_once $learnerAiRoot . '/Service/JobMatchingService.php';
 
 unset($learnerAiRoot);

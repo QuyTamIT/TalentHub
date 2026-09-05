@@ -16,8 +16,9 @@ $learnerOnboarding = $GLOBALS['learner_page_context']['onboarding'] ?? [];
 $learnerOnboardingRestricted = ($learnerOnboarding['required'] ?? false) === true
     && ($learnerOnboarding['status'] ?? null) !== 'completed';
 
-$studentName = !empty($student['name']) ? $student['name'] : 'Nguyễn Văn An';
+$studentName = !empty($student['name']) ? $student['name'] : 'Học viên';
 $studentInitials = !empty($student['initials']) ? $student['initials'] : (mb_strtoupper(mb_substr($studentName, 0, 1)));
+$studentAvatarUrl = !empty($student['avatar_url']) ? $student['avatar_url'] : (!empty($student['avatarUrl']) ? $student['avatarUrl'] : null);
 $accountType = 'Tài khoản Sinh viên';
 ?>
 <header class="learner-header">
@@ -59,8 +60,12 @@ $accountType = 'Tài khoản Sinh viên';
                 aria-controls="learner-account-menu"
                 aria-label="Tài khoản sinh viên: <?= learner_escape($studentName); ?>"
             >
-                <div class="learner-header__avatar" aria-hidden="true">
-                    <span><?= learner_escape($studentInitials); ?></span>
+                <div class="learner-header__avatar" aria-hidden="true" style="overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                    <?php if (!empty($studentAvatarUrl)): ?>
+                        <img src="<?= learner_escape($studentAvatarUrl); ?>" alt="<?= learner_escape($studentName); ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                    <?php else: ?>
+                        <span><?= learner_escape($studentInitials); ?></span>
+                    <?php endif; ?>
                 </div>
                 <div class="learner-header__user-info">
                     <span class="learner-header__user-name"><?= learner_escape($studentName); ?></span>
@@ -83,8 +88,12 @@ $accountType = 'Tài khoản Sinh viên';
             >
                 <!-- User Identity Header -->
                 <div class="learner-account-menu__identity" role="none">
-                    <div class="learner-account-menu__avatar" aria-hidden="true">
-                        <span><?= learner_escape($studentInitials); ?></span>
+                    <div class="learner-account-menu__avatar" aria-hidden="true" style="overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                        <?php if (!empty($studentAvatarUrl)): ?>
+                            <img src="<?= learner_escape($studentAvatarUrl); ?>" alt="<?= learner_escape($studentName); ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                        <?php else: ?>
+                            <span><?= learner_escape($studentInitials); ?></span>
+                        <?php endif; ?>
                     </div>
                     <div class="learner-account-menu__details">
                         <span class="learner-account-menu__name"><?= learner_escape($studentName); ?></span>

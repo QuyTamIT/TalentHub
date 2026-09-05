@@ -142,6 +142,12 @@ final class RoadmapService
         if ($this->isModelOnlyRollout() && ($availability === null || !$availability->canShowModel())) {
             return $this->unavailable($availability?->reason() ?? 'availability_policy_unavailable');
         }
+<<<<<<< HEAD
+=======
+        if ($this->isModelOnlyRollout() && $this->modelEngine === null) {
+            return $this->unavailable('model_engine_unavailable');
+        }
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
 
         $context = new RecommendationContext(
             $scopes, $requestId, 'roadmap-' . hash('sha256', $idempotencyKey), $studentId,
@@ -157,6 +163,12 @@ final class RoadmapService
             return $this->retainedOrUnavailable($studentId, $active, 'persistence_unavailable');
         }
         if (($pending['reused'] ?? false) === true) {
+<<<<<<< HEAD
+=======
+            if (($pending['status'] ?? 'pending') !== 'pending') {
+                return $this->retainedOrUnavailable($studentId, $active, 'previous_run_finished');
+            }
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
             return $this->pending($pending);
         }
 
@@ -390,8 +402,14 @@ final class RoadmapService
 
     private function isModelOnlyRollout(): bool
     {
+<<<<<<< HEAD
         return $this->modelConfig?->enabled() === true
             && $this->modelConfig->visiblePercent() >= 100;
+=======
+        // Product requests always supply model configuration. A disabled or
+        // unavailable provider must not silently select the rule engine.
+        return $this->modelConfig !== null;
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
     }
 
     /** @param array<string,mixed> $roadmap */

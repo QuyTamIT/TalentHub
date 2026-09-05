@@ -159,6 +159,14 @@
                 if (meta && meta.content) return meta.content;
                 const input = document.querySelector('input[name="csrfToken"], input[name="csrf_token"]');
                 if (input && input.value) return input.value;
+                const bootNode = document.getElementById('learner-session-boot');
+                if (bootNode && bootNode.textContent) {
+                    try {
+                        const parsed = JSON.parse(bootNode.textContent);
+                        if (parsed && typeof parsed.csrfToken === 'string' && parsed.csrfToken) return parsed.csrfToken;
+                        if (parsed && typeof parsed.csrf_token === 'string' && parsed.csrf_token) return parsed.csrf_token;
+                    } catch {}
+                }
             }
             return '';
         }

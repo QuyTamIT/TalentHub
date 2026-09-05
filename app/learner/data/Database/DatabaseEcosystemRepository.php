@@ -18,13 +18,14 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
     private const ENTERPRISE_VISIBLE_SQL = "status = :enterprise_status AND (verificationStatus IN (:verification_verified, :verification_approved) OR verificationStatus IS NULL OR verificationStatus = 'pending')";
     private const ENTERPRISES_SQL = 'SELECT ' . self::ENTERPRISE_COLUMNS . ' FROM enterprises WHERE ' . self::ENTERPRISE_VISIBLE_SQL . ' ORDER BY name, id';
     private const ENTERPRISE_SQL = 'SELECT ' . self::ENTERPRISE_COLUMNS . ' FROM enterprises WHERE id = :partner_id AND ' . self::ENTERPRISE_VISIBLE_SQL . ' LIMIT 1';
+    private const ENTERPRISE_SCHOOL_PARTNERS_SQL = 'SELECT DISTINCT e.id, e.name, e.status, e.logoUrl, e.industry, e.description, e.email, e.phone, e.website, e.address, e.verificationStatus, e.verificationNote, e.verifiedAt, e.verifiedBy, e.createdAt, e.updatedAt FROM enterprises e INNER JOIN school_enterprise_partnerships sep ON sep.enterpriseId = e.id WHERE sep.schoolId = :school_id AND sep.status = \'approved\' AND e.status = :enterprise_status AND (e.verificationStatus IN (:verification_verified, :verification_approved) OR e.verificationStatus IS NULL OR e.verificationStatus = \'pending\') ORDER BY e.name, e.id';
     private const OPPORTUNITY_COLUMNS = 'ip.id, ip.enterpriseId, ip.title, ip.field, ip.location, ip.workType, ip.duration, ip.educationLevel, ip.description, ip.benefits, ip.skillsJson, ip.requirementsJson, ip.slots, ip.deadline, ip.createdAt, ip.updatedAt, ip.status, e.name AS enterpriseName';
     private const OPPORTUNITY_VISIBLE_SQL = "ip.status IN (:opportunity_status, 'published') AND (ip.deadline IS NULL OR ip.deadline >= CURRENT_TIMESTAMP OR ip.deadline >= CURDATE() OR ip.deadline >= UTC_TIMESTAMP(6)) AND e.status = :enterprise_status AND (e.verificationStatus IN (:verification_verified, :verification_approved) OR e.verificationStatus IS NULL OR e.verificationStatus = 'pending')";
     private const OPPORTUNITIES_SQL = 'SELECT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId WHERE ' . self::OPPORTUNITY_VISIBLE_SQL . ' ORDER BY ip.createdAt DESC, ip.id DESC';
     private const OPPORTUNITY_SQL = 'SELECT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId WHERE ip.id = :opportunity_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' LIMIT 1';
     private const PARTNER_OPPORTUNITIES_SQL = 'SELECT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId WHERE ip.enterpriseId = :enterprise_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' ORDER BY ip.createdAt DESC, ip.id DESC';
 
-    public function partners(?string $type = null): array
+    public function partners(?string $type = null, ?string $schoolId = null): array
     {
         try {
             if ($type === 'school') {
@@ -34,7 +35,21 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
                 );
             }
             if ($type === 'enterprise') {
-                $rows = $this->fetchAll('partners.enterprise', self::ENTERPRISES_SQL, $this->enterpriseVisibilityParameters());
+                $rows = [];
+                if ($schoolId !== null && $schoolId !== '') {
+                    try {
+                        $rows = $this->fetchAll(
+                            'partners.enterprise.school',
+                            self::ENTERPRISE_SCHOOL_PARTNERS_SQL,
+                            ['school_id' => $schoolId] + $this->enterpriseVisibilityParameters()
+                        );
+                    } catch (\Throwable) {
+                        $rows = $this->fetchAll('partners.enterprise', self::ENTERPRISES_SQL, $this->enterpriseVisibilityParameters());
+                    }
+                } else {
+                    $rows = $this->fetchAll('partners.enterprise', self::ENTERPRISES_SQL, $this->enterpriseVisibilityParameters());
+                }
+
                 $unique = [];
                 $seenNames = [];
                 foreach ($rows as $row) {
@@ -58,7 +73,7 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
                 return [];
             }
 
-            return array_merge($this->partners('school'), $this->partners('enterprise'));
+            return array_merge($this->partners('school', $schoolId), $this->partners('enterprise', $schoolId));
         } catch (\Throwable $e) {
             error_log('DatabaseEcosystemRepository.partners failed: ' . $e->getMessage());
             return [];

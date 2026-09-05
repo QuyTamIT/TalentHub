@@ -4,6 +4,7 @@
 
 /vendor/
 /node_modules/
+/.chrome-test-profile/
 
 .DS_Store
 Thumbs.db
@@ -15,9 +16,17 @@ Thumbs.db
 
 # Runtime-generated uploads and reports
 /src/storage/
+/storage/student-avatars/
+/artifacts/
 
 # Local audit artifacts, backups, and linked Codex worktrees.
 /.tmp/
+/scratch-storage.json
+/scratch_*.php
+/job-match-strength-acceptance.png
+/live-no-profile.png
+/live-opportunity-result.png
+/login.png
 
 # Local-only planning, QA, and coding-agent material.
 /tests/*
@@ -34,6 +43,35 @@ Thumbs.db
 !/tests/learner_ai_group_matching_api_test.php
 !/tests/learner_ai_group_matching_ui_test.ps1
 !/tests/learner_ai_queue_worker_test.php
+!/tests/learner_ai_opportunity_matching_migration_test.php
+!/tests/learner_ai_opportunity_candidate_test.php
+!/tests/learner_ai_opportunity_scorer_test.php
+!/tests/learner_ai_opportunity_provider_test.php
+!/tests/learner_ai_opportunity_service_test.php
+!/tests/learner_ai_opportunity_api_test.php
+!/tests/learner_ai_opportunity_ui_test.js
+!/tests/learner_ai_opportunity_end_to_end_test.php
+!/tests/learner_ai_evidence_source_type_normalizer_test.php
+!/tests/learner_ai_job_match_repository_test.php
+!/tests/learner_ai_job_matching_service_test.php
+!/tests/learner_recommendation_repository_test.php
+!/tests/learner_ai_job_matching_ui_test.js
+!/tests/learner_ai_runtime_environment_test.php
+!/tests/enterprise_demo_partner_integrity_test.php
+!/tests/internship_partner_publish_guard_test.php
+!/tests/career_role_benchmark_migration_test.php
+!/tests/career_role_benchmark_seed_test.php
+!/tests/job_skill_normalizer_test.php
+!/tests/job_requirements_sanitizer_test.php
+!/tests/internship_post_job_source_test.php
+!/tests/job_benchmark_repository_test.php
+!/tests/job_role_resolver_test.php
+!/tests/job_assessment_signals_test.php
+!/tests/job_match_scorer_test.php
+!/tests/job_skill_gap_resolver_test.php
+!/tests/job_activity_recommender_test.php
+!/tests/learner_project_registration_test.php
+!/tests/learner_project_registration_boundary_test.php
 !/tests/school_ai_insight_ui_test.ps1
 !/tests/enterprise_ai_gemini_matcher_test.php
 !/tests/enterprise_ai_matches_api_test.php
@@ -44,6 +82,7 @@ Thumbs.db
 /.agents/
 /.superpowers/
 /.claude/
+/.gemini/
 /.qwen/
 /.codex/
 /.codex-*/

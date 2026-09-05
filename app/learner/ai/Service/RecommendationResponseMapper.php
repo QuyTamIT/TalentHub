@@ -49,6 +49,16 @@ final class RecommendationResponseMapper
             default => null,
         };
         $items = $this->items($run['items'] ?? []);
+<<<<<<< HEAD
+=======
+        // A completed model run without recommendation items is not a usable
+        // AI result (and can also be a roadmap run from the shared run table).
+        // Fail closed instead of exposing a misleading ready_model response
+        // that renders as an empty recommendation panel.
+        if (in_array($state, ['ready_model', 'stale_model'], true) && $items === []) {
+            return $this->providerUnavailable('provider_unavailable', $run);
+        }
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
 
         $response = [
             'contract_version' => self::CONTRACT_VERSION,

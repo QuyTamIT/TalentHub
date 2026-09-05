@@ -6,7 +6,11 @@
     'use strict';
 
     const STORAGE_KEY = 'talenthub.ai.summary.idempotency.v1';
+<<<<<<< HEAD
     const READY_STATES = new Set(['ready_model', 'stale_model', 'fallback_rule']);
+=======
+    const READY_STATES = new Set(['ready_model', 'stale_model']);
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
 
     function shouldAutoAnalyze(search) {
         if (typeof search !== 'string' || !search.startsWith('?')) return false;
@@ -31,7 +35,8 @@
         return factory({ baseUrl: '/app/learner/api/v1', csrfToken, timeoutMs: 45000 });
     }
 
-    function createAiSummaryController({ api, view, storage, createIdempotencyKey = defaultIdempotencyKey }) {
+    function createAiSummaryController({ api, view, storage, createIdempotencyKey = defaultIdempotencyKey,
+        wait = (ms) => new Promise(resolve => global.setTimeout(resolve, ms)), maxPolls = 30 }) {
         if (!api || typeof api.get !== 'function' || typeof api.send !== 'function') {
             throw new TypeError('A learner roadmap API client is required.');
         }
@@ -52,8 +57,7 @@
         function renderResult(result) {
             const state = typeof result?.state === 'string' ? result.state : 'error';
             view.render(state, result || {});
-            if (READY_STATES.has(state)) sessionStorage?.removeItem(STORAGE_KEY);
-            if (['engine_failure', 'source_unavailable'].includes(state)) sessionStorage?.removeItem(STORAGE_KEY);
+            if (state !== 'pending') sessionStorage?.removeItem(STORAGE_KEY);
             return result;
         }
 
@@ -65,15 +69,25 @@
                 .then(() => api.get('/ai-roadmap.php'))
                 .then((current) => {
                     if (current?.state === 'ready_model' || current?.state === 'pending') return current;
-                    if (!['not_generated', 'fallback_rule'].includes(current?.state)) return current;
+                    if (!['not_generated', 'ready_rule', 'fallback_rule', 'stale_model'].includes(current?.state)) return current;
                     return api.send(
                         'POST',
                         '/ai-roadmap.php',
-                        { action: current?.state === 'fallback_rule' ? 'refresh' : 'generate' },
+                        { action: current?.state === 'not_generated' ? 'generate' : 'refresh' },
                         { idempotencyKey: idempotencyKey() },
                     );
                 })
-                .then(renderResult)
+                .then(async (result) => {
+                    for (let poll = 0; result?.state === 'pending' && poll < maxPolls; poll++) {
+                        view.render('pending', result);
+                        await wait(2000);
+                        result = await api.get('/ai-roadmap.php');
+                    }
+                    // A failed run disappears from the pending query. Release
+                    // its key and let the learner explicitly start a fresh run.
+                    if (result?.state === 'not_generated') result = {state:'provider_unavailable'};
+                    return renderResult(result);
+                })
                 .catch((error) => {
                     const result = { state: 'error', message: error?.message || 'Không thể kết nối dịch vụ AI.' };
                     view.render('error', result);
@@ -126,7 +140,11 @@
             render(state, payload) {
                 const isLoading = state === 'loading' || state === 'pending';
                 if (nodes.spinner) nodes.spinner.hidden = !isLoading;
+<<<<<<< HEAD
                 if (nodes.retry) nodes.retry.hidden = !['error', 'engine_failure', 'source_unavailable', 'fallback_rule', 'stale_model', 'ai_unavailable'].includes(state);
+=======
+                if (nodes.retry) nodes.retry.hidden = !['error', 'engine_failure', 'source_unavailable', 'provider_unavailable', 'ready_rule', 'fallback_rule', 'stale_model', 'ai_unavailable', 'consent_required', 'pending'].includes(state);
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
                 if (nodes.detail) nodes.detail.hidden = !READY_STATES.has(state);
 
                 if (state === 'ready_model') {
@@ -138,12 +156,20 @@
                     setText(nodes.eyebrow, 'Bản phân tích AI gần nhất');
                     setText(nodes.title, 'AI đang cập nhật theo dữ liệu mới');
                     setText(nodes.message, payload?.next_retry_at ? `Hệ thống sẽ thử lại lúc ${payload.next_retry_at}.` : 'Bạn vẫn có thể xem kết quả gần nhất và thử cập nhật lại.');
+<<<<<<< HEAD
                     setText(nodes.summary, payload?.executive_summary);
                 } else if (state === 'fallback_rule') {
                     setText(nodes.eyebrow, 'Gợi ý dự phòng theo quy tắc');
                     setText(nodes.title, 'Bạn vẫn có thể bắt đầu lộ trình');
                     setText(nodes.message, 'AI tạm thời chưa phản hồi; TalentHub đang hiển thị gợi ý dự phòng có kiểm soát.');
+=======
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
                     setText(nodes.summary, payload?.executive_summary);
+                } else if (state === 'ready_rule' || state === 'fallback_rule') {
+                    setText(nodes.eyebrow, 'Cần phân tích AI');
+                    setText(nodes.title, 'Chưa có lộ trình từ AI');
+                    setText(nodes.message, 'Nhấn thử lại để AI phân tích kết quả đánh giá và tạo lộ trình của bạn.');
+                    setText(nodes.summary, '');
                 } else if (state === 'loading') {
                     setText(nodes.eyebrow, 'AI đang phân tích');
                     setText(nodes.title, 'Đang tạo lộ trình dành riêng cho bạn');
@@ -152,14 +178,14 @@
                 } else if (state === 'pending') {
                     setText(nodes.eyebrow, 'Đang xử lý');
                     setText(nodes.title, 'Phân tích của bạn đang được hoàn tất');
-                    setText(nodes.message, 'Bạn có thể quay lại mục AI gợi ý để xem kết quả.');
+                    setText(nodes.message, 'Kết quả sẽ tự cập nhật tại đây khi AI hoàn tất.');
                     setText(nodes.summary, '');
                 } else if (state === 'consent_required') {
-                    setText(nodes.eyebrow, 'Cần quyền sử dụng dữ liệu');
+                    setText(nodes.eyebrow, 'Cần thử lại phân tích');
                     setText(nodes.title, 'Chưa thể bắt đầu phân tích AI');
-                    setText(nodes.message, 'Vui lòng cấp quyền dùng kết quả đánh giá trong phần cài đặt dữ liệu.');
+                    setText(nodes.message, 'AI được bật sẵn cho tài khoản học viên. Vui lòng thử lại để cập nhật phiên phân tích.');
                     setText(nodes.summary, '');
-                } else if (state === 'insufficient_data') {
+                } else if (state === 'insufficient_data' || state === 'data_insufficient') {
                     setText(nodes.eyebrow, 'Chưa đủ dữ liệu');
                     setText(nodes.title, 'Cần hoàn thành đủ bộ đánh giá');
                     setText(nodes.message, 'TalentHub chưa tìm thấy đủ bốn kết quả hợp lệ để tạo lộ trình.');

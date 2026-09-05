@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace TalentHub\Modules\Student;
 
 use PDO;
+use TalentHub\Http\ApiException;
 use TalentHub\Learner\Api\LearnerApiContext;
 
 /**
@@ -23,18 +24,18 @@ class AiRoadmapService
      */
     public function getRoadmapForStudent(string $studentId, ?int $version = null): array
     {
-        $context = new LearnerApiContext($this->pdo);
+        $context = $this->authorizedContext($studentId, 'student_profile.read_own', 'Bạn không có quyền xem lộ trình này.');
         $roadmapService = $context->roadmapService($studentId);
 
         if ($version !== null && $version >= 1) {
             $existing = $roadmapService->version($studentId, $version);
-            if ($existing !== null && in_array($existing['state'] ?? '', ['ready_model', 'fallback_rule'], true)) {
+            if ($existing !== null && in_array($existing['state'] ?? '', ['ready_model', 'ready_rule', 'fallback_rule', 'stale_model'], true)) {
                 return $this->enrichRoadmap($studentId, $existing);
             }
         }
 
         $latest = $roadmapService->latest($studentId);
-        if ($latest !== null && in_array($latest['state'] ?? '', ['ready_model', 'fallback_rule'], true)) {
+        if ($latest !== null && in_array($latest['state'] ?? '', ['ready_model', 'ready_rule', 'fallback_rule', 'stale_model'], true)) {
             return $this->enrichRoadmap($studentId, $latest);
         }
 
@@ -49,7 +50,7 @@ class AiRoadmapService
      */
     public function generateRoadmapForStudent(string $studentId, bool $forceRefresh = false): array
     {
-        $context = new LearnerApiContext($this->pdo);
+        $context = $this->authorizedContext($studentId, 'student_profile.update_own', 'Bạn không có quyền tạo lộ trình này.');
         $roadmapService = $context->roadmapService($studentId);
 
         $requestId = 'gen-' . bin2hex(random_bytes(8));
@@ -65,6 +66,15 @@ class AiRoadmapService
      * @return list<array{role: string, match_percent: int, match_level: string, reasons: list<string>, color: string}>
      */
     public function calculateJobMatching(string $studentId): array
+    {
+        $this->authorizedContext($studentId, 'student_profile.read_own', 'Bạn không có quyền xem dữ liệu nghề nghiệp này.');
+        return $this->calculateJobMatchingForStudent($studentId);
+    }
+
+    /**
+     * @return list<array{role: string, match_percent: int, match_level: string, reasons: list<string>, color: string}>
+     */
+    private function calculateJobMatchingForStudent(string $studentId): array
     {
         $assessments = $this->fetchStudentAssessments($studentId);
         $skills = $this->fetchStudentSkills($studentId);
@@ -163,6 +173,15 @@ class AiRoadmapService
      */
     public function calculateSkillGaps(string $studentId): array
     {
+        $this->authorizedContext($studentId, 'student_profile.read_own', 'Bạn không có quyền xem khoảng cách kỹ năng này.');
+        return $this->calculateSkillGapsForStudent($studentId);
+    }
+
+    /**
+     * @return list<array{category: string, current_skills: list<string>, recommended_skills: list<string>, priority: string}>
+     */
+    private function calculateSkillGapsForStudent(string $studentId): array
+    {
         $skills = $this->fetchStudentSkills($studentId);
         $skillNames = array_map(static fn (array $s): string => (string) ($s['name'] ?? ''), $skills);
 
@@ -193,9 +212,20 @@ class AiRoadmapService
      */
     private function enrichRoadmap(string $studentId, array $roadmap): array
     {
-        $roadmap['job_matching'] = $this->calculateJobMatching($studentId);
-        $roadmap['skill_gaps'] = $this->calculateSkillGaps($studentId);
+        $roadmap['job_matching'] = $this->calculateJobMatchingForStudent($studentId);
+        $roadmap['skill_gaps'] = $this->calculateSkillGapsForStudent($studentId);
         return $roadmap;
+    }
+
+    private function authorizedContext(string $studentId, string $permission, string $message): LearnerApiContext
+    {
+        $context = LearnerApiContext::fromGlobals();
+        $authorizedStudentId = $context->studentId($permission);
+        if (!hash_equals($authorizedStudentId, $studentId)) {
+            throw new ApiException(403, 'PERMISSION_DENIED', $message);
+        }
+
+        return $context;
     }
 
     /**

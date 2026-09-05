@@ -11,8 +11,13 @@ final class DatabaseCircuitBreakerStore implements CircuitBreakerStore
  {
   $threshold=max(1,$threshold);$updated=gmdate('Y-m-d H:i:s');$sqlite=$this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)==='sqlite';
   if($sqlite){$sql="INSERT INTO learner_ai_provider_health (provider_key,state,failure_count,opened_at,updated_at) VALUES (:key,:initial_state,1,:initial_opened,:updated_insert) ON CONFLICT(provider_key) DO UPDATE SET failure_count=failure_count+1,state=CASE WHEN state='half_open' OR failure_count+1>=CAST(:threshold_state AS INTEGER) THEN 'open' ELSE 'closed' END,opened_at=CASE WHEN state='half_open' OR failure_count+1>=CAST(:threshold_opened AS INTEGER) THEN :failure_opened ELSE NULL END,updated_at=:updated_update";}
+<<<<<<< HEAD
   else{$sql="INSERT INTO learner_ai_provider_health (provider_key,state,failure_count,opened_at,updated_at) VALUES (:key,:initial_state,1,:initial_opened,:updated_insert) ON DUPLICATE KEY UPDATE state=IF(state='half_open' OR failure_count+1>=:threshold_state,'open','closed'),opened_at=IF(state='open',:failure_opened,NULL),failure_count=failure_count+1,updated_at=:updated_update";}
   $parameters=['key'=>$key,'initial_state'=>$threshold<=1?'open':'closed','initial_opened'=>$threshold<=1?$now:null,'updated_insert'=>$updated,'threshold_state'=>$threshold,'failure_opened'=>$now,'updated_update'=>$updated];if($sqlite)$parameters['threshold_opened']=$threshold;$s=$this->pdo->prepare($sql);$s->execute($parameters);return $this->load($key);
+=======
+  else{$sql="INSERT INTO learner_ai_provider_health (provider_key,state,failure_count,opened_at,updated_at) VALUES (:key,:initial_state,1,:initial_opened,:updated_insert) ON DUPLICATE KEY UPDATE opened_at=IF(state='half_open' OR failure_count+1>=:threshold_opened,:failure_opened,NULL),state=IF(state='half_open' OR failure_count+1>=:threshold_state,'open','closed'),failure_count=failure_count+1,updated_at=:updated_update";}
+  $parameters=['key'=>$key,'initial_state'=>$threshold<=1?'open':'closed','initial_opened'=>$threshold<=1?$now:null,'updated_insert'=>$updated,'threshold_state'=>$threshold,'threshold_opened'=>$threshold,'failure_opened'=>$now,'updated_update'=>$updated];$s=$this->pdo->prepare($sql);$s->execute($parameters);return $this->load($key);
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
  }
  public function transitionToHalfOpen(string $key,int $openedAt):bool{$s=$this->pdo->prepare("UPDATE learner_ai_provider_health SET state='half_open',updated_at=:updated WHERE provider_key=:key AND state='open' AND opened_at=:opened");$s->execute(['updated'=>gmdate('Y-m-d H:i:s'),'key'=>$key,'opened'=>$openedAt]);return $s->rowCount()===1;}
 }

@@ -109,7 +109,7 @@ if ($dashboardAiSummary === '') {
                             <span aria-hidden="true"><?= learner_icon('flame', 19); ?></span>
                             Chuỗi <?= learner_escape($student['streak_days']); ?> ngày liên tiếp
                         </p>
-                        <h1 id="welcome-title">Chào mừng trở lại, <?= learner_escape($student['name']); ?> <span aria-hidden="true">👋</span></h1>
+                        <h1 id="welcome-title">Chào mừng trở lại, <span class="learner-welcome__name"><?= learner_escape($student['name']); ?>&nbsp;<span aria-hidden="true">👋</span></span></h1>
                         <p>Bạn đã ghi nhận <?= learner_escape($dashboardExperienceHours); ?> giờ trải nghiệm xác thực trên hệ thống.</p>
                         <?php if ($dashboardAssessmentUnavailable): ?>
                             <p class="learner-welcome__status learner-welcome__status--unavailable">
@@ -230,6 +230,44 @@ if ($dashboardAiSummary === '') {
                             <a href="discover.php">Tiếp tục đánh giá <?= learner_icon('arrow-right', 15); ?></a>
                         <?php endif; ?>
                     </aside>
+                <section class="learner-card learner-progress-activities" aria-labelledby="activities-title" data-dashboard-upcoming-activities>
+                    <div class="learner-section-heading">
+                        <h2 id="activities-title">Hoạt động sắp diễn ra</h2>
+                        <a href="activities.php">Tất cả hoạt động</a>
+                    </div>
+                    <?php if ($dashboardUpcomingActivities === []): ?>
+                        <div class="learner-progress-empty">
+                            <?= learner_icon('calendar', 22); ?>
+                            <div>
+                                <strong>Chưa có hoạt động sắp diễn ra</strong>
+                                <p>Khám phá danh sách hoạt động phù hợp với bạn.</p>
+                            </div>
+                            <a href="activities.php">Khám phá hoạt động</a>
+                        </div>
+                    <?php else: ?>
+                        <div class="learner-progress-activity-list">
+                            <?php foreach ($dashboardUpcomingActivities as $activity): ?>
+                                <?php
+                                $activityId = (string) ($activity['route_id'] ?? $activity['id'] ?? '');
+                                $activityWhen = $dashboardActivityDateTime($activity['start_at'] ?? null);
+                                $activityLocation = trim((string) ($activity['location'] ?? '')) ?: 'Chưa cập nhật';
+                                ?>
+                                <article class="learner-progress-activity">
+                                    <time datetime="<?= learner_escape($activity['start_at'] ?? ''); ?>">
+                                        <strong><?= learner_escape($activityWhen['date']); ?></strong>
+                                        <span><?= learner_escape($activityWhen['time']); ?></span>
+                                    </time>
+                                    <div>
+                                        <h3><?= learner_escape($activity['title'] ?? 'Hoạt động TalentHub'); ?></h3>
+                                        <p><?= learner_icon('map-pin', 14); ?><?= learner_escape($activityLocation); ?></p>
+                                        <a href="activity-detail.php?id=<?= rawurlencode($activityId); ?>">Xem chi tiết <?= learner_icon('arrow-right', 14); ?></a>
+                                    </div>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </section>
+
                 </div>
 
                 <section class="learner-card learner-progress-activities" aria-labelledby="activities-title" data-dashboard-upcoming-activities>

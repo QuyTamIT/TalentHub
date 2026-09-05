@@ -14,6 +14,9 @@ use TalentHub\Learner\Ai\Observability\AiMetricsCollector;
 
 final class HttpRoadmapProvider implements RoadmapProvider
 {
+    private const GEMINI_SCHEMA_MAX_BYTES = 8000;
+    private const GEMINI_SCHEMA_MAX_ENUM_VALUES = 200;
+
     /** @var Closure(string,array<string,string>,string,int):array<string,mixed> */
     private readonly Closure $http;
 
@@ -49,7 +52,14 @@ final class HttpRoadmapProvider implements RoadmapProvider
         if (!$this->config->enabled() || $this->config->apiUrl() === null || $this->config->apiKey() === null) {
             return RoadmapProviderResponse::failure('provider_disabled', null, 'config');
         }
+<<<<<<< HEAD
         if (!$this->circuitBreaker->allow()) return RoadmapProviderResponse::failure('provider_circuit_open', null, 'health');
+=======
+        if (!$this->circuitBreaker->allow()
+            && !ProviderRuntimeMode::alwaysAttempt($this->config->environment())) {
+            return RoadmapProviderResponse::failure('provider_circuit_open', null, 'health');
+        }
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
         try {
             $body = json_encode($this->transportPayload($request), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         } catch (JsonException) {
@@ -142,9 +152,91 @@ final class HttpRoadmapProvider implements RoadmapProvider
         }
         $cleaned = $this->cleanSchemaNode($schema);
         $cleaned['type'] = 'object';
+<<<<<<< HEAD
         return $cleaned;
     }
 
+=======
+        if ($this->requiresStructuralSchema($cleaned)) {
+            $cleaned = $this->structuralSchemaNode($cleaned);
+            $cleaned['type'] = 'object';
+        }
+        return $cleaned;
+    }
+
+    /** @param array<string,mixed> $schema */
+    private function requiresStructuralSchema(array $schema): bool
+    {
+        try {
+            $bytes = strlen(json_encode($schema, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        } catch (JsonException) {
+            return true;
+        }
+        return $bytes > self::GEMINI_SCHEMA_MAX_BYTES
+            || $this->enumValueCount($schema) > self::GEMINI_SCHEMA_MAX_ENUM_VALUES;
+    }
+
+    private function enumValueCount(mixed $node): int
+    {
+        if (!is_array($node)) return 0;
+        $count = 0;
+        foreach ($node as $key => $value) {
+            if ($key === 'enum' && is_array($value)) {
+                $count += count($value);
+            }
+            $count += $this->enumValueCount($value);
+        }
+        return $count;
+    }
+
+    /**
+     * Gemini rejects deeply repeated dynamic enums even though every keyword
+     * is individually supported. Keep the required object/array structure in
+     * responseFormat and leave the complete constraints in the user payload;
+     * RoadmapAnalysisValidator still enforces them before anything is saved.
+     *
+     * @return array<string,mixed>|list<mixed>|string|int|float|bool|null
+     */
+    private function structuralSchemaNode(mixed $node): mixed
+    {
+        if (!is_array($node)) return $node;
+        if (array_is_list($node)) {
+            return array_map(fn (mixed $value): mixed => $this->structuralSchemaNode($value), $node);
+        }
+        $result = [];
+        foreach ($node as $key => $value) {
+            if ($key === 'enum' && is_array($value)) {
+                // Keep small closed vocabularies (action types, directions,
+                // categories) so the model cannot invent them. Large dynamic
+                // learner/catalog/evidence enums are retained in the prompt
+                // and enforced by the server-side validator instead.
+                if (count($value) <= 20) {
+                    $result[$key] = $value;
+                }
+                continue;
+            }
+            if ($key === 'properties' && is_array($value) && !array_is_list($value)) {
+                $properties = [];
+                foreach ($value as $property => $propertySchema) {
+                    if (is_string($property) && is_array($propertySchema)) {
+                        $properties[$property] = $this->structuralSchemaNode($propertySchema);
+                    }
+                }
+                $result[$key] = $properties;
+                continue;
+            }
+            if (in_array($key, ['type', 'required', 'additionalProperties'], true)) {
+                $result[$key] = $value;
+                continue;
+            }
+            if (in_array($key, ['items', 'anyOf'], true)) {
+                $result[$key] = $this->structuralSchemaNode($value);
+            }
+        }
+        return $result === [] ? ['type' => 'object'] : $result;
+    }
+
+>>>>>>> 05d98af655ad6632b478e8cd4a88f4058926f303
     /** @param array<string,mixed>|list<mixed> $node @return array<string,mixed>|list<mixed>|string|int|float|bool|null */
     private function cleanSchemaNode(mixed $node): mixed
     {
@@ -272,6 +364,11 @@ final class HttpRoadmapProvider implements RoadmapProvider
         return null;
     }
 
+    public static function connectTimeoutSeconds(int $requestTimeoutSeconds): int
+    {
+        return min(15, max(1, $requestTimeoutSeconds));
+    }
+
     /** @param array<string,string> $headers @return array{status:int,headers:array<string,string>,body:string} */
     private function defaultHttpTransport(string $url, array $headers, string $body, int $timeout): array
     {
@@ -281,16 +378,21 @@ final class HttpRoadmapProvider implements RoadmapProvider
         $formattedHeaders = [];
         foreach ($headers as $key => $value) $formattedHeaders[] = "{$key}: {$value}";
         $responseHeaders = [];
-        curl_setopt_array($ch, [
+        $options = [
             CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body, CURLOPT_HTTPHEADER => $formattedHeaders,
-            CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => min(2, $timeout),
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => self::connectTimeoutSeconds($timeout),
             CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
             CURLOPT_HEADERFUNCTION => static function ($curl, string $header) use (&$responseHeaders): int {
                 $length = strlen($header); $parts = explode(':', $header, 2);
                 if (count($parts) === 2) $responseHeaders[trim($parts[0])] = trim($parts[1]);
                 return $length;
             },
-        ]);
+        ];
+        if (PHP_OS_FAMILY === 'Windows' && defined('CURLSSLOPT_NATIVE_CA')) {
+            $options[CURLOPT_SSL_OPTIONS] = CURLSSLOPT_NATIVE_CA;
+        }
+        curl_setopt_array($ch, $options);
         $responseBody = curl_exec($ch);
         if ($responseBody === false) { $error = curl_error($ch); curl_close($ch); throw new \RuntimeException('HTTP request failed: ' . $error); }
         $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
