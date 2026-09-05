@@ -1,0 +1,4 @@
+# Runtime dependencies for render-activity-qr.py (verified with Python 3.13).
+Pillow==12.3.0
+reportlab==5.0.1
+charset-normalizer==3.5.1

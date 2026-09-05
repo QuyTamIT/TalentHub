@@ -14,10 +14,18 @@ use TalentHub\Modules\Teacher\Repository\TeacherQrSessionRepository;
 use TalentHub\Modules\Teacher\Service\TeacherQrSessionService;
 use TalentHub\Support\Uuid;
 
+function phase5_mysql_is_safe_database_name(string $database): bool
+{
+    return preg_match(
+        '/\A(?:talenthub_phase5_(?:rehearsal|test)|talenthub_e2e)_[A-Za-z0-9][A-Za-z0-9_-]*\z/',
+        $database,
+    ) === 1;
+}
+
 function phase5_mysql_safe_database(): string
 {
     $database = Environment::required('DB_DATABASE');
-    if (preg_match('/\Atalenthub_phase5_(?:rehearsal|test)_\d{14}\z/', $database) !== 1) {
+    if (!phase5_mysql_is_safe_database_name($database)) {
         fwrite(STDERR, "learner_checkin_mysql_integration_test: REFUSED unsafe database name\n");
         exit(2);
     }
@@ -26,7 +34,7 @@ function phase5_mysql_safe_database(): string
 
 $workerMode = ($argv[1] ?? '') === '--worker';
 if ($workerMode) {
-    phase5_mysql_safe_database();
+    $workerDatabase = phase5_mysql_safe_database();
     [$action, $studentId, $userId, $target, $barrier, $workerToken] = array_map(
         static fn (mixed $value): string => (string) $value,
         array_slice(array_pad($argv, 8, ''), 2, 6),
@@ -43,6 +51,9 @@ if ($workerMode) {
 
     try {
         $pdo = (new Connection(require dirname(__DIR__) . '/config/database.php'))->connect();
+        if ((string) $pdo->query('SELECT DATABASE()')->fetchColumn() !== $workerDatabase) {
+            throw new RuntimeException('Phase 5 MySQL worker is not pinned to the disposable schema.');
+        }
         if ($action === 'scan') {
             $result = (new DatabaseCheckinRepository($pdo))->createConfirmed(
                 $studentId,
@@ -97,6 +108,36 @@ $assert = static function (bool $condition, string $message): void {
         throw new RuntimeException($message);
     }
 };
+
+$safeDatabaseNames = [
+    'talenthub_phase5_rehearsal_20260906014907',
+    'talenthub_phase5_test_run-20260906_014907',
+    'talenthub_e2e_20260906_014907',
+];
+foreach ($safeDatabaseNames as $safeDatabaseName) {
+    $assert(
+        phase5_mysql_is_safe_database_name($safeDatabaseName),
+        'Expected disposable database name to be accepted.',
+    );
+}
+
+$unsafeDatabaseNames = [
+    'talenthub',
+    'talenthub_e2e',
+    'talenthub_e2e_',
+    'talenthub_production_20260906',
+    'talenthub_staging_20260906',
+    'prefix_talenthub_e2e_20260906',
+    'talenthub_e2e_20260906_suffix!',
+    'talenthub_e2e_20260906.database',
+    'talenthub_phase5_test_20260906/backup',
+];
+foreach ($unsafeDatabaseNames as $unsafeDatabaseName) {
+    $assert(
+        !phase5_mysql_is_safe_database_name($unsafeDatabaseName),
+        'Expected unsafe database name to be rejected.',
+    );
+}
 
 $owner = $pdo->query(<<<'SQL'
     SELECT a.schoolId, t.id teacherId, t.userId teacherUserId

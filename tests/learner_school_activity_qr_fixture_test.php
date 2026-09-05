@@ -119,10 +119,10 @@ foreach ($sessions as $session) {
     $metadataPath = $tempBase . '.json';
     try {
         [$convertCode] = $runCaptured([$qrPython, $root . '/tests/helpers/qr-png-to-rgba.py', $pngPath, $rgbaPath, $metadataPath]);
-        [$decodeCode, $decodedToken] = $runCaptured([$qrNode, $root . '/tests/helpers/decode-qr-rgba.js', $rgbaPath, $metadataPath, $root . '/assets/js/vendor/jsQR.js']);
-        $qrAssert($convertCode === 0 && $decodeCode === 0 && $decodedToken !== '', 'Every exported QR PNG decodes successfully with vendored jsQR.');
-        $qrAssert($decodedToken !== '' && hash_equals((string) $session['tokenHash'], hash('sha256', $decodedToken)), 'Decoded QR token SHA-256 privately matches its database session hash.');
-        $decodedToken = '';
+        [$decodeCode, $decodedTokenHash] = $runCaptured([$qrNode, $root . '/tests/helpers/decode-qr-rgba.js', $rgbaPath, $metadataPath, $root . '/assets/js/vendor/jsQR.js']);
+        $qrAssert($convertCode === 0 && $decodeCode === 0 && preg_match('/\A[a-f0-9]{64}\z/', $decodedTokenHash) === 1, 'Every exported QR PNG decodes successfully with vendored jsQR.');
+        $qrAssert($decodedTokenHash !== '' && hash_equals((string) $session['tokenHash'], $decodedTokenHash), 'Decoded QR token SHA-256 privately matches its database session hash.');
+        $decodedTokenHash = '';
     } finally {
         foreach ([$tempBase, $rgbaPath, $metadataPath] as $temporaryPath) {
             if (is_file($temporaryPath)) {

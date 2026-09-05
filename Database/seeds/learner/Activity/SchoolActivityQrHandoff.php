@@ -44,7 +44,7 @@ final class SchoolActivityQrHandoff
 
         $rendererScript = __DIR__ . '/render-activity-qr.py';
         $this->renderer = $renderer === null
-            ? static function (string $token, string $pendingPath) use ($pythonBinary, $rendererScript): void {
+            ? static function (#[\SensitiveParameter] string $token, string $pendingPath) use ($pythonBinary, $rendererScript): void {
                 self::renderWithBundledPython($pythonBinary, $rendererScript, $token, $pendingPath);
             }
             : Closure::fromCallable($renderer);
@@ -264,7 +264,12 @@ final class SchoolActivityQrHandoff
         unset($prepared);
     }
 
-    private static function renderWithBundledPython(string $pythonBinary, string $script, string $token, string $output): void
+    private static function renderWithBundledPython(
+        string $pythonBinary,
+        string $script,
+        #[\SensitiveParameter] string $token,
+        string $output,
+    ): void
     {
         if (!is_file($pythonBinary) || !is_file($script) || !function_exists('proc_open')) {
             throw new RuntimeException('Bundled QR renderer runtime is unavailable.');
