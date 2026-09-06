@@ -210,7 +210,7 @@ foreach ($posts as $post) {
                             <a href="<?= function_exists('app_href') ? app_href('/app/enterprise/internships/create.php') : 'create.php'; ?>" 
                                class="ent-btn-create-post" 
                                id="btn-create-internship"
-                               style="display: inline-flex; align-items: center; gap: 8px; background-color: #F97316; color: #FFFFFF !important; font-size: 14px; font-weight: 600; padding: 10px 22px; border-radius: 999px; text-decoration: none; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(249, 115, 22, 0.28); transition: all 0.2s ease; white-space: nowrap;">
+                               style="display: inline-flex; align-items: center; gap: 8px; background-color: #C2410C; color: #FFFFFF !important; font-size: 14px; font-weight: 600; padding: 10px 22px; border-radius: 999px; text-decoration: none; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(194, 65, 12, 0.28); transition: all 0.2s ease; white-space: nowrap;">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
                                     <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -298,7 +298,7 @@ foreach ($posts as $post) {
                                     
                                     <!-- Header Card: Icon Lĩnh Vực Nhỏ + Badge Trạng Thái -->
                                     <div class="ent-job-card-box__header" style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                                        <div class="ent-job-card-box__field-icon" style="width: 36px; height: 36px; border-radius: 10px; background-color: #FFF7ED; color: #EA580C; border: 1px solid rgba(249, 115, 22, 0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0;" aria-hidden="true">
+                                        <div class="ent-job-card-box__field-icon" style="width: 36px; height: 36px; border-radius: 10px; background-color: #FFF7ED; color: #C2410C; border: 1px solid rgba(194, 65, 12, 0.25); display: flex; align-items: center; justify-content: center; flex-shrink: 0;" aria-hidden="true">
                                             <?php if (stripos($field, 'AI') !== false || stripos($field, 'Machine') !== false): ?>
                                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                     <circle cx="12" cy="12" r="3"></circle>
@@ -320,7 +320,7 @@ foreach ($posts as $post) {
 
                                         <span class="ent-status-pill-wrapper">
                                             <?php if ($status === 'active'): ?>
-                                                <span class="ent-status-pill ent-status-pill--active" style="background: #DCFCE7; color: #16A34A; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px;">
+                                                <span class="ent-status-pill ent-status-pill--active" style="background: #DCFCE7; color: #166534; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px;">
                                                     <span class="dot" style="width: 6px; height: 6px; border-radius: 50%; background: #16A34A;"></span>
                                                     <span><?= htmlspecialchars($statusLabel); ?></span>
                                                 </span>
@@ -377,7 +377,7 @@ foreach ($posts as $post) {
                                         <a href="<?= htmlspecialchars($applicantsUrl); ?>" 
                                            class="ent-job-card-box__applicants-badge"
                                            title="Xem danh sách ứng viên đã nộp hồ sơ"
-                                           style="background-color: #FFF7ED; border: 1px solid rgba(249, 115, 22, 0.2); border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: #EA580C; display: inline-flex; align-items: center; gap: 6px; width: fit-content; text-decoration: none;">
+                                           style="background-color: #FFF7ED; border: 1px solid rgba(194, 65, 12, 0.25); border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: #C2410C; display: inline-flex; align-items: center; gap: 6px; width: fit-content; text-decoration: none;">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                                                 <circle cx="9" cy="7" r="4"></circle>
@@ -397,7 +397,7 @@ foreach ($posts as $post) {
                                         </a>
                                         <a href="<?= htmlspecialchars($detailUrl); ?>" 
                                            class="ent-btn-box-edit" 
-                                           style="display: inline-flex; align-items: center; justify-content: center; background-color: #FFF7ED; border: 1px solid rgba(249, 115, 22, 0.2); color: #EA580C !important; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 999px; text-decoration: none; text-align: center; transition: all 0.15s ease; white-space: nowrap;">
+                                           style="display: inline-flex; align-items: center; justify-content: center; background-color: #FFF7ED; border: 1px solid rgba(194, 65, 12, 0.25); color: #C2410C !important; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 999px; text-decoration: none; text-align: center; transition: all 0.15s ease; white-space: nowrap;">
                                             Chỉnh sửa
                                         </a>
                                     </div>
@@ -409,7 +409,7 @@ foreach ($posts as $post) {
 
                     <!-- PHẦN 4: TRẠNG THÁI TRỐNG SẠCH SẼ (Empty State) -->
                     <div class="ent-internship-empty-state" id="internships-empty-state" style="<?= empty($posts) ? 'display: flex;' : 'display: none;'; ?> background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 48px 24px; text-align: center; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 24px; width: 100%;">
-                        <div class="ent-internship-empty-state__graphic" style="width: 72px; height: 72px; border-radius: 20px; background-color: #FFF7ED; border: 1px solid rgba(249, 115, 22, 0.2); display: flex; align-items: center; justify-content: center; color: #EA580C; margin-bottom: 4px;" aria-hidden="true">
+                        <div class="ent-internship-empty-state__graphic" style="width: 72px; height: 72px; border-radius: 20px; background-color: #FFF7ED; border: 1px solid rgba(194, 65, 12, 0.25); display: flex; align-items: center; justify-content: center; color: #C2410C; margin-bottom: 4px;" aria-hidden="true">
                             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
                                 <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
@@ -427,7 +427,7 @@ foreach ($posts as $post) {
                         <?php if (empty($posts)): ?>
                             <a href="<?= function_exists('app_href') ? app_href('/app/enterprise/internships/create.php') : 'create.php'; ?>" 
                                class="ent-btn-create-post"
-                               style="display: inline-flex; align-items: center; gap: 8px; background-color: #F97316; color: #FFFFFF !important; font-size: 14px; font-weight: 600; padding: 10px 22px; border-radius: 999px; text-decoration: none; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(249, 115, 22, 0.28); transition: all 0.2s ease;">
+                               style="display: inline-flex; align-items: center; gap: 8px; background-color: #C2410C; color: #FFFFFF !important; font-size: 14px; font-weight: 600; padding: 10px 22px; border-radius: 999px; text-decoration: none; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(194, 65, 12, 0.28); transition: all 0.2s ease;">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
                                     <line x1="5" y1="12" x2="19" y2="12"></line>

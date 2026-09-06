@@ -161,6 +161,7 @@
 
 :root select.typeui-select.typeui-select--bare {
     min-block-size: var(--typeui-select-height);
+    min-inline-size: 44px;
     padding: 0.5rem 2.25rem 0.5rem 0.25rem;
     border-color: transparent;
     border-radius: 0.25rem;

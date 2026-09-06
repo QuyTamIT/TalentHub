@@ -78,23 +78,23 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                             <h1 id="learner-activity-discovery-title">Khám phá hoạt động</h1>
                             <p class="learner-activity-discovery-hero__description">Tìm cơ hội phù hợp để học hỏi, trải nghiệm và kết nối ngay trong cộng đồng trường bạn.</p>
 
-                            <dl class="learner-activity-discovery-kpis" aria-label="Tổng quan hoạt động đang mở">
-                                <div>
+                            <ul class="learner-activity-discovery-kpis" aria-label="Tổng quan hoạt động đang mở">
+                                <li>
                                     <span class="learner-activity-discovery-kpis__icon is-orange"><?= learner_icon('calendar', 22); ?></span>
-                                    <dt><strong><?= learner_escape(count($activityCatalog)); ?></strong> hoạt động</dt>
-                                    <dd>đang mở</dd>
-                                </div>
-                                <div>
+                                    <span class="learner-activity-discovery-kpis__value"><strong><?= learner_escape(count($activityCatalog)); ?></strong> hoạt động</span>
+                                    <span class="learner-activity-discovery-kpis__sub">đang mở</span>
+                                </li>
+                                <li>
                                     <span class="learner-activity-discovery-kpis__icon is-blue"><?= learner_icon('users', 22); ?></span>
-                                    <dt><strong><?= learner_escape($participantCount); ?></strong> lượt tham gia</dt>
-                                    <dd>hiện nay</dd>
-                                </div>
-                                <div>
+                                    <span class="learner-activity-discovery-kpis__value"><strong><?= learner_escape($participantCount); ?></strong> lượt tham gia</span>
+                                    <span class="learner-activity-discovery-kpis__sub">hiện nay</span>
+                                </li>
+                                <li>
                                     <span class="learner-activity-discovery-kpis__icon is-green"><?= learner_icon('sparkles', 22); ?></span>
-                                    <dt><strong><?= learner_escape($newActivityCount); ?></strong> hoạt động mới</dt>
-                                    <dd>phù hợp</dd>
-                                </div>
-                            </dl>
+                                    <span class="learner-activity-discovery-kpis__value"><strong><?= learner_escape($newActivityCount); ?></strong> hoạt động mới</span>
+                                    <span class="learner-activity-discovery-kpis__sub">phù hợp</span>
+                                </li>
+                            </ul>
                         </div>
                         <img
                             class="learner-activity-discovery-hero__illustration"

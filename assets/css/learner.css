@@ -79,6 +79,7 @@
 
 .learner-brand {
     display: inline-flex;
+    min-height: 44px;
     align-items: center;
     gap: 0.75rem;
     color: var(--text-primary);
@@ -141,7 +142,7 @@
 
 .learner-sidebar__link {
     display: flex;
-    min-height: 43px;
+    min-height: 44px;
     padding: 9px 12px;
     align-items: center;
     gap: 12px;
@@ -842,6 +843,11 @@
     color: var(--secondary);
     font-size: var(--text-base);
     font-weight: var(--font-semibold);
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 2px 6px;
+    margin: -2px -6px;
 }
 
 .learner-section-heading > a:hover {
@@ -921,6 +927,7 @@
     font-size: clamp(1.7rem, 2.5vw, 2.35rem);
     line-height: 1.18;
     letter-spacing: -0.04em;
+    overflow-wrap: anywhere;
 }
 
 .learner-welcome__content > p:not(.learner-welcome__streak) {
@@ -928,6 +935,7 @@
     margin-top: 12px;
     color: var(--text-secondary);
     font-size: 0.95rem;
+    overflow-wrap: anywhere;
 }
 
 .learner-welcome__actions {
@@ -1925,6 +1933,7 @@
 .learner-checkin-activity-card {
     position: relative;
     overflow: hidden;
+    padding: 18px;
 }
 
 .learner-checkin-card-icon {
@@ -3611,7 +3620,7 @@ body.learner-sidebar-open {
 
 .learner-statistics-panel {
     min-width: 0;
-    min-height: 370px;
+    min-height: 220px;
     padding: 20px;
 }
 
@@ -4537,19 +4546,25 @@ body.learner-sidebar-open {
 /* School-issued credential catalog and AI matches */
 .learner-app .learner-school-credential-section {
     display: grid;
+    grid-template-columns: 1fr;
     gap: 22px;
+    padding: 24px;
     margin-top: 24px;
+    min-width: 0;
+    box-sizing: border-box;
     overflow: hidden;
 }
 
 .learner-app .learner-school-credential-heading {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: 20px;
+    gap: 24px;
+    min-width: 0;
 }
 
 .learner-app .learner-school-credential-heading > div {
+    flex: 1 1 680px;
     min-width: 0;
 }
 
@@ -4558,6 +4573,7 @@ body.learner-sidebar-open {
     color: var(--text-primary);
     font-size: clamp(1.15rem, 2vw, 1.45rem);
     line-height: 1.25;
+    overflow-wrap: anywhere;
 }
 
 .learner-app .learner-school-credential-heading p {
@@ -4565,27 +4581,39 @@ body.learner-sidebar-open {
     margin: 0;
     color: var(--text-secondary);
     line-height: 1.55;
+    overflow-wrap: anywhere;
 }
 
 .learner-app .learner-school-credential-heading > a {
     display: inline-flex;
     align-items: center;
     flex: 0 0 auto;
+    min-height: 44px;
+    max-width: 100%;
     gap: 6px;
     color: var(--primary);
     font-weight: 750;
+    line-height: 1.35;
     text-decoration: none;
+    overflow-wrap: anywhere;
 }
 
 .learner-app .learner-school-credential-heading__eyebrow {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    max-width: 100%;
     gap: 7px;
     color: var(--primary);
     font-size: .76rem;
     font-weight: var(--font-extrabold);
     letter-spacing: .055em;
+    line-height: 1.35;
     text-transform: uppercase;
+    overflow-wrap: anywhere;
+}
+
+.learner-app .learner-school-credential-heading__eyebrow svg {
+    flex: 0 0 auto;
 }
 
 .learner-app .learner-school-credential-grid {
@@ -4731,7 +4759,9 @@ body.learner-sidebar-open {
 
 .learner-app .learner-school-credential-empty {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    min-width: 0;
+    box-sizing: border-box;
     gap: 10px;
     padding: 18px;
     border: 1px dashed var(--border);
@@ -4739,8 +4769,14 @@ body.learner-sidebar-open {
     color: var(--text-secondary);
 }
 
+.learner-app .learner-school-credential-empty svg {
+    flex: 0 0 auto;
+}
+
 .learner-app .learner-school-credential-empty p {
+    min-width: 0;
     margin: 0;
+    overflow-wrap: anywhere;
 }
 
 .learner-app .learner-school-credential-section--roadmap {
@@ -4754,6 +4790,10 @@ body.learner-sidebar-open {
 
     .learner-app .learner-school-credential-heading > a {
         align-self: flex-start;
+    }
+
+    .learner-app .learner-school-credential-empty {
+        align-items: flex-start;
     }
 
     .learner-app .learner-school-credential {
@@ -5149,7 +5189,6 @@ body.learner-sidebar-open {
 .learner-application-item {
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    overflow: hidden;
 }
 
 .learner-application-item__summary {
@@ -5204,6 +5243,7 @@ body.learner-sidebar-open {
     padding: 4px 16px 16px;
     background: var(--background);
     border-top: 1px solid var(--border);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
 .learner-application-timeline {
@@ -5280,7 +5320,14 @@ body.learner-sidebar-open {
     font-size: 0.77rem;
 }
 
-.learner-breadcrumbs a { color: var(--secondary); }
+.learner-breadcrumbs a {
+    color: var(--secondary);
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 2px 4px;
+    margin: -2px -4px;
+}
 .learner-breadcrumbs span:last-child { max-width: 44vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .learner-partner-hero {
@@ -5596,7 +5643,6 @@ body.learner-sidebar-open {
     grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
     align-items: center;
     gap: 42px;
-    overflow: hidden;
 }
 
 .learner-assessment-intro__visual {
@@ -5758,7 +5804,7 @@ body.learner-sidebar-open {
 }
 
 .learner-question-card {
-    min-height: 520px;
+    min-height: 360px;
     padding: clamp(24px, 4vw, 40px);
     border-color: rgba(15, 23, 42, 0.09);
     box-shadow: 0 18px 42px rgba(15, 23, 42, 0.07);
@@ -6678,8 +6724,8 @@ body.learner-sidebar-open {
 
 /* AI Roadmap-first -------------------------------------------------------- */
 .learner-page-ai {
-    --roadmap-primary: #FF6B00;
-    --roadmap-primary-hover: #E55F00;
+    --roadmap-primary: #C2410C;
+    --roadmap-primary-hover: #9A3412;
     --roadmap-primary-light: #FFF7ED;
     --roadmap-secondary: #2563EB;
     --roadmap-secondary-light: #EFF6FF;
@@ -6993,7 +7039,6 @@ body.learner-sidebar-open {
     min-width: 0;
     border: 1px solid var(--border);
     border-radius: 12px;
-    overflow: hidden;
 }
 
 .learner-page-ai .learner-roadmap-phase[open]:first-child {
@@ -7805,8 +7850,8 @@ body.learner-sidebar-open {
     padding: 5px 8px;
     align-items: center;
     gap: 4px;
-    color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+    color: var(--color-success-hover);
+    background: color-mix(in srgb, var(--color-success-hover) 9%, var(--surface));
     border-radius: 999px;
     font-size: 0.68rem;
     font-weight: 750;
@@ -8986,5 +9031,68 @@ body.learner-sidebar-open {
 @media (max-width: 900px) {
     .learner-search {
         width: min(200px, 30vw);
+    }
+}
+
+
+/* --------------------------------------------------------------------------
+   Activity detail — cards rely on .learner-card (which has no padding)
+   -------------------------------------------------------------------------- */
+.learner-activity-detail-panel {
+    padding: 26px;
+}
+
+.learner-activity-detail-panel .learner-activity-detail-section + .learner-activity-detail-section {
+    margin-top: 26px;
+}
+
+.learner-activity-detail-not-found {
+    display: grid;
+    min-height: 420px;
+    padding: 38px;
+    place-items: center;
+    align-content: center;
+    gap: 10px;
+    text-align: center;
+}
+
+.learner-activity-detail-not-found__icon {
+    color: var(--primary);
+}
+
+.learner-activity-contact-card {
+    display: grid;
+    padding: 22px;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 12px 16px;
+}
+
+.learner-activity-contact-card dl {
+    display: grid;
+    grid-column: 1 / -1;
+    gap: 8px;
+    margin: 6px 0 0;
+}
+
+.learner-activity-contact-card dl > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 0.76rem;
+}
+
+.learner-activity-contact-card dt {
+    color: var(--text-secondary);
+}
+
+.learner-activity-contact-card dd {
+    margin: 0;
+    text-align: right;
+}
+
+@media (max-width: 480px) {
+    .learner-activity-contact-card {
+        grid-template-columns: 1fr;
     }
 }

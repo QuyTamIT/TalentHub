@@ -108,9 +108,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     b.style.borderColor = '#E2E8F0';
                 });
                 this.classList.add('is-active');
-                this.style.backgroundColor = '#F97316';
+                this.style.backgroundColor = '#C2410C';
                 this.style.color = '#FFFFFF';
-                this.style.borderColor = '#F97316';
+                this.style.borderColor = '#C2410C';
 
                 activePillCategory = this.getAttribute('data-cat') || 'all';
                 applyFilters();
@@ -135,9 +135,9 @@ document.addEventListener('DOMContentLoaded', function () {
             pillBtns.forEach((b, idx) => {
                 if (idx === 0) {
                     b.classList.add('is-active');
-                    b.style.backgroundColor = '#F97316';
+                    b.style.backgroundColor = '#C2410C';
                     b.style.color = '#FFFFFF';
-                    b.style.borderColor = '#F97316';
+                    b.style.borderColor = '#C2410C';
                 } else {
                     b.classList.remove('is-active');
                     b.style.backgroundColor = '#F8FAFC';

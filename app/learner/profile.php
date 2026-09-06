@@ -127,7 +127,7 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                                             <span><?= learner_escape($skill['name']); ?></span>
                                             <strong style="color: #0F172A;"><?= $skillScoreClamped; ?>/100</strong>
                                         </div>
-                                        <div class="learner-progress" role="progressbar" aria-valuenow="<?= $skillScoreClamped; ?>" aria-valuemin="0" aria-valuemax="100" style="position: relative; width: 100%; height: 8px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
+                                        <div class="learner-progress" role="progressbar" aria-label="Mức độ kỹ năng <?= learner_escape($skill['name'] ?? ''); ?>" aria-valuenow="<?= $skillScoreClamped; ?>" aria-valuemin="0" aria-valuemax="100" style="position: relative; width: 100%; height: 8px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
                                             <span class="learner-progress--<?= $skillTone; ?>" style="--learner-progress: <?= $skillScoreClamped; ?>%; width: <?= $skillScoreClamped; ?>%; background-color: <?= $skillColor; ?>; display: block; height: 100%; border-radius: inherit; transition: width 0.55s ease;"></span>
                                         </div>
                                     </article>

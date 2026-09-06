@@ -228,7 +228,7 @@ $qrCodeApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data='
         }
         .passport-score-badge {
             display: inline-block;
-            background: #16A34A;
+            background: #15803D;
             color: #FFFFFF;
             font-size: 0.8125rem;
             font-weight: 700;
@@ -356,7 +356,7 @@ $qrCodeApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data='
                                 <div class="passport-qr-box">
                                     <img class="passport-qr-img" src="<?= htmlspecialchars($qrCodeApiUrl, ENT_QUOTES, 'UTF-8'); ?>" alt="Mã QR định danh Talent Passport">
                                     <span class="passport-qr-label">Quét để xác thực số</span>
-                                    <small style="font-size: 0.6875rem; color: #94A3B8; margin-top: 0.25rem;">Xác thực thời gian thực</small>
+                                    <small style="font-size: 0.6875rem; color: #475569; margin-top: 0.25rem;">Xác thực thời gian thực</small>
                                 </div>
                             </div>
 
@@ -402,7 +402,7 @@ $qrCodeApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data='
                                         <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.65rem 0.85rem;">
                                             <div style="display: flex; justify-content: space-between; font-size: 0.8125rem; font-weight: 700; margin-bottom: 0.25rem;">
                                                 <span>Logic - Toán học</span>
-                                                <strong style="color: #0891B2;">80/100</strong>
+                                                <strong style="color: #0E7490;">80/100</strong>
                                             </div>
                                             <div style="height: 6px; background: #E2E8F0; border-radius: 3px; overflow: hidden;">
                                                 <div style="width: 80%; height: 100%; background: #0891B2;"></div>
@@ -411,7 +411,7 @@ $qrCodeApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data='
                                         <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.65rem 0.85rem;">
                                             <div style="display: flex; justify-content: space-between; font-size: 0.8125rem; font-weight: 700; margin-bottom: 0.25rem;">
                                                 <span>Ngoại ngữ & Giao tiếp</span>
-                                                <strong style="color: #059669;">75/100</strong>
+                                                <strong style="color: #047857;">75/100</strong>
                                             </div>
                                             <div style="height: 6px; background: #E2E8F0; border-radius: 3px; overflow: hidden;">
                                                 <div style="width: 75%; height: 100%; background: #059669;"></div>
@@ -420,7 +420,7 @@ $qrCodeApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data='
                                         <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.65rem 0.85rem;">
                                             <div style="display: flex; justify-content: space-between; font-size: 0.8125rem; font-weight: 700; margin-bottom: 0.25rem;">
                                                 <span>Kinh doanh & Quản lý</span>
-                                                <strong style="color: #EA580C;">72/100</strong>
+                                                <strong style="color: #C2410C;">72/100</strong>
                                             </div>
                                             <div style="height: 6px; background: #E2E8F0; border-radius: 3px; overflow: hidden;">
                                                 <div style="width: 72%; height: 100%; background: #EA580C;"></div>

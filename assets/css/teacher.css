@@ -508,6 +508,7 @@ body.teacher-sidebar-open { overflow: hidden; }
     color: var(--text-primary);
     margin-top: 0.25rem;
     margin-bottom: 0.5rem;
+    overflow-wrap: anywhere;
 }
 
 .teacher-welcome__description {
@@ -515,6 +516,7 @@ body.teacher-sidebar-open { overflow: hidden; }
     color: var(--text-secondary);
     max-width: 760px;
     line-height: 1.55;
+    overflow-wrap: anywhere;
 }
 
 .teacher-welcome__content {
@@ -1048,7 +1050,7 @@ body.teacher-sidebar-open { overflow: hidden; }
 /* --------------------------------------------------------------------------
    Students panel & filters
    -------------------------------------------------------------------------- */
-.teacher-students-panel { overflow: hidden; }
+.teacher-students-panel { overflow: visible; }
 .teacher-students-panel__header { align-items: center; }
 
 .teacher-students-filters {
@@ -1079,7 +1081,7 @@ body.teacher-sidebar-open { overflow: hidden; }
 .teacher-students-field input,
 .teacher-students-field select {
     width: 100%;
-    min-height: 2.25rem;
+    min-height: 2.75rem;
     padding: 0.5rem 0.625rem;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -1108,7 +1110,7 @@ body.teacher-sidebar-open { overflow: hidden; }
     border-radius: var(--radius-sm);
     background-color: var(--color-danger-light);
     border: 1px solid rgba(220, 38, 38, 0.24);
-    color: var(--color-danger);
+    color: var(--color-danger-hover);
     font-size: var(--text-base);
     font-weight: var(--font-semibold);
 }
@@ -1497,7 +1499,7 @@ body.teacher-sidebar-open { overflow: hidden; }
 .teacher-form-field input,
 .teacher-form-field select {
     width: 100%;
-    min-height: 2.5rem;
+    min-height: 2.75rem;
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -1905,6 +1907,9 @@ body.teacher-sidebar-open { overflow: hidden; }
     .teacher-kpis-grid { grid-template-columns: repeat(2, 1fr); }
     .teacher-grid-layout { grid-template-columns: 1fr; gap: var(--space-4); }
     .teacher-header { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    /* Bộ lọc 4 cột gây tràn ngang ở tablet (768px); chuyển sang 2 cột. */
+    .teacher-students-filters { grid-template-columns: 1fr 1fr; }
+    .teacher-students-filter-actions { justify-content: flex-end; }
 }
 
 @media (max-width: 767.98px) {
@@ -1913,7 +1918,6 @@ body.teacher-sidebar-open { overflow: hidden; }
     .teacher-header__right { gap: 0.5rem; }
     .teacher-header__user-info { display: none; }
     .teacher-header__title { font-size: 1rem; line-height: 1.25; }
-    .teacher-body { padding: var(--space-4); }
     .teacher-kpis-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
     .teacher-overview-grid { grid-template-columns: 1fr; }
     .teacher-action-row { align-items: flex-start; flex-wrap: wrap; }

@@ -3,8 +3,9 @@
  * Keep visual decisions in one place so every portal can share the same language.
  */
 :root {
-    --color-brand: #f97316;
-    --color-brand-hover: #ea580c;
+    /* WCAG AA brand pair: each supports white text and normal text on light surfaces. */
+    --color-brand: #c2410c;
+    --color-brand-hover: #9a3412;
     --color-brand-soft: #fff7ed;
     --color-ink: #0f172a;
     --color-muted: #64748b;

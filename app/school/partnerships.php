@@ -86,13 +86,13 @@ ob_start();
             <td><?= htmlspecialchars((string) ($item['industry'] ?? '—')); ?></td>
             <?php
             $badgeClass = match($item['status']) {
-                'approved' => 'background-color: #D1FAE5; color: #065F46; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;',
-                'pending' => 'background-color: #FEF3C7; color: #92400E; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;',
-                'rejected' => 'background-color: #FEE2E2; color: #991B1B; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;',
-                default => 'background-color: #F3F4F6; color: #374151; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;',
+                'approved' => 'school-badge school-badge--success',
+                'pending' => 'school-badge school-badge--warning',
+                'rejected' => 'school-badge school-badge--danger',
+                default => 'school-badge school-badge--muted',
             };
             ?>
-            <td><span style="<?= $badgeClass ?>"><?= htmlspecialchars($labels[(string) $item['status']] ?? (string) $item['status']); ?></span></td>
+            <td><span class="<?= $badgeClass ?>"><?= htmlspecialchars($labels[(string) $item['status']] ?? (string) $item['status']); ?></span></td>
             <td><?= htmlspecialchars((string) $item['updatedAt']); ?> UTC</td>
             <td style="text-align:right"><div style="display:flex;gap:.4rem;justify-content:flex-end">
                 <?php foreach ((($item['status'] ?? '') === 'pending' ? ['approved' => 'Chấp thuận', 'rejected' => 'Từ chối'] : (($item['status'] ?? '') === 'approved' ? ['suspended' => 'Tạm dừng'] : [])) as $status => $label): ?>
@@ -137,7 +137,7 @@ ob_start();
             
             <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid #E2E8F0;">
                 <button type="button" class="btn btn-outline" onclick="closeAddPartnerModal()">Hủy</button>
-                <button type="submit" class="btn" style="background-color: #F97316; border-color: #F97316; color: #fff;">Gửi lời mời</button>
+                <button type="submit" class="btn" style="background-color: #C2410C; border-color: #C2410C; color: #fff;">Gửi lời mời</button>
             </div>
         </form>
     </div>

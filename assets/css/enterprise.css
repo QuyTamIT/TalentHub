@@ -148,8 +148,8 @@ body.ent-sidebar-open {
     gap: 0.25rem;
     font-size: 0.6875rem;
     font-weight: var(--font-semibold);
-    color: #CC5500;
-    background-color: rgba(255, 107, 0, 0.12);
+    color: var(--primary);
+    background-color: var(--primary-light);
     padding: 0.15rem 0.45rem;
     border-radius: 4px;
     line-height: 1.2;
@@ -178,6 +178,7 @@ body.ent-sidebar-open {
     color: var(--text-muted);
     letter-spacing: 0.06em;
     margin-bottom: 0.5rem;
+    overflow-wrap: anywhere;
     padding-left: 0.5rem;
 }
 
@@ -538,9 +539,9 @@ body.ent-sidebar-open {
     padding: 0.125rem 0.5rem;
     font-size: 0.6875rem;
     font-weight: var(--font-semibold);
-    color: #CC5500;
+    color: var(--primary);
     background-color: var(--primary-light);
-    border: 1px solid rgba(255, 107, 0, 0.2);
+    border: 1px solid rgba(194, 65, 12, 0.25);
     border-radius: var(--radius-full);
     line-height: 1.3;
 }
@@ -653,7 +654,6 @@ body.ent-sidebar-open {
     justify-content: space-between;
     gap: 1.5rem;
     position: relative;
-    overflow: hidden;
     box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
     box-sizing: border-box;
     transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
@@ -728,6 +728,7 @@ body.ent-sidebar-open {
 /* ent-hero-btn: enterprise hero action buttons (kept for HTML compat; use .btn when possible) */
 .ent-hero-btn {
     display: inline-flex;
+    min-height: 44px;
     align-items: center;
     justify-content: center;
     gap: 8px;
@@ -785,6 +786,7 @@ body.ent-sidebar-open {
     align-items: center;
     justify-content: center;
     position: relative;
+    overflow: hidden;
 }
 
 .ent-hero-banner__building-svg,
@@ -857,8 +859,8 @@ body.ent-sidebar-open {
 
 .ent-metric-card__icon-box--amber {
     background-color: #FFF7ED;
-    color: #E55F00;
-    border: 1px solid #FFEDD5;
+    color: var(--primary);
+    border: 1px solid #FED7AA;
 }
 
 .ent-metric-card__icon-box--purple {
@@ -959,6 +961,7 @@ body.ent-sidebar-open {
 .ent-featured-talents-box__view-all {
     display: inline-flex;
     align-items: center;
+    min-height: 44px;
     gap: 0.35rem;
     font-size: 14px;
     font-weight: var(--font-semibold);
@@ -1060,9 +1063,10 @@ body.ent-sidebar-open {
     color: var(--text-secondary);
     margin: 3px 0 0 0;
     line-height: 1.4;
-    white-space: nowrap;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .ent-talent-row__actions {
@@ -1146,7 +1150,7 @@ body.ent-sidebar-open {
     align-items: center;
     gap: 0.45rem;
     background-color: var(--primary-light);
-    color: var(--primary-hover);
+    color: var(--primary);
     border: 1px solid rgba(255, 107, 0, 0.25);
     font-size: 13px;
     font-weight: var(--font-semibold);
@@ -1286,6 +1290,21 @@ body.ent-sidebar-open {
 
     .ent-featured-talents-box {
         padding: 1.25rem 1.25rem;
+    }
+
+    .ent-search-toolbar .ent-internship-filter-row {
+        flex-wrap: wrap;
+    }
+
+    .ent-search-toolbar .ent-search-input-wrapper {
+        flex-basis: 100%;
+        min-width: 0;
+    }
+
+    .ent-search-toolbar .ent-filter-select-wrapper {
+        flex: 1 1 12rem;
+        width: auto;
+        min-width: 0;
     }
 }
 
@@ -1594,12 +1613,13 @@ body.ent-sidebar-open {
 }
 
 .ent-quick-pill {
+    min-height: 44px;
     background-color: #F8FAFC;
     border: 1px solid #E2E8F0;
     color: #475569;
     font-size: 0.75rem;
     font-weight: var(--font-medium);
-    padding: 0.25rem 0.6875rem;
+    padding: 0.5rem 0.6875rem;
     border-radius: var(--radius-sm);
     cursor: pointer;
     transition: all var(--transition-fast);
@@ -1615,7 +1635,7 @@ body.ent-sidebar-open {
 
 .ent-quick-pill.is-active {
     background-color: #FFF7ED;
-    color: #E55F00;
+    color: var(--primary);
     border-color: rgba(255, 107, 0, 0.45);
     font-weight: var(--font-semibold);
 }
@@ -1662,13 +1682,15 @@ body.ent-sidebar-open {
 }
 
 .ent-filter-reset-btn {
+    min-width: 44px;
+    min-height: 44px;
     background: transparent;
     border: none;
     font-size: 0.75rem;
     font-weight: var(--font-semibold);
     color: var(--primary);
     cursor: pointer;
-    padding: 0;
+    padding: 0.25rem;
 }
 
 .ent-filter-reset-btn:hover {
@@ -1754,13 +1776,15 @@ body.ent-sidebar-open {
 }
 
 .ent-more-skills-link {
+    min-width: 44px;
+    min-height: 44px;
     background: transparent;
     border: none;
     font-size: 0.6875rem;
     font-weight: var(--font-semibold);
     color: var(--primary);
     cursor: pointer;
-    padding: 0;
+    padding: 0.25rem;
 }
 
 .ent-more-skills-link:hover {
@@ -1970,6 +1994,14 @@ body.ent-sidebar-open {
     line-height: 1.2;
 }
 
+@media (max-width: 768px) {
+    .ent-talent-card-item__name {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+    }
+}
+
 .ent-talent-card-item__name:hover {
     color: var(--primary);
 }
@@ -1980,8 +2012,8 @@ body.ent-sidebar-open {
     padding: 0.125rem 0.45rem;
     border-radius: var(--radius-full);
     background-color: #FFF7ED;
-    color: #E55F00;
-    border: 1px solid rgba(255, 107, 0, 0.2);
+    color: var(--primary);
+    border: 1px solid rgba(194, 65, 12, 0.25);
     white-space: nowrap;
 }
 
@@ -2000,6 +2032,8 @@ body.ent-sidebar-open {
 }
 
 .ent-bookmark-btn {
+    min-width: 44px;
+    min-height: 44px;
     background: transparent;
     border: 1px solid var(--border);
     width: 2rem;
@@ -2309,6 +2343,23 @@ body.ent-sidebar-open {
         justify-content: center;
     }
 
+    .ent-pagination-buttons {
+        width: 100%;
+        min-width: 0;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .ent-pagination-buttons .btn {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding-inline: 0.75rem;
+    }
+
+    .ent-pagination-buttons .page-num-btn {
+        flex: 0 0 44px;
+    }
+
     .ent-results-control-bar {
         flex-wrap: wrap;
     }
@@ -2318,6 +2369,12 @@ body.ent-sidebar-open {
         align-items: center;
         text-align: center;
     }
+}
+
+/* Page-number buttons: always keep a 44px touch target */
+.ent-pagination-buttons .page-num-btn {
+    min-width: 44px;
+    min-height: 44px;
 }
 
 /* ==========================================================================
@@ -2566,6 +2623,7 @@ body.ent-sidebar-open {
 .ent-back-link {
     display: inline-flex;
     align-items: center;
+    min-height: 44px;
     gap: 0.375rem;
     font-size: 0.875rem;
     font-weight: var(--font-semibold);
@@ -3234,7 +3292,7 @@ body.ent-sidebar-open {
     background-color: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 0.75rem 1rem;
+    padding: 1rem 1.25rem;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
     display: flex;
     flex-direction: column;
@@ -3347,8 +3405,8 @@ body.ent-sidebar-open {
 
 .ent-status-pill--active {
     background-color: var(--color-success-light);
-    color: #15803D;
-    border: 1px solid #DCFCE7;
+    color: var(--color-success-hover);
+    border: 1px solid #BBF7D0;
 }
 .ent-status-pill--active .dot {
     background-color: var(--color-success);
@@ -3480,7 +3538,7 @@ body.ent-sidebar-open {
 }
 
 .ent-applicant-num.text-primary {
-    color: #E55F00;
+    color: var(--primary);
 }
 
 .ent-applicant-text {
@@ -4032,6 +4090,7 @@ body.ent-sidebar-open {
     color: #0F172A;
     margin: 0.5rem 0 1rem 0;
     line-height: 1.2;
+    overflow-wrap: anywhere;
 }
 
 .ent-back-bar {
@@ -4084,9 +4143,9 @@ body.ent-sidebar-open {
     border-radius: 999px;
     font-size: 0.8125rem;
     font-weight: var(--font-semibold);
-    background-color: rgba(255, 107, 0, 0.08);
+    background-color: var(--primary-light);
     color: var(--primary);
-    border: 1px solid rgba(255, 107, 0, 0.2);
+    border: 1px solid rgba(194, 65, 12, 0.25);
 }
 
 /* Status Pipeline Filter Tabs */
@@ -4111,6 +4170,7 @@ body.ent-sidebar-open {
 .ent-pipeline-tab {
     display: inline-flex;
     align-items: center;
+    min-width: 44px;
     gap: 0.4rem;
     padding: 0.75rem 0.25rem;
     font-size: 0.875rem;
@@ -4239,12 +4299,14 @@ body.ent-sidebar-open {
 }
 
 .ent-applicant-info__name {
+    min-height: 44px;
     font-weight: var(--font-semibold);
     font-size: 0.875rem;
     color: #0F172A;
     text-decoration: none;
     transition: color 0.15s ease;
-    display: block;
+    display: inline-flex;
+    align-items: center;
     line-height: 1.3;
     white-space: nowrap !important;
     overflow: hidden;
@@ -4297,7 +4359,7 @@ body.ent-sidebar-open {
     font-size: 0.78125rem;
     font-weight: var(--font-semibold);
     background-color: #FFF7ED;
-    color: #CC5500;
+    color: var(--primary);
     border: 1px solid #FED7AA;
 }
 
@@ -4472,6 +4534,10 @@ body.ent-sidebar-open {
 .ent-drawer-backdrop.is-open {
     opacity: 1;
     visibility: visible;
+}
+
+.ent-drawer-backdrop[hidden] {
+    display: none;
 }
 
 .ent-drawer-panel {
@@ -5543,6 +5609,7 @@ body.ent-sidebar-open {
     color: var(--text-primary);
     letter-spacing: -0.02em;
     margin-bottom: 0.35rem;
+    overflow-wrap: anywhere;
 }
 
 .ent-page-header__desc,
@@ -5555,6 +5622,7 @@ body.ent-sidebar-open {
     font-weight: var(--font-normal) !important;
     line-height: var(--leading-normal) !important;
     color: var(--text-secondary);
+    overflow-wrap: anywhere;
 }
 
 /* 2. Section Title */
@@ -5572,6 +5640,7 @@ body.ent-sidebar-open {
     line-height: var(--leading-snug) !important;
     color: var(--text-primary);
     letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
 }
 
 /* 3. Modal / Drawer Title */
@@ -5580,21 +5649,29 @@ body.ent-sidebar-open {
 .modal-title,
 .ent-drawer-title,
 .ats-cv-candidate-name,
-.ats-resume-name {
+.ats-resume-name,
+.ent-skills-modal__title,
+.ent-modal__title,
+.spon-modal-title {
     font-size: var(--text-xl) !important;
     font-weight: var(--font-bold) !important;
     line-height: var(--leading-snug) !important;
     color: var(--text-primary);
+    overflow-wrap: anywhere;
 }
 
 /* 4. Modal Section Title */
 .ats-section-heading,
 .ats-cv-section-title,
 .ats-timeline-role,
-.ats-resume-section__title {
+.ats-resume-section__title,
+.ats-section-title,
+.ent-form-section-title,
+.spon-section-heading {
     font-size: var(--text-lg) !important;
     font-weight: var(--font-semibold) !important;
     line-height: var(--leading-normal) !important;
+    overflow-wrap: anywhere;
 }
 
 /* 5. Card Title / Candidate Name / Job Title */
@@ -5607,11 +5684,23 @@ body.ent-sidebar-open {
 .ana-insight-row__title,
 .ent-talent-card__name,
 .ent-action-row__title,
-.spon-card-title {
+.spon-card-title,
+.ent-featured-talents-box__title,
+.ent-applicant-context-card__title,
+.ent-passport-overview__name,
+.ent-passport-skill-card__name,
+.ent-passport-timeline-item__title,
+.ent-passport-project-card__title,
+.ent-profile-hero__name,
+.ent-job-card-box__title,
+.ent-internship-empty-state__title,
+.ent-empty-state__title,
+.ats-resume-item__title {
     font-size: var(--text-lg) !important;
     font-weight: var(--font-semibold) !important;
     line-height: var(--leading-normal) !important;
     color: var(--text-primary);
+    overflow-wrap: anywhere;
 }
 
 /* 6. Body Text */
@@ -5622,10 +5711,19 @@ body.ent-sidebar-open {
 .ent-sponsorship-card__desc,
 .ats-resume-text,
 .spon-card-desc,
-.ent-form-help-text {
+.ent-form-help-text,
+.ent-skills-modal__subtitle,
+.ent-modal__subtitle,
+.ent-empty-state__desc,
+.ent-internship-empty-state__desc,
+.ent-passport-timeline-item__desc,
+.ent-passport-project-card__desc,
+.ats-resume-item__subtitle,
+.ats-resume-item__desc {
     font-size: var(--text-md);
     font-weight: var(--font-normal);
     line-height: var(--leading-normal);
+    overflow-wrap: anywhere;
 }
 
 /* 7. Table Header & Table Body */
@@ -5781,7 +5879,6 @@ body.ent-sidebar-open {
     margin-bottom: 1.25rem;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
     position: relative;
-    overflow: hidden;
 }
 
 .ent-hero-banner__content,
@@ -6159,8 +6256,8 @@ body.ent-sidebar-open {
 
 .ent-badge--verified {
     background-color: #ECFDF5;
-    color: #059669;
-    border: 1px solid rgba(16, 185, 129, 0.2);
+    color: #047857;
+    border: 1px solid rgba(4, 120, 87, 0.25);
 }
 
 .ent-badge--pending {
@@ -6170,9 +6267,9 @@ body.ent-sidebar-open {
 }
 
 .ent-badge--package {
-    background-color: rgba(255, 107, 0, 0.1);
-    color: #CC5500;
-    border: 1px solid rgba(255, 107, 0, 0.2);
+    background-color: var(--primary-light);
+    color: var(--primary);
+    border: 1px solid rgba(194, 65, 12, 0.25);
 }
 
 .ent-badge--role {
@@ -6216,7 +6313,7 @@ body.ent-sidebar-open {
 .ent-completion-percent {
     font-size: 0.875rem;
     font-weight: var(--font-bold);
-    color: #FF6B00;
+    color: var(--primary);
 }
 
 .ent-completion-track {
@@ -6317,7 +6414,8 @@ body.ent-sidebar-open {
 }
 
 .ent-info-row__value a {
-    color: #FF6B00;
+    min-height: 44px;
+    color: var(--primary);
     text-decoration: none;
     transition: color 0.15s;
     display: inline-flex;
@@ -6326,7 +6424,7 @@ body.ent-sidebar-open {
 }
 
 .ent-info-row__value a:hover {
-    color: #CC5500;
+    color: var(--primary-hover);
     text-decoration: underline;
 }
 
@@ -6752,8 +6850,8 @@ body.ent-sidebar-open {
     height: 36px;
     border-radius: 10px;
     background-color: #FFF7ED;
-    color: #E55F00;
-    border: 1px solid rgba(255, 107, 0, 0.2);
+    color: var(--primary);
+    border: 1px solid rgba(194, 65, 12, 0.25);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -6782,8 +6880,8 @@ body.ent-sidebar-open {
 
 .ent-status-pill--active {
     background-color: #DCFCE7;
-    color: var(--color-success);
-    border: 1px solid rgba(22, 163, 74, 0.2);
+    color: var(--color-success-hover);
+    border: 1px solid rgba(22, 101, 52, 0.25);
 }
 
 .ent-status-pill--active .dot {
@@ -6861,13 +6959,14 @@ body.ent-sidebar-open {
 
 /* Applicant Counter Badge (Khối cam nhẹ) */
 .ent-job-card-box__applicants-badge {
+    min-height: 44px;
     background-color: #FFF7ED;
-    border: 1px solid rgba(255, 107, 0, 0.2);
+    border: 1px solid rgba(194, 65, 12, 0.25);
     border-radius: 8px;
     padding: 6px 12px;
     font-size: 12px;
     font-weight: var(--font-semibold);
-    color: #E55F00;
+    color: var(--primary);
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -6917,8 +7016,8 @@ body.ent-sidebar-open {
     align-items: center;
     justify-content: center;
     background-color: var(--primary-light);
-    border: 1px solid rgba(255, 107, 0, 0.2);
-    color: var(--primary-hover) !important;
+    border: 1px solid rgba(194, 65, 12, 0.25);
+    color: var(--primary) !important;
     font-size: 13px;
     font-weight: var(--font-semibold);
     padding: 8px 14px;
@@ -6955,11 +7054,11 @@ body.ent-sidebar-open {
     height: 72px;
     border-radius: 20px;
     background-color: #FFF7ED;
-    border: 1px solid rgba(255, 107, 0, 0.2);
+    border: 1px solid rgba(194, 65, 12, 0.25);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #E55F00;
+    color: var(--primary);
     margin-bottom: 4px;
 }
 
@@ -7001,7 +7100,12 @@ body.ent-sidebar-open {
     }
 
     .ent-job-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .ent-job-card-box {
+        width: 100%;
+        max-width: 100%;
     }
 }
 
@@ -7152,8 +7256,15 @@ body.ent-sidebar-open {
         padding: var(--space-2) var(--space-3);
         gap: var(--space-2);
     }
-    .ent-header__left { min-width: 0; }
-    .ent-header__right { gap: var(--space-2); }
+    .ent-header__left {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .ent-header__right {
+        flex: 0 0 auto;
+        gap: var(--space-1);
+        min-width: 0;
+    }
     .ent-header__title {
         min-width: 0;
         overflow: hidden;
@@ -7161,7 +7272,26 @@ body.ent-sidebar-open {
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-    .ent-header__account-wrapper { padding-left: 0; border-left: 0; }
+    .ent-header__account-wrapper {
+        flex: 0 0 44px;
+        width: 44px;
+        max-width: 44px;
+        padding-left: 0;
+        border-left: 0;
+    }
+    .ent-header__account {
+        width: 44px;
+        min-width: 44px;
+        max-width: 44px;
+        justify-content: center;
+        gap: 0;
+        padding: 0;
+        margin: 0;
+        overflow: hidden;
+    }
+    .ent-header__account > .ent-header__chevron {
+        display: none;
+    }
     .ent-account-menu {
         position: fixed;
         top: calc(var(--header-height) + var(--space-2));
@@ -7169,6 +7299,12 @@ body.ent-sidebar-open {
         left: var(--space-3);
         width: auto;
         max-width: none;
+    }
+}
+
+@media (max-width: 360px) {
+    .ent-header__title {
+        font-size: 0.9375rem;
     }
 }
 

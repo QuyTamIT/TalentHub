@@ -149,9 +149,9 @@ include __DIR__ . '/includes/page-banner.php';
 <?php endif; ?>
 
 <!-- Organization Identity Header Banner -->
-<div class="school-org-hero" style="background: #FFFFFF; border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.25rem;">
+<div class="school-org-hero school-flex-between" style="background: #FFFFFF; border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.75rem; flex-wrap: wrap; gap: 1.25rem;">
     <div style="display: flex; align-items: center; gap: 1.25rem;">
-        <div style="width: 64px; height: 64px; border-radius: 14px; background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%); color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.5rem; box-shadow: 0 4px 12px rgba(37,99,235,0.25);">
+        <div class="school-avatar school-avatar--lg school-avatar--blue">
             <?= htmlspecialchars($initials); ?>
         </div>
         <div>
@@ -159,10 +159,10 @@ include __DIR__ . '/includes/page-banner.php';
                 <h2 style="font-size: 1.35rem; font-weight: 700; color: var(--text-primary); margin: 0;">
                     <?= htmlspecialchars($school['name']); ?>
                 </h2>
-                <span style="font-size: 0.75rem; font-weight: 700; background: #EFF6FF; color: #1D4ED8; padding: 0.2rem 0.6rem; border-radius: 6px; border: 1px solid #BFDBFE;">
+                <span class="school-badge school-badge--info">
                     Mã: <?= htmlspecialchars($schoolCode); ?>
                 </span>
-                <span style="font-size: 0.75rem; font-weight: 600; background: #ECFDF5; color: #047857; padding: 0.2rem 0.6rem; border-radius: 6px; border: 1px solid #A7F3D0;">
+                <span class="school-badge school-badge--success">
                     ✓ Đã xác thực
                 </span>
             </div>
@@ -174,11 +174,11 @@ include __DIR__ . '/includes/page-banner.php';
     <div style="display: flex; gap: 1.5rem; text-align: right;">
         <div>
             <div style="font-size: 1.25rem; font-weight: 700; color: #1D4ED8;"><?= (int) $totalStudents; ?></div>
-            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Sinh viên</div>
+            <div class="school-text-xs-upper">Sinh viên</div>
         </div>
         <div style="border-left: 1px solid var(--border); padding-left: 1.5rem;">
             <div style="font-size: 1.25rem; font-weight: 700; color: #059669;">Hoạt động</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Trạng thái</div>
+            <div class="school-text-xs-upper">Trạng thái</div>
         </div>
     </div>
 </div>
@@ -188,9 +188,9 @@ include __DIR__ . '/includes/page-banner.php';
     
     <!-- PHẦN 1: THÔNG TIN TỔ CHỨC / TRƯỜNG HỌC -->
     <section class="school-section-box" style="margin-bottom: 0;">
-        <div class="school-section-box__header" style="border-bottom: 1px solid #F1F5F9; padding-bottom: 1rem; margin-bottom: 1.25rem;">
+        <div class="school-section-box__header school-section-box__header--bordered">
             <div>
-                <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                <h3 class="school-section-box__title" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 21h18"></path>
                         <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"></path>
@@ -203,7 +203,7 @@ include __DIR__ . '/includes/page-banner.php';
                     </svg>
                     Thông tin Tổ chức / Trường học
                 </h3>
-                <p style="font-size: 0.8125rem; color: var(--text-secondary); margin: 0.25rem 0 0 0;">
+                <p class="school-section-box__subtitle" style="margin: 0.25rem 0 0 0;">
                     Thông tin pháp nhân đào tạo, liên hệ tuyển dụng và hợp tác doanh nghiệp.
                 </p>
             </div>
@@ -214,7 +214,7 @@ include __DIR__ . '/includes/page-banner.php';
             <input type="hidden" name="action" value="update_profile">
 
             <div class="school-form__grid school-form__grid--2col">
-                <label class="school-form__field" style="grid-column: 1 / -1;">
+                <label class="school-form__field school-form__field--full">
                     <span>Tên đơn vị / Trường học <em>*</em></span>
                     <input type="text" name="name" value="<?= htmlspecialchars($school['name']); ?>" maxlength="255" required style="font-weight: 600;">
                 </label>
@@ -235,7 +235,7 @@ include __DIR__ . '/includes/page-banner.php';
                     </select>
                 </label>
 
-                <label class="school-form__field" style="grid-column: 1 / -1;">
+                <label class="school-form__field school-form__field--full">
                     <span>Địa chỉ trụ sở chính</span>
                     <input type="text" name="address" value="<?= htmlspecialchars((string) ($school['address'] ?? '')); ?>" placeholder="Số nhà, đường, quận/huyện, tỉnh/thành phố">
                 </label>
@@ -261,8 +261,8 @@ include __DIR__ . '/includes/page-banner.php';
                 </label>
             </div>
 
-            <div class="school-form__actions" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #F1F5F9;">
-                <button type="submit" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:0.45rem;font-weight:600;">
+            <div class="school-form__actions" style="padding-top: 1rem;">
+                <button type="submit" class="btn btn-primary" style="font-weight:600;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
                     Lưu thông tin trường
                 </button>
@@ -272,16 +272,16 @@ include __DIR__ . '/includes/page-banner.php';
 
     <!-- PHẦN 2: BẢO MẬT & ĐỔI MẬT KHẨU -->
     <section class="school-section-box" style="margin-bottom: 0;">
-        <div class="school-section-box__header" style="border-bottom: 1px solid #F1F5F9; padding-bottom: 1rem; margin-bottom: 1.25rem;">
+        <div class="school-section-box__header school-section-box__header--bordered">
             <div>
-                <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                <h3 class="school-section-box__title" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                         <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                     </svg>
                     Bảo mật & Đổi mật khẩu
                 </h3>
-                <p style="font-size: 0.8125rem; color: var(--text-secondary); margin: 0.25rem 0 0 0;">
+                <p class="school-section-box__subtitle" style="margin: 0.25rem 0 0 0;">
                     Tài khoản: <strong><?= htmlspecialchars($context['user']['email']); ?></strong>
                 </p>
             </div>
@@ -291,7 +291,7 @@ include __DIR__ . '/includes/page-banner.php';
             <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
             <input type="hidden" name="action" value="change_password">
 
-            <div class="school-form__grid" style="grid-template-columns: 1fr; gap: 1rem;">
+            <div class="school-form__grid">
                 <label class="school-form__field">
                     <span>Mật khẩu hiện tại <em>*</em></span>
                     <input type="password" name="currentPassword" required autocomplete="current-password" placeholder="Nhập mật khẩu hiện tại">
@@ -308,13 +308,13 @@ include __DIR__ . '/includes/page-banner.php';
                 </label>
             </div>
 
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.75rem 0.875rem; margin-top: 1rem; font-size: 0.8125rem; color: var(--text-secondary);">
+            <div class="school-card-subtle school-text-sm-muted" style="margin-top: 1rem;">
                 <span style="font-weight: 600; color: #1E293B;">Lưu ý bảo mật:</span>
                 Mật khẩu nên chứa ít nhất 6 ký tự kết hợp chữ cái và số để đảm bảo tính an toàn cho dữ liệu sinh viên.
             </div>
 
-            <div class="school-form__actions" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #F1F5F9;">
-                <button type="submit" class="btn btn-secondary" style="display:inline-flex;align-items:center;gap:0.45rem;font-weight:600;width:100%;justify-content:center;">
+            <div class="school-form__actions" style="padding-top: 1rem;">
+                <button type="submit" class="btn btn-secondary" style="font-weight:600;width:100%;justify-content:center;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                     Cập nhật mật khẩu
                 </button>

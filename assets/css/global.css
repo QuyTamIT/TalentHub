@@ -1818,6 +1818,7 @@
     color: var(--text-primary);
     margin-bottom: 0.5rem;
     letter-spacing: -0.01em;
+    overflow-wrap: anywhere;
 }
 
 .portal-welcome__description {
@@ -1826,6 +1827,7 @@
     max-width: 640px;
     margin-bottom: 1.25rem;
     line-height: 1.55;
+    overflow-wrap: anywhere;
 }
 
 .portal-welcome__actions {
@@ -3954,4 +3956,22 @@ body {
 ::-moz-selection {
     background: rgba(255, 107, 0, 0.15);
     color: var(--text-primary);
+}
+
+/* --------------------------------------------------------------------------
+   Global keyboard focus contract
+   The white separator remains visible on dark portal chrome while the dark
+   brand ring has at least 3:1 contrast against light surfaces.
+   -------------------------------------------------------------------------- */
+:where(
+    a[href],
+    button:not(:disabled),
+    input:not([type="hidden"]):not(:disabled),
+    select:not(:disabled),
+    textarea:not(:disabled),
+    [tabindex]:not([tabindex="-1"])
+):focus-visible {
+    outline: 3px solid var(--primary, #c2410c) !important;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--primary, #c2410c) !important;
 }

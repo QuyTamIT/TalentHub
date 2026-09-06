@@ -273,15 +273,15 @@ include __DIR__ . '/includes/page-banner.php';
         </form>
     </div>
     <?php if ($students === []): ?>
-        <div style="text-align: center; color: var(--text-muted); padding: 3.5rem 1rem;">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.5" style="margin-bottom: 0.75rem;">
+        <div class="school-empty-state">
+            <svg class="school-empty-state__icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.5">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                 <circle cx="9" cy="7" r="4"></circle>
                 <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
             </svg>
-            <p style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">Chưa có sinh viên nào trong danh sách. Vui lòng thêm mới hoặc Import file Excel.</p>
-            <p style="font-size: 0.875rem; color: #64748B;">Sử dụng nút <strong></strong> ở trên hoặc tính năng <strong>Import Excel / CSV</strong> để bắt đầu quản lý hồ sơ sinh viên.</p>
+            <p class="school-empty-state__title">Chưa có sinh viên nào trong danh sách. Vui lòng thêm mới hoặc Import file Excel.</p>
+            <p class="school-empty-state__desc">Sử dụng nút <strong></strong> ở trên hoặc tính năng <strong>Import Excel / CSV</strong> để bắt đầu quản lý hồ sơ sinh viên.</p>
         </div>
     <?php else: ?>
     <!-- Bảng danh sách sinh viên -->
@@ -373,7 +373,7 @@ include __DIR__ . '/includes/page-banner.php';
                                 </svg>
                             </a>
                         </td>
-                        <td><span style="font-size: 0.875rem; color: var(--text-secondary);"><?= htmlspecialchars($s['email']); ?></span></td>
+                        <td><span class="school-text-sm-muted"><?= htmlspecialchars($s['email']); ?></span></td>
                         <td>
                             <span class="school-class-name-badge">
                                 <?= htmlspecialchars($s['className']); ?>
@@ -500,7 +500,7 @@ Nguyễn Văn A,nguyenvana@student.edu.vn,BTEC-AI-2026A,AI & Robotics,0901234567
                     <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                         <h3 id="sdModalTitle" style="font-size: 1.25rem; font-weight: 700; color: #FFFFFF; margin: 0;"></h3>
                         <span id="sd_code" style="font-size: 0.75rem; font-weight: 700; background: rgba(255,255,255,0.2); color: #FFFFFF; padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.3);"></span>
-                        <span style="font-size: 0.75rem; font-weight: 600; background: #ECFDF5; color: #047857; padding: 0.2rem 0.5rem; border-radius: 6px;">✓ Đã xác thực</span>
+                        <span class="school-badge school-badge--success">✓ Đã xác thực</span>
                     </div>
                     <div id="sd_headline" style="font-size: 0.875rem; color: rgba(255, 255, 255, 0.92); margin-top: 0.25rem; font-weight: 500;"></div>
                 </div>
@@ -514,14 +514,14 @@ Nguyễn Văn A,nguyenvana@student.edu.vn,BTEC-AI-2026A,AI & Robotics,0901234567
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin-bottom: 1.15rem;">
                 <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 0.75rem 0.875rem; display: flex; align-items: center; justify-content: space-between;">
                     <div>
-                        <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.03em;">Trạng thái học tập</div>
+                        <div class="school-text-xs-upper">Trạng thái học tập</div>
                         <div id="sd_studyStatus" style="font-size: 0.9rem; font-weight: 700; color: #047857; margin-top: 0.15rem;"></div>
                     </div>
                     <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #10B981;"></span>
                 </div>
                 <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 0.75rem 0.875rem; display: flex; align-items: center; justify-content: space-between;">
                     <div>
-                        <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.03em;">Hồ sơ tuyển dụng</div>
+                        <div class="school-text-xs-upper">Hồ sơ tuyển dụng</div>
                         <div id="sd_internshipStatus" style="font-size: 0.9rem; font-weight: 700; color: #1D4ED8; margin-top: 0.15rem;"></div>
                     </div>
                     <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #3B82F6;"></span>
@@ -531,7 +531,7 @@ Nguyễn Văn A,nguyenvana@student.edu.vn,BTEC-AI-2026A,AI & Robotics,0901234567
             <!-- Section 1: Thông tin định danh & Đào tạo (2 cột) -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.15rem;">
                 <!-- Cột định danh -->
-                <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 1rem;">
+                <div class="school-card-subtle" style="padding: 1rem;">
                     <div style="font-size: 0.775rem; font-weight: 700; color: #1E293B; margin-bottom: 0.65rem; display: flex; align-items: center; gap: 0.4rem; text-transform: uppercase; letter-spacing: 0.03em;">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                         Thông tin định danh
@@ -545,7 +545,7 @@ Nguyễn Văn A,nguyenvana@student.edu.vn,BTEC-AI-2026A,AI & Robotics,0901234567
                 </div>
 
                 <!-- Cột đào tạo -->
-                <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 1rem;">
+                <div class="school-card-subtle" style="padding: 1rem;">
                     <div style="font-size: 0.775rem; font-weight: 700; color: #1E293B; margin-bottom: 0.65rem; display: flex; align-items: center; gap: 0.4rem; text-transform: uppercase; letter-spacing: 0.03em;">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><path d="M3 21h18"></path><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"></path></svg>
                         Thông tin đào tạo
@@ -560,7 +560,7 @@ Nguyễn Văn A,nguyenvana@student.edu.vn,BTEC-AI-2026A,AI & Robotics,0901234567
 
             <!-- Section 2: Năng lực & Đánh giá -->
             <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 1rem; margin-bottom: 1.15rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem;">
+                <div class="school-flex-between" style="margin-bottom: 0.65rem;">
                     <div style="font-size: 0.775rem; font-weight: 700; color: #1E293B; display: flex; align-items: center; gap: 0.4rem; text-transform: uppercase; letter-spacing: 0.03em;">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                         Năng lực & Đánh giá
@@ -571,17 +571,17 @@ Nguyễn Văn A,nguyenvana@student.edu.vn,BTEC-AI-2026A,AI & Robotics,0901234567
                 </div>
 
                 <!-- Progress bar -->
-                <div style="background: #E2E8F0; border-radius: 999px; height: 8px; overflow: hidden; margin-bottom: 0.85rem;">
-                    <div id="sd_score_bar" style="background: linear-gradient(90deg, #3B82F6 0%, #10B981 100%); height: 100%; border-radius: 999px; transition: width 0.4s ease; width: 85%;"></div>
+                <div class="school-progress-track" style="margin-bottom: 0.85rem;">
+                    <div id="sd_score_bar" class="school-progress-fill" style="background: linear-gradient(90deg, #3B82F6 0%, #10B981 100%); transition: width 0.4s ease; width: 85%;"></div>
                 </div>
 
                 <!-- Skills tags -->
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 700; text-transform: uppercase;">KỸ NĂNG CHÍNH (SKILLS BADGES):</div>
+                <div class="school-text-xs-upper" style="margin-bottom: 0.5rem;">KỸ NĂNG CHÍNH (SKILLS BADGES):</div>
                 <div id="sd_skills_container" style="display: flex; flex-wrap: wrap; gap: 0.4rem;"></div>
             </div>
 
             <!-- Section 3: Giới thiệu bản thân (Bio) -->
-            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 0.9rem 1rem;">
+            <div class="school-card-subtle" style="padding: 0.9rem 1rem;">
                 <div style="font-size: 0.775rem; font-weight: 700; color: #1E293B; margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.03em;">
                     Mục tiêu & Giới thiệu bản thân
                 </div>
@@ -591,7 +591,7 @@ Nguyễn Văn A,nguyenvana@student.edu.vn,BTEC-AI-2026A,AI & Robotics,0901234567
         </div>
 
         <!-- Footer -->
-        <div style="background: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 0.85rem 1.65rem; display: flex; justify-content: space-between; align-items: center;">
+        <div class="school-flex-between" style="background: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 0.85rem 1.65rem;">
             <span style="font-size: 0.75rem; color: var(--text-muted);">
                 TalentHub Academic Portal • Dữ liệu hồ sơ sinh viên
             </span>
@@ -611,153 +611,7 @@ Nguyễn Văn A,nguyenvana@student.edu.vn,BTEC-AI-2026A,AI & Robotics,0901234567
 <?php
 $pageBody = ob_get_clean();
 
-$extraStyles = <<<'HTML'
-<style>
-.school-inline-select { padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); font-size: 0.875rem; font-weight: 500; }
-.school-class-name-badge { display: inline-block; font-weight: 600; color: #1E293B; background: #F1F5F9; padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.875rem; }
-
-/* Clickable Student Name Link */
-.school-student-name-link {
-    color: #2563EB;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    cursor: pointer;
-    transition: color 0.15s ease-in-out;
-}
-.school-student-name-link:hover {
-    text-decoration: underline;
-    color: #1D4ED8;
-}
-.school-student-name-link .school-link-icon {
-    opacity: 0.55;
-    transition: opacity 0.15s ease, transform 0.15s ease;
-}
-.school-student-name-link:hover .school-link-icon {
-    opacity: 1;
-    transform: translate(1px, -1px);
-}
-
-/* Skill Badge in Modal */
-.school-skill-badge {
-    background: #EFF6FF;
-    color: #1D4ED8;
-    border: 1px solid #BFDBFE;
-    padding: 0.25rem 0.65rem;
-    border-radius: 6px;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-}
-
-/* Modal Styles */
-.school-modal-backdrop {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(15, 23, 42, 0.65);
-    backdrop-filter: blur(5px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999;
-    padding: 1rem;
-    animation: fadeIn 0.2s ease;
-}
-.school-modal {
-    background: #FFFFFF;
-    border-radius: 16px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    width: 100%;
-    max-width: 580px;
-    overflow: hidden;
-    animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.school-modal--detail {
-    max-width: 700px;
-}
-.school-modal__header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid #F1F5F9;
-}
-.school-modal__title {
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: #0F172A;
-    margin: 0 0 0.25rem 0;
-}
-.school-modal__desc {
-    font-size: 0.85rem;
-    color: #64748B;
-    margin: 0;
-}
-.school-modal__close {
-    background: none;
-    border: none;
-    font-size: 1.75rem;
-    line-height: 1;
-    color: #94A3B8;
-    cursor: pointer;
-    padding: 0.25rem;
-}
-.school-modal__close:hover { color: #0F172A; }
-.school-modal__form { padding: 1.5rem; }
-.school-modal__template-box {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
-    border-radius: 10px;
-    padding: 0.875rem 1rem;
-    margin-bottom: 1.25rem;
-}
-.school-modal__template-info {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-.school-modal__template-info strong { font-size: 0.875rem; color: #1E293B; display: block; }
-.school-modal__template-info p { font-size: 0.75rem; color: #64748B; margin: 0.15rem 0 0 0; }
-.school-modal__dropzone {
-    border: 2px dashed #93C5FD;
-    background: #EFF6FF;
-    border-radius: 12px;
-    padding: 2rem 1.5rem;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.school-modal__dropzone:hover {
-    border-color: #3B82F6;
-    background: #DBEAFE;
-}
-.school-inline-textarea {
-    width: 100%;
-    padding: 0.6rem 0.75rem;
-    border: 1px solid #CBD5E1;
-    border-radius: 8px;
-    font-family: monospace;
-    font-size: 0.8125rem;
-    resize: vertical;
-}
-.school-modal__footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid #F1F5F9;
-}
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-</style>
-HTML;
+$extraStyles = ''; // Component styles extracted to assets/css/school.css
 
 $extraScripts = <<<'HTML'
 <script>

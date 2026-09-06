@@ -75,6 +75,7 @@
 
 .learner-brand {
     display: inline-flex;
+    min-height: 44px;
     align-items: center;
     gap: var(--brand-gap);
     color: var(--brand-name-color);

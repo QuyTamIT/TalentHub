@@ -25,7 +25,7 @@
     --primary:        var(--color-brand);
     --primary-hover:  var(--color-brand-hover);
     --primary-light:  var(--color-brand-soft);
-    --primary-dark:   #C2410C;
+    --primary-dark:   #7C2D12;
     --primary-accent: #FB923C;
 
     --secondary:       #2563EB;
@@ -501,6 +501,8 @@ button, input {
 
 .site-header__mobile-toggle {
     display: none;
+    min-width: 44px;
+    min-height: 44px;
     background: transparent;
     padding: 0.5rem;
     cursor: pointer;
@@ -1002,12 +1004,14 @@ button, input {
     color: var(--text-primary);
     margin-bottom: 0.25rem;
     letter-spacing: -0.015em;
+    overflow-wrap: anywhere;
 }
 
 .module-subtitle {
     font-size: 0.8125rem;
     font-weight: 600;
     color: var(--primary);
+    overflow-wrap: anywhere;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 0.875rem;
@@ -1049,6 +1053,7 @@ button, input {
 .module-footer-link {
     display: inline-flex;
     align-items: center;
+    min-height: 44px;
     gap: 0.375rem;
     font-size: 0.875rem;
     font-weight: 700;
@@ -1059,6 +1064,10 @@ button, input {
 
 .module-footer-link:hover {
     color: var(--primary-hover);
+}
+
+.landing-page .bento-card--hero .module-footer-link {
+    color: #FED7AA;
 }
 
 .modules-expansion-banner {
@@ -1357,7 +1366,8 @@ button, input {
 }
 
 .footer-brand .learner-brand__name { color: #FFFFFF; }
-.footer-brand .learner-brand__name > span { color: var(--primary); }
+.footer-brand .learner-brand__name > span { color: #FDBA74; }
+.footer-brand .learner-brand__subtitle { color: #CBD5E1; }
 
 .footer-brand .brand-icon {
     width: var(--brand-icon-size, 36px);
@@ -1468,12 +1478,22 @@ button, input {
 
 @media (max-width: 920px) {
     .site-nav { display: none; }
-    .site-header__login-btn { display: none; }
+    /* Specificity tăng để thắng `.btn` trong global.css (nạp sau) —
+       tránh nút "Đăng nhập" vẫn hiển thị gây tràn ngang trên mobile. */
+    .site-header__actions .site-header__login-btn { display: none; }
     .site-header__mobile-toggle {
         display: flex;
         align-items: center;
         justify-content: center;
     }
+}
+
+@media (max-width: 639.98px) {
+    /* Mobile nhỏ: chỉ giữ hamburger trên header; nút "Đăng ký" đã có
+       trong mobile-menu. Ẩn để header không bị tràn 320px/375px. */
+    .site-header__actions { gap: 0.5rem; }
+    .site-header__actions .site-header__app-btn { display: none; }
+    .site-header__container { height: 4rem; }
 }
 
 @media (max-width: 768px) {
@@ -2034,7 +2054,7 @@ button, input {
 }
 
 .landing-page .bento-card--hero .module-tag {
-    color: #ffb37a;
+    color: var(--primary);
 }
 
 .landing-page .audience-showcase {

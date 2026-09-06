@@ -714,6 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Open Drawer
         if (drawerBackdrop) {
+            drawerBackdrop.hidden = false;
             drawerBackdrop.classList.add('is-open');
         }
     }
@@ -721,6 +722,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function closeReviewDrawer() {
         if (drawerBackdrop) {
             drawerBackdrop.classList.remove('is-open');
+            window.setTimeout(() => {
+                if (!drawerBackdrop.classList.contains('is-open')) {
+                    drawerBackdrop.hidden = true;
+                }
+            }, 280);
         }
         currentActiveAppId = null;
     }
@@ -976,10 +982,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 6. Bind Toolbar Filters & Tab Controls
+    const setActivePipelineTab = (activeTab) => {
+        pipelineTabs.forEach(t => {
+            const isActive = t === activeTab;
+            t.classList.toggle('is-active', isActive);
+            t.setAttribute('aria-selected', String(isActive));
+        });
+    };
+
     pipelineTabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            pipelineTabs.forEach(t => t.classList.remove('is-active'));
-            tab.classList.add('is-active');
+            setActivePipelineTab(tab);
 
             activeStatusFilter = tab.getAttribute('data-status-filter');
             if (statusSelect) statusSelect.value = (activeStatusFilter === 'all') ? '' : activeStatusFilter;
@@ -1010,13 +1023,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const val = statusSelect.value || 'all';
             activeStatusFilter = val;
 
-            pipelineTabs.forEach(t => {
-                if (t.getAttribute('data-status-filter') === val) {
-                    t.classList.add('is-active');
-                } else {
-                    t.classList.remove('is-active');
-                }
-            });
+            const activeTab = Array.from(pipelineTabs).find(
+                t => t.getAttribute('data-status-filter') === val
+            );
+            setActivePipelineTab(activeTab || null);
 
             renderList();
         });
@@ -1034,10 +1044,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (sortSelect) sortSelect.value = 'score_desc';
 
             activeStatusFilter = 'all';
-            pipelineTabs.forEach((t, index) => {
-                if (index === 0) t.classList.add('is-active');
-                else t.classList.remove('is-active');
-            });
+            setActivePipelineTab(pipelineTabs[0] || null);
 
             renderList();
         });

@@ -111,7 +111,7 @@ include __DIR__ . '/includes/page-banner.php';
             <h3 class="school-section-box__title">Danh sách giảng viên</h3>
         </div>
         <?php if ($teachers === []): ?>
-            <p style="color: var(--text-muted);">Trường chưa có giảng viên nào.</p>
+            <p class="school-text-sm-muted">Trường chưa có giảng viên nào.</p>
         <?php else: ?>
             <table class="school-class-table">
                 <thead>
@@ -128,11 +128,11 @@ include __DIR__ . '/includes/page-banner.php';
                         <tr>
                             <td>
                                 <strong><?= htmlspecialchars($t['fullName']); ?></strong>
-                                <div style="font-size: 0.75rem; color: var(--text-muted);">
+                                <div class="school-text-sm-muted">
                                     <?= htmlspecialchars($t['userStatus']); ?>
                                 </div>
                             </td>
-                            <td><span style="font-size: 0.875rem; color: var(--text-secondary);"><?= htmlspecialchars($t['email']); ?></span></td>
+                            <td><span class="school-text-sm-muted"><?= htmlspecialchars($t['email']); ?></span></td>
                             <td><?= htmlspecialchars((string) ($t['specialization'] ?? '—')); ?></td>
                             <td>
                                 <?php if ($t['isSchoolAdmin']): ?>
@@ -185,11 +185,6 @@ include __DIR__ . '/includes/page-banner.php';
 <?php
 $pageBody = ob_get_clean();
 
-$extraStyles = <<<'HTML'
-<style>
-.school-grid-2col.school-grid-2col--teachers { grid-template-columns: minmax(0, 320px) minmax(0, 1fr); }
-@media (max-width: 900px) { .school-grid-2col--teachers { grid-template-columns: 1fr; } }
-</style>
-HTML;
+$extraStyles = '';
 
 require __DIR__ . '/includes/layout.php';

@@ -829,10 +829,10 @@ textarea:focus {
 
 /* Shared ver2 theme: warm product surfaces and orange-first navigation. */
 :root {
-    --primary: #f97316;
-    --primary-hover: #ea580c;
+    --primary: #c2410c;
+    --primary-hover: #9a3412;
     --primary-light: #fff7ed;
-    --primary-dark: #c2410c;
+    --primary-dark: #7c2d12;
     --secondary: #2563eb;
     --secondary-hover: #1d4ed8;
     --secondary-light: #eff6ff;
@@ -851,9 +851,9 @@ textarea:focus {
     --shadow-sm: 0 2px 8px rgb(28 25 23 / 0.06);
     --shadow-md: 0 12px 28px rgb(28 25 23 / 0.10);
     --shadow-lg: 0 20px 44px rgb(28 25 23 / 0.14);
-    --focus-ring: 0 0 0 2px #fff, 0 0 0 4px #f97316;
-    --brand-icon-bg: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-    --brand-name-hub-color: #f97316;
+    --focus-ring: 0 0 0 2px #fff, 0 0 0 5px #c2410c;
+    --brand-icon-bg: linear-gradient(135deg, #c2410c 0%, #9a3412 100%);
+    --brand-name-hub-color: #c2410c;
 }
 
 body:not(.landing-page) {
@@ -941,9 +941,12 @@ body:not(.landing-page) .ent-header {
     background: var(--background);
 }
 
-.auth-eyebrow,
-.auth-kicker {
+.auth-eyebrow {
     color: #fb923c;
+}
+
+.auth-kicker {
+    color: var(--primary);
 }
 
 .role-selection-page {

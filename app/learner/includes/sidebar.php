@@ -44,9 +44,9 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
         <div class="learner-level-card__title">
             <span class="learner-level-card__medal"><?= learner_escape($level['number']); ?></span>
             <strong><?= learner_escape($level['name']); ?></strong>
-            <span class="learner-level-card__verified" aria-label="Dữ liệu đã xác nhận"><?= learner_icon('check', 14); ?></span>
+            <span class="learner-level-card__verified" title="Dữ liệu đã xác nhận"><?= learner_icon('check', 14); ?><span class="learner-visually-hidden">Dữ liệu đã xác nhận</span></span>
         </div>
-        <div class="learner-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($level['progressPercent']); ?>">
+        <div class="learner-progress" role="progressbar" aria-label="Tiến độ cấp độ <?= learner_escape($level['name']); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($level['progressPercent']); ?>">
             <span style="--learner-progress: <?= learner_escape($level['progressPercent']); ?>%;"></span>
         </div>
         <?php if (($level['nextLevel'] ?? null) !== null): ?>
@@ -67,9 +67,9 @@ $activeRoute = $currentRoute ?? '/app/learner/index.php';
         <div class="learner-level-card__title">
             <span class="learner-level-card__medal"><?= learner_escape($level['number']); ?></span>
             <strong><?= learner_escape($level['name']); ?></strong>
-            <span class="learner-level-card__verified" aria-label="Đã xác minh"><?= learner_icon('check', 14); ?></span>
+            <span class="learner-level-card__verified" title="Đã xác minh"><?= learner_icon('check', 14); ?><span class="learner-visually-hidden">Đã xác minh</span></span>
         </div>
-        <div class="learner-progress" role="progressbar" aria-valuemin="0" aria-valuemax="<?= learner_escape($level['target']); ?>" aria-valuenow="<?= learner_escape($level['progress']); ?>">
+        <div class="learner-progress" role="progressbar" aria-label="Tiến độ cấp độ <?= learner_escape($level['name']); ?>" aria-valuemin="0" aria-valuemax="<?= learner_escape($level['target']); ?>" aria-valuenow="<?= learner_escape($level['progress']); ?>">
             <span style="--learner-progress: <?= learner_escape($level['progress']); ?>%;"></span>
         </div>
         <p><?= learner_escape($level['progress']); ?>/<?= learner_escape($level['target']); ?> giờ đến <?= learner_escape($level['next_level']); ?></p>

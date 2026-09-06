@@ -361,7 +361,7 @@ $sidebarNav = [
                             <p style="font-size: 0.875rem; color: #64748B; margin-bottom: 0;">Hiện tại danh sách lớp chưa có sinh viên hoặc sinh viên chưa được phân bổ vào lớp học.</p>
                         </div>
                     <?php else: ?>
-                    <section class="teacher-section-box" style="padding: 0; overflow: hidden;">
+                    <section class="teacher-section-box" style="padding: 0 1.25rem 1.25rem; overflow: hidden;">
                         <form id="batchGradingForm" method="post" action="grading.php">
                             <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken()); ?>">
                             <input type="hidden" name="action" value="save_batch">

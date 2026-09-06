@@ -226,6 +226,26 @@ try {
     }
 } catch (\Throwable $e) {}
 
+if (empty($applicants) && !empty($mockApplicantsByPost)) {
+    $postIdKey = (int) $postId;
+    $mockList = $mockApplicantsByPost[$postIdKey] ?? reset($mockApplicantsByPost);
+    foreach ($mockList as $m) {
+        $status = $m['status'] === 'new' ? 'submitted' : ($m['status'] === 'interviewing' ? 'interview' : ($m['status'] === 'rejected' ? 'declined' : $m['status']));
+        $m['status'] = $status;
+        $m['status_label'] = [
+            'submitted' => 'Đã nộp',
+            'reviewing' => 'Đang xem xét',
+            'interview' => 'Phỏng vấn',
+            'accepted' => 'Đã nhận',
+            'hired' => 'Đã nhận',
+            'declined' => 'Từ chối',
+            'withdrawn' => 'Đã rút',
+            'invited' => 'Đã mời'
+        ][$status] ?? ($m['status_label'] ?? 'Đang xem xét');
+        $applicants[] = $m;
+    }
+}
+
 $pipelineCounts = ['all' => count($applicants), 'submitted' => 0, 'reviewing' => 0, 'interview' => 0, 'accepted' => 0, 'declined' => 0, 'invited' => 0];
 foreach ($applicants as $applicant) {
     if ($applicant['status'] === 'accepted' || $applicant['status'] === 'hired') {
@@ -376,45 +396,45 @@ $sidebarNav = [
 
                             <!-- 2. Applicant Pipeline Status Filter Tabs -->
                             <div class="ent-pipeline-tabs-wrapper">
-                                <ul class="ent-pipeline-nav" role="tablist">
-                                    <li>
-                                        <button type="button" class="ent-pipeline-tab is-active" data-status-filter="all">
+                                <ul class="ent-pipeline-nav" role="tablist" aria-label="Bộ lọc trạng thái ứng viên">
+                                    <li role="presentation">
+                                        <button type="button" role="tab" class="ent-pipeline-tab is-active" data-status-filter="all" aria-selected="true">
                                             <span>Tất cả</span>
                                             <span class="ent-pipeline-tab__count"><?= $pipelineCounts['all']; ?></span>
                                         </button>
                                     </li>
-                                    <li>
-                                        <button type="button" class="ent-pipeline-tab" data-status-filter="submitted">
+                                    <li role="presentation">
+                                        <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="submitted" aria-selected="false">
                                             <span>Mới</span>
                                             <span class="ent-pipeline-tab__count"><?= $pipelineCounts['submitted']; ?></span>
                                         </button>
                                     </li>
-                                    <li>
-                                        <button type="button" class="ent-pipeline-tab" data-status-filter="reviewing">
+                                    <li role="presentation">
+                                        <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="reviewing" aria-selected="false">
                                             <span>Đang xem xét</span>
                                             <span class="ent-pipeline-tab__count"><?= $pipelineCounts['reviewing']; ?></span>
                                         </button>
                                     </li>
-                                    <li>
-                                        <button type="button" class="ent-pipeline-tab" data-status-filter="interview">
+                                    <li role="presentation">
+                                        <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="interview" aria-selected="false">
                                             <span>Phỏng vấn</span>
                                             <span class="ent-pipeline-tab__count"><?= $pipelineCounts['interview']; ?></span>
                                         </button>
                                     </li>
-                                    <li>
-                                        <button type="button" class="ent-pipeline-tab" data-status-filter="accepted">
+                                    <li role="presentation">
+                                        <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="accepted" aria-selected="false">
                                             <span>Đã nhận</span>
                                             <span class="ent-pipeline-tab__count"><?= $pipelineCounts['accepted']; ?></span>
                                         </button>
                                     </li>
-                                    <li>
-                                        <button type="button" class="ent-pipeline-tab" data-status-filter="declined">
+                                    <li role="presentation">
+                                        <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="declined" aria-selected="false">
                                             <span>Từ chối</span>
                                             <span class="ent-pipeline-tab__count"><?= $pipelineCounts['declined']; ?></span>
                                         </button>
                                     </li>
-                                    <li>
-                                        <button type="button" class="ent-pipeline-tab" data-status-filter="invited">
+                                    <li role="presentation">
+                                        <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="invited" aria-selected="false">
                                             <span>Đã mời</span>
                                             <span class="ent-pipeline-tab__count"><?= $pipelineCounts['invited']; ?></span>
                                         </button>
@@ -441,7 +461,7 @@ $sidebarNav = [
 
                                     <!-- Status Filter Dropdown -->
                                     <div class="ent-filter-select-wrapper">
-                                        <select id="filter-app-status-select" class="ent-filter-select typeui-select typeui-select--compact">
+                                        <select id="filter-app-status-select" class="ent-filter-select typeui-select typeui-select--compact" aria-label="Lọc ứng viên theo trạng thái">
                                             <option value="">Tất cả trạng thái</option>
                                             <option value="submitted">Mới</option>
                                             <option value="reviewing">Đang xem xét</option>
@@ -454,7 +474,7 @@ $sidebarNav = [
 
                                     <!-- Score Match Filter -->
                                     <div class="ent-filter-select-wrapper">
-                                        <select id="filter-score-select" class="ent-filter-select typeui-select typeui-select--compact">
+                                        <select id="filter-score-select" class="ent-filter-select typeui-select typeui-select--compact" aria-label="Lọc ứng viên theo điểm phù hợp">
                                             <option value="all">Tất cả độ phù hợp</option>
                                             <option value="90_plus">&ge; 90% phù hợp</option>
                                             <option value="80_89">80% - 89% phù hợp</option>
@@ -464,7 +484,7 @@ $sidebarNav = [
 
                                     <!-- Sort Dropdown -->
                                     <div class="ent-filter-select-wrapper">
-                                        <select id="sort-applicant-select" class="ent-filter-select typeui-select typeui-select--compact">
+                                        <select id="sort-applicant-select" class="ent-filter-select typeui-select typeui-select--compact" aria-label="Sắp xếp danh sách ứng viên">
                                             <option value="score_desc">% phù hợp cao nhất</option>
                                             <option value="date_desc">Mới ứng tuyển</option>
                                             <option value="date_asc">Cũ nhất</option>
@@ -537,7 +557,7 @@ $sidebarNav = [
     </div>
 
     <!-- 6. ATS Recruiter Candidate Detail Drawer -->
-    <div class="ent-drawer-backdrop" id="ent-drawer-backdrop">
+    <div class="ent-drawer-backdrop" id="ent-drawer-backdrop" hidden>
         <div class="ent-drawer-panel ats-candidate-drawer" role="dialog" aria-labelledby="drawer-app-name" aria-modal="true">
             
             <!-- Recruiter Profile Header -->

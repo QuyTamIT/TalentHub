@@ -28,6 +28,7 @@
     min-height: 100vh;
     background: var(--background);
     color: var(--text-primary);
+    overflow-x: clip;
 }
 
 .sr-only {
@@ -277,6 +278,7 @@
    -------------------------------------------------------------------------- */
 .workspace {
     padding-left: var(--admin-sidebar-width);
+    min-width: 0;
 }
 
 .topbar {
@@ -422,12 +424,14 @@ main {
     line-height: 1.2;
     letter-spacing: -0.035em;
     color: var(--text-primary);
+    overflow-wrap: anywhere;
 }
 
 .page-heading p:not(.eyebrow) {
     margin: 7px 0 0;
     color: var(--text-muted);
     font-size: var(--text-sm);
+    overflow-wrap: anywhere;
 }
 
 .heading-actions {
@@ -451,6 +455,7 @@ main {
    These are kept so existing admin PHP templates don't break.
    -------------------------------------------------------------------------- */
 .button {
+    min-width: 44px;
     min-height: 44px;
     display: inline-flex;
     align-items: center;
@@ -577,7 +582,7 @@ main {
 
 .health-item div > span,
 .health-item small { display: block; color: var(--text-muted); font-size: var(--text-xs); }
-.health-item strong { display: block; margin: 1px 0; font-size: var(--text-base); color: var(--text-primary); }
+.health-item strong { display: block; margin: 1px 0; font-size: var(--text-base); color: var(--text-primary); overflow-wrap: anywhere; }
 
 /* --------------------------------------------------------------------------
    8. Section Heading & Panels
@@ -601,12 +606,14 @@ main {
     font-size: var(--text-lg);
     letter-spacing: -0.02em;
     color: var(--text-primary);
+    overflow-wrap: anywhere;
 }
 
 .section-heading a,
 .panel-footer-link {
     display: inline-flex;
     align-items: center;
+    min-height: 44px;
     gap: 6px;
     color: var(--primary);
     font-size: var(--text-xs);
@@ -660,6 +667,12 @@ main {
 }
 
 .ghost-menu {
+    display: inline-grid;
+    place-items: center;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
     border: 0;
     background: transparent;
     color: var(--text-muted);
@@ -674,6 +687,7 @@ main {
     letter-spacing: -0.035em;
     font-variant-numeric: tabular-nums;
     color: var(--text-primary);
+    overflow-wrap: anywhere;
 }
 
 .metric-card > div:last-child {
@@ -713,6 +727,13 @@ main {
     gap: 18px;
 }
 
+.dashboard-grid > *,
+.operations-grid > *,
+.panel-heading > *,
+.module-toolbar > * {
+    min-width: 0;
+}
+
 .panel {
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
@@ -730,6 +751,7 @@ main {
     margin: 4px 0 0;
     color: var(--text-muted);
     font-size: var(--text-sm);
+    overflow-wrap: anywhere;
 }
 
 .panel-heading select {
@@ -799,7 +821,7 @@ main {
     padding: 3px 8px;
     border-radius: var(--radius-full);
     background: var(--color-danger-light);
-    color: var(--color-danger);
+    color: var(--color-danger-hover);
     font-size: var(--text-xs);
     font-weight: var(--font-bold);
 }
@@ -847,6 +869,9 @@ main {
 .queue-content strong { font-size: var(--text-sm); color: var(--text-primary); }
 .queue-content small  { margin: 3px 0 6px; color: var(--text-muted); font-size: var(--text-xs); }
 .queue-content span   { color: var(--text-muted); font-size: var(--text-xs); }
+.queue-content strong,
+.queue-content small,
+.queue-content span   { overflow-wrap: anywhere; }
 .queue-content b      { color: var(--text-secondary); }
 
 .panel-footer-link {
@@ -880,8 +905,12 @@ main {
 .table-tools input { width: 145px; border: 0; outline: 0; background: transparent; font-size: var(--text-base); font-family: var(--font-primary); }
 
 .table-scroll {
+    width: 100%;
+    max-width: 100%;
     overflow-x: auto;
     border-top: 1px solid var(--border);
+    contain: paint;
+    overscroll-behavior-inline: contain;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -1140,7 +1169,7 @@ tbody tr:last-child td { border-bottom: 0; }
    15. Toast — admin uses global .toast component from global.css.
        This scoped override adds admin-specific positioning only.
    -------------------------------------------------------------------------- */
-.admin-shell .toast {
+.toast[data-toast] {
     position: fixed;
     right: 20px;
     bottom: 20px;
@@ -1153,6 +1182,10 @@ tbody tr:last-child td { border-bottom: 0; }
     box-shadow: var(--shadow-md);
     font-size: var(--text-xs);
     pointer-events: auto;
+}
+
+.toast[data-toast][hidden] {
+    display: none;
 }
 
 /* --------------------------------------------------------------------------
@@ -1192,7 +1225,12 @@ tbody tr:last-child td { border-bottom: 0; }
 
 .module-state strong { display: block; color: var(--text-primary); font-size: var(--text-lg); }
 
-.module-content { overflow: hidden; }
+.module-content { min-width: 0; }
+.module-content > .table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
 .module-content table { min-width: 900px; }
 .module-content td { max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
 
@@ -1223,7 +1261,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .system-grid span,
 .system-grid strong { display: block; }
 .system-grid span   { margin-bottom: 8px; color: var(--text-muted); font-size: var(--text-xs); text-transform: uppercase; }
-.system-grid strong { font-size: var(--text-lg); word-break: break-word; color: var(--text-primary); }
+.system-grid strong { font-size: var(--text-lg); word-break: break-word; overflow-wrap: anywhere; color: var(--text-primary); }
 
 /* Row actions */
 .row-actions {

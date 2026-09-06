@@ -62,7 +62,7 @@ $currentRoute = '/app/learner/ai-recommendations.php';
 
                     <!-- Job Matching % and Skill Gap Analysis -->
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 24px;">
-                        <section class="learner-card" aria-labelledby="job-matching-title">
+                        <section class="learner-card" style="padding: 20px;" aria-labelledby="job-matching-title">
                             <div class="learner-roadmap-section-heading" style="margin-bottom: 16px;">
                                 <div>
                                     <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #4F46E5; text-transform: uppercase; letter-spacing: 0.05em;"><?= learner_icon('briefcase', 16); ?> Khớp nối nghề nghiệp</span>
@@ -74,7 +74,7 @@ $currentRoute = '/app/learner/ai-recommendations.php';
                             </div>
                         </section>
 
-                        <section class="learner-card" aria-labelledby="skill-gaps-title">
+                        <section class="learner-card" style="padding: 20px;" aria-labelledby="skill-gaps-title">
                             <div class="learner-roadmap-section-heading" style="margin-bottom: 16px;">
                                 <div>
                                     <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #D97706; text-transform: uppercase; letter-spacing: 0.05em;"><?= learner_icon('sparkles', 16); ?> Phân tích khoảng cách kỹ năng</span>

@@ -48,6 +48,7 @@
 .auth-brand__logo,
 .auth-mobile-logo {
     display: inline-flex;
+    min-height: 44px;
     align-items: center;
     width: max-content;
 }
@@ -454,6 +455,10 @@
 }
 
 .auth-switch a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-inline: 0.25rem;
     color: var(--secondary);
     font-weight: var(--font-extrabold);
 }
@@ -466,7 +471,9 @@
 .auth-back {
     display: block;
     width: max-content;
+    min-height: 44px;
     margin: 22px auto 0;
+    padding-inline: 0.5rem;
     color: var(--text-secondary);
     font-size: var(--text-sm);
     font-weight: var(--font-semibold);
@@ -754,7 +761,7 @@
    -------------------------------------------------------------------------- */
 .auth-password__toggle {
     min-width: 44px;
-    min-height: 36px;
+    min-height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -921,6 +928,7 @@
 .auth-back {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.375rem;
     transition: gap var(--transition-fast), color var(--transition-fast);
 }
