@@ -11,6 +11,7 @@
 if (!function_exists('app_href') && is_file(__DIR__ . '/../../../bin/bootstrap.php')) {
     require_once __DIR__ . '/../../../bin/bootstrap.php';
 }
+require_once dirname(__DIR__, 2) . '/shared/BrandHeader.php';
 ?>
 <!-- Sidebar Overlay Backdrop for Mobile & Tablet -->
 <div class="ent-sidebar-backdrop" id="ent-sidebar-backdrop" aria-hidden="true"></div>
@@ -18,15 +19,17 @@ if (!function_exists('app_href') && is_file(__DIR__ . '/../../../bin/bootstrap.p
 <aside class="ent-sidebar" id="ent-sidebar">
     <!-- Brand Logo -->
     <div class="ent-sidebar__brand">
-        <a href="<?= app_href('/app/enterprise/index.php'); ?>" class="site-header__brand" aria-label="Về trang chủ TalentHub">
-            <div class="site-header__brand-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+        <?php renderBrandHeader(app_href('/app/enterprise/index.php'), 'Khu vực Doanh nghiệp', 'Về trang chủ FTalentHub'); if (false): ?>
+            <span class="learner-brand__mark" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
                 </svg>
+            </span>
+            <div class="learner-brand__text">
+                <span class="learner-brand__name">FTalent<span>Hub</span></span>
+                <span class="learner-brand__subtitle">Khu vực Doanh nghiệp</span>
             </div>
-            <div class="site-header__brand-text">Talent<span>Hub</span></div>
-        </a>
-        <div class="ent-sidebar__subtitle">Khu vực Doanh nghiệp</div>
+        <?php endif; ?>
     </div>
 
     <!-- Navigation List -->

@@ -231,9 +231,14 @@ $sidebarNav = [
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../../assets/css/home.css">
+    <link rel="stylesheet" href="../../../assets/css/global.css">
+    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../../assets/css/polish.css">
     <link rel="stylesheet" href="../../../assets/css/enterprise.css">
+    <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
 </head>
 <body class="enterprise-dashboard" data-post-status="<?= htmlspecialchars((string) ($editingPost['status'] ?? '')); ?>">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <!-- Layout Wrapper -->
     <div class="ent-layout">
@@ -248,7 +253,7 @@ $sidebarNav = [
             <?php include __DIR__ . '/../includes/header.php'; ?>
 
             <!-- Page Body Content -->
-            <main class="ent-body">
+            <main class="ent-body" id="main-content">
                 <div class="container-fluid" style="max-width: 960px;">
                     
                     <!-- Back Link Bar -->
@@ -312,7 +317,7 @@ $sidebarNav = [
                                 <!-- Lĩnh vực -->
                                 <div class="ent-form-group col-md-6">
                                     <label for="form-field" class="ent-form-label required">Lĩnh vực / Chuyên môn</label>
-                                    <select id="form-field" name="field" class="ent-form-select" required>
+                                    <select id="form-field" name="field" class="ent-form-select typeui-select" required>
                                         <option value="">-- Chọn lĩnh vực --</option>
                                         <?php 
                                         $fields = ['Công nghệ thông tin', 'AI / Machine Learning', 'Thiết kế UI/UX', 'Marketing Digital', 'Khoa học Dữ liệu', 'Kỹ thuật Phần mềm'];
@@ -341,7 +346,7 @@ $sidebarNav = [
                                 <!-- Địa điểm làm việc -->
                                 <div class="ent-form-group col-12">
                                     <label for="form-location" class="ent-form-label required">Địa điểm làm việc</label>
-                                    <select id="form-location" name="location" class="ent-form-select" required>
+                                    <select id="form-location" name="location" class="ent-form-select typeui-select" required>
                                         <option value="">-- Chọn địa điểm --</option>
                                         <?php 
                                         $provinces = [
@@ -370,7 +375,7 @@ $sidebarNav = [
                                 <!-- Hình thức làm việc -->
                                 <div class="ent-form-group col-md-6">
                                     <label for="form-work-type" class="ent-form-label">Hình thức làm việc</label>
-                                    <select id="form-work-type" name="workType" class="ent-form-select">
+                                    <select id="form-work-type" name="workType" class="ent-form-select typeui-select">
                                         <?php 
                                         $types = ['Full-time / Hybrid', 'Full-time / On-site', 'Bán thời gian / Remote', 'Linh hoạt'];
                                         foreach ($types as $t):
@@ -384,7 +389,7 @@ $sidebarNav = [
                                 <!-- Thời gian thực tập -->
                                 <div class="ent-form-group col-md-6">
                                     <label for="form-duration" class="ent-form-label">Thời gian thực tập</label>
-                                    <select id="form-duration" name="duration" class="ent-form-select">
+                                    <select id="form-duration" name="duration" class="ent-form-select typeui-select">
                                         <?php 
                                         $durations = ['3 tháng', '6 tháng', '2 tháng', 'Linh hoạt theo trường'];
                                         foreach ($durations as $d):
@@ -398,7 +403,7 @@ $sidebarNav = [
                                 <!-- Trình độ đối tượng -->
                                 <div class="ent-form-group col-md-6">
                                     <label for="form-edu-level" class="ent-form-label">Đối tượng / Trình độ yêu cầu</label>
-                                    <select id="form-edu-level" name="educationLevel" class="ent-form-select">
+                                    <select id="form-edu-level" name="educationLevel" class="ent-form-select typeui-select">
                                         <?php 
                                         $edus = ['Đại học / Cao đẳng', 'Tất cả bậc học', 'Đại học', 'Cao đẳng', 'THPT / THCS'];
                                         foreach ($edus as $e):

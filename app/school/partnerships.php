@@ -61,16 +61,16 @@ ob_start();
     <div class="school-section-box__header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
         <h2 class="school-section-box__title" style="margin: 0;">Quan hệ hợp tác</h2>
         <div style="display: flex; gap: 0.75rem; align-items: center;">
-            <div style="position: relative;" id="statusFilterDropdownContainer">
-                <button type="button" onclick="const m = document.getElementById('statusFilterMenu'); m.style.display = m.style.display === 'none' ? 'block' : 'none';" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid #D1D5DB; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); background-color: #fff; font-size: 0.875rem; font-weight: 500; color: #374151; cursor: pointer; transition: background-color 0.15s ease;" onmouseover="this.style.backgroundColor='#F9FAFB'" onmouseout="this.style.backgroundColor='#fff'">
+            <div class="school-status-dropdown" id="statusFilterDropdownContainer">
+                <button type="button" class="school-status-dropdown__toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="statusFilterMenu">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
                     <span><?= $statusFilter ? htmlspecialchars($labels[$statusFilter]) : 'Tất cả trạng thái' ?></span>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </button>
-                <ul id="statusFilterMenu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 0.25rem; width: max-content; min-width: 150px; background: #fff; border: 1px solid #E5E7EB; border-radius: 0.375rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); padding: 0.25rem 0; z-index: 10; list-style: none; margin-left: 0; padding-left: 0;">
-                    <li onclick="window.location.href='?status='" style="padding: 0.5rem 1rem; font-size: 0.875rem; color: #374151; cursor: pointer; transition: all 0.15s; <?php if($statusFilter === null) echo 'background-color: #FFF7ED; color: #EA580C; font-weight: 600;'; ?>" onmouseover="this.style.backgroundColor='#FFF7ED'; this.style.color='#EA580C'" onmouseout="<?php if($statusFilter !== null) echo "this.style.backgroundColor='transparent'; this.style.color='#374151'"; ?>">Tất cả trạng thái</li>
+                <ul id="statusFilterMenu" class="school-status-dropdown__menu" role="menu" hidden>
+                    <li role="none"><a href="?status=" role="menuitem" class="school-status-dropdown__item<?= $statusFilter === null ? ' is-selected' : ''; ?>">Tất cả trạng thái</a></li>
                     <?php foreach ($labels as $value => $label): ?>
-                        <li onclick="window.location.href='?status=<?= $value ?>'" style="padding: 0.5rem 1rem; font-size: 0.875rem; color: #374151; cursor: pointer; transition: all 0.15s; <?php if($statusFilter === $value) echo 'background-color: #FFF7ED; color: #EA580C; font-weight: 600;'; ?>" onmouseover="this.style.backgroundColor='#FFF7ED'; this.style.color='#EA580C'" onmouseout="<?php if($statusFilter !== $value) echo "this.style.backgroundColor='transparent'; this.style.color='#374151'"; ?>"><?= htmlspecialchars($label); ?></li>
+                        <li role="none"><a href="?status=<?= htmlspecialchars($value); ?>" role="menuitem" class="school-status-dropdown__item<?= $statusFilter === $value ? ' is-selected' : ''; ?>"><?= htmlspecialchars($label); ?></a></li>
                     <?php endforeach; ?>
                 </ul>
             </div>
@@ -86,13 +86,13 @@ ob_start();
             <td><?= htmlspecialchars((string) ($item['industry'] ?? '—')); ?></td>
             <?php
             $badgeClass = match($item['status']) {
-                'approved' => 'background-color: #D1FAE5; color: #065F46; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;',
-                'pending' => 'background-color: #FEF3C7; color: #92400E; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;',
-                'rejected' => 'background-color: #FEE2E2; color: #991B1B; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;',
-                default => 'background-color: #F3F4F6; color: #374151; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;',
+                'approved' => 'school-badge school-badge--success',
+                'pending' => 'school-badge school-badge--warning',
+                'rejected' => 'school-badge school-badge--danger',
+                default => 'school-badge school-badge--muted',
             };
             ?>
-            <td><span style="<?= $badgeClass ?>"><?= htmlspecialchars($labels[(string) $item['status']] ?? (string) $item['status']); ?></span></td>
+            <td><span class="<?= $badgeClass ?>"><?= htmlspecialchars($labels[(string) $item['status']] ?? (string) $item['status']); ?></span></td>
             <td><?= htmlspecialchars((string) $item['updatedAt']); ?> UTC</td>
             <td style="text-align:right"><div style="display:flex;gap:.4rem;justify-content:flex-end">
                 <?php foreach ((($item['status'] ?? '') === 'pending' ? ['approved' => 'Chấp thuận', 'rejected' => 'Từ chối'] : (($item['status'] ?? '') === 'approved' ? ['suspended' => 'Tạm dừng'] : [])) as $status => $label): ?>
@@ -124,7 +124,7 @@ ob_start();
                      The options inside this select MUST be filtered to exclude existing partners.
                      e.g. options = allEnterprises.filter(enterprise => !currentPartnerIds.includes(enterprise.id))
                 -->
-                <select name="enterpriseId" style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #CBD5E1; border-radius: 6px; background: #fff;" required>
+                <select name="enterpriseId" class="typeui-select" required>
                     <option value="">-- Chọn doanh nghiệp khả dụng --</option>
                     <option value="ent_g">Google Vietnam</option>
                     <option value="ent_m">Microsoft Vietnam</option>
@@ -137,7 +137,7 @@ ob_start();
             
             <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid #E2E8F0;">
                 <button type="button" class="btn btn-outline" onclick="closeAddPartnerModal()">Hủy</button>
-                <button type="submit" class="btn" style="background-color: #F97316; border-color: #F97316; color: #fff;">Gửi lời mời</button>
+                <button type="submit" class="btn" style="background-color: #C2410C; border-color: #C2410C; color: #fff;">Gửi lời mời</button>
             </div>
         </form>
     </div>
@@ -154,12 +154,28 @@ function openAddPartnerModal() {
 function closeAddPartnerModal() {
     document.getElementById('addPartnerModal').style.display = 'none';
 }
+const container = document.getElementById('statusFilterDropdownContainer');
+const menu = document.getElementById('statusFilterMenu');
+const toggle = container?.querySelector('.school-status-dropdown__toggle');
+if (container && menu && toggle) {
+    toggle.addEventListener('click', function () {
+        const isOpen = !menu.hidden;
+        menu.hidden = isOpen;
+        toggle.setAttribute('aria-expanded', String(!isOpen));
+    });
+}
 // Close dropdown when clicking outside
 document.addEventListener('click', function(event) {
-    const container = document.getElementById('statusFilterDropdownContainer');
-    const menu = document.getElementById('statusFilterMenu');
     if (container && menu && !container.contains(event.target)) {
-        menu.style.display = 'none';
+        menu.hidden = true;
+        toggle?.setAttribute('aria-expanded', 'false');
+    }
+});
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape' && menu && !menu.hidden) {
+        menu.hidden = true;
+        toggle?.setAttribute('aria-expanded', 'false');
+        toggle?.focus();
     }
 });
 </script>

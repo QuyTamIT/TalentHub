@@ -67,14 +67,14 @@ include __DIR__ . '/includes/page-banner.php';
     </a>
 </div>
 
-<div class="school-grade-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 1.75rem;">
+<div class="school-grade-grid" style="grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 1.75rem;">
     <?php foreach ($gradeStats as $stat): ?>
         <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1.25rem;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+            <div class="school-flex-between" style="margin-bottom: 1rem;">
                 <h3 style="font-size: 1.125rem; font-weight: 700; color: var(--text-primary); margin: 0;">
                     <?= htmlspecialchars($stat['name']) ?>
                 </h3>
-                <span style="font-size: 0.75rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 4px; background: #EFF6FF; color: #2563EB;">
+                <span class="school-badge school-badge--info">
                     <?= $stat['classes'] ?> lớp
                 </span>
             </div>
@@ -94,7 +94,7 @@ include __DIR__ . '/includes/page-banner.php';
 
 <?php foreach ($grades as $gradeName => $gradeClasses): ?>
     <div style="margin-bottom: 2rem;">
-        <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+        <h3 class="school-flex-center" style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" aria-hidden="true">
                 <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
                 <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
@@ -102,10 +102,10 @@ include __DIR__ . '/includes/page-banner.php';
             <?= htmlspecialchars($gradeName) ?>
             <span style="font-size: 0.8125rem; font-weight: 500; color: var(--text-muted);">(<?= count($gradeClasses) ?> lớp)</span>
         </h3>
-        <div class="school-class-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
+        <div class="school-class-grid">
             <?php foreach ($gradeClasses as $class): ?>
                 <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1.25rem; transition: all 0.2s;">
-                    <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1rem;">
+                    <div class="school-flex-between" style="margin-bottom: 1rem;">
                         <div>
                             <h4 style="font-size: 1.125rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.25rem 0;">
                                 <?= htmlspecialchars($class['name']) ?>
@@ -118,7 +118,7 @@ include __DIR__ . '/includes/page-banner.php';
                             <?= htmlspecialchars($class['statusText']); ?>
                         </span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+                    <div class="school-flex-between" style="margin-bottom: 0.75rem;">
                         <div>
                             <span style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);"><?= $class['students'] ?></span>
                             <span style="font-size: 0.8125rem; color: var(--text-muted); margin-left: 0.25rem;">sinh viên</span>
@@ -128,10 +128,10 @@ include __DIR__ . '/includes/page-banner.php';
                             <span style="font-size: 0.75rem; color: var(--text-muted);"> hồ sơ</span>
                         </div>
                     </div>
-                    <div style="height: 6px; background: var(--background); border-radius: 3px; overflow: hidden; margin-bottom: 1rem;">
-                        <div style="height: 100%; width: <?= $class['completion'] ?>%; background: <?= $class['completion'] >= 80 ? '#22C55E' : ($class['completion'] >= 70 ? '#F59E0B' : '#EF4444'); ?>; border-radius: 3px;"></div>
+                    <div class="school-progress-track" style="margin-bottom: 1rem;">
+                        <div class="school-progress-fill" style="width: <?= $class['completion'] ?>%; background: <?= $class['completion'] >= 80 ? '#22C55E' : ($class['completion'] >= 70 ? '#F59E0B' : '#EF4444'); ?>;"></div>
                     </div>
-                    <div style="display: flex; gap: 0.5rem;">
+                    <div class="school-flex-center">
                         <a href="./students.php?classId=<?= urlencode($class['id']); ?>" class="btn btn-sm btn-outline" style="flex: 1; text-decoration:none;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -154,23 +154,13 @@ include __DIR__ . '/includes/page-banner.php';
 <?php endforeach; ?>
 
 <?php if ($classes === []): ?>
-    <div class="school-section-box" style="text-align:center;padding:3rem 1.5rem;">
+    <div class="school-section-box school-empty-state">
         <p style="color: var(--text-muted); margin-bottom:1rem;">Trường chưa có lớp học nào.</p>
         <a href="./class-edit.php" class="btn btn-primary">Tạo lớp đầu tiên</a>
     </div>
 <?php endif; ?>
 <?php
 $pageBody = ob_get_clean();
-
-$extraStyles = <<<'HTML'
-<style>
-@media (max-width: 1024px) { .school-grade-grid { grid-template-columns: repeat(2, 1fr) !important; } }
-@media (max-width: 768px) {
-    .school-grade-grid { grid-template-columns: 1fr !important; }
-    .school-class-grid { grid-template-columns: 1fr !important; }
-}
-</style>
-HTML;
 
 $extraScripts = <<<'HTML'
 <script>

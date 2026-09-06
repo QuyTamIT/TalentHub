@@ -88,7 +88,7 @@ include __DIR__ . '/includes/page-banner.php';
     </div>
 <?php endif; ?>
 
-<div class="projects-layout">
+<div class="school-projects-layout">
     <!-- Form Tạo Dự án (UI mới, trực quan hơn) -->
     <section class="school-section-box form-section">
         <div class="school-section-box__header">
@@ -102,8 +102,8 @@ include __DIR__ . '/includes/page-banner.php';
             <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
             <input type="hidden" name="action" value="create">
             
-            <div class="form-group-section">
-                <h3 class="form-section-title">1. Thông tin chung</h3>
+            <div class="school-form-group">
+                <h3 class="school-form-section-title">1. Thông tin chung</h3>
                 <div class="school-form__grid">
                     <label class="school-form__field school-form__field--full">
                         <span>Tên dự án <span style="color:red">*</span></span>
@@ -111,7 +111,7 @@ include __DIR__ . '/includes/page-banner.php';
                     </label>
                     <label class="school-form__field">
                         <span>Lĩnh vực / Danh mục</span>
-                        <select name="category">
+                        <select name="category" class="typeui-select">
                             <option value="Công nghệ thông tin">Công nghệ thông tin</option>
                             <option value="Kinh tế - Quản trị">Kinh tế - Quản trị</option>
                             <option value="Kỹ thuật - Robot">Kỹ thuật - Robot</option>
@@ -127,12 +127,12 @@ include __DIR__ . '/includes/page-banner.php';
                 </div>
             </div>
 
-            <div class="form-group-section">
-                <h3 class="form-section-title">2. Nhân sự tham gia</h3>
+            <div class="school-form-group">
+                <h3 class="school-form-section-title">2. Nhân sự tham gia</h3>
                 <div class="school-form__grid">
                     <label class="school-form__field">
                         <span>Giảng viên hướng dẫn</span>
-                        <select name="mentorTeacherId" class="select-enhanced">
+                        <select name="mentorTeacherId" class="school-select-enhanced typeui-select">
                             <option value="">-- Chọn giảng viên --</option>
                             <?php foreach ($teachers as $teacher): ?>
                                 <option value="<?= htmlspecialchars((string) $teacher['id']); ?>">
@@ -145,17 +145,17 @@ include __DIR__ . '/includes/page-banner.php';
 
                     <label class="school-form__field">
                         <span>Nhóm tác giả (Sinh viên)</span>
-                        <div class="author-select-box">
-                            <div class="author-search">
+                        <div class="school-author-box">
+                            <div class="school-author-search">
                                 <input type="text" id="authorSearch" placeholder="Tìm kiếm sinh viên..." onkeyup="filterAuthors()">
                             </div>
-                            <div class="author-list" id="authorList">
+                            <div class="school-author-list" id="authorList">
                                 <?php foreach ($students as $student): ?>
-                                    <label class="author-item">
+                                    <label class="school-author-item">
                                         <input type="checkbox" name="authorIds[]" value="<?= htmlspecialchars((string) $student['id']); ?>">
-                                        <div class="author-info">
-                                            <span class="author-name"><?= htmlspecialchars((string) $student['fullName']); ?></span>
-                                            <span class="author-class"><?= htmlspecialchars((string) ($student['className'] ?? '')); ?></span>
+                                        <div class="school-author-info">
+                                            <span class="school-author-name"><?= htmlspecialchars((string) $student['fullName']); ?></span>
+                                            <span class="school-author-class"><?= htmlspecialchars((string) ($student['className'] ?? '')); ?></span>
                                         </div>
                                     </label>
                                 <?php endforeach; ?>
@@ -165,19 +165,19 @@ include __DIR__ . '/includes/page-banner.php';
                 </div>
             </div>
 
-            <div class="form-group-section">
-                <h3 class="form-section-title">3. Triển khai & Kêu gọi Tài trợ</h3>
+            <div class="school-form-group">
+                <h3 class="school-form-section-title">3. Triển khai & Kêu gọi Tài trợ</h3>
                 <div class="school-form__grid">
                     <label class="school-form__field">
                         <span>Mục tiêu tài trợ (VND)</span>
-                        <div class="input-with-icon">
-                            <span class="input-icon">₫</span>
+                        <div class="school-input-icon">
+                            <span class="school-input-icon__prefix">₫</span>
                             <input name="fundingGoal" id="fundingGoalInput" type="number" min="1" step="1000" placeholder="Ví dụ: 50000000" oninput="calculateBudgets()">
                         </div>
                     </label>
                     <label class="school-form__field">
                         <span>Trạng thái dự án</span>
-                        <select name="status">
+                        <select name="status" class="typeui-select typeui-select--status">
                             <?php foreach ($statusLabels as $value => $label): ?>
                                 <option value="<?= $value; ?>"><?= htmlspecialchars($label); ?></option>
                             <?php endforeach; ?>
@@ -198,8 +198,8 @@ include __DIR__ . '/includes/page-banner.php';
                 </div>
             </div>
 
-            <div class="form-group-section">
-                <h3 class="form-section-title">4. Lộ trình thực hiện & Nghiệm thu</h3>
+            <div class="school-form-group">
+                <h3 class="school-form-section-title">4. Lộ trình thực hiện & Nghiệm thu</h3>
                 <div id="milestonesContainer" style="display: flex; flex-direction: column; gap: 1rem;">
                     <div class="milestone-row" style="display: flex; gap: 1rem; align-items: flex-end;">
                         <label class="school-form__field" style="flex: 2; margin: 0;">
@@ -222,8 +222,8 @@ include __DIR__ . '/includes/page-banner.php';
                 </div>
             </div>
             
-            <div class="form-group-section">
-                <h3 class="form-section-title" style="margin-bottom: 0.25rem;">5. Kế hoạch phân bổ kinh phí</h3>
+            <div class="school-form-group">
+                <h3 class="school-form-section-title" style="margin-bottom: 0.25rem;">5. Kế hoạch phân bổ kinh phí</h3>
                 <p style="font-size: 0.85rem; color: #64748B; margin: 0 0 1.25rem 0;">* Lưu ý: Phân bổ theo các nhóm chi phí lớn. Tổng tỉ lệ các hạng mục phải bằng 100%.</p>
                 
                 <label class="school-form__field school-form__field--full" style="margin-bottom: 1rem;">
@@ -262,8 +262,8 @@ include __DIR__ . '/includes/page-banner.php';
                 </div>
             </div>
 
-            <div class="form-actions-bar">
-                <button class="btn btn-primary btn-lg" type="submit">
+            <div class="school-form-actions-bar">
+                <button class="btn btn-primary school-btn-lg" type="submit">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
                     Tạo Dự Án
                 </button>
@@ -273,41 +273,41 @@ include __DIR__ . '/includes/page-banner.php';
 
     <!-- Danh Sách Dự án -->
     <section class="school-section-box list-section">
-        <div class="school-section-box__header" style="border-bottom: 1px solid #E2E8F0; padding-bottom: 1rem; margin-bottom: 1.5rem;">
+        <div class="school-section-box__header school-section-box__header--bordered">
             <h2 class="school-section-box__title">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                 Danh sách Dự án
             </h2>
-            <span class="badge badge-primary"><?= count($projects) ?> dự án</span>
+            <span class="school-badge school-badge--info"><?= count($projects) ?> dự án</span>
         </div>
         
         <?php if ($projects === []): ?>
-            <div class="empty-state">
-                <div class="empty-icon">📁</div>
+            <div class="school-empty-state">
+                <div class="school-empty-state__icon">📁</div>
                 <p>Nhà trường chưa khởi tạo dự án nào.</p>
                 <small>Các dự án sau khi tạo sẽ hiển thị tại đây để theo dõi tiến độ.</small>
             </div>
         <?php else: ?>
-            <div class="project-cards-container">
+            <div class="school-project-cards">
                 <?php foreach ($projects as $project): ?>
-                    <div class="project-card">
-                        <div class="project-card__header">
-                            <div class="project-title-area">
+                    <div class="school-project-card">
+                        <div class="school-project-card__header">
+                            <div class="school-project-title-area">
                                 <h3><?= htmlspecialchars((string) $project['title']); ?></h3>
-                                <span class="project-topic"><?= htmlspecialchars((string) ($project['topic'] ?? $project['category'] ?? 'General')); ?></span>
+                                <span class="school-project-topic"><?= htmlspecialchars((string) ($project['topic'] ?? $project['category'] ?? 'General')); ?></span>
                             </div>
-                            <div class="project-status-badge status-<?= $project['status'] ?>">
+                            <div class="school-project-status-badge school-project-status-badge--<?= $project['status'] ?>">
                                 <?= htmlspecialchars($statusLabels[$project['status']] ?? $project['status']); ?>
                             </div>
                         </div>
                         
-                        <div class="project-card__stats">
-                            <div class="stat-item">
+                        <div class="school-project-card__stats">
+                            <div class="school-project-card__stat">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                                 <span><?= (int) ($project['membersCount'] ?? 0); ?> thành viên</span>
                             </div>
                             <?php if (!empty($project['fundingGoal']) && $project['fundingGoal'] > 0): ?>
-                            <div class="stat-item funding-stat">
+                            <div class="school-project-card__stat school-project-card__stat--funding">
                                 <span style="font-weight: 700; font-size: 0.85rem; padding: 0.1rem 0.3rem; background: #D1FAE5; color: #047857; border-radius: 4px; margin-right: 0.25rem;">VNĐ</span>
                                 <span>
                                     <strong><?= number_format((float) ($project['raisedAmount'] ?? 0), 0, ',', '.'); ?></strong> / 
@@ -318,13 +318,13 @@ include __DIR__ . '/includes/page-banner.php';
                             <?php endif; ?>
                         </div>
                         
-                        <div class="project-card__actions">
+                        <div class="school-project-card__actions">
                             <form method="post" style="display:flex; align-items:center; gap:0.5rem; width:100%;">
                                 <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
                                 <input type="hidden" name="action" value="status">
                                 <input type="hidden" name="projectId" value="<?= htmlspecialchars((string) $project['id']); ?>">
                                 <label style="font-size:0.8rem; color:var(--text-secondary); white-space:nowrap;">Cập nhật:</label>
-                                <select name="status" class="status-select" onchange="this.form.submit()">
+                                <select name="status" class="school-status-select typeui-select typeui-select--compact typeui-select--status" onchange="this.form.submit()">
                                     <?php foreach ($statusLabels as $value => $label): ?>
                                         <option value="<?= $value; ?>" <?= $project['status'] === $value ? 'selected' : ''; ?>>
                                             <?= htmlspecialchars($label); ?>
@@ -343,285 +343,18 @@ include __DIR__ . '/includes/page-banner.php';
 <?php
 $pageBody = ob_get_clean();
 
-$extraStyles = <<<'HTML'
-<style>
-.projects-layout {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-}
-@media (min-width: 1024px) {
-    .projects-layout {
-        grid-template-columns: 1fr 1fr;
-        align-items: start;
-    }
-}
-
-/* Form Styles enhancements */
-.form-group-section {
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-}
-.form-section-title {
-    font-size: 1.05rem;
-    color: #1E293B;
-    margin: 0 0 1rem 0;
-    font-weight: 700;
-    border-bottom: 2px solid #E2E8F0;
-    padding-bottom: 0.5rem;
-    display: inline-block;
-}
-.select-enhanced {
-    width: 100%;
-    padding: 0.6rem 0.75rem;
-    border-radius: 8px;
-    border: 1px solid #CBD5E1;
-    background-color: #fff;
-    font-size: 0.95rem;
-    color: #334155;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-.select-enhanced:focus {
-    border-color: #2563EB;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
-}
-.field-hint {
-    display: block;
-    font-size: 0.8rem;
-    color: #64748B;
-    margin-top: 0.4rem;
-}
-.input-with-icon {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-.input-with-icon .input-icon {
-    position: absolute;
-    left: 1rem;
-    color: #64748B;
-    font-weight: bold;
-}
-.input-with-icon input {
-    padding-left: 2.2rem;
-    width: 100%;
-}
-.form-actions-bar {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 1.5rem;
-}
-.btn-lg {
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    border-radius: 8px;
-}
-
-/* Author Box Selector */
-.author-select-box {
-    border: 1px solid #CBD5E1;
-    border-radius: 8px;
-    background: #fff;
-    overflow: hidden;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-.author-search {
-    padding: 0.75rem;
-    border-bottom: 1px solid #E2E8F0;
-    background: #F8FAFC;
-}
-.author-search input {
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid #CBD5E1;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    background: #fff;
-    transition: all 0.2s;
-}
-.author-search input:focus {
-    border-color: #2563EB;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
-}
-.author-list {
-    max-height: 220px;
-    overflow-y: auto;
-    padding: 0;
-}
-.author-item {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    cursor: pointer;
-    transition: background 0.15s;
-    margin: 0 !important;
-    border-bottom: 1px solid #E2E8F0;
-    width: auto !important;
-}
-.author-item:last-child {
-    border-bottom: none;
-}
-.author-item:hover {
-    background: #F8FAFC;
-}
-.author-item input[type="checkbox"] {
-    margin: 0 !important;
-    cursor: pointer;
-    width: auto !important;
-    flex-shrink: 0;
-    transform: scale(1.1);
-}
-.author-info {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 0.75rem;
-    margin: 0 !important;
-    width: auto !important;
-    flex: 0 1 auto;
-}
-.author-name {
-    font-weight: 600;
-    color: #1E293B;
-    font-size: 0.9rem;
-    margin: 0 !important;
-}
-.author-class {
-    font-size: 0.75rem;
-    color: #64748B;
-    background: #F1F5F9;
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
-    margin: 0 !important;
-}
-
-/* Project Cards */
-.project-cards-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-}
-.project-card {
-    background: #fff;
-    border: 1px solid #E2E8F0;
-    border-radius: 12px;
-    padding: 1.25rem;
-    transition: transform 0.2s, box-shadow 0.2s;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-.project-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
-    border-color: #CBD5E1;
-}
-.project-card__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1rem;
-}
-.project-title-area h3 {
-    margin: 0 0 0.25rem 0;
-    font-size: 1.15rem;
-    color: #0F172A;
-    font-weight: 700;
-}
-.project-topic {
-    font-size: 0.85rem;
-    color: #3B82F6;
-    font-weight: 500;
-    background: #EFF6FF;
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
-    display: inline-block;
-}
-.project-status-badge {
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.25rem 0.75rem;
-    border-radius: 99px;
-    text-transform: uppercase;
-}
-.status-draft { background: #F1F5F9; color: #475569; }
-.status-in_progress { background: #DBEAFE; color: #1D4ED8; }
-.status-completed { background: #D1FAE5; color: #047857; }
-.status-archived { background: #FEE2E2; color: #B91C1C; }
-
-.project-card__stats {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    padding: 0.75rem;
-    background: #F8FAFC;
-    border-radius: 8px;
-}
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    color: #475569;
-}
-.funding-stat {
-    color: #047857;
-}
-.funding-stat strong {
-    font-size: 1rem;
-}
-.project-card__actions {
-    border-top: 1px solid #E2E8F0;
-    padding-top: 1rem;
-}
-.status-select {
-    flex: 1;
-    padding: 0.4rem;
-    border: 1px solid #CBD5E1;
-    border-radius: 6px;
-    background: #F8FAFC;
-    font-size: 0.85rem;
-}
-.badge-primary {
-    background: #DBEAFE;
-    color: #1D4ED8;
-    padding: 0.25rem 0.75rem;
-    border-radius: 99px;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-.empty-state {
-    text-align: center;
-    padding: 3rem 1rem;
-    color: #64748B;
-}
-.empty-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
-}
-</style>
-HTML;
+$extraStyles = ''; // Component styles extracted to assets/css/school.css
 
 $extraScripts = <<<'HTML'
 <script>
 function filterAuthors() {
     const input = document.getElementById('authorSearch');
     const filter = input.value.toLowerCase();
-    const nodes = document.querySelectorAll('.author-item');
-    
+    const nodes = document.querySelectorAll('.school-author-item');
+
     nodes.forEach(node => {
-        const name = node.querySelector('.author-name').innerText.toLowerCase();
-        const className = node.querySelector('.author-class').innerText.toLowerCase();
+        const name = node.querySelector('.school-author-name').innerText.toLowerCase();
+        const className = node.querySelector('.school-author-class').innerText.toLowerCase();
         
         if (name.includes(filter) || className.includes(filter)) {
             node.style.display = 'flex';

@@ -186,16 +186,21 @@ $statusClasses = [
     <meta name="description" content="Quản lý phiên QR cho các hoạt động đang diễn ra do giáo viên phụ trách trên TalentHub.">
     <title><?= teacherQrEscape($pageTitle); ?> | TalentHub</title>
     <link rel="stylesheet" href="../../../assets/css/home.css">
+    <link rel="stylesheet" href="../../../assets/css/global.css">
+    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../../assets/css/polish.css">
     <link rel="stylesheet" href="../../../assets/css/teacher.css">
+    <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
 </head>
 <body class="teacher-dashboard teacher-qr-page">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
     <div class="teacher-layout">
         <?php require_once dirname(__DIR__) . '/includes/sidebar.php'; ?>
 
         <div class="teacher-main-wrapper">
             <?php require_once dirname(__DIR__) . '/includes/header.php'; ?>
 
-            <main class="teacher-body">
+            <main class="teacher-body" id="main-content">
                 <div class="teacher-container teacher-qr-container">
                     <section class="teacher-section-box teacher-qr-intro">
                         <div>
@@ -257,7 +262,7 @@ $statusClasses = [
                             <div class="teacher-qr-form__grid">
                                 <label class="teacher-form-field teacher-qr-form__activity" for="teacher-qr-activity">
                                     <span>Hoạt động</span>
-                                    <select id="teacher-qr-activity" name="activity_id" required>
+                                    <select id="teacher-qr-activity" name="activity_id" class="typeui-select" required>
                                         <option value="">Chọn hoạt động đang diễn ra</option>
                                         <?php foreach ($data['activities'] as $activity): ?>
                                             <option value="<?= teacherQrEscape($activity['id']); ?>" <?= $formValues['activity_id'] === (string) $activity['id'] ? 'selected' : ''; ?>>

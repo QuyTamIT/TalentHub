@@ -1,6 +1,6 @@
 .learner-activities-shell {
-    --activity-primary: #F97316;
-    --activity-primary-hover: #EA580C;
+    --activity-primary: #C2410C;
+    --activity-primary-hover: #9A3412;
     --activity-primary-light: #FFF7ED;
     --activity-secondary: #2563EB;
     --activity-secondary-light: #EFF6FF;
@@ -263,10 +263,12 @@
     align-items: center;
     display: flex;
     gap: 0;
+    list-style: none;
     margin: 0;
+    padding: 0;
 }
 
-.learner-activities-shell .learner-activity-discovery-kpis > div {
+.learner-activities-shell .learner-activity-discovery-kpis > li {
     align-items: center;
     border-right: 1px solid #CBD5E1;
     display: grid;
@@ -276,7 +278,7 @@
     padding-right: 20px;
 }
 
-.learner-activities-shell .learner-activity-discovery-kpis > div:last-child {
+.learner-activities-shell .learner-activity-discovery-kpis > li:last-child {
     border-right: 0;
     margin-right: 0;
     padding-right: 0;
@@ -307,15 +309,15 @@
     color: var(--activity-accent);
 }
 
-.learner-activities-shell .learner-activity-discovery-kpis dt,
-.learner-activities-shell .learner-activity-discovery-kpis dd {
+.learner-activities-shell .learner-activity-discovery-kpis__value,
+.learner-activities-shell .learner-activity-discovery-kpis__sub {
     color: var(--activity-text-secondary);
     font-size: 11px;
     line-height: 1.25;
     margin: 0;
 }
 
-.learner-activities-shell .learner-activity-discovery-kpis dt strong {
+.learner-activities-shell .learner-activity-discovery-kpis__value strong {
     color: var(--activity-text-primary);
     font-size: 22px;
     margin-right: 3px;
@@ -670,7 +672,7 @@
         padding-left: 30px;
     }
 
-    .learner-activities-shell .learner-activity-discovery-kpis > div {
+    .learner-activities-shell .learner-activity-discovery-kpis > li {
         grid-template-columns: 34px auto;
         margin-right: 12px;
         min-width: 125px;
@@ -729,8 +731,8 @@
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
-    .learner-activities-shell .learner-activity-discovery-kpis > div,
-    .learner-activities-shell .learner-activity-discovery-kpis > div:last-child {
+    .learner-activities-shell .learner-activity-discovery-kpis > li,
+    .learner-activities-shell .learner-activity-discovery-kpis > li:last-child {
         border: 1px solid rgba(203, 213, 225, .75);
         border-radius: var(--activity-radius-sm);
         display: block;
@@ -791,8 +793,8 @@
         grid-template-columns: 1fr;
     }
 
-    .learner-activities-shell .learner-activity-discovery-kpis > div,
-    .learner-activities-shell .learner-activity-discovery-kpis > div:last-child {
+    .learner-activities-shell .learner-activity-discovery-kpis > li,
+    .learner-activities-shell .learner-activity-discovery-kpis > li:last-child {
         align-items: center;
         display: grid;
         grid-template-columns: 34px auto;

@@ -158,16 +158,21 @@ function teacherGradingInitials(string $name): string
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $escape($pageTitle); ?> | TalentHub</title>
     <link rel="stylesheet" href="../../../assets/css/home.css">
+    <link rel="stylesheet" href="../../../assets/css/global.css">
+    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../../assets/css/polish.css">
     <link rel="stylesheet" href="../../../assets/css/teacher.css">
+    <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
 </head>
 <body class="teacher-dashboard teacher-grading-page">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
     <div class="teacher-layout">
         <?php require_once dirname(__DIR__) . '/includes/sidebar.php'; ?>
 
         <div class="teacher-main-wrapper">
             <?php require_once dirname(__DIR__) . '/includes/header.php'; ?>
 
-            <main class="teacher-body">
+            <main class="teacher-body" id="main-content">
                 <div class="teacher-container">
                     <section class="teacher-section-box teacher-grading-intro">
                         <div>
@@ -192,7 +197,7 @@ function teacherGradingInitials(string $name): string
                         <form method="get" class="teacher-grading-toolbar__form">
                             <label class="teacher-grading-field teacher-grading-field--activity">
                                 <span>Hoạt động phụ trách</span>
-                                <select name="activityId" onchange="this.form.submit()">
+                                <select name="activityId" class="typeui-select typeui-select--compact" onchange="this.form.submit()">
                                     <option value="">Chọn hoạt động</option>
                                     <?php foreach ($data['activities'] as $activity): ?>
                                         <option value="<?= $escape($activity['id']); ?>" <?= (string) ($data['selectedActivity']['id'] ?? '') === (string) $activity['id'] ? 'selected' : ''; ?>>
@@ -260,7 +265,7 @@ function teacherGradingInitials(string $name): string
                                             <div class="teacher-grading-form__topline">
                                                 <label class="teacher-grading-field">
                                                     <span>Trạng thái đánh giá</span>
-                                                    <select name="assessmentStatus" required>
+                                                    <select name="assessmentStatus" class="typeui-select typeui-select--compact typeui-select--status" required>
                                                         <?php foreach ($assessmentStatusLabels as $status => $label): ?>
                                                             <option value="<?= $escape($status); ?>" <?= ($assessmentStatus ?? 'draft') === $status ? 'selected' : ''; ?>><?= $escape($label); ?></option>
                                                         <?php endforeach; ?>
@@ -306,7 +311,7 @@ function teacherGradingInitials(string $name): string
                         <div class="teacher-empty-state teacher-grading-empty">
                             <div class="teacher-empty-state__icon" aria-hidden="true">−</div>
                             <h3 class="teacher-empty-state__title">Chưa có hoạt động phụ trách</h3>
-                            <p class="teacher-empty-state__desc">Khi có hoạt động với createdByTeacherId là hồ sơ của bạn, hoạt động sẽ xuất hiện tại đây.</p>
+                            <p class="teacher-empty-state__desc">Các hoạt động do bạn phụ trách sẽ xuất hiện tại đây khi sẵn sàng để đánh giá.</p>
                         </div>
                     <?php else: ?>
                         <div class="teacher-empty-state teacher-grading-empty">

@@ -189,16 +189,21 @@ $kpis = [
     <title>Học viên của tôi | TalentHub</title>
 
     <link rel="stylesheet" href="../../../assets/css/home.css">
+    <link rel="stylesheet" href="../../../assets/css/global.css">
+    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../../assets/css/polish.css">
     <link rel="stylesheet" href="../../../assets/css/teacher.css">
+    <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
 </head>
 <body class="teacher-dashboard">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
     <div class="teacher-layout">
         <?php require dirname(__DIR__) . '/includes/sidebar.php'; ?>
 
         <div class="teacher-main-wrapper">
             <?php require dirname(__DIR__) . '/includes/header.php'; ?>
 
-            <main class="teacher-body">
+            <main class="teacher-body" id="main-content">
                 <div class="teacher-container">
                     <section class="teacher-welcome">
                         <div class="teacher-welcome__content">
@@ -239,7 +244,7 @@ $kpis = [
                             </label>
                             <label class="teacher-students-field">
                                 <span>Hoạt động</span>
-                                <select name="activityId">
+                                <select name="activityId" class="typeui-select typeui-select--compact">
                                     <option value="">Tất cả hoạt động</option>
                                     <?php foreach ($pageData['activities'] as $activity): ?>
                                         <option value="<?= teacher_students_escape($activity['id']); ?>" <?= $filters['activityId'] === $activity['id'] ? 'selected' : ''; ?>>
@@ -250,7 +255,7 @@ $kpis = [
                             </label>
                             <label class="teacher-students-field">
                                 <span>Trạng thái đăng ký</span>
-                                <select name="status">
+                                <select name="status" class="typeui-select typeui-select--compact">
                                     <option value="">Tất cả trạng thái</option>
                                     <?php foreach ($pageData['statuses'] as $status): ?>
                                         <option value="<?= teacher_students_escape($status); ?>" <?= $filters['status'] === $status ? 'selected' : ''; ?>>

@@ -14,7 +14,11 @@ $currentRoute = '/app/learner/ai-recommendations.php';
     <meta name="description" content="Lộ trình phát triển 90 ngày do AI TalentHub đề xuất từ dữ liệu bạn đã cho phép.">
     <title>AI gợi ý | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
 </head>
 <body class="learner-app learner-page-ai">
     <div class="learner-layout">
@@ -25,7 +29,7 @@ $currentRoute = '/app/learner/ai-recommendations.php';
                 <header class="learner-roadmap__header">
                     <div><span class="learner-roadmap__eyebrow">AI GỢI Ý</span><h1>Lộ trình phát triển cá nhân dành riêng cho bạn</h1></div>
                     <div class="learner-roadmap__header-actions">
-                        <label class="learner-roadmap-version"><span>Phiên bản</span><select data-roadmap-version-select aria-label="Chọn phiên bản lộ trình"><option>Chưa có</option></select></label>
+                        <label class="learner-roadmap-version"><span>Phiên bản</span><select class="typeui-select typeui-select--compact typeui-select--inline" data-roadmap-version-select aria-label="Chọn phiên bản lộ trình"><option>Chưa có</option></select></label>
                         <span class="learner-roadmap__freshness" data-roadmap-freshness><?= learner_icon('check', 16); ?> Chưa có phân tích</span>
                         <button class="learner-btn learner-btn--outline" type="button" data-roadmap-generate="refresh"><?= learner_icon('activity', 17); ?> Cập nhật phân tích</button>
                     </div>
@@ -58,7 +62,7 @@ $currentRoute = '/app/learner/ai-recommendations.php';
 
                     <!-- Job Matching % and Skill Gap Analysis -->
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 24px;">
-                        <section class="learner-card" aria-labelledby="job-matching-title">
+                        <section class="learner-card" style="padding: 20px;" aria-labelledby="job-matching-title">
                             <div class="learner-roadmap-section-heading" style="margin-bottom: 16px;">
                                 <div>
                                     <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #4F46E5; text-transform: uppercase; letter-spacing: 0.05em;"><?= learner_icon('briefcase', 16); ?> Khớp nối nghề nghiệp</span>
@@ -70,7 +74,7 @@ $currentRoute = '/app/learner/ai-recommendations.php';
                             </div>
                         </section>
 
-                        <section class="learner-card" aria-labelledby="skill-gaps-title">
+                        <section class="learner-card" style="padding: 20px;" aria-labelledby="skill-gaps-title">
                             <div class="learner-roadmap-section-heading" style="margin-bottom: 16px;">
                                 <div>
                                     <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #D97706; text-transform: uppercase; letter-spacing: 0.05em;"><?= learner_icon('sparkles', 16); ?> Phân tích khoảng cách kỹ năng</span>

@@ -139,11 +139,7 @@ function initSchoolSidebar() {
 }
 
 function initSchoolNotifications() {
-    const trigger = document.getElementById('school-notif-trigger');
-    if (!trigger) return;
-    trigger.addEventListener('click', () => {
-        showSchoolToast('Chưa có thông báo mới. Tính năng đang phát triển.');
-    });
+    // Notifications are handled by the shared portal-notifications module.
 }
 
 function initSchoolConfirmForms() {

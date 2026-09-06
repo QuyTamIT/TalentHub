@@ -131,7 +131,7 @@ ob_start();
             </label>
             <label class="school-form__field">
                 <span>Khối <em>*</em></span>
-                <select name="gradeLevel" required>
+                <select name="gradeLevel" class="typeui-select" required>
                     <?php for ($g = 1; $g <= 12; $g++): ?>
                         <option value="<?= $g; ?>" <?= ((int) $row['gradeLevel'] === $g) ? 'selected' : ''; ?>>Khối <?= $g; ?></option>
                     <?php endfor; ?>
@@ -143,7 +143,7 @@ ob_start();
             </label>
             <label class="school-form__field">
                 <span>Trạng thái</span>
-                <select name="status">
+                <select name="status" class="typeui-select typeui-select--status">
                     <option value="active" <?= ($row['status'] ?? 'active') === 'active' ? 'selected' : ''; ?>>Đang hoạt động</option>
                     <option value="archived" <?= ($row['status'] ?? '') === 'archived' ? 'selected' : ''; ?>>Đã lưu trữ</option>
                 </select>

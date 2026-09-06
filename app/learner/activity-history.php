@@ -39,8 +39,12 @@ $formatHours = static fn (float $hours): string => rtrim(rtrim(number_format($ho
     <meta name="description" content="Xem lại lịch sử hoạt động đã được xác nhận trên TalentHub.">
     <title>Lịch sử hoạt động | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
     <link rel="stylesheet" href="assets/activities/activities.css">
+    <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
 </head>
 <body class="learner-app learner-page-activity-history">
 <div class="learner-layout">
@@ -69,7 +73,7 @@ $formatHours = static fn (float $hours): string => rtrim(rtrim(number_format($ho
                             <button type="button" class="learner-filter-button" data-history-filter="<?= $status; ?>" aria-pressed="<?= $status === 'all' ? 'true' : 'false'; ?>"><?= $label; ?></button>
                         <?php endforeach; ?>
                     </div>
-                    <label>Khoảng thời gian<select data-history-period><option value="all">Toàn bộ</option><option value="30d">30 ngày qua</option><option value="90d">3 tháng qua</option><option value="365d">12 tháng qua</option></select></label>
+                    <label>Khoảng thời gian<select class="typeui-select typeui-select--compact typeui-select--inline" data-history-period><option value="all">Toàn bộ</option><option value="30d">30 ngày qua</option><option value="90d">3 tháng qua</option><option value="365d">12 tháng qua</option></select></label>
                 </section>
 
                 <div class="learner-activity-history-layout">

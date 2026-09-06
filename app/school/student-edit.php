@@ -125,7 +125,7 @@ ob_start();
             </label>
             <label class="school-form__field">
                 <span>Lớp / Chuyên ngành <em>*</em></span>
-                <select name="classId" required>
+                <select name="classId" class="typeui-select" required>
                     <option value="">-- Chọn lớp / chuyên ngành --</option>
                     <?php foreach ($classes as $c): ?>
                         <option value="<?= htmlspecialchars($c['id']); ?>" <?= ($row['classId'] ?? '') === $c['id'] ? 'selected' : ''; ?>>
@@ -145,7 +145,7 @@ ob_start();
             <?php if ($isEdit): ?>
                 <label class="school-form__field">
                     <span>Trạng thái học tập</span>
-                    <select name="studyStatus">
+                    <select name="studyStatus" class="typeui-select typeui-select--status">
                         <option value="active" <?= ($row['studyStatus'] ?? 'active') === 'active' ? 'selected' : ''; ?>>Đang theo học (active)</option>
                         <option value="suspended" <?= ($row['studyStatus'] ?? '') === 'suspended' ? 'selected' : ''; ?>>Tạm đình chỉ (suspended)</option>
                         <option value="graduated" <?= ($row['studyStatus'] ?? '') === 'graduated' ? 'selected' : ''; ?>>Đã tốt nghiệp (graduated)</option>

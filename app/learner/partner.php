@@ -51,6 +51,9 @@ $partnerTypeLabel = $isEnterprise
     <meta name="description" content="Chi tiết đối tác trong hệ sinh thái TalentHub dành cho học sinh, sinh viên.">
     <title><?= learner_escape($partner['name'] ?? 'Không tìm thấy đối tác'); ?> | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
 </head>
 <body class="learner-app learner-page-partner" data-partner-page>

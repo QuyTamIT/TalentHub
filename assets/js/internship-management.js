@@ -88,12 +88,18 @@ function initInternshipManagementModule() {
                     if (d !== dropdown) d.classList.remove('is-open');
                 });
                 if (dropdown) dropdown.classList.toggle('is-open');
+                if (dropdown) {
+                    toggleBtn.setAttribute('aria-expanded', dropdown.classList.contains('is-open') ? 'true' : 'false');
+                }
                 return;
             }
 
             // Close open dropdowns when clicking outside
             if (!e.target.closest('.ent-dropdown')) {
-                document.querySelectorAll('.ent-dropdown.is-open').forEach(d => d.classList.remove('is-open'));
+                document.querySelectorAll('.ent-dropdown.is-open').forEach(d => {
+                    d.classList.remove('is-open');
+                    d.querySelector('.ent-dropdown-toggle')?.setAttribute('aria-expanded', 'false');
+                });
             }
 
             // Change Status Action Button Click

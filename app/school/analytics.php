@@ -75,14 +75,14 @@ $radarDimensions = [
         'domain' => 'Logic - Toán học',
         'score' => 80,
         'benchmark' => 70,
-        'color' => '#0891B2',
+        'color' => '#0E7490',
         'description' => 'Tư duy thuật toán, cấu trúc dữ liệu, phân tích & giải quyết bài toán',
     ],
     [
         'domain' => 'Kinh doanh',
         'score' => 72,
         'benchmark' => 65,
-        'color' => '#EA580C',
+        'color' => '#C2410C',
         'description' => 'Hiểu biết thị trường công nghệ, Digital Marketing & Khởi nghiệp',
     ],
     [
@@ -96,7 +96,7 @@ $radarDimensions = [
         'domain' => 'Ngoại ngữ & Giao tiếp',
         'score' => 75,
         'benchmark' => 68,
-        'color' => '#059669',
+        'color' => '#047857',
         'description' => 'Tiếng Anh chuyên ngành TOEIC, thuyết trình dự án & làm việc nhóm',
     ],
 ];
@@ -141,20 +141,20 @@ include __DIR__ . '/includes/page-banner.php';
 ?>
 
 <!-- PHẦN 1: BẢN ĐỒ RADAR NĂNG KHIẾU TOÀN TRƯỜNG & PHÂN BỔ NĂNG LỰC -->
-<div style="display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 1.5rem; margin-bottom: 1.75rem; align-items: stretch;">
+<div class="school-grid-2col" style="margin-bottom: 1.75rem;">
     
     <!-- Radar Chart Container -->
     <div class="school-section-box" style="margin-bottom: 0; display: flex; flex-direction: column;">
-        <div class="school-section-box__header" style="border-bottom: 1px solid #F1F5F9; padding-bottom: 0.85rem; margin-bottom: 1.25rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <div class="school-section-box__header school-section-box__header--bordered">
+            <div class="school-flex-between" style="width: 100%;">
                 <div>
-                    <h3 class="school-section-box__title" style="display: flex; align-items: center; gap: 0.5rem; font-size: 1.15rem; font-weight: 700; color: #0F172A;">
+                    <h3 class="school-section-box__title school-flex-center">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="12 2 19 21 12 17 5 21 12 2"></polygon>
                         </svg>
                         Bản đồ Radar Năng khiếu Toàn trường
                     </h3>
-                    <p class="school-section-box__subtitle" style="color: #64748B; font-size: 0.8125rem; margin-top: 0.25rem;">
+                    <p class="school-section-box__subtitle">
                         Tổng hợp điểm đánh giá trung bình 5 miền năng lực sinh viên Cao đẳng Quốc tế BTEC FPT
                     </p>
                 </div>
@@ -162,7 +162,7 @@ include __DIR__ . '/includes/page-banner.php';
                     <span style="display: flex; align-items: center; gap: 0.35rem; color: #1D4ED8;">
                         <span style="width: 10px; height: 10px; border-radius: 50%; background: #2563EB;"></span> BTEC FPT (Thực tế)
                     </span>
-                    <span style="display: flex; align-items: center; gap: 0.35rem; color: #94A3B8;">
+                    <span style="display: flex; align-items: center; gap: 0.35rem; color: #475569;">
                         <span style="width: 10px; height: 10px; border-radius: 50%; background: #CBD5E1;"></span> Benchmark chuẩn ngành
                     </span>
                 </div>
@@ -193,33 +193,33 @@ include __DIR__ . '/includes/page-banner.php';
 
     <!-- Phân bổ năng khiếu chi tiết (Aptitude Breakdown) -->
     <div class="school-section-box" style="margin-bottom: 0; display: flex; flex-direction: column;">
-        <div class="school-section-box__header" style="border-bottom: 1px solid #F1F5F9; padding-bottom: 0.85rem; margin-bottom: 1.25rem;">
-            <h3 class="school-section-box__title" style="font-size: 1.15rem; font-weight: 700; color: #0F172A;">
+        <div class="school-section-box__header school-section-box__header--bordered">
+            <h3 class="school-section-box__title">
                 Chi tiết 5 Miền Năng lực
             </h3>
-            <p class="school-section-box__subtitle" style="color: #64748B; font-size: 0.8125rem; margin-top: 0.25rem;">
+            <p class="school-section-box__subtitle">
                 Phân tích điểm số và ứng dụng thực tiễn trong đào tạo
             </p>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 1.15rem; flex: 1; justify-content: space-between;">
             <?php foreach ($radarDimensions as $dim): ?>
-                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.75rem 1rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                <div class="school-card-subtle">
+                    <div class="school-flex-between" style="margin-bottom: 0.35rem;">
                         <span style="font-size: 0.875rem; font-weight: 700; color: #0F172A;">
                             <?= htmlspecialchars($dim['domain']); ?>
                         </span>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div class="school-flex-center">
                             <span style="font-size: 0.875rem; font-weight: 800; color: <?= $dim['color']; ?>;">
                                 <?= $dim['score']; ?> / 100
                             </span>
-                            <span style="font-size: 0.75rem; color: #16A34A; font-weight: 600; background: #DCFCE7; padding: 0.1rem 0.4rem; border-radius: 4px;">
+                            <span class="school-badge school-badge--success">
                                 +<?= $dim['score'] - $dim['benchmark']; ?>đ
                             </span>
                         </div>
                     </div>
-                    <div style="height: 7px; background: #E2E8F0; border-radius: 4px; overflow: hidden; margin-bottom: 0.35rem;">
-                        <div style="height: 100%; width: <?= $dim['score']; ?>%; background: <?= $dim['color']; ?>; border-radius: 4px; transition: width 0.8s ease;"></div>
+                    <div class="school-progress-track" style="margin-bottom: 0.35rem;">
+                        <div class="school-progress-fill" style="width: <?= $dim['score']; ?>%; background: <?= $dim['color']; ?>; transition: width 0.8s ease;"></div>
                     </div>
                     <div style="font-size: 0.75rem; color: #64748B; line-height: 1.35;">
                         <?= htmlspecialchars($dim['description']); ?>
@@ -231,16 +231,16 @@ include __DIR__ . '/includes/page-banner.php';
 </div>
 
 <!-- PHẦN 2: HOẠT ĐỘNG THEO THÁNG & TIẾN ĐỘ THEO KHỐI -->
-<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 1.5rem;">
+<div class="school-grid-2col" style="margin-bottom: 1.5rem;">
     
     <!-- Hoạt động theo tháng -->
     <div class="school-chart-container" style="margin-bottom: 0;">
-        <div class="school-chart-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="school-chart-header">
             <div>
-                <h3 class="school-chart-title" style="font-size: 1.05rem; font-weight: 700;">Học sinh & Hoạt động theo tháng</h3>
+                <h3 class="school-chart-title">Học sinh & Hoạt động theo tháng</h3>
                 <p style="font-size: 0.8125rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">Số lượng sinh viên tham gia đánh giá và trải nghiệm 12 tháng qua</p>
             </div>
-            <span style="font-size: 0.75rem; font-weight: 700; background: #EFF6FF; color: #1D4ED8; padding: 0.25rem 0.6rem; border-radius: 6px;">
+            <span class="school-badge school-badge--info">
                 Niên khóa <?= htmlspecialchars($currentAcademicYear); ?>
             </span>
         </div>
@@ -258,21 +258,21 @@ include __DIR__ . '/includes/page-banner.php';
     <!-- Tiến độ theo khối / chuyên ngành -->
     <div class="school-section-box" style="margin-bottom: 0;">
         <div class="school-section-box__header">
-            <h3 class="school-section-box__title" style="font-size: 1.05rem; font-weight: 700;">Tiến độ Hồ sơ theo Khối / Lớp</h3>
+            <h3 class="school-section-box__title">Tiến độ Hồ sơ theo Khối / Lớp</h3>
             <p class="school-section-box__subtitle">Tỷ lệ hoàn thiện hồ sơ năng lực và kỹ năng sinh viên</p>
         </div>
         <div style="display: flex; flex-direction: column; gap: 1.15rem;">
             <?php foreach ($gradeStats as $grade): ?>
-                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.85rem 1rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                <div class="school-card-subtle">
+                    <div class="school-flex-between" style="margin-bottom: 0.4rem;">
                         <span style="font-size: 0.875rem; font-weight: 700; color: #0F172A;"><?= htmlspecialchars($grade['grade']); ?></span>
                         <div style="display: flex; gap: 0.75rem; align-items: center;">
                             <span style="font-size: 0.8125rem; color: #64748B;"><?= $grade['students']; ?> sinh viên</span>
                             <span style="font-size: 0.875rem; font-weight: 800; color: #2563EB;"><?= $grade['completion']; ?>%</span>
                         </div>
                     </div>
-                    <div style="height: 7px; background: #E2E8F0; border-radius: 4px; overflow: hidden;">
-                        <div style="height: 100%; width: <?= $grade['completion']; ?>%; background: linear-gradient(90deg, #2563EB 0%, #38BDF8 100%); border-radius: 4px;"></div>
+                    <div class="school-progress-track">
+                        <div class="school-progress-fill" style="width: <?= $grade['completion']; ?>%; background: linear-gradient(90deg, #2563EB 0%, #38BDF8 100%);"></div>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -367,14 +367,5 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <?php
 $pageBody = ob_get_clean();
-
-$extraStyles = <<<'HTML'
-<style>
-@media (max-width: 900px) {
-    [style*="grid-template-columns: 1.15fr 0.85fr"] { grid-template-columns: 1fr !important; }
-    [style*="grid-template-columns: repeat(2, 1fr)"] { grid-template-columns: 1fr !important; }
-}
-</style>
-HTML;
 
 require __DIR__ . '/includes/layout.php';

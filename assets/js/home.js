@@ -21,13 +21,19 @@ function initHeaderScroll() {
     const header = document.querySelector('.site-header');
     if (!header) return;
 
+    let ticking = false;
+    const updateHeaderState = () => {
+        header.classList.toggle('is-scrolled', window.scrollY > 20);
+        ticking = false;
+    };
+
     window.addEventListener('scroll', () => {
-        if (window.scrollY > 20) {
-            header.classList.add('is-scrolled');
-        } else {
-            header.classList.remove('is-scrolled');
-        }
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(updateHeaderState);
     }, { passive: true });
+
+    updateHeaderState();
 }
 
 /* ==========================================================================
@@ -195,24 +201,43 @@ function initAudienceTabs() {
 
     if (!tabBtns.length || !tabPanels.length) return;
 
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const targetId = btn.getAttribute('data-target');
-            if (!targetId) return;
+    const activateTab = (btn, moveFocus = false) => {
+        const targetId = btn.getAttribute('data-target');
+        if (!targetId) return;
 
-            tabBtns.forEach(b => {
-                b.classList.remove('is-active');
-                b.setAttribute('aria-selected', 'false');
-            });
-            tabPanels.forEach(p => p.classList.remove('is-active'));
+        tabBtns.forEach(item => {
+            item.classList.remove('is-active');
+            item.setAttribute('aria-selected', 'false');
+            item.tabIndex = -1;
+        });
+        tabPanels.forEach(panel => {
+            panel.classList.remove('is-active');
+            panel.hidden = true;
+        });
 
-            btn.classList.add('is-active');
-            btn.setAttribute('aria-selected', 'true');
+        btn.classList.add('is-active');
+        btn.setAttribute('aria-selected', 'true');
+        btn.tabIndex = 0;
 
-            const targetPanel = document.getElementById(targetId);
-            if (targetPanel) {
-                targetPanel.classList.add('is-active');
-            }
+        const targetPanel = document.getElementById(targetId);
+        if (targetPanel) {
+            targetPanel.classList.add('is-active');
+            targetPanel.hidden = false;
+        }
+        if (moveFocus) btn.focus();
+    };
+
+    tabBtns.forEach((btn, index) => {
+        btn.addEventListener('click', () => activateTab(btn));
+        btn.addEventListener('keydown', event => {
+            let nextIndex = null;
+            if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (index + 1) % tabBtns.length;
+            if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (index - 1 + tabBtns.length) % tabBtns.length;
+            if (event.key === 'Home') nextIndex = 0;
+            if (event.key === 'End') nextIndex = tabBtns.length - 1;
+            if (nextIndex === null) return;
+            event.preventDefault();
+            activateTab(tabBtns[nextIndex], true);
         });
     });
 }

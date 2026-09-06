@@ -192,9 +192,13 @@ $sidebarNav = [
     <title><?= htmlspecialchars($pageTitle); ?> | TalentHub Teacher</title>
     
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/teacher.css">
 </head>
 <body class="teacher-dashboard">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <div class="teacher-layout">
         <!-- Sidebar Navigation -->
@@ -204,7 +208,7 @@ $sidebarNav = [
             <!-- Header -->
             <?php require_once __DIR__ . '/includes/header.php'; ?>
 
-            <main class="teacher-body">
+            <main class="teacher-body" id="main-content">
                 <div class="teacher-container" style="max-width: 960px;">
                     
                     <?php if ($successMessage): ?>
@@ -253,39 +257,39 @@ $sidebarNav = [
 
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
                                 <div>
-                                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.375rem;">
+                                    <label for="teacher-full-name" style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.375rem;">
                                         Họ và tên <span style="color: #ef4444;">*</span>
                                     </label>
-                                    <input type="text" name="fullName" value="<?= htmlspecialchars($teacherInfo['full_name']); ?>" required style="width: 100%; height: 2.625rem; padding: 0 0.875rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: var(--surface);">
+                                    <input id="teacher-full-name" type="text" name="fullName" value="<?= htmlspecialchars($teacherInfo['full_name']); ?>" required style="width: 100%; height: 2.625rem; padding: 0 0.875rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: var(--surface);">
                                 </div>
 
                                 <div>
-                                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.375rem;">
+                                    <label for="teacher-account-email" style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.375rem;">
                                         Email tài khoản
                                     </label>
-                                    <input type="email" value="<?= htmlspecialchars($teacherInfo['email']); ?>" disabled style="width: 100%; height: 2.625rem; padding: 0 0.875rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: #f8fafc; color: var(--text-muted); cursor: not-allowed;">
+                                    <input id="teacher-account-email" type="email" value="<?= htmlspecialchars($teacherInfo['email']); ?>" disabled style="width: 100%; height: 2.625rem; padding: 0 0.875rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: #f8fafc; color: var(--text-muted); cursor: not-allowed;">
                                 </div>
 
                                 <div>
-                                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.375rem;">
+                                    <label for="teacher-phone" style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.375rem;">
                                         Số điện thoại liên hệ
                                     </label>
-                                    <input type="tel" name="phone" value="<?= htmlspecialchars($teacherInfo['phone']); ?>" placeholder="Nhập số điện thoại liên hệ" style="width: 100%; height: 2.625rem; padding: 0 0.875rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: var(--surface);">
+                                    <input id="teacher-phone" type="tel" name="phone" value="<?= htmlspecialchars($teacherInfo['phone']); ?>" placeholder="Nhập số điện thoại liên hệ" style="width: 100%; height: 2.625rem; padding: 0 0.875rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: var(--surface);">
                                 </div>
 
                                 <div>
-                                    <label style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.375rem;">
+                                    <label for="teacher-specialization" style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.375rem;">
                                         Chuyên môn / Bộ môn
                                     </label>
-                                    <input type="text" name="specialization" value="<?= htmlspecialchars($teacherInfo['specialization']); ?>" placeholder="Ví dụ: Toán - Tin học" style="width: 100%; height: 2.625rem; padding: 0 0.875rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: var(--surface);">
+                                    <input id="teacher-specialization" type="text" name="specialization" value="<?= htmlspecialchars($teacherInfo['specialization']); ?>" placeholder="Ví dụ: Toán - Tin học" style="width: 100%; height: 2.625rem; padding: 0 0.875rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: var(--surface);">
                                 </div>
                             </div>
 
                             <div style="margin-bottom: 1.5rem;">
-                                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.375rem;">
+                                <label for="teacher-bio" style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.375rem;">
                                     Giới thiệu bản thân / Tiểu sử
                                 </label>
-                                <textarea name="bio" rows="4" placeholder="Nhập tóm tắt quá trình công tác, hướng dẫn học sinh năng khiếu..." style="width: 100%; padding: 0.75rem 0.875rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: var(--surface); resize: vertical;"><?= htmlspecialchars($teacherInfo['bio']); ?></textarea>
+                                <textarea id="teacher-bio" name="bio" rows="4" placeholder="Nhập tóm tắt quá trình công tác, hướng dẫn học sinh năng khiếu..." style="width: 100%; padding: 0.75rem 0.875rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: var(--surface); resize: vertical;"><?= htmlspecialchars($teacherInfo['bio']); ?></textarea>
                             </div>
 
                             <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">

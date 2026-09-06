@@ -37,6 +37,9 @@ $bootData = [
     <meta name="description" content="Kết quả và lịch sử bài đánh giá năng khiếu trên TalentHub.">
     <title>Kết quả <?= learner_escape($assessmentName); ?> | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
 </head>
 <body class="learner-app learner-page-assessment-result">

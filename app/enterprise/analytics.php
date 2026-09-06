@@ -231,10 +231,15 @@ $sidebarNav = [
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/enterprise-analytics.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
 </head>
 <body class="enterprise-dashboard enterprise-analytics-page">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <!-- Layout Wrapper -->
     <div class="ent-layout">
@@ -249,7 +254,7 @@ $sidebarNav = [
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <!-- Page Body Content -->
-            <main class="ent-body">
+            <main class="ent-body" id="main-content">
                 <div class="container-fluid">
                     
                     <!-- PHẦN 1: HEADER & ACTION EXPORT -->
@@ -263,7 +268,7 @@ $sidebarNav = [
                             </p>
                         </div>
                         <div class="ent-page-header__actions" style="display: flex; align-items: center; gap: 10px;">
-                            <select id="ana-filter-time" class="ana-select" style="height: 36px; padding: 0 30px 0 12px; border: 1px solid #CBD5E1; border-radius: 8px; background-color: #FFFFFF; font-size: 13px; font-weight: 500; color: #0F172A; outline: none; cursor: pointer;">
+                            <select id="ana-filter-time" class="ana-select typeui-select typeui-select--compact typeui-select--inline" aria-label="Khoảng thời gian phân tích">
                                 <option value="30_days" selected>30 ngày qua (Mới nhất)</option>
                                 <option value="q3_2026">Quý 3/2026</option>
                                 <option value="6_months">6 tháng gần đây</option>
@@ -273,7 +278,7 @@ $sidebarNav = [
                             <button type="button" 
                                     id="btn-export-analytics" 
                                     onclick="window.print()"
-                                    style="height: 36px; padding: 0 16px; border: 1px solid #CBD5E1; border-radius: 8px; background-color: #FFFFFF; font-size: 13px; font-weight: 600; color: #0F172A; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.15s ease; white-space: nowrap;">
+                                    style="height: 44px; padding: 0 16px; border: 1px solid #CBD5E1; border-radius: 8px; background-color: #FFFFFF; font-size: 13px; font-weight: 600; color: #0F172A; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.15s ease; white-space: nowrap;">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                     <polyline points="7 10 12 15 17 10"></polyline>
@@ -516,14 +521,14 @@ $sidebarNav = [
                                        id="ana-table-search" 
                                        placeholder="Tìm kiếm vị trí tuyển dụng..."
                                        style="width: 100%; height: 34px; padding: 0 12px 0 32px; font-size: 12px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFFFFF; outline: none; box-sizing: border-box;">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position: absolute; left: 10px; top: 10px; color: #94A3B8;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); display: block; color: #94A3B8; pointer-events: none;">
                                     <circle cx="11" cy="11" r="8"></circle>
                                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                                 </svg>
                             </div>
                         </div>
 
-                        <div style="overflow-x: auto;">
+                        <div style="overflow-x: auto;" tabindex="0" role="region" aria-label="Bảng hiệu quả tuyển dụng theo từng vị trí">
                             <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
                                 <thead>
                                     <tr style="border-bottom: 1px solid #E2E8F0; color: #64748B; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;">

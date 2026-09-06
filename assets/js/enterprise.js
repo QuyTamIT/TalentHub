@@ -163,12 +163,7 @@ function initAccountDropdown() {
    3. Mock Notification Bell Handler
    ========================================================================== */
 function initNotificationBell() {
-    const notifBtn = document.getElementById('ent-notif-trigger');
-    if (!notifBtn) return;
-
-    notifBtn.addEventListener('click', () => {
-        showEntToast('Bạn có 3 thông báo mới: 2 ứng viên ứng tuyển & 1 cập nhật tài trợ.');
-    });
+    // Notifications are handled by the shared portal-notifications module.
 }
 
 /* ==========================================================================
@@ -261,4 +256,3 @@ function showEntToast(message) {
 }
 
 window.showEntToast = showEntToast;
-

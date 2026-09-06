@@ -28,6 +28,9 @@ $onboardingStateLabels = [
     <meta name="description" content="Khám phá năng khiếu và định hướng phát triển của bạn trên TalentHub.">
     <title>Khám phá năng khiếu | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
+    <link rel="stylesheet" href="../../assets/css/global.css">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css">
+    <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
 </head>
 <body class="learner-app learner-page-discover">

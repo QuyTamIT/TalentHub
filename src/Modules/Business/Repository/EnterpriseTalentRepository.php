@@ -265,7 +265,6 @@ final class EnterpriseTalentRepository
                 accessGrant.grantedAt,
                 accessGrant.expiresAt,
                 COALESCE(
-                    student.talentScore,
                     (SELECT ROUND(AVG(sa.overallScore) * 10, 0) FROM assessments sa WHERE sa.studentId = student.id AND sa.overallScore IS NOT NULL),
                     (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0),
                     85
@@ -417,7 +416,6 @@ final class EnterpriseTalentRepository
                 spd.bio,
                 spd.avatarUrl,
                 COALESCE(
-                    student.talentScore,
                     (SELECT ROUND(AVG(sa.overallScore) * 10, 0) FROM assessments sa WHERE sa.studentId = student.id AND sa.overallScore IS NOT NULL),
                     (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0),
                     85

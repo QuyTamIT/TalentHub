@@ -25,8 +25,8 @@ function getInitials($name) {
         <a href="./analytics.php" class="school-section-box__link">Xem tất cả</a>
     </div>
     <?php if (empty($topTalents)): ?>
-        <div style="text-align: center; color: var(--text-muted); padding: 2rem 1rem;">
-            <p style="font-size: 0.925rem; color: var(--text-secondary); margin: 0;">Chưa có tài năng nổi bật được ghi nhận.</p>
+        <div class="school-empty-state">
+            <p class="school-empty-state__desc">Chưa có tài năng nổi bật được ghi nhận.</p>
         </div>
     <?php else: ?>
     <div class="school-talents-list">

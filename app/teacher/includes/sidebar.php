@@ -11,6 +11,7 @@
 if (!function_exists('app_href') && is_file(dirname(__DIR__, 3) . '/bin/bootstrap.php')) {
     require_once dirname(__DIR__, 3) . '/bin/bootstrap.php';
 }
+require_once dirname(__DIR__, 2) . '/shared/BrandHeader.php';
 
 $teacherSidebarHomeHref = function_exists('app_href') ? app_href('/app/teacher/index.php') : '../../index.php';
 $logoutUrl = function_exists('app_href') ? app_href('/logout.php') : '/logout.php';
@@ -27,15 +28,7 @@ $teacherRouteHrefs = [
 
 <aside class="teacher-sidebar" id="teacher-sidebar">
     <div class="teacher-sidebar__brand">
-        <a href="<?= htmlspecialchars($teacherSidebarHomeHref); ?>" class="site-header__brand" aria-label="Về trang chủ TalentHub">
-            <div class="site-header__brand-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                </svg>
-            </div>
-            <div class="site-header__brand-text">Talent<span>Hub</span></div>
-        </a>
-        <div class="teacher-sidebar__subtitle">Khu vực Giáo viên</div>
+        <?php renderBrandHeader($teacherSidebarHomeHref, 'Khu vực Giáo viên', 'Về trang chủ FTalentHub'); ?>
     </div>
 
     <nav class="teacher-sidebar__nav" aria-label="Điều hướng Giáo viên">

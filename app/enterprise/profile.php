@@ -102,9 +102,14 @@ $sidebarNav = [
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/polish.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/enterprise.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/enterprise.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/typeui-selects.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/typeui-selects.css'); ?>">
 </head>
 <body class="enterprise-dashboard">
+    <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 
     <!-- Layout Wrapper -->
     <div class="ent-layout">
@@ -119,7 +124,7 @@ $sidebarNav = [
             <?php include __DIR__ . '/includes/header.php'; ?>
 
             <!-- Page Body Content -->
-            <main class="ent-body">
+            <main class="ent-body" id="main-content">
                 <div class="container-fluid" style="max-width: 1200px;">
                     
                     <!-- 1. Company Profile Header Hero Card -->
@@ -186,15 +191,15 @@ $sidebarNav = [
                         <!-- Profile Completion Indicator Bar -->
                         <div class="ent-profile-hero__completion">
                             <div class="ent-completion-info">
-                                <span class="ent-completion-label">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <span class="ent-completion-label" id="profile-completion-label">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                                         <polyline points="22 4 12 14.01 9 11.01"></polyline>
                                     </svg>
                                     Mức độ hoàn thiện:
                                 </span>
                                 <span class="ent-completion-percent" data-bind="completion-percent"><?= (int)($enterprise['profileCompletion'] ?? 0); ?>%</span>
-                                <div class="ent-completion-track" role="progressbar" aria-valuenow="<?= (int)($enterprise['profileCompletion'] ?? 0); ?>" aria-valuemin="0" aria-valuemax="100">
+                                <div class="ent-completion-track" role="progressbar" aria-labelledby="profile-completion-label" aria-valuetext="<?= (int)($enterprise['profileCompletion'] ?? 0); ?>%" aria-valuenow="<?= (int)($enterprise['profileCompletion'] ?? 0); ?>" aria-valuemin="0" aria-valuemax="100">
                                     <div class="ent-completion-fill" data-bind="completion-bar" style="width: <?= (int)($enterprise['profileCompletion'] ?? 0); ?>%;"></div>
                                 </div>
                             </div>
@@ -233,7 +238,7 @@ $sidebarNav = [
                                     </div>
                                     <div class="ent-profile-metric-item">
                                         <span class="ent-profile-metric-item__title">Trạng thái</span>
-                                        <span class="ent-profile-metric-item__value" style="color: #059669;">
+                                        <span class="ent-profile-metric-item__value" style="color: #047857;">
                                             Đang hoạt động
                                         </span>
                                     </div>
@@ -372,7 +377,7 @@ $sidebarNav = [
                                         <span class="ent-info-row__label">Xác thực hệ thống</span>
                                         <span class="ent-info-row__value">
                                             <?php if ($isVerified): ?>
-                                                <span style="color: #059669; font-weight: 600;">Đã xác minh</span>
+                                                <span style="color: #047857; font-weight: 600;">Đã xác minh</span>
                                             <?php else: ?>
                                                 <span style="color: #D97706; font-weight: 600;">Chờ xác minh</span>
                                             <?php endif; ?>
@@ -450,7 +455,7 @@ $sidebarNav = [
 
                             <div class="ent-form-group col-md-6">
                                 <label for="field-companySize" class="ent-form-label">Quy mô nhân sự</label>
-                                <select id="field-companySize" class="ent-form-select">
+                                <select id="field-companySize" class="ent-form-select typeui-select">
                                     <option value="">-- Chọn quy mô --</option>
                                     <?php 
                                     $sizes = ['Dưới 20 nhân viên', '20 - 50 nhân viên', '50 - 200 nhân viên', '200 - 500 nhân viên', '500 - 1000 nhân viên', 'Trên 1000 nhân viên'];

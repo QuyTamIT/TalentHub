@@ -149,12 +149,7 @@ function initTeacherAccountDropdown() {
 }
 
 function initTeacherNotifications() {
-    const trigger = document.getElementById('teacher-notif-trigger');
-    if (!trigger) return;
-
-    trigger.addEventListener('click', () => {
-        showTeacherToast('Chưa có thông báo mới.');
-    });
+    // Notifications are handled by the shared portal-notifications module.
 }
 
 function initTeacherRoutes() {
