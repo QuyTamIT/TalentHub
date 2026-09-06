@@ -111,7 +111,6 @@ final class LearnerOnboardingService
                     'completedCodes' => $progress['completed_codes'],
                 ],
             );
-            $this->repository->assignInitialSoftSkills($studentId);
         }
 
         return $this->progress($studentId);

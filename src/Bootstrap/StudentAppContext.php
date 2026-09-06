@@ -45,15 +45,28 @@ final class StudentAppContext
         if ($cached === null && (isset($_SESSION['user_id']) || isset($_SESSION['user']))) {
             $cached = $this->session->user();
         }
-        if ($cached === null || !\TalentHub\Rbac\RoleCodes::matches((string)($cached['role'] ?? ''), \TalentHub\Rbac\RoleCodes::STUDENT)) {
-            $cached = SessionManager::getFallbackUserForRole(\TalentHub\Rbac\RoleCodes::STUDENT, $this->pdo);
-            $this->session->login($cached);
+        $appEnv = strtolower((string) (\TalentHub\Config\Environment::optional('APP_ENV') ?: (getenv('APP_ENV') ?: 'production')));
+        $isLocal = in_array($appEnv, ['local', 'dev', 'development', 'test'], true);
+
+        if ($cached === null || !\TalentHub\Rbac\RoleCodes::matches((string)($cached['role'] ?? ''), \TalentHub\Rbac\RoleCodes::STUDENT) || ($isLocal && str_contains((string)($cached['email'] ?? ''), '@test.'))) {
+            if ($isLocal) {
+                $cached = $this->localFallbackStudent();
+                $this->session->login($cached);
+            } else {
+                throw new ApiException(401, 'AUTHENTICATION_REQUIRED', 'Vui lòng đăng nhập tài khoản học viên.');
+            }
         }
 
         try {
             $user = $this->auth->current((string) $cached['id']);
         } catch (\Throwable) {
-            $user = $cached;
+            if ($isLocal) {
+                $cached = $this->localFallbackStudent();
+                $this->session->login($cached);
+                $user = $this->auth->current((string) $cached['id']);
+            } else {
+                $user = $cached;
+            }
         }
         $user['role'] = \TalentHub\Rbac\RoleCodes::STUDENT;
         $this->session->refreshUser($user);
@@ -64,7 +77,17 @@ final class StudentAppContext
         try {
             $this->permissions->require($user['id'], 'student_profile.read_own');
         } catch (ApiException $exception) {
-            if ($exception->status !== 403) {
+            if ($isLocal && $exception->status === 403) {
+                $cached = $this->localFallbackStudent();
+                $this->session->login($cached);
+                $user = $this->auth->current((string) $cached['id']);
+                $user['role'] = \TalentHub\Rbac\RoleCodes::STUDENT;
+                $this->session->refreshUser($user);
+                $_SESSION['user_id'] = (string) $user['id'];
+                $_SESSION['role'] = \TalentHub\Rbac\RoleCodes::STUDENT;
+                $_SESSION['logged_in'] = true;
+                $this->permissions->require($user['id'], 'student_profile.read_own');
+            } else {
                 throw $exception;
             }
         }
@@ -121,6 +144,32 @@ final class StudentAppContext
             'onboarding' => $onboarding,
             'csrfToken' => $this->session->csrfToken(),
             'pdo' => $this->pdo,
+        ];
+    }
+
+    /** @return array{id:string,email:string,fullName:string,role:string,status:string} */
+    private function localFallbackStudent(): array
+    {
+        $statement = $this->pdo->prepare(<<<'SQL'
+SELECT u.id, u.email, u.fullName
+FROM users u
+INNER JOIN roles r ON r.id = u.roleId
+WHERE u.status = 'active' AND r.code IN ('student', 'learner')
+ORDER BY CASE WHEN u.email = 'vo-duc-anh@student.btec.talenthub.local' THEN 0 WHEN u.email = 'student@test.talenthub.local' THEN 1 ELSE 2 END, u.id ASC
+LIMIT 1
+SQL);
+        $statement->execute();
+        $student = $statement->fetch(\PDO::FETCH_ASSOC);
+        if (!is_array($student)) {
+            throw new ApiException(401, 'AUTHENTICATION_REQUIRED', 'Không có tài khoản học viên thử nghiệm đang hoạt động.');
+        }
+
+        return [
+            'id' => (string) $student['id'],
+            'email' => (string) $student['email'],
+            'fullName' => (string) ($student['fullName'] ?? 'Học viên TalentHub'),
+            'role' => \TalentHub\Rbac\RoleCodes::STUDENT,
+            'status' => 'active',
         ];
     }
 

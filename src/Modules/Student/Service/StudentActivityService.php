@@ -55,7 +55,7 @@ final class StudentActivityService
         $schoolId = $scope['schoolId'];
 
         $sql = "
-            SELECT 
+            SELECT
                 a.id,
                 a.schoolId,
                 a.createdByTeacherId,
@@ -118,7 +118,7 @@ final class StudentActivityService
         $schoolId = $scope['schoolId'];
 
         $sql = "
-            SELECT 
+            SELECT
                 a.id,
                 a.schoolId,
                 a.createdByTeacherId,
