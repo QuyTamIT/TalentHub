@@ -27,6 +27,54 @@ if ($token !== '') {
     } catch (\Throwable) {
         $resolved = null;
     }
+
+    // Fallback: tokens that are Talent Passport codes (TLH-XXXXXXXX-YYYY) — resolve directly from student profile.
+    if ($resolved === null && $token !== '' && preg_match('/^TLH-[A-F0-9]{8}-\d{4}$/i', $token)) {
+        try {
+            $pdo ??= (new Connection(require dirname(__DIR__, 2) . '/config/database.php'))->connect();
+            $statement = $pdo->query(<<<'SQL'
+                SELECT
+                  sp.id AS studentId,
+                  u.fullName,
+                  u.email,
+                  sp.phone,
+                  spd.location,
+                  spd.headline,
+                  spd.bio,
+                  s.name AS school,
+                  c.name AS class
+                FROM student_profiles sp
+                INNER JOIN users u ON u.id = sp.userId
+                LEFT JOIN student_profile_details spd ON spd.studentId = sp.id
+                LEFT JOIN classes c ON c.id = sp.classId
+                LEFT JOIN schools s ON s.id = c.schoolId
+                SQL
+            );
+            while (($row = $statement->fetch(PDO::FETCH_ASSOC)) !== false) {
+                $studentId = (string) ($row['studentId'] ?? '');
+                $computedCode = 'TLH-' . strtoupper(substr(md5($studentId . 'talenthub'), 0, 8)) . '-2026';
+                if ($computedCode === strtoupper($token)) {
+                    $resolved = [
+                        'student' => [
+                            'fullName' => (string) ($row['fullName'] ?? ''),
+                            'email' => ($row['email'] ?? '') !== '' ? $row['email'] : null,
+                            'phone' => ($row['phone'] ?? '') !== '' ? $row['phone'] : null,
+                            'location' => ($row['location'] ?? '') !== '' ? $row['location'] : null,
+                            'headline' => ($row['headline'] ?? '') !== '' ? $row['headline'] : null,
+                            'bio' => ($row['bio'] ?? '') !== '' ? $row['bio'] : null,
+                            'school' => (string) ($row['school'] ?? ''),
+                            'class' => (string) ($row['class'] ?? ''),
+                        ],
+                        'sharedAt' => date('Y-m-d H:i:s'),
+                        'source' => 'passport-code',
+                    ];
+                    break;
+                }
+            }
+        } catch (\Throwable) {
+            $resolved = null;
+        }
+    }
 }
 
 function shared_escape(mixed $value): string
