@@ -5,7 +5,7 @@ require_once __DIR__ . '/includes/icons.php';
 
 $pageTitle = 'Hồ sơ năng lực';
 $currentRoute = '/app/learner/profile.php';
-$shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/learner/profile.php?student=nguyen-van-a';
+$shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app_href('/app/learner/profile.php?student=' . urlencode((string)($student['id'] ?? 'me'))) : '');
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -13,9 +13,10 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Hồ sơ năng lực đã xác minh của <?= learner_escape($student['name']); ?> trên TalentHub.">
+    <meta name="csrf-token" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ''); ?>">
     <title>Hồ sơ năng lực | TalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-profile" data-learner-source="<?= ($isDatabaseMode ?? false) ? 'database' : 'mock'; ?>">
     <div class="learner-layout">
@@ -31,14 +32,19 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                     'eyebrow' => 'Hành trình phát triển',
                     'title' => 'Hồ sơ năng lực',
                     'description' => 'Theo dõi những năng lực, thành tích và trải nghiệm tạo nên hồ sơ của bạn.',
-                    'icon' => 'user',
                 ];
                 include __DIR__ . '/includes/page-banner.php';
                 ?>
                 <section class="learner-card learner-profile-hero" aria-labelledby="profile-name">
                     <div class="learner-profile-hero__top">
                         <div class="learner-profile-identity">
-                            <div class="learner-profile-avatar" aria-hidden="true"><?= learner_escape($student['initials']); ?></div>
+                            <div class="learner-profile-avatar" aria-hidden="true" style="overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                                <?php if (!empty($student['avatar_url']) || !empty($student['avatarUrl'])): ?>
+                                    <img src="<?= learner_escape($student['avatar_url'] ?? $student['avatarUrl']); ?>" alt="<?= learner_escape($student['name']); ?>" style="width: 100%; height: 100%; object-fit: cover;" data-profile-avatar-img>
+                                <?php else: ?>
+                                    <span data-profile-avatar-text><?= learner_escape($student['initials']); ?></span>
+                                <?php endif; ?>
+                            </div>
                             <div class="learner-profile-identity__content">
                                 <div class="learner-profile-identity__name-row">
                                     <h2 id="profile-name" data-profile-name><?= learner_escape($student['name']); ?></h2>
@@ -55,8 +61,8 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                         </div>
 
                         <div class="learner-profile-actions">
-                            <a class="learner-btn learner-btn--primary" href="talent-passport.php" style="background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%); color: #FFFFFF; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);">
-                                <?= learner_icon('award', 18); ?> Xem &amp; Tải Talent Passport
+                            <a class="learner-btn learner-btn--primary" href="talent-passport.php" style="background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%); color: #FFFFFF; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);" title="Xem bản in & tải file PDF Hồ sơ Năng lực số">
+                                <?= learner_icon('award', 18); ?> Xuất PDF Hồ sơ (Talent Passport)
                             </a>
                             <button class="learner-btn learner-btn--outline" type="button" data-open-modal="learner-share-modal">
                                 <?= learner_icon('share', 18); ?> Chia sẻ hồ sơ
@@ -79,6 +85,33 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                         <?php endforeach; ?>
                     </div>
                 </section>
+
+                <?php if (is_array($aiCapabilityProfile)): ?>
+                    <section class="learner-card" aria-labelledby="ai-capability-profile-title">
+                        <div class="learner-section-heading learner-section-heading--icon">
+                            <span class="learner-section-heading__icon"><?= learner_icon('sparkles', 22); ?></span>
+                            <div>
+                                <h2 id="ai-capability-profile-title">AI phân tích hồ sơ năng lực</h2>
+                                <p>Cập nhật <?= learner_escape($aiCapabilityProfile['generated_at'] ?? ''); ?> · <?= ($aiCapabilityProfile['status'] ?? '') === 'stale_model' ? 'Đang hiển thị bản AI gần nhất' : 'Dữ liệu AI mới nhất'; ?></p>
+                            </div>
+                        </div>
+                        <div class="learner-profile-grid">
+                            <article>
+                                <h3>Điểm mạnh</h3>
+                                <ul><?php foreach (($aiCapabilityProfile['strengths'] ?? []) as $insight): ?><li><?= learner_escape(is_array($insight) ? ($insight['label'] ?? $insight['title'] ?? '') : $insight); ?></li><?php endforeach; ?></ul>
+                            </article>
+                            <article>
+                                <h3>Cần cải thiện</h3>
+                                <ul><?php foreach (($aiCapabilityProfile['improvements'] ?? []) as $insight): ?><li><?= learner_escape(is_array($insight) ? ($insight['label'] ?? $insight['title'] ?? '') : $insight); ?></li><?php endforeach; ?></ul>
+                            </article>
+                        </div>
+                        <details>
+                            <summary>Xem nguồn bằng chứng AI đã sử dụng</summary>
+                            <ul><?php foreach (($aiCapabilityProfile['evidence'] ?? []) as $evidence): ?><li><?= learner_escape(is_array($evidence) ? ($evidence['source_type'] ?? $evidence['ref_id'] ?? 'Nguồn dữ liệu') : $evidence); ?></li><?php endforeach; ?></ul>
+                        </details>
+                        <p><small>Phân tích AI chỉ hỗ trợ định hướng và không thay thế điểm đánh giá chính thức của giáo viên/mentor.</small></p>
+                    </section>
+                <?php endif; ?>
 
                 <section class="learner-card learner-school-credential-section" aria-labelledby="school-certificates-title">
                     <div class="learner-school-credential-heading">
@@ -149,15 +182,37 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                         <?php else: ?>
                             <div class="learner-certificate-list">
                                 <?php foreach ($certificates as $certificate): ?>
-                                    <article class="learner-certificate">
-                                        <span class="learner-certificate__icon"><?= learner_icon('award', 20); ?></span>
-                                        <div>
-                                            <h3><?= learner_escape($certificate['name'] ?? $certificate['title'] ?? ''); ?></h3>
-                                            <p><?= learner_escape($certificate['issuer'] ?? $certificate['issuing_organization'] ?? ''); ?> <span aria-hidden="true">•</span> <?= learner_escape($certificate['year'] ?? $certificate['issue_date'] ?? ''); ?></p>
+                                    <?php
+                                    $certificateVerified = !empty($certificate['verified']) || ($certificate['verification_status'] ?? $certificate['verificationStatus'] ?? '') === 'verified';
+                                    $certificateTitle = $certificate['name'] ?? $certificate['title'] ?? '';
+                                    $certificateIssuer = $certificate['issuer'] ?? $certificate['issuing_organization'] ?? $certificate['issuingOrganization'] ?? '';
+                                    $certificateDate = $certificate['year'] ?? $certificate['issue_date'] ?? $certificate['issueDate'] ?? '';
+                                    $certificateCode = $certificate['credential_id'] ?? $certificate['credentialId'] ?? '';
+                                    ?>
+                                    <article class="learner-certificate learner-certificate--diploma<?= $certificateVerified ? ' learner-certificate--verified' : ''; ?>">
+                                        <div class="learner-certificate__frame">
+                                            <div class="learner-certificate__topline">
+                                                <span><?= learner_icon('graduation-cap', 18); ?> Chứng chỉ bên ngoài</span>
+                                                <span class="learner-certificate__status"><?= $certificateVerified ? 'Đã xác minh' : 'Chờ xác minh'; ?></span>
+                                            </div>
+                                            <span class="learner-certificate__icon" aria-hidden="true"><?= learner_icon('graduation-cap', 24); ?></span>
+                                            <div class="learner-certificate__content">
+                                                <h3><?= learner_escape($certificateTitle); ?></h3>
+                                                <div class="learner-certificate__meta">
+                                                    <span><?= learner_icon('building', 14); ?> <?= learner_escape($certificateIssuer); ?></span>
+                                                    <?php if ((string) $certificateDate !== ''): ?>
+                                                        <span><?= learner_icon('calendar', 14); ?> Cấp ngày <?= learner_escape($certificateDate); ?></span>
+                                                    <?php endif; ?>
+                                                    <?php if ((string) $certificateCode !== ''): ?>
+                                                        <span><?= learner_icon('file-text', 14); ?> Mã: <?= learner_escape($certificateCode); ?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                            <span class="learner-certificate__seal">
+                                                <?= learner_icon($certificateVerified ? 'shield-check' : 'clock', 20); ?>
+                                                <?= $certificateVerified ? 'Đã xác minh' : 'Đang chờ'; ?>
+                                            </span>
                                         </div>
-                                        <?php if (!empty($certificate['verified']) || ($certificate['verification_status'] ?? '') === 'verified'): ?>
-                                            <span class="learner-verified-badge">Đã xác minh</span>
-                                        <?php endif; ?>
                                     </article>
                                 <?php endforeach; ?>
                             </div>
@@ -177,7 +232,7 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                     <?php else: ?>
                         <div class="learner-project-grid">
                             <?php foreach ($projects as $project): ?>
-                                <?php 
+                                <?php
                                     $pName = $project['name'] ?? $project['title'] ?? '';
                                     $pDesc = $project['description'] ?? '';
                                     $pRole = $project['role'] ?? 'Thành viên';
@@ -232,7 +287,56 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                 <button class="learner-icon-button" type="button" data-close-modal aria-label="Đóng cửa sổ chỉnh sửa"><?= learner_icon('x', 22); ?></button>
             </div>
             <form class="learner-form" id="learner-profile-form" novalidate>
+                <input type="hidden" name="csrfToken" value="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ''); ?>">
                 <div class="learner-form__grid">
+                    <div class="learner-field learner-field--wide" style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 1.1rem; border-radius: 12px; margin-bottom: 0.25rem;">
+                        <span style="font-weight: 700; color: #1E293B; margin-bottom: 0.65rem; display: flex; align-items: center; gap: 0.4rem; font-size: 0.875rem;">
+                            <?= learner_icon('user', 16); ?> Ảnh đại diện (Avatar)
+                        </span>
+                        <div style="display: flex; gap: 1.25rem; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap;">
+                            <div style="position: relative; width: 68px; height: 68px; border-radius: 50%; border: 3px solid #3B82F6; overflow: hidden; background: #EFF6FF; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2); flex-shrink: 0;">
+                                <img id="learner-avatar-preview-img" src="<?= learner_escape($student['avatar_url'] ?? $student['avatarUrl'] ?? 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=Student&backgroundColor=eff6ff'); ?>" alt="Avatar xem trước" style="width: 100%; height: 100%; object-fit: cover; <?= (empty($student['avatar_url']) && empty($student['avatarUrl'])) ? 'display: none;' : '' ?>">
+                                <span id="learner-avatar-preview-text" style="font-size: 1.5rem; font-weight: 800; color: #2563EB; <?= (!empty($student['avatar_url']) || !empty($student['avatarUrl'])) ? 'display: none;' : '' ?>">
+                                    <?= learner_escape($student['initials']); ?>
+                                </span>
+                            </div>
+                            <div style="flex: 1; min-width: 220px;">
+                                <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; flex-wrap: wrap;">
+                                    <input type="file" id="learner-avatar-file-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display: none;">
+                                    <button type="button" id="btn-upload-avatar-file" class="learner-btn learner-btn--primary" style="font-size: 0.8125rem; padding: 0.45rem 0.85rem; display: inline-flex; align-items: center; gap: 0.4rem; background: #2563EB; color: #FFF; border-radius: 7px;">
+                                        <?= learner_icon('upload', 15); ?> Chọn ảnh từ máy tính
+                                    </button>
+                                    <span id="learner-avatar-file-status" style="font-size: 0.775rem; color: #059669; font-weight: 600; display: none;"></span>
+                                </div>
+                                <div style="font-size: 0.775rem; color: #64748B; font-weight: 600; margin-bottom: 0.35rem;">Hoặc chọn nhanh mẫu đại diện AI:</div>
+                                <div class="learner-avatar-presets" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/bottts/svg?seed=Talent1&amp;backgroundColor=b6e3f4" title="Robot AI 1" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Talent1&amp;backgroundColor=b6e3f4" alt="Robot AI 1" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </button>
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/avataaars/svg?seed=Student2&amp;backgroundColor=c0aede" title="Minh họa 2" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student2&amp;backgroundColor=c0aede" alt="Minh họa 2" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </button>
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=Student3&amp;backgroundColor=d1d4f9" title="Robot AI 3" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=Student3&amp;backgroundColor=d1d4f9" alt="Robot AI 3" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </button>
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/adventurer/svg?seed=Student4&amp;backgroundColor=ffd5dc" title="Phiêu lưu 4" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Student4&amp;backgroundColor=ffd5dc" alt="Phiêu lưu 4" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </button>
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Student5&amp;backgroundColor=ffdfbf" title="Emoji vui 5" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Student5&amp;backgroundColor=ffdfbf" alt="Emoji vui 5" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </button>
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/thumbs/svg?seed=Student6&amp;backgroundColor=d3d3d3" title="Ngón tay 6" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=Student6&amp;backgroundColor=d3d3d3" alt="Ngón tay 6" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input id="learner-field-avatar" name="avatarUrl" type="text" inputmode="url" value="<?= learner_escape($student['avatar_url'] ?? $student['avatarUrl'] ?? ''); ?>" placeholder="Dán link ảnh https://... hoặc tải ảnh từ máy" style="font-size: 0.8125rem; flex: 1; padding: 0.5rem 0.75rem; border: 1px solid #D1D5DB; border-radius: 6px;">
+                            <button type="button" id="btn-clear-avatar" class="learner-btn learner-btn--secondary" style="font-size: 0.75rem; padding: 0.5rem 0.75rem; white-space: nowrap;">Đặt lại</button>
+                        </div>
+                        <small class="learner-field__error" data-error-for="avatarUrl" role="alert"></small>
+                    </div>
                     <label class="learner-field">
                         <span>Họ và tên *</span>
                         <input id="learner-field-name" name="fullName" type="text" value="<?= learner_escape($student['name']); ?>" aria-describedby="learner-error-name" required>
@@ -327,9 +431,14 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : 'http://localhost/TalentHub/app/le
                     </select>
                 </label>
 
-                <div class="learner-modal__actions" style="margin-bottom: 1rem;">
-                    <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Hủy</button>
-                    <button class="learner-btn learner-btn--primary" type="submit">Tạo liên kết chia sẻ</button>
+                <div class="learner-modal__actions" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                    <a class="learner-btn learner-btn--outline" href="talent-passport.php" target="_blank" style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.875rem;">
+                        <?= learner_icon('printer', 16); ?> Tải bản in PDF
+                    </a>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Hủy</button>
+                        <button class="learner-btn learner-btn--primary" type="submit">Tạo liên kết chia sẻ</button>
+                    </div>
                 </div>
             </form>
 
