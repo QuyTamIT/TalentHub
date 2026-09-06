@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace TalentHub\Learner\Data\Database;
+require_once dirname(__DIR__, 2) . '/ai/Queue/TransactionalAiOutboxPublisher.php';
 
 use DateTimeImmutable;
 use DateTimeZone;
@@ -19,6 +20,7 @@ use TalentHub\Learner\Data\Service\BadgeRuleEngine;
 use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
 use TalentHub\Learner\Data\Service\NotificationService;
 use TalentHub\Learner\Data\Support\Uuid;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 use Throwable;
 
 final class DatabaseAssessmentWriteRepository implements AssessmentWriteRepository
@@ -377,6 +379,8 @@ SQL,
             if ($this->hasBadgesTable()) {
                 $this->getBadgeAwardService()->evaluateAndAward($studentId, 'system');
             }
+
+            TransactionalAiOutboxPublisher::publish($this->pdo,'assessment_attempt',$attemptId,TransactionalAiOutboxPublisher::version(),[$studentId],'assessment.submitted',['input_hash'=>$inputHash]);
 
             return $this->resultView($studentId, $attemptId);
         });

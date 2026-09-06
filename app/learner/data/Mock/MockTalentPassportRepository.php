@@ -34,8 +34,25 @@ final class MockTalentPassportRepository implements TalentPassportRepository
             'certificates' => [],
             'projects' => [],
             'badges' => [],
+            'achievements' => [],
+            'progress' => [],
+            'checkins' => [],
+            'teacher_feedback' => [],
+            'mentor_evaluations' => [],
+            'roadmap_feedback' => [],
             'source_timestamps' => [],
             'capabilities' => ['certificates' => false, 'projects' => false, 'badges' => false],
+            'source_availability' => [
+                'achievement' => ['status' => 'unavailable', 'reason' => 'canonical_source_not_available'],
+                'certificate' => ['status' => 'unavailable', 'reason' => 'schema_not_available'],
+                'project' => ['status' => 'unavailable', 'reason' => 'schema_not_available'],
+                'badge' => ['status' => 'unavailable', 'reason' => 'schema_not_available'],
+                'progress' => ['status' => 'unavailable', 'reason' => 'schema_not_available'],
+                'checkin' => ['status' => 'unavailable', 'reason' => 'schema_not_available'],
+                'teacher_feedback' => ['status' => 'unavailable', 'reason' => 'schema_not_available'],
+                'mentor_evaluation' => ['status' => 'unavailable', 'reason' => 'canonical_source_not_available'],
+                'roadmap_feedback' => ['status' => 'unavailable', 'reason' => 'schema_not_available'],
+            ],
         ];
     }
 }

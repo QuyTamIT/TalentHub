@@ -77,9 +77,9 @@ assertCondition("Zero raw 'data_analysis' in skill widget", !str_contains($decod
 assertCondition("Zero raw 'teamwork' in skill widget", !str_contains($decodedHtml, '<strong>teamwork</strong>'));
 
 // Verify human-readable Vietnamese labels
-assertCondition("Displays human-readable skill name (e.g. Lập trình Python / Kỹ năng làm việc nhóm / Trí tuệ Nhân tạo)", 
-    str_contains($decodedHtml, 'Lập trình Python') || 
-    str_contains($decodedHtml, 'Kỹ năng làm việc nhóm') || 
+assertCondition("Displays human-readable skill name (e.g. Lập trình Python / Kỹ năng làm việc nhóm / Trí tuệ Nhân tạo)",
+    str_contains($decodedHtml, 'Lập trình Python') ||
+    str_contains($decodedHtml, 'Kỹ năng làm việc nhóm') ||
     str_contains($decodedHtml, 'Trí tuệ Nhân tạo') ||
     str_contains($decodedHtml, 'AI / Machine Learning') ||
     str_contains($decodedHtml, 'Học máy')
@@ -106,9 +106,9 @@ $decodedProfile = html_entity_decode($profileHtml, ENT_QUOTES, 'UTF-8');
 
 assertCondition("app/student/profile.php renders successfully", strlen($profileHtml) > 10000);
 assertCondition("Profile page skills progress bars have width & background color", str_contains($decodedProfile, 'width: ') && str_contains($decodedProfile, 'background-color:'));
-assertCondition("Success/Soft skill progress bars have green color (#10B981) on profile", 
-    str_contains($decodedProfile, '#10B981') || 
-    str_contains($decodedProfile, '#10b981') || 
+assertCondition("Success/Soft skill progress bars have green color (#10B981) on profile",
+    str_contains($decodedProfile, '#10B981') ||
+    str_contains($decodedProfile, '#10b981') ||
     str_contains($decodedProfile, 'learner-progress--success')
 );
 assertCondition("assets/css/student.css exists", file_exists(dirname(__DIR__) . '/assets/css/student.css'));

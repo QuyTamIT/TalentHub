@@ -82,7 +82,9 @@ SELECT
     activity.category,
     details.locationName AS location,
     policy.registrationClosesAt AS deadline,
-    activity.status
+    activity.status,
+    activity.capacity,
+    (SELECT COUNT(1) FROM activity_registrations occupied WHERE occupied.activityId = activity.id AND occupied.status IN ('approved', 'attended')) AS enrolled_count
 FROM activities activity
 INNER JOIN schools school ON school.id = activity.schoolId
 INNER JOIN classes class ON class.schoolId = school.id
@@ -123,9 +125,35 @@ SQL;
             try {
                 $supportsAudience = in_array('audience', $this->columnsFor('internship_posts'), true);
                 $supportsCreatedAt = in_array('createdAt', $this->columnsFor('internship_posts'), true);
+                $supportsSlots = in_array('slots', $this->columnsFor('internship_posts'), true);
+                $internshipColumns = $this->columnsFor('internship_posts');
+                $enterpriseColumns = $this->columnsFor('enterprises');
+                $supportsDescription = in_array('description', $internshipColumns, true);
+                $supportsBenefits = in_array('benefits', $internshipColumns, true);
+                $supportsEducationLevel = in_array('educationLevel', $internshipColumns, true);
+                $supportsSkillsJson = in_array('skillsJson', $internshipColumns, true);
+                $supportsRequirementsJson = in_array('requirementsJson', $internshipColumns, true);
+                $supportsField = in_array('field', $internshipColumns, true);
+                $supportsWorkType = in_array('workType', $internshipColumns, true);
+                $supportsDuration = in_array('duration', $internshipColumns, true);
+                $supportsEnterpriseName = in_array('name', $enterpriseColumns, true);
                 $orderBy = $supportsCreatedAt ? 'ORDER BY post.createdAt DESC, post.id DESC' : 'ORDER BY post.id DESC';
                 $query = $supportsAudience ? self::INTERNSHIP_SQL : self::INTERNSHIP_SQL_FALLBACK;
+                $query = str_replace("post.deadline\n", 'post.deadline, ' . ($supportsSlots ? 'post.slots' : '1') . " AS capacity\n", $query);
                 $query = str_replace('ORDER BY post.createdAt DESC, post.id DESC', $orderBy, $query);
+                $extraSelects = [];
+                if ($supportsDescription) $extraSelects[] = 'post.description AS description';
+                if ($supportsBenefits) $extraSelects[] = 'post.benefits AS benefits';
+                if ($supportsEducationLevel) $extraSelects[] = 'post.educationLevel AS education_level';
+                if ($supportsSkillsJson) $extraSelects[] = 'post.skillsJson AS skills_json';
+                if ($supportsRequirementsJson) $extraSelects[] = 'post.requirementsJson AS requirements_json';
+                if ($supportsField) $extraSelects[] = 'post.field AS field';
+                if ($supportsWorkType) $extraSelects[] = 'post.workType AS work_type';
+                if ($supportsDuration) $extraSelects[] = 'post.duration AS duration';
+                if ($supportsEnterpriseName) $extraSelects[] = 'enterprise.name AS enterprise_name';
+                if ($extraSelects !== []) {
+                    $query = preg_replace('/\bFROM internship_posts post\b/i', ', ' . implode(', ', $extraSelects) . ' FROM internship_posts post', $query, 1);
+                }
                 $statement = $this->pdo->prepare(
                     $query,
                 );
@@ -138,18 +166,35 @@ SQL;
                 if ($executed) {
                     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
                         $deadline = self::timestamp($row['deadline'] ?? null);
-                        if ($deadline === null) {
+                        if ($deadline === null || $deadline <= $this->clock->format('Y-m-d\\TH:i:s.uP')) {
                             continue;
                         }
 
+                        $capacity = max(1, (int) ($row['capacity'] ?? 1));
+                        $applicationState = $this->internshipApplicationState((string) $row['opportunity_id'], $studentId);
+                        if ($applicationState['already_applied'] || $applicationState['accepted'] >= $capacity) continue;
                         $opportunities[] = [
                             'opportunity_id' => (string) $row['opportunity_id'],
+                            'catalog_id' => (string) $row['opportunity_id'],
                             'enterprise_id' => (string) $row['enterprise_id'],
                             'title' => (string) $row['title'],
                             'location' => (string) $row['location'],
                             'deadline_at' => $deadline,
                             'opportunity_type' => 'internship',
                             'status' => 'active',
+                            'availability' => ['capacity' => $capacity, 'enrolled' => $applicationState['accepted'], 'remaining' => max(0, $capacity - $applicationState['accepted'])],
+                            'url' => '/app/learner/ecosystem.php?tab=opportunities&focus=' . rawurlencode((string) $row['opportunity_id'])
+                                . '#opportunity-' . rawurlencode((string) $row['opportunity_id']),
+                            'action' => ['type' => 'view_opportunity', 'opportunity_id' => (string) $row['opportunity_id']],
+                            'provider_name' => (string) ($row['enterprise_name'] ?? ''),
+                            'summary' => (string) ($row['description'] ?? ''),
+                            'benefits' => (string) ($row['benefits'] ?? ''),
+                            'field' => (string) ($row['field'] ?? ''),
+                            'work_type' => (string) ($row['work_type'] ?? ''),
+                            'duration' => (string) ($row['duration'] ?? ''),
+                            'education_bands' => self::mapEducationBands($row['education_level'] ?? null),
+                            'required_skills' => self::skillsFromJson($row['skills_json'] ?? null),
+                            'requirements' => self::proseFromJson($row['requirements_json'] ?? null),
                         ];
                     }
                 }
@@ -162,7 +207,11 @@ SQL;
         if ($this->hasActivityContract()) {
             try {
                 $currentTime = $this->clock->format('Y-m-d H:i:s');
-                $statement = $this->pdo->prepare(self::ACTIVITY_SQL_WITH_REGISTRATIONS);
+                $activitySql = self::ACTIVITY_SQL_WITH_REGISTRATIONS;
+                if (in_array('approvalStatus', $this->columnsFor('activities'), true)) {
+                    $activitySql = str_replace("AND activity.status = 'published'", "AND activity.status = 'published'\n  AND activity.approvalStatus = 'approved'", $activitySql);
+                }
+                $statement = $this->pdo->prepare($activitySql);
                 $params = [
                     'student_id' => $studentId,
                     'registration_opened_at' => $currentTime,
@@ -180,12 +229,20 @@ SQL;
 
                         $opportunities[] = [
                             'opportunity_id' => (string) $row['opportunity_id'],
+                            'catalog_id' => (string) $row['opportunity_id'],
                             'title' => (string) $row['title'],
                             'category' => (string) $row['category'],
                             'location' => (string) ($row['location'] ?? 'Trường học'),
                             'deadline_at' => $deadline,
                             'opportunity_type' => 'activity',
                             'status' => (string) $row['status'],
+                            'availability' => [
+                                'capacity' => (int) ($row['capacity'] ?? 0),
+                                'enrolled' => (int) ($row['enrolled_count'] ?? 0),
+                                'remaining' => max(0, (int) ($row['capacity'] ?? 0) - (int) ($row['enrolled_count'] ?? 0)),
+                            ],
+                            'url' => '/app/learner/activity-detail.php?id=' . rawurlencode((string) $row['opportunity_id']),
+                            'action' => ['type' => 'register_activity', 'activity_source_id' => (string) $row['opportunity_id']],
                         ];
                     }
                 }
@@ -223,6 +280,25 @@ SQL;
         }
 
         return true;
+    }
+
+    /** @return array{accepted:int,already_applied:bool} */
+    private function internshipApplicationState(string $postId, string $studentId): array
+    {
+        $columns = $this->columnsFor('internship_applications');
+        if (array_diff(['postId', 'studentId', 'status'], $columns) !== []) return ['accepted' => 0, 'already_applied' => false];
+        try {
+            $statement = $this->pdo->prepare(
+                "SELECT SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) AS accepted, "
+                . 'MAX(CASE WHEN studentId=:student THEN 1 ELSE 0 END) AS already_applied '
+                . 'FROM internship_applications WHERE postId=:post'
+            );
+            $statement->execute(['student' => $studentId, 'post' => $postId]);
+            $row = $statement->fetch(PDO::FETCH_ASSOC) ?: [];
+            return ['accepted' => (int) ($row['accepted'] ?? 0), 'already_applied' => (int) ($row['already_applied'] ?? 0) === 1];
+        } catch (Throwable) {
+            return ['accepted' => PHP_INT_MAX, 'already_applied' => true];
+        }
     }
 
     /** @return list<string> */
@@ -272,5 +348,102 @@ SQL;
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private const DIACRITIC_ASCII = [
+        'á' => 'a', 'à' => 'a', 'ả' => 'a', 'ã' => 'a', 'ạ' => 'a',
+        'ă' => 'a', 'ắ' => 'a', 'ằ' => 'a', 'ẳ' => 'a', 'ẵ' => 'a', 'ặ' => 'a',
+        'â' => 'a', 'ấ' => 'a', 'ầ' => 'a', 'ẩ' => 'a', 'ẫ' => 'a', 'ậ' => 'a',
+        'đ' => 'd',
+        'é' => 'e', 'è' => 'e', 'ẻ' => 'e', 'ẽ' => 'e', 'ẹ' => 'e',
+        'ê' => 'e', 'ế' => 'e', 'ề' => 'e', 'ể' => 'e', 'ễ' => 'e', 'ệ' => 'e',
+        'í' => 'i', 'ì' => 'i', 'ỉ' => 'i', 'ĩ' => 'i', 'ị' => 'i',
+        'ó' => 'o', 'ò' => 'o', 'ỏ' => 'o', 'õ' => 'o', 'ọ' => 'o',
+        'ô' => 'o', 'ố' => 'o', 'ồ' => 'o', 'ổ' => 'o', 'ỗ' => 'o', 'ộ' => 'o',
+        'ơ' => 'o', 'ớ' => 'o', 'ờ' => 'o', 'ở' => 'o', 'ỡ' => 'o', 'ợ' => 'o',
+        'ú' => 'u', 'ù' => 'u', 'ủ' => 'u', 'ũ' => 'u', 'ụ' => 'u',
+        'ư' => 'u', 'ứ' => 'u', 'ừ' => 'u', 'ử' => 'u', 'ữ' => 'u', 'ự' => 'u',
+        'ý' => 'y', 'ỳ' => 'y', 'ỷ' => 'y', 'ỹ' => 'y', 'ỵ' => 'y',
+    ];
+
+    /** @return list<string> */
+    private static function mapEducationBands(mixed $raw): array
+    {
+        if (!is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+        $ascii = strtolower(strtr(trim($raw), self::DIACRITIC_ASCII));
+        if (str_contains($ascii, 'tat ca bac')) {
+            return [];
+        }
+        $bands = [];
+        if (str_contains($ascii, 'thcs') || str_contains($ascii, 'cap 2') || str_contains($ascii, 'middle')) {
+            $bands[] = 'middle';
+        }
+        if (str_contains($ascii, 'thpt') || str_contains($ascii, 'cap 3') || str_contains($ascii, 'pho thong') || str_contains($ascii, 'high')) {
+            $bands[] = 'high';
+        }
+        if (str_contains($ascii, 'dai hoc') || str_contains($ascii, 'cao dang') || str_contains($ascii, 'college') || str_contains($ascii, 'university')) {
+            $bands[] = 'college';
+        }
+        return $bands;
+    }
+
+    /** @return list<array{code:string,minimum_score:int,label:string}> */
+    private static function skillsFromJson(mixed $raw): array
+    {
+        $decoded = is_array($raw) ? $raw : (is_string($raw) ? json_decode($raw, true) : null);
+        if (!is_array($decoded)) {
+            return [];
+        }
+        $skills = [];
+        $seen = [];
+        foreach ($decoded as $entry) {
+            if (is_string($entry)) {
+                $name = trim($entry);
+                if ($name === '') continue;
+                $code = self::slugify($name);
+                if ($code === '' || isset($seen[$code])) continue;
+                $seen[$code] = true;
+                $skills[] = ['code' => $code, 'minimum_score' => 0, 'label' => $name];
+                continue;
+            }
+            if (is_array($entry)) {
+                $rawName = (string) ($entry['name'] ?? $entry['code'] ?? $entry['label'] ?? '');
+                $name = trim($rawName);
+                if ($name === '') continue;
+                $code = self::slugify($name);
+                if ($code === '' || isset($seen[$code])) continue;
+                $seen[$code] = true;
+                $minScore = isset($entry['minimum_score']) && is_numeric($entry['minimum_score']) ? max(0, min(100, (int) $entry['minimum_score'])) : 0;
+                $skills[] = ['code' => $code, 'minimum_score' => $minScore, 'label' => $name];
+            }
+        }
+        return $skills;
+    }
+
+    /** @return list<string> */
+    private static function proseFromJson(mixed $raw): array
+    {
+        $decoded = is_array($raw) ? $raw : (is_string($raw) ? json_decode($raw, true) : null);
+        if (!is_array($decoded)) {
+            return [];
+        }
+        $prose = [];
+        foreach ($decoded as $entry) {
+            if (is_string($entry) && trim($entry) !== '') {
+                $prose[] = trim($entry);
+            }
+        }
+        return $prose;
+    }
+
+    private static function slugify(string $raw): string
+    {
+        $lower = mb_strtolower(trim($raw), 'UTF-8');
+        $lower = str_replace(['c#', 'c++', 'c/c++'], ['csharp', 'cpp', 'cpp'], $lower);
+        $ascii = strtr($lower, self::DIACRITIC_ASCII);
+        $slug = (string) preg_replace('/[^a-z0-9]+/', '_', $ascii);
+        return trim($slug, '_');
     }
 }

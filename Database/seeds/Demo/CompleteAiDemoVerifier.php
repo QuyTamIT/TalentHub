@@ -24,16 +24,22 @@ require_once __DIR__ . '/CompleteAiDemoDataset.php';
 
 final class CompleteAiDemoVerifier
 {
+    /**
+     * Canonical source-count keys emitted by AiSourceRegistry.
+     *
+     * Keep this verifier coupled to that stable contract rather than the
+     * older presentation aliases (skills, assessments, activities, etc.).
+     */
     private const HERO_MINIMUMS = [
-        'skills' => 5,
-        'assessments' => 4,
-        'activities' => 2,
-        'evaluations' => 2,
-        'opportunities' => 1,
+        'skill' => 5,
+        'assessment' => 4,
+        'activity_experience' => 2,
+        'evaluation' => 2,
+        'opportunity' => 1,
     ];
 
     /** @return array{ok:bool,counts:array<string,int>,violations:list<string>,heroes:array<string,array<string,mixed>>} */
-    public static function verify(PDO $pdo, ?DateTimeImmutable $clock = null): array
+    public static function verify(PDO $pdo, ?DateTimeImmutable $clock = null, bool $requireModelOutput = false): array
     {
         $clock = ($clock ?? new DateTimeImmutable('now', new DateTimeZone('UTC')))
             ->setTimezone(new DateTimeZone('UTC'));
@@ -85,7 +91,7 @@ SQL) !== 0) {
             $violations[] = 'qr_raw_token_storage';
         }
 
-        $heroes = self::heroes($pdo, $clock, $consentPolicy, $violations);
+        $heroes = self::heroes($pdo, $clock, $consentPolicy, $violations, $requireModelOutput);
         $violations = array_values(array_unique($violations));
         sort($violations, SORT_STRING);
 
@@ -117,7 +123,7 @@ SQL) !== 0) {
     }
 
     /** @param list<string> $violations @return array<string,array<string,mixed>> */
-    private static function heroes(PDO $pdo, DateTimeImmutable $clock, ConsentPolicy $consent, array &$violations): array
+    private static function heroes(PDO $pdo, DateTimeImmutable $clock, ConsentPolicy $consent, array &$violations, bool $requireModelOutput): array
     {
         $snapshot = new RecommendationSnapshotBuilder(
             new DatabaseStudentProfileSource($pdo),
@@ -156,12 +162,9 @@ SQL) !== 0) {
                 $visibleEngine = is_string($visibleRun['engineType'] ?? null)
                     ? $visibleRun['engineType']
                     : 'unknown';
-                if ($visibleEngine !== 'rule'
-                    || ($visibleRun['status'] ?? null) !== 'completed'
-                    || !is_array($visibleRun['items'] ?? null)
-                    || $visibleRun['items'] === []) {
-                    $violations[] = 'hero_' . $hero . '_visible_recommendation';
-                }
+            }
+            if (!self::hasRequiredVisibleRecommendation($visibleRun, $requireModelOutput)) {
+                $violations[] = 'hero_' . $hero . '_visible_recommendation';
             }
             $results[$hero] = [
                 'state' => $quality->state(),
@@ -172,6 +175,19 @@ SQL) !== 0) {
         }
 
         return $results;
+    }
+
+    /** @param array<string,mixed>|null $visibleRun */
+    public static function hasRequiredVisibleRecommendation(?array $visibleRun, bool $requireModelOutput): bool
+    {
+        if ($visibleRun === null) {
+            return false;
+        }
+        $engine = is_string($visibleRun['engineType'] ?? null) ? $visibleRun['engineType'] : '';
+        return ($requireModelOutput ? $engine === 'model' : $engine === 'rule')
+            && ($visibleRun['status'] ?? null) === 'completed'
+            && is_array($visibleRun['items'] ?? null)
+            && $visibleRun['items'] !== [];
     }
 
     private static function invalidConsentScopes(ConsentPolicy $consent): int
@@ -241,7 +257,10 @@ FROM (
     HAVING COUNT(DISTINCT checkin_record.id) <> 1
         OR COUNT(DISTINCT qr.id) <> 1
         OR COUNT(DISTINCT experience.id) <> 1
-        OR COUNT(DISTINCT evaluation.id) <> 1
+        -- A learner can receive more than one valid published evaluation for
+        -- an attended activity. Journey integrity requires evidence to exist,
+        -- not that educators can publish only one evaluation forever.
+        OR COUNT(DISTINCT evaluation.id) < 1
 ) AS invalid_attended
 SQL) + self::scalar($pdo, <<<'SQL'
 SELECT COUNT(*)

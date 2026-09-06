@@ -22,6 +22,7 @@ try {
     }
     $studentId = $context->studentId('student_profile.update_own');
     $context->mutation($request->header('x-csrf-token'));
+    $idempotencyKey = $context->idempotencyKey($request->header('x-idempotency-key'));
     $input = $context->allowedInput($request->json(), ['itemId', 'roadmapId', 'verdict', 'reasonCode', 'safeComment']);
     $itemId = is_string($input['itemId'] ?? null) ? trim($input['itemId']) : '';
     $roadmapId = is_string($input['roadmapId'] ?? null) ? trim($input['roadmapId']) : '';
@@ -33,16 +34,15 @@ try {
         || ($roadmapId !== '' && $safeComment !== null)) {
         throw new ApiException(422, 'VALIDATION_FAILED', 'Dữ liệu phản hồi không hợp lệ.');
     }
+    (new PersistentActionRateLimiter($context->pdo()))->consume(
+        'learner.ai',
+        $studentId,
+        isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
+    );
     if ($roadmapId !== '') {
         if (!Uuid::isValid($roadmapId)) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Mã lộ trình không hợp lệ.');
         }
-        $idempotencyKey = $context->idempotencyKey($request->header('x-idempotency-key'));
-        (new PersistentActionRateLimiter($context->pdo()))->consume(
-            'learner.ai',
-            $studentId,
-            isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
-        );
         $hex = substr(hash('sha256', $studentId . '|' . $roadmapId . '|' . $idempotencyKey), 0, 32);
         $hex[12] = '4';
         $hex[16] = ['8','9','a','b'][hexdec($hex[16]) % 4];
@@ -54,9 +54,21 @@ try {
         if (($result['state'] ?? null) !== 'feedback_saved') {
             throw new ApiException(503, 'SERVICE_UNAVAILABLE', 'Không thể lưu phản hồi lộ trình lúc này.');
         }
+        $refresh = $context->dispatchAiRefresh($studentId);
+        $result['refresh_state'] = ($refresh['status'] === 'pending' && $refresh['job_keys'] !== []) ? 'pending' : 'unavailable';
+        $result['refresh_job_keys'] = $refresh['job_keys'];
+        $result['refresh_dispatch_status'] = $refresh['status'];
         JsonResponder::sendSuccess($result, $context->requestId(), 201);
     }
-    JsonResponder::sendSuccess($context->appendFeedback($studentId, $itemId, $verdict, $reasonCode, is_string($safeComment) ? $safeComment : null), $context->requestId(), 201);
+    $result = $context->appendFeedback($studentId, $itemId, $verdict, $reasonCode, is_string($safeComment) ? $safeComment : null, $idempotencyKey);
+    if (($result['state'] ?? null) === 'idempotency_conflict') {
+        throw new ApiException(409, 'IDEMPOTENCY_CONFLICT', 'Khóa chống lặp đã được dùng cho một phản hồi khác.');
+    }
+    $refresh = $context->dispatchAiRefresh($studentId);
+    $result['refresh_state'] = ($refresh['status'] === 'pending' && $refresh['job_keys'] !== []) ? 'pending' : 'unavailable';
+    $result['refresh_job_keys'] = $refresh['job_keys'];
+    $result['refresh_dispatch_status'] = $refresh['status'];
+    JsonResponder::sendSuccess($result, $context->requestId(), 201);
 } catch (ApiException $exception) {
     JsonResponder::sendError($exception, $context?->requestId() ?? 'request-unavailable');
 } catch (Throwable) {

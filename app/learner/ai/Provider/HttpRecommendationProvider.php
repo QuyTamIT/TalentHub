@@ -10,6 +10,7 @@ use TalentHub\Learner\Ai\Config\RecommendationConfig;
 use TalentHub\Learner\Ai\Consent\ProviderAttemptAuthorizer;
 use TalentHub\Learner\Ai\Consent\ProviderConsentDenied;
 use TalentHub\Learner\Ai\Contracts\RecommendationProvider;
+use TalentHub\Learner\Ai\Observability\AiMetricsCollector;
 
 final class HttpRecommendationProvider implements RecommendationProvider
 {
@@ -17,17 +18,42 @@ final class HttpRecommendationProvider implements RecommendationProvider
     private readonly Closure $http;
 
     /** @param (callable(string,array<string,string>,string,int):array<string,mixed>)|null $http */
-    public function __construct(private readonly RecommendationConfig $config, ?callable $http = null)
+    private readonly ?AiMetricsCollector $metrics;
+
+    public function __construct(private readonly RecommendationConfig $config, ?callable $http = null, ?RetryPolicy $retryPolicy = null, ?CircuitBreaker $circuitBreaker = null, ?callable $sleeper = null, ?ProviderHealthStore $healthStore = null, ?AiMetricsCollector $metrics = null)
     {
         $this->http = $http !== null
             ? Closure::fromCallable($http)
             : Closure::fromCallable([$this, 'defaultHttpTransport']);
+        $this->retryPolicy = $retryPolicy ?? new RetryPolicy($config->maxAttempts());
+        $this->circuitBreaker = $circuitBreaker ?? new CircuitBreaker();
+        $this->sleeper = $sleeper !== null ? Closure::fromCallable($sleeper) : static function (int $milliseconds): void { if ($milliseconds > 0) usleep($milliseconds * 1000); };
+        $this->healthStore=$healthStore??new ProviderHealthStore();
+        $this->metrics = $metrics ?? AiMetricsCollector::shared();
     }
+    private readonly RetryPolicy $retryPolicy;
+    private readonly CircuitBreaker $circuitBreaker;
+    /** @var Closure(int):void */ private readonly Closure $sleeper;
+    private readonly ProviderHealthStore $healthStore;
+    private int $attemptsUsed=0;
 
     public function generate(ProviderRequest $request, ProviderAttemptAuthorizer $authorizer): ProviderResponse
     {
+        $started=microtime(true);$this->attemptsUsed=0;$response=$this->performGenerate($request,$authorizer);$latency=(int)round((microtime(true)-$started)*1000);$this->healthStore->record($response->isSuccess(),$latency,max(0,$this->attemptsUsed-1),$response->errorCode(),$this->circuitBreaker->state());
+        $usage=$response->usage() ?? []; $this->metrics->record(['provider_latency_ms'=>$latency,'provider_error'=>$response->errorCode(),'circuit_state'=>$this->circuitBreaker->state(),'input_tokens'=>$usage['input_tokens']??null,'output_tokens'=>$usage['output_tokens']??null,'estimated_cost'=>$usage['estimated_cost']??null]);
+        return $response;
+    }
+
+    public function health(): array { return $this->healthStore->snapshot(); }
+
+    private function performGenerate(ProviderRequest $request, ProviderAttemptAuthorizer $authorizer): ProviderResponse
+    {
         if (!$this->config->enabled() || $this->config->apiUrl() === null || $this->config->apiKey() === null) {
             return ProviderResponse::failure('provider_disabled', null, 'config');
+        }
+        if (!$this->circuitBreaker->allow()
+            && !ProviderRuntimeMode::alwaysAttempt($this->config->environment())) {
+            return ProviderResponse::failure('provider_circuit_open', null, 'health');
         }
         try {
             $payload = $this->transportPayload($request);
@@ -37,26 +63,24 @@ final class HttpRecommendationProvider implements RecommendationProvider
         }
         $headers = $this->transportHeaders();
         for ($attempt = 1; $attempt <= $this->config->maxAttempts(); $attempt++) {
+            $this->attemptsUsed=$attempt;
             try {
                 $authorizer->beforeAttempt($attempt);
             } catch (ProviderConsentDenied $exception) {
-                return ProviderResponse::failure($exception->reason(), null, 'consent');
+                throw $exception;
             }
             try {
                 $response = ($this->http)($this->config->apiUrl(), $headers, $body, $this->config->timeoutSeconds());
             } catch (\Throwable) {
+                if ($this->retryPolicy->shouldRetry(0,'network',$attempt)) { ($this->sleeper)($this->retryPolicy->delayMs($attempt)); continue; }
+                $this->circuitBreaker->recordFailure();
                 return ProviderResponse::failure('provider_unavailable', null, 'network');
             }
             $status = is_numeric($response['status'] ?? null) ? (int) $response['status'] : 0;
-            if ($status === 200) {
-                return $this->success($response['body'] ?? null);
-            }
-            if ($status === 429) {
-                return ProviderResponse::failure('rate_limited', $this->retryAfter($response['headers'] ?? []), '4xx');
-            }
-            if (in_array($status, [502, 503], true) && $attempt < $this->config->maxAttempts()) {
-                continue;
-            }
+            if ($status === 200) { $result=$this->success($response['body'] ?? null); if ($result->isSuccess()) $this->circuitBreaker->recordSuccess(); else $this->circuitBreaker->recordFailure(); return $result; }
+            if ($status === 429) { $retryAfter=$this->retryAfter($response['headers'] ?? []); return ProviderResponse::failure('rate_limited', $retryAfter, '4xx'); }
+            if ($this->retryPolicy->shouldRetry($status,null,$attempt)) { ($this->sleeper)($this->retryPolicy->delayMs($attempt)); continue; }
+            if ($status >= 500) $this->circuitBreaker->recordFailure();
             return ProviderResponse::failure($status >= 500 ? 'provider_unavailable' : 'provider_rejected', null, $status >= 500 ? '5xx' : '4xx');
         }
         return ProviderResponse::failure('provider_unavailable', null, '5xx');
@@ -130,7 +154,13 @@ final class HttpRecommendationProvider implements RecommendationProvider
     private function geminiPayload(array $payload): array
     {
         $instructions = is_array($payload['instructions'] ?? null) ? $payload['instructions'] : [];
+        $schema = is_array($payload['output_schema'] ?? null) ? $payload['output_schema'] : null;
         unset($payload['instructions']);
+
+        $responseTextFormat = ['mimeType' => 'APPLICATION_JSON'];
+        if ($schema !== null) {
+            $responseTextFormat['schema'] = $this->geminiSchema($schema);
+        }
 
         return [
             'systemInstruction' => [
@@ -143,9 +173,62 @@ final class HttpRecommendationProvider implements RecommendationProvider
                 ]],
             ]],
             'generationConfig' => [
-                'responseFormat' => ['text' => ['mimeType' => 'APPLICATION_JSON']],
+                'responseFormat' => ['text' => $responseTextFormat],
+                // Gemini can consume a substantial part of the response budget
+                // before emitting the structured candidate. 2048 caused a
+                // valid recommendation response to end with MAX_TOKENS and
+                // truncated JSON, which strict mode correctly rejected.
+                'maxOutputTokens' => 8192,
             ],
         ];
+    }
+
+    /**
+     * Gemini accepts only a subset of JSON Schema. The complete learner
+     * contract remains in the prompt and is enforced again server-side; this
+     * transport copy contains only keywords accepted by Gemini.
+     *
+     * @return array<string,mixed>|list<mixed>|string|int|float|bool|null
+     */
+    private function geminiSchema(mixed $node): mixed
+    {
+        if (!is_array($node)) return $node;
+        if (array_is_list($node)) {
+            return array_map(fn (mixed $value): mixed => $this->geminiSchema($value), $node);
+        }
+
+        $result = [];
+        $supported = [
+            '$id', '$defs', '$ref', '$anchor',
+            'type', 'format', 'title', 'description', 'enum',
+            'items', 'prefixItems', 'minItems', 'maxItems',
+            'minimum', 'maximum', 'anyOf',
+            'properties', 'additionalProperties', 'required',
+        ];
+        foreach ($node as $key => $value) {
+            if (!is_string($key)) continue;
+            if ($key === 'const' && (is_string($value) || is_int($value) || is_float($value) || is_bool($value) || $value === null)) {
+                $result['enum'] = [$value];
+                continue;
+            }
+            if ($key === 'oneOf' && is_array($value) && array_is_list($value)) {
+                $result['anyOf'] = $this->geminiSchema($value);
+                continue;
+            }
+            if (!in_array($key, $supported, true)) continue;
+            if (($key === 'properties' || $key === '$defs') && is_array($value) && !array_is_list($value)) {
+                $children = [];
+                foreach ($value as $name => $child) {
+                    if (is_string($name) && is_array($child)) {
+                        $children[$name] = $this->geminiSchema($child);
+                    }
+                }
+                $result[$key] = $children;
+                continue;
+            }
+            $result[$key] = $this->geminiSchema($value);
+        }
+        return $result;
     }
 
     private function success(mixed $body): ProviderResponse
@@ -153,6 +236,7 @@ final class HttpRecommendationProvider implements RecommendationProvider
         if (!is_string($body)) {
             return ProviderResponse::failure('malformed_response', null, '2xx');
         }
+        if (strlen($body) > 1048576) return ProviderResponse::failure('response_too_large', null, '2xx');
         try {
             $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
@@ -171,17 +255,30 @@ final class HttpRecommendationProvider implements RecommendationProvider
             }
         }
 
+
         // OpenAI / 9Router chat completion envelope: {"choices": [{"message": {"content": "..."}}]}
         if (isset($decoded['choices'][0]['message']['content']) && is_string($decoded['choices'][0]['message']['content'])) {
             return $this->parseContentString($decoded['choices'][0]['message']['content']);
         }
 
         // Gemini native response envelope: {"candidates": [{"content": {"parts": [{"text": "..."}]}}]}
-        if (isset($decoded['candidates'][0]['content']['parts'][0]['text']) && is_string($decoded['candidates'][0]['content']['parts'][0]['text'])) {
-            return $this->parseContentString($decoded['candidates'][0]['content']['parts'][0]['text']);
-        }
+        $geminiContent = $this->geminiContent($decoded);
+        if ($geminiContent !== null) return $this->parseContentString($geminiContent);
 
         return ProviderResponse::failure('malformed_response', null, '2xx');
+    }
+
+    /** @param array<string,mixed> $decoded */
+    private function geminiContent(array $decoded): ?string
+    {
+        $parts = $decoded['candidates'][0]['content']['parts'] ?? null;
+        if (!is_array($parts)) return null;
+        $chunks = [];
+        foreach ($parts as $part) {
+            if (!is_array($part) || ($part['thought'] ?? false) === true || !is_string($part['text'] ?? null)) continue;
+            $chunks[] = $part['text'];
+        }
+        return $chunks === [] ? null : implode('', $chunks);
     }
 
     private function parseContentString(string $content): ProviderResponse
@@ -240,15 +337,16 @@ final class HttpRecommendationProvider implements RecommendationProvider
             $formattedHeaders[] = "{$k}: {$v}";
         }
         $responseHeaders = [];
-        curl_setopt_array($ch, [
+        $options = [
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $body,
             CURLOPT_HTTPHEADER => $formattedHeaders,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => $timeout,
-            CURLOPT_CONNECTTIMEOUT => min(2, $timeout),
+            CURLOPT_TIMEOUT => max(60, $timeout),
+            CURLOPT_CONNECTTIMEOUT => min(15, max(5, $timeout)),
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
             CURLOPT_HEADERFUNCTION => static function ($curl, string $header) use (&$responseHeaders): int {
                 $len = strlen($header);
                 $parts = explode(':', $header, 2);
@@ -257,7 +355,11 @@ final class HttpRecommendationProvider implements RecommendationProvider
                 }
                 return $len;
             },
-        ]);
+        ];
+        if (PHP_OS_FAMILY === 'Windows' && defined('CURLSSLOPT_NATIVE_CA')) {
+            $options[CURLOPT_SSL_OPTIONS] = CURLSSLOPT_NATIVE_CA;
+        }
+        curl_setopt_array($ch, $options);
         $responseBody = curl_exec($ch);
         if ($responseBody === false) {
             $err = curl_error($ch);

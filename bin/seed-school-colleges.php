@@ -25,7 +25,7 @@ $stmt = $pdo->prepare("SELECT id FROM schools WHERE id = ?");
 $stmt->execute([$btecSchoolId]);
 if ($stmt->fetch()) {
     $pdo->prepare("
-        UPDATE schools SET 
+        UPDATE schools SET
             name = 'Cao đẳng Quốc tế BTEC FPT',
             email = 'btec@talenthub.local',
             level = 'Cao đẳng',
@@ -50,7 +50,7 @@ $stmt = $pdo->prepare("SELECT id FROM schools WHERE id = ?");
 $stmt->execute([$ctuSchoolId]);
 if ($stmt->fetch()) {
     $pdo->prepare("
-        UPDATE schools SET 
+        UPDATE schools SET
             name = 'Đại học Cần Thơ',
             email = 'ctu@talenthub.local',
             level = 'Đại học',
@@ -77,7 +77,7 @@ function ensureSchoolUser(PDO $pdo, string $userId, string $email, string $fullN
     if ($existing) {
         $actualUserId = (string) $existing['id'];
         $pdo->prepare("
-            UPDATE users SET 
+            UPDATE users SET
                 fullName = ?,
                 passwordHash = ?,
                 roleId = ?,
@@ -254,16 +254,16 @@ echo "\n[OK] All Students mapped to BTEC FPT and CTU classes successfully!\n";
 
 // 6. Recalculate School studentCount & teacherCount
 $pdo->query("
-    UPDATE schools s SET 
+    UPDATE schools s SET
         studentCount = (
-            SELECT COUNT(*) 
-            FROM student_profiles sp 
-            JOIN classes c ON c.id = sp.classId 
+            SELECT COUNT(*)
+            FROM student_profiles sp
+            JOIN classes c ON c.id = sp.classId
             WHERE c.schoolId = s.id AND sp.studyStatus = 'active'
         ),
         teacherCount = COALESCE((
-            SELECT COUNT(*) 
-            FROM school_members sm 
+            SELECT COUNT(*)
+            FROM school_members sm
             WHERE sm.schoolId = s.id AND sm.memberRole = 'teacher'
         ), 0)
 ");

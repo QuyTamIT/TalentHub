@@ -166,34 +166,33 @@ final class ActivityReadModel
     public static function availabilityState(array $activity, ?\DateTimeImmutable $now = null): array
     {
         $status = strtolower(trim((string) ($activity['status'] ?? '')));
-        if ($status === 'completed' || $status === 'archived') {
+        if (in_array($status, ['ongoing', 'active'], true)) {
+            return ['code' => 'ongoing', 'label' => 'Đang diễn ra', 'explanation' => 'Hoạt động đang diễn ra và không nhận đăng ký mới.'];
+        }
+        if ($status === 'completed') {
             return ['code' => 'completed', 'label' => 'Đã kết thúc', 'explanation' => 'Hoạt động đã kết thúc.'];
         }
-        if (!in_array($status, ['published', 'ongoing', 'active'], true)) {
+        if ($status !== 'published') {
             return ['code' => 'unavailable', 'label' => 'Không nhận đăng ký', 'explanation' => 'Hoạt động hiện không nhận đăng ký.'];
         }
 
         try {
-            $current = ($now ?? new \DateTimeImmutable('now', new \DateTimeZone('Asia/Ho_Chi_Minh')));
+            $current = ($now ?? new \DateTimeImmutable('now', new \DateTimeZone('UTC')))
+                ->setTimezone(new \DateTimeZone('UTC'));
             $start = self::date($activity['start_at'] ?? null);
             $end = self::date($activity['end_at'] ?? null) ?? $start;
             $opens = self::date($activity['registration_opens_at'] ?? null);
-            
-            $closesRaw = $activity['registration_closes_at'] ?? null;
-            $closes = (!empty($closesRaw) && !str_starts_with((string)$closesRaw, '1970'))
-                ? self::date($closesRaw)
-                : ($end ?? $start);
+            $closes = self::date($activity['registration_closes_at'] ?? null) ?? $start;
         } catch (\Throwable) {
             return ['code' => 'unavailable', 'label' => 'Không nhận đăng ký', 'explanation' => 'Không thể xác định thời gian đăng ký.'];
         }
-
         if ($end !== null && $current >= $end) {
             return ['code' => 'completed', 'label' => 'Đã kết thúc', 'explanation' => 'Hoạt động đã kết thúc.'];
         }
         if ($opens !== null && $current < $opens) {
             return ['code' => 'not_open', 'label' => 'Chưa mở đăng ký', 'explanation' => 'Hoạt động chưa đến thời gian mở đăng ký.'];
         }
-        if ($closes !== null && $current >= $closes && $current >= $end) {
+        if ($closes === null || $current >= $closes) {
             return ['code' => 'expired', 'label' => 'Đã hết hạn đăng ký', 'explanation' => 'Hoạt động đã hết hạn đăng ký.'];
         }
         $capacity = (int) ($activity['capacity'] ?? 0);
@@ -311,14 +310,7 @@ final class ActivityReadModel
     private static function date(mixed $value): ?\DateTimeImmutable
     {
         $value = self::text($value);
-        if ($value === '') {
-            return null;
-        }
-        try {
-            return new \DateTimeImmutable($value, new \DateTimeZone('Asia/Ho_Chi_Minh'));
-        } catch (\Throwable) {
-            return null;
-        }
+        return $value === '' ? null : new \DateTimeImmutable($value, new \DateTimeZone('UTC'));
     }
 
     private static function deliveryModeLabel(mixed $value): string

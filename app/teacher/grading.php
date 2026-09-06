@@ -34,11 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'save_single') {
         $studentId = trim((string) ($_POST['studentId'] ?? ''));
-        $rawScore = trim((string) ($_POST['score'] ?? '85'));
+        $rawScore = trim((string) ($_POST['score'] ?? ''));
         $comment = trim((string) ($_POST['comment'] ?? ''));
         $score = max(0.0, min(100.0, (float) $rawScore));
 
-        if (!empty($studentId)) {
+        if (!empty($studentId) && $rawScore !== '') {
             // Cập nhật điểm tổng quan trong student_profiles
             try {
                 $upd = $pdo->prepare("UPDATE student_profiles SET talentScore = ?, updatedAt = NOW() WHERE id = ?");
@@ -81,6 +81,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $count = 0;
 
         foreach ($scores as $sId => $rawScore) {
+            $rawScore = trim((string) $rawScore);
+
+            // Bỏ qua sinh viên chưa nhập điểm — không tự gán 0 hoặc 90
+            if ($rawScore === '') {
+                continue;
+            }
+
             $score = max(0.0, min(100.0, (float) $rawScore));
             try {
                 $upd = $pdo->prepare("UPDATE student_profiles SET talentScore = ?, updatedAt = NOW() WHERE id = ?");
@@ -180,6 +187,20 @@ $sidebarNav = [
     ['title' => 'Sân chơi của tôi', 'route' => 'playgrounds', 'href' => '/app/teacher/activities/index.php', 'icon' => 'trophy', 'active' => false],
     ['title' => 'Chấm điểm theo Lớp', 'route' => 'assessments', 'href' => '/app/teacher/grading.php', 'icon' => 'clipboard-check', 'active' => true],
     ['title' => 'Học viên', 'route' => 'students', 'href' => '/app/teacher/students/index.php', 'icon' => 'users', 'active' => false],
+];
+
+// 4. Thông tin giáo viên cho header (đồng bộ với các trang teacher khác)
+$rawName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
+$teacherName = trim((string) ($rawName !== '' ? $rawName : ($user['fullName'] ?? 'Giáo viên')));
+if ($teacherName === 'minh triet') {
+    $teacherName = 'Minh Triết';
+}
+$teacherInfo = [
+    'full_name' => $teacherName !== '' ? $teacherName : 'Giáo viên',
+    'role_label' => 'Giáo viên / Hướng dẫn viên',
+    'school_name' => '',
+    'avatar_initials' => 'GV',
+    'notification_count' => 0,
 ];
 ?>
 <!DOCTYPE html>
@@ -428,9 +449,8 @@ $sidebarNav = [
                                                            id="score-input-<?= htmlspecialchars($st['studentId']); ?>"
                                                            class="score-input"
                                                            min="0" max="100" step="1"
-                                                           value="<?= $st['talentScore'] !== null ? number_format((float) $st['talentScore'], 0) : '90'; ?>"
-                                                           placeholder="Điểm"
-                                                           required>
+                                                           value="<?= $st['talentScore'] !== null ? number_format((float) $st['talentScore'], 0) : ''; ?>"
+                                                           placeholder="Điểm">
                                                 </td>
                                                 <td>
                                                     <input type="text" 
@@ -533,5 +553,6 @@ $sidebarNav = [
             }
         }
     </script>
+    <script src="../../assets/js/teacher.js"></script>
 </body>
 </html>

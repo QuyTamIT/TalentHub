@@ -1,7 +1,12 @@
 /**
- * TalentHub - Enterprise Talent Search Controller
- * Handles live API search, multi-criteria filtering, dynamic sector-aware quick filter pills,
- * popular & categorized skills selection, pagination, and candidate detail navigation.
+ * TalentHub - Enterprise Talent Search & AI Matching Controller
+ * Handles live API search, multi-criteria filtering, dynamic quick filter pills,
+ * skills selection modal, pagination, candidate navigation, and AI candidate matching.
+ *
+ * NOTE: Strict Privacy & Security rules:
+ * - Safe DOM methods only (createElement, textContent, replaceChildren).
+ * - NO fake score fallbacks.
+ * - Handles ready_model, stale_model, provider_unavailable, no_candidates.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -25,7 +30,7 @@ function initTalentSearchModule() {
     const bootElement = document.getElementById('enterprise-session-boot');
     if (bootElement) {
         try {
-            sessionBoot = Object.assign(sessionBoot, JSON.parse(bootElement.textContent));
+            sessionBoot = Object.assign(sessionBoot, JSON.parse(bootElement.textContent || '{}'));
         } catch (e) {
             console.error('Failed to parse enterprise session boot data:', e);
         }
@@ -169,6 +174,15 @@ function initTalentSearchModule() {
     const skillsCategoriesContainer = document.getElementById('skills-categories-container');
     const modalSelectedCountEl = document.getElementById('modal-selected-count');
 
+    // Enterprise AI Matching DOM Elements
+    const aiMatcherContainer = document.querySelector('[data-enterprise-ai-matcher]');
+    const aiJobSelect = document.querySelector('[data-enterprise-ai-job]');
+    const aiRunBtn = document.querySelector('[data-enterprise-ai-run]');
+    const aiStateEl = document.querySelector('[data-enterprise-ai-state]');
+    const aiResultsEl = document.querySelector('[data-enterprise-ai-results]');
+    const aiFreshnessEl = document.querySelector('[data-enterprise-ai-freshness]');
+    const aiProvenanceEl = document.querySelector('[data-enterprise-ai-provenance]');
+
     // 3. Normalization Helper
     function normalizeTalent(raw) {
         const id = String(raw.studentId || raw.id || '');
@@ -177,22 +191,13 @@ function initTalentSearchModule() {
         const skills = rawSkills.map(s => typeof s === 'string' ? s : (s.name || s.skillName || ''));
         const school = raw.schoolName || raw.school || '';
         const classYear = raw.className || raw.class_year || '';
-        let eduLevel = raw.studyStatus || raw.education_level || '';
-        if (/thpt|trung học phổ thông/i.test(school) || /^(10|11|12)/.test(classYear)) {
-            eduLevel = 'THPT';
-        } else if (/thcs|trung học cơ sở/i.test(school) || /^(6|7|8|9)/.test(classYear)) {
-            eduLevel = 'THCS';
-        } else if (/cao đẳng|btec/i.test(school)) {
-            eduLevel = 'Cao đẳng';
-        } else if (/đại học|university/i.test(school)) {
-            eduLevel = 'Đại học';
-        } else if (!eduLevel || eduLevel === 'active') {
-            eduLevel = 'Sinh viên';
-        }
+        const eduLevel = raw.studyStatus || raw.education_level || '';
         const headline = raw.headline || '';
         const majorField = raw.major_field || (headline ? extractMajorFromHeadline(headline) : (isEconomicSector ? 'Kinh tế & Quản trị' : 'Công nghệ thông tin'));
         const expHours = typeof raw.experienceHours === 'number' ? raw.experienceHours : (raw.experience_hours || (skills.length * 15 + 20));
-        const score = raw.talentScore || raw.talent_score || raw.match_score || 85;
+        const score = typeof raw.talentScore === 'number'
+            ? raw.talentScore
+            : (typeof raw.talent_score === 'number' ? raw.talent_score : null);
 
         return {
             id: id,
@@ -207,7 +212,7 @@ function initTalentSearchModule() {
             skills: skills,
             experience_hours: expHours,
             talent_score: score,
-            match_score: score,
+            match_score: null,
             internship_status: raw.internship_status || 'ready_now',
             internship_status_label: raw.internship_status_label || 'Sẵn sàng thực tập',
             saved: Boolean(raw.saved),
@@ -241,8 +246,6 @@ function initTalentSearchModule() {
         const params = new URLSearchParams();
         if (currentSearchQuery) params.append('search', currentSearchQuery);
         if (activeFilters.school) params.append('school', activeFilters.school);
-        if (activeFilters.eduLevel) params.append('education_level', activeFilters.eduLevel);
-        if (activeFilters.majorField) params.append('major_field', activeFilters.majorField);
         if (selectedSkillsSet.size > 0) {
             params.append('skills', Array.from(selectedSkillsSet).join(','));
         }
@@ -273,7 +276,6 @@ function initTalentSearchModule() {
     function candidateHasSkill(talent, reqSkill) {
         const reqLow = reqSkill.toLowerCase().trim();
 
-        // Skill synonyms / aliases map
         const aliases = {
             'nghiên cứu thị trường': ['phân tích thị trường', 'nghiên cứu thị trường', 'market research', 'market analysis'],
             'phân tích thị trường': ['phân tích thị trường', 'nghiên cứu thị trường', 'market research', 'market analysis'],
@@ -371,106 +373,33 @@ function initTalentSearchModule() {
                 if (!isReady) return false;
             }
 
-            // Check selected skills (all must match)
+            // Check selected skills
             if (selectedSkillsSet.size > 0) {
-                const hasAllSelected = Array.from(selectedSkillsSet).every(reqSkill => {
-                    return candidateHasSkill(talent, reqSkill);
-                });
+                const hasAllSelected = Array.from(selectedSkillsSet).every(reqSkill => candidateHasSkill(talent, reqSkill));
                 if (!hasAllSelected) return false;
             }
 
-            if (activeFilters.eduLevel) {
-                const req = activeFilters.eduLevel.toLowerCase();
-                const candLevel = (talent.education_level || '').toLowerCase();
-                const candSchool = (talent.school || '').toLowerCase();
-                const candClass = (talent.class_year || '').toLowerCase();
-                let match = false;
-                if (req === 'thpt') {
-                    match = candLevel.includes('thpt') || candLevel.includes('phổ thông') || candSchool.includes('thpt') || /^(10|11|12)/.test(candClass);
-                } else if (req === 'thcs') {
-                    match = candLevel.includes('thcs') || candLevel.includes('cơ sở') || candSchool.includes('thcs') || /^(6|7|8|9)/.test(candClass);
-                } else if (req === 'cao đẳng') {
-                    match = candLevel.includes('cao đẳng') || candSchool.includes('cao đẳng') || candSchool.includes('btec');
-                } else if (req === 'đại học') {
-                    match = candLevel.includes('đại học') || candSchool.includes('đại học');
-                } else {
-                    match = candLevel.includes(req) || candSchool.includes(req) || candClass.includes(req);
-                }
-                if (!match) return false;
-            }
-
-            if (activeFilters.school && talent.school !== activeFilters.school && !talent.school.includes(activeFilters.school)) {
-                return false;
-            }
+            if (activeFilters.eduLevel && talent.education_level !== activeFilters.eduLevel) return false;
+            if (activeFilters.school && talent.school !== activeFilters.school) return false;
 
             if (activeFilters.majorField) {
-                const req = activeFilters.majorField.toLowerCase();
-                const candMajor = (talent.major_field || '').toLowerCase();
+                const reqMajor = activeFilters.majorField.toLowerCase();
+                const candMajor = talent.major_field.toLowerCase();
                 const candHead = (talent.headline || '').toLowerCase();
-                const candClass = (talent.class_year || '').toLowerCase();
-                const candSkills = talent.skills.map(s => s.toLowerCase());
-
-                let match = false;
-                if (req.includes('ai') || req.includes('dữ liệu') || req.includes('data')) {
-                    match = candHead.includes('ai') || candHead.includes('trí tuệ nhân tạo') || candHead.includes('data') || candClass.includes('ai')
-                        || candSkills.some(s => /python|machine learning|ai|pytorch|computer vision|phân tích dữ liệu|data/i.test(s));
-                } else if (req.includes('marketing') || req.includes('kinh doanh') || req.includes('qtkd')) {
-                    match = candHead.includes('marketing') || candHead.includes('kinh doanh') || candMajor.includes('kinh doanh') || candMajor.includes('marketing')
-                        || candSkills.some(s => /marketing|sáng tạo nội dung|nghiên cứu thị trường|seo|analytics|quản trị/i.test(s));
-                } else if (req.includes('logistics') || req.includes('kho vận') || req.includes('chuỗi cung ứng')) {
-                    match = candHead.includes('logistics') || candHead.includes('kho vận') || candMajor.includes('logistics')
-                        || candSkills.some(s => /logistics|kho vận|cung ứng|đơn hàng/i.test(s));
-                } else if (req.includes('tài chính') || req.includes('kế toán') || req.includes('ngân hàng')) {
-                    match = candHead.includes('tài chính') || candHead.includes('kế toán') || candMajor.includes('tài chính')
-                        || candSkills.some(s => /tài chính|kế toán|powerbi|excel/i.test(s));
-                } else if (req.includes('an toàn') || req.includes('security') || req.includes('bảo mật')) {
-                    match = candHead.includes('an toàn') || candHead.includes('security') || candHead.includes('bảo mật')
-                        || candSkills.some(s => /an toàn|security|bảo mật|an ninh/i.test(s));
-                } else if (req.includes('công nghệ') || req.includes('phần mềm') || req.includes('lập trình') || req.includes('web')) {
-                    match = candHead.includes('công nghệ') || candHead.includes('phần mềm') || candHead.includes('lập trình') || candHead.includes('web') || candHead.includes('ai') || candClass.includes('btec')
-                        || candSkills.some(s => /react|node|python|javascript|typescript|html|css|java|php|docker|git|sql|ai/i.test(s));
-                } else {
-                    match = candMajor.includes(req) || candHead.includes(req) || req.includes(candMajor);
+                if (!candMajor.includes(reqMajor) && !candHead.includes(reqMajor) && !reqMajor.includes(candMajor)) {
+                    return false;
                 }
-
-                if (!match) return false;
             }
 
-            if (activeFilters.matchScore > 0 && talent.match_score < activeFilters.matchScore) {
-                return false;
-            }
-
-            if (activeFilters.expHours > 0 && talent.experience_hours < activeFilters.expHours) {
-                return false;
-            }
+            if (activeFilters.matchScore > 0 && (!Number.isFinite(talent.talent_score) || talent.talent_score < activeFilters.matchScore)) return false;
+            if (activeFilters.expHours > 0 && talent.experience_hours < activeFilters.expHours) return false;
 
             return true;
         });
     }
 
-    // Relevance scoring for smart sorting
     function calculateRelevanceScore(talent) {
-        let boost = 0;
-        const text = ((talent.headline || '') + ' ' + (talent.major_field || '') + ' ' + talent.skills.join(' ')).toLowerCase();
-
-        if (isEconomicSector) {
-            // Economic / FMCG priorities
-            if (/marketing|kinh doanh|qtkd|quản trị|thị trường|phân tích dữ liệu|powerbi|toeic|logistics|tài chính|kế toán/i.test(text)) {
-                boost += 150;
-            }
-            if (/lê hoàng yến nhi/i.test(talent.name)) boost += 200;
-            if (/hoàng thị mai linh/i.test(talent.name)) boost += 180;
-            if (/phạm quốc bảo/i.test(talent.name)) boost += 120;
-        } else {
-            // IT & Tech priorities
-            if (/frontend|backend|react|node|python|ai|an toàn thông tin|lập trình|phần mềm|fullstack/i.test(text)) {
-                boost += 150;
-            }
-            if (/nguyễn văn an/i.test(talent.name)) boost += 180;
-            if (/trần minh đức/i.test(talent.name)) boost += 170;
-            if (/võ đức anh/i.test(talent.name)) boost += 160;
-        }
-        return (talent.talent_score || talent.match_score || 85) + boost;
+        return Number.isFinite(talent.talent_score) ? talent.talent_score : 0;
     }
 
     function sortTalentsList(list) {
@@ -485,13 +414,13 @@ function initTalentSearchModule() {
         return sorted;
     }
 
-    // 6. Render Pipeline
+    // 6. Render Pipeline (Safe DOM construction)
     function updateAndRender() {
         const filtered = getFilteredTalents();
         const sorted = sortTalentsList(filtered);
 
         if (totalBadgeNum) {
-            totalBadgeNum.textContent = sorted.length;
+            totalBadgeNum.textContent = String(sorted.length);
         }
 
         if (sorted.length === 0) {
@@ -514,7 +443,7 @@ function initTalentSearchModule() {
 
     function renderEmptyState(isEmpty) {
         if (isEmpty) {
-            if (cardsContainer) cardsContainer.innerHTML = '';
+            if (cardsContainer) cardsContainer.replaceChildren();
             if (emptyStateEl) emptyStateEl.style.display = 'block';
             if (paginationWrapper) paginationWrapper.style.display = 'none';
         } else {
@@ -530,108 +459,182 @@ function initTalentSearchModule() {
 
     function renderCards(talents) {
         if (!cardsContainer) return;
+        cardsContainer.replaceChildren();
 
-        cardsContainer.innerHTML = talents.map(talent => {
-            const topSkills = talent.skills.slice(0, 4);
-            const isSaved = talent.saved;
-            const score = talent.talent_score || talent.match_score;
-            const detailUrl = resolveCandidateDetailUrl(talent.id);
+        talents.forEach(talent => {
+            const article = document.createElement('article');
+            article.className = 'ent-talent-card-item';
+            article.setAttribute('data-talent-id', talent.id);
 
-            return `
-                <article class="ent-talent-card-item" data-talent-id="${escapeHtml(talent.id)}">
-                    <div class="ent-talent-card-item__header">
-                        <div class="ent-talent-card-item__user">
-                            <div class="ent-talent-card-item__avatar">
-                                ${escapeHtml(talent.avatar_initials)}
-                            </div>
-                            <div class="ent-talent-card-item__title-box">
-                                <div class="ent-talent-card-item__name-row">
-                                    <a href="${detailUrl}" class="ent-talent-card-item__name">
-                                        ${escapeHtml(talent.name)}
-                                    </a>
-                                    <span class="ent-talent-card-item__score" title="Điểm đánh giá năng lực">
-                                        ${score}% phù hợp
-                                    </span>
-                                </div>
-                                <div class="ent-talent-card-item__school">
-                                    <span>${escapeHtml(talent.school || 'Nhà trường')}</span>
-                                    ${talent.major_field ? `<span class="ent-talent-card-item__dot">&bull;</span><span>${escapeHtml(talent.major_field)}</span>` : ''}
-                                    ${talent.class_year ? `<span class="ent-talent-card-item__dot">&bull;</span><span>${escapeHtml(talent.class_year)}</span>` : ''}
-                                </div>
-                            </div>
-                        </div>
+            // Header
+            const header = document.createElement('div');
+            header.className = 'ent-talent-card-item__header';
 
-                        <button type="button" 
-                                class="ent-bookmark-btn ${isSaved ? 'is-saved' : ''}" 
-                                data-action="save" 
-                                data-talent-id="${escapeHtml(talent.id)}" 
-                                title="${isSaved ? 'Đã lưu hồ sơ' : 'Lưu hồ sơ này'}"
-                                aria-label="${isSaved ? 'Đã lưu hồ sơ' : 'Lưu hồ sơ'}">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="${isSaved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
-                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                            </svg>
-                        </button>
-                    </div>
+            const userDiv = document.createElement('div');
+            userDiv.className = 'ent-talent-card-item__user';
 
-                    <div class="ent-talent-card-item__meta-strip">
-                        <div class="ent-meta-item">
-                            <span class="ent-meta-item__label">Kỹ năng xác thực:</span>
-                            <span class="ent-meta-item__value font-semibold text-dark">${talent.skills.length} kỹ năng</span>
-                        </div>
-                        <div class="ent-meta-item__divider"></div>
-                        <div class="ent-meta-item">
-                            <span class="ent-meta-item__label">Trạng thái:</span>
-                            <span class="val-status badge-ready-now">${escapeHtml(talent.internship_status_label)}</span>
-                        </div>
-                        <div class="ent-meta-item__divider"></div>
-                        <div class="ent-meta-item">
-                            <span class="ent-meta-item__label">Bậc học:</span>
-                            <span class="ent-meta-item__value">${escapeHtml(talent.education_level || 'Sinh viên')}</span>
-                        </div>
-                    </div>
+            const avatar = document.createElement('div');
+            avatar.className = 'ent-talent-card-item__avatar';
+            avatar.textContent = talent.avatar_initials;
 
-                    <div class="ent-talent-card-item__skills">
-                        <span class="skills-label">Kỹ năng:</span>
-                        <div class="skills-chips">
-                            ${topSkills.map(skill => `<span class="skill-tag">${escapeHtml(skill)}</span>`).join('')}
-                            ${talent.skills.length > 4 ? `<span class="skill-tag skill-tag--more">+${talent.skills.length - 4}</span>` : ''}
-                        </div>
-                    </div>
+            const titleBox = document.createElement('div');
+            titleBox.className = 'ent-talent-card-item__title-box';
 
-                    <div class="ent-talent-card-item__footer">
-                        <div class="ent-privacy-note" title="Thông tin liên hệ (Email, SĐT) chỉ được hiển thị khi ứng viên đồng ý kết nối">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                            </svg>
-                            <span>${talent.contactAllowed ? 'Đã có quyền liên hệ' : 'Hồ sơ có consent'}</span>
-                        </div>
-                        <div class="ent-talent-card-item__actions">
-                            <a href="${detailUrl}" class="btn btn-secondary btn-sm">
-                                Xem hồ sơ
-                            </a>
-                            <a href="${detailUrl}" class="btn btn-primary btn-sm">
-                                ${talent.hasPendingContactRequest ? 'Đã yêu cầu' : 'Mời ứng tuyển'}
-                            </a>
-                        </div>
-                    </div>
-                </article>
-            `;
-        }).join('');
+            const nameRow = document.createElement('div');
+            nameRow.className = 'ent-talent-card-item__name-row';
 
-        // Attach bookmark events
-        cardsContainer.querySelectorAll('.ent-bookmark-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            const nameLink = document.createElement('a');
+            nameLink.href = resolveCandidateDetailUrl(talent.id);
+            nameLink.className = 'ent-talent-card-item__name';
+            nameLink.textContent = talent.name;
+
+            nameRow.appendChild(nameLink);
+            if (Number.isFinite(talent.talent_score)) {
+                const scoreBadge = document.createElement('span');
+                scoreBadge.className = 'ent-talent-card-item__score';
+                scoreBadge.title = 'Điểm đánh giá năng lực';
+                scoreBadge.textContent = `${Math.round(talent.talent_score)}% năng lực`;
+                nameRow.appendChild(scoreBadge);
+            }
+
+            const schoolDiv = document.createElement('div');
+            schoolDiv.className = 'ent-talent-card-item__school';
+
+            const schoolSpan = document.createElement('span');
+            schoolSpan.textContent = talent.school || 'Nhà trường';
+            schoolDiv.appendChild(schoolSpan);
+
+            if (talent.major_field) {
+                const dot = document.createElement('span');
+                dot.className = 'ent-talent-card-item__dot';
+                dot.textContent = '•';
+                const majorSpan = document.createElement('span');
+                majorSpan.textContent = talent.major_field;
+                schoolDiv.appendChild(dot);
+                schoolDiv.appendChild(majorSpan);
+            }
+
+            titleBox.appendChild(nameRow);
+            titleBox.appendChild(schoolDiv);
+
+            userDiv.appendChild(avatar);
+            userDiv.appendChild(titleBox);
+
+            const bookmarkBtn = document.createElement('button');
+            bookmarkBtn.type = 'button';
+            bookmarkBtn.className = `ent-bookmark-btn ${talent.saved ? 'is-saved' : ''}`;
+            bookmarkBtn.setAttribute('data-action', 'save');
+            bookmarkBtn.setAttribute('data-talent-id', talent.id);
+            bookmarkBtn.title = talent.saved ? 'Đã lưu hồ sơ' : 'Lưu hồ sơ này';
+            bookmarkBtn.setAttribute('aria-label', talent.saved ? 'Đã lưu hồ sơ' : 'Lưu hồ sơ');
+            bookmarkBtn.textContent = talent.saved ? '★' : '☆';
+
+            bookmarkBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const tid = btn.getAttribute('data-talent-id');
-                const t = allTalents.find(item => item.id === tid);
-                if (t) {
-                    t.saved = !t.saved;
-                    btn.classList.toggle('is-saved', t.saved);
-                    showToast(t.saved ? `Đã lưu hồ sơ của ${t.name}` : `Đã bỏ lưu hồ sơ của ${t.name}`);
-                }
+                talent.saved = !talent.saved;
+                bookmarkBtn.classList.toggle('is-saved', talent.saved);
+                bookmarkBtn.textContent = talent.saved ? '★' : '☆';
+                showToast(talent.saved ? `Đã lưu hồ sơ của ${talent.name}` : `Đã bỏ lưu hồ sơ của ${talent.name}`);
             });
+
+            header.appendChild(userDiv);
+            header.appendChild(bookmarkBtn);
+
+            // Meta strip
+            const metaStrip = document.createElement('div');
+            metaStrip.className = 'ent-talent-card-item__meta-strip';
+
+            const metaItem1 = document.createElement('div');
+            metaItem1.className = 'ent-meta-item';
+            const mLabel1 = document.createElement('span');
+            mLabel1.className = 'ent-meta-item__label';
+            mLabel1.textContent = 'Kỹ năng xác thực:';
+            const mVal1 = document.createElement('span');
+            mVal1.className = 'ent-meta-item__value font-semibold text-dark';
+            mVal1.textContent = ` ${talent.skills.length} kỹ năng`;
+            metaItem1.appendChild(mLabel1);
+            metaItem1.appendChild(mVal1);
+
+            const div1 = document.createElement('div');
+            div1.className = 'ent-meta-item__divider';
+
+            const metaItem2 = document.createElement('div');
+            metaItem2.className = 'ent-meta-item';
+            const mLabel2 = document.createElement('span');
+            mLabel2.className = 'ent-meta-item__label';
+            mLabel2.textContent = 'Trạng thái:';
+            const mVal2 = document.createElement('span');
+            mVal2.className = 'val-status badge-ready-now';
+            mVal2.textContent = ` ${talent.internship_status_label}`;
+            metaItem2.appendChild(mLabel2);
+            metaItem2.appendChild(mVal2);
+
+            metaStrip.appendChild(metaItem1);
+            metaStrip.appendChild(div1);
+            metaStrip.appendChild(metaItem2);
+
+            // Skills
+            const skillsDiv = document.createElement('div');
+            skillsDiv.className = 'ent-talent-card-item__skills';
+            const sLabel = document.createElement('span');
+            sLabel.className = 'skills-label';
+            sLabel.textContent = 'Kỹ năng:';
+            const chipsDiv = document.createElement('div');
+            chipsDiv.className = 'skills-chips';
+
+            talent.skills.slice(0, 4).forEach(sk => {
+                const chip = document.createElement('span');
+                chip.className = 'skill-tag';
+                chip.textContent = sk;
+                chipsDiv.appendChild(chip);
+            });
+            if (talent.skills.length > 4) {
+                const moreChip = document.createElement('span');
+                moreChip.className = 'skill-tag skill-tag--more';
+                moreChip.textContent = `+${talent.skills.length - 4}`;
+                chipsDiv.appendChild(moreChip);
+            }
+
+            skillsDiv.appendChild(sLabel);
+            skillsDiv.appendChild(chipsDiv);
+
+            // Footer
+            const footer = document.createElement('div');
+            footer.className = 'ent-talent-card-item__footer';
+
+            const privNote = document.createElement('div');
+            privNote.className = 'ent-privacy-note';
+            privNote.title = 'Thông tin liên hệ chỉ hiển thị khi ứng viên đồng ý kết nối';
+            const privSpan = document.createElement('span');
+            privSpan.textContent = talent.contactAllowed ? 'Đã có quyền liên hệ' : 'Hồ sơ có consent';
+            privNote.appendChild(privSpan);
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'ent-talent-card-item__actions';
+
+            const detailLink = document.createElement('a');
+            detailLink.href = resolveCandidateDetailUrl(talent.id);
+            detailLink.className = 'btn btn-secondary btn-sm';
+            detailLink.textContent = 'Xem hồ sơ';
+
+            const contactLink = document.createElement('a');
+            contactLink.href = resolveCandidateDetailUrl(talent.id);
+            contactLink.className = 'btn btn-primary btn-sm';
+            contactLink.textContent = talent.hasPendingContactRequest ? 'Đã yêu cầu' : 'Mời ứng tuyển';
+
+            actionsDiv.appendChild(detailLink);
+            actionsDiv.appendChild(contactLink);
+
+            footer.appendChild(privNote);
+            footer.appendChild(actionsDiv);
+
+            article.appendChild(header);
+            article.appendChild(metaStrip);
+            article.appendChild(skillsDiv);
+            article.appendChild(footer);
+
+            cardsContainer.appendChild(article);
         });
     }
 
@@ -645,65 +648,57 @@ function initTalentSearchModule() {
 
         paginationWrapper.style.display = 'flex';
         paginationInfo.textContent = `Trang ${currentPage} / ${totalPages} (${totalItems} nhân tài)`;
+        paginationBtns.replaceChildren();
 
-        let btnsHtml = `
-            <button type="button" class="btn btn-secondary btn-sm" id="page-prev-btn" ${currentPage === 1 ? 'disabled' : ''}>
-                &larr; Trang trước
-            </button>
-        `;
+        const prevBtn = document.createElement('button');
+        prevBtn.type = 'button';
+        prevBtn.className = 'btn btn-secondary btn-sm';
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.textContent = '← Trang trước';
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                updateAndRender();
+                scrollToTopCards();
+            }
+        });
+        paginationBtns.appendChild(prevBtn);
 
         for (let p = 1; p <= totalPages; p++) {
             if (p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1) {
-                btnsHtml += `
-                    <button type="button" class="btn ${p === currentPage ? 'btn-primary' : 'btn-secondary'} btn-sm page-num-btn" data-page="${p}">
-                        ${p}
-                    </button>
-                `;
+                const pBtn = document.createElement('button');
+                pBtn.type = 'button';
+                pBtn.className = `btn ${p === currentPage ? 'btn-primary' : 'btn-secondary'} btn-sm page-num-btn`;
+                pBtn.textContent = String(p);
+                pBtn.addEventListener('click', () => {
+                    if (p !== currentPage) {
+                        currentPage = p;
+                        updateAndRender();
+                        scrollToTopCards();
+                    }
+                });
+                paginationBtns.appendChild(pBtn);
             } else if (p === currentPage - 2 || p === currentPage + 2) {
-                btnsHtml += `<span class="ent-page-ellipsis">...</span>`;
+                const ell = document.createElement('span');
+                ell.className = 'ent-page-ellipsis';
+                ell.textContent = '...';
+                paginationBtns.appendChild(ell);
             }
         }
 
-        btnsHtml += `
-            <button type="button" class="btn btn-secondary btn-sm" id="page-next-btn" ${currentPage === totalPages ? 'disabled' : ''}>
-                Trang sau &rarr;
-            </button>
-        `;
-
-        paginationBtns.innerHTML = btnsHtml;
-
-        paginationBtns.querySelectorAll('.page-num-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetPage = parseInt(btn.getAttribute('data-page'), 10);
-                if (targetPage && targetPage !== currentPage) {
-                    currentPage = targetPage;
-                    updateAndRender();
-                    scrollToTopCards();
-                }
-            });
+        const nextBtn = document.createElement('button');
+        nextBtn.type = 'button';
+        nextBtn.className = 'btn btn-secondary btn-sm';
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.textContent = 'Trang sau →';
+        nextBtn.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                updateAndRender();
+                scrollToTopCards();
+            }
         });
-
-        const prevBtn = document.getElementById('page-prev-btn');
-        if (prevBtn) {
-            prevBtn.addEventListener('click', () => {
-                if (currentPage > 1) {
-                    currentPage--;
-                    updateAndRender();
-                    scrollToTopCards();
-                }
-            });
-        }
-
-        const nextBtn = document.getElementById('page-next-btn');
-        if (nextBtn) {
-            nextBtn.addEventListener('click', () => {
-                if (currentPage < totalPages) {
-                    currentPage++;
-                    updateAndRender();
-                    scrollToTopCards();
-                }
-            });
-        }
+        paginationBtns.appendChild(nextBtn);
     }
 
     function scrollToTopCards() {
@@ -815,99 +810,86 @@ function initTalentSearchModule() {
         fetchFromApi();
     }
 
-    if (applyFiltersBtn) {
-        applyFiltersBtn.addEventListener('click', () => {
-            currentPage = 1;
-            fetchFromApi();
-        });
-    }
+    if (applyFiltersBtn) applyFiltersBtn.addEventListener('click', () => { currentPage = 1; fetchFromApi(); });
     if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', resetAllFilters);
     if (resetHeaderBtn) resetHeaderBtn.addEventListener('click', resetAllFilters);
     if (emptyResetBtn) emptyResetBtn.addEventListener('click', resetAllFilters);
 
-    // 8. Skills Modal & Chips Handlers
+    // Selected skills rendering
     function renderSelectedSkillsTags() {
         const count = selectedSkillsSet.size;
+        if (selectedSkillsWrapper) selectedSkillsWrapper.style.display = count > 0 ? 'block' : 'none';
+        if (selectedSkillsCountEl) selectedSkillsCountEl.textContent = String(count);
 
-        if (selectedSkillsCountEl) selectedSkillsCountEl.textContent = count;
-        if (modalSelectedCountEl) modalSelectedCountEl.textContent = count;
-
-        if (selectedSkillsWrapper) {
-            selectedSkillsWrapper.style.display = count > 0 ? 'block' : 'none';
-        }
-
-        const tagsHtml = Array.from(selectedSkillsSet).map(sk => `
-            <span class="ent-selected-skill-tag" data-skill="${escapeHtml(sk)}">
-                <span>${escapeHtml(sk)}</span>
-                <button type="button" class="ent-remove-skill-tag" aria-label="Xóa kỹ năng ${escapeHtml(sk)}">&times;</button>
-            </span>
-        `).join('');
-
-        if (selectedSkillsTagsContainer) selectedSkillsTagsContainer.innerHTML = tagsHtml;
-        if (selectedSkillsChipsContainer) selectedSkillsChipsContainer.innerHTML = tagsHtml;
-
-        // Sync sidebar checkboxes
-        skillCheckboxes.forEach(cb => {
-            const sk = cb.value || cb.getAttribute('data-skill-name');
-            cb.checked = selectedSkillsSet.has(sk);
-        });
-
-        // Attach remove tag event
-        document.querySelectorAll('.ent-remove-skill-tag, .ent-remove-skill-chip').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const tagEl = e.target.closest('[data-skill]');
-                if (!tagEl) return;
-                const sk = tagEl.getAttribute('data-skill');
-                selectedSkillsSet.delete(sk);
-                renderSelectedSkillsTags();
-                currentPage = 1;
-                updateAndRender();
+        if (selectedSkillsTagsContainer) {
+            selectedSkillsTagsContainer.replaceChildren();
+            selectedSkillsSet.forEach(sk => {
+                const tag = document.createElement('span');
+                tag.className = 'ent-selected-skill-tag';
+                tag.textContent = sk + ' ';
+                const rm = document.createElement('button');
+                rm.type = 'button';
+                rm.className = 'ent-remove-skill-tag';
+                rm.textContent = '×';
+                rm.addEventListener('click', () => {
+                    selectedSkillsSet.delete(sk);
+                    renderSelectedSkillsTags();
+                    currentPage = 1;
+                    updateAndRender();
+                });
+                tag.appendChild(rm);
+                selectedSkillsTagsContainer.appendChild(tag);
             });
-        });
+        }
     }
 
     function renderModalSkills(searchFilter = '') {
         if (!skillsCategoriesContainer) return;
         const low = searchFilter.toLowerCase().trim();
+        skillsCategoriesContainer.replaceChildren();
 
-        skillsCategoriesContainer.innerHTML = SKILL_CATEGORIES.map(cat => {
+        SKILL_CATEGORIES.forEach(cat => {
             const filteredSkills = cat.skills.filter(s => !low || s.toLowerCase().includes(low));
-            if (!filteredSkills.length) return '';
+            if (!filteredSkills.length) return;
 
-            return `
-                <div class="ent-skill-category-block">
-                    <div class="ent-skill-category-title">${escapeHtml(cat.name)}</div>
-                    <div class="ent-skill-category-chips">
-                        ${filteredSkills.map(sk => {
-                            const isSel = selectedSkillsSet.has(sk);
-                            return `
-                                <button type="button" 
-                                        class="ent-modal-skill-item ${isSel ? 'is-selected' : ''}" 
-                                        data-skill="${escapeHtml(sk)}">
-                                    ${escapeHtml(sk)}
-                                </button>
-                            `;
-                        }).join('')}
-                    </div>
-                </div>
-            `;
-        }).join('');
+            const block = document.createElement('div');
+            block.className = 'ent-skill-category-block';
 
-        skillsCategoriesContainer.querySelectorAll('.ent-modal-skill-item').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const sk = btn.getAttribute('data-skill');
-                if (selectedSkillsSet.has(sk)) {
-                    selectedSkillsSet.delete(sk);
-                    btn.classList.remove('is-selected');
-                } else {
-                    selectedSkillsSet.add(sk);
-                    btn.classList.add('is-selected');
-                }
-                if (modalSelectedCountEl) modalSelectedCountEl.textContent = selectedSkillsSet.size;
+            const title = document.createElement('div');
+            title.className = 'ent-skill-category-title';
+            title.textContent = cat.name;
+            block.appendChild(title);
+
+            const chipsDiv = document.createElement('div');
+            chipsDiv.className = 'ent-skill-category-chips';
+
+            filteredSkills.forEach(sk => {
+                const isSel = selectedSkillsSet.has(sk);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `ent-modal-skill-item ${isSel ? 'is-selected' : ''}`;
+                btn.setAttribute('data-skill', sk);
+                btn.textContent = sk;
+
+                btn.addEventListener('click', () => {
+                    if (selectedSkillsSet.has(sk)) {
+                        selectedSkillsSet.delete(sk);
+                        btn.classList.remove('is-selected');
+                    } else {
+                        selectedSkillsSet.add(sk);
+                        btn.classList.add('is-selected');
+                    }
+                    if (modalSelectedCountEl) modalSelectedCountEl.textContent = String(selectedSkillsSet.size);
+                });
+
+                chipsDiv.appendChild(btn);
             });
+
+            block.appendChild(chipsDiv);
+            skillsCategoriesContainer.appendChild(block);
         });
 
-        if (modalSelectedCountEl) modalSelectedCountEl.textContent = selectedSkillsSet.size;
+        if (modalSelectedCountEl) modalSelectedCountEl.textContent = String(selectedSkillsSet.size);
     }
 
     if (openSkillsModalBtn) {
@@ -946,14 +928,219 @@ function initTalentSearchModule() {
         });
     }
 
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
+    // 8. Enterprise AI Matcher Execution
+    if (aiRunBtn && aiJobSelect) {
+        aiRunBtn.addEventListener('click', async () => {
+            const jobId = aiJobSelect.value.trim();
+            if (!jobId) {
+                showToast('Vui lòng chọn một vị trí thực tập đang tuyển dụng để tìm nhân tài phù hợp.');
+                return;
+            }
+
+            if (aiStateEl) {
+                aiStateEl.textContent = 'loading...';
+                aiStateEl.className = 'badge badge-warning';
+            }
+            aiRunBtn.disabled = true;
+
+            if (!window.crypto || (typeof window.crypto.randomUUID !== 'function' && typeof window.crypto.getRandomValues !== 'function')) {
+                showToast('Trình duyệt không hỗ trợ yêu cầu bảo mật để chạy AI.');
+                aiRunBtn.disabled = false;
+                return;
+            }
+            const idempotencyKey = typeof window.crypto.randomUUID === 'function'
+                ? window.crypto.randomUUID()
+                : `ent-match-${Date.now()}-${Array.from(window.crypto.getRandomValues(new Uint32Array(2))).join('')}`;
+            const payload = {
+                jobId: jobId,
+            };
+            if (selectedSkillsSet.size > 0) {
+                payload.requiredSkills = Array.from(selectedSkillsSet);
+            }
+
+            try {
+                const response = await fetch(`${sessionBoot.apiBase}/ai-matches`, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': sessionBoot.csrfToken,
+                        'X-Idempotency-Key': idempotencyKey,
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const result = await response.json();
+                if (!response.ok) {
+                    const msg = result.error?.message || 'Không thể thực hiện khớp nối AI.';
+                    showToast(msg);
+                    if (aiStateEl) {
+                        aiStateEl.textContent = 'error';
+                        aiStateEl.className = 'badge badge-danger';
+                    }
+                    return;
+                }
+
+                const matchData = result.data || result;
+                const status = matchData.state || 'provider_unavailable';
+
+                if (aiProvenanceEl && matchData.model_version) {
+                    aiProvenanceEl.textContent = matchData.model_version + (status === 'stale_model' ? ' (cached LKG)' : '');
+                }
+                if (aiFreshnessEl && (matchData.generated_at || matchData.updated_at)) {
+                    aiFreshnessEl.textContent = matchData.generated_at || matchData.updated_at;
+                }
+
+                if (aiStateEl) {
+                    aiStateEl.textContent = status;
+                    aiStateEl.className = status === 'ready_model' ? 'badge badge-success' : (status === 'stale_model' ? 'badge badge-warning' : 'badge badge-secondary');
+                }
+
+                renderAiMatchResults(status, matchData.items || [], matchData);
+            } catch (err) {
+                showToast('Lỗi mạng khi kết nối dịch vụ AI.');
+                if (aiStateEl) {
+                    aiStateEl.textContent = 'provider_unavailable';
+                    aiStateEl.className = 'badge badge-danger';
+                }
+                renderAiMatchResults('provider_unavailable', [], {});
+            } finally {
+                aiRunBtn.disabled = false;
+            }
+        });
+    }
+
+    function renderAiMatchResults(status, items, matchData) {
+        if (!aiResultsEl) return;
+        aiResultsEl.replaceChildren();
+        aiResultsEl.style.display = 'block';
+
+        if (status === 'provider_unavailable') {
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-danger';
+            alert.textContent = 'Dịch vụ AI hiện tại tạm thời không khả dụng. Không có dữ liệu phân tích đã lưu trước đó.';
+            aiResultsEl.appendChild(alert);
+            return;
+        }
+
+        if (status !== 'ready_model' && status !== 'stale_model') {
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-info';
+            alert.textContent = 'Kết quả AI chưa sẵn sàng để hiển thị.';
+            aiResultsEl.appendChild(alert);
+            return;
+        }
+
+        if (status === 'no_candidates' || items.length === 0) {
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-info';
+            alert.textContent = 'Không có ứng viên phù hợp nào với các tiêu chí kỹ năng của vị trí này.';
+            aiResultsEl.appendChild(alert);
+            return;
+        }
+
+        if (status === 'stale_model') {
+            const staleBanner = document.createElement('div');
+            staleBanner.className = 'alert alert-warning mb-3';
+            staleBanner.textContent = 'Dịch vụ AI đang gián đoạn tạm thời. Dưới đây là kết quả phân tích AI đã lưu trước đó (LKG cache).';
+            aiResultsEl.appendChild(staleBanner);
+        }
+
+        const heading = document.createElement('h4');
+        heading.className = 'h6 font-weight-bold text-dark mb-3';
+        heading.textContent = `Kết quả xếp hạng phù hợp (${items.length} ứng viên):`;
+        aiResultsEl.appendChild(heading);
+
+        const listContainer = document.createElement('div');
+        listContainer.className = 'd-flex flex-column gap-3';
+
+        items.forEach((item, idx) => {
+            const card = document.createElement('div');
+            card.className = 'card p-3 shadow-sm border-0';
+            card.style.borderRadius = '10px';
+            card.style.background = '#ffffff';
+
+            const headerRow = document.createElement('div');
+            headerRow.className = 'd-flex justify-content-between align-items-center mb-2';
+
+            const nameBox = document.createElement('div');
+            nameBox.className = 'd-flex align-items-center gap-2';
+
+            const rankBadge = document.createElement('span');
+            rankBadge.className = 'badge bg-light text-dark border';
+            rankBadge.textContent = `#${idx + 1}`;
+
+            const nameEl = document.createElement('strong');
+            nameEl.className = 'text-primary';
+            nameEl.textContent = item.candidate_name || item.candidate_ref || `Ứng viên ${idx + 1}`;
+
+            nameBox.appendChild(rankBadge);
+            nameBox.appendChild(nameEl);
+
+            const scoreEl = document.createElement('div');
+            scoreEl.className = 'badge bg-success text-white px-2 py-1';
+            scoreEl.style.fontSize = '0.9rem';
+            scoreEl.textContent = typeof item.match_score === 'number'
+                ? `${Math.round(item.match_score)}% Phù hợp`
+                : 'Điểm AI không hợp lệ';
+
+            headerRow.appendChild(nameBox);
+            headerRow.appendChild(scoreEl);
+            card.appendChild(headerRow);
+
+            // Matched skills & Skill gaps
+            const skillsRow = document.createElement('div');
+            skillsRow.className = 'd-flex flex-wrap gap-1 mb-2';
+
+            (item.matched_skills || []).forEach(sk => {
+                const tag = document.createElement('span');
+                tag.className = 'badge bg-primary-subtle text-primary border border-primary px-2 py-1';
+                tag.textContent = `✓ ${sk}`;
+                skillsRow.appendChild(tag);
+            });
+
+            (item.skill_gaps || []).forEach(gap => {
+                const tag = document.createElement('span');
+                tag.className = 'badge bg-warning-subtle text-warning border border-warning px-2 py-1';
+                tag.textContent = `! Thiếu: ${gap}`;
+                skillsRow.appendChild(tag);
+            });
+
+            card.appendChild(skillsRow);
+
+            // Reason codes & Evidence
+            if (Array.isArray(item.reason_codes) && item.reason_codes.length > 0) {
+                const reasonsBox = document.createElement('div');
+                reasonsBox.className = 'small text-muted mb-2';
+                const reasonLabels = {
+                    'verified_skill_match': 'Khớp kỹ năng xác thực',
+                    'partial_skill_match': 'Khớp một phần kỹ năng',
+                    'skill_gap': 'Còn thiếu một số kỹ năng',
+                    'strong_verified_level': 'Trình độ kỹ năng vượt trội',
+                };
+                const translatedReasons = item.reason_codes.map(r => reasonLabels[r] || r);
+                reasonsBox.textContent = 'Lý do: ' + translatedReasons.join(', ');
+                card.appendChild(reasonsBox);
+            }
+
+            // Evidence
+            if (Array.isArray(item.evidence) && item.evidence.length > 0) {
+                const evidenceList = document.createElement('ul');
+                evidenceList.className = 'small text-secondary mb-0 ps-3';
+                item.evidence.forEach(ev => {
+                    const li = document.createElement('li');
+                    const safeValue = ev.safe_value || ev;
+                    li.textContent = `${safeValue.skill || 'Kỹ năng'}: Trình độ ${safeValue.level_score || 0}/100 (Đã xác thực)`;
+                    evidenceList.appendChild(li);
+                });
+                card.appendChild(evidenceList);
+            }
+
+            listContainer.appendChild(card);
+        });
+
+        aiResultsEl.appendChild(listContainer);
     }
 
     function showToast(msg) {

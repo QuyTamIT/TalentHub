@@ -18,6 +18,19 @@ final class RoadmapAnalysis
     private readonly array $recommendedActivitySourceIds;
     /** @var array<string,string|null> */
     private readonly array $engineMetadata;
+    /** @var list<array<string,mixed>> */
+    private readonly array $talentMap;
+    /** @var list<array<string,mixed>> */
+    private readonly array $strengths;
+    /** @var list<array<string,mixed>> */
+    private readonly array $improvements;
+    /** @var list<array<string,mixed>> */
+    private readonly array $potentialPaths;
+    /** @var list<array<string,mixed>> */
+    private readonly array $trendSignals;
+    /** @var list<array<string,mixed>> */
+    private readonly array $growthHypotheses;
+    private readonly float $confidence;
 
     /**
      * @param list<RoadmapDirection> $alternativeDirections
@@ -36,6 +49,13 @@ final class RoadmapAnalysis
         private readonly string $confidenceBand,
         array $recommendedActivitySourceIds,
         array $engineMetadata,
+        array $talentMap = [],
+        array $strengths = [],
+        array $improvements = [],
+        array $potentialPaths = [],
+        array $trendSignals = [],
+        array $growthHypotheses = [],
+        float $confidence = 0.0,
     ) {
         if (!in_array($origin, ['model', 'rule_fallback'], true)) {
             throw new \InvalidArgumentException('Roadmap analysis origin is invalid.');
@@ -83,6 +103,27 @@ final class RoadmapAnalysis
         $this->insights = array_values($insights);
         $this->phases = array_values($phases);
         $this->recommendedActivitySourceIds = array_values($recommendedActivitySourceIds);
+        if ($confidence < 0.0 || $confidence > 1.0) {
+            throw new \InvalidArgumentException('Roadmap confidence is invalid.');
+        }
+        foreach ([$talentMap, $strengths, $improvements, $potentialPaths, $trendSignals, $growthHypotheses] as $records) {
+            foreach ($records as $record) {
+                if (!is_array($record)) {
+                    throw new \InvalidArgumentException('Roadmap extended output records are invalid.');
+                }
+            }
+        }
+        $this->talentMap = array_values($talentMap);
+        $this->strengths = array_values($strengths);
+        $this->improvements = array_values($improvements);
+        $this->potentialPaths = array_values($potentialPaths);
+        $this->trendSignals = array_values($trendSignals);
+        $this->growthHypotheses = array_values($growthHypotheses);
+        $this->confidence = $confidence > 0.0 ? $confidence : match ($confidenceBand) {
+            'high' => 0.9,
+            'medium' => 0.6,
+            default => 0.3,
+        };
         $this->engineMetadata = [
             'provider' => $provider === '' ? null : $provider,
             'model_version' => $model === '' ? null : $model,
@@ -106,6 +147,13 @@ final class RoadmapAnalysis
     public function fallbackReason(): ?string { return $this->engineMetadata['fallback_reason']; }
     public function providerRequestId(): ?string { return $this->engineMetadata['provider_request_id']; }
     public function responseHash(): ?string { return $this->engineMetadata['response_hash']; }
+    /** @return list<array<string,mixed>> */ public function talentMap(): array { return $this->talentMap; }
+    /** @return list<array<string,mixed>> */ public function strengths(): array { return $this->strengths; }
+    /** @return list<array<string,mixed>> */ public function improvements(): array { return $this->improvements; }
+    /** @return list<array<string,mixed>> */ public function potentialPaths(): array { return $this->potentialPaths; }
+    /** @return list<array<string,mixed>> */ public function trendSignals(): array { return $this->trendSignals; }
+    /** @return list<array<string,mixed>> */ public function growthHypotheses(): array { return $this->growthHypotheses; }
+    public function confidence(): float { return $this->confidence; }
 
     public function withFallbackReason(string $reason): self
     {
@@ -124,6 +172,13 @@ final class RoadmapAnalysis
             $this->confidenceBand,
             $this->recommendedActivitySourceIds,
             $metadata,
+            $this->talentMap,
+            $this->strengths,
+            $this->improvements,
+            $this->potentialPaths,
+            $this->trendSignals,
+            $this->growthHypotheses,
+            $this->confidence,
         );
     }
 
@@ -140,6 +195,13 @@ final class RoadmapAnalysis
                 foreach ($task->evidenceReferenceIds() as $reference) $references[$reference] = true;
             }
         }
+        foreach ([$this->talentMap, $this->strengths, $this->improvements, $this->potentialPaths, $this->trendSignals, $this->growthHypotheses] as $records) {
+            foreach ($records as $record) {
+                foreach (($record['evidence_ref_ids'] ?? []) as $reference) {
+                    if (is_string($reference)) $references[$reference] = true;
+                }
+            }
+        }
         $result = array_keys($references);
         sort($result, SORT_STRING);
         return $result;
@@ -153,6 +215,14 @@ final class RoadmapAnalysis
             'analysis_origin' => $this->origin,
             'executive_summary' => $this->executiveSummary,
             'confidence_band' => $this->confidenceBand,
+            'confidence' => $this->confidence,
+            'talent_map' => $this->talentMap,
+            'strengths' => $this->strengths,
+            'improvements' => $this->improvements,
+            'potential_paths' => $this->potentialPaths,
+            'trend_signals' => $this->trendSignals,
+            'growth_hypotheses' => $this->growthHypotheses,
+            'evidence' => $this->evidenceReferenceIds(),
             'primary_direction' => $this->primaryDirection->toArray(),
             'alternative_directions' => array_map(static fn (RoadmapDirection $direction): array => $direction->toArray(), $this->alternativeDirections),
             'insights' => array_map(static fn (RoadmapInsight $insight): array => $insight->toArray(), $this->insights),

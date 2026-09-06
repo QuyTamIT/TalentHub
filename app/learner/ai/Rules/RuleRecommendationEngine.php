@@ -49,6 +49,10 @@ final class RuleRecommendationEngine implements RecommendationEngine
                         (string) ($built['confidence_band'] ?? ''),
                         is_array($built['action'] ?? null) ? $built['action'] : [],
                         $evidence,
+                        null,
+                        $this->catalogId($evidence),
+                        $this->catalogId($evidence) === null ? null : 'Eligible catalog opportunity matches the supported career group.',
+                        $this->catalogId($evidence) === null ? [] : ['eligible_catalog', 'career_match'],
                     ),
                     'priority' => $definition->priority(),
                     'source_id' => (string) ($built['sort_source_id'] ?? $built['source_id'] ?? ''),
@@ -76,6 +80,15 @@ final class RuleRecommendationEngine implements RecommendationEngine
             null,
             array_map(static fn (array $candidate): RecommendationItem => $candidate['item'], $candidates),
         );
+    }
+
+    /** @param list<\TalentHub\Learner\Ai\Domain\RecommendationEvidence> $evidence */
+    private function catalogId(array $evidence): ?string
+    {
+        foreach ($evidence as $reference) {
+            if (in_array($reference->sourceType(), ['opportunity', 'catalog'], true)) return $reference->sourceId();
+        }
+        return null;
     }
 
     /** @param array<string,bool> $allowedScopes */
@@ -130,7 +143,7 @@ final class RuleRecommendationEngine implements RecommendationEngine
                 'assessment' => $facts['assessments'][] = $fact,
                 'activity_experience' => $facts['activities'][] = $fact,
                 'evaluation' => $facts['evaluations'][] = $fact,
-                'opportunity' => $facts['opportunities'][] = $fact,
+                'opportunity', 'catalog' => $facts['opportunities'][] = $fact,
                 default => null,
             };
         }
@@ -177,7 +190,7 @@ final class RuleRecommendationEngine implements RecommendationEngine
         $sourceType = $reference['source_type'];
         $sourceId = trim($reference['source_id']);
         $safeValue = $reference['safe_value'];
-        if ($sourceId === '' || !in_array($sourceType, ['skill', 'assessment', 'activity_experience', 'evaluation', 'opportunity'], true)) {
+        if ($sourceId === '' || !in_array($sourceType, ['skill', 'assessment', 'activity_experience', 'evaluation', 'opportunity', 'catalog'], true)) {
             return null;
         }
         $fact = [
@@ -200,7 +213,7 @@ final class RuleRecommendationEngine implements RecommendationEngine
             'evaluation' => $fact + [
                 'presentation_score' => is_numeric($safeValue['presentation_score'] ?? null) ? (float) $safeValue['presentation_score'] : null,
             ],
-            'opportunity' => $fact + [
+            'opportunity', 'catalog' => $fact + [
                 'title' => trim((string) ($safeValue['title'] ?? '')),
                 'category' => strtolower(trim((string) ($safeValue['category'] ?? ''))),
                 'career_group' => self::categoryToCareerGroup((string) ($safeValue['category'] ?? '')),

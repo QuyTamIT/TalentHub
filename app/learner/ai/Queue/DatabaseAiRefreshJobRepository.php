@@ -1,0 +1,49 @@
+<?php
+declare(strict_types=1);
+namespace TalentHub\Learner\Ai\Queue;
+
+use PDO;
+use PDOException;
+
+final class DatabaseAiRefreshJobRepository implements ScopedAiRefreshJobRepository
+{
+    public function __construct(private readonly PDO $pdo) {}
+    public function enqueue(string $studentId,string $snapshotHash,string $capability):AiRefreshJob
+    {
+        $key=AiRefreshJob::key($studentId,$snapshotHash,$capability); $now=gmdate('Y-m-d H:i:s');
+        try { $s=$this->pdo->prepare('INSERT INTO learner_ai_refresh_jobs (job_key,student_id,capability,snapshot_hash,status,attempts,created_at,updated_at) VALUES (:key,:student,:capability,:hash,\'pending\',0,:created,:updated)'); $s->execute(['key'=>$key,'student'=>$studentId,'capability'=>$capability,'hash'=>$snapshotHash,'created'=>$now,'updated'=>$now]); } catch(PDOException $e) { $message = strtolower($e->getMessage()); if (!str_contains($message, 'unique') && !str_contains($message, 'duplicate')) throw $e; }
+        $job=$this->find($key);
+        if(!$job instanceof AiRefreshJob)throw new \RuntimeException('refresh_job_persistence_failed');
+        return $job;
+    }
+    public function claimNext(string $workerId,int $leaseSeconds=60):?AiRefreshJob
+    {
+        return $this->claimNextInternal($workerId, null, $leaseSeconds);
+    }
+    public function claimNextForStudent(string $workerId,string $studentId,int $leaseSeconds=60):?AiRefreshJob
+    {
+        $studentId=trim($studentId);if($studentId==='')throw new \InvalidArgumentException('student_id_required');
+        return $this->claimNextInternal($workerId, $studentId, $leaseSeconds);
+    }
+    private function claimNextInternal(string $workerId,?string $studentId,int $leaseSeconds):?AiRefreshJob
+    {
+        $now=gmdate('Y-m-d H:i:s'); $lease=gmdate('Y-m-d H:i:s',time()+max(1,$leaseSeconds)); $this->pdo->beginTransaction();
+        try {
+            $eligible="((status='pending' AND (next_retry_at IS NULL OR next_retry_at<=:now)) OR (status='processing' AND lease_until<:now2))";
+            $scope=$studentId===null?'':' AND student_id=:student';
+            $q=$this->pdo->prepare("SELECT job_key FROM learner_ai_refresh_jobs WHERE {$eligible}{$scope} ORDER BY CASE capability WHEN 'roadmap' THEN 1 WHEN 'recommendation' THEN 2 WHEN 'profile_analysis' THEN 3 ELSE 4 END, created_at ASC, job_key ASC LIMIT 1");
+            $parameters=['now'=>$now,'now2'=>$now];if($studentId!==null)$parameters['student']=$studentId;$q->execute($parameters);$key=$q->fetchColumn();
+            if(!is_string($key)){ $this->pdo->commit(); return null; }
+            $token=hash('sha256',$workerId.random_bytes(16));$u=$this->pdo->prepare("UPDATE learner_ai_refresh_jobs SET status='processing',attempts=attempts+1,lease_until=:lease,lease_owner=:owner,lease_token=:token,updated_at=:now WHERE job_key=:key AND ((status='pending' AND (next_retry_at IS NULL OR next_retry_at<=:now2)) OR (status='processing' AND lease_until<:now3))");$u->execute(['lease'=>$lease,'owner'=>substr($workerId,0,128),'token'=>$token,'now'=>$now,'key'=>$key,'now2'=>$now,'now3'=>$now]);if($u->rowCount()!==1){$this->pdo->commit();return null;}$this->pdo->commit();return $this->find($key);
+        } catch(\Throwable $e){if($this->pdo->inTransaction())$this->pdo->rollBack();throw $e;}
+    }
+    public function renewLease(string $jobKey,string $leaseToken,int $leaseSeconds=60):bool{$s=$this->pdo->prepare("UPDATE learner_ai_refresh_jobs SET lease_until=:lease,updated_at=:now WHERE job_key=:key AND status='processing' AND lease_token=:token AND lease_until>=:now2");$now=gmdate('Y-m-d H:i:s');$s->execute(['lease'=>gmdate('Y-m-d H:i:s',time()+max(1,$leaseSeconds)),'now'=>$now,'key'=>$jobKey,'token'=>$leaseToken,'now2'=>$now]);return $s->rowCount()===1;}
+    public function ownsLease(string $jobKey,string $leaseToken):bool{$s=$this->pdo->prepare("SELECT 1 FROM learner_ai_refresh_jobs WHERE job_key=:key AND status='processing' AND lease_token=:token AND lease_until>=:now");$s->execute(['key'=>$jobKey,'token'=>$leaseToken,'now'=>gmdate('Y-m-d H:i:s')]);return $s->fetchColumn()!==false;}
+    public function complete(string $jobKey,?string $leaseToken=null):bool{$sql="UPDATE learner_ai_refresh_jobs SET status='completed',error_code=NULL,next_retry_at=NULL,dead_lettered_at=NULL,lease_until=NULL,lease_owner=NULL,lease_token=NULL,updated_at=:now WHERE job_key=:key".($leaseToken===null?'':' AND status=\'processing\' AND lease_token=:token AND lease_until>=:lease_now');$s=$this->pdo->prepare($sql);$p=['now'=>gmdate('Y-m-d H:i:s'),'key'=>$jobKey];if($leaseToken!==null){$p['token']=$leaseToken;$p['lease_now']=$p['now'];}$s->execute($p);return $s->rowCount()===1;}
+    public function fail(string $jobKey,string $errorCode,bool $deadLetter=false,?string $leaseToken=null,?int $retryAfterSeconds=null):void{$q=$this->pdo->prepare('SELECT attempts FROM learner_ai_refresh_jobs WHERE job_key=:key');$q->execute(['key'=>$jobKey]);$attempts=max(1,(int)$q->fetchColumn());$now=gmdate('Y-m-d H:i:s');$delay=$retryAfterSeconds===null?min(3600,2**min(10,$attempts)):max(0,min(86400,$retryAfterSeconds));$retry=$deadLetter?null:gmdate('Y-m-d H:i:s',time()+$delay);$sql='UPDATE learner_ai_refresh_jobs SET status=:status,error_code=:error,lease_until=NULL,lease_owner=NULL,lease_token=NULL,next_retry_at=:retry,dead_lettered_at=:dead,updated_at=:now WHERE job_key=:key'.($leaseToken===null?'':' AND status=\'processing\' AND lease_token=:token');$s=$this->pdo->prepare($sql);$p=['status'=>$deadLetter?'dead_letter':'pending','error'=>substr($errorCode,0,100),'retry'=>$retry,'dead'=>$deadLetter?$now:null,'now'=>$now,'key'=>$jobKey];if($leaseToken!==null)$p['token']=$leaseToken;$s->execute($p);}
+    public function cancelSuperseded(string $studentId,string $capability,string $currentSnapshotHash):void{$s=$this->pdo->prepare("UPDATE learner_ai_refresh_jobs SET status='cancelled',updated_at=:now WHERE student_id=:student AND capability=:capability AND snapshot_hash<>:hash AND status='pending'");$s->execute(['now'=>gmdate('Y-m-d H:i:s'),'student'=>$studentId,'capability'=>$capability,'hash'=>$currentSnapshotHash]);}
+    public function cancel(string $jobKey,?string $leaseToken=null):void{$sql="UPDATE learner_ai_refresh_jobs SET status='cancelled',error_code='superseded_snapshot',next_retry_at=NULL,lease_until=NULL,lease_owner=NULL,lease_token=NULL,updated_at=:now WHERE job_key=:key".($leaseToken===null?'':" AND status='processing' AND lease_token=:token");$s=$this->pdo->prepare($sql);$params=['now'=>gmdate('Y-m-d H:i:s'),'key'=>$jobKey];if($leaseToken!==null)$params['token']=$leaseToken;$s->execute($params);}
+    /** @return array{depth:int,oldest_age_seconds:int} */
+    public function pendingStats(): array { $driver=strtolower((string)$this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME));$age=$driver==='mysql'?"COALESCE(MAX(TIMESTAMPDIFF(SECOND,created_at,UTC_TIMESTAMP())),0)":"COALESCE(MAX((julianday('now')-julianday(created_at))*86400),0)";$row=$this->pdo->query("SELECT COUNT(*) AS depth, {$age} AS age FROM learner_ai_refresh_jobs WHERE status='pending'")->fetch(PDO::FETCH_ASSOC) ?: []; return ['depth'=>(int)($row['depth']??0),'oldest_age_seconds'=>max(0,(int)round((float)($row['age']??0)))]; }
+    private function find(string $key):?AiRefreshJob{$s=$this->pdo->prepare('SELECT * FROM learner_ai_refresh_jobs WHERE job_key=:key');$s->execute(['key'=>$key]);$r=$s->fetch(PDO::FETCH_ASSOC);return is_array($r)?new AiRefreshJob($r['job_key'],$r['student_id'],$r['capability'],$r['snapshot_hash'],$r['status'],(int)$r['attempts'],$r['next_retry_at']??null,$r['lease_until']??null,$r['error_code']??null,$r['lease_owner']??null,$r['lease_token']??null,$r['created_at']??null):null;}
+}

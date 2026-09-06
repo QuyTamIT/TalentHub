@@ -22,4 +22,7 @@ interface SchoolCredentialRepository
     public function issuedSchoolCertificates(string $studentId): array;
 
     public function hasCompletedRoadmap(string $studentId): bool;
+
+    /** @return array<string,mixed>|null */
+    public function latestRoadmapAnalysis(string $studentId): ?array;
 }

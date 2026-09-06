@@ -19,7 +19,7 @@ final class MockEcosystemRepository implements EcosystemRepository
         $this->opportunityRecords = array_map([$this, 'normalizeOpportunity'], $opportunities);
     }
 
-    public function partners(?string $type = null): array
+    public function partners(?string $type = null, ?string $schoolId = null): array
     {
         if ($type === null) {
             return $this->partners;
