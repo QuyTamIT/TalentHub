@@ -45,7 +45,7 @@ final class StudentAppContext
         if ($cached === null && (isset($_SESSION['user_id']) || isset($_SESSION['user']))) {
             $cached = $this->session->user();
         }
-        $appEnv = strtolower((string) (\TalentHub\Config\Environment::optional('APP_ENV') ?: (getenv('APP_ENV') ?: 'production')));
+        $appEnv = \TalentHub\Config\Environment::appEnvironment();
         $isLocal = in_array($appEnv, ['local', 'dev', 'development', 'test'], true);
 
         if ($cached === null || !\TalentHub\Rbac\RoleCodes::matches((string)($cached['role'] ?? ''), \TalentHub\Rbac\RoleCodes::STUDENT) || ($isLocal && str_contains((string)($cached['email'] ?? ''), '@test.'))) {
