@@ -31,6 +31,11 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
     $startAt = teacherActivitiesDate($row['startAt'] ?? null);
     $endAt = teacherActivitiesDate($row['endAt'] ?? null);
     $rawStatus = strtolower(trim((string) ($row['status'] ?? '')));
+    $approvalStatus = strtolower(trim((string) ($row['approvalStatus'] ?? 'approved')));
+    $approvalLabels = [
+        'draft' => 'Chưa gửi duyệt', 'pending_school_review' => 'Chờ Nhà trường duyệt',
+        'changes_requested' => 'Cần chỉnh sửa', 'approved' => 'Đã duyệt', 'rejected' => 'Bị từ chối',
+    ];
 
     $statusLabels = [
         'draft' => 'Bản nháp',
@@ -52,9 +57,19 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
     $capacity = (int) ($row['capacity'] ?? 0);
     $registrationAvailable = false;
     $registrationLabel = 'Không xác định';
+    $registrationOpensAt = teacherActivitiesDate($row['registrationOpensAt'] ?? null);
+    $registrationClosesAt = teacherActivitiesDate($row['registrationClosesAt'] ?? null);
 
     if ($rawStatus === 'draft') {
+        $registrationLabel = 'Bản nháp — cần công bố';
+    } elseif ($rawStatus === 'published' && $startAt && $now >= $startAt) {
+        $registrationLabel = $endAt && $now >= $endAt ? 'Đã kết thúc' : 'Đang diễn ra';
+    } elseif ($rawStatus === 'published' && (!$registrationOpensAt || !$registrationClosesAt)) {
+        $registrationLabel = 'Thiếu cấu hình đăng ký';
+    } elseif ($rawStatus === 'published' && $registrationOpensAt && $now < $registrationOpensAt) {
         $registrationLabel = 'Chưa mở đăng ký';
+    } elseif ($rawStatus === 'published' && $registrationClosesAt && $now >= $registrationClosesAt) {
+        $registrationLabel = 'Đã hết hạn đăng ký';
     } elseif ($rawStatus === 'published' && $registeredCount >= $capacity) {
         $registrationLabel = 'Đã đủ chỗ';
     } elseif ($rawStatus === 'published') {
@@ -81,7 +96,39 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
         'end_label' => $endAt ? $endAt->format('d/m/Y H:i') : 'Chưa xác định',
         'start_input' => $startAt ? $startAt->format('Y-m-d\TH:i') : '',
         'end_input' => $endAt ? $endAt->format('Y-m-d\TH:i') : '',
+        'registration_opens_input' => teacherActivitiesDate($row['registrationOpensAt'] ?? null)?->format('Y-m-d\TH:i') ?? '',
+        'registration_closes_input' => teacherActivitiesDate($row['registrationClosesAt'] ?? null)?->format('Y-m-d\TH:i') ?? '',
+        'cancellation_closes_input' => teacherActivitiesDate($row['cancellationClosesAt'] ?? null)?->format('Y-m-d\TH:i') ?? '',
+        'experience_highlights_list' => teacherActivitiesJsonList($row['experienceHighlights'] ?? null),
+        'skill_tags_list' => teacherActivitiesJsonList($row['skillTags'] ?? null),
+        'eligibility_rules_list' => teacherActivitiesJsonList($row['eligibilityRules'] ?? null),
+        'benefit_items_list' => teacherActivitiesJsonList($row['benefitItems'] ?? null),
+        'location_label' => trim((string) ($row['locationName'] ?? '')) ?: 'Chưa cập nhật',
+        'delivery_mode_label' => teacherActivitiesDeliveryMode((string) ($row['deliveryMode'] ?? '')),
+        'policy_configured' => ($row['registrationOpensAt'] ?? null) !== null && ($row['registrationClosesAt'] ?? null) !== null && ($row['cancellationClosesAt'] ?? null) !== null,
+        'approval_status' => $approvalStatus,
+        'approval_status_label' => $approvalLabels[$approvalStatus] ?? 'Không xác định',
     ]);
+}
+
+/** @return list<string> */
+function teacherActivitiesJsonList(mixed $value): array
+{
+    if (is_string($value)) {
+        try { $value = json_decode($value, true, 512, JSON_THROW_ON_ERROR); } catch (Throwable) { return []; }
+    }
+    if (!is_array($value) || !array_is_list($value)) return [];
+    return array_values(array_filter(array_map(static fn (mixed $item): string => is_scalar($item) ? trim((string) $item) : '', $value), static fn (string $item): bool => $item !== ''));
+}
+
+function teacherActivitiesDeliveryMode(string $value): string
+{
+    return match (strtolower(trim($value))) {
+        'in_person' => 'Trực tiếp',
+        'online' => 'Trực tuyến',
+        'hybrid' => 'Kết hợp',
+        default => 'Chưa cập nhật',
+    };
 }
 
 function teacherActivitiesRead(PDO $pdo, string $teacherId, string $search = ''): array

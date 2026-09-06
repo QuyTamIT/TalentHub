@@ -52,6 +52,12 @@ try {
     if (($result['state'] ?? null) !== 'task_updated') {
         throw new ApiException(503, 'SERVICE_UNAVAILABLE', 'Dịch vụ tiến độ lộ trình tạm thời không khả dụng.');
     }
+    // The domain mutation is committed independently of asynchronous provider work.
+    // Return server-confirmed refresh evidence so clients can render pending state.
+    $refresh = $context->dispatchAiRefresh($studentId);
+    $result['refresh_state'] = ($refresh['status'] === 'pending' && $refresh['job_keys'] !== []) ? 'pending' : 'unavailable';
+    $result['refresh_job_keys'] = $refresh['job_keys'];
+    $result['refresh_dispatch_status'] = $refresh['status'];
     JsonResponder::sendSuccess($result, $context->requestId());
 } catch (ApiException $exception) {
     if ($exception->errorCode === 'AUTHENTICATION_REQUIRED') {

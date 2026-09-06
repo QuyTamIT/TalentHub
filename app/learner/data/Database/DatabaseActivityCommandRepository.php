@@ -36,7 +36,7 @@ final class DatabaseActivityCommandRepository implements ActivityCommandReposito
             if ($activity === null) {
                 throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động đang nhận đăng ký.');
             }
-            $this->assertStudentCanJoinActivity($studentId, (string) ($activity['schoolId'] ?? ''));
+            $this->assertStudentCanJoinActivity($studentId, (string) ($activity['schoolId'] ?? ''), (string) ($activity['visibility'] ?? 'school_only'));
             $this->assertRegistrationWindow($activity, $now);
 
             if ($this->registrationExists($activityId, $studentId)) {
@@ -226,8 +226,10 @@ final class DatabaseActivityCommandRepository implements ActivityCommandReposito
     private function activityForUpdate(string $activityId): ?array
     {
         $lock = $this->lockSuffix();
+        $approval = $this->hasColumn('activities', 'approvalStatus') ? 'activity.approvalStatus,' : "'approved' AS approvalStatus,";
+        $visibility = $this->hasColumn('activities', 'visibility') ? 'activity.visibility,' : "'school_only' AS visibility,";
         $statement = $this->pdo->prepare(<<<SQL
-            SELECT activity.id, {$this->activitySchoolIdSelect()} activity.title, activity.startAt, activity.endAt, activity.capacity, activity.status,
+            SELECT activity.id, {$this->activitySchoolIdSelect()} {$approval} {$visibility} activity.title, activity.startAt, activity.endAt, activity.capacity, activity.status,
                    policy.registrationOpensAt, COALESCE(policy.registrationClosesAt, activity.startAt) registrationClosesAt,
                    COALESCE(policy.cancellationClosesAt, activity.startAt) cancellationClosesAt,
                    COALESCE(policy.approvalMode, 'automatic') approvalMode
@@ -246,6 +248,9 @@ final class DatabaseActivityCommandRepository implements ActivityCommandReposito
     /** @param array<string,mixed> $activity */
     private function assertRegistrationWindow(array $activity, DateTimeImmutable $now): void
     {
+        if (($activity['approvalStatus'] ?? 'approved') !== 'approved') {
+            throw new ApiException(422, 'REGISTRATION_CLOSED', 'Hoạt động chưa được Nhà trường phê duyệt.');
+        }
         if (($activity['status'] ?? null) !== 'published') {
             throw new ApiException(422, 'REGISTRATION_CLOSED', 'Hoạt động hiện không nhận đăng ký.');
         }
@@ -259,7 +264,7 @@ final class DatabaseActivityCommandRepository implements ActivityCommandReposito
         }
     }
 
-    private function assertStudentCanJoinActivity(string $studentId, string $activitySchoolId): void
+    private function assertStudentCanJoinActivity(string $studentId, string $activitySchoolId, string $visibility): void
     {
         // Only legacy SQLite fixtures may predate school ownership. Any other
         // database must fail closed before a write if its scope joins are unavailable.
@@ -283,6 +288,9 @@ final class DatabaseActivityCommandRepository implements ActivityCommandReposito
         );
         $statement->execute(['studentId' => $studentId]);
         $studentSchoolId = $statement->fetchColumn();
+        if ($visibility === 'public' && is_string($studentSchoolId) && $studentSchoolId !== '') {
+            return;
+        }
         if (!is_string($studentSchoolId) || $activitySchoolId === '' || !hash_equals($studentSchoolId, $activitySchoolId)) {
             throw new ApiException(403, 'ACTIVITY_SCHOOL_SCOPE_DENIED', 'Bạn chỉ được đăng ký hoạt động của trường mình.');
         }

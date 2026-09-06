@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace TalentHub\Learner\Data\Database;
+require_once dirname(__DIR__, 2) . '/ai/Queue/TransactionalAiOutboxPublisher.php';
 
 use DateTimeImmutable;
 use DateTimeZone;
@@ -14,6 +15,7 @@ use TalentHub\Learner\Data\Service\BadgeAwardService;
 use TalentHub\Learner\Data\Service\BadgeRuleEngine;
 use TalentHub\Learner\Data\Service\NotificationService;
 use TalentHub\Support\Uuid;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 use Throwable;
 
 final class DatabaseCheckinRepository implements CheckinRepository
@@ -70,6 +72,7 @@ final class DatabaseCheckinRepository implements CheckinRepository
             $this->markAttended((string) $registration['id'], $now);
             $this->insertExperience($experienceId, $studentId, (string) $session['activityId'], $checkinId, (string) $policy['confirmedHours'], $now);
             $this->audit($actorUserId, $requestId, $checkinId, (string) $session['activityId'], (string) $registration['id'], $experienceId, $now);
+            TransactionalAiOutboxPublisher::publish($this->pdo,'checkin',$checkinId,TransactionalAiOutboxPublisher::version(),[$studentId],'checkin.confirmed',['activity_id'=>(string)$session['activityId'],'experience_id'=>$experienceId]);
 
             $this->getNotificationService()->publish(
                 $actorUserId,

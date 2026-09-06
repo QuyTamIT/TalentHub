@@ -144,7 +144,7 @@ final class RecommendationEvaluator
 
     private function roadmapUnsafe(string $value): bool
     {
-        return preg_match('/\b(chẩn\s*đoán|ADHD|tự\s*kỷ|trầm\s*cảm|giới\s*tính|dân\s*tộc|tôn\s*giáo|khuyết\s*tật|đảm\s*bảo|chắc\s*chắn\s+(?:đỗ|thành\s*công|có\s*việc)|100%|bỏ\s+học|tự\s+làm\s+hại|tự\s+tử|self-harm|suicide)\b/iu', $value) === 1;
+        return preg_match('/\b(chẩn\s*đoán|ADHD|tự\s*kỷ|trầm\s*cảm|giới\s*tính|dân\s*tộc|tôn\s*giáo|khuyết\s*tật|đảm\s*bảo\s+(?:đỗ|thành\s*công|có\s*việc|tuyển\s*dụng|tuyển\s*sinh|được\s*nhận|việc\s*làm|trúng\s*tuyển|bao\s*đậu|100%)|chắc\s*chắn\s+(?:đỗ|thành\s*công|có\s*việc|tuyển\s*dụng|được\s*nhận|trúng\s*tuyển)|100%\s+(?:thành\s*công|có\s*việc|việc\s*làm|trúng\s*tuyển|đỗ)|bỏ\s+học|tự\s+làm\s+hại|tự\s+tử|self-harm|suicide)\b/iu', $value) === 1;
     }
 
     private function isVietnamese(string $value): bool

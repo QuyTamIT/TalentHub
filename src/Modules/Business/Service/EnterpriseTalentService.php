@@ -32,7 +32,12 @@ final class EnterpriseTalentService
     /**
      * @return array<string,mixed>
      */
-    public function getTalent(string $userId, string $studentId): array
+    public function getTalent(
+        string $userId,
+        string $studentId,
+        string $requestId = 'enterprise-talent-detail',
+        ?string $ipAddress = null
+    ): array
     {
         $studentId = $this->uuid($studentId, 'studentId');
         $enterprise = $this->repository->enterpriseForUser($userId);
@@ -41,6 +46,15 @@ final class EnterpriseTalentService
         if ($talent === null) {
             throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hồ sơ ứng viên hoặc ứng viên chưa cấp quyền truy cập.');
         }
+
+        $this->repository->recordProfileAccess(
+            (string) $enterprise['id'],
+            $userId,
+            $studentId,
+            'talent_detail',
+            $requestId,
+            $ipAddress
+        );
 
         return $talent;
     }

@@ -16,13 +16,20 @@ final class ConsentPolicy
     /** @var Closure():string */
     private readonly Closure $clock;
 
-    /** @param (callable():string)|null $clock */
-    public function __construct(private readonly ConsentSource $source, ?callable $clock = null)
+    /** @var list<string> */
+    private readonly array $serviceScopes;
+
+    /**
+     * @param (callable():string)|null $clock
+     * @param list<string> $serviceScopes
+     */
+    public function __construct(private readonly ConsentSource $source, ?callable $clock = null, array $serviceScopes = [])
     {
         $this->clock = $clock !== null
             ? Closure::fromCallable($clock)
             : static fn (): string => (new DateTimeImmutable('now', new DateTimeZone('UTC')))
                 ->format('Y-m-d\\TH:i:s.uP');
+        $this->serviceScopes = $serviceScopes;
     }
 
     public function decision(string $studentId): ConsentDecision
@@ -61,7 +68,13 @@ final class ConsentPolicy
             $canonical[$scope] = $event;
         }
 
-        return new ConsentDecision($canonical, ($this->clock)());
+        return new ConsentDecision($canonical, ($this->clock)(), $this->serviceScopes);
+    }
+
+    /** Built-in AI access for an authenticated learner; ownership is checked by the caller. */
+    public static function forLearnerService(ConsentSource $source, string $appEnvironment): self
+    {
+        return new self($source, null, ConsentMode::serviceScopes($appEnvironment));
     }
 
     /** @return list<string> */

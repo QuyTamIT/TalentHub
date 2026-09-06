@@ -17,6 +17,7 @@ final class RecommendationContext
         private readonly ?string $studentId = null,
         private readonly ?string $consentDecisionHash = null,
         private readonly ?string $consentPolicyVersion = null,
+        private readonly bool $propagateProviderRetry = false,
     )
     {
         $allowed = array_values(array_unique(array_filter(
@@ -56,5 +57,10 @@ final class RecommendationContext
     public function consentPolicyVersion(): ?string
     {
         return $this->consentPolicyVersion;
+    }
+
+    public function shouldPropagateProviderRetry(): bool
+    {
+        return $this->propagateProviderRetry;
     }
 }

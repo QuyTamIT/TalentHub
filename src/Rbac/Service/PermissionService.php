@@ -16,7 +16,7 @@ final class PermissionService
             $allowed=match($role){
                 'enterprise','business'=>str_starts_with($permission,'business_'),
                 'teacher'=>str_starts_with($permission,'teacher_'),
-                'school'=>str_starts_with($permission,'school_')||str_starts_with($permission,'class.')||str_ends_with($permission,'_own_school'),
+                'school'=>str_starts_with($permission,'school_')||str_starts_with($permission,'class.')||str_ends_with($permission,'_own_school')||$permission==='activity.review_school',
                 'student'=>str_starts_with($permission,'student_'),
                 'platform_admin'=>str_starts_with($permission,'admin.'),
                 default=>false,
@@ -28,28 +28,9 @@ final class PermissionService
         if((int)$s->fetchColumn()>=1){
             return;
         }
-
-        $userRoleStmt=$this->pdo->prepare("SELECT r.code FROM users u JOIN roles r ON r.id=u.roleId WHERE u.id=? LIMIT 1");
-        $userRoleStmt->execute([$userId]);
-        $roleCode=(string)$userRoleStmt->fetchColumn();
-        if($roleCode!==''){
-            $roleCode=\TalentHub\Rbac\RoleCodes::canonical($roleCode);
-            $rolePrefixes=[
-                'enterprise'=>['business_','internship_','talent.','contact_request.','partnership.','sponsorship.'],
-                'school'=>['school_','class.','_own_school','safeguarding.','report.','partnership.'],
-                'teacher'=>['teacher_','project_member.','internship_mentor.'],
-                'student'=>['student_','internship_application.','privacy_consent.'],
-                'platform_admin'=>['admin.','business_','school_','teacher_','student_'],
-            ];
-            foreach($rolePrefixes[$roleCode]??[] as $pfx){
-                if(str_starts_with($permission,$pfx)||str_ends_with($permission,$pfx)){
-                    return;
-                }
-            }
-        }
-
-        // Allow for fallback enterprise/school/teacher users in development
-        return;
+        // Canonical RBAC is deny-by-default: role prefixes never replace an
+        // explicit role_permissions grant, including during alias migration.
+        throw new ApiException(403, 'PERMISSION_DENIED', 'Bạn không có quyền thực hiện thao tác này.');
     }
 
     private function usesLegacyUsers(): bool

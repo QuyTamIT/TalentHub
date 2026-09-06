@@ -1,0 +1,9 @@
+<?php
+declare(strict_types=1);
+use TalentHub\Learner\Data\Migrations\ForwardMigrationDefinition;
+use TalentHub\Learner\Data\Migrations\LearnerForwardMigration;
+return new ForwardMigrationDefinition('009_create_ai_capability_profiles','Create versioned AI capability profile read model',__FILE__,hash_file('sha256',__FILE__),new class implements LearnerForwardMigration {
+ public function version():string{return '009_create_ai_capability_profiles';} public function description():string{return 'Create versioned AI capability profile read model';}
+ public function statements(string $driver):array { $id=strtolower($driver)==='sqlite'?'TEXT PRIMARY KEY':'CHAR(36) PRIMARY KEY'; return ["CREATE TABLE learner_ai_capability_profiles (id {$id}, student_id CHAR(36) NOT NULL, version_number INT NOT NULL, status VARCHAR(20) NOT NULL, talent_map_json TEXT NOT NULL, strengths_json TEXT NOT NULL, improvements_json TEXT NOT NULL, potential_paths_json TEXT NOT NULL, trend_signals_json TEXT NOT NULL, evidence_json TEXT NOT NULL, snapshot_hash CHAR(64) NOT NULL, pending_snapshot_hash CHAR(64) NULL, model_version VARCHAR(128) NOT NULL, generated_at DATETIME NOT NULL, stale_since DATETIME NULL, last_refresh_error VARCHAR(100) NULL, next_retry_at DATETIME NULL, refresh_job_id CHAR(64) NULL, superseded_at DATETIME NULL, created_at DATETIME NOT NULL, UNIQUE(student_id,version_number), UNIQUE(student_id,snapshot_hash,model_version))"]; }
+ public function expectedSchema():array{return ['learner_ai_capability_profiles'=>['columns'=>['id','student_id','version_number','status','talent_map_json','strengths_json','improvements_json','potential_paths_json','trend_signals_json','evidence_json','snapshot_hash','pending_snapshot_hash','model_version','generated_at','stale_since','last_refresh_error','next_retry_at','refresh_job_id','superseded_at','created_at'],'indexes'=>[]]];}
+});

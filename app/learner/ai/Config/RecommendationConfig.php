@@ -6,6 +6,10 @@ namespace TalentHub\Learner\Ai\Config;
 
 final class RecommendationConfig
 {
+    /** @var list<string> Environments where strict mode is mandatory and cannot be
+     * turned off via the override. */
+    private const STRICT_ENFORCED_ENVIRONMENTS = ['production', 'staging'];
+
     /** @param list<string> $allowedHosts */
     private function __construct(
         private readonly bool $enabled,
@@ -26,6 +30,9 @@ final class RecommendationConfig
         private readonly int $visiblePercent,
         private readonly ?string $pilotApprovalReference,
         private readonly bool $pilotPaused,
+        private readonly bool $strictMode,
+        private readonly bool $strictModeOverrideRejected,
+        private readonly string $environment,
     ) {
     }
 
@@ -34,7 +41,29 @@ final class RecommendationConfig
     {
         $enabled = strtolower(self::value($environment, 'TALENTHUB_AI_ENABLED', 'false')) === 'true';
         if (!$enabled) {
-            return new self(false, null, null, null, null, [], 2, 1, 1, 1, 30, 2, 20, false, false, 0, null, true);
+            return new self(
+                false,
+                null,
+                null,
+                null,
+                null,
+                [],
+                2,
+                1,
+                1,
+                1,
+                30,
+                2,
+                20,
+                false,
+                false,
+                0,
+                null,
+                true,
+                self::resolveStrictMode($environment, false),
+                self::resolveStrictModeOverrideRejected($environment, false),
+                self::resolveEnvironment($environment),
+            );
         }
 
         $provider = self::required($environment, 'TALENTHUB_AI_PROVIDER');
@@ -59,8 +88,8 @@ final class RecommendationConfig
             $apiUrl,
             $apiKey,
             $allowedHosts,
-            self::boundedInt($environment, 'TALENTHUB_AI_TIMEOUT_SECONDS', 2, 1, 30),
-            self::boundedInt($environment, 'TALENTHUB_AI_MAX_ATTEMPTS', 1, 1, 2),
+            self::boundedInt($environment, 'TALENTHUB_AI_TIMEOUT_SECONDS', 60, 1, 120),
+            self::boundedInt($environment, 'TALENTHUB_AI_MAX_ATTEMPTS', 2, 1, 4),
             self::boundedInt($environment, 'TALENTHUB_AI_PER_STUDENT_LIMIT', 2, 1, 60),
             self::boundedInt($environment, 'TALENTHUB_AI_GLOBAL_LIMIT', 20, 1, 600),
             self::boundedInt($environment, 'TALENTHUB_AI_ROADMAP_TIMEOUT_SECONDS', 30, 1, 60),
@@ -71,6 +100,9 @@ final class RecommendationConfig
             self::boundedInt($environment, 'TALENTHUB_AI_VISIBLE_PERCENT', 0, 0, 100),
             self::optional($environment, 'TALENTHUB_AI_PILOT_APPROVAL_REFERENCE'),
             self::strictBoolean($environment, 'TALENTHUB_AI_PILOT_PAUSED', true),
+            self::resolveStrictMode($environment, true),
+            self::resolveStrictModeOverrideRejected($environment, true),
+            self::resolveEnvironment($environment),
         );
     }
 
@@ -91,8 +123,11 @@ final class RecommendationConfig
     public function visiblePercent(): int { return $this->visiblePercent; }
     public function pilotApprovalReference(): ?string { return $this->pilotApprovalReference; }
     public function pilotPaused(): bool { return $this->pilotPaused; }
+    public function strictMode(): bool { return $this->strictMode; }
+    public function strictModeOverrideRejected(): bool { return $this->strictModeOverrideRejected; }
+    public function environment(): string { return $this->environment; }
 
-    /** @return array{enabled:bool,provider:?string,model:?string,timeout_seconds:int} */
+    /** @return array{enabled:bool,provider:?string,model:?string,timeout_seconds:int,strict_mode:bool,strict_mode_override_rejected:bool,environment:string} */
     public function diagnostics(): array
     {
         return [
@@ -100,6 +135,9 @@ final class RecommendationConfig
             'provider' => $this->provider,
             'model' => $this->model,
             'timeout_seconds' => $this->timeoutSeconds,
+            'strict_mode' => $this->strictMode,
+            'strict_mode_override_rejected' => $this->strictModeOverrideRejected,
+            'environment' => $this->environment,
         ];
     }
 
@@ -180,5 +218,68 @@ final class RecommendationConfig
             throw new \InvalidArgumentException("{$key} is outside its approved range.");
         }
         return $value;
+    }
+
+    /** @param array<string,string> $environment */
+    private static function resolveEnvironment(array $environment): string
+    {
+        $raw = strtolower(self::value($environment, 'APP_ENV', 'production'));
+        return in_array($raw, self::STRICT_ENFORCED_ENVIRONMENTS, true) || in_array($raw, ['local', 'test'], true)
+            ? $raw
+            : 'production';
+    }
+
+    /**
+     * Resolves the effective strict-mode flag.
+     *
+     * @param array<string,string> $environment
+     * @param bool $aiEnabled Whether the AI feature is currently enabled.
+     */
+    private static function resolveStrictMode(array $environment, bool $aiEnabled): bool
+    {
+        $environmentName = self::resolveEnvironment($environment);
+        $enforced = in_array($environmentName, self::STRICT_ENFORCED_ENVIRONMENTS, true);
+        $overrideRaw = strtolower(self::value($environment, 'TALENTHUB_AI_STRICT_MODE_OVERRIDE', ''));
+        $override = $overrideRaw === 'true' || $overrideRaw === 'false' ? $overrideRaw === 'true' : null;
+        if (!$aiEnabled) {
+            // AI is disabled entirely; strict mode is moot but reported as false
+            // to avoid surprising operators when they turn the feature back on.
+            return false;
+        }
+        if ($enforced) {
+            return true;
+        }
+        // Local/test environments default to strict mode and may opt out only
+        // when the dedicated override flag is explicitly set to "false".
+        if ($override === null) {
+            return true;
+        }
+        return $override;
+    }
+
+    /**
+     * Reports whether an override attempt was rejected. Useful for surfacing
+     * misconfiguration in diagnostics. Only meaningful in production/staging
+     * where overrides are always ignored.
+     *
+     * @param array<string,string> $environment
+     * @param bool $aiEnabled
+     */
+    private static function resolveStrictModeOverrideRejected(array $environment, bool $aiEnabled): bool
+    {
+        $environmentName = self::resolveEnvironment($environment);
+        if (!in_array($environmentName, self::STRICT_ENFORCED_ENVIRONMENTS, true)) {
+            return false;
+        }
+        if (!$aiEnabled) {
+            return false;
+        }
+        $overrideRaw = strtolower(self::value($environment, 'TALENTHUB_AI_STRICT_MODE_OVERRIDE', ''));
+        if ($overrideRaw !== 'true' && $overrideRaw !== 'false') {
+            return false;
+        }
+        // Anything other than "true" in a strict-enforced environment is
+        // treated as an override attempt that has been ignored.
+        return $overrideRaw !== 'true';
     }
 }

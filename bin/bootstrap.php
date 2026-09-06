@@ -1,8 +1,6 @@
 <?php
 declare(strict_types=1);
 
-date_default_timezone_set('Asia/Ho_Chi_Minh');
-
 /**
  * Load .env file (if present) into $_ENV / $_SERVER / getenv().
  * Existing process-level env vars are NOT overwritten so that
@@ -43,7 +41,12 @@ date_default_timezone_set('Asia/Ho_Chi_Minh');
                 $value = substr($value, 1, -1);
             }
         }
-        if (array_key_exists($name, $_ENV) || array_key_exists($name, $_SERVER) || getenv($name) !== false) {
+        // A web server may export an empty placeholder (for example APP_ENV="").
+        // Treat that as unset so the project .env can still provide the value;
+        // non-empty process-level overrides continue to win.
+        $existing = array_key_exists($name, $_ENV) ? $_ENV[$name]
+            : (array_key_exists($name, $_SERVER) ? $_SERVER[$name] : getenv($name));
+        if ($existing !== false && $existing !== null && (string) $existing !== '') {
             continue;
         }
         $_ENV[$name]    = $value;

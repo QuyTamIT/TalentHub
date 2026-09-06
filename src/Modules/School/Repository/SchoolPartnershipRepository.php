@@ -194,7 +194,7 @@ final class SchoolPartnershipRepository
 
         $this->pdo->beginTransaction();
         try {
-            $stmt = $this->pdo->prepare('SELECT * FROM school_enterprise_partnerships WHERE id = ? AND schoolId = ? LIMIT 1');
+            $stmt = $this->pdo->prepare('SELECT * FROM school_enterprise_partnerships WHERE id = ? AND schoolId = ? LIMIT 1' . $this->lockSuffix());
             $stmt->execute([$partnershipId, $schoolId]);
             $partnership = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -220,7 +220,7 @@ final class SchoolPartnershipRepository
                     reviewedByUserId = :reviewerUserId,
                     reviewedAt = :now,
                     updatedAt = :now
-                WHERE id = :id AND schoolId = :schoolId
+                WHERE id = :id AND schoolId = :schoolId AND status = :currentStatus
             SQL);
             $upd->execute([
                 'targetStatus' => $targetStatus,
@@ -228,7 +228,11 @@ final class SchoolPartnershipRepository
                 'now' => $now,
                 'id' => $partnershipId,
                 'schoolId' => $schoolId,
+                'currentStatus' => $currentStatus,
             ]);
+            if ($upd->rowCount() !== 1) {
+                throw new ApiException(409, 'CONCURRENT_MODIFICATION', 'Trạng thái quan hệ đối tác đã thay đổi.');
+            }
 
             $audit = $this->pdo->prepare(
                 'INSERT INTO audit_logs (id, userId, action, entityType, entityId, metadata)
@@ -346,5 +350,10 @@ final class SchoolPartnershipRepository
     private function now(): string
     {
         return (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s.u');
+    }
+
+    private function lockSuffix(): string
+    {
+        return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite' ? '' : ' FOR UPDATE';
     }
 }

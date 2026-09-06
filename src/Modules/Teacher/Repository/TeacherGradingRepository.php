@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 namespace TalentHub\Modules\Teacher\Repository;
+require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/TransactionalAiOutboxPublisher.php';
 
 use PDO;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 use TalentHub\Learner\Data\Database\DatabaseBadgeRepository;
 use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
 use TalentHub\Learner\Data\Database\DatabaseStatisticsRepository;
@@ -19,7 +21,8 @@ final class TeacherGradingRepository
 {
     public function __construct(
         private readonly PDO $pdo,
-        private readonly ?BadgeAwardService $badgeAwardService = null
+        private readonly ?BadgeAwardService $badgeAwardService = null,
+        private readonly ?NotificationService $notifications = null
     ) {}
 
     /** @return array<string,mixed>|null */
@@ -164,6 +167,29 @@ final class TeacherGradingRepository
         return $statement->fetchAll();
     }
 
+    /** @return array<string,mixed>|null */
+    public function draftAssessmentForTeacherUser(string $teacherUserId, string $assessmentId): ?array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT assessment.id,assessment.activityId,assessment.studentId,assessment.version,
+                    assessment.overallScore,assessment.comment,assessment.status
+             FROM assessments assessment
+             INNER JOIN teacher_profiles teacher ON teacher.id=assessment.teacherId
+             INNER JOIN activities activity ON activity.id=assessment.activityId AND activity.createdByTeacherId=teacher.id
+             WHERE teacher.userId=:userId AND assessment.id=:assessmentId LIMIT 1'
+        );
+        $statement->execute(['userId' => $teacherUserId, 'assessmentId' => $assessmentId]);
+        $assessment = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($assessment)) return null;
+        $scores = $this->pdo->prepare('SELECT criteriaId,score FROM assessment_scores WHERE assessmentId=:assessmentId');
+        $scores->execute(['assessmentId' => $assessmentId]);
+        $assessment['criteria'] = [];
+        foreach ($scores->fetchAll(PDO::FETCH_ASSOC) ?: [] as $score) {
+            $assessment['criteria'][(string) $score['criteriaId']] = (string) $score['score'];
+        }
+        return $assessment;
+    }
+
     /** @param list<array{criteriaId:string,score:string}> $criteriaScores */
     public function saveAssessment(
         string $teacherId,
@@ -175,7 +201,9 @@ final class TeacherGradingRepository
         ?string $comment,
         string $status,
         ?string $publishedAt,
-        array $criteriaScores
+        array $criteriaScores,
+        ?string $actorUserId = null,
+        ?string $requestId = null
     ): void {
         $this->pdo->beginTransaction();
 
@@ -185,6 +213,9 @@ final class TeacherGradingRepository
             }
 
             $existing = $this->assessmentForTeacher($teacherId, $studentId, $activityId, $assessmentId);
+            if (($existing['status'] ?? null) === 'published') {
+                throw new TeacherGradingConflictException('Published assessments are immutable.');
+            }
             if ($expectedVersion === 0) {
                 if ($assessmentId !== null || $existing !== null) {
                     throw new TeacherGradingConflictException('Assessment was created by another request.');
@@ -260,6 +291,41 @@ final class TeacherGradingRepository
                 $this->getBadgeAwardService()->evaluateAndAward($studentId, 'system');
             }
 
+            TransactionalAiOutboxPublisher::publish($this->pdo,'teacher_evaluation',$savedAssessmentId,$expectedVersion+1,[$studentId],$status==='published'?'evaluation.published':'evaluation.updated',['activity_id'=>$activityId,'status'=>$status]);
+
+            if ($this->hasTable('audit_logs') && is_string($actorUserId) && $actorUserId !== '' && is_string($requestId) && $requestId !== '') {
+                $audit = $this->pdo->prepare(
+                    'INSERT INTO audit_logs (id,userId,action,entityType,entityId,requestId,ipAddress,metadata,createdAt)
+                     VALUES (:id,:userId,:action,\'assessment\',:entityId,:requestId,NULL,:metadata,:createdAt)'
+                );
+                $audit->execute([
+                    'id' => Uuid::v4(),
+                    'userId' => $actorUserId,
+                    'action' => $status === 'published' ? 'assessment.published' : 'assessment.saved_draft',
+                    'entityId' => $savedAssessmentId,
+                    'requestId' => $requestId,
+                    'metadata' => json_encode(['activityId' => $activityId, 'studentId' => $studentId, 'status' => $status], JSON_THROW_ON_ERROR),
+                    'createdAt' => gmdate('Y-m-d H:i:s.u'),
+                ]);
+            }
+
+            if ($status === 'published' && $this->hasTable('notifications')) {
+                $studentUser = $this->pdo->prepare('SELECT userId FROM student_profiles WHERE id = :studentId LIMIT 1');
+                $studentUser->execute(['studentId' => $studentId]);
+                $studentUserId = $studentUser->fetchColumn();
+                if (is_string($studentUserId) && $studentUserId !== '') {
+                    $this->getNotificationService()->publish(
+                        $studentUserId,
+                        'teacher_assessment_published',
+                        'Đánh giá mới đã được công bố',
+                        'Giáo viên đã công bố kết quả đánh giá hoạt động của bạn.',
+                        '/app/learner/evaluation.php',
+                        'teacher_assessment_published:' . $savedAssessmentId,
+                        $studentId
+                    );
+                }
+            }
+
             $this->pdo->commit();
         } catch (\Throwable $exception) {
             if ($this->pdo->inTransaction()) {
@@ -278,7 +344,7 @@ final class TeacherGradingRepository
     private function assessmentForTeacher(string $teacherId, string $studentId, string $activityId, ?string $assessmentId): ?array
     {
         $sql =
-            'SELECT assessment.id, assessment.version
+            'SELECT assessment.id, assessment.version, assessment.status
              FROM assessments assessment
              INNER JOIN activities activity
                ON activity.id = assessment.activityId
@@ -346,6 +412,10 @@ final class TeacherGradingRepository
             require_once $root . '/app/learner/data/Contracts/StatisticsRepository.php';
             require_once $root . '/app/learner/data/Contracts/NotificationRepository.php';
             require_once $root . '/app/learner/data/Domain/LevelProgression.php';
+            require_once $root . '/app/learner/data/Exceptions/LearnerDataMappingException.php';
+            require_once $root . '/app/learner/data/Exceptions/LearnerDataQueryException.php';
+            require_once $root . '/app/learner/data/Support/KeyMapper.php';
+            require_once $root . '/app/learner/data/Support/Uuid.php';
             require_once $root . '/app/learner/data/Service/BadgeRuleEngine.php';
             require_once $root . '/app/learner/data/Service/BadgeAwardService.php';
             require_once $root . '/app/learner/data/Service/NotificationService.php';
@@ -365,12 +435,23 @@ final class TeacherGradingRepository
 
     private function hasBadgesTable(): bool
     {
-        $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
-        if ($driver === 'sqlite') {
-            $stmt = $this->pdo->query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'badges' LIMIT 1");
+        return $this->hasTable('badges');
+    }
+
+    private function hasTable(string $table): bool
+    {
+        if ((string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $stmt = $this->pdo->prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = :table LIMIT 1");
+            $stmt->execute(['table' => $table]);
             return (bool) $stmt->fetchColumn();
         }
-        $stmt = $this->pdo->query("SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'badges' LIMIT 1");
+        $stmt = $this->pdo->prepare("SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = :table LIMIT 1");
+        $stmt->execute(['table' => $table]);
         return (bool) $stmt->fetchColumn();
+    }
+
+    private function getNotificationService(): NotificationService
+    {
+        return $this->notifications ?? new NotificationService(new DatabaseNotificationRepository($this->pdo));
     }
 }

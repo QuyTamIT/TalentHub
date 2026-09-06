@@ -73,10 +73,10 @@ function teacherDashboardBackendContext(): array
         $user = null;
         if ($currentUserId !== '' || $currentUserEmail !== '') {
             try {
-                $stmt = $pdo->prepare('SELECT u.id, u.email, u.passwordHash, u.fullName, u.status, r.code AS role, u.roleId 
-                                       FROM users u 
-                                       LEFT JOIN roles r ON r.id = u.roleId 
-                                       WHERE u.id = :id OR LOWER(u.email) = LOWER(:email) 
+                $stmt = $pdo->prepare('SELECT u.id, u.email, u.passwordHash, u.fullName, u.status, r.code AS role, u.roleId
+                                       FROM users u
+                                       LEFT JOIN roles r ON r.id = u.roleId
+                                       WHERE u.id = :id OR LOWER(u.email) = LOWER(:email)
                                        LIMIT 1');
                 $stmt->execute(['id' => $currentUserId, 'email' => $currentUserEmail]);
                 $row = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -102,7 +102,7 @@ function teacherDashboardBackendContext(): array
 
         $sessionName = (string) ($_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? '')));
         $userFullName = $sessionName !== '' && $sessionName !== 'Test Teacher'
-            ? $sessionName 
+            ? $sessionName
             : (string) ($user['fullName'] ?? ($user['full_name'] ?? ($user['name'] ?? '')));
 
         if (($userFullName === '' || $userFullName === 'Test Teacher' || $userFullName === 'Giáo viên') && !empty($user['email']) && !str_contains((string)$user['email'], 'test')) {

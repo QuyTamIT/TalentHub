@@ -1,7 +1,7 @@
 -- ============================================================================
 -- TalentHub - Enterprise & Opportunities Dataset (Demo & Production Seed)
 -- Compatible with MySQL 8+ / MariaDB (Laragon, HeidiSQL, CLI)
--- 6 Enterprises, 21 Internship Posts, 4 Projects, 4 Sponsorships, 8 Partnerships
+-- 6 Enterprises, 21 Internship Posts, 4 Projects, 4 Sponsorships, 10 Partnerships
 -- All enterprise demo accounts password: Talenthub@123
 -- Hash: $2y$10$DfZIjnlaXyoliKkRzgRB8.vJdFFpmbvUBkuUE0kAQI21XUIQn5/0W
 -- ============================================================================
@@ -688,11 +688,18 @@ ON DUPLICATE KEY UPDATE
 -- ----------------------------------------------------------------------------
 -- 5. SEED TARGET SCHOOLS FOR PARTNER-SCHOOL POSTS
 -- ----------------------------------------------------------------------------
+-- Reconcile the complete target set for these demo posts so reruns remove stale
+-- or historically incorrect targets before the integrity assertion executes.
+DELETE FROM `internship_post_target_schools`
+WHERE `postId` IN (
+    '40000000-0000-4000-8000-000000000004',
+    '40000000-0000-4000-8000-000000000008'
+);
+
 INSERT INTO `internship_post_target_schools` (`postId`, `schoolId`, `createdAt`)
 VALUES
--- FPT Tech Camp target THPT Nguyễn Trãi & THPT FPT
+-- FPT Tech Camp target THPT Nguyễn Trãi
 ('40000000-0000-4000-8000-000000000004', '20000000-0000-4000-8000-000000000001', NOW(6)),
-('40000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', NOW(6)),
 -- VNG Youth Discovery target THPT Nguyễn Trãi
 ('40000000-0000-4000-8000-000000000008', '20000000-0000-4000-8000-000000000001', NOW(6))
 ON DUPLICATE KEY UPDATE `postId` = VALUES(`postId`);
@@ -915,6 +922,30 @@ INSERT INTO `school_enterprise_partnerships` (
     'approved',
     '31000000-0000-4000-8000-000000000016',
     '22000000-8d33-4ff2-8547-b8e8e91895b5',
+    NOW(6),
+    NOW(6),
+    NOW(6)
+),
+-- FPT Software & THPT Nguyễn Trãi (targets post 400...004)
+(
+    '52000000-0000-4000-8000-000000000009',
+    '20000000-0000-4000-8000-000000000001',
+    '10000000-0000-4000-8000-000000000003',
+    'approved',
+    '10000000-0000-4000-8000-000000000014',
+    '20000000-0000-4000-8000-000000000010',
+    NOW(6),
+    NOW(6),
+    NOW(6)
+),
+-- VNG & THPT Nguyễn Trãi (targets post 400...008)
+(
+    '52000000-0000-4000-8000-000000000010',
+    '20000000-0000-4000-8000-000000000001',
+    '32000000-0000-4000-8000-000000000002',
+    'approved',
+    '31000000-0000-4000-8000-000000000012',
+    '20000000-0000-4000-8000-000000000010',
     NOW(6),
     NOW(6),
     NOW(6)
