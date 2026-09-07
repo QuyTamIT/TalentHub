@@ -42,11 +42,11 @@ $checkinBoot = ['csrfToken' => (string) ($GLOBALS['learner_page_context']['csrfT
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Check-in trải nghiệm | TalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/global.css">
-    <link rel="stylesheet" href="../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/polish.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-checkin" data-checkin-page>
     <div class="learner-layout">
@@ -88,7 +88,6 @@ $checkinBoot = ['csrfToken' => (string) ($GLOBALS['learner_page_context']['csrfT
                                 <span class="learner-scanner-frame__corner learner-scanner-frame__corner--top-right"></span>
                                 <span class="learner-scanner-frame__corner learner-scanner-frame__corner--bottom-left"></span>
                                 <span class="learner-scanner-frame__corner learner-scanner-frame__corner--bottom-right"></span>
-                                <span class="learner-scanner-frame__line"></span>
                             </div>
                         </div>
                         <p class="learner-checkin-scanner-note">Đưa mã QR vào giữa khung để check-in</p>
