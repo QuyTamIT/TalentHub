@@ -45,31 +45,16 @@ final class AuthService
     {
         $email=strtolower(trim(is_string($input['email']??null)?$input['email']:''));
         $password=is_string($input['password']??null)?$input['password']:'';
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 255 || $password === '' || strlen($password) > 255) {
+            throw new ApiException(401, 'INVALID_CREDENTIALS', 'Email hoặc mật khẩu không chính xác.');
+        }
         $row=$this->repository->findByEmail($email);
-        if(!$row){
-            $role=RoleCodes::STUDENT;
-            if(str_contains($email,'teacher')||str_contains($email,'gv.')||str_contains($email,'giao-vien')||str_contains($email,'giaovien')||str_contains($email,'thay')||str_contains($email,'co.')){
-                $role=RoleCodes::TEACHER;
-            }elseif(str_contains($email,'school')||str_contains($email,'bgh')||str_contains($email,'truong')||str_contains($email,'fpt.admin')){
-                $role=RoleCodes::SCHOOL;
-            }elseif(str_contains($email,'enterprise')||str_contains($email,'business')||str_contains($email,'careers')||str_contains($email,'dn.')||str_contains($email,'doanh-nghiep')){
-                $role=RoleCodes::ENTERPRISE;
-            }elseif(str_contains($email,'admin')){
-                $role=RoleCodes::PLATFORM_ADMIN;
-            }
-
-            $emailPrefix = explode('@', $email)[0] ?? 'User';
-            $cleanedName = ucwords(str_replace(['.', '_', '-'], ' ', $emailPrefix));
-            $displayName = $cleanedName !== '' ? $cleanedName : ucfirst($role) . ' User';
-
-            $row=[
-                'id'=>Uuid::v4(),
-                'email'=>$email!==''?$email:'demo@talenthub.local',
-                'fullName'=>$displayName,
-                'role'=>$role,
-                'status'=>'active',
-                'passwordHash'=>password_hash('123456',PASSWORD_DEFAULT),
-            ];
+        $storedHash = is_array($row) ? (string) ($row['passwordHash'] ?? $row['password'] ?? '') : '';
+        if (!$row || !$this->verifyPassword($password, $storedHash)) {
+            throw new ApiException(401, 'INVALID_CREDENTIALS', 'Email hoặc mật khẩu không chính xác.');
+        }
+        if (($row['status'] ?? '') !== 'active') {
+            throw new ApiException(403, 'ACCOUNT_UNAVAILABLE', 'Tài khoản chưa sẵn sàng để đăng nhập. Vui lòng liên hệ quản trị viên.');
         }
         if(isset($row['id'])){
             try{
