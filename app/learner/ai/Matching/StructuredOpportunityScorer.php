@@ -68,7 +68,7 @@ final class StructuredOpportunityScorer
             $code = $skill['code'];
             $minimum = $skill['minimum_score'];
             $score = $profileSkills[$code] ?? null;
-            if ($score !== null && $score >= $minimum) {
+            if ($minimum > 0 && $score !== null && $score >= $minimum) {
                 $met += 1;
             }
         }
@@ -77,16 +77,19 @@ final class StructuredOpportunityScorer
 
     private function assessmentAlignment(LearnerOpportunityProfile $profile, OpportunityCandidate $candidate): int
     {
-        $dimensions = $profile->assessmentDimensions();
-        if ($dimensions === []) {
+        $signals = $profile->assessmentSignals();
+        if ($signals === []) {
             return 0;
         }
-        $candidateTags = self::candidateAssessmentTags($candidate);
-        if ($candidateTags === []) {
+        $candidateSignals = self::candidateAssessmentSignals($candidate);
+        if ($candidateSignals === []) {
             return 0;
         }
-        $overlap = count(array_intersect($candidateTags, array_keys($dimensions)));
-        return self::capProportion($overlap / count($candidateTags), OpportunityScore::MAX['assessment_alignment']);
+        $total = 0.0;
+        foreach ($candidateSignals as $key) {
+            $total += ($signals[$key] ?? 0.0) / 100.0;
+        }
+        return self::capProportion($total / count($candidateSignals), OpportunityScore::MAX['assessment_alignment']);
     }
 
     private function experienceRelevance(LearnerOpportunityProfile $profile, OpportunityCandidate $candidate): int
@@ -122,9 +125,9 @@ final class StructuredOpportunityScorer
         $hasMandatoryMissing = false;
         foreach ($required as $skill) {
             $score = $profileSkills[$skill['code']] ?? null;
-            if ($score === null || $score < $skill['minimum_score']) {
+            if ($skill['minimum_score'] <= 0 || $score === null || $score < $skill['minimum_score']) {
                 $missing[] = $skill;
-                if ($skill['minimum_score'] >= self::MANDATORY_MINIMUM_SCORE
+                if (($skill['minimum_score'] <= 0 || $skill['minimum_score'] >= self::MANDATORY_MINIMUM_SCORE)
                     && !in_array($skill['code'], $outcomeCodes, true)) {
                     $hasMandatoryMissing = true;
                 }
@@ -175,16 +178,14 @@ final class StructuredOpportunityScorer
     }
 
     /** @return list<string> */
-    private static function candidateAssessmentTags(OpportunityCandidate $candidate): array
+    private static function candidateAssessmentSignals(OpportunityCandidate $candidate): array
     {
         $payload = $candidate->providerPayload();
         $tags = [];
         $category = isset($payload['category']) && is_string($payload['category']) ? trim($payload['category']) : '';
-        if ($category !== '') {
-            $code = LearnerOpportunityProfile::normalizeCode($category);
-            if ($code !== '') {
-                $tags[] = $code;
-            }
+        $dimension = strtoupper($category);
+        if (in_array($dimension, ['R', 'I', 'A', 'S', 'E', 'C'], true)) {
+            $tags[] = CareerRoleBenchmark::signalKey('holland', $dimension);
         }
         return $tags;
     }

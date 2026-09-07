@@ -509,7 +509,7 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
     private function runForStudent(string $studentId, string $runId): ?array
     {
         $statement = $this->pdo->prepare(
-            "SELECT * FROM learner_recommendation_runs WHERE id = :runId AND studentId = :studentId AND capability = :capability"
+            "SELECT runs.*, snapshots.contentHash AS inputHash FROM learner_recommendation_runs AS runs INNER JOIN learner_recommendation_input_snapshots AS snapshots ON snapshots.id = runs.snapshotId AND snapshots.studentId = runs.studentId WHERE runs.id = :runId AND runs.studentId = :studentId AND runs.capability = :capability"
         );
         $statement->execute(['runId' => $runId, 'studentId' => $studentId, 'capability' => self::CAPABILITY]);
         $run = $statement->fetch(PDO::FETCH_ASSOC);
@@ -526,6 +526,9 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
         $run['pendingStatus'] = $run['status'];
         $run['freshness_status'] = $run['status'] === 'completed' ? 'fresh' : 'unavailable';
         $run['analysis'] = self::decodeJson($run['analysisJson'] ?? null);
+        $run['generationCurrent'] = hash_equals($this->providerVersion, (string) ($run['provider'] ?? ''))
+            && hash_equals($this->modelVersion, (string) ($run['modelVersion'] ?? ''))
+            && hash_equals($this->promptVersion, (string) ($run['promptVersion'] ?? ''));
         $run['items'] = [];
         foreach ($items->fetchAll(PDO::FETCH_ASSOC) as $item) {
             $evidence = $this->pdo->prepare(

@@ -171,13 +171,16 @@ final class DatabaseJobMatchRepository implements JobMatchRepository
     /** @return array<string,mixed>|null */
     private function readRun(string $studentId, string $runId): ?array
     {
-        $q = $this->pdo->prepare('SELECT * FROM learner_recommendation_runs WHERE id=? AND studentId=? AND capability=?');
+        $q = $this->pdo->prepare('SELECT runs.*, snapshots.contentHash AS inputHash FROM learner_recommendation_runs runs INNER JOIN learner_recommendation_input_snapshots snapshots ON snapshots.id=runs.snapshotId AND snapshots.studentId=runs.studentId WHERE runs.id=? AND runs.studentId=? AND runs.capability=?');
         $q->execute([$runId, $studentId, self::CAPABILITY]); $run = $q->fetch(PDO::FETCH_ASSOC); if ($run === false) return null;
         $items = $this->pdo->prepare("SELECT * FROM learner_recommendation_items WHERE runId=? AND lifecycleStatus='active' ORDER BY rankPosition,id");
         $items->execute([$runId]); $run['items'] = $items->fetchAll(PDO::FETCH_ASSOC);
         foreach ($run['items'] as &$item) { $item['analysis'] = self::decode($item['analysisJson'] ?? null); $item['action'] = self::decode($item['actionJson'] ?? null); }
         unset($item); $run['analysis'] = self::decode($run['analysisJson'] ?? null); $run['runId'] = $run['id']; unset($run['id']);
         $run['state'] = (string) ($run['analysis']['state'] ?? 'ready_model');
+        $run['generationCurrent'] = hash_equals($this->providerVersion, (string) ($run['provider'] ?? ''))
+            && hash_equals($this->modelVersion, (string) ($run['modelVersion'] ?? ''))
+            && hash_equals($this->promptVersion, (string) ($run['promptVersion'] ?? ''));
         return $run;
     }
 

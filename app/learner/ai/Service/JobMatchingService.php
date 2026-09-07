@@ -18,6 +18,7 @@ use TalentHub\Learner\Ai\Matching\OpportunityCandidate;
 use TalentHub\Learner\Ai\Matching\SkillGapResolver;
 use TalentHub\Learner\Ai\Model\ModelJobMatchEngine;
 use TalentHub\Learner\Ai\Persistence\JobMatchRepository;
+use TalentHub\Learner\Ai\Snapshot\MatchingInputSnapshot;
 
 final class JobMatchingService
 {
@@ -76,11 +77,13 @@ final class JobMatchingService
                 if (!isset($currentScores[$id]) || (int) ($item['matchScore'] ?? -1) !== $currentScores[$id]) { $run = null; break; }
             }
         }
-        return $run === null ? self::emptyResponse('not_generated') : $this->mapRun($run, $candidates, false);
+        if ($run === null) return self::emptyResponse('not_generated');
+        $stale = $this->runIsStale($run, MatchingInputSnapshot::build($prepared['input'], $candidates, $roles));
+        return $this->mapRun($run, $candidates, $stale);
     }
 
     /** @return array<string,mixed> */
-    public function generate(string $studentId, string $requestId, string $idempotencyKey): array
+    public function generate(string $studentId, string $requestId, string $idempotencyKey, ?callable $beforeGenerate = null): array
     {
         $prepared = $this->prepare($studentId);
         if (!isset($prepared['profile'])) return $prepared;
@@ -91,6 +94,14 @@ final class JobMatchingService
         $rolesResult = ($this->roleSupplier)();
         $roles = is_array($rolesResult['roles'] ?? null) ? $rolesResult['roles'] : [];
         if (($rolesResult['status'] ?? '') !== 'ok' || $roles === []) return self::emptyResponse('benchmark_insufficient');
+
+        $input = MatchingInputSnapshot::build($input, $candidates, $roles);
+        $activeIds = array_map(static fn (OpportunityCandidate $c): string => $c->catalogId(), $candidates);
+        try { $cached = $this->repository->latestValid($studentId, $activeIds); }
+        catch (Throwable) { $cached = null; }
+        if ($cached !== null && MatchingInputSnapshot::canReuse($cached, $input)) {
+            return MatchingInputSnapshot::reused($this->mapRun($cached, $candidates, false));
+        }
 
         $resolver = new JobRoleResolver(); $scorer = new JobMatchScorer(); $gapResolver = new SkillGapResolver();
         $matches = []; $gaps = []; $ranked = [];
@@ -118,6 +129,7 @@ final class JobMatchingService
             return $stale === null ? self::emptyResponse('provider_unavailable') : $this->mapRun($stale, $candidates, true);
         }
 
+        if ($beforeGenerate !== null) $beforeGenerate();
         $context = new RecommendationContext($decision->allowedScopes(), $requestId, 'job-match-' . hash('sha256', $idempotencyKey), $studentId, $decision->decisionHash(), $decision->policyVersion());
         try { $pending = $this->repository->createPendingRun($studentId, $input, $context); }
         catch (Throwable) {
@@ -127,16 +139,19 @@ final class JobMatchingService
         }
         if (($pending['reused'] ?? false) === true) {
             $cached = $this->repository->latestValid($studentId, $activeIds);
-            return $cached === null ? self::emptyResponse('provider_unavailable') : $this->mapRun($cached, $candidates, false);
+            return $cached === null
+                ? self::emptyResponse(($pending['status'] ?? 'pending') === 'pending' ? 'pending' : 'provider_unavailable')
+                : $this->mapRun($cached, $candidates, $this->runIsStale($cached, $input));
         }
 
         $analyses = null;
         for ($attempt = 1; $attempt <= 2; $attempt++) {
             try {
-                $analyses = $this->engine->generate($profile, $selected, $matches, $gaps, $context);
+                $candidateAnalyses = $this->engine->generate($profile, $selected, $matches, $gaps, $context, $attempt > 1);
                 $expected = array_map(static fn (OpportunityCandidate $c): string => $c->catalogId(), $selected);
-                $actual = array_map(static fn ($a): string => $a->catalogId(), $analyses); sort($expected); sort($actual);
+                $actual = array_map(static fn ($a): string => $a->catalogId(), $candidateAnalyses); sort($expected); sort($actual);
                 if ($actual !== $expected) throw new \InvalidArgumentException('Gemini must analyze every eligible job exactly once.');
+                $analyses = $candidateAnalyses;
                 break;
             } catch (Throwable) {}
         }
@@ -250,6 +265,14 @@ final class JobMatchingService
             if ($code !== '' && preg_match('/\A[a-z0-9]+(?:_[a-z0-9]+)*\z/', $code) === 1) $benchmarkCodes[$code] = true;
         }
         return ['strength_details'=>$details,'met_skill_count'=>count($details),'benchmark_skill_count'=>count($benchmarkCodes)];
+    }
+
+    /** @param array<string,mixed> $run */
+    private function runIsStale(array $run, RecommendationInput $input): bool
+    {
+        return ($run['generationCurrent'] ?? true) !== true
+            || (isset($run['inputHash'])
+                && (!is_string($run['inputHash']) || !hash_equals($input->contentHash(), $run['inputHash'])));
     }
 
     /** @return array<string,mixed> */

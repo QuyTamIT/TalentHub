@@ -12,7 +12,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
 
 final class RoadmapPromptRegistry
 {
-    public const VERSION = 'learner-roadmap-prompt-1.4.0';
+    public const VERSION = 'learner-roadmap-prompt-1.5.0';
 
     private const TALENT_MAP_FIELDS = [
         'Tư duy Logic & Hệ thống',
@@ -84,6 +84,11 @@ final class RoadmapPromptRegistry
             'prompt_version' => self::VERSION,
             'contract_version' => RoadmapAnalysis::CONTRACT_VERSION,
             'instructions' => [
+                ...\TalentHub\Learner\Ai\Grounding\GroundedProseGuard::instructions(),
+                'Bản tóm tắt phải giúp người học hiểu căn cứ của hướng đề xuất, giới hạn dữ liệu và ưu tiên tuần đầu. Mỗi insight giải thích tín hiệu đầu vào, ý nghĩa thực tiễn và một cách luyện tập cụ thể, không chỉ khen chung chung.',
+                'Mỗi task nêu thao tác từng bước, sản phẩm phải lưu và tiêu chí tự kiểm tra; nối nhiệm vụ sau với sản phẩm nhiệm vụ trước. Đưa một điểm tự đánh giá hoặc xin góp ý giáo viên ở cuối mỗi giai đoạn.',
+                'Chưa có lịch rảnh hay ngân sách đã xác nhận: gọi thời lượng là dự kiến, dùng bài tập miễn phí có thể làm trong 15–120 phút, cho phép chia nhỏ; không tuyên bố biết lịch học thực của người học.',
+                'Không suy ra xu hướng tăng/giảm từ một lần đo. talent_map và growth_hypotheses chỉ là định hướng khám phá, không phải xác suất thành công hoặc đánh giá chuyên môn đã xác minh.',
                 'Trả về duy nhất một JSON object hợp lệ theo learner-roadmap-1.0.0.',
                 'Tuân thủ chính xác output_schema được cung cấp. Không thêm trường ngoài schema.',
                 'Viết toàn bộ nội dung dành cho học viên bằng tiếng Việt tự nhiên.',
@@ -92,7 +97,7 @@ final class RoadmapPromptRegistry
                 'Tạo lộ trình phù hợp với học sinh, sinh viên: ưu tiên bài tập học tập, dự án nhỏ, hoạt động nhóm và sản phẩm có thể hoàn thành trong lịch học; không giao nhiệm vụ như một nhân sự toàn thời gian.',
                 'Mỗi giai đoạn phải có 3–5 task theo trình tự tăng dần; khi phù hợp, sắp xếp task theo các mốc 7 ngày, 14 ngày, 30 ngày, 60 ngày và 90 ngày để người học dễ theo dõi tiến độ.',
                 'Mỗi task phải bắt đầu bằng một hành động cụ thể, mô tả cách thực hiện và nêu rõ đầu ra hoặc tiêu chí hoàn thành có thể kiểm tra được; không viết mô tả chung chung.',
-                'Cân bằng thời lượng task với lịch học; ưu tiên 30–120 phút cho một task, chia nhiệm vụ lớn thành bước nhỏ, và dùng metric_label để mô tả cách người học tự theo dõi tiến bộ.',
+                'Mỗi task có estimated_minutes từ 15 đến 120; chia nhiệm vụ lớn thành bước nhỏ, và dùng metric_label để mô tả cách người học tự theo dõi tiến bộ.',
                 'Kết nối mỗi giai đoạn với mục tiêu học tập, kỹ năng trọng tâm, sản phẩm/đầu ra và thước đo; diễn đạt thân thiện, khích lệ, dễ hiểu với lứa tuổi học sinh–sinh viên.',
                 'Không nhắc lại mã MBTI, điểm Holland, biểu đồ DISC hoặc điểm Multiple Intelligence.',
                 'Mỗi insight, phase và task phải trích dẫn evidence_ref_ids được cung cấp.',
@@ -156,7 +161,7 @@ final class RoadmapPromptRegistry
                 'position' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 5],
                 'title' => $text,
                 'description' => $text,
-                'estimated_minutes' => ['type' => 'integer', 'minimum' => 5, 'maximum' => 1440],
+                'estimated_minutes' => ['type' => 'integer', 'minimum' => 15, 'maximum' => 120],
                 'action' => ['oneOf' => $actionVariants],
                 'evidence_ref_ids' => $evidence,
             ],

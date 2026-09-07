@@ -67,7 +67,7 @@ try {
     if (!$response->isSuccess()) {
         $safe['error_code'] = $response->errorCode();
     } else {
-        $validator = new RoadmapAnalysisValidator($request->evidenceReferenceIds(), []);
+        $validator = new RoadmapAnalysisValidator($request->evidenceReferenceIds(), [], [], $input);
         $analysis = $validator->fromProviderPayload($response->payload(), [
             'origin' => 'model', 'provider' => (string) $config->provider(), 'model_version' => (string) $config->model(),
             'prompt_version' => $request->promptVersion(), 'confidence_band' => 'medium',

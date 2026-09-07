@@ -14,8 +14,7 @@ namespace TalentHub\Learner\Ai\Matching;
  *   ascending;
  * - impact labels are fixed Vietnamese rule templates chosen by
  *   required/weight/gap — never model-generated text;
- * - candidate skills without a benchmark are tracked in
- *   unbenchmarked_skills without targets and never scored;
+ * - unknown candidate targets remain null and require clarification;
  * - a learner meeting every benchmark yields the no_skill_gap state.
  */
 final class SkillGapResolver
@@ -47,6 +46,8 @@ final class SkillGapResolver
                 'is_required' => $skill['required'],
                 'impact' => self::impactLabel($skill),
                 'evidence_refs' => $skill['evidence_refs'],
+                'target_basis' => $skill['target_basis'],
+                'target_is_approximate' => $skill['target_is_approximate'],
             ];
         }
 
@@ -61,6 +62,8 @@ final class SkillGapResolver
                 'weight' => $skill['weight'],
                 'is_required' => $skill['required'],
                 'evidence_refs' => $skill['evidence_refs'],
+                'target_basis' => $skill['target_basis'],
+                'target_is_approximate' => $skill['target_is_approximate'],
             ];
         }
 
@@ -75,21 +78,29 @@ final class SkillGapResolver
         ];
     }
 
-    /** @param array{current_score:int,target_score:int,gap:int,weight:float,required:bool} $skill */
+    /** @param array{current_score:?int,target_score:?int,gap:?int,weight:float,required:bool} $skill */
     private static function impactLabel(array $skill): string
     {
         $gap = $skill['gap'];
+        if ($skill['target_score'] === null) {
+            return 'Ngưỡng yêu cầu chưa được nguồn công bố; cần đối chiếu thêm trước khi kết luận mức độ đáp ứng.';
+        }
+        if ($skill['current_score'] === null) {
+            return 'Chưa có điểm quan sát cho kỹ năng này; cần đánh giá thêm trước khi kết luận mức độ đáp ứng.';
+        }
         if ($skill['required'] && $gap >= 40) {
             return 'Kỹ năng bắt buộc còn thiếu lớn, ảnh hưởng trực tiếp đến khả năng đảm nhận vị trí.';
         }
         if ($skill['required']) {
-            return 'Kỹ năng bắt buộc chưa đạt ngưỡng benchmark của nghề.';
+            return ($skill['target_basis'] ?? '') === 'candidate'
+                ? 'Kỹ năng bắt buộc chưa đạt ngưỡng được công bố cho vị trí này.'
+                : 'Kỹ năng bắt buộc chưa đạt ngưỡng tham chiếu của nghề; cần đối chiếu yêu cầu thực tế của vị trí.';
         }
         if ($gap >= 40) {
             return 'Khoảng thiếu lớn ảnh hưởng rõ rệt đến mức độ phù hợp.';
         }
         if ($skill['weight'] >= 15.0) {
-            return 'Khoảng thiếu nằm ở kỹ năng có trọng số cao trong benchmark nghề.';
+            return 'Khoảng thiếu nằm ở kỹ năng có trọng số cao trong phép đối chiếu hiện tại.';
         }
         return 'Khoảng thiếu nhỏ, có thể bù đắp qua luyện tập có mục tiêu.';
     }

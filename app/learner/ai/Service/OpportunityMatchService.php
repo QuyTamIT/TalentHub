@@ -16,13 +16,14 @@ use TalentHub\Learner\Ai\Matching\OpportunityScore;
 use TalentHub\Learner\Ai\Model\ModelOpportunityMatchEngine;
 use TalentHub\Learner\Ai\Model\OpportunityMatchPromptRegistry;
 use TalentHub\Learner\Ai\Persistence\OpportunityMatchRepository;
+use TalentHub\Learner\Ai\Snapshot\MatchingInputSnapshot;
 
 /**
  * Orchestrates the learner Top 3 opportunity matching capability. Consent,
  * snapshot/profile, candidate normalization, deterministic structured
  * scoring, Gemini analysis, retry, stale fallback and persistence are all
- * driven from here. The final 70/30 score is composed exclusively through
- * OpportunityScore::withGeminiScore()->finalScore().
+ * driven from here. The learner-facing score and rank remain deterministic;
+ * Gemini supplies explanation and diagnostic metadata only.
  */
 final class OpportunityMatchService
 {
@@ -95,7 +96,8 @@ final class OpportunityMatchService
         }
 
         try {
-            $profile = LearnerOpportunityProfile::fromInput(($this->inputBuilder)($studentId));
+            $input = ($this->inputBuilder)($studentId);
+            $profile = LearnerOpportunityProfile::fromInput($input);
         } catch (Throwable) {
             return $this->response('insufficient_data', []);
         }
@@ -132,11 +134,14 @@ final class OpportunityMatchService
                 $this->analysisContext($profile, $candidates, $scoredCandidates, $scored),
             );
         }
+        if ($this->runIsStale($run, MatchingInputSnapshot::build($input, $candidates))) {
+            return $this->mapStale($run, $candidates);
+        }
         return $this->mapReady($run, $candidates);
     }
 
     /** @return array<string,mixed> */
-    public function generate(string $studentId, string $requestId, string $idempotencyKey): array
+    public function generate(string $studentId, string $requestId, string $idempotencyKey, ?callable $beforeGenerate = null): array
     {
         try {
             $decision = ($this->decisionResolver)($studentId);
@@ -162,6 +167,13 @@ final class OpportunityMatchService
         } catch (Throwable) {
             return $this->response('catalog_insufficient', []);
         }
+        $input = MatchingInputSnapshot::build($input, $candidates);
+        $activeIds = array_map(static fn (OpportunityCandidate $c): string => $c->catalogId(), $candidates);
+        try { $cached = $this->repository->latestValid($studentId, $activeIds); }
+        catch (Throwable) { $cached = null; }
+        if ($cached !== null && MatchingInputSnapshot::canReuse($cached, $input)) {
+            return MatchingInputSnapshot::reused($this->mapReady($cached, $candidates));
+        }
         $scored = [];
         $scoredCandidates = [];
         foreach ($candidates as $candidate) {
@@ -183,6 +195,7 @@ final class OpportunityMatchService
             return $this->response('provider_unavailable', []);
         }
 
+        if ($beforeGenerate !== null) $beforeGenerate();
         $context = new RecommendationContext(
             $decision->allowedScopes(),
             $requestId,
@@ -199,8 +212,15 @@ final class OpportunityMatchService
         }
         if (($pending['reused'] ?? false) === true) {
             $cached = $this->repository->latestValid($studentId, $activeCatalogIds);
+            if (($pending['status'] ?? null) === 'pending') {
+                return $cached === null
+                    ? $this->response('pending', [])
+                    : $this->mapStale($cached, $scoredCandidates);
+            }
             if (($pending['status'] ?? null) === 'completed' && $cached !== null) {
-                return $this->mapReady($cached, $scoredCandidates);
+                return $this->runIsStale($cached, $input)
+                    ? $this->mapStale($cached, $scoredCandidates)
+                    : $this->mapReady($cached, $scoredCandidates);
             }
             if (($pending['status'] ?? null) === 'failed'
                 && in_array(($pending['safeErrorCode'] ?? null), ['provider_unavailable', 'engine_failure'], true)
@@ -242,22 +262,32 @@ final class OpportunityMatchService
         }
         $completionState = $maxFinal < 40 ? 'no_fit_model' : ($mode === 'low_fit' || $maxFinal < 60 ? 'low_fit_model' : (count($ranked) < 3 ? 'partial_model' : 'ready_model'));
         $runAnalysis = [];
-        if ($completionState === 'no_fit_model') {
-            try {
-                $runAnalysis = $this->runNoFitSummary($profile, $scored, $context, $analysisContext, $allowList);
-            } catch (Throwable $exception) {
-                $this->failPending($studentId, $pending, $exception);
-                $stale = $this->repository->latestValid($studentId, $activeCatalogIds);
-                if ($stale !== null && ($stale['status'] ?? null) === 'completed') {
-                    return $this->mapStale($stale, $scoredCandidates);
-                }
-                return $this->response('provider_unavailable', []);
-            }
+        if ($completionState === 'no_fit_model' && $ranked !== []) {
+            // Reuse the already validated model explanation for the closest
+            // candidate. A second generation must not discard useful results.
+            $closest = $ranked[0];
+            $runAnalysis = $this->enrichNoFitSummary([
+                'headline' => 'Cơ hội gần nhất vẫn cần củng cố thêm kỹ năng',
+                'explanation' => $closest->whyFit(),
+                'learner_strengths' => $closest->fitReasons(),
+                'catalog_demands' => [],
+                'main_gaps' => $closest->gapReasons(),
+                'next_steps' => $closest->improvementSteps() ?: $closest->skillsToDevelop(),
+                'evidence_ref_ids' => $closest->evidenceRefs(),
+            ], $analysisContext);
         }
         try {
             $run = $this->repository->completeRun($studentId, (string) ($pending['runId'] ?? ''), $ranked, $runAnalysis, $completionState);
         } catch (Throwable $exception) {
             $this->failPending($studentId, $pending, $exception);
+            try {
+                $stale = $this->repository->latestValid($studentId, $activeCatalogIds);
+                if ($stale !== null && ($stale['status'] ?? null) === 'completed') {
+                    return $this->mapStale($stale, $scoredCandidates);
+                }
+            } catch (Throwable) {
+                // A storage outage may affect reads as well as writes.
+            }
             return $this->response('provider_unavailable', []);
         }
         return $this->mapReady($run, $scoredCandidates);
@@ -330,6 +360,14 @@ final class OpportunityMatchService
         });
 
         return array_values($composed);
+    }
+
+    /** @param array<string,mixed> $run */
+    private function runIsStale(array $run, \TalentHub\Learner\Ai\Domain\RecommendationInput $input): bool
+    {
+        return ($run['generationCurrent'] ?? true) !== true
+            || (isset($run['inputHash'])
+                && (!is_string($run['inputHash']) || !hash_equals($input->contentHash(), $run['inputHash'])));
     }
 
     /** @param array<string,mixed> $pending */
@@ -445,7 +483,7 @@ final class OpportunityMatchService
 
         $message = $exception->getMessage();
         if ($exception instanceof \InvalidArgumentException
-            && (str_starts_with($message, 'Opportunity match ') || str_starts_with($message, 'No-fit summary '))) {
+            && (str_starts_with($message, 'grounding_') || str_starts_with($message, 'Opportunity match ') || str_starts_with($message, 'No-fit summary '))) {
             return true;
         }
         foreach (self::MALFORMED_MARKERS as $marker) {
@@ -462,7 +500,7 @@ final class OpportunityMatchService
         $attempts = 0;
         while (true) {
             try {
-                return $this->engine->generate($profile, $allowList, $scored, $context, $mode, $analysisContext);
+                return $this->engine->generate($profile, $allowList, $scored, $context, $mode, $analysisContext, $attempts > 0);
             } catch (Throwable $exception) {
                 if ($attempts === 0 && self::isMalformedOutput($exception)) {
                     $attempts++;
@@ -494,7 +532,7 @@ final class OpportunityMatchService
             if (!self::isMalformedOutput($exception)) {
                 throw $exception;
             }
-            $summary = $this->engine->generateNoFitSummary($profile, $scored, $context, $analysisContext, $evidenceAllowList);
+            $summary = $this->engine->generateNoFitSummary($profile, $scored, $context, $analysisContext, $evidenceAllowList, true);
         }
         return $this->enrichNoFitSummary($summary, $analysisContext);
     }

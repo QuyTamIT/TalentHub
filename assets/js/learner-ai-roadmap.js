@@ -114,8 +114,7 @@
     }
 
     function confidenceLabel(value) {
-        return { high: 'Độ tin cậy cao', medium: 'Độ tin cậy trung bình', low: 'Độ tin cậy cần kiểm chứng' }[value]
-            || 'Độ tin cậy chưa xác định';
+        return 'Định hướng tham khảo · cần đối chiếu qua thực hành';
     }
 
     function normalizeTalentScore(value) {
@@ -728,6 +727,8 @@
 
             const failedRefresh = state === 'stale-model'
                 && payload?.refresh_state === 'fallback_not_applied';
+            const unchanged = state === 'ready-model'
+                && payload?.reuse_reason === 'inputs_unchanged' && payload?.data_changed === false;
             hide(nodes.loading, state !== 'loading');
             hide(nodes.notGenerated, state !== 'not-generated');
             hide(nodes.consent, state !== 'consent-required');
@@ -735,11 +736,13 @@
             hide(nodes.pending, state !== 'pending');
             hide(nodes.error, state !== 'source-error');
             hide(nodes.ready, !READY_STATES.has(state));
-            set(nodes.status, statusCopy(state));
+            set(nodes.status, unchanged ? 'Dữ liệu không thay đổi. Đang hiển thị kết quả phân tích trước đó.' : statusCopy(state));
             if (READY_STATES.has(state)) {
-                if (processingActive) completeProcessing(!failedRefresh);
+                if (processingActive && !unchanged) completeProcessing(!failedRefresh);
                 else {
                     processingTracker.stop();
+                    processingActive = false;
+                    processingPreserveReady = false;
                     clearSuccessHide();
                     hide(nodes.processing, true);
                     setGenerateDisabled(false);

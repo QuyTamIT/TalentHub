@@ -30,6 +30,23 @@ Thumbs.db
 
 # Local-only planning, QA, and coding-agent material.
 /tests/*
+!/tests/learner_ai_prose_grounding_test.php
+!/tests/learner_ai_matching_recovery_test.php
+!/tests/learner_ai_matching_ui_contract_test.js
+!/tests/learner_ai_summary_recovery_test.js
+!/tests/learner_ai_roadmap_freshness_test.php
+!/tests/learner_ai_unchanged_input_test.php
+!/tests/learner_ai_reuse_ui_test.js
+!/tests/learner_ai_reuse_lifecycle_test.php
+!/tests/learner_ai_refinement_grounding_test.php
+!/tests/learner_ai_grounded_output_integration_test.php
+!/tests/learner_ai_grounded_scoring_test.php
+!/tests/learner_ai_assessment_refresh_contract_test.php
+!/tests/learner_ai_fail_closed_defaults_test.php
+!/tests/learner_ai_local_always_on_test.php
+!/tests/learner_ai_skill_gap_ui_test.js
+!/tests/job_match_gemini_contract_test.php
+!/tests/job_match_model_engine_test.php
 !/tests/learner_journey_dashboard_ui_test.ps1
 !/tests/learner_credential_cards_ui_test.ps1
 !/tests/teacher_grading_hardening_test.php

@@ -11,7 +11,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
 
 final class PromptRegistry
 {
-    public const VERSION = 'learner-recommendation-1.0.1';
+    public const VERSION = 'learner-recommendation-1.1.0';
 
     public function create(RecommendationInput $input, RecommendationContext $context): ProviderRequest
     {
@@ -38,6 +38,7 @@ final class PromptRegistry
         return new ProviderRequest(self::VERSION, [
             'prompt_version' => self::VERSION,
             'instructions' => [
+                ...\TalentHub\Learner\Ai\Grounding\GroundedProseGuard::instructions(),
                 'Return JSON with an items array only.',
                 'Return 3 to 6 actionable recommendations matching the student profile from the supplied catalog and opportunity evidence (school activities, student projects, enterprise internships).',
                 'Every recommendation must correspond to an actual actionable item (activity, project, internship, workshop) from the supplied evidence with a concrete next step.',

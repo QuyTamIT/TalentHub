@@ -13,7 +13,7 @@
         low_fit_model: 'low-fit-model',
         no_fit_model: 'no-fit-model',
         partial_model: 'ready-model',
-        pending: 'loading',
+        pending: 'pending',
         ready_model: 'ready-model',
         stale_model: 'stale-model',
         provider_unavailable: 'source-error',
@@ -24,6 +24,7 @@
     const COPY = Object.freeze({
         'not-generated': 'Bấm “AI gợi ý dự án phù hợp” để Gemini đối chiếu hồ sơ năng lực và điểm đánh giá của bạn.',
         loading: 'Gemini đang đối chiếu dữ liệu đã được bạn cho phép…',
+        pending: 'Yêu cầu đã được tiếp nhận, chưa có kết quả hoàn tất. Bạn có thể bấm phân tích để kiểm tra hoặc thử lại.',
         'consent-required': 'Bạn cần cho phép sử dụng dữ liệu học tập trước khi nhận đề xuất cá nhân hóa.',
         'insufficient-data': 'Hồ sơ chưa đủ dữ liệu để phân tích. Hãy bổ sung kỹ năng hoặc hoàn thành một bài đánh giá.',
         'catalog-insufficient': 'Hiện chưa có đủ ba dự án đang mở phù hợp để AI xếp hạng.',
@@ -100,9 +101,9 @@
         return words ? words.charAt(0).toUpperCase() + words.slice(1) : '';
     }
 
-    function hasThreeToFourSentences(value) {
+    function hasSupportedAnalysisLength(value) {
         const matches = normalizeText(value).match(/[.!?]+(?=\s|$)/g) || [];
-        return matches.length >= 3 && matches.length <= 4;
+        return matches.length >= 3 && matches.length <= 8;
     }
 
     function normalizeReadyItems(items) {
@@ -118,7 +119,7 @@
             const fitReasons = normalizeTextList(item.fit_reasons);
             const gapReasons = normalizeTextList(item.gap_reasons);
             const skillsToDevelop = normalizeTextList(item.skills_to_develop);
-            if (!hasThreeToFourSentences(rationale) || fitReasons.length === 0 || gapReasons.length === 0 || skillsToDevelop.length === 0) return null;
+            if (!hasSupportedAnalysisLength(rationale) || fitReasons.length === 0 || gapReasons.length === 0 || skillsToDevelop.length === 0) return null;
             const canonicalUrl = classifySafeOpportunityUrl(item.canonical_url);
             ids.add(catalogId);
             normalized.push({
@@ -147,7 +148,7 @@
         return normalized.sort((left, right) => left.rank - right.rank);
     }
 
-    function createOpportunityMatchController({ api, view, createIdempotencyKey }) {
+    function createOpportunityMatchController({ api, view, createIdempotencyKey, wait = (ms) => new Promise((resolve) => global.setTimeout(resolve, ms)) }) {
         if (!api || typeof api !== 'object') {
             throw new TypeError('Opportunity match controller requires an API client.');
         }
@@ -157,6 +158,20 @@
         const keyFactory = typeof createIdempotencyKey === 'function' ? createIdempotencyKey : defaultIdempotencyKey;
         let inFlight = null;
         let lastRenderablePayload = null;
+
+        async function pollPending(response) {
+            if (response?.state !== 'pending' || typeof api.get !== 'function') return response;
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+                await wait(1500);
+                try {
+                    const latest = await api.get(ENDPOINT, { timeoutMs: 10000 });
+                    if (latest?.state && !['pending', 'not_generated', 'provider_unavailable'].includes(latest.state)) return latest;
+                } catch {
+                    // A read failure does not prove the accepted generation failed.
+                }
+            }
+            return response;
+        }
 
         function renderResponse(response) {
             const payload = response && typeof response === 'object' ? response : {};
@@ -224,6 +239,7 @@
             };
             inFlight = Promise.resolve()
                 .then(request)
+                .then(pollPending)
                 .then(renderResponse)
                 .catch(() => renderResponse({ state: 'provider_unavailable', items: [] }))
                 .finally(() => {
@@ -407,10 +423,14 @@
         }
 
         function render(state, payload = {}) {
+            const visibleResults = [panels.results, panels['low-fit-model'], panels['no-fit-model']].filter((panel) => panel && !panel.hidden);
             Object.values(panels).forEach((panel) => { if (panel) panel.hidden = true; });
+            if (state === 'loading' || state === 'pending') visibleResults.forEach((panel) => { panel.hidden = false; });
             root.setAttribute('aria-busy', String(state === 'loading'));
             if (status) {
-                status.textContent = COPY[state] || COPY['source-error'];
+                const unchanged = ['ready-model', 'low-fit-model', 'no-fit-model'].includes(state)
+                    && payload.reuse_reason === 'inputs_unchanged' && payload.data_changed === false;
+                status.textContent = unchanged ? 'Dữ liệu không thay đổi. Đang hiển thị kết quả phân tích trước đó.' : COPY[state] || COPY['source-error'];
                 status.className = `learner-opportunity-ai__status is-${state}`;
             }
             root.dataset.state = state;
@@ -419,6 +439,7 @@
             } else {
                 stopProgressAnimation();
             }
+            if (state === 'pending') return;
             const hasAnalyzedNoFitItems = state === 'no-fit-model' && Array.isArray(payload.items) && payload.items.length > 0;
             if (state === 'ready-model' || state === 'stale-model' || state === 'low-fit-model' || hasAnalyzedNoFitItems) {
                 if (list) {

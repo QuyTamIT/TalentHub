@@ -28,12 +28,15 @@ final class ModelJobMatchEngine
      * @param array<string,array<string,mixed>> $gaps
      * @return list<\TalentHub\Learner\Ai\Matching\JobMatchAnalysis>
      */
-    public function generate(LearnerOpportunityProfile $profile, array $candidates, array $matches, array $gaps, RecommendationContext $context): array
+    public function generate(LearnerOpportunityProfile $profile, array $candidates, array $matches, array $gaps, RecommendationContext $context, bool $validationRetry = false): array
     {
         if ($candidates === [] || count($candidates) > 10) {
             throw new InvalidArgumentException('Job match engine requires one to ten candidates.');
         }
         $request = JobMatchPromptRegistry::create($profile, $candidates, $matches, $gaps, $context);
+        if ($validationRetry) {
+            $request = $request->forValidationRetry(\TalentHub\Learner\Ai\Grounding\GroundedProseGuard::RETRY_INSTRUCTION);
+        }
         $response = $this->provider->generate($request, $this->authorizer);
         if (!$response->isSuccess()) {
             throw new InvalidArgumentException('Job match provider returned a failure: ' . ($response->errorCode() ?? 'provider_unavailable'));
