@@ -36,24 +36,24 @@
         </div>
         <div class="school-welcome__graphic">
             <svg width="180" height="140" viewBox="0 0 180 140" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <!-- School Building Illustration -->
-                <rect x="20" y="60" width="140" height="70" rx="4" fill="#EFF6FF" stroke="#3B82F6" stroke-width="2"/>
+                <!-- School Building Illustration (Synchronized Sunset Coral Palette) -->
+                <rect x="20" y="60" width="140" height="70" rx="4" fill="#FFF0EB" stroke="#F83F70" stroke-width="2"/>
                 <!-- Windows -->
-                <rect x="35" y="75" width="25" height="20" rx="2" fill="#BFDBFE" stroke="#3B82F6" stroke-width="1.5"/>
-                <rect x="70" y="75" width="25" height="20" rx="2" fill="#BFDBFE" stroke="#3B82F6" stroke-width="1.5"/>
-                <rect x="105" y="75" width="25" height="20" rx="2" fill="#BFDBFE" stroke="#3B82F6" stroke-width="1.5"/>
+                <rect x="35" y="75" width="25" height="20" rx="2" fill="#FFDACB" stroke="#F83F70" stroke-width="1.5"/>
+                <rect x="70" y="75" width="25" height="20" rx="2" fill="#FFDACB" stroke="#F83F70" stroke-width="1.5"/>
+                <rect x="105" y="75" width="25" height="20" rx="2" fill="#FFDACB" stroke="#F83F70" stroke-width="1.5"/>
                 <!-- Door -->
-                <rect x="77" y="105" width="26" height="25" rx="2" fill="#3B82F6"/>
-                <circle cx="97" cy="118" r="2" fill="#EFF6FF"/>
+                <rect x="77" y="105" width="26" height="25" rx="2" fill="#F83F70"/>
+                <circle cx="97" cy="118" r="2" fill="#FFF0EB"/>
                 <!-- Roof -->
-                <path d="M10 62 L90 20 L170 62" stroke="#3B82F6" stroke-width="2" fill="#DBEAFE"/>
+                <path d="M10 62 L90 20 L170 62" stroke="#F83F70" stroke-width="2" fill="#FFF7F2"/>
                 <!-- Flag pole -->
-                <line x1="90" y1="20" x2="90" y2="5" stroke="#3B82F6" stroke-width="2"/>
-                <circle cx="90" cy="5" r="3" fill="#3B82F6"/>
+                <line x1="90" y1="20" x2="90" y2="5" stroke="#F83F70" stroke-width="2"/>
+                <circle cx="90" cy="5" r="3" fill="#FF6B45"/>
                 <!-- Small decorative elements -->
-                <circle cx="40" cy="25" r="4" fill="#93C5FD" opacity="0.6"/>
-                <circle cx="140" cy="35" r="6" fill="#93C5FD" opacity="0.4"/>
-                <circle cx="155" cy="15" r="3" fill="#BFDBFE" opacity="0.5"/>
+                <circle cx="40" cy="25" r="4" fill="#FF6B45" opacity="0.6"/>
+                <circle cx="140" cy="35" r="6" fill="#F83F70" opacity="0.4"/>
+                <circle cx="155" cy="15" r="3" fill="#F23585" opacity="0.5"/>
             </svg>
         </div>
     </div>

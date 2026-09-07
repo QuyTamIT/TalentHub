@@ -278,7 +278,7 @@ $sidebarNav = [
                             <button type="button" 
                                     id="btn-export-analytics" 
                                     onclick="window.print()"
-                                    style="height: 44px; padding: 0 16px; border: 1px solid #CBD5E1; border-radius: 8px; background-color: #FFFFFF; font-size: 13px; font-weight: 600; color: #0F172A; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.15s ease; white-space: nowrap;">
+                                    style="height: 44px; padding: 0 16px; border: 1.5px solid #F0E6DD; border-radius: 10px; background-color: #FFFFFF; font-size: 13px; font-weight: 600; color: #322014; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s ease; white-space: nowrap;">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                     <polyline points="7 10 12 15 17 10"></polyline>
@@ -290,12 +290,12 @@ $sidebarNav = [
                     </div>
 
                     <!-- PHẦN 2: PHỄU TUYỂN DỤNG TỔNG THỂ (Clean Funnel) -->
-                    <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);">
+                    <div style="background: #FFFFFF; border: 1px solid #F0E6DD; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(50, 32, 20, 0.02);">
                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-                            <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">
+                            <h3 style="font-size: 15px; font-weight: 700; color: #322014; margin: 0;">
                                 Phễu Chuyển Đổi Tuyển Dụng Tổng Thể
                             </h3>
-                            <span style="background: #FFF7ED; color: #C2410C; border: 1px solid #FED7AA; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px;">
+                            <span style="background: #FFF0EB; color: #E04058; border: 1px solid #FFDACB; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px;">
                                 Tỷ lệ trúng tuyển: <strong id="kpi-pass-rate"><?= htmlspecialchars($summary['pass_rate_formatted']); ?></strong>
                             </span>
                         </div>
@@ -304,12 +304,12 @@ $sidebarNav = [
                         <div style="display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; gap: 12px; align-items: center;">
                             
                             <!-- Bước 1: Ứng tuyển -->
-                            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;">
+                            <div style="background: #FFFDFB; border: 1px solid #F0E6DD; border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;">
                                 <span style="font-size: 12px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: 0.02em;">1. Ứng tuyển</span>
-                                <div style="font-size: 24px; font-weight: 800; color: #0F172A; line-height: 1.1;" id="funnel-applied-count">
+                                <div style="font-size: 24px; font-weight: 800; color: #322014; line-height: 1.1;" id="funnel-applied-count">
                                     <?= (int) $summary['total_applicants']; ?>
                                 </div>
-                                <span style="font-size: 11px; font-weight: 600; color: #475569; background: #E2E8F0; padding: 2px 8px; border-radius: 4px; width: fit-content; margin-top: 4px;">
+                                <span style="font-size: 11px; font-weight: 600; color: #475569; background: #F0E6DD; padding: 2px 8px; border-radius: 4px; width: fit-content; margin-top: 4px;">
                                     100% hồ sơ
                                 </span>
                             </div>
@@ -318,12 +318,12 @@ $sidebarNav = [
                             <div style="color: #94A3B8; font-size: 14px; font-weight: 600; user-select: none;" aria-hidden="true">➔</div>
 
                             <!-- Bước 2: Đạt sơ tuyển -->
-                            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;">
+                            <div style="background: #FFFDFB; border: 1px solid #F0E6DD; border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;">
                                 <span style="font-size: 12px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: 0.02em;">2. Đạt sơ tuyển</span>
-                                <div style="font-size: 24px; font-weight: 800; color: #0F172A; line-height: 1.1;" id="funnel-qualified-count">
+                                <div style="font-size: 24px; font-weight: 800; color: #322014; line-height: 1.1;" id="funnel-qualified-count">
                                     <?= (int) $summary['qualified_candidates']; ?>
                                 </div>
-                                <span style="font-size: 11px; font-weight: 600; color: #C2410C; background: #FFF7ED; padding: 2px 8px; border-radius: 4px; width: fit-content; margin-top: 4px;">
+                                <span style="font-size: 11px; font-weight: 600; color: #E04058; background: #FFF0EB; border: 1px solid #FFDACB; padding: 2px 8px; border-radius: 4px; width: fit-content; margin-top: 4px;">
                                     <?= htmlspecialchars($summary['qualified_percentage']); ?> chuyển đổi
                                 </span>
                             </div>
@@ -332,12 +332,12 @@ $sidebarNav = [
                             <div style="color: #94A3B8; font-size: 14px; font-weight: 600; user-select: none;" aria-hidden="true">➔</div>
 
                             <!-- Bước 3: Phỏng vấn -->
-                            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;">
+                            <div style="background: #FFFDFB; border: 1px solid #F0E6DD; border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;">
                                 <span style="font-size: 12px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: 0.02em;">3. Phỏng vấn</span>
-                                <div style="font-size: 24px; font-weight: 800; color: #0F172A; line-height: 1.1;" id="funnel-interviewed-count">
+                                <div style="font-size: 24px; font-weight: 800; color: #322014; line-height: 1.1;" id="funnel-interviewed-count">
                                     <?= (int) $summary['interviewing']; ?>
                                 </div>
-                                <span style="font-size: 11px; font-weight: 600; color: #475569; background: #E2E8F0; padding: 2px 8px; border-radius: 4px; width: fit-content; margin-top: 4px;">
+                                <span style="font-size: 11px; font-weight: 600; color: #475569; background: #F0E6DD; padding: 2px 8px; border-radius: 4px; width: fit-content; margin-top: 4px;">
                                     <?= htmlspecialchars($summary['interview_percentage'] ?? '0%'); ?> chuyển đổi
                                 </span>
                             </div>
@@ -346,12 +346,12 @@ $sidebarNav = [
                             <div style="color: #94A3B8; font-size: 14px; font-weight: 600; user-select: none;" aria-hidden="true">➔</div>
 
                             <!-- Bước 4: Trúng tuyển -->
-                            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;">
+                            <div style="background: #FFFDFB; border: 1px solid #F0E6DD; border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;">
                                 <span style="font-size: 12px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: 0.02em;">4. Trúng tuyển</span>
-                                <div style="font-size: 24px; font-weight: 800; color: #0F172A; line-height: 1.1;" id="funnel-passed-count">
+                                <div style="font-size: 24px; font-weight: 800; color: #322014; line-height: 1.1;" id="funnel-passed-count">
                                     <?= (int) $summary['passed_candidates']; ?>
                                 </div>
-                                <span style="font-size: 11px; font-weight: 600; color: #C2410C; background: #FFF7ED; padding: 2px 8px; border-radius: 4px; width: fit-content; margin-top: 4px;">
+                                <span style="font-size: 11px; font-weight: 600; color: #E04058; background: #FFF0EB; border: 1px solid #FFDACB; padding: 2px 8px; border-radius: 4px; width: fit-content; margin-top: 4px;">
                                     <?= htmlspecialchars($summary['pass_rate_formatted']); ?> hoàn tất
                                 </span>
                             </div>
@@ -363,10 +363,10 @@ $sidebarNav = [
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch; margin-bottom: 20px;">
                         
                         <!-- Card Trái: Xu hướng Tuyển dụng (Biểu đồ cột tối giản) -->
-                        <div style="height: 100%; display: flex; flex-direction: column; justify-content: space-between; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02); box-sizing: border-box;">
+                        <div style="height: 100%; display: flex; flex-direction: column; justify-content: space-between; background: #FFFFFF; border: 1px solid #F0E6DD; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(50, 32, 20, 0.02); box-sizing: border-box;">
                             <div>
                                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
-                                    <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">
+                                    <h3 style="font-size: 15px; font-weight: 700; color: #322014; margin: 0;">
                                         Xu hướng Tuyển dụng theo tháng
                                     </h3>
                                     <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: #64748B;">
@@ -374,13 +374,13 @@ $sidebarNav = [
                                             <span style="width: 8px; height: 8px; border-radius: 2px; background: #CBD5E1;"></span> Lượt nộp
                                         </span>
                                         <span style="display: inline-flex; align-items: center; gap: 5px;">
-                                            <span style="width: 8px; height: 8px; border-radius: 2px; background: #F97316;"></span> Sơ tuyển đạt
+                                            <span style="width: 8px; height: 8px; border-radius: 2px; background: linear-gradient(135deg, #FF6B45 0%, #F83F70 100%);"></span> Sơ tuyển đạt
                                         </span>
                                     </div>
                                 </div>
 
                                 <!-- Biểu đồ cột trực quan đơn sắc -->
-                                <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; height: 160px; padding: 12px 6px 0 6px; border-bottom: 1px solid #E2E8F0;">
+                                <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; height: 160px; padding: 12px 6px 0 6px; border-bottom: 1px solid #F0E6DD;">
                                     <?php 
                                     $monthsDict = [];
                                     for ($i = 5; $i >= 0; $i--) {
@@ -433,7 +433,7 @@ $sidebarNav = [
                                         <div style="flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; gap: 6px;">
                                             <div style="display: flex; align-items: flex-end; gap: 3px; width: 100%; max-width: 32px; height: 100%; justify-content: center;">
                                                 <div style="width: 12px; height: <?= max(8, $h1); ?>%; background: #CBD5E1; border-radius: 3px 3px 0 0;" title="Lượt nộp: <?= $m['applied']; ?>"></div>
-                                                <div style="width: 12px; height: <?= max(6, $h2); ?>%; background: #F97316; border-radius: 3px 3px 0 0;" title="Đạt sơ tuyển: <?= $m['qual']; ?>"></div>
+                                                <div style="width: 12px; height: <?= max(6, $h2); ?>%; background: linear-gradient(180deg, #FF6B45 0%, #F83F70 100%); border-radius: 3px 3px 0 0;" title="Đạt sơ tuyển: <?= $m['qual']; ?>"></div>
                                             </div>
                                             <span style="font-size: 11px; color: #64748B; font-weight: 500;"><?= $m['label']; ?></span>
                                         </div>
@@ -442,19 +442,19 @@ $sidebarNav = [
                             </div>
 
                             <div style="margin-top: 12px; font-size: 12px; color: #64748B; display: flex; align-items: center; justify-content: space-between;">
-                                <span>Tăng trưởng ứng tuyển: <strong style="color: #0F172A;">+24.5%</strong></span>
-                                <span>Thời gian phản hồi TB: <strong style="color: #0F172A;">&lt; 24h</strong></span>
+                                <span>Tăng trưởng ứng tuyển: <strong style="color: #322014;">+24.5%</strong></span>
+                                <span>Thời gian phản hồi TB: <strong style="color: #322014;">&lt; 24h</strong></span>
                             </div>
                         </div>
 
                         <!-- Card Phải: Match Score & Đánh Giá Năng Lực (Màu cam thương hiệu chuẩn) -->
-                        <div style="height: 100%; display: flex; flex-direction: column; justify-content: space-between; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02); box-sizing: border-box;">
+                        <div style="height: 100%; display: flex; flex-direction: column; justify-content: space-between; background: #FFFFFF; border: 1px solid #F0E6DD; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(50, 32, 20, 0.02); box-sizing: border-box;">
                             <div>
                                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-                                    <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">
+                                    <h3 style="font-size: 15px; font-weight: 700; color: #322014; margin: 0;">
                                         Chất lượng &amp; Điểm Match Score
                                     </h3>
-                                    <span style="background: #FFF7ED; color: #C2410C; border: 1px solid #FED7AA; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">
+                                    <span style="background: #FFF0EB; color: #E04058; border: 1px solid #FFDACB; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;">
                                         84.5 / 100 điểm TB
                                     </span>
                                 </div>
@@ -464,40 +464,40 @@ $sidebarNav = [
                                     <div>
                                         <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">
                                             <span>Chuyên môn &amp; Tech Stack</span>
-                                            <span style="color: #0F172A;">88%</span>
+                                            <span style="color: #322014;">88%</span>
                                         </div>
-                                        <div style="height: 6px; background: #F1F5F9; border-radius: 999px; overflow: hidden;">
-                                            <div style="width: 88%; height: 100%; background: #F97316; border-radius: 999px;"></div>
+                                        <div style="height: 6px; background: #F0E6DD; border-radius: 999px; overflow: hidden;">
+                                            <div style="width: 88%; height: 100%; background: linear-gradient(90deg, #FF6B45 0%, #F83F70 100%); border-radius: 999px;"></div>
                                         </div>
                                     </div>
 
                                     <div>
                                         <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">
                                             <span>Kinh nghiệm thực tế &amp; Dự án</span>
-                                            <span style="color: #0F172A;">82%</span>
+                                            <span style="color: #322014;">82%</span>
                                         </div>
-                                        <div style="height: 6px; background: #F1F5F9; border-radius: 999px; overflow: hidden;">
-                                            <div style="width: 82%; height: 100%; background: #FB923C; border-radius: 999px;"></div>
+                                        <div style="height: 6px; background: #F0E6DD; border-radius: 999px; overflow: hidden;">
+                                            <div style="width: 82%; height: 100%; background: linear-gradient(90deg, #F83F70 0%, #A14FC9 100%); border-radius: 999px;"></div>
                                         </div>
                                     </div>
 
                                     <div>
                                         <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">
                                             <span>Kỹ năng mềm &amp; Làm việc nhóm</span>
-                                            <span style="color: #0F172A;">85%</span>
+                                            <span style="color: #322014;">85%</span>
                                         </div>
-                                        <div style="height: 6px; background: #F1F5F9; border-radius: 999px; overflow: hidden;">
-                                            <div style="width: 85%; height: 100%; background: #F97316; border-radius: 999px;"></div>
+                                        <div style="height: 6px; background: #F0E6DD; border-radius: 999px; overflow: hidden;">
+                                            <div style="width: 85%; height: 100%; background: linear-gradient(90deg, #FF6B45 0%, #F83F70 100%); border-radius: 999px;"></div>
                                         </div>
                                     </div>
 
                                     <div>
                                         <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px;">
                                             <span>Ngoại ngữ &amp; Khả năng tiếp thu</span>
-                                            <span style="color: #0F172A;">83%</span>
+                                            <span style="color: #322014;">83%</span>
                                         </div>
-                                        <div style="height: 6px; background: #F1F5F9; border-radius: 999px; overflow: hidden;">
-                                            <div style="width: 83%; height: 100%; background: #FB923C; border-radius: 999px;"></div>
+                                        <div style="height: 6px; background: #F0E6DD; border-radius: 999px; overflow: hidden;">
+                                            <div style="width: 83%; height: 100%; background: linear-gradient(90deg, #F83F70 0%, #8B4DE8 100%); border-radius: 999px;"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -511,16 +511,16 @@ $sidebarNav = [
                     </div>
 
                     <!-- PHẦN 4: BẢNG HIỆU QUẢ THEO TỪNG VỊ TRÍ (Performance Table) -->
-                    <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02); margin-bottom: 24px;">
+                    <div style="background: #FFFFFF; border: 1px solid #F0E6DD; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(50, 32, 20, 0.02); margin-bottom: 24px;">
                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-                            <h3 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">
+                            <h3 style="font-size: 15px; font-weight: 700; color: #322014; margin: 0;">
                                 Hiệu quả Tuyển dụng theo từng Vị trí
                             </h3>
                             <div style="position: relative; width: 260px;">
                                 <input type="text" 
                                        id="ana-table-search" 
                                        placeholder="Tìm kiếm vị trí tuyển dụng..."
-                                       style="width: 100%; height: 34px; padding: 0 12px 0 32px; font-size: 12px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFFFFF; outline: none; box-sizing: border-box;">
+                                       style="width: 100%; height: 34px; padding: 0 12px 0 32px; font-size: 12px; border: 1.5px solid #F0E6DD; border-radius: 8px; background: #FFFFFF; outline: none; box-sizing: border-box; color: #322014;">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); display: block; color: #94A3B8; pointer-events: none;">
                                     <circle cx="11" cy="11" r="8"></circle>
                                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -531,7 +531,7 @@ $sidebarNav = [
                         <div style="overflow-x: auto;" tabindex="0" role="region" aria-label="Bảng hiệu quả tuyển dụng theo từng vị trí">
                             <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
                                 <thead>
-                                    <tr style="border-bottom: 1px solid #E2E8F0; color: #64748B; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;">
+                                    <tr style="border-bottom: 1px solid #F0E6DD; color: #64748B; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;">
                                         <th style="padding: 10px 14px;">Vị trí tuyển dụng</th>
                                         <th style="padding: 10px 14px; text-align: center;">Lượt nộp</th>
                                         <th style="padding: 10px 14px; text-align: center;">Sơ tuyển</th>
@@ -542,29 +542,29 @@ $sidebarNav = [
                                 </thead>
                                 <tbody id="job-performance-tbody">
                                     <?php foreach ($jobPerformanceData as $job): ?>
-                                        <tr style="border-bottom: 1px solid #F1F5F9; transition: background 0.15s ease;">
+                                        <tr style="border-bottom: 1px solid #F0E6DD; transition: background 0.15s ease;">
                                             <td style="padding: 12px 14px;">
-                                                <div style="font-weight: 700; color: #0F172A; margin-bottom: 2px;">
+                                                <div style="font-weight: 700; color: #322014; margin-bottom: 2px;">
                                                     <?= htmlspecialchars($job['position']); ?>
                                                 </div>
                                                 <div style="font-size: 12px; color: #64748B;">
                                                     <?= htmlspecialchars($job['code']); ?> &bull; <?= htmlspecialchars($job['department']); ?>
                                                 </div>
                                             </td>
-                                            <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #0F172A;">
+                                            <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #322014;">
                                                 <?= (int) $job['applicants']; ?>
                                             </td>
-                                            <td style="padding: 12px 14px; text-align: center; color: #0F172A; font-weight: 600;">
+                                            <td style="padding: 12px 14px; text-align: center; color: #322014; font-weight: 600;">
                                                 <?= (int) $job['qualified']; ?>
                                             </td>
-                                            <td style="padding: 12px 14px; text-align: center; color: #0F172A; font-weight: 600;">
+                                            <td style="padding: 12px 14px; text-align: center; color: #322014; font-weight: 600;">
                                                 <?= (int) $job['interviewed']; ?>
                                             </td>
-                                            <td style="padding: 12px 14px; text-align: center; color: #0F172A; font-weight: 700;">
+                                            <td style="padding: 12px 14px; text-align: center; color: #322014; font-weight: 700;">
                                                 <?= (int) $job['passed']; ?>
                                             </td>
                                             <td style="padding: 12px 14px; text-align: right;">
-                                                <span style="background: #FFF7ED; color: #C2410C; border: 1px solid #FED7AA; padding: 3px 10px; border-radius: 999px; font-weight: 600; font-size: 12px;">
+                                                <span style="background: #FFF0EB; color: #E04058; border: 1px solid #FFDACB; padding: 3px 10px; border-radius: 999px; font-weight: 600; font-size: 12px;">
                                                     <?= (int) $job['avg_match']; ?> điểm
                                                 </span>
                                             </td>

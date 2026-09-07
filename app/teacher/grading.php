@@ -222,58 +222,68 @@ $teacherInfo = [
             font-size: 0.9rem;
         }
         .grading-table th {
-            background: #F8FAFC;
+            background: #FFFDFB;
             padding: 0.95rem 1.15rem;
             text-align: left;
             font-weight: 700;
-            color: #334155;
-            border-bottom: 2px solid #E2E8F0;
+            color: var(--text-secondary, #6B5548);
+            border-bottom: 2px solid var(--border, #F0E6DD);
             white-space: nowrap;
         }
         .grading-table td {
             padding: 1rem 1.15rem;
-            border-bottom: 1px solid #F1F5F9;
+            border-bottom: 1px solid var(--border, #F0E6DD);
             vertical-align: middle;
+            color: var(--text-primary, #322014);
         }
         .grading-table tbody tr:hover {
-            background: #F8FAFC;
+            background: #FFF7F2;
         }
         .score-input {
             width: 90px;
             padding: 0.45rem 0.6rem;
-            border: 1.5px solid #CBD5E1;
-            border-radius: 6px;
+            border: 1.5px solid var(--border, #F0E6DD);
+            border-radius: 8px;
             font-size: 0.95rem;
             font-weight: 700;
-            color: #0F172A;
+            color: var(--text-primary, #322014);
             text-align: center;
-            transition: border-color 0.15s ease;
+            background: #FFFFFF;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .score-input:hover {
+            border-color: #FFB39E;
         }
         .score-input:focus {
-            border-color: #2563EB;
+            border-color: var(--primary-coral, #F83F70);
             outline: none;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+            box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.18);
         }
         .comment-input {
             width: 100%;
             min-width: 240px;
             padding: 0.45rem 0.75rem;
-            border: 1.5px solid #CBD5E1;
-            border-radius: 6px;
+            border: 1.5px solid var(--border, #F0E6DD);
+            border-radius: 8px;
             font-size: 0.85rem;
-            color: #1E293B;
-            transition: border-color 0.15s ease;
+            color: var(--text-primary, #322014);
+            background: #FFFFFF;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .comment-input:hover {
+            border-color: #FFB39E;
         }
         .comment-input:focus {
-            border-color: #2563EB;
+            border-color: var(--primary-coral, #F83F70);
             outline: none;
+            box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.18);
         }
         .class-badge {
             display: inline-flex;
             align-items: center;
-            background: #EFF6FF;
-            color: #1D4ED8;
-            border: 1px solid #BFDBFE;
+            background: #FAF5FF;
+            color: var(--primary-violet, #8B4DE8);
+            border: 1px solid rgba(139, 77, 232, 0.25);
             padding: 0.25rem 0.6rem;
             border-radius: 6px;
             font-weight: 700;
@@ -285,19 +295,19 @@ $teacherInfo = [
             align-items: center;
             justify-content: center;
             min-width: 50px;
-            background: #ECFDF5;
-            color: #047857;
-            border: 1px solid #A7F3D0;
+            background: #FFF0EB;
+            color: var(--primary-coral, #F83F70);
+            border: 1px solid #FFDACB;
             padding: 0.25rem 0.6rem;
             border-radius: 999px;
             font-weight: 800;
             font-size: 0.875rem;
         }
         .btn-save-row {
-            background: #2563EB;
+            background: var(--primary-gradient, linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%));
             color: #FFFFFF;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             padding: 0.45rem 1rem;
             font-weight: 700;
             font-size: 0.85rem;
@@ -305,11 +315,13 @@ $teacherInfo = [
             display: inline-flex;
             align-items: center;
             gap: 0.35rem;
-            transition: background 0.15s;
+            box-shadow: 0 2px 8px rgba(248, 63, 112, 0.25);
+            transition: all var(--transition-fast, 0.15s ease);
             white-space: nowrap;
         }
         .btn-save-row:hover {
-            background: #1D4ED8;
+            box-shadow: 0 4px 14px rgba(248, 63, 112, 0.35);
+            transform: translateY(-1px);
         }
     </style>
     <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
@@ -328,11 +340,11 @@ $teacherInfo = [
                     <!-- Header Section -->
                     <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
                         <div>
-                            <div style="font-size: 0.85rem; color: #2563EB; font-weight: 700; text-transform: uppercase; margin-bottom: 0.35rem;">
+                            <div style="font-size: 0.85rem; color: var(--primary-coral, #F83F70); font-weight: 700; text-transform: uppercase; margin-bottom: 0.35rem; letter-spacing: 0.04em;">
                                 Phân hệ Giảng viên • Đánh giá Năng lực
                             </div>
-                            <h2 style="font-size: 1.5rem; font-weight: 800; color: #0F172A; margin: 0 0 0.4rem;">
-                                Chấm điểm theo Lớp: <span style="color: #2563EB;"><?= htmlspecialchars($activeClassName); ?></span>
+                            <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary, #322014); margin: 0 0 0.4rem;">
+                                Chấm điểm theo Lớp: <span style="color: var(--primary-coral, #F83F70);"><?= htmlspecialchars($activeClassName); ?></span>
                             </h2>
                             <p style="color: #64748B; margin: 0; font-size: 0.92rem;">
                                 Danh sách sinh viên thuộc lớp <strong><?= htmlspecialchars($activeClassName); ?></strong> - Cao đẳng Quốc tế BTEC FPT.
@@ -363,7 +375,7 @@ $teacherInfo = [
 
                     <!-- Flash Message -->
                     <?php if ($flash): ?>
-                        <div style="background: #ECFDF5; border: 1px solid #10B981; color: #047857; padding: 0.85rem 1.25rem; border-radius: 8px; margin-bottom: 1.5rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="background: #DCFCE7; border: 1px solid #BBF7D0; color: #15803D; padding: 0.85rem 1.25rem; border-radius: 8px; margin-bottom: 1.5rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                             <span><?= htmlspecialchars($flash); ?></span>
                         </div>
@@ -371,14 +383,14 @@ $teacherInfo = [
 
                     <!-- Direct Students Grading Table -->
                     <?php if (empty($students)): ?>
-                        <div style="text-align: center; color: var(--text-muted); padding: 4rem 1.5rem; background: #FFFFFF; border-radius: 12px; border: 1px solid #E2E8F0;">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.5" style="margin-bottom: 0.75rem;">
+                        <div style="text-align: center; color: var(--text-muted, #9E897D); padding: 4rem 1.5rem; background: #FFFFFF; border-radius: 12px; border: 1px solid var(--border, #F0E6DD); box-shadow: var(--shadow-soft);">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted, #9E897D)" stroke-width="1.5" style="margin-bottom: 0.75rem;">
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="9" cy="7" r="4"></circle>
                                 <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                             </svg>
-                            <h3 style="font-size: 1.1rem; font-weight: 700; color: #0F172A; margin-bottom: 0.5rem;">Chưa có sinh viên cần đánh giá</h3>
+                            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary, #322014); margin-bottom: 0.5rem;">Chưa có sinh viên cần đánh giá</h3>
                             <p style="font-size: 0.875rem; color: #64748B; margin-bottom: 0;">Hiện tại danh sách lớp chưa có sinh viên hoặc sinh viên chưa được phân bổ vào lớp học.</p>
                         </div>
                     <?php else: ?>
@@ -414,11 +426,11 @@ $teacherInfo = [
                                                 </td>
                                                 <td>
                                                     <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                                        <div style="width: 36px; height: 36px; border-radius: 8px; background: #DBEAFE; color: #1D4ED8; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0;">
+                                                        <div style="width: 36px; height: 36px; border-radius: 8px; background: var(--primary-gradient, linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%)); color: #FFFFFF; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(248, 63, 112, 0.25);">
                                                             <?= htmlspecialchars($initials); ?>
                                                         </div>
                                                         <div>
-                                                            <div style="font-weight: 700; color: #0F172A; font-size: 0.95rem;">
+                                                            <div style="font-weight: 700; color: var(--text-primary, #322014); font-size: 0.95rem;">
                                                                 <?= htmlspecialchars($st['fullName']); ?>
                                                             </div>
                                                             <div style="font-size: 0.75rem; color: #64748B;">
@@ -438,7 +450,7 @@ $teacherInfo = [
                                                             <?= number_format((float) $st['talentScore'], 0); ?>%
                                                         </span>
                                                     <?php else: ?>
-                                                        <span id="current-score-<?= htmlspecialchars($st['studentId']); ?>" class="talent-score-badge" style="background: #F1F5F9; color: #64748B; border: 1px solid #CBD5E1;">
+                                                        <span id="current-score-<?= htmlspecialchars($st['studentId']); ?>" class="talent-score-badge" style="background: #F8F4F0; color: #9E897D; border: 1px solid #E5D7CC;">
                                                             Chưa chấm
                                                         </span>
                                                     <?php endif; ?>
@@ -482,7 +494,7 @@ $teacherInfo = [
     </div>
 
     <!-- Toast Notification -->
-    <div id="gradingToast" style="display: none; position: fixed; bottom: 2rem; right: 2rem; background: #0F172A; color: #FFFFFF; padding: 0.85rem 1.35rem; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); z-index: 9999; font-weight: 600; font-size: 0.875rem;">
+    <div id="gradingToast" style="display: none; position: fixed; bottom: 2rem; right: 2rem; background: #322014; color: #FFFFFF; padding: 0.85rem 1.35rem; border-radius: 8px; box-shadow: 0 10px 25px rgba(50, 32, 20, 0.25); z-index: 9999; font-weight: 600; font-size: 0.875rem; border: 1px solid rgba(255, 255, 255, 0.1);">
         <span id="gradingToastMsg"></span>
     </div>
 
@@ -537,8 +549,9 @@ $teacherInfo = [
                 if (data.success) {
                     if (currentBadge) {
                         currentBadge.textContent = Math.round(scoreVal) + '%';
-                        currentBadge.style.background = '#DBEAFE';
-                        currentBadge.style.color = '#1E40AF';
+                        currentBadge.style.background = '#FFF0EB';
+                        currentBadge.style.color = '#F83F70';
+                        currentBadge.style.border = '1px solid #FFDACB';
                     }
                     showGradingToast(data.message || 'Đã lưu điểm thành công.');
                 } else {

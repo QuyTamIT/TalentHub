@@ -4,11 +4,69 @@
    Sidebar, header, account-menu, progress, btn use global.css equivalents.
    ========================================================================== */
 
+/* Page Base - Scoped Design Tokens for Teacher (Synchronized with Enterprise Sunset Coral Palette) */
+body.teacher-dashboard,
 .teacher-dashboard {
-    min-height: 100vh;
-    background-color: var(--background);
+    /* Enterprise Sunset / Coral Theme Variables */
+    --primary: #FF6B45;
+    --primary-coral: #F83F70;
+    --primary-pink: #F23585;
+    --primary-purple: #A14FC9;
+    --primary-violet: #8B4DE8;
+    --primary-hover: #F83F70;
+    --primary-light: #FFF0EB;
+    --primary-light-border: #FFDACB;
+    --primary-dark: #E04058;
+    --secondary: #A14FC9;
+    --secondary-hover: #8B4DE8;
+    --secondary-light: #FAF5FF;
+    --accent: #F23585;
+    --accent-hover: #F83F70;
+    --accent-light: #FFF0EB;
+    --background: #FDF7F1;
+    --surface: #FFFFFF;
+    --surface-hover: #FFF7F2;
+    --border: #F0E6DD;
+    --border-hover: #FFDACB;
+    --border-strong: #E5D7CC;
+    --border-subtle: #FDF7F1;
+    --text-primary: #322014;
+    --text-secondary: #6B5548;
+    --text-muted: #9E897D;
+    --text-disabled: #B8A599;
+    --radius-xs: 4px;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-full: 9999px;
+    --shadow-soft: 0 4px 20px rgba(50, 32, 20, 0.04);
+    --shadow-glow: 0 6px 20px rgba(248, 63, 112, 0.28);
+    --focus-ring: 0 0 0 3px rgba(248, 63, 112, 0.25);
+    --primary-gradient: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
+    --primary-gradient-subtle: linear-gradient(135deg, #FFF0EB 0%, #FAF5FF 100%);
+    --font-primary: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+    /* Brand Component Scoped Overrides */
+    --brand-icon-bg: var(--primary-gradient);
+    --brand-icon-shadow: 0 2px 8px rgba(248, 63, 112, 0.35);
+    --brand-name-hub-color: var(--primary-coral);
+    --brand-name-color: var(--text-primary);
+    --brand-sub-color: var(--primary-coral);
+
+    font-family: var(--font-primary);
+    background-color: var(--background) !important;
     color: var(--text-primary);
+    min-height: 100vh;
     overflow-x: hidden;
+}
+
+body.teacher-dashboard,
+.teacher-dashboard,
+.teacher-dashboard .teacher-layout,
+.teacher-dashboard .teacher-main-wrapper,
+.teacher-dashboard .teacher-body {
+    background-color: var(--background) !important;
 }
 
 body.teacher-sidebar-open { overflow: hidden; }
@@ -52,9 +110,58 @@ body.teacher-sidebar-open { overflow: hidden; }
     transition: transform var(--transition-base);
 }
 
-/* .teacher-sidebar__brand — controlled by brand-component.css */
+/* --------------------------------------------------------------------------
+   Brand Logo (Teacher Portal - Synchronized with TalentHub Logo)
+   -------------------------------------------------------------------------- */
+.teacher-sidebar__brand {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border, #F0E6DD);
+    margin-bottom: 1rem;
+    width: 100%;
+}
 
-/* teacher-sidebar__subtitle — controlled by brand-component.css */
+.teacher-sidebar__brand-link {
+    display: block;
+    text-decoration: none;
+    line-height: 1;
+    transition: opacity var(--transition-fast, 0.15s ease), transform var(--transition-fast, 0.15s ease);
+}
+
+.teacher-sidebar__brand-link:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+}
+
+.teacher-sidebar__logo-img {
+    display: block;
+    width: 178px;
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+    aspect-ratio: 401 / 122;
+}
+
+.teacher-sidebar__role-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--primary-coral, #F83F70);
+    background-color: #FFF0EB;
+    border: 1px solid #FFDACB;
+    padding: 2px 9px;
+    border-radius: 999px;
+    margin: 10px auto 2px auto;
+    align-self: center;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+    text-align: center;
+    margin-right: 74px;
+}
 
 .teacher-sidebar__nav-title {
     font-size: 0.6875rem;
@@ -88,31 +195,37 @@ body.teacher-sidebar-open { overflow: hidden; }
 
 .teacher-sidebar__link:hover,
 .teacher-sidebar__link:focus-visible {
-    background-color: var(--background);
-    color: var(--text-primary);
+    background-color: rgba(255, 107, 69, 0.08);
+    color: var(--primary);
+}
+
+.teacher-sidebar__link:hover .teacher-sidebar__icon,
+.teacher-sidebar__link:hover svg {
+    color: var(--primary);
 }
 
 .teacher-sidebar__link.is-active {
-    background-color: var(--primary-light);
-    color: var(--primary);
+    position: relative;
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
     font-weight: var(--font-semibold);
-    border-color: rgba(255, 107, 0, 0.2);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.35);
+    border-color: transparent !important;
 }
 
 .teacher-sidebar__link.is-active::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 60%;
-    background: var(--primary);
-    border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+    display: none;
+}
+
+.teacher-sidebar__link.is-active .teacher-sidebar__icon,
+.teacher-sidebar__link.is-active svg {
+    color: #FFFFFF !important;
+    stroke: #FFFFFF !important;
 }
 
 .teacher-sidebar__icon {
-    color: currentColor;
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -298,7 +411,7 @@ body.teacher-sidebar-open { overflow: hidden; }
     width: 2.125rem;
     height: 2.125rem;
     border-radius: 50%;
-    background: var(--primary);
+    background: var(--primary-gradient);
     color: #FFFFFF;
     display: flex;
     align-items: center;
@@ -306,7 +419,7 @@ body.teacher-sidebar-open { overflow: hidden; }
     font-weight: var(--font-bold);
     font-size: var(--text-sm);
     flex-shrink: 0;
-    box-shadow: 0 2px 4px rgba(255, 107, 0, 0.2);
+    box-shadow: 0 2px 8px rgba(248, 63, 112, 0.25);
 }
 
 .teacher-header__user-info { display: flex; flex-direction: column; }
@@ -338,7 +451,7 @@ body.teacher-sidebar-open { overflow: hidden; }
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 10px 25px -5px rgba(50, 32, 20, 0.08), 0 4px 10px -2px rgba(50, 32, 20, 0.04);
     padding: 0.5rem 0;
     z-index: var(--z-dropdown);
     display: none;
@@ -360,7 +473,7 @@ body.teacher-sidebar-open { overflow: hidden; }
     width: 2.375rem;
     height: 2.375rem;
     border-radius: 50%;
-    background: var(--primary);
+    background: var(--primary-gradient);
     color: #FFFFFF;
     display: flex;
     align-items: center;
@@ -368,7 +481,7 @@ body.teacher-sidebar-open { overflow: hidden; }
     font-weight: var(--font-bold);
     font-size: var(--text-base);
     flex-shrink: 0;
-    box-shadow: 0 2px 6px rgba(255, 107, 0, 0.25);
+    box-shadow: 0 2px 8px rgba(248, 63, 112, 0.25);
 }
 
 .teacher-account-menu__details {
@@ -395,9 +508,9 @@ body.teacher-sidebar-open { overflow: hidden; }
     padding: 0.125rem 0.5rem;
     font-size: 0.6875rem;
     font-weight: var(--font-semibold);
-    color: var(--primary-dark);
+    color: var(--primary-coral);
     background-color: var(--primary-light);
-    border: 1px solid rgba(255, 107, 0, 0.2);
+    border: 1px solid var(--primary-light-border);
     border-radius: var(--radius-full);
     line-height: 1.3;
 }
@@ -2321,142 +2434,567 @@ body.teacher-sidebar-open { overflow: hidden; }
 }
 
 /* ==========================================================================
-   TEACHER VISUAL POLISH
+   TEACHER PORTAL DESIGN SYSTEM: ENTERPRISE PALETTE SYNCHRONIZATION
+   Palette: #FF6B45 (Cam) -> #F83F70 (Coral) -> #F23585 (Pink) -> #A14FC9 (Tím) -> #8B4DE8 (Violet)
+   Background: #FDF7F1 | Text: #322014 | Border: #F0E6DD | Cards: #FFFFFF
    ========================================================================== */
 
-/* Welcome: richer gradient */
-.teacher-welcome {
-    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 45%, #eff6ff 100%);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    position: relative;
+/* 1. BUTTON COMPONENTS & STATES */
+body.teacher-dashboard .btn-primary,
+body.teacher-dashboard .teacher-grading-button--primary,
+body.teacher-dashboard .btn-save-row,
+body.teacher-dashboard button[type="submit"]:not(.btn-secondary):not(.btn-ghost):not(.btn-outline) {
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28) !important;
+    transition: all var(--transition-fast) !important;
 }
 
-/* Decorative background circle */
-.teacher-welcome::after {
+body.teacher-dashboard .btn-primary:hover:not(:disabled),
+body.teacher-dashboard .teacher-grading-button--primary:hover:not(:disabled),
+body.teacher-dashboard .btn-save-row:hover:not(:disabled),
+body.teacher-dashboard button[type="submit"]:hover:not(:disabled):not(.btn-secondary):not(.btn-ghost):not(.btn-outline) {
+    box-shadow: 0 6px 20px rgba(248, 63, 112, 0.38) !important;
+    transform: translateY(-1px) !important;
+    filter: brightness(1.03) !important;
+}
+
+body.teacher-dashboard .btn-primary:active:not(:disabled),
+body.teacher-dashboard .teacher-grading-button--primary:active:not(:disabled),
+body.teacher-dashboard .btn-save-row:active:not(:disabled) {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 8px rgba(248, 63, 112, 0.25) !important;
+}
+
+body.teacher-dashboard .btn-secondary,
+body.teacher-dashboard .teacher-grading-button--secondary,
+body.teacher-dashboard .teacher-qr-copy {
+    background-color: #FFFFFF !important;
+    color: var(--text-primary) !important;
+    border: 1.5px solid var(--border) !important;
+    font-weight: 600 !important;
+    transition: all var(--transition-fast) !important;
+}
+
+body.teacher-dashboard .btn-secondary:hover:not(:disabled),
+body.teacher-dashboard .teacher-grading-button--secondary:hover:not(:disabled),
+body.teacher-dashboard .teacher-qr-copy:hover:not(:disabled) {
+    background-color: #FFF7F2 !important;
+    border-color: #FFB39E !important;
+    color: var(--primary-coral) !important;
+    transform: translateY(-1px) !important;
+}
+
+body.teacher-dashboard .btn-outline-primary,
+body.teacher-dashboard .teacher-activity-action {
+    background-color: #FFF0EB !important;
+    color: var(--primary-coral) !important;
+    border: 1px solid var(--primary-light-border) !important;
+    font-weight: 600 !important;
+    transition: all var(--transition-fast) !important;
+}
+
+body.teacher-dashboard .btn-outline-primary:hover:not(:disabled),
+body.teacher-dashboard .teacher-activity-action:hover:not(:disabled) {
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    border-color: transparent !important;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.35) !important;
+    transform: translateY(-1px) !important;
+    text-decoration: none !important;
+}
+
+body.teacher-dashboard .btn:disabled,
+body.teacher-dashboard .btn[disabled],
+body.teacher-dashboard .btn.is-disabled,
+body.teacher-dashboard button:disabled {
+    background: #F0E6DD !important;
+    color: #A8988C !important;
+    border: 1px solid #E5D7CC !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    transform: none !important;
+    pointer-events: none !important;
+}
+
+body.teacher-dashboard .btn-danger,
+body.teacher-dashboard .teacher-qr-revoke-button {
+    background: #FFFFFF !important;
+    color: #EF4444 !important;
+    border: 1.5px solid #FECACA !important;
+    font-weight: 600 !important;
+    transition: all var(--transition-fast) !important;
+}
+
+body.teacher-dashboard .btn-danger:hover:not(:disabled),
+body.teacher-dashboard .teacher-qr-revoke-button:hover:not(:disabled) {
+    background: #FEF2F2 !important;
+    border-color: #EF4444 !important;
+    color: #DC2626 !important;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2) !important;
+}
+
+/* 2. CHIPS, PILLS & QUICK FILTERS */
+body.teacher-dashboard .teacher-chip {
+    background-color: #FFFFFF !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-secondary) !important;
+    border-radius: var(--radius-full) !important;
+    font-weight: 600 !important;
+    transition: all var(--transition-fast) !important;
+}
+
+body.teacher-dashboard .teacher-chip:hover {
+    background-color: #FFF7F2 !important;
+    border-color: #FFB39E !important;
+    color: var(--primary) !important;
+}
+
+body.teacher-dashboard .teacher-chip--primary,
+body.teacher-dashboard .teacher-chip.is-active,
+body.teacher-dashboard .teacher-chip.active {
+    background-color: #FFF0EB !important;
+    border: 1px solid #FFDACB !important;
+    color: var(--primary-coral) !important;
+    font-weight: 700 !important;
+}
+
+body.teacher-dashboard .teacher-chip--success {
+    background-color: #DCFCE7 !important;
+    border: 1px solid #BBF7D0 !important;
+    color: #15803D !important;
+}
+
+/* 3. BADGES & STATUS PILLS */
+body.teacher-dashboard .teacher-status-pill--positive,
+body.teacher-dashboard .teacher-status-pill--success,
+body.teacher-dashboard .teacher-registration-pill--available,
+body.teacher-dashboard .teacher-qr-live-badge {
+    background-color: #DCFCE7 !important;
+    color: #15803D !important;
+    border: 1px solid #BBF7D0 !important;
+    font-weight: 600 !important;
+}
+
+body.teacher-dashboard .teacher-status-pill--warning {
+    background-color: #FEF3C7 !important;
+    color: #B45309 !important;
+    border: 1px solid #FDE68A !important;
+    font-weight: 600 !important;
+}
+
+body.teacher-dashboard .teacher-status-pill--danger,
+body.teacher-dashboard .teacher-status-pill--error,
+body.teacher-dashboard .teacher-registration-pill--unavailable {
+    background-color: #FEE2E2 !important;
+    color: #B91C1C !important;
+    border: 1px solid #FECACA !important;
+    font-weight: 600 !important;
+}
+
+body.teacher-dashboard .teacher-status-pill--info,
+body.teacher-dashboard .teacher-status-pill--primary,
+body.teacher-dashboard .badge-primary {
+    background-color: #FFF0EB !important;
+    color: #E04058 !important;
+    border: 1px solid #FFDACB !important;
+    font-weight: 600 !important;
+}
+
+body.teacher-dashboard .class-badge {
+    background-color: #FAF5FF !important;
+    color: var(--primary-violet) !important;
+    border: 1px solid rgba(139, 77, 232, 0.25) !important;
+    font-weight: 700 !important;
+    border-radius: var(--radius-sm) !important;
+}
+
+body.teacher-dashboard .talent-score-badge {
+    background-color: #FFF0EB !important;
+    color: var(--primary-coral) !important;
+    border: 1px solid #FFDACB !important;
+    font-weight: 700 !important;
+}
+
+/* 4. FORM INPUTS & SELECTS */
+body.teacher-dashboard input[type="text"],
+body.teacher-dashboard input[type="email"],
+body.teacher-dashboard input[type="password"],
+body.teacher-dashboard input[type="search"],
+body.teacher-dashboard input[type="number"],
+body.teacher-dashboard input[type="tel"],
+body.teacher-dashboard input[type="url"],
+body.teacher-dashboard select,
+body.teacher-dashboard textarea,
+body.teacher-dashboard .form-control,
+body.teacher-dashboard .typeui-select,
+body.teacher-dashboard .score-input,
+body.teacher-dashboard .comment-input,
+body.teacher-dashboard .teacher-form-field input,
+body.teacher-dashboard .teacher-form-field select,
+body.teacher-dashboard .teacher-form-field textarea,
+body.teacher-dashboard .teacher-students-field input,
+body.teacher-dashboard .teacher-students-field select {
+    background-color: #FFFFFF !important;
+    border: 1.5px solid var(--border) !important;
+    color: var(--text-primary) !important;
+    border-radius: 8px !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+body.teacher-dashboard input[type="text"]:hover,
+body.teacher-dashboard input[type="search"]:hover,
+body.teacher-dashboard input[type="number"]:hover,
+body.teacher-dashboard select:hover,
+body.teacher-dashboard textarea:hover,
+body.teacher-dashboard .typeui-select:hover {
+    border-color: #FFB39E !important;
+}
+
+body.teacher-dashboard input:focus,
+body.teacher-dashboard select:focus,
+body.teacher-dashboard textarea:focus,
+body.teacher-dashboard .typeui-select:focus,
+body.teacher-dashboard .score-input:focus,
+body.teacher-dashboard .comment-input:focus {
+    border-color: var(--primary-coral) !important;
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.18) !important;
+    outline: none !important;
+}
+
+body.teacher-dashboard input:disabled,
+body.teacher-dashboard select:disabled,
+body.teacher-dashboard textarea:disabled {
+    background-color: #F8F4F0 !important;
+    color: var(--text-muted) !important;
+    border-color: var(--border) !important;
+    cursor: not-allowed !important;
+}
+
+body.teacher-dashboard input[type="checkbox"]:checked,
+body.teacher-dashboard input[type="radio"]:checked {
+    background-color: var(--primary-coral) !important;
+    border-color: var(--primary-coral) !important;
+    accent-color: var(--primary-coral);
+}
+
+/* 5. WELCOME BANNER & HERO SECTION */
+body.teacher-dashboard .teacher-welcome {
+    background: linear-gradient(135deg, #FFFFFF 0%, #FFF8F5 100%) !important;
+    border: 1px solid var(--border) !important;
+    border-left: 4px solid var(--primary-coral) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 1.5rem 1.75rem !important;
+    margin-bottom: 1.75rem !important;
+    box-shadow: var(--shadow-soft) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+body.teacher-dashboard .teacher-welcome::after {
     content: '';
     position: absolute;
-    width: 200px;
-    height: 200px;
-    top: -80px;
-    right: 10%;
-    background: radial-gradient(circle, rgba(255,107,0,0.08) 0%, transparent 70%);
+    width: 240px;
+    height: 240px;
+    top: -90px;
+    right: 5%;
+    background: radial-gradient(circle, rgba(248, 63, 112, 0.08) 0%, transparent 70%);
     pointer-events: none;
     border-radius: 50%;
 }
 
-/* KPI value: gradient text */
-.teacher-kpi-card__value {
-    background: linear-gradient(135deg, var(--text-primary) 0%, #334155 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    letter-spacing: -0.04em;
+body.teacher-dashboard .teacher-welcome__tag {
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    color: var(--primary-coral) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
 }
 
-/* KPI icon: tonal */
-.teacher-kpi-card__icon {
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: var(--radius-sm);
-    background: var(--primary-light);
+body.teacher-dashboard .teacher-welcome__title {
+    font-size: 1.375rem !important;
+    font-weight: 700 !important;
+    color: var(--text-primary) !important;
+}
+
+body.teacher-dashboard .teacher-welcome__description {
+    font-size: var(--text-md) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* 6. METRIC KPI CARDS & SECTION BOXES */
+body.teacher-dashboard .teacher-kpi-card {
+    background-color: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-xl) !important;
+    box-shadow: var(--shadow-soft) !important;
+    padding: 1.375rem 1.5rem !important;
+    transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base) !important;
+}
+
+body.teacher-dashboard .teacher-kpi-card:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: var(--shadow-glow) !important;
+    border-color: rgba(255, 107, 107, 0.3) !important;
+}
+
+body.teacher-dashboard .teacher-kpi-card__icon {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    transition: transform var(--transition-fast) !important;
+    background-color: #FFF0EB !important;
+    color: var(--primary-coral) !important;
+    border: 1px solid #FFDACB !important;
+}
+
+body.teacher-dashboard .teacher-kpi-card:hover .teacher-kpi-card__icon {
+    transform: scale(1.08) !important;
+}
+
+body.teacher-dashboard .teacher-kpi-card__value {
+    font-size: 1.875rem !important;
+    font-weight: 800 !important;
+    color: var(--text-primary) !important;
+    letter-spacing: -0.02em !important;
+    background: none !important;
+    -webkit-text-fill-color: initial !important;
+}
+
+body.teacher-dashboard .teacher-kpi-card__label {
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: var(--text-secondary) !important;
+}
+
+body.teacher-dashboard .teacher-section-box {
+    background-color: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-soft) !important;
+    padding: 1.5rem !important;
+    transition: box-shadow var(--transition-base), border-color var(--transition-base) !important;
+}
+
+body.teacher-dashboard .teacher-section-box:hover {
+    border-color: var(--border-hover) !important;
+    box-shadow: 0 8px 24px rgba(50, 32, 20, 0.06) !important;
+}
+
+body.teacher-dashboard .teacher-section-box__title {
+    font-size: 1.0625rem !important;
+    font-weight: 700 !important;
+    color: var(--text-primary) !important;
+}
+
+body.teacher-dashboard .teacher-section-box__subtitle {
+    font-size: var(--text-sm) !important;
+    color: var(--text-secondary) !important;
+}
+
+body.teacher-dashboard .teacher-section-box__eyebrow {
+    color: var(--primary-coral) !important;
+    font-weight: 700 !important;
+}
+
+body.teacher-dashboard .teacher-section-box__count {
+    background-color: #FFF0EB !important;
+    border: 1px solid #FFDACB !important;
+    color: var(--primary-coral) !important;
+    border-radius: var(--radius-full) !important;
+    font-weight: 700 !important;
+}
+
+body.teacher-dashboard .teacher-overview-card {
+    background-color: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: none !important;
+    transition: all var(--transition-fast) !important;
+}
+
+body.teacher-dashboard .teacher-overview-card:hover {
+    border-color: #FFB39E !important;
+    box-shadow: var(--shadow-soft) !important;
+}
+
+body.teacher-dashboard .teacher-overview-card__label,
+body.teacher-dashboard .teacher-overview-card__meta {
+    color: var(--text-secondary) !important;
+}
+
+body.teacher-dashboard .teacher-overview-card__value {
+    color: var(--text-primary) !important;
+    font-weight: 700 !important;
+}
+
+/* 7. PROGRESS BARS */
+body.teacher-dashboard .teacher-progress__track {
+    background-color: #F0E6DD !important;
+    border-radius: 999px !important;
+    overflow: hidden !important;
+}
+
+body.teacher-dashboard .teacher-progress__track span {
+    background: var(--primary-gradient) !important;
+    border-radius: 999px !important;
+}
+
+/* 8. TABLES, FILTERS & TOOLBARS */
+body.teacher-dashboard .teacher-students-filters,
+body.teacher-dashboard .teacher-grading-toolbar,
+body.teacher-dashboard .typeui-select-shell {
+    background-color: #FFFFFF !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: var(--shadow-soft) !important;
+}
+
+body.teacher-dashboard .grading-table th,
+body.teacher-dashboard .teacher-students-table th,
+body.teacher-dashboard .teacher-activities-table th,
+body.teacher-dashboard .teacher-qr-table th {
+    background-color: #FFFDFB !important;
+    color: var(--text-secondary) !important;
+    border-bottom: 2px solid var(--border) !important;
+    font-weight: 700 !important;
+}
+
+body.teacher-dashboard .grading-table td,
+body.teacher-dashboard .teacher-students-table td,
+body.teacher-dashboard .teacher-activities-table td,
+body.teacher-dashboard .teacher-qr-table td {
+    border-bottom: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+}
+
+body.teacher-dashboard .grading-table tbody tr:hover,
+body.teacher-dashboard .teacher-students-table tbody tr:hover,
+body.teacher-dashboard .teacher-activities-table tbody tr:hover,
+body.teacher-dashboard .teacher-qr-table tbody tr:hover {
+    background-color: #FFF7F2 !important;
+}
+
+/* 9. ACTION ROWS & ACTIVITY TIMELINE */
+body.teacher-dashboard .teacher-action-row {
+    border-bottom: 1px solid var(--border) !important;
+    transition: background-color var(--transition-fast) !important;
+}
+
+body.teacher-dashboard .teacher-action-row:hover {
+    background-color: #FFF7F2 !important;
+}
+
+body.teacher-dashboard .teacher-action-row__icon {
+    border-radius: var(--radius-sm) !important;
+    background-color: #FFF0EB !important;
+    border: 1px solid #FFDACB !important;
+    color: var(--primary-coral) !important;
+}
+
+body.teacher-dashboard .teacher-action-row--warning .teacher-action-row__icon {
+    color: #B45309 !important;
+    background-color: #FEF3C7 !important;
+    border-color: #FDE68A !important;
+}
+
+body.teacher-dashboard .teacher-action-row--success .teacher-action-row__icon {
+    color: #15803D !important;
+    background-color: #DCFCE7 !important;
+    border-color: #BBF7D0 !important;
+}
+
+body.teacher-dashboard .teacher-action-row--info .teacher-action-row__icon {
+    color: var(--primary-violet) !important;
+    background-color: #FAF5FF !important;
+    border-color: #F3E8FF !important;
+}
+
+body.teacher-dashboard .teacher-action-row__count {
+    background-color: #FFF0EB !important;
+    border: 1px solid #FFDACB !important;
+    color: var(--primary-coral) !important;
+}
+
+body.teacher-dashboard .teacher-activity-item--checkin .teacher-activity-item__indicator {
+    background: linear-gradient(135deg, #A14FC9 0%, #8B4DE8 100%) !important;
+    box-shadow: 0 2px 6px rgba(161, 79, 201, 0.25) !important;
+}
+
+body.teacher-dashboard .teacher-activity-item--activity .teacher-activity-item__indicator {
+    background: var(--primary-gradient) !important;
+    box-shadow: 0 2px 6px rgba(248, 63, 112, 0.25) !important;
+}
+
+/* 10. QR ATTENDANCE SESSIONS */
+body.teacher-dashboard .teacher-qr-reveal {
+    border: 1px solid var(--border) !important;
+    border-left: 4px solid var(--primary-coral) !important;
+    background: linear-gradient(135deg, #FFF0EB 0%, #FFFFFF 64%) !important;
+    box-shadow: var(--shadow-soft) !important;
+    border-radius: var(--radius-xl) !important;
+}
+
+body.teacher-dashboard .teacher-qr-token {
+    background: #FFFFFF !important;
+    border: 1px solid #FFDACB !important;
+    color: #E04058 !important;
+}
+
+body.teacher-dashboard .teacher-qr-code {
+    background: #FFFFFF !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--shadow-soft) !important;
+}
+
+body.teacher-dashboard .teacher-qr-empty__icon {
+    background: #FFF0EB !important;
+    color: var(--primary-coral) !important;
+    border: 1px solid #FFDACB !important;
+}
+
+/* 11. FLASH MESSAGES & TOAST */
+body.teacher-dashboard .teacher-grading-flash--success,
+body.teacher-dashboard .teacher-qr-flash--success,
+body.teacher-dashboard .teacher-activities-notice--success,
+body.teacher-dashboard .ent-alert--success {
+    background-color: #DCFCE7 !important;
+    border: 1px solid #BBF7D0 !important;
+    color: #15803D !important;
+    font-weight: 600 !important;
+}
+
+body.teacher-dashboard .teacher-grading-flash--error,
+body.teacher-dashboard .teacher-qr-flash--error,
+body.teacher-dashboard .teacher-activities-notice--error,
+body.teacher-dashboard .teacher-students-alert,
+body.teacher-dashboard .ent-alert--danger {
+    background-color: #FEE2E2 !important;
+    border: 1px solid #FECACA !important;
+    color: #B91C1C !important;
+    font-weight: 600 !important;
+}
+
+body.teacher-dashboard .teacher-toast,
+body.teacher-dashboard #gradingToast {
+    background: #322014 !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 10px 25px rgba(50, 32, 20, 0.25) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 12. LINKS & ACCENTS */
+body.teacher-dashboard a:not(.btn):not(.teacher-sidebar__link):not(.teacher-account-menu__item):not(.teacher-grading-button):not(.teacher-activity-action) {
+    color: var(--primary-coral);
+    transition: color 0.15s ease;
+}
+
+body.teacher-dashboard a:not(.btn):not(.teacher-sidebar__link):not(.teacher-account-menu__item):not(.teacher-grading-button):not(.teacher-activity-action):hover {
     color: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform var(--transition-fast);
-}
-
-.teacher-kpi-card:hover .teacher-kpi-card__icon {
-    transform: scale(1.1) rotate(-3deg);
-}
-
-/* Chip: cleaner */
-.teacher-chip {
-    background: var(--background);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-full);
-    padding: 0.25rem 0.75rem;
-    font-size: 0.75rem;
-    font-weight: var(--font-semibold);
-    color: var(--text-secondary);
-    transition: all var(--transition-fast);
-}
-
-.teacher-chip:hover {
-    border-color: rgba(255, 107, 0, 0.3);
-    color: var(--primary);
-    background: var(--primary-light);
-}
-
-.teacher-chip--primary {
-    background: linear-gradient(90deg, var(--primary-light) 0%, #fff7f0 100%);
-    border-color: rgba(255, 107, 0, 0.25);
-    color: var(--primary);
-}
-
-.teacher-chip--success {
-    background: linear-gradient(90deg, var(--accent-light) 0%, #f0fdf4 100%);
-    border-color: rgba(22, 163, 74, 0.25);
-    color: var(--color-success);
-}
-
-/* Status pills: gradient */
-.teacher-status-pill--positive {
-    background: linear-gradient(90deg, var(--accent-light) 0%, #f0fdf4 100%);
-    border-color: rgba(22, 163, 74, 0.2);
-}
-
-.teacher-status-pill--warning {
-    background: linear-gradient(90deg, var(--color-warning-light) 0%, #fffbeb 100%);
-    border-color: rgba(217, 119, 6, 0.2);
-}
-
-/* Action row: hover highlight */
-.teacher-action-row {
-    transition: background-color var(--transition-fast);
-    border-radius: var(--radius-sm);
-    padding-inline: 0.5rem;
-    margin-inline: -0.5rem;
-}
-
-.teacher-action-row:hover {
-    background: var(--background);
-}
-
-/* Section box: top accent on hover */
-.teacher-section-box {
-    border-top: 3px solid transparent;
-    transition: border-top-color var(--transition-base), box-shadow var(--transition-base);
-}
-
-.teacher-section-box:hover {
-    border-top-color: var(--primary);
-    box-shadow: var(--shadow-md);
-}
-
-/* Timeline: richer dots */
-.teacher-activity-item__indicator {
-    border-radius: var(--radius-sm);
-}
-
-.teacher-activity-item--checkin .teacher-activity-item__indicator {
-    background: linear-gradient(135deg, var(--secondary) 0%, #3b82f6 100%);
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
-}
-
-.teacher-activity-item--activity .teacher-activity-item__indicator {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-    box-shadow: 0 2px 6px rgba(255, 107, 0, 0.2);
-}
-
-/* QR reveal card: accent border */
-.teacher-qr-reveal {
-    border-left: 4px solid var(--primary);
-    border-radius: var(--radius-md);
-}
-
-.teacher-qr-token {
-    background: linear-gradient(135deg, #fff7ed 0%, #fffbf7 100%);
-    border-color: rgba(255, 107, 0, 0.2);
 }

@@ -27,8 +27,16 @@ $teacherRouteHrefs = [
 <div class="teacher-sidebar-backdrop" id="teacher-sidebar-backdrop" aria-hidden="true"></div>
 
 <aside class="teacher-sidebar" id="teacher-sidebar">
+    <!-- Brand Logo -->
     <div class="teacher-sidebar__brand">
-        <?php renderBrandHeader($teacherSidebarHomeHref, 'Khu vực Giáo viên', 'Về trang chủ FTalentHub'); ?>
+        <a href="<?= htmlspecialchars($teacherSidebarHomeHref); ?>" 
+           class="teacher-sidebar__brand-link" 
+           aria-label="Về trang chủ FTalentHub Giáo viên">
+            <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : '/assets/images/talenthub-logo.png'); ?>" 
+                 alt="FTalentHub Logo" 
+                 class="teacher-sidebar__logo-img" />
+        </a>
+        <span class="teacher-sidebar__role-tag">Khu vực Giáo viên</span>
     </div>
 
     <nav class="teacher-sidebar__nav" aria-label="Điều hướng Giáo viên">

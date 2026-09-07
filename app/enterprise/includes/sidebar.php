@@ -19,17 +19,14 @@ require_once dirname(__DIR__, 2) . '/shared/BrandHeader.php';
 <aside class="ent-sidebar" id="ent-sidebar">
     <!-- Brand Logo -->
     <div class="ent-sidebar__brand">
-        <?php renderBrandHeader(app_href('/app/enterprise/index.php'), 'Khu vực Doanh nghiệp', 'Về trang chủ FTalentHub'); if (false): ?>
-            <span class="learner-brand__mark" aria-hidden="true">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
-                </svg>
-            </span>
-            <div class="learner-brand__text">
-                <span class="learner-brand__name">FTalent<span>Hub</span></span>
-                <span class="learner-brand__subtitle">Khu vực Doanh nghiệp</span>
-            </div>
-        <?php endif; ?>
+        <a href="<?= htmlspecialchars(function_exists('app_href') ? app_href('/app/enterprise/index.php') : '/app/enterprise/index.php'); ?>" 
+           class="ent-sidebar__brand-link" 
+           aria-label="Về trang chủ FTalentHub Enterprise">
+            <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : '/assets/images/talenthub-logo.png'); ?>" 
+                 alt="FTalentHub Logo" 
+                 class="ent-sidebar__logo-img" />
+        </a>
+        <span class="ent-sidebar__role-tag">Khu vực Doanh nghiệp</span>
     </div>
 
     <!-- Navigation List -->

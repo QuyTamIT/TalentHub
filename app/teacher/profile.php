@@ -226,7 +226,7 @@ $sidebarNav = [
                     <!-- Profile Header Card -->
                     <section class="teacher-section-box mb-4" style="padding: 1.75rem; margin-bottom: 1.5rem;">
                         <div style="display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;">
-                            <div style="width: 4.5rem; height: 4.5rem; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; font-weight: 800; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);">
+                            <div style="width: 4.5rem; height: 4.5rem; border-radius: 50%; background: var(--primary-gradient); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; font-weight: 800; box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28);">
                                 <?= htmlspecialchars($teacherInfo['avatar_initials']); ?>
                             </div>
                             <div style="flex: 1; min-width: 240px;">
@@ -234,7 +234,7 @@ $sidebarNav = [
                                     <h2 style="font-size: 1.375rem; font-weight: 700; color: var(--text-primary); margin: 0;">
                                         <?= htmlspecialchars($teacherInfo['full_name']); ?>
                                     </h2>
-                                    <span style="display: inline-block; padding: 0.2rem 0.625rem; font-size: 0.6875rem; font-weight: 600; color: #c2410c; background: #fff7ed; border: 1px solid rgba(249, 115, 22, 0.25); border-radius: 9999px;">
+                                    <span style="display: inline-block; padding: 0.2rem 0.625rem; font-size: 0.6875rem; font-weight: 600; color: var(--primary-coral, #F83F70); background: #FFF0EB; border: 1px solid #FFDACB; border-radius: 9999px;">
                                         <?= htmlspecialchars($teacherInfo['role_label']); ?>
                                     </span>
                                 </div>
@@ -267,7 +267,7 @@ $sidebarNav = [
                                     <label for="teacher-account-email" style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.375rem;">
                                         Email tài khoản
                                     </label>
-                                    <input id="teacher-account-email" type="email" value="<?= htmlspecialchars($teacherInfo['email']); ?>" disabled style="width: 100%; height: 2.625rem; padding: 0 0.875rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: #f8fafc; color: var(--text-muted); cursor: not-allowed;">
+                                    <input id="teacher-account-email" type="email" value="<?= htmlspecialchars($teacherInfo['email']); ?>" disabled style="width: 100%; height: 2.625rem; padding: 0 0.875rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; background: #F8F4F0; color: var(--text-muted); cursor: not-allowed;">
                                 </div>
 
                                 <div>
@@ -296,7 +296,7 @@ $sidebarNav = [
                                 <a href="index.php" style="display: inline-flex; align-items: center; padding: 0.625rem 1.25rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); text-decoration: none; background: var(--surface);">
                                     Hủy bỏ
                                 </a>
-                                <button type="submit" style="display: inline-flex; align-items: center; padding: 0.625rem 1.25rem; border: none; border-radius: 8px; font-size: 0.875rem; font-weight: 600; color: #fff; background: var(--primary); cursor: pointer; transition: background 0.15s ease;">
+                                <button type="submit" style="display: inline-flex; align-items: center; padding: 0.625rem 1.25rem; border: none; border-radius: 8px; font-size: 0.875rem; font-weight: 600; color: #fff; background: var(--primary-gradient); box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28); cursor: pointer; transition: all 0.15s ease;">
                                     Lưu thay đổi
                                 </button>
                             </div>
