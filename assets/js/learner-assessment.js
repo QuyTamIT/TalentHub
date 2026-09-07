@@ -433,6 +433,66 @@
         ]),
     });
 
+    const ASSESSMENT_DIMENSION_NAMES = Object.freeze({
+        holland: Object.freeze({
+            R: 'Kỹ thuật — Thực tế (Realistic)',
+            I: 'Nghiên cứu — Phân tích (Investigative)',
+            A: 'Nghệ thuật — Sáng tạo (Artistic)',
+            S: 'Xã hội — Hỗ trợ (Social)',
+            E: 'Quản lý — Thuyết phục (Enterprising)',
+            C: 'Nghiệp vụ — Quy chuẩn (Conventional)',
+        }),
+        mbti: Object.freeze({
+            E: 'Hướng ngoại (Extraversion)',
+            I: 'Hướng nội (Introversion)',
+            S: 'Thực tế (Sensing)',
+            N: 'Trực giác (Intuition)',
+            T: 'Lý trí (Thinking)',
+            F: 'Cảm xúc (Feeling)',
+            J: 'Nguyên tắc (Judging)',
+            P: 'Linh hoạt (Perceiving)',
+        }),
+        disc: Object.freeze({
+            D: 'Thống trị — Quyết đoán (Dominance)',
+            I: 'Ảnh hưởng — Cởi mở (Influence)',
+            S: 'Kiên định — Hòa hợp (Steadiness)',
+            C: 'Tận tâm — Chuẩn mực (Conscientiousness)',
+        }),
+        multiple_intelligence: Object.freeze({
+            LING: 'Ngôn ngữ — Lời nói (Linguistic)',
+            LOGI: 'Logic — Toán học (Logical-Mathematical)',
+            SPAT: 'Không gian — Thị giác (Spatial)',
+            BODY: 'Vận động — Thể chất (Bodily-Kinesthetic)',
+            MUSIC: 'Âm nhạc — Tiết tấu (Musical)',
+            INTER: 'Tương tác — Xã hội (Interpersonal)',
+            INTRA: 'Nội tâm — Tự nhận thức (Intrapersonal)',
+            NAT: 'Tự nhiên — Sinh thái (Naturalist)',
+        }),
+    });
+
+    const ASSESSMENT_SUGGESTIONS = Object.freeze({
+        holland: Object.freeze([
+            'Tham gia các câu lạc bộ học thuật và dự án thực tế phù hợp với nhóm tính cách nghề nghiệp.',
+            'Tham khảo các ngành học và lộ trình nghề nghiệp tương ứng trong mục Hệ sinh thái.',
+            'Đăng ký tham gia hoạt động trải nghiệm thực địa để củng cố sở thích cá nhân.',
+        ]),
+        mbti: Object.freeze([
+            'Tận dụng thế mạnh cách tư duy để xây dựng phương pháp học tập hiệu quả.',
+            'Rèn luyện khả năng giao tiếp và làm việc nhóm với các thành viên có phong cách tính cách khác biệt.',
+            'Xác định môi trường học tập và làm việc lý tưởng giúp phát huy tối đa năng lượng bản thân.',
+        ]),
+        disc: Object.freeze([
+            'Phát huy điểm mạnh trong phong cách hành vi khi tham gia các dự án và bài tập tập thể.',
+            'Linh hoạt điều chỉnh phong cách giao tiếp khi phối hợp cùng đồng đội thuộc các nhóm hành vi khác.',
+            'Lựa chọn các vai trò phù hợp trong hoạt động nhóm (lãnh đạo, điều phối, nghiên cứu, hoàn thiện).',
+        ]),
+        multiple_intelligence: Object.freeze([
+            'Đầu tư thời gian vào các lĩnh vực trí thông minh nổi trội thông qua các hoạt động ngoại khóa.',
+            'Kết hợp các phương pháp học tập đa giác quan để nâng cao khả năng tiếp thu kiến thức.',
+            'Khám phá các dự án sáng tạo và cơ hội thực tập tương ứng trong hệ sinh thái TalentHub.',
+        ]),
+    });
+
     function normalizeAssessmentType(item) {
         const declaredType = String(item?.assessment_type || '').trim().toLowerCase();
         if (Object.prototype.hasOwnProperty.call(ASSESSMENT_META, declaredType)) return declaredType;
@@ -523,6 +583,20 @@
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
+            timeZone: 'Asia/Ho_Chi_Minh',
+        }).format(parsed);
+    }
+
+    function formatAssessmentDateTime(value) {
+        if (!value) return 'Chưa có dữ liệu';
+        const parsed = normalizeDiscoveryDate(value);
+        if (Number.isNaN(parsed.getTime())) return String(value);
+        return new Intl.DateTimeFormat('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
             timeZone: 'Asia/Ho_Chi_Minh',
         }).format(parsed);
     }
@@ -922,27 +996,86 @@
         if (codeNode) codeNode.textContent = resultLabel;
         if (primaryNode) primaryNode.textContent = resultLabel;
         if (summaryNode) summaryNode.textContent = result.summary || 'Kết quả đã được lưu trên hệ thống.';
+        const doc = root.ownerDocument || document;
+        const testCode = String(root.dataset.assessmentCode || payload?.assessment?.code || 'holland').toLowerCase();
+        const dimensionLabels = ASSESSMENT_DIMENSION_NAMES[testCode] || {};
         const list = root.querySelector('[data-result-dimension-list]');
         if (list) {
             while (list.firstChild) list.removeChild(list.firstChild);
             Object.entries(scores).forEach(([dimension, score]) => {
-                const row = document.createElement('div');
+                const numScore = Math.max(0, Math.min(100, Math.round(Number(score) || 0)));
+                const dimName = dimensionLabels[dimension] || dimension;
+                const row = doc.createElement('div');
                 row.className = 'learner-result-score';
-                const label = createTextElement(document, 'strong', dimension);
-                const value = createTextElement(document, 'b', Number(score) || 0);
-                row.appendChild(label);
+
+                const letterBadge = doc.createElement('span');
+                letterBadge.className = 'learner-result-score__letter';
+                letterBadge.textContent = dimension;
+                letterBadge.setAttribute('aria-hidden', 'true');
+                row.appendChild(letterBadge);
+
+                const detailsDiv = doc.createElement('div');
+                detailsDiv.className = 'learner-result-score__details';
+
+                const headerDiv = doc.createElement('div');
+                headerDiv.className = 'learner-result-score__header';
+                const label = createTextElement(doc, 'strong', dimName);
+                headerDiv.appendChild(label);
+
+                const barTrack = doc.createElement('div');
+                barTrack.className = 'learner-result-score__bar-track';
+                const barFill = doc.createElement('div');
+                barFill.className = 'learner-result-score__bar-fill';
+                barFill.style.width = `${numScore}%`;
+                barTrack.appendChild(barFill);
+
+                detailsDiv.appendChild(headerDiv);
+                detailsDiv.appendChild(barTrack);
+                row.appendChild(detailsDiv);
+
+                const value = createTextElement(doc, 'b', `${numScore}/100`);
                 row.appendChild(value);
+
                 list.appendChild(row);
             });
         }
+
+        const suggestionsList = root.querySelector('[data-result-suggestions]');
+        if (suggestionsList) {
+            while (suggestionsList.firstChild) suggestionsList.removeChild(suggestionsList.firstChild);
+            const suggestions = (Array.isArray(result?.suggestions) && result.suggestions.length > 0)
+                ? result.suggestions
+                : (ASSESSMENT_SUGGESTIONS[testCode] || ASSESSMENT_SUGGESTIONS.holland);
+            suggestions.forEach((text) => {
+                const li = doc.createElement('li');
+                const checkIcon = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                checkIcon.setAttribute('width', '16');
+                checkIcon.setAttribute('height', '16');
+                checkIcon.setAttribute('viewBox', '0 0 24 24');
+                checkIcon.setAttribute('fill', 'none');
+                checkIcon.setAttribute('stroke', 'currentColor');
+                checkIcon.setAttribute('stroke-width', '2.5');
+                checkIcon.setAttribute('stroke-linecap', 'round');
+                checkIcon.setAttribute('stroke-linejoin', 'round');
+                const poly = doc.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                poly.setAttribute('points', '20 6 9 17 4 12');
+                checkIcon.appendChild(poly);
+                const span = doc.createElement('span');
+                span.textContent = text;
+                li.appendChild(checkIcon);
+                li.appendChild(span);
+                suggestionsList.appendChild(li);
+            });
+        }
+
         const historyList = root.querySelector('[data-assessment-history-list]');
         if (historyList) {
             while (historyList.firstChild) historyList.removeChild(historyList.firstChild);
             (Array.isArray(payload?.history) ? payload.history : []).forEach((item) => {
-                const row = document.createElement('article');
+                const row = doc.createElement('article');
                 row.dataset.historyAttemptId = String(item?.id || '');
-                row.appendChild(createTextElement(document, 'strong', item?.result_code || item?.result?.code || '—'));
-                row.appendChild(createTextElement(document, 'span', item?.submitted_at || 'Đã hoàn thành'));
+                row.appendChild(createTextElement(doc, 'strong', item?.result_code || item?.result?.code || '—'));
+                row.appendChild(createTextElement(doc, 'span', formatAssessmentDateTime(item?.submitted_at) || 'Đã hoàn thành'));
                 historyList.appendChild(row);
             });
         }
@@ -1252,64 +1385,105 @@
             renderCollection('[data-assessment-complete-history-loading]', '[data-assessment-complete-history-empty]', '[data-assessment-complete-history-error]', '[data-assessment-complete-history-list]', automated, (item) => {
                 const article = document.createElement('article');
                 article.className = 'learner-assessment-history__item';
+
+                const header = document.createElement('div');
+                header.className = 'learner-assessment-history__header';
+
                 const meta = document.createElement('div');
                 meta.className = 'learner-assessment-history__meta';
                 const title = document.createElement('strong');
                 title.textContent = item?.assessment_name || 'Chưa có dữ liệu';
                 const when = document.createElement('span');
-                when.textContent = item?.submitted_at || 'Chưa có dữ liệu';
+                when.textContent = formatAssessmentDateTime(item?.submitted_at);
                 meta.appendChild(title);
                 meta.appendChild(when);
+
                 const result = document.createElement('div');
                 result.className = 'learner-assessment-history__result';
                 const badge = document.createElement('span');
                 badge.className = 'learner-badge';
                 badge.textContent = item?.result_code || 'Chưa có dữ liệu';
                 result.appendChild(badge);
-                const version = document.createElement('span');
-                version.textContent = 'Phiên bản ' + (item?.assessment_version || 'Chưa có dữ liệu') + ' · Thang điểm ' + (item?.scoring_version || 'Chưa có dữ liệu');
-                result.appendChild(version);
-                const summary = document.createElement('p');
-                summary.textContent = item?.summary || 'Chưa có dữ liệu';
-                article.appendChild(meta);
-                article.appendChild(result);
-                article.appendChild(summary);
+
+                header.appendChild(meta);
+                header.appendChild(result);
+                article.appendChild(header);
+
+                const version = document.createElement('div');
+                version.className = 'learner-assessment-history__version-tag';
+                version.textContent = 'Phiên bản ' + (item?.assessment_version || '1.0.0') + ' · Thang điểm ' + (item?.scoring_version || 'Chuẩn hóa');
+                article.appendChild(version);
+
+                if (item?.summary) {
+                    const summary = document.createElement('p');
+                    summary.className = 'learner-assessment-history__comment';
+                    summary.textContent = item.summary;
+                    article.appendChild(summary);
+                }
                 return article;
             });
             renderCollection('[data-teacher-published-evaluation-loading]', '[data-teacher-published-evaluation-empty]', '[data-teacher-published-evaluation-error]', '[data-teacher-published-evaluation-list]', teacher, (item) => {
                 const article = document.createElement('article');
                 article.className = 'learner-assessment-history__item';
+
+                const header = document.createElement('div');
+                header.className = 'learner-assessment-history__header';
+
                 const meta = document.createElement('div');
                 meta.className = 'learner-assessment-history__meta';
                 const title = document.createElement('strong');
                 title.textContent = item?.activity_title || 'Chưa có dữ liệu';
                 const when = document.createElement('span');
-                when.textContent = item?.published_at || 'Chưa có dữ liệu';
+                when.textContent = formatAssessmentDateTime(item?.published_at);
                 meta.appendChild(title);
                 meta.appendChild(when);
+
                 const result = document.createElement('div');
                 result.className = 'learner-assessment-history__result';
                 const badge = document.createElement('span');
                 badge.className = 'learner-badge';
-                badge.textContent = String(item?.overall_score ?? 'Chưa có dữ liệu') + '/100';
-                result.appendChild(badge);
-                const reviewer = document.createElement('span');
-                reviewer.textContent = '— ' + (item?.reviewer_name || 'Chưa có dữ liệu');
-                result.appendChild(reviewer);
-                article.appendChild(meta);
-                article.appendChild(result);
-                if (Array.isArray(item?.scores) && item.scores.length > 0) {
-                    const list = document.createElement('ul');
-                    item.scores.forEach((scoreItem) => {
-                        const li = document.createElement('li');
-                        li.textContent = `${scoreItem?.criteria_name || 'Chưa có dữ liệu'}: ${scoreItem?.score ?? 'Chưa có dữ liệu'}/${scoreItem?.max_score ?? 'Chưa có dữ liệu'}`;
-                        list.appendChild(li);
-                    });
-                    article.appendChild(list);
+                const rawScore = Number(item?.overall_score);
+                if (!Number.isNaN(rawScore)) {
+                    badge.textContent = rawScore <= 10 ? `${rawScore.toFixed(1)}/10` : `${rawScore.toFixed(1)}/100`;
+                } else {
+                    badge.textContent = String(item?.overall_score ?? '—');
                 }
-                const comment = document.createElement('p');
-                comment.textContent = item?.comment || 'Chưa có dữ liệu';
-                article.appendChild(comment);
+                result.appendChild(badge);
+
+                const reviewer = document.createElement('span');
+                reviewer.className = 'learner-assessment-history__reviewer';
+                reviewer.textContent = '— ' + (item?.reviewer_name || 'Giáo viên');
+                result.appendChild(reviewer);
+
+                header.appendChild(meta);
+                header.appendChild(result);
+                article.appendChild(header);
+
+                if (Array.isArray(item?.scores) && item.scores.length > 0) {
+                    const criteriaList = document.createElement('div');
+                    criteriaList.className = 'learner-assessment-history__criteria-list';
+                    item.scores.forEach((scoreItem) => {
+                        const chip = document.createElement('span');
+                        chip.className = 'learner-assessment-history__criterion-chip';
+                        const cName = document.createElement('span');
+                        cName.className = 'criterion-name';
+                        cName.textContent = (scoreItem?.criteria_name || 'Tiêu chí') + ':';
+                        const cScore = document.createElement('strong');
+                        cScore.className = 'criterion-score';
+                        cScore.textContent = `${scoreItem?.score ?? 0}/${scoreItem?.max_score ?? 10}`;
+                        chip.appendChild(cName);
+                        chip.appendChild(cScore);
+                        criteriaList.appendChild(chip);
+                    });
+                    article.appendChild(criteriaList);
+                }
+
+                if (item?.comment) {
+                    const comment = document.createElement('p');
+                    comment.className = 'learner-assessment-history__comment';
+                    comment.textContent = item.comment;
+                    article.appendChild(comment);
+                }
                 return article;
             });
         }).catch(() => {
