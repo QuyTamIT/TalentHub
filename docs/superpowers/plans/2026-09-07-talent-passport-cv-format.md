@@ -30,13 +30,13 @@
   - `$displayBadges` (array huy hiệu đạt được)
   - `$professionalSummary` (tóm tắt hồ sơ năng lực cá nhân)
 
-- [ ] **Step 1: Chuẩn bị khối dữ liệu trích xuất mới trong `talent-passport.php`**
+- [x] **Step 1: Chuẩn bị khối dữ liệu trích xuất mới trong `talent-passport.php`**
   - Tách `$displaySkills` thành `$technicalSkills` và `$softSkills`.
   - Nạp `$displayActivities` từ `$talentPassport['experience']['confirmed_entries']` hoặc fallback `$activities`.
   - Nạp `$displayBadges` từ `$talentPassport['badges']` hoặc fallback `$learnerBadges`.
   - Xây dựng `$professionalSummary` lấy từ `$student['bio']` hoặc tổng hợp ngắn gọn theo chuyên môn, số giờ trải nghiệm và kỹ năng nổi bật.
 
-- [ ] **Step 2: Chạy kiểm tra cú pháp PHP bằng CLI**
+- [x] **Step 2: Chạy kiểm tra cú pháp PHP bằng CLI**
   - Run: `& "D:\laragon\bin\php\php-8.3.30-Win32-vs16-x64\php.exe" -l app/learner/talent-passport.php`
   - Expected: `No syntax errors detected in app/learner/talent-passport.php`
 
@@ -68,9 +68,9 @@
     - Nhận xét Chứng thực của Giảng viên & Dấu mộc điện tử (Teacher Endorsement)
   - Footer trang in có ngày giờ xuất bản và nguồn chứng thực.
 
-- [ ] **Step 1: Thay thế khối markup cũ bằng cấu trúc CV 2 cột chuyên nghiệp**
-- [ ] **Step 2: Đảm bảo giữ nguyên các ID cần thiết cho JavaScript (`passport-verification-qr`, `passport-qr-status`, `talent-passport-card`, `btn-print-passport`, `btn-copy-passport-link`)**
-- [ ] **Step 3: Chạy test PHP Lint**
+- [x] **Step 1: Thay thế khối markup cũ bằng cấu trúc CV 2 cột chuyên nghiệp**
+- [x] **Step 2: Đảm bảo giữ nguyên các ID cần thiết cho JavaScript (`passport-verification-qr`, `passport-qr-status`, `talent-passport-card`, `btn-print-passport`, `btn-copy-passport-link`)**
+- [x] **Step 3: Chạy test PHP Lint**
   - Run: `& "D:\laragon\bin\php\php-8.3.30-Win32-vs16-x64\php.exe" -l app/learner/talent-passport.php`
   - Expected: `No syntax errors detected in app/learner/talent-passport.php`
 
@@ -92,9 +92,9 @@
     * Áp dụng `break-inside: avoid; page-break-inside: avoid;` cho từng mục
     * Bật `print-color-adjust: exact`
 
-- [ ] **Step 1: Viết bộ CSS hiện đại cho giao diện 2 cột CV**
-- [ ] **Step 2: Viết khối CSS `@media print` tương thích cao cho PDF**
-- [ ] **Step 3: Kiểm tra tính toàn vẹn cú pháp CSS và HTML**
+- [x] **Step 1: Viết bộ CSS hiện đại cho giao diện 2 cột CV**
+- [x] **Step 2: Viết khối CSS `@media print` tương thích cao cho PDF**
+- [x] **Step 3: Kiểm tra tính toàn vẹn cú pháp CSS và HTML**
 
 ---
 
@@ -103,9 +103,9 @@
 **Files:**
 - Test: `d:/TalentHub/bin/test-student-upgrades.php`
 
-- [ ] **Step 1: Chạy test suite `bin/test-student-upgrades.php`**
+- [x] **Step 1: Chạy test suite `bin/test-student-upgrades.php`**
   - Run: `& "D:\laragon\bin\php\php-8.3.30-Win32-vs16-x64\php.exe" bin/test-student-upgrades.php`
   - Expected: All tests PASS.
 
-- [ ] **Step 2: Kiểm tra DOM và render file HTML hoàn chỉnh**
-- [ ] **Step 3: Commit các thay đổi vào git**
+- [x] **Step 2: Kiểm tra DOM và render file HTML hoàn chỉnh**
+- [x] **Step 3: Commit các thay đổi vào git**
