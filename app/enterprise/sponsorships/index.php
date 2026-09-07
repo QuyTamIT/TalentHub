@@ -307,8 +307,8 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
     <link rel="stylesheet" href="../../../assets/css/global.css">
     <link rel="stylesheet" href="../../../assets/css/brand-component.css">
     <link rel="stylesheet" href="../../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../../assets/css/enterprise.css">
-    <link rel="stylesheet" href="../../../assets/css/enterprise-sponsorships.css">
+    <link rel="stylesheet" href="../../../assets/css/enterprise.css?v=<?= filemtime(dirname(__DIR__, 3) . '/assets/css/enterprise.css'); ?>">
+    <link rel="stylesheet" href="../../../assets/css/enterprise-sponsorships.css?v=<?= filemtime(dirname(__DIR__, 3) . '/assets/css/enterprise-sponsorships.css'); ?>">
 </head>
 <body class="enterprise-dashboard">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
@@ -337,32 +337,32 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                         <?php unset($_SESSION['flash_message']); ?>
                     <?php endif; ?>
 
-                    <!-- PHẦN 1: HERO BANNER LIGHT THEME (Nền Trắng - Viền Cam Tinh Tế) -->
-                    <div class="ent-hero-banner-light" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid #F97316; border-radius: 16px; padding: 28px 32px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); display: flex; align-items: center; justify-content: space-between; gap: 28px; flex-wrap: wrap; margin-bottom: 24px; box-sizing: border-box;">
+                    <!-- PHẦN 1: HERO BANNER (Sunset Gradient Theme) -->
+                    <div class="ent-hero-banner" style="margin-bottom: 24px; padding: 32px 36px;">
                         
                         <!-- CỘT TRÁI: Thông điệp & Giá trị thương hiệu -->
-                        <div style="flex: 1.2; min-width: 280px;">
-                            <div style="display: inline-flex; align-items: center; gap: 6px; background: #FFF7ED; color: #C2410C; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; border: 1px solid rgba(194, 65, 12, 0.25);">
+                        <div class="ent-hero-banner__content" style="flex: 1.2; min-width: 280px;">
+                            <div class="ent-hero-banner__tag">
                                 <span>🌱</span>
                                 <span>QUỸ ƯƠM MẦM ĐỔI MỚI SÁNG TẠO</span>
                             </div>
-                            <h1 style="font-size: 22px; font-weight: 700; color: #0F172A; line-height: 1.35; margin: 0 0 6px 0;">
+                            <h1 class="ent-hero-banner__title" style="font-size: 24px; margin: 0 0 8px 0;">
                                 Chung tay bảo trợ &amp; tiếp sức tài năng nghiên cứu trẻ
                             </h1>
-                            <p style="font-size: 14px; color: #64748B; line-height: 1.5; margin: 0; max-width: 520px;">
+                            <p class="ent-hero-banner__subtitle" style="font-size: 14.5px; margin: 0; max-width: 540px;">
                                 Đồng hành cùng học sinh, sinh viên hiện thực hóa các giải pháp công nghệ ứng dụng vào thực tiễn.
                             </p>
                         </div>
 
-                        <!-- CỘT PHẢI: Hộp thống kê ngân sách nền kem sáng -->
-                        <div style="background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 12px; padding: 16px 24px; display: flex; flex-direction: column; gap: 4px; min-width: 260px; box-sizing: border-box;">
-                            <span style="font-size: 11px; font-weight: 700; color: #9A3412; text-transform: uppercase; letter-spacing: 0.04em;">
+                        <!-- CỘT PHẢI: Hộp thống kê ngân sách nền Frosted Glass -->
+                        <div style="background: rgba(255, 255, 255, 0.18); border: 1.5px solid rgba(255, 255, 255, 0.45); border-radius: 16px; padding: 18px 24px; display: flex; flex-direction: column; gap: 4px; min-width: 260px; box-sizing: border-box; backdrop-filter: blur(8px); color: #FFFFFF; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);">
+                            <span style="font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, 0.9); text-transform: uppercase; letter-spacing: 0.05em;">
                                 TỔNG NGÂN SÁCH ĐÃ CAM KẾT
                             </span>
-                            <div style="font-size: 28px; font-weight: 800; color: #C2410C; line-height: 1.15; margin: 2px 0 6px 0; letter-spacing: -0.01em;">
+                            <div style="font-size: 28px; font-weight: 800; color: #FFFFFF; line-height: 1.15; margin: 2px 0 6px 0; letter-spacing: -0.01em; text-shadow: 0 2px 8px rgba(0,0,0,0.15);">
                                 <?= htmlspecialchars($totalBudgetDisplay); ?>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #9A3412;">
+                            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, 0.94);">
                                 <span style="display: inline-flex; align-items: center; gap: 4px;">📁 <?= (int)$openProjectsCount; ?> Đề án bảo trợ</span>
                                 <span>&bull;</span>
                                 <span style="display: inline-flex; align-items: center; gap: 4px;">👥 <?= (int)$totalTalentsCount; ?> Tài năng trẻ</span>
@@ -372,7 +372,7 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                     </div>
 
                     <!-- PHẦN 2: THANH LỌC TỐI GIẢN (Streamlined 1-Row Filter Bar) -->
-                    <div class="ent-filter-toolbar" style="background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 12px 18px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);">
+                    <div class="ent-filter-toolbar" style="background-color: #FFFFFF; border: 1px solid var(--border); border-radius: 14px; padding: 12px 18px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; box-shadow: var(--shadow-soft);">
                         <!-- Bên trái: Search box -->
                         <div class="ent-search-input-wrapper" style="position: relative; display: flex; align-items: center; min-width: 260px; flex: 1;">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="position: absolute; left: 12px; color: #94A3B8; pointer-events: none;">
@@ -432,20 +432,20 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                                      data-school="<?= htmlspecialchars($project['school_name']); ?>"
                                      data-status="<?= htmlspecialchars($project['status']); ?>"
                                      data-target="<?= htmlspecialchars((string)$project['target_amount']); ?>"
-                                     style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 22px; box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04); display: flex; flex-direction: column; justify-content: space-between; gap: 16px; transition: transform 0.2s ease, box-shadow 0.2s ease; box-sizing: border-box;">
+                                     style="background: #FFFFFF; border: 1px solid #F0E6DD; border-radius: 16px; padding: 22px; box-shadow: 0 4px 16px -2px rgba(50, 32, 20, 0.04); display: flex; flex-direction: column; justify-content: space-between; gap: 16px; transition: transform 0.2s ease, box-shadow 0.2s ease; box-sizing: border-box;">
                                 
                                 <!-- Hàng 1: Tiêu đề đề tài + Badge trạng thái -->
                                 <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;">
-                                    <h3 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 44px; flex: 1;">
+                                    <h3 style="font-size: 16px; font-weight: 700; color: #322014; margin: 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 44px; flex: 1;">
                                         <?= htmlspecialchars($project['title']); ?>
                                     </h3>
-                                    <span style="background: #FFF7ED; color: #C2410C; border: 1px solid rgba(194, 65, 12, 0.25); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0;">
+                                    <span style="background: #FFF0EB; color: #E04058; border: 1px solid #FFDACB; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0;">
                                         <?= htmlspecialchars($project['status_label'] ?? 'Đang gọi vốn'); ?>
                                     </span>
                                 </div>
 
                                 <!-- Hàng 2: Trường THPT / Đại học chủ quản • Số thành viên -->
-                                <div style="font-size: 13px; color: #64748B; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <div style="font-size: 13px; color: #6B5548; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                     <span style="display: inline-flex; align-items: center; gap: 4px;">
                                         🏫 <?= htmlspecialchars($project['school_name']); ?>
                                     </span>
@@ -458,19 +458,19 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                                 <!-- Hàng 3: Thanh tiến độ tài trợ -->
                                 <div style="display: flex; flex-direction: column; gap: 6px;">
                                     <div style="display: flex; align-items: center; justify-content: space-between; font-size: 13px;">
-                                        <span style="color: #334155; font-weight: 500;"><?= $progressText; ?></span>
-                                        <span style="color: #C2410C; font-weight: 700;"><?= $percent; ?>%</span>
+                                        <span style="color: #322014; font-weight: 500;"><?= $progressText; ?></span>
+                                        <span style="color: var(--primary-coral); font-weight: 700;"><?= $percent; ?>%</span>
                                     </div>
-                                    <div style="width: 100%; height: 8px; background-color: #F1F5F9; border-radius: 999px; overflow: hidden;">
-                                        <div style="width: <?= $progress_width ?>%; height: 100%; background: linear-gradient(90deg, #F97316 0%, #EA580C 100%); border-radius: 999px; transition: width 0.4s ease;"></div>
+                                    <div style="width: 100%; height: 8px; background-color: #F0E6DD; border-radius: 999px; overflow: hidden;">
+                                        <div style="width: <?= $progress_width ?>%; height: 100%; background: var(--primary-gradient); border-radius: 999px; transition: width 0.4s ease;"></div>
                                     </div>
                                 </div>
 
                                 <!-- Hàng 4: Cụm nút hành động -->
-                                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 14px; border-top: 1px solid #F1F5F9;">
+                                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 14px; border-top: 1px solid #F0E6DD;">
                                     <?php if ($total_sponsored >= $fundingGoal && $fundingGoal > 0): ?>
                                         <button type="button" 
-                                                style="width: 100%; min-height: 44px; background-color: #E2E8F0; color: #94A3B8; border: none; font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 999px; cursor: not-allowed; text-align: center; transition: all 0.2s ease;"
+                                                style="width: 100%; min-height: 44px; background-color: #F0E6DD; color: #A8988C; border: none; font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 999px; cursor: not-allowed; text-align: center; transition: all 0.2s ease;"
                                                 disabled>
                                             Đã đủ ngân sách
                                         </button>
@@ -478,14 +478,14 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                                         <button type="button" 
                                                 class="btn-sponsor-now" 
                                                 data-project-id="<?= htmlspecialchars($project['id']); ?>" 
-                                                style="width: 100%; min-height: 44px; background-color: #C2410C; color: #FFFFFF; border: none; font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 999px; cursor: pointer; text-align: center; box-shadow: 0 4px 12px rgba(194, 65, 12, 0.25); transition: all 0.2s ease;">
+                                                style="width: 100%; min-height: 44px; background: var(--primary-gradient); color: #FFFFFF; border: none; font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 999px; cursor: pointer; text-align: center; box-shadow: 0 4px 14px rgba(248, 63, 112, 0.25); transition: all 0.2s ease;">
                                             Tài trợ ngay
                                         </button>
                                     <?php endif; ?>
                                     <button type="button" 
                                             class="btn-view-detail" 
                                             data-project-id="<?= htmlspecialchars($project['id']); ?>" 
-                                            style="min-height: 44px; background: none; border: none; font-size: 13px; font-weight: 500; color: #64748B; cursor: pointer; text-align: center; padding: 10px 4px; transition: color 0.15s ease;">
+                                            style="min-height: 44px; background: none; border: none; font-size: 13px; font-weight: 600; color: #6B5548; cursor: pointer; text-align: center; padding: 10px 4px; transition: color 0.15s ease;">
                                         Chi tiết đề án &amp; Đội ngũ &rarr;
                                     </button>
                                 </div>
@@ -495,17 +495,17 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                     </div>
 
                     <!-- Empty State khi tìm kiếm không ra kết quả -->
-                    <div id="spon-projects-empty" style="display: none; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 48px 24px; text-align: center; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 24px; width: 100%;">
-                        <div style="width: 64px; height: 64px; border-radius: 16px; background-color: #FFF7ED; border: 1px solid rgba(194, 65, 12, 0.25); display: flex; align-items: center; justify-content: center; color: #C2410C; font-size: 28px; margin-bottom: 4px;">
+                    <div id="spon-projects-empty" style="display: none; background: #FFFFFF; border: 1px solid #F0E6DD; border-radius: 16px; padding: 48px 24px; text-align: center; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 24px; width: 100%;">
+                        <div style="width: 64px; height: 64px; border-radius: 16px; background-color: #FFF0EB; border: 1px solid #FFDACB; display: flex; align-items: center; justify-content: center; color: #FF6B45; font-size: 28px; margin-bottom: 4px;">
                             🔍
                         </div>
-                        <h3 style="font-size: 18px; font-weight: 700; color: #0F172A; margin: 0;">
+                        <h3 style="font-size: 18px; font-weight: 700; color: #322014; margin: 0;">
                             Không tìm thấy dự án phù hợp
                         </h3>
-                        <p style="font-size: 14px; color: #64748B; max-width: 440px; margin: 0 0 8px 0; line-height: 1.5;">
+                        <p style="font-size: 14px; color: #6B5548; max-width: 440px; margin: 0 0 8px 0; line-height: 1.5;">
                             Thử điều chỉnh từ khóa tìm kiếm hoặc chọn danh mục khác để khám phá các đề tài sáng tạo của học sinh sinh viên.
                         </p>
-                        <button type="button" id="spon-reset-filters" style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 8px 20px; border-radius: 999px; font-size: 13px; font-weight: 600; color: #0F172A; cursor: pointer;">
+                        <button type="button" id="spon-reset-filters" style="background: #FFFFFF; border: 1.5px solid #F0E6DD; padding: 8px 20px; border-radius: 999px; font-size: 13px; font-weight: 600; color: #322014; cursor: pointer;">
                             Đặt lại bộ lọc
                         </button>
                     </div>
@@ -624,7 +624,7 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                             width: 20px;
                             height: 20px;
                             border-radius: 50%;
-                            background: #F97316;
+                            background: var(--primary-coral, #F83F70);
                             cursor: pointer;
                             border: 2px solid #FFFFFF;
                             box-shadow: 0 1px 3px rgba(0,0,0,0.3);
@@ -633,7 +633,7 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                             width: 20px;
                             height: 20px;
                             border-radius: 50%;
-                            background: #F97316;
+                            background: var(--primary-coral, #F83F70);
                             cursor: pointer;
                             border: 2px solid #FFFFFF;
                             box-shadow: 0 1px 3px rgba(0,0,0,0.3);

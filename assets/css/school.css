@@ -1,15 +1,66 @@
 /* ==========================================================================
    TalentHub School Dashboard Styles
    Nhà Trường - Dashboard SaaS UI
-   Design tokens from home.css, shared components from global.css.
+   Scoped Design Tokens: Synchronized with Enterprise & Teacher Sunset Coral Palette
    ========================================================================== */
 
-/* Page Base */
+/* Page Base - Scoped Design Tokens for School */
+body.school-dashboard,
 .school-dashboard {
-    background-color: var(--background);
+    /* Enterprise / Teacher Sunset Coral Theme Variables */
+    --primary: #FF6B45;
+    --primary-coral: #F83F70;
+    --primary-pink: #F23585;
+    --primary-purple: #A14FC9;
+    --primary-violet: #8B4DE8;
+    --primary-hover: #F83F70;
+    --primary-light: #FFF0EB;
+    --primary-light-border: #FFDACB;
+    --primary-dark: #E04058;
+    --secondary: #A14FC9;
+    --secondary-hover: #8B4DE8;
+    --secondary-light: #FAF5FF;
+    --accent: #F23585;
+    --accent-hover: #F83F70;
+    --accent-light: #FFF0EB;
+    --background: #FDF7F1;
+    --surface: #FFFFFF;
+    --surface-hover: #FFF7F2;
+    --border: #F0E6DD;
+    --border-hover: #FFDACB;
+    --border-strong: #E5D7CC;
+    --border-subtle: #FDF7F1;
+    --text-primary: #322014;
+    --text-secondary: #6B5548;
+    --text-muted: #9E897D;
+    --text-disabled: #B8A599;
+    --shadow-soft: 0 4px 20px rgba(50, 32, 20, 0.04);
+    --shadow-glow: 0 6px 20px rgba(248, 63, 112, 0.28);
+    --focus-ring: 0 0 0 3px rgba(248, 63, 112, 0.25);
+    --primary-gradient: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
+    --primary-gradient-subtle: linear-gradient(135deg, #FFF0EB 0%, #FAF5FF 100%);
+    --font-primary: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+    /* Brand Component Scoped Overrides */
+    --brand-icon-bg: var(--primary-gradient);
+    --brand-icon-shadow: 0 2px 8px rgba(248, 63, 112, 0.35);
+    --brand-name-hub-color: var(--primary-coral);
+    --brand-name-color: var(--text-primary);
+    --brand-sub-color: var(--primary-coral);
+
+    font-family: var(--font-primary);
+    background-color: var(--background) !important;
     color: var(--text-primary);
     min-height: 100vh;
     overflow-x: hidden;
+}
+
+body.school-dashboard,
+.school-dashboard,
+.school-dashboard .school-layout,
+.school-dashboard .school-main-wrapper,
+.school-dashboard .school-body {
+    background-color: var(--background) !important;
 }
 
 body.school-sidebar-open {
@@ -66,12 +117,58 @@ body.school-sidebar-open {
     transition: transform var(--transition-base);
 }
 
-/* Keep brand→subtitle gap ≈ subtitle→nav gap (~12-14px).
-   Pinned to 0.5rem so the sidebar reads as one rhythm. */
-/* .school-sidebar__brand padding/border — controlled by brand-component.css */
+/* --------------------------------------------------------------------------
+   Brand Logo (School Portal - Synchronized with TalentHub Logo)
+   -------------------------------------------------------------------------- */
+.school-sidebar__brand {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border, #F0E6DD);
+    margin-bottom: 1rem;
+    width: 100%;
+}
 
-/* school-sidebar__subtitle — handled by brand-component.css */
-/* school-sidebar__brand .site-header__brand-icon — handled by brand-component.css */
+.school-sidebar__brand-link {
+    display: block;
+    text-decoration: none;
+    line-height: 1;
+    transition: opacity var(--transition-fast, 0.15s ease), transform var(--transition-fast, 0.15s ease);
+}
+
+.school-sidebar__brand-link:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+}
+
+.school-sidebar__logo-img {
+    display: block;
+    width: 178px;
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+    aspect-ratio: 401 / 122;
+}
+
+.school-sidebar__role-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--primary-coral, #F83F70);
+    background-color: #FFF0EB;
+    border: 1px solid #FFDACB;
+    padding: 2px 9px;
+    border-radius: 999px;
+    margin: 10px auto 2px auto;
+    align-self: center;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+    text-align: center;
+    margin-right: 62px;
+}
 /* Sidebar School Card */
 .school-sidebar__school-card {
     display: flex;
@@ -79,7 +176,7 @@ body.school-sidebar-open {
     gap: 0.75rem;
     padding: 0.875rem;
     background: linear-gradient(135deg, var(--surface) 0%, var(--primary-light) 100%);
-    border: 1px solid rgba(255, 107, 0, 0.18);
+    border: 1px solid rgba(248, 63, 112, 0.18);
     border-radius: var(--radius-md);
     margin-bottom: 1.25rem;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
@@ -87,8 +184,8 @@ body.school-sidebar-open {
 }
 
 .school-sidebar__school-card:hover {
-    border-color: rgba(255, 107, 0, 0.3);
-    box-shadow: 0 4px 12px rgba(255, 107, 0, 0.08);
+    border-color: rgba(248, 63, 112, 0.3);
+    box-shadow: 0 4px 12px rgba(248, 63, 112, 0.08);
 }
 
 .school-sidebar__school-avatar {
@@ -103,7 +200,7 @@ body.school-sidebar-open {
     font-weight: var(--font-extrabold);
     font-size: 0.875rem;
     flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(255, 107, 0, 0.25);
+    box-shadow: 0 2px 8px rgba(248, 63, 112, 0.25);
 }
 
 .school-sidebar__school-info {
@@ -197,7 +294,7 @@ body.school-sidebar-open {
     background-color: var(--primary-light);
     color: var(--primary);
     font-weight: var(--font-semibold);
-    border-color: rgba(255, 107, 0, 0.2);
+    border-color: rgba(248, 63, 112, 0.2);
 }
 
 .school-sidebar__link.is-active::before {
@@ -280,9 +377,9 @@ body.school-sidebar-open {
 }
 
 .school-sidebar__link--switch:hover {
-    background: rgba(255, 107, 0, 0.08);
+    background: rgba(255, 107, 69, 0.08);
     color: var(--primary);
-    border-color: rgba(255, 107, 0, 0.3);
+    border-color: rgba(248, 63, 112, 0.3);
 }
 
 .school-sidebar__link--switch:hover .school-sidebar__icon {
@@ -431,7 +528,7 @@ body.school-sidebar-open {
     font-weight: var(--font-bold);
     font-size: 0.8125rem;
     flex-shrink: 0;
-    box-shadow: 0 2px 6px rgba(255, 107, 0, 0.2);
+    box-shadow: 0 2px 6px rgba(248, 63, 112, 0.2);
 }
 
 .school-header__user-info {
@@ -537,7 +634,7 @@ body.school-sidebar-open {
     font-size: 0.6875rem;
     font-weight: var(--font-semibold);
     color: var(--primary);
-    background: rgba(255, 107, 0, 0.1);
+    background: rgba(248, 63, 112, 0.1);
     padding: 0.125rem 0.375rem;
     border-radius: var(--radius-sm);
     width: fit-content;
@@ -929,7 +1026,7 @@ body.school-sidebar-open {
     font-weight: var(--font-bold);
     font-size: 1.0625rem;
     flex-shrink: 0;
-    border: 1px solid rgba(255, 107, 0, 0.15);
+    border: 1px solid rgba(248, 63, 112, 0.15);
 }
 
 .school-talent-card__details {
@@ -1819,9 +1916,9 @@ textarea:focus-visible {
    Welcome banner: gradient đẹp hơn + responsive
    -------------------------------------------------------------------------- */
 .school-welcome {
-    background: linear-gradient(135deg, var(--primary-light) 0%, #fffaf5 50%, #f0f9ff 100%);
+    background: linear-gradient(135deg, #FFFFFF 0%, #FFF8F5 100%);
     border-left-width: 4px;
-    box-shadow: 0 4px 20px -4px rgba(255, 107, 0, 0.08);
+    box-shadow: 0 4px 20px -4px rgba(248, 63, 112, 0.08);
 }
 
 @media (max-width: 640px) {
@@ -1949,7 +2046,7 @@ textarea:focus-visible {
 }
 
 .school-kpi-card:hover {
-    border-color: rgba(255, 107, 0, 0.25);
+    border-color: rgba(248, 63, 112, 0.25);
     box-shadow: var(--shadow-md);
     transform: translateY(-2px);
 }
@@ -2155,9 +2252,9 @@ textarea:focus-visible {
 }
 
 .school-talent-card:hover {
-    border-color: rgba(255, 107, 0, 0.25);
+    border-color: rgba(248, 63, 112, 0.25);
     box-shadow:
-        0 4px 16px rgba(255, 107, 0, 0.06),
+        0 4px 16px rgba(248, 63, 112, 0.06),
         0 8px 24px rgba(15, 23, 42, 0.05);
     transform: translateY(-2px);
 }
@@ -2165,8 +2262,8 @@ textarea:focus-visible {
 /* Talent avatar: gradient */
 .school-talent-card__avatar {
     background: linear-gradient(135deg, var(--primary-light) 0%, #fff7f0 100%);
-    border: 1.5px solid rgba(255, 107, 0, 0.2);
-    box-shadow: 0 2px 6px rgba(255, 107, 0, 0.08);
+    border: 1.5px solid rgba(248, 63, 112, 0.2);
+    box-shadow: 0 2px 6px rgba(248, 63, 112, 0.08);
 }
 
 /* Score badge: softer */
@@ -2193,7 +2290,7 @@ textarea:focus-visible {
 /* Activity timeline: dots */
 .school-activity-item__indicator {
     background: var(--primary);
-    box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.12);
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.18);
 }
 
 /* Section box: top accent hover */
@@ -2210,7 +2307,7 @@ textarea:focus-visible {
 /* Class badge: gradient */
 .school-class-badge--primary {
     background: linear-gradient(90deg, var(--primary-light) 0%, #fff7f0 100%);
-    border: 1px solid rgba(255, 107, 0, 0.2);
+    border: 1px solid rgba(248, 63, 112, 0.2);
 }
 
 .school-class-badge--success {
@@ -2257,9 +2354,9 @@ textarea:focus-visible {
 }
 
 .school-badge--info {
-    background: #EFF6FF;
-    color: #1D4ED8;
-    border-color: #BFDBFE;
+    background: #FFF0EB;
+    color: var(--primary-coral);
+    border-color: #FFDACB;
 }
 
 .school-badge--success {
@@ -2375,8 +2472,8 @@ textarea:focus-visible {
 }
 
 .school-avatar--blue {
-    background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    background: linear-gradient(135deg, #FF6B45 0%, #F83F70 100%);
+    box-shadow: 0 4px 12px rgba(248, 63, 112, 0.25);
 }
 
 /* ── Empty state ────────────────────────────────────────────────────────── */
@@ -2591,8 +2688,8 @@ textarea:focus-visible {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #E0F2FE;
-    color: #0284C7;
+    background: #FFF0EB;
+    color: var(--primary-coral);
     font-weight: 700;
     font-size: 0.875rem;
     display: flex;
@@ -2692,9 +2789,9 @@ textarea:focus-visible {
 }
 
 .school-select-enhanced:focus {
-    border-color: #2563EB;
+    border-color: var(--primary-coral);
     outline: none;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.18);
 }
 
 .school-field-hint {
@@ -2763,9 +2860,9 @@ textarea:focus-visible {
 }
 
 .school-author-search input:focus {
-    border-color: #2563EB;
+    border-color: var(--primary-coral);
     outline: none;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.18);
 }
 
 .school-author-list {
@@ -2824,8 +2921,8 @@ textarea:focus-visible {
 }
 
 .school-author-item--active {
-    background: #EFF6FF;
-    border: 1px solid #BFDBFE;
+    background: #FFF0EB;
+    border: 1px solid #FFDACB;
 }
 
 /* Milestone row delete button: keep a 44px touch target */
@@ -2872,9 +2969,9 @@ textarea:focus-visible {
 
 .school-project-topic {
     font-size: 0.85rem;
-    color: #3B82F6;
+    color: var(--primary-coral);
     font-weight: 500;
-    background: #EFF6FF;
+    background: #FFF0EB;
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
     display: inline-block;
@@ -2894,8 +2991,8 @@ textarea:focus-visible {
 }
 
 .school-project-status-badge--in_progress {
-    background: #DBEAFE;
-    color: #1D4ED8;
+    background: #FFF0EB;
+    color: var(--primary-coral);
 }
 
 .school-project-status-badge--completed {
@@ -2974,7 +3071,7 @@ textarea:focus-visible {
 
 /* Clickable Student Name Link */
 .school-student-name-link {
-    color: #2563EB;
+    color: var(--primary-coral);
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -2986,7 +3083,7 @@ textarea:focus-visible {
 
 .school-student-name-link:hover {
     text-decoration: underline;
-    color: #1D4ED8;
+    color: var(--primary-pink);
 }
 
 .school-student-name-link .school-link-icon {
@@ -3029,9 +3126,9 @@ textarea:focus-visible {
     border-radius: 6px;
     font-size: 0.75rem;
     font-weight: 600;
-    background: #EFF6FF;
-    color: #1D4ED8;
-    border: 1px solid #BFDBFE;
+    background: #FFF0EB;
+    color: var(--primary-coral);
+    border: 1px solid #FFDACB;
 }
 
 /* ── Responsive: new grid utilities ─────────────────────────────────────── */
@@ -3045,3 +3142,489 @@ textarea:focus-visible {
     .school-grade-grid { grid-template-columns: repeat(3, 1fr); }
     .school-project-card__stats { flex-wrap: wrap; }
 }
+
+/* ==========================================================================
+   SCHOOL PORTAL VISUAL THEME SYNCHRONIZATION
+   Synchronized with Enterprise & Teacher Sunset Coral Palette:
+   #FF6B45 (Cam) -> #F83F70 (Coral) -> #F23585 (Pink) -> #A14FC9 (Tím) -> #8B4DE8 (Violet)
+   Background: #FDF7F1 | Cards: #FFFFFF | Text: #322014 | Border: #F0E6DD
+   NOTE: ALL structural rules (padding, margin, size, layout) are 100% preserved.
+   ========================================================================== */
+
+/* 1. SIDEBAR & ACTIVE NAVIGATION */
+body.school-dashboard .school-sidebar {
+    background-color: var(--surface);
+    border-right-color: var(--border);
+}
+
+body.school-dashboard .school-sidebar__nav-title {
+    color: var(--text-muted);
+}
+
+body.school-dashboard .school-sidebar__link {
+    color: var(--text-secondary);
+}
+
+body.school-dashboard .school-sidebar__link:hover:not(.is-active) {
+    background-color: rgba(255, 107, 69, 0.08);
+    color: var(--primary);
+}
+
+body.school-dashboard .school-sidebar__link:hover:not(.is-active) .school-sidebar__icon,
+body.school-dashboard .school-sidebar__link:hover:not(.is-active) svg {
+    color: var(--primary);
+}
+
+body.school-dashboard .school-sidebar__link.is-active {
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    border-color: transparent !important;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.35) !important;
+}
+
+body.school-dashboard .school-sidebar__link.is-active::before {
+    display: none !important;
+}
+
+body.school-dashboard .school-sidebar__link.is-active .school-sidebar__icon,
+body.school-dashboard .school-sidebar__link.is-active svg {
+    color: #FFFFFF !important;
+    stroke: #FFFFFF !important;
+}
+
+body.school-dashboard .school-sidebar__footer {
+    border-top-color: var(--border);
+}
+
+body.school-dashboard .school-sidebar__link--logout:hover {
+    background-color: #FEF2F2 !important;
+    color: #DC2626 !important;
+}
+
+body.school-dashboard .school-sidebar__school-card {
+    background: linear-gradient(135deg, var(--surface) 0%, var(--primary-light) 100%);
+    border-color: var(--primary-light-border);
+}
+
+body.school-dashboard .school-sidebar__school-card:hover {
+    border-color: #FFB39E;
+    box-shadow: 0 4px 12px rgba(248, 63, 112, 0.12);
+}
+
+body.school-dashboard .school-sidebar__school-avatar {
+    background: var(--primary-gradient);
+    color: #FFFFFF;
+}
+
+/* 2. HEADER & ACCOUNT DROPDOWN */
+body.school-dashboard .school-header {
+    background-color: var(--surface);
+    border-bottom-color: var(--border);
+}
+
+body.school-dashboard .school-header__title {
+    color: var(--text-primary);
+}
+
+body.school-dashboard .school-header__icon-btn {
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text-secondary);
+}
+
+body.school-dashboard .school-header__icon-btn:hover {
+    background-color: #FFF7F2;
+    border-color: #FFB39E;
+    color: var(--primary-coral);
+}
+
+body.school-dashboard .school-header__badge {
+    background-color: var(--primary-coral);
+    color: #FFFFFF;
+}
+
+body.school-dashboard .school-header__account:hover {
+    background-color: #FFF7F2;
+    border-color: #FFB39E;
+}
+
+body.school-dashboard .school-header__avatar,
+body.school-dashboard .school-account-menu__avatar {
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 2px 6px rgba(248, 63, 112, 0.25);
+}
+
+body.school-dashboard .school-header__company-name {
+    color: var(--text-primary);
+}
+
+body.school-dashboard .school-header__package-name {
+    color: var(--primary-coral);
+}
+
+body.school-dashboard .school-account-menu {
+    background-color: var(--surface);
+    border-color: var(--border);
+    box-shadow: var(--shadow-soft);
+}
+
+body.school-dashboard .school-account-menu__badge {
+    background-color: #FFF0EB;
+    border: 1px solid #FFDACB;
+    color: var(--primary-coral);
+}
+
+body.school-dashboard .school-account-menu__divider {
+    background-color: var(--border);
+}
+
+body.school-dashboard .school-account-menu__item:hover {
+    background-color: #FFF7F2;
+    color: var(--primary-coral);
+}
+
+/* 3. WELCOME BANNER & HERO */
+body.school-dashboard .school-welcome {
+    background: linear-gradient(135deg, #FFFFFF 0%, #FFF8F5 100%) !important;
+    border-color: var(--border) !important;
+    border-left-color: var(--primary-coral) !important;
+    box-shadow: var(--shadow-soft) !important;
+}
+
+body.school-dashboard .school-welcome::after {
+    background: radial-gradient(circle, rgba(248, 63, 112, 0.08) 0%, transparent 70%);
+}
+
+body.school-dashboard .school-welcome__tag {
+    color: var(--primary-coral) !important;
+    background-color: #FFF0EB !important;
+}
+
+body.school-dashboard .school-welcome__title {
+    color: var(--text-primary) !important;
+}
+
+body.school-dashboard .school-welcome__description {
+    color: var(--text-secondary) !important;
+}
+
+/* 4. KPI CARDS & METRICS */
+body.school-dashboard .school-kpi-card {
+    background-color: var(--surface) !important;
+    border-color: var(--border) !important;
+    box-shadow: var(--shadow-soft) !important;
+}
+
+body.school-dashboard .school-kpi-card:hover {
+    border-color: rgba(255, 107, 107, 0.35) !important;
+    box-shadow: var(--shadow-glow) !important;
+}
+
+body.school-dashboard .school-kpi-card__icon {
+    color: var(--primary-coral) !important;
+}
+
+body.school-dashboard .school-kpi-card__value {
+    color: var(--text-primary) !important;
+}
+
+body.school-dashboard .school-kpi-card__label {
+    color: var(--text-secondary) !important;
+}
+
+/* 5. CARDS, SECTIONS, PANELS & MODALS */
+body.school-dashboard .school-section-box,
+body.school-dashboard .school-talent-card,
+body.school-dashboard .school-chart-container,
+body.school-dashboard .school-project-card,
+body.school-dashboard .school-modal,
+body.school-dashboard .school-guide-modal-box,
+body.school-dashboard .school-author-box,
+body.school-dashboard .school-card-subtle {
+    background-color: var(--surface) !important;
+    border-color: var(--border) !important;
+    box-shadow: var(--shadow-soft) !important;
+}
+
+body.school-dashboard .school-section-box:hover,
+body.school-dashboard .school-talent-card:hover,
+body.school-dashboard .school-project-card:hover {
+    border-color: var(--border-hover) !important;
+    box-shadow: 0 8px 24px rgba(50, 32, 20, 0.06) !important;
+}
+
+body.school-dashboard .school-section-box__title {
+    color: var(--text-primary) !important;
+}
+
+body.school-dashboard .school-section-box__subtitle {
+    color: var(--text-secondary) !important;
+}
+
+body.school-dashboard .school-section-box__link {
+    color: var(--primary-coral) !important;
+}
+
+body.school-dashboard .school-section-box__link:hover {
+    color: var(--primary-pink) !important;
+}
+
+body.school-dashboard .school-section-box__count {
+    background-color: #FFF0EB !important;
+    border-color: #FFDACB !important;
+    color: var(--primary-coral) !important;
+}
+
+body.school-dashboard .school-talent-card__avatar {
+    background: linear-gradient(135deg, #FFF0EB 0%, #FFF7F2 100%) !important;
+    border-color: #FFDACB !important;
+    color: var(--primary-coral) !important;
+    box-shadow: 0 2px 6px rgba(248, 63, 112, 0.08) !important;
+}
+
+/* 6. BUTTONS & ACTIONS */
+body.school-dashboard .btn-primary,
+body.school-dashboard button[type="submit"]:not(.btn-secondary):not(.btn-ghost):not(.btn-outline):not(.btn-danger) {
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    border-color: transparent !important;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28) !important;
+}
+
+body.school-dashboard .btn-primary:hover:not(:disabled),
+body.school-dashboard button[type="submit"]:hover:not(:disabled):not(.btn-secondary):not(.btn-ghost):not(.btn-outline):not(.btn-danger) {
+    box-shadow: 0 6px 20px rgba(248, 63, 112, 0.38) !important;
+    filter: brightness(1.03);
+}
+
+body.school-dashboard .btn-secondary,
+body.school-dashboard .btn-outline {
+    background-color: #FFFFFF !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border) !important;
+}
+
+body.school-dashboard .btn-secondary:hover:not(:disabled),
+body.school-dashboard .btn-outline:hover:not(:disabled) {
+    background-color: #FFF7F2 !important;
+    border-color: #FFB39E !important;
+    color: var(--primary-coral) !important;
+}
+
+body.school-dashboard .btn-outline-primary {
+    background-color: #FFF0EB !important;
+    color: var(--primary-coral) !important;
+    border-color: var(--primary-light-border) !important;
+}
+
+body.school-dashboard .btn-outline-primary:hover:not(:disabled) {
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    border-color: transparent !important;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.35) !important;
+}
+
+body.school-dashboard .btn-danger {
+    background: #FFFFFF !important;
+    color: #EF4444 !important;
+    border-color: #FECACA !important;
+}
+
+body.school-dashboard .btn-danger:hover:not(:disabled) {
+    background: #FEF2F2 !important;
+    border-color: #EF4444 !important;
+    color: #DC2626 !important;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2) !important;
+}
+
+body.school-dashboard .btn:disabled,
+body.school-dashboard .btn[disabled],
+body.school-dashboard button:disabled {
+    background: #F0E6DD !important;
+    color: #A8988C !important;
+    border-color: #E5D7CC !important;
+    box-shadow: none !important;
+}
+
+/* 7. FORM INPUTS & CONTROLS */
+body.school-dashboard input[type="text"],
+body.school-dashboard input[type="email"],
+body.school-dashboard input[type="password"],
+body.school-dashboard input[type="search"],
+body.school-dashboard input[type="number"],
+body.school-dashboard input[type="tel"],
+body.school-dashboard input[type="url"],
+body.school-dashboard input[type="date"],
+body.school-dashboard select,
+body.school-dashboard textarea,
+body.school-dashboard .school-inline-select,
+body.school-dashboard .school-inline-textarea,
+body.school-dashboard .school-select-enhanced,
+body.school-dashboard .school-status-select,
+body.school-dashboard .school-input-date,
+body.school-dashboard .form-control,
+body.school-dashboard .typeui-select {
+    background-color: #FFFFFF !important;
+    border-color: var(--border) !important;
+    color: var(--text-primary) !important;
+}
+
+body.school-dashboard input:hover,
+body.school-dashboard select:hover,
+body.school-dashboard textarea:hover,
+body.school-dashboard .typeui-select:hover {
+    border-color: #FFB39E !important;
+}
+
+body.school-dashboard input:focus,
+body.school-dashboard select:focus,
+body.school-dashboard textarea:focus,
+body.school-dashboard .typeui-select:focus {
+    border-color: var(--primary-coral) !important;
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.18) !important;
+    outline: none !important;
+}
+
+body.school-dashboard input:disabled,
+body.school-dashboard select:disabled,
+body.school-dashboard textarea:disabled {
+    background-color: #F8F4F0 !important;
+    color: var(--text-muted) !important;
+    border-color: var(--border) !important;
+}
+
+body.school-dashboard input[type="checkbox"],
+body.school-dashboard input[type="radio"] {
+    accent-color: var(--primary-coral);
+}
+
+/* 8. TABLES & DATA CONTAINERS */
+body.school-dashboard table thead th,
+body.school-dashboard .school-class-table th {
+    background-color: #FAF3EE !important;
+    color: var(--text-secondary) !important;
+    border-bottom-color: var(--border) !important;
+}
+
+body.school-dashboard table tbody tr,
+body.school-dashboard .school-class-table td,
+body.school-dashboard .school-modal__header,
+body.school-dashboard .school-modal__footer,
+body.school-dashboard .school-guide-modal-step,
+body.school-dashboard .school-project-card__actions {
+    border-color: var(--border) !important;
+}
+
+body.school-dashboard table tbody tr:hover,
+body.school-dashboard .school-class-table tbody tr:hover,
+body.school-dashboard .school-author-item:hover {
+    background-color: #FAF5F0 !important;
+}
+
+/* 9. BADGES, CHIPS & ACCENTS */
+body.school-dashboard :is(.school-badge--info, .school-skill-badge, .school-project-topic, .school-student-name-link, .school-project-status-badge--in_progress, .school-class-badge--primary, .school-talent-card__score-badge, .school-author-item--active) {
+    background-color: #FFF0EB !important;
+    border-color: #FFDACB !important;
+    color: var(--primary-coral) !important;
+}
+
+body.school-dashboard .school-student-name-link:hover {
+    color: var(--primary-pink) !important;
+}
+
+body.school-dashboard :is(.school-badge--purple, .school-avatar--blue, .school-guide-modal-number) {
+    background-color: #FAF5FF !important;
+    border-color: #F3E8FF !important;
+    color: var(--primary-violet) !important;
+}
+
+body.school-dashboard .school-class-badge--neutral,
+body.school-dashboard .school-class-name-badge,
+body.school-dashboard .school-author-class {
+    background-color: #F8F4F0 !important;
+    border-color: var(--border) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* 10. PROGRESS & TIMELINE */
+body.school-dashboard .school-progress-track {
+    background-color: #F0E6DD !important;
+}
+
+body.school-dashboard .school-progress-fill {
+    background: var(--primary-gradient) !important;
+}
+
+body.school-dashboard .school-timeline::before {
+    background-color: var(--border) !important;
+}
+
+body.school-dashboard .school-timeline__dot,
+body.school-dashboard .school-activity-item__indicator {
+    background: var(--primary-gradient) !important;
+    box-shadow: 0 2px 6px rgba(248, 63, 112, 0.25) !important;
+}
+
+/* 11. AUDIT LOGS & ADVANCED VIEWS */
+body.school-dashboard .school-audit-kpi {
+    background-color: var(--surface) !important;
+    border-color: var(--border) !important;
+    box-shadow: var(--shadow-soft) !important;
+}
+
+body.school-dashboard .school-audit-kpi span {
+    color: var(--text-secondary) !important;
+}
+
+body.school-dashboard .school-audit-kpi strong {
+    color: var(--text-primary) !important;
+}
+
+body.school-dashboard .school-audit-filter label span {
+    color: var(--text-secondary) !important;
+}
+
+body.school-dashboard .school-audit-filter input,
+body.school-dashboard .school-audit-filter select {
+    background-color: var(--surface) !important;
+    border-color: var(--border) !important;
+    color: var(--text-primary) !important;
+}
+
+body.school-dashboard .school-audit-filter input:focus,
+body.school-dashboard .school-audit-filter select:focus {
+    border-color: var(--primary-coral) !important;
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.18) !important;
+}
+
+body.school-dashboard .school-audit-type {
+    background-color: #FFF0EB !important;
+    border: 1px solid #FFDACB !important;
+    color: var(--primary-coral) !important;
+}
+
+body.school-dashboard .school-audit-muted,
+body.school-dashboard .school-audit-empty {
+    color: var(--text-muted) !important;
+}
+
+body.school-dashboard .school-audit-table-wrap code {
+    background-color: #FAF5F0 !important;
+    color: var(--text-secondary) !important;
+    border: 1px solid var(--border) !important;
+}
+
+/* 12. GENERAL LINKS, ACCENTS & PAGINATION */
+body.school-dashboard a:not(.btn):not(.school-sidebar__link):not(.school-sidebar__brand-link):not(.school-header__action-link) {
+    color: var(--primary-coral);
+}
+
+body.school-dashboard a:not(.btn):not(.school-sidebar__link):not(.school-sidebar__brand-link):not(.school-header__action-link):hover {
+    color: var(--primary-pink);
+}
+
+body.school-dashboard .school-pagination__info {
+    color: var(--text-muted) !important;
+}
+

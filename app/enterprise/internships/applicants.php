@@ -499,12 +499,12 @@ $sidebarNav = [
                                     <table class="ent-applicant-table" id="applicants-table">
                                         <thead>
                                             <tr>
-                                                <th style="width: 26%; min-width: 250px;">Ứng viên</th>
-                                                <th style="width: 23%;">Kỹ năng chính</th>
-                                                <th style="width: 120px;">Ngày ứng tuyển</th>
-                                                <th style="width: 130px; text-align: center;">Độ phù hợp</th>
-                                                <th style="width: 120px;">Trạng thái</th>
-                                                <th style="width: 170px; text-align: right;">Thao tác</th>
+                                                <th style="width: 26%; min-width: 160px;">Ứng viên</th>
+                                                <th style="width: 20%; min-width: 130px;">Kỹ năng chính</th>
+                                                <th style="width: 100px; min-width: 90px;">Ngày ứng tuyển</th>
+                                                <th style="width: 100px; min-width: 95px; text-align: center;">Độ phù hợp</th>
+                                                <th style="width: 115px; min-width: 105px;">Trạng thái</th>
+                                                <th style="width: 185px; min-width: 175px; text-align: right;">Thao tác</th>
                                             </tr>
                                         </thead>
                                         <tbody id="applicants-tbody">
@@ -522,7 +522,7 @@ $sidebarNav = [
                             <!-- 6. Empty State: No Applicants Yet OR Empty Filter Results -->
                             <div class="ent-section-box text-center py-5" id="applicants-empty-state" style="<?= count($applicants) === 0 ? 'display: block;' : 'display: none;'; ?> padding: 3.5rem 1.5rem;">
                                 <div class="ent-empty-state__icon mb-3">
-                                    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="1.5" aria-hidden="true">
+                                    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#FF6B45" stroke-width="1.5" aria-hidden="true">
                                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                                         <circle cx="9" cy="7" r="4"></circle>
                                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>

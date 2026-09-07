@@ -543,12 +543,12 @@ $sidebarNav = [
                             </div>
 
                             <!-- Target Schools Picker Area -->
-                            <div id="target-schools-container" class="mt-3 p-4" style="<?= $postAudience === 'partner_schools' ? 'display:block;' : 'display:none;'; ?> background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 0.5rem;">
+                            <div id="target-schools-container" class="mt-3 p-4" style="<?= $postAudience === 'partner_schools' ? 'display:block;' : 'display:none;'; ?> background-color: #FFFDFB; border: 1.5px solid #F0E6DD; border-radius: 12px;">
                                 <!-- Header & Summary -->
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #E2E8F0; padding-bottom: 0.75rem;">
-                                    <label class="ent-form-label required mb-0" style="font-size: 1rem; font-weight: 700; color: #0F172A;">Danh sách Trường đối tác áp dụng</label>
-                                    <div style="background: #FFFFFF; border: 1px solid #CBD5E1; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: #475569;">
-                                        Đã chọn: <span id="target-schools-count" style="color: #0284C7; font-weight: 800;"><?= count($selectedTargetSchoolIds); ?></span> trường
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #F0E6DD; padding-bottom: 0.75rem;">
+                                    <label class="ent-form-label required mb-0" style="font-size: 1rem; font-weight: 700; color: #322014;">Danh sách Trường đối tác áp dụng</label>
+                                    <div style="background: #FFFFFF; border: 1px solid #F0E6DD; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: #6B5548;">
+                                        Đã chọn: <span id="target-schools-count" style="color: var(--primary-coral); font-weight: 800;"><?= count($selectedTargetSchoolIds); ?></span> trường
                                     </div>
                                 </div>
 
@@ -569,30 +569,30 @@ $sidebarNav = [
                                             <line x1="12" y1="16" x2="12.01" y2="16"></line>
                                         </svg>
                                         Doanh nghiệp chưa có quan hệ hợp tác nào ở trạng thái đã phê duyệt (Approved).
-                                        <a href="/app/enterprise/partnerships.php" class="fw-semibold text-primary ms-1">Kết nối với Nhà trường ngay &rarr;</a>
+                                        <a href="/app/enterprise/partnerships.php" class="fw-semibold ms-1" style="color: var(--primary);">Kết nối với Nhà trường ngay &rarr;</a>
                                     </div>
                                 <?php else: ?>
                                     <div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto; padding-right: 0.5rem;">
                                         <!-- Select All Item -->
-                                        <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1px solid #CBD5E1; border-radius: 0.5rem; background-color: #FFFFFF; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.02);" onmouseover="this.style.backgroundColor='#F1F5F9'" onmouseout="this.style.backgroundColor='#FFFFFF'">
+                                        <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1.5px solid #F0E6DD; border-radius: 10px; background-color: #FFFFFF; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px rgba(50,32,20,0.02);" onmouseover="this.style.backgroundColor='#FFF7F2'" onmouseout="this.style.backgroundColor='#FFFFFF'">
                                             <input type="checkbox" id="selectAllSchools" class="form-check-input mt-0" style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
-                                            <strong style="font-size: 0.95rem; color: #0284C7;">Tất cả các trường đối tác</strong>
+                                            <strong style="font-size: 0.95rem; color: var(--primary-coral);">Tất cả các trường đối tác</strong>
                                         </label>
 
                                         <!-- School Items -->
                                         <?php foreach ($approvedPartners as $school):
                                             $checked = in_array((string) $school['id'], array_map('strval', $selectedTargetSchoolIds), true) ? 'checked' : '';
                                         ?>
-                                            <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1px solid #E2E8F0; border-radius: 0.5rem; background-color: transparent; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#FFFFFF'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.05)';" onmouseout="this.style.backgroundColor='transparent'; this.style.boxShadow='none';">
+                                            <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1px solid #F0E6DD; border-radius: 10px; background-color: transparent; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#FFFFFF'; this.style.boxShadow='0 2px 6px rgba(50,32,20,0.06)';" onmouseout="this.style.backgroundColor='transparent'; this.style.boxShadow='none';">
                                                 <input type="checkbox" name="targetSchoolIds[]" value="<?= htmlspecialchars((string) $school['id']); ?>" <?= $checked; ?> class="target-school-checkbox form-check-input mt-0" style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
                                                 <div style="display: flex; align-items: center; justify-content: space-between; flex-grow: 1;">
-                                                    <span style="font-weight: 600; font-size: 0.95rem; color: #1E293B;"><?= htmlspecialchars((string) $school['name']); ?></span>
+                                                    <span style="font-weight: 600; font-size: 0.95rem; color: #322014;"><?= htmlspecialchars((string) $school['name']); ?></span>
                                                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                                                         <?php if (!empty($school['code'])): ?>
-                                                            <span style="background: #F1F5F9; color: #475569; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px;"><?= htmlspecialchars((string) $school['code']); ?></span>
+                                                            <span style="background: #FFF0EB; color: #E04058; border: 1px solid #FFDACB; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px;"><?= htmlspecialchars((string) $school['code']); ?></span>
                                                         <?php endif; ?>
                                                         <?php if (!empty($school['level'])): ?>
-                                                            <span style="color: #94A3B8; font-size: 0.8rem; font-weight: 500;"><?= htmlspecialchars((string) $school['level']); ?></span>
+                                                            <span style="color: #9E897D; font-size: 0.8rem; font-weight: 500;"><?= htmlspecialchars((string) $school['level']); ?></span>
                                                         <?php endif; ?>
                                                     </div>
                                                 </div>

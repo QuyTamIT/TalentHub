@@ -954,7 +954,18 @@ function initInternshipManagementModule() {
         if (window.showEntToast) {
             window.showEntToast(msg);
         } else {
-            alert(msg);
+            let toast = document.getElementById('ent-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'ent-toast';
+                toast.className = 'ent-toast';
+                toast.innerHTML = '<div class="ent-toast__content"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg><span class="ent-toast__message"></span></div>';
+                document.body.appendChild(toast);
+            }
+            const msgEl = toast.querySelector('.ent-toast__message');
+            if (msgEl) msgEl.textContent = msg;
+            toast.classList.add('is-visible');
+            setTimeout(() => toast.classList.remove('is-visible'), 4000);
         }
     }
 
