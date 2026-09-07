@@ -22,7 +22,6 @@ class DashboardService
      */
     public function getBadgesAndCredentials(string $studentId): array
     {
-        $context = new LearnerApiContext($this->pdo);
         learner_configure_data(['source' => 'database', 'pdo' => $this->pdo]);
 
         return learner_repository_factory()

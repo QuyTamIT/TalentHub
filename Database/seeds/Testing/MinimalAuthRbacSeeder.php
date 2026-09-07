@@ -80,6 +80,15 @@ final class MinimalAuthRbacSeeder
                 [...$user, 'active']);
         }
 
+        $refreshUser = $pdo->prepare(
+            "UPDATE users
+             SET roleId = ?, passwordHash = ?, fullName = ?, status = 'active', updatedAt = UTC_TIMESTAMP(6)
+             WHERE id = ? AND email = ?"
+        );
+        foreach ($users as [$id, $roleId, $email, $passwordHash, $fullName]) {
+            $refreshUser->execute([$roleId, $passwordHash, $fullName, $id, $email]);
+        }
+
         $this->insertIgnore($pdo,
             'INSERT IGNORE INTO enterprises (id, name, status, logoUrl, industry, companySize, foundedYear, description, email, phone, website, taxCode, address, verificationStatus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [

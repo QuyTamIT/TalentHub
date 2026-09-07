@@ -62,6 +62,7 @@ final class ApplicationReadModel
     {
         return match ($status) {
             'submitted' => 'Đã nộp',
+            'invited' => 'Được mời thực tập',
             'reviewing' => 'Đang xem xét',
             'interview' => 'Mời phỏng vấn',
             'accepted' => 'Đã chấp nhận',

@@ -446,11 +446,13 @@ final class CompleteAiDemoSeeder
                         || $existing['scope'] !== $scope
                         || $existing['action'] !== 'granted'
                         || $existing['policyVersion'] !== 'learner-ai-consent-1.0'
-                        || $existing['occurredAt'] !== $occurredAt
                         || $existing['requestId'] !== $reqId
                     ) {
                         throw new RuntimeException('Conflicting existing demo consent event: ' . $id);
                     }
+                    // Consent is append-only by contract. The deterministic event
+                    // identity is stable across reruns, so preserve its original
+                    // timestamp when setup is executed on another day.
                 } else {
                     $ins = $pdo->prepare('INSERT INTO learner_ai_consent_events (id, studentId, scope, action, policyVersion, occurredAt, requestId) VALUES (:id, :sid, :sc, :act, :pv, :oa, :rid)');
                     $ins->execute(['id' => $id, 'sid' => $sid, 'sc' => $scope, 'act' => 'granted', 'pv' => 'learner-ai-consent-1.0', 'oa' => $occurredAt, 'rid' => $reqId]);

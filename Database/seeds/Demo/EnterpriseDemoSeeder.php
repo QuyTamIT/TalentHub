@@ -37,6 +37,10 @@ final class EnterpriseDemoSeeder
             throw new RuntimeException("Failed to read enterprise demo SQL file: {$sqlFile}");
         }
 
+        // The SQL fixture is also convenient for manual imports, but the
+        // application seeder must always use the schema selected by PDO/.env.
+        $sql = preg_replace('/^\s*USE\s+`[^`]+`\s*;\s*/mi', '', $sql, 1) ?? $sql;
+
         $pdo->beginTransaction();
         try {
             $pdo->exec($sql);

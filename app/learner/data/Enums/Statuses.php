@@ -99,6 +99,7 @@ enum OpportunityStatus: string
 
 enum ApplicationStatus: string
 {
+    case Invited = 'invited';
     case Submitted = 'submitted';
     case Reviewing = 'reviewing';
     case Interview = 'interview';

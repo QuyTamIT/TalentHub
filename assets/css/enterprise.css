@@ -1423,6 +1423,206 @@ body.ent-sidebar-open {
    11. TALENT SEARCH PAGE SCOPED STYLES ("TÌM NHÂN TÀI")
    ========================================================================== */
 
+/* AI talent matcher
+ * Uses portal-owned layout classes instead of unavailable Bootstrap utilities.
+ */
+.ent-ai-matcher-card {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    margin: 0 0 1rem;
+    padding: 1.25rem;
+    overflow: hidden;
+    background: linear-gradient(135deg, #F8FAFF 0%, #F0F4FF 100%);
+    border: 1px solid #D0DCF8;
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+}
+
+.ent-ai-matcher-card *,
+.ent-ai-matcher-card *::before,
+.ent-ai-matcher-card *::after {
+    box-sizing: border-box;
+}
+
+.ent-ai-matcher-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    min-width: 0;
+    margin-bottom: 0.875rem;
+}
+
+.ent-ai-matcher-card__heading {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.ent-ai-matcher-card__engine-badge,
+.ent-ai-matcher-card__state {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 6px;
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    line-height: 1.25;
+}
+
+.ent-ai-matcher-card__engine-badge {
+    padding: 0.25rem 0.5rem;
+    color: #FFFFFF;
+    background-color: #2563EB;
+}
+
+.ent-ai-matcher-card__title {
+    min-width: 0;
+    margin: 0;
+    color: #1E3A8A;
+    font-size: var(--text-lg);
+    font-weight: var(--font-bold);
+    line-height: var(--leading-snug);
+    overflow-wrap: anywhere;
+}
+
+.ent-ai-matcher-card__metadata {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    line-height: var(--leading-snug);
+}
+
+.ent-ai-matcher-card__metadata > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.ent-ai-matcher-card__state {
+    padding: 0.2rem 0.5rem;
+    color: #1E40AF;
+    background-color: #DBEAFE;
+}
+
+.ent-ai-matcher-card__description {
+    margin: 0 0 1rem;
+    color: var(--text-secondary);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    overflow-wrap: anywhere;
+}
+
+.ent-ai-matcher-card__controls {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(13rem, 1fr);
+    align-items: end;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.ent-ai-matcher-card__field,
+.ent-ai-matcher-card__action {
+    min-width: 0;
+}
+
+.ent-ai-matcher-card__label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    line-height: var(--leading-snug);
+    overflow-wrap: anywhere;
+}
+
+.ent-ai-matcher-card__select {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0.5625rem 2.5rem 0.5625rem 0.875rem;
+    color: var(--text-primary);
+    background-color: var(--surface);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    border: 1px solid var(--control-border, var(--color-neutral));
+    border-radius: var(--radius-sm);
+    font-family: var(--font-primary);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    text-overflow: ellipsis;
+}
+
+.ent-ai-matcher-card__select:focus {
+    border-color: var(--primary);
+    box-shadow: var(--focus-ring);
+    outline: none;
+}
+
+.ent-ai-matcher-card__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 2.75rem;
+    height: auto;
+    padding: 0.625rem 1rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.ent-ai-matcher-card__button svg {
+    flex-shrink: 0;
+}
+
+.ent-ai-matcher-card__results {
+    min-width: 0;
+    margin-top: 1rem;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+    .ent-ai-matcher-card {
+        padding: 1rem;
+    }
+
+    .ent-ai-matcher-card__controls {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.875rem;
+    }
+
+    .ent-ai-matcher-card__metadata {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .ent-ai-matcher-card__header {
+        align-items: flex-start;
+    }
+
+    .ent-ai-matcher-card__metadata {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.375rem;
+    }
+}
+
 /* Page Intro Hero Section ("Tìm kiếm & Đánh giá nhân tài") */
 .ent-talent-hero {
     display: flex;

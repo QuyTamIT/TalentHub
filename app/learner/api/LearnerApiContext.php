@@ -138,17 +138,18 @@ final class LearnerApiContext
     /** @param list<string> $permissions @return array{student_id:string,user_id:string} */
     public function studentIdentityForPermissions(array $permissions): array
     {
-        $appEnv = strtolower((string) (\TalentHub\Config\Environment::optional('APP_ENV') ?: (getenv('APP_ENV') ?: 'production')));
-        $isLocal = in_array($appEnv, ['local', 'dev', 'development', 'test'], true);
+        $appEnv = \TalentHub\Config\Environment::appEnvironment();
+        $allowDemoAutologin = in_array($appEnv, ['local', 'test'], true)
+            && \TalentHub\Config\Environment::boolean('TALENTHUB_ALLOW_DEMO_AUTOLOGIN', false)
+            && (PHP_SAPI === 'cli' || in_array((string) ($_SERVER['REMOTE_ADDR'] ?? ''), ['127.0.0.1', '::1'], true));
 
         try {
             $user = $this->session->requireUser();
-            if (!\TalentHub\Rbac\RoleCodes::matches((string) ($user['role'] ?? ''), \TalentHub\Rbac\RoleCodes::STUDENT)
-                || ($isLocal && str_contains((string) ($user['email'] ?? ''), '@test.'))) {
+            if (!\TalentHub\Rbac\RoleCodes::matches((string) ($user['role'] ?? ''), \TalentHub\Rbac\RoleCodes::STUDENT)) {
                 throw new ApiException(403, 'PERMISSION_DENIED', 'Endpoint chỉ dành cho học viên.');
             }
         } catch (ApiException $exception) {
-            if ($isLocal) {
+            if ($allowDemoAutologin) {
                 $user = $this->localFallbackStudent();
                 $this->session->login($user);
             } else {
@@ -163,7 +164,7 @@ final class LearnerApiContext
             try {
                 $this->permissions->require((string) $user['id'], $permission);
             } catch (ApiException $exception) {
-                if ($isLocal && $exception->status === 403) {
+                if ($allowDemoAutologin && $exception->status === 403) {
                     $user = $this->localFallbackStudent();
                     $this->session->login($user);
                     $this->permissions->require((string) $user['id'], $permission);
@@ -175,7 +176,7 @@ final class LearnerApiContext
 
         $userId = (string) $user['id'];
         $studentId = $this->resolveStudentId($userId);
-        if ($studentId === null && $isLocal) {
+        if ($studentId === null && $allowDemoAutologin) {
             $user = $this->localFallbackStudent();
             $this->session->login($user);
             $userId = (string) $user['id'];

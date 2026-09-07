@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit(1);
+}
+
 use TalentHub\Learner\Ai\Evaluation\RecommendationEvaluator;
 use TalentHub\Learner\Ai\Rules\RuleRecommendationEngine;
 

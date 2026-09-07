@@ -30,6 +30,7 @@ final class NotificationService
         'internship_application_submitted',
         'internship_application_withdrawn',
         'internship_application_status_changed',
+        'internship_invitation',
         'internship_placement_confirmed',
         'internship_mentor_assigned',
         'badge_awarded',
@@ -206,7 +207,8 @@ final class NotificationService
             throw new ApiException(422, 'INVALID_DEEP_LINK', 'Đường dẫn liên kết không an toàn.');
         }
 
-        if (!in_array($deepLink, self::ALLOW_LISTED_DEEP_LINKS, true)) {
+        $pathOnly = parse_url($deepLink, PHP_URL_PATH);
+        if ($pathOnly !== null && !in_array($pathOnly, self::ALLOW_LISTED_DEEP_LINKS, true) && $pathOnly !== '/app/learner/opportunity.php') {
             throw new ApiException(422, 'INVALID_DEEP_LINK', 'Đường dẫn không thuộc danh sách cho phép.');
         }
 
