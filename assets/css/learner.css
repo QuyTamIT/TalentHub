@@ -11821,9 +11821,8 @@ body.has-roadmap-editor {
 }
 
 .learner-app .learner-school-credential-grid--badges {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 260px));
-    justify-content: start;
-    gap: 18px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
 }
 
 .learner-credential-card--certificate {
@@ -11954,28 +11953,29 @@ body.has-roadmap-editor {
 }
 
 .learner-credential-card--badge {
-    min-height: 300px;
-    padding: 15px 14px 14px;
-    box-shadow: 0 7px 18px rgb(15 23 42 / .07);
+    min-height: 310px;
+    padding: 22px 18px 20px;
+    border-radius: 14px;
+    box-shadow: 0 8px 22px rgb(15 23 42 / .06);
 }
 
 .learner-credential-card__progress-ring,
 .learner-badge-card__ring {
-    width: 112px;
-    height: 112px;
-    margin: 10px auto 20px;
+    width: 114px;
+    height: 114px;
+    margin: 8px auto 18px;
 }
 
 .learner-credential-card__medal,
 .learner-badge-card__medal {
-    width: 94px;
-    height: 94px;
+    width: 96px;
+    height: 96px;
 }
 
 .learner-credential-card__medal-face,
 .learner-badge-card__medal-face {
-    width: 78px;
-    height: 78px;
+    width: 80px;
+    height: 80px;
     border-width: 5px;
     box-shadow: 0 0 0 2px var(--primary), 0 7px 14px rgba(249, 115, 22, .18);
 }
@@ -12024,10 +12024,11 @@ body.has-roadmap-editor {
 }
 
 .learner-credential-card__badge-state {
+    margin-top: 4px;
     color: var(--secondary);
-    font-size: .68rem;
+    font-size: .7rem;
     font-weight: 800;
-    letter-spacing: .045em;
+    letter-spacing: .05em;
     text-transform: uppercase;
 }
 
@@ -12040,22 +12041,25 @@ body.has-roadmap-editor {
 }
 
 .learner-credential-card--badge h3 {
-    min-height: 40px;
+    min-height: 42px;
     margin-top: 10px;
-    font-size: .9rem;
+    padding: 0 6px;
+    font-size: .95rem;
+    font-weight: 750;
     line-height: 1.4;
 }
 
 .learner-credential-card__badge-summary {
     display: flex;
     width: 100%;
-    min-height: 34px;
+    min-height: 36px;
     margin-top: auto;
+    padding-top: 12px;
     align-items: center;
     justify-content: center;
     gap: 8px;
     color: var(--text-secondary);
-    font-size: .73rem;
+    font-size: .76rem;
 }
 
 .learner-credential-card__badge-summary .learner-credential-card__certificate-seal {
@@ -12083,15 +12087,15 @@ body.has-roadmap-editor {
 }
 
 .learner-badge-grid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 260px));
-    justify-content: start;
-    gap: 18px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
 }
 
 .learner-badge-card {
-    min-height: 300px;
-    padding: 14px;
-    box-shadow: 0 7px 18px rgb(15 23 42 / .07);
+    min-height: 310px;
+    padding: 22px 18px 20px;
+    border-radius: 14px;
+    box-shadow: 0 8px 22px rgb(15 23 42 / .06);
 }
 
 .learner-badge-card__ring {
