@@ -5598,9 +5598,28 @@ body.has-roadmap-editor {
 /* School-issued credential catalog and AI matches */
 .learner-app .learner-school-credential-section {
     display: grid;
-    gap: 22px;
+    gap: 24px;
     margin-top: 24px;
+    padding: 28px 32px;
+    border-radius: var(--radius-md, 16px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
     overflow: hidden;
+}
+
+@media (max-width: 991px) {
+    .learner-app .learner-school-credential-section {
+        padding: 24px 20px;
+        gap: 20px;
+    }
+}
+
+@media (max-width: 640px) {
+    .learner-app .learner-school-credential-section {
+        padding: 20px 16px;
+        gap: 18px;
+    }
 }
 
 .learner-app .learner-school-credential-heading {
@@ -5610,14 +5629,23 @@ body.has-roadmap-editor {
     gap: 20px;
 }
 
+@media (max-width: 768px) {
+    .learner-app .learner-school-credential-heading {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+    }
+}
+
 .learner-app .learner-school-credential-heading > div {
     min-width: 0;
 }
 
 .learner-app .learner-school-credential-heading h2 {
-    margin: 5px 0 6px;
+    margin: 8px 0 6px;
     color: var(--text-primary);
-    font-size: clamp(1.15rem, 2vw, 1.45rem);
+    font-size: clamp(1.2rem, 2.2vw, 1.45rem);
+    font-weight: 750;
     line-height: 1.25;
 }
 
@@ -5626,22 +5654,40 @@ body.has-roadmap-editor {
     margin: 0;
     color: var(--text-secondary);
     line-height: 1.55;
+    font-size: 0.88rem;
 }
 
 .learner-app .learner-school-credential-heading > a {
     display: inline-flex;
     align-items: center;
     flex: 0 0 auto;
-    gap: 6px;
+    gap: 7px;
+    padding: 7px 16px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
     color: var(--primary);
+    font-size: 0.84rem;
     font-weight: 750;
     text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.learner-app .learner-school-credential-heading > a:hover {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 28%, transparent);
 }
 
 .learner-app .learner-school-credential-heading__eyebrow {
     display: inline-flex;
     align-items: center;
     gap: 7px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 9%, transparent);
     color: var(--primary);
     font-size: .76rem;
     font-weight: 800;
