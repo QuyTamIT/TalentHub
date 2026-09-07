@@ -21,6 +21,11 @@ final class MigrationRunner
         '20260825000210' => [
             '5e06f6811336e87339ec73a3bc82eaf49b3a526fb5534e43a04d02df3bb7fd95',
         ],
+        '20260907000200' => [
+            // Local development database applied the initial draft before its
+            // role/user lookup and environment guards were hardened.
+            '3bbde8e4212e162df40a15044edf7c1594d4e457793dabc21b19c845f3d315e6',
+        ],
     ];
 
     private MigrationRepository $repository;

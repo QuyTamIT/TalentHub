@@ -7,6 +7,7 @@ use TalentHub\Auth\Repository\AuthRepository;
 use TalentHub\Auth\Service\AuthPortalRouter;
 use TalentHub\Auth\Service\AuthService;
 use TalentHub\Database\Connection;
+use TalentHub\Config\Environment;
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\Business\Repository\BusinessRepository;
 use TalentHub\Modules\Business\Repository\BusinessWorkflowRepository;
@@ -101,6 +102,12 @@ final class EnterpriseAppContext
         }
 
         if ($cached === null || !RoleCodes::matches((string)($cached['role'] ?? ''), RoleCodes::ENTERPRISE)) {
+            if (!$this->allowsDemoAutologin()) {
+                if ($cached !== null) {
+                    $this->redirectToLoginWithRoleRequired(RoleCodes::ENTERPRISE);
+                }
+                $this->redirectToLogin();
+            }
             $cached = SessionManager::getFallbackUserForRole(RoleCodes::ENTERPRISE, $pdo);
             $this->session->login($cached);
         }
@@ -198,6 +205,19 @@ final class EnterpriseAppContext
     public function session(): SessionManager
     {
         return $this->session;
+    }
+
+    private function allowsDemoAutologin(): bool
+    {
+        if (!in_array(Environment::appEnvironment(), ['local', 'test'], true)
+            || !Environment::boolean('TALENTHUB_ALLOW_DEMO_AUTOLOGIN', false)
+        ) {
+            return false;
+        }
+        if (PHP_SAPI === 'cli') {
+            return true;
+        }
+        return in_array(trim((string) ($_SERVER['REMOTE_ADDR'] ?? '')), ['127.0.0.1', '::1'], true);
     }
 
     public function service(): BusinessProfileService

@@ -3,8 +3,7 @@
  * Enterprise Dashboard - Header Component
  * 
  * Note for Junior Developers:
- * - Header displays current page title, mobile toggle, mock notifications bell, and enterprise account dropdown.
- * - Notification bell is UI mock only (no API/database).
+ * - Header displays current page title, mobile toggle, database-backed notification link, and enterprise account dropdown.
  * - Account dropdown provides quick company identity, profile navigation, and secure logout.
  */
 
@@ -17,6 +16,23 @@ $basePrefix = (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'],
 $profileRoute = '/app/enterprise/profile.php';
 $logoutUrl = function_exists('app_href') ? app_href('/logout.php') : ($basePrefix . '/logout.php');
 $profileUrl = function_exists('app_href') ? app_href($profileRoute) : ($basePrefix . $profileRoute);
+$portalNotificationBoot = [
+    'portal' => 'enterprise',
+    'endpoint' => '/app/enterprise/api/v1/notifications.php',
+    'badgeId' => 'enterprise-unread-badge',
+    'csrfToken' => isset($csrfToken)
+        ? (string) $csrfToken
+        : (string) ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? ''),
+];
+if ($portalNotificationBoot['csrfToken'] === '' && session_status() === PHP_SESSION_ACTIVE) {
+    $portalNotificationBoot['csrfToken'] = bin2hex(random_bytes(32));
+    $_SESSION['csrfToken'] = $portalNotificationBoot['csrfToken'];
+    $_SESSION['csrf_token'] = $portalNotificationBoot['csrfToken'];
+}
+$portalNotificationBootJson = json_encode($portalNotificationBoot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
+if (!is_string($portalNotificationBootJson)) {
+    $portalNotificationBootJson = '{}';
+}
 ?>
 <header class="ent-header">
     <div class="ent-header__left">
@@ -33,16 +49,19 @@ $profileUrl = function_exists('app_href') ? app_href($profileRoute) : ($basePref
     </div>
 
     <div class="ent-header__right">
-        <!-- Notification Bell (UI Mock Only) -->
-        <div class="ent-header__notif" id="ent-notif-trigger" title="Thông báo mới">
-            <button class="ent-header__icon-btn" type="button" aria-label="Thông báo mới">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                </svg>
-                <span class="ent-header__badge">3</span>
-            </button>
-        </div>
+        <!-- Notification Bell (API badge + navigates to /app/enterprise/notifications.php) -->
+        <a
+            class="ent-header__notif ent-header__icon-btn"
+            id="enterprise-notification-button"
+            href="<?= function_exists('app_href') ? app_href('/app/enterprise/notifications.php') : '/app/enterprise/notifications.php'; ?>"
+            aria-label="Xem thông báo"
+        >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span class="ent-header__badge" id="enterprise-unread-badge" aria-hidden="true" style="display: none;"></span>
+        </a>
 
         <!-- Enterprise Account Area with Dropdown -->
         <div class="ent-header__account-wrapper" id="ent-account-wrapper">
@@ -145,4 +164,5 @@ $profileUrl = function_exists('app_href') ? app_href($profileRoute) : ($basePref
         </div>
     </div>
 </header>
+<script id="portal-notifications-boot" type="application/json"><?= $portalNotificationBootJson; ?></script>
 <script src="<?= function_exists('app_href') ? app_href('/assets/js/portal-notifications.js') : '/assets/js/portal-notifications.js'; ?>" defer></script>

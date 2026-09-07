@@ -32,6 +32,23 @@ if (stripos($displayName, 'BTEC') !== false) {
 $profileRoute = '/app/school/account.php';
 $profileUrl = function_exists('app_href') ? app_href($profileRoute) : '/app/school/account.php';
 $logoutUrl = function_exists('app_href') ? app_href('/app/auth/logout.php?role=school') : '/app/auth/logout.php?role=school';
+$portalNotificationBoot = [
+    'portal' => 'school',
+    'endpoint' => '/app/school/api/v1/notifications.php',
+    'badgeId' => 'school-unread-badge',
+    'csrfToken' => isset($context['session']) && $context['session'] instanceof \TalentHub\Auth\Session\SessionManager
+        ? $context['session']->csrfToken()
+        : (string) ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? ''),
+];
+if ($portalNotificationBoot['csrfToken'] === '' && session_status() === PHP_SESSION_ACTIVE) {
+    $portalNotificationBoot['csrfToken'] = bin2hex(random_bytes(32));
+    $_SESSION['csrfToken'] = $portalNotificationBoot['csrfToken'];
+    $_SESSION['csrf_token'] = $portalNotificationBoot['csrfToken'];
+}
+$portalNotificationBootJson = json_encode($portalNotificationBoot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
+if (!is_string($portalNotificationBootJson)) {
+    $portalNotificationBootJson = '{}';
+}
 ?>
 <header class="school-header">
     <div class="school-header__left">
@@ -48,16 +65,19 @@ $logoutUrl = function_exists('app_href') ? app_href('/app/auth/logout.php?role=s
     </div>
 
     <div class="school-header__right">
-        <!-- Notification Bell (UI Mock) -->
-        <div class="school-header__notif" id="school-notif-trigger" title="Thông báo mới">
-            <button class="school-header__icon-btn" type="button" aria-label="Thông báo mới">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                </svg>
-                <span class="school-header__badge">3</span>
-            </button>
-        </div>
+        <!-- Notification Bell (API badge + navigates to /app/school/notifications.php) -->
+        <a
+            class="school-header__notif school-header__icon-btn"
+            id="school-notification-button"
+            href="<?= function_exists('app_href') ? app_href('/app/school/notifications.php') : '/app/school/notifications.php'; ?>"
+            aria-label="Xem thông báo"
+        >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span class="school-header__badge" id="school-unread-badge" aria-hidden="true" style="display: none;"></span>
+        </a>
 
         <!-- School Account Area with Dropdown -->
         <div class="school-header__account-wrapper" id="school-account-wrapper">
@@ -148,4 +168,5 @@ $logoutUrl = function_exists('app_href') ? app_href('/app/auth/logout.php?role=s
         </div>
     </div>
 </header>
+<script id="portal-notifications-boot" type="application/json"><?= $portalNotificationBootJson; ?></script>
 <script src="<?= function_exists('app_href') ? app_href('/assets/js/portal-notifications.js') : '/assets/js/portal-notifications.js'; ?>" defer></script>
