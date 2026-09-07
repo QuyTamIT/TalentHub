@@ -256,10 +256,23 @@ document.addEventListener('DOMContentLoaded', function () {
         // Link CTA Button to Sponsor Modal
         const sponsorCta = document.getElementById('modal-sponsor-cta');
         if (sponsorCta) {
-            sponsorCta.onclick = function () {
-                closeDetailModal();
-                openSponsorshipFormModal(projectId);
-            };
+            const remaining = Math.max(0, project.target_amount - project.raised_amount);
+            if (remaining <= 0) {
+                sponsorCta.textContent = 'Đã đủ ngân sách';
+                sponsorCta.style.backgroundColor = '#E2E8F0';
+                sponsorCta.style.color = '#94A3B8';
+                sponsorCta.style.cursor = 'not-allowed';
+                sponsorCta.onclick = null;
+            } else {
+                sponsorCta.textContent = '🌱 Đồng ý Tài trợ dự án này';
+                sponsorCta.style.backgroundColor = '';
+                sponsorCta.style.color = '';
+                sponsorCta.style.cursor = '';
+                sponsorCta.onclick = function () {
+                    closeDetailModal();
+                    openSponsorshipFormModal(projectId);
+                };
+            }
         }
 
         detailModal.style.display = 'flex';
@@ -307,6 +320,117 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function showModernToast(title, message) {
+        let container = document.getElementById('spon-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'spon-toast-container';
+            Object.assign(container.style, {
+                position: 'fixed',
+                top: '24px',
+                right: '24px',
+                zIndex: '9999',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+            });
+            document.body.appendChild(container);
+            
+            if (!document.getElementById('spon-toast-styles')) {
+                const style = document.createElement('style');
+                style.id = 'spon-toast-styles';
+                style.textContent = `
+                    @keyframes sponToastSlideIn {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes sponToastSlideOut {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                    @keyframes sponToastProgress {
+                        from { width: 100%; }
+                        to { width: 0%; }
+                    }
+                    .spon-modern-toast {
+                        background: #fff;
+                        border-left: 4px solid #10B981;
+                        border-radius: 8px;
+                        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+                        padding: 16px;
+                        width: 320px;
+                        max-width: 90vw;
+                        position: relative;
+                        overflow: hidden;
+                        animation: sponToastSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                        display: flex;
+                        gap: 12px;
+                        align-items: flex-start;
+                        box-sizing: border-box;
+                    }
+                    .spon-modern-toast.hiding {
+                        animation: sponToastSlideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                    }
+                    .spon-toast-icon {
+                        color: #10B981;
+                        flex-shrink: 0;
+                    }
+                    .spon-toast-content {
+                        flex: 1;
+                    }
+                    .spon-toast-title {
+                        font-weight: 600;
+                        color: #111827;
+                        margin-bottom: 4px;
+                        font-size: 15px;
+                    }
+                    .spon-toast-message {
+                        color: #4B5563;
+                        font-size: 14px;
+                        line-height: 1.4;
+                    }
+                    .spon-toast-progress {
+                        position: absolute;
+                        bottom: 0;
+                        left: 0;
+                        height: 3px;
+                        background: #10B981;
+                        animation: sponToastProgress 3s linear forwards;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = 'spon-modern-toast';
+        toast.innerHTML = `
+            <div class="spon-toast-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+            </div>
+            <div class="spon-toast-content">
+                <div class="spon-toast-title">${title}</div>
+                <div class="spon-toast-message">${message}</div>
+            </div>
+            <div class="spon-toast-progress"></div>
+        `;
+        
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.classList.add('hiding');
+            setTimeout(() => {
+                toast.remove();
+                if (container.childNodes.length === 0) {
+                    container.remove();
+                }
+            }, 300);
+        }, 3000);
+    }
+
     function openSponsorshipFormModal(projectId) {
         if (!formModal || !window.ENTERPRISE_PROJECTS) return;
 
@@ -318,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         if (remaining <= 0) {
             // Cannot sponsor fully funded projects
-            alert('Dự án này đã nhận đủ ngân sách tài trợ.');
+            showModernToast('Tài trợ thành công', 'Dự án này đã nhận đủ ngân sách tài trợ.');
             return;
         }
 

@@ -135,7 +135,7 @@ if (!empty($projectIds)) {
     }
 }
 
-$dbSponsorships = $workflowService->sponsorships((string) $enterprise['id']);
+$dbSponsorships = $workflowService->sponsorships((string) $user['id']);
 
 $projectDetails = [
     '50000000-0000-4000-8000-000000000001' => [
@@ -468,12 +468,20 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
 
                                 <!-- Hàng 4: Cụm nút hành động -->
                                 <div style="display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 14px; border-top: 1px solid #F1F5F9;">
-                                    <button type="button" 
-                                            class="btn-sponsor-now" 
-                                            data-project-id="<?= htmlspecialchars($project['id']); ?>" 
-                                            style="width: 100%; min-height: 44px; background-color: #C2410C; color: #FFFFFF; border: none; font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 999px; cursor: pointer; text-align: center; box-shadow: 0 4px 12px rgba(194, 65, 12, 0.25); transition: all 0.2s ease;">
-                                        Tài trợ ngay
-                                    </button>
+                                    <?php if ($total_sponsored >= $fundingGoal && $fundingGoal > 0): ?>
+                                        <button type="button" 
+                                                style="width: 100%; min-height: 44px; background-color: #E2E8F0; color: #94A3B8; border: none; font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 999px; cursor: not-allowed; text-align: center; transition: all 0.2s ease;"
+                                                disabled>
+                                            Đã đủ ngân sách
+                                        </button>
+                                    <?php else: ?>
+                                        <button type="button" 
+                                                class="btn-sponsor-now" 
+                                                data-project-id="<?= htmlspecialchars($project['id']); ?>" 
+                                                style="width: 100%; min-height: 44px; background-color: #C2410C; color: #FFFFFF; border: none; font-size: 14px; font-weight: 600; padding: 10px 18px; border-radius: 999px; cursor: pointer; text-align: center; box-shadow: 0 4px 12px rgba(194, 65, 12, 0.25); transition: all 0.2s ease;">
+                                            Tài trợ ngay
+                                        </button>
+                                    <?php endif; ?>
                                     <button type="button" 
                                             class="btn-view-detail" 
                                             data-project-id="<?= htmlspecialchars($project['id']); ?>" 
