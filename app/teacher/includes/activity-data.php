@@ -36,6 +36,17 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
         'draft' => 'Chưa gửi duyệt', 'pending_school_review' => 'Chờ Nhà trường duyệt',
         'changes_requested' => 'Cần chỉnh sửa', 'approved' => 'Đã duyệt', 'rejected' => 'Bị từ chối',
     ];
+    $approvalClasses = [
+        'draft' => 'muted', 'pending_school_review' => 'warning',
+        'changes_requested' => 'warning', 'approved' => 'success', 'rejected' => 'danger',
+    ];
+    $approvalGuidance = [
+        'draft' => 'Hoàn thiện thông tin và gửi Nhà trường duyệt trước khi công bố hoạt động.',
+        'pending_school_review' => 'Nhà trường đang xem xét hoạt động. Bạn có thể công bố sau khi được duyệt.',
+        'changes_requested' => 'Chỉnh sửa theo phản hồi của Nhà trường, lưu thay đổi rồi gửi duyệt lại.',
+        'approved' => $rawStatus === 'draft' ? 'Nhà trường đã duyệt. Bạn có thể công bố để học viên đăng ký theo thời gian đã thiết lập.' : 'Hoạt động đã được Nhà trường phê duyệt.',
+        'rejected' => 'Nhà trường đã từ chối hoạt động này. Xem lý do bên dưới hoặc liên hệ Nhà trường để trao đổi.',
+    ];
 
     $statusLabels = [
         'draft' => 'Bản nháp',
@@ -61,7 +72,7 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
     $registrationClosesAt = teacherActivitiesDate($row['registrationClosesAt'] ?? null);
 
     if ($rawStatus === 'draft') {
-        $registrationLabel = 'Bản nháp — cần công bố';
+        $registrationLabel = $approvalStatus === 'approved' ? 'Chưa công bố' : 'Chưa mở đăng ký';
     } elseif ($rawStatus === 'published' && $startAt && $now >= $startAt) {
         $registrationLabel = $endAt && $now >= $endAt ? 'Đã kết thúc' : 'Đang diễn ra';
     } elseif ($rawStatus === 'published' && (!$registrationOpensAt || !$registrationClosesAt)) {
@@ -108,7 +119,24 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
         'policy_configured' => ($row['registrationOpensAt'] ?? null) !== null && ($row['registrationClosesAt'] ?? null) !== null && ($row['cancellationClosesAt'] ?? null) !== null,
         'approval_status' => $approvalStatus,
         'approval_status_label' => $approvalLabels[$approvalStatus] ?? 'Không xác định',
+        'approval_status_class' => $approvalClasses[$approvalStatus] ?? 'muted',
+        'approval_guidance' => $approvalGuidance[$approvalStatus] ?? 'Vui lòng liên hệ Nhà trường để kiểm tra trạng thái duyệt.',
+        'approval_reason' => trim((string) ($row['approvalReason'] ?? '')),
+        'approval_requested_label' => teacherActivitiesApprovalDateLabel($row['approvalRequestedAt'] ?? null),
+        'approved_at_label' => teacherActivitiesApprovalDateLabel($row['approvedAt'] ?? null),
+        'can_edit' => in_array($approvalStatus, ['draft', 'changes_requested'], true),
     ]);
+}
+
+function teacherActivitiesApprovalDateLabel(?string $value): string
+{
+    if (!$value) return '';
+    try {
+        return (new DateTimeImmutable($value, new DateTimeZone('UTC')))
+            ->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'))->format('d/m/Y H:i');
+    } catch (Throwable) {
+        return '';
+    }
 }
 
 /** @return list<string> */

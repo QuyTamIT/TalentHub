@@ -105,11 +105,19 @@ if (!function_exists('teacherActivitiesLifecycleAction')) {
     {
         $rawStatus = strtolower(trim((string) ($activity['raw_status'] ?? '')));
 
+        if ($rawStatus === 'draft') {
+            return match ((string) ($activity['approval_status'] ?? 'draft')) {
+                'draft' => ['label' => 'Gửi Nhà trường duyệt', 'form_action' => 'submit_for_school_review'],
+                'changes_requested' => ['label' => 'Gửi duyệt lại', 'form_action' => 'submit_for_school_review'],
+                'approved' => ['label' => 'Công bố hoạt động', 'form_action' => 'advance_status'],
+                default => null,
+            };
+        }
+
         return match ($rawStatus) {
-            'draft' => ['label' => 'Công bố hoạt động'],
-            'published' => ['label' => 'Bắt đầu hoạt động'],
-            'ongoing' => ['label' => 'Kết thúc hoạt động'],
-            'completed' => ['label' => 'Lưu trữ hoạt động'],
+            'published' => ['label' => 'Bắt đầu hoạt động', 'form_action' => 'advance_status'],
+            'ongoing' => ['label' => 'Kết thúc hoạt động', 'form_action' => 'advance_status'],
+            'completed' => ['label' => 'Lưu trữ hoạt động', 'form_action' => 'advance_status'],
             'archived' => null,
             default => null,
         };
@@ -170,16 +178,18 @@ if (!in_array($statusFilter, $statusFilters, true)) {
 
 $errors = [];
 $fieldErrors = [];
+$errorHeading = 'Chưa thể lưu hoạt động.';
 $notice = '';
 $noticeType = 'success';
 $categoryCatalog = teacherActivitiesCategoryCatalog();
 
 if (isset($_GET['saved'])) {
     $noticeMessages = [
-        'created' => 'Đã tạo hoạt động mới.',
-        'updated' => 'Đã cập nhật hoạt động.',
+        'created' => 'Đã lưu bản nháp. Chọn “Gửi Nhà trường duyệt” để xin phê duyệt trước khi công bố.',
+        'updated' => 'Đã cập nhật hoạt động. Bạn có thể gửi Nhà trường duyệt khi thông tin đã hoàn tất.',
         'advanced' => 'Đã chuyển hoạt động sang trạng thái mới.',
         'registration' => 'Đã cập nhật trạng thái đăng ký.',
+        'submitted' => 'Đã gửi hoạt động đến Nhà trường. Bạn có thể công bố sau khi được duyệt.',
     ];
     $notice = $noticeMessages[(string) $_GET['saved']] ?? 'Đã lưu thay đổi hoạt động.';
 }
@@ -333,8 +343,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: index.php?saved=advanced');
                 exit;
             } catch (Throwable $exception) {
-                $errors[] = $exception->getMessage() ?: 'Không thể cập nhật trạng thái hoạt động. Vui lòng kiểm tra lại kết nối dữ liệu.';
+                $msg = $exception->getMessage() ?: 'Không thể cập nhật trạng thái hoạt động. Vui lòng kiểm tra lại kết nối dữ liệu.';
+                $errors[] = $msg;
+                $lower = mb_strtolower($msg, 'UTF-8');
+                if (str_contains($lower, 'phê duyệt') || str_contains($lower, 'duyệt') || str_contains($lower, 'approval')) {
+                    $errorHeading = 'Chưa thể gửi duyệt hoạt động.';
+                }
             }
+        }
+    }
+
+    if ($formAction === 'submit_for_school_review') {
+        if (!$pdo || $teacherId === '') {
+            $errors[] = 'Chưa kết nối được hồ sơ giáo viên để gửi duyệt hoạt động.';
+        }
+        if ($postedActivityId === '') {
+            $errors[] = 'Thiếu mã hoạt động cần gửi duyệt.';
+        }
+        if (!$errors) {
+            try {
+                $activityService->submitForSchoolReview($teacherId, $postedActivityId, \TalentHub\Support\Id\RequestId::make(null));
+                header('Location: index.php?saved=submitted');
+                exit;
+            } catch (Throwable $exception) {
+                $errorHeading = 'Chưa thể gửi duyệt hoạt động.';
+                $errors[] = $exception->getMessage() ?: 'Không thể gửi hoạt động đến Nhà trường. Vui lòng kiểm tra dữ liệu hoạt động.';
+            }
+        } else {
+            $errorHeading = 'Chưa thể gửi duyệt hoạt động.';
         }
     }
 
@@ -342,7 +378,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = 'registrations';
         $activityId = $postedActivityId;
         $selectedActivity = $pdo && $teacherId !== '' ? teacherActivitiesFind($pdo, $teacherId, $activityId) : null;
-    } elseif ($formAction === 'advance_status') {
+    } elseif ($formAction === 'advance_status' || $formAction === 'submit_for_school_review') {
         $action = '';
         if ($postedActivityId !== '') {
             $activityId = $postedActivityId;
@@ -659,7 +695,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
 
                     <?php if ($errors): ?>
                         <div class="teacher-activities-notice teacher-activities-notice--error" id="teacher-activities-errors" role="alert" tabindex="-1" data-focus-on-load>
-                            <strong id="teacher-activities-errors-title">Chưa thể lưu hoạt động.</strong>
+                            <strong id="teacher-activities-errors-title"><?= teacherActivitiesEscape($errorHeading); ?></strong>
                             <ul>
                                 <?php foreach ($errors as $error): ?>
                                     <li><?= teacherActivitiesEscape($error); ?></li>
@@ -761,7 +797,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                     <?php if ($detailLifecycleAction !== null): ?>
                                         <form method="post" class="teacher-activities-inline-form">
                                             <input type="hidden" name="csrfToken" value="<?= teacherActivitiesEscape($csrfToken); ?>">
-                                            <input type="hidden" name="form_action" value="advance_status">
+                                            <input type="hidden" name="form_action" value="<?= teacherActivitiesEscape($detailLifecycleAction['form_action']); ?>">
                                             <input type="hidden" name="activity_id" value="<?= teacherActivitiesEscape($selectedActivity['id']); ?>">
                                             <button type="submit" class="btn btn-secondary btn-sm"><?= teacherActivitiesEscape($detailLifecycleAction['label']); ?></button>
                                         </form>
@@ -931,7 +967,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                                         <?php if ($rowLifecycleAction !== null): ?>
                                                             <form method="post" class="teacher-activities-inline-form">
                                                                 <input type="hidden" name="csrfToken" value="<?= teacherActivitiesEscape($csrfToken); ?>">
-                                                                <input type="hidden" name="form_action" value="advance_status">
+                                                                <input type="hidden" name="form_action" value="<?= teacherActivitiesEscape($rowLifecycleAction['form_action']); ?>">
                                                                 <input type="hidden" name="activity_id" value="<?= teacherActivitiesEscape($activity['id']); ?>">
                                                                 <button type="submit" class="teacher-activity-action teacher-activity-action--button"><?= teacherActivitiesEscape($rowLifecycleAction['label']); ?></button>
                                                             </form>

@@ -1,0 +1,223 @@
+/* ==========================================================================
+   TalentHub — School Activity Review (Duyệt hoạt động)
+   Single source for app/school/activities.php.
+   Naming: BEM-ish within .school-activities / .school-activity-review.
+   All layout inherits surface/border tokens from global.css & school.css.
+   ========================================================================== */
+
+/* Page wrapper */
+.school-activities {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* Filter block */
+.school-activities__filters { gap: 0.75rem; }
+.school-activities__filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: flex-end;
+    margin-top: 0.875rem;
+}
+.school-activities__search { min-width: 240px; flex: 1 1 260px; }
+.school-activities__timezone {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* Empty state variant for this page — inherits school-empty-state from school.css */
+.school-activities .school-empty-state {
+    text-align: center;
+    padding: 2rem 1rem;
+}
+.school-activities .school-empty-state__title {
+    font-size: 1rem;
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+.school-activities .school-empty-state__desc {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    max-width: 36rem;
+    margin: 0 auto;
+}
+
+/* ── Card — each activity under review ── */
+.school-activity-review {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.25rem 1.25rem 1rem;
+}
+.school-activity-review__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+}
+.school-activity-review__eyebrow {
+    font-size: 0.75rem;
+    font-weight: var(--font-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 0.25rem;
+}
+.school-activity-review__header h3 {
+    font-size: 1.0625rem;
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.35;
+}
+.school-activity-review__meta {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin: 0.35rem 0 0;
+}
+.school-activity-review__summary {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+    white-space: pre-line;
+}
+
+/* Status badge on the card header */
+.school-activity-review__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3rem 0.7rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: var(--font-semibold);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.school-activity-review__badge--pending { background: #FEF3C7; color: #92400E; }
+.school-activity-review__badge--changes { background: #FFEDD5; color: #9A3412; }
+.school-activity-review__badge--approved { background: var(--color-success-light); color: #047857; }
+.school-activity-review__badge--rejected { background: var(--color-danger-light); color: var(--color-danger-hover); }
+.school-activity-review__badge--draft { background: #E2E8F0; color: #475569; }
+
+/* Key facts row (Bắt đầu · Kết thúc · …) */
+.school-activity-review__facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem 1.5rem;
+    margin: 0;
+}
+.school-activity-review__facts div { display: flex; flex-direction: column; gap: 0.125rem; }
+.school-activity-review__facts dt {
+    font-size: 0.75rem;
+    font-weight: var(--font-semibold);
+    color: var(--text-muted);
+}
+.school-activity-review__facts dd {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    margin: 0;
+    word-break: break-word;
+}
+
+/* Collapsible detail block */
+.school-activity-review__details {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #F8FAFC;
+}
+.school-activity-review__details summary {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    list-style: none;
+}
+.school-activity-review__details summary::-webkit-details-marker { display: none; }
+.school-activity-review__details[open] summary { border-bottom: 1px solid var(--border); }
+.school-activity-review__details-body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    padding: 1rem;
+}
+@media (min-width: 860px) {
+    .school-activity-review__details-body { grid-template-columns: 1.4fr 1fr; }
+}
+.school-activity-review__section h4 {
+    font-size: 0.875rem;
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+    margin: 0 0 0.5rem;
+}
+.school-activity-review__section--spacer { margin-top: 0; }
+.school-activity-review__text {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    white-space: pre-line;
+    margin: 0;
+}
+.school-activity-review__list h5 {
+    font-size: 0.8125rem;
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    margin: 0.75rem 0 0.25rem;
+}
+.school-activity-review__list ul { margin: 0; padding-left: 1.15rem; }
+.school-activity-review__list li { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5; }
+.school-activity-review__resource { font-size: 0.8125rem; margin: 0.75rem 0 0; }
+
+/* Review form (approve / request_changes / reject) */
+.school-activity-review__form {
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+    gap: 0.5rem;
+}
+.school-activity-review__hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+.school-activity-review__form .school-form__actions { justify-content: flex-start; }
+.school-activity-review__reject { color: var(--color-danger-hover); border-color: var(--color-danger-border); }
+.school-activity-review__reject:hover { background: var(--color-danger-light); }
+
+/* Outcome message for non-pending items */
+.school-activity-review__outcome {
+    border-left: 3px solid var(--border);
+    padding: 0.75rem 1rem;
+    background: #F8FAFC;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.school-activity-review__outcome p {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* ── Validation hint shown when reason is required ── */
+.school-activity-review__field-error {
+    font-size: 0.75rem;
+    color: var(--color-danger);
+    margin: 0;
+}
+
+@media (max-width: 640px) {
+    .school-activities__filter-form { flex-direction: column; align-items: stretch; }
+    .school-activity-review { padding: 1rem; }
+    .school-activity-review__header { flex-direction: column; gap: 0.5rem; }
+    .school-activity-review__facts { grid-template-columns: 1fr 1fr; }
+    .school-activity-review__form .school-form__actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .school-activity-review__form .school-form__actions .btn { width: 100%; justify-content: center; }
+}
