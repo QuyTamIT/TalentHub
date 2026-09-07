@@ -291,11 +291,6 @@ $sidebarNav = [
                                 <span class="ent-ai-matcher-card__engine-badge">AI Engine</span>
                                 <h3 class="ent-ai-matcher-card__title">Tìm nhân tài bằng AI</h3>
                             </div>
-                            <div class="ent-ai-matcher-card__metadata">
-                                <span>Phiên bản: <strong data-enterprise-ai-provenance>gemini-1.5-pro</strong></span>
-                                <span>Cập nhật: <strong data-enterprise-ai-freshness>--</strong></span>
-                                <span class="ent-ai-matcher-card__state" data-enterprise-ai-state>idle</span>
-                            </div>
                         </div>
                         <p class="ent-ai-matcher-card__description">
                             Khớp nối tự động và xếp hạng ứng viên dựa trên kỹ năng đã được kiểm chứng đối chiếu với yêu cầu của vị trí tuyển dụng thực tập.
