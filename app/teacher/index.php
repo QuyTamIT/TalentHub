@@ -18,7 +18,6 @@ $pageTitle = 'Tổng quan Giáo viên';
 $currentRoute = 'index.php';
 
 $teacherInfo = $dashboardData['teacherInfo'];
-$dbStatus = $dashboardData['dbStatus'];
 $todayLabel = date('d/m/Y');
 
 $sidebarNav = [

@@ -118,7 +118,7 @@
     notifications:['Thông báo','Theo dõi delivery, trạng thái và retry.'],
     audit:['Audit & bảo mật','Dòng sự kiện theo người dùng, đối tượng và request ID.'],
     rbac:['RBAC & quyền','Vai trò và quyền hiệu lực trong hệ thống.'],
-    system:['Hệ thống','Phiên bản runtime, database và migration status.'],
+    system:['Hệ thống','Trạng thái runtime, cơ sở dữ liệu và migration. Chỉ quản trị viên có quyền xem.'],
   };
   const dashboardView = document.querySelector('[data-dashboard-view]');
   const moduleView = document.querySelector('[data-module-view]');
@@ -156,7 +156,12 @@
       const grouped = (data.roles || []).map((role) => ({...role, permissions:(data.mappings || []).filter((m)=>m.role===role.code).length}));
       moduleContent.innerHTML = table(grouped); return;
     }
-    if (section === 'system') { moduleContent.innerHTML = `<div class="system-grid">${Object.entries(data).map(([key,value])=>`<article><span>${escapeHtml(key)}</span><strong>${escapeHtml(value)}</strong></article>`).join('')}</div>`; return; }
+    if (section === 'system') {
+      const systemLabels = {database:'Cơ sở dữ liệu',databaseVersion:'Phiên bản cơ sở dữ liệu',migrationCount:'Migration đã ghi nhận',tableCount:'Bảng dữ liệu',serverTime:'Thời gian máy chủ',phpVersion:'PHP runtime'};
+      const entries = Object.entries(data).filter(([key]) => systemLabels[key]);
+      moduleContent.innerHTML = `<section class="system-summary" aria-label="Tổng quan hệ thống"><p>Thông tin kỹ thuật chỉ hiển thị trong khu vực này và chỉ dành cho quản trị viên.</p><div class="system-grid">${entries.map(([key,value])=>`<article><span>${escapeHtml(systemLabels[key])}</span><strong>${escapeHtml(String(value ?? '—'))}</strong></article>`).join('')}</div></section>`;
+      return;
+    }
     currentRows = data.items || [];
     const actions = section === 'users' ? (row) => {const organizationPending=['school','enterprise'].includes(row.role)&&row.status==='pending';return `<div class="row-actions"><button class="button secondary small" data-user-edit data-id="${escapeHtml(row.id)}">Sửa</button>${organizationPending?'<span class="action-note">Duyệt tại Tổ chức</span>':`<button class="button secondary small" data-user-action data-id="${escapeHtml(row.id)}" data-status="${row.status==='active'?'suspended':'active'}">${row.status==='active'?'Đình chỉ':'Kích hoạt'}</button>`}${row.status!=='disabled'?`<button class="button danger small" data-user-delete data-id="${escapeHtml(row.id)}">Vô hiệu hóa</button>`:''}</div>`;} : section === 'organizations' ? (row) => `<button class="button secondary small" data-org-action data-id="${escapeHtml(row.id)}" data-type="${escapeHtml(row.type)}" data-current-status="${escapeHtml(row.verificationStatus)}">Xem xét</button>` : null;
     moduleContent.innerHTML = (section==='users'?'<button class="button primary module-primary-action" data-user-create>Thêm tài khoản</button>':'')+table(currentRows, actions);

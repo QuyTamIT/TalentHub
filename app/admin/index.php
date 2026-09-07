@@ -15,13 +15,6 @@ $adminInitials = implode('', array_map(
     array_slice(preg_split('/\s+/u', $adminName) ?: ['A'], 0, 2)
 ));
 
-$health = [
-    ['label' => 'API success', 'value' => '99.94%', 'detail' => '24 giờ qua', 'tone' => 'positive', 'icon' => 'pulse'],
-    ['label' => 'P95 latency', 'value' => '184 ms', 'detail' => '−12 ms so với hôm qua', 'tone' => 'positive', 'icon' => 'clock'],
-    ['label' => 'Lỗi 5xx', 'value' => '7', 'detail' => '2 lỗi chưa xử lý', 'tone' => 'warning', 'icon' => 'alert'],
-    ['label' => 'Database', 'value' => 'Ổn định', 'detail' => '15 migrations · no drift', 'tone' => 'positive', 'icon' => 'database'],
-];
-
 $metrics = [
     ['key'=>'activeUsers','label' => 'Người dùng hoạt động', 'value' => '—', 'change' => 'Live', 'detail' => 'Tài khoản active', 'tone' => 'blue'],
     ['key'=>'organizations','label' => 'Tổ chức', 'value' => '—', 'change' => 'Live', 'detail' => 'School & Enterprise', 'tone' => 'amber'],
@@ -143,10 +136,6 @@ $nav = [
             <?php endforeach; ?>
         </nav>
         <div class="sidebar-footer">
-            <div class="environment-card">
-                <span class="status-dot is-ok"></span>
-                <div><strong>Production healthy</strong><small>MySQL 8.4 · PHP target 8.5</small></div>
-            </div>
             <div class="admin-profile">
                 <span class="avatar"><?= htmlspecialchars($adminInitials) ?></span>
                 <div><strong><?= htmlspecialchars($adminName) ?></strong><small>Platform administrator</small></div>
@@ -162,7 +151,6 @@ $nav = [
                 <?= icon('search') ?><span>Tìm người dùng, tổ chức, mã yêu cầu...</span><kbd>⌘ K</kbd>
             </button>
             <div class="topbar-actions">
-                <span class="prototype-chip"><span class="status-dot is-ok"></span>Connected · dữ liệu thật</span>
                 <button class="icon-button has-indicator" type="button" data-alert-count aria-label="Việc cần xử lý" hidden><?= icon('bell') ?><span></span></button>
             </div>
         </header>
@@ -183,7 +171,7 @@ $nav = [
 
             <div data-dashboard-view>
             <section aria-labelledby="metrics-title">
-                <div class="section-heading"><div><p class="eyebrow">Sức khỏe sản phẩm</p><h2 id="metrics-title">Chỉ số quan trọng</h2></div><a href="#analytics">Xem phân tích <?= icon('arrow') ?></a></div>
+                <div class="section-heading"><div><p class="eyebrow">Tổng quan vận hành</p><h2 id="metrics-title">Chỉ số quan trọng</h2></div><a href="#analytics">Xem phân tích <?= icon('arrow') ?></a></div>
                 <div class="metric-grid">
                     <?php foreach ($metrics as $metric): ?>
                     <article class="metric-card <?= htmlspecialchars($metric['tone']) ?>">

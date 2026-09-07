@@ -311,7 +311,8 @@
 }
 
 /* Text column: flex-column (name + subtitle) */
-.brand > span:not(.brand-mark) {
+.brand > .learner-brand__text,
+.brand > .brand-text {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -319,7 +320,7 @@
 }
 
 /* Name: "TalentHub" */
-.brand > span:not(.brand-mark) > strong {
+.brand > .brand-text > strong {
     display: block;
     font-size: var(--brand-name-size);
     font-weight: var(--brand-name-weight);
@@ -329,13 +330,27 @@
 }
 
 /* Subtitle: "Bảng quản trị" */
-.brand > span:not(.brand-mark) > small {
+.brand > .brand-text > small {
     display: block;
     margin-top: var(--brand-sub-mt);
     font-size: var(--brand-sub-size);
     font-weight: var(--brand-sub-weight);
     color: #94a3b8;           /* slate-400 trên nền dark */
     line-height: 1.2;
+}
+
+/* The admin now uses the shared learner-brand markup.  Keep the mark on its
+   own centering context so text-column rules can never shift the star. */
+.brand .learner-brand__mark {
+    display: grid;
+    place-items: center;
+    line-height: 0;
+}
+
+.brand .learner-brand__mark svg {
+    display: block;
+    width: 18px;
+    height: 18px;
 }
 
 /* ==========================================================================
