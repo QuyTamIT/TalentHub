@@ -1356,7 +1356,6 @@
         });
         const historyPromise = controller.loadHistory().then((payload) => {
             const automated = Array.isArray(payload?.assessment_history?.items) ? payload.assessment_history.items : null;
-            const teacher = Array.isArray(payload?.teacher_evaluations?.items) ? payload.teacher_evaluations.items : null;
             const renderCollection = (loadingSel, emptySel, errorSel, listSel, items, renderItem) => {
                 const loading = root.querySelector(loadingSel);
                 const empty = root.querySelector(emptySel);
@@ -1422,79 +1421,11 @@
                 }
                 return article;
             });
-            renderCollection('[data-teacher-published-evaluation-loading]', '[data-teacher-published-evaluation-empty]', '[data-teacher-published-evaluation-error]', '[data-teacher-published-evaluation-list]', teacher, (item) => {
-                const article = document.createElement('article');
-                article.className = 'learner-assessment-history__item';
-
-                const header = document.createElement('div');
-                header.className = 'learner-assessment-history__header';
-
-                const meta = document.createElement('div');
-                meta.className = 'learner-assessment-history__meta';
-                const title = document.createElement('strong');
-                title.textContent = item?.activity_title || 'Chưa có dữ liệu';
-                const when = document.createElement('span');
-                when.textContent = formatAssessmentDateTime(item?.published_at);
-                meta.appendChild(title);
-                meta.appendChild(when);
-
-                const result = document.createElement('div');
-                result.className = 'learner-assessment-history__result';
-                const badge = document.createElement('span');
-                badge.className = 'learner-badge';
-                const rawScore = Number(item?.overall_score);
-                if (!Number.isNaN(rawScore)) {
-                    badge.textContent = rawScore <= 10 ? `${rawScore.toFixed(1)}/10` : `${rawScore.toFixed(1)}/100`;
-                } else {
-                    badge.textContent = String(item?.overall_score ?? '—');
-                }
-                result.appendChild(badge);
-
-                const reviewer = document.createElement('span');
-                reviewer.className = 'learner-assessment-history__reviewer';
-                reviewer.textContent = '— ' + (item?.reviewer_name || 'Giáo viên');
-                result.appendChild(reviewer);
-
-                header.appendChild(meta);
-                header.appendChild(result);
-                article.appendChild(header);
-
-                if (Array.isArray(item?.scores) && item.scores.length > 0) {
-                    const criteriaList = document.createElement('div');
-                    criteriaList.className = 'learner-assessment-history__criteria-list';
-                    item.scores.forEach((scoreItem) => {
-                        const chip = document.createElement('span');
-                        chip.className = 'learner-assessment-history__criterion-chip';
-                        const cName = document.createElement('span');
-                        cName.className = 'criterion-name';
-                        cName.textContent = (scoreItem?.criteria_name || 'Tiêu chí') + ':';
-                        const cScore = document.createElement('strong');
-                        cScore.className = 'criterion-score';
-                        cScore.textContent = `${scoreItem?.score ?? 0}/${scoreItem?.max_score ?? 10}`;
-                        chip.appendChild(cName);
-                        chip.appendChild(cScore);
-                        criteriaList.appendChild(chip);
-                    });
-                    article.appendChild(criteriaList);
-                }
-
-                if (item?.comment) {
-                    const comment = document.createElement('p');
-                    comment.className = 'learner-assessment-history__comment';
-                    comment.textContent = item.comment;
-                    article.appendChild(comment);
-                }
-                return article;
-            });
         }).catch(() => {
             setHidden(root.querySelector('[data-assessment-complete-history-loading]'), true);
             setHidden(root.querySelector('[data-assessment-complete-history-list]'), true);
             setHidden(root.querySelector('[data-assessment-complete-history-empty]'), true);
             setHidden(root.querySelector('[data-assessment-complete-history-error]'), false);
-            setHidden(root.querySelector('[data-teacher-published-evaluation-loading]'), true);
-            setHidden(root.querySelector('[data-teacher-published-evaluation-list]'), true);
-            setHidden(root.querySelector('[data-teacher-published-evaluation-empty]'), true);
-            setHidden(root.querySelector('[data-teacher-published-evaluation-error]'), false);
         });
         return Promise.allSettled([resultPromise, historyPromise]);
     }

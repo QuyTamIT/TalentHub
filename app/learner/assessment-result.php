@@ -134,24 +134,6 @@ $bootData = [
                     <div class="learner-assessment-history__list" data-assessment-complete-history-list hidden></div>
                 </section>
 
-                <section
-                    class="learner-card learner-assessment-history"
-                    data-teacher-published-evaluations
-                    data-source="teacher_published_evaluation"
-                    aria-labelledby="teacher-published-evaluations-title"
-                >
-                    <div class="learner-section-heading">
-                        <div>
-                            <h2 id="teacher-published-evaluations-title">Đánh giá đã công bố từ giáo viên</h2>
-                            <p>Chỉ hiển thị các đánh giá đã được giáo viên công bố.</p>
-                        </div>
-                        <span class="learner-demo-pill">Nguồn: giáo viên công bố</span>
-                    </div>
-                    <p class="learner-empty-state__text" data-teacher-published-evaluation-loading>Đang tải đánh giá đã công bố...</p>
-                    <p class="learner-empty-state__text" data-teacher-published-evaluation-empty hidden>Chưa có dữ liệu</p>
-                    <p class="learner-empty-state__text" data-teacher-published-evaluation-error hidden>Không thể tải đánh giá đã công bố.</p>
-                    <div class="learner-assessment-history__list" data-teacher-published-evaluation-list hidden></div>
-                </section>
             </main>
         </div>
     </div>
