@@ -7,10 +7,14 @@ if (!function_exists('learner_activity_cover_or_fallback')) {
     function learner_activity_cover_or_fallback(mixed $value, string $fallback): string
     {
         $candidate = trim((string) $value);
-        if ($candidate === '' || str_contains($candidate, '..')) return $fallback;
-        return preg_match('#\A(?:/app/learner/)?assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg)\z#i', $candidate) === 1
-            ? $candidate
-            : $fallback;
+        if (str_contains($candidate, '..')) return $fallback;
+        if (preg_match('#\A(?:/app/learner/)?(assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg))\z#i', $candidate, $matches) === 1) {
+            $relativePath = $matches[1];
+            if (is_file(__DIR__ . '/' . $relativePath)) {
+                return $relativePath;
+            }
+        }
+        return $fallback;
     }
 }
 
@@ -103,7 +107,7 @@ $boot = [
                             );
                             ?>
                             <article class="learner-activity-registered-card" data-status="<?= learner_escape($status); ?>" data-registration-card data-registration-search-text="<?= learner_escape(($registration['title'] ?? '') . ' ' . ($registration['organizer_name'] ?? '') . ' ' . ($registration['school_name'] ?? '')); ?>">
-                                <div class="learner-activity-registered-card__cover"><img src="<?= learner_escape($cover); ?>" alt="<?= learner_escape($registration['cover_image_alt'] ?? ('Ảnh ' . ($registration['title'] ?? 'hoạt động'))); ?>"></div>
+                                <div class="learner-activity-registered-card__cover"><img src="<?= learner_escape($cover); ?>" alt="<?= learner_escape($registration['cover_image_alt'] ?? ('Ảnh ' . ($registration['title'] ?? 'hoạt động'))); ?>" loading="lazy" onerror="this.onerror=null;this.src='assets/activities/illustrations/hero-registered.svg';"></div>
                                 <div class="learner-activity-registered-card__body">
                                     <div class="learner-activity-registered-card__top"><span class="learner-activity-category-chip"><?= learner_escape($registration['filter_category'] ?? $registration['category'] ?? 'Hoạt động'); ?></span><span class="learner-registration-status learner-registration-status--<?= learner_escape($status); ?>"><?= learner_escape($statusLabel); ?></span></div>
                                     <h2><?= learner_escape($registration['title'] ?? 'Hoạt động TalentHub'); ?></h2>

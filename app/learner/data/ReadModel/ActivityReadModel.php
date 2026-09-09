@@ -352,8 +352,8 @@ final class ActivityReadModel
     {
         $value = self::text($value);
         if ($value === '' || str_contains($value, '..')) return '';
-        return preg_match('#\A(?:/app/learner/)?assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg)\z#i', $value) === 1
-            ? $value
+        return preg_match('#\A(?:/app/learner/)?(assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg))\z#i', $value, $matches) === 1
+            ? $matches[1]
             : '';
     }
 }

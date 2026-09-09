@@ -493,6 +493,7 @@
     height: 100%;
     object-fit: cover;
     width: 100%;
+    display: block;
 }
 
 .learner-activities-shell .learner-activity-discovery-card__open,
@@ -507,6 +508,7 @@
     padding: 0 10px;
     position: absolute;
     top: 10px;
+    z-index: 2;
 }
 
 .learner-activities-shell .learner-activity-discovery-card__open {

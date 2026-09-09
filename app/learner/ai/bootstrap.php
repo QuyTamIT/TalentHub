@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 $learnerAiRoot = __DIR__;
 
+require_once $learnerAiRoot . '/Matching/ActivityCandidate.php';
+require_once $learnerAiRoot . '/Matching/ActivityMatch.php';
+require_once $learnerAiRoot . '/Sources/Database/DatabaseActivityCandidateSource.php';
+require_once $learnerAiRoot . '/Service/ActivityMatchService.php';
+require_once $learnerAiRoot . '/Model/ModelActivityMatchEngine.php';
+
 require_once $learnerAiRoot . '/Sources/StudentProfileSource.php';
 require_once $learnerAiRoot . '/Sources/SkillSource.php';
 require_once $learnerAiRoot . '/Sources/AssessmentSource.php';

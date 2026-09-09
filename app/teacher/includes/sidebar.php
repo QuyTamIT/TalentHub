@@ -34,6 +34,7 @@ $teacherRouteHrefs = [
     <nav class="teacher-sidebar__nav" aria-label="Điều hướng Giáo viên">
         <div class="teacher-sidebar__nav-title">QUẢN LÝ GIÁO VIÊN</div>
         <ul>
+            <li><a class="teacher-sidebar__link" href="<?= htmlspecialchars(app_href('/app/teacher/portfolio-reviews.php'), ENT_QUOTES, 'UTF-8'); ?>"><span>Duyệt báo cáo dự án / thực tập</span></a></li>
             <?php foreach ($sidebarNav as $navItem):
                 $isActive = (isset($currentRoute) && ($navItem['route'] === $currentRoute || strpos($currentRoute, strtok($navItem['route'], '.')) === 0)) || (!isset($currentRoute) && !empty($navItem['active']));
                 $navHref = $navItem['href'] ?? ($teacherRouteHrefs[$navItem['icon']] ?? '#');

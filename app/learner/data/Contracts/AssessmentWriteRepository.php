@@ -6,7 +6,7 @@ namespace TalentHub\Learner\Data\Contracts;
 
 interface AssessmentWriteRepository
 {
-    public function startOrResumeAttempt(string $studentId, string $assessmentCode, string $educationBand): array;
+    public function startOrResumeAttempt(string $studentId, string $assessmentCode, string $educationBand, bool $confirmEarlyRetake = false): array;
 
     public function saveAnswer(string $studentId, string $attemptId, string $questionId, mixed $answer): array;
 

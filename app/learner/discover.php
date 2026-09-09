@@ -244,9 +244,9 @@ $onboardingStateLabels = [
     </div>
 
     <script id="learner-session-boot" type="application/json"><?= json_encode(['csrfToken' => $GLOBALS['learner_page_context']['csrfToken'] ?? ''], JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
-    <script src="../../assets/js/learner-api.js"></script>
-    <script src="../../assets/js/learner.js"></script>
-    <script src="../../assets/js/learner-assessment.js"></script>
-    <script src="../../assets/js/learner-ai-summary.js"></script>
+    <script src="../../assets/js/learner-api.js?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner-api.js'); ?>"></script>
+    <script src="../../assets/js/learner.js?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner.js'); ?>"></script>
+    <script src="../../assets/js/learner-assessment.js?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner-assessment.js'); ?>"></script>
+    <script src="../../assets/js/learner-ai-summary.js?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner-ai-summary.js'); ?>"></script>
 </body>
 </html>

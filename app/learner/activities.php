@@ -11,10 +11,14 @@ if (!function_exists('learner_activity_cover_or_fallback')) {
     function learner_activity_cover_or_fallback(mixed $value, string $fallback): string
     {
         $candidate = trim((string) $value);
-        if ($candidate === '' || str_contains($candidate, '..')) return $fallback;
-        return preg_match('#\A(?:/app/learner/)?assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg)\z#i', $candidate) === 1
-            ? $candidate
-            : $fallback;
+        if (str_contains($candidate, '..')) return $fallback;
+        if (preg_match('#\A(?:/app/learner/)?(assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg))\z#i', $candidate, $matches) === 1) {
+            $relativePath = $matches[1];
+            if (is_file(__DIR__ . '/' . $relativePath)) {
+                return $relativePath;
+            }
+        }
+        return $fallback;
     }
 }
 
@@ -206,6 +210,7 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                                             loading="lazy"
                                             width="480"
                                             height="220"
+                                            onerror="this.onerror=null;this.src='assets/activities/illustrations/hero-discover.svg';"
                                         >
                                         <span class="learner-activity-discovery-card__open"><?= learner_icon('check', 14); ?> Đang mở</span>
                                         <span class="learner-activity-discovery-card__category"><?= learner_escape($displayCategory); ?></span>

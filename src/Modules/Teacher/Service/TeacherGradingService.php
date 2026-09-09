@@ -53,17 +53,28 @@ final class TeacherGradingService
     {
         $teacher = $this->teacher($userId);
         $teacherId = (string) $teacher['id'];
-        $activityId = $this->id($input['activityId'] ?? null, 'activityId');
+        $activityId = $this->optionalId($input['activityId'] ?? null, 'activityId');
+        $classId = $this->optionalId($input['classId'] ?? null, 'classId');
+        $projectId = $this->optionalId($input['projectId'] ?? null, 'projectId');
+        if ($activityId === null && $classId === null && $projectId === null) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Assessment phải có activityId, classId hoặc projectId.');
+        }
         $studentId = $this->id($input['studentId'] ?? null, 'studentId');
         $assessmentId = $this->assessmentId($input['assessmentId'] ?? null);
         $expectedVersion = $this->version($input['expectedVersion'] ?? null);
-        $activity = $this->repository->activityForTeacher($teacherId, $activityId);
+        $activity = $activityId !== null ? $this->repository->activityForTeacher($teacherId, $activityId) : null;
 
-        if ($activity === null) {
+        if ($activityId !== null && $activity === null) {
             throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Hoạt động không thuộc phạm vi phụ trách của bạn.');
         }
-        if ($this->repository->registrationForActivity($teacherId, $activityId, $studentId) === null) {
+        if ($activityId !== null && $classId === null && $projectId === null && $this->repository->registrationForActivity($teacherId, $activityId, $studentId) === null) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Học viên chưa có registration được duyệt cho hoạt động này.');
+        }
+        if ($classId !== null && !$this->repository->classContextForTeacher($teacherId, $classId, $studentId)) {
+            throw new ApiException(403, 'FORBIDDEN', 'Giáo viên không có quyền đánh giá học viên trong lớp này.');
+        }
+        if ($projectId !== null && !$this->repository->projectContextForTeacher($teacherId, $projectId, $studentId)) {
+            throw new ApiException(403, 'FORBIDDEN', 'Giáo viên không có quyền đánh giá học viên trong dự án này.');
         }
         if ($expectedVersion === 0 && $assessmentId !== null) {
             throw new TeacherGradingConflictException('A new assessment cannot carry an existing assessment id.');
@@ -123,10 +134,12 @@ final class TeacherGradingService
             $status === 'published' ? gmdate('Y-m-d H:i:s.u') : null,
             $criteriaScores,
             $userId,
-            substr($requestId ?? RequestId::make(null), 0, 26)
+            substr($requestId ?? RequestId::make(null), 0, 26),
+            $classId,
+            $projectId
         );
 
-        return $activityId;
+        return $activityId ?? ($classId ?? $projectId ?? '');
     }
 
     /** @return array{id:string,status:string,version:int} */
@@ -139,7 +152,9 @@ final class TeacherGradingService
         if (($assessment['status'] ?? null) !== 'draft') throw new TeacherGradingConflictException('Published assessments are immutable.');
         if ((int) ($assessment['version'] ?? 0) !== $expectedVersion) throw new TeacherGradingConflictException('Assessment version no longer matches.');
         $this->save($teacherUserId, [
-            'activityId' => (string) $assessment['activityId'],
+            'activityId' => $assessment['activityId'] ?? null,
+            'classId' => $assessment['classId'] ?? null,
+            'projectId' => $assessment['projectId'] ?? null,
             'studentId' => (string) $assessment['studentId'],
             'assessmentId' => $assessmentId,
             'expectedVersion' => (string) $expectedVersion,
@@ -169,6 +184,12 @@ final class TeacherGradingService
         }
 
         return strtolower($value);
+    }
+
+    private function optionalId(mixed $value, string $field): ?string
+    {
+        if ($value === null || (is_string($value) && trim($value) === '')) return null;
+        return $this->id($value, $field);
     }
 
     private function assertUuid(string $value, string $field): void

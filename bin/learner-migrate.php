@@ -10,8 +10,8 @@ require __DIR__ . '/bootstrap.php';
 require dirname(__DIR__) . '/app/learner/data/bootstrap.php';
 
 $command = $argv[1] ?? 'status';
-if (!in_array($command, ['status', 'validate', 'apply', 'rollback'], true)) {
-    fwrite(STDERR, "Usage: php bin/learner-migrate.php status|validate|apply [--versions=001_name,002_name]|rollback\n");
+if (!in_array($command, ['status', 'validate', 'apply', 'up', 'rollback'], true)) {
+    fwrite(STDERR, "Usage: php bin/learner-migrate.php status|validate|apply|up [--versions=001_name,002_name]|rollback\n");
     exit(2);
 }
 if ($command === 'rollback') {
@@ -31,8 +31,23 @@ try {
     }
     $raw = null;
     foreach (array_slice($argv, 2) as $arg) if (str_starts_with($arg, '--versions=')) $raw = substr($arg, 11);
-    if ($raw === null || trim($raw) === '') throw new InvalidArgumentException('apply requires --versions=version[,version].');
-    $versions = array_values(array_filter(array_map('trim', explode(',', $raw)), static fn(string $v): bool => preg_match('/\A\d{3}_[a-z][a-z0-9]*(?:_[a-z0-9]+)*\z/', $v) === 1));
+    if ($command === 'apply' && ($raw === null || trim($raw) === '')) {
+        throw new InvalidArgumentException('apply requires --versions=version[,version]. Use up to apply pending versions.');
+    }
+    if ($raw === null || trim($raw) === '') {
+        $versions = [];
+        foreach ($runner->status() as $version => $entry) {
+            if (!($entry['applied'] ?? false)) {
+                $versions[] = $version;
+            }
+        }
+        if ($versions === []) {
+            fwrite(STDOUT, "[OK] no pending learner migrations\n");
+            exit(0);
+        }
+    } else {
+        $versions = array_values(array_filter(array_map('trim', explode(',', $raw)), static fn(string $v): bool => preg_match('/\A\d{3}_[a-z][a-z0-9]*(?:_[a-z0-9]+)*\z/', $v) === 1));
+    }
     if ($versions === []) throw new InvalidArgumentException('No valid learner migration versions supplied.');
     foreach ($runner->migrateApproved($versions) as $version) fwrite(STDOUT, "[APPLIED] {$version}\n");
     exit(0);

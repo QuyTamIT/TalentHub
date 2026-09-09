@@ -59,6 +59,8 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
         return [
             'student' => $student,
             'skills' => $skills,
+            'portfolio_skills' => $this->portfolioVerifiedSkills($studentId),
+            'internships' => $optional['internships'],
             'experience' => $experience,
             'assessment_results' => $assessmentResults,
             'teacher_evaluations' => $teacherEvaluations,
@@ -162,7 +164,7 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
                                    WHERE ps.projectId = p.id AND ps.status = 'paid'
                                ) AS totalFundedAmount
                         FROM projects p
-                        INNER JOIN project_members pm ON pm.projectId = p.id
+                        INNER JOIN project_members pm ON pm.projectId = p.id AND pm.status = 'active'
                         WHERE pm.studentId = :student_id
                            OR pm.studentId IN (SELECT sp.id FROM student_profiles sp WHERE sp.userId = :student_id_alt1)
                            OR pm.studentId IN (SELECT sp.userId FROM student_profiles sp WHERE sp.id = :student_id_alt2)
@@ -212,7 +214,7 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
         return $row;
     }
 
-    private function skills(string $studentId): array
+    public function skills(string $studentId): array
     {
         // Older local databases used `student_skills.level` before the canonical
         // `levelScore` column was introduced. Keep the read path compatible so
@@ -239,7 +241,113 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             SQL;
 
         $sql = sprintf($sql, $levelExpression);
-        return $this->fetchAll('skills', $sql, ['student_id' => $studentId]);
+        return $this->mergePortfolioSkills($studentId, $this->fetchAll('skills', $sql, ['student_id' => $studentId]));
+    }
+
+    /**
+     * Verified project/internship skills confirmed by a mentor. Revoked reports
+     * are excluded by the status filter; duplicate skill ids keep the scored
+     * student_skills row.
+     *
+     * @param list<array<string,mixed>> $skills
+     * @return list<array<string,mixed>>
+     */
+    private function mergePortfolioSkills(string $studentId, array $skills): array
+    {
+        $seen = [];
+        foreach ($skills as $row) {
+            $id = (string) ($row['skill_id'] ?? '');
+            if ($id !== '') {
+                $seen[$id] = true;
+            }
+        }
+        foreach ($this->portfolioVerifiedSkills($studentId) as $row) {
+            $id = (string) ($row['skill_id'] ?? '');
+            if ($id === '' || isset($seen[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            $skills[] = [
+                'student_id' => $row['student_id'] ?? $studentId,
+                'skill_id' => $id,
+                'level_score' => $row['level_score'] ?? null,
+                'source_type' => $row['source_type'] ?? 'project_submission',
+                'verification_status' => 'verified',
+                'verified_at' => $row['verified_at'] ?? null,
+                'code' => $row['code'] ?? null,
+                'name' => $row['name'] ?? null,
+                'category' => $row['category'] ?? null,
+                'skill_status' => $row['skill_status'] ?? 'active',
+            ];
+        }
+        usort($skills, static fn (array $left, array $right): int => [
+            (string) ($left['category'] ?? ''),
+            (string) ($left['name'] ?? ''),
+            (string) ($left['skill_id'] ?? ''),
+        ] <=> [
+            (string) ($right['category'] ?? ''),
+            (string) ($right['name'] ?? ''),
+            (string) ($right['skill_id'] ?? ''),
+        ]);
+
+        return $skills;
+    }
+
+    /** @return list<array<string,mixed>> */
+    private function portfolioVerifiedSkills(string $studentId): array
+    {
+        $inspector = $this->inspector();
+        if (!$inspector->hasTable('learner_portfolio_skills') || !$inspector->hasTable('skills')) {
+            return [];
+        }
+        $hasProjects = $inspector->hasTable('project_submissions');
+        $hasInternships = $inspector->hasTable('learner_internship_reports');
+        if (!$hasProjects && !$hasInternships) {
+            return [];
+        }
+
+        $unions = [];
+        $params = [];
+        if ($hasProjects) {
+            $unions[] = "SELECT 'project' AS kind, r.id, r.studentId, r.reviewedAt FROM project_submissions r INNER JOIN project_members pm ON pm.projectId = r.projectId AND pm.studentId = r.studentId AND pm.status = 'active' WHERE r.studentId = :project_student AND r.status = 'verified'";
+            $params['project_student'] = $studentId;
+        }
+        if ($hasInternships) {
+            $unions[] = "SELECT 'internship' AS kind, r.id, r.studentId, r.reviewedAt FROM learner_internship_reports r WHERE r.studentId = :intern_student AND r.status = 'verified'";
+            $params['intern_student'] = $studentId;
+        }
+        $unionSql = implode(' UNION ALL ', $unions);
+        $sql = <<<SQL
+            SELECT
+                reports.studentId,
+                ps.skillId,
+                NULL AS levelScore,
+                CASE ps.kind
+                    WHEN 'project' THEN 'project_submission'
+                    WHEN 'internship' THEN 'internship_report'
+                    ELSE ps.kind
+                END AS sourceType,
+                'verified' AS verificationStatus,
+                reports.reviewedAt AS verifiedAt,
+                s.code,
+                s.name,
+                s.category,
+                s.status AS skillStatus,
+                ps.kind,
+                ps.reportId
+            FROM learner_portfolio_skills ps
+            INNER JOIN skills s ON s.id = ps.skillId AND s.status = 'active'
+            INNER JOIN (
+                {$unionSql}
+            ) reports ON reports.id = ps.reportId AND reports.kind = ps.kind
+            ORDER BY s.category ASC, s.name ASC, ps.skillId ASC, ps.kind ASC, ps.reportId ASC
+            SQL;
+
+        try {
+            return $this->fetchAll('portfolioSkills', $sql, $params);
+        } catch (Throwable) {
+            return [];
+        }
     }
 
     private function experience(string $studentId): array
@@ -326,7 +434,7 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             INNER JOIN talent_tests tt ON tt.id = ta.testId
             INNER JOIN test_results tr ON tr.attemptId = ta.id
             WHERE ta.studentId = :student_id AND ta.status = 'submitted'
-            ORDER BY ta.submittedAt DESC, ta.id ASC
+            ORDER BY ta.submittedAt DESC, ta.id DESC
             SQL;
 
         $rows = $this->fetchAll('assessmentResults', $sql, ['student_id' => $studentId]);
@@ -495,6 +603,7 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
         ];
         $certificates = [];
         $projects = [];
+        $internships = [];
         $badges = [];
 
         if (TalentPassportOptionalSchema::status($inspector, 'certificates') === 'available') {
@@ -541,7 +650,7 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
                                WHERE ps.projectId = p.id AND ps.status = 'paid'
                            ) AS totalFundedAmount
                     FROM projects p
-                    INNER JOIN project_members pm ON pm.projectId = p.id
+                    INNER JOIN project_members pm ON pm.projectId = p.id AND pm.status = 'active'
                     WHERE pm.studentId = :student_id
                        OR pm.studentId IN (SELECT sp.id FROM student_profiles sp WHERE sp.userId = :student_id_alt1)
                        OR pm.studentId IN (SELECT sp.userId FROM student_profiles sp WHERE sp.id = :student_id_alt2)
@@ -556,6 +665,26 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             } catch (Throwable) {
                 $capabilities['projects'] = false;
                 $projects = [];
+            }
+            $projects = $this->mergeProjectSkillEvidence($projects, $studentId);
+        }
+
+        if ($inspector->hasTable('learner_internship_reports')) {
+            try {
+                $internships = $this->fetchAll(
+                    'internships',
+                    <<<'SQL'
+                    SELECT r.id, r.applicationId, r.status, r.stage, r.hours, r.startDate, r.endDate,
+                           r.reviewedAt, r.updatedAt
+                    FROM learner_internship_reports r
+                    WHERE r.studentId = :student_id AND r.status = 'verified'
+                    ORDER BY r.reviewedAt DESC, r.id ASC
+                    SQL,
+                    ['student_id' => $studentId]
+                );
+                $internships = $this->attachInternshipSkillTags($internships, $studentId);
+            } catch (Throwable) {
+                $internships = [];
             }
         }
 
@@ -583,8 +712,126 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             'capabilities' => $capabilities,
             'certificates' => $certificates,
             'projects' => $projects,
+            'internships' => $internships,
             'badges' => $badges,
         ];
+    }
+
+    /**
+     * @param list<array<string,mixed>> $projects
+     * @return list<array<string,mixed>>
+     */
+    private function mergeProjectSkillEvidence(array $projects, string $studentId): array
+    {
+        if ($projects === []) {
+            return $projects;
+        }
+        $projectIds = array_values(array_filter(array_map(
+            static fn (array $project): string => (string) ($project['id'] ?? ''),
+            $projects,
+        )));
+        if ($projectIds === []) {
+            return $projects;
+        }
+
+        $tagsByProject = [];
+        $placeholders = implode(',', array_fill(0, count($projectIds), '?'));
+        try {
+            if ($this->inspector()->hasTable('project_skill_tags')) {
+                $tagStatement = $this->pdo->prepare(
+                    "SELECT pst.projectId, s.code, s.name FROM project_skill_tags pst INNER JOIN skills s ON s.id=pst.skillId AND s.status='active' WHERE pst.projectId IN ({$placeholders}) AND pst.verifiedAt IS NOT NULL ORDER BY s.code"
+                );
+                $tagStatement->execute($projectIds);
+                foreach ($tagStatement->fetchAll(\PDO::FETCH_ASSOC) ?: [] as $tag) {
+                    $tagsByProject[(string) $tag['projectId']][] = ['code' => (string) $tag['code'], 'name' => (string) $tag['name']];
+                }
+            }
+        } catch (Throwable) {
+            // Optional evidence table must never make the passport unavailable.
+        }
+        try {
+            if ($this->inspector()->hasTable('learner_portfolio_skills') && $this->inspector()->hasTable('project_submissions')) {
+                $portfolioStatement = $this->pdo->prepare(
+                    "SELECT r.projectId, s.code, s.name
+                     FROM learner_portfolio_skills ps
+                     INNER JOIN project_submissions r ON r.id = ps.reportId AND ps.kind = 'project'
+                     INNER JOIN project_members pm ON pm.projectId = r.projectId AND pm.studentId = r.studentId AND pm.status = 'active'
+                     INNER JOIN skills s ON s.id = ps.skillId AND s.status = 'active'
+                     WHERE r.studentId = ? AND r.status = 'verified' AND r.projectId IN ({$placeholders})
+                     ORDER BY s.code"
+                );
+                $portfolioStatement->execute([$studentId, ...$projectIds]);
+                foreach ($portfolioStatement->fetchAll(\PDO::FETCH_ASSOC) ?: [] as $tag) {
+                    $tagsByProject[(string) $tag['projectId']][] = ['code' => (string) $tag['code'], 'name' => (string) $tag['name']];
+                }
+            }
+        } catch (Throwable) {
+            // Optional evidence table must never make the passport unavailable.
+        }
+
+        foreach ($projects as &$project) {
+            $unique = [];
+            foreach ($tagsByProject[(string) ($project['id'] ?? '')] ?? [] as $tag) {
+                $code = strtolower(trim((string) ($tag['code'] ?? '')));
+                if ($code === '' || isset($unique[$code])) {
+                    continue;
+                }
+                $unique[$code] = ['code' => $code, 'name' => (string) ($tag['name'] ?? $code)];
+            }
+            $project['skill_tags'] = array_values($unique);
+            $project['skill_codes'] = array_keys($unique);
+        }
+        unset($project);
+
+        return $projects;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $rows
+     * @return list<array<string,mixed>>
+     */
+    private function attachInternshipSkillTags(array $rows, string $studentId): array
+    {
+        if ($rows === [] || !$this->inspector()->hasTable('learner_portfolio_skills')) {
+            return $rows;
+        }
+        $ids = array_values(array_filter(array_map(static fn (array $row): string => (string) ($row['id'] ?? ''), $rows)));
+        if ($ids === []) {
+            return $rows;
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        try {
+            $statement = $this->pdo->prepare(
+                "SELECT ps.reportId, s.code, s.name
+                 FROM learner_portfolio_skills ps
+                 INNER JOIN skills s ON s.id = ps.skillId AND s.status = 'active'
+                 INNER JOIN learner_internship_reports r ON r.id = ps.reportId AND r.studentId = ? AND r.status = 'verified'
+                 WHERE ps.kind = 'internship' AND ps.reportId IN ({$placeholders})
+                 ORDER BY s.code"
+            );
+            $statement->execute([$studentId, ...$ids]);
+            $tagsByReport = [];
+            foreach ($statement->fetchAll(\PDO::FETCH_ASSOC) ?: [] as $tag) {
+                $code = strtolower(trim((string) ($tag['code'] ?? '')));
+                if ($code === '') {
+                    continue;
+                }
+                $reportId = (string) $tag['reportId'];
+                if (isset($tagsByReport[$reportId][$code])) {
+                    continue;
+                }
+                $tagsByReport[$reportId][$code] = ['code' => $code, 'name' => (string) ($tag['name'] ?? $code)];
+            }
+            foreach ($rows as &$row) {
+                $tags = array_values($tagsByReport[(string) ($row['id'] ?? '')] ?? []);
+                $row['skill_tags'] = $tags;
+                $row['skill_codes'] = array_values(array_column($tags, 'code'));
+            }
+            unset($row);
+        } catch (Throwable) {
+        }
+
+        return $rows;
     }
 
     private function sourceTimestamps(

@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace TalentHub\Modules\School\Repository;
 
+require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/TransactionalAiOutboxPublisher.php';
+
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
 use TalentHub\Http\ApiException;
 use TalentHub\Support\Uuid;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 
 final class SchoolProjectRepository
 {
@@ -92,6 +95,7 @@ final class SchoolProjectRepository
 
         $topic = isset($input['topic']) && is_string($input['topic']) ? trim($input['topic']) : null;
         $authorIds = isset($input['authorIds']) && is_array($input['authorIds']) ? $input['authorIds'] : [];
+        $skillTags = $this->normalizeSkillTags($input['skillTags'] ?? []);
 
         $id = Uuid::v4();
         $now = $this->now();
@@ -132,16 +136,21 @@ SQL);
             ]);
 
             // Insert authorIds
+            $recipients = [];
             if (!empty($authorIds)) {
                 $memberStmt = $this->pdo->prepare('INSERT INTO project_members (id, projectId, studentId, role, status, joinedAt, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
                 foreach ($authorIds as $studentId) {
                     if (is_string($studentId) && trim($studentId) !== '') {
+                        $trimmed = trim($studentId);
                         $memberStmt->execute([
-                            Uuid::v4(), $id, trim($studentId), 'member', 'active', $now, $now, $now
+                            Uuid::v4(), $id, $trimmed, 'member', 'active', $now, $now, $now
                         ]);
+                        $recipients[] = $trimmed;
                     }
                 }
             }
+            $this->replaceProjectSkillTags($id, $skillTags, $now);
+            $this->publishProjectChanged($id, $recipients, $status);
 
             $this->pdo->commit();
         } catch (\Throwable $exception) {
@@ -215,6 +224,7 @@ SQL);
             throw new ApiException(422, 'VALIDATION_FAILED', 'Tiêu đề dự án phải có từ 1 đến 255 ký tự.');
         }
         $fundingGoal = array_key_exists('fundingGoal', $input) && trim((string) $input['fundingGoal']) !== '' ? trim((string) $input['fundingGoal']) : $current['fundingGoal'];
+        $skillTags = array_key_exists('skillTags', $input) ? $this->normalizeSkillTags($input['skillTags']) : null;
         if ($fundingGoal !== null && (!preg_match('/^\d+(\.\d{1,2})?$/', (string) $fundingGoal) || (float) $fundingGoal <= 0)) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Mục tiêu tài trợ phải là số dương.');
         }
@@ -238,11 +248,16 @@ SQL);
                 'id' => $projectId,
                 'schoolId' => $schoolId,
             ]);
+            if ($skillTags !== null) $this->replaceProjectSkillTags($projectId, $skillTags, $now);
 
             $this->writeAudit($userId, 'PROJECT_UPDATE', $projectId, 'school-project-ui', [
                 'schoolId' => $schoolId,
                 'changes' => array_keys($input),
             ]);
+            $members = $this->pdo->prepare('SELECT studentId FROM project_members WHERE projectId = :projectId AND status = "active"');
+            $members->execute(['projectId' => $projectId]);
+            $recipients = array_values(array_filter(array_map('strval', $members->fetchAll(PDO::FETCH_COLUMN) ?: [])));
+            $this->publishProjectChanged($projectId, $recipients, $status);
             $this->pdo->commit();
         } catch (\Throwable $exception) {
             if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
@@ -250,6 +265,26 @@ SQL);
         }
 
         return $this->getProject($schoolId, $projectId);
+    }
+
+    /** @param list<string> $recipients */
+    private function publishProjectChanged(string $projectId, array $recipients, string $status): void
+    {
+        if ($recipients === []) {
+            return;
+        }
+        $published = TransactionalAiOutboxPublisher::publish(
+            $this->pdo,
+            'project',
+            $projectId,
+            TransactionalAiOutboxPublisher::version(),
+            $recipients,
+            'project.changed',
+            ['status' => $status],
+        );
+        if ($published !== true) {
+            throw new \RuntimeException('Không ghi được sự kiện làm mới AI cho dự án ' . $projectId . '.');
+        }
     }
 
     private function assertTeacherBelongsToSchool(string $mentorTeacherId, string $schoolId): void
@@ -261,6 +296,37 @@ SQL);
             if (!is_string($tSchool) || $tSchool === '' || $tSchool !== $schoolId) {
                 throw new ApiException(422, 'VALIDATION_FAILED', 'Giáo viên hướng dẫn không thuộc trường học này.');
             }
+        }
+    }
+
+    /** @return list<string> */
+    private function normalizeSkillTags(mixed $value): array
+    {
+        if (!is_array($value)) throw new ApiException(422, 'VALIDATION_FAILED', 'skillTags phải là một danh sách.');
+        $codes = array_values(array_unique(array_filter(array_map(static fn ($item): string => strtolower(trim((string) $item)), $value))));
+        if ($codes === []) return [];
+        $placeholders = implode(',', array_fill(0, count($codes), '?'));
+        $stmt = $this->pdo->prepare("SELECT code FROM skills WHERE status='active' AND code IN ({$placeholders})");
+        $stmt->execute($codes);
+        $valid = array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN) ?: []);
+        sort($valid);
+        if (count($valid) !== count($codes)) throw new ApiException(422, 'VALIDATION_FAILED', 'skillTags chứa kỹ năng không tồn tại hoặc đã inactive.');
+        return $valid;
+    }
+
+    /** @param list<string> $codes */
+    private function replaceProjectSkillTags(string $projectId, array $codes, string $now): void
+    {
+        if (!$this->tableExists('project_skill_tags')) return;
+        $delete = $this->pdo->prepare('DELETE FROM project_skill_tags WHERE projectId=:projectId');
+        $delete->execute(['projectId' => $projectId]);
+        if ($codes === []) return;
+        $lookup = $this->pdo->prepare('SELECT id FROM skills WHERE code=:code AND status="active" LIMIT 1');
+        $insert = $this->pdo->prepare('INSERT INTO project_skill_tags (id,projectId,skillId,verifiedAt,createdAt) VALUES (:id,:projectId,:skillId,:verifiedAt,:createdAt)');
+        foreach ($codes as $code) {
+            $lookup->execute(['code' => $code]);
+            $skillId = $lookup->fetchColumn();
+            if (is_string($skillId) && $skillId !== '') $insert->execute(['id'=>Uuid::v4(),'projectId'=>$projectId,'skillId'=>$skillId,'verifiedAt'=>$now,'createdAt'=>$now]);
         }
     }
 

@@ -78,6 +78,10 @@ final class BusinessWorkflowRepository
     public function updatePost(string $enterpriseId, string $id, array $data): void
     {
         $this->getInternshipRepository()->updatePost($enterpriseId, $id, $data);
+        $students = (new AiAudienceResolver($this->pdo))->internshipStudents($id);
+        if ($students !== []) {
+            TransactionalAiOutboxPublisher::publish($this->pdo, 'internship_post', $id, TransactionalAiOutboxPublisher::version(), $students, 'opportunity.changed', ['status' => $data['status'] ?? null], $enterpriseId);
+        }
     }
 
     public function transitionPost(string $enterpriseId, string $id, string $from, string $to): bool

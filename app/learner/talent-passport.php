@@ -57,7 +57,15 @@ if (!empty($talentPassport['teacher_evaluations'][0])) {
 // 3. Xử lý Kết quả 4 bài Đánh giá Năng lực (DISC, MBTI, Holland, Đa trí thông minh)
 $rawAssessments = $talentPassport['assessment_results'] ?? [];
 $assessmentCards = [];
+$seenAssessmentTypes = [];
 foreach ($rawAssessments as $index => $assessment) {
+    $testKey = strtolower(trim((string) ($assessment['test_type'] ?? $assessment['testType'] ?? $assessment['test_code'] ?? $assessment['testCode'] ?? '')));
+    $baseKey = preg_replace('/_(primary|secondary|high_school|university|adult|middle|high|college)$/', '', $testKey);
+    $dedupKey = $baseKey !== '' ? $baseKey : (string) $index;
+    if (isset($seenAssessmentTypes[$dedupKey])) {
+        continue;
+    }
+    $seenAssessmentTypes[$dedupKey] = true;
     $dimensions = $assessment['dimension_scores'] ?? $assessment['dimensionScores'] ?? [];
     if (is_string($dimensions)) {
         $decodedDimensions = json_decode($dimensions, true);

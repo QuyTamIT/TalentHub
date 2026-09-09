@@ -327,6 +327,30 @@ final class LearnerOpportunityProfile
             }
         }
 
+        $internships = $payload['internships'] ?? [];
+        if (is_array($internships)) {
+            foreach ($internships as $internship) {
+                if (!is_array($internship) || !self::isVerifiedInternship($internship)) {
+                    continue;
+                }
+                foreach (['skill_tags', 'skill_codes', 'skills'] as $field) {
+                    self::appendCanonicalSkillTags($tags, $internship[$field] ?? null);
+                }
+            }
+        }
+
+        $portfolioSkills = $payload['portfolio_skills'] ?? [];
+        if (is_array($portfolioSkills)) {
+            foreach ($portfolioSkills as $skill) {
+                if (!is_array($skill) || !self::isVerifiedPortfolioSkill($skill)) {
+                    continue;
+                }
+                foreach (['skill_tags', 'skill_codes', 'code'] as $field) {
+                    self::appendCanonicalSkillTags($tags, $skill[$field] ?? null);
+                }
+            }
+        }
+
         $evaluations = $payload['evaluations'] ?? [];
         if (is_array($evaluations)) {
             foreach ($evaluations as $evaluation) {
@@ -368,6 +392,26 @@ final class LearnerOpportunityProfile
             }
         }
         return false;
+    }
+
+    /** @param array<string,mixed> $internship */
+    private static function isVerifiedInternship(array $internship): bool
+    {
+        return self::allowedStatus($internship['status'] ?? null, ['verified']);
+    }
+
+    /** @param array<string,mixed> $skill */
+    private static function isVerifiedPortfolioSkill(array $skill): bool
+    {
+        $status = $skill['verification_status'] ?? $skill['verificationStatus'] ?? null;
+        if ($status !== null && !self::allowedStatus($status, ['verified'])) {
+            return false;
+        }
+        if (self::nonEmptyString($skill['code'] ?? null)) {
+            return true;
+        }
+        $codes = $skill['skill_codes'] ?? $skill['skill_tags'] ?? null;
+        return is_array($codes) && $codes !== [];
     }
 
     /** @param array<string,mixed> $project */

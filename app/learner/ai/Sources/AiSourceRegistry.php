@@ -156,6 +156,65 @@ final class AiSourceRegistry
             },
         ));
         $this->register(new DatabaseLearnerAiExtendedSource(
+            'internship', 'internship-1.0.0', 'activity',
+            ['status', 'stage', 'hours', 'startDate', 'start_date', 'endDate', 'end_date', 'reviewedAt', 'reviewed_at', 'skill_tags', 'skill_codes', 'skills', 'updatedAt', 'updated_at'],
+            'internship_changed',
+            static function (string $studentId) use ($aggregateReader): array {
+                $aggregate = $aggregateReader($studentId);
+                $rows = is_array($aggregate['internships'] ?? null) ? $aggregate['internships'] : [];
+                $normalized = [];
+                foreach ($rows as $row) {
+                    if (!is_array($row)) {
+                        continue;
+                    }
+                    $status = strtolower(trim((string) ($row['status'] ?? '')));
+                    if ($status !== 'verified') {
+                        continue;
+                    }
+                    $normalized[] = [
+                        ...$row,
+                        'source_id' => $row['id'] ?? $row['applicationId'] ?? $row['application_id'] ?? null,
+                        'updated_at' => $row['updated_at'] ?? $row['updatedAt'] ?? $row['reviewed_at'] ?? $row['reviewedAt'] ?? null,
+                    ];
+                }
+                return $normalized;
+            },
+        ));
+        $this->register(new DatabaseLearnerAiExtendedSource(
+            'portfolio_skill', 'portfolio-skill-1.0.0', 'skills',
+            ['code', 'name', 'category', 'source_type', 'verification_status', 'verified_at', 'skill_tags', 'skill_codes', 'kind', 'updated_at'],
+            'portfolio_skill_changed',
+            static function (string $studentId) use ($aggregateReader): array {
+                $aggregate = $aggregateReader($studentId);
+                $rows = is_array($aggregate['portfolio_skills'] ?? null) ? $aggregate['portfolio_skills'] : [];
+                $normalized = [];
+                foreach ($rows as $row) {
+                    if (!is_array($row)) {
+                        continue;
+                    }
+                    $code = trim((string) ($row['code'] ?? ''));
+                    $skillId = trim((string) ($row['skill_id'] ?? $row['skillId'] ?? ''));
+                    $kind = trim((string) ($row['kind'] ?? ''));
+                    $reportId = trim((string) ($row['report_id'] ?? $row['reportId'] ?? ''));
+                    if ($code === '' || $skillId === '' || $kind === '' || $reportId === '') {
+                        continue;
+                    }
+                    $verifiedAt = $row['verified_at'] ?? $row['verifiedAt'] ?? null;
+                    $normalized[] = [
+                        ...$row,
+                        'source_id' => $kind . ':' . $reportId . ':' . $skillId,
+                        'code' => $code,
+                        'skill_codes' => [$code],
+                        'skill_tags' => [['code' => $code, 'name' => (string) ($row['name'] ?? $code)]],
+                        'verification_status' => 'verified',
+                        'verified_at' => $verifiedAt,
+                        'updated_at' => $verifiedAt,
+                    ];
+                }
+                return $normalized;
+            },
+        ));
+        $this->register(new DatabaseLearnerAiExtendedSource(
             'badge', 'badge-1.0.0', 'skills',
             ['code', 'name', 'category', 'description', 'level', 'status', 'awardedAt', 'awarded_at', 'updatedAt', 'updated_at'],
             'badge_changed',
@@ -520,6 +579,8 @@ final class AiSourceRegistry
             'activity', 'activity_experience', 'checkin' => 'activities',
             'evaluation', 'mentor_evaluation', 'teacher_feedback' => 'evaluations',
             'opportunity', 'catalog' => 'opportunities',
+            'internship' => 'internships',
+            'portfolio_skill' => 'portfolio_skills',
             default => str_ends_with($sourceType, 's') ? $sourceType : $sourceType . 's',
         };
     }

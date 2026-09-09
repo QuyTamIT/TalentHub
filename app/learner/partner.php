@@ -173,10 +173,23 @@ $partnerTypeLabel = $isEnterprise
                                 </div>
                                 <div class="learner-opportunity-list">
                                     <?php foreach ($partnerOpportunities as $opportunity): ?>
-                                        <article class="learner-opportunity-row learner-card">
+                                        <?php
+                                            $oppPartStatus = $opportunity['user_participation_status'] ?? 'open';
+                                            $oppMemStatus = $opportunity['membership_status'] ?? 'recruiting';
+                                        ?>
+                                        <article class="learner-opportunity-row learner-card" data-status="<?= learner_escape($oppMemStatus); ?>" data-participation-status="<?= learner_escape($oppPartStatus); ?>">
                                             <span class="learner-icon-tile <?= $isEnterprise ? 'learner-icon-tile--primary' : 'learner-icon-tile--secondary'; ?>"><?= learner_icon($isEnterprise ? 'briefcase' : 'graduation-cap', 21); ?></span>
                                             <div>
-                                                <span class="learner-status-dot learner-status-dot--active"><?= learner_escape($opportunity['status_label']); ?></span>
+                                                <div class="learner-opportunity-row__badges">
+                                                    <span class="learner-status-dot learner-status-dot--active"><?= learner_escape($opportunity['status_label']); ?></span>
+                                                    <?php if ($oppPartStatus === 'applied'): ?>
+                                                        <span class="learner-badge learner-badge--primary">Đã nộp đơn</span>
+                                                    <?php elseif ($oppPartStatus === 'interning'): ?>
+                                                        <span class="learner-badge learner-badge--success">Đang thực tập</span>
+                                                    <?php elseif ($oppPartStatus === 'completed'): ?>
+                                                        <span class="learner-badge learner-badge--neutral">Đã hoàn thành</span>
+                                                    <?php endif; ?>
+                                                </div>
                                                 <h3><?= learner_escape($opportunity['title']); ?></h3>
                                                 <p><?= learner_escape($opportunity['work_type']); ?> · <?= learner_escape($opportunity['location']); ?> · Hạn <?= learner_escape((new DateTimeImmutable($opportunity['deadline']))->format('d/m/Y')); ?></p>
                                                 <div class="learner-chip-list">

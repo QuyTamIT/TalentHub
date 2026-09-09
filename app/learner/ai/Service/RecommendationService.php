@@ -41,7 +41,7 @@ final class RecommendationService
      * @param callable(string):list<string> $scopeResolver
      * @param callable(string,list<string>):RecommendationInput $snapshotBuilder
      * @param callable(RecommendationInput):DataQualityResult $qualityGate
-     * @param callable(RecommendationInput):bool $snapshotFreshness
+     * @param callable(RecommendationInput,string):bool $snapshotFreshness
      */
     public function __construct(
         private readonly RecommendationRepository $repository,
@@ -105,6 +105,19 @@ final class RecommendationService
                 : 'provider_unavailable';
             return $this->mapper->providerUnavailable($reason, $run);
         }
+        try {
+            $input = ($this->snapshotBuilder)($studentId, $scopes);
+            if ($input instanceof RecommendationInput && $this->runSnapshotIsStale($run, $input)) {
+                if (($run['engineType'] ?? null) === 'model' && ($run['status'] ?? null) === 'completed') {
+                    return $this->mapper->staleModel($run);
+                }
+                $run['freshness_status'] = 'stale_model';
+            }
+        } catch (\Throwable) {
+            if (($run['engineType'] ?? null) === 'model' && ($run['status'] ?? null) === 'completed') {
+                return $this->mapper->staleModel($run);
+            }
+        }
         return $this->mapper->run($run);
     }
 
@@ -123,7 +136,7 @@ final class RecommendationService
             $resolvedConsent = ($this->scopeResolver)($studentId);
             $scopes = $this->normalizeScopes($resolvedConsent);
             $input = ($this->snapshotBuilder)($studentId, $scopes);
-            $snapshotCurrent = (bool) (($this->snapshotFreshness)($input));
+            $snapshotCurrent = (bool) (($this->snapshotFreshness)($input, $studentId));
             $quality = ($this->qualityGate)($input);
             if (!$quality instanceof DataQualityResult) {
                 return $this->mapper->sourceUnavailable();
@@ -197,6 +210,16 @@ final class RecommendationService
             }
             return $this->mapper->engineFailure();
         }
+    }
+
+    /** @param array<string,mixed> $run */
+    private function runSnapshotIsStale(array $run, RecommendationInput $input): bool
+    {
+        $stored = $run['inputHash'] ?? $run['snapshot_hash'] ?? $run['contentHash'] ?? null;
+        if (!is_string($stored) || $stored === '') {
+            return false;
+        }
+        return !hash_equals($stored, $input->contentHash());
     }
 
     /** @param mixed $scopes @return list<string> */

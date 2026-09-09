@@ -3,11 +3,14 @@ declare(strict_types=1);
 
 namespace TalentHub\Modules\Student\Repository;
 
+require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/TransactionalAiOutboxPublisher.php';
+
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
 use PDOException;
 use TalentHub\Http\ApiException;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 use TalentHub\Support\Uuid;
 use Throwable;
 
@@ -154,6 +157,17 @@ final class PortfolioRepository
                 'eventKey'=>"portfolio_reviewed:{$kind}:{$reportId}:{$version}",
                 'studentId'=>$report['studentId'],
             ]);
+            if (in_array($decision, ['verified', 'revoked'], true)) {
+                TransactionalAiOutboxPublisher::publish(
+                    $this->pdo,
+                    'portfolio_report',
+                    $reportId,
+                    $version,
+                    [$report['studentId']],
+                    $decision === 'verified' ? 'portfolio.verified' : 'portfolio.revoked',
+                    ['kind' => $kind, 'status' => $decision, 'skill_count' => count($skillIds)],
+                );
+            }
             $result = $this->row($kind, $reportId);
             $this->pdo->commit();
             return $result;

@@ -150,6 +150,20 @@ final class TeacherGradingRepository
         return $this->registrationForTeacher($teacherId, $activityId, $studentId, false);
     }
 
+    public function classContextForTeacher(string $teacherId, string $classId, string $studentId): bool
+    {
+        $statement = $this->pdo->prepare('SELECT 1 FROM student_profiles sp INNER JOIN classes c ON c.id=sp.classId INNER JOIN teacher_profiles tp ON tp.schoolId=c.schoolId WHERE sp.id=:studentId AND c.id=:classId AND tp.id=:teacherId AND sp.studyStatus="active" LIMIT 1');
+        $statement->execute(['studentId' => $studentId, 'classId' => $classId, 'teacherId' => $teacherId]);
+        return (bool) $statement->fetchColumn();
+    }
+
+    public function projectContextForTeacher(string $teacherId, string $projectId, string $studentId): bool
+    {
+        $statement = $this->pdo->prepare('SELECT 1 FROM project_members pm INNER JOIN projects p ON p.id=pm.projectId WHERE pm.projectId=:projectId AND pm.studentId=:studentId AND pm.status="active" AND p.mentorTeacherId=:teacherId LIMIT 1');
+        $statement->execute(['projectId' => $projectId, 'studentId' => $studentId, 'teacherId' => $teacherId]);
+        return (bool) $statement->fetchColumn();
+    }
+
     /** @return list<array<string,mixed>> */
     public function assessmentScores(string $teacherId, string $activityId): array
     {
@@ -171,11 +185,10 @@ final class TeacherGradingRepository
     public function draftAssessmentForTeacherUser(string $teacherUserId, string $assessmentId): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT assessment.id,assessment.activityId,assessment.studentId,assessment.version,
+            'SELECT assessment.id,assessment.activityId,assessment.classId,assessment.projectId,assessment.studentId,assessment.version,
                     assessment.overallScore,assessment.comment,assessment.status
              FROM assessments assessment
              INNER JOIN teacher_profiles teacher ON teacher.id=assessment.teacherId
-             INNER JOIN activities activity ON activity.id=assessment.activityId AND activity.createdByTeacherId=teacher.id
              WHERE teacher.userId=:userId AND assessment.id=:assessmentId LIMIT 1'
         );
         $statement->execute(['userId' => $teacherUserId, 'assessmentId' => $assessmentId]);
@@ -194,7 +207,7 @@ final class TeacherGradingRepository
     public function saveAssessment(
         string $teacherId,
         string $studentId,
-        string $activityId,
+        ?string $activityId,
         ?string $assessmentId,
         int $expectedVersion,
         ?string $overallScore,
@@ -203,16 +216,18 @@ final class TeacherGradingRepository
         ?string $publishedAt,
         array $criteriaScores,
         ?string $actorUserId = null,
-        ?string $requestId = null
+        ?string $requestId = null,
+        ?string $classId = null,
+        ?string $projectId = null
     ): void {
         $this->pdo->beginTransaction();
 
         try {
-            if ($this->registrationForTeacher($teacherId, $activityId, $studentId, true) === null) {
+            if ($activityId !== '' && $classId === null && $projectId === null && $this->registrationForTeacher($teacherId, $activityId, $studentId, true) === null) {
                 throw new TeacherGradingConflictException('Assessment scope changed during save.');
             }
 
-            $existing = $this->assessmentForTeacher($teacherId, $studentId, $activityId, $assessmentId);
+            $existing = $this->assessmentForTeacher($teacherId, $studentId, $activityId, $classId, $projectId, $assessmentId);
             if (($existing['status'] ?? null) === 'published') {
                 throw new TeacherGradingConflictException('Published assessments are immutable.');
             }
@@ -224,14 +239,16 @@ final class TeacherGradingRepository
                 $savedAssessmentId = Uuid::v4();
                 $statement = $this->pdo->prepare(
                     'INSERT INTO assessments
-                        (id, teacherId, studentId, activityId, overallScore, comment, status, publishedAt, version)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)'
+                        (id, teacherId, studentId, activityId, classId, projectId, overallScore, comment, status, publishedAt, version)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)'
                 );
                 $statement->execute([
                     $savedAssessmentId,
                     $teacherId,
                     $studentId,
                     $activityId,
+                    $classId,
+                    $projectId,
                     $overallScore,
                     $comment,
                     $status,
@@ -251,7 +268,6 @@ final class TeacherGradingRepository
                      WHERE id = ?
                        AND teacherId = ?
                        AND studentId = ?
-                       AND activityId = ?
                        AND version = ?'
                 );
                 $statement->execute([
@@ -262,7 +278,6 @@ final class TeacherGradingRepository
                     $assessmentId,
                     $teacherId,
                     $studentId,
-                    $activityId,
                     $expectedVersion,
                 ]);
                 if ($statement->rowCount() !== 1) {
@@ -291,7 +306,7 @@ final class TeacherGradingRepository
                 $this->getBadgeAwardService()->evaluateAndAward($studentId, 'system');
             }
 
-            TransactionalAiOutboxPublisher::publish($this->pdo,'teacher_evaluation',$savedAssessmentId,$expectedVersion+1,[$studentId],$status==='published'?'evaluation.published':'evaluation.updated',['activity_id'=>$activityId,'status'=>$status]);
+            TransactionalAiOutboxPublisher::publish($this->pdo,'teacher_evaluation',$savedAssessmentId,$expectedVersion+1,[$studentId],$status==='published'?'evaluation.published':'evaluation.updated',['activity_id'=>$activityId,'class_id'=>$classId,'project_id'=>$projectId,'status'=>$status]);
 
             if ($this->hasTable('audit_logs') && is_string($actorUserId) && $actorUserId !== '' && is_string($requestId) && $requestId !== '') {
                 $audit = $this->pdo->prepare(
@@ -341,18 +356,15 @@ final class TeacherGradingRepository
     }
 
     /** @return array<string,mixed>|null */
-    private function assessmentForTeacher(string $teacherId, string $studentId, string $activityId, ?string $assessmentId): ?array
+    private function assessmentForTeacher(string $teacherId, string $studentId, ?string $activityId, ?string $classId, ?string $projectId, ?string $assessmentId): ?array
     {
         $sql =
             'SELECT assessment.id, assessment.version, assessment.status
              FROM assessments assessment
-             INNER JOIN activities activity
-               ON activity.id = assessment.activityId
-              AND activity.createdByTeacherId = ?
              WHERE assessment.teacherId = ?
                AND assessment.studentId = ?
-               AND assessment.activityId = ?';
-        $parameters = [$teacherId, $teacherId, $studentId, $activityId];
+               AND ((assessment.activityId = ? AND ? <> "") OR (assessment.classId = ? AND ? <> "") OR (assessment.projectId = ? AND ? <> ""))';
+        $parameters = [$teacherId, $studentId, $activityId, $activityId, $classId, $classId, $projectId, $projectId];
 
         if ($assessmentId !== null) {
             $sql .= ' AND assessment.id = ?';

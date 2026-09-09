@@ -27,6 +27,10 @@ final class DatabaseProjectRepository extends AbstractDatabaseRepository impleme
             p.updatedAt,
             s.name AS schoolName,
             mentor.fullName AS mentorName,
+            CASE WHEN pm.status = 'active' AND p.status = 'completed' THEN 'completed'
+                 WHEN pm.status = 'active' THEN 'active'
+                 ELSE 'recruiting' END AS membershipStatus,
+            CASE WHEN pm.status = 'active' THEN 1 ELSE 0 END AS isMember,
             COALESCE((
                 SELECT COUNT(*)
                 FROM project_members pm
@@ -38,9 +42,10 @@ final class DatabaseProjectRepository extends AbstractDatabaseRepository impleme
         INNER JOIN schools s ON s.id = p.schoolId AND s.status = 'active'
         LEFT JOIN teacher_profiles tp ON tp.id = p.mentorTeacherId AND tp.schoolId = p.schoolId
         LEFT JOIN users mentor ON mentor.id = tp.userId
+        LEFT JOIN project_members pm ON pm.projectId = p.id AND pm.studentId = sp.id
         WHERE sp.id = :student_id
           AND sp.studyStatus = 'active'
-          AND p.status = 'in_progress'
+          AND p.status IN ('in_progress', 'completed')
         SQL;
 
     private const SPONSORSHIPS_SQL = <<<'SQL'

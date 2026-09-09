@@ -27,6 +27,7 @@ use TalentHub\Learner\Ai\Evaluation\ShadowRunService;
 use TalentHub\Learner\Ai\Model\ModelRecommendationEngine;
 use TalentHub\Learner\Ai\Model\ModelOpportunityMatchEngine;
 use TalentHub\Learner\Ai\Model\ModelJobMatchEngine;
+use TalentHub\Learner\Ai\Model\ModelActivityMatchEngine;
 use TalentHub\Learner\Ai\Model\JobMatchPromptRegistry;
 use TalentHub\Learner\Ai\Model\OpportunityMatchPromptRegistry;
 use TalentHub\Learner\Ai\Model\PromptRegistry;
@@ -57,6 +58,7 @@ use TalentHub\Learner\Ai\Service\RecommendationResponseMapper;
 use TalentHub\Learner\Ai\Service\RecommendationService;
 use TalentHub\Learner\Ai\Service\OpportunityMatchService;
 use TalentHub\Learner\Ai\Service\JobMatchingService;
+use TalentHub\Learner\Ai\Service\ActivityMatchService;
 use TalentHub\Learner\Ai\Service\RecommendationClickService;
 use TalentHub\Learner\Ai\Service\RoadmapService;
 use TalentHub\Learner\Ai\Service\RoadmapCustomizationService;
@@ -149,7 +151,7 @@ final class LearnerApiContext
                 throw new ApiException(403, 'PERMISSION_DENIED', 'Endpoint chỉ dành cho học viên.');
             }
         } catch (ApiException $exception) {
-            if ($allowDemoAutologin) {
+            if ($allowDemoAutologin && $exception->status === 401) {
                 $user = $this->localFallbackStudent();
                 $this->session->login($user);
             } else {
@@ -335,7 +337,7 @@ SQL);
             static fn (string $candidate) => $consent->decision($candidate),
             static fn (string $candidate, array $scopes) => $snapshotBuilder->build($candidate, $scopes),
             static fn ($input) => (new DataQualityGate())->evaluate($input),
-            static fn ($input): bool => true,
+            static fn ($input): bool => $input instanceof \TalentHub\Learner\Ai\Domain\RecommendationInput,
             $modelEngine,
             $modelConfig,
             $rolloutSelector,
@@ -866,6 +868,58 @@ SQL);
     public function onboardingService(): LearnerOnboardingService
     {
         return new LearnerOnboardingService(new LearnerOnboardingRepository($this->pdo));
+    }
+
+    public function activityMatchService(string $studentId): ActivityMatchService
+    {
+        $consent = $this->consentPolicy();
+        $snapshotBuilder = $this->snapshotBuilder();
+        $environment = self::recommendationEnvironment();
+        try {
+            $config = RecommendationConfig::fromEnvironment($environment);
+        } catch (\Throwable) {
+            $config = RecommendationConfig::fromEnvironment(['TALENTHUB_AI_ENABLED' => 'false']);
+        }
+
+        $engine = null;
+        $modelVersion = '';
+        if ($config->enabled()) {
+            $transport = $GLOBALS['__TALENTHUB_TEST_HTTP__'] ?? null;
+            $provider = new HttpRecommendationProvider(
+                $config,
+                is_callable($transport) ? $transport : null,
+                null,
+                $this->providerCircuitBreaker((string) $config->provider()),
+                null,
+                null,
+                AiMetricsCollector::shared(),
+            );
+            $initialHash = $consent->decision($studentId)->decisionHash();
+            $authorizer = new class($consent, $studentId, $initialHash) implements ProviderAttemptAuthorizer {
+                public function __construct(private readonly ConsentPolicy $consent, private readonly string $studentId, private readonly string $initialHash) {}
+                public function beforeAttempt(int $attemptNumber): \TalentHub\Learner\Ai\Consent\ConsentDecision
+                {
+                    if ($attemptNumber < 1) throw new \InvalidArgumentException('Provider attempt number must be positive.');
+                    $decision = $this->consent->decision($this->studentId);
+                    if (!$decision->permitsAllRequiredScopes()) throw new ProviderConsentDenied($decision->denialReason() ?? 'consent_missing');
+                    if (!hash_equals($this->initialHash, $decision->decisionHash())) throw new ProviderConsentDenied('consent_changed');
+                    return $decision;
+                }
+            };
+            $engine = new ModelActivityMatchEngine($provider, $authorizer);
+            $modelVersion = (string) ($config->model() ?? '');
+        }
+
+        return new ActivityMatchService(
+            $this->pdo,
+            static function (string $candidate) use ($snapshotBuilder, $consent) {
+                $decision = $consent->decision($candidate);
+                return $snapshotBuilder->build($candidate, $decision->allowedScopes());
+            },
+            static fn (string $candidate): array => $consent->decision($candidate)->allowedScopes(),
+            $engine,
+            $modelVersion,
+        );
     }
 
     public function groupMatchingService(string $studentId): GroupMatchingService

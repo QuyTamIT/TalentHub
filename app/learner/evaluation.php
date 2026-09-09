@@ -48,7 +48,10 @@ if ($isDatabaseMode) {
                 $publishedDate = $parsedPublishedAt === false ? $publishedAt : $parsedPublishedAt->format('d/m/Y');
             }
             $activityTitle = trim((string) ($eval['activity_title'] ?? ''));
-            $evaluationLabel = $activityTitle !== '' ? $activityTitle : 'Đánh giá đồ án & năng lực';
+            $contextLabel = $activityTitle;
+            if ($contextLabel === '' && !empty($eval['project_id'])) $contextLabel = 'Đánh giá dự án chuyên ngành';
+            if ($contextLabel === '' && !empty($eval['class_id'])) $contextLabel = 'Đánh giá theo lớp học phần';
+            $evaluationLabel = $contextLabel !== '' ? $contextLabel : 'Đánh giá năng lực chuyên ngành';
             if ($publishedDate !== '') {
                 $evaluationLabel .= ' · ' . $publishedDate;
             }
@@ -89,7 +92,7 @@ if ($isDatabaseMode) {
                     'reviewer' => $reviewerName,
                     'reviewer_initials' => $reviewerInitials,
                     'published_date' => $publishedDate,
-                    'activity_title' => $activityTitle ?: 'Đồ án Chuyên ngành & Năng lực',
+                    'activity_title' => $contextLabel ?: 'Đồ án Chuyên ngành & Năng lực',
                 ],
             ];
 
