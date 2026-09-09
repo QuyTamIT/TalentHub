@@ -64,4 +64,18 @@ if (!$hasMarketing || !$hasHackathon) {
     throw new RuntimeException("Test failed: Past confirmed activities must be present in history!");
 }
 
-echo "PASS: Lifecycle separation test passed successfully!\n";
+// Verify DatabaseCheckinRepository returns the exact 2 confirmed check-ins for this student
+$checkinRepo = new \TalentHub\Learner\Data\Database\DatabaseCheckinRepository($pdo);
+$checkinHistory = $checkinRepo->history($studentId, 25, 0);
+if (count($checkinHistory) !== 2) {
+    throw new RuntimeException("Test failed: Checkin history count should be exactly 2, got " . count($checkinHistory));
+}
+if (($checkinHistory[0]['activity']['title'] ?? '') !== 'Dự án Digital Marketing thực chiến') {
+    throw new RuntimeException("Test failed: Most recent check-in should be Digital Marketing, got " . ($checkinHistory[0]['activity']['title'] ?? ''));
+}
+if (($checkinHistory[1]['activity']['title'] ?? '') !== 'FPTU Hackathon vì cộng đồng') {
+    throw new RuntimeException("Test failed: Second check-in should be Hackathon, got " . ($checkinHistory[1]['activity']['title'] ?? ''));
+}
+
+echo "PASS: Lifecycle separation test and checkin sync test passed successfully!\n";
+
