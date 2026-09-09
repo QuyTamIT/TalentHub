@@ -204,7 +204,10 @@ if ($isDatabaseMode && !$deferTalentPassport) {
     ];
 
     $certificates = $tp['certificates'];
-    $projects = $tp['projects'];
+    $projects = array_values(array_filter($tp['projects'] ?? [], static function (array $project): bool {
+        $status = strtolower((string)($project['status'] ?? ''));
+        return in_array($status, ['completed', 'đã hoàn thành'], true);
+    }));
     $learnerBadges = $badgeOverview['badges'] ?? $tp['badges'];
 } elseif ($isDatabaseMode) {
     $dashboardKpis = [
@@ -253,13 +256,6 @@ if ($isDatabaseMode && !$deferTalentPassport) {
             'role' => 'Trưởng nhóm',
             'status' => 'Đã hoàn thành',
             'tone' => 'success',
-        ],
-        [
-            'name' => 'EduTalent Hackathon 2025',
-            'description' => 'Top 5 toàn quốc – ứng dụng quản lý hoạt động học sinh.',
-            'role' => 'Lập trình viên',
-            'status' => 'Đang triển khai',
-            'tone' => 'warning',
         ],
     ];
 
@@ -395,8 +391,10 @@ if ($isDatabaseMode) {
                 : learner_activity_category_label($canonicalCategory);
             $location = trim((string) ($entry['location_name'] ?? '')) ?: 'Chưa cập nhật';
             $cover = trim((string) ($entry['cover_image_url'] ?? ''));
-            if (str_contains($cover, '..') || preg_match('#\A(?:/app/learner/)?assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg)\z#i', $cover) !== 1) {
+            if (str_contains($cover, '..') || preg_match('#\A(?:/app/learner/)?(assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg))\z#i', $cover, $matches) !== 1) {
                 $cover = 'assets/activities/illustrations/hero-detail.svg';
+            } else {
+                $cover = is_file(dirname(__DIR__) . '/' . $matches[1]) ? $matches[1] : 'assets/activities/illustrations/hero-detail.svg';
             }
             $coverAlt = trim((string) ($entry['cover_image_alt'] ?? '')) ?: 'Ảnh hoạt động ' . $title;
 
