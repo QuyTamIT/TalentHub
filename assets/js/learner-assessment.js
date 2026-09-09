@@ -14,6 +14,12 @@
             : null;
     }
 
+    function buildRetakeWarningMessage(elapsedDays, remainingDays) {
+        const elapsed = Math.max(0, parseInt(elapsedDays, 10) || 0);
+        const remaining = Math.max(0, parseInt(remainingDays, 10) || 0);
+        return `Bạn đã hoàn thành bài đánh giá này cách đây ${elapsed} ngày. Kết quả xu hướng năng lực và tính cách thường ổn định và đạt độ tin cậy cao nhất sau chu kỳ 90 ngày (còn ${remaining} ngày nữa). Bạn có chắc chắn muốn làm lại ngay bây giờ không?`;
+    }
+
     function presentationState(payload) {
         const status = typeof payload?.status === 'string' ? payload.status : '';
         if (status === 'loading') return 'loading';
@@ -21,6 +27,7 @@
         if (status === 'save-error') return 'save-error';
         if (status === 'submitting') return 'submitting';
         if (status === 'validation-error') return 'validation-error';
+        if (status === 'retake-confirmation-required' || status === 'retake_confirmation_required') return 'retake-confirmation-required';
         if (status === 'expired') return 'expired';
         if (status === 'source-error' || status === 'source_unavailable') return 'source-error';
         if (status === 'complete' || status === 'submitted') return 'complete';
@@ -129,14 +136,31 @@
             }
         }
 
-        async function startOrResume(assessmentCode, educationBand) {
-            lastAction = () => startOrResume(assessmentCode, educationBand);
-            view.render('loading', { assessmentCode, educationBand });
+        async function startOrResume(assessmentCode, educationBand, confirmEarlyRetake = false) {
+            lastAction = () => startOrResume(assessmentCode, educationBand, confirmEarlyRetake);
+            view.render('loading', { assessmentCode, educationBand, confirmEarlyRetake });
             try {
-                const response = await api.send('POST', '/assessment-attempts.php', {
+                const payload = {
                     assessmentCode,
                     educationBand,
-                });
+                };
+                if (confirmEarlyRetake) {
+                    payload.confirm_early_retake = true;
+                }
+                const response = await api.send('POST', '/assessment-attempts.php', payload);
+                if (response?.code === 'RETAKE_CONFIRMATION_REQUIRED' || response?.requires_confirmation === true) {
+                    const retakePayload = {
+                        status: 'retake-confirmation-required',
+                        code: 'RETAKE_CONFIRMATION_REQUIRED',
+                        requires_confirmation: true,
+                        elapsed_days: response.elapsed_days ?? 0,
+                        remaining_days: response.remaining_days ?? 0,
+                        last_submitted_at: response.last_submitted_at ?? null,
+                        assessmentCode,
+                        educationBand,
+                    };
+                    return renderState('retake-confirmation-required', retakePayload);
+                }
                 setAttempt(response);
 
                 // If attempt doesn't contain full question details, fetch owned attempt with questions
@@ -157,6 +181,20 @@
                 }
                 return renderState('ready', currentAttempt);
             } catch (error) {
+                if (error?.code === 'RETAKE_CONFIRMATION_REQUIRED' || error?.status === 409) {
+                    const retakePayload = {
+                        status: 'retake-confirmation-required',
+                        code: 'RETAKE_CONFIRMATION_REQUIRED',
+                        requires_confirmation: true,
+                        elapsed_days: error?.elapsed_days ?? error?.details?.elapsed_days ?? 0,
+                        remaining_days: error?.remaining_days ?? error?.details?.remaining_days ?? 0,
+                        last_submitted_at: error?.last_submitted_at ?? error?.details?.last_submitted_at ?? null,
+                        error,
+                        assessmentCode,
+                        educationBand,
+                    };
+                    return renderState('retake-confirmation-required', retakePayload);
+                }
                 if (error?.status === 422 || error?.code === 'VALIDATION_FAILED' || error?.code === 'RETAKE_LOCKED') {
                     return renderState('validation-error', { error, assessmentCode, educationBand });
                 }
@@ -772,7 +810,7 @@
                     && global.matchMedia('(prefers-reduced-motion: reduce)').matches === true;
                 nodes.questionCard?.scrollIntoView?.({
                     behavior: reducedMotion ? 'auto' : 'smooth',
-                    block: 'start',
+                    block: 'nearest',
                 });
                 nodes.questionTitle?.focus?.({ preventScroll: true });
             },
@@ -826,11 +864,10 @@
             const status = doc.createElement('span');
             status.className = 'learner-assessment-card__status';
             const published = String(item?.status || '').toLowerCase() === 'published';
-            const locked = item?.attempt_status === 'retake_locked';
             const complete = ['submitted', 'retake_locked'].includes(String(item?.attempt_status || '').toLowerCase())
                 || Boolean(item?.latest_result?.id);
-            status.className += complete ? ' is-complete' : (published && !locked ? ' is-experimental' : ' is-unpublished');
-            status.textContent = complete ? 'Đã hoàn thành' : (locked ? 'Chưa đến ngày làm lại' : (published ? 'Sẵn sàng' : 'Chưa có phiên bản được duyệt'));
+            status.className += complete ? ' is-complete' : (published ? ' is-experimental' : ' is-unpublished');
+            status.textContent = complete ? 'Đã hoàn thành' : (published ? 'Sẵn sàng' : 'Chưa có phiên bản được duyệt');
             article.appendChild(status);
             const title = createTextElement(doc, 'h2', item?.name || item?.test_name || meta.name);
             const description = createTextElement(doc, 'p', item?.description || meta.description);
@@ -839,9 +876,9 @@
             if (complete && item?.latest_result?.result_code) {
                 article.appendChild(createTextElement(doc, 'span', item.latest_result.result_code, 'learner-assessment-card__result'));
             }
-            const action = doc.createElement(published && !locked ? 'a' : 'button');
-            action.className = `learner-btn learner-btn--${published && !locked ? 'primary' : 'secondary'} learner-btn--block`;
-            action.textContent = locked ? 'Chưa thể làm lại' : (published ? (item?.attempt_status === 'in_progress' ? 'Tiếp tục bài test' : 'Bắt đầu bài test') : 'Chưa có phiên bản được duyệt');
+            const action = doc.createElement(published ? 'a' : 'button');
+            action.className = `learner-btn learner-btn--${published ? (complete ? 'primary' : 'primary') : 'secondary'} learner-btn--block`;
+            action.textContent = published ? (item?.attempt_status === 'in_progress' ? 'Tiếp tục bài test' : (complete ? 'Làm lại bài đánh giá' : 'Bắt đầu bài test')) : 'Chưa có phiên bản được duyệt';
             if (action.tagName === 'A') action.href = `assessment.php?code=${encodeURIComponent(code)}${bandQuery}`;
             else { action.type = 'button'; action.disabled = true; }
             article.appendChild(action);
@@ -1089,12 +1126,57 @@
         const code = String(root.dataset.assessmentCode || boot.assessmentCode || 'holland');
         const view = createDomView(root);
         const controller = createAssessmentController({ api, view });
-        let selectedBand = normalizeEducationBand(new URLSearchParams(global.location?.search || '').get('band'));
+        const urlParams = new URLSearchParams(global.location?.search || '');
+        let selectedBand = normalizeEducationBand(urlParams.get('band'));
+        const urlAttemptId = urlParams.get('attempt') || '';
         let currentAttempt = null;
         const resultUrl = boot.result_url || `assessment-result.php?code=${encodeURIComponent(code)}`;
         let retryRunnerAction = null;
 
-        const start = async (band) => {
+        const retakeModal = doc.querySelector('[data-assessment-retake-modal]');
+        const confirmRetakeBtn = doc.querySelector('[data-confirm-retake]');
+        const cancelRetakeBtns = doc.querySelectorAll('[data-close-retake-modal], [data-cancel-retake]');
+        const elapsedDaysEl = doc.querySelector('[data-retake-elapsed-days]');
+        const remainingDaysEl = doc.querySelector('[data-retake-remaining-days]');
+        const modalMessageEl = doc.querySelector('[data-retake-modal-message]');
+
+        function openRetakeModal(info) {
+            if (!retakeModal) return;
+            const elapsed = info?.elapsed_days ?? 0;
+            const remaining = info?.remaining_days ?? 0;
+            if (elapsedDaysEl) elapsedDaysEl.textContent = String(elapsed);
+            if (remainingDaysEl) remainingDaysEl.textContent = String(remaining);
+            if (modalMessageEl) {
+                const strongElapsed = modalMessageEl.querySelector('[data-retake-elapsed-days]');
+                const strongRemaining = modalMessageEl.querySelector('[data-retake-remaining-days]');
+                if (!strongElapsed && !strongRemaining) {
+                    modalMessageEl.textContent = buildRetakeWarningMessage(elapsed, remaining);
+                }
+            }
+            setHidden(retakeModal, false);
+        }
+
+        function closeRetakeModal() {
+            if (!retakeModal) return;
+            setHidden(retakeModal, true);
+        }
+
+        cancelRetakeBtns.forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                closeRetakeModal();
+            });
+        });
+
+        if (confirmRetakeBtn) {
+            confirmRetakeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                closeRetakeModal();
+                start(selectedBand, true);
+            });
+        }
+
+        const start = async (band, confirmEarly = false) => {
             const confirmedBand = normalizeEducationBand(band || selectedBand);
             if (confirmedBand === '') {
                 view.showBandModal();
@@ -1102,14 +1184,16 @@
                 return { code: 'EDUCATION_BAND_REQUIRED', requires_education_band: true };
             }
             selectedBand = confirmedBand;
-            retryRunnerAction = () => start(selectedBand);
+            retryRunnerAction = () => start(selectedBand, confirmEarly);
             view.hideBandError();
             view.hideBandModal();
-            const attempt = await controller.startOrResume(code, selectedBand);
+            const attempt = await controller.startOrResume(code, selectedBand, confirmEarly);
             if (attempt?.id) {
                 currentAttempt = attempt;
                 view.render('ready', attempt);
                 view.revealQuestion();
+            } else if (attempt?.status === 'retake-confirmation-required' || attempt?.code === 'RETAKE_CONFIRMATION_REQUIRED') {
+                openRetakeModal(attempt);
             }
         };
         const loadDetail = async (band) => {
@@ -1217,6 +1301,17 @@
             const modal = button.closest('.learner-modal');
             setHidden(modal, true);
         }));
+
+        if (urlAttemptId) {
+            return controller.loadAttempt(urlAttemptId).then((attempt) => {
+                if (attempt?.id) {
+                    currentAttempt = attempt;
+                    view.render('ready', attempt);
+                    view.revealQuestion();
+                }
+                return attempt;
+            });
+        }
 
         return loadDetail(selectedBand);
     }
@@ -1339,6 +1434,102 @@
         const search = new URLSearchParams(global.location?.search || '');
         const attemptId = search.get('attempt') || '';
         const educationBand = normalizeEducationBand(search.get('band'));
+        const doc = root.ownerDocument || document;
+
+        const retakeModal = doc.querySelector('[data-assessment-retake-modal]');
+        const retakeBtn = root.querySelector('[data-retake-assessment]');
+        const confirmBtn = doc.querySelector('[data-confirm-retake]');
+        const cancelBtns = doc.querySelectorAll('[data-close-retake-modal], [data-cancel-retake]');
+        const elapsedDaysEl = doc.querySelector('[data-retake-elapsed-days]');
+        const remainingDaysEl = doc.querySelector('[data-retake-remaining-days]');
+        const modalMessageEl = doc.querySelector('[data-retake-modal-message]');
+
+        function openRetakeModal(info) {
+            if (!retakeModal) return;
+            const elapsed = info?.elapsed_days ?? 0;
+            const remaining = info?.remaining_days ?? 0;
+            if (elapsedDaysEl) elapsedDaysEl.textContent = String(elapsed);
+            if (remainingDaysEl) remainingDaysEl.textContent = String(remaining);
+            if (modalMessageEl) {
+                const strongElapsed = modalMessageEl.querySelector('[data-retake-elapsed-days]');
+                const strongRemaining = modalMessageEl.querySelector('[data-retake-remaining-days]');
+                if (!strongElapsed && !strongRemaining) {
+                    modalMessageEl.textContent = buildRetakeWarningMessage(elapsed, remaining);
+                }
+            }
+            setHidden(retakeModal, false);
+        }
+
+        function closeRetakeModal() {
+            if (!retakeModal) return;
+            setHidden(retakeModal, true);
+        }
+
+        cancelBtns.forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                closeRetakeModal();
+            });
+        });
+
+        async function triggerRetake(confirmEarly = false) {
+            if (retakeBtn) retakeBtn.disabled = true;
+            if (confirmBtn) confirmBtn.disabled = true;
+            try {
+                const payload = {
+                    assessmentCode: code,
+                };
+                if (educationBand) {
+                    payload.educationBand = educationBand;
+                }
+                if (confirmEarly) {
+                    payload.confirm_early_retake = true;
+                }
+                const response = await api.send('POST', '/assessment-attempts.php', payload);
+                if (response?.code === 'RETAKE_CONFIRMATION_REQUIRED' || response?.requires_confirmation === true) {
+                    openRetakeModal(response);
+                    return;
+                }
+                const newAttemptId = response?.id || response?.attempt_id;
+                if (newAttemptId) {
+                    const effectiveBand = educationBand || response?.education_band;
+                    const bandQuery = effectiveBand ? `&band=${encodeURIComponent(effectiveBand)}` : '';
+                    if (global.location) {
+                        global.location.href = `assessment.php?code=${encodeURIComponent(code)}&attempt=${encodeURIComponent(newAttemptId)}${bandQuery}`;
+                    }
+                }
+            } catch (error) {
+                if (error?.code === 'RETAKE_CONFIRMATION_REQUIRED' || error?.status === 409) {
+                    openRetakeModal({
+                        elapsed_days: error?.elapsed_days ?? error?.details?.elapsed_days ?? 0,
+                        remaining_days: error?.remaining_days ?? error?.details?.remaining_days ?? 0,
+                    });
+                    return;
+                }
+                if (global.alert) {
+                    global.alert(error?.message || 'Không thể bắt đầu làm lại bài đánh giá.');
+                }
+            } finally {
+                if (retakeBtn) retakeBtn.disabled = false;
+                if (confirmBtn) confirmBtn.disabled = false;
+            }
+        }
+
+        if (retakeBtn) {
+            retakeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                triggerRetake(false);
+            });
+        }
+
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                closeRetakeModal();
+                triggerRetake(true);
+            });
+        }
+
         const resultView = {
             render: (state, payload) => {
                 if (state === 'complete' || state === 'ready') renderResult(root, payload);
@@ -1442,6 +1633,7 @@
 
     const exported = {
         presentationState,
+        buildRetakeWarningMessage,
         createAssessmentController,
         createDomView,
         renderLikertOption,
