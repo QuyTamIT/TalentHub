@@ -91,8 +91,16 @@
   };
 
   const formatDate = (value) => {
-    const parsed = value ? new Date(value) : new Date();
-    return Number.isNaN(parsed.getTime()) ? 'Vừa check-in' : parsed.toLocaleString('vi-VN');
+    if (!value) return 'Vừa check-in';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return 'Vừa check-in';
+    const pad = (n) => String(n).padStart(2, '0');
+    const day = pad(parsed.getDate());
+    const month = pad(parsed.getMonth() + 1);
+    const year = parsed.getFullYear();
+    const hours = pad(parsed.getHours());
+    const minutes = pad(parsed.getMinutes());
+    return `${day}/${month}/${year} · ${hours}:${minutes}`;
   };
 
   const renderRecord = (item) => {
