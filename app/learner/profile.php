@@ -223,32 +223,38 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                     </section>
                 </div>
 
+                <?php
+                $completedProjects = array_values(array_filter($projects ?? [], static function (array $p): bool {
+                    $st = strtolower((string)($p['status'] ?? ''));
+                    return in_array($st, ['completed', 'đã hoàn thành'], true);
+                }));
+                ?>
                 <section class="learner-card learner-projects" aria-labelledby="projects-title">
                     <div class="learner-section-heading learner-section-heading--icon">
                         <span class="learner-section-heading__icon"><?= learner_icon('briefcase', 22); ?></span>
-                        <h2 id="projects-title">Dự án đã tham gia</h2>
+                        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
+                            <h2 id="projects-title" style="margin: 0;">Dự án đã hoàn thành</h2>
+                            <a href="ecosystem.php?tab=opportunities&amp;filter=completed" class="learner-btn learner-btn--outline" style="font-size: 0.8rem; padding: 4px 10px; display: inline-flex; align-items: center; gap: 4px; color: #EA580C; border-color: #FDBA74; text-decoration: none;">
+                                <?= learner_icon('sparkles', 14); ?> Xem tất cả dự án hoàn thành trong Hệ sinh thái <?= learner_icon('arrow-right', 14); ?>
+                            </a>
+                        </div>
                     </div>
-                    <?php if (empty($projects)): ?>
+                    <?php if (empty($completedProjects)): ?>
                         <div class="learner-empty-state">
-                            <p>Chưa có dự án nào được ghi nhận.</p>
+                            <p>Chưa có dự án nào được ghi nhận hoàn thành. Hãy tiếp tục triển khai các dự án đang tham gia để hoàn thành hồ sơ.</p>
                         </div>
                     <?php else: ?>
                         <div class="learner-project-grid">
-                            <?php foreach ($projects as $project): ?>
+                            <?php foreach ($completedProjects as $project): ?>
                                 <?php
+                                    $pId = (string) ($project['id'] ?? '');
                                     $pName = $project['name'] ?? $project['title'] ?? '';
                                     $pDesc = $project['description'] ?? '';
                                     $pRole = $project['role'] ?? 'Thành viên';
-                                    $pStatusLabel = $project['status_label'] ?? $project['status'] ?? 'Đang thực hiện';
-                                    $pTone = $project['status_tone'] ?? $project['tone'] ?? 'primary';
-                                    $pSponsor = $project['sponsor_name'] ?? '';
-
-                                    $statusBadgeStyle = match($pTone) {
-                                        'success' => 'background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC;',
-                                        'purple' => 'background: #F3E8FF; color: #7E22CE; border: 1px solid #D8B4FE;',
-                                        'warning' => 'background: #FEF3C7; color: #B45309; border: 1px solid #FDE68A;',
-                                        default => 'background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE;'
-                                    };
+                                    $pSponsor = $project['sponsor_name'] ?? $project['sponsorName'] ?? '';
+                                    $pUrl = $project['projectUrl'] ?? $project['project_url'] ?? '';
+                                    $pCategory = $project['category'] ?? $project['category_label'] ?? 'Dự án';
+                                    $pContrib = $project['contribution'] ?? '';
                                 ?>
                                 <article class="learner-project-card" style="display: flex; flex-direction: column; justify-content: space-between; gap: 0.85rem; padding: 1.25rem 1.4rem; border: 1px solid #E2E8F0; border-radius: 12px; background: #FFFFFF; transition: all 0.2s ease;">
                                     <div>
@@ -261,19 +267,39 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                                                 </span>
                                             <?php endif; ?>
                                         </div>
-                                        <p style="color: #64748B; font-size: 0.85rem; line-height: 1.5; margin: 0;"><?= learner_escape($pDesc); ?></p>
+                                        <p style="color: #64748B; font-size: 0.85rem; line-height: 1.5; margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;"><?= learner_escape($pDesc); ?></p>
                                     </div>
                                     <div class="learner-project-card__badges" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-direction: row; border-top: 1px solid #F1F5F9; padding-top: 0.75rem; margin-top: 0.25rem;">
                                         <span class="learner-badge" style="background: #F1F5F9; color: #475569; font-weight: 600; font-size: 0.75rem; padding: 3px 9px; border-radius: 6px;"><?= learner_escape($pRole); ?></span>
-                                        <span class="learner-badge learner-badge--<?= learner_escape($pTone); ?>" style="font-weight: 600; font-size: 0.75rem; padding: 3px 9px; border-radius: 6px; <?= $statusBadgeStyle ?>">
-                                            ● <?= learner_escape($pStatusLabel); ?>
+                                        <span class="learner-badge learner-badge--success" style="font-weight: 600; font-size: 0.75rem; padding: 3px 9px; border-radius: 6px; background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC;">
+                                            ● Đã hoàn thành
                                         </span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.25rem; border-top: 1px solid #F8FAFC; padding-top: 0.5rem;">
+                                        <button type="button" class="learner-btn learner-btn--outline" data-open-project-detail
+                                            data-project-id="<?= learner_escape($pId); ?>"
+                                            data-project-title="<?= learner_escape($pName); ?>"
+                                            data-project-desc="<?= learner_escape($pDesc); ?>"
+                                            data-project-role="<?= learner_escape($pRole); ?>"
+                                            data-project-sponsor="<?= learner_escape($pSponsor); ?>"
+                                            data-project-category="<?= learner_escape($pCategory); ?>"
+                                            data-project-url="<?= learner_escape($pUrl); ?>"
+                                            data-project-contrib="<?= learner_escape($pContrib); ?>"
+                                            style="flex: 1; font-size: 0.82rem; padding: 7px 12px; justify-content: center; border-color: #EA580C; color: #EA580C; font-weight: 600; cursor: pointer;">
+                                            <?= learner_icon('eye', 15); ?> Xem chi tiết
+                                        </button>
+                                        <?php if ($pId !== ''): ?>
+                                            <a href="project.php?id=<?= urlencode($pId); ?>" class="learner-btn learner-btn--outline" title="Xem trang chi tiết dự án" style="font-size: 0.82rem; padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; color: #475569;">
+                                                <?= learner_icon('arrow-right', 15); ?>
+                                            </a>
+                                        <?php endif; ?>
                                     </div>
                                 </article>
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
                 </section>
+                <?php include __DIR__ . '/includes/portfolio-panel.php'; ?>
             </main>
         </div>
     </div>
