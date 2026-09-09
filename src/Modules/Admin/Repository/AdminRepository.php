@@ -93,13 +93,14 @@ final class AdminRepository
     }
 
     /** @return list<array<string,mixed>> */
-    public function organizations(string $type=''): array
+    public function organizations(string $type='', string $search=''): array
     {
         $rows=[];
         if($this->tableExists('organization_registration_requests')){
             $this->pdo->exec("DELETE FROM organization_registration_requests WHERE status='pending' AND expiresAt<=UTC_TIMESTAMP(6)");
             $params=[];$where="status='pending' AND expiresAt>UTC_TIMESTAMP(6)";
             if(in_array($type,['school','enterprise'],true)){$where.=' AND type=?';$params[]=$type;}
+            if($search!==''){$where.=' AND (organizationName LIKE ? OR email LIKE ? OR id LIKE ?)';$needle='%'.$search.'%';array_push($params,$needle,$needle,$needle);}
             $request=$this->pdo->prepare("SELECT id,organizationName AS name,type,'pending' AS status,'pending' AS verificationStatus,createdAt,expiresAt,email,1 AS registrationRequest FROM organization_registration_requests WHERE {$where} ORDER BY createdAt DESC LIMIT 200");
             $request->execute($params);$rows=$request->fetchAll(PDO::FETCH_ASSOC);
         }
@@ -107,13 +108,13 @@ final class AdminRepository
             $columns=$this->columns('schools');
             $verification=in_array('verificationStatus',$columns,true)?'verificationStatus':(in_array('status',$columns,true)?'status':"'unknown'");
             $created=in_array('createdAt',$columns,true)?'createdAt':'NULL';
-            $order=in_array('createdAt',$columns,true)?'createdAt DESC':'name';$rows=array_merge($rows,$this->pdo->query("SELECT id,name,'school' AS type,status,{$verification} AS verificationStatus,{$created} AS createdAt FROM schools ORDER BY {$order} LIMIT 200")->fetchAll(PDO::FETCH_ASSOC));
+            $order=in_array('createdAt',$columns,true)?'createdAt DESC':'name';$sql="SELECT id,name,'school' AS type,status,{$verification} AS verificationStatus,{$created} AS createdAt FROM schools";$params=[];if($search!==''){$sql.=' WHERE name LIKE ? OR id LIKE ?';$needle='%'.$search.'%';$params=[$needle,$needle];}$sql.=" ORDER BY {$order} LIMIT 200";$statement=$this->pdo->prepare($sql);$statement->execute($params);$rows=array_merge($rows,$statement->fetchAll(PDO::FETCH_ASSOC));
         }
         if(($type===''||$type==='enterprise')&&$this->tableExists('enterprises')){
             $columns=$this->columns('enterprises');
             $verification=in_array('verificationStatus',$columns,true)?'verificationStatus':(in_array('status',$columns,true)?'status':"'unknown'");
             $created=in_array('createdAt',$columns,true)?'createdAt':'NULL';
-            $order=in_array('createdAt',$columns,true)?'createdAt DESC':'name';$rows=array_merge($rows,$this->pdo->query("SELECT id,name,'enterprise' AS type,status,{$verification} AS verificationStatus,{$created} AS createdAt FROM enterprises ORDER BY {$order} LIMIT 200")->fetchAll(PDO::FETCH_ASSOC));
+            $order=in_array('createdAt',$columns,true)?'createdAt DESC':'name';$sql="SELECT id,name,'enterprise' AS type,status,{$verification} AS verificationStatus,{$created} AS createdAt FROM enterprises";$params=[];if($search!==''){$sql.=' WHERE name LIKE ? OR id LIKE ?';$needle='%'.$search.'%';$params=[$needle,$needle];}$sql.=" ORDER BY {$order} LIMIT 200";$statement=$this->pdo->prepare($sql);$statement->execute($params);$rows=array_merge($rows,$statement->fetchAll(PDO::FETCH_ASSOC));
         }
         return $rows;
     }
@@ -152,10 +153,43 @@ final class AdminRepository
     /** @return list<array<string,mixed>> */
     public function resource(string $resource): array
     {
+        if($resource==='activities'){
+            if(!$this->tableExists('activities')){return [];}
+            $columns=$this->columns('activities');
+            $schoolJoin=$this->tableExists('schools')&&in_array('schoolId',$columns,true)?' LEFT JOIN schools s ON s.id=a.schoolId':'';
+            $schoolName=$schoolJoin!==''?'s.name':'NULL';
+            $category=in_array('category',$columns,true)?'a.category':'NULL';
+            $capacity=in_array('capacity',$columns,true)?'a.capacity':'NULL';
+            $endAt=in_array('endAt',$columns,true)?'a.endAt':'NULL';
+            $order=in_array('startAt',$columns,true)?'a.startAt DESC':'a.id DESC';
+            $statement=$this->pdo->query("SELECT a.id,a.title,{$category} AS category,{$schoolName} AS schoolName,a.startAt,{$endAt} AS endAt,{$capacity} AS capacity,a.status FROM activities a{$schoolJoin} ORDER BY {$order} LIMIT 200");
+            return $statement->fetchAll(PDO::FETCH_ASSOC);
+        }
+        if($resource==='applications'){
+            if(!$this->tableExists('internship_applications')){return [];}
+            $columns=$this->columns('internship_applications');
+            $matchScore=in_array('matchScore',$columns,true)?'a.matchScore':'NULL';
+            $reviewedAt=in_array('reviewedAt',$columns,true)?'a.reviewedAt':'NULL';
+            $studentName=$this->tableExists('student_profiles')&&$this->tableExists('users')?'COALESCE(u.fullName,u.email)':'NULL';
+            $studentJoin=$studentName!=='NULL'?' LEFT JOIN student_profiles sp ON sp.id=a.studentId LEFT JOIN users u ON u.id=sp.userId':'';
+            $postJoin=$this->tableExists('internship_posts')?' LEFT JOIN internship_posts p ON p.id=a.postId':'';
+            $postTitle=$postJoin!==''?'p.title':'NULL';
+            $statement=$this->pdo->query("SELECT a.id,{$postTitle} AS postTitle,{$studentName} AS studentName,a.status,{$matchScore} AS matchScore,a.appliedAt,{$reviewedAt} AS reviewedAt FROM internship_applications a{$postJoin}{$studentJoin} ORDER BY a.appliedAt DESC LIMIT 200");
+            return $statement->fetchAll(PDO::FETCH_ASSOC);
+        }
+        if($resource==='payments'){
+            if(!$this->tableExists('payment_orders')){return [];}
+            $columns=$this->columns('payment_orders');
+            $orderCode=in_array('orderId',$columns,true)?'p.orderId':'p.id';
+            $paymentMethod=in_array('paymentMethod',$columns,true)?'p.paymentMethod':'NULL';
+            $reference=in_array('providerReference',$columns,true)?'p.providerReference':'NULL';
+            $enterpriseJoin=$this->tableExists('enterprises')&&in_array('enterpriseId',$columns,true)?' LEFT JOIN enterprises e ON e.id=p.enterpriseId':'';
+            $enterpriseName=$enterpriseJoin!==''?'e.name':'NULL';
+            $paidAt=in_array('paidAt',$columns,true)?'p.paidAt':'NULL';
+            $statement=$this->pdo->query("SELECT p.id,{$orderCode} AS orderCode,{$enterpriseName} AS enterpriseName,p.amount,p.currency,{$paymentMethod} AS paymentMethod,p.provider,{$reference} AS providerReference,p.paymentStatus,{$paidAt} AS paidAt,p.createdAt FROM payment_orders p{$enterpriseJoin} ORDER BY p.createdAt DESC LIMIT 200");
+            return $statement->fetchAll(PDO::FETCH_ASSOC);
+        }
         $catalog=[
-            'activities'=>['activities',['id','title','category','status','startAt','endAt']],
-            'applications'=>['internship_applications',['id','postId','studentId','status','matchScore','appliedAt','reviewedAt']],
-            'payments'=>['payment_orders',['id','orderId','amount','currency','paymentStatus','provider','createdAt']],
             'notifications'=>['notifications',['id','userId','title','notificationStatus','deliveryChannel','isRead','createdAt']],
         ];
         if(!isset($catalog[$resource])){throw new RuntimeException('Tài nguyên Admin không hợp lệ.');}

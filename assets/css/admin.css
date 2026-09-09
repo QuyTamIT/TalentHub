@@ -848,6 +848,9 @@ main {
 .queue-item:hover { background: var(--background); }
 .queue-item:first-child { border-top: 0; }
 .queue-item > .icon { width: 16px; height: 16px; margin-top: 13px; color: var(--text-muted); }
+.queue-open { min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.queue-dismiss { align-self: center; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-muted); padding: 5px 8px; font: inherit; font-size: var(--text-xs); cursor: pointer; white-space: nowrap; }
+.queue-dismiss:hover, .queue-dismiss:focus-visible { border-color: var(--border-strong); color: var(--text-primary); }
 
 .severity {
     width: 8px;
@@ -1135,6 +1138,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .command-results small { display: block; }
 .command-results strong { font-size: var(--text-sm); color: var(--text-primary); }
 .command-results small  { font-size: var(--text-xs); color: var(--text-muted); }
+.command-empty { margin: 18px 10px; color: var(--text-muted); font-size: var(--text-sm); }
 
 .command-item-icon {
     width: 34px;
@@ -2136,6 +2140,10 @@ main {
 }
 
 .system-summary .system-grid { margin: 0; }
+.organization-groups { display: grid; gap: 22px; }
+.organization-group-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 10px; }
+.organization-group-heading h3 { margin: 0; font-size: var(--text-lg); color: var(--text-primary); }
+.organization-group-heading span { color: var(--text-muted); font-size: var(--text-sm); }
 
 @media (max-width: 900px) {
     .topbar { padding: 0 16px; }
