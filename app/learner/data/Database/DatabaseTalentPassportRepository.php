@@ -350,6 +350,10 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
                 a.teacherId,
                 a.studentId,
                 a.activityId,
+                a.classId,
+                a.projectId,
+                cl.name AS className,
+                pr.title AS projectTitle,
                 a.overallScore,
                 a.comment,
                 a.status,
@@ -361,8 +365,10 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             LEFT JOIN teacher_profiles tp ON tp.id = a.teacherId
             LEFT JOIN users u ON u.id = tp.userId
             LEFT JOIN activities act ON act.id = a.activityId
-            WHERE a.studentId = :student_id AND a.status = 'published'
-            ORDER BY a.publishedAt DESC, a.id ASC
+            LEFT JOIN classes cl ON cl.id = a.classId
+            LEFT JOIN projects pr ON pr.id = a.projectId
+            WHERE a.studentId = :student_id AND a.status = 'published' AND a.publishedAt IS NOT NULL
+            ORDER BY a.publishedAt DESC, a.id DESC
             SQL;
 
         $evaluations = $this->fetchAll('teacherEvaluations', $sql, ['student_id' => $studentId]);
@@ -399,6 +405,9 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
         foreach ($evaluations as &$eval) {
             $evalId = (string) $eval['id'];
             $eval['criteria_scores'] = $scoresByEval[$evalId] ?? [];
+            $eval['context_title'] = $eval['class_name'] ?? $eval['project_title'] ?? $eval['activity_title'] ?? '';
+            $eval['context_label'] = $eval['class_id'] !== null ? 'Đánh giá theo lớp học phần' : ($eval['project_id'] !== null ? 'Đánh giá dự án' : 'Đánh giá hoạt động');
+            $eval['classification'] = \TalentHub\Support\GradeClassifier::getClassification($eval['overall_score'] === null ? null : (float) $eval['overall_score']);
         }
         unset($eval);
 

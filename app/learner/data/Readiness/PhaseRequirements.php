@@ -55,7 +55,7 @@ final class PhaseRequirements
                 'talent_tests' => ['id', 'code', 'name', 'type', 'status'],
                 'test_attempts' => ['id', 'testId', 'studentId', 'status', 'startedAt', 'submittedAt'],
                 'test_results' => ['attemptId', 'resultCode', 'summary', 'dimensionScoresJson', 'scoringVersion', 'createdAt'],
-                'assessments' => ['id', 'teacherId', 'studentId', 'activityId', 'overallScore', 'comment', 'status', 'publishedAt', 'version'],
+                'assessments' => ['id', 'teacherId', 'studentId', 'activityId', 'classId', 'projectId', 'overallScore', 'comment', 'status', 'publishedAt', 'version'],
                 'assessment_scores' => ['assessmentId', 'criteriaId', 'score'],
                 'assessment_criteria' => ['id', 'code', 'name', 'minScore', 'maxScore', 'displayOrder', 'status'],
             ], [
