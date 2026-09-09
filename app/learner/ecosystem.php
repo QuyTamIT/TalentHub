@@ -12,6 +12,9 @@ $headerSearchPlaceholder = 'Tìm doanh nghiệp, lĩnh vực, dự án...';
 $initialTab = $_GET['tab'] ?? 'enterprises';
 $allowedTabs = ['enterprises', 'opportunities'];
 $initialTab = in_array($initialTab, $allowedTabs, true) ? $initialTab : 'enterprises';
+$allowedLifecycleFilters = ['all', 'recruiting', 'active', 'completed'];
+$initialLifecycleFilter = (string) ($_GET['filter'] ?? 'all');
+$initialLifecycleFilter = in_array($initialLifecycleFilter, $allowedLifecycleFilters, true) ? $initialLifecycleFilter : 'all';
 $enterprises = learner_ecosystem_enterprises($student['school_id'] ?? null);
 $projectLoadFailed = false;
 try {
@@ -20,6 +23,64 @@ try {
     $projects = [];
     $projectLoadFailed = true;
 }
+$applicationSummary = [
+    'total' => 0,
+    'reviewing' => 0,
+    'interview' => 0,
+    'accepted' => 0,
+    'declined' => 0,
+    'withdrawn' => 0,
+    'items' => [],
+];
+try {
+    $applicationSummary = learner_ecosystem_my_applications_summary();
+} catch (Throwable) {
+    // Resilient fallback if applications cannot be loaded
+}
+$myApplications = $applicationSummary['items'];
+$myApplicationsCount = $applicationSummary['total'];
+$ecosystemSource = learner_repository_factory()->source();
+$isDatabaseSource = $ecosystemSource === 'database';
+
+$completedEnterprises = [];
+foreach ($myApplications as $app) {
+    if (in_array($app['status'] ?? '', ['completed', 'accepted'], true)) {
+        if (!empty($app['partner_name'])) {
+            $completedEnterprises[mb_strtolower(trim((string) $app['partner_name']))] = true;
+        }
+    }
+}
+$currentStudentId = learner_current_student_id();
+if ($currentStudentId !== '') {
+    if ($isDatabaseSource) {
+        try {
+            $db = \TalentHub\Database\Connection::instance();
+            $stmt = $db->prepare(<<<'SQL'
+                SELECT DISTINCT e.id, e.name
+                FROM internship_applications a
+                JOIN internship_posts ip ON ip.id = a.postId
+                JOIN enterprises e ON e.id = ip.enterpriseId
+                JOIN learner_internship_reports r ON r.applicationId = a.id AND r.studentId = a.studentId
+                WHERE a.studentId = :studentId AND r.status = 'verified' AND r.stage = 'completed'
+            SQL);
+            $stmt->execute(['studentId' => $currentStudentId]);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $completedEnterprises[(string) $row['id']] = true;
+                $completedEnterprises[mb_strtolower(trim((string) $row['name']))] = true;
+            }
+        } catch (Throwable) {
+            // Safe fallback
+        }
+    } else {
+        // Mock fallback: map mock enterprise if applications or mock portfolio exists
+        if (!empty($enterprises)) {
+            $firstEnt = $enterprises[0];
+            $completedEnterprises[(string) ($firstEnt['id'] ?? '')] = true;
+            $completedEnterprises[mb_strtolower(trim((string) ($firstEnt['name'] ?? '')))] = true;
+        }
+    }
+}
+
 $ecosystemFields = [];
 foreach ($enterprises as $enterprise) {
     $industry = trim((string) ($enterprise['industry'] ?? ''));
@@ -34,8 +95,6 @@ foreach ($projects as $project) {
     }
 }
 ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
-$ecosystemSource = learner_repository_factory()->source();
-$isDatabaseSource = $ecosystemSource === 'database';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -91,6 +150,12 @@ $isDatabaseSource = $ecosystemSource === 'database';
                                 <option value="<?= learner_escape($field); ?>"><?= learner_escape($field); ?></option>
                             <?php endforeach; ?>
                         </select>
+                        <select data-ecosystem-filter="status" aria-label="Lọc trạng thái tham gia">
+                            <option value="all" <?= $initialLifecycleFilter === 'all' ? 'selected' : ''; ?>>Tất cả trạng thái</option>
+                            <option value="recruiting" <?= $initialLifecycleFilter === 'recruiting' ? 'selected' : ''; ?>>Đang mở</option>
+                            <option value="active" <?= $initialLifecycleFilter === 'active' ? 'selected' : ''; ?>>Đang tham gia</option>
+                            <option value="completed" <?= $initialLifecycleFilter === 'completed' ? 'selected' : ''; ?>>Đã hoàn thành</option>
+                        </select>
                     </label>
                     <button class="learner-btn learner-btn--primary learner-opportunity-ai-trigger" type="button" data-opportunity-ai-trigger <?= $initialTab !== 'opportunities' ? 'hidden' : ''; ?>>
                         <?= learner_icon('sparkles', 18); ?> AI gợi ý dự án phù hợp
@@ -101,6 +166,91 @@ $isDatabaseSource = $ecosystemSource === 'database';
                 </section>
 
                 <section id="panel-enterprises" class="learner-ecosystem-panel" role="tabpanel" aria-labelledby="tab-enterprises" <?= $initialTab !== 'enterprises' ? 'hidden' : ''; ?> data-ecosystem-panel="enterprises">
+                    <!-- Bổ sung Vấn đề #06: Banner/Drawer Quản lý & Theo dõi Đơn ứng tuyển Thực tập -->
+                    <section class="learner-card learner-applications-tracker" data-applications-tracker aria-labelledby="applications-tracker-title">
+                        <header class="learner-applications-tracker__header">
+                            <div class="learner-applications-tracker__title-group">
+                                <span class="learner-applications-tracker__icon" aria-hidden="true"><?= learner_icon('briefcase', 20); ?></span>
+                                <div>
+                                    <h2 id="applications-tracker-title">Hồ sơ ứng tuyển của bạn</h2>
+                                    <p>Theo dõi tiến trình xét duyệt và lịch phỏng vấn tại các doanh nghiệp đối tác.</p>
+                                </div>
+                            </div>
+                            <div class="learner-applications-tracker__header-actions">
+                                <?php if ($myApplicationsCount > 0): ?>
+                                    <?php $isTrackerExpanded = (isset($_GET['view']) && $_GET['view'] === 'applications'); ?>
+                                    <span class="learner-badge learner-badge--primary"><?= $myApplicationsCount; ?> đơn đã nộp</span>
+                                    <button class="learner-btn learner-btn--outline learner-applications-tracker__toggle" type="button" data-tracker-toggle aria-expanded="<?= $isTrackerExpanded ? 'true' : 'false'; ?>" aria-controls="applications-tracker-body">
+                                        <span data-toggle-label><?= $isTrackerExpanded ? 'Thu gọn' : 'Xem danh sách đơn'; ?></span>
+                                        <span data-toggle-icon aria-hidden="true"<?= $isTrackerExpanded ? ' style="transform: rotate(180deg);"' : ''; ?>><?= learner_icon('chevron-down', 16); ?></span>
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+                        </header>
+
+                        <?php if ($myApplicationsCount === 0): ?>
+                            <div class="learner-applications-tracker__empty">
+                                <p><?= learner_icon('info', 16); ?> Bạn chưa nộp hồ sơ ứng tuyển vị trí nào. Hãy khám phá danh sách doanh nghiệp và cơ hội bên dưới để ứng tuyển!</p>
+                            </div>
+                        <?php else: ?>
+                            <div class="learner-applications-tracker__summary">
+                                <?php if ($applicationSummary['reviewing'] > 0): ?>
+                                    <span class="learner-status-chip is-reviewing"><?= learner_icon('clock', 14); ?> Đang xem xét: <strong><?= $applicationSummary['reviewing']; ?></strong></span>
+                                <?php endif; ?>
+                                <?php if ($applicationSummary['interview'] > 0): ?>
+                                    <span class="learner-status-chip is-interview"><?= learner_icon('calendar', 14); ?> Mời phỏng vấn: <strong><?= $applicationSummary['interview']; ?></strong></span>
+                                <?php endif; ?>
+                                <?php if ($applicationSummary['accepted'] > 0): ?>
+                                    <span class="learner-status-chip is-accepted"><?= learner_icon('check', 14); ?> Đã trúng tuyển: <strong><?= $applicationSummary['accepted']; ?></strong></span>
+                                <?php endif; ?>
+                                <?php if ($applicationSummary['declined'] > 0): ?>
+                                    <span class="learner-status-chip is-declined"><?= learner_icon('info', 14); ?> Chưa phù hợp: <strong><?= $applicationSummary['declined']; ?></strong></span>
+                                <?php endif; ?>
+                                <?php if ($applicationSummary['withdrawn'] > 0): ?>
+                                    <span class="learner-status-chip is-withdrawn"><?= learner_icon('x', 14); ?> Đã rút: <strong><?= $applicationSummary['withdrawn']; ?></strong></span>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="learner-applications-tracker__body" id="applications-tracker-body" data-tracker-body<?= !empty($isTrackerExpanded) ? '' : ' hidden'; ?>>
+                                <div class="learner-applications-tracker__list">
+                                    <?php foreach ($myApplications as $app): ?>
+                                        <article class="learner-application-card" data-app-card data-app-id="<?= learner_escape($app['id']); ?>">
+                                            <div class="learner-application-card__header">
+                                                <div>
+                                                    <span class="learner-status-badge is-<?= learner_escape($app['status']); ?>" data-app-status-badge>
+                                                        <?= learner_escape($app['status_label']); ?>
+                                                    </span>
+                                                    <h3><?= learner_escape($app['title']); ?></h3>
+                                                    <p class="learner-application-card__partner"><?= learner_icon('building', 15); ?> <?= learner_escape($app['partner_name']); ?> · <span class="learner-application-card__date">Nộp ngày <?= learner_escape($app['submitted_at'] ?? 'Chưa xác định'); ?></span></p>
+                                                </div>
+                                                <div class="learner-application-card__actions">
+                                                    <a class="learner-btn learner-btn--outline" href="opportunity.php?type=<?= learner_escape($app['opportunity_type']); ?>&amp;id=<?= learner_escape($app['opportunity_id']); ?>">Xem vị trí <?= learner_icon('arrow-right', 14); ?></a>
+                                                    <?php if (!empty($app['can_withdraw'])): ?>
+                                                        <button class="learner-btn--danger-outline" type="button" data-withdraw-btn data-withdraw-id="<?= learner_escape($app['id']); ?>">
+                                                            Rút hồ sơ
+                                                        </button>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+
+                                            <ol class="learner-application-timeline" aria-label="Tiến trình xét duyệt">
+                                                <?php foreach ($app['timeline'] as $step): ?>
+                                                    <li class="is-<?= learner_escape($step['state']); ?>">
+                                                        <span aria-hidden="true"></span>
+                                                        <div>
+                                                            <strong><?= learner_escape($step['label']); ?></strong>
+                                                            <?php if (!empty($step['date'])): ?><small><?= learner_escape($step['date']); ?></small><?php endif; ?>
+                                                        </div>
+                                                    </li>
+                                                <?php endforeach; ?>
+                                            </ol>
+                                        </article>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </section>
+
                     <section class="learner-job-ai learner-card" data-job-matches aria-labelledby="job-ai-title">
                         <header class="learner-job-ai__header">
                             <span class="learner-job-ai__icon" aria-hidden="true"><?= learner_icon('sparkles', 22); ?></span>
@@ -138,9 +288,18 @@ $isDatabaseSource = $ecosystemSource === 'database';
                             <?php $enterpriseVerificationStatus = (string) ($enterprise['verification_status'] ?? ''); ?>
                             <?php $enterpriseIndustry = learner_ecosystem_partner_has_value($enterprise, 'industry') ? trim((string) $enterprise['industry']) : ''; ?>
                             <?php $enterpriseLocation = learner_ecosystem_partner_has_value($enterprise, 'location') ? trim((string) $enterprise['location']) : ''; ?>
-                            <?php $enterpriseHasDescription = learner_ecosystem_partner_has_value($enterprise, 'description'); ?>
                             <?php $enterpriseSearch = implode(' ', array_filter([(string) $enterprise['name'], $enterpriseIndustry, $enterpriseLocation])); ?>
-                            <article class="learner-partner-card learner-card" data-ecosystem-item data-search="<?= learner_escape($enterpriseSearch); ?>" data-field="<?= learner_escape($enterpriseIndustry); ?>" data-location="<?= learner_escape($enterpriseLocation); ?>">
+                            <?php
+                            $entId = (string) ($enterprise['id'] ?? '');
+                            $entName = mb_strtolower(trim((string) ($enterprise['name'] ?? '')));
+                            $isCompletedEnt = isset($completedEnterprises[$entId]) || isset($completedEnterprises[$entName]);
+                            $entStatuses = ['recruiting'];
+                            if ($isCompletedEnt) {
+                                $entStatuses[] = 'completed';
+                            }
+                            $entStatusAttr = implode(' ', $entStatuses);
+                            ?>
+                            <article class="learner-partner-card learner-card" data-ecosystem-item data-search="<?= learner_escape($enterpriseSearch); ?>" data-field="<?= learner_escape($enterpriseIndustry); ?>" data-location="<?= learner_escape($enterpriseLocation); ?>" data-status="<?= learner_escape($entStatusAttr); ?>">
                                 <div class="learner-partner-card__header">
                                     <span class="learner-partner-logo learner-partner-logo--enterprise"><?= learner_escape($enterprise['logo_text']); ?></span>
                                     <?php if ($enterprise['verified'] || in_array($enterpriseVerificationStatus, ['verified', 'approved'], true)): ?>
@@ -275,7 +434,12 @@ $isDatabaseSource = $ecosystemSource === 'database';
                         <div class="learner-project-grid" data-ecosystem-results>
                             <?php foreach ($projects as $project): ?>
                                 <?php $projectSearch = implode(' ', array_filter([$project['title'] ?? '', $project['school_name'] ?? '', $project['category_label'] ?? '', $project['description'] ?? ''])); ?>
-                                <article class="learner-project-card learner-card" data-ecosystem-item data-ecosystem-item-type="project" data-search="<?= learner_escape($projectSearch); ?>" data-field="<?= learner_escape($project['category_label']); ?>">
+                                <?php
+                                $projectStatusAttr = (($project['status'] ?? '') === 'completed' || ($project['membership_status'] ?? '') === 'completed')
+                                    ? 'completed'
+                                    : (learner_escape($project['membership_status'] ?? 'recruiting'));
+                                ?>
+                                <article class="learner-project-card learner-card" data-ecosystem-item data-ecosystem-item-type="project" data-search="<?= learner_escape($projectSearch); ?>" data-field="<?= learner_escape($project['category_label']); ?>" data-status="<?= learner_escape($projectStatusAttr); ?>">
                                     <div class="learner-project-card__top">
                                         <span class="learner-badge learner-badge--secondary">Dự án</span>
                                         <span class="learner-status-dot learner-status-dot--active"><?= learner_escape($project['status_label']); ?></span>
@@ -315,5 +479,6 @@ $isDatabaseSource = $ecosystemSource === 'database';
     <script src="../../assets/js/learner.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner.js'); ?>"></script>
     <script src="../../assets/js/learner-opportunity-matches.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner-opportunity-matches.js'); ?>"></script>
     <script src="../../assets/js/learner-job-matches.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner-job-matches.js'); ?>"></script>
+    <script src="../../assets/js/learner-applications-tracker.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner-applications-tracker.js'); ?>"></script>
 </body>
 </html>
