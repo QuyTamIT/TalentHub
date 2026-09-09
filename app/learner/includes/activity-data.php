@@ -3,6 +3,24 @@
 
 require_once dirname(__DIR__) . '/data/bootstrap.php';
 
+if (!function_exists('learner_activity_cover_or_fallback')) {
+    function learner_activity_cover_or_fallback(mixed $value, string $fallback): string
+    {
+        $candidate = trim((string) $value);
+        if ($candidate === '' || str_contains($candidate, '..')) {
+            return $fallback;
+        }
+        if (preg_match('#\A(?:/app/learner/)?(assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg))\z#i', $candidate, $matches) === 1) {
+            $relativePath = $matches[1];
+            $learnerDir = dirname(__DIR__);
+            if (is_file($learnerDir . '/' . $relativePath)) {
+                return $relativePath;
+            }
+        }
+        return $fallback;
+    }
+}
+
 if (!function_exists('learner_activity_mock_catalog')) {
     function learner_activity_mock_catalog(): array
     {
@@ -89,50 +107,93 @@ if (!function_exists('learner_activity_active_registrations')) {
         $timeline = \TalentHub\Learner\Data\ReadModel\ActivityReadModel::registrations(
             learner_activity_repository()->registrationTimelineFor($studentId)
         );
+        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
 
         return array_values(array_filter(
             $timeline,
-            static fn (array $registration): bool => in_array(
-                (string) ($registration['status'] ?? ''),
-                ['pending', 'approved', 'waitlisted'],
-                true
-            )
+            static function (array $registration) use ($now): bool {
+                $status = (string) ($registration['status'] ?? '');
+                if (!in_array($status, ['pending', 'approved', 'waitlisted'], true)) {
+                    return false;
+                }
+
+                // If approved/pending/waitlisted but activity has already ended and student has not checked in, it should move to history
+                $endAtStr = trim((string) ($registration['end_at'] ?? ''));
+                if ($endAtStr !== '') {
+                    try {
+                        $endAt = new DateTimeImmutable($endAtStr, new DateTimeZone('UTC'));
+                        if ($now > $endAt && empty($registration['checked_in_at'])) {
+                            return false;
+                        }
+                    } catch (Throwable) {}
+                }
+
+                return true;
+            }
         ));
     }
 }
 
 if (!function_exists('learner_activity_attendance_history')) {
-    /** Attendance-resolved history, already scoped by student and school in the repository. */
+    /** Attendance-resolved history, including completed check-ins and auto-expired no-shows. */
     function learner_activity_attendance_history(string $studentId): array
     {
         $timeline = \TalentHub\Learner\Data\ReadModel\ActivityReadModel::registrations(
             learner_activity_repository()->registrationTimelineFor($studentId)
         );
-        $history = array_values(array_filter(
-            $timeline,
-            static fn (array $registration): bool => in_array(
-                (string) ($registration['status'] ?? ''),
-                ['attended', 'no_show'],
-                true
-            )
-        ));
-        foreach ($history as &$registration) {
-            if (($registration['status'] ?? '') === 'no_show') {
+        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+
+        $history = [];
+        foreach ($timeline as $registration) {
+            $status = (string) ($registration['status'] ?? '');
+            $hasCheckin = !empty($registration['checked_in_at']);
+            $endAtStr = trim((string) ($registration['end_at'] ?? ''));
+            $isPast = false;
+            if ($endAtStr !== '') {
+                try {
+                    $endAt = new DateTimeImmutable($endAtStr, new DateTimeZone('UTC'));
+                    $isPast = $now > $endAt;
+                } catch (Throwable) {}
+            }
+
+            // 1. Success check-in: status is attended or has confirmed checkin
+            if ($status === 'attended' || $hasCheckin) {
+                // Ensure future activities without actual check-in are not shown as attended
+                if (!$hasCheckin && !$isPast) {
+                    continue;
+                }
+                $history[] = $registration;
+                continue;
+            }
+
+            // 2. Explicit no-show
+            if ($status === 'no_show') {
                 $registration['experience_hours'] = 0.0;
                 $registration['checked_in_at'] = null;
+                $history[] = $registration;
+                continue;
+            }
+
+            // 3. Approved/pending/waitlisted but expired without check-in -> auto no-show
+            if ($isPast && in_array($status, ['approved', 'pending', 'waitlisted'], true)) {
+                $registration['status'] = 'no_show';
+                $registration['experience_hours'] = 0.0;
+                $registration['checked_in_at'] = null;
+                $history[] = $registration;
             }
         }
-        unset($registration);
+
         usort($history, static function (array $left, array $right): int {
             $timestamp = static function (array $item): int {
-                foreach (['attendance_resolved_at', 'checked_in_at', 'end_at', 'updated_at'] as $field) {
+                foreach (['checked_in_at', 'attendance_resolved_at', 'end_at', 'start_at', 'updated_at'] as $field) {
                     $value = strtotime((string) ($item[$field] ?? ''));
-                    if ($value !== false) return $value;
+                    if ($value !== false && $value > 0) return $value;
                 }
                 return 0;
             };
             return $timestamp($right) <=> $timestamp($left);
         });
+
         return $history;
     }
 }
