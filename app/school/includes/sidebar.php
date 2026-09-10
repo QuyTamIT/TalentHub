@@ -76,17 +76,14 @@ $sidebarNav = [
 <aside class="school-sidebar" id="school-sidebar">
     <!-- Brand Logo -->
     <div class="school-sidebar__brand">
-        <?php renderBrandHeader('../../index.php', 'Khu vực Nhà trường', 'Về trang chủ FTalentHub'); if (false): ?>
-            <span class="learner-brand__mark" aria-hidden="true">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
-                </svg>
-            </span>
-            <div class="learner-brand__text">
-                <span class="learner-brand__name">FTalent<span>Hub</span></span>
-                <span class="learner-brand__subtitle">Khu vực Nhà trường</span>
-            </div>
-        <?php endif; ?>
+        <a href="../../index.php"
+           class="school-sidebar__brand-link"
+           aria-label="Về trang chủ FTalentHub Nhà trường">
+            <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : '/assets/images/talenthub-logo.png'); ?>"
+                 alt="FTalentHub Logo"
+                 class="school-sidebar__logo-img" />
+        </a>
+        <span class="school-sidebar__role-tag">Khu vực Nhà trường</span>
     </div>
 
     <!-- Navigation List -->
@@ -171,7 +168,7 @@ $sidebarNav = [
 
     <!-- Bottom Action: Logout -->
     <div class="school-sidebar__footer">
-        <a href="<?= function_exists('app_href') ? app_href('/app/auth/logout.php?role=school') : '/app/auth/logout.php?role=school'; ?>" 
+        <a href="<?= function_exists('app_href') ? app_href('/app/auth/logout.php?role=school') : '/app/auth/logout.php?role=school'; ?>"
            class="school-sidebar__link school-sidebar__link--logout"
            aria-label="Đăng xuất khỏi hệ thống">
             <span class="school-sidebar__icon">

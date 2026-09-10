@@ -365,7 +365,7 @@ $sidebarNav = [
                                                     class="btn btn-primary btn-sm"
                                                     id="detail-invite-btn"
                                                     onclick="openInviteModal()"
-                                                    style="background: #2563EB; border-color: #2563EB; font-weight: 700; display: inline-flex; align-items: center; gap: 0.45rem;">
+                                                    style="font-weight: 700; display: inline-flex; align-items: center; gap: 0.45rem;">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                                                 </svg>
@@ -472,7 +472,7 @@ $sidebarNav = [
                                                         <h4 class="ent-passport-project-card__title" style="margin: 0;"><?= htmlspecialchars($proj['name']); ?></h4>
                                                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                                                             <?php if (!empty($proj['sponsorName'])): ?>
-                                                                <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; background: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE;">
+                                                                <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; background: #FAF5FF; color: var(--primary-violet); border: 1px solid rgba(139, 77, 232, 0.25);">
                                                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                                                                     Được bảo trợ bởi <?= htmlspecialchars($proj['sponsorName']); ?>
                                                                 </span>
@@ -642,44 +642,44 @@ $sidebarNav = [
             <div class="ent-skills-modal__backdrop" onclick="closeInviteModal()" style="position: absolute; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);"></div>
             <div class="ent-skills-modal__dialog" style="position: relative; z-index: 10000; width: 92%; max-width: 560px; background: #FFFFFF; border-radius: 14px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden; animation: modalFadeIn 0.2s ease-out;">
 
-                <div class="ent-skills-modal__header" style="background: #F8FAFC; border-bottom: 1px solid #E2E8F0; padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div class="ent-skills-modal__header" style="background: #FFFDFB; border-bottom: 1px solid #F0E6DD; padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <h3 class="ent-skills-modal__title" style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #0F172A; display: flex; align-items: center; gap: 0.5rem;">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5">
+                        <h3 class="ent-skills-modal__title" style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #322014; display: flex; align-items: center; gap: 0.5rem;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-coral)" stroke-width="2.5">
                                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                             </svg>
                             <span>Gửi Lời Mời Thực Tập / Tuyển Dụng</span>
                         </h3>
-                        <p class="ent-skills-modal__subtitle" style="margin: 0.25rem 0 0; font-size: 0.85rem; color: #64748B;">
+                        <p class="ent-skills-modal__subtitle" style="margin: 0.25rem 0 0; font-size: 0.85rem; color: #6B5548;">
                             Mời ứng viên <strong><?= htmlspecialchars($talent['name']); ?></strong> (<?= htmlspecialchars($talent['talent_score']); ?> điểm) vào đội ngũ FPT Software
                         </p>
                     </div>
-                    <button type="button" class="ent-skills-modal__close" onclick="closeInviteModal()" style="border: none; background: transparent; font-size: 1.6rem; line-height: 1; cursor: pointer; color: #94A3B8; padding: 0.2rem 0.5rem;">&times;</button>
+                    <button type="button" class="ent-skills-modal__close" onclick="closeInviteModal()" style="border: none; background: transparent; font-size: 1.6rem; line-height: 1; cursor: pointer; color: #9E897D; padding: 0.2rem 0.5rem;">&times;</button>
                 </div>
 
                 <div style="padding: 1.5rem;">
                     <!-- Candidate Highlight Banner -->
-                    <div style="background: #F1F5F9; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="background: #FFF7F2; border: 1px solid #F0E6DD; border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div style="width: 38px; height: 38px; border-radius: 8px; background: #DBEAFE; color: #1D4ED8; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 0.875rem;">
+                            <div style="width: 38px; height: 38px; border-radius: 8px; background: #FFF0EB; color: #FF6B45; border: 1px solid #FFDACB; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 0.875rem;">
                                 <?= htmlspecialchars($talent['avatar_initials']); ?>
                             </div>
                             <div>
-                                <div style="font-weight: 700; color: #0F172A; font-size: 0.95rem;"><?= htmlspecialchars($talent['name']); ?></div>
-                                <div style="font-size: 0.75rem; color: #64748B;"><?= htmlspecialchars($talent['major_field']); ?> • <?= htmlspecialchars($talent['school']); ?></div>
+                                <div style="font-weight: 700; color: #322014; font-size: 0.95rem;"><?= htmlspecialchars($talent['name']); ?></div>
+                                <div style="font-size: 0.75rem; color: #6B5548;"><?= htmlspecialchars($talent['major_field']); ?> • <?= htmlspecialchars($talent['school']); ?></div>
                             </div>
                         </div>
-                        <div style="background: #ECFDF5; color: #047857; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.85rem; border: 1px solid #A7F3D0;">
+                        <div style="background: #DCFCE7; color: #15803D; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.85rem; border: 1px solid #BBF7D0;">
                             <?= htmlspecialchars($talent['talent_score']); ?> điểm
                         </div>
                     </div>
 
                     <!-- Job Post Selector -->
                     <div style="margin-bottom: 1.25rem;">
-                        <label for="invitePostSelect" style="display: block; font-size: 0.875rem; font-weight: 700; color: #334155; margin-bottom: 0.4rem;">
+                        <label for="invitePostSelect" style="display: block; font-size: 0.875rem; font-weight: 700; color: #322014; margin-bottom: 0.4rem;">
                             Chọn vị trí tuyển dụng đang mở <span style="color: #EF4444;">*</span>
                         </label>
-                        <select id="invitePostSelect" class="typeui-select">
+                        <select id="invitePostSelect" class="typeui-select" style="border: 1.5px solid #F0E6DD;">
                             <?php foreach ($activePosts as $post): ?>
                                 <option value="<?= htmlspecialchars($post['id']); ?>">
                                     <?= htmlspecialchars($post['title']); ?> (<?= htmlspecialchars($post['location'] ?? 'Toàn thời gian'); ?>)
@@ -690,25 +690,25 @@ $sidebarNav = [
 
                     <!-- Short Message -->
                     <div style="margin-bottom: 1.25rem;">
-                        <label for="inviteMessageInput" style="display: block; font-size: 0.875rem; font-weight: 700; color: #334155; margin-bottom: 0.4rem;">
+                        <label for="inviteMessageInput" style="display: block; font-size: 0.875rem; font-weight: 700; color: #322014; margin-bottom: 0.4rem;">
                             Lời nhắn gửi tới ứng viên:
                         </label>
                         <textarea id="inviteMessageInput"
                                   rows="3"
-                                  style="width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid #CBD5E1; border-radius: 8px; font-size: 0.875rem; color: #0F172A; resize: vertical;"
+                                  style="width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid #F0E6DD; border-radius: 8px; font-size: 0.875rem; color: #322014; resize: vertical;"
                                   placeholder="Ví dụ: Chào bạn <?= htmlspecialchars($talent['name']); ?>, FPT Software rất ấn tượng với hồ sơ năng lực và điểm đánh giá <?= htmlspecialchars($talent['talent_score']); ?> điểm của bạn. Trân trọng mời bạn tham gia thực tập..."></textarea>
                     </div>
 
                     <!-- Privacy / Notification Tip -->
-                    <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.8125rem; color: #1E40AF; display: flex; align-items: flex-start; gap: 0.5rem;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <div style="background: #FFF9F5; border: 1px solid #FFE0D3; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.8125rem; color: #6B5548; display: flex; align-items: flex-start; gap: 0.5rem;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" style="flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                         <span>Hệ thống sẽ lưu lời mời vào danh sách ứng tuyển thực tập và gửi thông báo trực tiếp đến tài khoản sinh viên trên TalentHub.</span>
                     </div>
                 </div>
 
-                <div style="background: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 1rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <div style="background: #FFFDFB; border-top: 1px solid #F0E6DD; padding: 1rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
                     <button type="button" class="btn btn-secondary" onclick="closeInviteModal()" style="font-weight: 600;">Hủy</button>
-                    <button type="button" class="btn btn-primary" id="confirmSendInviteBtn" onclick="submitInternshipInvitation()" style="background: #2563EB; border-color: #2563EB; font-weight: 700; padding: 0.5rem 1.25rem;">
+                    <button type="button" class="btn btn-primary" id="confirmSendInviteBtn" onclick="submitInternshipInvitation()" style="font-weight: 700; padding: 0.5rem 1.25rem;">
                         Xác nhận gửi lời mời
                     </button>
                 </div>

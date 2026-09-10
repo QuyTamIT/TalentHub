@@ -8,14 +8,73 @@ html {
     overflow-y: visible !important;
 }
 
+body.learner-app,
 .learner-app {
+    /* Scoped Design Tokens for Learner (Synchronized with Enterprise & Teacher Sunset Coral Palette) */
+    --primary: #FF6B45;
+    --primary-coral: #F83F70;
+    --primary-pink: #F23585;
+    --primary-purple: #A14FC9;
+    --primary-violet: #8B4DE8;
+    --primary-hover: #F83F70;
+    --primary-light: #FFF0EB;
+    --primary-light-border: #FFDACB;
+    --primary-dark: #E04058;
+    --secondary: #A14FC9;
+    --secondary-hover: #8B4DE8;
+    --secondary-light: #FAF5FF;
+    --accent: #F23585;
+    --accent-hover: #F83F70;
+    --accent-light: #FFF0EB;
+    --background: #FDF7F1;
+    --surface: #FFFFFF;
+    --surface-hover: #FFF7F2;
+    --border: #F0E6DD;
+    --border-hover: #FFDACB;
+    --border-strong: #E5D7CC;
+    --border-subtle: #FDF7F1;
+    --text-primary: #322014;
+    --text-secondary: #6B5548;
+    --text-muted: #9E897D;
+    --text-disabled: #B8A599;
+    --radius-xs: 4px;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-full: 9999px;
+    --shadow-soft: 0 4px 20px rgba(50, 32, 20, 0.04);
+    --shadow-glow: 0 6px 20px rgba(248, 63, 112, 0.28);
+    --focus-ring: 0 0 0 3px rgba(248, 63, 112, 0.25);
+    --primary-gradient: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
+    --primary-gradient-subtle: linear-gradient(135deg, #FFF0EB 0%, #FAF5FF 100%);
+    --font-primary: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+    /* Brand Component Scoped Overrides */
+    --brand-icon-bg: var(--primary-gradient);
+    --brand-icon-shadow: 0 2px 8px rgba(248, 63, 112, 0.35);
+    --brand-name-hub-color: var(--primary-coral);
+    --brand-name-color: var(--text-primary);
+    --brand-sub-color: var(--primary-coral);
+
     --learner-sidebar-width: 274px;
     --learner-header-height: 68px;
+    --success: var(--color-success);
+    --warning: var(--color-warning);
+    --danger: var(--color-danger);
     min-height: 100vh;
-    background: var(--background);
+    background: var(--background) !important;
+    background-color: var(--background) !important;
     color: var(--text-primary);
     overflow-x: clip !important;
     overflow-y: visible !important;
+}
+
+body.learner-app,
+.learner-app,
+.learner-app .learner-layout,
+.learner-app .learner-main {
+    background-color: var(--background) !important;
 }
 
 .learner-app button,
@@ -1968,17 +2027,6 @@ html {
     pointer-events: none;
 }
 
-.learner-scanner-frame__line {
-    position: absolute;
-    right: 8%;
-    left: 8%;
-    top: 50%;
-    height: 2px;
-    background: var(--primary);
-    box-shadow: 0 0 12px rgba(249, 115, 22, 0.8);
-    animation: learner-scan-line 2.4s ease-in-out infinite alternate;
-}
-
 .learner-scanner-frame__corner {
     position: absolute;
     width: 35px;
@@ -2270,72 +2318,6 @@ html {
 }
 
 .learner-empty-state { margin: 0; padding: 12px 0; font-size: 0.74rem; }
-
-.learner-scanner-frame {
-    position: relative;
-    display: grid;
-    min-height: 260px;
-    color: var(--text-secondary);
-    background: var(--background);
-    border: 2px solid var(--secondary);
-    border-radius: var(--radius-md);
-    place-items: center;
-    overflow: hidden;
-}
-
-.learner-scanner-frame__line {
-    position: absolute;
-    right: 16px;
-    left: 16px;
-    height: 2px;
-    background: var(--primary);
-    box-shadow: 0 0 10px rgba(249, 115, 22, 0.45);
-    animation: learner-scan-line 2.2s ease-in-out infinite alternate;
-}
-
-.learner-scanner-frame__corner {
-    position: absolute;
-    width: 34px;
-    height: 34px;
-    border-color: var(--primary);
-}
-
-.learner-scanner-frame__corner--top-left {
-    top: 16px;
-    left: 16px;
-    border-top: 4px solid var(--primary);
-    border-left: 4px solid var(--primary);
-}
-
-.learner-scanner-frame__corner--top-right {
-    top: 16px;
-    right: 16px;
-    border-top: 4px solid var(--primary);
-    border-right: 4px solid var(--primary);
-}
-
-.learner-scanner-frame__corner--bottom-left {
-    bottom: 16px;
-    left: 16px;
-    border-bottom: 4px solid var(--primary);
-    border-left: 4px solid var(--primary);
-}
-
-.learner-scanner-frame__corner--bottom-right {
-    right: 16px;
-    bottom: 16px;
-    border-right: 4px solid var(--primary);
-    border-bottom: 4px solid var(--primary);
-}
-
-.learner-scanner-note {
-    margin-top: 18px;
-}
-
-@keyframes learner-scan-line {
-    from { transform: translateY(-96px); }
-    to { transform: translateY(96px); }
-}
 
 @media (max-width: 1080px) {
     .learner-checkin-layout { grid-template-columns: minmax(0, 1fr) minmax(280px, 0.72fr); }
@@ -4791,10 +4773,6 @@ body.learner-sidebar-open {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
-    }
-
-    .learner-scanner-frame__line {
-        animation: none !important;
     }
 
     .learner-ai-loading__spinner {
@@ -7523,18 +7501,18 @@ body.has-roadmap-editor {
 
 /* Learner discovery refresh --------------------------------------------- */
 .learner-page-discover {
-    --discover-primary: #F97316;
-    --discover-primary-hover: #EA580C;
-    --discover-primary-light: #FFF7ED;
-    --discover-secondary: #2563EB;
-    --discover-secondary-light: #EFF6FF;
+    --discover-primary: #F83F70;
+    --discover-primary-hover: #FF6B45;
+    --discover-primary-light: #FFF0EB;
+    --discover-secondary: #A14FC9;
+    --discover-secondary-light: #FAF5FF;
     --discover-success: #16A34A;
     --discover-success-strong: #15803D;
-    --discover-background: #F8FAFC;
+    --discover-background: #FDF7F1;
     --discover-surface: #FFFFFF;
-    --discover-text-primary: #0F172A;
-    --discover-text-secondary: #64748B;
-    --discover-border: #E2E8F0;
+    --discover-text-primary: #322014;
+    --discover-text-secondary: #6B5548;
+    --discover-border: #F0E6DD;
     font-family: var(--font-primary);
     background: var(--discover-background);
     color: var(--discover-text-primary);
@@ -7658,6 +7636,7 @@ body.has-roadmap-editor {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
+    align-items: stretch;
 }
 
 .learner-page-discover .learner-assessment-state,
@@ -7668,8 +7647,13 @@ body.has-roadmap-editor {
 }
 
 .learner-page-discover .learner-assessment-card {
-    min-height: 250px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 360px;
     padding: 20px;
+    box-sizing: border-box;
+    position: relative;
     background: var(--discover-surface);
     border-color: var(--discover-border);
     border-radius: var(--radius-md);
@@ -7677,8 +7661,8 @@ body.has-roadmap-editor {
 }
 
 .learner-page-discover .learner-assessment-card:hover {
-    border-color: rgba(249, 115, 22, 0.55);
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.09);
+    border-color: #FFB39E;
+    box-shadow: 0 10px 24px rgba(248, 63, 112, 0.12);
 }
 
 .learner-page-discover .learner-assessment-card__icon {
@@ -7688,7 +7672,7 @@ body.has-roadmap-editor {
     align-items: center;
     justify-content: center;
     color: #FFFFFF;
-    background: var(--discover-primary);
+    background: var(--primary-gradient);
     border-radius: var(--radius-md);
     font-size: 14px;
     font-weight: 700;
@@ -7714,7 +7698,9 @@ body.has-roadmap-editor {
 }
 
 .learner-page-discover .learner-assessment-card h2 {
+    min-height: 46px;
     margin-top: 16px;
+    margin-bottom: 6px;
     color: var(--discover-text-primary);
     font-size: 16px;
     font-weight: 600;
@@ -7722,39 +7708,168 @@ body.has-roadmap-editor {
 }
 
 .learner-page-discover .learner-assessment-card > p {
-    min-height: 42px;
-    margin: 5px 0 12px;
+    min-height: 64px;
+    margin: 0 0 16px 0;
     color: var(--discover-text-secondary);
     font-size: 14px;
     line-height: 1.5;
+    flex: 1 1 auto;
 }
 
 .learner-page-discover .learner-assessment-card__result {
     display: block;
     width: 100%;
-    margin-bottom: 10px;
+    margin-top: auto;
+    margin-bottom: 8px;
     padding: 7px 10px;
     overflow: hidden;
-    color: var(--discover-primary-hover);
-    background: var(--discover-primary-light);
-    border: 1px solid #FED7AA;
+    color: #F83F70;
+    background: #FFF0EB;
+    border: 1px solid #FFDACB;
     border-radius: var(--radius-sm);
     font-size: 12px;
     font-weight: 700;
     text-align: center;
     text-overflow: ellipsis;
     white-space: nowrap;
+    box-sizing: border-box;
+    height: 32px;
+    line-height: 16px;
+}
+
+.learner-page-discover .learner-assessment-card > .learner-btn:first-of-type {
+    margin-top: auto;
+}
+
+.learner-page-discover .learner-assessment-card__result + .learner-btn {
+    margin-top: 0;
 }
 
 .learner-page-discover .learner-assessment-card > .learner-btn {
+    height: 40px;
     min-height: 40px;
+    max-height: 40px;
+    padding: 0 12px;
     border-radius: var(--radius-sm);
     font-size: 14px;
     font-weight: 600;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .learner-page-discover .learner-assessment-card > .learner-btn + .learner-btn {
     margin-top: 8px;
+}
+
+/* Discover buttons synchronization & hover contrast */
+.learner-page-discover .learner-btn--primary,
+.learner-page-discover a.learner-btn--primary {
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    border: 1px solid transparent !important;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28) !important;
+    font-weight: 600 !important;
+    transition: all var(--transition-fast) !important;
+}
+
+.learner-page-discover .learner-btn--primary:hover:not(:disabled),
+.learner-page-discover a.learner-btn--primary:hover:not(:disabled) {
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    border-color: transparent !important;
+    box-shadow: 0 6px 20px rgba(248, 63, 112, 0.42) !important;
+    filter: brightness(1.05) !important;
+    transform: translateY(-1px) !important;
+    text-decoration: none !important;
+}
+
+.learner-page-discover .learner-btn--primary:focus-visible,
+.learner-page-discover a.learner-btn--primary:focus-visible {
+    outline: 3px solid rgba(248, 63, 112, 0.35) !important;
+    outline-offset: 2px !important;
+}
+
+.learner-page-discover .learner-btn--outline,
+.learner-page-discover a.learner-btn--outline,
+.learner-page-discover .learner-assessment-card .learner-btn--outline,
+.learner-page-discover .learner-assessment-card a.learner-btn--outline {
+    background: #FFF0EB !important;
+    background-color: #FFF0EB !important;
+    background-image: none !important;
+    color: #C0204E !important;
+    border: 1px solid #FFDACB !important;
+    box-shadow: none !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    transition: all var(--transition-fast) !important;
+}
+
+.learner-page-discover .learner-btn--outline:hover:not(:disabled),
+.learner-page-discover a.learner-btn--outline:hover:not(:disabled),
+.learner-page-discover .learner-assessment-card .learner-btn--outline:hover:not(:disabled),
+.learner-page-discover .learner-assessment-card a.learner-btn--outline:hover:not(:disabled) {
+    background: var(--primary-gradient) !important;
+    background-image: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    border-color: transparent !important;
+    box-shadow: 0 4px 16px rgba(248, 63, 112, 0.38) !important;
+    transform: translateY(-1px) !important;
+    font-weight: 700 !important;
+    text-shadow: 0 1px 2px rgba(50, 32, 20, 0.35) !important;
+    text-decoration: none !important;
+}
+
+.learner-page-discover .learner-btn--outline:focus-visible,
+.learner-page-discover a.learner-btn--outline:focus-visible {
+    outline: 3px solid rgba(248, 63, 112, 0.35) !important;
+    outline-offset: 2px !important;
+}
+
+.learner-page-discover .learner-btn--secondary,
+.learner-page-discover a.learner-btn--secondary {
+    background-color: #FFFFFF !important;
+    color: #6B5548 !important;
+    border: 1px solid #F0E6DD !important;
+    box-shadow: none !important;
+    font-weight: 600 !important;
+    transition: all var(--transition-fast) !important;
+}
+
+.learner-page-discover .learner-btn--secondary:hover:not(:disabled),
+.learner-page-discover a.learner-btn--secondary:hover:not(:disabled) {
+    background-color: #FFF7F2 !important;
+    border-color: #FFB39E !important;
+    color: #F83F70 !important;
+    box-shadow: 0 4px 12px rgba(248, 63, 112, 0.15) !important;
+    transform: translateY(-1px) !important;
+    text-decoration: none !important;
+}
+
+.learner-page-discover .learner-btn--secondary:focus-visible,
+.learner-page-discover a.learner-btn--secondary:focus-visible {
+    outline: 3px solid rgba(248, 63, 112, 0.35) !important;
+    outline-offset: 2px !important;
+}
+
+.learner-page-discover .learner-btn:disabled,
+.learner-page-discover .learner-btn[disabled],
+.learner-page-discover .learner-btn.is-disabled {
+    background: #F0E6DD !important;
+    color: #A8988C !important;
+    border: 1px solid #E5D7CC !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    transform: none !important;
+    pointer-events: none !important;
+}
+
+.learner-page-discover .learner-onboarding-progress__logout:hover {
+    color: #F83F70 !important;
 }
 
 .learner-page-discover .learner-discovery-grid {
@@ -7908,9 +8023,13 @@ body.has-roadmap-editor {
 }
 
 .learner-page-discover .learner-discover-next__card:hover {
-    border-color: rgba(249, 115, 22, 0.5);
-    box-shadow: var(--shadow-md);
+    border-color: #FFB39E;
+    box-shadow: 0 10px 24px rgba(248, 63, 112, 0.12);
     transform: translateY(-2px);
+}
+
+.learner-page-discover .learner-discover-next__card:hover strong {
+    color: #F83F70;
 }
 
 .learner-page-discover .learner-discover-next__icon {
@@ -9243,7 +9362,6 @@ body.has-roadmap-editor {
 
 /* Learner journey dashboard refresh -------------------------------------- */
 .learner-page-overview {
-    --learner-sidebar-width: 252px;
     --journey-card-radius: var(--radius-md);
     --journey-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
 }
@@ -16278,4 +16396,463 @@ body.has-roadmap-editor {
     .learner-progress > span {
         transition: none;
     }
+}
+
+/* ==========================================================================
+   STUDENT / LEARNER PORTAL VISUAL THEME SYNCHRONIZATION
+   Synchronized with Enterprise & Teacher Sunset Coral Palette:
+   #FF6B45 (Cam) -> #F83F70 (Coral) -> #F23585 (Pink) -> #A14FC9 (Tím) -> #8B4DE8 (Violet)
+   Background: #FDF7F1 | Cards: #FFFFFF | Text: #322014 | Border: #F0E6DD
+   NOTE: ALL structural rules (padding, margin, size, layout) are 100% preserved.
+   ========================================================================== */
+
+/* 1. SIDEBAR & NAVIGATION */
+body.learner-app .learner-sidebar {
+    background-color: var(--surface) !important;
+    border-right-color: var(--border) !important;
+}
+
+body.learner-app .learner-sidebar__brand {
+    border-bottom-color: var(--border) !important;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+body.learner-app .learner-sidebar__brand-link {
+    display: block;
+    text-decoration: none;
+    line-height: 1;
+    transition: opacity var(--transition-fast, 0.15s ease), transform var(--transition-fast, 0.15s ease);
+}
+
+body.learner-app .learner-sidebar__brand-link:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+}
+
+body.learner-app .learner-sidebar__logo-img {
+    display: block;
+    width: 178px;
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+    aspect-ratio: 401 / 122;
+}
+
+body.learner-app .learner-sidebar__role-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--primary-coral, #F83F70);
+    background-color: #FFF0EB;
+    border: 1px solid #FFDACB;
+    padding: 2px 9px;
+    border-radius: 999px;
+    margin: 10px auto 2px 0;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+    text-align: center;
+    margin-left: 45px;
+}
+
+body.learner-app .learner-sidebar__link {
+    color: var(--text-secondary) !important;
+}
+
+body.learner-app .learner-sidebar__link:hover:not(.is-active) {
+    background-color: rgba(255, 107, 69, 0.08) !important;
+    color: var(--primary) !important;
+}
+
+body.learner-app .learner-sidebar__link:hover:not(.is-active) .learner-sidebar__icon,
+body.learner-app .learner-sidebar__link:hover:not(.is-active) svg {
+    color: var(--primary) !important;
+}
+
+body.learner-app .learner-sidebar__link.is-active {
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    border-color: transparent !important;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.35) !important;
+}
+
+body.learner-app .learner-sidebar__link.is-active .learner-sidebar__icon,
+body.learner-app .learner-sidebar__link.is-active svg {
+    color: #FFFFFF !important;
+    stroke: #FFFFFF !important;
+}
+
+body.learner-app .learner-sidebar__footer {
+    border-top-color: var(--border) !important;
+}
+
+body.learner-app .learner-level-card {
+    background-color: #FFF0EB !important;
+    border-color: #FFDACB !important;
+}
+
+body.learner-app .learner-level-card__medal {
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 2px 8px rgba(248, 63, 112, 0.25) !important;
+}
+
+/* 2. HEADER & ACCOUNT DROPDOWN */
+body.learner-app .learner-header {
+    background-color: rgba(255, 255, 255, 0.96) !important;
+    border-bottom-color: var(--border) !important;
+}
+
+body.learner-app .learner-search {
+    background-color: var(--surface) !important;
+    border-color: var(--border) !important;
+    color: var(--text-primary) !important;
+}
+
+body.learner-app .learner-search:focus-within {
+    border-color: var(--primary-coral) !important;
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.18) !important;
+}
+
+body.learner-app .learner-search input {
+    color: var(--text-primary) !important;
+}
+
+body.learner-app .learner-icon-button {
+    background-color: var(--surface) !important;
+    border-color: var(--border) !important;
+    color: var(--text-secondary) !important;
+}
+
+body.learner-app .learner-icon-button:hover {
+    background-color: #FFF7F2 !important;
+    border-color: #FFB39E !important;
+    color: var(--primary-coral) !important;
+}
+
+body.learner-app .learner-notification-dot {
+    background: var(--primary-coral) !important;
+    color: #FFFFFF !important;
+}
+
+body.learner-app .learner-header__account:hover,
+body.learner-app .learner-header__account[aria-expanded="true"] {
+    background-color: #FFF7F2 !important;
+    border-color: #FFB39E !important;
+}
+
+body.learner-app .learner-header__avatar,
+body.learner-app .learner-account-menu__avatar {
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 2px 6px rgba(248, 63, 112, 0.25) !important;
+}
+
+body.learner-app .learner-header__user-name {
+    color: var(--text-primary) !important;
+}
+
+body.learner-app .learner-header__user-role {
+    color: var(--text-secondary) !important;
+}
+
+body.learner-app .learner-account-menu {
+    background-color: var(--surface) !important;
+    border-color: var(--border) !important;
+    box-shadow: var(--shadow-soft) !important;
+}
+
+body.learner-app .learner-account-menu__badge {
+    background-color: #FFF0EB !important;
+    border-color: #FFDACB !important;
+    color: var(--primary-coral) !important;
+}
+
+body.learner-app .learner-account-menu__divider {
+    background-color: var(--border) !important;
+}
+
+body.learner-app .learner-account-menu__item:hover,
+body.learner-app .learner-account-menu__item:focus,
+body.learner-app .learner-account-menu__item.is-focused {
+    background-color: #FFF7F2 !important;
+    color: var(--primary-coral) !important;
+}
+
+body.learner-app .learner-account-menu__item:hover .learner-account-menu__item-icon,
+body.learner-app .learner-account-menu__item:focus .learner-account-menu__item-icon,
+body.learner-app .learner-account-menu__item.is-focused .learner-account-menu__item-icon {
+    color: var(--primary-coral) !important;
+}
+
+/* 3. BANNERS & HERO */
+body.learner-app .learner-welcome {
+    background: linear-gradient(135deg, #FFFFFF 0%, #FFF8F5 100%) !important;
+    border-color: var(--border) !important;
+    border-left-color: var(--primary-coral) !important;
+    box-shadow: var(--shadow-soft) !important;
+}
+
+body.learner-app .learner-welcome::after {
+    background: radial-gradient(circle, rgba(248, 63, 112, 0.08) 0%, transparent 70%) !important;
+}
+
+body.learner-app .learner-welcome__streak svg {
+    color: var(--primary-coral) !important;
+}
+
+body.learner-app .learner-welcome h1 {
+    color: var(--text-primary) !important;
+}
+
+body.learner-app .learner-welcome__content > p {
+    color: var(--text-secondary) !important;
+}
+
+body.learner-app .learner-welcome__status {
+    color: var(--primary-coral) !important;
+}
+
+body.learner-app .learner-page-banner {
+    background: linear-gradient(125deg, #FFF0EB, #FFFFFF 54%, #FAF5FF) !important;
+    border-color: #FFDACB !important;
+    box-shadow: var(--shadow-soft) !important;
+}
+
+body.learner-app .learner-page-banner__icon {
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 4px 12px rgba(248, 63, 112, 0.25) !important;
+}
+
+body.learner-app .learner-page-banner__eyebrow {
+    color: var(--primary-coral) !important;
+}
+
+/* 4. CARDS, SECTIONS & KPIS */
+body.learner-app .learner-card,
+body.learner-app .learner-kpi-card,
+body.learner-app .learner-progress-kpi,
+body.learner-app .eval-hero-feedback,
+body.learner-app .passport-customizer-panel {
+    background-color: var(--surface) !important;
+    border-color: var(--border) !important;
+    box-shadow: var(--shadow-soft) !important;
+}
+
+body.learner-app .learner-card:hover,
+body.learner-app .learner-kpi-card:hover,
+body.learner-app .learner-progress-kpi:hover {
+    border-color: var(--border-hover) !important;
+    box-shadow: 0 8px 24px rgba(50, 32, 20, 0.06) !important;
+}
+
+body.learner-app .learner-progress-kpi__icon,
+body.learner-app .learner-progress-kpi--primary .learner-progress-kpi__icon {
+    background-color: #FFF0EB !important;
+    color: var(--primary-coral) !important;
+}
+
+body.learner-app .learner-progress-kpi--secondary .learner-progress-kpi__icon {
+    background-color: #FAF5FF !important;
+    color: var(--primary-violet) !important;
+}
+
+body.learner-app .learner-progress-kpi p,
+body.learner-app .learner-kpi-card > p {
+    color: var(--text-secondary) !important;
+}
+
+body.learner-app .learner-progress-kpi strong,
+body.learner-app .learner-kpi-card > strong {
+    color: var(--text-primary) !important;
+}
+
+/* 5. BUTTONS & ACTIONS */
+body.learner-app .learner-btn--primary,
+body.learner-app .btn-primary,
+body.learner-app button[type="submit"]:not(.learner-btn--secondary):not(.learner-btn--outline):not(.btn-secondary):not(.btn-outline):not(.btn-danger) {
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    border-color: transparent !important;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28) !important;
+}
+
+body.learner-app .learner-btn--primary:hover:not(:disabled),
+body.learner-app .btn-primary:hover:not(:disabled),
+body.learner-app button[type="submit"]:hover:not(:disabled):not(.learner-btn--secondary):not(.learner-btn--outline):not(.btn-secondary):not(.btn-outline):not(.btn-danger) {
+    box-shadow: 0 6px 20px rgba(248, 63, 112, 0.38) !important;
+    filter: brightness(1.03);
+}
+
+body.learner-app .learner-btn--secondary,
+body.learner-app:not(.learner-page-discover) .learner-btn--outline,
+body.learner-app .btn-secondary,
+body.learner-app .btn-outline {
+    background-color: #FFFFFF !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border) !important;
+}
+
+body.learner-app .learner-btn--secondary:hover:not(:disabled),
+body.learner-app:not(.learner-page-discover) .learner-btn--outline:hover:not(:disabled),
+body.learner-app .btn-secondary:hover:not(:disabled),
+body.learner-app .btn-outline:hover:not(:disabled) {
+    background-color: #FFF7F2 !important;
+    border-color: #FFB39E !important;
+    color: var(--primary-coral) !important;
+}
+
+/* 6. BADGES, CHIPS & ACCENTS */
+body.learner-app :is(.learner-badge--primary, .learner-tone--primary, .learner-icon-tile--primary, .learner-chip--primary) {
+    background-color: #FFF0EB !important;
+    border-color: #FFDACB !important;
+    color: var(--primary-coral) !important;
+}
+
+body.learner-app :is(.learner-badge--secondary, .learner-tone--secondary, .learner-icon-tile--secondary, .learner-chip--secondary) {
+    background-color: #FAF5FF !important;
+    border-color: #F3E8FF !important;
+    color: var(--primary-violet) !important;
+}
+
+/* 7. FORM INPUTS & CONTROLS */
+body.learner-app input[type="text"],
+body.learner-app input[type="email"],
+body.learner-app input[type="password"],
+body.learner-app input[type="search"],
+body.learner-app input[type="number"],
+body.learner-app input[type="tel"],
+body.learner-app input[type="url"],
+body.learner-app input[type="date"],
+body.learner-app select,
+body.learner-app textarea,
+body.learner-app .form-control,
+body.learner-app .typeui-select {
+    background-color: #FFFFFF !important;
+    border-color: var(--border) !important;
+    color: var(--text-primary) !important;
+}
+
+body.learner-app input:hover,
+body.learner-app select:hover,
+body.learner-app textarea:hover,
+body.learner-app .typeui-select:hover {
+    border-color: #FFB39E !important;
+}
+
+body.learner-app input:focus,
+body.learner-app select:focus,
+body.learner-app textarea:focus,
+body.learner-app .typeui-select:focus {
+    border-color: var(--primary-coral) !important;
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.18) !important;
+    outline: none !important;
+}
+
+body.learner-app input:disabled,
+body.learner-app select:disabled,
+body.learner-app textarea:disabled {
+    background-color: #F8F4F0 !important;
+    color: var(--text-muted) !important;
+    border-color: var(--border) !important;
+}
+
+body.learner-app input[type="checkbox"],
+body.learner-app input[type="radio"] {
+    accent-color: var(--primary-coral);
+}
+
+/* 8. PROGRESS & TIMELINE */
+body.learner-app .learner-progress {
+    background-color: #F0E6DD !important;
+}
+
+body.learner-app .learner-progress > span,
+body.learner-app .learner-progress > .learner-progress--primary {
+    background: var(--primary-gradient) !important;
+}
+
+body.learner-app .learner-progress > .learner-progress--secondary {
+    background: linear-gradient(90deg, #A14FC9 0%, #8B4DE8 100%) !important;
+}
+
+/* 9. TABLES & DATA CONTAINERS */
+body.learner-app table thead th {
+    background-color: #FAF3EE !important;
+    color: var(--text-secondary) !important;
+    border-bottom-color: var(--border) !important;
+}
+
+body.learner-app table tbody tr {
+    border-color: var(--border) !important;
+}
+
+body.learner-app table tbody tr:hover {
+    background-color: #FAF5F0 !important;
+}
+
+/* 10. GENERAL LINKS & ACCENTS */
+body.learner-app a:not(.learner-btn):not(.btn):not(.learner-sidebar__link):not(.learner-sidebar__brand):not(.learner-brand):not(.learner-icon-button):not(.learner-account-menu__item) {
+    color: var(--primary-coral);
+    transition: color 0.15s ease;
+}
+
+body.learner-app a:not(.learner-btn):not(.btn):not(.learner-sidebar__link):not(.learner-sidebar__brand):not(.learner-brand):not(.learner-icon-button):not(.learner-account-menu__item):hover {
+    color: var(--primary-pink);
+}
+
+body.learner-app .verified-top-banner {
+    background: var(--primary-gradient) !important;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.25) !important;
+}
+
+/* 11. STUDENT DISCOVER "XEM KẾT QUẢ" & OUTLINE BUTTON CONTRAST */
+body.learner-app.learner-page-discover .learner-btn--outline,
+body.learner-app.learner-page-discover a.learner-btn--outline,
+body.learner-app.learner-page-discover .learner-assessment-card .learner-btn--outline,
+body.learner-app.learner-page-discover .learner-assessment-card a.learner-btn--outline,
+body.learner-app .learner-page-discover .learner-btn--outline,
+body.learner-app .learner-page-discover a.learner-btn--outline,
+body.learner-app .learner-page-discover .learner-assessment-card .learner-btn--outline,
+body.learner-app .learner-page-discover .learner-assessment-card a.learner-btn--outline {
+    background: #FFF0EB !important;
+    background-color: #FFF0EB !important;
+    background-image: none !important;
+    color: #C0204E !important;
+    border: 1px solid #FFDACB !important;
+    box-shadow: none !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
+    transition: all var(--transition-fast) !important;
+}
+
+body.learner-app.learner-page-discover .learner-btn--outline:hover:not(:disabled),
+body.learner-app.learner-page-discover a.learner-btn--outline:hover:not(:disabled),
+body.learner-app.learner-page-discover .learner-assessment-card .learner-btn--outline:hover:not(:disabled),
+body.learner-app.learner-page-discover .learner-assessment-card a.learner-btn--outline:hover:not(:disabled),
+body.learner-app .learner-page-discover .learner-btn--outline:hover:not(:disabled),
+body.learner-app .learner-page-discover a.learner-btn--outline:hover:not(:disabled),
+body.learner-app .learner-page-discover .learner-assessment-card .learner-btn--outline:hover:not(:disabled),
+body.learner-app .learner-page-discover .learner-assessment-card a.learner-btn--outline:hover:not(:disabled) {
+    background: var(--primary-gradient) !important;
+    background-image: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    border-color: transparent !important;
+    box-shadow: 0 4px 16px rgba(248, 63, 112, 0.38) !important;
+    transform: translateY(-1px) !important;
+    font-weight: 700 !important;
+    text-shadow: 0 1px 2px rgba(50, 32, 20, 0.35) !important;
+    text-decoration: none !important;
+}
+
+body.learner-app.learner-page-discover .learner-btn--outline:focus-visible,
+body.learner-app.learner-page-discover a.learner-btn--outline:focus-visible,
+body.learner-app .learner-page-discover .learner-btn--outline:focus-visible,
+body.learner-app .learner-page-discover a.learner-btn--outline:focus-visible {
+    outline: 3px solid rgba(248, 63, 112, 0.35) !important;
+    outline-offset: 2px !important;
 }

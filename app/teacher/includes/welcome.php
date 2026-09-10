@@ -29,7 +29,7 @@ if ($teacherName === 'minh triet') {
         <div class="teacher-welcome__meta">
             <span class="teacher-chip teacher-chip--primary"><?= htmlspecialchars($teacherInfo['role_label'] ?? 'Giáo viên / Hướng dẫn viên'); ?></span>
             <span class="teacher-chip"><?= htmlspecialchars($teacherInfo['school_name'] ?? 'Cao đẳng Quốc tế BTEC FPT'); ?></span>
-            <span class="teacher-chip" style="background: #EFF6FF; color: #1D4ED8; font-weight: 700; border: 1px solid #BFDBFE;">Lớp phụ trách: BTEC-AI-2026A</span>
+            <span class="teacher-chip" style="background: #FAF5FF; color: #8B4DE8; font-weight: 700; border: 1px solid rgba(139, 77, 232, 0.25);">Lớp phụ trách: BTEC-AI-2026A</span>
             <span class="teacher-chip"><?= htmlspecialchars($todayLabel); ?></span>
         </div>
     </div>

@@ -1,15 +1,15 @@
 .learner-activities-shell {
-    --activity-primary: #C2410C;
-    --activity-primary-hover: #9A3412;
-    --activity-primary-light: #FFF7ED;
-    --activity-secondary: #2563EB;
-    --activity-secondary-light: #EFF6FF;
+    --activity-primary: #F83F70;
+    --activity-primary-hover: #FF6B45;
+    --activity-primary-light: #FFF0EB;
+    --activity-secondary: #A14FC9;
+    --activity-secondary-light: #FAF5FF;
     --activity-accent: #16A34A;
-    --activity-background: #F8FAFC;
+    --activity-background: #FDF7F1;
     --activity-surface: #FFFFFF;
-    --activity-text-primary: #0F172A;
-    --activity-text-secondary: #64748B;
-    --activity-border: #E2E8F0;
+    --activity-text-primary: #322014;
+    --activity-text-secondary: #6B5548;
+    --activity-border: #F0E6DD;
     --activity-success: #16A34A;
     --activity-warning: #F59E0B;
     --activity-danger: #DC2626;
@@ -66,7 +66,7 @@
 }
 
 .learner-activities-shell .learner-activity-navigation__link.is-active::after {
-    background: var(--activity-primary);
+    background: linear-gradient(90deg, #FF6B45 0%, #F83F70 50%, #A14FC9 100%);
 }
 
 .learner-activities-shell .learner-activity-navigation__link:focus-visible,
@@ -74,7 +74,7 @@
 .learner-activities-shell button:focus-visible,
 .learner-activities-shell input:focus-visible,
 .learner-activities-shell select:focus-visible {
-    outline: 3px solid rgba(37, 99, 235, .28);
+    outline: 3px solid rgba(248, 63, 112, .28);
     outline-offset: 3px;
 }
 
@@ -354,8 +354,8 @@
 
 .learner-activities-shell .learner-activity-discovery-search:focus-within,
 .learner-activities-shell .learner-activity-discovery-time:focus-within {
-    border-color: var(--activity-secondary);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
+    border-color: #FFB39E;
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, .18);
 }
 
 .learner-activities-shell .learner-activity-discovery-search input,
@@ -381,7 +381,7 @@
     background: var(--activity-surface);
     border: 1px solid var(--activity-border);
     border-radius: 999px;
-    color: #334155;
+    color: #4A3B32;
     cursor: pointer;
     display: inline-flex;
     font: inherit;
@@ -391,18 +391,30 @@
     min-height: 44px;
     padding: 0 15px;
     white-space: nowrap;
+    transition: background .2s ease, border-color .2s ease, color .2s ease, box-shadow .2s ease, transform .2s ease;
 }
 
 .learner-activities-shell .learner-activity-discovery-categories button:hover {
-    border-color: #FDBA74;
-    color: var(--activity-primary-hover);
+    background: #FFF7F2;
+    border-color: #FFB39E;
+    color: #F83F70;
+    transform: translateY(-1px);
 }
 
 .learner-activities-shell .learner-activity-discovery-categories button[aria-pressed="true"] {
-    background: var(--activity-primary);
-    border-color: var(--activity-primary);
-    box-shadow: 0 6px 14px rgba(249, 115, 22, .2);
-    color: var(--activity-surface);
+    background: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
+    border-color: transparent;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, .32);
+    color: #FFFFFF;
+}
+
+.learner-activities-shell .learner-activity-discovery-categories button[aria-pressed="true"]:hover {
+    background: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
+    border-color: transparent;
+    box-shadow: 0 6px 18px rgba(248, 63, 112, .42);
+    color: #FFFFFF;
+    filter: brightness(1.05);
+    transform: translateY(-1px);
 }
 
 .learner-activities-shell .learner-activity-discovery-availability {
@@ -455,7 +467,7 @@
 }
 
 .learner-activities-shell .learner-activity-discovery-availability input:focus-visible + span {
-    outline: 3px solid rgba(37, 99, 235, .28);
+    outline: 3px solid rgba(248, 63, 112, .28);
     outline-offset: 3px;
 }
 
@@ -477,9 +489,9 @@
 }
 
 .learner-activities-shell .learner-activity-discovery-card:hover {
-    border-color: #FDBA74;
-    box-shadow: 0 14px 28px rgba(15, 23, 42, .09);
-    transform: translateY(-2px);
+    border-color: #FFB39E;
+    box-shadow: 0 10px 24px rgba(248, 63, 112, .1);
+    transform: translateY(-3px);
 }
 
 .learner-activities-shell .learner-activity-discovery-card__cover {
@@ -617,9 +629,9 @@
 
 .learner-activities-shell .learner-activity-discovery-card__body > a {
     align-items: center;
-    background: linear-gradient(90deg, var(--activity-primary), #FF5A00);
+    background: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
     border-radius: var(--activity-radius-sm);
-    color: var(--activity-surface);
+    color: #FFFFFF;
     display: flex;
     font-size: 14px;
     font-weight: 700;
@@ -627,6 +639,8 @@
     min-height: 44px;
     padding: 0 16px;
     text-decoration: none;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28);
+    transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
 }
 
 .learner-activities-shell .learner-activity-discovery-card__body > a svg {
@@ -634,7 +648,10 @@
 }
 
 .learner-activities-shell .learner-activity-discovery-card__body > a:hover {
-    background: var(--activity-primary-hover);
+    color: #FFFFFF;
+    filter: brightness(1.05);
+    box-shadow: 0 6px 20px rgba(248, 63, 112, 0.42);
+    transform: translateY(-1px);
 }
 
 .learner-activities-shell .learner-activity-discovery-empty {
