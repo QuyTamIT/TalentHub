@@ -79,6 +79,18 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                         </div>
                     </div>
 
+                    <?php
+                    $completedProjects = array_values(array_filter($projects ?? [], static function (array $p): bool {
+                        $st = strtolower((string)($p['status'] ?? ''));
+                        return in_array($st, ['completed', 'đã hoàn thành'], true);
+                    }));
+                    foreach ($profileKpis as &$profileKpiItem) {
+                        if (($profileKpiItem['label'] ?? '') === 'Dự án') {
+                            $profileKpiItem['value'] = (string) count($completedProjects);
+                        }
+                    }
+                    unset($profileKpiItem);
+                    ?>
                     <div class="learner-profile-kpis" aria-label="Chỉ số hồ sơ">
                         <?php foreach ($profileKpis as $kpi): ?>
                             <article class="learner-profile-kpi">
