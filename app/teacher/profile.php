@@ -127,7 +127,7 @@ $displayEmail = (string) ($dbUser['email'] ?? ($profile['email'] ?? ($_SESSION['
 $displayPhone = (string) ($dbUser['phone'] ?? ($profile['phone'] ?? ($_SESSION['user']['phone'] ?? '')));
 $displaySpec = (string) ($dbUser['specialization'] ?? ($profile['specialization'] ?? ''));
 $displayBio = (string) ($dbUser['bio'] ?? ($profile['bio'] ?? ''));
-$displaySchool = (string) ($dbUser['schoolName'] ?? ($profile['school']['name'] ?? 'Cao đẳng Quốc tế BTEC FPT'));
+$displaySchool = (string) ($dbUser['schoolName'] ?? ($profile['school']['name'] ?? ''));
 
 $cleanName = preg_replace('/^(Thầy|Cô|Gv\.|GV|Ths\.|TS\.|ThS\.)\s+/iu', '', $displayName);
 $cleanName = trim((string)$cleanName) ?: $displayName;

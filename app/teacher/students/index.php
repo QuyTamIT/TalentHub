@@ -111,8 +111,10 @@ try {
         $sql = "
             SELECT sp.id as studentId, u.fullName, u.email, sp.phone, 
                    COALESCE(sp.talentScore, 85.00) as talentScore,
-                   c.name as className, spd.headline, sp.createdAt
+                   c.name as className, spd.headline, sp.createdAt,
+                   s.name as schoolName
             FROM teacher_profiles tp
+            LEFT JOIN schools s ON s.id = tp.schoolId
             JOIN classes c ON c.schoolId = tp.schoolId
             JOIN student_profiles sp ON sp.classId = c.id
             JOIN users u ON u.id = sp.userId
@@ -139,8 +141,8 @@ try {
                     'studentId' => $cs['studentId'],
                     'fullName' => $cs['fullName'],
                     'email' => $cs['email'],
-                    'activityTitle' => 'Lớp ' . $cs['className'] . ' (Kỹ thuật phần mềm & AI)',
-                    'activityCategory' => 'Chuyên ngành AI - BTEC FPT',
+                    'activityTitle' => 'Lớp ' . $cs['className'],
+                    'activityCategory' => ($cs['schoolName'] ?: 'Lớp học'),
                     'activityStartAt' => '2025-2026',
                     'registrationStatus' => 'approved',
                     'registeredAt' => date('d/m/Y', strtotime($cs['createdAt'] ?? 'now')),

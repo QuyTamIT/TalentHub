@@ -53,11 +53,11 @@ function teacherDashboardDefaults(): array
 use TalentHub\Bootstrap\PortalGuard;
 use TalentHub\Rbac\RoleCodes;
 
-function teacherDashboardBackendContext(): array
+function teacherDashboardBackendContext(bool $forceRefresh = false): array
 {
     static $context = null;
 
-    if (is_array($context)) {
+    if (is_array($context) && !$forceRefresh) {
         return $context;
     }
 
@@ -124,7 +124,7 @@ function teacherDashboardBackendContext(): array
                 'id' => $user['id'],
                 'userId' => $user['id'],
                 'fullName' => $userFullName ?: 'Giáo viên TalentHub',
-                'schoolName' => 'Cao đẳng Quốc tế BTEC FPT',
+                'schoolName' => '',
             ];
         }
 
@@ -150,7 +150,7 @@ function teacherDashboardBackendContext(): array
                 'id' => $_SESSION['user_id'] ?? 'mock-teacher',
                 'userId' => $_SESSION['user_id'] ?? 'mock-teacher',
                 'fullName' => $_SESSION['user']['fullName'] ?? ($_SESSION['user_name'] ?? 'Giáo viên'),
-                'schoolName' => 'Cao đẳng Quốc tế BTEC FPT',
+                'schoolName' => '',
             ],
             'error' => $exception->getMessage(),
         ];
@@ -193,10 +193,10 @@ function teacherDashboardRows(PDO $pdo, string $sql, array $params = []): array
     }
 }
 
-function teacherDashboardReadData(): array
+function teacherDashboardReadData(bool $forceRefresh = false): array
 {
     $data = teacherDashboardDefaults();
-    $context = teacherDashboardBackendContext();
+    $context = teacherDashboardBackendContext($forceRefresh);
     $pdo = $context['pdo'] instanceof PDO ? $context['pdo'] : null;
 
     if (!$pdo) {
@@ -227,40 +227,85 @@ function teacherDashboardReadData(): array
     }
 
     $school = is_array($profile['school'] ?? null) ? $profile['school'] : [];
+    $teacherId = (string) ($profile['id'] ?? '');
+    $schoolId = (string) ($school['id'] ?? '');
+    $userId = (string) ($profile['userId'] ?? '');
+
+    if ($schoolId === '') {
+        $schoolId = (string) (teacherDashboardScalar($pdo, "SELECT schoolId FROM teacher_profiles WHERE userId = :uid LIMIT 1", ['uid' => $userId]) ?? '');
+    }
+
+    $schoolName = (string) ($school['name'] ?? '');
+    if ($schoolName === '' && $schoolId !== '') {
+        $stmtSchool = $pdo->prepare("SELECT name FROM schools WHERE id = :sid LIMIT 1");
+        $stmtSchool->execute(['sid' => $schoolId]);
+        $schoolName = (string) ($stmtSchool->fetchColumn() ?: '');
+    }
+
+    // Find managed class (either assigned as homeroom, or first active class in teacher's school)
+    $managedClass = null;
+    if ($schoolId !== '') {
+        $stmt = $pdo->prepare("
+            SELECT id, name
+            FROM classes
+            WHERE schoolId = :schoolId
+              AND (homeroomTeacherId = :uid OR homeroomTeacherId = :teacherId)
+              AND status = 'active'
+            LIMIT 1
+        ");
+        $stmt->execute(['schoolId' => $schoolId, 'uid' => $userId, 'teacherId' => $teacherId]);
+        $managedClass = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+
+        if (!$managedClass) {
+            $stmt = $pdo->prepare("
+                SELECT id, name
+                FROM classes
+                WHERE schoolId = :schoolId
+                  AND status = 'active'
+                ORDER BY name ASC
+                LIMIT 1
+            ");
+            $stmt->execute(['schoolId' => $schoolId]);
+            $managedClass = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        }
+    }
+
+    $managedClassId = (string) ($managedClass['id'] ?? '');
+    $managedClassName = (string) ($managedClass['name'] ?? '');
 
     $data['teacherInfo'] = [
         'id' => $profile['id'] ?? ($user['id'] ?? null),
         'user_id' => $profile['userId'] ?? ($user['id'] ?? null),
         'full_name' => $teacherName !== '' ? $teacherName : 'Giáo viên TalentHub',
         'role_label' => !empty($profile['isSchoolAdmin']) ? 'Giáo viên / Quản trị trường' : 'Giáo viên / Hướng dẫn viên',
-        'school_name' => ($school['name'] ?? '') ?: 'Cao đẳng Quốc tế BTEC FPT',
+        'school_name' => $schoolName,
+        'managed_class_id' => $managedClassId,
+        'managed_class_name' => $managedClassName,
         'avatar_initials' => teacherDashboardInitials($teacherName),
         'notification_count' => 0,
     ];
 
-    $teacherId = (string) ($profile['id'] ?? '');
-    $schoolId = (string) ($school['id'] ?? '');
-    $userId = (string) ($profile['userId'] ?? '');
-
-    if ($schoolId === '') {
-        $schoolId = (string) (teacherDashboardScalar($pdo, "SELECT schoolId FROM teacher_profiles WHERE userId = :uid LIMIT 1", ['uid' => $userId]) ?? 'da811c4f-2f74-4fdd-80b0-dd6f26109783');
+    // Managed class / School metrics
+    if ($managedClassId !== '') {
+        $classStudentsCount = (int) (teacherDashboardScalar($pdo, "
+            SELECT COUNT(DISTINCT sp.id)
+            FROM student_profiles sp
+            INNER JOIN classes c ON c.id = sp.classId
+            WHERE c.id = :classId
+              AND c.schoolId = :schoolId
+              AND sp.studyStatus = 'active'
+        ", ['classId' => $managedClassId, 'schoolId' => $schoolId]) ?? 0);
+    } else {
+        $classStudentsCount = 0;
     }
 
-    // Managed class metrics (BTEC-AI-2026A)
-    $classStudentsCount = (int) (teacherDashboardScalar($pdo, "
-        SELECT COUNT(DISTINCT sp.id)
-        FROM student_profiles sp
-        INNER JOIN classes c ON c.id = sp.classId
-        WHERE (c.homeroomTeacherId = :uid OR c.name LIKE '%BTEC-AI%')
-          AND sp.studyStatus = 'active'
-    ", ['uid' => $userId]) ?? 0);
-
-    $data['metrics']['total_students'] = $classStudentsCount > 0 ? $classStudentsCount : (int) (teacherDashboardScalar($pdo, "
+    $data['metrics']['total_students'] = $classStudentsCount > 0 ? $classStudentsCount : ($schoolId !== '' ? (int) (teacherDashboardScalar($pdo, "
         SELECT COUNT(DISTINCT sp.id)
         FROM student_profiles sp
         INNER JOIN classes c ON c.id = sp.classId
         WHERE c.schoolId = :schoolId
-    ", ['schoolId' => $schoolId]) ?? 0);
+          AND sp.studyStatus = 'active'
+    ", ['schoolId' => $schoolId]) ?? 0) : 0);
 
     $data['metrics']['managed_activities'] = (int) (teacherDashboardScalar($pdo, "
         SELECT COUNT(*)
@@ -275,25 +320,53 @@ function teacherDashboardReadData(): array
           AND status IN ('published', 'ongoing')
     ", ['teacherId' => $teacherId]) ?? 0);
 
-    $data['metrics']['pending_assessments'] = (int) (teacherDashboardScalar($pdo, "
-        SELECT COUNT(*)
-        FROM student_profiles sp
-        INNER JOIN classes c ON c.id = sp.classId
-        WHERE (c.homeroomTeacherId = :uid OR c.name LIKE '%BTEC-AI%')
-          AND sp.studyStatus = 'active'
-          AND (sp.talentScore IS NULL OR sp.talentScore = 0)
-    ", ['uid' => $userId]) ?? 0);
+    if ($managedClassId !== '') {
+        $data['metrics']['pending_assessments'] = (int) (teacherDashboardScalar($pdo, "
+            SELECT COUNT(*)
+            FROM student_profiles sp
+            INNER JOIN classes c ON c.id = sp.classId
+            WHERE c.id = :classId
+              AND c.schoolId = :schoolId
+              AND sp.studyStatus = 'active'
+              AND (sp.talentScore IS NULL OR sp.talentScore = 0)
+        ", ['classId' => $managedClassId, 'schoolId' => $schoolId]) ?? 0);
+    } elseif ($schoolId !== '') {
+        $data['metrics']['pending_assessments'] = (int) (teacherDashboardScalar($pdo, "
+            SELECT COUNT(*)
+            FROM student_profiles sp
+            INNER JOIN classes c ON c.id = sp.classId
+            WHERE c.schoolId = :schoolId
+              AND sp.studyStatus = 'active'
+              AND (sp.talentScore IS NULL OR sp.talentScore = 0)
+        ", ['schoolId' => $schoolId]) ?? 0);
+    } else {
+        $data['metrics']['pending_assessments'] = 0;
+    }
 
-    $averageScore = teacherDashboardScalar($pdo, "
-        SELECT AVG(sp.talentScore)
-        FROM student_profiles sp
-        INNER JOIN classes c ON c.id = sp.classId
-        WHERE (c.homeroomTeacherId = :uid OR c.name LIKE '%BTEC-AI%')
-          AND sp.studyStatus = 'active'
-          AND sp.talentScore IS NOT NULL
-    ", ['uid' => $userId]);
+    if ($managedClassId !== '') {
+        $averageScore = teacherDashboardScalar($pdo, "
+            SELECT AVG(sp.talentScore)
+            FROM student_profiles sp
+            INNER JOIN classes c ON c.id = sp.classId
+            WHERE c.id = :classId
+              AND c.schoolId = :schoolId
+              AND sp.studyStatus = 'active'
+              AND sp.talentScore IS NOT NULL
+        ", ['classId' => $managedClassId, 'schoolId' => $schoolId]);
+    } elseif ($schoolId !== '') {
+        $averageScore = teacherDashboardScalar($pdo, "
+            SELECT AVG(sp.talentScore)
+            FROM student_profiles sp
+            INNER JOIN classes c ON c.id = sp.classId
+            WHERE c.schoolId = :schoolId
+              AND sp.studyStatus = 'active'
+              AND sp.talentScore IS NOT NULL
+        ", ['schoolId' => $schoolId]);
+    } else {
+        $averageScore = null;
+    }
 
-    if ($averageScore === null) {
+    if ($averageScore === null && $teacherId !== '') {
         $averageScore = teacherDashboardScalar($pdo, "
             SELECT AVG(overallScore)
             FROM assessments
@@ -301,7 +374,7 @@ function teacherDashboardReadData(): array
               AND LOWER(status) NOT IN ('pending', 'draft', 'new', 'need_review', 'awaiting_review', 'cho_cham', 'chua_cham')
         ", ['teacherId' => $teacherId]);
     }
-    $data['metrics']['average_score'] = $averageScore !== null ? round((float) $averageScore, 1) : 90.5;
+    $data['metrics']['average_score'] = $averageScore !== null ? round((float) $averageScore, 1) : null;
 
     $data['metrics']['registrations'] = (int) (teacherDashboardScalar($pdo, "
         SELECT COUNT(*)

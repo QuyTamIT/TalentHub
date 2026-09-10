@@ -14,14 +14,51 @@ function teacherActivitiesService(PDO $pdo): TeacherActivityService
 
 function teacherActivitiesDate(?string $value): ?DateTimeImmutable
 {
-    if (!$value) {
+    if (!$value || trim($value) === '') {
         return null;
     }
 
     try {
-        return new DateTimeImmutable($value, new DateTimeZone('Asia/Ho_Chi_Minh'));
+        $date = new DateTimeImmutable($value, new DateTimeZone('UTC'));
+        return $date->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'));
     } catch (Throwable $exception) {
         return null;
+    }
+}
+
+if (!function_exists('teacherActivitiesFormDate')) {
+    function teacherActivitiesFormDate(?string $value): ?DateTimeImmutable
+    {
+        if (!$value || trim($value) === '') {
+            return null;
+        }
+
+        $value = trim($value);
+        $tz = new DateTimeZone('Asia/Ho_Chi_Minh');
+        $formats = [
+            'Y-m-d\TH:i:s',
+            'Y-m-d\TH:i',
+            'Y-m-d H:i:s',
+            'Y-m-d H:i',
+            'm/d/Y H:i:s',
+            'm/d/Y H:i',
+            'd/m/Y H:i:s',
+            'd/m/Y H:i',
+        ];
+
+        foreach ($formats as $format) {
+            $date = DateTimeImmutable::createFromFormat('!' . $format, $value, $tz);
+            $errors = DateTimeImmutable::getLastErrors();
+            if ($date && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0)) && $date->format($format) === $value) {
+                return $date;
+            }
+        }
+
+        try {
+            return new DateTimeImmutable($value, $tz);
+        } catch (Throwable) {
+            return null;
+        }
     }
 }
 

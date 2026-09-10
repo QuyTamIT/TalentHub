@@ -52,18 +52,10 @@ final class DatabaseActivityRepository extends AbstractDatabaseRepository implem
         }
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
         $timestamp = $now->format('Y-m-d H:i:s.u');
-        $opensFallback = $this->hasColumn('activities', 'createdAt') ? 'activity.createdAt' : 'activity.startAt';
-        $policyExists = $this->hasTable('activity_registration_policies');
-        $opensAt = $policyExists ? "COALESCE(policy.registrationOpensAt, {$opensFallback})" : $opensFallback;
-        $closesAt = $policyExists ? 'COALESCE(policy.registrationClosesAt, activity.startAt)' : 'activity.startAt';
         $sql = $this->scopedActivitySql("student.id = :student_id
-            AND activity.status = :status_published
+            AND activity.status IN (:status_published, :status_ongoing)
             AND {$this->studentVisibilityExpression()}
-            AND {$opensAt} <= :opens_now
-            AND :closes_now < {$closesAt}
-            AND :starts_now < activity.startAt
-            AND :ends_now < COALESCE(activity.endAt, activity.startAt)
-            AND {$this->occupiedSql()} < activity.capacity
+            AND :ends_now <= COALESCE(activity.endAt, activity.startAt)
             AND NOT EXISTS (
                 SELECT 1
                 FROM activity_registrations own_registration
@@ -74,10 +66,7 @@ final class DatabaseActivityRepository extends AbstractDatabaseRepository implem
         return array_map([$this, 'normalizeActivity'], $this->fetchAll('discoverForStudent', $sql, [
             'student_id' => $studentId,
             'status_published' => ActivityStatus::Published->value,
-            // Separate names are required when native PDO prepares disallow parameter reuse.
-            'opens_now' => $timestamp,
-            'closes_now' => $timestamp,
-            'starts_now' => $timestamp,
+            'status_ongoing' => ActivityStatus::Ongoing->value,
             'ends_now' => $timestamp,
             'own_student_id' => $studentId,
         ]));

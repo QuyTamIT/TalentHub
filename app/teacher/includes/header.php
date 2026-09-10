@@ -35,7 +35,7 @@ if (count($parts) === 1) {
     $teacherAvatar = $parts === [] ? 'GV' : mb_strtoupper(mb_substr($parts[0], 0, 1) . mb_substr($parts[count($parts) - 1], 0, 1));
 }
 $teacherRoleLabel = $teacherInfo['role_label'] ?? 'Giáo viên / Hướng dẫn viên';
-$teacherSchoolName = $teacherInfo['school_name'] ?? 'Cao đẳng Quốc tế BTEC FPT';
+$teacherSchoolName = $teacherInfo['school_name'] ?? '';
 
 $profileRoute = '/app/teacher/profile.php';
 $profileUrl = function_exists('app_href') ? app_href($profileRoute) : '/app/teacher/profile.php';
