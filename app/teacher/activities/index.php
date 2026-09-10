@@ -109,7 +109,7 @@ if (!function_exists('teacherActivitiesLifecycleAction')) {
             try {
                 $startAt = new DateTimeImmutable((string) ($activity['startAt'] ?? ''), new DateTimeZone('UTC'));
                 $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
-                $canStart = $now >= $startAt;
+                $canStart = true; // Bỏ qua kiểm tra thời gian
                 $startLabel = $startAt->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'))->format('d/m/Y H:i');
                 $countdown = $canStart ? null : teacherActivityCountdown($startAt, $now);
             } catch (Throwable) {

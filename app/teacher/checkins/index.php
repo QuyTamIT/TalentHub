@@ -88,7 +88,9 @@ try {
     $permissions = new PermissionService($pdo);
     $permissions->require((string) $user['id'], 'qr_session.read_managed');
     $permissions->require((string) $user['id'], 'checkin.read_managed');
-    $service = new TeacherQrSessionService(new TeacherQrSessionRepository($pdo));
+    $clock = new \TalentHub\Support\Clock\SystemClock();
+    $activityPolicy = new \TalentHub\Domain\Activity\ActivityPolicy($clock);
+    $service = new TeacherQrSessionService(new TeacherQrSessionRepository($pdo), $clock, $activityPolicy);
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $rawActivityId = $_POST['activity_id'] ?? null;
