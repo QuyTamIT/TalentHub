@@ -54,7 +54,7 @@ final class EnterpriseAppContext
         $this->service = new BusinessProfileService($repository);
         $this->auth = new AuthService(new AuthRepository($pdo));
         $this->permissions = new PermissionService($pdo);
-        $this->internships = new InternshipService(new InternshipRepository($pdo));
+        $this->internships = new InternshipService(new InternshipRepository($pdo), new \TalentHub\Domain\Internship\InternshipPolicy());
         $this->talents = new EnterpriseTalentService(new EnterpriseTalentRepository($pdo));
         $this->partnerships = new SchoolPartnershipService(new SchoolPartnershipRepository($pdo));
         $this->workflows = new BusinessWorkflowService(new BusinessWorkflowRepository($pdo), $this->internships);

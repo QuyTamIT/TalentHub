@@ -9,7 +9,15 @@ use TalentHub\Modules\Teacher\Service\TeacherActivityService;
 
 function teacherActivitiesService(PDO $pdo): TeacherActivityService
 {
-    return new TeacherActivityService(new TeacherActivityRepository($pdo));
+    $clock = new \TalentHub\Support\Clock\SystemClock();
+    $activityPolicy = new \TalentHub\Domain\Activity\ActivityPolicy($clock);
+    $registrationPolicy = new \TalentHub\Domain\Activity\RegistrationPolicy();
+    return new TeacherActivityService(
+        new TeacherActivityRepository($pdo),
+        $clock,
+        $activityPolicy,
+        $registrationPolicy
+    );
 }
 
 function teacherActivitiesDate(?string $value): ?DateTimeImmutable
