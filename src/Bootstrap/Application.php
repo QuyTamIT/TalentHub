@@ -244,7 +244,8 @@ final class Application
                 throw new ApiException(422,'VALIDATION_FAILED','X-Idempotency-Key không hợp lệ.');
             }
             $input=$r->json();
-            if(array_diff(array_keys($input),['jobId','requiredSkills'])!==[]){
+            $allowedFields=['jobId','requiredSkills','desiredCount','limit','slots'];
+            if(array_diff(array_keys($input),$allowedFields)!==[]){
                 throw new ApiException(422,'VALIDATION_FAILED','Request chứa field không được phép.');
             }
             $jobId=trim((string)($input['jobId']??''));
@@ -267,7 +268,15 @@ final class Application
                 }
                 $job['required_skills']=array_values(array_unique(array_merge($job['required_skills']??[],$requestedSkills)));
             }
-            return JsonResponse::success($enterpriseMatchService->match((string)$enterprise['id'],$job),$requestId);
+            $limit=null;
+            if(isset($input['desiredCount'])&&is_numeric($input['desiredCount'])){
+                $limit=max(1,min(100,(int)$input['desiredCount']));
+            }elseif(isset($input['limit'])&&is_numeric($input['limit'])){
+                $limit=max(1,min(100,(int)$input['limit']));
+            }elseif(isset($input['slots'])&&is_numeric($input['slots'])){
+                $limit=max(1,min(100,(int)$input['slots']));
+            }
+            return JsonResponse::success($enterpriseMatchService->match((string)$enterprise['id'],$job,null,null),$requestId);
         });
         $router->add('GET','/api/v1/businesses/me/talents/{studentId}',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'talent.read_consented');$studentId=(string)$r->pathParam('studentId');return JsonResponse::success(['talent'=>$talents->getTalent($user['id'],$studentId,$requestId,isset($_SERVER['REMOTE_ADDR'])?(string)$_SERVER['REMOTE_ADDR']:null)],$requestId);});
         $router->add('POST','/api/v1/businesses/me/talents/{studentId}/contact-requests',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$session->assertCsrf($r->header('x-csrf-token'));$permissions->require($user['id'],'contact_request.create_own_business');$studentId=(string)$r->pathParam('studentId');return JsonResponse::success($talents->requestContact($user['id'],$studentId,$r->json(),$requestId),$requestId,201);});

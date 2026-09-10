@@ -40,6 +40,9 @@ function initTalentSearchModule() {
 
     // Normalized talent array
     let allTalents = (sessionBoot.initialTalents || []).map(normalizeTalent);
+    const originalTalents = [...allTalents];
+    let isAiModeActive = false;
+    let activeAiJobTitle = '';
 
     // 2. Sector-Aware Structured Skill Categories
     const TECH_SKILL_CATEGORIES = [
@@ -179,25 +182,28 @@ function initTalentSearchModule() {
     const aiJobSelect = document.querySelector('[data-enterprise-ai-job]');
     const aiRunBtn = document.querySelector('[data-enterprise-ai-run]');
     const aiStateEl = document.querySelector('[data-enterprise-ai-state]');
-    const aiResultsEl = document.querySelector('[data-enterprise-ai-results]');
     const aiFreshnessEl = document.querySelector('[data-enterprise-ai-freshness]');
     const aiProvenanceEl = document.querySelector('[data-enterprise-ai-provenance]');
 
     // 3. Normalization Helper
     function normalizeTalent(raw) {
-        const id = String(raw.studentId || raw.id || '');
-        const name = raw.displayName || raw.name || 'Ứng viên tiềm năng';
-        const rawSkills = Array.isArray(raw.verifiedSkills) ? raw.verifiedSkills : (Array.isArray(raw.skills) ? raw.skills : []);
+        const id = String(raw.studentId || raw.student_id || raw.id || '');
+        const name = raw.displayName || raw.display_name || raw.name || 'Ứng viên tiềm năng';
+        const rawSkills = Array.isArray(raw.skills) ? raw.skills : (Array.isArray(raw.verifiedSkills) ? raw.verifiedSkills : (Array.isArray(raw.matched_skills) ? raw.matched_skills : []));
         const skills = rawSkills.map(s => typeof s === 'string' ? s : (s.name || s.skillName || ''));
-        const school = raw.schoolName || raw.school || '';
-        const classYear = raw.className || raw.class_year || '';
-        const eduLevel = raw.studyStatus || raw.education_level || '';
+        const school = raw.schoolName || raw.school_name || raw.school || '';
+        const classYear = raw.className || raw.class_name || raw.class_year || '';
+        const eduLevel = raw.studyStatus || raw.study_status || raw.education_level || '';
         const headline = raw.headline || '';
         const majorField = raw.major_field || (headline ? extractMajorFromHeadline(headline) : (isEconomicSector ? 'Kinh tế & Quản trị' : 'Công nghệ thông tin'));
         const expHours = typeof raw.experienceHours === 'number' ? raw.experienceHours : (raw.experience_hours || (skills.length * 15 + 20));
-        const score = typeof raw.talentScore === 'number'
-            ? raw.talentScore
-            : (typeof raw.talent_score === 'number' ? raw.talent_score : null);
+        const rawScore = raw.talentScore !== undefined ? raw.talentScore : (raw.talent_score !== undefined ? raw.talent_score : null);
+        const parsedScore = (rawScore !== null && rawScore !== undefined && rawScore !== '') ? Number(rawScore) : null;
+        const score = (parsedScore !== null && Number.isFinite(parsedScore)) ? parsedScore : null;
+
+        const rawMatchScore = raw.match_score !== undefined ? raw.match_score : (raw.matchScore !== undefined ? raw.matchScore : null);
+        const matchScore = (rawMatchScore !== null && rawMatchScore !== undefined && rawMatchScore !== '') ? Number(rawMatchScore) : null;
+        const isAiMatched = Boolean(raw.is_ai_matched || (matchScore !== null));
 
         return {
             id: id,
@@ -212,7 +218,14 @@ function initTalentSearchModule() {
             skills: skills,
             experience_hours: expHours,
             talent_score: score,
-            match_score: null,
+            match_score: matchScore,
+            match_level: raw.match_level || (matchScore !== null ? (matchScore >= 75 ? 'Rất phù hợp' : (matchScore >= 45 ? 'Phù hợp' : 'Có liên quan')) : null),
+            recommendation_reason: raw.recommendation_reason || '',
+            matched_skills: Array.isArray(raw.matched_skills) ? raw.matched_skills : [],
+            skill_gaps: Array.isArray(raw.skill_gaps) ? raw.skill_gaps : [],
+            badges: Array.isArray(raw.badges) ? raw.badges : [],
+            is_ai_matched: isAiMatched,
+            ai_rank: raw.ai_rank || null,
             internship_status: raw.internship_status || 'ready_now',
             internship_status_label: raw.internship_status_label || 'Sẵn sàng thực tập',
             saved: Boolean(raw.saved),
@@ -240,6 +253,10 @@ function initTalentSearchModule() {
 
     // 4. API Fetching
     async function fetchFromApi() {
+        if (isAiModeActive) {
+            updateAndRender();
+            return;
+        }
         if (isFetchingApi) return;
         isFetchingApi = true;
 
@@ -250,7 +267,8 @@ function initTalentSearchModule() {
             params.append('skills', Array.from(selectedSkillsSet).join(','));
         }
         if (currentSortOption === 'latest') params.append('sort', 'newest');
-        else if (currentSortOption === 'score_desc') params.append('sort', 'skills');
+        else if (currentSortOption === 'score_desc' || currentSortOption === 'matching') params.append('sort', 'score_desc');
+        else if (currentSortOption === 'exp_desc') params.append('sort', 'exp_desc');
 
         try {
             const url = `${sessionBoot.apiBase}/talents?${params.toString()}`;
@@ -301,13 +319,13 @@ function initTalentSearchModule() {
         return allTalents.filter(talent => {
             // Text Search Query
             if (currentSearchQuery) {
-                const nameMatch = talent.name.toLowerCase().includes(currentSearchQuery);
-                const schoolMatch = talent.school.toLowerCase().includes(currentSearchQuery);
-                const majorMatch = talent.major_field.toLowerCase().includes(currentSearchQuery);
-                const headlineMatch = (talent.headline || '').toLowerCase().includes(currentSearchQuery);
-                const skillMatch = talent.skills.some(s => s.toLowerCase().includes(currentSearchQuery));
-
-                if (!nameMatch && !schoolMatch && !majorMatch && !headlineMatch && !skillMatch) {
+                const q = currentSearchQuery.toLowerCase();
+                const matchName = (talent.name || '').toLowerCase().includes(q);
+                const matchSchool = (talent.school || '').toLowerCase().includes(q);
+                const matchHeadline = (talent.headline || '').toLowerCase().includes(q);
+                const matchMajor = (talent.major_field || '').toLowerCase().includes(q);
+                const matchSkill = (talent.skills || []).some(s => s.toLowerCase().includes(q));
+                if (!matchName && !matchSchool && !matchHeadline && !matchMajor && !matchSkill) {
                     return false;
                 }
             }
@@ -375,8 +393,11 @@ function initTalentSearchModule() {
 
             // Check selected skills
             if (selectedSkillsSet.size > 0) {
-                const hasAllSelected = Array.from(selectedSkillsSet).every(reqSkill => candidateHasSkill(talent, reqSkill));
-                if (!hasAllSelected) return false;
+                for (const reqSkill of selectedSkillsSet) {
+                    if (!candidateHasSkill(talent, reqSkill)) {
+                        return false;
+                    }
+                }
             }
 
             if (activeFilters.eduLevel && talent.education_level !== activeFilters.eduLevel) return false;
@@ -393,19 +414,37 @@ function initTalentSearchModule() {
 
             if (activeFilters.matchScore > 0 && (!Number.isFinite(talent.talent_score) || talent.talent_score < activeFilters.matchScore)) return false;
             if (activeFilters.expHours > 0 && talent.experience_hours < activeFilters.expHours) return false;
+            if (activeFilters.readiness && talent.internship_status !== activeFilters.readiness) return false;
 
             return true;
         });
     }
 
     function calculateRelevanceScore(talent) {
-        return Number.isFinite(talent.talent_score) ? talent.talent_score : 0;
+        if (talent.is_ai_matched && typeof talent.match_score === 'number') {
+            return (talent.match_score * 1000) + (Number.isFinite(talent.talent_score) ? talent.talent_score : 0);
+        }
+        return Number.isFinite(talent.talent_score) ? talent.talent_score : -1;
     }
 
     function sortTalentsList(list) {
         const sorted = [...list];
-        if (currentSortOption === 'score_desc' || currentSortOption === 'matching') {
-            sorted.sort((a, b) => calculateRelevanceScore(b) - calculateRelevanceScore(a));
+        if (currentSortOption === 'matching') {
+            if (isAiModeActive) {
+                sorted.sort((a, b) => {
+                    const scoreA = typeof a.match_score === 'number' ? a.match_score : -1;
+                    const scoreB = typeof b.match_score === 'number' ? b.match_score : -1;
+                    if (scoreB !== scoreA) return scoreB - scoreA;
+                    const tsA = Number.isFinite(a.talent_score) ? a.talent_score : -1;
+                    const tsB = Number.isFinite(b.talent_score) ? b.talent_score : -1;
+                    if (tsB !== tsA) return tsB - tsA;
+                    return (a.ai_rank || 999) - (b.ai_rank || 999);
+                });
+            } else {
+                sorted.sort((a, b) => calculateRelevanceScore(b) - calculateRelevanceScore(a));
+            }
+        } else if (currentSortOption === 'score_desc') {
+            sorted.sort((a, b) => (Number.isFinite(b.talent_score) ? b.talent_score : -1) - (Number.isFinite(a.talent_score) ? a.talent_score : -1));
         } else if (currentSortOption === 'exp_desc') {
             sorted.sort((a, b) => b.experience_hours - a.experience_hours);
         } else if (currentSortOption === 'latest') {
@@ -463,7 +502,7 @@ function initTalentSearchModule() {
 
         talents.forEach(talent => {
             const article = document.createElement('article');
-            article.className = 'ent-talent-card-item';
+            article.className = 'ent-talent-card-item' + (talent.is_ai_matched && talent.ai_rank === 1 ? ' ent-talent-card-item--ai-top' : '');
             article.setAttribute('data-talent-id', talent.id);
 
             // Header
@@ -483,17 +522,43 @@ function initTalentSearchModule() {
             const nameRow = document.createElement('div');
             nameRow.className = 'ent-talent-card-item__name-row';
 
+            // AI Rank badge if AI-matched
+            if (talent.is_ai_matched && talent.ai_rank) {
+                const rankBadge = document.createElement('span');
+                rankBadge.className = 'ent-ai-rank-badge' + (talent.ai_rank === 1 ? ' ent-ai-rank-badge--1' : (talent.ai_rank <= 3 ? ' ent-ai-rank-badge--top3' : ''));
+                rankBadge.textContent = `#${talent.ai_rank}`;
+                nameRow.appendChild(rankBadge);
+            }
+
             const nameLink = document.createElement('a');
             nameLink.href = resolveCandidateDetailUrl(talent.id);
             nameLink.className = 'ent-talent-card-item__name';
             nameLink.textContent = talent.name;
-
             nameRow.appendChild(nameLink);
+
+            // AI Match badge if AI-matched
+            if (talent.is_ai_matched && talent.match_score !== null) {
+                const matchScore = Math.round(talent.match_score);
+                const matchLevel = talent.match_level || (matchScore >= 75 ? 'Rất phù hợp' : (matchScore >= 45 ? 'Phù hợp' : 'Có liên quan'));
+                const matchPill = document.createElement('span');
+                const levelClass = matchLevel === 'Rất phù hợp' ? 'ent-ai-match-pill--high' : (matchLevel === 'Phù hợp' ? 'ent-ai-match-pill--med' : 'ent-ai-match-pill--rel');
+                matchPill.className = `ent-ai-match-pill ${levelClass}`;
+                matchPill.textContent = `${matchLevel} • ${matchScore}%`;
+                nameRow.appendChild(matchPill);
+            }
+
+            // Teacher score badge
             if (Number.isFinite(talent.talent_score)) {
                 const scoreBadge = document.createElement('span');
                 scoreBadge.className = 'ent-talent-card-item__score';
-                scoreBadge.title = 'Điểm đánh giá năng lực';
-                scoreBadge.textContent = `${Math.round(talent.talent_score)}% năng lực`;
+                scoreBadge.title = 'Điểm đánh giá năng lực thực tế từ giáo viên';
+                scoreBadge.textContent = `★ ${Math.round(talent.talent_score)} điểm đánh giá`;
+                nameRow.appendChild(scoreBadge);
+            } else {
+                const scoreBadge = document.createElement('span');
+                scoreBadge.className = 'ent-talent-card-item__score ent-talent-card-item__score--pending';
+                scoreBadge.title = 'Chưa có điểm đánh giá từ giáo viên';
+                scoreBadge.textContent = 'Chưa chấm điểm';
                 nameRow.appendChild(scoreBadge);
             }
 
@@ -504,12 +569,18 @@ function initTalentSearchModule() {
             schoolSpan.textContent = talent.school || 'Nhà trường';
             schoolDiv.appendChild(schoolSpan);
 
-            if (talent.major_field) {
+            if (talent.class_year) {
+                const classSpan = document.createElement('span');
+                classSpan.textContent = `(${talent.class_year})`;
+                schoolDiv.appendChild(classSpan);
+            }
+
+            if (talent.headline || talent.major_field) {
                 const dot = document.createElement('span');
                 dot.className = 'ent-talent-card-item__dot';
                 dot.textContent = '•';
                 const majorSpan = document.createElement('span');
-                majorSpan.textContent = talent.major_field;
+                majorSpan.textContent = talent.headline || talent.major_field;
                 schoolDiv.appendChild(dot);
                 schoolDiv.appendChild(majorSpan);
             }
@@ -540,6 +611,21 @@ function initTalentSearchModule() {
 
             header.appendChild(userDiv);
             header.appendChild(bookmarkBtn);
+
+            // AI Recommendation Reason Box
+            let aiReasonEl = null;
+            if (talent.is_ai_matched && talent.recommendation_reason) {
+                aiReasonEl = document.createElement('div');
+                aiReasonEl.className = 'ent-ai-reason-box';
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'ent-ai-reason-box__title';
+                titleSpan.textContent = '💡 Đề xuất bởi AI:';
+                const textSpan = document.createElement('span');
+                textSpan.className = 'ent-ai-reason-box__text';
+                textSpan.textContent = talent.recommendation_reason;
+                aiReasonEl.appendChild(titleSpan);
+                aiReasonEl.appendChild(textSpan);
+            }
 
             // Meta strip
             const metaStrip = document.createElement('div');
@@ -574,6 +660,23 @@ function initTalentSearchModule() {
             metaStrip.appendChild(div1);
             metaStrip.appendChild(metaItem2);
 
+            if (Array.isArray(talent.badges) && talent.badges.length > 0) {
+                const div2 = document.createElement('div');
+                div2.className = 'ent-meta-item__divider';
+                const metaItem3 = document.createElement('div');
+                metaItem3.className = 'ent-meta-item';
+                const mLabel3 = document.createElement('span');
+                mLabel3.className = 'ent-meta-item__label';
+                mLabel3.textContent = 'Thành tích:';
+                const mVal3 = document.createElement('span');
+                mVal3.className = 'ent-meta-item__value font-semibold text-dark';
+                mVal3.textContent = ` 🏆 ${talent.badges[0]}` + (talent.badges.length > 1 ? ` (+${talent.badges.length - 1})` : '');
+                metaItem3.appendChild(mLabel3);
+                metaItem3.appendChild(mVal3);
+                metaStrip.appendChild(div2);
+                metaStrip.appendChild(metaItem3);
+            }
+
             // Skills
             const skillsDiv = document.createElement('div');
             skillsDiv.className = 'ent-talent-card-item__skills';
@@ -583,16 +686,27 @@ function initTalentSearchModule() {
             const chipsDiv = document.createElement('div');
             chipsDiv.className = 'skills-chips';
 
-            talent.skills.slice(0, 4).forEach(sk => {
+            const matchedSet = new Set((talent.matched_skills || []).map(s => s.toLowerCase().trim()));
+            const orderedSkills = [...talent.skills];
+            orderedSkills.sort((a, b) => {
+                const aMatch = matchedSet.has(a.toLowerCase().trim());
+                const bMatch = matchedSet.has(b.toLowerCase().trim());
+                if (aMatch && !bMatch) return -1;
+                if (!aMatch && bMatch) return 1;
+                return 0;
+            });
+
+            orderedSkills.slice(0, 5).forEach(sk => {
                 const chip = document.createElement('span');
-                chip.className = 'skill-tag';
-                chip.textContent = sk;
+                const isMatched = matchedSet.has(sk.toLowerCase().trim());
+                chip.className = isMatched ? 'skill-tag skill-tag--matched' : 'skill-tag';
+                chip.textContent = isMatched ? `✓ ${sk}` : sk;
                 chipsDiv.appendChild(chip);
             });
-            if (talent.skills.length > 4) {
+            if (orderedSkills.length > 5) {
                 const moreChip = document.createElement('span');
                 moreChip.className = 'skill-tag skill-tag--more';
-                moreChip.textContent = `+${talent.skills.length - 4}`;
+                moreChip.textContent = `+${orderedSkills.length - 5}`;
                 chipsDiv.appendChild(moreChip);
             }
 
@@ -630,6 +744,9 @@ function initTalentSearchModule() {
             footer.appendChild(actionsDiv);
 
             article.appendChild(header);
+            if (aiReasonEl) {
+                article.appendChild(aiReasonEl);
+            }
             article.appendChild(metaStrip);
             article.appendChild(skillsDiv);
             article.appendChild(footer);
@@ -941,16 +1058,29 @@ function initTalentSearchModule() {
                 aiStateEl.textContent = 'loading...';
                 aiStateEl.className = 'badge badge-warning';
             }
+
+            const originalBtnHtml = aiRunBtn.innerHTML;
             aiRunBtn.disabled = true;
+            aiRunBtn.innerHTML = `
+                <svg class="ent-animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line>
+                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                    <line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line>
+                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                </svg>
+                <span>Đang phân tích & xếp hạng AI...</span>
+            `;
 
             if (!window.crypto || (typeof window.crypto.randomUUID !== 'function' && typeof window.crypto.getRandomValues !== 'function')) {
                 showToast('Trình duyệt không hỗ trợ yêu cầu bảo mật để chạy AI.');
                 aiRunBtn.disabled = false;
+                aiRunBtn.innerHTML = originalBtnHtml;
                 return;
             }
             const idempotencyKey = typeof window.crypto.randomUUID === 'function'
                 ? window.crypto.randomUUID()
                 : `ent-match-${Date.now()}-${Array.from(window.crypto.getRandomValues(new Uint32Array(2))).join('')}`;
+            
             const payload = {
                 jobId: jobId,
             };
@@ -997,150 +1127,78 @@ function initTalentSearchModule() {
                     aiStateEl.className = status === 'ready_model' ? 'badge badge-success' : (status === 'stale_model' ? 'badge badge-warning' : 'badge badge-secondary');
                 }
 
-                renderAiMatchResults(status, matchData.items || [], matchData);
+                const items = Array.isArray(matchData.items) ? matchData.items : [];
+                if (items.length === 0) {
+                    allTalents = [];
+                    isAiModeActive = true;
+                    currentPage = 1;
+                    updateAndRender();
+                    showToast('Không tìm thấy sinh viên có thông tin liên quan trong hệ thống.');
+                    return;
+                }
+
+                allTalents = items.map((item, idx) => {
+                    const norm = normalizeTalent(item);
+                    norm.is_ai_matched = true;
+                    norm.ai_rank = idx + 1;
+                    return norm;
+                });
+
+                isAiModeActive = true;
+                currentPage = 1;
+
+                // Update active AI banner
+                const jobOption = aiJobSelect.selectedOptions ? aiJobSelect.selectedOptions[0] : null;
+                const jobTitleText = jobOption ? jobOption.textContent.split('(')[0].trim() : 'vị trí đã chọn';
+                activeAiJobTitle = jobTitleText;
+
+                const bannerEl = document.getElementById('ent-ai-active-banner');
+                const bannerTextEl = document.getElementById('ent-ai-active-text');
+                const countBadgeEl = document.getElementById('ent-ai-count-badge');
+                if (bannerEl && bannerTextEl) {
+                    bannerEl.style.display = 'flex';
+                    bannerEl.style.animation = 'none';
+                    void bannerEl.offsetWidth;
+                    bannerEl.style.animation = '';
+                    
+                    const safeTitle = (jobTitleText || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+                    bannerTextEl.innerHTML = `Đang hiển thị <strong class="ent-ai-highlight">${allTalents.length}</strong> ứng viên phù hợp theo đề xuất AI cho vị trí: <strong class="ent-ai-highlight">"${safeTitle}"</strong>`;
+                    if (countBadgeEl) {
+                        countBadgeEl.textContent = `${allTalents.length} ứng viên phù hợp`;
+                    }
+                }
+
+                showToast(`AI đã tìm thấy và xếp hạng ${allTalents.length} nhân tài liên quan!`);
+                updateAndRender();
+                scrollToTopCards();
             } catch (err) {
                 showToast('Lỗi mạng khi kết nối dịch vụ AI.');
                 if (aiStateEl) {
                     aiStateEl.textContent = 'provider_unavailable';
                     aiStateEl.className = 'badge badge-danger';
                 }
-                renderAiMatchResults('provider_unavailable', [], {});
             } finally {
                 aiRunBtn.disabled = false;
+                aiRunBtn.innerHTML = originalBtnHtml;
             }
         });
     }
 
-    function renderAiMatchResults(status, items, matchData) {
-        if (!aiResultsEl) return;
-        aiResultsEl.replaceChildren();
-        aiResultsEl.style.display = 'block';
-
-        if (status === 'provider_unavailable') {
-            const alert = document.createElement('div');
-            alert.className = 'alert alert-danger';
-            alert.textContent = 'Dịch vụ AI hiện tại tạm thời không khả dụng. Không có dữ liệu phân tích đã lưu trước đó.';
-            aiResultsEl.appendChild(alert);
-            return;
-        }
-
-        if (status !== 'ready_model' && status !== 'stale_model') {
-            const alert = document.createElement('div');
-            alert.className = 'alert alert-info';
-            alert.textContent = 'Kết quả AI chưa sẵn sàng để hiển thị.';
-            aiResultsEl.appendChild(alert);
-            return;
-        }
-
-        if (status === 'no_candidates' || items.length === 0) {
-            const alert = document.createElement('div');
-            alert.className = 'alert alert-info';
-            alert.textContent = 'Không có ứng viên phù hợp nào với các tiêu chí kỹ năng của vị trí này.';
-            aiResultsEl.appendChild(alert);
-            return;
-        }
-
-        if (status === 'stale_model') {
-            const staleBanner = document.createElement('div');
-            staleBanner.className = 'alert alert-warning mb-3';
-            staleBanner.textContent = 'Dịch vụ AI đang gián đoạn tạm thời. Dưới đây là kết quả phân tích AI đã lưu trước đó (LKG cache).';
-            aiResultsEl.appendChild(staleBanner);
-        }
-
-        const heading = document.createElement('h4');
-        heading.className = 'h6 font-weight-bold text-dark mb-3';
-        heading.textContent = `Kết quả xếp hạng phù hợp (${items.length} ứng viên):`;
-        aiResultsEl.appendChild(heading);
-
-        const listContainer = document.createElement('div');
-        listContainer.className = 'd-flex flex-column gap-3';
-
-        items.forEach((item, idx) => {
-            const card = document.createElement('div');
-            card.className = 'card p-3 shadow-sm border-0';
-            card.style.borderRadius = '10px';
-            card.style.background = '#ffffff';
-
-            const headerRow = document.createElement('div');
-            headerRow.className = 'd-flex justify-content-between align-items-center mb-2';
-
-            const nameBox = document.createElement('div');
-            nameBox.className = 'd-flex align-items-center gap-2';
-
-            const rankBadge = document.createElement('span');
-            rankBadge.className = 'badge bg-light text-dark border';
-            rankBadge.textContent = `#${idx + 1}`;
-
-            const nameEl = document.createElement('strong');
-            nameEl.className = 'text-primary';
-            nameEl.textContent = item.candidate_name || item.candidate_ref || `Ứng viên ${idx + 1}`;
-
-            nameBox.appendChild(rankBadge);
-            nameBox.appendChild(nameEl);
-
-            const scoreEl = document.createElement('div');
-            scoreEl.className = 'badge bg-success text-white px-2 py-1';
-            scoreEl.style.fontSize = '0.9rem';
-            scoreEl.textContent = typeof item.match_score === 'number'
-                ? `${Math.round(item.match_score)}% Phù hợp`
-                : 'Điểm AI không hợp lệ';
-
-            headerRow.appendChild(nameBox);
-            headerRow.appendChild(scoreEl);
-            card.appendChild(headerRow);
-
-            // Matched skills & Skill gaps
-            const skillsRow = document.createElement('div');
-            skillsRow.className = 'd-flex flex-wrap gap-1 mb-2';
-
-            (item.matched_skills || []).forEach(sk => {
-                const tag = document.createElement('span');
-                tag.className = 'badge bg-primary-subtle text-primary border border-primary px-2 py-1';
-                tag.textContent = `✓ ${sk}`;
-                skillsRow.appendChild(tag);
-            });
-
-            (item.skill_gaps || []).forEach(gap => {
-                const tag = document.createElement('span');
-                tag.className = 'badge bg-warning-subtle text-warning border border-warning px-2 py-1';
-                tag.textContent = `! Thiếu: ${gap}`;
-                skillsRow.appendChild(tag);
-            });
-
-            card.appendChild(skillsRow);
-
-            // Reason codes & Evidence
-            if (Array.isArray(item.reason_codes) && item.reason_codes.length > 0) {
-                const reasonsBox = document.createElement('div');
-                reasonsBox.className = 'small text-muted mb-2';
-                const reasonLabels = {
-                    'verified_skill_match': 'Khớp kỹ năng xác thực',
-                    'partial_skill_match': 'Khớp một phần kỹ năng',
-                    'skill_gap': 'Còn thiếu một số kỹ năng',
-                    'strong_verified_level': 'Trình độ kỹ năng vượt trội',
-                };
-                const translatedReasons = item.reason_codes.map(r => reasonLabels[r] || r);
-                reasonsBox.textContent = 'Lý do: ' + translatedReasons.join(', ');
-                card.appendChild(reasonsBox);
-            }
-
-            // Evidence
-            if (Array.isArray(item.evidence) && item.evidence.length > 0) {
-                const evidenceList = document.createElement('ul');
-                evidenceList.className = 'small text-secondary mb-0 ps-3';
-                item.evidence.forEach(ev => {
-                    const li = document.createElement('li');
-                    const safeValue = ev.safe_value || ev;
-                    li.textContent = `${safeValue.skill || 'Kỹ năng'}: Trình độ ${safeValue.level_score || 0}/100 (Đã xác thực)`;
-                    evidenceList.appendChild(li);
-                });
-                card.appendChild(evidenceList);
-            }
-
-            listContainer.appendChild(card);
+    // Reset AI Matching Mode
+    const aiResetBtn = document.getElementById('ent-ai-reset-btn');
+    if (aiResetBtn) {
+        aiResetBtn.addEventListener('click', () => {
+            isAiModeActive = false;
+            activeAiJobTitle = '';
+            allTalents = [...originalTalents];
+            const bannerEl = document.getElementById('ent-ai-active-banner');
+            if (bannerEl) bannerEl.style.display = 'none';
+            if (aiJobSelect) aiJobSelect.value = '';
+            currentPage = 1;
+            updateAndRender();
+            scrollToTopCards();
+            showToast('Đã chuyển về danh sách tất cả nhân tài.');
         });
-
-        aiResultsEl.appendChild(listContainer);
     }
 
     function showToast(msg) {

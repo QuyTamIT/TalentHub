@@ -54,19 +54,7 @@ if ($isVerified && $talentService !== null) {
     }
 }
 
-// Thực hiện query động theo yêu cầu bằng INNER JOIN
-$pdo = $context['pdo'] ?? null;
-$dbTalents = [];
-$total_talents = 0;
-if ($pdo !== null) {
-    try {
-        $stmt = $pdo->query("SELECT u.fullName AS name, sp.* FROM student_profiles sp INNER JOIN users u ON sp.userId = u.id WHERE u.status = 'active'");
-        $dbTalents = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $total_talents = count($dbTalents);
-    } catch (\Throwable $e) {
-        error_log('Query Error: ' . $e->getMessage());
-    }
-}
+$total_talents = (int) ($talentsData['total'] ?? count($talentsData['items'] ?? []));
 
 // Dynamic schools list from database
 $schoolsList = [];
@@ -82,7 +70,7 @@ if ($pdo !== null) {
     if (!empty($enterprise['id'])) {
         try {
             $nowUtc = gmdate('Y-m-d H:i:s');
-            $stmtJobs = $pdo->prepare("SELECT id, title, skillsJson, requirementsJson, deadline FROM internship_posts WHERE enterpriseId = ? AND status = 'active' AND deadline >= ? ORDER BY createdAt DESC");
+            $stmtJobs = $pdo->prepare("SELECT id, title, field, slots, skillsJson, requirementsJson, deadline FROM internship_posts WHERE enterpriseId = ? AND status = 'active' AND deadline >= ? ORDER BY createdAt DESC");
             $stmtJobs->execute([(string) $enterprise['id'], $nowUtc]);
             $activeJobs = $stmtJobs->fetchAll(PDO::FETCH_ASSOC) ?: [];
         } catch (\Throwable $e) {
@@ -248,7 +236,7 @@ $sidebarNav = [
 
             <!-- Page Body Content -->
             <main class="ent-body" id="main-content">
-                <div class="container-fluid">
+                <div class="container-fluid ent-talent-container">
                     
                     <!-- Talent Search Intro Hero Banner -->
                     <div class="ent-talent-hero">
@@ -285,41 +273,45 @@ $sidebarNav = [
                     </div>
 
                     <!-- Enterprise AI Matcher Section -->
-                    <div class="ent-ai-matcher-card card mb-4 p-4" data-enterprise-ai-matcher style="background: linear-gradient(135deg, #f8faff 0%, #f0f4ff 100%); border: 1px solid #d0dcf8; border-radius: 12px;">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="badge bg-primary text-white px-2 py-1" style="border-radius: 6px; font-weight: 600;">AI Engine</span>
-                                <h3 class="h5 mb-0 font-weight-bold" style="color: #1e3a8a;">Tìm nhân tài bằng AI</h3>
+                    <div class="ent-ai-matcher-card" data-enterprise-ai-matcher>
+                        <div class="ent-ai-matcher-card__header">
+                            <div class="ent-ai-matcher-card__heading">
+                                <span class="ent-ai-matcher-card__engine-badge">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                                    </svg>
+                                    AI Engine
+                                </span>
+                                <h3 class="ent-ai-matcher-card__title">Tìm nhân tài bằng AI</h3>
                             </div>
-                            <div class="d-flex align-items-center gap-3 text-muted small">
+                            <div class="ent-ai-matcher-card__metadata" style="display: none;">
                                 <span>Phiên bản: <strong data-enterprise-ai-provenance>gemini-1.5-pro</strong></span>
                                 <span>Cập nhật: <strong data-enterprise-ai-freshness>--</strong></span>
-                                <span class="badge badge-info" data-enterprise-ai-state>idle</span>
+                                <span class="ent-ai-matcher-card__state" data-enterprise-ai-state>idle</span>
                             </div>
                         </div>
-                        <p class="text-secondary small mb-3">
-                            Khớp nối tự động và xếp hạng ứng viên dựa trên kỹ năng đã được kiểm chứng đối chiếu với yêu cầu của vị trí tuyển dụng thực tập.
+                        <p class="ent-ai-matcher-card__description">
+                            Khớp nối tự động và xếp hạng ứng viên dựa trên điểm đánh giá năng lực và kỹ năng đã kiểm chứng đối chiếu với yêu cầu của vị trí tuyển dụng thực tập.
                         </p>
-                        <div class="row align-items-end g-3">
-                            <div class="col-md-8">
-                                <label for="enterprise-ai-job-select" class="form-label small font-weight-bold text-dark">Chọn vị trí thực tập đang tuyển dụng:</label>
-                                <select id="enterprise-ai-job-select" class="form-control form-select" data-enterprise-ai-job>
-                                    <option value="">-- Chọn vị trí thực tập --</option>
+                        <div class="ent-ai-matcher-card__controls" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem;">
+                            <div class="ent-ai-matcher-card__field" style="flex: 1 1 320px;">
+                                <label for="enterprise-ai-job-select" class="ent-ai-matcher-card__label">Chọn vị trí thực tập đang tuyển dụng:</label>
+                                <select id="enterprise-ai-job-select" class="ent-ai-matcher-card__select" data-enterprise-ai-job>
+                                    <option value="">-- Chọn vị trí thực tập tuyển dụng --</option>
                                     <?php foreach ($activeJobs as $job): ?>
-                                        <option value="<?= htmlspecialchars((string) $job['id']); ?>"><?= htmlspecialchars((string) $job['title']); ?> (Hạn: <?= htmlspecialchars((string) substr($job['deadline'] ?? '', 0, 10)); ?>)</option>
+                                        <option value="<?= htmlspecialchars((string) $job['id']); ?>" data-slots="<?= htmlspecialchars((string) ($job['slots'] ?? '5')); ?>" data-field="<?= htmlspecialchars((string) ($job['field'] ?? '')); ?>"><?= htmlspecialchars((string) $job['title']); ?> (Hạn: <?= htmlspecialchars((string) substr($job['deadline'] ?? '', 0, 10)); ?><?= !empty($job['slots']) ? ' • Chỉ tiêu: ' . (int) $job['slots'] : '' ?>)</option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
-                            <div class="col-md-4">
-                                <button type="button" class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2" data-enterprise-ai-run style="height: 38px;">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <div class="ent-ai-matcher-card__action" style="flex: 0 0 auto;">
+                                <button type="button" class="btn btn-primary ent-ai-matcher-card__button" data-enterprise-ai-run style="height: 42px;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                                     </svg>
-                                    Tìm nhân tài bằng AI
+                                    <span>Tìm nhân tài bằng AI</span>
                                 </button>
                             </div>
                         </div>
-                        <div class="ent-ai-results-container mt-3" data-enterprise-ai-results style="display: none;"></div>
                     </div>
 
                     <!-- Quick Filters & Main Search Toolbar -->
@@ -520,20 +512,62 @@ $sidebarNav = [
                                     </select>
                                 </div>
                             </div>
+                            <!-- AI Matching Active Notification Banner -->
+                            <div class="ent-ai-active-banner" id="ent-ai-active-banner" role="status" aria-live="polite" style="display: none;">
+                                <div class="ent-ai-banner__left">
+                                    <div class="ent-ai-banner__icon-wrap">
+                                        <svg class="ent-ai-banner__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                                        </svg>
+                                        <span class="ent-ai-banner__pulse-dot" title="AI Ranking đang hoạt động"></span>
+                                    </div>
+                                    <div class="ent-ai-banner__body">
+                                        <div class="ent-ai-banner__badges">
+                                            <span class="ent-ai-banner__badge ent-ai-banner__badge--engine">
+                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                                                </svg>
+                                                AI Ranking Hoàn tất
+                                            </span>
+                                            <span class="ent-ai-banner__badge ent-ai-banner__badge--count" id="ent-ai-count-badge">
+                                                0 ứng viên phù hợp
+                                            </span>
+                                        </div>
+                                        <div class="ent-ai-banner__text" id="ent-ai-active-text">
+                                            Đang hiển thị danh sách ứng viên phù hợp theo đề xuất AI
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="ent-ai-banner__reset-btn" id="ent-ai-reset-btn" title="Bỏ lọc AI và xem tất cả ứng viên">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                    <span>Xem tất cả sinh viên</span>
+                                </button>
+                            </div>
 
                             <!-- Talent Cards List -->
                             <div class="ent-talent-cards-wrapper" id="talent-cards-container">
-                                <?php foreach ($dbTalents as $talent): 
-                                    $tName = htmlspecialchars($talent['name'] ?? 'Trần Minh Đức');
-                                    $score = $talent['talentScore'] ?? 85;
-                                    $nameWords = explode(' ', trim($tName));
+                                <?php 
+                                $initialDisplayItems = array_slice($talentsData['items'] ?? [], 0, 6);
+                                foreach ($initialDisplayItems as $talent): 
+                                    $tName = htmlspecialchars($talent['displayName'] ?? 'Ứng viên');
+                                    $score = isset($talent['talentScore']) && is_numeric($talent['talentScore']) ? (float) $talent['talentScore'] : null;
+                                    $nameWords = preg_split('/\s+/', trim($tName));
                                     $lastWord = end($nameWords);
-                                    $initials = mb_strtoupper(mb_substr($lastWord, 0, 1, 'UTF-8')) ?: 'U';
-                                    $tId = htmlspecialchars($talent['id'] ?? '');
+                                    $initials = !empty($lastWord) ? mb_strtoupper(mb_substr($lastWord, 0, 1, 'UTF-8')) : 'UV';
+                                    if (count($nameWords) > 1 && !empty($nameWords[0])) {
+                                        $initials = mb_strtoupper(mb_substr($nameWords[0], 0, 1, 'UTF-8') . mb_substr($lastWord, 0, 1, 'UTF-8'));
+                                    }
+                                    $tId = htmlspecialchars((string) ($talent['studentId'] ?? ''));
                                     $detailUrl = app_href('/app/enterprise/talents/detail.php?id=' . urlencode($tId));
-                                    $school = htmlspecialchars($talent['schoolName'] ?? 'Trường Đại học');
-                                    $major = htmlspecialchars($talent['majorField'] ?? 'Chuyên ngành');
-                                    $classYear = htmlspecialchars($talent['className'] ?? '');
+                                    $school = htmlspecialchars((string) ($talent['schoolName'] ?? 'Nhà trường'));
+                                    $classYear = htmlspecialchars((string) ($talent['className'] ?? ''));
+                                    $major = htmlspecialchars((string) ($talent['headline'] ?? ''));
+                                    $skills = (array) ($talent['skills'] ?? []);
+                                    $verifiedCount = (int) ($talent['verifiedSkillCount'] ?? count($skills));
+                                    $studyStatus = (string) ($talent['studyStatus'] ?? 'Sinh viên');
                                 ?>
                                 <article class="ent-talent-card-item" data-talent-id="<?= $tId ?>">
                                     <div class="ent-talent-card-item__header">
@@ -546,9 +580,15 @@ $sidebarNav = [
                                                     <a href="<?= $detailUrl ?>" class="ent-talent-card-item__name">
                                                         <?= $tName ?>
                                                     </a>
-                                                    <span class="ent-talent-card-item__score" title="Điểm đánh giá năng lực">
-                                                        <?= $score ?>% phù hợp
-                                                    </span>
+                                                    <?php if ($score !== null): ?>
+                                                        <span class="ent-talent-card-item__score" title="Điểm đánh giá năng lực thực tế từ giáo viên">
+                                                            ★ <?= round($score) ?> điểm đánh giá
+                                                        </span>
+                                                    <?php else: ?>
+                                                        <span class="ent-talent-card-item__score ent-talent-card-item__score--pending" title="Chưa có điểm đánh giá từ giáo viên">
+                                                            Chưa chấm điểm
+                                                        </span>
+                                                    <?php endif; ?>
                                                 </div>
                                                 <div class="ent-talent-card-item__school">
                                                     <span><?= $school ?></span>
@@ -577,7 +617,7 @@ $sidebarNav = [
                                     <div class="ent-talent-card-item__meta-strip">
                                         <div class="ent-meta-item">
                                             <span class="ent-meta-item__label">Kỹ năng xác thực:</span>
-                                            <span class="ent-meta-item__value font-semibold text-dark">5 kỹ năng</span>
+                                            <span class="ent-meta-item__value"><?= $verifiedCount ?> kỹ năng</span>
                                         </div>
                                         <div class="ent-meta-item__divider"></div>
                                         <div class="ent-meta-item">
@@ -587,15 +627,19 @@ $sidebarNav = [
                                         <div class="ent-meta-item__divider"></div>
                                         <div class="ent-meta-item">
                                             <span class="ent-meta-item__label">Bậc học:</span>
-                                            <span class="ent-meta-item__value">Sinh viên</span>
+                                            <span class="ent-meta-item__value"><?= htmlspecialchars($studyStatus) ?></span>
                                         </div>
                                     </div>
 
                                     <div class="ent-talent-card-item__skills">
                                         <span class="skills-label">Kỹ năng:</span>
                                         <div class="skills-chips">
-                                            <span class="skill-tag">Phân tích dữ liệu</span>
-                                            <span class="skill-tag">Làm việc nhóm</span>
+                                            <?php foreach (array_slice($skills, 0, 4) as $sk): ?>
+                                                <span class="skill-tag"><?= htmlspecialchars($sk); ?></span>
+                                            <?php endforeach; ?>
+                                            <?php if (count($skills) > 4): ?>
+                                                <span class="skill-tag skill-tag--more">+<?= count($skills) - 4; ?></span>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
 
@@ -605,14 +649,14 @@ $sidebarNav = [
                                                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                                                 <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                                             </svg>
-                                            <span>Hồ sơ có consent</span>
+                                            <span><?= !empty($talent['contactAllowed']) ? 'Đã có quyền liên hệ' : 'Hồ sơ có consent' ?></span>
                                         </div>
                                         <div class="ent-talent-card-item__actions">
                                             <a href="<?= $detailUrl ?>" class="btn btn-secondary btn-sm">
                                                 Xem hồ sơ
                                             </a>
                                             <a href="<?= $detailUrl ?>" class="btn btn-primary btn-sm">
-                                                Mời ứng tuyển
+                                                <?= !empty($talent['hasPendingContactRequest']) ? 'Đã yêu cầu' : 'Mời ứng tuyển' ?>
                                             </a>
                                         </div>
                                     </div>
@@ -701,14 +745,23 @@ $sidebarNav = [
     </div>
 
     <!-- Shared Notification Toast -->
-    <div class="ent-toast" id="ent-toast" aria-live="polite" aria-atomic="true">
-        <div class="ent-toast__content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-            <span class="ent-toast__message">Thông báo hệ thống</span>
+    <div class="ent-toast" id="ent-toast" role="status" aria-live="polite" aria-atomic="true">
+        <div class="ent-toast__card">
+            <div class="ent-toast__icon-box" id="ent-toast-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
+            <div class="ent-toast__body">
+                <span class="ent-toast__title" id="ent-toast-title">Thông báo</span>
+                <span class="ent-toast__message" id="ent-toast-message">Đã chuyển về danh sách tất cả nhân tài.</span>
+            </div>
+            <button type="button" class="ent-toast__close" id="ent-toast-close" aria-label="Đóng thông báo">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
         </div>
     </div>
 
