@@ -56,6 +56,9 @@ final class SchoolAppContext
         $this->session->start();
         $pdo = $this->connection->connect();
         $repository = new SchoolRepository($pdo);
+        $clock = new \TalentHub\Support\Clock\SystemClock();
+        $activityPolicy = new \TalentHub\Domain\Activity\ActivityPolicy($clock);
+        $notificationPolicy = new \TalentHub\Domain\NotificationPolicy();
         $this->service = new SchoolDashboardService(
             $repository,
             $pdo,
@@ -66,7 +69,12 @@ final class SchoolAppContext
         $this->partnerships = new SchoolPartnershipService(new SchoolPartnershipRepository($pdo));
         $this->projects = new SchoolProjectService(new SchoolProjectRepository($pdo));
         $this->safeguarding = new StudentSafeguardingService($pdo, $repository, new SchoolAuthorization($pdo));
-        $this->activityApprovals = new SchoolActivityApprovalService(new SchoolActivityApprovalRepository($pdo));
+        $this->activityApprovals = new SchoolActivityApprovalService(
+            new SchoolActivityApprovalRepository($pdo),
+            $activityPolicy,
+            $clock,
+            $notificationPolicy
+        );
         $this->credentials = new SchoolCredentialManagementService(new SchoolCredentialManagementRepository($pdo));
         $this->audit = new SchoolAuditService(new SchoolAuditRepository($pdo));
     }
