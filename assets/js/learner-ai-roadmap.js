@@ -271,6 +271,29 @@
             .reduce((total, key) => total + integer(evidence[key]), 0);
         const completedTasks = integer(payload?.progress?.completed_tasks);
         const totalTasks = integer(payload?.progress?.total_tasks);
+        const rawPotential = records(payload?.potential_paths);
+        let potentialPaths = rawPotential;
+        if (potentialPaths.length === 0) {
+            const alternatives = Array.isArray(payload?.alternative_directions)
+                ? payload.alternative_directions.filter((item) => item && typeof item === 'object')
+                : [];
+            if (alternatives.length > 0) {
+                potentialPaths = alternatives.slice(0, 2).map((dir) => ({
+                    label: text(dir?.rationale) ? `${text(dir.label)}: ${text(dir.rationale)}` : text(dir.label),
+                    evidence_ref_ids: Array.isArray(dir?.evidence_ref_ids) ? dir.evidence_ref_ids : [],
+                }));
+            } else {
+                const potentialInsights = Array.isArray(payload?.insights)
+                    ? payload.insights.filter((item) => item?.category === 'potential')
+                    : [];
+                if (potentialInsights.length > 0) {
+                    potentialPaths = potentialInsights.slice(0, 2).map((insight) => ({
+                        label: text(insight?.summary) ? `${text(insight.title)}: ${text(insight.summary)}` : text(insight.title),
+                        evidence_ref_ids: Array.isArray(insight?.evidence_ref_ids) ? insight.evidence_ref_ids : [],
+                    }));
+                }
+            }
+        }
         return {
             ...payload,
             phases,
@@ -281,7 +304,7 @@
             talentMap: completeTalentMap(payload?.talent_map),
             strengths: records(payload?.strengths),
             improvements: records(payload?.improvements),
-            potentialPaths: records(payload?.potential_paths),
+            potentialPaths,
             trendSignals: records(payload?.trend_signals),
             growthHypotheses: records(payload?.growth_hypotheses),
             currentPhaseIndex,
