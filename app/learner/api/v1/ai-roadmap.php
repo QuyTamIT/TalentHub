@@ -43,7 +43,7 @@ try {
         ]);
     }
     $idempotencyKey = $context->idempotencyKey($request->header('x-idempotency-key'));
-    (new PersistentActionRateLimiter($context->pdo()))->consume(
+    $beforeGenerate = static fn () => (new PersistentActionRateLimiter($context->pdo()))->consume(
         'learner.ai',
         $studentId,
         isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null,
@@ -53,6 +53,7 @@ try {
         $context->requestId(),
         $idempotencyKey,
         $action === 'refresh',
+        beforeGenerate: $beforeGenerate,
     );
     if (($result['state'] ?? null) === 'forbidden') {
         throw new ApiException(403, 'PERMISSION_DENIED', 'Bạn không có quyền tạo lộ trình này.');

@@ -39,28 +39,6 @@ final class DatabaseAssessmentRepository extends AbstractDatabaseRepository impl
         WHERE ta.studentId = :student_id AND ta.testId = :assessment_id
         ORDER BY ta.startedAt DESC, ta.id DESC
         SQL;
-    private const EVALUATIONS_SQL = <<<'SQL'
-        SELECT
-            a.id,
-            a.teacherId,
-            a.studentId,
-            a.activityId,
-            a.overallScore,
-            a.comment,
-            a.status,
-            sc.id AS scoreId,
-            sc.criteriaId,
-            sc.score,
-            c.name AS criteriaName,
-            c.minScore,
-            c.maxScore
-        FROM assessments a
-        LEFT JOIN assessment_scores sc ON sc.assessmentId = a.id
-        LEFT JOIN assessment_criteria c ON c.id = sc.criteriaId
-        WHERE a.studentId = :student_id
-        ORDER BY a.id, sc.id
-        SQL;
-
     /**
      * Published-only Teacher evaluation read. Drafts and rows without a publish timestamp
      * are excluded in SQL, never in PHP, so a mapping change cannot leak a draft.
@@ -71,6 +49,10 @@ final class DatabaseAssessmentRepository extends AbstractDatabaseRepository impl
             a.teacherId,
             a.studentId,
             a.activityId,
+            a.classId,
+            a.projectId,
+            cl.name AS className,
+            pr.title AS projectTitle,
             a.overallScore,
             a.comment,
             a.status,
@@ -86,6 +68,8 @@ final class DatabaseAssessmentRepository extends AbstractDatabaseRepository impl
             c.maxScore
         FROM assessments a
         LEFT JOIN activities act ON act.id = a.activityId
+        LEFT JOIN classes cl ON cl.id = a.classId
+        LEFT JOIN projects pr ON pr.id = a.projectId
         LEFT JOIN teacher_profiles tp ON tp.id = a.teacherId
         LEFT JOIN users u ON u.id = tp.userId
         LEFT JOIN assessment_scores sc ON sc.assessmentId = a.id
@@ -152,46 +136,7 @@ final class DatabaseAssessmentRepository extends AbstractDatabaseRepository impl
 
     public function evaluationsForStudent(string $studentId): array
     {
-        $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
-        $rows = $this->fetchAll(
-            'evaluationsForStudent',
-            self::EVALUATIONS_SQL,
-            ['student_id' => $studentId]
-        );
-        $evaluations = [];
-
-        foreach ($rows as $row) {
-            $evaluationId = Uuid::normalizeDatabase((string) $row['id'], 'assessments.id');
-            if (!isset($evaluations[$evaluationId])) {
-                $evaluations[$evaluationId] = [
-                    'id' => $evaluationId,
-                    'teacher_id' => Uuid::normalizeDatabase((string) $row['teacher_id'], 'assessments.teacherId'),
-                    'student_id' => Uuid::normalizeDatabase((string) $row['student_id'], 'assessments.studentId'),
-                    'activity_id' => Uuid::normalizeDatabase((string) $row['activity_id'], 'assessments.activityId'),
-                    'overall_score' => $row['overall_score'],
-                    'comment' => $row['comment'],
-                    'status' => EvaluationStatus::normalize($row['status'] ?? null)->value,
-                    'scores' => [],
-                    'id_origin' => 'database',
-                ];
-            }
-
-            if (($row['score_id'] ?? null) !== null) {
-                $evaluations[$evaluationId]['scores'][] = [
-                    'id' => Uuid::normalizeDatabase((string) $row['score_id'], 'assessment_scores.id'),
-                    'criteria_id' => Uuid::normalizeDatabase(
-                        (string) $row['criteria_id'],
-                        'assessment_scores.criteriaId'
-                    ),
-                    'score' => $row['score'],
-                    'criteria_name' => $row['criteria_name'],
-                    'min_score' => $row['min_score'],
-                    'max_score' => $row['max_score'],
-                ];
-            }
-        }
-
-        return array_values($evaluations);
+        return $this->publishedEvaluationsForStudent($studentId);
     }
 
     public function publishedEvaluationsForStudent(string $studentId): array
@@ -211,7 +156,11 @@ final class DatabaseAssessmentRepository extends AbstractDatabaseRepository impl
                     'id' => $evaluationId,
                     'teacher_id' => Uuid::normalizeDatabase((string) $row['teacher_id'], 'assessments.teacherId'),
                     'student_id' => Uuid::normalizeDatabase((string) $row['student_id'], 'assessments.studentId'),
-                    'activity_id' => Uuid::normalizeDatabase((string) $row['activity_id'], 'assessments.activityId'),
+                    'activity_id' => $row['activity_id'] === null ? null : Uuid::normalizeDatabase((string) $row['activity_id'], 'assessments.activityId'),
+                    'class_id' => $row['class_id'] === null ? null : Uuid::normalizeDatabase((string) $row['class_id'], 'assessments.classId'),
+                    'project_id' => $row['project_id'] === null ? null : Uuid::normalizeDatabase((string) $row['project_id'], 'assessments.projectId'),
+                    'context_label' => $row['class_id'] !== null ? 'Đánh giá theo lớp học phần' : ($row['project_id'] !== null ? 'Đánh giá dự án' : 'Đánh giá hoạt động'),
+                    'context_title' => $row['class_name'] ?? $row['project_title'] ?? $row['activity_title'] ?? '',
                     'activity_title' => $row['activity_title'],
                     'reviewer_name' => $row['reviewer_name'],
                     'overall_score' => $row['overall_score'],

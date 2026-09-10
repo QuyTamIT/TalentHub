@@ -20,7 +20,14 @@ final class JsonResponder
     {
         $error = ['code' => $exception->errorCode, 'message' => $exception->getMessage()];
         if ($exception->details !== []) {
-            $error['details'] = $exception->details;
+            if (array_is_list($exception->details)) {
+                $error['details'] = $exception->details;
+            } else {
+                foreach ($exception->details as $k => $v) {
+                    $error[$k] = $v;
+                }
+                $error['details'] = $exception->details;
+            }
         }
         return ['status' => $exception->status, 'payload' => ['error' => $error, 'meta' => self::meta($requestId)]];
     }

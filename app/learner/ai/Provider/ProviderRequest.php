@@ -34,4 +34,16 @@ final class ProviderRequest
     /** @return list<string> */
     public function evidenceReferenceIds(): array { return array_keys($this->evidenceByReference); }
     public function evidence(string $referenceId): ?RecommendationEvidence { return $this->evidenceByReference[$referenceId] ?? null; }
+
+    public function forValidationRetry(string $safeCorrectionInstruction): self
+    {
+        $instruction = trim($safeCorrectionInstruction);
+        if ($instruction === '' || mb_strlen($instruction, 'UTF-8') > 500) {
+            throw new \InvalidArgumentException('Validation retry instruction is invalid.');
+        }
+        $payload = $this->payload;
+        $payload['validation_retry_instruction'] = $instruction;
+        $payload['instructions'] = [...($payload['instructions'] ?? []), $instruction];
+        return new self($this->promptVersion, $payload, $this->evidenceByReference);
+    }
 }

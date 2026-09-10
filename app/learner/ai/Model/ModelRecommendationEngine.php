@@ -73,6 +73,9 @@ final class ModelRecommendationEngine implements RecommendationEngine
             return $this->fallback($input, $context, (string) $response->errorCode());
         }
         try {
+            (new \TalentHub\Learner\Ai\Grounding\GroundedProseGuard())->assertTree(
+                $response->items(), \TalentHub\Learner\Ai\Grounding\GroundedProseGuard::skillsFromInput($input),
+            );
             $result = new RecommendationResult(
                 'model',
                 null,

@@ -62,14 +62,14 @@ $formatHours = static fn (float $hours): string => rtrim(rtrim(number_format($ho
 
                 <section class="learner-activity-history-kpis" aria-label="Tổng quan lịch sử">
                     <div><span><?= learner_icon('check', 21); ?></span><strong data-history-kpi="attended"><?= $attendedCount; ?></strong><small>Đã tham gia</small></div>
-                    <div><span><?= learner_icon('x', 21); ?></span><strong data-history-kpi="no-show"><?= $noShowCount; ?></strong><small>Không tham gia</small></div>
+                    <div><span><?= learner_icon('x', 21); ?></span><strong data-history-kpi="no-show"><?= $noShowCount; ?></strong><small>Vắng mặt</small></div>
                     <div><span><?= learner_icon('clock', 21); ?></span><strong data-history-kpi="hours"><?= learner_escape($formatHours($experienceHours)); ?></strong><small>Giờ trải nghiệm</small></div>
                     <div><span><?= learner_icon('calendar', 21); ?></span><strong data-history-kpi="month"><?= $monthCount; ?></strong><small>Hoạt động tháng này</small></div>
                 </section>
 
                 <section class="learner-activity-history-toolbar" aria-label="Lọc lịch sử">
                     <div class="learner-filter-list">
-                        <?php foreach (['all' => 'Tất cả', 'attended' => 'Đã tham gia', 'no_show' => 'Không tham gia'] as $status => $label): ?>
+                        <?php foreach (['all' => 'Tất cả', 'attended' => 'Đã tham gia', 'no_show' => 'Vắng mặt'] as $status => $label): ?>
                             <button type="button" class="learner-filter-button" data-history-filter="<?= $status; ?>" aria-pressed="<?= $status === 'all' ? 'true' : 'false'; ?>"><?= $label; ?></button>
                         <?php endforeach; ?>
                     </div>
@@ -92,7 +92,7 @@ $formatHours = static fn (float $hours): string => rtrim(rtrim(number_format($ho
                                     ?>
                                     <article class="learner-activity-history-card learner-activity-history-card--<?= learner_escape($status); ?>" data-history-card data-status="<?= learner_escape($status); ?>" data-history-timestamp="<?= learner_escape($date?->format(DATE_ATOM) ?? ''); ?>">
                                         <span class="learner-activity-history-card__marker" aria-hidden="true"></span>
-                                        <div class="learner-activity-history-card__header"><span><?= learner_escape($historyItem['filter_category'] ?? $historyItem['category'] ?? 'Hoạt động'); ?></span><strong><?= $isNoShow ? 'Không tham gia' : 'Đã tham gia'; ?></strong></div>
+                                        <div class="learner-activity-history-card__header"><span><?= learner_escape($historyItem['filter_category'] ?? $historyItem['category'] ?? 'Hoạt động'); ?></span><strong><?= $isNoShow ? 'Vắng mặt' : 'Đã tham gia'; ?></strong></div>
                                         <h3><?= learner_escape($historyItem['title'] ?? 'Hoạt động TalentHub'); ?></h3>
                                         <p><?= learner_escape($historyItem['school_name'] ?? $historyItem['organizer_name'] ?? 'Đơn vị tổ chức'); ?></p>
                                         <div class="learner-activity-history-card__meta">
@@ -113,7 +113,7 @@ $formatHours = static fn (float $hours): string => rtrim(rtrim(number_format($ho
                     <aside class="learner-activity-history-summary" aria-labelledby="history-summary-title">
                         <h2 id="history-summary-title">Tổng quan hoạt động</h2>
                         <div class="learner-activity-history-donut" style="--attendance-rate: <?= $attendanceRate; ?>" role="img" aria-label="Tỷ lệ tham gia <?= $attendanceRate; ?> phần trăm"><span><strong><?= $attendanceRate; ?>%</strong>Tỷ lệ tham gia</span></div>
-                        <dl><div><dt><span class="is-attended"></span>Đã tham gia</dt><dd><?= $attendedCount; ?></dd></div><div><dt><span class="is-no-show"></span>Không tham gia</dt><dd><?= $noShowCount; ?></dd></div><div><dt>Tổng hoạt động</dt><dd><?= count($activityHistory); ?></dd></div></dl>
+                        <dl><div><dt><span class="is-attended"></span>Đã tham gia</dt><dd><?= $attendedCount; ?></dd></div><div><dt><span class="is-no-show"></span>Vắng mặt</dt><dd><?= $noShowCount; ?></dd></div><div><dt>Tổng hoạt động</dt><dd><?= count($activityHistory); ?></dd></div></dl>
                     </aside>
                 </div>
             </div>

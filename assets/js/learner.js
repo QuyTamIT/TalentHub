@@ -124,10 +124,21 @@
         const search = normalizeSearchText(item?.search || '');
         const itemField = normalizeSearchText(item?.field || '');
         const itemLocation = normalizeSearchText(item?.location || '');
+        const status = normalizeSearchText(filters.status || 'all');
+        const itemStatus = normalizeSearchText(item?.status || '');
+        const statusTokens = itemStatus ? itemStatus.split(/\s+/) : [];
+        const statusMatches = status === 'all'
+            || (status === 'all' && itemStatus === '')
+            || itemStatus === status
+            || statusTokens.includes(status)
+            || (status === 'recruiting' && (statusTokens.includes('open') || statusTokens.includes('recruiting') || itemStatus === 'open' || itemStatus === 'recruiting'))
+            || (status === 'active' && (statusTokens.includes('applied') || statusTokens.includes('interning') || statusTokens.includes('active') || ['applied', 'interning', 'active'].includes(itemStatus)))
+            || (status === 'completed' && (statusTokens.includes('completed') || itemStatus === 'completed'));
 
         return (!query || search.includes(query))
             && (field === 'all' || itemField.includes(field))
-            && (location === 'all' || itemLocation.includes(location));
+            && (location === 'all' || itemLocation.includes(location))
+            && statusMatches;
     }
 
     function applicationMatches(application, query, status) {
@@ -485,6 +496,7 @@
                         search: card.dataset.search,
                         field: card.dataset.field,
                         location: card.dataset.location,
+                        status: card.dataset.status,
                     }, filters);
                     card.hidden = !visible;
                     if (visible) visibleCount += 1;
@@ -502,6 +514,10 @@
 
                 const resultCount = activePanel.querySelector('[data-ecosystem-result-count]');
                 if (resultCount) resultCount.textContent = String(visibleCount);
+                const url = new URL(window.location.href);
+                url.searchParams.set('tab', activePanel.dataset.ecosystemPanel || 'enterprises');
+                url.searchParams.set('filter', filters.status || 'all');
+                window.history.replaceState(null, '', url.toString());
             };
 
             const activateEcosystemTab = (tabId, focusTab = false) => {

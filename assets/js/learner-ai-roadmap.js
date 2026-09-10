@@ -114,8 +114,7 @@
     }
 
     function confidenceLabel(value) {
-        return { high: 'Độ tin cậy cao', medium: 'Độ tin cậy trung bình', low: 'Độ tin cậy cần kiểm chứng' }[value]
-            || 'Độ tin cậy chưa xác định';
+        return 'Định hướng tham khảo · cần đối chiếu qua thực hành';
     }
 
     function normalizeTalentScore(value) {
@@ -272,6 +271,46 @@
             .reduce((total, key) => total + integer(evidence[key]), 0);
         const completedTasks = integer(payload?.progress?.completed_tasks);
         const totalTasks = integer(payload?.progress?.total_tasks);
+        const rawPotential = records(payload?.potential_paths);
+        let potentialPaths = rawPotential;
+        if (potentialPaths.length === 0) {
+            const defaultEvidence = Array.isArray(payload?.evidence)
+                ? payload.evidence.filter((item) => typeof item === 'string').slice(0, 3)
+                : [];
+            const alternatives = Array.isArray(payload?.alternative_directions)
+                ? payload.alternative_directions.filter((item) => item && typeof item === 'object')
+                : [];
+            if (alternatives.length > 0) {
+                potentialPaths = alternatives.slice(0, 2).map((dir) => {
+                    const label = text(dir?.label);
+                    const rationale = text(dir?.rationale);
+                    const formattedLabel = label && rationale ? `${label}: ${rationale}` : (label || rationale);
+                    return {
+                        label: formattedLabel,
+                        evidence_ref_ids: Array.isArray(dir?.evidence_ref_ids) && dir.evidence_ref_ids.length > 0
+                            ? dir.evidence_ref_ids
+                            : defaultEvidence,
+                    };
+                });
+            } else {
+                const potentialInsights = Array.isArray(payload?.insights)
+                    ? payload.insights.filter((item) => item?.category === 'potential')
+                    : [];
+                if (potentialInsights.length > 0) {
+                    potentialPaths = potentialInsights.slice(0, 2).map((insight) => {
+                        const title = text(insight?.title);
+                        const summary = text(insight?.summary);
+                        const formattedLabel = title && summary ? `${title}: ${summary}` : (title || summary);
+                        return {
+                            label: formattedLabel,
+                            evidence_ref_ids: Array.isArray(insight?.evidence_ref_ids) && insight.evidence_ref_ids.length > 0
+                                ? insight.evidence_ref_ids
+                                : defaultEvidence,
+                        };
+                    });
+                }
+            }
+        }
         return {
             ...payload,
             phases,
@@ -282,7 +321,7 @@
             talentMap: completeTalentMap(payload?.talent_map),
             strengths: records(payload?.strengths),
             improvements: records(payload?.improvements),
-            potentialPaths: records(payload?.potential_paths),
+            potentialPaths,
             trendSignals: records(payload?.trend_signals),
             growthHypotheses: records(payload?.growth_hypotheses),
             currentPhaseIndex,
@@ -728,6 +767,8 @@
 
             const failedRefresh = state === 'stale-model'
                 && payload?.refresh_state === 'fallback_not_applied';
+            const unchanged = state === 'ready-model'
+                && payload?.reuse_reason === 'inputs_unchanged' && payload?.data_changed === false;
             hide(nodes.loading, state !== 'loading');
             hide(nodes.notGenerated, state !== 'not-generated');
             hide(nodes.consent, state !== 'consent-required');
@@ -735,11 +776,13 @@
             hide(nodes.pending, state !== 'pending');
             hide(nodes.error, state !== 'source-error');
             hide(nodes.ready, !READY_STATES.has(state));
-            set(nodes.status, statusCopy(state));
+            set(nodes.status, unchanged ? 'Dữ liệu không thay đổi. Đang hiển thị kết quả phân tích trước đó.' : statusCopy(state));
             if (READY_STATES.has(state)) {
-                if (processingActive) completeProcessing(!failedRefresh);
+                if (processingActive && !unchanged) completeProcessing(!failedRefresh);
                 else {
                     processingTracker.stop();
+                    processingActive = false;
+                    processingPreserveReady = false;
                     clearSuccessHide();
                     hide(nodes.processing, true);
                     setGenerateDisabled(false);

@@ -20,6 +20,7 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
     private const ENTERPRISE_SQL = 'SELECT ' . self::ENTERPRISE_COLUMNS . ' FROM enterprises WHERE id = :partner_id AND ' . self::ENTERPRISE_VISIBLE_SQL . ' LIMIT 1';
     private const ENTERPRISE_SCHOOL_PARTNERS_SQL = 'SELECT DISTINCT e.id, e.name, e.status, e.logoUrl, e.industry, e.description, e.email, e.phone, e.website, e.address, e.verificationStatus, e.verificationNote, e.verifiedAt, e.verifiedBy, e.createdAt, e.updatedAt FROM enterprises e INNER JOIN school_enterprise_partnerships sep ON sep.enterpriseId = e.id WHERE sep.schoolId = :school_id AND sep.status = \'approved\' AND e.status = :enterprise_status AND (e.verificationStatus IN (:verification_verified, :verification_approved) OR e.verificationStatus IS NULL OR e.verificationStatus = \'pending\') ORDER BY e.name, e.id';
     private const OPPORTUNITY_COLUMNS = 'ip.id, ip.enterpriseId, ip.title, ip.field, ip.location, ip.workType, ip.duration, ip.educationLevel, ip.description, ip.benefits, ip.skillsJson, ip.requirementsJson, ip.slots, ip.deadline, ip.createdAt, ip.updatedAt, ip.status, e.name AS enterpriseName';
+    private const OPPORTUNITY_COLUMNS_WITH_APPLICATION = 'ip.id, ip.enterpriseId, ip.title, ip.field, ip.location, ip.workType, ip.duration, ip.educationLevel, ip.description, ip.benefits, ip.skillsJson, ip.requirementsJson, ip.slots, ip.deadline, ip.createdAt, ip.updatedAt, ip.status, e.name AS enterpriseName, ia.id AS application_id, ia.status AS application_status';
     private const OPPORTUNITY_VISIBLE_SQL = "ip.status IN (:opportunity_status, 'published') AND (ip.deadline IS NULL OR ip.deadline >= CURRENT_TIMESTAMP OR ip.deadline >= CURDATE() OR ip.deadline >= UTC_TIMESTAMP(6)) AND e.status = :enterprise_status AND (e.verificationStatus IN (:verification_verified, :verification_approved) OR e.verificationStatus IS NULL OR e.verificationStatus = 'pending')";
     private const OPPORTUNITIES_SQL = 'SELECT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId WHERE ' . self::OPPORTUNITY_VISIBLE_SQL . ' ORDER BY ip.createdAt DESC, ip.id DESC';
     private const OPPORTUNITY_SQL = 'SELECT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId WHERE ip.id = :opportunity_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' LIMIT 1';
@@ -86,9 +87,11 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
             $sql = self::OPPORTUNITIES_SQL;
             $params = $this->opportunityVisibilityParameters();
 
-            if ($studentId !== null) {
+            if ($studentId !== null && $studentId !== '') {
                 $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
-                $sql = 'SELECT DISTINCT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId ' .
+                $sql = 'SELECT DISTINCT ' . self::OPPORTUNITY_COLUMNS_WITH_APPLICATION . ' FROM internship_posts ip ' .
+                       'INNER JOIN enterprises e ON e.id = ip.enterpriseId ' .
+                       'LEFT JOIN internship_applications ia ON ia.postId = ip.id AND ia.studentId = :student_id ' .
                        'WHERE ' . self::OPPORTUNITY_VISIBLE_SQL . ' ' .
                        'AND EXISTS (' .
                        '    SELECT 1 FROM student_skills ss ' .
@@ -144,18 +147,25 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
         return null;
     }
 
-    public function findOpportunity(string $type, string $opportunityId): ?array
+    public function findOpportunity(string $type, string $opportunityId, ?string $studentId = null): ?array
     {
         if ($type !== 'internship') {
             return null;
         }
         try {
             $opportunityId = Uuid::normalizeDatabase($opportunityId, 'opportunity_id');
-            $opportunity = $this->fetchOne(
-                'findOpportunity',
-                self::OPPORTUNITY_SQL,
-                ['opportunity_id' => $opportunityId] + $this->opportunityVisibilityParameters()
-            );
+            $params = ['opportunity_id' => $opportunityId] + $this->opportunityVisibilityParameters();
+            if ($studentId !== null && $studentId !== '') {
+                $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
+                $sql = 'SELECT ' . self::OPPORTUNITY_COLUMNS_WITH_APPLICATION . ' FROM internship_posts ip ' .
+                       'INNER JOIN enterprises e ON e.id = ip.enterpriseId ' .
+                       'LEFT JOIN internship_applications ia ON ia.postId = ip.id AND ia.studentId = :student_id ' .
+                       'WHERE ip.id = :opportunity_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' LIMIT 1';
+                $params['student_id'] = $studentId;
+            } else {
+                $sql = self::OPPORTUNITY_SQL;
+            }
+            $opportunity = $this->fetchOne('findOpportunity', $sql, $params);
 
             return $opportunity === null ? null : $this->normalizeOpportunity($opportunity);
         } catch (\Throwable $e) {
@@ -164,16 +174,28 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
         }
     }
 
-    public function opportunitiesForPartner(string $partnerId, bool $activeOnly = false): array
+    public function opportunitiesForPartner(string $partnerId, bool $activeOnly = false, ?string $studentId = null): array
     {
         try {
             $partnerId = Uuid::normalizeDatabase($partnerId, 'enterprise_id');
+            $params = ['enterprise_id' => $partnerId] + $this->opportunityVisibilityParameters();
+            if ($studentId !== null && $studentId !== '') {
+                $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
+                $sql = 'SELECT ' . self::OPPORTUNITY_COLUMNS_WITH_APPLICATION . ' FROM internship_posts ip ' .
+                       'INNER JOIN enterprises e ON e.id = ip.enterpriseId ' .
+                       'LEFT JOIN internship_applications ia ON ia.postId = ip.id AND ia.studentId = :student_id ' .
+                       'WHERE ip.enterpriseId = :enterprise_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' ' .
+                       'ORDER BY ip.createdAt DESC, ip.id DESC';
+                $params['student_id'] = $studentId;
+            } else {
+                $sql = self::PARTNER_OPPORTUNITIES_SQL;
+            }
             return array_map(
                 [$this, 'normalizeOpportunity'],
                 $this->fetchAll(
                     'opportunitiesForPartner',
-                    self::PARTNER_OPPORTUNITIES_SQL,
-                    ['enterprise_id' => $partnerId] + $this->opportunityVisibilityParameters()
+                    $sql,
+                    $params
                 )
             );
         } catch (\Throwable $e) {
@@ -245,6 +267,23 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
         $opportunity['requirements'] = $this->decodeJson($opportunity['requirements_json'] ?? null, 'internship_posts.requirementsJson');
         unset($opportunity['skills_json'], $opportunity['requirements_json']);
         $opportunity['id_origin'] = 'database';
+
+        $rawAppStatus = $opportunity['application_status'] ?? null;
+        $opportunity['application_id'] = !empty($opportunity['application_id'])
+            ? Uuid::normalizeDatabase((string) $opportunity['application_id'], 'internship_applications.id')
+            : null;
+        $opportunity['application_status'] = is_string($rawAppStatus) && $rawAppStatus !== '' ? $rawAppStatus : null;
+        $opportunity['user_participation_status'] = match ($rawAppStatus) {
+            'submitted', 'reviewing', 'interview' => 'applied',
+            'accepted' => 'interning',
+            'completed' => 'completed',
+            default => 'open',
+        };
+        $opportunity['membership_status'] = match ($opportunity['user_participation_status']) {
+            'applied', 'interning' => 'active',
+            'completed' => 'completed',
+            default => 'recruiting',
+        };
 
         return $opportunity;
     }

@@ -32,7 +32,8 @@ $talentPassport = $GLOBALS['learner_talent_passport'] ?? [];
 $overallScore = 0.0;
 $hasOverallScore = false;
 $gradeClassification = 'Chưa xếp loại';
-$rankingPercentile = 'Đang cập nhật';
+$rankingPercentile = 'Điểm năng lực trên thang 10';
+$evalContext = '';
 $evalComment = '';
 $evalReviewer = 'Giảng viên hướng dẫn';
 $evalOrg = !empty($studentSchool) && $studentSchool !== 'Chưa cập nhật trường' ? $studentSchool : 'Đơn vị đào tạo';
@@ -40,12 +41,14 @@ $evalOrg = !empty($studentSchool) && $studentSchool !== 'Chưa cập nhật trư
 if (!empty($talentPassport['teacher_evaluations'][0])) {
     $firstEval = $talentPassport['teacher_evaluations'][0];
     if (array_key_exists('overall_score', $firstEval) || array_key_exists('overallScore', $firstEval)) {
-        $overallScore = (float) ($firstEval['overall_score'] ?? $firstEval['overallScore']);
-        $hasOverallScore = true;
+        $rawOverallScore = $firstEval['overall_score'] ?? $firstEval['overallScore'] ?? null;
+        $hasOverallScore = $rawOverallScore !== null;
+        $overallScore = (float) $rawOverallScore;
     }
     if (!empty($firstEval['classification'])) {
         $gradeClassification = (string) $firstEval['classification'];
     }
+    $evalContext = trim(($firstEval['context_label'] ?? '') . ' · ' . ($firstEval['context_title'] ?? ''), " ·");
     if (!empty($firstEval['comment'])) {
         $evalComment = (string) $firstEval['comment'];
     }
@@ -57,7 +60,15 @@ if (!empty($talentPassport['teacher_evaluations'][0])) {
 // 3. Xử lý Kết quả 4 bài Đánh giá Năng lực (DISC, MBTI, Holland, Đa trí thông minh)
 $rawAssessments = $talentPassport['assessment_results'] ?? [];
 $assessmentCards = [];
+$seenAssessmentTypes = [];
 foreach ($rawAssessments as $index => $assessment) {
+    $testKey = strtolower(trim((string) ($assessment['test_type'] ?? $assessment['testType'] ?? $assessment['test_code'] ?? $assessment['testCode'] ?? '')));
+    $baseKey = preg_replace('/_(primary|secondary|high_school|university|adult|middle|high|college)$/', '', $testKey);
+    $dedupKey = $baseKey !== '' ? $baseKey : (string) $index;
+    if (isset($seenAssessmentTypes[$dedupKey])) {
+        continue;
+    }
+    $seenAssessmentTypes[$dedupKey] = true;
     $dimensions = $assessment['dimension_scores'] ?? $assessment['dimensionScores'] ?? [];
     if (is_string($dimensions)) {
         $decodedDimensions = json_decode($dimensions, true);
@@ -120,6 +131,16 @@ if (!empty($rawSkills)) {
     }
 }
 
+$technicalSkills = [];
+$softSkills = [];
+foreach ($displaySkills as $sk) {
+    if (($sk['type'] ?? '') === 'soft') {
+        $softSkills[] = $sk;
+    } else {
+        $technicalSkills[] = $sk;
+    }
+}
+
 // 5. Danh sách Dự án đã Bảo trợ & Tham gia
 $rawProjects = !empty($talentPassport['projects']) ? $talentPassport['projects'] : (function_exists('learner_projects') ? learner_projects() : []);
 $displayProjects = [];
@@ -129,18 +150,19 @@ if (!empty($rawProjects)) {
         $sponsorName = !empty($p['sponsor_name']) ? (string) $p['sponsor_name'] : (!empty($sponsors[0]['enterprise_name']) ? (string) $sponsors[0]['enterprise_name'] : '');
         $raisedAmount = (float) ($p['raised_amount'] ?? $p['raisedAmount'] ?? 0);
         $fundingGoal = (float) ($p['funding_goal'] ?? $p['fundingGoal'] ?? 0);
+        $projectDesc = trim((string) ($p['description'] ?? $p['desc'] ?? ''));
         $displayProjects[] = [
             'name' => (string) ($p['name'] ?? $p['title'] ?? 'Dự án nghiên cứu'),
             'role' => (string) ($p['role'] ?? 'Trưởng nhóm kỹ thuật'),
             'category' => (string) ($p['category_label'] ?? $p['category'] ?? 'Công nghệ & AI'),
             'status' => (string) ($p['status_label'] ?? 'Đang triển khai'),
+            'desc' => $projectDesc,
             'sponsor_name' => $sponsorName,
             'raised_amount' => $raisedAmount,
             'funding_goal' => $fundingGoal,
         ];
     }
 }
-
 
 // 6. Danh sách Chứng chỉ & Văn bằng
 $rawCertificates = !empty($talentPassport['certificates']) ? $talentPassport['certificates'] : ($certificates ?? []);
@@ -160,6 +182,59 @@ if (!empty($rawCertificates)) {
     }
 }
 
+// 7. Danh sách Hoạt động Trải nghiệm & Ngoại khóa đã Xác nhận
+$rawActivities = !empty($talentPassport['experience']['confirmed_entries'])
+    ? $talentPassport['experience']['confirmed_entries']
+    : ($activities ?? []);
+$displayActivities = [];
+if (!empty($rawActivities)) {
+    foreach ($rawActivities as $act) {
+        $actTitle = trim((string) ($act['activity_title'] ?? $act['title'] ?? 'Hoạt động trải nghiệm'));
+        $actCategory = trim((string) ($act['display_category'] ?? $act['category'] ?? 'Thực hành'));
+        $rawTime = $act['activity_start_at'] ?? $act['time'] ?? null;
+        $actTime = !empty($rawTime) && strtotime((string)$rawTime) !== false ? date('d/m/Y', strtotime((string)$rawTime)) : (string)($rawTime ?: '2026');
+        $actLocation = trim((string) ($act['location_name'] ?? $act['location'] ?? 'TalentHub Lab'));
+        $actHours = (float) ($act['confirmed_hours'] ?? $act['hours'] ?? $act['hours_spent'] ?? 0);
+        $displayActivities[] = [
+            'title' => $actTitle,
+            'category' => $actCategory,
+            'time' => $actTime,
+            'location' => $actLocation,
+            'hours' => $actHours,
+        ];
+    }
+}
+
+// 8. Danh sách Huy hiệu Năng lực Đạt được
+$rawBadges = !empty($talentPassport['badges']) ? $talentPassport['badges'] : ($learnerBadges ?? []);
+$displayBadges = [];
+if (!empty($rawBadges)) {
+    foreach ($rawBadges as $b) {
+        $bStatus = strtolower((string) ($b['status'] ?? ''));
+        if ($bStatus === 'achieved' || !empty($b['awarded_at']) || ($bStatus === 'in_progress' && ($b['current'] ?? 0) > 0)) {
+            $displayBadges[] = [
+                'name' => (string) ($b['name'] ?? 'Huy hiệu Năng lực'),
+                'description' => (string) ($b['description'] ?? ''),
+                'icon' => (string) ($b['icon'] ?? 'award'),
+                'status_label' => (string) ($b['status_label'] ?? ($bStatus === 'achieved' ? 'Đã đạt' : 'Đang rèn luyện')),
+                'is_achieved' => ($bStatus === 'achieved' || !empty($b['awarded_at'])),
+            ];
+        }
+    }
+}
+
+// 9. Tóm tắt Hồ sơ Năng lực (Professional Summary)
+$professionalSummary = trim((string) ($student['bio'] ?? ''));
+if ($professionalSummary === '') {
+    $topSkillNames = array_slice(array_column($displaySkills, 'name'), 0, 3);
+    $skillsText = !empty($topSkillNames) ? implode(', ', $topSkillNames) : 'công nghệ và kỹ năng số';
+    $schoolText = !empty($studentSchool) && $studentSchool !== 'Chưa cập nhật trường' ? $studentSchool : 'TalentHub';
+    $hoursText = (int) ($student['experience_hours'] ?? ($talentPassport['experience']['confirmed_hours'] ?? 0));
+    $headlineText = !empty($studentHeadline) ? $studentHeadline : 'Học viên đam mê nghiên cứu và đổi mới sáng tạo';
+    $professionalSummary = "{$headlineText} tại {$schoolText} với hơn {$hoursText} giờ trải nghiệm thực tế. Có thế mạnh về {$skillsText}, định hướng chủ động phát triển các dự án thực tiễn và sẵn sàng tham gia nghiên cứu, thực tập trong môi trường doanh nghiệp chuyên nghiệp.";
+}
+
+
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -175,136 +250,39 @@ if (!empty($rawCertificates)) {
     <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
     <style>
         /* ==========================================================================
-           TALENT PASSPORT 360 - MODERN CV & CLEAN PRINT FORMAT
+           TALENT PASSPORT 360° - MODERN 2-COLUMN PROFESSIONAL CV LAYOUT
            ========================================================================== */
         .passport-wrapper {
-            max-width: 1040px;
+            max-width: 1060px;
             margin: 0 auto;
-            padding-bottom: 4rem;
+            padding-bottom: 3.5rem;
         }
 
-        /* Thanh điều khiển tùy biến xuất PDF (Chỉ hiển thị trên Web) */
-        .passport-customizer-panel {
-            background: #FFFFFF;
-            border: 1px solid #CBD5E1;
-            border-radius: 14px;
-            padding: 1.25rem 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
-        }
-        .passport-customizer-header {
+        /* Action Toolbar */
+        .passport-top-toolbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 1.25rem;
             flex-wrap: wrap;
             gap: 1rem;
-            margin-bottom: 1rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid #E2E8F0;
-        }
-        .passport-customizer-title {
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            font-size: 1rem;
-            font-weight: 800;
-            color: #0F172A;
-        }
-        .passport-presets-group {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-        .passport-preset-btn {
-            background: #F1F5F9;
-            border: 1px solid #CBD5E1;
-            color: #334155;
-            padding: 0.35rem 0.75rem;
-            border-radius: 6px;
-            font-size: 0.8125rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .passport-preset-btn:hover {
-            background: #E2E8F0;
-            color: #0F172A;
-        }
-        .passport-preset-btn.is-active {
-            background: #2563EB;
-            color: #FFFFFF;
-            border-color: #1D4ED8;
         }
 
-        .passport-checkboxes-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-            gap: 0.75rem;
-        }
-        .passport-checkbox-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.6rem;
-            background: #F8FAFC;
-            border: 1px solid #E2E8F0;
-            padding: 0.65rem 0.85rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            user-select: none;
-        }
-        .passport-checkbox-item:hover {
-            border-color: #93C5FD;
-            background: #EFF6FF;
-        }
-        .passport-checkbox-item input[type="checkbox"] {
-            margin-top: 0.2rem;
-            width: 16px;
-            height: 16px;
-            accent-color: #2563EB;
-            cursor: pointer;
-        }
-        .passport-checkbox-item__label {
-            font-size: 0.825rem;
-            font-weight: 700;
-            color: #1E293B;
-            display: block;
-        }
-        .passport-checkbox-item__hint {
-            font-size: 0.725rem;
-            color: #64748B;
-            display: block;
-            margin-top: 0.15rem;
-        }
-
-        /* Action bar */
-        .passport-action-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 1rem;
-            padding-top: 0.85rem;
-            border-top: 1px solid #E2E8F0;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-        }
-
-        /* Main Passport / CV Card */
+        /* Main CV Card */
         .passport-card {
             background: #FFFFFF;
             border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
             border: 1px solid #CBD5E1;
             overflow: hidden;
             position: relative;
         }
 
-        /* Banner dải trên */
+        /* Top Header Banner */
         .passport-header-banner {
             background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 60%, #1D4ED8 100%);
             color: #FFFFFF;
-            padding: 1.25rem 2.25rem;
+            padding: 0.9rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -315,46 +293,59 @@ if (!empty($rawCertificates)) {
             display: flex;
             align-items: center;
             gap: 0.6rem;
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 800;
             letter-spacing: -0.01em;
         }
         .passport-badge-code {
             background: rgba(255, 255, 255, 0.18);
             border: 1px solid rgba(255, 255, 255, 0.35);
-            padding: 0.3rem 0.8rem;
+            padding: 0.25rem 0.75rem;
             border-radius: 9999px;
             font-family: monospace;
-            font-size: 0.85rem;
+            font-size: 0.775rem;
             font-weight: 700;
             color: #FFFFFF;
         }
 
         /* ==========================================================================
-           CV HEADER (Avatar & Thông tin bên trái - Mã QR góc trên bên phải)
+           2-COLUMN CV BODY
            ========================================================================== */
-        .passport-cv-header {
+        .passport-cv-body {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
             background: #FFFFFF;
-            border-bottom: 2px solid #F1F5F9;
-            padding: 2rem 2.25rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 1.5rem;
-            flex-wrap: wrap;
         }
-        .passport-cv-identity {
+
+        /* --------------------------------------------------------------------------
+           LEFT SIDEBAR (~34%)
+           -------------------------------------------------------------------------- */
+        .passport-cv-sidebar {
+            width: 34%;
+            flex: 0 0 34%;
+            max-width: 34%;
+            background: #F8FAFC;
+            border-right: 1px solid #E2E8F0;
+            padding: 1.75rem 1.35rem;
+            box-sizing: border-box;
             display: flex;
-            gap: 1.5rem;
+            flex-direction: column;
+            gap: 1.35rem;
+        }
+
+        .passport-sidebar-profile {
+            display: flex;
+            flex-direction: column;
             align-items: center;
-            flex: 1;
-            min-width: 320px;
+            text-align: center;
+            gap: 0.75rem;
         }
         .passport-cv-avatar {
-            width: 95px;
-            height: 95px;
+            width: 92px;
+            height: 92px;
             border-radius: 16px;
-            background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+            background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%);
             color: #FFFFFF;
             font-size: 2.25rem;
             font-weight: 800;
@@ -362,61 +353,221 @@ if (!empty($rawCertificates)) {
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            flex-shrink: 0;
             border: 3px solid #EFF6FF;
-            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.18);
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.16);
         }
         .passport-cv-avatar img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
-        .passport-cv-details {
-            flex: 1;
-        }
-        .passport-cv-name {
-            font-size: 1.6rem;
-            font-weight: 800;
-            color: #0F172A;
-            margin: 0 0 0.25rem 0;
-            line-height: 1.25;
-        }
-        .passport-cv-headline {
-            font-size: 0.925rem;
-            font-weight: 600;
-            color: #2563EB;
-            margin: 0 0 0.75rem 0;
-        }
-        .passport-cv-contact-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem 1.25rem;
-            font-size: 0.8125rem;
-            color: #475569;
-        }
-        .passport-cv-contact-item {
+        .passport-verified-pill {
             display: inline-flex;
             align-items: center;
-            gap: 0.4rem;
+            gap: 4px;
+            background: #DCFCE7;
+            color: #15803D;
+            border: 1px solid #86EFAC;
+            padding: 3px 10px;
+            border-radius: 9999px;
+            font-size: 0.725rem;
+            font-weight: 700;
         }
 
-        /* Khung QR Code góc trên bên phải */
-        .passport-qr-cv-card {
-            background: #F8FAFC;
-            border: 1px solid #CBD5E1;
-            border-radius: 12px;
-            padding: 0.75rem 0.95rem;
+        .passport-sidebar-section {
+            display: flex;
+            flex-direction: column;
+        }
+        .passport-sidebar-title {
+            font-size: 0.8rem;
+            font-weight: 800;
+            color: #0F172A;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            margin: 0 0 0.65rem 0;
+            border-bottom: 2px solid #E2E8F0;
+            padding-bottom: 0.35rem;
+        }
+
+        /* Contact Details */
+        .passport-sidebar-contact-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+        .passport-sidebar-contact-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            font-size: 0.7875rem;
+            color: #475569;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+        .passport-sidebar-contact-item .contact-icon {
+            color: #2563EB;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* Overall Score Card */
+        .passport-score-card {
+            background: #F0FDF4;
+            border: 1px solid #BBF7D0;
+            border-radius: 10px;
+            padding: 0.85rem 1rem;
+            text-align: center;
+        }
+        .passport-score-main {
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
+        }
+        .passport-score-number {
+            font-size: 2.35rem;
+            font-weight: 900;
+            color: #15803D;
+            line-height: 1;
+        }
+        .passport-score-scale {
+            font-size: 0.6875rem;
+            font-weight: 800;
+            color: #166534;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.2rem;
+        }
+        .passport-score-badge {
+            display: inline-block;
+            background: #16A34A;
+            color: #FFFFFF;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.2rem 0.65rem;
+            border-radius: 6px;
+            margin: 0.4rem 0 0.25rem 0;
+        }
+        .passport-score-hint {
+            font-size: 0.7rem;
+            color: #166534;
+            line-height: 1.35;
+            margin: 0;
+        }
+
+        /* 4 Assessments */
+        .passport-tests-compact-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .passport-test-compact-item {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 0.6rem 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        .passport-test-compact-item .test-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .passport-test-compact-item .test-name {
+            font-size: 0.775rem;
+            font-weight: 800;
+            color: #0F172A;
+        }
+        .passport-test-compact-item .test-code {
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: #FFFFFF;
+            background: #2563EB;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .passport-test-compact-item .test-summary {
+            font-size: 0.7125rem;
+            color: #334155;
+            line-height: 1.35;
+        }
+        .passport-test-compact-item .test-dim {
+            font-size: 0.675rem;
+            color: #64748B;
+            background: #F8FAFC;
+            border: 1px solid #F1F5F9;
+            border-radius: 4px;
+            padding: 2px 5px;
+            line-height: 1.25;
+        }
+
+        /* Skills */
+        .skills-subgroup-title {
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: #64748B;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.35rem;
+        }
+        .passport-skills-compact {
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+        .passport-skill-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+        .passport-skill-row .skill-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.7625rem;
+            font-weight: 700;
+            color: #1E293B;
+        }
+        .passport-skill-row .skill-val {
+            font-size: 0.725rem;
+            font-weight: 800;
+            color: #2563EB;
+        }
+        .passport-skill-row .skill-bar {
+            height: 5px;
+            background: #E2E8F0;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        .passport-skill-row .skill-bar span {
+            display: block;
+            height: 100%;
+            background: #2563EB;
+            border-radius: inherit;
+        }
+
+        /* QR Verification Box */
+        .passport-sidebar-qr-box {
+            background: #FFFFFF;
+            border: 1px solid #CBD5E1;
+            border-radius: 10px;
+            padding: 0.85rem 0.75rem;
             text-align: center;
-            flex-shrink: 0;
-            min-width: 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
         }
         .passport-qr-cv-img {
-            width: 100px;
-            height: 100px;
+            width: 95px;
+            height: 95px;
             border-radius: 6px;
             background: #FFFFFF;
             padding: 2px;
@@ -431,7 +582,7 @@ if (!empty($rawCertificates)) {
         }
         .passport-qr-cv-badge {
             margin-top: 0.4rem;
-            font-size: 0.6875rem;
+            font-size: 0.675rem;
             font-weight: 800;
             color: #1E40AF;
             background: #DBEAFE;
@@ -440,261 +591,362 @@ if (!empty($rawCertificates)) {
             font-family: monospace;
         }
         .passport-qr-cv-caption {
-            font-size: 0.6875rem;
+            font-size: 0.675rem;
             color: #64748B;
             font-weight: 700;
             margin-top: 0.25rem;
             text-transform: uppercase;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.03em;
         }
 
-        /* ==========================================================================
-           BODY SECTIONS
-           ========================================================================== */
-        .passport-content-body {
-            padding: 2rem 2.25rem;
+        /* --------------------------------------------------------------------------
+           RIGHT MAIN CONTENT (~66%)
+           -------------------------------------------------------------------------- */
+        .passport-cv-main {
+            width: 66%;
+            flex: 0 0 66%;
+            max-width: 66%;
+            background: #FFFFFF;
+            padding: 1.75rem 2rem;
+            box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            gap: 1.75rem;
+            gap: 1.5rem;
         }
-        .passport-empty-state {
-            margin: 0;
-            padding: 0.85rem 1.1rem;
-            background: #F8FAFC;
-            border: 1px dashed #CBD5E1;
-            border-radius: 8px;
-            color: #64748B;
-            font-size: 0.8rem;
+
+        .passport-main-header {
+            display: flex;
+            flex-direction: column;
         }
-        .passport-section-title {
+        .passport-cv-fullname {
+            font-size: 1.85rem;
+            font-weight: 900;
+            color: #0F172A;
+            margin: 0 0 0.25rem 0;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+        .passport-cv-target-headline {
             font-size: 0.95rem;
+            font-weight: 700;
+            color: #2563EB;
+            margin: 0 0 0.65rem 0;
+        }
+        .passport-summary-box {
+            background: #F8FAFC;
+            border-left: 3px solid #2563EB;
+            padding: 0.75rem 1rem;
+            border-radius: 0 8px 8px 0;
+            border-top: 1px solid #F1F5F9;
+            border-right: 1px solid #F1F5F9;
+            border-bottom: 1px solid #F1F5F9;
+        }
+        .passport-summary-box p {
+            font-size: 0.8125rem;
+            color: #334155;
+            line-height: 1.55;
+            margin: 0;
+        }
+
+        .passport-main-section {
+            display: flex;
+            flex-direction: column;
+        }
+        .passport-main-section-title {
+            font-size: 0.9rem;
             font-weight: 800;
-            color: #1E293B;
+            color: #0F172A;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            margin: 0 0 0.85rem 0;
+            margin: 0 0 0.75rem 0;
             border-bottom: 2px solid #E2E8F0;
-            padding-bottom: 0.45rem;
+            padding-bottom: 0.4rem;
         }
 
-        /* 1. Điểm tổng hợp Hero */
-        .passport-score-hero {
-            display: grid;
-            grid-template-columns: 130px 1fr;
-            gap: 1.25rem;
-            background: #F0FDF4;
-            border: 1px solid #BBF7D0;
-            border-radius: 12px;
-            padding: 1.1rem 1.25rem;
-            align-items: center;
-        }
-        .passport-score-big {
-            font-size: 2.75rem;
-            font-weight: 900;
-            color: #15803D;
-            line-height: 1;
-        }
-        .passport-score-badge {
-            display: inline-block;
-            background: #16A34A;
-            color: #FFFFFF;
-            font-size: 0.8125rem;
-            font-weight: 700;
-            padding: 0.25rem 0.65rem;
-            border-radius: 6px;
-            margin-bottom: 0.35rem;
-        }
-
-        /* 2. 4 Bài Test Grid */
-        .passport-tests-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.85rem;
-        }
-        .passport-test-card {
-            background: #F8FAFC;
-            border: 1px solid #CBD5E1;
-            border-radius: 10px;
-            padding: 0.95rem 1.1rem;
+        /* Projects */
+        .passport-projects-list {
             display: flex;
             flex-direction: column;
-            gap: 0.45rem;
+            gap: 0.65rem;
         }
-        .passport-test-card__head {
+        .passport-cv-project-card {
+            background: #FFFFFF;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            padding: 0.85rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        .passport-cv-project-card .proj-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
+            gap: 0.5rem;
+            flex-wrap: wrap;
         }
-        .passport-test-card__head strong {
+        .passport-cv-project-card .proj-title {
             font-size: 0.875rem;
+            font-weight: 800;
             color: #0F172A;
-            font-weight: 800;
+            margin: 0;
         }
-        .passport-test-card__code {
-            font-size: 0.8rem;
-            font-weight: 800;
-            padding: 0.15rem 0.55rem;
-            border-radius: 4px;
-            color: #FFFFFF;
+        .passport-cv-project-card .proj-sub {
+            font-size: 0.75rem;
+            color: #64748B;
+            margin-top: 0.15rem;
         }
-        .passport-test-card__desc {
+        .passport-cv-project-card .proj-status-badge {
+            font-size: 0.725rem;
+            font-weight: 700;
+            color: #15803D;
+            background: #DCFCE7;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            white-space: nowrap;
+        }
+        .passport-cv-project-card .proj-desc {
             font-size: 0.775rem;
             color: #334155;
             line-height: 1.45;
             margin: 0;
         }
-        .passport-test-card__insights {
-            font-size: 0.725rem;
-            color: #64748B;
-            background: #FFFFFF;
-            padding: 0.4rem 0.6rem;
-            border-radius: 6px;
-            border: 1px solid #E2E8F0;
-            margin-top: 0.25rem;
-            line-height: 1.35;
-        }
-
-        /* 3. Kỹ năng đã xác minh */
-        .passport-skills-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.75rem;
-        }
-        .passport-skill-item {
-            background: #F8FAFC;
-            border: 1px solid #CBD5E1;
-            border-radius: 8px;
-            padding: 0.75rem 0.95rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.35rem;
-        }
-        .passport-skill-item__header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.825rem;
-            font-weight: 800;
-            color: #0F172A;
-        }
-        .passport-skill-item__bar {
-            height: 6px;
-            background: #E2E8F0;
-            border-radius: 999px;
-            overflow: hidden;
-        }
-        .passport-skill-item__bar span {
-            display: block;
-            height: 100%;
-            border-radius: inherit;
-        }
-        .passport-skill-item__detail {
-            font-size: 0.725rem;
-            color: #475569;
-            line-height: 1.35;
-            margin-top: 0.15rem;
-        }
-
-        /* 4. Dự án bảo trợ */
-        .passport-project-item {
-            background: #FFFFFF;
-            border: 1px solid #CBD5E1;
-            border-radius: 10px;
-            padding: 0.95rem 1.15rem;
-            margin-bottom: 0.75rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.4rem;
-        }
-        .passport-project-item:last-child {
-            margin-bottom: 0;
-        }
-        .passport-sponsor-badge {
+        .passport-cv-project-card .proj-sponsor-tag {
             display: inline-flex;
             align-items: center;
             gap: 5px;
-            padding: 3px 9px;
-            border-radius: 6px;
-            font-size: 0.775rem;
+            font-size: 0.75rem;
             font-weight: 700;
             background: #EEF2FF;
             color: #3730A3;
             border: 1px solid #C7D2FE;
+            padding: 2px 8px;
+            border-radius: 5px;
             width: fit-content;
         }
 
-        /* 5. Chứng chỉ */
-        .passport-cert-item {
+        /* Activities */
+        .passport-activities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 0.65rem;
+        }
+        .passport-activity-card {
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 0.65rem 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+        .passport-activity-card .act-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .passport-activity-card .act-title {
+            font-size: 0.8rem;
+            font-weight: 800;
+            color: #0F172A;
+        }
+        .passport-activity-card .act-category-pill {
+            font-size: 0.675rem;
+            font-weight: 700;
+            color: #1D4ED8;
+            background: #DBEAFE;
+            padding: 1px 6px;
+            border-radius: 4px;
+        }
+        .passport-activity-card .act-meta {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            padding: 0.75rem 0.95rem;
-            background: #F8FAFC;
-            border: 1px solid #CBD5E1;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-        }
-        .passport-cert-item:last-child {
-            margin-bottom: 0;
-        }
-        .passport-cert-badge {
+            gap: 0.6rem;
             font-size: 0.725rem;
+            color: #64748B;
+            flex-wrap: wrap;
+        }
+        .passport-activity-card .act-hours-pill {
+            font-weight: 700;
+            color: #059669;
+        }
+
+        /* Certs & Badges */
+        .passport-certs-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+        .passport-cv-cert-item {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.6rem 0.85rem;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+        }
+        .passport-cv-cert-item .cert-icon {
+            font-size: 1.15rem;
+            line-height: 1;
+        }
+        .passport-cv-cert-item .cert-details {
+            flex: 1;
+        }
+        .passport-cv-cert-item .cert-name {
+            font-size: 0.825rem;
+            font-weight: 800;
+            color: #0F172A;
+            display: block;
+        }
+        .passport-cv-cert-item .cert-meta {
+            font-size: 0.7375rem;
+            color: #64748B;
+        }
+        .passport-cv-cert-item .cert-code {
+            font-family: monospace;
+            font-weight: 700;
+            color: #0F172A;
+        }
+        .passport-cv-cert-item .cert-status-badge {
+            font-size: 0.675rem;
             font-weight: 700;
             color: #15803D;
             background: #DCFCE7;
-            padding: 2px 8px;
+            padding: 2px 7px;
             border-radius: 4px;
             text-transform: uppercase;
-            letter-spacing: 0.02em;
         }
 
-        /* 6. Nhận xét & Con dấu số */
+        .passport-badges-inline-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.5rem;
+        }
+        .passport-badge-cv-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: #FFFBEB;
+            border: 1px solid #FDE68A;
+            border-radius: 8px;
+        }
+        .passport-badge-cv-item .badge-icon {
+            font-size: 1.1rem;
+        }
+        .passport-badge-cv-item .badge-name {
+            font-size: 0.775rem;
+            font-weight: 800;
+            color: #92400E;
+            display: block;
+        }
+        .passport-badge-cv-item .badge-desc {
+            font-size: 0.6875rem;
+            color: #B45309;
+            line-height: 1.25;
+            display: block;
+        }
+
+        /* Endorsement */
         .passport-endorsement-box {
             background: #F8FAFC;
-            border-left: 4px solid #2563EB;
-            padding: 1.15rem 1.35rem;
-            border-radius: 0 10px 10px 0;
+            border-left: 3px solid #2563EB;
+            padding: 0.85rem 1.15rem;
+            border-radius: 0 8px 8px 0;
             border-top: 1px solid #E2E8F0;
             border-right: 1px solid #E2E8F0;
             border-bottom: 1px solid #E2E8F0;
         }
         .passport-endorsement-text {
-            font-size: 0.85rem;
+            font-size: 0.825rem;
             color: #334155;
-            line-height: 1.6;
+            line-height: 1.55;
             font-style: italic;
-            margin: 0 0 0.75rem 0;
+            margin: 0 0 0.55rem 0;
         }
         .passport-endorsement-signer {
-            font-size: 0.8125rem;
-            color: #0F172A;
-            font-weight: 700;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 0.5rem;
+            gap: 0.4rem;
+            font-size: 0.775rem;
+        }
+        .passport-endorsement-signer .signer-info {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: #0F172A;
         }
         .passport-verification-seal {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            font-size: 0.725rem;
+            gap: 3px;
+            font-size: 0.675rem;
             font-weight: 800;
             color: #15803D;
             background: #DCFCE7;
             border: 1px solid #86EFAC;
-            padding: 2px 8px;
+            padding: 2px 6px;
             border-radius: 4px;
             text-transform: uppercase;
         }
 
-        /* Dynamic Visibility Toggle */
-        .passport-section--hidden {
-            display: none !important;
+        /* Footer */
+        .passport-footer {
+            background: #F8FAFC;
+            border-top: 1px solid #E2E8F0;
+            padding: 0.85rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: #64748B;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .passport-empty-state {
+            margin: 0;
+            padding: 0.75rem 1rem;
+            background: #F8FAFC;
+            border: 1px dashed #CBD5E1;
+            border-radius: 8px;
+            color: #64748B;
+            font-size: 0.775rem;
+        }
+        .passport-empty-state-sm {
+            margin: 0;
+            padding: 0.5rem 0.65rem;
+            background: #FFFFFF;
+            border: 1px dashed #CBD5E1;
+            border-radius: 6px;
+            color: #64748B;
+            font-size: 0.725rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 840px) {
+            .passport-cv-body {
+                flex-direction: column;
+            }
+            .passport-cv-sidebar {
+                width: 100%;
+                max-width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #E2E8F0;
+                padding: 1.5rem;
+            }
+            .passport-cv-main {
+                width: 100%;
+                max-width: 100%;
+                padding: 1.5rem;
+            }
         }
 
         /* ==========================================================================
@@ -702,18 +954,14 @@ if (!empty($rawCertificates)) {
            ========================================================================== */
         @page {
             size: A4 portrait;
-            margin: 0;
+            margin: 6mm;
         }
         @media print {
             html,
             body {
-                width: 210mm !important;
-                min-width: 210mm !important;
-                height: 296mm !important;
-                min-height: 296mm !important;
+                width: 100% !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                overflow: hidden !important;
                 background: #FFFFFF !important;
                 color: #0F172A !important;
             }
@@ -737,245 +985,278 @@ if (!empty($rawCertificates)) {
             body.learner-page-passport .learner-content,
             body.learner-page-passport .passport-wrapper {
                 display: block !important;
-                width: 210mm !important;
+                width: 100% !important;
                 max-width: none !important;
                 min-width: 0 !important;
-                min-height: 0 !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 overflow: visible !important;
             }
             body.learner-page-passport .passport-card {
                 box-sizing: border-box !important;
-                width: 210mm !important;
-                max-height: 296mm !important;
+                width: 100% !important;
                 margin: 0 !important;
-                border: 0 !important;
-                border-radius: 0 !important;
+                border: 1px solid #CBD5E1 !important;
+                border-radius: 3mm !important;
                 box-shadow: none !important;
                 overflow: visible !important;
-                transform: none !important;
-                transform-origin: top left;
             }
             body.learner-page-passport .passport-header-banner {
-                padding: 3mm 7mm !important;
+                padding: 2.5mm 5mm !important;
                 gap: 2mm !important;
             }
             body.learner-page-passport .passport-header-title {
-                font-size: 8.5pt !important;
+                font-size: 8pt !important;
             }
             body.learner-page-passport .passport-badge-code {
-                padding: 1mm 2.5mm !important;
-                font-size: 6.5pt !important;
+                padding: 0.5mm 2mm !important;
+                font-size: 6pt !important;
             }
-            body.learner-page-passport .passport-cv-header {
-                padding: 4mm 7mm !important;
-                gap: 4mm !important;
-                flex-wrap: nowrap !important;
+            body.learner-page-passport .passport-cv-body {
+                display: flex !important;
+                flex-direction: row !important;
+                width: 100% !important;
+                align-items: stretch !important;
             }
-            body.learner-page-passport .passport-cv-identity {
-                min-width: 0 !important;
-                gap: 4mm !important;
+            body.learner-page-passport .passport-cv-sidebar {
+                width: 34% !important;
+                flex: 0 0 34% !important;
+                max-width: 34% !important;
+                background: #F8FAFC !important;
+                border-right: 1px solid #CBD5E1 !important;
+                padding: 3mm 4mm !important;
+                gap: 2.5mm !important;
+                box-sizing: border-box !important;
+            }
+            body.learner-page-passport .passport-cv-main {
+                width: 66% !important;
+                flex: 0 0 66% !important;
+                max-width: 66% !important;
+                background: #FFFFFF !important;
+                padding: 3.5mm 5mm !important;
+                gap: 2.8mm !important;
+                box-sizing: border-box !important;
+            }
+            body.learner-page-passport .passport-sidebar-profile {
+                gap: 1.5mm !important;
             }
             body.learner-page-passport .passport-cv-avatar {
-                width: 18mm !important;
-                height: 18mm !important;
-                border-radius: 3mm !important;
-                font-size: 18pt !important;
+                width: 15mm !important;
+                height: 15mm !important;
+                border-radius: 2.5mm !important;
+                font-size: 14pt !important;
+                border-width: 1.5px !important;
             }
-            body.learner-page-passport .passport-cv-name {
-                font-size: 15pt !important;
+            body.learner-page-passport .passport-verified-pill {
+                font-size: 5.5pt !important;
+                padding: 0.5mm 2mm !important;
             }
-            body.learner-page-passport .passport-cv-headline {
+            body.learner-page-passport .passport-sidebar-title {
+                font-size: 6.2pt !important;
+                margin-bottom: 1.5mm !important;
+                padding-bottom: 0.8mm !important;
+            }
+            body.learner-page-passport .passport-sidebar-title svg {
+                width: 3mm !important;
+                height: 3mm !important;
+            }
+            body.learner-page-passport .passport-sidebar-contact-item {
+                font-size: 5.8pt !important;
+                gap: 1.5mm !important;
                 margin-bottom: 1mm !important;
-                font-size: 7pt !important;
-            }
-            body.learner-page-passport .passport-cv-contact-list {
-                gap: 1mm 4mm !important;
-                font-size: 6.6pt !important;
                 line-height: 1.25 !important;
             }
-            body.learner-page-passport .passport-qr-cv-card {
-                min-width: 25mm !important;
-                padding: 2mm !important;
-                border-radius: 2mm !important;
+            body.learner-page-passport .passport-sidebar-contact-item svg {
+                width: 2.8mm !important;
+                height: 2.8mm !important;
             }
-            body.learner-page-passport .passport-qr-cv-img {
-                width: 18mm !important;
-                height: 18mm !important;
+            body.learner-page-passport .passport-score-card {
+                padding: 1.5mm 2mm !important;
+                border-radius: 1.5mm !important;
             }
-            body.learner-page-passport .passport-qr-cv-badge,
-            body.learner-page-passport .passport-qr-cv-caption {
-                font-size: 5.5pt !important;
-                line-height: 1.15 !important;
+            body.learner-page-passport .passport-score-number {
+                font-size: 16pt !important;
             }
-            body.learner-page-passport .passport-content-body {
-                display: grid !important;
-                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-                align-items: start !important;
-                padding: 4mm 7mm !important;
-                gap: 3mm 4mm !important;
-            }
-            body.learner-page-passport .passport-section {
-                min-width: 0 !important;
-                break-inside: avoid !important;
-                page-break-inside: avoid !important;
-            }
-            body.learner-page-passport #sec-tests,
-            body.learner-page-passport #sec-projects {
-                grid-column: 1 / -1 !important;
-            }
-            body.learner-page-passport .passport-section-title {
-                margin-bottom: 2mm !important;
-                padding-bottom: 1mm !important;
-                gap: 1.5mm !important;
-                font-size: 7.2pt !important;
-                line-height: 1.2 !important;
-            }
-            body.learner-page-passport .passport-section-title svg {
-                width: 3.5mm !important;
-                height: 3.5mm !important;
-                flex: 0 0 3.5mm !important;
-            }
-            body.learner-page-passport .passport-score-hero {
-                grid-template-columns: 22mm 1fr !important;
-                gap: 3mm !important;
-                padding: 2.5mm 3mm !important;
-                border-radius: 2mm !important;
-            }
-            body.learner-page-passport .passport-score-big {
-                font-size: 20pt !important;
+            body.learner-page-passport .passport-score-scale {
+                font-size: 5.2pt !important;
             }
             body.learner-page-passport .passport-score-badge {
-                margin-bottom: 1mm !important;
-                padding: 1mm 2mm !important;
-                font-size: 6.2pt !important;
-            }
-            body.learner-page-passport .passport-score-hero p {
-                font-size: 6pt !important;
-                line-height: 1.25 !important;
-            }
-            body.learner-page-passport .passport-tests-grid {
-                grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-                gap: 2mm !important;
-            }
-            body.learner-page-passport .passport-test-card {
-                gap: 1mm !important;
-                padding: 2mm 2.5mm !important;
-                border-radius: 2mm !important;
-                break-inside: avoid !important;
-                page-break-inside: avoid !important;
-            }
-            body.learner-page-passport .passport-test-card__head {
-                gap: 1mm !important;
-            }
-            body.learner-page-passport .passport-test-card__head strong {
-                font-size: 6.2pt !important;
-                line-height: 1.2 !important;
-            }
-            body.learner-page-passport .passport-test-card__code {
-                padding: 0.5mm 1mm !important;
                 font-size: 5.5pt !important;
+                padding: 0.5mm 1.5mm !important;
+                margin: 0.8mm 0 !important;
             }
-            body.learner-page-passport .passport-test-card__desc,
-            body.learner-page-passport .passport-test-card__insights {
-                font-size: 5.5pt !important;
-                line-height: 1.22 !important;
-            }
-            body.learner-page-passport .passport-test-card__insights {
-                margin-top: 0 !important;
-                padding: 1mm !important;
-            }
-            body.learner-page-passport .passport-skills-grid {
-                gap: 1.5mm !important;
-            }
-            body.learner-page-passport .passport-skill-item {
-                gap: 1mm !important;
-                padding: 1.5mm 2mm !important;
-                border-radius: 1.5mm !important;
-            }
-            body.learner-page-passport .passport-skill-item__header {
-                font-size: 6pt !important;
-            }
-            body.learner-page-passport .passport-skill-item__bar {
-                height: 1mm !important;
-            }
-            body.learner-page-passport .passport-skill-item__detail {
-                margin-top: 0 !important;
-                font-size: 5.3pt !important;
-                line-height: 1.2 !important;
-            }
-            body.learner-page-passport #sec-projects {
-                display: grid !important;
-                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-                gap: 1.5mm 2mm !important;
-            }
-            body.learner-page-passport #sec-projects > .passport-section-title,
-            body.learner-page-passport #sec-projects > .passport-empty-state {
-                grid-column: 1 / -1 !important;
-            }
-            body.learner-page-passport .passport-project-item {
-                margin: 0 !important;
-                padding: 1.5mm 2mm !important;
-                gap: 1mm !important;
-                border-radius: 1.5mm !important;
-                break-inside: avoid !important;
-                page-break-inside: avoid !important;
-            }
-            body.learner-page-passport .passport-project-item strong {
-                font-size: 5.8pt !important;
-                line-height: 1.2 !important;
-            }
-            body.learner-page-passport .passport-project-item div,
-            body.learner-page-passport .passport-project-item span,
-            body.learner-page-passport .passport-sponsor-badge {
+            body.learner-page-passport .passport-score-hint {
                 font-size: 5.2pt !important;
                 line-height: 1.2 !important;
             }
-            body.learner-page-passport .passport-project-item span,
-            body.learner-page-passport .passport-sponsor-badge {
-                padding: 0.5mm 1.5mm !important;
-            }
-            body.learner-page-passport .passport-empty-state,
-            body.learner-page-passport .passport-cert-item,
-            body.learner-page-passport .passport-endorsement-box {
-                padding: 2mm 2.5mm !important;
-                font-size: 5.8pt !important;
-                line-height: 1.25 !important;
+            body.learner-page-passport .passport-test-compact-item {
+                padding: 1.2mm 1.8mm !important;
+                border-radius: 1.5mm !important;
+                gap: 0.8mm !important;
                 break-inside: avoid !important;
                 page-break-inside: avoid !important;
             }
-            body.learner-page-passport .passport-cert-item {
-                gap: 2mm !important;
+            body.learner-page-passport .passport-test-compact-item .test-name {
+                font-size: 5.8pt !important;
+            }
+            body.learner-page-passport .passport-test-compact-item .test-code {
+                font-size: 5.2pt !important;
+                padding: 0.3mm 1mm !important;
+            }
+            body.learner-page-passport .passport-test-compact-item .test-summary,
+            body.learner-page-passport .passport-test-compact-item .test-dim {
+                font-size: 5.2pt !important;
+                line-height: 1.2 !important;
+            }
+            body.learner-page-passport .skills-subgroup-title {
+                font-size: 5.5pt !important;
+                margin-bottom: 0.8mm !important;
+            }
+            body.learner-page-passport .passport-skill-row {
+                margin-bottom: 1mm !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            body.learner-page-passport .passport-skill-row .skill-meta {
+                font-size: 5.6pt !important;
+            }
+            body.learner-page-passport .passport-skill-row .skill-val {
+                font-size: 5.4pt !important;
+            }
+            body.learner-page-passport .passport-skill-row .skill-bar {
+                height: 1mm !important;
+            }
+            body.learner-page-passport .passport-sidebar-qr-box {
+                padding: 1.5mm !important;
+                border-radius: 1.5mm !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            body.learner-page-passport .passport-qr-cv-img {
+                width: 17mm !important;
+                height: 17mm !important;
+            }
+            body.learner-page-passport .passport-qr-cv-badge,
+            body.learner-page-passport .passport-qr-cv-caption {
+                font-size: 5pt !important;
+                line-height: 1.15 !important;
+            }
+            body.learner-page-passport .passport-cv-fullname {
+                font-size: 13pt !important;
+                margin-bottom: 0.8mm !important;
+            }
+            body.learner-page-passport .passport-cv-target-headline {
+                font-size: 7.2pt !important;
+                margin-bottom: 1.2mm !important;
+            }
+            body.learner-page-passport .passport-summary-box {
+                padding: 1.5mm 2.5mm !important;
+                border-radius: 0 1.5mm 1.5mm 0 !important;
                 margin-bottom: 1mm !important;
             }
-            body.learner-page-passport .passport-cert-item strong,
-            body.learner-page-passport .passport-cert-item span,
-            body.learner-page-passport .passport-cert-badge,
-            body.learner-page-passport .passport-endorsement-text,
-            body.learner-page-passport .passport-endorsement-signer,
-            body.learner-page-passport .passport-verification-seal {
-                font-size: 5.7pt !important;
+            body.learner-page-passport .passport-summary-box p {
+                font-size: 6pt !important;
+                line-height: 1.3 !important;
+            }
+            body.learner-page-passport .passport-main-section-title {
+                font-size: 6.8pt !important;
+                margin-bottom: 1.5mm !important;
+                padding-bottom: 0.8mm !important;
+                gap: 1.2mm !important;
+            }
+            body.learner-page-passport .passport-main-section-title svg {
+                width: 3.2mm !important;
+                height: 3.2mm !important;
+            }
+            body.learner-page-passport .passport-cv-project-card {
+                padding: 1.5mm 2mm !important;
+                margin-bottom: 1.2mm !important;
+                border-radius: 1.5mm !important;
+                gap: 0.8mm !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            body.learner-page-passport .passport-cv-project-card .proj-title {
+                font-size: 6pt !important;
+            }
+            body.learner-page-passport .passport-cv-project-card .proj-sub,
+            body.learner-page-passport .passport-cv-project-card .proj-desc,
+            body.learner-page-passport .passport-cv-project-card .proj-sponsor-tag {
+                font-size: 5.4pt !important;
                 line-height: 1.25 !important;
             }
-            body.learner-page-passport .passport-endorsement-text {
-                margin-bottom: 1.5mm !important;
+            body.learner-page-passport .passport-cv-project-card .proj-status-badge {
+                font-size: 5.2pt !important;
+                padding: 0.3mm 1.5mm !important;
             }
-            body.learner-page-passport .passport-card > footer {
-                clear: both !important;
-                padding: 1.5mm 7mm !important;
-                gap: 2mm !important;
-                font-size: 5.4pt !important;
+            body.learner-page-passport .passport-activities-grid {
+                gap: 1.2mm !important;
+            }
+            body.learner-page-passport .passport-activity-card {
+                padding: 1.2mm 1.8mm !important;
+                border-radius: 1.5mm !important;
+                gap: 0.6mm !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            body.learner-page-passport .passport-activity-card .act-title {
+                font-size: 5.8pt !important;
+            }
+            body.learner-page-passport .passport-activity-card .act-category-pill,
+            body.learner-page-passport .passport-activity-card .act-meta {
+                font-size: 5.2pt !important;
                 line-height: 1.2 !important;
-                flex-wrap: nowrap !important;
             }
-        }
-        @media (max-width: 768px) {
-            .passport-cv-header { flex-direction: column; align-items: stretch; }
-            .passport-qr-cv-card { align-self: flex-start; }
-            .passport-score-hero { grid-template-columns: 1fr; }
-            .passport-tests-grid { grid-template-columns: 1fr; }
-            .passport-skills-grid { grid-template-columns: 1fr; }
+            body.learner-page-passport .passport-cv-cert-item {
+                padding: 1.2mm 1.8mm !important;
+                border-radius: 1.5mm !important;
+                gap: 1.5mm !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            body.learner-page-passport .passport-cv-cert-item .cert-name {
+                font-size: 5.8pt !important;
+            }
+            body.learner-page-passport .passport-cv-cert-item .cert-meta {
+                font-size: 5.2pt !important;
+            }
+            body.learner-page-passport .passport-cv-cert-item .cert-status-badge {
+                font-size: 5pt !important;
+                padding: 0.3mm 1.2mm !important;
+            }
+            body.learner-page-passport .passport-badge-cv-item {
+                padding: 1mm 1.5mm !important;
+                border-radius: 1.5mm !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            body.learner-page-passport .passport-badge-cv-item .badge-name {
+                font-size: 5.6pt !important;
+            }
+            body.learner-page-passport .passport-badge-cv-item .badge-desc {
+                font-size: 5pt !important;
+                line-height: 1.15 !important;
+            }
+            body.learner-page-passport .passport-endorsement-box {
+                padding: 1.5mm 2.2mm !important;
+                border-radius: 0 1.5mm 1.5mm 0 !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            body.learner-page-passport .passport-endorsement-text {
+                font-size: 5.6pt !important;
+                line-height: 1.25 !important;
+                margin-bottom: 1mm !important;
+            }
+            body.learner-page-passport .passport-endorsement-signer,
+            body.learner-page-passport .passport-verification-seal {
+                font-size: 5.4pt !important;
+            }
+            body.learner-page-passport .passport-footer {
+                padding: 1.5mm 5mm !important;
+                font-size: 5.2pt !important;
+                gap: 2mm !important;
+            }
         }
     </style>
 </head>
@@ -998,9 +1279,9 @@ if (!empty($rawCertificates)) {
                             <button class="learner-btn learner-btn--outline" id="btn-copy-passport-link" type="button" style="display: inline-flex; align-items: center; gap: 0.5rem;">
                                 <?= learner_icon('share', 16); ?> Chia sẻ liên kết
                             </button>
-                            <button class="learner-btn learner-btn--primary" id="btn-print-passport" type="button" style="background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%); color: #FFFFFF; font-weight: 800; display: inline-flex; align-items: center; gap: 0.55rem; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);">
-                                <?= learner_icon('printer', 18); ?> In / Xuất File PDF
-                            </button>
+                            <a class="learner-btn learner-btn--primary" href="talent-passport-cv.php" style="background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%); color: #FFFFFF; font-weight: 800; display: inline-flex; align-items: center; gap: 0.55rem; text-decoration: none; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);" title="Xem trước và xuất bản CV chuẩn 1 trang A4">
+                                <?= learner_icon('file-text', 18); ?> Xuất CV A4
+                            </a>
                         </div>
                     </div>
 
@@ -1018,229 +1299,322 @@ if (!empty($rawCertificates)) {
                             </div>
                         </header>
 
-                        <!-- CV Header (Thông tin cá nhân & QR góc trên bên phải) -->
-                        <div class="passport-cv-header" id="sec-identity">
-                            <div class="passport-cv-identity">
-                                <div class="passport-cv-avatar" aria-hidden="true">
-                                    <?php if (!empty($studentAvatarUrl)): ?>
-                                        <img src="<?= learner_escape($studentAvatarUrl); ?>" alt="<?= learner_escape($studentName); ?>">
+                        <!-- 2-Column CV Main Body -->
+                        <div class="passport-cv-body">
+
+                            <!-- ================= LEFT SIDEBAR (~34%) ================= -->
+                            <aside class="passport-cv-sidebar" id="sec-cv-sidebar">
+
+                                <!-- 1. Profile Picture & Basic ID -->
+                                <div class="passport-sidebar-profile">
+                                    <div class="passport-cv-avatar" aria-hidden="true">
+                                        <?php if (!empty($studentAvatarUrl)): ?>
+                                            <img src="<?= learner_escape($studentAvatarUrl); ?>" alt="<?= learner_escape($studentName); ?>">
+                                        <?php else: ?>
+                                            <?= learner_escape($studentInitials); ?>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="passport-sidebar-status">
+                                        <span class="passport-verified-pill">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                            Sinh viên Xác thực TalentHub
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- 2. Contact Information -->
+                                <div class="passport-sidebar-section">
+                                    <h4 class="passport-sidebar-title">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                        Thông tin liên hệ
+                                    </h4>
+                                    <div class="passport-sidebar-contact-list">
+                                        <div class="passport-sidebar-contact-item">
+                                            <span class="contact-icon"><?= learner_icon('mail', 13); ?></span>
+                                            <span class="contact-text"><?= $studentEmail !== '' ? learner_escape($studentEmail) : 'Email: Chưa cập nhật'; ?></span>
+                                        </div>
+                                        <div class="passport-sidebar-contact-item">
+                                            <span class="contact-icon"><?= learner_icon('phone', 13); ?></span>
+                                            <span class="contact-text"><?= $studentPhone !== '' ? learner_escape($studentPhone) : 'SĐT: Chưa cập nhật'; ?></span>
+                                        </div>
+                                        <div class="passport-sidebar-contact-item">
+                                            <span class="contact-icon"><?= learner_icon('map-pin', 13); ?></span>
+                                            <span class="contact-text"><?= $studentLocation !== '' ? learner_escape($studentLocation) : 'Việt Nam'; ?></span>
+                                        </div>
+                                        <div class="passport-sidebar-contact-item">
+                                            <span class="contact-icon"><?= learner_icon('users', 13); ?></span>
+                                            <span class="contact-text"><?= learner_escape($studentSchool); ?> • <?= learner_escape($studentClass); ?></span>
+                                        </div>
+                                        <div class="passport-sidebar-contact-item">
+                                            <span class="contact-icon"><?= learner_icon('calendar', 13); ?></span>
+                                            <span class="contact-text"><strong><?= (int) ($student['experience_hours'] ?? ($talentPassport['experience']['confirmed_hours'] ?? 0)); ?> giờ</strong> trải nghiệm</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 3. Overall Score Card -->
+                                <div class="passport-sidebar-section" id="sec-overall">
+                                    <h4 class="passport-sidebar-title">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+                                        1. Đánh giá Năng lực Tổng hợp
+                                    </h4>
+                                    <?php if (!$hasOverallScore): ?>
+                                        <p class="passport-empty-state-sm">Chưa có điểm đánh giá tổng hợp.</p>
                                     <?php else: ?>
-                                        <?= learner_escape($studentInitials); ?>
+                                        <div class="passport-score-card">
+                                            <div class="passport-score-main">
+                                                <span class="passport-score-number"><?= learner_escape(\TalentHub\Support\CompetencyScore::display($overallScore)); ?></span>
+                                                <span class="passport-score-scale">THANG ĐIỂM 10</span>
+                                            </div>
+                                            <div class="passport-score-badge"><?= learner_escape($gradeClassification); ?> • <?= learner_escape($rankingPercentile); ?></div>
+                                            <p class="passport-score-hint">Điểm và xếp loại lấy từ đánh giá đã được ghi nhận trong tài khoản TalentHub.</p>
+                                        </div>
                                     <?php endif; ?>
                                 </div>
-                                <div class="passport-cv-details">
-                                    <h1 class="passport-cv-name"><?= learner_escape($studentName); ?></h1>
-                                    <?php if ($studentHeadline !== ''): ?>
-                                        <div class="passport-cv-headline"><?= learner_escape($studentHeadline); ?></div>
-                                    <?php endif; ?>
-                                    <div class="passport-cv-contact-list">
-                                        <span class="passport-cv-contact-item">
-                                            <?= learner_icon('mail', 14); ?> <?= $studentEmail !== '' ? learner_escape($studentEmail) : 'Email: Chưa cập nhật'; ?>
-                                        </span>
-                                        <span class="passport-cv-contact-item">
-                                            <?= learner_icon('phone', 14); ?> <?= $studentPhone !== '' ? learner_escape($studentPhone) : 'SĐT: Chưa cập nhật'; ?>
-                                        </span>
-                                        <span class="passport-cv-contact-item">
-                                            <?= learner_icon('map-pin', 14); ?> <?= $studentLocation !== '' ? learner_escape($studentLocation) : 'Chưa cập nhật'; ?>
-                                        </span>
-                                        <span class="passport-cv-contact-item">
-                                            <?= learner_icon('users', 14); ?> <?= learner_escape($studentSchool); ?> • <?= learner_escape($studentClass); ?>
-                                        </span>
-                                        <span class="passport-cv-contact-item">
-                                            <?= learner_icon('calendar', 14); ?> <strong><?= (int) ($student['experience_hours'] ?? 0); ?> giờ</strong> trải nghiệm
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <!-- QR Code Box đặt ở góc trên bên phải -->
-                            <div class="passport-qr-cv-card">
-                                <div class="passport-qr-cv-img" id="passport-verification-qr" role="img" aria-label="Mã QR xác thực Talent Passport"></div>
-                                <span class="passport-qr-cv-badge" id="passport-qr-status">TẠO KHI XUẤT FILE</span>
-                                <span class="passport-qr-cv-caption">Quét để xem hồ sơ đã đồng ý chia sẻ</span>
-                            </div>
-                        </div>
-
-                        <!-- Body Content Sections -->
-                        <div class="passport-content-body">
-
-                            <!-- Section 1: Điểm Đánh giá Năng lực Tổng hợp -->
-                            <div class="passport-section" id="sec-overall">
-                                <h3 class="passport-section-title">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
-                                    1. Đánh giá Năng lực Tổng hợp
-                                </h3>
-                                <?php if (!$hasOverallScore): ?>
-                                    <p class="passport-empty-state">Chưa có điểm đánh giá tổng hợp được ghi nhận trong hệ thống.</p>
-                                <?php else: ?>
-                                <div class="passport-score-hero">
-                                    <div>
-                                        <div class="passport-score-big"><?= (int)$overallScore; ?></div>
-                                        <div style="font-size: 0.75rem; color: #166534; font-weight: 800;">THANG ĐIỂM 100</div>
-                                    </div>
-                                    <div>
-                                        <div class="passport-score-badge"><?= learner_escape($gradeClassification); ?> • <?= learner_escape($rankingPercentile); ?></div>
-                                        <p style="font-size: 0.8125rem; color: #166534; margin: 0; line-height: 1.45;">Điểm và xếp loại lấy từ đánh giá đã được ghi nhận trong tài khoản TalentHub.</p>
-                                    </div>
-                                </div>
-                                <?php endif; ?>
-                            </div>
-
-                            <!-- Section 2: Kết quả 4 Bài Đánh giá Năng lực Chuyên sâu (DISC, MBTI, Holland, MI) -->
-                            <div class="passport-section" id="sec-tests">
-                                <h3 class="passport-section-title">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2"><polygon points="12 2 19 21 12 17 5 21 12 2"></polygon></svg>
-                                    2. Hồ sơ 4 Bài Đánh giá Năng khiếu &amp; Hành vi
-                                </h3>
-                                <?php if ($assessmentCards === []): ?>
-                                    <p class="passport-empty-state">Chưa có kết quả bài đánh giá năng khiếu hoặc hành vi.</p>
-                                <?php else: ?>
-                                    <div class="passport-tests-grid">
-                                        <?php foreach ($assessmentCards as $index => $assessmentCard): ?>
-                                            <div class="passport-test-card">
-                                                <div class="passport-test-card__head">
-                                                    <strong><?= $index + 1; ?>. <?= learner_escape($assessmentCard['name']); ?></strong>
-                                                    <?php if ($assessmentCard['code'] !== ''): ?>
-                                                        <span class="passport-test-card__code" style="background: #2563EB;"><?= learner_escape($assessmentCard['code']); ?></span>
+                                <!-- 4. 4 Psychometric Tests -->
+                                <div class="passport-sidebar-section" id="sec-tests">
+                                    <h4 class="passport-sidebar-title">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 19 21 12 17 5 21 12 2"/></svg>
+                                        2. Hồ sơ 4 Bài Đánh giá Năng khiếu &amp; Hành vi
+                                    </h4>
+                                    <div class="passport-tests-compact-list">
+                                        <?php if (empty($assessmentCards)): ?>
+                                            <p class="passport-empty-state-sm">Chưa có kết quả bài đánh giá.</p>
+                                        <?php else: ?>
+                                            <?php foreach ($assessmentCards as $index => $ac): ?>
+                                                <div class="passport-test-compact-item">
+                                                    <div class="test-head">
+                                                        <span class="test-name"><?= $index + 1; ?>. <?= learner_escape($ac['name']); ?></span>
+                                                        <?php if (!empty($ac['code'])): ?>
+                                                            <span class="test-code"><?= learner_escape($ac['code']); ?></span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <?php if (!empty($ac['summary'])): ?>
+                                                        <div class="test-summary"><?= learner_escape($ac['summary']); ?></div>
+                                                    <?php endif; ?>
+                                                    <?php if (!empty($ac['dimensions'])): ?>
+                                                        <div class="test-dim"><?= learner_escape(implode(' • ', array_slice($ac['dimensions'], 0, 4))); ?></div>
                                                     <?php endif; ?>
                                                 </div>
-                                                <?php if ($assessmentCard['summary'] !== ''): ?>
-                                                    <p class="passport-test-card__desc"><?= learner_escape($assessmentCard['summary']); ?></p>
-                                                <?php endif; ?>
-                                                <?php if ($assessmentCard['dimensions'] !== []): ?>
-                                                    <div class="passport-test-card__insights"><?= learner_escape(implode(' • ', $assessmentCard['dimensions'])); ?></div>
-                                                <?php endif; ?>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+
+                                <!-- 5. Core Skills -->
+                                <div class="passport-sidebar-section" id="sec-skills">
+                                    <h4 class="passport-sidebar-title">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                        3. Kỹ năng Chuyên môn &amp; Kỹ năng Mềm đã Thẩm định
+                                    </h4>
+
+                                    <?php if (empty($displaySkills)): ?>
+                                        <p class="passport-empty-state-sm">Chưa có kỹ năng nào được xác thực.</p>
+                                    <?php else: ?>
+                                        <?php if (!empty($technicalSkills)): ?>
+                                            <div class="skills-subgroup-title">Kỹ năng Chuyên môn</div>
+                                            <div class="passport-skills-compact">
+                                                <?php foreach ($technicalSkills as $sk): ?>
+                                                    <div class="passport-skill-row">
+                                                        <div class="skill-meta">
+                                                            <span><?= learner_escape($sk['name']); ?></span>
+                                                            <span class="skill-val"><?= (int)$sk['score']; ?>/100</span>
+                                                        </div>
+                                                        <div class="skill-bar">
+                                                            <span style="width: <?= (int)$sk['score']; ?>%;"></span>
+                                                        </div>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <?php if (!empty($softSkills)): ?>
+                                            <div class="skills-subgroup-title" style="margin-top: 0.6rem;">Kỹ năng Mềm</div>
+                                            <div class="passport-skills-compact">
+                                                <?php foreach ($softSkills as $sk): ?>
+                                                    <div class="passport-skill-row">
+                                                        <div class="skill-meta">
+                                                            <span><?= learner_escape($sk['name']); ?></span>
+                                                            <span class="skill-val" style="color: #059669;"><?= (int)$sk['score']; ?>/100</span>
+                                                        </div>
+                                                        <div class="skill-bar">
+                                                            <span style="width: <?= (int)$sk['score']; ?>%; background: #10B981;"></span>
+                                                        </div>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </div>
+
+                                <!-- 6. QR Code Verification -->
+                                <div class="passport-sidebar-section passport-sidebar-qr-box">
+                                    <div class="passport-qr-cv-img" id="passport-verification-qr" role="img" aria-label="Mã QR xác thực Talent Passport"></div>
+                                    <span class="passport-qr-cv-badge" id="passport-qr-status">TẠO KHI XUẤT FILE</span>
+                                    <span class="passport-qr-cv-caption">Quét để xem hồ sơ đã đồng ý chia sẻ</span>
+                                </div>
+
+                            </aside>
+
+                            <!-- ================= RIGHT MAIN CONTENT (~66%) ================= -->
+                            <main class="passport-cv-main" id="sec-cv-main">
+
+                                <!-- Personal Header & Professional Summary -->
+                                <header class="passport-main-header" id="sec-identity">
+                                    <h1 class="passport-cv-fullname"><?= learner_escape($studentName); ?></h1>
+                                    <?php if ($studentHeadline !== ''): ?>
+                                        <div class="passport-cv-target-headline"><?= learner_escape($studentHeadline); ?></div>
+                                    <?php endif; ?>
+                                    <div class="passport-summary-box">
+                                        <p><?= learner_escape($professionalSummary); ?></p>
+                                    </div>
+                                </header>
+
+                                <!-- Section: Projects & Innovation Initiatives -->
+                                <section class="passport-main-section" id="sec-projects">
+                                    <h3 class="passport-main-section-title">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                                        4. Đề án Đổi mới Sáng tạo &amp; Doanh nghiệp Bảo trợ
+                                    </h3>
+                                    <?php if (empty($displayProjects)): ?>
+                                        <p class="passport-empty-state">Chưa có đề án nào được ghi nhận trong hệ thống.</p>
+                                    <?php else: ?>
+                                        <div class="passport-projects-list">
+                                            <?php foreach ($displayProjects as $p): ?>
+                                                <article class="passport-cv-project-card">
+                                                    <div class="proj-header">
+                                                        <div>
+                                                            <h4 class="proj-title"><?= learner_escape($p['name']); ?></h4>
+                                                            <div class="proj-sub">
+                                                                Vai trò: <strong><?= learner_escape($p['role']); ?></strong> • Lĩnh vực: <?= learner_escape($p['category']); ?>
+                                                            </div>
+                                                        </div>
+                                                        <span class="proj-status-badge"><?= learner_escape($p['status']); ?></span>
+                                                    </div>
+                                                    <?php if (!empty($p['desc'])): ?>
+                                                        <p class="proj-desc"><?= learner_escape($p['desc']); ?></p>
+                                                    <?php endif; ?>
+                                                    <?php if (!empty($p['sponsor_name'])): ?>
+                                                        <div class="proj-sponsor-tag">
+                                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                                            Doanh nghiệp bảo trợ: <strong><?= learner_escape($p['sponsor_name']); ?></strong>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </article>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </section>
+
+                                <!-- Section: Practical & Extracurricular Activities -->
+                                <?php if (!empty($displayActivities)): ?>
+                                <section class="passport-main-section" id="sec-activities">
+                                    <h3 class="passport-main-section-title">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                        Hoạt động Trải nghiệm &amp; Ngoại khóa Thực tế
+                                    </h3>
+                                    <div class="passport-activities-grid">
+                                        <?php foreach ($displayActivities as $act): ?>
+                                            <div class="passport-activity-card">
+                                                <div class="act-head">
+                                                    <strong class="act-title"><?= learner_escape($act['title']); ?></strong>
+                                                    <span class="act-category-pill"><?= learner_escape($act['category']); ?></span>
+                                                </div>
+                                                <div class="act-meta">
+                                                    <span><?= learner_icon('map-pin', 12); ?> <?= learner_escape($act['location']); ?></span>
+                                                    <span><?= learner_icon('clock', 12); ?> <?= learner_escape($act['time']); ?></span>
+                                                    <?php if ($act['hours'] > 0): ?>
+                                                        <span class="act-hours-pill"><?= (float)$act['hours']; ?> giờ xác nhận</span>
+                                                    <?php endif; ?>
+                                                </div>
                                             </div>
                                         <?php endforeach; ?>
                                     </div>
+                                </section>
                                 <?php endif; ?>
-                            </div>
 
-                            <!-- Section 3: Kỹ năng Chuyên môn đã Xác thực -->
-                            <div class="passport-section" id="sec-skills">
-                                <h3 class="passport-section-title">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                                    3. Kỹ năng Chuyên môn &amp; Kỹ năng Mềm đã Thẩm định
-                                </h3>
-                                <div class="passport-skills-grid">
-                                    <?php if (empty($displaySkills)): ?>
-                                        <p class="passport-empty-state" style="grid-column: 1 / -1;">Chưa có kỹ năng nào được xác thực trong hệ thống.</p>
+                                <!-- Section: Certifications & Honorary Badges -->
+                                <section class="passport-main-section" id="sec-certificates">
+                                    <h3 class="passport-main-section-title">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+                                        5. Chứng chỉ &amp; Huy hiệu Đã Xác thực
+                                    </h3>
+
+                                    <!-- Certificates -->
+                                    <?php if (!empty($displayCertificates)): ?>
+                                        <div class="passport-certs-grid">
+                                            <?php foreach ($displayCertificates as $c): ?>
+                                                <div class="passport-cv-cert-item">
+                                                    <span class="cert-icon">🎓</span>
+                                                    <div class="cert-details">
+                                                        <strong class="cert-name"><?= learner_escape($c['name']); ?></strong>
+                                                        <span class="cert-meta">
+                                                            Đơn vị cấp: <strong><?= learner_escape($c['issuer']); ?></strong> • Năm <?= learner_escape($c['year']); ?>
+                                                            <?php if (!empty($c['credential_id'])): ?>
+                                                                • Mã tra cứu: <code class="cert-code"><?= learner_escape($c['credential_id']); ?></code>
+                                                            <?php endif; ?>
+                                                        </span>
+                                                    </div>
+                                                    <span class="cert-status-badge">ĐÃ XÁC THỰC</span>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
                                     <?php endif; ?>
-                                    <?php foreach ($displaySkills as $sk): ?>
-                                        <div class="passport-skill-item">
-                                            <div class="passport-skill-item__header">
-                                                <span><?= learner_escape($sk['name']); ?></span>
-                                                <strong style="color: <?= ($sk['type'] ?? '') === 'soft' ? '#059669' : '#2563EB'; ?>;"><?= (int)$sk['score']; ?>/100</strong>
-                                            </div>
-                                            <div class="passport-skill-item__bar">
-                                                <span style="width: <?= (int)$sk['score']; ?>%; background: <?= ($sk['type'] ?? '') === 'soft' ? '#10B981' : '#2563EB'; ?>;"></span>
-                                            </div>
-                                            <?php if (!empty($sk['detail'])): ?>
-                                                <div class="passport-skill-item__detail">
-                                                    <?= learner_escape($sk['detail']); ?>
-                                                </div>
-                                            <?php endif; ?>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
 
-                            <!-- Section 4: Dự án Đổi mới Sáng tạo & Doanh nghiệp Bảo trợ -->
-                            <div class="passport-section" id="sec-projects">
-                                <h3 class="passport-section-title">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                                    4. Đề án Đổi mới Sáng tạo &amp; Doanh nghiệp Bảo trợ
-                                </h3>
-
-                                <?php if (empty($displayProjects)): ?>
-                                    <p class="passport-empty-state">Chưa có đề án nào được ghi nhận trong hệ thống.</p>
-                                <?php endif; ?>
-                                <?php foreach ($displayProjects as $p): ?>
-                                    <article class="passport-project-item">
-                                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap;">
-                                            <div>
-                                                <strong style="font-size: 0.875rem; color: #0F172A;"><?= learner_escape($p['name']); ?></strong>
-                                                <div style="font-size: 0.775rem; color: #64748B; margin-top: 0.15rem;">
-                                                    Vai trò: <strong><?= learner_escape($p['role']); ?></strong> • Lĩnh vực: <?= learner_escape($p['category']); ?>
+                                    <!-- Badges -->
+                                    <?php if (!empty($displayBadges)): ?>
+                                        <div class="passport-badges-inline-list" style="margin-top: 0.65rem;">
+                                            <?php foreach ($displayBadges as $b): ?>
+                                                <div class="passport-badge-cv-item">
+                                                    <span class="badge-icon">🎖️</span>
+                                                    <div>
+                                                        <strong class="badge-name"><?= learner_escape($b['name']); ?></strong>
+                                                        <?php if (!empty($b['description'])): ?>
+                                                            <span class="badge-desc"><?= learner_escape($b['description']); ?></span>
+                                                        <?php endif; ?>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <span style="font-size: 0.75rem; font-weight: 700; color: #15803D; background: #DCFCE7; padding: 2px 8px; border-radius: 999px;">
-                                                <?= learner_escape($p['status']); ?>
-                                            </span>
+                                            <?php endforeach; ?>
                                         </div>
-                                        <?php if (!empty($p['desc'])): ?>
-                                            <p style="font-size: 0.775rem; color: #334155; margin: 0; line-height: 1.45;">
-                                                <?= learner_escape($p['desc']); ?>
+                                    <?php endif; ?>
+
+                                    <?php if (empty($displayCertificates) && empty($displayBadges)): ?>
+                                        <p class="passport-empty-state">Chưa có chứng chỉ hoặc huy hiệu được ghi nhận.</p>
+                                    <?php endif; ?>
+                                </section>
+
+                                <!-- Section: Teacher Endorsement -->
+                                <section class="passport-main-section" id="sec-endorsement">
+                                    <h3 class="passport-main-section-title">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                        6. Nhận xét Chứng thực của Giảng viên Hướng dẫn
+                                    </h3>
+                                    <?php if ($evalComment === ''): ?>
+                                        <p class="passport-empty-state">Chưa có nhận xét từ giảng viên được ghi nhận.</p>
+                                    <?php else: ?>
+                                        <div class="passport-endorsement-box">
+                                            <p><?= learner_escape($evalContext); ?></p>
+                                            <p class="passport-endorsement-text">
+                                                "<?= learner_escape($evalComment); ?>"
                                             </p>
-                                        <?php endif; ?>
-                                        <?php if (!empty($p['sponsor_name'])): ?>
-                                            <div>
-                                                <span class="passport-sponsor-badge">
-                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                                                    Được bảo trợ bởi: <strong><?= learner_escape($p['sponsor_name']); ?></strong> <?= !empty($p['grant']) ? '(' . learner_escape($p['grant']) . ')' : ''; ?>
-                                                </span>
+                                            <div class="passport-endorsement-signer">
+                                                <div class="signer-info">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                                    <span><strong><?= learner_escape($evalReviewer); ?></strong> — <?= learner_escape($evalOrg); ?></span>
+                                                </div>
+                                                <span class="passport-verification-seal">ĐÃ GHI NHẬN</span>
                                             </div>
-                                        <?php endif; ?>
-                                    </article>
-                                <?php endforeach; ?>
-                            </div>
-
-                            <!-- Section 5: Chứng chỉ & Huy hiệu Đã cấp -->
-                            <div class="passport-section" id="sec-certificates">
-                                <h3 class="passport-section-title">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
-                                    5. Chứng chỉ &amp; Văn bằng Đã Xác thực
-                                </h3>
-                                <?php if (empty($displayCertificates)): ?>
-                                    <p class="passport-empty-state">Chưa có chứng chỉ nào được xác minh trong hệ thống.</p>
-                                <?php endif; ?>
-                                <?php foreach ($displayCertificates as $c): ?>
-                                    <div class="passport-cert-item">
-                                        <span style="color: #2563EB; font-size: 1.2rem; line-height: 1;">🎓</span>
-                                        <div style="flex: 1;">
-                                            <strong style="font-size: 0.85rem; color: #0F172A; display: block;"><?= learner_escape($c['name']); ?></strong>
-                                            <span style="font-size: 0.775rem; color: #64748B;">
-                                                Đơn vị cấp: <strong><?= learner_escape($c['issuer']); ?></strong> • Năm <?= learner_escape($c['year']); ?>
-                                                <?php if (!empty($c['credential_id'])): ?>
-                                                    • Mã tra cứu: <code style="font-family: monospace; font-weight: 700; color: #0F172A;"><?= learner_escape($c['credential_id']); ?></code>
-                                                <?php endif; ?>
-                                            </span>
                                         </div>
-                                        <span class="passport-cert-badge">
-                                            Đã xác thực
-                                        </span>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
+                                    <?php endif; ?>
+                                </section>
 
-                            <!-- Section 6: Nhận xét Chứng thực của Giảng viên & Nhà trường -->
-                            <div class="passport-section" id="sec-endorsement">
-                                <h3 class="passport-section-title">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                                    6. Nhận xét Chứng thực của Giảng viên Hướng dẫn
-                                </h3>
-                                <?php if ($evalComment === ''): ?>
-                                    <p class="passport-empty-state">Chưa có nhận xét từ giảng viên được ghi nhận.</p>
-                                <?php else: ?>
-                                <div class="passport-endorsement-box">
-                                    <p class="passport-endorsement-text">
-                                        "<?= learner_escape($evalComment); ?>"
-                                    </p>
-                                    <div class="passport-endorsement-signer">
-                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                            <span><strong><?= learner_escape($evalReviewer); ?></strong> — <?= learner_escape($evalOrg); ?></span>
-                                        </div>
-                                        <span class="passport-verification-seal">ĐÃ GHI NHẬN</span>
-                                    </div>
-                                </div>
-                                <?php endif; ?>
-                            </div>
+                            </main>
 
                         </div>
 
                         <!-- Footer -->
-                        <footer class="passport-footer" style="background: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 1.15rem 2.25rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.775rem; color: #64748B; flex-wrap: wrap; gap: 0.5rem;">
+                        <footer class="passport-footer">
                             <div>
                                 <span>Được xuất từ <strong>Hệ sinh thái TalentHub &amp; <?= learner_escape($studentSchool); ?></strong></span>
                             </div>

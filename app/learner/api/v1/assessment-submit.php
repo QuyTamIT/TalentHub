@@ -52,7 +52,15 @@ try {
     );
     $result['onboarding'] = $onboarding;
     $result['ai_analysis'] = PostAssessmentAiTrigger::metadata($beforeOnboarding, $onboarding);
-    if (($result['ai_analysis']['required'] ?? false) === true) $result['ai_analysis']['refresh']=['status'=>'pending','delivery'=>'transactional_outbox'];
+    if (($result['ai_analysis']['required'] ?? false) === true) {
+        $refresh = $context->dispatchAiRefresh($studentId);
+        $result['ai_analysis']['refresh'] = [
+            'status' => $refresh['status'],
+            'job_keys' => $refresh['job_keys'],
+            'snapshot_hash' => $refresh['snapshot_hash'],
+            'error_code' => $refresh['error_code'],
+        ];
+    }
     $result['next_url'] = ($result['ai_analysis']['required'] ?? false) === true
         ? '/app/learner/discover.php?onboarding=completed&ai=analyze'
         : ($onboarding['status'] === 'completed'

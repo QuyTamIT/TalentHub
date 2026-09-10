@@ -60,7 +60,7 @@ final class MockEcosystemRepository implements EcosystemRepository
         return null;
     }
 
-    public function opportunitiesForPartner(string $partnerId, bool $activeOnly = false): array
+    public function opportunitiesForPartner(string $partnerId, bool $activeOnly = false, ?string $studentId = null): array
     {
         return array_values(array_filter(
             $this->opportunityRecords,
@@ -93,6 +93,20 @@ final class MockEcosystemRepository implements EcosystemRepository
             $opportunity['legacy_' . $partnerType . '_id'] = $opportunity['legacy_partner_id'];
         }
         $opportunity['status'] = OpportunityStatus::normalize($opportunity['status'] ?? null)->value;
+
+        $rawAppStatus = $opportunity['application_status'] ?? null;
+        $opportunity['application_status'] = is_string($rawAppStatus) && $rawAppStatus !== '' ? $rawAppStatus : null;
+        $opportunity['user_participation_status'] = match ($rawAppStatus) {
+            'submitted', 'reviewing', 'interview' => 'applied',
+            'accepted' => 'interning',
+            'completed' => 'completed',
+            default => 'open',
+        };
+        $opportunity['membership_status'] = match ($opportunity['user_participation_status']) {
+            'applied', 'interning' => 'active',
+            'completed' => 'completed',
+            default => 'recruiting',
+        };
 
         return $opportunity;
     }

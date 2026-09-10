@@ -59,7 +59,7 @@ final class EducationBandResolver
             if ($grade >= 10 && $grade <= 12) {
                 return 'high';
             }
-            if ($grade >= 1 && $grade <= 5) {
+            if ($schoolBand === 'college' && $grade >= 1 && $grade <= 5) {
                 return 'college';
             }
         }
@@ -71,7 +71,7 @@ final class EducationBandResolver
             return $band;
         }
 
-        return 'high';
+        throw new EducationBandRequired('Explicit education band confirmation is required.');
     }
 
     private function bandFromSchoolLevel(mixed $level): ?string

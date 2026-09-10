@@ -15,7 +15,7 @@
             this.name = 'LearnerApiError';
             this.status = status;
             this.code = code;
-            this.details = Array.isArray(details) ? details : [];
+            this.details = (details !== null && typeof details === 'object') ? details : [];
             this.requestId = requestId;
             this.retryAfter = Number.isInteger(retryAfter) && retryAfter > 0 ? retryAfter : 0;
         }
@@ -90,7 +90,7 @@
         const retryAfterValue = response?.headers && typeof response.headers.get === 'function'
             ? Number.parseInt(response.headers.get('Retry-After') || '', 10)
             : 0;
-        return new LearnerApiError(
+        const apiError = new LearnerApiError(
             getResponseStatus(response),
             typeof error.code === 'string' && error.code ? error.code : 'REQUEST_FAILED',
             typeof error.message === 'string' && error.message ? error.message : 'Không thể hoàn tất yêu cầu.',
@@ -98,6 +98,21 @@
             typeof meta.requestId === 'string' ? meta.requestId : '',
             Number.isInteger(retryAfterValue) && retryAfterValue > 0 ? retryAfterValue : 0,
         );
+        if (typeof error.elapsed_days !== 'undefined') apiError.elapsed_days = error.elapsed_days;
+        if (typeof error.remaining_days !== 'undefined') apiError.remaining_days = error.remaining_days;
+        if (typeof error.last_submitted_at !== 'undefined') apiError.last_submitted_at = error.last_submitted_at;
+        if (error.details && typeof error.details === 'object' && !Array.isArray(error.details)) {
+            if (typeof error.details.elapsed_days !== 'undefined' && typeof apiError.elapsed_days === 'undefined') {
+                apiError.elapsed_days = error.details.elapsed_days;
+            }
+            if (typeof error.details.remaining_days !== 'undefined' && typeof apiError.remaining_days === 'undefined') {
+                apiError.remaining_days = error.details.remaining_days;
+            }
+            if (typeof error.details.last_submitted_at !== 'undefined' && typeof apiError.last_submitted_at === 'undefined') {
+                apiError.last_submitted_at = error.details.last_submitted_at;
+            }
+        }
+        return apiError;
     }
 
     function createLearnerApiClient({

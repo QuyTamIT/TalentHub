@@ -7,9 +7,20 @@ if (!function_exists('learner_activity_cover_or_fallback')) {
     {
         $candidate = trim((string) $value);
         if ($candidate === '' || str_contains($candidate, '..')) return $fallback;
-        return preg_match('#\A(?:/app/learner/)?assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg)\z#i', $candidate) === 1
-            ? $candidate
-            : $fallback;
+        if (preg_match('#\A/?(storage/activity-covers/[a-zA-Z0-9_\-\.]+\.(?:webp|png|jpe?g))\z#i', $candidate, $matches) === 1) {
+            $storageRelative = $matches[1];
+            $rootDir = dirname(__DIR__, 2);
+            if (is_file($rootDir . '/' . $storageRelative)) {
+                return '/' . $storageRelative;
+            }
+        }
+        if (preg_match('#\A(?:/app/learner/)?(assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg))\z#i', $candidate, $matches) === 1) {
+            $relativePath = $matches[1];
+            if (is_file(__DIR__ . '/' . $relativePath)) {
+                return $relativePath;
+            }
+        }
+        return $fallback;
     }
 }
 
@@ -194,7 +205,7 @@ $formatDateTime = static function (mixed $value, string $format): string {
                                     </div>
                                 </div>
                                 <div class="learner-activity-detail-hero__cover">
-                                    <img src="<?= learner_escape($coverImage) ?>" alt="<?= learner_escape($coverAlt) ?>" width="720" height="420">
+                                    <img src="<?= learner_escape($coverImage) ?>" alt="<?= learner_escape($coverAlt) ?>" width="720" height="420" loading="lazy" onerror="this.onerror=null;this.src='assets/activities/illustrations/hero-detail.svg';">
                                 </div>
                             </section>
 

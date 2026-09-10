@@ -41,7 +41,7 @@ final class RecommendationService
      * @param callable(string):list<string> $scopeResolver
      * @param callable(string,list<string>):RecommendationInput $snapshotBuilder
      * @param callable(RecommendationInput):DataQualityResult $qualityGate
-     * @param callable(RecommendationInput):bool $snapshotFreshness
+     * @param callable(RecommendationInput,string):bool $snapshotFreshness
      */
     public function __construct(
         private readonly RecommendationRepository $repository,
@@ -105,6 +105,19 @@ final class RecommendationService
                 : 'provider_unavailable';
             return $this->mapper->providerUnavailable($reason, $run);
         }
+        try {
+            $input = ($this->snapshotBuilder)($studentId, $scopes);
+            if ($input instanceof RecommendationInput && $this->runSnapshotIsStale($run, $input)) {
+                if (($run['engineType'] ?? null) === 'model' && ($run['status'] ?? null) === 'completed') {
+                    return $this->mapper->staleModel($run);
+                }
+                $run['freshness_status'] = 'stale_model';
+            }
+        } catch (\Throwable) {
+            if (($run['engineType'] ?? null) === 'model' && ($run['status'] ?? null) === 'completed') {
+                return $this->mapper->staleModel($run);
+            }
+        }
         return $this->mapper->run($run);
     }
 
@@ -123,7 +136,7 @@ final class RecommendationService
             $resolvedConsent = ($this->scopeResolver)($studentId);
             $scopes = $this->normalizeScopes($resolvedConsent);
             $input = ($this->snapshotBuilder)($studentId, $scopes);
-            $snapshotCurrent = (bool) (($this->snapshotFreshness)($input));
+            $snapshotCurrent = (bool) (($this->snapshotFreshness)($input, $studentId));
             $quality = ($this->qualityGate)($input);
             if (!$quality instanceof DataQualityResult) {
                 return $this->mapper->sourceUnavailable();
@@ -199,6 +212,16 @@ final class RecommendationService
         }
     }
 
+    /** @param array<string,mixed> $run */
+    private function runSnapshotIsStale(array $run, RecommendationInput $input): bool
+    {
+        $stored = $run['inputHash'] ?? $run['snapshot_hash'] ?? $run['contentHash'] ?? null;
+        if (!is_string($stored) || $stored === '') {
+            return false;
+        }
+        return !hash_equals($stored, $input->contentHash());
+    }
+
     /** @param mixed $scopes @return list<string> */
     private function normalizeScopes(mixed $scopes): array
     {
@@ -256,6 +279,7 @@ final class RecommendationService
             $modelResult = $this->modelEngine->generate($input, $modelContext);
             $this->validator->validate($modelResult);
             $this->assertConsentCurrent($studentId, $modelContext);
+            $this->assertSnapshotCurrent($studentId, $input, $modelContext);
             $this->guardLease($leaseGuard);
             $saved = $this->repository->completeRun($studentId, (string) ($pending['runId'] ?? ''), $modelResult);
             return $modelResult->engineType() === 'model'
@@ -264,6 +288,9 @@ final class RecommendationService
         } catch (\Throwable $exception) {
             if ($exception instanceof ProviderConsentDenied) throw $exception;
             if ($propagateProviderRetry && $exception instanceof ProviderRetryAfterException) throw $exception;
+            if ($exception->getMessage() === 'snapshot_changed') {
+                return $this->abandonChangedSnapshot($studentId, $pending);
+            }
             $this->assertConsentCurrent($studentId, $ruleContext);
             $this->guardLease($leaseGuard);
             $ruleRun = $this->repository->completeRun($studentId, (string) ($pending['runId'] ?? ''), $ruleResult);
@@ -301,6 +328,7 @@ final class RecommendationService
             }
             $this->validator->validate($modelResult);
             $this->assertConsentCurrent($studentId, $context);
+            $this->assertSnapshotCurrent($studentId, $input, $context);
             $this->guardLease($leaseGuard);
             return $this->mapper->run($this->repository->completeRun($studentId, (string) ($pending['runId'] ?? ''), $modelResult));
         } catch (\Throwable $exception) {
@@ -313,6 +341,9 @@ final class RecommendationService
                 } catch (\Throwable) {
                 }
                 return $this->consentUnavailable($studentId, $exception->reason());
+            }
+            if ($exception->getMessage() === 'snapshot_changed') {
+                return $this->abandonChangedSnapshot($studentId, $pending);
             }
             $reason = $exception instanceof StrictAiUnavailable ? $exception->reason() : 'provider_unavailable';
             try {
@@ -396,6 +427,7 @@ final class RecommendationService
             if ($modelResult->engineType() !== 'model') return $this->mapper->staleModel($active);
             $this->validator->validate($modelResult);
             $this->assertConsentCurrent($studentId, $modelContext);
+            $this->assertSnapshotCurrent($studentId, $input, $modelContext);
             $this->guardLease($leaseGuard);
             $pending = $this->repository->createPendingRun($studentId, $input, $modelContext);
             if (($pending['reused'] ?? false) === true) return $this->mapper->staleModel($active);
@@ -405,8 +437,36 @@ final class RecommendationService
         } catch (\Throwable $exception) {
             if ($exception instanceof ProviderConsentDenied) return $this->consentUnavailable($studentId, $exception->reason());
             if ($propagateProviderRetry && $exception instanceof ProviderRetryAfterException) throw $exception;
+            if ($exception->getMessage() === 'snapshot_changed') return $this->mapper->staleModel($active);
             return $this->mapper->staleModel($active);
         }
+    }
+
+    private function assertSnapshotCurrent(string $studentId, RecommendationInput $input, RecommendationContext $context): void
+    {
+        $resolved = ($this->scopeResolver)($studentId);
+        $scopes = $this->normalizeScopes($resolved);
+        $current = ($this->snapshotBuilder)($studentId, $scopes);
+        if (!$current instanceof RecommendationInput || !hash_equals($input->contentHash(), $current->contentHash())) {
+            throw new \RuntimeException('snapshot_changed');
+        }
+    }
+
+    /** @param array<string,mixed> $pending */
+    private function abandonChangedSnapshot(string $studentId, array $pending): array
+    {
+        try {
+            $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), 'snapshot_changed');
+        } catch (\Throwable) {
+        }
+        try {
+            $saved = $this->repository->latestForStudent($studentId);
+            if (is_array($saved) && ($saved['engineType'] ?? null) === 'model' && ($saved['status'] ?? null) === 'completed') {
+                return $this->mapper->staleModel($saved);
+            }
+        } catch (\Throwable) {
+        }
+        return $this->mapper->staleSnapshot();
     }
 
     private function assertConsentCurrent(string $studentId, RecommendationContext $context): void

@@ -186,6 +186,7 @@ if (!function_exists('learner_project_money')) {
                         </aside>
                     </div>
                 <?php endif; ?>
+                <?php if ($project && $learnerProjectJoined): $portfolioProjectId=$project['id']; include __DIR__.'/includes/portfolio-panel.php'; endif; ?>
             </main>
         </div>
     </div>

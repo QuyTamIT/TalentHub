@@ -40,7 +40,7 @@ $bootData = [
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">
     <link rel="stylesheet" href="../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= (int) @filemtime(__DIR__ . '/../../assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-assessment-result">
     <div class="learner-layout">
@@ -83,7 +83,7 @@ $bootData = [
                             <span class="learner-demo-pill" data-result-source>Hệ thống TalentHub</span>
                         </div>
                         <div class="learner-result-hero__actions">
-                            <a class="learner-btn learner-btn--primary" href="assessment.php?code=<?= learner_escape($assessmentCode); ?>">Làm lại bài đánh giá</a>
+                            <button type="button" class="learner-btn learner-btn--primary" data-retake-assessment data-assessment-code="<?= learner_escape($assessmentCode); ?>">Làm lại bài đánh giá</button>
                             <a class="learner-btn learner-btn--outline" href="discover.php">Về trang khám phá</a>
                         </div>
                     </section>
@@ -134,32 +134,35 @@ $bootData = [
                     <div class="learner-assessment-history__list" data-assessment-complete-history-list hidden></div>
                 </section>
 
-                <section
-                    class="learner-card learner-assessment-history"
-                    data-teacher-published-evaluations
-                    data-source="teacher_published_evaluation"
-                    aria-labelledby="teacher-published-evaluations-title"
-                >
-                    <div class="learner-section-heading">
-                        <div>
-                            <h2 id="teacher-published-evaluations-title">Đánh giá đã công bố từ giáo viên</h2>
-                            <p>Chỉ hiển thị các đánh giá đã được giáo viên công bố.</p>
-                        </div>
-                        <span class="learner-demo-pill">Nguồn: giáo viên công bố</span>
-                    </div>
-                    <p class="learner-empty-state__text" data-teacher-published-evaluation-loading>Đang tải đánh giá đã công bố...</p>
-                    <p class="learner-empty-state__text" data-teacher-published-evaluation-empty hidden>Chưa có dữ liệu</p>
-                    <p class="learner-empty-state__text" data-teacher-published-evaluation-error hidden>Không thể tải đánh giá đã công bố.</p>
-                    <div class="learner-assessment-history__list" data-teacher-published-evaluation-list hidden></div>
-                </section>
             </main>
         </div>
+    </div>
+
+        <!-- Assessment Retake Confirmation Modal -->
+    <div class="learner-modal" id="learner-assessment-retake-modal" hidden data-assessment-retake-modal>
+        <button class="learner-modal__backdrop" type="button" data-close-retake-modal aria-label="Đóng"></button>
+        <section class="learner-modal__dialog learner-modal__dialog--compact" role="dialog" aria-modal="true" aria-labelledby="retake-modal-title">
+            <div class="learner-modal__header">
+                <div>
+                    <span class="learner-modal__eyebrow">Khuyến nghị chu kỳ đánh giá</span>
+                    <h2 id="retake-modal-title">Xác nhận làm lại bài đánh giá</h2>
+                </div>
+                <button class="learner-icon-button" type="button" data-close-retake-modal aria-label="Đóng"><?= learner_icon('x', 21); ?></button>
+            </div>
+            <div class="learner-modal__copy" data-retake-modal-message>
+                Bạn đã hoàn thành bài đánh giá này cách đây <strong data-retake-elapsed-days>0</strong> ngày. Kết quả xu hướng năng lực và tính cách thường ổn định và đạt độ tin cậy cao nhất sau chu kỳ <strong>90 ngày</strong> (còn <strong data-retake-remaining-days>0</strong> ngày nữa). Bạn có chắc chắn muốn làm lại ngay bây giờ không?
+            </div>
+            <div class="learner-modal__actions">
+                <button class="learner-btn learner-btn--secondary" type="button" data-cancel-retake data-close-retake-modal>Giữ kết quả hiện tại</button>
+                <button class="learner-btn learner-btn--primary" type="button" data-confirm-retake>Xác nhận làm lại</button>
+            </div>
+        </section>
     </div>
 
     <script id="learner-session-boot" type="application/json"><?= json_encode(['csrfToken' => $GLOBALS['learner_page_context']['csrfToken'] ?? ''], JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
     <script id="learner-assessment-result-boot" type="application/json"><?= json_encode($bootData, JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
     <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
-    <script src="../../assets/js/learner-assessment.js"></script>
+    <script src="../../assets/js/learner-assessment.js?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner-assessment.js'); ?>"></script>
 </body>
 </html>

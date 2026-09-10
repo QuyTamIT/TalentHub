@@ -13,6 +13,8 @@ use TalentHub\Support\Uuid;
 final class NotificationService
 {
     public const ALLOW_LISTED_TYPES = [
+        'portfolio_submitted',
+        'portfolio_reviewed',
         'activity_registration_created',
         'activity_registration_cancelled',
         'activity_registration_promoted',
@@ -42,6 +44,8 @@ final class NotificationService
     ];
 
     public const ALLOW_LISTED_DEEP_LINKS = [
+        '/app/teacher/portfolio-reviews.php',
+        '/app/learner/profile.php',
         '/app/learner/my-activities.php',
         '/app/learner/activities.php',
         '/app/learner/checkin.php',

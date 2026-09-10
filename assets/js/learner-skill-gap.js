@@ -24,6 +24,7 @@
     }
 
     function score(value) {
+        if (value === null || value === undefined || value === '') return null;
         const numeric = Number(value);
         return Number.isFinite(numeric) && numeric >= 0 && numeric <= 100 ? Math.round(numeric) : null;
     }
@@ -58,13 +59,15 @@
         const current = score(raw?.current_score);
         const target = score(raw?.target_score);
         const gap = score(raw?.gap_score);
-        if (!code || !label || current === null || target === null || gap === null) return null;
+        if (!code || !label) return null;
         const item = {
             code,
             label,
             current_score: current,
             target_score: target,
             gap_score: gap,
+            target_basis: cleanText(raw?.target_basis),
+            target_is_approximate: raw?.target_is_approximate === true,
             evidence_count: Array.isArray(raw?.evidence_refs) ? raw.evidence_refs.length : 0,
         };
         if (includeImpact) item.impact = cleanText(raw?.impact, 'Kỹ năng này chưa đạt benchmark của vị trí mục tiêu.');
@@ -181,33 +184,31 @@
             const titleWrap = element('div', 'learner-skill-gap__skill-title-wrap');
             titleWrap.appendChild(element('h4', '', skill.label));
 
+            const unknown = skill.current_score === null || skill.target_score === null || skill.gap_score === null;
             const badge = element('span', `learner-skill-badge ${isMissing ? 'learner-skill-badge--missing' : 'learner-skill-badge--met'}`,
-                isMissing ? `Thiếu ${skill.gap_score}đ` : '✓ Đạt chuẩn');
+                unknown ? 'Cần đối chiếu' : (isMissing ? `Thiếu ${skill.gap_score}đ` : '✓ Đạt chuẩn'));
             heading.append(titleWrap, badge);
             card.appendChild(heading);
 
             // Comparative Visual Progress Bar
-            const barContainer = element('div', 'learner-skill-gap__bar-container');
-            const barTrack = element('div', 'learner-skill-gap__bar-track');
-
-            const barCurrent = element('div', 'learner-skill-gap__bar-fill');
-            const currentPct = Math.min(100, Math.max(0, skill.current_score));
-            barCurrent.style.width = `${currentPct}%`;
-            barTrack.appendChild(barCurrent);
-
-            // Target marker line
-            const targetPct = Math.min(100, Math.max(0, skill.target_score));
-            const targetMarker = element('div', 'learner-skill-gap__target-marker');
-            targetMarker.style.left = `${targetPct}%`;
-            targetMarker.title = `Điểm chuẩn mục tiêu: ${skill.target_score}/100`;
-            barTrack.appendChild(targetMarker);
-            barContainer.appendChild(barTrack);
-            card.appendChild(barContainer);
+            if (!unknown) {
+                const barContainer = element('div', 'learner-skill-gap__bar-container');
+                const barTrack = element('div', 'learner-skill-gap__bar-track');
+                const barCurrent = element('div', 'learner-skill-gap__bar-fill');
+                barCurrent.style.width = `${Math.min(100, Math.max(0, skill.current_score))}%`;
+                barTrack.appendChild(barCurrent);
+                const targetMarker = element('div', 'learner-skill-gap__target-marker');
+                targetMarker.style.left = `${Math.min(100, Math.max(0, skill.target_score))}%`;
+                targetMarker.title = `Điểm chuẩn mục tiêu: ${skill.target_score}/100`;
+                barTrack.appendChild(targetMarker);
+                barContainer.appendChild(barTrack);
+                card.appendChild(barContainer);
+            }
 
             const metrics = element('div', 'learner-skill-gap__skill-metrics');
             metrics.append(
-                element('span', 'learner-skill-metric-item', `Hiện tại: ${skill.current_score}`),
-                element('span', 'learner-skill-metric-target', `Chuẩn vị trí: ${skill.target_score}`)
+                element('span', 'learner-skill-metric-item', `Hiện tại: ${skill.current_score === null ? 'Chưa có dữ liệu' : skill.current_score}`),
+                element('span', 'learner-skill-metric-target', `Chuẩn vị trí: ${skill.target_score === null ? 'Chưa xác định' : skill.target_score}`)
             );
             card.appendChild(metrics);
 

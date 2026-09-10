@@ -637,6 +637,24 @@ final class DatabaseRecommendationRepository implements RecommendationRepository
         $run['runId'] = $run['id'];
         $run['snapshotId'] = $run['snapshotId'];
         unset($run['id']);
+        try {
+            $hashStatement = $this->pdo->prepare(
+                'SELECT contentHash FROM learner_recommendation_input_snapshots WHERE id = :id AND studentId = :studentId'
+            );
+            if ($hashStatement !== false && $hashStatement->execute([
+                'id' => (string) $run['snapshotId'],
+                'studentId' => $studentId,
+            ])) {
+                $hash = $hashStatement->fetchColumn();
+                if (is_string($hash) && $hash !== '') {
+                    $run['inputHash'] = $hash;
+                    if (!is_string($run['snapshot_hash'] ?? null) || $run['snapshot_hash'] === '') {
+                        $run['snapshot_hash'] = $hash;
+                    }
+                }
+            }
+        } catch (\Throwable) {
+        }
         $run['items'] = [];
         foreach ($items->fetchAll(PDO::FETCH_ASSOC) as $item) {
             $evidence = $this->pdo->prepare(

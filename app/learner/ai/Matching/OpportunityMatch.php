@@ -7,7 +7,7 @@ namespace TalentHub\Learner\Ai\Matching;
 /**
  * Immutable value object representing a single learner opportunity match
  * produced by the Gemini analysis. The Gemini analysis fields are
- * attached at construction; the deterministic 70/30 match score is
+ * attached at construction; the deterministic evidence-based match score is
  * composed separately by the service layer via withScore() so the
  * provider mapper never computes the final match score.
  */

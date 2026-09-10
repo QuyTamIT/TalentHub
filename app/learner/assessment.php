@@ -50,7 +50,7 @@ $bootData = [
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">
     <link rel="stylesheet" href="../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= (int) @filemtime(__DIR__ . '/../../assets/css/learner.css'); ?>">
 </head>
 <body class="learner-app learner-page-assessment">
     <div class="learner-layout">
@@ -227,14 +227,35 @@ $bootData = [
         </section>
     </div>
 
+    <!-- Assessment Retake Confirmation Modal -->
+    <div class="learner-modal" id="learner-assessment-retake-modal" hidden data-assessment-retake-modal>
+        <button class="learner-modal__backdrop" type="button" data-close-retake-modal aria-label="Đóng"></button>
+        <section class="learner-modal__dialog learner-modal__dialog--compact" role="dialog" aria-modal="true" aria-labelledby="retake-modal-title">
+            <div class="learner-modal__header">
+                <div>
+                    <span class="learner-modal__eyebrow">Khuyến nghị chu kỳ đánh giá</span>
+                    <h2 id="retake-modal-title">Xác nhận làm lại bài đánh giá</h2>
+                </div>
+                <button class="learner-icon-button" type="button" data-close-retake-modal aria-label="Đóng"><?= learner_icon('x', 21); ?></button>
+            </div>
+            <div class="learner-modal__copy" data-retake-modal-message>
+                Bạn đã hoàn thành bài đánh giá này cách đây <strong data-retake-elapsed-days>0</strong> ngày. Kết quả xu hướng năng lực và tính cách thường ổn định và đạt độ tin cậy cao nhất sau chu kỳ <strong>90 ngày</strong> (còn <strong data-retake-remaining-days>0</strong> ngày nữa). Bạn có chắc chắn muốn làm lại ngay bây giờ không?
+            </div>
+            <div class="learner-modal__actions">
+                <button class="learner-btn learner-btn--secondary" type="button" data-cancel-retake data-close-retake-modal>Giữ kết quả hiện tại</button>
+                <button class="learner-btn learner-btn--primary" type="button" data-confirm-retake>Xác nhận làm lại</button>
+            </div>
+        </section>
+    </div>
+
     <script id="learner-session-boot" type="application/json"><?= json_encode([
         'csrfToken' => $GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? ''),
         'apiBase' => app_href('/app/learner/api/v1'),
         'appBase' => app_href(''),
     ], JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
     <script id="learner-assessment-boot" type="application/json"><?= json_encode($bootData, JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
-    <script src="../../assets/js/learner-api.js"></script>
-    <script src="../../assets/js/learner.js"></script>
-    <script src="../../assets/js/learner-assessment.js"></script>
+    <script src="../../assets/js/learner-api.js?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner-api.js'); ?>"></script>
+    <script src="../../assets/js/learner.js?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner.js'); ?>"></script>
+    <script src="../../assets/js/learner-assessment.js?v=<?= (int) @filemtime(__DIR__ . '/../../assets/js/learner-assessment.js'); ?>"></script>
 </body>
 </html>

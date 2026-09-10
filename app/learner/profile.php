@@ -64,8 +64,11 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                         </div>
 
                         <div class="learner-profile-actions">
-                            <a class="learner-btn learner-btn--primary" href="talent-passport.php" style="background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%); color: #FFFFFF; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);" title="Xem bản in & tải file PDF Hồ sơ Năng lực số">
-                                <?= learner_icon('award', 18); ?> Xuất PDF Hồ sơ (Talent Passport)
+                            <a class="learner-btn learner-btn--primary" href="talent-passport-cv.php" style="background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%); color: #FFFFFF; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);" title="Xem trước và xuất bản CV A4 1 trang chuyên nghiệp">
+                                <?= learner_icon('file-text', 18); ?> Xuất CV A4
+                            </a>
+                            <a class="learner-btn learner-btn--outline" href="talent-passport.php" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none; font-weight: 600;" title="Xem & Tải Talent Passport đầy đủ">
+                                <?= learner_icon('award', 16); ?> Talent Passport
                             </a>
                             <button class="learner-btn learner-btn--outline" type="button" data-open-modal="learner-share-modal">
                                 <?= learner_icon('share', 18); ?> Chia sẻ hồ sơ
@@ -76,6 +79,18 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                         </div>
                     </div>
 
+                    <?php
+                    $completedProjects = array_values(array_filter($projects ?? [], static function (array $p): bool {
+                        $st = strtolower((string)($p['status'] ?? ''));
+                        return in_array($st, ['completed', 'đã hoàn thành'], true);
+                    }));
+                    foreach ($profileKpis as &$profileKpiItem) {
+                        if (($profileKpiItem['label'] ?? '') === 'Dự án') {
+                            $profileKpiItem['value'] = (string) count($completedProjects);
+                        }
+                    }
+                    unset($profileKpiItem);
+                    ?>
                     <div class="learner-profile-kpis" aria-label="Chỉ số hồ sơ">
                         <?php foreach ($profileKpis as $kpi): ?>
                             <article class="learner-profile-kpi">
@@ -223,32 +238,38 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                     </section>
                 </div>
 
+                <?php
+                $completedProjects = array_values(array_filter($projects ?? [], static function (array $p): bool {
+                    $st = strtolower((string)($p['status'] ?? ''));
+                    return in_array($st, ['completed', 'đã hoàn thành'], true);
+                }));
+                ?>
                 <section class="learner-card learner-projects" aria-labelledby="projects-title">
                     <div class="learner-section-heading learner-section-heading--icon">
                         <span class="learner-section-heading__icon"><?= learner_icon('briefcase', 22); ?></span>
-                        <h2 id="projects-title">Dự án đã tham gia</h2>
+                        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
+                            <h2 id="projects-title" style="margin: 0;">Dự án đã hoàn thành</h2>
+                            <a href="ecosystem.php?tab=opportunities&amp;filter=completed" class="learner-btn learner-btn--outline" style="font-size: 0.8rem; padding: 4px 10px; display: inline-flex; align-items: center; gap: 4px; color: #EA580C; border-color: #FDBA74; text-decoration: none;">
+                                <?= learner_icon('sparkles', 14); ?> Xem tất cả dự án hoàn thành trong Hệ sinh thái <?= learner_icon('arrow-right', 14); ?>
+                            </a>
+                        </div>
                     </div>
-                    <?php if (empty($projects)): ?>
+                    <?php if (empty($completedProjects)): ?>
                         <div class="learner-empty-state">
-                            <p>Chưa có dự án nào được ghi nhận.</p>
+                            <p>Chưa có dự án nào được ghi nhận hoàn thành. Hãy tiếp tục triển khai các dự án đang tham gia để hoàn thành hồ sơ.</p>
                         </div>
                     <?php else: ?>
                         <div class="learner-project-grid">
-                            <?php foreach ($projects as $project): ?>
+                            <?php foreach ($completedProjects as $project): ?>
                                 <?php
+                                    $pId = (string) ($project['id'] ?? '');
                                     $pName = $project['name'] ?? $project['title'] ?? '';
                                     $pDesc = $project['description'] ?? '';
                                     $pRole = $project['role'] ?? 'Thành viên';
-                                    $pStatusLabel = $project['status_label'] ?? $project['status'] ?? 'Đang thực hiện';
-                                    $pTone = $project['status_tone'] ?? $project['tone'] ?? 'primary';
-                                    $pSponsor = $project['sponsor_name'] ?? '';
-
-                                    $statusBadgeStyle = match($pTone) {
-                                        'success' => 'background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC;',
-                                        'purple' => 'background: #F3E8FF; color: #7E22CE; border: 1px solid #D8B4FE;',
-                                        'warning' => 'background: #FEF3C7; color: #B45309; border: 1px solid #FDE68A;',
-                                        default => 'background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE;'
-                                    };
+                                    $pSponsor = $project['sponsor_name'] ?? $project['sponsorName'] ?? '';
+                                    $pUrl = $project['projectUrl'] ?? $project['project_url'] ?? '';
+                                    $pCategory = $project['category'] ?? $project['category_label'] ?? 'Dự án';
+                                    $pContrib = $project['contribution'] ?? '';
                                 ?>
                                 <article class="learner-project-card" style="display: flex; flex-direction: column; justify-content: space-between; gap: 0.85rem; padding: 1.25rem 1.4rem; border: 1px solid #E2E8F0; border-radius: 12px; background: #FFFFFF; transition: all 0.2s ease;">
                                     <div>
@@ -261,19 +282,39 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                                                 </span>
                                             <?php endif; ?>
                                         </div>
-                                        <p style="color: #64748B; font-size: 0.85rem; line-height: 1.5; margin: 0;"><?= learner_escape($pDesc); ?></p>
+                                        <p style="color: #64748B; font-size: 0.85rem; line-height: 1.5; margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;"><?= learner_escape($pDesc); ?></p>
                                     </div>
                                     <div class="learner-project-card__badges" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-direction: row; border-top: 1px solid #F1F5F9; padding-top: 0.75rem; margin-top: 0.25rem;">
                                         <span class="learner-badge" style="background: #F1F5F9; color: #475569; font-weight: 600; font-size: 0.75rem; padding: 3px 9px; border-radius: 6px;"><?= learner_escape($pRole); ?></span>
-                                        <span class="learner-badge learner-badge--<?= learner_escape($pTone); ?>" style="font-weight: 600; font-size: 0.75rem; padding: 3px 9px; border-radius: 6px; <?= $statusBadgeStyle ?>">
-                                            ● <?= learner_escape($pStatusLabel); ?>
+                                        <span class="learner-badge learner-badge--success" style="font-weight: 600; font-size: 0.75rem; padding: 3px 9px; border-radius: 6px; background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC;">
+                                            ● Đã hoàn thành
                                         </span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.25rem; border-top: 1px solid #F8FAFC; padding-top: 0.5rem;">
+                                        <button type="button" class="learner-btn learner-btn--outline" data-open-project-detail
+                                            data-project-id="<?= learner_escape($pId); ?>"
+                                            data-project-title="<?= learner_escape($pName); ?>"
+                                            data-project-desc="<?= learner_escape($pDesc); ?>"
+                                            data-project-role="<?= learner_escape($pRole); ?>"
+                                            data-project-sponsor="<?= learner_escape($pSponsor); ?>"
+                                            data-project-category="<?= learner_escape($pCategory); ?>"
+                                            data-project-url="<?= learner_escape($pUrl); ?>"
+                                            data-project-contrib="<?= learner_escape($pContrib); ?>"
+                                            style="flex: 1; font-size: 0.82rem; padding: 7px 12px; justify-content: center; border-color: #EA580C; color: #EA580C; font-weight: 600; cursor: pointer;">
+                                            <?= learner_icon('eye', 15); ?> Xem chi tiết
+                                        </button>
+                                        <?php if ($pId !== ''): ?>
+                                            <a href="project.php?id=<?= urlencode($pId); ?>" class="learner-btn learner-btn--outline" title="Xem trang chi tiết dự án" style="font-size: 0.82rem; padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; color: #475569;">
+                                                <?= learner_icon('arrow-right', 15); ?>
+                                            </a>
+                                        <?php endif; ?>
                                     </div>
                                 </article>
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
                 </section>
+                <?php include __DIR__ . '/includes/portfolio-panel.php'; ?>
             </main>
         </div>
     </div>
@@ -509,7 +550,184 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
         </div>
     </div>
 
+    <!-- Project Detail Modal -->
+    <div class="learner-modal" id="learner-project-detail-modal" role="dialog" aria-modal="true" aria-labelledby="learner-proj-modal-title" hidden>
+        <div class="learner-modal__backdrop" data-close-modal></div>
+        <div class="learner-modal__dialog" tabindex="-1" style="max-width: 600px;">
+            <div class="learner-modal__header">
+                <div>
+                    <span class="learner-eyebrow" style="color: #EA580C; font-weight: 700; font-size: 0.75rem; text-transform: uppercase;">Chi tiết dự án hoàn thành</span>
+                    <h2 id="learner-proj-modal-title" data-proj-modal-title style="margin: 0.25rem 0 0; font-size: 1.25rem;">Tên dự án</h2>
+                </div>
+                <button class="learner-icon-button" type="button" data-close-modal aria-label="Đóng cửa sổ chi tiết"><?= learner_icon('x', 22); ?></button>
+            </div>
+            <div style="padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+                    <span class="learner-badge" style="background: #F1F5F9; color: #475569; font-weight: 600;" data-proj-modal-role>Thành viên</span>
+                    <span class="learner-badge" style="background: #DCFCE7; color: #15803D; font-weight: 600; border: 1px solid #86EFAC;">● Đã hoàn thành</span>
+                    <span class="learner-badge" style="background: #EEF2FF; color: #4338CA; font-weight: 600;" data-proj-modal-sponsor hidden></span>
+                </div>
+                <div>
+                    <h4 style="margin: 0 0 0.35rem; font-size: 0.85rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.03em;">Mô tả dự án</h4>
+                    <p style="margin: 0; color: #1E293B; line-height: 1.55;" data-proj-modal-desc></p>
+                </div>
+                <div data-proj-modal-contrib-wrap hidden>
+                    <h4 style="margin: 0 0 0.35rem; font-size: 0.85rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.03em;">Đóng góp cá nhân</h4>
+                    <p style="margin: 0; color: #1E293B; line-height: 1.55;" data-proj-modal-contrib></p>
+                </div>
+                <div>
+                    <h4 style="margin: 0 0 0.35rem; font-size: 0.85rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.03em;">Minh chứng &amp; Liên kết</h4>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <a href="#" target="_blank" rel="noopener noreferrer" class="learner-btn learner-btn--outline" data-proj-modal-url style="font-size: 0.85rem; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px;" hidden>
+                            <?= learner_icon('external-link', 15); ?> Xem liên kết dự án
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="learner-modal__actions" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #E2E8F0; padding: 1rem 1.5rem;">
+                <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Đóng</button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <a href="ecosystem.php?tab=opportunities&amp;filter=completed" class="learner-btn learner-btn--outline" style="border-color: #FDBA74; color: #EA580C; display: inline-flex; align-items: center; gap: 5px;">
+                        <?= learner_icon('sparkles', 15); ?> Dự án Hệ sinh thái
+                    </a>
+                    <a href="#" class="learner-btn learner-btn--primary" data-proj-modal-link style="display: inline-flex; align-items: center; gap: 5px;" hidden>
+                        Chi tiết dự án <?= learner_icon('arrow-right', 15); ?>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Internship Detail Modal -->
+    <div class="learner-modal" id="learner-internship-detail-modal" role="dialog" aria-modal="true" aria-labelledby="learner-intern-modal-title" hidden>
+        <div class="learner-modal__backdrop" data-close-modal></div>
+        <div class="learner-modal__dialog" tabindex="-1" style="max-width: 600px;">
+            <div class="learner-modal__header">
+                <div>
+                    <span class="learner-eyebrow" style="color: #10B981; font-weight: 700; font-size: 0.75rem; text-transform: uppercase;">Chi tiết thực tập đã xác nhận</span>
+                    <h2 id="learner-intern-modal-title" data-intern-title style="margin: 0.25rem 0 0; font-size: 1.25rem;">Vị trí thực tập</h2>
+                    <p style="margin: 0.25rem 0 0; color: #475569; font-weight: 600;" data-intern-org>Doanh nghiệp</p>
+                </div>
+                <button class="learner-icon-button" type="button" data-close-modal aria-label="Đóng cửa sổ chi tiết"><?= learner_icon('x', 22); ?></button>
+            </div>
+            <div style="padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; background: #F8FAFC; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid #E2E8F0;">
+                    <div>
+                        <small style="color: #64748B; display: block;">Thời gian thực tập</small>
+                        <strong style="color: #0F172A; font-size: 0.9rem;" data-intern-dates>Chưa rõ</strong>
+                    </div>
+                    <div>
+                        <small style="color: #64748B; display: block;">Tổng thời gian</small>
+                        <strong style="color: #0F172A; font-size: 0.9rem;" data-intern-hours>0 giờ</strong>
+                    </div>
+                    <div style="grid-column: span 2;">
+                        <small style="color: #64748B; display: block;">Giảng viên hướng dẫn</small>
+                        <strong style="color: #0F172A; font-size: 0.9rem;" data-intern-mentor>Chưa cập nhật</strong>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 style="margin: 0 0 0.35rem; font-size: 0.85rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.03em;">Báo cáo &amp; Đóng góp cá nhân</h4>
+                    <p style="margin: 0; color: #1E293B; line-height: 1.55; white-space: pre-wrap;" data-intern-notes>Chưa có ghi chú.</p>
+                </div>
+
+                <div>
+                    <h4 style="margin: 0 0 0.35rem; font-size: 0.85rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.03em;">Đánh giá từ Giảng viên hướng dẫn</h4>
+                    <div style="background: #F0FDF4; border: 1px solid #BBF7D0; padding: 0.85rem 1rem; border-radius: 8px;">
+                        <p style="margin: 0; color: #15803D; font-style: italic; line-height: 1.5;" data-intern-feedback>Chưa có nhận xét.</p>
+                        <small style="color: #166534; display: block; margin-top: 0.35rem;">Duyệt ngày: <span data-intern-reviewed-at></span></small>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 style="margin: 0 0 0.35rem; font-size: 0.85rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.03em;">Kỹ năng được ghi nhận vào hồ sơ</h4>
+                    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap;" data-intern-skills>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 style="margin: 0 0 0.35rem; font-size: 0.85rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.03em;">Minh chứng kết quả</h4>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <a href="#" target="_blank" rel="noopener noreferrer" class="learner-btn learner-btn--outline" data-intern-repo style="font-size: 0.85rem; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px;" hidden>
+                            <?= learner_icon('external-link', 15); ?> Minh chứng / Mã nguồn
+                        </a>
+                        <a href="#" target="_blank" rel="noopener noreferrer" class="learner-btn learner-btn--outline" data-intern-demo style="font-size: 0.85rem; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px;" hidden>
+                            <?= learner_icon('external-link', 15); ?> Sản phẩm Demo
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="learner-modal__actions" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #E2E8F0; padding: 1rem 1.5rem;">
+                <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Đóng</button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <a href="ecosystem.php?tab=enterprises&amp;filter=completed" class="learner-btn learner-btn--outline" style="border-color: #FDBA74; color: #EA580C; display: inline-flex; align-items: center; gap: 5px;">
+                        <?= learner_icon('sparkles', 15); ?> Doanh nghiệp Hệ sinh thái
+                    </a>
+                    <a href="#" class="learner-btn learner-btn--primary" data-intern-eco-link style="display: inline-flex; align-items: center; gap: 5px;" target="_blank">
+                        Xem hồ sơ Doanh nghiệp <?= learner_icon('arrow-right', 15); ?>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="../../assets/js/learner-api.js"></script>
     <script src="../../assets/js/learner.js"></script>
+    <script>
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-open-project-detail]');
+        if (!btn) return;
+        var modal = document.getElementById('learner-project-detail-modal');
+        if (!modal) return;
+        var titleNode = modal.querySelector('[data-proj-modal-title]');
+        if (titleNode) titleNode.textContent = btn.dataset.projectTitle || 'Chi tiết dự án';
+        var descNode = modal.querySelector('[data-proj-modal-desc]');
+        if (descNode) descNode.textContent = btn.dataset.projectDesc || 'Không có mô tả chi tiết.';
+        var roleNode = modal.querySelector('[data-proj-modal-role]');
+        if (roleNode) roleNode.textContent = btn.dataset.projectRole || 'Thành viên';
+        var sponsorBadge = modal.querySelector('[data-proj-modal-sponsor]');
+        if (sponsorBadge) {
+            if (btn.dataset.projectSponsor) {
+                sponsorBadge.textContent = 'Bảo trợ bởi ' + btn.dataset.projectSponsor;
+                sponsorBadge.hidden = false;
+            } else {
+                sponsorBadge.hidden = true;
+            }
+        }
+        var contribWrap = modal.querySelector('[data-proj-modal-contrib-wrap]');
+        var contribText = modal.querySelector('[data-proj-modal-contrib]');
+        if (contribWrap && contribText) {
+            if (btn.dataset.projectContrib) {
+                contribText.textContent = btn.dataset.projectContrib;
+                contribWrap.hidden = false;
+            } else {
+                contribWrap.hidden = true;
+            }
+        }
+        var urlBtn = modal.querySelector('[data-proj-modal-url]');
+        if (urlBtn) {
+            if (btn.dataset.projectUrl) {
+                urlBtn.href = btn.dataset.projectUrl;
+                urlBtn.hidden = false;
+            } else {
+                urlBtn.hidden = true;
+            }
+        }
+        var linkBtn = modal.querySelector('[data-proj-modal-link]');
+        if (linkBtn) {
+            if (btn.dataset.projectId) {
+                linkBtn.href = 'project.php?id=' + encodeURIComponent(btn.dataset.projectId);
+                linkBtn.hidden = false;
+            } else {
+                linkBtn.hidden = true;
+            }
+        }
+        if (window.LearnerUI && typeof window.LearnerUI.openModal === 'function') {
+            window.LearnerUI.openModal(modal, btn);
+        } else {
+            modal.hidden = false;
+        }
+    });
+    </script>
 </body>
 </html>

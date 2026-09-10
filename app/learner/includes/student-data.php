@@ -197,15 +197,18 @@ if ($isDatabaseMode && !$deferTalentPassport) {
         ['id' => 'badges', 'label' => 'Huy hiệu đạt được', 'value' => (string) $awardedBadgeCount, 'icon' => 'trophy', 'tone' => 'success'],
     ];
 
+    $certificates = $tp['certificates'];
+    $projects = array_values(array_filter($tp['projects'] ?? [], static function (array $project): bool {
+        $status = strtolower((string)($project['status'] ?? ''));
+        return in_array($status, ['completed', 'đã hoàn thành'], true);
+    }));
+    $learnerBadges = $badgeOverview['badges'] ?? $tp['badges'];
+
     $profileKpis = [
         ['label' => 'Điểm năng lực', 'value' => $competencyValue],
-        ['label' => 'Huy hiệu', 'value' => (string) count($tp['badges'])],
-        ['label' => 'Dự án', 'value' => (string) count($tp['projects'])],
+        ['label' => 'Huy hiệu', 'value' => (string) count($learnerBadges)],
+        ['label' => 'Dự án', 'value' => (string) count($projects)],
     ];
-
-    $certificates = $tp['certificates'];
-    $projects = $tp['projects'];
-    $learnerBadges = $badgeOverview['badges'] ?? $tp['badges'];
 } elseif ($isDatabaseMode) {
     $dashboardKpis = [
         ['id' => 'competency', 'label' => 'Điểm năng lực', 'value' => 'Chưa tải', 'icon' => 'star', 'tone' => 'primary'],
@@ -224,12 +227,6 @@ if ($isDatabaseMode && !$deferTalentPassport) {
         ['id' => 'badges', 'label' => 'Huy hiệu đạt được', 'value' => '12', 'icon' => 'trophy', 'tone' => 'success'],
     ];
 
-    $profileKpis = [
-        ['label' => 'Điểm năng lực', 'value' => '92'],
-        ['label' => 'Huy hiệu', 'value' => '12'],
-        ['label' => 'Dự án', 'value' => '8'],
-    ];
-
     $skills = [
         ['name' => 'IoT', 'score' => 85, 'level' => 'Tốt', 'tone' => 'primary', 'icon' => 'sparkles'],
         ['name' => 'Lập trình Python', 'short_name' => 'Lập trình', 'score' => 90, 'level' => 'Rất tốt', 'tone' => 'secondary', 'icon' => 'trophy'],
@@ -238,7 +235,6 @@ if ($isDatabaseMode && !$deferTalentPassport) {
         ['name' => 'Thuyết trình', 'score' => 72, 'level' => 'Trung bình', 'tone' => 'warning', 'icon' => 'trophy'],
         ['name' => 'Tiếng Anh', 'score' => 80, 'level' => 'Tốt', 'tone' => 'secondary', 'icon' => 'message-circle'],
     ];
-
 
     $certificates = [
         ['name' => 'Google IT Automation', 'issuer' => 'Coursera', 'year' => '2025', 'verified' => true],
@@ -254,13 +250,12 @@ if ($isDatabaseMode && !$deferTalentPassport) {
             'status' => 'Đã hoàn thành',
             'tone' => 'success',
         ],
-        [
-            'name' => 'EduTalent Hackathon 2025',
-            'description' => 'Top 5 toàn quốc – ứng dụng quản lý hoạt động học sinh.',
-            'role' => 'Lập trình viên',
-            'status' => 'Đang triển khai',
-            'tone' => 'warning',
-        ],
+    ];
+
+    $profileKpis = [
+        ['label' => 'Điểm năng lực', 'value' => '92/100'],
+        ['label' => 'Huy hiệu', 'value' => '12'],
+        ['label' => 'Dự án', 'value' => (string) count($projects)],
     ];
 
     $learnerBadges = [
@@ -395,8 +390,10 @@ if ($isDatabaseMode) {
                 : learner_activity_category_label($canonicalCategory);
             $location = trim((string) ($entry['location_name'] ?? '')) ?: 'Chưa cập nhật';
             $cover = trim((string) ($entry['cover_image_url'] ?? ''));
-            if (str_contains($cover, '..') || preg_match('#\A(?:/app/learner/)?assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg)\z#i', $cover) !== 1) {
+            if (str_contains($cover, '..') || preg_match('#\A(?:/app/learner/)?(assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg))\z#i', $cover, $matches) !== 1) {
                 $cover = 'assets/activities/illustrations/hero-detail.svg';
+            } else {
+                $cover = is_file(dirname(__DIR__) . '/' . $matches[1]) ? $matches[1] : 'assets/activities/illustrations/hero-detail.svg';
             }
             $coverAlt = trim((string) ($entry['cover_image_alt'] ?? '')) ?: 'Ảnh hoạt động ' . $title;
 

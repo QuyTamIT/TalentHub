@@ -12,7 +12,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
 
 final class RoadmapRefinementPromptRegistry
 {
-    public const VERSION = 'learner-roadmap-refinement-1.1.0';
+    public const VERSION = 'learner-roadmap-refinement-1.2.0';
 
     public function create(RoadmapEditorDraft $draft, RecommendationInput $input, RecommendationContext $context): ProviderRequest
     {
@@ -41,6 +41,8 @@ final class RoadmapRefinementPromptRegistry
             'task' => 'refine_learner_roadmap',
             'prompt_version' => self::VERSION,
             'instructions' => [
+                ...\TalentHub\Learner\Ai\Grounding\GroundedProseGuard::instructions(),
+                'Biên tập như một giảng viên: làm rõ cách thực hiện, đầu ra có thể kiểm tra và hướng tự đánh giá, trong phạm vi ý tưởng và cấu trúc mà người học đã nhập.',
                 'Trả về duy nhất một JSON object hợp lệ theo output_schema, không kèm giải thích.',
                 'Sửa chính tả, dấu câu, ngữ pháp và cách trình bày tiếng Việt.',
                 'Diễn đạt nội dung rõ ràng, cụ thể, dễ thực hiện và phù hợp với giao diện.',
@@ -55,6 +57,7 @@ final class RoadmapRefinementPromptRegistry
             'draft_hash' => $draft->hash(),
             'draft' => $canonical,
             'evidence_guards' => $evidenceGuards,
+            'observed_skill_facts' => \TalentHub\Learner\Ai\Grounding\GroundedProseGuard::skillsFromInput($input),
             'output_schema' => $this->schema($canonical),
         ], $evidenceByReference);
     }

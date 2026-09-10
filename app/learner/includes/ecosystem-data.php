@@ -449,8 +449,9 @@ if (!function_exists('learner_ecosystem_opportunity')) {
 if (!function_exists('learner_ecosystem_partner_opportunities')) {
     function learner_ecosystem_partner_opportunities(string $partnerId, bool $activeOnly = false): array
     {
+        $studentId = learner_current_student_id();
         return \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::opportunities(
-            learner_ecosystem_repository()->opportunitiesForPartner($partnerId, $activeOnly)
+            learner_ecosystem_repository()->opportunitiesForPartner($partnerId, $activeOnly, $studentId !== '' ? $studentId : null)
         );
     }
 }
@@ -550,8 +551,9 @@ if (!function_exists('learner_ecosystem_schools')) {
 if (!function_exists('learner_ecosystem_opportunities')) {
     function learner_ecosystem_opportunities(): array
     {
+        $studentId = learner_current_student_id();
         return \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::opportunities(
-            learner_ecosystem_repository()->opportunities()
+            learner_ecosystem_repository()->opportunities($studentId !== '' ? $studentId : null)
         );
     }
 }
@@ -588,6 +590,37 @@ if (!function_exists('learner_ecosystem_applications')) {
         return \TalentHub\Learner\Data\ReadModel\ApplicationReadModel::applications(
             learner_application_repository()->forStudent(learner_current_student_id())
         );
+    }
+}
+
+if (!function_exists('learner_ecosystem_my_applications_summary')) {
+    function learner_ecosystem_my_applications_summary(): array
+    {
+        $applications = learner_ecosystem_applications();
+        $summary = [
+            'total' => count($applications),
+            'reviewing' => 0,
+            'interview' => 0,
+            'accepted' => 0,
+            'declined' => 0,
+            'withdrawn' => 0,
+            'items' => $applications,
+        ];
+        foreach ($applications as $app) {
+            $status = (string) ($app['status'] ?? '');
+            if ($status === 'submitted' || $status === 'reviewing') {
+                $summary['reviewing']++;
+            } elseif ($status === 'interview') {
+                $summary['interview']++;
+            } elseif ($status === 'accepted') {
+                $summary['accepted']++;
+            } elseif ($status === 'declined') {
+                $summary['declined']++;
+            } elseif ($status === 'withdrawn') {
+                $summary['withdrawn']++;
+            }
+        }
+        return $summary;
     }
 }
 
