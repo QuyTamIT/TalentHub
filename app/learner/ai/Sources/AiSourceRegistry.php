@@ -181,6 +181,32 @@ final class AiSourceRegistry
             },
         ));
         $this->register(new DatabaseLearnerAiExtendedSource(
+            'portfolio_feedback', 'portfolio-feedback-1.0.0', 'evaluation',
+            ['kind', 'status', 'feedback', 'reviewed_at', 'reviewedAt', 'skill_codes', 'skill_tags', 'updated_at', 'context_id'],
+            'portfolio_feedback_changed',
+            static function (string $studentId) use ($aggregateReader): array {
+                $aggregate = $aggregateReader($studentId);
+                $rows = is_array($aggregate['portfolio_feedback'] ?? null) ? $aggregate['portfolio_feedback'] : [];
+                $normalized = [];
+                foreach ($rows as $row) {
+                    if (!is_array($row)) {
+                        continue;
+                    }
+                    $id = trim((string) ($row['id'] ?? $row['source_id'] ?? ''));
+                    $status = strtolower(trim((string) ($row['status'] ?? '')));
+                    if ($id === '' || $status !== 'verified') {
+                        continue;
+                    }
+                    $normalized[] = [
+                        ...$row,
+                        'source_id' => $id,
+                        'updated_at' => $row['updated_at'] ?? $row['updatedAt'] ?? $row['reviewed_at'] ?? $row['reviewedAt'] ?? null,
+                    ];
+                }
+                return $normalized;
+            },
+        ));
+        $this->register(new DatabaseLearnerAiExtendedSource(
             'portfolio_skill', 'portfolio-skill-1.0.0', 'skills',
             ['code', 'name', 'category', 'source_type', 'verification_status', 'verified_at', 'skill_tags', 'skill_codes', 'kind', 'updated_at'],
             'portfolio_skill_changed',
@@ -251,9 +277,13 @@ final class AiSourceRegistry
         $this->registerAggregateSource($aggregateReader, 'mentor_evaluation', 'mentor-evaluation-1.0.0', 'evaluation', 'mentor_evaluation_changed', 'mentor_evaluations', [
             'activityId', 'activity_id', 'overallScore', 'overall_score', 'comment', 'status', 'publishedAt', 'published_at', 'version', 'skill_tags', 'skill_codes', 'skills', 'updatedAt', 'updated_at',
         ]);
+        $hasCanonicalEvaluations = isset($this->sources['evaluation']);
         $this->registerAggregateSource($aggregateReader, 'teacher_feedback', 'teacher-feedback-1.0.0', 'evaluation', 'teacher_feedback_changed', 'teacher_evaluations', [
             'activityId', 'activity_id', 'overallScore', 'overall_score', 'comment', 'status', 'publishedAt', 'published_at', 'version', 'skill_tags', 'skill_codes', 'skills', 'updatedAt', 'updated_at',
-        ], static function (array $aggregate): array {
+        ], static function (array $aggregate) use ($hasCanonicalEvaluations): array {
+            // Canonical source handles revisions/revocations; legacy duplicates
+            // must not resurrect a superseded teacher assessment.
+            if ($hasCanonicalEvaluations) return [];
             $rows = $aggregate['teacher_feedback'] ?? $aggregate['teacher_evaluations'] ?? [];
             return is_array($rows) ? $rows : [];
         });
@@ -305,8 +335,10 @@ final class AiSourceRegistry
     {
         $allowedScopes = $this->normalizeScopes($allowedScopes);
         $records = $this->readForStudent($studentId, $allowedScopes);
-        if ($roadmapOnly) {
-            $records = $this->latestAssessmentFamilies($records);
+        // History remains in the assessment repository, never in current AI input.
+        $records = $this->latestAssessmentFamilies($records);
+        if (in_array('skills', $allowedScopes, true)) {
+            $records = $this->currentScoredSkills($records);
         }
         $payload = ['sources' => array_map(static function (array $record): array {
             $copy = $record;
@@ -424,6 +456,7 @@ final class AiSourceRegistry
         if ($source instanceof PublishedEvaluationSource) {
             return self::legacyListAdapter($source, 'evaluation', 'evaluation', [
                 'overall_score', 'presentation_score', 'published_at', 'skill_tags', 'skill_codes', 'skills',
+                'context_type', 'context_id', 'updated_at', 'skill_scores', 'tags', 'feedback', 'revision',
             ], 'evaluation_id', 'published_at');
         }
         if ($source instanceof OpportunitySource) {
@@ -539,6 +572,74 @@ final class AiSourceRegistry
     }
 
     /** @param list<array<string,mixed>> $records @return list<array<string,mixed>> */
+    private function currentScoredSkills(array $records): array
+    {
+        $current = [];
+        $other = [];
+        foreach ($records as $record) {
+            if ($record['source_type'] === 'skill') {
+                $code = strtolower(trim((string) ($record['data']['code'] ?? '')));
+                if ($code === '') {
+                    continue;
+                }
+                $previous = $current[$code] ?? null;
+                if ($previous === null || $this->scoredSkillRank($record) > $this->scoredSkillRank($previous)) {
+                    $current[$code] = $record;
+                }
+            } else {
+                $other[] = $record;
+            }
+        }
+        foreach ($other as $record) {
+            if ($record['source_type'] !== 'evaluation') {
+                continue;
+            }
+            foreach ($record['data']['skill_scores'] ?? [] as $skill) {
+                $code = strtolower(trim((string) ($skill['code'] ?? '')));
+                $score = $skill['score'] ?? null;
+                if ($code === '' || !is_numeric($score) || $score < 0 || $score > 100 || ($skill['verification_status'] ?? '') !== 'verified') {
+                    continue;
+                }
+                $at = $record['data']['updated_at'] ?? $record['observed_at'];
+                if (!is_string($at) || trim($at) === '') {
+                    $at = $record['observed_at'];
+                }
+                $derived = [
+                    'source_type' => 'skill',
+                    'source_id' => $record['source_id'] . ':' . $code,
+                    'observed_at' => $at,
+                    'schema_version' => 'evaluation-skill-1.0.0',
+                    'consent_scope' => 'skills',
+                    'evidence_ref' => $record['evidence_ref'],
+                    'data' => [
+                        'code' => $code,
+                        'level_score' => (float) $score,
+                        'verification_status' => 'verified',
+                        'verified_at' => $record['observed_at'],
+                        'source_updated_at' => $at,
+                        'source_type' => 'published_evaluation',
+                        'evaluation_ref' => $record['evidence_ref'],
+                    ],
+                ];
+                $previous = $current[$code] ?? null;
+                if ($previous !== null && $this->scoredSkillRank($previous) > $this->scoredSkillRank($derived)) {
+                    continue;
+                }
+                $current[$code] = $derived;
+            }
+        }
+        ksort($current, SORT_STRING);
+        return [...$other, ...array_values($current)];
+    }
+
+    /** @param array<string,mixed> $record @return array{0:int,1:string,2:string} */
+    private function scoredSkillRank(array $record): array
+    {
+        $verified = ($record['data']['verification_status'] ?? '') === 'verified' ? 1 : 0;
+        return [$verified, (string) ($record['observed_at'] ?? ''), (string) ($record['source_id'] ?? '')];
+    }
+
+    /** @param list<array<string,mixed>> $records @return list<array<string,mixed>> */
     private function latestAssessmentFamilies(array $records): array
     {
         $latest = [];
@@ -581,6 +682,7 @@ final class AiSourceRegistry
             'opportunity', 'catalog' => 'opportunities',
             'internship' => 'internships',
             'portfolio_skill' => 'portfolio_skills',
+            'portfolio_feedback' => 'portfolio_feedback',
             default => str_ends_with($sourceType, 's') ? $sourceType : $sourceType . 's',
         };
     }

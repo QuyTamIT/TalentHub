@@ -8,7 +8,7 @@ use TalentHub\Learner\Ai\Matching\{OpportunityCandidate,CareerRoleBenchmark};
 /** Persist everything that can change matching, including unselected offers. */
 final class MatchingInputSnapshot
 {
-    public static function build(RecommendationInput $input, array $candidates, array $roles = []): RecommendationInput
+    public static function build(RecommendationInput $input, array $candidates, array $roles = [], ?string $consentHash = null): RecommendationInput
     {
         $catalog = [];
         foreach ($candidates as $candidate) {
@@ -27,8 +27,9 @@ final class MatchingInputSnapshot
         // RecommendationInput deliberately strips private-looking keys such
         // as provider_name. A digest of the complete public candidate input
         // still detects edits to these facts without weakening that filter.
-        $payload['matching_context'] = ['version'=>'matching-input-1',
+        $payload['matching_context'] = ['version'=>'matching-input-2',
             'catalog_digest'=>self::digest($catalog), 'benchmark_digest'=>self::digest($benchmarks),
+            'consent_digest'=>is_string($consentHash) ? $consentHash : '',
             'catalog'=>$catalog, 'benchmarks'=>$benchmarks];
         return new RecommendationInput($payload, $input->sourceUpdatedAt(), $input->qualityFlags(), $input->evidenceReferences());
     }
@@ -56,6 +57,7 @@ final class MatchingInputSnapshot
     public static function canReuse(array $run, RecommendationInput $input): bool
     {
         return ($run['status'] ?? null) === 'completed'
+            && ($run['catalogFiltered'] ?? false) !== true
             && ($run['generationCurrent'] ?? false) === true
             && is_string($run['inputHash'] ?? null)
             && hash_equals($input->contentHash(), $run['inputHash']);

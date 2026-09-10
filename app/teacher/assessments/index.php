@@ -75,9 +75,12 @@ $user = PortalGuard::requireRole(RoleCodes::TEACHER, '/app/teacher/assessments/i
 $session = new SessionManager(array_merge(require dirname(__DIR__, 3) . '/config/session.php', ['name' => SessionManager::SESSION_TEACHER]));
 $session->start();
 
-if (!isset($_GET['mode']) || $_GET['mode'] !== 'activity') {
-    header('Location: ' . app_href('/app/teacher/grading.php'));
-    exit;
+$modeInput = $_SERVER['REQUEST_METHOD'] === 'POST' ? ($_POST['mode'] ?? 'class') : ($_GET['mode'] ?? 'class');
+$mode = is_string($modeInput) ? $modeInput : '';
+$modeLabels = ['class'=>'Lớp học', 'project'=>'Dự án hướng dẫn', 'activity'=>'Hoạt động'];
+if (!isset($modeLabels[$mode])) {
+    http_response_code(422);
+    exit('Ngữ cảnh chấm điểm không hợp lệ.');
 }
 
 $pageTitle = 'Chấm điểm';
@@ -107,23 +110,25 @@ $requestId = RequestId::make(null);
 $unexpectedException = null;
 $data = [
     'teacher' => [],
-    'activities' => [],
-    'selectedActivity' => null,
+    'contexts' => [],
+    'selectedContext' => null,
     'students' => [],
     'criteria' => [],
 ];
 
-$selectedActivityId = isset($_GET['activityId']) ? trim((string) $_GET['activityId']) : null;
+$contextField = \TalentHub\Modules\Teacher\Repository\TeacherAssessmentScope::column($mode);
+$contextInput = $_GET['contextId'] ?? $_GET[$contextField] ?? null;
+$selectedContextId = is_string($contextInput) ? trim($contextInput) : null;
 $search = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
 
 try {
     $stage = 'connection';
     $pdo = (new Connection(require dirname(__DIR__, 3) . '/config/database.php'))->connect();
     $permissions = new PermissionService($pdo);
-    $stage = 'permission:activity.read_managed';
-    $permissions->require($user['id'], 'activity.read_managed');
-    $stage = 'permission:activity_registration.read_managed';
-    $permissions->require($user['id'], 'activity_registration.read_managed');
+    if ($mode === 'activity') {
+        $permissions->require($user['id'], 'activity.read_managed');
+        $permissions->require($user['id'], 'activity_registration.read_managed');
+    }
     $stage = 'permission:assessment.read_managed';
     $permissions->require($user['id'], 'assessment.read_managed');
 
@@ -131,17 +136,17 @@ try {
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $saveStarted = true;
-        $selectedActivityId = isset($_POST['activityId']) ? trim((string) $_POST['activityId']) : null;
+        $selectedContextId = is_string($_POST['contextId'] ?? null) ? trim($_POST['contextId']) : null;
         $search = isset($_POST['q']) ? trim((string) $_POST['q']) : '';
         $stage = 'save:csrf';
         $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
         $stage = 'save:permission';
         $permissions->require($user['id'], 'assessment.update_managed');
         $stage = 'save:assessment';
-        $savedActivityId = $service->save($user['id'], $_POST, $requestId);
+        $savedContextId = $service->save($user['id'], $_POST, $requestId);
 
         $_SESSION['teacherGradingFlash'] = 'Đã lưu đánh giá cho học viên.';
-        $redirectQuery = ['activityId' => $savedActivityId];
+        $redirectQuery = ['mode'=>$mode, 'contextId' => $savedContextId];
         if (isset($_POST['q']) && trim((string) $_POST['q']) !== '') {
             $redirectQuery['q'] = trim((string) $_POST['q']);
         }
@@ -150,16 +155,18 @@ try {
     }
 
     $stage = 'load:page_data';
-    $data = $service->pageData($user['id'], $selectedActivityId, $search);
-    if (($selectedActivityId === null || $selectedActivityId === '') && $data['activities'] !== []) {
-        $selectedActivityId = (string) $data['activities'][0]['id'];
+    $data = $service->pageData($user['id'], $selectedContextId, $search, $mode);
+    if (($selectedContextId === null || $selectedContextId === '') && $data['contexts'] !== []) {
+        $selectedContextId = (string) $data['contexts'][0]['id'];
         $stage = 'load:selected_page_data';
-        $data = $service->pageData($user['id'], $selectedActivityId, $search);
+        $data = $service->pageData($user['id'], $selectedContextId, $search, $mode);
     }
     $dataLoaded = true;
 } catch (TeacherGradingConflictException) {
+    http_response_code(409);
     $error = 'Đánh giá này vừa được cập nhật ở nơi khác. Vui lòng tải lại trang và thử lại.';
 } catch (ApiException $exception) {
+    http_response_code($exception->status);
     $error = $exception->getMessage();
 } catch (Throwable $exception) {
     $unexpectedException = $exception;
@@ -179,7 +186,7 @@ if ($unexpectedException !== null) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $service !== null && ($error !== null || $saveError !== null)) {
     try {
         $stage = 'load:post_error_reload';
-        $data = $service->pageData($user['id'], $selectedActivityId, $search);
+        $data = $service->pageData($user['id'], $selectedContextId, $search, $mode);
         $dataLoaded = true;
     } catch (Throwable $exception) {
         $unexpectedLoadError = true;
@@ -204,6 +211,9 @@ $teacherInfo = [
 
 $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 $activityStatusLabels = [
+    'active' => 'Đang hoạt động',
+    'in_progress' => 'Đang triển khai',
+    'revoked' => 'Đã thu hồi',
     'draft' => 'Bản nháp',
     'published' => 'Đã công bố',
     'ongoing' => 'Đang diễn ra',
@@ -221,9 +231,9 @@ $assessmentStatusLabels = [
 ];
 
 $pageState = teacherGradingPageState($dataLoaded, $unexpectedLoadError, $data);
-$retryParams = [];
-if ($selectedActivityId !== null && $selectedActivityId !== '') {
-    $retryParams['activityId'] = $selectedActivityId;
+$retryParams = ['mode'=>$mode];
+if ($selectedContextId !== null && $selectedContextId !== '') {
+    $retryParams['contextId'] = $selectedContextId;
 }
 if ($search !== '') {
     $retryParams['q'] = $search;
@@ -264,6 +274,14 @@ function teacherGradingInitials(string $name): string
     <link rel="stylesheet" href="../../../assets/css/polish.css">
     <link rel="stylesheet" href="../../../assets/css/teacher.css">
     <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
+    <style>
+        .teacher-assessment-tabs{display:flex;gap:12px;flex-wrap:wrap;margin:20px 0}
+        .teacher-assessment-readonly{padding:20px;overflow-wrap:anywhere}
+        .teacher-assessment-readonly dl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px}
+        .teacher-assessment-readonly dd{margin:0}
+        .teacher-assessment-comment{white-space:pre-wrap;overflow-wrap:anywhere}
+        @media(max-width:600px){.teacher-assessment-tabs a{flex:1 1 100%}.teacher-grading-form__actions{flex-wrap:wrap}.teacher-grading-form__actions button{width:100%}}
+    </style>
 </head>
 <body class="teacher-dashboard teacher-grading-page">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
@@ -280,16 +298,23 @@ function teacherGradingInitials(string $name): string
                             <div class="teacher-grading-intro__mark" aria-hidden="true">✦</div>
                             <div>
                                 <span class="teacher-section-box__eyebrow">ĐÁNH GIÁ HỌC VIÊN</span>
-                                <h2 class="teacher-grading-intro__title">Chấm điểm theo hoạt động</h2>
-                                <p class="teacher-grading-intro__description">Chọn hoạt động do bạn phụ trách để xem học viên đã đăng ký và cập nhật đánh giá.</p>
+                                <h2 class="teacher-grading-intro__title">Chấm Rubric năng lực</h2>
+                                <p class="teacher-grading-intro__description">Chọn lớp, dự án hoặc hoạt động được phân công để đánh giá học viên.</p>
                             </div>
                         </div>
                         <div class="teacher-grading-intro__aside">
-                            <span class="teacher-chip teacher-chip--primary">Phạm vi: hoạt động của tôi</span>
+                            <span class="teacher-chip teacher-chip--primary"><?= $escape($modeLabels[$mode]); ?></span>
                             <span class="teacher-grading-intro__tip">Mỗi nhận xét là một bước tiến</span>
                         </div>
                     </section>
 
+                    <nav class="teacher-assessment-tabs" aria-label="Ngữ cảnh đánh giá">
+                        <?php foreach ($modeLabels as $tabMode=>$tabLabel): ?>
+                            <a class="teacher-grading-button <?= $mode===$tabMode ? 'teacher-grading-button--primary' : 'teacher-grading-button--secondary'; ?>"
+                               href="<?= $escape(app_href('/app/teacher/assessments/index.php').'?mode='.$tabMode); ?>"
+                               <?= $mode===$tabMode ? 'aria-current="page"' : ''; ?>><?= $escape($tabLabel); ?></a>
+                        <?php endforeach; ?>
+                    </nav>
                     <?php if ($flash): ?>
                         <div class="teacher-grading-flash teacher-grading-flash--success" role="status"><?= $escape($flash); ?></div>
                     <?php endif; ?>
@@ -309,17 +334,18 @@ function teacherGradingInitials(string $name): string
                         <div class="teacher-grading-toolbar__header">
                             <div>
                                 <span class="teacher-section-box__eyebrow">KHÔNG GIAN LÀM VIỆC</span>
-                                <p class="teacher-grading-toolbar__title">Chọn hoạt động</p>
+                                <p class="teacher-grading-toolbar__title">Chọn <?= $escape(mb_strtolower($modeLabels[$mode])); ?></p>
                             </div>
-                            <span class="teacher-grading-toolbar__note">Lọc nhanh theo hoạt động hoặc tên học viên</span>
+                            <span class="teacher-grading-toolbar__note">Chọn ngữ cảnh và tìm theo tên học viên</span>
                         </div>
                         <form method="get" class="teacher-grading-toolbar__form">
+                            <input type="hidden" name="mode" value="<?= $escape($mode); ?>">
                             <label class="teacher-grading-field teacher-grading-field--activity">
-                                <span>Hoạt động phụ trách</span>
-                                <select name="activityId" class="typeui-select typeui-select--compact" onchange="this.form.submit()">
-                                    <option value="">Chọn hoạt động</option>
-                                    <?php foreach ($data['activities'] as $activity): ?>
-                                        <option value="<?= $escape($activity['id']); ?>" <?= (string) ($data['selectedActivity']['id'] ?? '') === (string) $activity['id'] ? 'selected' : ''; ?>>
+                                <span><?= $escape($modeLabels[$mode]); ?></span>
+                                <select name="contextId" class="typeui-select typeui-select--compact" onchange="this.form.submit()">
+                                    <option value="">Chọn <?= $escape(mb_strtolower($modeLabels[$mode])); ?></option>
+                                    <?php foreach ($data['contexts'] as $activity): ?>
+                                        <option value="<?= $escape($activity['id']); ?>" <?= (string) ($data['selectedContext']['id'] ?? '') === (string) $activity['id'] ? 'selected' : ''; ?>>
                                             <?= $escape($activity['title']); ?> · <?= $escape($activityStatusLabels[$activity['status']] ?? $activity['status']); ?>
                                         </option>
                                     <?php endforeach; ?>
@@ -333,16 +359,15 @@ function teacherGradingInitials(string $name): string
                         </form>
                     </section>
 
-                    <?php if ($data['selectedActivity'] !== null): ?>
+                    <?php if ($data['selectedContext'] !== null): ?>
                         <section class="teacher-section-box teacher-grading-activity-summary">
                             <div class="teacher-grading-activity-summary__identity">
                                 <div class="teacher-grading-activity-summary__icon" aria-hidden="true">✦</div>
                                 <div>
-                                    <span class="teacher-section-box__eyebrow">HOẠT ĐỘNG ĐANG CHỌN</span>
-                                    <h2 class="teacher-grading-activity-summary__title"><?= $escape($data['selectedActivity']['title']); ?></h2>
+                                    <span class="teacher-section-box__eyebrow">NGỮ CẢNH ĐANG CHỌN</span>
+                                    <h2 class="teacher-grading-activity-summary__title"><?= $escape($data['selectedContext']['title']); ?></h2>
                                     <div class="teacher-grading-activity-summary__meta">
-                                        <span><?= $escape($data['selectedActivity']['category']); ?></span>
-                                        <span class="teacher-status-pill teacher-status-pill--info"><?= $escape($activityStatusLabels[$data['selectedActivity']['status']] ?? $data['selectedActivity']['status']); ?></span>
+                                        <span class="teacher-status-pill teacher-status-pill--info"><?= $escape($activityStatusLabels[$data['selectedContext']['status']] ?? $data['selectedContext']['status']); ?></span>
                                     </div>
                                 </div>
                             </div>
@@ -351,10 +376,7 @@ function teacherGradingInitials(string $name): string
                                     <strong><?= number_format(count($data['students'])); ?></strong>
                                     <span>học viên hiển thị</span>
                                 </div>
-                                <div class="teacher-grading-activity-summary__stat">
-                                    <strong><?= $escape($data['selectedActivity']['capacity']); ?></strong>
-                                    <span>sức chứa</span>
-                                </div>
+
                             </div>
                         </section>
 
@@ -362,7 +384,7 @@ function teacherGradingInitials(string $name): string
                             <div class="teacher-empty-state teacher-grading-empty">
                                 <div class="teacher-empty-state__icon" aria-hidden="true">✓</div>
                                 <h3 class="teacher-empty-state__title">Chưa có học viên phù hợp</h3>
-                                <p class="teacher-empty-state__desc">Hoạt động này chưa có đăng ký ở trạng thái approved hoặc attended, hoặc bộ lọc không có kết quả.</p>
+                                <p class="teacher-empty-state__desc">Chưa có học viên đủ điều kiện trong ngữ cảnh đã chọn, hoặc bộ lọc không có kết quả.</p>
                             </div>
                         <?php else: ?>
                             <div class="teacher-grading-list">
@@ -377,7 +399,7 @@ function teacherGradingInitials(string $name): string
                                                 <div>
                                                     <h3 class="teacher-grading-card__title"><?= $escape($student['fullName']); ?></h3>
                                                     <p class="teacher-grading-card__meta"><?= $escape($student['email']); ?></p>
-                                                    <span class="teacher-grading-card__registration">Đăng ký: <?= $escape($registrationStatusLabels[$student['registrationStatus']] ?? $student['registrationStatus']); ?></span>
+
                                                 </div>
                                             </div>
                                             <span class="teacher-status-pill <?= $assessmentStatus === 'published' ? 'teacher-status-pill--positive' : ($assessmentStatus === 'draft' ? 'teacher-status-pill--warning' : ''); ?>">
@@ -385,77 +407,22 @@ function teacherGradingInitials(string $name): string
                                             </span>
                                         </div>
 
-                                        <form method="post" class="teacher-grading-form">
-                                            <input type="hidden" name="csrfToken" value="<?= $escape($session->csrfToken()); ?>">
-                                            <input type="hidden" name="activityId" value="<?= $escape($data['selectedActivity']['id']); ?>">
-                                            <input type="hidden" name="studentId" value="<?= $escape($student['studentId']); ?>">
-                                            <input type="hidden" name="assessmentId" value="<?= $escape($student['assessmentId'] ?? ''); ?>">
-                                            <input type="hidden" name="expectedVersion" value="<?= $escape($student['assessmentVersion'] ?? 0); ?>">
-                                            <input type="hidden" name="q" value="<?= $escape($search); ?>">
-
-                                            <div class="teacher-grading-form__heading">
-                                                <div>
-                                                    <span class="teacher-section-box__eyebrow">PHIẾU ĐÁNH GIÁ</span>
-                                                    <strong>Ghi nhận tiến bộ của học viên</strong>
-                                                </div>
-                                                <span>Điền những gì bạn quan sát được</span>
-                                            </div>
-                                            <div class="teacher-grading-form__topline">
-                                                <label class="teacher-grading-field">
-                                                    <span>Trạng thái đánh giá</span>
-                                                    <select name="assessmentStatus" class="typeui-select typeui-select--compact typeui-select--status" required>
-                                                        <?php foreach ($assessmentStatusLabels as $status => $label): ?>
-                                                            <option value="<?= $escape($status); ?>" <?= ($assessmentStatus ?? 'draft') === $status ? 'selected' : ''; ?>><?= $escape($label); ?></option>
-                                                        <?php endforeach; ?>
-                                                    </select>
-                                                </label>
-                                                <label class="teacher-grading-field">
-                                                    <span>Điểm tổng kết / 100</span>
-                                                    <input type="number" name="overallScore" min="0" max="100" step="0.01" value="<?= $escape($student['overallScore'] ?? ''); ?>">
-                                                </label>
-                                            </div>
-
-                                            <?php if ($data['criteria'] !== []): ?>
-                                                <fieldset class="teacher-grading-criteria">
-                                                    <legend>Điểm tiêu chí</legend>
-                                                    <div class="teacher-grading-criteria__grid">
-                                                        <?php foreach ($data['criteria'] as $criterion): ?>
-                                                            <label class="teacher-grading-field">
-                                                                <span><?= $escape($criterion['name']); ?> (<?= $escape($criterion['minScore']); ?>–<?= $escape($criterion['maxScore']); ?>)</span>
-                                                                <input type="number" name="criteria[<?= $escape($criterion['id']); ?>]" min="<?= $escape($criterion['minScore']); ?>" max="<?= $escape($criterion['maxScore']); ?>" step="0.01" value="<?= $escape($student['criteriaScores'][$criterion['id']] ?? ''); ?>">
-                                                            </label>
-                                                        <?php endforeach; ?>
-                                                    </div>
-                                                </fieldset>
-                                            <?php endif; ?>
-
-                                            <label class="teacher-grading-field teacher-grading-field--comment">
-                                                <span>Nhận xét</span>
-                                                <textarea name="comment" rows="3" maxlength="1000" placeholder="Nhận xét tiến bộ, điểm mạnh hoặc hướng cải thiện"><?= $escape($student['comment'] ?? ''); ?></textarea>
-                                            </label>
-
-                                            <div class="teacher-grading-form__actions">
-                                                <span class="teacher-grading-form__updated">
-                                                    <?= $student['assessmentUpdatedAt'] ? 'Cập nhật ' . $escape($student['assessmentUpdatedAt']) : 'Chưa có lần chấm'; ?>
-                                                </span>
-                                                <button type="submit" class="teacher-grading-button teacher-grading-button--primary">Lưu đánh giá</button>
-                                            </div>
-                                        </form>
+                                        <?php require __DIR__ . '/rubric-form.php'; ?>
                                     </article>
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
-                    <?php elseif ($data['activities'] === []): ?>
+                    <?php elseif ($data['contexts'] === []): ?>
                         <div class="teacher-empty-state teacher-grading-empty">
                             <div class="teacher-empty-state__icon" aria-hidden="true">−</div>
-                            <h3 class="teacher-empty-state__title">Chưa có hoạt động phụ trách</h3>
-                            <p class="teacher-empty-state__desc">Các hoạt động do bạn phụ trách sẽ xuất hiện tại đây khi sẵn sàng để đánh giá.</p>
+                            <h3 class="teacher-empty-state__title">Chưa có ngữ cảnh được phân công</h3>
+                            <p class="teacher-empty-state__desc">Chỉ lớp được phân công cùng trường, dự án bạn làm mentor hoặc hoạt động của bạn mới xuất hiện tại đây.</p>
                         </div>
                     <?php else: ?>
                         <div class="teacher-empty-state teacher-grading-empty">
                             <div class="teacher-empty-state__icon" aria-hidden="true">↗</div>
                             <h3 class="teacher-empty-state__title">Chọn một hoạt động để bắt đầu</h3>
-                            <p class="teacher-empty-state__desc">Danh sách chỉ bao gồm hoạt động do giáo viên hiện tại phụ trách.</p>
+                            <p class="teacher-empty-state__desc">Danh sách chỉ bao gồm ngữ cảnh được phân công cho giáo viên hiện tại.</p>
                         </div>
                     <?php endif; ?>
                     <?php endif; ?>

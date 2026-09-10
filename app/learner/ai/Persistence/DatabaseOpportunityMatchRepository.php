@@ -83,7 +83,6 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
                 $geminiScore = filter_var($item['geminiScore'] ?? null, FILTER_VALIDATE_INT);
                 $matchScore = filter_var($item['matchScore'] ?? null, FILTER_VALIDATE_INT);
                 if ($catalogId === ''
-                    || !isset($active[$catalogId])
                     || isset($catalogIds[$catalogId])
                     || $rank === false
                     || $structuredScore === false || $structuredScore < 0 || $structuredScore > 100
@@ -102,6 +101,10 @@ final class DatabaseOpportunityMatchRepository implements OpportunityMatchReposi
                 $valid = false;
             }
             if ($valid) {
+                $originalCount = count($run['items']);
+                $run['items'] = array_values(array_filter($run['items'], static fn (array $item): bool => isset($active[$item['catalogId']])));
+                if ($originalCount > 0 && $run['items'] === []) continue;
+                $run['catalogFiltered'] = count($run['items']) !== $originalCount;
                 return $run;
             }
         }

@@ -32,7 +32,8 @@ $talentPassport = $GLOBALS['learner_talent_passport'] ?? [];
 $overallScore = 0.0;
 $hasOverallScore = false;
 $gradeClassification = 'Chưa xếp loại';
-$rankingPercentile = 'Đang cập nhật';
+$rankingPercentile = 'Điểm năng lực trên thang 10';
+$evalContext = '';
 $evalComment = '';
 $evalReviewer = 'Giảng viên hướng dẫn';
 $evalOrg = !empty($studentSchool) && $studentSchool !== 'Chưa cập nhật trường' ? $studentSchool : 'Đơn vị đào tạo';
@@ -40,12 +41,14 @@ $evalOrg = !empty($studentSchool) && $studentSchool !== 'Chưa cập nhật trư
 if (!empty($talentPassport['teacher_evaluations'][0])) {
     $firstEval = $talentPassport['teacher_evaluations'][0];
     if (array_key_exists('overall_score', $firstEval) || array_key_exists('overallScore', $firstEval)) {
-        $overallScore = (float) ($firstEval['overall_score'] ?? $firstEval['overallScore']);
-        $hasOverallScore = true;
+        $rawOverallScore = $firstEval['overall_score'] ?? $firstEval['overallScore'] ?? null;
+        $hasOverallScore = $rawOverallScore !== null;
+        $overallScore = (float) $rawOverallScore;
     }
     if (!empty($firstEval['classification'])) {
         $gradeClassification = (string) $firstEval['classification'];
     }
+    $evalContext = trim(($firstEval['context_label'] ?? '') . ' · ' . ($firstEval['context_title'] ?? ''), " ·");
     if (!empty($firstEval['comment'])) {
         $evalComment = (string) $firstEval['comment'];
     }
@@ -1276,9 +1279,9 @@ if ($professionalSummary === '') {
                             <button class="learner-btn learner-btn--outline" id="btn-copy-passport-link" type="button" style="display: inline-flex; align-items: center; gap: 0.5rem;">
                                 <?= learner_icon('share', 16); ?> Chia sẻ liên kết
                             </button>
-                            <button class="learner-btn learner-btn--primary" id="btn-print-passport" type="button" style="background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%); color: #FFFFFF; font-weight: 800; display: inline-flex; align-items: center; gap: 0.55rem; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);">
-                                <?= learner_icon('printer', 18); ?> In / Xuất File PDF
-                            </button>
+                            <a class="learner-btn learner-btn--primary" href="talent-passport-cv.php" style="background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%); color: #FFFFFF; font-weight: 800; display: inline-flex; align-items: center; gap: 0.55rem; text-decoration: none; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);" title="Xem trước và xuất bản CV chuẩn 1 trang A4">
+                                <?= learner_icon('file-text', 18); ?> Xuất CV A4
+                            </a>
                         </div>
                     </div>
 
@@ -1360,8 +1363,8 @@ if ($professionalSummary === '') {
                                     <?php else: ?>
                                         <div class="passport-score-card">
                                             <div class="passport-score-main">
-                                                <span class="passport-score-number"><?= (int)$overallScore; ?></span>
-                                                <span class="passport-score-scale">THANG ĐIỂM 100</span>
+                                                <span class="passport-score-number"><?= learner_escape(\TalentHub\Support\CompetencyScore::display($overallScore)); ?></span>
+                                                <span class="passport-score-scale">THANG ĐIỂM 10</span>
                                             </div>
                                             <div class="passport-score-badge"><?= learner_escape($gradeClassification); ?> • <?= learner_escape($rankingPercentile); ?></div>
                                             <p class="passport-score-hint">Điểm và xếp loại lấy từ đánh giá đã được ghi nhận trong tài khoản TalentHub.</p>
@@ -1591,6 +1594,7 @@ if ($professionalSummary === '') {
                                         <p class="passport-empty-state">Chưa có nhận xét từ giảng viên được ghi nhận.</p>
                                     <?php else: ?>
                                         <div class="passport-endorsement-box">
+                                            <p><?= learner_escape($evalContext); ?></p>
                                             <p class="passport-endorsement-text">
                                                 "<?= learner_escape($evalComment); ?>"
                                             </p>

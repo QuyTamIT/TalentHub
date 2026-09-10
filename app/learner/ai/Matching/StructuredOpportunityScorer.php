@@ -16,8 +16,6 @@ use DomainException;
  */
 final class StructuredOpportunityScorer
 {
-    private const MANDATORY_MINIMUM_SCORE = 50;
-
     private const DIFFICULTY_READINESS = [
         '' => 0,
         'introductory' => 0,
@@ -94,7 +92,7 @@ final class StructuredOpportunityScorer
 
     private function experienceRelevance(LearnerOpportunityProfile $profile, OpportunityCandidate $candidate): int
     {
-        $experienceTags = $profile->experienceTags();
+        $experienceTags = $profile->confirmedExperienceTags();
         if ($experienceTags === []) {
             return 0;
         }
@@ -109,47 +107,24 @@ final class StructuredOpportunityScorer
         return self::capProportion($overlap / count($requiredCodes), OpportunityScore::MAX['experience_relevance']);
     }
 
+    // Retain the legacy response key, but score current requirement readiness.
+    // Learning outcomes cannot turn a missing skill into a reason to recommend.
     private function growthPotential(LearnerOpportunityProfile $profile, OpportunityCandidate $candidate): int
     {
         $required = $candidate->requiredSkills();
         if ($required === []) {
             return 0;
         }
-        $profileSkills = $profile->skills();
-        $outcomeCodes = [];
-        foreach ($candidate->learningOutcomes() as $outcome) {
-            $outcomeCodes[] = $outcome['code'];
-        }
-
-        $missing = [];
-        $hasMandatoryMissing = false;
+        $attainment = 0.0;
         foreach ($required as $skill) {
-            $score = $profileSkills[$skill['code']] ?? null;
-            if ($skill['minimum_score'] <= 0 || $score === null || $score < $skill['minimum_score']) {
-                $missing[] = $skill;
-                if (($skill['minimum_score'] <= 0 || $skill['minimum_score'] >= self::MANDATORY_MINIMUM_SCORE)
-                    && !in_array($skill['code'], $outcomeCodes, true)) {
-                    $hasMandatoryMissing = true;
-                }
+            $current = $profile->skillScore($skill['code']);
+            $target = $skill['minimum_score'];
+            if ($target > 0 && $current !== null) {
+                $attainment += min($current / $target, 1.0);
             }
         }
-
-        if ($missing === []) {
-            return OpportunityScore::MAX['growth_potential'];
-        }
-        if ($hasMandatoryMissing) {
-            return 0;
-        }
-        $allCovered = true;
-        foreach ($missing as $skill) {
-            if (!in_array($skill['code'], $outcomeCodes, true)) {
-                $allCovered = false;
-                break;
-            }
-        }
-        return $allCovered ? OpportunityScore::MAX['growth_potential'] : 0;
+        return self::capProportion($attainment / count($required), OpportunityScore::MAX['growth_potential']);
     }
-
     private function feasibility(LearnerOpportunityProfile $profile, OpportunityCandidate $candidate): int
     {
         $payload = $candidate->providerPayload();

@@ -21,7 +21,7 @@ Thứ tự ưu tiên nền tảng giữ theo kế hoạch ban đầu; lịch s�
 
 | Ưu tiên | Vấn đề | Trạng thái hiện tại | Còn làm / điều kiện đóng | Kế hoạch |
 |---|---|---|---|---|
-| 1 — Kiến trúc/CSDL | **#01 — Tách Rubric khỏi Workshop QR** | **Đã làm một phần — chưa đóng** | Migration context còn pending; hoàn thiện UI/chọn lớp-dự án và publish bên Giảng viên; kiểm thử toàn luồng. | [Chi tiết #01](plans/plan-issue-01.md) · [Bàn giao Giảng viên](plans/handoff-issue-01-teacher.md) |
+| 1 — Kiến trúc/CSDL | **#01 — Tách Rubric khỏi Workshop QR** | **Đã tích hợp code, migration local và kiểm thử liên thông** | 144 kiểm tra MySQL và Chromium/HTTP PASS. Cần phân công lớp thật trước khi chấm theo lớp; UAT tài khoản thật chưa thực hiện. | [Chi tiết #01](plans/plan-issue-01.md) · [Kết quả tích hợp](plans/report-2026-09-09-issue01-integration.md) |
 | 2 — Tiến độ | **#03 — Bộ lọc Hệ sinh thái & Dự án** | **Đã triển khai; kiểm thử UI phạm vi đã qua** | Giữ kiểm thử hồi quy; cần khôi phục hai test đăng ký dự án còn thiếu trước khi khẳng định toàn bộ luồng đăng ký an toàn. | [Chi tiết #03](plans/plan-issue-03.md) |
 | 2 — Tiến độ | **#06 — Theo dõi đơn ứng tuyển** | **Đã triển khai; kiểm thử UI phạm vi đã qua** | Test thông báo nghiệp vụ cũ đang lỗi fixture, cần sửa và chạy lại; không coi cả suite tuyển dụng đã xanh. | [Chi tiết #06](plans/plan-issue-06.md) |
 | 2 — Tiến độ | **#07 — Thực tập trên Profile & Nộp báo cáo dự án** | **Đã hoàn tất kiểm thử & code (100% PASS); Migration 021 sẵn sàng** | Toàn bộ luồng Sinh viên nộp → Giảng viên duyệt → Profile/Passport/CV đã đạt; sẵn sàng khi DB chạy migration 021. | [Chi tiết #07](plans/plan-issue-07.md) · [Bàn giao Giảng viên](plans/handoff-issue-07-teacher.md) |
@@ -32,21 +32,22 @@ Thứ tự ưu tiên nền tảng giữ theo kế hoạch ban đầu; lịch s�
 
 ## #01 — Tách Rubric khỏi Workshop QR
 
-**Trạng thái: đã triển khai một phần; chưa hoàn thành toàn luồng.**
+**Trạng thái: đã tích hợp chọn lọc 588f59c + 8ba7d10 vào feature/student-clean, áp dụng migration local và kiểm thử liên thông ngày 2026-09-09.**
 
 Đã làm:
 
-- Có migration `018_decouple_competency_assessments.php`: context lớp/dự án, activity nullable và xử lý ràng buộc attendance.
-- `TeacherGradingService` / `TeacherGradingRepository` nhận context, kiểm tra lớp/mentor và có đường lưu không yêu cầu QR.
-- Learner đọc/hiển thị context ở `evaluation.php` và `talent-passport.php`.
-- Có `tests/learner_competency_assessment_context_test.php`; ghi nhận trước đây mới xác nhận kiểm tra diff, chưa có bằng chứng đầy đủ PHP/runtime của issue này.
+- Main migration `20260909000100_decouple_competency_assessments.php` đã áp dụng; learner 018 được đối soát với checksum gốc và ghi rõ được thay thế, không chạy SQL ALTER trùng. Lệnh riêng `php bin/issue01-migrate.php preflight|apply` chỉ xử lý #01.
+- Teacher có chọn lớp được phân công/dự án mentor/hoạt động, chấm tiêu chí, lưu nháp và công bố; context đi qua redirect, audit và thông báo. Trang chấm trực tiếp `grading.php` đã chuyển hướng 303 sang Rubric, kể cả POST cũ.
+- Đã sửa quyền khác trường ở danh sách và ghi dữ liệu; dự án yêu cầu membership active. Published bất biến, kiểm tra version và rollback khi ghi thông báo/outbox lỗi.
+- Learner chỉ đọc published có timestamp, hiển thị tên context/nhận xét/tiêu chí, điểm tổng lưu /100 và hiển thị /10, không bịa điểm khi thiếu.
+- MySQL cô lập **144 kiểm tra PASS**; Chromium với PHP/SQL thật **PASS** lớp/dự án không QR → nháp ẩn → công bố → Learner thấy điểm/context/nhận xét, CSRF, sai role, bất biến và thông báo không trùng.
+- Kiểm thử migration riêng PASS selective apply, idempotency, checksum và từ chối drift. Sau apply local, đối chiếu xác nhận toàn bộ bản ghi `assessments` và `assessment_scores` cũ được giữ nguyên.
 
 Cần làm tiếp:
 
-- [ ] Đối chiếu schema thực tế rồi áp dụng migration context an toàn; sổ migration hiện vẫn **PENDING**. Không suy ra schema đầy đủ chỉ vì migration evidence khác đã applied.
-- [ ] Bên Giảng viên: bổ sung chọn lớp/dự án và danh sách sinh viên đủ điều kiện trong `app/teacher/assessments/index.php`.
-- [ ] Nối `classId`/`projectId` xuyên suốt draft/save/publish/redirect/audit; kiểm tra cùng trường, lớp phụ trách và mentor ở cả read/write.
-- [ ] Test chấm không có QR, sai mentor/trái trường, tính bất biến bản publish và điểm/nhận xét/context trên Learner.
+- [x] Preflight, migration local, chọn lớp/dự án, context và quyền read/write, kiểm thử chấm không QR và bất biến.
+- [ ] Nhà trường phân công lớp thật vào `teacher_class_assignments` trước khi chấm theo lớp. Bảng hiện có 0 phân công; không tự cấp quyền cho toàn bộ giảng viên cùng trường. Dự án dùng mentor hiện có.
+- [ ] UAT đăng nhập tài khoản thật trên môi trường triển khai; các kiểm thử liên thông trên dùng tài khoản tổng hợp trong database cô lập.
 
 **Lưu ý bàn giao:** trang duyệt báo cáo mới của #07 **không thay thế** UI chấm Rubric/publish còn thiếu ở #01.
 
@@ -240,7 +241,7 @@ Kiểm thử ghi nhận:
 
 | Mã | Mức độ | Bằng chứng / ảnh hưởng | Việc cần làm | Trạng thái |
 |---|---|---|---|---|
-| DB-01 | Cao — #01 | Registry `018_decouple_competency_assessments` còn PENDING. | Preflight schema/dữ liệu và ràng buộc, áp dụng có kiểm soát, test context không QR. | **Chưa xử lý deployment** |
+| DB-01 | Cao — #01 | Main migration 20260909000100 APPLIED; learner 018 đối soát, không chạy ALTER trùng. | Đã preflight/apply local, bảo toàn dữ liệu cũ; còn phân công lớp thật/UAT. | **Đã xử lý migration local** |
 | DB-02 | Cao — #02 | Registry `019_create_project_skill_tags` **APPLIED**; bảng `project_skill_tags` đã có trên MySQL. | Không còn việc deployment cho tags. | **Đã xử lý** |
 | AI-01 | Trung bình — #05 | #02 đã nối `learner_portfolio_skills` vào snapshot/hash/outbox/Job+Activity matching. #05 còn nghiệm thu provider thật. | Smoke test Gemini khi được phép. | **#02 đã nối nguồn; #05 còn nghiệm thu** |
 | AI-02 | Cao — nghiệm thu #05 | Chưa có bằng chứng provider thật phân tích thành công. | Smoke test được phép + UAT, không dùng provider giả để đóng issue. | **Chờ nghiệm thu** |
@@ -252,13 +253,13 @@ Kiểm thử ghi nhận:
 ### Trạng thái môi trường và database
 
 - PHP hiện có tại `D:/laragon/bin/php/php-8.3.30-Win32-vs16-x64/php.exe`; MySQL local đã kết nối được.
-- Lượt #02 đã preflight rồi apply **chỉ** `019_create_project_skill_tags`. Registry: 019 tags **APPLIED**, 018 competency context (**#01**) vẫn **PENDING**. 020/021 vẫn **APPLIED**.
+- Lượt #02 đã apply 019 tags. Lượt #01 mới đã apply main 20260909000100 và đối soát learner 018 competency context thành **APPLIED** với ghi chú thay thế; không thực thi lại SQL 018. 020/021 vẫn **APPLIED**.
 - PENDING là trạng thái registry, không tự chứng minh mọi bảng/cột liên quan chưa tồn tại. Phải đối chiếu schema trước khi apply; không chạy lại mù quáng.
 - Lượt #07 trước đã ghi nhận migration validate thành công và kiểm thử MySQL trên database cô lập; không sửa bản ghi sinh viên thật để test.
 
 ## Thứ tự tiếp tục đề xuất
 
-1. Đóng khoảng trống migration #01 (018 competency context) sau preflight, phối hợp phần Rubric bên Giảng viên; sửa/khôi phục regression QA-01/QA-02.
+1. #01 đã tích hợp và migrate local: phân công lớp thật/UAT; sửa/khôi phục regression QA-01/QA-02 ngoài phạm vi lượt #01.
 2. Nghiệm thu liên thông #07 → #04 trên giao diện thật.
 3. #02 đã đóng: kỹ năng verified từ portfolio vào AI snapshot/hash/outbox; verify/revoke đã kiểm thử.
 4. #08 đã hoàn thành toàn bộ contract và UI test; thiết kế A4 vẫn hoãn theo yêu cầu.

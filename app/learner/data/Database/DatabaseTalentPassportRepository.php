@@ -61,6 +61,7 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             'skills' => $skills,
             'portfolio_skills' => $this->portfolioVerifiedSkills($studentId),
             'internships' => $optional['internships'],
+            'portfolio_feedback' => $this->portfolioFeedback($studentId),
             'experience' => $experience,
             'assessment_results' => $assessmentResults,
             'teacher_evaluations' => $teacherEvaluations,
@@ -350,6 +351,99 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
         }
     }
 
+    /**
+     * Lecturer review comments on verified portfolio reports. Membership must
+     * still be active; revoked reports never appear. Feedback text is evidence,
+     * never a synthesized skill score.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function portfolioFeedback(string $studentId): array
+    {
+        $inspector = $this->inspector();
+        $rows = [];
+        try {
+            if ($inspector->hasTable('project_submissions') && $inspector->hasTable('project_members')) {
+                $projectRows = $this->fetchAll(
+                    'portfolioProjectFeedback',
+                    <<<'SQL'
+                    SELECT r.id, 'project' AS kind, r.status, r.feedback, r.reviewedAt AS reviewed_at, r.updatedAt AS updated_at, r.projectId AS context_id
+                    FROM project_submissions r
+                    INNER JOIN project_members pm ON pm.projectId = r.projectId AND pm.studentId = r.studentId AND pm.status = 'active'
+                    WHERE r.studentId = :student_id AND r.status = 'verified'
+                    ORDER BY r.reviewedAt DESC, r.id ASC
+                    SQL,
+                    ['student_id' => $studentId]
+                );
+                $rows = array_merge($rows, $projectRows);
+            }
+        } catch (Throwable) {
+        }
+        try {
+            if ($inspector->hasTable('learner_internship_reports')) {
+                $hasApplications = $inspector->hasTable('internship_applications');
+                $sql = $hasApplications
+                    ? <<<'SQL'
+                    SELECT r.id, 'internship' AS kind, r.status, r.feedback, r.reviewedAt AS reviewed_at, r.updatedAt AS updated_at, r.applicationId AS context_id
+                    FROM learner_internship_reports r
+                    INNER JOIN internship_applications a ON a.id = r.applicationId AND a.studentId = r.studentId AND a.status = 'accepted'
+                    WHERE r.studentId = :student_id AND r.status = 'verified'
+                    ORDER BY r.reviewedAt DESC, r.id ASC
+                    SQL
+                    : <<<'SQL'
+                    SELECT r.id, 'internship' AS kind, r.status, r.feedback, r.reviewedAt AS reviewed_at, r.updatedAt AS updated_at, r.applicationId AS context_id
+                    FROM learner_internship_reports r
+                    WHERE r.studentId = :student_id AND r.status = 'verified'
+                    ORDER BY r.reviewedAt DESC, r.id ASC
+                    SQL;
+                $rows = array_merge($rows, $this->fetchAll('portfolioInternshipFeedback', $sql, ['student_id' => $studentId]));
+            }
+        } catch (Throwable) {
+        }
+        if ($rows === [] || !$inspector->hasTable('learner_portfolio_skills') || !$inspector->hasTable('skills')) {
+            return array_map(static function (array $row): array {
+                $row['skill_codes'] = [];
+                $row['skill_tags'] = [];
+                return $row;
+            }, $rows);
+        }
+        $ids = array_values(array_filter(array_map(static fn (array $row): string => (string) ($row['id'] ?? ''), $rows)));
+        $tagsByReport = [];
+        if ($ids !== []) {
+            try {
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                $statement = $this->pdo->prepare(
+                    "SELECT ps.kind, ps.reportId, s.code, s.name
+                     FROM learner_portfolio_skills ps
+                     INNER JOIN skills s ON s.id = ps.skillId AND s.status = 'active'
+                     WHERE ps.reportId IN ({$placeholders})
+                     ORDER BY s.code"
+                );
+                $statement->execute($ids);
+                foreach ($statement->fetchAll(\PDO::FETCH_ASSOC) ?: [] as $tag) {
+                    $code = strtolower(trim((string) ($tag['code'] ?? '')));
+                    if ($code === '') {
+                        continue;
+                    }
+                    $key = (string) $tag['kind'] . ':' . (string) $tag['reportId'];
+                    if (isset($tagsByReport[$key][$code])) {
+                        continue;
+                    }
+                    $tagsByReport[$key][$code] = ['code' => $code, 'name' => (string) ($tag['name'] ?? $code)];
+                }
+            } catch (Throwable) {
+            }
+        }
+        foreach ($rows as &$row) {
+            $key = (string) ($row['kind'] ?? '') . ':' . (string) ($row['id'] ?? '');
+            $tags = array_values($tagsByReport[$key] ?? []);
+            $row['skill_tags'] = $tags;
+            $row['skill_codes'] = array_values(array_column($tags, 'code'));
+        }
+        unset($row);
+        return $rows;
+    }
+
     private function experience(string $studentId): array
     {
         $inspector = $this->inspector();
@@ -458,6 +552,10 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
                 a.teacherId,
                 a.studentId,
                 a.activityId,
+                a.classId,
+                a.projectId,
+                cl.name AS className,
+                pr.title AS projectTitle,
                 a.overallScore,
                 a.comment,
                 a.status,
@@ -469,8 +567,10 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             LEFT JOIN teacher_profiles tp ON tp.id = a.teacherId
             LEFT JOIN users u ON u.id = tp.userId
             LEFT JOIN activities act ON act.id = a.activityId
-            WHERE a.studentId = :student_id AND a.status = 'published'
-            ORDER BY a.publishedAt DESC, a.id ASC
+            LEFT JOIN classes cl ON cl.id = a.classId
+            LEFT JOIN projects pr ON pr.id = a.projectId
+            WHERE a.studentId = :student_id AND a.status = 'published' AND a.publishedAt IS NOT NULL
+            ORDER BY a.publishedAt DESC, a.id DESC
             SQL;
 
         $evaluations = $this->fetchAll('teacherEvaluations', $sql, ['student_id' => $studentId]);
@@ -507,6 +607,9 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
         foreach ($evaluations as &$eval) {
             $evalId = (string) $eval['id'];
             $eval['criteria_scores'] = $scoresByEval[$evalId] ?? [];
+            $eval['context_title'] = $eval['class_name'] ?? $eval['project_title'] ?? $eval['activity_title'] ?? '';
+            $eval['context_label'] = $eval['class_id'] !== null ? 'Đánh giá theo lớp học phần' : ($eval['project_id'] !== null ? 'Đánh giá dự án' : 'Đánh giá hoạt động');
+            $eval['classification'] = \TalentHub\Support\GradeClassifier::getClassification($eval['overall_score'] === null ? null : (float) $eval['overall_score']);
         }
         unset($eval);
 

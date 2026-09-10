@@ -19,7 +19,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
  */
 final class OpportunityMatchPromptRegistry
 {
-    public const VERSION = 'learner-opportunity-match-1.3.0';
+    public const VERSION = 'learner-opportunity-match-1.4.0';
 
     public const MAX_CANDIDATES = 10;
 
@@ -90,6 +90,7 @@ final class OpportunityMatchPromptRegistry
             ],
             'instructions' => self::instructions($mode),
             'input' => [
+                'matching_objective' => 'current_strengths_and_requirement_attainment',
                 'student_profile' => self::profilePayload($profile),
                 'candidate_allow_list' => $allowList,
                 'skill_allow_list' => array_values(array_keys($skillCodes)),
@@ -135,7 +136,9 @@ final class OpportunityMatchPromptRegistry
     {
         $locale = [
             ...\TalentHub\Learner\Ai\Grounding\GroundedProseGuard::instructions(),
-            'Mỗi phân tích nêu căn cứ của kết luận, kỹ năng đã đáp ứng, yêu cầu còn thiếu hoặc chưa có dữ liệu, bài tập cụ thể để chuẩn bị và sản phẩm/tiêu chí người học tự kiểm tra. Hướng dẫn như một giảng viên đang theo dõi tiến độ, tránh lời khen và lời khuyên chung chung.',
+            'Mỗi phân tích ưu tiên mức đáp ứng yêu cầu hiện tại, điểm mạnh, kỹ năng và kinh nghiệm đã xác nhận; đối chiếu bằng chứng người học với yêu cầu cụ thể của dự án. Khoảng thiếu là hạn chế tham gia, không phải lý do đề cử dự án để bù kỹ năng yếu. Chỉ nêu bước chuẩn bị khi còn yêu cầu chưa đáp ứng.',
+            'learning_outcomes mô tả kết quả dự kiến của dự án, không chứng minh người học hiện có năng lực đó và không làm tăng mức phù hợp vì người học còn thiếu kỹ năng. Thành phần growth_potential trong breakdown là khóa tương thích biểu thị mức sẵn sàng đáp ứng yêu cầu, không phải phần thưởng cho điểm yếu.',
+            'assessment_signals phân biệt từng loại bài test; không gộp các chiều trùng tên giữa DISC, MBTI, Holland và MI, không xem điểm tính cách là điểm thành thạo kỹ năng. confirmed_experience_tags chỉ chứng minh kinh nghiệm đã xác nhận, không tự gán điểm kỹ năng.',
             'minimum_score=0 là nguồn chưa công bố ngưỡng, không có nghĩa người học đã đạt. gemini_score chỉ là dữ liệu chẩn đoán nội bộ, điểm hiển thị và thứ hạng do backend quyết định; không diễn giải nó như xác suất thành công.',
             'Ngôn ngữ đầu ra bắt buộc là vi-VN. Viết toàn bộ nội dung hướng tới người học bằng tiếng Việt có dấu, tự nhiên, rõ ràng và phù hợp với học sinh, sinh viên.',
             'Không hiển thị mã kỹ năng hoặc mã điều kiện trong headline, explanation, why_fit, why_not_fit_yet, main_gaps, next_steps hay improvement_steps; hãy diễn đạt chúng thành tên tiếng Việt dễ hiểu.',
@@ -271,8 +274,8 @@ final class OpportunityMatchPromptRegistry
         return [
             'education_band' => $profile->educationBand(),
             'skills' => $profile->skills(),
-            'assessment_dimensions' => $profile->assessmentDimensions(),
-            'experience_tags' => $profile->experienceTags(),
+            'assessment_signals' => $profile->assessmentSignals(),
+            'confirmed_experience_tags' => $profile->confirmedExperienceTags(),
         ];
     }
 }

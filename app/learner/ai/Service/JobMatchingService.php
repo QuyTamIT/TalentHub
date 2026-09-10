@@ -78,7 +78,7 @@ final class JobMatchingService
             }
         }
         if ($run === null) return self::emptyResponse('not_generated');
-        $stale = $this->runIsStale($run, MatchingInputSnapshot::build($prepared['input'], $candidates, $roles));
+        $stale = $this->runIsStale($run, MatchingInputSnapshot::build($prepared['input'], $candidates, $roles, $prepared['decision']->decisionHash()));
         return $this->mapRun($run, $candidates, $stale);
     }
 
@@ -95,7 +95,7 @@ final class JobMatchingService
         $roles = is_array($rolesResult['roles'] ?? null) ? $rolesResult['roles'] : [];
         if (($rolesResult['status'] ?? '') !== 'ok' || $roles === []) return self::emptyResponse('benchmark_insufficient');
 
-        $input = MatchingInputSnapshot::build($input, $candidates, $roles);
+        $input = MatchingInputSnapshot::build($input, $candidates, $roles, $decision->decisionHash());
         $activeIds = array_map(static fn (OpportunityCandidate $c): string => $c->catalogId(), $candidates);
         try { $cached = $this->repository->latestValid($studentId, $activeIds); }
         catch (Throwable) { $cached = null; }
@@ -160,6 +160,9 @@ final class JobMatchingService
             $stale = $this->repository->latestValid($studentId, $activeIds);
             return $stale === null ? self::emptyResponse('provider_unavailable') : $this->mapRun($stale, $candidates, true);
         }
+
+        $abort = $this->abortIfInputChanged($studentId, $input, $pending, $candidates, $activeIds);
+        if ($abort !== null) return $abort;
 
         $analysisById = []; foreach ($analyses as $analysis) $analysisById[$analysis->catalogId()] = $analysis;
         $records = [];
@@ -271,10 +274,74 @@ final class JobMatchingService
     private function runIsStale(array $run, RecommendationInput $input): bool
     {
         return ($run['generationCurrent'] ?? true) !== true
+            || ($run['catalogFiltered'] ?? false) === true
             || (isset($run['inputHash'])
                 && (!is_string($run['inputHash']) || !hash_equals($input->contentHash(), $run['inputHash'])));
     }
 
     /** @return array<string,mixed> */
     private static function emptyResponse(string $state): array{return ['state'=>$state,'analysis_origin'=>null,'score_origin'=>'deterministic_40_35_25','enterprise_groups'=>[],'skill_gap'=>[]];}
+
+    /**
+     * @param array<string,mixed> $pending
+     * @param list<OpportunityCandidate> $candidates
+     * @param list<string> $activeIds
+     * @return array<string,mixed>|null
+     */
+    private function abortIfInputChanged(string $studentId, RecommendationInput $input, array $pending, array $candidates, array $activeIds): ?array
+    {
+        try {
+            $decision = ($this->decisionResolver)($studentId);
+        } catch (Throwable) {
+            try { $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), 'consent_changed'); } catch (Throwable) {}
+            return self::emptyResponse('consent_required');
+        }
+        if (!$decision instanceof ConsentDecision || !$decision->permitsAllRequiredScopes()) {
+            try { $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), 'consent_changed'); } catch (Throwable) {}
+            return self::emptyResponse('consent_required');
+        }
+        try {
+            $current = $this->prepare($studentId);
+            if (!isset($current['profile'])) {
+                try { $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), 'snapshot_changed'); } catch (Throwable) {}
+                return $current['state'] === 'consent_required' ? $current : $this->retainedStale($studentId, $candidates, $activeIds);
+            }
+            $rolesResult = ($this->roleSupplier)();
+            $roles = is_array($rolesResult['roles'] ?? null) ? $rolesResult['roles'] : [];
+            $snapshot = MatchingInputSnapshot::build($current['input'], $current['candidates'], $roles, $decision->decisionHash());
+        } catch (Throwable) {
+            try { $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), 'snapshot_changed'); } catch (Throwable) {}
+            return $this->retainedStale($studentId, $candidates, $activeIds);
+        }
+        if (!hash_equals($input->contentHash(), $snapshot->contentHash())) {
+            try { $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), 'snapshot_changed'); } catch (Throwable) {}
+            return $this->retainedStale($studentId, $candidates, $activeIds);
+        }
+        return null;
+    }
+
+    /**
+     * @param list<OpportunityCandidate> $candidates
+     * @param list<string> $activeIds
+     * @return array<string,mixed>
+     */
+    private function retainedStale(string $studentId, array $candidates, array $activeIds): array
+    {
+        try {
+            $priorIds = $activeIds;
+            $current = $this->prepare($studentId);
+            if (!isset($current['profile'])) return self::emptyResponse(($current['state'] ?? '') === 'consent_required' ? 'consent_required' : 'stale_model');
+            $candidates = $current['candidates'];
+            $activeIds = array_map(static fn (OpportunityCandidate $c): string => $c->catalogId(), $candidates);
+            if ($activeIds === []) return self::emptyResponse('stale_model');
+            $stale = $this->repository->latestValid($studentId, $activeIds);
+            if ($stale === null && $priorIds !== $activeIds) $stale = $this->repository->latestValid($studentId, $priorIds);
+            if ($stale !== null && ($stale['status'] ?? null) === 'completed') {
+                $stale['items'] = array_values(array_filter($stale['items'] ?? [], static fn (array $item): bool => in_array($item['catalogId'] ?? '', $activeIds, true)));
+                return $this->mapRun($stale, $candidates, true);
+            }
+        } catch (Throwable) {
+        }
+        return self::emptyResponse('stale_model');
+    }
 }

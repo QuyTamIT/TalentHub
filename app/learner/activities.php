@@ -63,6 +63,7 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
     <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
     <link rel="stylesheet" href="assets/activities/activities.css">
+    <link rel="stylesheet" href="../../assets/css/learner-activity-matches.css">
     <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
 </head>
 <body class="learner-app learner-page-activities">
@@ -146,6 +147,23 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                             <strong>Chỉ hiển thị hoạt động còn hạn và còn chỗ</strong>
                             <?= learner_icon('info', 16); ?>
                         </label>
+                    </section>
+
+                    <section class="learner-activity-matches" data-activity-matches aria-label="Gợi ý hoạt động để phát triển kỹ năng">
+                        <div class="learner-activity-matches__actions">
+                            <button type="button" class="learner-btn learner-btn--primary" data-generate aria-expanded="false" aria-controls="activity-matches-panel"><span data-trigger-label>AI gợi ý hoạt động phù hợp</span></button>
+                        </div>
+                        <div id="activity-matches-panel" class="learner-activity-matches__panel" data-panel hidden>
+                            <div class="learner-activity-matches__header">
+                                <div><h2>Hoạt động giúp bạn phát triển</h2><p>Đối chiếu kỹ năng cần rèn luyện với các hoạt động đang mở tại trường.</p></div>
+                                <button type="button" class="learner-btn" data-toggle aria-expanded="true" aria-controls="activity-matches-body">Thu gọn</button>
+                            </div>
+                            <div id="activity-matches-body" data-body>
+                                <p class="learner-activity-matches__status" data-status role="status" aria-live="polite"></p>
+                                <progress max="100" value="0" aria-label="Tiến trình phân tích minh họa" hidden></progress>
+                                <div data-cards></div>
+                            </div>
+                        </div>
                     </section>
 
                     <p class="learner-visually-hidden" data-activity-result-status role="status" aria-live="polite">
@@ -251,5 +269,7 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
 
     <script src="../../assets/js/learner.js"></script>
     <script src="../../assets/js/learner-activities.js"></script>
+    <script src="../../assets/js/learner-api.js"></script>
+    <script src="../../assets/js/learner-activity-matches.js"></script>
 </body>
 </html>

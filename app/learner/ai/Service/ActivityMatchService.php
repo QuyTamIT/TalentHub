@@ -11,7 +11,8 @@ use TalentHub\Learner\Ai\Sources\Database\DatabaseActivityCandidateSource;
 
 final class ActivityMatchService
 {
-    public const VERSION = 'activity-model-v3';
+    public const VERSION = 'activity-model-v4';
+    public const DEVELOPMENT_THRESHOLD = 70;
     public function __construct(private readonly PDO $pdo, private readonly Closure $snapshot, private readonly Closure $scopes, private readonly ?\TalentHub\Learner\Ai\Model\ModelActivityMatchEngine $engine = null, private readonly string $modelVersion = '') {}
     public function latest(string $studentId): array { return $this->resolve($studentId, false); }
     public function generate(string $studentId): array { return $this->resolve($studentId, true); }
@@ -45,19 +46,34 @@ final class ActivityMatchService
         }
         $items = [];
         foreach ($candidates as $candidate) {
-            $matched = []; $develop = []; $total = 0;
+            $develop = [];
             foreach ($candidate->skills as $code) {
                 $score = $profile->skillScore($code);
-                if ($score === null) continue; // No unsupported claims about missing skills.
-                $matched[] = $code;
-                if ($score < 70) $develop[] = $code;
-                $total += 30 + 60 * (100 - max(0, min(100, $score))) / 100
+                if ($score === null) {
+                    continue;
+                }
+                if ($score < self::DEVELOPMENT_THRESHOLD) {
+                    $develop[] = $code;
+                }
+            }
+            if ($develop === []) {
+                continue;
+            }
+            $total = 0;
+            foreach ($develop as $code) {
+                $score = $profile->skillScore($code);
+                $total += 30 + 60 * (100 - max(0, min(100, (int) $score))) / 100
                     + (in_array($code, $profile->confirmedExperienceTags(), true) ? 10 : 0);
             }
-            if ($matched === []) continue;
-            $fit = (int)round($total / count($candidate->skills));
-            $reasons = ['Hoạt động có kỹ năng trùng với hồ sơ: '.implode(', ', $matched).'.'];
-            if ($develop !== []) $reasons[] = 'Có thể rèn luyện thêm các kỹ năng đang dưới ngưỡng gợi ý 70/100: '.implode(', ', $develop).'.';
+            $fit = (int) round($total / count($develop));
+            $labels = [];
+            foreach ($develop as $code) {
+                $labels[] = $code . ' (' . $profile->skillScore($code) . '/100)';
+            }
+            $reasons = [
+                'Cần cải thiện các kỹ năng đang dưới ngưỡng gợi ý ' . self::DEVELOPMENT_THRESHOLD . '/100: ' . implode(', ', $labels) . '.',
+                'Hoạt động trùng các kỹ năng đang cần phát triển: ' . implode(', ', $develop) . '.',
+            ];
             $items[] = (new ActivityMatch($candidate, $fit, $reasons, $develop))->toArray();
         }
         usort($items, static fn ($a,$b) => ($b['score'] <=> $a['score']) ?: strcmp($a['activity_id'],$b['activity_id']));

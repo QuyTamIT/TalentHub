@@ -39,7 +39,7 @@ $sidebarNav = [
     [
         'title' => 'Chấm điểm',
         'route' => 'assessments',
-        'href' => '/app/teacher/grading.php',
+        'href' => '/app/teacher/assessments/index.php',
         'icon' => 'clipboard-check',
         'active' => false,
     ],
@@ -96,7 +96,7 @@ $pendingActions = [
         'icon' => 'clipboard-check',
         'status' => 'Lớp BTEC-AI-2026A',
         'action_label' => 'Chấm điểm ngay',
-        'route' => '/app/teacher/grading.php',
+        'route' => '/app/teacher/assessments/index.php',
         'disabled' => false,
     ],
     [

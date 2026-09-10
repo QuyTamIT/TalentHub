@@ -46,12 +46,18 @@ final class DatabaseJobMatchRepository implements JobMatchRepository
                 $structured = filter_var($item['structuredScore'] ?? null, FILTER_VALIDATE_INT);
                 $match = filter_var($item['matchScore'] ?? null, FILTER_VALIDATE_INT);
                 $scoreOutsideState = $isNoMatch ? ($match < 0 || $match >= 40) : ($match < 40 || $match > 100);
-                if (!isset($active[$id]) || $rank === false || $structured === false || $match === false || $structured !== $match
+                if ($id === '' || $rank === false || $structured === false || $match === false || $structured !== $match
                     || $scoreOutsideState || $item['geminiScore'] !== null) { $valid = false; break; }
                 $ranks[] = $rank;
             }
             sort($ranks);
-            if ($valid && $ranks === range(1, count($run['items']))) return $run;
+            if ($valid && $ranks === range(1, count($run['items']))) {
+                $originalCount = count($run['items']);
+                $run['items'] = array_values(array_filter($run['items'], static fn (array $item): bool => isset($active[$item['catalogId']])));
+                if ($run['items'] === []) continue;
+                $run['catalogFiltered'] = count($run['items']) !== $originalCount;
+                return $run;
+            }
         }
         return null;
     }

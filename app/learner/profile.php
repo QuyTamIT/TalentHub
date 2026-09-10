@@ -64,8 +64,11 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                         </div>
 
                         <div class="learner-profile-actions">
-                            <a class="learner-btn learner-btn--primary" href="talent-passport.php" style="background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%); color: #FFFFFF; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);" title="Xem bản in & tải file PDF Hồ sơ Năng lực số">
-                                <?= learner_icon('award', 18); ?> Xuất PDF Hồ sơ (Talent Passport)
+                            <a class="learner-btn learner-btn--primary" href="talent-passport-cv.php" style="background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%); color: #FFFFFF; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);" title="Xem trước và xuất bản CV A4 1 trang chuyên nghiệp">
+                                <?= learner_icon('file-text', 18); ?> Xuất CV A4
+                            </a>
+                            <a class="learner-btn learner-btn--outline" href="talent-passport.php" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none; font-weight: 600;" title="Xem & Tải Talent Passport đầy đủ">
+                                <?= learner_icon('award', 16); ?> Talent Passport
                             </a>
                             <button class="learner-btn learner-btn--outline" type="button" data-open-modal="learner-share-modal">
                                 <?= learner_icon('share', 18); ?> Chia sẻ hồ sơ

@@ -15,15 +15,15 @@ function teacherGradingPageState(bool $dataLoaded, bool $unexpectedLoadError, ar
         return 'request_error';
     }
 
-    if (($data['activities'] ?? []) === []) {
+    if (($data['contexts'] ?? $data['activities'] ?? []) === []) {
         return 'empty_activities';
     }
 
-    if (($data['selectedActivity'] ?? null) !== null && ($data['students'] ?? []) === []) {
+    if (($data['selectedContext'] ?? $data['selectedActivity'] ?? null) !== null && ($data['students'] ?? []) === []) {
         return 'empty_students';
     }
 
-    if (($data['selectedActivity'] ?? null) !== null) {
+    if (($data['selectedContext'] ?? $data['selectedActivity'] ?? null) !== null) {
         return 'ready';
     }
 

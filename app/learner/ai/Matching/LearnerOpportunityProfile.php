@@ -528,7 +528,7 @@ final class LearnerOpportunityProfile
             if ($code === '') {
                 continue;
             }
-            $ref = $type . ':' . $id;
+            $ref = is_string($safeValue['evaluation_ref'] ?? null) ? $safeValue['evaluation_ref'] : $type . ':' . $id;
             if (!in_array($ref, $refs[$code] ?? [], true)) {
                 $refs[$code][] = $ref;
             }

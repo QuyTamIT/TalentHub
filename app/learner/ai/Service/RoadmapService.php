@@ -195,6 +195,7 @@ final class RoadmapService
                 ? $this->modelEngine
                 : $this->engine;
             $analysis = $selectedEngine->generate($input, $context);
+            $this->assertSnapshotUnchanged($studentId, $input, $scopes);
             $this->guardLease($leaseGuard);
             ($this->runCompleter)($studentId, (string) ($pending['runId'] ?? ''), $analysis);
             if ($analysis->origin() === 'rule_fallback' && $active !== null) {
@@ -222,9 +223,11 @@ final class RoadmapService
             if ($propagateProviderRetry) throw $exception;
             return $this->retainedOrUnavailable($studentId, $active, 'rate_limited', true);
         } catch (\Throwable $exception) {
-            try { $this->guardLease($leaseGuard);($this->runFailer)($studentId, (string) ($pending['runId'] ?? ''), 'roadmap_engine_failure'); } catch (\Throwable) {}
+            $changed = $exception->getMessage() === 'snapshot_changed';
+            $reason = $changed ? 'snapshot_changed' : 'roadmap_engine_failure';
+            try { $this->guardLease($leaseGuard);($this->runFailer)($studentId, (string) ($pending['runId'] ?? ''), $reason); } catch (\Throwable) {}
             if($propagateProviderRetry&&$exception instanceof ProviderRetryAfterException)throw $exception;
-            return $this->retainedOrUnavailable($studentId, $active, 'engine_failure', $modelAttempt);
+            return $this->retainedOrUnavailable($studentId, $active, $changed ? 'snapshot_changed' : 'engine_failure', $modelAttempt);
         }
     }
 
@@ -410,6 +413,31 @@ final class RoadmapService
             return $this->unavailable($reason);
         }
         return $this->retained($studentId, $active, $reason);
+    }
+
+    /** @param list<string> $scopes */
+    private function assertSnapshotUnchanged(string $studentId, RecommendationInput $input, array $scopes): void
+    {
+        try {
+            $decision = ($this->consentResolver)($studentId);
+        } catch (\Throwable) {
+            throw new \TalentHub\Learner\Ai\Model\RoadmapModelUnavailable('consent_changed');
+        }
+        $currentScopes = $this->scopes($decision);
+        if ($decision instanceof ConsentDecision && !$decision->permitsAllRequiredScopes()) {
+            throw new \TalentHub\Learner\Ai\Model\RoadmapModelUnavailable($decision->denialReason() ?? 'consent_changed');
+        }
+        if ($currentScopes !== $scopes) {
+            throw new \TalentHub\Learner\Ai\Model\RoadmapModelUnavailable('consent_changed');
+        }
+        $current = ($this->snapshotBuilder)($studentId, $currentScopes);
+        if (!$current instanceof RecommendationInput) {
+            throw new \RuntimeException('snapshot_changed');
+        }
+        $current = $this->withPreferenceSignals($current, $this->roadmaps->feedbackSignalsForStudent($studentId));
+        if (!hash_equals($input->contentHash(), $current->contentHash())) {
+            throw new \RuntimeException('snapshot_changed');
+        }
     }
 
     private function isConsentFailure(string $reason): bool

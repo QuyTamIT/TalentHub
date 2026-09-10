@@ -504,13 +504,9 @@ SQL);
             $engine = new ModelOpportunityMatchEngine($provider, $authorizer);
         }
 
-        $inputs = [];
-        $inputResolver = static function (string $candidate) use (&$inputs, $snapshotBuilder, $consent) {
-            if (!isset($inputs[$candidate])) {
-                $decision = $consent->decision($candidate);
-                $inputs[$candidate] = $snapshotBuilder->build($candidate, $decision->allowedScopes());
-            }
-            return $inputs[$candidate];
+        $inputResolver = static function (string $candidate) use ($snapshotBuilder, $consent) {
+            $decision = $consent->decision($candidate);
+            return $snapshotBuilder->build($candidate, $decision->allowedScopes());
         };
         $candidateResolver = static function (string $candidate) use ($opportunitySource, $catalogSource): array {
             $evidence = [];
@@ -607,13 +603,9 @@ SQL);
             $engine = new ModelJobMatchEngine($provider, $authorizer);
         }
 
-        $inputs = [];
-        $inputBuilder = static function (string $candidate) use (&$inputs, $snapshotBuilder, $consent) {
-            if (!isset($inputs[$candidate])) {
-                $decision = $consent->decision($candidate);
-                $inputs[$candidate] = $snapshotBuilder->build($candidate, $decision->allowedScopes());
-            }
-            return $inputs[$candidate];
+        $inputBuilder = static function (string $candidate) use ($snapshotBuilder, $consent) {
+            $decision = $consent->decision($candidate);
+            return $snapshotBuilder->build($candidate, $decision->allowedScopes());
         };
         $candidateSupplier = static function (string $candidate) use ($internships): array {
             $evidence = [];

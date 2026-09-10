@@ -9,6 +9,7 @@ use DateTimeZone;
 use Throwable;
 use TalentHub\Learner\Ai\Consent\ConsentDecision;
 use TalentHub\Learner\Ai\Domain\RecommendationContext;
+use TalentHub\Learner\Ai\Domain\RecommendationInput;
 use TalentHub\Learner\Ai\Matching\LearnerOpportunityProfile;
 use TalentHub\Learner\Ai\Matching\OpportunityCandidate;
 use TalentHub\Learner\Ai\Matching\OpportunityMatch;
@@ -134,7 +135,7 @@ final class OpportunityMatchService
                 $this->analysisContext($profile, $candidates, $scoredCandidates, $scored),
             );
         }
-        if ($this->runIsStale($run, MatchingInputSnapshot::build($input, $candidates))) {
+        if ($this->runIsStale($run, MatchingInputSnapshot::build($input, $candidates, [], $decision->decisionHash()))) {
             return $this->mapStale($run, $candidates);
         }
         return $this->mapReady($run, $candidates);
@@ -167,7 +168,7 @@ final class OpportunityMatchService
         } catch (Throwable) {
             return $this->response('catalog_insufficient', []);
         }
-        $input = MatchingInputSnapshot::build($input, $candidates);
+        $input = MatchingInputSnapshot::build($input, $candidates, [], $decision->decisionHash());
         $activeIds = array_map(static fn (OpportunityCandidate $c): string => $c->catalogId(), $candidates);
         try { $cached = $this->repository->latestValid($studentId, $activeIds); }
         catch (Throwable) { $cached = null; }
@@ -242,10 +243,18 @@ final class OpportunityMatchService
         try {
             if ($mode === 'no_fit') {
                 $analysis = $this->runNoFitSummary($profile, $scored, $context, $analysisContext, $candidates);
+                $abort = $this->abortIfInputChanged($studentId, $input, $pending, $scoredCandidates, $activeCatalogIds);
+                if ($abort !== null) {
+                    return $abort;
+                }
                 $run = $this->repository->completeRun($studentId, (string) ($pending['runId'] ?? ''), [], $analysis, 'no_fit_model');
                 return $this->mapReady($run, $scoredCandidates);
             }
             $matches = $this->runEngine($profile, $allowList, $scored, $context, $mode, $analysisContext);
+            $abort = $this->abortIfInputChanged($studentId, $input, $pending, $scoredCandidates, $activeCatalogIds);
+            if ($abort !== null) {
+                return $abort;
+            }
         } catch (Throwable $exception) {
             $this->failPending($studentId, $pending, $exception);
             $stale = $this->repository->latestValid($studentId, $activeCatalogIds);
@@ -366,6 +375,7 @@ final class OpportunityMatchService
     private function runIsStale(array $run, \TalentHub\Learner\Ai\Domain\RecommendationInput $input): bool
     {
         return ($run['generationCurrent'] ?? true) !== true
+            || ($run['catalogFiltered'] ?? false) === true
             || (isset($run['inputHash'])
                 && (!is_string($run['inputHash']) || !hash_equals($input->contentHash(), $run['inputHash'])));
     }
@@ -588,5 +598,75 @@ final class OpportunityMatchService
     private function profileIsThin(LearnerOpportunityProfile $profile): bool
     {
         return $profile->skills() === [] && $profile->assessmentDimensions() === [];
+    }
+
+    /**
+     * Re-read consent, learner evidence and the live catalog after the provider
+     * returns. A completed run must never be stored for a superseded snapshot.
+     *
+     * @param array<string,mixed> $pending
+     * @param list<OpportunityCandidate> $scoredCandidates
+     * @param list<string> $activeCatalogIds
+     * @return array<string,mixed>|null
+     */
+    private function abortIfInputChanged(
+        string $studentId,
+        RecommendationInput $input,
+        array $pending,
+        array $scoredCandidates,
+        array $activeCatalogIds,
+    ): ?array {
+        try {
+            $decision = ($this->decisionResolver)($studentId);
+        } catch (Throwable $exception) {
+            $this->failPending($studentId, $pending, $exception);
+            return $this->response('consent_required', []);
+        }
+        if (!$decision instanceof ConsentDecision || !$decision->permitsAllRequiredScopes()) {
+            $this->failPending($studentId, $pending, new \RuntimeException('consent_changed'));
+            return $this->response('consent_required', []);
+        }
+        try {
+            $currentInput = ($this->inputBuilder)($studentId);
+            $currentProfile = LearnerOpportunityProfile::fromInput($currentInput);
+            $currentCandidates = $this->eligibleCandidates($currentProfile, ($this->candidateEvidenceSupplier)($studentId));
+            $current = MatchingInputSnapshot::build($currentInput, $currentCandidates, [], $decision->decisionHash());
+        } catch (Throwable $exception) {
+            $this->failPending($studentId, $pending, $exception);
+            return $this->retainedStale($studentId, $scoredCandidates, $activeCatalogIds);
+        }
+        if (!hash_equals($input->contentHash(), $current->contentHash())) {
+            $this->failPending($studentId, $pending, new \RuntimeException('snapshot_changed'));
+            return $this->retainedStale($studentId, $scoredCandidates, $activeCatalogIds);
+        }
+        return null;
+    }
+
+    /**
+     * @param list<OpportunityCandidate> $scoredCandidates
+     * @param list<string> $activeCatalogIds
+     * @return array<string,mixed>
+     */
+    private function retainedStale(string $studentId, array $scoredCandidates, array $activeCatalogIds): array
+    {
+        try {
+            $priorCatalogIds = $activeCatalogIds;
+            $decision = ($this->decisionResolver)($studentId);
+            if (!$decision instanceof ConsentDecision || !$decision->permitsAllRequiredScopes()) return $this->response('consent_required', []);
+            $profile = LearnerOpportunityProfile::fromInput(($this->inputBuilder)($studentId));
+            $scoredCandidates = $this->eligibleCandidates($profile, ($this->candidateEvidenceSupplier)($studentId));
+            $activeCatalogIds = array_map(static fn (OpportunityCandidate $c): string => $c->catalogId(), $scoredCandidates);
+            if ($activeCatalogIds === []) return $this->response('stale_model', []);
+            $stale = $this->repository->latestValid($studentId, $activeCatalogIds);
+            // Older adapters reject an entire run when one item closes.
+            // Read against the prior allow-list, then filter before exposing it.
+            if ($stale === null && $priorCatalogIds !== $activeCatalogIds) $stale = $this->repository->latestValid($studentId, $priorCatalogIds);
+            if ($stale !== null && ($stale['status'] ?? null) === 'completed') {
+                $stale['items'] = array_values(array_filter($stale['items'] ?? [], static fn (array $item): bool => in_array($item['catalogId'] ?? '', $activeCatalogIds, true)));
+                return $this->mapStale($stale, $scoredCandidates);
+            }
+        } catch (Throwable) {
+        }
+        return $this->response('stale_model', []);
     }
 }

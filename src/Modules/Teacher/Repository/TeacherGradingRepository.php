@@ -6,6 +6,7 @@ namespace TalentHub\Modules\Teacher\Repository;
 require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/TransactionalAiOutboxPublisher.php';
 
 use PDO;
+use PDOException;
 use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 use TalentHub\Learner\Data\Database\DatabaseBadgeRepository;
 use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
@@ -39,25 +40,6 @@ final class TeacherGradingRepository
         $statement->execute([$userId]);
         $row = $statement->fetch();
 
-        if (!is_array($row)) {
-            // Self-heal: If user exists in users table, insert a teacher_profiles row for BTEC FPT
-            try {
-                $chkUser = $this->pdo->prepare('SELECT id, fullName, email FROM users WHERE id = ? LIMIT 1');
-                $chkUser->execute([$userId]);
-                $u = $chkUser->fetch();
-                if ($u) {
-                    $btecSchool = $this->pdo->query("SELECT id FROM schools WHERE name LIKE '%BTEC%' LIMIT 1")->fetchColumn()
-                        ?: 'da811c4f-2f74-4fdd-80b0-dd6f26109783';
-                    $newTpId = \TalentHub\Support\Uuid::uuid4();
-                    $ins = $this->pdo->prepare('INSERT INTO teacher_profiles (id, userId, schoolId, isSchoolAdmin, specialization) VALUES (?, ?, ?, 0, ?)');
-                    $ins->execute([$newTpId, $userId, $btecSchool, 'Kỹ thuật phần mềm & AI']);
-                    
-                    $statement->execute([$userId]);
-                    $row = $statement->fetch();
-                }
-            } catch (\Throwable) {}
-        }
-
         return is_array($row) ? $row : null;
     }
 
@@ -68,6 +50,7 @@ final class TeacherGradingRepository
             'SELECT a.id, a.title, a.category, a.startAt, a.endAt, a.capacity, a.status,
                     COUNT(ar.id) AS registrationCount
              FROM activities a
+             INNER JOIN teacher_profiles owner ON owner.id=a.createdByTeacherId AND owner.schoolId=a.schoolId
              LEFT JOIN activity_registrations ar
                ON ar.activityId = a.id
               AND ar.status IN (\'approved\', \'attended\')
@@ -150,20 +133,6 @@ final class TeacherGradingRepository
         return $this->registrationForTeacher($teacherId, $activityId, $studentId, false);
     }
 
-    public function classContextForTeacher(string $teacherId, string $classId, string $studentId): bool
-    {
-        $statement = $this->pdo->prepare('SELECT 1 FROM student_profiles sp INNER JOIN classes c ON c.id=sp.classId INNER JOIN teacher_profiles tp ON tp.schoolId=c.schoolId WHERE sp.id=:studentId AND c.id=:classId AND tp.id=:teacherId AND sp.studyStatus="active" LIMIT 1');
-        $statement->execute(['studentId' => $studentId, 'classId' => $classId, 'teacherId' => $teacherId]);
-        return (bool) $statement->fetchColumn();
-    }
-
-    public function projectContextForTeacher(string $teacherId, string $projectId, string $studentId): bool
-    {
-        $statement = $this->pdo->prepare('SELECT 1 FROM project_members pm INNER JOIN projects p ON p.id=pm.projectId WHERE pm.projectId=:projectId AND pm.studentId=:studentId AND pm.status="active" AND p.mentorTeacherId=:teacherId LIMIT 1');
-        $statement->execute(['projectId' => $projectId, 'studentId' => $studentId, 'teacherId' => $teacherId]);
-        return (bool) $statement->fetchColumn();
-    }
-
     /** @return list<array<string,mixed>> */
     public function assessmentScores(string $teacherId, string $activityId): array
     {
@@ -181,33 +150,127 @@ final class TeacherGradingRepository
         return $statement->fetchAll();
     }
 
-    /** @return array<string,mixed>|null */
+    public function classes(string $teacherId): array
+    {
+        $s = $this->pdo->prepare("SELECT c.id,c.name AS title,c.status,COUNT(sp.id) AS studentCount
+            FROM teacher_class_assignments tca JOIN teacher_profiles t ON t.id=tca.teacherId
+            JOIN classes c ON c.id=tca.classId AND c.schoolId=t.schoolId
+            LEFT JOIN student_profiles sp ON sp.classId=c.id
+            WHERE t.id=? AND tca.status='active' GROUP BY c.id,c.name,c.status ORDER BY c.name,c.id");
+        $s->execute([$teacherId]);
+        return $s->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function projects(string $teacherId): array
+    {
+        $s = $this->pdo->prepare("SELECT p.id, p.title, p.status, COUNT(pm.id) AS memberCount
+            FROM projects p JOIN teacher_profiles t ON t.id=p.mentorTeacherId AND t.schoolId=p.schoolId
+            LEFT JOIN project_members pm ON pm.projectId=p.id AND pm.status='active' AND pm.leftAt IS NULL
+            WHERE p.mentorTeacherId=? GROUP BY p.id,p.title,p.status ORDER BY p.title,p.id");
+        $s->execute([$teacherId]);
+        return $s->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function contextForTeacher(string $teacherId, string $mode, string $contextId, bool $lock = false): ?array
+    {
+        TeacherAssessmentScope::column($mode);
+        $sql = match ($mode) {
+            'class' => "SELECT c.id,c.name AS title,c.status FROM classes c
+                JOIN teacher_class_assignments tca ON tca.classId=c.id AND tca.status='active'
+                JOIN teacher_profiles t ON t.id=tca.teacherId AND t.schoolId=c.schoolId WHERE c.id=? AND t.id=?",
+            'project' => 'SELECT p.id,p.title,p.status FROM projects p JOIN teacher_profiles t ON t.id=p.mentorTeacherId AND t.schoolId=p.schoolId WHERE p.id=? AND t.id=?',
+            'activity' => 'SELECT a.id,a.title,a.status FROM activities a JOIN teacher_profiles t ON t.id=a.createdByTeacherId AND t.schoolId=a.schoolId WHERE a.id=? AND t.id=?',
+        };
+        $s = $this->pdo->prepare($sql . ' LIMIT 1' . $this->lockSuffix($lock));
+        $s->execute([$contextId, $teacherId]);
+        $row = $s->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    public function studentInContext(string $teacherId, string $mode, string $contextId, string $studentId, bool $lock = false): bool
+    {
+        // Lock the context first, including the mentor/owner assignment, then its membership.
+        if ($this->contextForTeacher($teacherId, $mode, $contextId, $lock) === null) return false;
+        $sql = match ($mode) {
+            'class' => 'SELECT id FROM student_profiles WHERE classId=? AND id=?',
+            'project' => "SELECT pm.id FROM project_members pm JOIN projects p ON p.id=pm.projectId JOIN student_profiles sp ON sp.id=pm.studentId JOIN classes c ON c.id=sp.classId AND c.schoolId=p.schoolId WHERE pm.projectId=? AND pm.studentId=? AND pm.status='active' AND pm.leftAt IS NULL",
+            'activity' => "SELECT ar.id FROM activity_registrations ar JOIN activities a ON a.id=ar.activityId JOIN student_profiles sp ON sp.id=ar.studentId JOIN classes c ON c.id=sp.classId AND c.schoolId=a.schoolId WHERE ar.activityId=? AND ar.studentId=? AND ar.status IN ('approved','attended')",
+        };
+        $s = $this->pdo->prepare($sql . ' LIMIT 1' . $this->lockSuffix($lock));
+        $s->execute([$contextId, $studentId]);
+        return $s->fetchColumn() !== false;
+    }
+
+    public function studentsForClass(string $teacherId, string $classId, string $search = ''): array
+    {
+        return $this->studentsForContext($teacherId, 'class', $classId, $search);
+    }
+
+    public function studentsForProject(string $teacherId, string $projectId, string $search = ''): array
+    {
+        return $this->studentsForContext($teacherId, 'project', $projectId, $search);
+    }
+
+    public function studentsForContext(string $teacherId, string $mode, string $contextId, string $search = ''): array
+    {
+        if ($this->contextForTeacher($teacherId, $mode, $contextId) === null) return [];
+        $column = TeacherAssessmentScope::column($mode);
+        $membership = match ($mode) {
+            'class' => 'JOIN classes m ON m.id=sp.classId AND m.id=?',
+            'project' => "JOIN project_members m ON m.studentId=sp.id AND m.projectId=? AND m.status='active' AND m.leftAt IS NULL",
+            'activity' => "JOIN activity_registrations m ON m.studentId=sp.id AND m.activityId=? AND m.status IN ('approved','attended')",
+        };
+        $s = $this->pdo->prepare("SELECT sp.id AS studentId,u.fullName,u.email,
+            a.id AS assessmentId,a.version AS assessmentVersion,a.overallScore,a.comment,
+            a.status AS assessmentStatus,a.publishedAt,a.updatedAt AS assessmentUpdatedAt
+            FROM student_profiles sp JOIN users u ON u.id=sp.userId $membership
+            JOIN classes student_class ON student_class.id=sp.classId
+            JOIN teacher_profiles scope_teacher ON scope_teacher.id=? AND scope_teacher.schoolId=student_class.schoolId
+            LEFT JOIN assessments a ON a.studentId=sp.id AND a.teacherId=? AND a.$column=?
+            WHERE (u.fullName LIKE ? OR u.email LIKE ?) ORDER BY u.fullName,sp.id");
+        $s->execute([$contextId,$teacherId,$teacherId,$contextId,'%'.$search.'%','%'.$search.'%']);
+        $students = $s->fetchAll(PDO::FETCH_ASSOC);
+        $scores = $this->pdo->prepare("SELECT a.studentId,sc.criteriaId,sc.score,c.name,c.minScore,c.maxScore
+            FROM assessments a JOIN assessment_scores sc ON sc.assessmentId=a.id
+            JOIN assessment_criteria c ON c.id=sc.criteriaId WHERE a.teacherId=? AND a.$column=?
+            ORDER BY c.displayOrder,c.id");
+        $scores->execute([$teacherId,$contextId]);
+        $map = [];
+        foreach ($scores->fetchAll(PDO::FETCH_ASSOC) as $row) $map[$row['studentId']][] = $row;
+        foreach ($students as &$student) {
+            $student['savedCriteria'] = $map[$student['studentId']] ?? [];
+            $student['criteriaScores'] = array_column($student['savedCriteria'], 'score', 'criteriaId');
+        }
+        return $students;
+    }
+
+    private function lockSuffix(bool $lock): string
+    {
+        return $lock && $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'sqlite' ? ' FOR UPDATE' : '';
+    }
+
     public function draftAssessmentForTeacherUser(string $teacherUserId, string $assessmentId): ?array
     {
-        $statement = $this->pdo->prepare(
-            'SELECT assessment.id,assessment.activityId,assessment.classId,assessment.projectId,assessment.studentId,assessment.version,
-                    assessment.overallScore,assessment.comment,assessment.status
-             FROM assessments assessment
-             INNER JOIN teacher_profiles teacher ON teacher.id=assessment.teacherId
-             WHERE teacher.userId=:userId AND assessment.id=:assessmentId LIMIT 1'
-        );
-        $statement->execute(['userId' => $teacherUserId, 'assessmentId' => $assessmentId]);
-        $assessment = $statement->fetch(PDO::FETCH_ASSOC);
-        if (!is_array($assessment)) return null;
-        $scores = $this->pdo->prepare('SELECT criteriaId,score FROM assessment_scores WHERE assessmentId=:assessmentId');
-        $scores->execute(['assessmentId' => $assessmentId]);
-        $assessment['criteria'] = [];
-        foreach ($scores->fetchAll(PDO::FETCH_ASSOC) ?: [] as $score) {
-            $assessment['criteria'][(string) $score['criteriaId']] = (string) $score['score'];
-        }
-        return $assessment;
+        $s = $this->pdo->prepare('SELECT a.* FROM assessments a JOIN teacher_profiles t ON t.id=a.teacherId WHERE t.userId=? AND a.id=?');
+        $s->execute([$teacherUserId,$assessmentId]);
+        $a = $s->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($a)) return null;
+        $mode = $a['classId'] !== null ? 'class' : ($a['projectId'] !== null ? 'project' : 'activity');
+        $id = (string) $a[TeacherAssessmentScope::column($mode)];
+        if (!$this->studentInContext($a['teacherId'], $mode, $id, $a['studentId'])) return null;
+        $a['mode'] = $mode;
+        $a['contextId'] = $id;
+        $s = $this->pdo->prepare('SELECT criteriaId,score FROM assessment_scores WHERE assessmentId=?');
+        $s->execute([$assessmentId]);
+        $a['criteria'] = array_map('strval', array_column($s->fetchAll(PDO::FETCH_ASSOC), 'score', 'criteriaId'));
+        return $a;
     }
 
     /** @param list<array{criteriaId:string,score:string}> $criteriaScores */
     public function saveAssessment(
         string $teacherId,
         string $studentId,
-        ?string $activityId,
+        string $activityId,
         ?string $assessmentId,
         int $expectedVersion,
         ?string $overallScore,
@@ -217,17 +280,17 @@ final class TeacherGradingRepository
         array $criteriaScores,
         ?string $actorUserId = null,
         ?string $requestId = null,
-        ?string $classId = null,
-        ?string $projectId = null
+        string $mode = 'activity'
     ): void {
+        $column = TeacherAssessmentScope::column($mode);
         $this->pdo->beginTransaction();
 
         try {
-            if ($activityId !== '' && $classId === null && $projectId === null && $this->registrationForTeacher($teacherId, $activityId, $studentId, true) === null) {
+            if (!$this->studentInContext($teacherId, $mode, $activityId, $studentId, true)) {
                 throw new TeacherGradingConflictException('Assessment scope changed during save.');
             }
 
-            $existing = $this->assessmentForTeacher($teacherId, $studentId, $activityId, $classId, $projectId, $assessmentId);
+            $existing = $this->assessmentForTeacher($teacherId, $studentId, $activityId, $assessmentId, $mode);
             if (($existing['status'] ?? null) === 'published') {
                 throw new TeacherGradingConflictException('Published assessments are immutable.');
             }
@@ -238,17 +301,15 @@ final class TeacherGradingRepository
 
                 $savedAssessmentId = Uuid::v4();
                 $statement = $this->pdo->prepare(
-                    'INSERT INTO assessments
-                        (id, teacherId, studentId, activityId, classId, projectId, overallScore, comment, status, publishedAt, version)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)'
+                    "INSERT INTO assessments
+                        (id, teacherId, studentId, $column, overallScore, comment, status, publishedAt, version)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)"
                 );
                 $statement->execute([
                     $savedAssessmentId,
                     $teacherId,
                     $studentId,
                     $activityId,
-                    $classId,
-                    $projectId,
                     $overallScore,
                     $comment,
                     $status,
@@ -263,12 +324,13 @@ final class TeacherGradingRepository
                 }
 
                 $statement = $this->pdo->prepare(
-                    'UPDATE assessments
+                    "UPDATE assessments
                      SET overallScore = ?, comment = ?, status = ?, publishedAt = ?, version = version + 1
                      WHERE id = ?
                        AND teacherId = ?
                        AND studentId = ?
-                       AND version = ?'
+                       AND $column = ?
+                       AND status = 'draft' AND version = ?"
                 );
                 $statement->execute([
                     $overallScore,
@@ -278,6 +340,7 @@ final class TeacherGradingRepository
                     $assessmentId,
                     $teacherId,
                     $studentId,
+                    $activityId,
                     $expectedVersion,
                 ]);
                 if ($statement->rowCount() !== 1) {
@@ -286,6 +349,9 @@ final class TeacherGradingRepository
 
                 $savedAssessmentId = $assessmentId;
             }
+
+            $deleteScores = $this->pdo->prepare('DELETE FROM assessment_scores WHERE assessmentId=?');
+            $deleteScores->execute([$savedAssessmentId]);
 
             // Keep VALUES(score) for MariaDB compatibility; newer MySQL versions deprecate this syntax.
             $isSqlite = ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite');
@@ -306,7 +372,12 @@ final class TeacherGradingRepository
                 $this->getBadgeAwardService()->evaluateAndAward($studentId, 'system');
             }
 
-            TransactionalAiOutboxPublisher::publish($this->pdo,'teacher_evaluation',$savedAssessmentId,$expectedVersion+1,[$studentId],$status==='published'?'evaluation.published':'evaluation.updated',['activity_id'=>$activityId,'class_id'=>$classId,'project_id'=>$projectId,'status'=>$status]);
+            // Never invoke the publisher's runtime DDL fallback inside this transaction.
+            if ($this->hasTable('learner_ai_data_outbox')) {
+                if (!TransactionalAiOutboxPublisher::publish($this->pdo,'teacher_evaluation',$savedAssessmentId,$expectedVersion+1,[$studentId],$status==='published'?'evaluation.published':'evaluation.updated',[$column=>$activityId,'status'=>$status])) {
+                    throw new \RuntimeException('Could not record the assessment AI refresh event.');
+                }
+            }
 
             if ($this->hasTable('audit_logs') && is_string($actorUserId) && $actorUserId !== '' && is_string($requestId) && $requestId !== '') {
                 $audit = $this->pdo->prepare(
@@ -319,7 +390,7 @@ final class TeacherGradingRepository
                     'action' => $status === 'published' ? 'assessment.published' : 'assessment.saved_draft',
                     'entityId' => $savedAssessmentId,
                     'requestId' => $requestId,
-                    'metadata' => json_encode(['activityId' => $activityId, 'studentId' => $studentId, 'status' => $status], JSON_THROW_ON_ERROR),
+                    'metadata' => json_encode(['mode' => $mode, 'contextId' => $activityId, 'studentId' => $studentId, 'status' => $status], JSON_THROW_ON_ERROR),
                     'createdAt' => gmdate('Y-m-d H:i:s.u'),
                 ]);
             }
@@ -333,7 +404,7 @@ final class TeacherGradingRepository
                         $studentUserId,
                         'teacher_assessment_published',
                         'Đánh giá mới đã được công bố',
-                        'Giáo viên đã công bố kết quả đánh giá hoạt động của bạn.',
+                        'Giáo viên đã công bố kết quả đánh giá năng lực của bạn.',
                         '/app/learner/evaluation.php',
                         'teacher_assessment_published:' . $savedAssessmentId,
                         $studentId
@@ -356,15 +427,12 @@ final class TeacherGradingRepository
     }
 
     /** @return array<string,mixed>|null */
-    private function assessmentForTeacher(string $teacherId, string $studentId, ?string $activityId, ?string $classId, ?string $projectId, ?string $assessmentId): ?array
+    private function assessmentForTeacher(string $teacherId, string $studentId, string $contextId, ?string $assessmentId, string $mode): ?array
     {
-        $sql =
-            'SELECT assessment.id, assessment.version, assessment.status
-             FROM assessments assessment
-             WHERE assessment.teacherId = ?
-               AND assessment.studentId = ?
-               AND ((assessment.activityId = ? AND ? <> "") OR (assessment.classId = ? AND ? <> "") OR (assessment.projectId = ? AND ? <> ""))';
-        $parameters = [$teacherId, $studentId, $activityId, $activityId, $classId, $classId, $projectId, $projectId];
+        $column = TeacherAssessmentScope::column($mode);
+        $sql = "SELECT assessment.id,assessment.version,assessment.status FROM assessments assessment
+            WHERE assessment.teacherId=? AND assessment.studentId=? AND assessment.$column=?";
+        $parameters = [$teacherId,$studentId,$contextId];
 
         if ($assessmentId !== null) {
             $sql .= ' AND assessment.id = ?';
@@ -464,6 +532,7 @@ final class TeacherGradingRepository
 
     private function getNotificationService(): NotificationService
     {
+        require_once dirname(__DIR__, 4) . '/app/learner/data/bootstrap.php';
         return $this->notifications ?? new NotificationService(new DatabaseNotificationRepository($this->pdo));
     }
 }
