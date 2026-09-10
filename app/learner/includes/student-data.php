@@ -111,18 +111,20 @@ $aiCapabilityProfile = null;
 $deferTalentPassport = ($learnerDeferTalentPassport ?? false) === true;
 $tp = \TalentHub\Learner\Data\ReadModel\TalentPassportReadModel::fromAggregate([]);
 
-/** @return array<string,mixed> */
-function learner_talent_passport(): array
-{
-    if (isset($GLOBALS['learner_talent_passport']) && is_array($GLOBALS['learner_talent_passport'])) {
-        return $GLOBALS['learner_talent_passport'];
+if (!function_exists('learner_talent_passport')) {
+    /** @return array<string,mixed> */
+    function learner_talent_passport(): array
+    {
+        if (isset($GLOBALS['learner_talent_passport']) && is_array($GLOBALS['learner_talent_passport'])) {
+            return $GLOBALS['learner_talent_passport'];
+        }
+        $authenticatedStudentId = learner_current_student_id();
+        $passportRepo = learner_repository_factory()->talentPassport();
+        $rawPassport = $passportRepo->aggregateForStudent($authenticatedStudentId);
+        $tp = \TalentHub\Learner\Data\ReadModel\TalentPassportReadModel::fromAggregate($rawPassport);
+        $GLOBALS['learner_talent_passport'] = $tp;
+        return $tp;
     }
-    $authenticatedStudentId = learner_current_student_id();
-    $passportRepo = learner_repository_factory()->talentPassport();
-    $rawPassport = $passportRepo->aggregateForStudent($authenticatedStudentId);
-    $tp = \TalentHub\Learner\Data\ReadModel\TalentPassportReadModel::fromAggregate($rawPassport);
-    $GLOBALS['learner_talent_passport'] = $tp;
-    return $tp;
 }
 
 if ($isDatabaseMode && !$deferTalentPassport) {

@@ -80,7 +80,7 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
                 throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hồ sơ học viên.');
             }
             if (!$this->studentCanAccessPost($studentId, $post)) {
-                throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Cơ hội không thuộc phạm vi trường của học viên.');
+                throw new ApiException(403, 'OPPORTUNITY_ACCESS_RESTRICTED', 'Cơ hội thực tập này chỉ dành cho sinh viên thuộc các trường đối tác liên kết của doanh nghiệp.');
             }
             if ($this->hasAcceptedPlacement($studentId)) {
                 throw new ApiException(
@@ -89,9 +89,31 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
                     'Bạn đã xác nhận một vị trí thực tập và không thể nộp thêm hồ sơ mới.'
                 );
             }
+            $now = $this->now();
             $consent = $this->lockConsent($studentId);
             if ($consent === null) {
-                throw new ApiException(422, 'CONSENT_REQUIRED', 'Cần xác nhận chia sẻ hồ sơ trước khi ứng tuyển.');
+                $consentId = SupportUuid::v4();
+                $statement = $this->pdo->prepare(<<<'SQL'
+                    INSERT INTO privacy_consents
+                        (id, studentId, scope, isGranted, policyVersion, grantedAt, revokedAt, createdAt)
+                    VALUES
+                        (:id, :studentId, :scope, 1, :policyVersion, :grantedAt, NULL, :createdAt)
+                SQL);
+                $statement->execute([
+                    'id' => $consentId,
+                    'studentId' => $studentId,
+                    'scope' => self::CONSENT_SCOPE,
+                    'policyVersion' => self::CONSENT_POLICY,
+                    'grantedAt' => $now,
+                    'createdAt' => $now,
+                ]);
+                $consent = [
+                    'id' => $consentId,
+                    'scope' => self::CONSENT_SCOPE,
+                    'policyVersion' => self::CONSENT_POLICY,
+                    'isGranted' => 1,
+                    'grantedAt' => $now,
+                ];
             }
             if ($this->hasDuplicate($postId, $studentId)) {
                 throw new ApiException(409, 'DUPLICATE_APPLICATION', 'Bạn đã ứng tuyển cơ hội này.');

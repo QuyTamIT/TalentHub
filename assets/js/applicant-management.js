@@ -335,7 +335,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <tr data-applicant-id="${app.id}">
                         <td>
                             <div class="ent-applicant-identity">
-                                <div class="ent-applicant-avatar" style="background: linear-gradient(135deg, #2563eb 0%, #ea580c 100%) !important; color: #ffffff !important; font-weight: 800 !important; border: 1.5px solid #93c5fd !important; box-shadow: 0 2px 5px rgba(37,99,235,0.2) !important;">${escapeHtml(app.avatar_initials)}</div>
+                                ${app.avatar_url
+                                    ? `<div class="ent-applicant-avatar" style="overflow: hidden; padding: 0; border: 1.5px solid #93c5fd !important; box-shadow: 0 2px 5px rgba(37,99,235,0.2) !important;"><img src="${escapeHtml(app.avatar_url)}" alt="${escapeHtml(app.name)}" style="width: 100%; height: 100%; object-fit: cover; display: block;"></div>`
+                                    : `<div class="ent-applicant-avatar" style="background: linear-gradient(135deg, #2563eb 0%, #ea580c 100%) !important; color: #ffffff !important; font-weight: 800 !important; border: 1.5px solid #93c5fd !important; box-shadow: 0 2px 5px rgba(37,99,235,0.2) !important;">${escapeHtml(app.avatar_initials)}</div>`
+                                }
                                 <div class="ent-applicant-info">
                                     <button type="button" class="ent-applicant-info__name btn-view-cv" data-app-id="${app.id}" title="Xem hồ sơ ứng viên">
                                         ${escapeHtml(app.name)}
@@ -411,9 +414,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <article class="ent-applicant-mobile-card" data-applicant-id="${app.id}">
                         <div class="ent-applicant-mobile-card__header">
                             <div class="ent-applicant-identity">
-                                <div class="ent-applicant-avatar" style="width:34px; height:34px; font-size:0.8rem; background: linear-gradient(135deg, #2563eb 0%, #ea580c 100%) !important; color: #ffffff !important; font-weight: 800 !important;">
-                                    ${escapeHtml(app.avatar_initials)}
-                                </div>
+                                ${app.avatar_url
+                                    ? `<div class="ent-applicant-avatar" style="width:34px; height:34px; overflow:hidden; padding:0; border: 1.5px solid #93c5fd !important;"><img src="${escapeHtml(app.avatar_url)}" alt="${escapeHtml(app.name)}" style="width:100%; height:100%; object-fit:cover; display:block;"></div>`
+                                    : `<div class="ent-applicant-avatar" style="width:34px; height:34px; font-size:0.8rem; background: linear-gradient(135deg, #2563eb 0%, #ea580c 100%) !important; color: #ffffff !important; font-weight: 800 !important;">${escapeHtml(app.avatar_initials)}</div>`
+                                }
                                 <div class="ent-applicant-info">
                                     <button type="button" class="ent-applicant-info__name btn-view-cv" data-app-id="${app.id}">
                                         ${escapeHtml(app.name)}
@@ -590,7 +594,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. Recruiter Profile Header & Metadata
         const avatarEl = document.getElementById('drawer-app-avatar');
         if (avatarEl) {
-            avatarEl.textContent = app.avatar_initials || (app.name ? app.name.split(' ').map(n => n[0]).join('').slice(-2).toUpperCase() : 'UV');
+            if (app.avatar_url) {
+                avatarEl.innerHTML = `<img src="${escapeHtml(app.avatar_url)}" alt="${escapeHtml(app.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;">`;
+            } else {
+                avatarEl.textContent = app.avatar_initials || (app.name ? app.name.split(' ').map(n => n[0]).join('').slice(-2).toUpperCase() : 'UV');
+            }
         }
 
         const nameEl = document.getElementById('drawer-app-name');
@@ -604,6 +612,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const locTextEl = document.getElementById('drawer-app-location-text');
         if (locTextEl) {
             locTextEl.textContent = app.location || 'Chưa có dữ liệu';
+        }
+
+        // Student Cover Message (if present)
+        const studentMsgSec = document.getElementById('drawer-student-message-section');
+        const studentMsgEl = document.getElementById('drawer-student-message');
+        if (studentMsgSec && studentMsgEl) {
+            if (app.message && app.message.trim() !== '') {
+                studentMsgEl.textContent = app.message;
+                studentMsgSec.style.display = 'block';
+            } else {
+                studentMsgSec.style.display = 'none';
+            }
         }
 
         // Score Tag in Header

@@ -298,6 +298,29 @@ body {
     color: #1e3a8a;
     letter-spacing: 0.5px;
 }
+.cv-seal-qr-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 1mm auto;
+}
+.cv-seal-qr {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    background: #ffffff;
+    padding: 0.6mm;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+}
+.cv-seal-qr img,
+.cv-seal-qr canvas {
+    display: block !important;
+    width: 52px !important;
+    height: 52px !important;
+    max-width: 52px !important;
+    max-height: 52px !important;
+}
 .cv-seal-id {
     font-size: 7.1pt;
     color: #475569;

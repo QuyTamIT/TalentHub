@@ -1279,7 +1279,10 @@ if ($professionalSummary === '') {
                             <button class="learner-btn learner-btn--outline" id="btn-copy-passport-link" type="button" style="display: inline-flex; align-items: center; gap: 0.5rem;">
                                 <?= learner_icon('share', 16); ?> Chia sẻ liên kết
                             </button>
-                            <a class="learner-btn learner-btn--primary" href="talent-passport-cv.php" style="background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%); color: #FFFFFF; font-weight: 800; display: inline-flex; align-items: center; gap: 0.55rem; text-decoration: none; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);" title="Xem trước và xuất bản CV chuẩn 1 trang A4">
+                            <button class="learner-btn learner-btn--primary" id="btn-print-passport" type="button" style="background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%); color: #FFFFFF; font-weight: 800; display: inline-flex; align-items: center; gap: 0.55rem; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);">
+                                <?= learner_icon('printer', 18); ?> In / Xuất File PDF
+                            </button>
+                            <a class="learner-btn learner-btn--outline" href="talent-passport-cv.php" style="border: 1px solid #1D4ED8; color: #1D4ED8; font-weight: 700; display: inline-flex; align-items: center; gap: 0.55rem; text-decoration: none;" title="Xem trước và xuất bản CV chuẩn 1 trang A4">
                                 <?= learner_icon('file-text', 18); ?> Xuất CV A4
                             </a>
                         </div>
@@ -1450,9 +1453,15 @@ if ($professionalSummary === '') {
 
                                 <!-- 6. QR Code Verification -->
                                 <div class="passport-sidebar-section passport-sidebar-qr-box">
-                                    <div class="passport-qr-cv-img" id="passport-verification-qr" role="img" aria-label="Mã QR xác thực Talent Passport"></div>
-                                    <span class="passport-qr-cv-badge" id="passport-qr-status">TẠO KHI XUẤT FILE</span>
-                                    <span class="passport-qr-cv-caption">Quét để xem hồ sơ đã đồng ý chia sẻ</span>
+                                    <?php
+                                    $passportCode = !empty($studentId) ? ('TP-' . strtoupper(substr(str_replace('-', '', (string)$studentId), 0, 8))) : 'PASSPORT-TEST-002';
+                                    $defaultVerifyUrl = (function_exists('app_href') ? app_href('/app/learner/shared-profile.php') : '/app/learner/shared-profile.php') . '?code=' . urlencode($passportCode);
+                                    ?>
+                                    <div class="passport-qr-cv-img" id="passport-verification-qr" data-default-url="<?= learner_escape($defaultVerifyUrl); ?>" role="img" aria-label="Mã QR xác thực Talent Passport">
+                                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&amp;data=<?= urlencode($defaultVerifyUrl); ?>" alt="Mã QR xác thực" class="passport-qr-cv-img-fallback" width="160" height="160" style="max-width: 100%; height: auto; display: block; margin: 0 auto; border-radius: 4px;">
+                                    </div>
+                                    <span class="passport-qr-cv-badge" id="passport-qr-status">HIỆU LỰC 30 NGÀY</span>
+                                    <span class="passport-qr-cv-caption">Quét để xác thực số (Hồ sơ đã đồng ý chia sẻ)</span>
                                 </div>
 
                             </aside>
@@ -1667,33 +1676,49 @@ if ($professionalSummary === '') {
                         baseUrl: boot.apiBase || '/app/learner/api/v1',
                         csrfToken: boot.csrfToken || '',
                     });
-                    if (!client || typeof window.QRCode !== 'function') {
-                        throw new Error('Không thể khởi tạo QR xác thực.');
-                    }
+                    const defaultUrl = qrContainer?.getAttribute('data-default-url') || '';
+                    const fallbackUrl = defaultUrl ? new URL(defaultUrl, window.location.origin).toString() : window.location.href;
 
-                    const result = await client.send('POST', '/profile-shares.php', {
-                        sharedFields: fullShareFields,
-                        expiresInDays: 30,
-                    });
-                    const shareUrl = String(result?.share?.shareUrl || '');
-                    if (!shareUrl) throw new Error('Máy chủ không trả về liên kết xác thực.');
+                    const renderQr = (url) => {
+                        if (qrContainer && typeof window.QRCode === 'function') {
+                            qrContainer.replaceChildren();
+                            new window.QRCode(qrContainer, {
+                                text: url,
+                                width: 200,
+                                height: 200,
+                                colorDark: '#0F172A',
+                                colorLight: '#FFFFFF',
+                                correctLevel: window.QRCode.CorrectLevel.M,
+                            });
+                        }
+                        if (qrStatus) {
+                            qrStatus.textContent = 'HIỆU LỰC 30 NGÀY';
+                        }
+                    };
 
-                    verificationUrl = new URL(shareUrl, window.location.origin).toString();
-                    if (qrContainer) {
-                        qrContainer.replaceChildren();
-                        new window.QRCode(qrContainer, {
-                            text: verificationUrl,
-                            width: 200,
-                            height: 200,
-                            colorDark: '#0F172A',
-                            colorLight: '#FFFFFF',
-                            correctLevel: window.QRCode.CorrectLevel.M,
+                    try {
+                        if (!client || typeof window.QRCode !== 'function') {
+                            renderQr(fallbackUrl);
+                            verificationUrl = fallbackUrl;
+                            return verificationUrl;
+                        }
+
+                        const result = await client.send('POST', '/profile-shares.php', {
+                            sharedFields: fullShareFields,
+                            expiresInDays: 30,
                         });
+                        const shareUrl = String(result?.share?.shareUrl || '');
+                        if (!shareUrl) throw new Error('Máy chủ không trả về liên kết xác thực.');
+
+                        verificationUrl = new URL(shareUrl, window.location.origin).toString();
+                        renderQr(verificationUrl);
+                        return verificationUrl;
+                    } catch (err) {
+                        console.warn('Sử dụng liên kết xác thực mã số dự phòng:', err);
+                        renderQr(fallbackUrl);
+                        verificationUrl = fallbackUrl;
+                        return verificationUrl;
                     }
-                    if (qrStatus) {
-                        qrStatus.textContent = 'HIỆU LỰC 30 NGÀY';
-                    }
-                    return verificationUrl;
                 })();
 
                 try {
@@ -1702,6 +1727,9 @@ if ($professionalSummary === '') {
                     sharePromise = null;
                 }
             };
+
+            // Tự động sinh mã QR xác thực ngay khi tải trang
+            ensureVerificationQr().catch(err => console.warn('Khởi tạo QR nền:', err));
 
             window.addEventListener('beforeprint', prepareSinglePagePrint);
             window.addEventListener('afterprint', resetSinglePagePrint);

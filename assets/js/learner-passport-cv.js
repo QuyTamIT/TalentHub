@@ -20,9 +20,29 @@
         url.searchParams.set('fresh', String(Date.now()));
         global.location.replace(url.href);
     });
+    function initSealQr() {
+        const qrNode = doc.getElementById('cv-seal-qr');
+        if (!qrNode || typeof global.QRCode !== 'function') return;
+        try {
+            const rawUrl = qrNode.getAttribute('data-qr-url') || global.location.href;
+            const url = new URL(rawUrl, global.location.origin).toString();
+            qrNode.replaceChildren();
+            new global.QRCode(qrNode, {
+                text: url,
+                width: 52,
+                height: 52,
+                colorDark: '#0f172a',
+                colorLight: '#ffffff',
+                correctLevel: global.QRCode.CorrectLevel.M,
+            });
+        } catch (e) {
+            // keep fallback
+        }
+    }
     global.addEventListener('beforeprint', check);
     global.addEventListener('afterprint', () => doc.body.classList.remove('cv-overflow'));
     (async () => {
+        initSealQr();
         await doc.fonts.ready;
         if (new URL(global.location.href).searchParams.get('export') === '1') {
             global.history.replaceState(null, '', global.location.pathname);

@@ -666,26 +666,70 @@
             }
             if (applicationError) applicationError.hidden = true;
             const submitButton = applicationForm.querySelector('[type="submit"]');
+            const btnSpinner = submitButton?.querySelector('.btn-spinner');
+            const btnIcon = submitButton?.querySelector('.btn-icon');
+            const btnText = submitButton?.querySelector('.btn-text');
             const opportunityId = document.body.dataset.opportunityId || '';
+
             if (!applicationApiClient || !opportunityId) {
                 if (applicationError) { applicationError.hidden = false; applicationError.textContent = 'Không thể kết nối dịch vụ ứng tuyển.'; }
                 return;
             }
-            if (submitButton) submitButton.disabled = true;
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                if (btnSpinner) btnSpinner.hidden = false;
+                if (btnIcon) btnIcon.hidden = true;
+                if (btnText) btnText.textContent = 'Đang gửi hồ sơ...';
+            }
+
             try {
                 await applicationApiClient.send('POST', '/applications.php', { action: 'grant-consent', confirmed: true });
                 const response = await applicationApiClient.send('POST', '/applications.php', {
                     action: 'submit', postId: opportunityId, message: applicationMessage?.value || '',
                 });
                 if (!response?.application || response.application.status !== 'submitted') throw new Error('Phản hồi ứng tuyển không hợp lệ.');
+
                 closeModal(applicationForm.closest('.learner-modal'));
-                showToast('Hồ sơ ứng tuyển đã được gửi thành công.');
+
+                // Open Success Modal
+                const successModal = document.getElementById('learner-application-success-modal');
+                if (successModal) {
+                    openModal(successModal);
+                }
+
+                showToast('Xin ứng tuyển thành công! Đơn của bạn đã được gửi cho bên doanh nghiệp.', 'success');
+
+                // Update the sidebar apply card immediately
+                const applyCard = document.querySelector('[data-apply-card]');
+                if (applyCard) {
+                    const applyBtn = applyCard.querySelector('[data-open-modal="learner-application-modal"]');
+                    if (applyBtn) {
+                        applyBtn.outerHTML = '<a class="learner-btn learner-btn--primary learner-btn--block" href="ecosystem.php?view=applications#applications-tracker-title"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>Xem hồ sơ ứng tuyển</a>';
+                    }
+                    const titleEl = applyCard.querySelector('#apply-card-title');
+                    if (titleEl) titleEl.textContent = 'Bạn đã nộp hồ sơ';
+                    const iconEl = applyCard.querySelector('.learner-apply-card__icon');
+                    if (iconEl) {
+                        iconEl.style.background = '#ecfdf5';
+                        iconEl.style.color = '#16a34a';
+                        iconEl.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+                    }
+                    const descEl = applyCard.querySelector('p');
+                    if (descEl) descEl.textContent = 'Đơn ứng tuyển của bạn đã được gửi thành công. Bạn có thể theo dõi tiến độ xét duyệt tại Hồ sơ ứng tuyển.';
+                }
+
                 applicationForm.reset();
                 if (applicationMessageCount) applicationMessageCount.textContent = '0';
             } catch (error) {
                 if (applicationError) { applicationError.hidden = false; applicationError.textContent = error?.message || 'Không thể gửi hồ sơ ứng tuyển.'; }
             } finally {
-                if (submitButton) submitButton.disabled = false;
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    if (btnSpinner) btnSpinner.hidden = true;
+                    if (btnIcon) btnIcon.hidden = false;
+                    if (btnText) btnText.textContent = 'Xác nhận ứng tuyển';
+                }
             }
         });
 

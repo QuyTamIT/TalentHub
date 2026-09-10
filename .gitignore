@@ -56,3 +56,4 @@ Thumbs.db
 /bin/test-*.php
 /bin/smoke-*.php
 /bin/create-test-db.php
+/tools/build_assessment_report_docx.py

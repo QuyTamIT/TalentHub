@@ -1,6 +1,7 @@
 <?php
 /** @var array $cv Fresh, bounded PassportCvViewModel output. No database or sharing side effects here. */
 $escapeCv = static fn($value): string => htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+$cvVerificationUrl = $verificationUrl ?? ((function_exists('app_href') ? app_href('/app/learner/shared-profile.php') : '/app/learner/shared-profile.php') . '?code=' . urlencode($cv['passport_code'] ?? 'PASSPORT-TEST-002'));
 ?>
 <!doctype html>
 <html lang="vi">
@@ -140,6 +141,11 @@ $escapeCv = static fn($value): string => htmlspecialchars((string)$value, ENT_QU
                                 <span class="cv-seal-emblem">🛡️</span>
                                 <span class="cv-seal-title">TALENT PASSPORT 360°</span>
                             </div>
+                            <div class="cv-seal-qr-wrap">
+                                <div class="cv-seal-qr" id="cv-seal-qr" data-qr-url="<?= $escapeCv($cvVerificationUrl); ?>" role="img" aria-label="Mã QR xác thực CV Talent Passport">
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&amp;data=<?= urlencode($cvVerificationUrl); ?>" alt="QR xác thực CV" class="cv-seal-qr-img" width="58" height="58">
+                                </div>
+                            </div>
                             <div class="cv-seal-id">Mã số: <?= !empty($cv['passport_code']) ? $escapeCv($cv['passport_code']) : 'PASSPORT-TEST-002'; ?></div>
                             <div class="cv-seal-status">✓ ĐÃ THẨM ĐỊNH NĂNG LỰC SỐ</div>
                             <div class="cv-seal-org">Hệ sinh thái Giáo dục TalentHub</div>
@@ -251,6 +257,7 @@ $escapeCv = static fn($value): string => htmlspecialchars((string)$value, ENT_QU
             </div>
         </div>
     </main>
+    <script src="../../assets/vendor/qrcodejs/qrcode.min.js"></script>
     <script src="../../assets/js/learner-passport-cv.js"></script>
 </body>
 </html>

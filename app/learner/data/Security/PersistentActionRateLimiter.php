@@ -17,7 +17,7 @@ final class PersistentActionRateLimiter
     /** @var array<string,array{identity:int,ip:int,window:int,block:int}> */
     private const DEFAULT_POLICIES = [
         'learner.checkin' => ['identity' => 10, 'ip' => 60, 'window' => 60, 'block' => 60],
-        'learner.application' => ['identity' => 5, 'ip' => 30, 'window' => 300, 'block' => 300],
+        'learner.application' => ['identity' => 30, 'ip' => 90, 'window' => 60, 'block' => 30],
         'learner.ai' => ['identity' => 20, 'ip' => 120, 'window' => 60, 'block' => 10],
     ];
 

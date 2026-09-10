@@ -15,6 +15,7 @@ header('Referrer-Policy: no-referrer');
 header("Content-Security-Policy: default-src 'self'; img-src 'self' https:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
 
 $token = trim((string) ($_GET['token'] ?? ''));
+$code = trim((string) ($_GET['code'] ?? $_GET['passport'] ?? ''));
 $resolved = null;
 
 try {
@@ -24,9 +25,11 @@ try {
 
     learner_configure_data(['source' => 'database', 'pdo' => $pdo]);
 
+    $sharingService = new ProfileSharingService($pdo);
     if ($token !== '') {
-        $sharingService = new ProfileSharingService($pdo);
         $resolved = $sharingService->resolveShare($token);
+    } elseif ($code !== '') {
+        $resolved = $sharingService->resolvePassportCode($code);
     }
 } catch (\Throwable) {
     $resolved = null;

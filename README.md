@@ -71,4 +71,18 @@ php bin/migrate.php validate
 php bin/migrate.php status
 ```
 
-Không dùng `Database/Talenthub.sql` để setup mới. File dump đó là snapshot legacy; luồng chuẩn là migration + `bin/setup-local.php`.
+## Đồng bộ dữ liệu với bản bàn giao ngày 11/09/2026
+
+`Database/Talenthub.sql` là snapshot đầy đủ của MySQL local, xuất lúc **00:21 ngày 11/09/2026 (UTC+7)**, gồm **107 bảng**, dữ liệu, triggers và các đối tượng database được mysqldump hỗ trợ. File này đã được cập nhật cùng code để team kiểm tra trên cùng dữ liệu tại thời điểm xuất.
+
+Để dùng dữ liệu snapshot, tạo một database **mới, rỗng** trên MySQL 8.4, chọn database đó trong MySQL CLI rồi import:
+
+```sql
+SOURCE D:/TalentHub/Database/Talenthub.sql;
+```
+
+Thay đường dẫn theo thư mục clone của bạn, sau đó cấu hình `DB_DATABASE` và thông tin kết nối trong `.env` local. File dump có lệnh thay thế bảng; chỉ import vào database dành riêng cho bản bàn giao. Không cần chạy seed lại sau khi import snapshot.
+
+Nếu muốn dựng dữ liệu mẫu từ đầu, tiếp tục dùng migration và `php bin/setup-local.php` theo hướng dẫn phía trên. `.env`, API key, file upload sinh ra khi chạy ứng dụng, test và thư mục công cụ cá nhân không nằm trong bản bàn giao.
+
+Kiểm tra snapshot: mysqldump hoàn tất với transaction nhất quán và đủ danh sách 107 bảng. Chưa kiểm thử khôi phục vào database riêng do tài khoản local không có quyền tạo database mới.
