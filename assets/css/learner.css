@@ -16817,6 +16817,9 @@ body.learner-app .learner-sidebar__logo-img {
     height: auto;
     object-fit: contain;
     aspect-ratio: 401 / 122;
+    text-align: center;
+    align-items: center;
+    margin-right: 24px
 }
 
 body.learner-app .learner-sidebar__role-tag {
