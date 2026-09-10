@@ -23,6 +23,9 @@ try {
     $data=(new \TalentHub\Learner\Data\Database\DatabasePassportCvRepository($context->pdo()))->forStudent($studentId);
     $stamp=(new DateTimeImmutable('now',new DateTimeZone('Asia/Ho_Chi_Minh')))->format('d/m/Y H:i:s');
     $cv=\TalentHub\Learner\Data\ReadModel\PassportCvViewModel::build($data,$stamp);
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443) ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $verificationUrl = $scheme . '://' . $host . (function_exists('app_href') ? app_href('/app/learner/shared-profile.php') : '/app/learner/shared-profile.php') . '?code=' . urlencode($cv['passport_code']);
     require __DIR__.'/includes/passport-cv-template.php';
 } catch (Throwable $error) {
     http_response_code($error instanceof \TalentHub\Http\ApiException ? $error->status : 503);

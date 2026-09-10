@@ -438,10 +438,12 @@ if (!function_exists('learner_ecosystem_partner')) {
 if (!function_exists('learner_ecosystem_opportunity')) {
     function learner_ecosystem_opportunity(string $type, string|int $id): ?array
     {
+        $studentId = learner_current_student_id();
         return \TalentHub\Learner\Data\ReadModel\EcosystemReadModel::resolveOpportunity(
             learner_ecosystem_repository(),
             $type,
-            (string) $id
+            (string) $id,
+            $studentId !== '' ? $studentId : null
         );
     }
 }
@@ -599,6 +601,7 @@ if (!function_exists('learner_ecosystem_my_applications_summary')) {
         $applications = learner_ecosystem_applications();
         $summary = [
             'total' => count($applications),
+            'submitted' => 0,
             'reviewing' => 0,
             'interview' => 0,
             'accepted' => 0,
@@ -608,7 +611,9 @@ if (!function_exists('learner_ecosystem_my_applications_summary')) {
         ];
         foreach ($applications as $app) {
             $status = (string) ($app['status'] ?? '');
-            if ($status === 'submitted' || $status === 'reviewing') {
+            if ($status === 'submitted') {
+                $summary['submitted']++;
+            } elseif ($status === 'reviewing') {
                 $summary['reviewing']++;
             } elseif ($status === 'interview') {
                 $summary['interview']++;
@@ -625,12 +630,36 @@ if (!function_exists('learner_ecosystem_my_applications_summary')) {
 }
 
 if (!function_exists('learner_ecosystem_can_apply')) {
-    function learner_ecosystem_can_apply(array $opportunity, ?string $today = null): bool
+    function learner_ecosystem_can_apply(array $opportunity, ?string $today = null, ?string $studentSchoolId = null): bool
     {
         $today ??= date('Y-m-d');
         $status = (string) ($opportunity['status'] ?? '');
 
-        return in_array($status, ['active', 'published', 'open'], true)
-            && (($opportunity['deadline'] ?? '') === '' || ($opportunity['deadline'] ?? '') >= $today);
+        if (!in_array($status, ['active', 'published', 'open'], true)) {
+            return false;
+        }
+
+        if (($opportunity['deadline'] ?? '') !== '' && ($opportunity['deadline'] ?? '') < $today) {
+            return false;
+        }
+
+        if (($opportunity['audience'] ?? 'public') === 'partner_schools') {
+            $studentSchoolId ??= (string) ($GLOBALS['student']['school_id'] ?? ($GLOBALS['learner_page_context']['student']['school']['id'] ?? ''));
+            if ($studentSchoolId !== '') {
+                try {
+                    $config = require dirname(__DIR__, 3) . '/config/database.php';
+                    $db = (new \TalentHub\Database\Connection($config))->connect();
+                    $stmt = $db->prepare('SELECT 1 FROM internship_post_target_schools WHERE postId = ? AND schoolId = ? LIMIT 1');
+                    $stmt->execute([(string) ($opportunity['id'] ?? ''), $studentSchoolId]);
+                    if ($stmt->fetchColumn() === false) {
+                        return false;
+                    }
+                } catch (\Throwable) {
+                    // Safe fallback
+                }
+            }
+        }
+
+        return true;
     }
 }

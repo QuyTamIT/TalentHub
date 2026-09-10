@@ -1,4 +1,4 @@
-﻿/**
+/**
  * TalentHub Learner - Applications Tracker Controller
  * Handles toggling, withdrawal confirmation, and UI updates for student's applications.
  */
@@ -16,7 +16,9 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const shouldAutoExpand = urlParams.get('view') === 'applications'
-            || window.location.hash === '#my-applications';
+            || window.location.hash === '#my-applications'
+            || window.location.hash === '#applications-tracker-title'
+            || tracker.dataset.hasApplications === 'true';
 
         function setExpanded(expanded) {
             if (!body || !toggleBtn) return;
@@ -84,19 +86,34 @@
                     const statusBadge = card.querySelector('[data-app-status-badge]');
                     if (statusBadge) {
                         statusBadge.className = 'learner-status-badge is-withdrawn';
-                        statusBadge.textContent = 'Đã rút';
+                        statusBadge.innerHTML = '<span class="dot" aria-hidden="true"></span> Đã rút';
                     }
-                    const timeline = card.querySelector('.learner-application-timeline');
-                    if (timeline) {
-                        const activeSteps = timeline.querySelectorAll('.is-current');
-                        activeSteps.forEach((el) => {
+                    const stepper = card.querySelector('.learner-app-stepper');
+                    if (stepper) {
+                        const currentSteps = stepper.querySelectorAll('.is-current');
+                        currentSteps.forEach((el) => {
                             el.classList.remove('is-current');
                         });
-                        const withdrawnStep = timeline.querySelector('.is-withdrawn');
-                        if (withdrawnStep) {
-                            withdrawnStep.classList.add('is-current');
+                        const decisionStep = stepper.querySelector('[data-step-id="decision"]');
+                        if (decisionStep) {
+                            decisionStep.className = 'learner-app-step is-withdrawn';
+                            const node = decisionStep.querySelector('.learner-app-step__node');
+                            if (node) {
+                                node.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>';
+                            }
+                            const desc = decisionStep.querySelector('.learner-app-step__desc');
+                            if (desc) {
+                                desc.textContent = 'Học viên đã chủ động rút hồ sơ';
+                            }
                         }
                     }
+                    let statusNote = card.querySelector('.learner-app-status-note');
+                    if (!statusNote) {
+                        statusNote = document.createElement('div');
+                        statusNote.className = 'learner-app-status-note';
+                        card.appendChild(statusNote);
+                    }
+                    statusNote.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><div>Bạn đã chủ động rút hồ sơ khỏi vị trí tuyển dụng này.</div>';
                 }
                 withdrawBtn.remove();
 

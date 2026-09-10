@@ -112,13 +112,13 @@ final class EcosystemReadModel
         return null;
     }
 
-    public static function resolveOpportunity(EcosystemRepository $repository, string $type, string $routeId): ?array
+    public static function resolveOpportunity(EcosystemRepository $repository, string $type, string $routeId, ?string $studentId = null): ?array
     {
         if (Uuid::isValid($routeId)) {
-            $record = $repository->findOpportunity($type, $routeId);
+            $record = $repository->findOpportunity($type, $routeId, $studentId);
             return $record === null ? null : self::opportunity($record);
         }
-        foreach ($repository->opportunities() as $record) {
+        foreach ($repository->opportunities($studentId) as $record) {
             $view = self::opportunity($record);
             if ((string) $view['id'] === $routeId) {
                 return $view;
