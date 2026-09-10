@@ -6,8 +6,10 @@ namespace TalentHub\Modules\Teacher\Service;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use TalentHub\Domain\Activity\ActivityPolicy;
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\Teacher\Repository\TeacherQrSessionRepository;
+use TalentHub\Support\Clock\ClockInterface;
 
 final class TeacherQrSessionService
 {
@@ -19,7 +21,11 @@ final class TeacherQrSessionService
     public const MAX_MAX_SCANS = 10000;
     public const DEFAULT_CONFIRMED_HOURS = '1.00';
 
-    public function __construct(private readonly TeacherQrSessionRepository $repository) {}
+    public function __construct(
+        private readonly TeacherQrSessionRepository $repository,
+        private readonly ClockInterface $clock,
+        private readonly ActivityPolicy $policy,
+    ) {}
 
     /** @return array{activities:list<array<string,mixed>>,sessions:list<array<string,mixed>>} */
     public function pageData(string $userId): array
@@ -61,9 +67,15 @@ final class TeacherQrSessionService
         $rawToken = $this->base64Url(random_bytes(32));
         $tokenHash = hash('sha256', $rawToken);
         $sessionId = self::uuid();
-        $expiresAt = (new DateTimeImmutable('now', new DateTimeZone('UTC')))
-            ->modify("+{$durationMinutes} minutes")
-            ->format('Y-m-d H:i:s.u');
+
+        // Look up the activity so the policy can decide whether QR is allowed
+        // and clamp expiry to endAt.
+        $activity = $this->repository->findOngoingActivity($teacherId, $activityId);
+        if ($activity === null) {
+            throw new ApiException(422, 'INVALID_ACTIVITY', 'Chỉ có thể tạo QR cho hoạt động đang diễn ra do bạn quản lý.');
+        }
+        $expiresAtDt = $this->policy->assertQrCanBeCreated($activity, $durationMinutes);
+        $expiresAt = $expiresAtDt->format('Y-m-d H:i:s.u');
 
         if (!$this->repository->createSession($teacherId, $activityId, $sessionId, $tokenHash, $expiresAt, $maxScans, $confirmedHours)) {
             throw new ApiException(422, 'INVALID_ACTIVITY', 'Chỉ có thể tạo QR cho hoạt động đang diễn ra do bạn quản lý.');

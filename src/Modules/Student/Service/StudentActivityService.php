@@ -6,12 +6,24 @@ namespace TalentHub\Modules\Student\Service;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
+use TalentHub\Domain\Activity\ActivityPolicy;
+use TalentHub\Domain\Activity\CatalogBucket;
 use TalentHub\Http\ApiException;
+use TalentHub\Support\Clock\ClockInterface;
 use TalentHub\Support\Uuid;
 
+/**
+ * Read-only catalog for students. Replaces the inline bucket logic that used
+ * to live in the UI pages and the AI sources. Front-end renders, never re-
+ * derives the rule.
+ */
 final class StudentActivityService
 {
-    public function __construct(private readonly PDO $pdo) {}
+    public function __construct(
+        private readonly PDO $pdo,
+        private readonly ClockInterface $clock,
+        private readonly ActivityPolicy $policy,
+    ) {}
 
     /**
      * Get school ID and class ID for the given student profile or user.
@@ -152,5 +164,52 @@ final class StudentActivityService
 
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return $result ?: null;
+    }
+
+    /**
+     * Categorise each row of the catalog by the student's view: open/upcoming/
+     * full/closed/enrolled/pending/waitlisted/cancelled/rejected.
+     *
+     * @param list<array<string,mixed>> $rows
+     * @return list<array<string,mixed>>
+     */
+    public function withCatalogBuckets(array $rows): array
+    {
+        $grouped = [];
+        foreach ($rows as $row) {
+            $regPolicy = $this->loadRegistrationPolicy((string) ($row['id'] ?? ''));
+            $myRegistration = $this->loadMyRegistration((string) ($row['id'] ?? ''), (string) ($row['_studentId'] ?? ''));
+            $approvedCount = (int) ($row['total_registered'] ?? 0);
+            $capacity = isset($row['capacity']) ? (int) $row['capacity'] : null;
+            $row['bucket'] = $this->policy->catalogBucket($row, $regPolicy, $myRegistration, $approvedCount, $capacity);
+            $grouped[] = $row;
+        }
+        return $grouped;
+    }
+
+    /** @return array<string,mixed> */
+    private function loadRegistrationPolicy(string $activityId): array
+    {
+        if ($activityId === '') return [];
+        $stmt = $this->pdo->prepare(
+            'SELECT activityId, registrationOpensAt, registrationClosesAt, cancellationClosesAt, approvalMode '
+            . 'FROM activity_registration_policies WHERE activityId = :id LIMIT 1'
+        );
+        $stmt->execute(['id' => $activityId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : [];
+    }
+
+    /** @return array<string,mixed>|null */
+    private function loadMyRegistration(string $activityId, string $studentId): ?array
+    {
+        if ($activityId === '' || $studentId === '') return null;
+        $stmt = $this->pdo->prepare(
+            'SELECT id, activityId, studentId, status FROM activity_registrations '
+            . 'WHERE activityId = :aid AND studentId = :sid ORDER BY registeredAt DESC LIMIT 1'
+        );
+        $stmt->execute(['aid' => $activityId, 'sid' => $studentId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
     }
 }

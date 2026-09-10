@@ -63,6 +63,13 @@ use TalentHub\Modules\Teacher\Service\TeacherProfileService;
 use TalentHub\Rbac\Service\PermissionService;
 use TalentHub\Rbac\RoleCodes;
 use TalentHub\Support\Id\RequestId;
+use TalentHub\Support\Clock\SystemClock;
+use TalentHub\Domain\Activity\ActivityPolicy;
+use TalentHub\Domain\Activity\RegistrationPolicy;
+use TalentHub\Domain\Internship\InternshipPolicy;
+use TalentHub\Domain\Profile\ProfilePolicy;
+use TalentHub\Domain\Profile\ProfileFactory;
+use TalentHub\Domain\NotificationPolicy;
 use Throwable;
 
 final class Application
@@ -150,7 +157,8 @@ final class Application
     {
         $config=require dirname(__DIR__,2).'/config/database.php';$pdo=$this->customPdo??(new Connection($config))->connect();
         $session=new SessionManager(require dirname(__DIR__,2).'/config/session.php');$session->start();
-        $auth=new AuthService(new AuthRepository($pdo));$loginLimiter=new LoginRateLimiter($pdo);$permissions=new PermissionService($pdo);$teachers=new TeacherProfileService(new TeacherRepository($pdo));$teacherActivities=new TeacherActivityService(new TeacherActivityRepository($pdo));$schoolRepository=new SchoolRepository($pdo);$schoolAuthorization=new SchoolAuthorization($pdo);$schools=new SchoolDashboardService($schoolRepository,$pdo,$schoolAuthorization);$schoolActivityApprovals=new SchoolActivityApprovalService(new SchoolActivityApprovalRepository($pdo));$schoolCredentials=new SchoolCredentialManagementService(new SchoolCredentialManagementRepository($pdo));$schoolAudit=new SchoolAuditService(new SchoolAuditRepository($pdo));
+        $clock=new SystemClock();$activityPolicy=new ActivityPolicy($clock);$registrationPolicy=new RegistrationPolicy();$internshipPolicy=new InternshipPolicy();$profilePolicy=new ProfilePolicy();$notificationPolicy=new NotificationPolicy();$profileFactory=new ProfileFactory($pdo);
+        $auth=new AuthService(new AuthRepository($pdo));$loginLimiter=new LoginRateLimiter($pdo);$permissions=new PermissionService($pdo);$teachers=new TeacherProfileService(new TeacherRepository($pdo));$teacherActivities=new TeacherActivityService(new TeacherActivityRepository($pdo),$clock,$activityPolicy,$registrationPolicy);$schoolRepository=new SchoolRepository($pdo);$schoolAuthorization=new SchoolAuthorization($pdo);$schools=new SchoolDashboardService($schoolRepository,$pdo,$schoolAuthorization);$schoolActivityApprovals=new SchoolActivityApprovalService(new SchoolActivityApprovalRepository($pdo),$activityPolicy,$clock,$notificationPolicy);$schoolCredentials=new SchoolCredentialManagementService(new SchoolCredentialManagementRepository($pdo));$schoolAudit=new SchoolAuditService(new SchoolAuditRepository($pdo));
         $aiConfig=null;$schoolExplainer=null;$schoolCircuit=null;$enterpriseCircuit=null;$enterpriseMatcher=null;
         try{
             $aiConfig=RecommendationConfig::fromEnvironment($_ENV);

@@ -33,7 +33,10 @@ final class BusinessRepository
             return $row;
         }
 
-        // Fallback: lookup enterprise by matching user email if membership row is missing
+        // Read-only fallback: surface enterprise by matching email but never
+        // insert a membership row from the read path. Self-heal is exposed
+        // via ProfileFactory::ensureEnterpriseMembership() called from
+        // routes that explicitly want to bootstrap membership.
         $statement = $this->pdo->prepare(
             'SELECT e.id, e.name, e.status, e.logoUrl, e.industry, ' . implode(', ', $optional) . ', ' .
             'e.description, e.email, e.phone, e.website, e.address, e.verificationStatus, e.createdAt, e.updatedAt, ' .
@@ -44,15 +47,7 @@ final class BusinessRepository
         );
         $statement->execute([$userId]);
         $fallbackRow = $statement->fetch();
-        if (is_array($fallbackRow)) {
-            try {
-                $healStmt = $this->pdo->prepare('INSERT IGNORE INTO enterprise_members (id, enterpriseId, userId, memberRole) VALUES (?, ?, ?, ?)');
-                $healStmt->execute([\TalentHub\Support\Uuid::v4(), $fallbackRow['id'], $userId, 'admin']);
-            } catch (\Throwable) {}
-            return $fallbackRow;
-        }
-
-        return null;
+        return is_array($fallbackRow) ? $fallbackRow : null;
     }
 
     public function update(string $enterpriseId, array $fields): void

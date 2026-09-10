@@ -40,6 +40,26 @@ final class TeacherQrSessionRepository
         return $statement->fetchAll();
     }
 
+    /**
+     * Find a single ongoing activity owned by this teacher; used by the QR
+     * service to compute policy-driven expiry.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findOngoingActivity(string $teacherId, string $activityId): ?array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT id, title, status, startAt, endAt
+             FROM activities
+             WHERE id = :activityId
+               AND createdByTeacherId = :teacherId
+             LIMIT 1'
+        );
+        $stmt->execute(['activityId' => $activityId, 'teacherId' => $teacherId]);
+        $row = $stmt->fetch();
+        return is_array($row) ? $row : null;
+    }
+
     /** @return list<array<string,mixed>> */
     public function listSessions(string $teacherId): array
     {

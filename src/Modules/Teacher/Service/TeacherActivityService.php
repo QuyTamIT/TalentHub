@@ -5,8 +5,11 @@ namespace TalentHub\Modules\Teacher\Service;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use TalentHub\Domain\Activity\ActivityPolicy;
+use TalentHub\Domain\Activity\RegistrationPolicy;
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\Teacher\Repository\TeacherActivityRepository;
+use TalentHub\Support\Clock\ClockInterface;
 use TalentHub\Support\Uuid;
 
 final class TeacherActivityService
@@ -21,7 +24,12 @@ final class TeacherActivityService
         'completed' => 'archived',
     ];
 
-    public function __construct(private readonly TeacherActivityRepository $repository) {}
+    public function __construct(
+        private readonly TeacherActivityRepository $repository,
+        private readonly ClockInterface $clock,
+        private readonly ActivityPolicy $policy,
+        private readonly RegistrationPolicy $registrationPolicy,
+    ) {}
 
     public function teacherIdForUser(string $userId): string
     {
@@ -73,11 +81,19 @@ final class TeacherActivityService
         if ($existing === null) {
             throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.');
         }
-        $this->repository->update(
-            $teacherId,
-            $activityId,
-            $this->payload($this->mergeExisting($input, $existing)),
-        );
+
+        $merged = $this->payload($this->mergeExisting($input, $existing));
+        // Use ActivityPolicy to enforce editability matrix.
+        $regPolicy = [
+            'registrationOpensAt' => $existing['registrationOpensAt'] ?? null,
+            'registrationClosesAt' => $existing['registrationClosesAt'] ?? null,
+            'cancellationClosesAt' => $existing['cancellationClosesAt'] ?? null,
+            'approvalMode' => $existing['approvalMode'] ?? 'automatic',
+        ];
+        $hasAnyRegistration = $this->repository->hasAnyRegistration($activityId);
+        $this->policy->assertPatchAllowed($existing, $regPolicy, $input, $hasAnyRegistration);
+
+        $this->repository->update($teacherId, $activityId, $merged);
     }
 
     public function advanceStatus(string $teacherId, string $activityId, ?string $requestId = null): string
@@ -93,15 +109,13 @@ final class TeacherActivityService
             throw new ApiException(422, 'INVALID_STATUS', 'Trạng thái hiện tại của hoạt động không hợp lệ.');
         }
 
+        // Use ActivityPolicy for lifecycle rules (time checks, pending count checks).
         if ($currentStatus === 'published') {
-            try {
-                $startAt = new DateTimeImmutable((string) ($activity['startAt'] ?? ''), new DateTimeZone('UTC'));
-            } catch (\Throwable) {
-                throw new ApiException(422, 'INVALID_STATUS', 'Thời gian bắt đầu của hoạt động không hợp lệ.');
-            }
-            if (new DateTimeImmutable('now', new DateTimeZone('UTC')) < $startAt) {
-                throw new ApiException(422, 'ACTIVITY_NOT_STARTED', 'Chưa đến thời gian bắt đầu hoạt động.');
-            }
+            $pendingCount = (int) ($activity['pendingCount'] ?? 0);
+            $this->policy->assertCanStart($activity, $pendingCount);
+        } elseif ($currentStatus === 'ongoing') {
+            $pendingCount = (int) ($activity['pendingCount'] ?? 0);
+            $this->policy->assertCanComplete($activity, $pendingCount);
         }
 
         $nextStatus = self::NEXT_STATUSES[$currentStatus] ?? null;
@@ -156,6 +170,13 @@ final class TeacherActivityService
             throw new ApiException(422, 'VALIDATION_FAILED', 'Chỉ có thể duyệt hoặc từ chối đăng ký đang chờ.');
         }
 
+        // Use RegistrationPolicy to determine the next status.
+        $registration = $this->repository->findRegistration($this->requireUuid($activityId, 'activityId'), $this->requireUuid($registrationId, 'registrationId'));
+        if ($registration === null) {
+            throw new ApiException(404, 'REGISTRATION_NOT_FOUND', 'Không tìm thấy đăng ký.');
+        }
+        $nextStatus = $this->registrationPolicy->assertCanTeacherTransition($registration, $action);
+
         return $this->repository->transitionRegistration(
             $this->requireUuid($teacherId, 'teacherId'),
             $this->requireUuid($actorUserId, 'actorUserId'),
@@ -163,7 +184,7 @@ final class TeacherActivityService
             $this->requireUuid($activityId, 'activityId'),
             $this->requireUuid($registrationId, 'registrationId'),
             $expectedStatus,
-            $action === 'approve' ? 'approved' : 'rejected',
+            $nextStatus,
         );
     }
 

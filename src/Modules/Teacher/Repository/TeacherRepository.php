@@ -17,28 +17,8 @@ final class TeacherRepository
         $s=$this->pdo->prepare('SELECT tp.id,tp.userId,tp.schoolId,tp.isSchoolAdmin,'.implode(',',$optional).',u.email,u.fullName,s.name AS schoolName FROM teacher_profiles tp JOIN users u ON u.id=tp.userId JOIN schools s ON s.id=tp.schoolId WHERE tp.userId=? LIMIT 1');
         $s->execute([$userId]);
         $row=$s->fetch();
-        if (is_array($row)) {
-            return $row;
-        }
-
-        // Self-heal: If user exists in users table, insert a teacher_profiles row
-        try {
-            $uStmt = $this->pdo->prepare('SELECT id, email, fullName FROM users WHERE id = ? LIMIT 1');
-            $uStmt->execute([$userId]);
-            $uRow = $uStmt->fetch();
-            if (is_array($uRow)) {
-                $schoolId = '22000000-b512-4ede-852b-f4a508f3e837';
-                $ins = $this->pdo->prepare('INSERT INTO teacher_profiles (id, userId, schoolId, isSchoolAdmin) VALUES (?, ?, ?, 0)');
-                $ins->execute([\TalentHub\Support\Uuid::v4(), $userId, $schoolId]);
-                $s->execute([$userId]);
-                $row = $s->fetch();
-                if (is_array($row)) {
-                    return $row;
-                }
-            }
-        } catch (\Throwable) {}
-
-        return null;
+        // Read-only path. Self-heal moved to ProfileFactory::ensureTeacherProfile().
+        return is_array($row) ? $row : null;
     }
     public function update(string $userId,string $fullName,?string $phone,?string $specialization,?string $bio): void
     {

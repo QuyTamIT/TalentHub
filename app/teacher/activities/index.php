@@ -108,17 +108,21 @@ if (!function_exists('teacherActivitiesLifecycleAction')) {
         if ($rawStatus === 'published') {
             try {
                 $startAt = new DateTimeImmutable((string) ($activity['startAt'] ?? ''), new DateTimeZone('UTC'));
-                $canStart = new DateTimeImmutable('now', new DateTimeZone('UTC')) >= $startAt;
+                $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+                $canStart = $now >= $startAt;
                 $startLabel = $startAt->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'))->format('d/m/Y H:i');
+                $countdown = $canStart ? null : teacherActivityCountdown($startAt, $now);
             } catch (Throwable) {
                 $canStart = false;
                 $startLabel = 'thời gian đã lên lịch';
+                $countdown = null;
             }
 
             return [
                 'label' => 'Bắt đầu hoạt động',
                 'disabled' => !$canStart,
                 'title' => $canStart ? '' : 'Có thể bắt đầu từ ' . $startLabel,
+                'countdown' => $countdown,
             ];
         }
 
@@ -129,6 +133,36 @@ if (!function_exists('teacherActivitiesLifecycleAction')) {
             'archived' => null,
             default => null,
         };
+    }
+}
+
+/**
+ * Render a localized countdown text (e.g. "Còn 2 ngày 4 giờ") until the
+ * given target instant. Returns null when the target is in the past.
+ *
+ * @return array{days:int,hours:int,minutes:int,label:string}|null
+ */
+if (!function_exists('teacherActivityCountdown')) {
+    function teacherActivityCountdown(DateTimeImmutable $target, ?DateTimeImmutable $now = null): ?array
+    {
+        $now ??= new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $diff = $now->diff($target);
+        if ($diff->invert === 1) {
+            return null;
+        }
+        $days = (int) $diff->d;
+        $hours = (int) $diff->h;
+        $minutes = (int) $diff->i;
+        $parts = [];
+        if ($days > 0) $parts[] = sprintf('%d ngày', $days);
+        if ($hours > 0) $parts[] = sprintf('%d giờ', $hours);
+        if ($days === 0 && $minutes > 0) $parts[] = sprintf('%d phút', $minutes);
+        return [
+            'days' => $days,
+            'hours' => $hours,
+            'minutes' => $minutes,
+            'label' => $parts === [] ? 'sắp mở' : 'Còn ' . implode(' ', $parts),
+        ];
     }
 }
 

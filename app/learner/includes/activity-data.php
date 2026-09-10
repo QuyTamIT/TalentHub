@@ -73,6 +73,49 @@ if (!function_exists('learner_activity_catalog')) {
     }
 }
 
+/**
+ * Catalog grouped by the student-facing bucket: open / upcoming / full /
+ * closed / hidden. Delegates bucketing to ActivityPolicy so the front-end
+ * never re-derives business rules.
+ *
+ * @return array<string, list<array<string,mixed>>>
+ */
+if (!function_exists('learner_activity_catalog_grouped')) {
+    function learner_activity_catalog_grouped(): array
+    {
+        $studentId = learner_current_student_id();
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $rows = learner_activity_repository()->discoverForStudent($studentId, $now);
+
+        $service = new \TalentHub\Modules\Student\Service\StudentActivityService(
+            learner_configure_data_pdo(),
+            new \TalentHub\Support\Clock\SystemClock(),
+            new \TalentHub\Domain\Activity\ActivityPolicy(new \TalentHub\Support\Clock\SystemClock()),
+        );
+        // Tag each row with student id before bucketing.
+        foreach ($rows as &$row) {
+            $row['_studentId'] = $studentId;
+        }
+        unset($row);
+
+        $bucketed = $service->withCatalogBuckets($rows);
+
+        $groups = [
+            'open' => [],
+            'upcoming' => [],
+            'full' => [],
+            'closed' => [],
+        ];
+        foreach ($bucketed as $row) {
+            $bucket = (string) ($row['bucket'] ?? 'closed');
+            if (isset($groups[$bucket])) {
+                $groups[$bucket][] = $row;
+            }
+        }
+        return $groups;
+    }
+}
+
 if (!function_exists('learner_activity_registration_history')) {
     function learner_activity_registration_history(string $studentId): array
     {

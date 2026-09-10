@@ -133,6 +133,34 @@ if (!function_exists('learner_data_config')) {
     }
 }
 
+/**
+ * Get the PDO instance configured for the learner data layer. Returns null
+ * when running in mock mode or when no PDO has been injected.
+ */
+if (!function_exists('learner_configure_data_pdo')) {
+    function learner_configure_data_pdo(): ?\PDO
+    {
+        $config = learner_data_config();
+        $pdo = $config['pdo'] ?? null;
+        if ($pdo instanceof \PDO) {
+            return $pdo;
+        }
+        // Fallback: connect via database.php config if available.
+        $dbConfigPath = dirname(__DIR__, 2) . '/config/database.php';
+        if (is_file($dbConfigPath)) {
+            try {
+                $config = require $dbConfigPath;
+                if (is_array($config)) {
+                    return (new \TalentHub\Database\Connection($config))->connect();
+                }
+            } catch (\Throwable) {
+                // Stay null; callers must guard.
+            }
+        }
+        return null;
+    }
+}
+
 if (!function_exists('learner_repository_factory')) {
     function learner_repository_factory(): \TalentHub\Learner\Data\RepositoryFactory
     {

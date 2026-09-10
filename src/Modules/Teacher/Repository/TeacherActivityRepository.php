@@ -179,6 +179,35 @@ final class TeacherActivityRepository
         return array_map(static fn (array $row): array => ['id' => (string) $row['id'], 'name' => (string) $row['name']], $statement->fetchAll(PDO::FETCH_ASSOC));
     }
 
+    /**
+     * Read a single registration row by id + activityId, no locking.
+     * @return array<string, mixed>|null
+     */
+    public function findRegistration(string $activityId, string $registrationId): ?array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT id, activityId, studentId, status, registeredAt, updatedAt '
+            . 'FROM activity_registrations WHERE id = :registrationId AND activityId = :activityId LIMIT 1'
+        );
+        $stmt->execute(['registrationId' => $registrationId, 'activityId' => $activityId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * Whether this activity has any active or terminal-but-historical registration.
+     * Used by ActivityPolicy::lockedFieldsForPatch() to decide whether edits are
+     * still wide open.
+     */
+    public function hasAnyRegistration(string $activityId): bool
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT 1 FROM activity_registrations WHERE activityId = :activityId LIMIT 1'
+        );
+        $stmt->execute(['activityId' => $activityId]);
+        return $stmt->fetchColumn() !== false;
+    }
+
     private function activitySelectSql(): string
     {
         $details = $this->hasTable('activity_details');

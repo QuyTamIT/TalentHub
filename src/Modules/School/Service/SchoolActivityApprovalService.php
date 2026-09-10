@@ -4,15 +4,23 @@ declare(strict_types=1);
 
 namespace TalentHub\Modules\School\Service;
 
+use TalentHub\Domain\Activity\ActivityPolicy;
+use TalentHub\Domain\NotificationPolicy;
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\School\Repository\SchoolActivityApprovalRepository;
+use TalentHub\Support\Clock\ClockInterface;
 use TalentHub\Support\Uuid;
 
 final class SchoolActivityApprovalService
 {
     private const STATUSES = ['draft', 'pending_school_review', 'changes_requested', 'approved', 'rejected'];
 
-    public function __construct(private readonly SchoolActivityApprovalRepository $repository) {}
+    public function __construct(
+        private readonly SchoolActivityApprovalRepository $repository,
+        private readonly ActivityPolicy $policy,
+        private readonly ClockInterface $clock,
+        private readonly NotificationPolicy $notificationPolicy,
+    ) {}
 
     /** @return list<array<string,mixed>> */
     public function listPending(string $schoolUserId, ?string $search = null): array

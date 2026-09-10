@@ -6,6 +6,7 @@ namespace TalentHub\Modules\Business\Service;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use TalentHub\Domain\Internship\InternshipPolicy;
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\Business\Repository\InternshipRepository;
 use TalentHub\Support\Uuid;
@@ -18,7 +19,10 @@ final class InternshipService
         'audience', 'targetSchoolIds'
     ];
 
-    public function __construct(private readonly InternshipRepository $repository) {}
+    public function __construct(
+        private readonly InternshipRepository $repository,
+        private readonly InternshipPolicy $policy,
+    ) {}
 
     public function listPosts(string $userId): array { return $this->repository->posts($this->repository->enterpriseIdForUser($userId)); }
     public function post(string $userId, string $postId): array { return $this->repository->post($this->repository->enterpriseIdForUser($userId), $this->uuid($postId, 'postId')); }
@@ -74,6 +78,18 @@ final class InternshipService
         if ($expected === '' || $target === '' || mb_strlen($note) > 2000) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Dữ liệu duyệt hồ sơ không hợp lệ.');
         }
+
+        // Validate state-machine via InternshipPolicy before delegating.
+        $this->policy->assertCanTransition($expected, $target);
+
+        // Placement lock check: when promoting to "accepted", no other
+        // application for the same student may already be accepted.
+        if ($target === 'accepted') {
+            $enterpriseId = $this->repository->enterpriseIdForUser($userId);
+            $existing = $this->repository->applications($enterpriseId);
+            $this->policy->assertPlacementAvailable($existing, (string) ($existing[0]['studentId'] ?? ''));
+        }
+
         return $this->repository->review($this->repository->enterpriseIdForUser($userId), $userId, $this->uuid($applicationId, 'applicationId'), $expected, $target, $note);
     }
 

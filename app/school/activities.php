@@ -55,16 +55,16 @@ $schoolInfo = [
     'academic_year' => $context['school']['academicYear'] ?? '',
 ];
 $currentRoute = '/app/school/activities.php';
-$pageTitle = 'Duyệt hoạt động';
+$pageTitle = 'Rà soát hoạt động';
 
 ob_start();
 ?>
-<?php $pageDescription = 'Duyệt nội dung và chính sách đăng ký của hoạt động trước khi Giáo viên công bố cho học viên.'; include __DIR__ . '/includes/page-banner.php'; ?>
+<?php $pageDescription = 'Rà soát nội dung và chính sách đăng ký của hoạt động do giáo viên đề xuất; kết quả chỉ mang tính tư vấn và không ảnh hưởng đến hiển thị/đăng ký của học viên.'; include __DIR__ . '/includes/page-banner.php'; ?>
 <?php if ($flash): ?><div class="school-flash school-flash--success"><?= htmlspecialchars($flash); ?></div><?php endif; ?>
 <?php if ($error): ?><div class="school-flash school-flash--error"><?= htmlspecialchars($error); ?></div><?php endif; ?>
 <section class="school-section-box">
     <div class="school-section-box__header">
-        <h2 class="school-section-box__title">Hàng đợi duyệt</h2>
+        <h2 class="school-section-box__title">Hàng đợi rà soát</h2>
         <form method="get" style="display:flex;gap:.5rem">
             <input name="q" value="<?= htmlspecialchars($search); ?>" placeholder="Tìm hoạt động">
             <select name="status"><?php foreach ($statusLabels as $value => $label): ?><option value="<?= $value; ?>" <?= $status === $value ? 'selected' : ''; ?>><?= htmlspecialchars($label); ?></option><?php endforeach; ?></select>
@@ -81,7 +81,7 @@ ob_start();
             <form method="post" class="school-form" style="margin-top:1rem">
                 <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="activityId" value="<?= htmlspecialchars((string) $activity['id']); ?>">
                 <label class="school-form__field"><span>Lý do (bắt buộc khi yêu cầu sửa/từ chối)</span><textarea name="reason" maxlength="1000" rows="2"></textarea></label>
-                <div class="school-form__actions"><button class="btn btn-primary" name="action" value="approve" type="submit">Phê duyệt</button><button class="btn btn-outline" name="action" value="request_changes" type="submit">Yêu cầu chỉnh sửa</button><button class="btn btn-outline" name="action" value="reject" type="submit">Từ chối</button></div>
+                <div class="school-form__actions"><button class="btn btn-primary" name="action" value="approve" type="submit">Rà soát ổn</button><button class="btn btn-outline" name="action" value="request_changes" type="submit">Yêu cầu chỉnh sửa</button><button class="btn btn-outline" name="action" value="reject" type="submit">Đề xuất dừng</button></div>
             </form>
             <?php elseif (!empty($activity['approvalReason'])): ?><p><strong>Phản hồi:</strong> <?= htmlspecialchars((string) $activity['approvalReason']); ?></p><?php endif; ?>
         </article>
