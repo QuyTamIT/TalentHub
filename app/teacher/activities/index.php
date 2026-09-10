@@ -125,7 +125,7 @@ if (!function_exists('teacherCoverWebUrl')) {
     function teacherCoverWebUrl(?string $path): string
     {
         if ($path === null || trim($path) === '') {
-            return function_exists('app_href') ? app_href('/assets/activities/illustrations/hero-discover.svg') : '/assets/activities/illustrations/hero-discover.svg';
+            return function_exists('app_href') ? app_href('/app/learner/assets/activities/illustrations/hero-discover.svg') : '/app/learner/assets/activities/illustrations/hero-discover.svg';
         }
         $path = trim($path);
         return function_exists('app_href') ? app_href($path) : $path;
@@ -745,12 +745,20 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Quản lý hoạt động và sân chơi do giáo viên phụ trách trên TalentHub.">
     <title><?= teacherActivitiesEscape($pageTitle); ?> | TalentHub</title>
-    <link rel="stylesheet" href="../../../assets/css/home.css">
-    <link rel="stylesheet" href="../../../assets/css/global.css">
-    <link rel="stylesheet" href="../../../assets/css/brand-component.css">
-    <link rel="stylesheet" href="../../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../../assets/css/teacher.css">
-    <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
+<?php
+$teacherAssetUrl = static function (string $relPath): string {
+    $fsPath = dirname(__DIR__, 3) . $relPath;
+    $ver = is_file($fsPath) ? (string) filemtime($fsPath) : '1.0';
+    $href = function_exists('app_href') ? app_href($relPath) : $relPath;
+    return $href . '?v=' . $ver;
+};
+?>
+    <link rel="stylesheet" href="<?= teacherActivitiesEscape($teacherAssetUrl('/assets/css/home.css')); ?>">
+    <link rel="stylesheet" href="<?= teacherActivitiesEscape($teacherAssetUrl('/assets/css/global.css')); ?>">
+    <link rel="stylesheet" href="<?= teacherActivitiesEscape($teacherAssetUrl('/assets/css/brand-component.css')); ?>">
+    <link rel="stylesheet" href="<?= teacherActivitiesEscape($teacherAssetUrl('/assets/css/polish.css')); ?>">
+    <link rel="stylesheet" href="<?= teacherActivitiesEscape($teacherAssetUrl('/assets/css/teacher.css')); ?>">
+    <link rel="stylesheet" href="<?= teacherActivitiesEscape($teacherAssetUrl('/assets/css/typeui-selects.css')); ?>">
 </head>
 <body class="teacher-dashboard teacher-activities-page">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
@@ -836,7 +844,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                                     $currentCover = $formValues['coverImageUrl'] !== '' ? $formValues['coverImageUrl'] : '';
                                                     $previewSrc = $currentCover !== '' ? teacherCoverWebUrl($currentCover) : teacherCoverWebUrl(null);
                                                 ?>
-                                                <img id="cover-preview-img" src="<?= teacherActivitiesEscape($previewSrc); ?>" alt="<?= teacherActivitiesEscape($formValues['coverImageAlt'] ?: 'Xem trước ảnh bìa hoạt động'); ?>" class="teacher-cover-preview__img" data-fallback-src="<?= teacherActivitiesEscape(teacherCoverWebUrl(null)); ?>">
+                                                <img id="cover-preview-img" src="<?= teacherActivitiesEscape($previewSrc); ?>" alt="<?= teacherActivitiesEscape($formValues['coverImageAlt'] ?: 'Xem trước ảnh bìa hoạt động'); ?>" class="teacher-cover-preview__img" data-fallback-src="<?= teacherActivitiesEscape(teacherCoverWebUrl(null)); ?>" onerror="this.onerror=null;this.src=this.dataset.fallbackSrc;">
                                                 <span class="teacher-cover-preview__badge" id="cover-preview-badge"><?= $currentCover !== '' ? 'Ảnh đang chọn' : 'Ảnh mặc định hệ thống'; ?></span>
                                             </div>
                                             <div class="teacher-cover-actions">
@@ -844,7 +852,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                                                     <span>Tải ảnh từ máy</span>
                                                 </label>
-                                                <input type="file" id="activity-cover-file" name="coverFile" accept="image/jpeg,image/png,image/webp" class="sr-only" data-cover-file-input>
+                                                <input type="file" id="activity-cover-file" name="coverFile" accept="image/jpeg,image/png,image/webp" class="sr-only" data-cover-file-input style="position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;">
                                                 <button type="button" class="teacher-btn-cover-action teacher-btn-cover-action--outline" id="btn-open-preset-modal">
                                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                                                     <span>Chọn ảnh mẫu từ thư viện (15)</span>
@@ -1313,7 +1321,12 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                         <?php endif; ?>
                     </section>
 
-    <!-- Preset Cover Gallery Modal -->
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Preset Cover Gallery Modal (Top-level overlay) -->
     <div id="teacher-preset-modal" class="teacher-preset-modal" role="dialog" aria-modal="true" aria-labelledby="preset-modal-title" hidden>
         <div class="teacher-preset-modal__dialog">
             <div class="teacher-preset-modal__header">
@@ -1347,10 +1360,6 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
             </div>
         </div>
     </div>
-                </div>
-            </main>
-        </div>
-    </div>
 
     <div class="teacher-toast" id="teacher-toast" aria-live="polite" aria-atomic="true">
         <div class="teacher-toast__content">
@@ -1363,7 +1372,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
         </div>
     </div>
 
-    <script src="../../../assets/js/teacher.js"></script>
-    <script src="../../../assets/js/teacher-activity-form.js"></script>
+    <script src="<?= teacherActivitiesEscape($teacherAssetUrl('/assets/js/teacher.js')); ?>"></script>
+    <script src="<?= teacherActivitiesEscape($teacherAssetUrl('/assets/js/teacher-activity-form.js')); ?>"></script>
 </body>
 </html>
