@@ -10,6 +10,13 @@ if (!function_exists('learner_activity_cover_or_fallback')) {
         if ($candidate === '' || str_contains($candidate, '..')) {
             return $fallback;
         }
+        if (preg_match('#\A/?(storage/activity-covers/[a-zA-Z0-9_\-\.]+\.(?:webp|png|jpe?g))\z#i', $candidate, $matches) === 1) {
+            $storageRelative = $matches[1];
+            $rootDir = dirname(__DIR__, 3);
+            if (is_file($rootDir . '/' . $storageRelative)) {
+                return '/' . $storageRelative;
+            }
+        }
         if (preg_match('#\A(?:/app/learner/)?(assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg))\z#i', $candidate, $matches) === 1) {
             $relativePath = $matches[1];
             $learnerDir = dirname(__DIR__);
