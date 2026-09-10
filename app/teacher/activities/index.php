@@ -18,14 +18,36 @@ if (!function_exists('teacherActivitiesEscape')) {
 if (!function_exists('teacherActivitiesFormDate')) {
     function teacherActivitiesFormDate(?string $value): ?DateTimeImmutable
     {
-        if (!$value) {
+        if (!$value || trim($value) === '') {
             return null;
         }
 
-        $date = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', $value, new DateTimeZone('Asia/Ho_Chi_Minh'));
-        $errors = DateTimeImmutable::getLastErrors();
-        if (!$date || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) || $date->format('Y-m-d\TH:i') !== $value) return null;
-        return $date;
+        $value = trim($value);
+        $tz = new DateTimeZone('Asia/Ho_Chi_Minh');
+        $formats = [
+            'Y-m-d\TH:i:s',
+            'Y-m-d\TH:i',
+            'Y-m-d H:i:s',
+            'Y-m-d H:i',
+            'm/d/Y H:i:s',
+            'm/d/Y H:i',
+            'd/m/Y H:i:s',
+            'd/m/Y H:i',
+        ];
+
+        foreach ($formats as $format) {
+            $date = DateTimeImmutable::createFromFormat('!' . $format, $value, $tz);
+            $errors = DateTimeImmutable::getLastErrors();
+            if ($date && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0)) && $date->format($format) === $value) {
+                return $date;
+            }
+        }
+
+        try {
+            return new DateTimeImmutable($value, $tz);
+        } catch (Throwable) {
+            return null;
+        }
     }
 }
 
@@ -115,8 +137,25 @@ if (!function_exists('teacherActivitiesLifecycleAction')) {
             };
         }
 
+        if ($rawStatus === 'published') {
+            try {
+                $startAt = new DateTimeImmutable((string) ($activity['startAt'] ?? ''), new DateTimeZone('UTC'));
+                $canStart = new DateTimeImmutable('now', new DateTimeZone('UTC')) >= $startAt;
+                $startLabel = $startAt->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'))->format('d/m/Y H:i');
+            } catch (Throwable) {
+                $canStart = false;
+                $startLabel = 'thời gian đã lên lịch';
+            }
+
+            return [
+                'label' => 'Bắt đầu hoạt động',
+                'form_action' => 'advance_status',
+                'disabled' => !$canStart,
+                'title' => $canStart ? '' : 'Có thể bắt đầu từ ' . $startLabel,
+            ];
+        }
+
         return match ($rawStatus) {
-            'published' => ['label' => 'Bắt đầu hoạt động', 'form_action' => 'advance_status'],
             'ongoing' => ['label' => 'Kết thúc hoạt động', 'form_action' => 'advance_status'],
             'completed' => ['label' => 'Lưu trữ hoạt động', 'form_action' => 'advance_status'],
             'archived' => null,
@@ -844,7 +883,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                             <div class="teacher-activity-detail-grid">
                                 <div><span>Trạng thái</span><strong><span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($selectedActivity['status_class']); ?>"><?= teacherActivitiesEscape($selectedActivity['status_label']); ?></span></strong></div>
                                 <div><span>Thời gian</span><strong><?= teacherActivitiesEscape($selectedActivity['start_label']); ?> – <?= teacherActivitiesEscape($selectedActivity['end_label']); ?></strong></div>
-                                <div><span>Địa điểm</span><strong><?= teacherActivitiesEscape($selectedActivity['locationName'] ?? 'Phòng Thực hành B305 - BTEC Cần Thơ'); ?></strong></div>
+                                <div><span>Địa điểm</span><strong><?= teacherActivitiesEscape($selectedActivity['locationName'] ?? 'Chưa xác định địa điểm'); ?></strong></div>
                                 <div><span>Đăng ký</span><strong><?= teacherActivitiesEscape((string) $selectedActivity['registered_count']); ?> / <?= teacherActivitiesEscape((string) $selectedActivity['capacity']); ?></strong></div>
                                 <div><span>Khả năng đăng ký</span><strong><span class="teacher-registration-pill teacher-registration-pill--<?= $selectedActivity['registration_available'] ? 'available' : 'unavailable'; ?>"><?= teacherActivitiesEscape($selectedActivity['registration_label']); ?></span></strong></div>
                                 <div><span>Nhóm</span><strong><?= teacherActivitiesEscape($selectedActivity['category']); ?></strong></div>
@@ -986,7 +1025,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                                     <span class="teacher-activity-time"><?= teacherActivitiesEscape($activity['start_label']); ?></span>
                                                     <span class="teacher-activity-time teacher-text-muted">đến <?= teacherActivitiesEscape($activity['end_label']); ?></span>
                                                 </td>
-                                                <td data-label="Địa điểm"><span><?= teacherActivitiesEscape($activity['locationName'] ?? 'Phòng Thực hành B305 - BTEC Cần Thơ'); ?></span></td>
+                                                <td data-label="Địa điểm"><span><?= teacherActivitiesEscape($activity['locationName'] ?? 'Chưa xác định địa điểm'); ?></span></td>
                                                 <td data-label="Đăng ký"><strong><?= teacherActivitiesEscape((string) $activity['registered_count']); ?> / <?= teacherActivitiesEscape((string) $activity['capacity']); ?></strong></td>
                                                 <td data-label="Trạng thái">
                                                     <span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($activity['status_class']); ?>"><?= teacherActivitiesEscape($activity['status_label']); ?></span>
@@ -1005,7 +1044,12 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                                                 <input type="hidden" name="csrfToken" value="<?= teacherActivitiesEscape($csrfToken); ?>">
                                                                 <input type="hidden" name="form_action" value="<?= teacherActivitiesEscape($rowLifecycleAction['form_action']); ?>">
                                                                 <input type="hidden" name="activity_id" value="<?= teacherActivitiesEscape($activity['id']); ?>">
-                                                                <button type="submit" class="teacher-activity-action teacher-activity-action--button"><?= teacherActivitiesEscape($rowLifecycleAction['label']); ?></button>
+                                                                <button
+                                                                    type="submit"
+                                                                    class="teacher-activity-action teacher-activity-action--button"
+                                                                    <?= !empty($rowLifecycleAction['disabled']) ? 'disabled' : ''; ?>
+                                                                    <?= !empty($rowLifecycleAction['title']) ? 'title="' . teacherActivitiesEscape($rowLifecycleAction['title']) . '"' : ''; ?>
+                                                                ><?= teacherActivitiesEscape($rowLifecycleAction['label']); ?></button>
                                                             </form>
                                                         <?php endif; ?>
                                                     </div>

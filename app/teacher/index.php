@@ -51,51 +51,59 @@ $sidebarNav = [
     ],
 ];
 
+$managedClassName = (string) ($teacherInfo['managed_class_name'] ?? '');
+$managedClassLabel = $managedClassName !== '' ? "Lớp {$managedClassName}" : 'Chưa phân công lớp';
+$totalStudents = (int) ($metrics['total_students'] ?? 0);
+$pendingAssessments = (int) ($metrics['pending_assessments'] ?? 0);
+$assessedCount = max(0, $totalStudents - $pendingAssessments);
+
 $kpis = [
     [
         'label' => 'Sinh viên lớp phụ trách',
-        'value' => number_format((int) $metrics['total_students']),
-        'change' => 'Lớp BTEC-AI-2026A',
-        'change_type' => ((int) $metrics['total_students'] > 0) ? 'positive' : 'neutral',
+        'value' => number_format($totalStudents),
+        'change' => $managedClassLabel,
+        'change_type' => ($totalStudents > 0) ? 'positive' : 'neutral',
         'icon' => 'users',
-        'status' => ((int) $metrics['total_students'] > 0) ? '8 sinh viên' : 'Chưa có học viên',
+        'status' => ($totalStudents > 0) ? ($totalStudents . ' sinh viên') : 'Chưa có học viên',
     ],
     [
         'label' => 'Điểm đánh giá TB lớp',
-        'value' => $metrics['average_score'] !== null ? number_format((float) $metrics['average_score'], 1) : '90.5',
+        'value' => $metrics['average_score'] !== null ? number_format((float) $metrics['average_score'], 1) : 'Chưa có',
         'change' => 'Thang điểm 100',
-        'change_type' => 'positive',
+        'change_type' => $metrics['average_score'] !== null ? 'positive' : 'neutral',
         'icon' => 'star',
-        'status' => 'Đã có điểm',
+        'status' => $metrics['average_score'] !== null ? 'Đã có điểm' : 'Chưa có điểm',
     ],
     [
         'label' => 'Đánh giá năng lực',
-        'value' => '8 / 8 SV',
-        'change' => 'Lớp BTEC-AI-2026A',
-        'change_type' => 'positive',
+        'value' => ($totalStudents > 0) ? "{$assessedCount} / {$totalStudents} SV" : '0 / 0 SV',
+        'change' => $managedClassLabel,
+        'change_type' => ($totalStudents > 0) ? 'positive' : 'neutral',
         'icon' => 'clipboard-check',
-        'status' => 'Sẵn sàng chấm',
+        'status' => ($totalStudents > 0) ? 'Sẵn sàng chấm' : 'Chưa có học viên',
     ],
     [
         'label' => 'Hoạt động & Dự án',
-        'value' => number_format((int) max(1, $metrics['open_activities'])),
+        'value' => number_format((int) $metrics['open_activities']),
         'change' => 'Học kỳ 2025 - 2026',
-        'change_type' => 'positive',
+        'change_type' => ((int) $metrics['open_activities'] > 0) ? 'positive' : 'neutral',
         'icon' => 'trophy',
-        'status' => 'Đang diễn ra',
+        'status' => ((int) $metrics['open_activities'] > 0) ? 'Đang diễn ra' : 'Chưa có hoạt động',
     ],
 ];
 
 $pendingActions = [
     [
         'title' => 'Chấm điểm & Đánh giá năng lực theo lớp',
-        'subtitle' => 'Chấm điểm đồ án và cập nhật điểm năng lực cho sinh viên lớp BTEC-AI-2026A.',
-        'count' => (int) $metrics['total_students'],
+        'subtitle' => $managedClassName !== '' 
+            ? "Chấm điểm đồ án và cập nhật điểm năng lực cho sinh viên lớp {$managedClassName}."
+            : 'Chấm điểm đồ án và cập nhật điểm năng lực cho sinh viên.',
+        'count' => $totalStudents,
         'type' => 'primary',
         'icon' => 'clipboard-check',
-        'status' => 'Lớp BTEC-AI-2026A',
+        'status' => $managedClassLabel,
         'action_label' => 'Chấm điểm ngay',
-        'route' => '/app/teacher/grading.php',
+        'route' => '/app/teacher/grading.php' . ($managedClassName !== '' ? '?class=' . urlencode($managedClassName) : ''),
         'disabled' => false,
     ],
     [

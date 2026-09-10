@@ -116,21 +116,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// 3. Đọc danh sách lớp học và danh sách sinh viên theo lớp được chọn
-$classList = [];
+// 3. Đọc thông tin trường và danh sách lớp học theo trường của giáo viên
+$teacherProfile = null;
+$teacherSchoolId = '';
+$teacherSchoolName = '';
 try {
-    $classStmt = $pdo->query("
-        SELECT c.id, c.name, COUNT(sp.id) AS studentCount
-        FROM classes c
-        LEFT JOIN student_profiles sp ON sp.classId = c.id AND sp.studyStatus = 'active'
-        WHERE c.schoolId = 'da811c4f-2f74-4fdd-80b0-dd6f26109783'
-           OR c.name LIKE '%BTEC%'
-        GROUP BY c.id, c.name
-        ORDER BY c.name ASC
+    $tStmt = $pdo->prepare("
+        SELECT tp.id, tp.userId, tp.schoolId, s.name as schoolName
+        FROM teacher_profiles tp
+        LEFT JOIN schools s ON s.id = tp.schoolId
+        WHERE tp.userId = :uid
+        LIMIT 1
     ");
-    $classList = $classStmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (\Throwable $e) {
-    $classList = [];
+    $tStmt->execute(['uid' => (string) $user['id']]);
+    $teacherProfile = $tStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    if ($teacherProfile) {
+        $teacherSchoolId = (string) ($teacherProfile['schoolId'] ?? '');
+        $teacherSchoolName = (string) ($teacherProfile['schoolName'] ?? '');
+    }
+} catch (\Throwable $e) {}
+
+$classList = [];
+if ($teacherSchoolId !== '') {
+    try {
+        $classStmt = $pdo->prepare("
+            SELECT c.id, c.name, COUNT(sp.id) AS studentCount
+            FROM classes c
+            LEFT JOIN student_profiles sp ON sp.classId = c.id AND sp.studyStatus = 'active'
+            WHERE c.schoolId = :schoolId
+              AND c.status = 'active'
+            GROUP BY c.id, c.name
+            ORDER BY c.name ASC
+        ");
+        $classStmt->execute(['schoolId' => $teacherSchoolId]);
+        $classList = $classStmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (\Throwable $e) {
+        $classList = [];
+    }
 }
 
 $requestedClass = trim((string) ($_GET['class'] ?? ($_GET['class_id'] ?? '')));
@@ -142,41 +164,35 @@ foreach ($classList as $c) {
         break;
     }
 }
-if ($selectedClass === null) {
-    foreach ($classList as $c) {
-        if (str_contains($c['name'], 'BTEC-AI')) {
-            $selectedClass = $c;
-            break;
-        }
-    }
-}
 if ($selectedClass === null && !empty($classList)) {
     $selectedClass = $classList[0];
 }
 
-$activeClassId = $selectedClass['id'] ?? 'a1e2894b-2386-5404-9695-78a78f5a60d3';
-$activeClassName = $selectedClass['name'] ?? 'BTEC-AI-2026A';
+$activeClassId = (string) ($selectedClass['id'] ?? '');
+$activeClassName = (string) ($selectedClass['name'] ?? '');
 
 $students = [];
-try {
-    $stStmt = $pdo->prepare("
-        SELECT sp.id as studentId, u.fullName, u.email,
-               COALESCE(c.name, :activeClassName) as className,
-               sp.talentScore
-        FROM student_profiles sp
-        JOIN users u ON u.id = sp.userId
-        LEFT JOIN classes c ON c.id = sp.classId
-        WHERE sp.studyStatus = 'active'
-          AND sp.classId = :activeClassId
-        ORDER BY (u.fullName LIKE '%Vũ Đức Anh%') DESC, (u.fullName LIKE '%Lê Quý Tam%') DESC, u.fullName ASC
-    ");
-    $stStmt->execute([
-        'activeClassId' => $activeClassId,
-        'activeClassName' => $activeClassName,
-    ]);
-    $students = $stStmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (\Throwable $e) {
-    $students = [];
+if ($activeClassId !== '') {
+    try {
+        $stStmt = $pdo->prepare("
+            SELECT sp.id as studentId, u.fullName, u.email,
+                   COALESCE(c.name, :activeClassName) as className,
+                   sp.talentScore
+            FROM student_profiles sp
+            JOIN users u ON u.id = sp.userId
+            LEFT JOIN classes c ON c.id = sp.classId
+            WHERE sp.studyStatus = 'active'
+              AND sp.classId = :activeClassId
+            ORDER BY u.fullName ASC
+        ");
+        $stStmt->execute([
+            'activeClassId' => $activeClassId,
+            'activeClassName' => $activeClassName,
+        ]);
+        $students = $stStmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (\Throwable $e) {
+        $students = [];
+    }
 }
 
 $pageTitle = 'Chấm điểm theo Lớp - TalentHub';
@@ -198,7 +214,7 @@ if ($teacherName === 'minh triet') {
 $teacherInfo = [
     'full_name' => $teacherName !== '' ? $teacherName : 'Giáo viên',
     'role_label' => 'Giáo viên / Hướng dẫn viên',
-    'school_name' => '',
+    'school_name' => $teacherSchoolName,
     'avatar_initials' => 'GV',
     'notification_count' => 0,
 ];
@@ -344,10 +360,10 @@ $teacherInfo = [
                                 Phân hệ Giảng viên • Đánh giá Năng lực
                             </div>
                             <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary, #322014); margin: 0 0 0.4rem;">
-                                Chấm điểm theo Lớp: <span style="color: var(--primary-coral, #F83F70);"><?= htmlspecialchars($activeClassName); ?></span>
+                                Chấm điểm theo Lớp: <span style="color: var(--primary-coral, #F83F70);"><?= htmlspecialchars($activeClassName !== '' ? $activeClassName : 'Chưa chọn lớp'); ?></span>
                             </h2>
                             <p style="color: #64748B; margin: 0; font-size: 0.92rem;">
-                                Danh sách sinh viên thuộc lớp <strong><?= htmlspecialchars($activeClassName); ?></strong> - Cao đẳng Quốc tế BTEC FPT.
+                                Danh sách sinh viên thuộc lớp <strong><?= htmlspecialchars($activeClassName !== '' ? $activeClassName : 'chưa chọn'); ?></strong><?= $teacherSchoolName !== '' ? ' - ' . htmlspecialchars($teacherSchoolName) : ''; ?>.
                             </p>
                         </div>
 
@@ -434,14 +450,14 @@ $teacherInfo = [
                                                                 <?= htmlspecialchars($st['fullName']); ?>
                                                             </div>
                                                             <div style="font-size: 0.75rem; color: #64748B;">
-                                                                <?= htmlspecialchars($st['email'] ?? 'student@btec.fpt.edu.vn'); ?>
+                                                                <?= htmlspecialchars($st['email'] ?? ''); ?>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <span class="class-badge">
-                                                        <?= htmlspecialchars($st['className'] ?? 'BTEC-AI-2026A'); ?>
+                                                        <?= htmlspecialchars($st['className'] ?? ($activeClassName ?: '')); ?>
                                                     </span>
                                                 </td>
                                                 <td style="text-align: center;">

@@ -129,8 +129,8 @@ final class TeacherActivityRepository
             $activity->execute(['activityId' => $activityId, 'teacherId' => $teacherId]);
             $row = $activity->fetch(PDO::FETCH_ASSOC);
             if (!is_array($row)) throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.');
-            if (isset($row['approvalStatus']) && !in_array((string) $row['approvalStatus'], ['draft', 'changes_requested'], true)) {
-                throw new ApiException(409, 'APPROVAL_STATUS_CONFLICT', 'Không thể sửa hoạt động khi đang chờ duyệt, đã duyệt hoặc đã từ chối.');
+            if (isset($row['approvalStatus']) && in_array((string) $row['approvalStatus'], ['pending_school_review', 'rejected'], true)) {
+                throw new ApiException(409, 'APPROVAL_STATUS_CONFLICT', 'Không thể sửa hoạt động khi đang chờ duyệt hoặc đã bị từ chối.');
             }
             $occupied = $this->pdo->prepare("SELECT COUNT(*) FROM activity_registrations WHERE activityId=:activityId AND status IN ('approved','attended')");
             $occupied->execute(['activityId' => $activityId]);
@@ -289,9 +289,6 @@ final class TeacherActivityRepository
         if ($row === null || $this->countRows('activity_registration_policies', $activityId) !== 1) $missing[] = 'cấu hình đăng ký';
         if ($row === null || $this->countRows('activity_experience_policies', $activityId) !== 1) $missing[] = 'số giờ trải nghiệm';
         if ($row !== null) {
-            if ($this->hasColumn('activities', 'approvalStatus') && (string) ($row['approvalStatus'] ?? '') !== 'approved') {
-                $missing[] = 'phê duyệt của Nhà trường';
-            }
             try {
                 $start = new \DateTimeImmutable((string) $row['startAt'], new \DateTimeZone('UTC'));
                 $end = new \DateTimeImmutable((string) $row['endAt'], new \DateTimeZone('UTC'));
@@ -349,22 +346,37 @@ final class TeacherActivityRepository
         $ownsTransaction = !$this->pdo->inTransaction();
         if ($ownsTransaction) $this->pdo->beginTransaction();
         try {
-            if ($expectedStatus === 'draft' && $nextStatus === 'published') {
-                $this->assertPublishable($teacherId, $activityId);
-            }
-            $statement = $this->pdo->prepare("
-                UPDATE activities
-                SET status = :nextStatus
-                WHERE id = :activityId
-                  AND createdByTeacherId = :teacherId
-                  AND status = :expectedStatus
-            ");
-            $statement->execute([
+            $now = gmdate('Y-m-d H:i:s.u');
+            $setClauses = ['status = :nextStatus'];
+            $params = [
                 'nextStatus' => $nextStatus,
                 'activityId' => $activityId,
                 'teacherId' => $teacherId,
                 'expectedStatus' => $expectedStatus,
-            ]);
+            ];
+
+            if ($this->hasColumn('activities', 'updatedAt')) {
+                $setClauses[] = 'updatedAt = :updatedAt';
+                $params['updatedAt'] = $now;
+            }
+
+            if ($expectedStatus === 'draft' && $nextStatus === 'published') {
+                $this->assertPublishable($teacherId, $activityId);
+                if ($this->hasColumn('activities', 'approvalStatus')) {
+                    $setClauses[] = "approvalStatus = 'approved'";
+                }
+                if ($this->hasColumn('activities', 'approvedAt')) {
+                    $setClauses[] = 'approvedAt = COALESCE(approvedAt, :approvedAt)';
+                    $params['approvedAt'] = $now;
+                }
+            }
+
+            $sql = 'UPDATE activities SET ' . implode(', ', $setClauses) . '
+                    WHERE id = :activityId
+                      AND createdByTeacherId = :teacherId
+                      AND status = :expectedStatus';
+            $statement = $this->pdo->prepare($sql);
+            $statement->execute($params);
             if ($statement->rowCount() !== 1) {
                 if ($ownsTransaction) $this->pdo->rollBack();
                 return false;

@@ -235,24 +235,81 @@ function initTalentActions() {
 }
 
 /* ==========================================================================
-   5. Toast Notification System
+    5. Toast Notification System
    ========================================================================== */
 let entToastTimeout = null;
+let entToastExitTimeout = null;
 
-function showEntToast(message) {
+function showEntToast(message, type = 'info') {
     const toast = document.getElementById('ent-toast');
     if (!toast) return;
+
+    if (entToastTimeout) {
+        clearTimeout(entToastTimeout);
+        entToastTimeout = null;
+    }
+    if (entToastExitTimeout) {
+        clearTimeout(entToastExitTimeout);
+        entToastExitTimeout = null;
+    }
 
     const messageEl = toast.querySelector('.ent-toast__message');
     if (messageEl) {
         messageEl.textContent = message;
     }
 
+    const titleEl = toast.querySelector('.ent-toast__title');
+    const isError = message.toLowerCase().includes('lỗi') || message.toLowerCase().includes('thất bại') || type === 'error';
+    const isWarning = message.toLowerCase().includes('cảnh báo') || message.toLowerCase().includes('chú ý') || type === 'warning';
+
+    toast.classList.remove('ent-toast--success', 'ent-toast--error', 'ent-toast--warning');
+
+    if (isError) {
+        toast.classList.add('ent-toast--error');
+        if (titleEl) titleEl.textContent = 'Thất bại';
+    } else if (isWarning) {
+        toast.classList.add('ent-toast--warning');
+        if (titleEl) titleEl.textContent = 'Lưu ý';
+    } else {
+        toast.classList.add('ent-toast--success');
+        if (titleEl) titleEl.textContent = 'Thành công';
+    }
+
+    toast.classList.remove('is-leaving');
     toast.classList.add('is-visible');
 
     entToastTimeout = setTimeout(() => {
-        toast.classList.remove('is-visible');
-    }, 4000);
+        hideEntToast();
+    }, 4200);
 }
 
+function hideEntToast() {
+    const toast = document.getElementById('ent-toast');
+    if (!toast || !toast.classList.contains('is-visible')) return;
+
+    if (entToastTimeout) {
+        clearTimeout(entToastTimeout);
+        entToastTimeout = null;
+    }
+
+    toast.classList.add('is-leaving');
+    entToastExitTimeout = setTimeout(() => {
+        toast.classList.remove('is-visible');
+        toast.classList.remove('is-leaving');
+        entToastExitTimeout = null;
+    }, 280);
+}
+
+// Attach dismiss button handler
+document.addEventListener('DOMContentLoaded', () => {
+    const closeBtn = document.getElementById('ent-toast-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            hideEntToast();
+        });
+    }
+});
+
 window.showEntToast = showEntToast;
+window.hideEntToast = hideEntToast;

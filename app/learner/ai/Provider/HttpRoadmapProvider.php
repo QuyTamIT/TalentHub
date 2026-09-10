@@ -72,12 +72,17 @@ final class HttpRoadmapProvider implements RoadmapProvider
             }
             try {
                 $response = ($this->http)($this->config->apiUrl(), $headers, $body, $this->config->roadmapTimeoutSeconds());
-            } catch (\Throwable) {
+            } catch (\Throwable $networkException) {
+                $this->logGeminiInteraction('Tạo bản phân tích (AI Roadmap)', $body, 'Lỗi kết nối / Exception: ' . $networkException->getMessage(), 0);
                 if ($this->retryPolicy->shouldRetry(0,'network',$attempt)) { ($this->sleeper)($this->retryPolicy->delayMs($attempt)); continue; }
                 $this->circuitBreaker->recordFailure();
                 return RoadmapProviderResponse::failure('provider_unavailable', null, 'network');
             }
             $status = is_numeric($response['status'] ?? null) ? (int) $response['status'] : 0;
+
+            // Ghi log toàn bộ request và response từ Gemini khi "Tạo bản phân tích"
+            $this->logGeminiInteraction('Tạo bản phân tích (AI Roadmap)', $body, $response['body'] ?? '', $status);
+
             if ($status === 200) { $result=$this->success($response['body'] ?? null, $response['headers'] ?? []); if ($result->isSuccess()) $this->circuitBreaker->recordSuccess(); else $this->circuitBreaker->recordFailure(); return $result; }
             if ($status === 429) { $retryAfter=$this->retryAfter($response['headers'] ?? []); return RoadmapProviderResponse::failure('rate_limited', $retryAfter, '4xx'); }
             if ($this->retryPolicy->shouldRetry($status,null,$attempt)) { ($this->sleeper)($this->retryPolicy->delayMs($attempt)); continue; }
@@ -387,5 +392,32 @@ final class HttpRoadmapProvider implements RoadmapProvider
         if ($responseBody === false) { $error = curl_error($ch); curl_close($ch); throw new \RuntimeException('HTTP request failed: ' . $error); }
         $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
         return ['status' => $status, 'headers' => $responseHeaders, 'body' => is_string($responseBody) ? $responseBody : ''];
+    }
+
+    private function logGeminiInteraction(string $action, mixed $requestBody, mixed $responseBody, int $status = 200): void
+    {
+        try {
+            $root = dirname(__DIR__, 4);
+            $logDir = $root . '/storage/logs';
+            if (!is_dir($logDir)) {
+                @mkdir($logDir, 0777, true);
+            }
+            $timestamp = date('Y-m-d H:i:s');
+            $reqText = is_string($requestBody) ? $requestBody : json_encode($requestBody, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $resText = is_string($responseBody) ? $responseBody : json_encode($responseBody, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+            $logEntry = "======================================================================\n"
+                      . "[{$timestamp}] HÀNH ĐỘNG: {$action} | HTTP STATUS: {$status}\n"
+                      . "======================================================================\n"
+                      . "PROMPT TRUYỀN LÊN GEMINI:\n"
+                      . $reqText . "\n\n"
+                      . "TOÀN BỘ RESPONSE TỪ GEMINI:\n"
+                      . $resText . "\n\n";
+
+            @file_put_contents($logDir . '/gemini_response.log', $logEntry, FILE_APPEND | LOCK_EX);
+            @file_put_contents($root . '/response.log', $logEntry, FILE_APPEND | LOCK_EX);
+        } catch (\Throwable) {
+            // Không làm gián đoạn luồng chính nếu lỗi ghi log
+        }
     }
 }

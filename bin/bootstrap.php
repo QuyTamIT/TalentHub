@@ -57,6 +57,15 @@ declare(strict_types=1);
 
 spl_autoload_register(static function(string $class): void {
     $prefix='TalentHub\\'; if(!str_starts_with($class,$prefix)){return;}
+    if (str_starts_with($class, 'TalentHub\\Learner\\Ai\\')) {
+        $aiBootstrap = dirname(__DIR__) . '/app/learner/ai/bootstrap.php';
+        if (is_file($aiBootstrap)) {
+            require_once $aiBootstrap;
+        }
+        $relative = str_replace('\\', '/', substr($class, strlen('TalentHub\\Learner\\Ai\\')));
+        $path = dirname(__DIR__) . '/app/learner/ai/' . $relative . '.php';
+        if (is_file($path)) { require_once $path; return; }
+    }
     $relative=str_replace('\\','/',substr($class,strlen($prefix)));
     $roots=['Tests\\'=>dirname(__DIR__).'/tests/'];
     if(str_starts_with(substr($class,strlen($prefix)),'Tests\\')){$relative=str_replace('\\','/',substr($class,strlen('TalentHub\\Tests\\')));$path=dirname(__DIR__).'/tests/'.$relative.'.php';}

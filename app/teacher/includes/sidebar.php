@@ -29,11 +29,11 @@ $teacherRouteHrefs = [
 <aside class="teacher-sidebar" id="teacher-sidebar">
     <!-- Brand Logo -->
     <div class="teacher-sidebar__brand">
-        <a href="<?= htmlspecialchars($teacherSidebarHomeHref); ?>" 
-           class="teacher-sidebar__brand-link" 
+        <a href="<?= htmlspecialchars($teacherSidebarHomeHref); ?>"
+           class="teacher-sidebar__brand-link"
            aria-label="Về trang chủ FTalentHub Giáo viên">
-            <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : '/assets/images/talenthub-logo.png'); ?>" 
-                 alt="FTalentHub Logo" 
+            <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : '/assets/images/talenthub-logo.png'); ?>"
+                 alt="FTalentHub Logo"
                  class="teacher-sidebar__logo-img" />
         </a>
         <span class="teacher-sidebar__role-tag">Khu vực Giáo viên</span>
@@ -106,7 +106,7 @@ $teacherRouteHrefs = [
 
     <!-- Bottom Action: Logout -->
     <div class="teacher-sidebar__footer">
-        <a href="<?= function_exists('app_href') ? app_href('/logout.php?role=teacher') : '/logout.php?role=teacher'; ?>" 
+        <a href="<?= function_exists('app_href') ? app_href('/logout.php?role=teacher') : '/logout.php?role=teacher'; ?>"
            class="teacher-sidebar__link teacher-sidebar__link--logout"
            aria-label="Đăng xuất khỏi hệ thống">
             <span class="teacher-sidebar__icon">

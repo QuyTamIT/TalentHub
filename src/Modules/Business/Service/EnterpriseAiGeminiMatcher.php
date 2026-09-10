@@ -62,9 +62,24 @@ final class EnterpriseAiGeminiMatcher
             'required_skills' => array_values((array) ($job['required_skills'] ?? [])),
         ];
 
-        $systemInstruction = 'You are TalentHub Enterprise AI Matcher. Evaluate anonymous candidate projections against job requirements. Respond strictly in JSON format matching the schema without markdown formatting.';
+        $systemInstruction = "You are TalentHub Enterprise AI Matcher. Evaluate anonymous candidate projections against internship job requirements based on verified skills, domain/major, achievements, and teacher competency assessment scores.\n"
+            . "CRITICAL MATCHING & RANKING RULES:\n"
+            . "1. DIRECT PROFESSIONAL SKILLS FIRST: Technical and specialized domain skills directly required by the job position MUST have the highest weight and priority.\n"
+            . "2. HIERARCHY OF RELEVANCE:\n"
+            . "   - Candidates with multiple directly matching professional skills MUST be ranked at the very top and receive highest scores.\n"
+            . "   - Candidates with at least one directly matching professional skill MUST still be included and scored appropriately.\n"
+            . "   - Soft skills (Teamwork, Communication, etc.), badges, and teacher assessment scores are strictly supplementary.\n"
+            . "   - Candidates who lack direct professional skills MUST NOT be ranked high or classified as 'Rất phù hợp' or 'Phù hợp', regardless of high teacher scores or soft skills. If included, they must receive low scores (<= 35) and 'Có liên quan'.\n"
+            . "   - Do not include candidates who have 0 skills or no relevance to the job.\n"
+            . "3. FACTUAL REASONING FROM REAL DATA ONLY: In 'recommendation_reason', provide a concise, natural Vietnamese explanation strictly referencing ONLY the skills and metrics that the candidate ACTUALLY possesses. NEVER hallucinate or mention skills the candidate does not have.\n"
+            . "4. CLASSIFICATION:\n"
+            . "   - 'Rất phù hợp': Score >= 75.0 (possesses multiple directly matching professional skills).\n"
+            . "   - 'Phù hợp': Score 45.0 - 74.9 (possesses at least 1 core matching professional skill).\n"
+            . "   - 'Có liên quan': Score < 45.0 (related field or supporting skills without core professional skills).\n"
+            . "Respond strictly in JSON format matching the schema without markdown formatting.";
+
         $userPayload = [
-            'prompt_version' => 'enterprise-match-2.0.0',
+            'prompt_version' => 'enterprise-match-3.0.0',
             'job' => $safeJob,
             'candidates' => $candidateProjections,
             'response_schema' => [
@@ -73,7 +88,9 @@ final class EnterpriseAiGeminiMatcher
                     [
                         'candidate_ref' => 'string',
                         'match_score' => 'float between 0.0 and 100.0',
-                        'reason_codes' => ['verified_skill_match', 'partial_skill_match', 'skill_gap', 'strong_verified_level'],
+                        'match_level' => 'Rất phù hợp | Phù hợp | Có liên quan',
+                        'recommendation_reason' => 'string in Vietnamese',
+                        'reason_codes' => ['verified_skill_match', 'partial_skill_match', 'skill_gap', 'strong_verified_level', 'domain_match', 'teacher_recommended'],
                     ],
                 ],
             ],
@@ -82,7 +99,10 @@ final class EnterpriseAiGeminiMatcher
         $body = json_encode([
             'systemInstruction' => ['parts' => [['text' => $systemInstruction]]],
             'contents' => [['role' => 'user', 'parts' => [['text' => json_encode($userPayload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)]]]],
-            'generationConfig' => ['responseMimeType' => 'application/json'],
+            'generationConfig' => [
+                'responseMimeType' => 'application/json',
+                'temperature' => 0.0,
+            ],
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 
         if (strlen($body) > 100000) {
@@ -95,7 +115,11 @@ final class EnterpriseAiGeminiMatcher
             'partial_skill_match',
             'skill_gap',
             'strong_verified_level',
+            'domain_match',
+            'teacher_recommended',
         ];
+
+        $timeout = max(15, (int) $this->config->timeoutSeconds());
 
         for ($attempt = 1; $attempt <= $this->config->maxAttempts(); $attempt++) {
             try {
@@ -103,9 +127,10 @@ final class EnterpriseAiGeminiMatcher
                     (string) $this->config->apiUrl(),
                     ['Content-Type' => 'application/json', 'x-goog-api-key' => (string) $this->config->apiKey()],
                     $body,
-                    $this->config->timeoutSeconds()
+                    $timeout
                 );
                 $status = (int) ($response['status'] ?? 0);
+                $this->logGeminiInteraction('Enterprise AI Matching / Tìm nhân tài bằng AI', $body, $response['body'] ?? '', $status);
                 if (strlen((string) ($response['body'] ?? '')) > 200000) {
                     throw new RuntimeException('Enterprise AI response too large.');
                 }
@@ -147,9 +172,17 @@ final class EnterpriseAiGeminiMatcher
                                     throw new RuntimeException('invalid_reason_code');
                                 }
                             }
+                            $matchLevel = trim((string) ($item['match_level'] ?? ''));
+                            if (!in_array($matchLevel, ['Rất phù hợp', 'Phù hợp', 'Có liên quan'], true)) {
+                                $matchLevel = $score >= 75.0 ? 'Rất phù hợp' : ($score >= 45.0 ? 'Phù hợp' : 'Có liên quan');
+                            }
+                            $recReason = trim((string) ($item['recommendation_reason'] ?? ''));
+
                             $items[] = [
                                 'candidate_ref' => $ref,
                                 'match_score' => $score,
+                                'match_level' => $matchLevel,
+                                'recommendation_reason' => $recReason,
                                 'reason_codes' => array_values($reasons),
                             ];
                         }
@@ -216,5 +249,32 @@ final class EnterpriseAiGeminiMatcher
             'headers' => $retryAfter > 0 ? ['retry-after' => (string) $retryAfter] : [],
             'body' => is_string($response) ? $response : '',
         ];
+    }
+
+    private function logGeminiInteraction(string $action, mixed $requestBody, mixed $responseBody, int $status = 200): void
+    {
+        try {
+            $root = dirname(__DIR__, 4);
+            $logDir = $root . '/storage/logs';
+            if (!is_dir($logDir)) {
+                @mkdir($logDir, 0777, true);
+            }
+            $timestamp = date('Y-m-d H:i:s');
+            $reqText = is_string($requestBody) ? $requestBody : json_encode($requestBody, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $resText = is_string($responseBody) ? $responseBody : json_encode($responseBody, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+            $logEntry = "======================================================================\n"
+                      . "[{$timestamp}] HÀNH ĐỘNG: {$action} | HTTP STATUS: {$status}\n"
+                      . "======================================================================\n"
+                      . "PROMPT TRUYỀN LÊN GEMINI:\n"
+                      . $reqText . "\n\n"
+                      . "TOÀN BỘ RESPONSE TỪ GEMINI:\n"
+                      . $resText . "\n\n";
+
+            @file_put_contents($logDir . '/gemini_response.log', $logEntry, FILE_APPEND | LOCK_EX);
+            @file_put_contents($root . '/response.log', $logEntry, FILE_APPEND | LOCK_EX);
+        } catch (\Throwable) {
+            // Không làm gián đoạn luồng chính nếu lỗi ghi log
+        }
     }
 }

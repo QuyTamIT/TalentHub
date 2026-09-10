@@ -45,6 +45,7 @@ class GeminiService
                 throw new \Exception('Curl error: ' . curl_error($ch));
             }
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $this->logGeminiInteraction('Gemini Internship Suggestions', $payload, (string) $response, (int) $httpCode);
             if ($httpCode >= 400) {
                 throw new \Exception('API returned HTTP ' . $httpCode . ': ' . (string) $response);
             }
@@ -61,6 +62,33 @@ class GeminiService
             throw new \Exception('Gemini API call failed: ' . $e->getMessage());
         } finally {
             curl_close($ch);
+        }
+    }
+
+    private function logGeminiInteraction(string $action, mixed $requestBody, mixed $responseBody, int $status = 200): void
+    {
+        try {
+            $root = dirname(__DIR__, 2);
+            $logDir = $root . '/storage/logs';
+            if (!is_dir($logDir)) {
+                @mkdir($logDir, 0777, true);
+            }
+            $timestamp = date('Y-m-d H:i:s');
+            $reqText = is_string($requestBody) ? $requestBody : json_encode($requestBody, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $resText = is_string($responseBody) ? $responseBody : json_encode($responseBody, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+            $logEntry = "======================================================================\n"
+                      . "[{$timestamp}] HÀNH ĐỘNG: {$action} | HTTP STATUS: {$status}\n"
+                      . "======================================================================\n"
+                      . "PROMPT TRUYỀN LÊN GEMINI:\n"
+                      . $reqText . "\n\n"
+                      . "TOÀN BỘ RESPONSE TỪ GEMINI:\n"
+                      . $resText . "\n\n";
+
+            @file_put_contents($logDir . '/gemini_response.log', $logEntry, FILE_APPEND | LOCK_EX);
+            @file_put_contents($root . '/response.log', $logEntry, FILE_APPEND | LOCK_EX);
+        } catch (\Throwable) {
+            // Logging should not break execution
         }
     }
 }

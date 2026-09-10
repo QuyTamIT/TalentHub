@@ -19,11 +19,11 @@ require_once dirname(__DIR__, 2) . '/shared/BrandHeader.php';
 <aside class="ent-sidebar" id="ent-sidebar">
     <!-- Brand Logo -->
     <div class="ent-sidebar__brand">
-        <a href="<?= htmlspecialchars(function_exists('app_href') ? app_href('/app/enterprise/index.php') : '/app/enterprise/index.php'); ?>" 
-           class="ent-sidebar__brand-link" 
+        <a href="<?= htmlspecialchars(function_exists('app_href') ? app_href('/app/enterprise/index.php') : '/app/enterprise/index.php'); ?>"
+           class="ent-sidebar__brand-link"
            aria-label="Về trang chủ FTalentHub Enterprise">
-            <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : '/assets/images/talenthub-logo.png'); ?>" 
-                 alt="FTalentHub Logo" 
+            <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : '/assets/images/talenthub-logo.png'); ?>"
+                 alt="FTalentHub Logo"
                  class="ent-sidebar__logo-img" />
         </a>
         <span class="ent-sidebar__role-tag">Khu vực Doanh nghiệp</span>
@@ -33,16 +33,16 @@ require_once dirname(__DIR__, 2) . '/shared/BrandHeader.php';
     <nav class="ent-sidebar__nav" aria-label="Điều hướng Doanh nghiệp">
         <div class="ent-sidebar__nav-title">QUẢN LÝ DOANH NGHIỆP</div>
         <ul>
-            <?php foreach ($sidebarNav as $navItem): 
+            <?php foreach ($sidebarNav as $navItem):
                 $isActive = (isset($currentRoute) && ($navItem['route'] === $currentRoute || strpos($currentRoute, strtok($navItem['route'], '.')) === 0 && $navItem['route'] !== '/app/enterprise')) || (!isset($currentRoute) && $navItem['active']);
-                
+
                 $hrefRoute = app_href($navItem['route']);
             ?>
                 <li>
-                    <a href="<?= htmlspecialchars($hrefRoute); ?>" 
+                    <a href="<?= htmlspecialchars($hrefRoute); ?>"
                        class="ent-sidebar__link <?= $isActive ? 'is-active' : ''; ?>"
                        data-route="<?= htmlspecialchars($navItem['route']); ?>">
-                        
+
                         <span class="ent-sidebar__icon">
                             <?php if ($navItem['icon'] === 'grid'): ?>
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -88,7 +88,7 @@ require_once dirname(__DIR__, 2) . '/shared/BrandHeader.php';
 
     <!-- Bottom Action: Logout -->
     <div class="ent-sidebar__footer">
-        <a href="<?= function_exists('app_href') ? app_href('/logout.php') : '/logout.php'; ?>" 
+        <a href="<?= function_exists('app_href') ? app_href('/logout.php') : '/logout.php'; ?>"
            class="ent-sidebar__link ent-sidebar__link--logout"
            aria-label="Đăng xuất khỏi hệ thống">
             <span class="ent-sidebar__icon">
