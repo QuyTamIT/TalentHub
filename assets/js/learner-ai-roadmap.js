@@ -274,23 +274,40 @@
         const rawPotential = records(payload?.potential_paths);
         let potentialPaths = rawPotential;
         if (potentialPaths.length === 0) {
+            const defaultEvidence = Array.isArray(payload?.evidence)
+                ? payload.evidence.filter((item) => typeof item === 'string').slice(0, 3)
+                : [];
             const alternatives = Array.isArray(payload?.alternative_directions)
                 ? payload.alternative_directions.filter((item) => item && typeof item === 'object')
                 : [];
             if (alternatives.length > 0) {
-                potentialPaths = alternatives.slice(0, 2).map((dir) => ({
-                    label: text(dir?.rationale) ? `${text(dir.label)}: ${text(dir.rationale)}` : text(dir.label),
-                    evidence_ref_ids: Array.isArray(dir?.evidence_ref_ids) ? dir.evidence_ref_ids : [],
-                }));
+                potentialPaths = alternatives.slice(0, 2).map((dir) => {
+                    const label = text(dir?.label);
+                    const rationale = text(dir?.rationale);
+                    const formattedLabel = label && rationale ? `${label}: ${rationale}` : (label || rationale);
+                    return {
+                        label: formattedLabel,
+                        evidence_ref_ids: Array.isArray(dir?.evidence_ref_ids) && dir.evidence_ref_ids.length > 0
+                            ? dir.evidence_ref_ids
+                            : defaultEvidence,
+                    };
+                });
             } else {
                 const potentialInsights = Array.isArray(payload?.insights)
                     ? payload.insights.filter((item) => item?.category === 'potential')
                     : [];
                 if (potentialInsights.length > 0) {
-                    potentialPaths = potentialInsights.slice(0, 2).map((insight) => ({
-                        label: text(insight?.summary) ? `${text(insight.title)}: ${text(insight.summary)}` : text(insight.title),
-                        evidence_ref_ids: Array.isArray(insight?.evidence_ref_ids) ? insight.evidence_ref_ids : [],
-                    }));
+                    potentialPaths = potentialInsights.slice(0, 2).map((insight) => {
+                        const title = text(insight?.title);
+                        const summary = text(insight?.summary);
+                        const formattedLabel = title && summary ? `${title}: ${summary}` : (title || summary);
+                        return {
+                            label: formattedLabel,
+                            evidence_ref_ids: Array.isArray(insight?.evidence_ref_ids) && insight.evidence_ref_ids.length > 0
+                                ? insight.evidence_ref_ids
+                                : defaultEvidence,
+                        };
+                    });
                 }
             }
         }
