@@ -133,6 +133,14 @@ if ($isEconomicSector) {
         ['id' => 'frontend', 'label' => 'Lập trình Frontend'],
         ['id' => 'backend', 'label' => 'Lập trình Backend'],
         ['id' => 'security', 'label' => 'An toàn thông tin'],
+        ['id' => 'biz_mgmt', 'label' => 'Kinh doanh & Quản trị'],
+        ['id' => 'marketing_media', 'label' => 'Marketing & Truyền thông'],
+        ['id' => 'finance_acc', 'label' => 'Tài chính & Kế toán'],
+        ['id' => 'logistics_sc', 'label' => 'Logistics & Chuỗi cung ứng'],
+        ['id' => 'electronics_automation', 'label' => 'Điện tử & Tự động hóa'],
+        ['id' => 'mechanical_engineering', 'label' => 'Cơ khí & Kỹ thuật'],
+        ['id' => 'design_multimedia', 'label' => 'Thiết kế & Đa phương tiện'],
+        ['id' => 'tourism_hospitality', 'label' => 'Du lịch & Khách sạn'],
         ['id' => 'ready_now', 'label' => 'Sẵn sàng thực tập'],
     ];
     $popularSkills = [
