@@ -13,6 +13,8 @@ Thumbs.db
 # Runtime-generated uploads and reports
 /src/storage/
 /storage/student-avatars/
+/storage/activity-covers/*
+!/storage/activity-covers/.gitkeep
 /artifacts/
 # Local audit artifacts, backups, and linked Codex worktrees.
 /.tmp/

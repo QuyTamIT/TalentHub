@@ -208,18 +208,14 @@ final class DatabaseActivityRepository extends AbstractDatabaseRepository implem
 
     private function activitySelectSql(): string
     {
-        $occupied = $this->occupiedSql();
-        if ($this->hasTable('activity_registration_policies')) {
-            return 'SELECT ' . self::COLUMNS . ", {$occupied} AS participants, policy.registrationOpensAt,
-                COALESCE(policy.registrationClosesAt, activity.startAt) AS registrationClosesAt,
-                COALESCE(policy.cancellationClosesAt, activity.startAt) AS cancellationClosesAt,
-                COALESCE(policy.approvalMode, 'automatic') AS approvalMode
-                FROM activities activity LEFT JOIN activity_registration_policies policy ON policy.activityId = activity.id
-                WHERE " . self::VISIBLE_STATUS_SQL . ' AND ' . $this->approvalExpression();
-        }
-        return 'SELECT ' . self::COLUMNS . ", {$occupied} AS participants, NULL AS registrationOpensAt,
-            activity.startAt AS registrationClosesAt, activity.startAt AS cancellationClosesAt, 'automatic' AS approvalMode
-            FROM activities activity WHERE " . self::VISIBLE_STATUS_SQL . ' AND ' . $this->approvalExpression();
+        return 'SELECT ' . $this->activityProjection('id') . '
+            FROM activities activity
+            LEFT JOIN schools school ON school.id = activity.schoolId
+            ' . $this->teacherJoin() . '
+            ' . $this->detailsJoin() . '
+            ' . $this->policyJoin() . '
+            ' . $this->experiencePolicyJoin() . '
+            WHERE ' . self::VISIBLE_STATUS_SQL . ' AND ' . $this->approvalExpression();
     }
 
     private function scopedActivitySql(string $where): string

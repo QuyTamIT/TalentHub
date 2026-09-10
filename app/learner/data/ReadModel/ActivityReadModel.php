@@ -46,6 +46,69 @@ final class ActivityReadModel
         if (!array_key_exists('filter_category', $record) && array_key_exists('filterCategory', $record)) {
             $record['filter_category'] = $record['filterCategory'];
         }
+        if (!array_key_exists('cover_image_url', $record) && array_key_exists('coverImageUrl', $record)) {
+            $record['cover_image_url'] = $record['coverImageUrl'];
+        }
+        if (!array_key_exists('cover_image_alt', $record) && array_key_exists('coverImageAlt', $record)) {
+            $record['cover_image_alt'] = $record['coverImageAlt'];
+        }
+        if (!array_key_exists('target_audience', $record) && array_key_exists('targetAudience', $record)) {
+            $record['target_audience'] = $record['targetAudience'];
+        }
+        if (!array_key_exists('certificate_label', $record) && array_key_exists('certificateLabel', $record)) {
+            $record['certificate_label'] = $record['certificateLabel'];
+        }
+        if (!array_key_exists('location_name', $record) && array_key_exists('locationName', $record)) {
+            $record['location_name'] = $record['locationName'];
+        }
+        if (!array_key_exists('location_address', $record) && array_key_exists('locationAddress', $record)) {
+            $record['location_address'] = $record['locationAddress'];
+        }
+        if (!array_key_exists('delivery_mode', $record) && array_key_exists('deliveryMode', $record)) {
+            $record['delivery_mode'] = $record['deliveryMode'];
+        }
+        if (!array_key_exists('online_meeting_url', $record) && array_key_exists('onlineMeetingUrl', $record)) {
+            $record['online_meeting_url'] = $record['onlineMeetingUrl'];
+        }
+        if (!array_key_exists('organizer_name', $record) && array_key_exists('organizerName', $record)) {
+            $record['organizer_name'] = $record['organizerName'];
+        }
+        if (!array_key_exists('organizer_contact', $record) && array_key_exists('organizerContact', $record)) {
+            $record['organizer_contact'] = $record['organizerContact'];
+        }
+        if (!array_key_exists('organizer_email', $record) && array_key_exists('organizerEmail', $record)) {
+            $record['organizer_email'] = $record['organizerEmail'];
+        }
+        if (!array_key_exists('organizer_phone', $record) && array_key_exists('organizerPhone', $record)) {
+            $record['organizer_phone'] = $record['organizerPhone'];
+        }
+        if (!array_key_exists('fee_amount', $record) && array_key_exists('feeAmount', $record)) {
+            $record['fee_amount'] = $record['feeAmount'];
+        }
+        if (!array_key_exists('display_category', $record) && array_key_exists('displayCategory', $record)) {
+            $record['display_category'] = $record['displayCategory'];
+        }
+        if (!array_key_exists('experience_highlights', $record) && array_key_exists('experienceHighlights', $record)) {
+            $record['experience_highlights'] = $record['experienceHighlights'];
+        }
+        if (!array_key_exists('skill_tags', $record) && array_key_exists('skillTags', $record)) {
+            $record['skill_tags'] = $record['skillTags'];
+        }
+        if (!array_key_exists('skills', $record) && array_key_exists('skillTags', $record)) {
+            $record['skills'] = $record['skillTags'];
+        }
+        if (!array_key_exists('eligibility_rules', $record) && array_key_exists('eligibilityRules', $record)) {
+            $record['eligibility_rules'] = $record['eligibilityRules'];
+        }
+        if (!array_key_exists('requirements', $record) && array_key_exists('eligibilityRules', $record)) {
+            $record['requirements'] = $record['eligibilityRules'];
+        }
+        if (!array_key_exists('benefit_items', $record) && array_key_exists('benefitItems', $record)) {
+            $record['benefit_items'] = $record['benefitItems'];
+        }
+        if (!array_key_exists('benefits', $record) && array_key_exists('benefitItems', $record)) {
+            $record['benefits'] = $record['benefitItems'];
+        }
         $metadata = $record;
         $record['activity_id'] ??= $record['id'] ?? null;
         $record['route_id'] ??= $record['id'] ?? null;
