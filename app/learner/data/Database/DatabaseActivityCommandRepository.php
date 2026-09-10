@@ -248,9 +248,6 @@ final class DatabaseActivityCommandRepository implements ActivityCommandReposito
     /** @param array<string,mixed> $activity */
     private function assertRegistrationWindow(array $activity, DateTimeImmutable $now): void
     {
-        if (($activity['approvalStatus'] ?? 'approved') !== 'approved') {
-            throw new ApiException(422, 'REGISTRATION_CLOSED', 'Hoạt động chưa được Nhà trường phê duyệt.');
-        }
         if (($activity['status'] ?? null) !== 'published') {
             throw new ApiException(422, 'REGISTRATION_CLOSED', 'Hoạt động hiện không nhận đăng ký.');
         }

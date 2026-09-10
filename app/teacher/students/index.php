@@ -99,21 +99,30 @@ try {
     );
     $pageData = $service->page((string) $user['id'], $_GET);
 
-    // If no activity registration rows, load students from managed class BTEC-AI-2026A
-    if (empty($pageData['rows'])) {
+    // If the teacher has no activity registrations yet, show active students from
+    // the teacher's school. The canonical classes schema is school-scoped and does
+    // not contain the legacy `homeroomTeacherId` column.
+    if (
+        empty($pageData['rows'])
+        && $pageData['filters']['activityId'] === ''
+        && $pageData['filters']['status'] === ''
+    ) {
         $searchQ = trim((string) ($_GET['search'] ?? ''));
         $sql = "
             SELECT sp.id as studentId, u.fullName, u.email, sp.phone, 
                    COALESCE(sp.talentScore, 85.00) as talentScore,
                    c.name as className, spd.headline, sp.createdAt
-            FROM student_profiles sp
+            FROM teacher_profiles tp
+            JOIN classes c ON c.schoolId = tp.schoolId
+            JOIN student_profiles sp ON sp.classId = c.id
             JOIN users u ON u.id = sp.userId
-            JOIN classes c ON c.id = sp.classId
             LEFT JOIN student_profile_details spd ON spd.studentId = sp.id
-            WHERE (c.homeroomTeacherId = :teacherId OR c.name LIKE '%BTEC-AI%')
+            WHERE tp.userId = :teacherUserId
+              AND c.status = 'active'
               AND sp.studyStatus = 'active'
+              AND u.status = 'active'
         ";
-        $params = ['teacherId' => (string)$user['id']];
+        $params = ['teacherUserId' => (string) $user['id']];
         if ($searchQ !== '') {
             $sql .= " AND (u.fullName LIKE :q OR u.email LIKE :q)";
             $params['q'] = '%' . $searchQ . '%';
@@ -151,7 +160,12 @@ try {
     }
 } catch (ApiException $exception) {
     $error = $exception->getMessage();
-} catch (Throwable) {
+} catch (Throwable $exception) {
+    error_log(sprintf(
+        'Teacher students page failed for user %s: %s',
+        (string) ($user['id'] ?? 'unknown'),
+        $exception->getMessage(),
+    ));
     $error = 'Không thể tải danh sách học viên lúc này.';
 }
 

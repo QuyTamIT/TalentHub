@@ -289,9 +289,6 @@ final class TeacherActivityRepository
         if ($row === null || $this->countRows('activity_registration_policies', $activityId) !== 1) $missing[] = 'cấu hình đăng ký';
         if ($row === null || $this->countRows('activity_experience_policies', $activityId) !== 1) $missing[] = 'số giờ trải nghiệm';
         if ($row !== null) {
-            if ($this->hasColumn('activities', 'approvalStatus') && (string) ($row['approvalStatus'] ?? '') !== 'approved') {
-                $missing[] = 'phê duyệt của Nhà trường';
-            }
             try {
                 $start = new \DateTimeImmutable((string) $row['startAt'], new \DateTimeZone('UTC'));
                 $end = new \DateTimeImmutable((string) $row['endAt'], new \DateTimeZone('UTC'));

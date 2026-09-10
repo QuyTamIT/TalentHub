@@ -105,9 +105,25 @@ if (!function_exists('teacherActivitiesLifecycleAction')) {
     {
         $rawStatus = strtolower(trim((string) ($activity['raw_status'] ?? '')));
 
+        if ($rawStatus === 'published') {
+            try {
+                $startAt = new DateTimeImmutable((string) ($activity['startAt'] ?? ''), new DateTimeZone('UTC'));
+                $canStart = new DateTimeImmutable('now', new DateTimeZone('UTC')) >= $startAt;
+                $startLabel = $startAt->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'))->format('d/m/Y H:i');
+            } catch (Throwable) {
+                $canStart = false;
+                $startLabel = 'thời gian đã lên lịch';
+            }
+
+            return [
+                'label' => 'Bắt đầu hoạt động',
+                'disabled' => !$canStart,
+                'title' => $canStart ? '' : 'Có thể bắt đầu từ ' . $startLabel,
+            ];
+        }
+
         return match ($rawStatus) {
             'draft' => ['label' => 'Công bố hoạt động'],
-            'published' => ['label' => 'Bắt đầu hoạt động'],
             'ongoing' => ['label' => 'Kết thúc hoạt động'],
             'completed' => ['label' => 'Lưu trữ hoạt động'],
             'archived' => null,
@@ -933,7 +949,12 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                                                 <input type="hidden" name="csrfToken" value="<?= teacherActivitiesEscape($csrfToken); ?>">
                                                                 <input type="hidden" name="form_action" value="advance_status">
                                                                 <input type="hidden" name="activity_id" value="<?= teacherActivitiesEscape($activity['id']); ?>">
-                                                                <button type="submit" class="teacher-activity-action teacher-activity-action--button"><?= teacherActivitiesEscape($rowLifecycleAction['label']); ?></button>
+                                                                <button
+                                                                    type="submit"
+                                                                    class="teacher-activity-action teacher-activity-action--button"
+                                                                    <?= !empty($rowLifecycleAction['disabled']) ? 'disabled' : ''; ?>
+                                                                    <?= !empty($rowLifecycleAction['title']) ? 'title="' . teacherActivitiesEscape($rowLifecycleAction['title']) . '"' : ''; ?>
+                                                                ><?= teacherActivitiesEscape($rowLifecycleAction['label']); ?></button>
                                                             </form>
                                                         <?php endif; ?>
                                                     </div>

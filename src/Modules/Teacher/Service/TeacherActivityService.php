@@ -93,6 +93,17 @@ final class TeacherActivityService
             throw new ApiException(422, 'INVALID_STATUS', 'Trạng thái hiện tại của hoạt động không hợp lệ.');
         }
 
+        if ($currentStatus === 'published') {
+            try {
+                $startAt = new DateTimeImmutable((string) ($activity['startAt'] ?? ''), new DateTimeZone('UTC'));
+            } catch (\Throwable) {
+                throw new ApiException(422, 'INVALID_STATUS', 'Thời gian bắt đầu của hoạt động không hợp lệ.');
+            }
+            if (new DateTimeImmutable('now', new DateTimeZone('UTC')) < $startAt) {
+                throw new ApiException(422, 'ACTIVITY_NOT_STARTED', 'Chưa đến thời gian bắt đầu hoạt động.');
+            }
+        }
+
         $nextStatus = self::NEXT_STATUSES[$currentStatus] ?? null;
         if ($nextStatus === null) {
             throw new ApiException(422, 'INVALID_TRANSITION', 'Hoạt động đã lưu trữ và không thể chuyển tiếp.');
@@ -122,7 +133,6 @@ final class TeacherActivityService
         $activity = $this->find($this->requireUuid($teacherId, 'teacherId'), $this->requireUuid($activityId, 'activityId'));
         if ($activity === null) throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.');
         if ((string) ($activity['status'] ?? '') !== 'draft') throw new ApiException(409, 'STATUS_CONFLICT', 'Chỉ hoạt động nháp mới có thể công bố.');
-        if ((string) ($activity['approvalStatus'] ?? '') !== 'approved') throw new ApiException(409, 'SCHOOL_APPROVAL_REQUIRED', 'Hoạt động phải được Nhà trường duyệt trước khi công bố.');
         return ['activityId' => $activityId, 'status' => $this->advanceStatus($teacherId, $activityId, $requestId)];
     }
 

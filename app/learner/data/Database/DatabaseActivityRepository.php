@@ -58,7 +58,6 @@ final class DatabaseActivityRepository extends AbstractDatabaseRepository implem
         $closesAt = $policyExists ? 'COALESCE(policy.registrationClosesAt, activity.startAt)' : 'activity.startAt';
         $sql = $this->scopedActivitySql("student.id = :student_id
             AND activity.status = :status_published
-            AND {$this->approvalExpression()}
             AND {$this->studentVisibilityExpression()}
             AND {$opensAt} <= :opens_now
             AND :closes_now < {$closesAt}
@@ -96,7 +95,7 @@ final class DatabaseActivityRepository extends AbstractDatabaseRepository implem
         $activityId = Uuid::normalizeDatabase($activityId, 'activity_id');
         $row = $this->fetchOne('findForStudent', $this->scopedActivitySql(
             'student.id = :student_id AND activity.id = :activity_id AND ' . self::VISIBLE_STATUS_SQL
-            . ' AND ' . $this->approvalExpression() . ' AND ' . $this->studentVisibilityExpression()
+            . ' AND ' . $this->studentVisibilityExpression()
         ) . ' LIMIT 1', ['student_id' => $studentId, 'activity_id' => $activityId] + $this->visibleStatusParameters());
         return $row === null ? null : $this->normalizeActivity($row);
     }
@@ -215,11 +214,11 @@ final class DatabaseActivityRepository extends AbstractDatabaseRepository implem
                 COALESCE(policy.cancellationClosesAt, activity.startAt) AS cancellationClosesAt,
                 COALESCE(policy.approvalMode, 'automatic') AS approvalMode
                 FROM activities activity LEFT JOIN activity_registration_policies policy ON policy.activityId = activity.id
-                WHERE " . self::VISIBLE_STATUS_SQL . ' AND ' . $this->approvalExpression();
+                WHERE " . self::VISIBLE_STATUS_SQL;
         }
         return 'SELECT ' . self::COLUMNS . ", {$occupied} AS participants, NULL AS registrationOpensAt,
             activity.startAt AS registrationClosesAt, activity.startAt AS cancellationClosesAt, 'automatic' AS approvalMode
-            FROM activities activity WHERE " . self::VISIBLE_STATUS_SQL . ' AND ' . $this->approvalExpression();
+            FROM activities activity WHERE " . self::VISIBLE_STATUS_SQL;
     }
 
     private function scopedActivitySql(string $where): string
@@ -270,11 +269,6 @@ final class DatabaseActivityRepository extends AbstractDatabaseRepository implem
     private function scopeExpression(): string
     {
         return $this->hasTable('activity_details') && $this->hasColumn('activity_details', 'audienceScope') ? "COALESCE(details.audienceScope, 'school_only')" : "'school_only'";
-    }
-
-    private function approvalExpression(): string
-    {
-        return $this->hasColumn('activities', 'approvalStatus') ? "activity.approvalStatus = 'approved'" : '1 = 1';
     }
 
     private function activityStudentJoinExpression(): string
