@@ -848,6 +848,9 @@ main {
 .queue-item:hover { background: var(--background); }
 .queue-item:first-child { border-top: 0; }
 .queue-item > .icon { width: 16px; height: 16px; margin-top: 13px; color: var(--text-muted); }
+.queue-open { min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.queue-dismiss { align-self: center; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-muted); padding: 5px 8px; font: inherit; font-size: var(--text-xs); cursor: pointer; white-space: nowrap; }
+.queue-dismiss:hover, .queue-dismiss:focus-visible { border-color: var(--border-strong); color: var(--text-primary); }
 
 .severity {
     width: 8px;
@@ -1135,6 +1138,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .command-results small { display: block; }
 .command-results strong { font-size: var(--text-sm); color: var(--text-primary); }
 .command-results small  { font-size: var(--text-xs); color: var(--text-muted); }
+.command-empty { margin: 18px 10px; color: var(--text-muted); font-size: var(--text-sm); }
 
 .command-item-icon {
     width: 34px;
@@ -2020,3 +2024,128 @@ tbody tr:hover { background: #f8fafc; }
 
 /* Chart series: thicker lines */
 .series { stroke-width: 2.5; }
+
+/* ===========================================================================
+   COMPACT ADMIN PASS
+   Keep operational information dense and scannable without decorative noise.
+   ========================================================================== */
+:root {
+    --admin-sidebar-width: 248px;
+    --admin-topbar: 64px;
+}
+
+.admin-shell { background: #f8fafc; }
+
+.brand {
+    height: var(--admin-topbar);
+    padding: 0 18px;
+}
+
+.brand .learner-brand__mark {
+    display: grid;
+    place-items: center;
+    line-height: 0;
+}
+
+.brand .learner-brand__mark svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+
+.side-nav { padding: 12px 10px; }
+.nav-label { margin-bottom: 5px; }
+
+.nav-item {
+    min-height: 40px;
+    margin: 1px 0;
+    padding: 7px 9px;
+    gap: 10px;
+}
+
+.nav-item:hover { transform: none; }
+.nav-item.is-active { box-shadow: inset 0 0 0 1px rgba(255, 107, 0, 0.12); }
+
+.sidebar-footer { padding: 10px; }
+.environment-card { padding: 8px; margin-bottom: 5px; box-shadow: none; }
+.admin-profile { padding: 7px 3px; }
+
+.topbar {
+    height: var(--admin-topbar);
+    padding: 0 24px;
+    box-shadow: 0 1px 0 var(--border);
+}
+
+.command-trigger {
+    max-width: 440px;
+    height: 40px;
+    border-radius: 8px;
+}
+
+main {
+    max-width: 1480px;
+    padding: 24px;
+}
+
+.page-heading { margin-bottom: 20px; }
+.page-heading h1 {
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: var(--text-primary);
+}
+
+.page-heading p:not(.eyebrow) { max-width: 660px; }
+.heading-actions { gap: 8px; }
+
+.health-strip {
+    padding: 13px 16px;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    box-shadow: none;
+}
+
+.section-kicker { padding-bottom: 10px; margin-bottom: 10px; }
+.health-item { padding: 2px 14px; }
+.health-icon { width: 32px; height: 32px; }
+.health-item:hover .health-icon { transform: none; }
+
+.metric-grid { gap: 12px; margin-bottom: 16px; }
+.metric-card { padding: 15px 16px; box-shadow: none; }
+.metric-card:hover { transform: none; box-shadow: var(--shadow-xs); }
+.metric-card:hover::before { width: 4px; }
+.metric-card > strong {
+    margin: 5px 0 6px;
+    font-size: 1.55rem;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: var(--text-primary);
+}
+.ghost-menu { display: none; }
+
+.dashboard-grid,
+.operations-grid { gap: 14px; }
+
+.panel { border-radius: 10px; box-shadow: none; }
+.panel:hover { box-shadow: none; }
+.panel-heading { padding: 16px 17px 10px; }
+.chart-wrap { padding: 0 10px 7px; }
+.line-chart { height: 220px; }
+.queue-item { padding: 10px 8px; }
+
+.system-summary > p {
+    margin: 0;
+    padding: 0 16px 14px;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+}
+
+.system-summary .system-grid { margin: 0; }
+.organization-groups { display: grid; gap: 22px; }
+.organization-group-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 10px; }
+.organization-group-heading h3 { margin: 0; font-size: var(--text-lg); color: var(--text-primary); }
+.organization-group-heading span { color: var(--text-muted); font-size: var(--text-sm); }
+
+@media (max-width: 900px) {
+    .topbar { padding: 0 16px; }
+    main { padding: 20px 16px; }
+}

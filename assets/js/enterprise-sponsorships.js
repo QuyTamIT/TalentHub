@@ -650,7 +650,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }, 1500);
 
             } catch (error) {
-                alert(error?.message || 'Có lỗi xảy ra trong quá trình tài trợ dự án.');
+                showSuccessToast(error?.message || 'Có lỗi xảy ra trong quá trình tài trợ dự án.');
             } finally {
                 if (sponsorSubmitBtn) {
                     sponsorSubmitBtn.disabled = false;
@@ -715,12 +715,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 position: fixed;
                 bottom: 2rem;
                 right: 2rem;
-                background-color: #0F172A;
+                background-color: #322014;
                 color: #FFFFFF;
-                border-left: 4px solid #F97316;
+                border-left: 4px solid #F83F70;
                 padding: 1.125rem 1.5rem;
                 border-radius: 12px;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+                box-shadow: 0 10px 25px rgba(50, 32, 20, 0.25);
                 z-index: 10000;
                 font-size: 0.9375rem;
                 max-width: 420px;
@@ -735,7 +735,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         toast.innerHTML = `
-            <div style="width: 2rem; height: 2rem; border-radius: 50%; background: rgba(249,115,22,0.2); color: #F97316; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <div style="width: 2rem; height: 2rem; border-radius: 50%; background: rgba(248,63,112,0.2); color: #FF6B45; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
             <div>${message}</div>

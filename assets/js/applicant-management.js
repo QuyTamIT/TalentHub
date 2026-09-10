@@ -326,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isAccepted = (app.status === 'accepted');
                 const isDecisionMade = (app.status === 'accepted' || app.status === 'declined' || app.status === 'withdrawn');
                 const primaryBtnText = isAccepted ? 'Đã duyệt' : (isDecisionMade ? 'Chi tiết' : 'Duyệt');
-                const primaryBtnClass = isAccepted ? 'btn-secondary is-approved' : (isDecisionMade ? 'btn-secondary' : 'btn-warning text-white fw-bold');
+                const primaryBtnClass = isAccepted ? 'btn-secondary is-approved' : (isDecisionMade ? 'btn-secondary' : 'btn-primary');
                 const approveActionClass = isAccepted ? 'btn-review-app' : 'btn-approve-candidate';
                 const approveDisabled = isAccepted ? 'disabled' : '';
                 const formattedSub = `${escapeHtml(app.school)} &bull; ${escapeHtml(app.class_code ? (app.class_code.startsWith('Lớp ') ? app.class_code : 'Lớp ' + app.class_code) : (app.education_level || ''))}`;
@@ -335,7 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <tr data-applicant-id="${app.id}">
                         <td>
                             <div class="ent-applicant-identity">
-                                <div class="ent-applicant-avatar" style="background: linear-gradient(135deg, #2563eb 0%, #ea580c 100%) !important; color: #ffffff !important; font-weight: 800 !important; border: 1.5px solid #93c5fd !important; box-shadow: 0 2px 5px rgba(37,99,235,0.2) !important;">${escapeHtml(app.avatar_initials)}</div>
+                                <div class="ent-applicant-avatar" style="background: var(--primary-gradient) !important; color: #ffffff !important; font-weight: 800 !important; border: 1.5px solid #FFDACB !important; box-shadow: 0 2px 5px rgba(248,63,112,0.2) !important;">${escapeHtml(app.avatar_initials)}</div>
                                 <div class="ent-applicant-info">
                                     <button type="button" class="ent-applicant-info__name btn-view-cv" data-app-id="${app.id}" title="Xem hồ sơ ứng viên">
                                         ${escapeHtml(app.name)}
@@ -402,7 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isAccepted = (app.status === 'accepted');
                 const isDecisionMade = (app.status === 'accepted' || app.status === 'declined' || app.status === 'withdrawn');
                 const primaryBtnText = isAccepted ? 'Đã duyệt' : (isDecisionMade ? 'Chi tiết' : 'Duyệt hồ sơ');
-                const primaryBtnClass = isAccepted ? 'btn-secondary is-approved' : (isDecisionMade ? 'btn-secondary' : 'btn-warning text-white fw-bold');
+                const primaryBtnClass = isAccepted ? 'btn-secondary is-approved' : (isDecisionMade ? 'btn-secondary' : 'btn-primary');
                 const approveActionClass = isAccepted ? 'btn-review-app' : 'btn-approve-candidate';
                 const approveDisabled = isAccepted ? 'disabled' : '';
                 const formattedSub = `${escapeHtml(app.school)} &bull; ${escapeHtml(app.class_code ? (app.class_code.startsWith('Lớp ') ? app.class_code : 'Lớp ' + app.class_code) : (app.education_level || ''))}`;
@@ -411,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <article class="ent-applicant-mobile-card" data-applicant-id="${app.id}">
                         <div class="ent-applicant-mobile-card__header">
                             <div class="ent-applicant-identity">
-                                <div class="ent-applicant-avatar" style="width:34px; height:34px; font-size:0.8rem; background: linear-gradient(135deg, #2563eb 0%, #ea580c 100%) !important; color: #ffffff !important; font-weight: 800 !important;">
+                                <div class="ent-applicant-avatar" style="width:34px; height:34px; font-size:0.8rem; background: var(--primary-gradient) !important; color: #ffffff !important; font-weight: 800 !important; border: 1.5px solid #FFDACB !important;">
                                     ${escapeHtml(app.avatar_initials)}
                                 </div>
                                 <div class="ent-applicant-info">

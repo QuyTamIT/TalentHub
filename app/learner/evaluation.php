@@ -120,29 +120,12 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Theo dõi điểm đánh giá năng lực và nhận xét phản hồi từ giảng viên, huấn luyện viên trên TalentHub.">
     <title>Đánh giá & Nhận xét Năng lực | TalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/polish.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
     <style>
-        :root {
-            --font-primary: 'Be Vietnam Pro', sans-serif;
-            --primary: #F97316;
-            --primary-hover: #EA580C;
-            --primary-light: #FFF7ED;
-            --secondary: #2563EB;
-            --secondary-light: #EFF6FF;
-            --accent: #16A34A;
-            --background: #F8FAFC;
-            --surface: #FFFFFF;
-            --text-primary: #0F172A;
-            --text-secondary: #64748B;
-            --border: #E2E8F0;
-            --success: #16A34A;
-            --warning: #F59E0B;
-            --danger: #DC2626;
-            --radius-sm: 8px;
-            --radius-md: 12px;
-        }
-
         .learner-evaluation-grid {
             display: grid;
             grid-template-columns: 1fr 340px;

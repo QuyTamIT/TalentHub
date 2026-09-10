@@ -59,12 +59,18 @@
     background: #fff;
 }
 
-.auth-brand__logo:focus-visible { outline-color: #FF8C38; }
+.auth-brand__logo .learner-brand,
+.learner-brand.auth-mobile-logo {
+    width: auto;
+    white-space: nowrap;
+}
 
-.auth-mobile-logo { padding: 0; }
+.auth-brand__logo .learner-brand:focus-visible { outline-color: #FF8C38; }
 
-.auth-brand__logo img  { width: 200px; height: 40px; filter: drop-shadow(0 1px 0 rgba(255,255,255,0.2)); }
-.auth-mobile-logo img  { width: 180px; height: 36px; }
+/* The shared learner-brand already renders a 36px orange mark + "FTalentHub"
+   wordmark. On the compact auth card we only need to keep it on one line. */
+.auth-brand__logo .learner-brand { gap: 0.7rem; }
+.auth-brand__logo .learner-brand__mark { width: 30px; height: 30px; flex-basis: 30px; }
 
 .auth-brand__content {
     position: relative;

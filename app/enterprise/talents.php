@@ -312,6 +312,7 @@ $sidebarNav = [
                                 </button>
                             </div>
                         </div>
+                        <div class="ent-ai-results-container ent-ai-matcher-card__results" data-enterprise-ai-results style="display: none;"></div>
                     </div>
 
                     <!-- Quick Filters & Main Search Toolbar -->

@@ -755,15 +755,18 @@ $sidebarNav = [
         }
 
         function showDetailToast(msg) {
-            const toast = document.getElementById('ent-toast');
-            if (toast) {
-                const msgEl = toast.querySelector('.ent-toast__message');
-                if (msgEl) msgEl.textContent = msg;
-                toast.classList.add('is-visible');
-                setTimeout(() => { toast.classList.remove('is-visible'); }, 3500);
-            } else {
-                alert(msg);
+            let toast = document.getElementById('ent-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'ent-toast';
+                toast.className = 'ent-toast';
+                toast.innerHTML = '<div class="ent-toast__content"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg><span class="ent-toast__message"></span></div>';
+                document.body.appendChild(toast);
             }
+            const msgEl = toast.querySelector('.ent-toast__message');
+            if (msgEl) msgEl.textContent = msg;
+            toast.classList.add('is-visible');
+            setTimeout(() => { toast.classList.remove('is-visible'); }, 3500);
         }
 
         async function submitInternshipInvitation() {

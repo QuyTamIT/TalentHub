@@ -19,11 +19,6 @@ use TalentHub\Rbac\Service\PermissionService;
 function teacherDashboardDefaults(): array
 {
     return [
-        'dbStatus' => [
-            'connected' => false,
-            'label' => 'Dữ liệu dự phòng',
-            'message' => 'Chưa kết nối dữ liệu thực tế. Dashboard đang hiển thị trạng thái rỗng an toàn.',
-        ],
         'teacherInfo' => [
             'id' => null,
             'user_id' => null,
@@ -200,18 +195,8 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
     $pdo = $context['pdo'] instanceof PDO ? $context['pdo'] : null;
 
     if (!$pdo) {
-        if (is_string($context['error']) && $context['error'] !== '') {
-            $data['dbStatus']['label'] = 'Chưa sẵn sàng';
-            $data['dbStatus']['message'] = $context['error'];
-        }
         return $data;
     }
-
-    $data['dbStatus'] = [
-        'connected' => true,
-        'label' => '',
-        'message' => '',
-    ];
 
     $profile = is_array($context['profile']) ? $context['profile'] : null;
     $user = is_array($context['user']) ? $context['user'] : null;

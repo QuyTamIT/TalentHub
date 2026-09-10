@@ -3,7 +3,6 @@
  * Teacher Dashboard - Welcome Banner Component
  */
 $todayLabel = $todayLabel ?? date('d/m/Y');
-$dbStatus = $dbStatus ?? ($dashboardData['dbStatus'] ?? ['connected' => true, 'label' => 'Đã kết nối', 'message' => '']);
 $rawTeacherName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
 $teacherName = $rawTeacherName !== '' && $rawTeacherName !== 'Test Teacher'
     ? $rawTeacherName

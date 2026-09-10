@@ -7,6 +7,7 @@ use TalentHub\Auth\Repository\AuthRepository;
 use TalentHub\Auth\Service\AuthPortalRouter;
 use TalentHub\Auth\Service\AuthService;
 use TalentHub\Database\Connection;
+use TalentHub\Config\Environment;
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\School\Repository\SchoolAuditRepository;
 use TalentHub\Modules\School\Repository\SchoolPartnershipRepository;
@@ -136,6 +137,12 @@ final class SchoolAppContext
         }
 
         if ($user === null) {
+            if (!$this->allowsDemoAutologin()) {
+                if ($cached !== null) {
+                    $this->redirectToLoginWithRoleRequired(\TalentHub\Rbac\RoleCodes::SCHOOL);
+                }
+                $this->redirectToLogin();
+            }
             // Find existing school admin user in users table
             $sStmt = $pdo->prepare("SELECT u.id, u.email, u.fullName, u.status, r.code AS role
                                     FROM users u
@@ -295,6 +302,19 @@ final class SchoolAppContext
     public function session(): SessionManager
     {
         return $this->session;
+    }
+
+    private function allowsDemoAutologin(): bool
+    {
+        if (!in_array(Environment::appEnvironment(), ['local', 'test'], true)
+            || !Environment::boolean('TALENTHUB_ALLOW_DEMO_AUTOLOGIN', false)
+        ) {
+            return false;
+        }
+        if (PHP_SAPI === 'cli') {
+            return true;
+        }
+        return in_array(trim((string) ($_SERVER['REMOTE_ADDR'] ?? '')), ['127.0.0.1', '::1'], true);
     }
 
     public function service(): SchoolDashboardService

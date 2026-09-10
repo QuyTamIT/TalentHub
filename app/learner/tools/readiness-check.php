@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit(1);
+}
+
 use TalentHub\Database\Connection;
 use TalentHub\Learner\Data\Readiness\GitScopeGuard;
 use TalentHub\Learner\Data\Readiness\PhaseRequirements;

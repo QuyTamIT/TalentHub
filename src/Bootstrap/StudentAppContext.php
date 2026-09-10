@@ -46,26 +46,28 @@ final class StudentAppContext
             $cached = $this->session->user();
         }
         $appEnv = \TalentHub\Config\Environment::appEnvironment();
-        $isLocal = in_array($appEnv, ['local', 'dev', 'development', 'test'], true);
+        $allowDemoAutologin = in_array($appEnv, ['local', 'test'], true)
+            && \TalentHub\Config\Environment::boolean('TALENTHUB_ALLOW_DEMO_AUTOLOGIN', false)
+            && (PHP_SAPI === 'cli' || in_array((string) ($_SERVER['REMOTE_ADDR'] ?? ''), ['127.0.0.1', '::1'], true));
 
-        if ($cached === null || !\TalentHub\Rbac\RoleCodes::matches((string)($cached['role'] ?? ''), \TalentHub\Rbac\RoleCodes::STUDENT) || ($isLocal && str_contains((string)($cached['email'] ?? ''), '@test.'))) {
-            if ($isLocal) {
+        if ($cached === null || !\TalentHub\Rbac\RoleCodes::matches((string)($cached['role'] ?? ''), \TalentHub\Rbac\RoleCodes::STUDENT)) {
+            if ($allowDemoAutologin) {
                 $cached = $this->localFallbackStudent();
                 $this->session->login($cached);
             } else {
-                throw new ApiException(401, 'AUTHENTICATION_REQUIRED', 'Vui lòng đăng nhập tài khoản học viên.');
+                $this->redirectToLoginWithRoleRequired(\TalentHub\Rbac\RoleCodes::STUDENT);
             }
         }
 
         try {
             $user = $this->auth->current((string) $cached['id']);
         } catch (\Throwable) {
-            if ($isLocal) {
+            if ($allowDemoAutologin) {
                 $cached = $this->localFallbackStudent();
                 $this->session->login($cached);
                 $user = $this->auth->current((string) $cached['id']);
             } else {
-                $user = $cached;
+                $this->redirectToLogin();
             }
         }
         $user['role'] = \TalentHub\Rbac\RoleCodes::STUDENT;
@@ -77,7 +79,7 @@ final class StudentAppContext
         try {
             $this->permissions->require($user['id'], 'student_profile.read_own');
         } catch (ApiException $exception) {
-            if ($isLocal && $exception->status === 403) {
+            if ($allowDemoAutologin && $exception->status === 403) {
                 $cached = $this->localFallbackStudent();
                 $this->session->login($cached);
                 $user = $this->auth->current((string) $cached['id']);
@@ -115,7 +117,7 @@ final class StudentAppContext
             }
         }
 
-        $onboarding = ['required' => false, 'status' => 'completed'];
+        $onboarding = ['required' => true, 'status' => 'unavailable'];
         try {
             $onboardingService = new LearnerOnboardingService(new LearnerOnboardingRepository($this->pdo));
             $onboarding = $onboardingService->reconcile(
@@ -134,7 +136,9 @@ final class StudentAppContext
                 exit;
             }
         } catch (\Throwable $e) {
-            error_log('Learner onboarding check notice: ' . $e->getMessage());
+            error_log('Learner onboarding check failed: ' . $e->getMessage());
+            require dirname(__DIR__, 2) . '/app/learner/includes/runtime-unavailable.php';
+            exit;
         }
 
         return [

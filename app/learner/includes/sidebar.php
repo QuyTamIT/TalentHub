@@ -6,7 +6,7 @@ if (!function_exists('app_href') && is_file(__DIR__ . '/../../../bin/bootstrap.p
     require_once __DIR__ . '/../../../bin/bootstrap.php';
 }
 $activeRoute = $currentRoute ?? '/app/learner/index.php';
-$studentSidebarHomeHref = '../../index.php';
+$studentSidebarHomeHref = function_exists('app_href') ? app_href('/app/learner/index.php') : '../../index.php';
 $studentLogoSrc = function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : '/assets/images/talenthub-logo.png';
 ?>
 <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>

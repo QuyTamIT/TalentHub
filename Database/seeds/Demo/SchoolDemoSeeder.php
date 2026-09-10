@@ -207,6 +207,30 @@ final class SchoolDemoSeeder
                 'status'   => 'active',
             ]);
         }
+
+        // INSERT IGNORE keeps this seeder repeatable, while this scoped update
+        // guarantees that every owned demo account uses the current local password.
+        $ownedUsers = [[self::IDS['adminUser'], $roleId, $this->demoAdminEmail(), 'Ban Giám hiệu THPT Nguyễn Trãi']];
+        foreach ($teachers as $teacher) {
+            $ownedUsers[] = [$teacher['user'], $teacherRoleId, $teacher['email'], $teacher['name']];
+        }
+        foreach ($students as $student) {
+            $ownedUsers[] = [$student['user'], $studentRoleId, $student['email'], $student['name']];
+        }
+        $refreshUser = $pdo->prepare(
+            "UPDATE users
+             SET roleId = :roleId, passwordHash = :hash, fullName = :fullName, status = 'active', updatedAt = UTC_TIMESTAMP(6)
+             WHERE id = :id AND email = :email"
+        );
+        foreach ($ownedUsers as [$id, $ownedRoleId, $email, $fullName]) {
+            $refreshUser->execute([
+                'id' => $id,
+                'roleId' => $ownedRoleId,
+                'email' => $email,
+                'hash' => $hash,
+                'fullName' => $fullName,
+            ]);
+        }
     }
 
     private function insertClasses(PDO $pdo): void

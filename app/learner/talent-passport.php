@@ -168,8 +168,11 @@ if (!empty($rawCertificates)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Talent Passport 360° - Hộ chiếu Năng lực Số của <?= learner_escape($studentName); ?> được chứng thực bởi <?= learner_escape($studentSchool); ?>.">
     <title>Talent Passport 360° | <?= learner_escape($studentName); ?> | TalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/home.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css">
+    <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/polish.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
     <style>
         /* ==========================================================================
            TALENT PASSPORT 360 - MODERN CV & CLEAN PRINT FORMAT
@@ -699,62 +702,272 @@ if (!empty($rawCertificates)) {
            ========================================================================== */
         @page {
             size: A4 portrait;
-            margin: 8mm 10mm;
+            margin: 0;
         }
         @media print {
-            * {
+            html,
+            body {
+                width: 210mm !important;
+                min-width: 210mm !important;
+                height: 296mm !important;
+                min-height: 296mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                background: #FFFFFF !important;
+                color: #0F172A !important;
+            }
+            body.learner-page-passport * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
-            body {
-                background: #FFFFFF !important;
-                font-size: 10pt !important;
-                color: #0F172A !important;
-            }
-            .learner-layout {
-                display: block !important;
-                padding: 0 !important;
-                margin: 0 !important;
-            }
-            .learner-sidebar,
-            .learner-header,
-            .passport-customizer-panel,
-            .passport-action-bar,
-            .learner-nav {
+            body.learner-page-passport .learner-sidebar,
+            body.learner-page-passport .learner-sidebar-backdrop,
+            body.learner-page-passport .learner-header,
+            body.learner-page-passport .learner-toast,
+            body.learner-page-passport .passport-top-toolbar,
+            body.learner-page-passport .passport-customizer-panel,
+            body.learner-page-passport .passport-action-bar,
+            body.learner-page-passport .learner-nav,
+            body.learner-page-passport .skip-link {
                 display: none !important;
             }
-            .passport-wrapper {
-                max-width: 100% !important;
+            body.learner-page-passport .learner-layout,
+            body.learner-page-passport .learner-main,
+            body.learner-page-passport .learner-content,
+            body.learner-page-passport .passport-wrapper {
+                display: block !important;
+                width: 210mm !important;
+                max-width: none !important;
+                min-width: 0 !important;
+                min-height: 0 !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                overflow: visible !important;
             }
-            .passport-card {
+            body.learner-page-passport .passport-card {
+                box-sizing: border-box !important;
+                width: 210mm !important;
+                max-height: 296mm !important;
+                margin: 0 !important;
+                border: 0 !important;
+                border-radius: 0 !important;
                 box-shadow: none !important;
-                border: 1px solid #94A3B8 !important;
-                border-radius: 6px !important;
+                overflow: visible !important;
+                transform: none !important;
+                transform-origin: top left;
             }
-            .passport-header-banner {
-                padding: 0.9rem 1.5rem !important;
+            body.learner-page-passport .passport-header-banner {
+                padding: 3mm 7mm !important;
+                gap: 2mm !important;
             }
-            .passport-cv-header {
-                padding: 1.25rem 1.5rem !important;
+            body.learner-page-passport .passport-header-title {
+                font-size: 8.5pt !important;
             }
-            .passport-content-body {
-                padding: 1.25rem 1.5rem !important;
-                gap: 1.25rem !important;
+            body.learner-page-passport .passport-badge-code {
+                padding: 1mm 2.5mm !important;
+                font-size: 6.5pt !important;
             }
-            .passport-section-title,
-            .passport-cv-header,
-            .passport-test-card,
-            .passport-project-item,
-            .passport-cert-item,
-            .passport-endorsement-box {
+            body.learner-page-passport .passport-cv-header {
+                padding: 4mm 7mm !important;
+                gap: 4mm !important;
+                flex-wrap: nowrap !important;
+            }
+            body.learner-page-passport .passport-cv-identity {
+                min-width: 0 !important;
+                gap: 4mm !important;
+            }
+            body.learner-page-passport .passport-cv-avatar {
+                width: 18mm !important;
+                height: 18mm !important;
+                border-radius: 3mm !important;
+                font-size: 18pt !important;
+            }
+            body.learner-page-passport .passport-cv-name {
+                font-size: 15pt !important;
+            }
+            body.learner-page-passport .passport-cv-headline {
+                margin-bottom: 1mm !important;
+                font-size: 7pt !important;
+            }
+            body.learner-page-passport .passport-cv-contact-list {
+                gap: 1mm 4mm !important;
+                font-size: 6.6pt !important;
+                line-height: 1.25 !important;
+            }
+            body.learner-page-passport .passport-qr-cv-card {
+                min-width: 25mm !important;
+                padding: 2mm !important;
+                border-radius: 2mm !important;
+            }
+            body.learner-page-passport .passport-qr-cv-img {
+                width: 18mm !important;
+                height: 18mm !important;
+            }
+            body.learner-page-passport .passport-qr-cv-badge,
+            body.learner-page-passport .passport-qr-cv-caption {
+                font-size: 5.5pt !important;
+                line-height: 1.15 !important;
+            }
+            body.learner-page-passport .passport-content-body {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                align-items: start !important;
+                padding: 4mm 7mm !important;
+                gap: 3mm 4mm !important;
+            }
+            body.learner-page-passport .passport-section {
+                min-width: 0 !important;
                 break-inside: avoid !important;
                 page-break-inside: avoid !important;
             }
-            .passport-qr-cv-img {
-                width: 100px !important;
-                height: 100px !important;
+            body.learner-page-passport #sec-tests,
+            body.learner-page-passport #sec-projects {
+                grid-column: 1 / -1 !important;
+            }
+            body.learner-page-passport .passport-section-title {
+                margin-bottom: 2mm !important;
+                padding-bottom: 1mm !important;
+                gap: 1.5mm !important;
+                font-size: 7.2pt !important;
+                line-height: 1.2 !important;
+            }
+            body.learner-page-passport .passport-section-title svg {
+                width: 3.5mm !important;
+                height: 3.5mm !important;
+                flex: 0 0 3.5mm !important;
+            }
+            body.learner-page-passport .passport-score-hero {
+                grid-template-columns: 22mm 1fr !important;
+                gap: 3mm !important;
+                padding: 2.5mm 3mm !important;
+                border-radius: 2mm !important;
+            }
+            body.learner-page-passport .passport-score-big {
+                font-size: 20pt !important;
+            }
+            body.learner-page-passport .passport-score-badge {
+                margin-bottom: 1mm !important;
+                padding: 1mm 2mm !important;
+                font-size: 6.2pt !important;
+            }
+            body.learner-page-passport .passport-score-hero p {
+                font-size: 6pt !important;
+                line-height: 1.25 !important;
+            }
+            body.learner-page-passport .passport-tests-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+                gap: 2mm !important;
+            }
+            body.learner-page-passport .passport-test-card {
+                gap: 1mm !important;
+                padding: 2mm 2.5mm !important;
+                border-radius: 2mm !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            body.learner-page-passport .passport-test-card__head {
+                gap: 1mm !important;
+            }
+            body.learner-page-passport .passport-test-card__head strong {
+                font-size: 6.2pt !important;
+                line-height: 1.2 !important;
+            }
+            body.learner-page-passport .passport-test-card__code {
+                padding: 0.5mm 1mm !important;
+                font-size: 5.5pt !important;
+            }
+            body.learner-page-passport .passport-test-card__desc,
+            body.learner-page-passport .passport-test-card__insights {
+                font-size: 5.5pt !important;
+                line-height: 1.22 !important;
+            }
+            body.learner-page-passport .passport-test-card__insights {
+                margin-top: 0 !important;
+                padding: 1mm !important;
+            }
+            body.learner-page-passport .passport-skills-grid {
+                gap: 1.5mm !important;
+            }
+            body.learner-page-passport .passport-skill-item {
+                gap: 1mm !important;
+                padding: 1.5mm 2mm !important;
+                border-radius: 1.5mm !important;
+            }
+            body.learner-page-passport .passport-skill-item__header {
+                font-size: 6pt !important;
+            }
+            body.learner-page-passport .passport-skill-item__bar {
+                height: 1mm !important;
+            }
+            body.learner-page-passport .passport-skill-item__detail {
+                margin-top: 0 !important;
+                font-size: 5.3pt !important;
+                line-height: 1.2 !important;
+            }
+            body.learner-page-passport #sec-projects {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 1.5mm 2mm !important;
+            }
+            body.learner-page-passport #sec-projects > .passport-section-title,
+            body.learner-page-passport #sec-projects > .passport-empty-state {
+                grid-column: 1 / -1 !important;
+            }
+            body.learner-page-passport .passport-project-item {
+                margin: 0 !important;
+                padding: 1.5mm 2mm !important;
+                gap: 1mm !important;
+                border-radius: 1.5mm !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            body.learner-page-passport .passport-project-item strong {
+                font-size: 5.8pt !important;
+                line-height: 1.2 !important;
+            }
+            body.learner-page-passport .passport-project-item div,
+            body.learner-page-passport .passport-project-item span,
+            body.learner-page-passport .passport-sponsor-badge {
+                font-size: 5.2pt !important;
+                line-height: 1.2 !important;
+            }
+            body.learner-page-passport .passport-project-item span,
+            body.learner-page-passport .passport-sponsor-badge {
+                padding: 0.5mm 1.5mm !important;
+            }
+            body.learner-page-passport .passport-empty-state,
+            body.learner-page-passport .passport-cert-item,
+            body.learner-page-passport .passport-endorsement-box {
+                padding: 2mm 2.5mm !important;
+                font-size: 5.8pt !important;
+                line-height: 1.25 !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            body.learner-page-passport .passport-cert-item {
+                gap: 2mm !important;
+                margin-bottom: 1mm !important;
+            }
+            body.learner-page-passport .passport-cert-item strong,
+            body.learner-page-passport .passport-cert-item span,
+            body.learner-page-passport .passport-cert-badge,
+            body.learner-page-passport .passport-endorsement-text,
+            body.learner-page-passport .passport-endorsement-signer,
+            body.learner-page-passport .passport-verification-seal {
+                font-size: 5.7pt !important;
+                line-height: 1.25 !important;
+            }
+            body.learner-page-passport .passport-endorsement-text {
+                margin-bottom: 1.5mm !important;
+            }
+            body.learner-page-passport .passport-card > footer {
+                clear: both !important;
+                padding: 1.5mm 7mm !important;
+                gap: 2mm !important;
+                font-size: 5.4pt !important;
+                line-height: 1.2 !important;
+                flex-wrap: nowrap !important;
             }
         }
         @media (max-width: 768px) {
@@ -1027,7 +1240,7 @@ if (!empty($rawCertificates)) {
                         </div>
 
                         <!-- Footer -->
-                        <footer style="background: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 1.15rem 2.25rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.775rem; color: #64748B; flex-wrap: wrap; gap: 0.5rem;">
+                        <footer class="passport-footer" style="background: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 1.15rem 2.25rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.775rem; color: #64748B; flex-wrap: wrap; gap: 0.5rem;">
                             <div>
                                 <span>Được xuất từ <strong>Hệ sinh thái TalentHub &amp; <?= learner_escape($studentSchool); ?></strong></span>
                             </div>
@@ -1052,8 +1265,17 @@ if (!empty($rawCertificates)) {
             const copyBtn = document.getElementById('btn-copy-passport-link');
             const qrContainer = document.getElementById('passport-verification-qr');
             const qrStatus = document.getElementById('passport-qr-status');
+            const passportCard = document.getElementById('talent-passport-card');
             let verificationUrl = '';
             let sharePromise = null;
+
+            const prepareSinglePagePrint = () => {
+                document.body.classList.add('passport-print-preparing');
+            };
+
+            const resetSinglePagePrint = () => {
+                document.body.classList.remove('passport-print-preparing');
+            };
 
             const fullShareFields = [
                 'fullName', 'headline', 'bio', 'location', 'school', 'class',
@@ -1107,12 +1329,18 @@ if (!empty($rawCertificates)) {
                 }
             };
 
+            window.addEventListener('beforeprint', prepareSinglePagePrint);
+            window.addEventListener('afterprint', resetSinglePagePrint);
+
             printBtn?.addEventListener('click', async () => {
                 printBtn.disabled = true;
                 try {
                     await ensureVerificationQr();
+                    await document.fonts?.ready;
+                    prepareSinglePagePrint();
                     window.print();
                 } catch (error) {
+                    resetSinglePagePrint();
                     alert(error?.message || 'Không thể tạo QR xác thực.');
                 } finally {
                     printBtn.disabled = false;

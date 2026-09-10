@@ -444,11 +444,7 @@
                         onClick: (e) => {
                             e.stopPropagation();
                             const notifId = acceptBtn.getAttribute('data-id') || notification.id;
-                            if (typeof window.handleAcceptInvitation === 'function') {
-                                window.handleAcceptInvitation(notifId, entName, actionBox);
-                            } else {
-                                this.respondInvitation(notifId, 'accept', actionBox, entName);
-                            }
+                            this.respondInvitation(notifId, 'accept', actionBox, entName);
                         }
                     }, [
                         createSvgIcon('check', 15, 15, '2.5'),
@@ -464,11 +460,7 @@
                         onClick: (e) => {
                             e.stopPropagation();
                             const notifId = declineBtn.getAttribute('data-id') || notification.id;
-                            if (typeof window.handleDeclineInvitation === 'function') {
-                                window.handleDeclineInvitation(notifId, entName, actionBox);
-                            } else {
-                                this.respondInvitation(notifId, 'decline', actionBox, entName);
-                            }
+                            this.respondInvitation(notifId, 'decline', actionBox, entName);
                         }
                     }, [
                         createSvgIcon('cross', 15, 15, '2.5'),
@@ -506,7 +498,6 @@
                 const response = await apiRequest(ENDPOINT, 'PATCH', {
                     action: 'respond-invitation',
                     notificationId,
-                    notification_id: notificationId,
                     decision,
                 });
 

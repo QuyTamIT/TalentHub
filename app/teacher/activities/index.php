@@ -105,7 +105,7 @@ function teacherActivitiesErrorField(string $message): ?string
 {
     $message = mb_strtolower($message, 'UTF-8');
     $patterns = [
-        'mở đăng ký' => 'registrationOpensAt', 'đóng đăng ký' => 'registrationClosesAt',
+        'tóm tắt' => 'summary', 'mở đăng ký' => 'registrationOpensAt', 'đóng đăng ký' => 'registrationClosesAt',
         'hủy đăng ký' => 'cancellationClosesAt',
         'title' => 'title', 'tên hoạt động' => 'title', 'nhóm hoạt động' => 'categoryChoice',
         'category' => 'categoryChoice', 'bắt đầu' => 'startAt', 'kết thúc' => 'endAt',
@@ -114,7 +114,8 @@ function teacherActivitiesErrorField(string $message): ?string
         'giờ trải nghiệm' => 'confirmedHours', 'cách duyệt' => 'approvalMode',
         'chi phí' => 'feeAmount', 'tiền tệ' => 'currency', 'email' => 'organizerEmail',
         'điện thoại' => 'organizerPhone', 'alt' => 'coverImageAlt', 'ảnh bìa' => 'coverImageUrl',
-        'giáo viên phụ trách' => 'responsibleTeacherId',
+        'đơn vị tổ chức' => 'organizerName', 'giáo viên phụ trách' => 'responsibleTeacherId',
+        'mô tả' => 'description', 'địa điểm' => 'locationName',
     ];
     foreach ($patterns as $needle => $field) {
         if (str_contains($message, $needle)) return $field;
@@ -126,6 +127,15 @@ if (!function_exists('teacherActivitiesLifecycleAction')) {
     function teacherActivitiesLifecycleAction(array $activity): ?array
     {
         $rawStatus = strtolower(trim((string) ($activity['raw_status'] ?? '')));
+
+        if ($rawStatus === 'draft') {
+            return match ((string) ($activity['approval_status'] ?? 'draft')) {
+                'draft' => ['label' => 'Gửi Nhà trường duyệt', 'form_action' => 'submit_for_school_review'],
+                'changes_requested' => ['label' => 'Gửi duyệt lại', 'form_action' => 'submit_for_school_review'],
+                'approved' => ['label' => 'Công bố hoạt động', 'form_action' => 'advance_status'],
+                default => null,
+            };
+        }
 
         if ($rawStatus === 'published') {
             try {
@@ -139,15 +149,15 @@ if (!function_exists('teacherActivitiesLifecycleAction')) {
 
             return [
                 'label' => 'Bắt đầu hoạt động',
+                'form_action' => 'advance_status',
                 'disabled' => !$canStart,
                 'title' => $canStart ? '' : 'Có thể bắt đầu từ ' . $startLabel,
             ];
         }
 
         return match ($rawStatus) {
-            'draft' => ['label' => 'Công bố hoạt động'],
-            'ongoing' => ['label' => 'Kết thúc hoạt động'],
-            'completed' => ['label' => 'Lưu trữ hoạt động'],
+            'ongoing' => ['label' => 'Kết thúc hoạt động', 'form_action' => 'advance_status'],
+            'completed' => ['label' => 'Lưu trữ hoạt động', 'form_action' => 'advance_status'],
             'archived' => null,
             default => null,
         };
@@ -208,16 +218,32 @@ if (!in_array($statusFilter, $statusFilters, true)) {
 
 $errors = [];
 $fieldErrors = [];
+$errorHeading = 'Chưa thể lưu hoạt động.';
+if (isset($_SESSION['teacher_activity_review_error']) && is_array($_SESSION['teacher_activity_review_error'])) {
+    $errorHeading = (string) ($_SESSION['teacher_activity_review_error']['heading'] ?? $errorHeading);
+    $reviewMessages = (array) ($_SESSION['teacher_activity_review_error']['messages'] ?? []);
+    foreach ($reviewMessages as $reviewMessage) {
+        $reviewMessage = (string) $reviewMessage;
+        if ($reviewMessage === '') continue;
+        $errors[] = $reviewMessage;
+        $reviewField = teacherActivitiesErrorField($reviewMessage);
+        if ($reviewField !== null && !isset($fieldErrors[$reviewField])) {
+            $fieldErrors[$reviewField] = $reviewMessage;
+        }
+    }
+    unset($_SESSION['teacher_activity_review_error']);
+}
 $notice = '';
 $noticeType = 'success';
 $categoryCatalog = teacherActivitiesCategoryCatalog();
 
 if (isset($_GET['saved'])) {
     $noticeMessages = [
-        'created' => 'Đã tạo hoạt động mới.',
-        'updated' => 'Đã cập nhật hoạt động.',
+        'created' => 'Đã lưu bản nháp. Chọn “Gửi Nhà trường duyệt” để xin phê duyệt trước khi công bố.',
+        'updated' => 'Đã cập nhật hoạt động. Bạn có thể gửi Nhà trường duyệt khi thông tin đã hoàn tất.',
         'advanced' => 'Đã chuyển hoạt động sang trạng thái mới.',
         'registration' => 'Đã cập nhật trạng thái đăng ký.',
+        'submitted' => 'Đã gửi hoạt động đến Nhà trường. Bạn có thể công bố sau khi được duyệt.',
     ];
     $notice = $noticeMessages[(string) $_GET['saved']] ?? 'Đã lưu thay đổi hoạt động.';
 }
@@ -371,8 +397,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header('Location: index.php?saved=advanced');
                 exit;
             } catch (Throwable $exception) {
-                $errors[] = $exception->getMessage() ?: 'Không thể cập nhật trạng thái hoạt động. Vui lòng kiểm tra lại kết nối dữ liệu.';
+                $msg = $exception->getMessage() ?: 'Không thể cập nhật trạng thái hoạt động. Vui lòng kiểm tra lại kết nối dữ liệu.';
+                $errors[] = $msg;
+                $lower = mb_strtolower($msg, 'UTF-8');
+                if (str_contains($lower, 'phê duyệt') || str_contains($lower, 'duyệt') || str_contains($lower, 'approval')) {
+                    $errorHeading = 'Chưa thể gửi duyệt hoạt động.';
+                }
             }
+        }
+    }
+
+    if ($formAction === 'submit_for_school_review') {
+        if (!$pdo || $teacherId === '') {
+            $errors[] = 'Chưa kết nối được hồ sơ giáo viên để gửi duyệt hoạt động.';
+        }
+        if ($postedActivityId === '') {
+            $errors[] = 'Thiếu mã hoạt động cần gửi duyệt.';
+        }
+        if (!$errors) {
+            try {
+                $activityService->submitForSchoolReview($teacherId, $postedActivityId, \TalentHub\Support\Id\RequestId::make(null));
+                header('Location: index.php?saved=submitted');
+                exit;
+            } catch (Throwable $exception) {
+                $message = $exception->getMessage() ?: 'Không thể gửi hoạt động đến Nhà trường. Vui lòng kiểm tra dữ liệu hoạt động.';
+                if ($postedActivityId !== '' && isset($_SESSION) && is_array($_SESSION)) {
+                    $_SESSION['teacher_activity_review_error'] = [
+                        'heading' => 'Chưa thể gửi duyệt hoạt động.',
+                        'messages' => [$message],
+                    ];
+                    header('Location: index.php?action=edit&id=' . rawurlencode($postedActivityId));
+                    exit;
+                }
+                $errorHeading = 'Chưa thể gửi duyệt hoạt động.';
+                $errors[] = $message;
+            }
+        } else {
+            $errorHeading = 'Chưa thể gửi duyệt hoạt động.';
         }
     }
 
@@ -380,7 +441,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = 'registrations';
         $activityId = $postedActivityId;
         $selectedActivity = $pdo && $teacherId !== '' ? teacherActivitiesFind($pdo, $teacherId, $activityId) : null;
-    } elseif ($formAction === 'advance_status') {
+    } elseif ($formAction === 'advance_status' || $formAction === 'submit_for_school_review') {
         $action = '';
         if ($postedActivityId !== '') {
             $activityId = $postedActivityId;
@@ -526,6 +587,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if (preg_match('/\A(?:\d{1,2})(?:\.\d{1,2})?\z/', $formValues['confirmedHours']) !== 1 || (float) $formValues['confirmedHours'] > 24) {
         $addFieldError('confirmedHours', 'Số giờ trải nghiệm phải từ 0 đến 24, tối đa 2 chữ số thập phân.');
+    }
+    if (trim((string) $formValues['summary']) === '') {
+        $addFieldError('summary', 'Vui lòng nhập giới thiệu ngắn để gửi Nhà trường duyệt.');
+    }
+    if (trim((string) $formValues['description']) === '') {
+        $addFieldError('description', 'Vui lòng nhập mô tả đầy đủ hoạt động.');
+    }
+    if (trim((string) $formValues['organizerName']) === '') {
+        $addFieldError('organizerName', 'Vui lòng nhập đơn vị tổ chức hoạt động.');
+    }
+    if ($formValues['deliveryMode'] !== 'online' && trim((string) $formValues['locationName']) === '') {
+        $addFieldError('locationName', 'Vui lòng nhập địa điểm tổ chức (hoặc chọn hình thức Trực tuyến).');
     }
     $policyDates = ['registrationOpensAt' => 'Thời gian mở đăng ký', 'registrationClosesAt' => 'Thời gian đóng đăng ký', 'cancellationClosesAt' => 'Thời gian đóng hủy đăng ký'];
     $parsedPolicyDates = [];
@@ -697,7 +770,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
 
                     <?php if ($errors): ?>
                         <div class="teacher-activities-notice teacher-activities-notice--error" id="teacher-activities-errors" role="alert" tabindex="-1" data-focus-on-load>
-                            <strong id="teacher-activities-errors-title">Chưa thể lưu hoạt động.</strong>
+                            <strong id="teacher-activities-errors-title"><?= teacherActivitiesEscape($errorHeading); ?></strong>
                             <ul>
                                 <?php foreach ($errors as $error): ?>
                                     <li><?= teacherActivitiesEscape($error); ?></li>
@@ -732,13 +805,13 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                     <div class="teacher-activities-form__grid">
                                         <label class="teacher-form-field teacher-form-field--wide" for="activity-title"><span>Tên hoạt động</span><input id="activity-title" type="text" name="title" maxlength="255" value="<?= teacherActivitiesEscape($formValues['title']); ?>" required aria-invalid="<?= isset($fieldErrors['title']) ? 'true' : 'false'; ?>" <?= $firstErrorField === 'title' ? 'data-focus-on-load' : ''; ?>><?php if (isset($fieldErrors['title'])): ?><small class="teacher-form-field__error"><?= teacherActivitiesEscape($fieldErrors['title']); ?></small><?php endif; ?></label>
                                         <label class="teacher-form-field" for="activity-category"><span>Nhóm hoạt động</span><select id="activity-category" name="categoryChoice" required aria-invalid="<?= isset($fieldErrors['categoryChoice']) ? 'true' : 'false'; ?>" <?= $firstErrorField === 'categoryChoice' ? 'data-focus-on-load' : ''; ?>><option value="">Chọn nhóm hoạt động</option><?php if ($formValues['categoryChoice'] === '__preserve__'): ?><option value="__preserve__" selected>Nhóm hiện có (giữ nguyên)</option><?php endif; ?><?php foreach ($categoryCatalog as $choice => $mapping): ?><option value="<?= teacherActivitiesEscape($choice); ?>" <?= $formValues['categoryChoice'] === $choice ? 'selected' : ''; ?>><?= teacherActivitiesEscape($mapping['displayCategory']); ?></option><?php endforeach; ?></select><?php if (isset($fieldErrors['categoryChoice'])): ?><small class="teacher-form-field__error"><?= teacherActivitiesEscape($fieldErrors['categoryChoice']); ?></small><?php endif; ?></label>
-                                        <label class="teacher-form-field teacher-form-field--wide" for="activity-summary"><span>Giới thiệu ngắn</span><textarea id="activity-summary" name="summary" maxlength="500" rows="2"><?= teacherActivitiesEscape($formValues['summary']); ?></textarea></label>
+                                        <label class="teacher-form-field teacher-form-field--wide" for="activity-summary"><span>Giới thiệu ngắn <em aria-hidden="true">*</em></span><textarea id="activity-summary" name="summary" maxlength="500" rows="2" required aria-required="true" aria-invalid="<?= isset($fieldErrors['summary']) ? 'true' : 'false'; ?>" <?= $firstErrorField === 'summary' ? 'data-focus-on-load' : ''; ?>><?= teacherActivitiesEscape($formValues['summary']); ?></textarea><?php if (isset($fieldErrors['summary'])): ?><small class="teacher-form-field__error"><?= teacherActivitiesEscape($fieldErrors['summary']); ?></small><?php endif; ?></label>
                                         <label class="teacher-form-field" for="activity-start-at"><span>Bắt đầu</span><input id="activity-start-at" type="datetime-local" name="startAt" value="<?= teacherActivitiesEscape($formValues['startAt']); ?>" required aria-invalid="<?= isset($fieldErrors['startAt']) ? 'true' : 'false'; ?>" <?= $firstErrorField === 'startAt' ? 'data-focus-on-load' : ''; ?>><?php if (isset($fieldErrors['startAt'])): ?><small class="teacher-form-field__error"><?= teacherActivitiesEscape($fieldErrors['startAt']); ?></small><?php endif; ?></label>
                                         <label class="teacher-form-field" for="activity-end-at"><span>Kết thúc</span><input id="activity-end-at" type="datetime-local" name="endAt" value="<?= teacherActivitiesEscape($formValues['endAt']); ?>" required aria-invalid="<?= isset($fieldErrors['endAt']) ? 'true' : 'false'; ?>" <?= $firstErrorField === 'endAt' ? 'data-focus-on-load' : ''; ?>><?php if (isset($fieldErrors['endAt'])): ?><small class="teacher-form-field__error"><?= teacherActivitiesEscape($fieldErrors['endAt']); ?></small><?php endif; ?></label>
                                         <label class="teacher-form-field" for="activity-capacity"><span>Sức chứa</span><input id="activity-capacity" type="number" name="capacity" min="1" step="1" value="<?= teacherActivitiesEscape($formValues['capacity']); ?>" required aria-invalid="<?= isset($fieldErrors['capacity']) ? 'true' : 'false'; ?>" <?= $firstErrorField === 'capacity' ? 'data-focus-on-load' : ''; ?>><?php if (isset($fieldErrors['capacity'])): ?><small class="teacher-form-field__error"><?= teacherActivitiesEscape($fieldErrors['capacity']); ?></small><?php endif; ?></label>
                                         <label class="teacher-form-field" for="activity-delivery-mode"><span>Hình thức tổ chức</span><select id="activity-delivery-mode" name="deliveryMode" data-delivery-mode aria-invalid="<?= isset($fieldErrors['deliveryMode']) ? 'true' : 'false'; ?>" <?= $firstErrorField === 'deliveryMode' ? 'data-focus-on-load' : ''; ?>><option value="in_person" <?= $formValues['deliveryMode'] === 'in_person' ? 'selected' : ''; ?>>Trực tiếp</option><option value="online" <?= $formValues['deliveryMode'] === 'online' ? 'selected' : ''; ?>>Trực tuyến</option><option value="hybrid" <?= $formValues['deliveryMode'] === 'hybrid' ? 'selected' : ''; ?>>Kết hợp</option></select><?php if (isset($fieldErrors['deliveryMode'])): ?><small class="teacher-form-field__error"><?= teacherActivitiesEscape($fieldErrors['deliveryMode']); ?></small><?php endif; ?></label>
                                         <div class="teacher-activities-form__subgrid teacher-form-field--wide" data-location-fields>
-                                            <label class="teacher-form-field" for="activity-location-name"><span>Tên địa điểm / phòng</span><input id="activity-location-name" type="text" name="locationName" maxlength="255" value="<?= teacherActivitiesEscape($formValues['locationName']); ?>"></label>
+                                            <label class="teacher-form-field" for="activity-location-name"><span>Tên địa điểm / phòng <em aria-hidden="true">*</em></span><input id="activity-location-name" type="text" name="locationName" maxlength="255" value="<?= teacherActivitiesEscape($formValues['locationName']); ?>" data-required-when-in-person aria-invalid="<?= isset($fieldErrors['locationName']) ? 'true' : 'false'; ?>" <?= $firstErrorField === 'locationName' ? 'data-focus-on-load' : ''; ?>><?php if (isset($fieldErrors['locationName'])): ?><small class="teacher-form-field__error"><?= teacherActivitiesEscape($fieldErrors['locationName']); ?></small><?php endif; ?></label>
                                             <label class="teacher-form-field" for="activity-location-address"><span>Địa chỉ</span><input id="activity-location-address" type="text" name="locationAddress" maxlength="500" value="<?= teacherActivitiesEscape($formValues['locationAddress']); ?>"></label>
                                         </div>
                                         <label class="teacher-form-field teacher-form-field--wide" for="activity-online-url" data-online-fields><span>Đường dẫn tham gia trực tuyến</span><input id="activity-online-url" type="text" inputmode="url" name="onlineMeetingUrl" maxlength="500" value="<?= teacherActivitiesEscape($formValues['onlineMeetingUrl']); ?>" placeholder="https://..." aria-invalid="<?= isset($fieldErrors['onlineMeetingUrl']) ? 'true' : 'false'; ?>" <?= $firstErrorField === 'onlineMeetingUrl' ? 'data-focus-on-load' : ''; ?>><?php if (isset($fieldErrors['onlineMeetingUrl'])): ?><small class="teacher-form-field__error"><?= teacherActivitiesEscape($fieldErrors['onlineMeetingUrl']); ?></small><?php endif; ?></label>
@@ -759,12 +832,12 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                 <details class="teacher-activities-form__disclosure" <?= $additionalOpen ? 'open' : ''; ?> data-additional-details>
                                     <summary><span><strong>Thông tin bổ sung</strong><small><?= teacherActivitiesEscape($additionalSummary); ?></small></span><span class="teacher-activities-form__summary-action">Chỉnh sửa thông tin</span></summary>
                                     <div class="teacher-activities-form__grid">
-                                        <label class="teacher-form-field teacher-form-field--wide" for="activity-description"><span>Mô tả đầy đủ</span><textarea id="activity-description" name="description" rows="5"><?= teacherActivitiesEscape($formValues['description']); ?></textarea></label>
+                                        <label class="teacher-form-field teacher-form-field--wide" for="activity-description"><span>Mô tả đầy đủ <em aria-hidden="true">*</em></span><textarea id="activity-description" name="description" rows="5" required aria-required="true" aria-invalid="<?= isset($fieldErrors['description']) ? 'true' : 'false'; ?>" <?= $firstErrorField === 'description' ? 'data-focus-on-load' : ''; ?>><?= teacherActivitiesEscape($formValues['description']); ?></textarea><?php if (isset($fieldErrors['description'])): ?><small class="teacher-form-field__error"><?= teacherActivitiesEscape($fieldErrors['description']); ?></small><?php endif; ?></label>
                                         <?php foreach ([['experienceHighlights','Nội dung trải nghiệm'],['skillTags','Kỹ năng phát triển'],['eligibilityRules','Điều kiện tham gia'],['benefitItems','Quyền lợi']] as [$name,$label]): ?>
                                             <label class="teacher-form-field teacher-form-field--wide" for="activity-<?= teacherActivitiesEscape($name); ?>"><span><?= teacherActivitiesEscape($label); ?> <small>(mỗi dòng một mục)</small></span><textarea id="activity-<?= teacherActivitiesEscape($name); ?>" name="<?= teacherActivitiesEscape($name); ?>" rows="4"><?= teacherActivitiesEscape($formValues[$name]); ?></textarea></label>
                                         <?php endforeach; ?>
                                         <label class="teacher-form-field teacher-form-field--wide" for="activity-audience"><span>Đối tượng tham gia</span><input id="activity-audience" type="text" name="targetAudience" maxlength="255" value="<?= teacherActivitiesEscape($formValues['targetAudience']); ?>"></label>
-                                        <label class="teacher-form-field" for="activity-organizer"><span>Đơn vị tổ chức</span><input id="activity-organizer" type="text" name="organizerName" maxlength="255" value="<?= teacherActivitiesEscape($formValues['organizerName']); ?>"></label>
+                                        <label class="teacher-form-field" for="activity-organizer"><span>Đơn vị tổ chức <em aria-hidden="true">*</em></span><input id="activity-organizer" type="text" name="organizerName" maxlength="255" value="<?= teacherActivitiesEscape($formValues['organizerName']); ?>" required aria-required="true" aria-invalid="<?= isset($fieldErrors['organizerName']) ? 'true' : 'false'; ?>" <?= $firstErrorField === 'organizerName' ? 'data-focus-on-load' : ''; ?>><?php if (isset($fieldErrors['organizerName'])): ?><small class="teacher-form-field__error"><?= teacherActivitiesEscape($fieldErrors['organizerName']); ?></small><?php endif; ?></label>
                                         <label class="teacher-form-field" for="activity-responsible-teacher"><span>Giáo viên phụ trách</span><select id="activity-responsible-teacher" name="responsibleTeacherId" aria-invalid="<?= isset($fieldErrors['responsibleTeacherId']) ? 'true' : 'false'; ?>" <?= $firstErrorField === 'responsibleTeacherId' ? 'data-focus-on-load' : ''; ?>><option value="">Chưa chọn</option><?php foreach ($responsibleTeachers as $responsibleTeacher): ?><option value="<?= teacherActivitiesEscape($responsibleTeacher['id']); ?>" <?= $formValues['responsibleTeacherId'] === $responsibleTeacher['id'] ? 'selected' : ''; ?>><?= teacherActivitiesEscape($responsibleTeacher['name']); ?></option><?php endforeach; ?></select><?php if (isset($fieldErrors['responsibleTeacherId'])): ?><small class="teacher-form-field__error"><?= teacherActivitiesEscape($fieldErrors['responsibleTeacherId']); ?></small><?php endif; ?></label>
                                         <label class="teacher-form-field teacher-form-field--wide" for="activity-organizer-contact"><span>Đầu mối liên hệ</span><input id="activity-organizer-contact" type="text" name="organizerContact" maxlength="255" value="<?= teacherActivitiesEscape($formValues['organizerContact']); ?>"></label>
                                         <label class="teacher-form-field" for="activity-organizer-email"><span>Email liên hệ</span><input id="activity-organizer-email" type="text" inputmode="email" name="organizerEmail" maxlength="255" value="<?= teacherActivitiesEscape($formValues['organizerEmail']); ?>" aria-invalid="<?= isset($fieldErrors['organizerEmail']) ? 'true' : 'false'; ?>" <?= $firstErrorField === 'organizerEmail' ? 'data-focus-on-load' : ''; ?>><?php if (isset($fieldErrors['organizerEmail'])): ?><small class="teacher-form-field__error"><?= teacherActivitiesEscape($fieldErrors['organizerEmail']); ?></small><?php endif; ?></label>
@@ -799,7 +872,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                     <?php if ($detailLifecycleAction !== null): ?>
                                         <form method="post" class="teacher-activities-inline-form">
                                             <input type="hidden" name="csrfToken" value="<?= teacherActivitiesEscape($csrfToken); ?>">
-                                            <input type="hidden" name="form_action" value="advance_status">
+                                            <input type="hidden" name="form_action" value="<?= teacherActivitiesEscape($detailLifecycleAction['form_action']); ?>">
                                             <input type="hidden" name="activity_id" value="<?= teacherActivitiesEscape($selectedActivity['id']); ?>">
                                             <button type="submit" class="btn btn-secondary btn-sm"><?= teacherActivitiesEscape($detailLifecycleAction['label']); ?></button>
                                         </form>
@@ -969,7 +1042,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                                         <?php if ($rowLifecycleAction !== null): ?>
                                                             <form method="post" class="teacher-activities-inline-form">
                                                                 <input type="hidden" name="csrfToken" value="<?= teacherActivitiesEscape($csrfToken); ?>">
-                                                                <input type="hidden" name="form_action" value="advance_status">
+                                                                <input type="hidden" name="form_action" value="<?= teacherActivitiesEscape($rowLifecycleAction['form_action']); ?>">
                                                                 <input type="hidden" name="activity_id" value="<?= teacherActivitiesEscape($activity['id']); ?>">
                                                                 <button
                                                                     type="submit"

@@ -7,6 +7,7 @@ use TalentHub\Auth\Repository\AuthRepository;
 use TalentHub\Auth\Service\AuthService;
 use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Database\Connection;
+use TalentHub\Config\Environment;
 use TalentHub\Http\ApiException;
 use TalentHub\Rbac\RoleCodes;
 
@@ -17,6 +18,7 @@ final class PortalGuard
     {
         $root = dirname(__DIR__, 2);
         $pdo = (new Connection(require $root . '/config/database.php'))->connect();
+        $allowDemoAutologin = self::allowsDemoAutologin();
 
         if (session_status() !== PHP_SESSION_ACTIVE) {
             $sessionConfig = require $root . '/config/session.php';
@@ -60,6 +62,12 @@ final class PortalGuard
             $isRoleAllowed = RoleCodes::matches($currentRole, $role) || $isTeacherAllowed;
 
             if ($cached === null || !$isRoleAllowed) {
+                if ($cached !== null && !$isRoleAllowed) {
+                    self::renderRoleMismatch($currentRole, $role);
+                }
+                if (!$allowDemoAutologin) {
+                    self::redirectToLogin($fallbackPath, $role);
+                }
                 $cached = SessionManager::getFallbackUserForRole($role, $pdo);
                 $session->login($cached);
             }
@@ -71,14 +79,21 @@ final class PortalGuard
                     $user['fullName'] = $cached['fullName'];
                 }
             } catch (\Throwable) {
-                $appEnv = strtolower((string) (\TalentHub\Config\Environment::optional('APP_ENV') ?: (getenv('APP_ENV') ?: 'production')));
-                if (in_array($appEnv, ['local', 'dev', 'development', 'test'], true)) {
+                if ($allowDemoAutologin) {
                     $user = SessionManager::getFallbackUserForRole($role, $pdo);
                     $session->login($user);
                 } else {
-                    $user = $cached;
+                    self::redirectToLogin($fallbackPath, $role);
                 }
             }
+        }
+
+        $resolvedRole = (string) ($user['role'] ?? '');
+        $resolvedCanonical = RoleCodes::canonical($resolvedRole);
+        $resolvedTeacherAllowed = $role === RoleCodes::TEACHER
+            && in_array($resolvedCanonical, [RoleCodes::TEACHER, RoleCodes::SCHOOL, RoleCodes::PLATFORM_ADMIN], true);
+        if (!RoleCodes::matches($resolvedRole, $role) && !$resolvedTeacherAllowed) {
+            self::renderRoleMismatch($resolvedRole, $role);
         }
 
         $fullName = (string) ($user['fullName'] ?? ($user['full_name'] ?? ($user['name'] ?? ($user['email'] ?? ''))));
@@ -111,6 +126,36 @@ final class PortalGuard
         $_SESSION['logged_in'] = true;
 
         return $user;
+    }
+
+    private static function allowsDemoAutologin(): bool
+    {
+        $environment = Environment::appEnvironment();
+        if (!in_array($environment, ['local', 'test'], true)
+            || !Environment::boolean('TALENTHUB_ALLOW_DEMO_AUTOLOGIN', false)
+        ) {
+            return false;
+        }
+
+        if (PHP_SAPI === 'cli') {
+            return true;
+        }
+
+        $remoteAddress = trim((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+        return in_array($remoteAddress, ['127.0.0.1', '::1'], true);
+    }
+
+    private static function redirectToLogin(string $fallbackPath, string $requiredRole): never
+    {
+        $requestTarget = (string) ($_SERVER['REQUEST_URI'] ?? $fallbackPath);
+        if ($requestTarget === '' || !str_starts_with($requestTarget, '/') || str_starts_with($requestTarget, '//')) {
+            $requestTarget = $fallbackPath;
+        }
+        $loginUrl = app_href('/login.php')
+            . '?next=' . urlencode(app_href($requestTarget))
+            . '&role_required=' . urlencode(RoleCodes::canonical($requiredRole));
+        header('Location: ' . $loginUrl);
+        exit;
     }
 
     public static function renderRoleMismatch(string $currentRole, string $requiredRole): never

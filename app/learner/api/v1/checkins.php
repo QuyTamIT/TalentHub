@@ -41,8 +41,13 @@ try {
 
     if ($method === 'GET') {
         $identity = $context->studentIdentityForPermissions(['experience_log.read_own']);
-        $limit = max(1, min(100, (int) ($request->queryParam('limit') ?? 25)));
-        $offset = max(0, (int) ($request->queryParam('offset') ?? 0));
+        $rawLimit = $request->queryParam('limit') ?? '25';
+        $rawOffset = $request->queryParam('offset') ?? '0';
+        if (filter_var($rawLimit, FILTER_VALIDATE_INT) === false || filter_var($rawOffset, FILTER_VALIDATE_INT) === false) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Paging parameters must be integers.');
+        }
+        $limit = max(1, min(100, (int) $rawLimit));
+        $offset = max(0, (int) $rawOffset);
         JsonResponder::sendSuccess([
             'items' => $service->history($identity['student_id'], $limit, $offset),
             'pagination' => ['limit' => $limit, 'offset' => $offset],
