@@ -22,7 +22,7 @@ use TalentHub\Learner\Ai\Provider\ProviderResponse;
  * analyses. It builds the request through OpportunityMatchPromptRegistry,
  * ignores any title or URL the model returns, and runs every response
  * through OpportunityMatchValidator before producing a list of
- * OpportunityMatch value objects. Final 70/30 match scores are attached
+ * OpportunityMatch value objects. Deterministic match scores are attached
  * by the service layer via OpportunityMatch::withScore().
  */
 final class ModelOpportunityMatchEngine
@@ -46,6 +46,7 @@ final class ModelOpportunityMatchEngine
         RecommendationContext $context,
         string $mode = 'top3',
         array $analysisContext = [],
+        bool $validationRetry = false,
     ): array {
         if ($mode === 'top3' && count($rankedCandidates) < 3) {
             throw new InvalidArgumentException('Opportunity match engine requires at least three valid candidates.');
@@ -67,6 +68,9 @@ final class ModelOpportunityMatchEngine
             $analysisContext,
         );
 
+        if ($validationRetry) {
+            $request = $request->forValidationRetry(\TalentHub\Learner\Ai\Grounding\GroundedProseGuard::RETRY_INSTRUCTION);
+        }
         $response = $this->provider->generate($request, $this->authorizer);
         if (!$response->isSuccess()) {
             throw new InvalidArgumentException('Opportunity match provider returned a failure: ' . (string) $response->errorCode());
@@ -85,6 +89,7 @@ final class ModelOpportunityMatchEngine
         RecommendationContext $context,
         array $analysisContext = [],
         array $evidenceAllowList = [],
+        bool $validationRetry = false,
     ): array {
         $request = OpportunityMatchPromptRegistry::create(
             $profile,
@@ -94,6 +99,9 @@ final class ModelOpportunityMatchEngine
             'no_fit',
             $analysisContext,
         );
+        if ($validationRetry) {
+            $request = $request->forValidationRetry(\TalentHub\Learner\Ai\Grounding\GroundedProseGuard::RETRY_INSTRUCTION);
+        }
         $response = $this->provider->generate($request, $this->authorizer);
         if (!$response->isSuccess()) {
             throw new InvalidArgumentException('Opportunity match provider returned a failure: ' . (string) $response->errorCode());

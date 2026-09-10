@@ -49,9 +49,11 @@ final class MigrationRunner
     }
     public function validate(): void
     { $this->withLock(function(){ $this->validateState(); return null; }); }
-    private function validateState(): void
+    public function validateReadOnly(): void
+    { $this->validateState(false); }
+    private function validateState(bool $bootstrap = true): void
     {
-        $this->repository->bootstrap(); $definitions=$this->definitions(); $applied=$this->repository->applied();
+        if ($bootstrap) $this->repository->bootstrap(); $definitions=$this->definitions(); $applied=$this->context->tableExists('schema_migrations') ? $this->repository->applied() : [];
         foreach($definitions as $d){if(isset($applied[$d->version]) && (!$this->checksumMatches($d,$applied[$d->version]['checksum'])||$applied[$d->version]['name']!==$d->name)){throw new RuntimeException("Applied migration drift: {$d->version}");} unset($applied[$d->version]);}
         if($applied!==[]){throw new RuntimeException('Applied migration file is missing: '.array_key_first($applied));}
     }

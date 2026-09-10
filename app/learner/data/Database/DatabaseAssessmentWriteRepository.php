@@ -33,13 +33,13 @@ final class DatabaseAssessmentWriteRepository implements AssessmentWriteReposito
     ) {
     }
 
-    public function startOrResumeAttempt(string $studentId, string $assessmentCode, string $educationBand): array
+    public function startOrResumeAttempt(string $studentId, string $assessmentCode, string $educationBand, bool $confirmEarlyRetake = false): array
     {
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
         $educationBand = strtolower(trim($educationBand));
         $bandedCode = $assessmentCode . '_' . $educationBand;
 
-        return $this->transaction(function () use ($studentId, $assessmentCode, $educationBand, $bandedCode): array {
+        return $this->transaction(function () use ($studentId, $assessmentCode, $educationBand, $bandedCode, $confirmEarlyRetake): array {
             $definition = $this->fetchOne(
                 <<<'SQL'
 SELECT
@@ -159,7 +159,20 @@ SQL,
                 $submittedAt = new DateTimeImmutable((string) $submittedAtVal, new DateTimeZone('UTC'));
                 $retakeAllowedAt = $submittedAt->modify('+90 days');
                 if ($nowUtc < $retakeAllowedAt) {
-                    throw new RuntimeException('Retake is not allowed within 90 days of the last submitted assessment.');
+                    if (!$confirmEarlyRetake) {
+                        $elapsedDays = max(0, (int) $submittedAt->diff($nowUtc)->days);
+                        $remainingSeconds = max(0, $retakeAllowedAt->getTimestamp() - $nowUtc->getTimestamp());
+                        $remainingDays = max(0, (int) ceil($remainingSeconds / 86400));
+
+                        return [
+                            'status' => 'retake_confirmation_required',
+                            'code' => 'RETAKE_CONFIRMATION_REQUIRED',
+                            'requires_confirmation' => true,
+                            'elapsed_days' => $elapsedDays,
+                            'remaining_days' => $remainingDays,
+                            'last_submitted_at' => $submittedAt->format('Y-m-d\TH:i:s.uP'),
+                        ];
+                    }
                 }
             }
 

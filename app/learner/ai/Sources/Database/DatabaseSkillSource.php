@@ -64,7 +64,82 @@ SQL;
             ];
         }
 
-        return $skills;
+        return $this->excludeRevokedProjections($skills, trim($studentId));
+    }
+
+    /**
+     * Projection scores copied from teacher evaluations must disappear when
+     * their latest evidence is revoked. Independently declared skills stay.
+     *
+     * @param list<array<string,mixed>> $skills
+     * @return list<array<string,mixed>>
+     */
+    private function excludeRevokedProjections(array $skills, string $studentId): array
+    {
+        if ($skills === [] || !$this->hasColumns('learner_skill_evidence', ['studentSkillId', 'verificationStatus', 'observedAt'])) {
+            return $skills;
+        }
+        $hasRevokedAt = $this->hasColumns('learner_skill_evidence', ['revokedAt']);
+        $sql = 'SELECT e.studentSkillId, e.verificationStatus, e.observedAt, e.id'
+            . ($hasRevokedAt ? ', e.revokedAt' : '')
+            . ' FROM learner_skill_evidence e
+               INNER JOIN student_skills ss ON ss.id = e.studentSkillId
+               WHERE ss.studentId = :student_id
+               ORDER BY e.observedAt DESC, e.id DESC';
+        try {
+            $statement = $this->pdo->prepare($sql);
+            if ($statement === false || !$statement->execute(['student_id' => $studentId])) {
+                return $skills;
+            }
+            $latest = [];
+            foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $id = (string) ($row['studentSkillId'] ?? '');
+                if ($id === '' || isset($latest[$id])) {
+                    continue;
+                }
+                $latest[$id] = $row;
+            }
+        } catch (Throwable) {
+            return $skills;
+        }
+        $projections = ['assessment', 'teacher_assessment', 'teacher', 'evaluation', 'published_evaluation'];
+        $kept = [];
+        foreach ($skills as $skill) {
+            $evidence = $latest[(string) ($skill['student_skill_id'] ?? '')] ?? null;
+            $source = strtolower(trim((string) ($skill['source_type'] ?? '')));
+            if (is_array($evidence) && in_array($source, $projections, true)) {
+                $revoked = $hasRevokedAt && is_string($evidence['revokedAt'] ?? null) && trim((string) $evidence['revokedAt']) !== '';
+                $rejected = strtolower(trim((string) ($evidence['verificationStatus'] ?? ''))) === 'rejected';
+                if ($revoked || $rejected) {
+                    continue;
+                }
+            }
+            $kept[] = $skill;
+        }
+        return $kept;
+    }
+
+    /** @param list<string> $requiredColumns */
+    private function hasColumns(string $table, array $requiredColumns): bool
+    {
+        try {
+            $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+            $rows = match ($driver) {
+                'sqlite' => $this->pdo->query('PRAGMA table_info(' . $table . ')')?->fetchAll(PDO::FETCH_ASSOC) ?: [],
+                'mysql' => $this->pdo->query('SHOW COLUMNS FROM ' . $table)?->fetchAll(PDO::FETCH_ASSOC) ?: [],
+                default => [],
+            };
+        } catch (Throwable) {
+            return false;
+        }
+        $columns = [];
+        foreach ($rows as $row) {
+            $name = $row['name'] ?? $row['Field'] ?? null;
+            if (is_string($name)) {
+                $columns[] = $name;
+            }
+        }
+        return array_diff($requiredColumns, $columns) === [];
     }
 
     private static function timestamp(mixed $value): ?string

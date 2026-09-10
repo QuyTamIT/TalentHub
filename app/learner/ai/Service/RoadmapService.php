@@ -59,7 +59,23 @@ final class RoadmapService
             if (!(($this->authorizer)($studentId))) return null;
             $roadmap = $this->roadmaps->latestForStudent($studentId);
             if ($roadmap !== null && $this->isModelOnlyRollout() && !$this->isModelRoadmap($roadmap)) $roadmap = null;
-            if ($roadmap !== null) return $this->readyWithHistory($studentId, $roadmap);
+            if ($roadmap !== null) {
+                if ($this->isModelOnlyRollout()) {
+                    try {
+                        $currentHash = $this->inputHash($studentId);
+                        if (!$this->generationCurrent($roadmap)
+                            || !is_string($roadmap['input_hash'] ?? null)
+                            || !hash_equals($currentHash, $roadmap['input_hash'])) {
+                            $roadmap['freshness_status'] = 'stale_model';
+                        }
+                    } catch (\Throwable) {
+                        // Keep a saved result available, but do not certify
+                        // freshness while the current sources are unreadable.
+                        $roadmap['freshness_status'] = 'stale_model';
+                    }
+                }
+                return $this->readyWithHistory($studentId, $roadmap);
+            }
             $pending = $this->roadmaps->latestPendingForStudent($studentId);
             return $pending === null ? null : $this->pending($pending);
         } catch (\Throwable) {
@@ -88,6 +104,7 @@ final class RoadmapService
         bool $forceRefresh = false,
         ?callable $leaseGuard = null,
         bool $propagateProviderRetry = false,
+        ?callable $beforeGenerate = null,
     ): array
     {
         try {
@@ -131,9 +148,14 @@ final class RoadmapService
             return $this->quality($quality);
         }
 
-        if (!$forceRefresh && $active !== null && is_string($active['input_hash'] ?? null) && hash_equals($active['input_hash'], $input->contentHash())
+        if ($active !== null && is_string($active['input_hash'] ?? null) && hash_equals($active['input_hash'], $input->contentHash())
+            && $this->generationCurrent($active)
             && ($availability === null || $availability->canServeActiveModel())) {
-            $response = $this->readyWithHistory($studentId, $active); $response['reused'] = true; return $response;
+            $active['freshness_status'] = 'fresh';
+            $active['stale_since'] = null;
+            $active['last_refresh_error'] = null;
+            $active['next_retry_at'] = null;
+            return \TalentHub\Learner\Ai\Snapshot\MatchingInputSnapshot::reused($this->readyWithHistory($studentId, $active));
         }
         if ($availability !== null && ($active['analysis_origin'] ?? null) === 'model'
             && !$availability->canServeActiveModel() && !$availability->canServeStaleModel()) {
@@ -146,6 +168,7 @@ final class RoadmapService
             return $this->unavailable('model_engine_unavailable');
         }
 
+        if ($beforeGenerate !== null) $beforeGenerate();
         $context = new RecommendationContext(
             $scopes, $requestId, 'roadmap-' . hash('sha256', $idempotencyKey), $studentId,
             $decision instanceof ConsentDecision ? $decision->decisionHash() : null,
@@ -172,6 +195,7 @@ final class RoadmapService
                 ? $this->modelEngine
                 : $this->engine;
             $analysis = $selectedEngine->generate($input, $context);
+            $this->assertSnapshotUnchanged($studentId, $input, $scopes);
             $this->guardLease($leaseGuard);
             ($this->runCompleter)($studentId, (string) ($pending['runId'] ?? ''), $analysis);
             if ($analysis->origin() === 'rule_fallback' && $active !== null) {
@@ -199,9 +223,11 @@ final class RoadmapService
             if ($propagateProviderRetry) throw $exception;
             return $this->retainedOrUnavailable($studentId, $active, 'rate_limited', true);
         } catch (\Throwable $exception) {
-            try { $this->guardLease($leaseGuard);($this->runFailer)($studentId, (string) ($pending['runId'] ?? ''), 'roadmap_engine_failure'); } catch (\Throwable) {}
+            $changed = $exception->getMessage() === 'snapshot_changed';
+            $reason = $changed ? 'snapshot_changed' : 'roadmap_engine_failure';
+            try { $this->guardLease($leaseGuard);($this->runFailer)($studentId, (string) ($pending['runId'] ?? ''), $reason); } catch (\Throwable) {}
             if($propagateProviderRetry&&$exception instanceof ProviderRetryAfterException)throw $exception;
-            return $this->retainedOrUnavailable($studentId, $active, 'engine_failure', $modelAttempt);
+            return $this->retainedOrUnavailable($studentId, $active, $changed ? 'snapshot_changed' : 'engine_failure', $modelAttempt);
         }
     }
 
@@ -389,6 +415,31 @@ final class RoadmapService
         return $this->retained($studentId, $active, $reason);
     }
 
+    /** @param list<string> $scopes */
+    private function assertSnapshotUnchanged(string $studentId, RecommendationInput $input, array $scopes): void
+    {
+        try {
+            $decision = ($this->consentResolver)($studentId);
+        } catch (\Throwable) {
+            throw new \TalentHub\Learner\Ai\Model\RoadmapModelUnavailable('consent_changed');
+        }
+        $currentScopes = $this->scopes($decision);
+        if ($decision instanceof ConsentDecision && !$decision->permitsAllRequiredScopes()) {
+            throw new \TalentHub\Learner\Ai\Model\RoadmapModelUnavailable($decision->denialReason() ?? 'consent_changed');
+        }
+        if ($currentScopes !== $scopes) {
+            throw new \TalentHub\Learner\Ai\Model\RoadmapModelUnavailable('consent_changed');
+        }
+        $current = ($this->snapshotBuilder)($studentId, $currentScopes);
+        if (!$current instanceof RecommendationInput) {
+            throw new \RuntimeException('snapshot_changed');
+        }
+        $current = $this->withPreferenceSignals($current, $this->roadmaps->feedbackSignalsForStudent($studentId));
+        if (!hash_equals($input->contentHash(), $current->contentHash())) {
+            throw new \RuntimeException('snapshot_changed');
+        }
+    }
+
     private function isConsentFailure(string $reason): bool
     {
         return in_array($reason, ['consent_revoked', 'consent_missing', 'consent_changed'], true);
@@ -399,6 +450,16 @@ final class RoadmapService
         // Product requests always supply model configuration. A disabled or
         // unavailable provider must not silently select the rule engine.
         return $this->modelConfig !== null;
+    }
+
+    private function generationCurrent(array $roadmap): bool
+    {
+        if ($this->modelConfig === null) return true;
+        $engine = is_array($roadmap['engine'] ?? null) ? $roadmap['engine'] : [];
+        return ($roadmap['analysis_origin'] ?? null) === 'model'
+            && ($engine['provider'] ?? null) === $this->modelConfig->provider()
+            && ($engine['model_version'] ?? null) === $this->modelConfig->model()
+            && ($engine['prompt_version'] ?? null) === \TalentHub\Learner\Ai\Model\RoadmapPromptRegistry::VERSION;
     }
 
     /** @param array<string,mixed> $roadmap */

@@ -80,6 +80,7 @@ final class ModelRoadmapEngine implements RoadmapEngine
                     $request->evidenceReferenceIds(),
                     is_array($allowedActivities) ? $allowedActivities : [],
                     is_array($allowedCatalogIds) ? $allowedCatalogIds : [],
+                    $input,
                 );
                 $analysis = $validator->fromProviderPayload($response->payload(), [
                     'origin' => 'model',
@@ -99,6 +100,7 @@ final class ModelRoadmapEngine implements RoadmapEngine
                 if ($validationAttempt >= $validationAttempts) {
                     throw new RoadmapModelUnavailable('invalid_model_response');
                 }
+                $request = $request->forValidationRetry(\TalentHub\Learner\Ai\Grounding\GroundedProseGuard::RETRY_INSTRUCTION);
             }
         }
 
@@ -107,11 +109,9 @@ final class ModelRoadmapEngine implements RoadmapEngine
 
     private function confidenceBand(RecommendationInput $input): string
     {
-        $counts = $input->qualityFlags()['source_counts'] ?? [];
-        $assessmentCount = is_array($counts) && is_numeric($counts['assessments'] ?? null)
-            ? (int) $counts['assessments']
-            : count($input->payload()['assessments'] ?? []);
-        return $assessmentCount >= 4 ? 'high' : 'low';
+        // Completing four assessments establishes input coverage, not a
+        // calibrated probability that the generated guidance is correct.
+        return 'low';
     }
 
     private function assertStrictReadiness(RecommendationInput $input, RecommendationContext $context, string $studentId): void

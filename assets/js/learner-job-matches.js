@@ -7,12 +7,12 @@
         not_generated: 'not-generated', consent_required: 'consent-required',
         insufficient_data: 'insufficient-data', benchmark_insufficient: 'insufficient-data',
         catalog_insufficient: 'catalog-insufficient', no_matching_jobs: 'no-matches',
-        ready_model: 'ready-model', stale_model: 'stale-model', pending: 'loading',
+        ready_model: 'ready-model', stale_model: 'stale-model', pending: 'pending',
         provider_unavailable: 'source-error', rate_limited: 'source-error', invalid_response: 'source-error',
     });
 
     function text(value, fallback = '') { return typeof value === 'string' && value.trim() !== '' ? value.trim() : fallback; }
-    function integerScore(value) { const score = Number(value); return Number.isInteger(score) && score >= 0 && score <= 100 ? score : null; }
+    function integerScore(value) { if (value === null || value === undefined || value === '') return null; const score = Number(value); return Number.isInteger(score) && score >= 0 && score <= 100 ? score : null; }
     function boundedCount(value) { const count = Number(value); return Number.isInteger(count) && count >= 0 && count <= 20 ? count : null; }
     function mapJobMatchState(value) { return STATE_MAP[String(value || '')] || 'source-error'; }
     function isRecoverableGenerationState(payload) {
@@ -23,6 +23,7 @@
             || [502, 503, 504].includes(Number(error?.status));
     }
     function jobMatchStatusLabel(state, payload = {}) {
+        if (['ready-model', 'no-matches'].includes(state) && payload.reuse_reason === 'inputs_unchanged' && payload.data_changed === false) return 'Dữ liệu không thay đổi. Đang hiển thị kết quả phân tích trước đó.';
         if (state === 'ready-model') return 'Phân tích vừa xong';
         if (state === 'stale-model') return 'Đang hiển thị kết quả gần nhất';
         if (state === 'no-matches') return payload.near_match ? 'Đã phân tích vị trí gần ngưỡng nhất' : 'Chưa có vị trí đạt ngưỡng';
@@ -30,6 +31,7 @@
         if (state === 'consent-required') return 'Cần quyền dữ liệu AI';
         if (state === 'insufficient-data') return 'Chưa đủ dữ liệu hồ sơ';
         if (state === 'loading') return 'AI đang phân tích';
+        if (state === 'pending') return 'Yêu cầu đã được tiếp nhận, chưa có kết quả hoàn tất. Bạn có thể bấm phân tích để kiểm tra hoặc thử lại.';
         if (state === 'not-generated') return 'Sẵn sàng phân tích';
         return 'Phân tích chưa khả dụng';
     }
@@ -177,10 +179,23 @@
         return { activeIndex, percent, stages: STAGES.map((label, index) => ({ label, status: index < activeIndex ? 'done' : index === activeIndex ? 'active' : 'upcoming' })) };
     }
 
-    function createJobMatchController({ api, view, createIdempotencyKey }) {
+    function createJobMatchController({ api, view, createIdempotencyKey, wait = (ms) => new Promise((resolve) => global.setTimeout(resolve, ms)) }) {
         if (!api || typeof api.get !== 'function' || typeof api.send !== 'function') throw new TypeError('Job matching requires an API client.');
         if (!view || typeof view.render !== 'function') throw new TypeError('Job matching requires a view.');
         let generation = null;
+        async function pollPending(response) {
+            if (response?.state !== 'pending') return response;
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+                await wait(1500);
+                try {
+                    const latest = await api.get(ENDPOINT, { timeoutMs: 10000 });
+                    if (latest?.state && !['pending', 'not_generated', 'provider_unavailable'].includes(latest.state)) return latest;
+                } catch {
+                    // Keep the accepted request pending until a result is known.
+                }
+            }
+            return response;
+        }
         const renderPayload = (payload) => {
             const state = mapJobMatchState(payload?.state);
             const normalized = state === 'ready-model' || state === 'stale-model' || state === 'no-matches' ? normalizeJobMatchPayload(payload) : payload;
@@ -210,7 +225,7 @@
                     }
                     throw lastError || new Error('Job analysis did not complete.');
                 };
-                generation = Promise.resolve().then(request)
+                generation = Promise.resolve().then(request).then(pollPending)
                     .then(renderPayload).catch(() => { view.render('source-error', {}); return null; }).finally(() => { generation = null; });
                 return generation;
             },
@@ -379,7 +394,18 @@
             const actions = node('div', 'learner-job-position__actions'); const detail = node('a', 'learner-btn learner-btn--outline', 'Xem chi tiết vị trí'); detail.href = position.url; const skillGap = node('a', 'learner-btn learner-btn--primary', 'Xem Skill Gap và hoạt động'); skillGap.href = 'ai-recommendations.php'; actions.append(detail, skillGap); card.appendChild(actions);
             article.appendChild(card); nearMatch.appendChild(article); nearMatch.hidden = false;
         }
-        return { render(state, payload = {}) { stopProgress(); hideAll(); root.dataset.state = state; status.textContent = jobMatchStatusLabel(state, payload); if (state === 'loading') { progress.hidden = false; started = Date.now(); updateProgress(); if (!payload.initial) timer = global.setInterval(updateProgress, 1000); return; } if (state === 'ready-model' || state === 'stale-model') { renderResults(payload); return; } if (state === 'no-matches' && payload.near_match) { renderNearMatch(payload.near_match); return; } const panel = panels[state] || panels['source-error']; if (panel) panel.hidden = false; } };
+        return { render(state, payload = {}) {
+            const visibleResults = [list, nearMatch, panels['no-matches']].filter((item) => item && !item.hidden);
+            stopProgress(); hideAll();
+            if (state === 'loading' || state === 'pending') visibleResults.forEach((item) => { item.hidden = false; });
+            root.dataset.state = state;
+            status.textContent = jobMatchStatusLabel(state, payload);
+            if (state === 'pending') return;
+            if (state === 'loading') { progress.hidden = false; started = Date.now(); updateProgress(); if (!payload.initial) timer = global.setInterval(updateProgress, 1000); return; }
+            if (state === 'ready-model' || state === 'stale-model') { renderResults(payload); return; }
+            if (state === 'no-matches' && payload.near_match) { renderNearMatch(payload.near_match); return; }
+            const panel = panels[state] || panels['source-error']; if (panel) panel.hidden = false;
+        } };
     }
 
     function createJobAiCollapse({ button, body, root } = {}) {

@@ -12,7 +12,7 @@ namespace TalentHub\Learner\Ai\Matching;
 final class JobMatchResult
 {
     /**
-     * @param list<array{code:string,label:string,current_score:int,target_score:int,gap:int,weight:float,required:bool,is_met:bool,evidence_refs:list<string>}> $skillEvaluations
+     * @param list<array{code:string,label:string,current_score:?int,target_score:?int,gap:?int,weight:float,required:bool,is_met:bool,evidence_refs:list<string>,target_basis:string,target_is_approximate:bool}> $skillEvaluations
      * @param list<array{code:string,label:string}> $unbenchmarkedSkills
      */
     public function __construct(

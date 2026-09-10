@@ -14,6 +14,12 @@
             : null;
     }
 
+    function buildRetakeWarningMessage(elapsedDays, remainingDays) {
+        const elapsed = Math.max(0, parseInt(elapsedDays, 10) || 0);
+        const remaining = Math.max(0, parseInt(remainingDays, 10) || 0);
+        return `Bạn đã hoàn thành bài đánh giá này cách đây ${elapsed} ngày. Kết quả xu hướng năng lực và tính cách thường ổn định và đạt độ tin cậy cao nhất sau chu kỳ 90 ngày (còn ${remaining} ngày nữa). Bạn có chắc chắn muốn làm lại ngay bây giờ không?`;
+    }
+
     function presentationState(payload) {
         const status = typeof payload?.status === 'string' ? payload.status : '';
         if (status === 'loading') return 'loading';
@@ -21,6 +27,7 @@
         if (status === 'save-error') return 'save-error';
         if (status === 'submitting') return 'submitting';
         if (status === 'validation-error') return 'validation-error';
+        if (status === 'retake-confirmation-required' || status === 'retake_confirmation_required') return 'retake-confirmation-required';
         if (status === 'expired') return 'expired';
         if (status === 'source-error' || status === 'source_unavailable') return 'source-error';
         if (status === 'complete' || status === 'submitted') return 'complete';
@@ -129,14 +136,31 @@
             }
         }
 
-        async function startOrResume(assessmentCode, educationBand) {
-            lastAction = () => startOrResume(assessmentCode, educationBand);
-            view.render('loading', { assessmentCode, educationBand });
+        async function startOrResume(assessmentCode, educationBand, confirmEarlyRetake = false) {
+            lastAction = () => startOrResume(assessmentCode, educationBand, confirmEarlyRetake);
+            view.render('loading', { assessmentCode, educationBand, confirmEarlyRetake });
             try {
-                const response = await api.send('POST', '/assessment-attempts.php', {
+                const payload = {
                     assessmentCode,
                     educationBand,
-                });
+                };
+                if (confirmEarlyRetake) {
+                    payload.confirm_early_retake = true;
+                }
+                const response = await api.send('POST', '/assessment-attempts.php', payload);
+                if (response?.code === 'RETAKE_CONFIRMATION_REQUIRED' || response?.requires_confirmation === true) {
+                    const retakePayload = {
+                        status: 'retake-confirmation-required',
+                        code: 'RETAKE_CONFIRMATION_REQUIRED',
+                        requires_confirmation: true,
+                        elapsed_days: response.elapsed_days ?? 0,
+                        remaining_days: response.remaining_days ?? 0,
+                        last_submitted_at: response.last_submitted_at ?? null,
+                        assessmentCode,
+                        educationBand,
+                    };
+                    return renderState('retake-confirmation-required', retakePayload);
+                }
                 setAttempt(response);
 
                 // If attempt doesn't contain full question details, fetch owned attempt with questions
@@ -157,6 +181,20 @@
                 }
                 return renderState('ready', currentAttempt);
             } catch (error) {
+                if (error?.code === 'RETAKE_CONFIRMATION_REQUIRED' || error?.status === 409) {
+                    const retakePayload = {
+                        status: 'retake-confirmation-required',
+                        code: 'RETAKE_CONFIRMATION_REQUIRED',
+                        requires_confirmation: true,
+                        elapsed_days: error?.elapsed_days ?? error?.details?.elapsed_days ?? 0,
+                        remaining_days: error?.remaining_days ?? error?.details?.remaining_days ?? 0,
+                        last_submitted_at: error?.last_submitted_at ?? error?.details?.last_submitted_at ?? null,
+                        error,
+                        assessmentCode,
+                        educationBand,
+                    };
+                    return renderState('retake-confirmation-required', retakePayload);
+                }
                 if (error?.status === 422 || error?.code === 'VALIDATION_FAILED' || error?.code === 'RETAKE_LOCKED') {
                     return renderState('validation-error', { error, assessmentCode, educationBand });
                 }
@@ -433,6 +471,66 @@
         ]),
     });
 
+    const ASSESSMENT_DIMENSION_NAMES = Object.freeze({
+        holland: Object.freeze({
+            R: 'Kỹ thuật — Thực tế (Realistic)',
+            I: 'Nghiên cứu — Phân tích (Investigative)',
+            A: 'Nghệ thuật — Sáng tạo (Artistic)',
+            S: 'Xã hội — Hỗ trợ (Social)',
+            E: 'Quản lý — Thuyết phục (Enterprising)',
+            C: 'Nghiệp vụ — Quy chuẩn (Conventional)',
+        }),
+        mbti: Object.freeze({
+            E: 'Hướng ngoại (Extraversion)',
+            I: 'Hướng nội (Introversion)',
+            S: 'Thực tế (Sensing)',
+            N: 'Trực giác (Intuition)',
+            T: 'Lý trí (Thinking)',
+            F: 'Cảm xúc (Feeling)',
+            J: 'Nguyên tắc (Judging)',
+            P: 'Linh hoạt (Perceiving)',
+        }),
+        disc: Object.freeze({
+            D: 'Thống trị — Quyết đoán (Dominance)',
+            I: 'Ảnh hưởng — Cởi mở (Influence)',
+            S: 'Kiên định — Hòa hợp (Steadiness)',
+            C: 'Tận tâm — Chuẩn mực (Conscientiousness)',
+        }),
+        multiple_intelligence: Object.freeze({
+            LING: 'Ngôn ngữ — Lời nói (Linguistic)',
+            LOGI: 'Logic — Toán học (Logical-Mathematical)',
+            SPAT: 'Không gian — Thị giác (Spatial)',
+            BODY: 'Vận động — Thể chất (Bodily-Kinesthetic)',
+            MUSIC: 'Âm nhạc — Tiết tấu (Musical)',
+            INTER: 'Tương tác — Xã hội (Interpersonal)',
+            INTRA: 'Nội tâm — Tự nhận thức (Intrapersonal)',
+            NAT: 'Tự nhiên — Sinh thái (Naturalist)',
+        }),
+    });
+
+    const ASSESSMENT_SUGGESTIONS = Object.freeze({
+        holland: Object.freeze([
+            'Tham gia các câu lạc bộ học thuật và dự án thực tế phù hợp với nhóm tính cách nghề nghiệp.',
+            'Tham khảo các ngành học và lộ trình nghề nghiệp tương ứng trong mục Hệ sinh thái.',
+            'Đăng ký tham gia hoạt động trải nghiệm thực địa để củng cố sở thích cá nhân.',
+        ]),
+        mbti: Object.freeze([
+            'Tận dụng thế mạnh cách tư duy để xây dựng phương pháp học tập hiệu quả.',
+            'Rèn luyện khả năng giao tiếp và làm việc nhóm với các thành viên có phong cách tính cách khác biệt.',
+            'Xác định môi trường học tập và làm việc lý tưởng giúp phát huy tối đa năng lượng bản thân.',
+        ]),
+        disc: Object.freeze([
+            'Phát huy điểm mạnh trong phong cách hành vi khi tham gia các dự án và bài tập tập thể.',
+            'Linh hoạt điều chỉnh phong cách giao tiếp khi phối hợp cùng đồng đội thuộc các nhóm hành vi khác.',
+            'Lựa chọn các vai trò phù hợp trong hoạt động nhóm (lãnh đạo, điều phối, nghiên cứu, hoàn thiện).',
+        ]),
+        multiple_intelligence: Object.freeze([
+            'Đầu tư thời gian vào các lĩnh vực trí thông minh nổi trội thông qua các hoạt động ngoại khóa.',
+            'Kết hợp các phương pháp học tập đa giác quan để nâng cao khả năng tiếp thu kiến thức.',
+            'Khám phá các dự án sáng tạo và cơ hội thực tập tương ứng trong hệ sinh thái TalentHub.',
+        ]),
+    });
+
     function normalizeAssessmentType(item) {
         const declaredType = String(item?.assessment_type || '').trim().toLowerCase();
         if (Object.prototype.hasOwnProperty.call(ASSESSMENT_META, declaredType)) return declaredType;
@@ -523,6 +621,20 @@
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
+            timeZone: 'Asia/Ho_Chi_Minh',
+        }).format(parsed);
+    }
+
+    function formatAssessmentDateTime(value) {
+        if (!value) return 'Chưa có dữ liệu';
+        const parsed = normalizeDiscoveryDate(value);
+        if (Number.isNaN(parsed.getTime())) return String(value);
+        return new Intl.DateTimeFormat('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
             timeZone: 'Asia/Ho_Chi_Minh',
         }).format(parsed);
     }
@@ -698,7 +810,7 @@
                     && global.matchMedia('(prefers-reduced-motion: reduce)').matches === true;
                 nodes.questionCard?.scrollIntoView?.({
                     behavior: reducedMotion ? 'auto' : 'smooth',
-                    block: 'start',
+                    block: 'nearest',
                 });
                 nodes.questionTitle?.focus?.({ preventScroll: true });
             },
@@ -752,11 +864,10 @@
             const status = doc.createElement('span');
             status.className = 'learner-assessment-card__status';
             const published = String(item?.status || '').toLowerCase() === 'published';
-            const locked = item?.attempt_status === 'retake_locked';
             const complete = ['submitted', 'retake_locked'].includes(String(item?.attempt_status || '').toLowerCase())
                 || Boolean(item?.latest_result?.id);
-            status.className += complete ? ' is-complete' : (published && !locked ? ' is-experimental' : ' is-unpublished');
-            status.textContent = complete ? 'Đã hoàn thành' : (locked ? 'Chưa đến ngày làm lại' : (published ? 'Sẵn sàng' : 'Chưa có phiên bản được duyệt'));
+            status.className += complete ? ' is-complete' : (published ? ' is-experimental' : ' is-unpublished');
+            status.textContent = complete ? 'Đã hoàn thành' : (published ? 'Sẵn sàng' : 'Chưa có phiên bản được duyệt');
             article.appendChild(status);
             const title = createTextElement(doc, 'h2', item?.name || item?.test_name || meta.name);
             const description = createTextElement(doc, 'p', item?.description || meta.description);
@@ -765,9 +876,9 @@
             if (complete && item?.latest_result?.result_code) {
                 article.appendChild(createTextElement(doc, 'span', item.latest_result.result_code, 'learner-assessment-card__result'));
             }
-            const action = doc.createElement(published && !locked ? 'a' : 'button');
-            action.className = `learner-btn learner-btn--${published && !locked ? 'primary' : 'secondary'} learner-btn--block`;
-            action.textContent = locked ? 'Chưa thể làm lại' : (published ? (item?.attempt_status === 'in_progress' ? 'Tiếp tục bài test' : 'Bắt đầu bài test') : 'Chưa có phiên bản được duyệt');
+            const action = doc.createElement(published ? 'a' : 'button');
+            action.className = `learner-btn learner-btn--${published ? (complete ? 'primary' : 'primary') : 'secondary'} learner-btn--block`;
+            action.textContent = published ? (item?.attempt_status === 'in_progress' ? 'Tiếp tục bài test' : (complete ? 'Làm lại bài đánh giá' : 'Bắt đầu bài test')) : 'Chưa có phiên bản được duyệt';
             if (action.tagName === 'A') action.href = `assessment.php?code=${encodeURIComponent(code)}${bandQuery}`;
             else { action.type = 'button'; action.disabled = true; }
             article.appendChild(action);
@@ -922,27 +1033,86 @@
         if (codeNode) codeNode.textContent = resultLabel;
         if (primaryNode) primaryNode.textContent = resultLabel;
         if (summaryNode) summaryNode.textContent = result.summary || 'Kết quả đã được lưu trên hệ thống.';
+        const doc = root.ownerDocument || document;
+        const testCode = String(root.dataset.assessmentCode || payload?.assessment?.code || 'holland').toLowerCase();
+        const dimensionLabels = ASSESSMENT_DIMENSION_NAMES[testCode] || {};
         const list = root.querySelector('[data-result-dimension-list]');
         if (list) {
             while (list.firstChild) list.removeChild(list.firstChild);
             Object.entries(scores).forEach(([dimension, score]) => {
-                const row = document.createElement('div');
+                const numScore = Math.max(0, Math.min(100, Math.round(Number(score) || 0)));
+                const dimName = dimensionLabels[dimension] || dimension;
+                const row = doc.createElement('div');
                 row.className = 'learner-result-score';
-                const label = createTextElement(document, 'strong', dimension);
-                const value = createTextElement(document, 'b', Number(score) || 0);
-                row.appendChild(label);
+
+                const letterBadge = doc.createElement('span');
+                letterBadge.className = 'learner-result-score__letter';
+                letterBadge.textContent = dimension;
+                letterBadge.setAttribute('aria-hidden', 'true');
+                row.appendChild(letterBadge);
+
+                const detailsDiv = doc.createElement('div');
+                detailsDiv.className = 'learner-result-score__details';
+
+                const headerDiv = doc.createElement('div');
+                headerDiv.className = 'learner-result-score__header';
+                const label = createTextElement(doc, 'strong', dimName);
+                headerDiv.appendChild(label);
+
+                const barTrack = doc.createElement('div');
+                barTrack.className = 'learner-result-score__bar-track';
+                const barFill = doc.createElement('div');
+                barFill.className = 'learner-result-score__bar-fill';
+                barFill.style.width = `${numScore}%`;
+                barTrack.appendChild(barFill);
+
+                detailsDiv.appendChild(headerDiv);
+                detailsDiv.appendChild(barTrack);
+                row.appendChild(detailsDiv);
+
+                const value = createTextElement(doc, 'b', `${numScore}/100`);
                 row.appendChild(value);
+
                 list.appendChild(row);
             });
         }
+
+        const suggestionsList = root.querySelector('[data-result-suggestions]');
+        if (suggestionsList) {
+            while (suggestionsList.firstChild) suggestionsList.removeChild(suggestionsList.firstChild);
+            const suggestions = (Array.isArray(result?.suggestions) && result.suggestions.length > 0)
+                ? result.suggestions
+                : (ASSESSMENT_SUGGESTIONS[testCode] || ASSESSMENT_SUGGESTIONS.holland);
+            suggestions.forEach((text) => {
+                const li = doc.createElement('li');
+                const checkIcon = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                checkIcon.setAttribute('width', '16');
+                checkIcon.setAttribute('height', '16');
+                checkIcon.setAttribute('viewBox', '0 0 24 24');
+                checkIcon.setAttribute('fill', 'none');
+                checkIcon.setAttribute('stroke', 'currentColor');
+                checkIcon.setAttribute('stroke-width', '2.5');
+                checkIcon.setAttribute('stroke-linecap', 'round');
+                checkIcon.setAttribute('stroke-linejoin', 'round');
+                const poly = doc.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                poly.setAttribute('points', '20 6 9 17 4 12');
+                checkIcon.appendChild(poly);
+                const span = doc.createElement('span');
+                span.textContent = text;
+                li.appendChild(checkIcon);
+                li.appendChild(span);
+                suggestionsList.appendChild(li);
+            });
+        }
+
         const historyList = root.querySelector('[data-assessment-history-list]');
         if (historyList) {
             while (historyList.firstChild) historyList.removeChild(historyList.firstChild);
             (Array.isArray(payload?.history) ? payload.history : []).forEach((item) => {
-                const row = document.createElement('article');
+                const row = doc.createElement('article');
                 row.dataset.historyAttemptId = String(item?.id || '');
-                row.appendChild(createTextElement(document, 'strong', item?.result_code || item?.result?.code || '—'));
-                row.appendChild(createTextElement(document, 'span', item?.submitted_at || 'Đã hoàn thành'));
+                row.appendChild(createTextElement(doc, 'strong', item?.result_code || item?.result?.code || '—'));
+                row.appendChild(createTextElement(doc, 'span', formatAssessmentDateTime(item?.submitted_at) || 'Đã hoàn thành'));
                 historyList.appendChild(row);
             });
         }
@@ -956,12 +1126,57 @@
         const code = String(root.dataset.assessmentCode || boot.assessmentCode || 'holland');
         const view = createDomView(root);
         const controller = createAssessmentController({ api, view });
-        let selectedBand = normalizeEducationBand(new URLSearchParams(global.location?.search || '').get('band'));
+        const urlParams = new URLSearchParams(global.location?.search || '');
+        let selectedBand = normalizeEducationBand(urlParams.get('band'));
+        const urlAttemptId = urlParams.get('attempt') || '';
         let currentAttempt = null;
         const resultUrl = boot.result_url || `assessment-result.php?code=${encodeURIComponent(code)}`;
         let retryRunnerAction = null;
 
-        const start = async (band) => {
+        const retakeModal = doc.querySelector('[data-assessment-retake-modal]');
+        const confirmRetakeBtn = doc.querySelector('[data-confirm-retake]');
+        const cancelRetakeBtns = doc.querySelectorAll('[data-close-retake-modal], [data-cancel-retake]');
+        const elapsedDaysEl = doc.querySelector('[data-retake-elapsed-days]');
+        const remainingDaysEl = doc.querySelector('[data-retake-remaining-days]');
+        const modalMessageEl = doc.querySelector('[data-retake-modal-message]');
+
+        function openRetakeModal(info) {
+            if (!retakeModal) return;
+            const elapsed = info?.elapsed_days ?? 0;
+            const remaining = info?.remaining_days ?? 0;
+            if (elapsedDaysEl) elapsedDaysEl.textContent = String(elapsed);
+            if (remainingDaysEl) remainingDaysEl.textContent = String(remaining);
+            if (modalMessageEl) {
+                const strongElapsed = modalMessageEl.querySelector('[data-retake-elapsed-days]');
+                const strongRemaining = modalMessageEl.querySelector('[data-retake-remaining-days]');
+                if (!strongElapsed && !strongRemaining) {
+                    modalMessageEl.textContent = buildRetakeWarningMessage(elapsed, remaining);
+                }
+            }
+            setHidden(retakeModal, false);
+        }
+
+        function closeRetakeModal() {
+            if (!retakeModal) return;
+            setHidden(retakeModal, true);
+        }
+
+        cancelRetakeBtns.forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                closeRetakeModal();
+            });
+        });
+
+        if (confirmRetakeBtn) {
+            confirmRetakeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                closeRetakeModal();
+                start(selectedBand, true);
+            });
+        }
+
+        const start = async (band, confirmEarly = false) => {
             const confirmedBand = normalizeEducationBand(band || selectedBand);
             if (confirmedBand === '') {
                 view.showBandModal();
@@ -969,14 +1184,16 @@
                 return { code: 'EDUCATION_BAND_REQUIRED', requires_education_band: true };
             }
             selectedBand = confirmedBand;
-            retryRunnerAction = () => start(selectedBand);
+            retryRunnerAction = () => start(selectedBand, confirmEarly);
             view.hideBandError();
             view.hideBandModal();
-            const attempt = await controller.startOrResume(code, selectedBand);
+            const attempt = await controller.startOrResume(code, selectedBand, confirmEarly);
             if (attempt?.id) {
                 currentAttempt = attempt;
                 view.render('ready', attempt);
                 view.revealQuestion();
+            } else if (attempt?.status === 'retake-confirmation-required' || attempt?.code === 'RETAKE_CONFIRMATION_REQUIRED') {
+                openRetakeModal(attempt);
             }
         };
         const loadDetail = async (band) => {
@@ -1084,6 +1301,17 @@
             const modal = button.closest('.learner-modal');
             setHidden(modal, true);
         }));
+
+        if (urlAttemptId) {
+            return controller.loadAttempt(urlAttemptId).then((attempt) => {
+                if (attempt?.id) {
+                    currentAttempt = attempt;
+                    view.render('ready', attempt);
+                    view.revealQuestion();
+                }
+                return attempt;
+            });
+        }
 
         return loadDetail(selectedBand);
     }
@@ -1206,6 +1434,102 @@
         const search = new URLSearchParams(global.location?.search || '');
         const attemptId = search.get('attempt') || '';
         const educationBand = normalizeEducationBand(search.get('band'));
+        const doc = root.ownerDocument || document;
+
+        const retakeModal = doc.querySelector('[data-assessment-retake-modal]');
+        const retakeBtn = root.querySelector('[data-retake-assessment]');
+        const confirmBtn = doc.querySelector('[data-confirm-retake]');
+        const cancelBtns = doc.querySelectorAll('[data-close-retake-modal], [data-cancel-retake]');
+        const elapsedDaysEl = doc.querySelector('[data-retake-elapsed-days]');
+        const remainingDaysEl = doc.querySelector('[data-retake-remaining-days]');
+        const modalMessageEl = doc.querySelector('[data-retake-modal-message]');
+
+        function openRetakeModal(info) {
+            if (!retakeModal) return;
+            const elapsed = info?.elapsed_days ?? 0;
+            const remaining = info?.remaining_days ?? 0;
+            if (elapsedDaysEl) elapsedDaysEl.textContent = String(elapsed);
+            if (remainingDaysEl) remainingDaysEl.textContent = String(remaining);
+            if (modalMessageEl) {
+                const strongElapsed = modalMessageEl.querySelector('[data-retake-elapsed-days]');
+                const strongRemaining = modalMessageEl.querySelector('[data-retake-remaining-days]');
+                if (!strongElapsed && !strongRemaining) {
+                    modalMessageEl.textContent = buildRetakeWarningMessage(elapsed, remaining);
+                }
+            }
+            setHidden(retakeModal, false);
+        }
+
+        function closeRetakeModal() {
+            if (!retakeModal) return;
+            setHidden(retakeModal, true);
+        }
+
+        cancelBtns.forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                closeRetakeModal();
+            });
+        });
+
+        async function triggerRetake(confirmEarly = false) {
+            if (retakeBtn) retakeBtn.disabled = true;
+            if (confirmBtn) confirmBtn.disabled = true;
+            try {
+                const payload = {
+                    assessmentCode: code,
+                };
+                if (educationBand) {
+                    payload.educationBand = educationBand;
+                }
+                if (confirmEarly) {
+                    payload.confirm_early_retake = true;
+                }
+                const response = await api.send('POST', '/assessment-attempts.php', payload);
+                if (response?.code === 'RETAKE_CONFIRMATION_REQUIRED' || response?.requires_confirmation === true) {
+                    openRetakeModal(response);
+                    return;
+                }
+                const newAttemptId = response?.id || response?.attempt_id;
+                if (newAttemptId) {
+                    const effectiveBand = educationBand || response?.education_band;
+                    const bandQuery = effectiveBand ? `&band=${encodeURIComponent(effectiveBand)}` : '';
+                    if (global.location) {
+                        global.location.href = `assessment.php?code=${encodeURIComponent(code)}&attempt=${encodeURIComponent(newAttemptId)}${bandQuery}`;
+                    }
+                }
+            } catch (error) {
+                if (error?.code === 'RETAKE_CONFIRMATION_REQUIRED' || error?.status === 409) {
+                    openRetakeModal({
+                        elapsed_days: error?.elapsed_days ?? error?.details?.elapsed_days ?? 0,
+                        remaining_days: error?.remaining_days ?? error?.details?.remaining_days ?? 0,
+                    });
+                    return;
+                }
+                if (global.alert) {
+                    global.alert(error?.message || 'Không thể bắt đầu làm lại bài đánh giá.');
+                }
+            } finally {
+                if (retakeBtn) retakeBtn.disabled = false;
+                if (confirmBtn) confirmBtn.disabled = false;
+            }
+        }
+
+        if (retakeBtn) {
+            retakeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                triggerRetake(false);
+            });
+        }
+
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                closeRetakeModal();
+                triggerRetake(true);
+            });
+        }
+
         const resultView = {
             render: (state, payload) => {
                 if (state === 'complete' || state === 'ready') renderResult(root, payload);
@@ -1223,7 +1547,6 @@
         });
         const historyPromise = controller.loadHistory().then((payload) => {
             const automated = Array.isArray(payload?.assessment_history?.items) ? payload.assessment_history.items : null;
-            const teacher = Array.isArray(payload?.teacher_evaluations?.items) ? payload.teacher_evaluations.items : null;
             const renderCollection = (loadingSel, emptySel, errorSel, listSel, items, renderItem) => {
                 const loading = root.querySelector(loadingSel);
                 const empty = root.querySelector(emptySel);
@@ -1252,64 +1575,41 @@
             renderCollection('[data-assessment-complete-history-loading]', '[data-assessment-complete-history-empty]', '[data-assessment-complete-history-error]', '[data-assessment-complete-history-list]', automated, (item) => {
                 const article = document.createElement('article');
                 article.className = 'learner-assessment-history__item';
+
+                const header = document.createElement('div');
+                header.className = 'learner-assessment-history__header';
+
                 const meta = document.createElement('div');
                 meta.className = 'learner-assessment-history__meta';
                 const title = document.createElement('strong');
                 title.textContent = item?.assessment_name || 'Chưa có dữ liệu';
                 const when = document.createElement('span');
-                when.textContent = item?.submitted_at || 'Chưa có dữ liệu';
+                when.textContent = formatAssessmentDateTime(item?.submitted_at);
                 meta.appendChild(title);
                 meta.appendChild(when);
+
                 const result = document.createElement('div');
                 result.className = 'learner-assessment-history__result';
                 const badge = document.createElement('span');
                 badge.className = 'learner-badge';
                 badge.textContent = item?.result_code || 'Chưa có dữ liệu';
                 result.appendChild(badge);
-                const version = document.createElement('span');
-                version.textContent = 'Phiên bản ' + (item?.assessment_version || 'Chưa có dữ liệu') + ' · Thang điểm ' + (item?.scoring_version || 'Chưa có dữ liệu');
-                result.appendChild(version);
-                const summary = document.createElement('p');
-                summary.textContent = item?.summary || 'Chưa có dữ liệu';
-                article.appendChild(meta);
-                article.appendChild(result);
-                article.appendChild(summary);
-                return article;
-            });
-            renderCollection('[data-teacher-published-evaluation-loading]', '[data-teacher-published-evaluation-empty]', '[data-teacher-published-evaluation-error]', '[data-teacher-published-evaluation-list]', teacher, (item) => {
-                const article = document.createElement('article');
-                article.className = 'learner-assessment-history__item';
-                const meta = document.createElement('div');
-                meta.className = 'learner-assessment-history__meta';
-                const title = document.createElement('strong');
-                title.textContent = item?.activity_title || 'Chưa có dữ liệu';
-                const when = document.createElement('span');
-                when.textContent = item?.published_at || 'Chưa có dữ liệu';
-                meta.appendChild(title);
-                meta.appendChild(when);
-                const result = document.createElement('div');
-                result.className = 'learner-assessment-history__result';
-                const badge = document.createElement('span');
-                badge.className = 'learner-badge';
-                badge.textContent = String(item?.overall_score ?? 'Chưa có dữ liệu') + '/100';
-                result.appendChild(badge);
-                const reviewer = document.createElement('span');
-                reviewer.textContent = '— ' + (item?.reviewer_name || 'Chưa có dữ liệu');
-                result.appendChild(reviewer);
-                article.appendChild(meta);
-                article.appendChild(result);
-                if (Array.isArray(item?.scores) && item.scores.length > 0) {
-                    const list = document.createElement('ul');
-                    item.scores.forEach((scoreItem) => {
-                        const li = document.createElement('li');
-                        li.textContent = `${scoreItem?.criteria_name || 'Chưa có dữ liệu'}: ${scoreItem?.score ?? 'Chưa có dữ liệu'}/${scoreItem?.max_score ?? 'Chưa có dữ liệu'}`;
-                        list.appendChild(li);
-                    });
-                    article.appendChild(list);
+
+                header.appendChild(meta);
+                header.appendChild(result);
+                article.appendChild(header);
+
+                const version = document.createElement('div');
+                version.className = 'learner-assessment-history__version-tag';
+                version.textContent = 'Phiên bản ' + (item?.assessment_version || '1.0.0') + ' · Thang điểm ' + (item?.scoring_version || 'Chuẩn hóa');
+                article.appendChild(version);
+
+                if (item?.summary) {
+                    const summary = document.createElement('p');
+                    summary.className = 'learner-assessment-history__comment';
+                    summary.textContent = item.summary;
+                    article.appendChild(summary);
                 }
-                const comment = document.createElement('p');
-                comment.textContent = item?.comment || 'Chưa có dữ liệu';
-                article.appendChild(comment);
                 return article;
             });
         }).catch(() => {
@@ -1317,10 +1617,6 @@
             setHidden(root.querySelector('[data-assessment-complete-history-list]'), true);
             setHidden(root.querySelector('[data-assessment-complete-history-empty]'), true);
             setHidden(root.querySelector('[data-assessment-complete-history-error]'), false);
-            setHidden(root.querySelector('[data-teacher-published-evaluation-loading]'), true);
-            setHidden(root.querySelector('[data-teacher-published-evaluation-list]'), true);
-            setHidden(root.querySelector('[data-teacher-published-evaluation-empty]'), true);
-            setHidden(root.querySelector('[data-teacher-published-evaluation-error]'), false);
         });
         return Promise.allSettled([resultPromise, historyPromise]);
     }
@@ -1337,6 +1633,7 @@
 
     const exported = {
         presentationState,
+        buildRetakeWarningMessage,
         createAssessmentController,
         createDomView,
         renderLikertOption,

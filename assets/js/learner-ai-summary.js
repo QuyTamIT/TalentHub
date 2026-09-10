@@ -41,6 +41,7 @@
         }
         const sessionStorage = storage && typeof storage.getItem === 'function' ? storage : null;
         let inFlight = null;
+        let lastReady = null;
 
         function idempotencyKey() {
             const existing = sessionStorage?.getItem(STORAGE_KEY);
@@ -51,10 +52,32 @@
         }
 
         function renderResult(result) {
+            if (READY_STATES.has(result?.state)) lastReady = result;
+            else if (lastReady && ['error', 'provider_unavailable', 'source_unavailable'].includes(result?.state)) {
+                result = { ...lastReady, state: 'stale_model' };
+            }
             const state = typeof result?.state === 'string' ? result.state : 'error';
             view.render(state, result || {});
             if (state !== 'pending') sessionStorage?.removeItem(STORAGE_KEY);
             return result;
+        }
+
+        async function generate(current) {
+            let key = idempotencyKey();
+            for (let attempt = 1; attempt <= 2; attempt++) {
+                try {
+                    const result = await api.send('POST', '/ai-roadmap.php', {
+                        action: current?.state === 'not_generated' ? 'generate' : 'refresh',
+                    }, { idempotencyKey: key, timeoutMs: 120000 });
+                    if (attempt === 2 || !['provider_unavailable','invalid_response','source_unavailable'].includes(result?.state)) return result;
+                    sessionStorage?.removeItem(STORAGE_KEY);
+                    key = idempotencyKey();
+                } catch (error) {
+                    const retryable = ['NETWORK_ERROR','REQUEST_TIMEOUT'].includes(error?.code) || [502,503,504].includes(error?.status);
+                    if (attempt === 2 || !retryable) throw error;
+                    // Unknown transport outcomes reuse the accepted request key.
+                }
+            }
         }
 
         function run() {
@@ -64,14 +87,10 @@
             inFlight = Promise.resolve()
                 .then(() => api.get('/ai-roadmap.php'))
                 .then((current) => {
+                    if (READY_STATES.has(current?.state)) lastReady = current;
                     if (current?.state === 'ready_model' || current?.state === 'pending') return current;
                     if (!['not_generated', 'ready_rule', 'fallback_rule', 'stale_model'].includes(current?.state)) return current;
-                    return api.send(
-                        'POST',
-                        '/ai-roadmap.php',
-                        { action: current?.state === 'not_generated' ? 'generate' : 'refresh' },
-                        { idempotencyKey: idempotencyKey() },
-                    );
+                    return generate(current);
                 })
                 .then(async (result) => {
                     for (let poll = 0; result?.state === 'pending' && poll < maxPolls; poll++) {
@@ -86,8 +105,7 @@
                 })
                 .catch((error) => {
                     const result = { state: 'error', message: error?.message || 'Không thể kết nối dịch vụ AI.' };
-                    view.render('error', result);
-                    return result;
+                    return renderResult(result);
                 })
                 .finally(() => { inFlight = null; });
             return inFlight;
@@ -142,7 +160,8 @@
                 if (state === 'ready_model') {
                     setText(nodes.eyebrow, 'Tóm tắt từ AI');
                     setText(nodes.title, 'Lộ trình phát triển của bạn đã sẵn sàng');
-                    setText(nodes.message, 'AI đã tổng hợp dữ liệu đánh giá và tạo lộ trình 90 ngày.');
+                    const unchanged = payload?.reuse_reason === 'inputs_unchanged' && payload?.data_changed === false;
+                    setText(nodes.message, unchanged ? 'Dữ liệu không thay đổi. Đang hiển thị kết quả phân tích trước đó.' : 'AI đã tổng hợp dữ liệu đánh giá và tạo lộ trình 90 ngày.');
                     setText(nodes.summary, payload?.executive_summary);
                 } else if (state === 'stale_model') {
                     setText(nodes.eyebrow, 'Bản phân tích AI gần nhất');
@@ -158,12 +177,10 @@
                     setText(nodes.eyebrow, 'AI đang phân tích');
                     setText(nodes.title, 'Đang tạo lộ trình dành riêng cho bạn');
                     setText(nodes.message, 'Quá trình này có thể mất khoảng 30 giây. Vui lòng giữ trang đang mở.');
-                    setText(nodes.summary, '');
                 } else if (state === 'pending') {
                     setText(nodes.eyebrow, 'Đang xử lý');
                     setText(nodes.title, 'Phân tích của bạn đang được hoàn tất');
                     setText(nodes.message, 'Kết quả sẽ tự cập nhật tại đây khi AI hoàn tất.');
-                    setText(nodes.summary, '');
                 } else if (state === 'consent_required') {
                     setText(nodes.eyebrow, 'Cần thử lại phân tích');
                     setText(nodes.title, 'Chưa thể bắt đầu phân tích AI');

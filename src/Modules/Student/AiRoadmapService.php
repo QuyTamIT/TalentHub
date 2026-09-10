@@ -241,10 +241,12 @@ class AiRoadmapService
             if ($type === '' && !empty($a['test_code'])) {
                 $type = strtolower((string) $a['test_code']);
             }
-            $result[$type] = [
-                'primary_code' => (string) ($a['result_code'] ?? ''),
-                'dimension_scores' => (array) ($a['dimension_scores'] ?? []),
-            ];
+            if ($type !== '' && !isset($result[$type])) {
+                $result[$type] = [
+                    'primary_code' => (string) ($a['result_code'] ?? ''),
+                    'dimension_scores' => (array) ($a['dimension_scores'] ?? []),
+                ];
+            }
         }
         return $result;
     }

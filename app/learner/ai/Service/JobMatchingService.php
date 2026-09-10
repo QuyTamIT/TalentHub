@@ -18,6 +18,7 @@ use TalentHub\Learner\Ai\Matching\OpportunityCandidate;
 use TalentHub\Learner\Ai\Matching\SkillGapResolver;
 use TalentHub\Learner\Ai\Model\ModelJobMatchEngine;
 use TalentHub\Learner\Ai\Persistence\JobMatchRepository;
+use TalentHub\Learner\Ai\Snapshot\MatchingInputSnapshot;
 
 final class JobMatchingService
 {
@@ -76,11 +77,13 @@ final class JobMatchingService
                 if (!isset($currentScores[$id]) || (int) ($item['matchScore'] ?? -1) !== $currentScores[$id]) { $run = null; break; }
             }
         }
-        return $run === null ? self::emptyResponse('not_generated') : $this->mapRun($run, $candidates, false);
+        if ($run === null) return self::emptyResponse('not_generated');
+        $stale = $this->runIsStale($run, MatchingInputSnapshot::build($prepared['input'], $candidates, $roles, $prepared['decision']->decisionHash()));
+        return $this->mapRun($run, $candidates, $stale);
     }
 
     /** @return array<string,mixed> */
-    public function generate(string $studentId, string $requestId, string $idempotencyKey): array
+    public function generate(string $studentId, string $requestId, string $idempotencyKey, ?callable $beforeGenerate = null): array
     {
         $prepared = $this->prepare($studentId);
         if (!isset($prepared['profile'])) return $prepared;
@@ -91,6 +94,14 @@ final class JobMatchingService
         $rolesResult = ($this->roleSupplier)();
         $roles = is_array($rolesResult['roles'] ?? null) ? $rolesResult['roles'] : [];
         if (($rolesResult['status'] ?? '') !== 'ok' || $roles === []) return self::emptyResponse('benchmark_insufficient');
+
+        $input = MatchingInputSnapshot::build($input, $candidates, $roles, $decision->decisionHash());
+        $activeIds = array_map(static fn (OpportunityCandidate $c): string => $c->catalogId(), $candidates);
+        try { $cached = $this->repository->latestValid($studentId, $activeIds); }
+        catch (Throwable) { $cached = null; }
+        if ($cached !== null && MatchingInputSnapshot::canReuse($cached, $input)) {
+            return MatchingInputSnapshot::reused($this->mapRun($cached, $candidates, false));
+        }
 
         $resolver = new JobRoleResolver(); $scorer = new JobMatchScorer(); $gapResolver = new SkillGapResolver();
         $matches = []; $gaps = []; $ranked = [];
@@ -118,6 +129,7 @@ final class JobMatchingService
             return $stale === null ? self::emptyResponse('provider_unavailable') : $this->mapRun($stale, $candidates, true);
         }
 
+        if ($beforeGenerate !== null) $beforeGenerate();
         $context = new RecommendationContext($decision->allowedScopes(), $requestId, 'job-match-' . hash('sha256', $idempotencyKey), $studentId, $decision->decisionHash(), $decision->policyVersion());
         try { $pending = $this->repository->createPendingRun($studentId, $input, $context); }
         catch (Throwable) {
@@ -127,16 +139,19 @@ final class JobMatchingService
         }
         if (($pending['reused'] ?? false) === true) {
             $cached = $this->repository->latestValid($studentId, $activeIds);
-            return $cached === null ? self::emptyResponse('provider_unavailable') : $this->mapRun($cached, $candidates, false);
+            return $cached === null
+                ? self::emptyResponse(($pending['status'] ?? 'pending') === 'pending' ? 'pending' : 'provider_unavailable')
+                : $this->mapRun($cached, $candidates, $this->runIsStale($cached, $input));
         }
 
         $analyses = null;
         for ($attempt = 1; $attempt <= 2; $attempt++) {
             try {
-                $analyses = $this->engine->generate($profile, $selected, $matches, $gaps, $context);
+                $candidateAnalyses = $this->engine->generate($profile, $selected, $matches, $gaps, $context, $attempt > 1);
                 $expected = array_map(static fn (OpportunityCandidate $c): string => $c->catalogId(), $selected);
-                $actual = array_map(static fn ($a): string => $a->catalogId(), $analyses); sort($expected); sort($actual);
+                $actual = array_map(static fn ($a): string => $a->catalogId(), $candidateAnalyses); sort($expected); sort($actual);
                 if ($actual !== $expected) throw new \InvalidArgumentException('Gemini must analyze every eligible job exactly once.');
+                $analyses = $candidateAnalyses;
                 break;
             } catch (Throwable) {}
         }
@@ -145,6 +160,9 @@ final class JobMatchingService
             $stale = $this->repository->latestValid($studentId, $activeIds);
             return $stale === null ? self::emptyResponse('provider_unavailable') : $this->mapRun($stale, $candidates, true);
         }
+
+        $abort = $this->abortIfInputChanged($studentId, $input, $pending, $candidates, $activeIds);
+        if ($abort !== null) return $abort;
 
         $analysisById = []; foreach ($analyses as $analysis) $analysisById[$analysis->catalogId()] = $analysis;
         $records = [];
@@ -252,6 +270,78 @@ final class JobMatchingService
         return ['strength_details'=>$details,'met_skill_count'=>count($details),'benchmark_skill_count'=>count($benchmarkCodes)];
     }
 
+    /** @param array<string,mixed> $run */
+    private function runIsStale(array $run, RecommendationInput $input): bool
+    {
+        return ($run['generationCurrent'] ?? true) !== true
+            || ($run['catalogFiltered'] ?? false) === true
+            || (isset($run['inputHash'])
+                && (!is_string($run['inputHash']) || !hash_equals($input->contentHash(), $run['inputHash'])));
+    }
+
     /** @return array<string,mixed> */
     private static function emptyResponse(string $state): array{return ['state'=>$state,'analysis_origin'=>null,'score_origin'=>'deterministic_40_35_25','enterprise_groups'=>[],'skill_gap'=>[]];}
+
+    /**
+     * @param array<string,mixed> $pending
+     * @param list<OpportunityCandidate> $candidates
+     * @param list<string> $activeIds
+     * @return array<string,mixed>|null
+     */
+    private function abortIfInputChanged(string $studentId, RecommendationInput $input, array $pending, array $candidates, array $activeIds): ?array
+    {
+        try {
+            $decision = ($this->decisionResolver)($studentId);
+        } catch (Throwable) {
+            try { $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), 'consent_changed'); } catch (Throwable) {}
+            return self::emptyResponse('consent_required');
+        }
+        if (!$decision instanceof ConsentDecision || !$decision->permitsAllRequiredScopes()) {
+            try { $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), 'consent_changed'); } catch (Throwable) {}
+            return self::emptyResponse('consent_required');
+        }
+        try {
+            $current = $this->prepare($studentId);
+            if (!isset($current['profile'])) {
+                try { $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), 'snapshot_changed'); } catch (Throwable) {}
+                return $current['state'] === 'consent_required' ? $current : $this->retainedStale($studentId, $candidates, $activeIds);
+            }
+            $rolesResult = ($this->roleSupplier)();
+            $roles = is_array($rolesResult['roles'] ?? null) ? $rolesResult['roles'] : [];
+            $snapshot = MatchingInputSnapshot::build($current['input'], $current['candidates'], $roles, $decision->decisionHash());
+        } catch (Throwable) {
+            try { $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), 'snapshot_changed'); } catch (Throwable) {}
+            return $this->retainedStale($studentId, $candidates, $activeIds);
+        }
+        if (!hash_equals($input->contentHash(), $snapshot->contentHash())) {
+            try { $this->repository->failRun($studentId, (string) ($pending['runId'] ?? ''), 'snapshot_changed'); } catch (Throwable) {}
+            return $this->retainedStale($studentId, $candidates, $activeIds);
+        }
+        return null;
+    }
+
+    /**
+     * @param list<OpportunityCandidate> $candidates
+     * @param list<string> $activeIds
+     * @return array<string,mixed>
+     */
+    private function retainedStale(string $studentId, array $candidates, array $activeIds): array
+    {
+        try {
+            $priorIds = $activeIds;
+            $current = $this->prepare($studentId);
+            if (!isset($current['profile'])) return self::emptyResponse(($current['state'] ?? '') === 'consent_required' ? 'consent_required' : 'stale_model');
+            $candidates = $current['candidates'];
+            $activeIds = array_map(static fn (OpportunityCandidate $c): string => $c->catalogId(), $candidates);
+            if ($activeIds === []) return self::emptyResponse('stale_model');
+            $stale = $this->repository->latestValid($studentId, $activeIds);
+            if ($stale === null && $priorIds !== $activeIds) $stale = $this->repository->latestValid($studentId, $priorIds);
+            if ($stale !== null && ($stale['status'] ?? null) === 'completed') {
+                $stale['items'] = array_values(array_filter($stale['items'] ?? [], static fn (array $item): bool => in_array($item['catalogId'] ?? '', $activeIds, true)));
+                return $this->mapRun($stale, $candidates, true);
+            }
+        } catch (Throwable) {
+        }
+        return self::emptyResponse('stale_model');
+    }
 }

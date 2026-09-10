@@ -26,7 +26,9 @@ final class JobMatchScore
 
     private readonly int $experienceScore;
 
-    public function __construct(int $skillScore, int $assessmentScore, int $experienceScore)
+    private readonly int $totalCap;
+
+    public function __construct(int $skillScore, int $assessmentScore, int $experienceScore, int $totalCap = 100)
     {
         foreach (['skill' => $skillScore, 'assessment' => $assessmentScore, 'experience' => $experienceScore] as $name => $value) {
             if ($value < 0 || $value > 100) {
@@ -36,6 +38,10 @@ final class JobMatchScore
         $this->skillScore = $skillScore;
         $this->assessmentScore = $assessmentScore;
         $this->experienceScore = $experienceScore;
+        if ($totalCap < 0 || $totalCap > 100) {
+            throw new InvalidArgumentException('Job match score total cap must be within 0..100.');
+        }
+        $this->totalCap = $totalCap;
     }
 
     public function skillScore(): int
@@ -55,11 +61,11 @@ final class JobMatchScore
 
     public function totalScore(): int
     {
-        return (int) round(
+        return min($this->totalCap, (int) round(
             self::WEIGHTS['skills'] * $this->skillScore
             + self::WEIGHTS['assessment'] * $this->assessmentScore
             + self::WEIGHTS['experience'] * $this->experienceScore,
-        );
+        ));
     }
 
     /** strong_fit >= 80, good_fit >= 60, developing_fit >= 40, otherwise low_fit */

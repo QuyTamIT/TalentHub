@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace TalentHub\Learner\Ai\Matching;
 
 use InvalidArgumentException;
+use TalentHub\Learner\Ai\Grounding\GroundedProseGuard;
 
 /**
  * Strict allow-list, evidence, uniqueness and safety validator for the
@@ -29,7 +30,7 @@ final class OpportunityMatchValidator
 
     private const MIN_ANALYSIS_LENGTH = 160;
 
-    private const MAX_ANALYSIS_LENGTH = 900;
+    private const MAX_ANALYSIS_LENGTH = 2400;
 
     private const NEAR_DUPLICATE_JACCARD = 0.85;
 
@@ -89,6 +90,15 @@ final class OpportunityMatchValidator
             }
             $seenIds[$catalogId] = true;
             $candidate = $candidateMap[$catalogId];
+            $skillFacts = [];
+            foreach ($candidate->requiredSkills() as $skill) {
+                $current = $profile->skillScore($skill['code']);
+                $target = $skill['minimum_score'] > 0 ? $skill['minimum_score'] : null;
+                $skillFacts[] = ['code'=>$skill['code'], 'label'=>$skill['label'],
+                    'current_score'=>$current, 'target_score'=>$target,
+                    'is_met'=>$target !== null && $current !== null && $current >= $target];
+            }
+            (new GroundedProseGuard())->assertTree($item, $skillFacts);
 
             $geminiScore = $item['gemini_score'] ?? null;
             if (!is_int($geminiScore) || $geminiScore < 0 || $geminiScore > 100) {
@@ -150,7 +160,7 @@ final class OpportunityMatchValidator
             $missingCodes = [];
             foreach ($requiredSkills as $code => $minimum) {
                 $profileScore = $profile->skillScore($code);
-                if ($profileScore !== null && $profileScore >= $minimum) {
+                if ($minimum > 0 && $profileScore !== null && $profileScore >= $minimum) {
                     $matchedCodes[] = $code;
                 } else {
                     $missingCodes[] = $code;
@@ -171,6 +181,12 @@ final class OpportunityMatchValidator
             }
             if ($evidenceRefs === []) {
                 throw new InvalidArgumentException('Opportunity match item must cite at least one evidence reference.');
+            }
+            if (array_intersect_key(array_fill_keys($evidenceRefs, true), $candidateEvidence) === []) {
+                throw new InvalidArgumentException('Opportunity match item must cite its own catalog evidence.');
+            }
+            if ($profileEvidence !== [] && array_intersect_key(array_fill_keys($evidenceRefs, true), $profileEvidence) === []) {
+                throw new InvalidArgumentException('Opportunity match item must cite learner evidence.');
             }
 
             $missingConditions = [];
@@ -210,6 +226,9 @@ final class OpportunityMatchValidator
     /** @param array<string,mixed> $analysis @param list<string> $evidenceAllowList @return array<string,mixed> */
     public function validateSummary(array $analysis, LearnerOpportunityProfile $profile, array $evidenceAllowList): array
     {
+        $facts = [];
+        foreach ($profile->skills() as $code=>$score) $facts[] = ['code'=>$code,'current_score'=>$score];
+        (new GroundedProseGuard())->assertTree($analysis, $facts);
         $required = ['headline', 'explanation', 'learner_strengths', 'catalog_demands', 'main_gaps', 'next_steps', 'evidence_ref_ids'];
         $extra = array_diff(array_keys($analysis), $required);
         if ($extra !== []) {
@@ -339,8 +358,8 @@ final class OpportunityMatchValidator
             throw new InvalidArgumentException("Opportunity match {$field} must contain a substantial project-specific analysis.");
         }
         $sentenceCount = preg_match_all('/[.!?]+(?=\s|$)/u', $analysis);
-        if (!is_int($sentenceCount) || $sentenceCount < 3 || $sentenceCount > 4) {
-            throw new InvalidArgumentException("Opportunity match {$field} must contain three to four complete sentences.");
+        if (!is_int($sentenceCount) || $sentenceCount < 3 || $sentenceCount > 8) {
+            throw new InvalidArgumentException("Opportunity match {$field} must contain three to eight complete sentences.");
         }
     }
 

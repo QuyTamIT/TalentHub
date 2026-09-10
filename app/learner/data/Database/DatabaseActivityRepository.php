@@ -52,10 +52,19 @@ final class DatabaseActivityRepository extends AbstractDatabaseRepository implem
         }
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
         $timestamp = $now->format('Y-m-d H:i:s.u');
+        $opensFallback = $this->hasColumn('activities', 'createdAt') ? 'activity.createdAt' : 'activity.startAt';
+        $policyExists = $this->hasTable('activity_registration_policies');
+        $opensAt = $policyExists ? "COALESCE(policy.registrationOpensAt, {$opensFallback})" : $opensFallback;
+        $closesAt = $policyExists ? 'COALESCE(policy.registrationClosesAt, activity.startAt)' : 'activity.startAt';
         $sql = $this->scopedActivitySql("student.id = :student_id
-            AND activity.status IN (:status_published, :status_ongoing)
+            AND activity.status = :status_published
+            AND {$this->approvalExpression()}
             AND {$this->studentVisibilityExpression()}
-            AND :ends_now <= COALESCE(activity.endAt, activity.startAt)
+            AND {$opensAt} <= :opens_now
+            AND :closes_now < {$closesAt}
+            AND :starts_now < activity.startAt
+            AND :ends_now < COALESCE(activity.endAt, activity.startAt)
+            AND {$this->occupiedSql()} < activity.capacity
             AND NOT EXISTS (
                 SELECT 1
                 FROM activity_registrations own_registration
@@ -66,7 +75,10 @@ final class DatabaseActivityRepository extends AbstractDatabaseRepository implem
         return array_map([$this, 'normalizeActivity'], $this->fetchAll('discoverForStudent', $sql, [
             'student_id' => $studentId,
             'status_published' => ActivityStatus::Published->value,
-            'status_ongoing' => ActivityStatus::Ongoing->value,
+            // Separate names are required when native PDO prepares disallow parameter reuse.
+            'opens_now' => $timestamp,
+            'closes_now' => $timestamp,
+            'starts_now' => $timestamp,
             'ends_now' => $timestamp,
             'own_student_id' => $studentId,
         ]));
@@ -84,7 +96,7 @@ final class DatabaseActivityRepository extends AbstractDatabaseRepository implem
         $activityId = Uuid::normalizeDatabase($activityId, 'activity_id');
         $row = $this->fetchOne('findForStudent', $this->scopedActivitySql(
             'student.id = :student_id AND activity.id = :activity_id AND ' . self::VISIBLE_STATUS_SQL
-            . ' AND ' . $this->studentVisibilityExpression()
+            . ' AND ' . $this->approvalExpression() . ' AND ' . $this->studentVisibilityExpression()
         ) . ' LIMIT 1', ['student_id' => $studentId, 'activity_id' => $activityId] + $this->visibleStatusParameters());
         return $row === null ? null : $this->normalizeActivity($row);
     }
@@ -196,18 +208,14 @@ final class DatabaseActivityRepository extends AbstractDatabaseRepository implem
 
     private function activitySelectSql(): string
     {
-        $occupied = $this->occupiedSql();
-        if ($this->hasTable('activity_registration_policies')) {
-            return 'SELECT ' . self::COLUMNS . ", {$occupied} AS participants, policy.registrationOpensAt,
-                COALESCE(policy.registrationClosesAt, activity.startAt) AS registrationClosesAt,
-                COALESCE(policy.cancellationClosesAt, activity.startAt) AS cancellationClosesAt,
-                COALESCE(policy.approvalMode, 'automatic') AS approvalMode
-                FROM activities activity LEFT JOIN activity_registration_policies policy ON policy.activityId = activity.id
-                WHERE " . self::VISIBLE_STATUS_SQL;
-        }
-        return 'SELECT ' . self::COLUMNS . ", {$occupied} AS participants, NULL AS registrationOpensAt,
-            activity.startAt AS registrationClosesAt, activity.startAt AS cancellationClosesAt, 'automatic' AS approvalMode
-            FROM activities activity WHERE " . self::VISIBLE_STATUS_SQL;
+        return 'SELECT ' . $this->activityProjection('id') . '
+            FROM activities activity
+            LEFT JOIN schools school ON school.id = activity.schoolId
+            ' . $this->teacherJoin() . '
+            ' . $this->detailsJoin() . '
+            ' . $this->policyJoin() . '
+            ' . $this->experiencePolicyJoin() . '
+            WHERE ' . self::VISIBLE_STATUS_SQL . ' AND ' . $this->approvalExpression();
     }
 
     private function scopedActivitySql(string $where): string
@@ -258,6 +266,13 @@ final class DatabaseActivityRepository extends AbstractDatabaseRepository implem
     private function scopeExpression(): string
     {
         return $this->hasTable('activity_details') && $this->hasColumn('activity_details', 'audienceScope') ? "COALESCE(details.audienceScope, 'school_only')" : "'school_only'";
+    }
+
+    private function approvalExpression(): string
+    {
+        return $this->hasColumn('activities', 'approvalStatus')
+            ? "(activity.approvalStatus = 'approved' OR activity.approvalStatus IS NULL)"
+            : '1 = 1';
     }
 
     private function activityStudentJoinExpression(): string

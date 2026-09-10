@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace TalentHub\Learner\Ai\Matching;
 
 use InvalidArgumentException;
+use TalentHub\Learner\Ai\Grounding\GroundedProseGuard;
 
 final class JobMatchAnalysisValidator
 {
@@ -27,17 +28,13 @@ final class JobMatchAnalysisValidator
             throw new InvalidArgumentException('Job match analysis requires one to ten items.');
         }
         $candidateMap = [];
-        $evidence = array_fill_keys($profile->evidenceRefs(), true);
+        $profileEvidence = array_fill_keys(array_values(array_filter($profile->evidenceRefs(),
+            static fn(string $ref):bool => !str_starts_with($ref, 'opportunity:') && !str_starts_with($ref, 'catalog:'))), true);
         foreach ($candidates as $candidate) {
             if (!$candidate instanceof OpportunityCandidate) {
                 throw new InvalidArgumentException('Job match candidate allow-list is invalid.');
             }
             $candidateMap[$candidate->catalogId()] = $candidate;
-            foreach ($candidate->providerPayload()['evidence_refs'] ?? [] as $ref) {
-                if (is_string($ref)) {
-                    $evidence[$ref] = true;
-                }
-            }
         }
 
         $seen = [];
@@ -58,8 +55,9 @@ final class JobMatchAnalysisValidator
                 throw new InvalidArgumentException('Job match analysis references an unknown or duplicate job.');
             }
             $seen[$id] = true;
-            $analysis = self::string($item['analysis'], 'analysis', 1200);
+            $analysis = self::string($item['analysis'], 'analysis', 2400);
             self::validateVietnameseAnalysis($analysis);
+            (new GroundedProseGuard())->assertTree($item, $matches[$id]->skillEvaluations());
             if ($matches[$id]->score()->totalScore() < 40
                 && preg_match('/(chưa phù hợp|chưa đáp ứng|chưa đạt|thấp hơn|còn thiếu)/iu', $analysis) !== 1) {
                 throw new InvalidArgumentException('A below-threshold analysis must explicitly explain why the position is not yet suitable.');
@@ -84,9 +82,18 @@ final class JobMatchAnalysisValidator
                 $gapCodes = self::codeList($item['gap_skill_codes'], 'gap_skill_codes', $missing);
                 $gapExplanations = self::gapExplanations($item['gap_explanations'], $gapCodes);
             }
+            $evidence = $profileEvidence;
+            $candidateEvidence = array_fill_keys($candidateMap[$id]->providerPayload()['evidence_refs'] ?? [], true);
+            $evidence += $candidateEvidence;
             $refs = self::codeList($item['evidence_ref_ids'], 'evidence_ref_ids', $evidence, false);
             if ($refs === []) {
                 throw new InvalidArgumentException('Job match analysis requires evidence references.');
+            }
+            if (array_intersect_key(array_fill_keys($refs, true), $candidateEvidence) === []) {
+                throw new InvalidArgumentException('Job match analysis must cite its own candidate evidence.');
+            }
+            if ($profileEvidence !== [] && array_intersect_key(array_fill_keys($refs, true), $profileEvidence) === []) {
+                throw new InvalidArgumentException('Job match analysis must cite learner evidence.');
             }
             $validated[] = new JobMatchAnalysis($id, $analysis, $strengths, $gapCodes, $gapExplanations, $refs);
         }
@@ -96,8 +103,8 @@ final class JobMatchAnalysisValidator
     private static function validateVietnameseAnalysis(string $analysis): void
     {
         $sentences = preg_split('/(?<=[.!?])\s+/u', trim($analysis), -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        if (count($sentences) < 3 || count($sentences) > 4 || preg_match('/[ăâđêôơưáàảãạéèẻẽẹíìỉĩịóòỏõọúùủũụýỳỷỹỵ]/iu', $analysis) !== 1) {
-            throw new InvalidArgumentException('Job analysis must contain three to four natural Vietnamese sentences.');
+        if (count($sentences) < 3 || count($sentences) > 8 || preg_match('/[ăâđêôơưáàảãạéèẻẽẹíìỉĩịóòỏõọúùủũụýỳỷỹỵ]/iu', $analysis) !== 1) {
+            throw new InvalidArgumentException('Job analysis must contain three to eight natural Vietnamese sentences.');
         }
         if (preg_match('/\b(chắc chắn|đảm bảo|cam kết|sẽ được tuyển|được tuyển|guaranteed|will be hired)\b/iu', $analysis) === 1) {
             throw new InvalidArgumentException('Job analysis must not promise a hiring outcome.');

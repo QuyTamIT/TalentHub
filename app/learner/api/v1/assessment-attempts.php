@@ -22,7 +22,7 @@ try {
         $studentId = $identity['student_id'];
         $context->mutation($request->header('x-csrf-token'));
 
-        $input = $context->allowedInput($request->json(), ['assessmentCode', 'educationBand']);
+        $input = $context->allowedInput($request->json(), ['assessmentCode', 'educationBand', 'confirm_early_retake', 'confirmEarlyRetake']);
 
         $code = strtolower(trim((string) ($input['assessmentCode'] ?? '')));
         if (!in_array($code, ['holland', 'mbti', 'disc', 'multiple_intelligence'], true)) {
@@ -32,22 +32,56 @@ try {
         }
 
         $band = strtolower(trim((string) ($input['educationBand'] ?? '')));
-        if (!in_array($band, ['middle', 'high', 'college'], true)) {
+        if ($band !== '' && !in_array($band, ['middle', 'high', 'college'], true)) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Khung giáo dục không hợp lệ.', [
                 ['field' => 'educationBand', 'code' => 'INVALID_BAND', 'message' => 'Khung giáo dục phải là middle, high hoặc college.'],
             ]);
         }
         $context->onboardingService()->assertAssessmentAccessible($studentId, $code);
 
-        $band = $context->educationBandResolver()->resolve($studentId, $band);
+        try {
+            $band = $context->educationBandResolver()->resolve($studentId, $band !== '' ? $band : null);
+        } catch (\Throwable) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Cần xác nhận cấp học để tiếp tục.', [
+                ['field' => 'educationBand', 'code' => 'INVALID_BAND', 'message' => 'Cần xác nhận cấp học để tiếp tục.'],
+            ]);
+        }
 
-        $attempt = $context->assessmentService()->startOrResume($studentId, $code, $band);
+        $confirmEarlyRetake = (bool) ($input['confirm_early_retake'] ?? $input['confirmEarlyRetake'] ?? false);
+        $attempt = $context->assessmentService()->startOrResume($studentId, $code, $band, $confirmEarlyRetake);
+
+        if (($attempt['code'] ?? '') === 'RETAKE_CONFIRMATION_REQUIRED' || ($attempt['status'] ?? '') === 'retake_confirmation_required') {
+            throw new ApiException(409, 'RETAKE_CONFIRMATION_REQUIRED', 'Chưa đủ thời gian 90 ngày kể từ lần nộp trước. Cần xác nhận để làm lại sớm.', [
+                'code' => 'RETAKE_CONFIRMATION_REQUIRED',
+                'elapsed_days' => (int) ($attempt['elapsed_days'] ?? 0),
+                'remaining_days' => (int) ($attempt['remaining_days'] ?? 0),
+                'last_submitted_at' => (string) ($attempt['last_submitted_at'] ?? ''),
+            ]);
+        }
+
         JsonResponder::sendSuccess($attempt, $context->requestId(), 200);
     }
 
     if ($request->method === 'GET') {
         $identity = $context->studentIdentityForPermissions(['student_profile.read_own']);
         $studentId = $identity['student_id'];
+
+        $allowedParams = ['attemptId'];
+        foreach (array_keys($_GET) as $key) {
+            if (!in_array($key, $allowedParams, true)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Tham số truy vấn không hợp lệ.', [
+                    ['field' => (string) $key, 'code' => 'FIELD_NOT_ALLOWED', 'message' => 'Không được phép gửi tham số này.'],
+                ]);
+            }
+        }
+
+        $attemptId = trim((string) $request->queryParam('attemptId'));
+        if (!Uuid::isValid($attemptId)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Mã lượt làm bài không hợp lệ.', [
+                ['field' => 'attemptId', 'code' => 'INVALID_UUID', 'message' => 'attemptId phải là chuỗi UUID hợp lệ.'],
+            ]);
+        }
+
 
         $allowedParams = ['attemptId'];
         foreach (array_keys($_GET) as $key) {
@@ -88,8 +122,11 @@ try {
         );
     } elseif (str_contains($msg, 'Retake is not allowed within 90 days')) {
         JsonResponder::sendError(
-            new ApiException(422, 'VALIDATION_FAILED', 'Chưa đủ thời gian để làm lại bài đánh giá (90 ngày).', [
-                ['field' => 'assessmentCode', 'code' => 'RETAKE_LOCKED', 'message' => 'Chưa đủ thời gian 90 ngày kể từ lần nộp trước.'],
+            new ApiException(409, 'RETAKE_CONFIRMATION_REQUIRED', 'Chưa đủ thời gian 90 ngày kể từ lần nộp trước. Cần xác nhận để làm lại sớm.', [
+                'code' => 'RETAKE_CONFIRMATION_REQUIRED',
+                'elapsed_days' => 0,
+                'remaining_days' => 90,
+                'last_submitted_at' => null,
             ]),
             $context?->requestId() ?? 'request-unavailable'
         );

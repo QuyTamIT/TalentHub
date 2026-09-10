@@ -9,6 +9,8 @@ use TalentHub\Learner\Ai\Domain\RoadmapDirection;
 use TalentHub\Learner\Ai\Domain\RoadmapInsight;
 use TalentHub\Learner\Ai\Domain\RoadmapPhase;
 use TalentHub\Learner\Ai\Domain\RoadmapTask;
+use TalentHub\Learner\Ai\Domain\RecommendationInput;
+use TalentHub\Learner\Ai\Grounding\GroundedProseGuard;
 
 final class RoadmapAnalysisValidator
 {
@@ -45,7 +47,7 @@ final class RoadmapAnalysisValidator
     private readonly array $allowedCatalogIds;
 
     /** @param list<string> $allowedEvidence @param list<string> $allowedActivityIds @param list<string> $allowedCatalogIds */
-    public function __construct(array $allowedEvidence, array $allowedActivityIds, array $allowedCatalogIds = [])
+    public function __construct(array $allowedEvidence, array $allowedActivityIds, array $allowedCatalogIds = [], private readonly ?RecommendationInput $input = null)
     {
         $this->allowedEvidence = $this->allowList($allowedEvidence, 'Roadmap evidence allow-list is invalid.');
         $this->allowedActivityIds = $this->allowList($allowedActivityIds, 'Roadmap activity allow-list is invalid.');
@@ -56,6 +58,15 @@ final class RoadmapAnalysisValidator
     public function fromProviderPayload(array $payload, array $engineMetadata): RoadmapAnalysis
     {
         $this->assertPayloadFields($payload);
+        (new GroundedProseGuard())->assertTree($payload, $this->input === null ? [] : GroundedProseGuard::skillsFromInput($this->input));
+        foreach ($payload['phases'] ?? [] as $phase) {
+            foreach ($phase['tasks'] ?? [] as $task) {
+                $minutes = $task['estimated_minutes'] ?? null;
+                if (!is_int($minutes) || $minutes < 15 || $minutes > 120) {
+                    throw new \InvalidArgumentException('Generated roadmap tasks require 15 to 120 estimated minutes; split larger work.');
+                }
+            }
+        }
         $metadata = $this->modelMetadata($engineMetadata);
         $summary = $this->requiredText($payload['executive_summary'], 'Roadmap executive summary is required.');
         $this->assertVietnamese($summary);

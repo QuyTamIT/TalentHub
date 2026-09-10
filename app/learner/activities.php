@@ -12,9 +12,20 @@ if (!function_exists('learner_activity_cover_or_fallback')) {
     {
         $candidate = trim((string) $value);
         if ($candidate === '' || str_contains($candidate, '..')) return $fallback;
-        return preg_match('#\A(?:/app/learner/)?assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg)\z#i', $candidate) === 1
-            ? $candidate
-            : $fallback;
+        if (preg_match('#\A/?(storage/activity-covers/[a-zA-Z0-9_\-\.]+\.(?:webp|png|jpe?g))\z#i', $candidate, $matches) === 1) {
+            $storageRelative = $matches[1];
+            $rootDir = dirname(__DIR__, 2);
+            if (is_file($rootDir . '/' . $storageRelative)) {
+                return '/' . $storageRelative;
+            }
+        }
+        if (preg_match('#\A(?:/app/learner/)?(assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg))\z#i', $candidate, $matches) === 1) {
+            $relativePath = $matches[1];
+            if (is_file(__DIR__ . '/' . $relativePath)) {
+                return $relativePath;
+            }
+        }
+        return $fallback;
     }
 }
 
@@ -59,6 +70,7 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
     <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/learner.css">
     <link rel="stylesheet" href="assets/activities/activities.css">
+    <link rel="stylesheet" href="../../assets/css/learner-activity-matches.css">
     <link rel="stylesheet" href="../../assets/css/typeui-selects.css">
 </head>
 <body class="learner-app learner-page-activities">
@@ -144,6 +156,23 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                         </label>
                     </section>
 
+                    <section class="learner-activity-matches" data-activity-matches aria-label="Gợi ý hoạt động để phát triển kỹ năng">
+                        <div class="learner-activity-matches__actions">
+                            <button type="button" class="learner-btn learner-btn--primary" data-generate aria-expanded="false" aria-controls="activity-matches-panel"><span data-trigger-label>AI gợi ý hoạt động phù hợp</span></button>
+                        </div>
+                        <div id="activity-matches-panel" class="learner-activity-matches__panel" data-panel hidden>
+                            <div class="learner-activity-matches__header">
+                                <div><h2>Hoạt động giúp bạn phát triển</h2><p>Đối chiếu kỹ năng cần rèn luyện với các hoạt động đang mở tại trường.</p></div>
+                                <button type="button" class="learner-btn" data-toggle aria-expanded="true" aria-controls="activity-matches-body">Thu gọn</button>
+                            </div>
+                            <div id="activity-matches-body" data-body>
+                                <p class="learner-activity-matches__status" data-status role="status" aria-live="polite"></p>
+                                <progress max="100" value="0" aria-label="Tiến trình phân tích minh họa" hidden></progress>
+                                <div data-cards></div>
+                            </div>
+                        </div>
+                    </section>
+
                     <p class="learner-visually-hidden" data-activity-result-status role="status" aria-live="polite">
                         <?= learner_escape(count($activityCatalog)); ?> hoạt động phù hợp
                     </p>
@@ -206,6 +235,7 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                                             loading="lazy"
                                             width="480"
                                             height="220"
+                                            onerror="this.onerror=null;this.src='assets/activities/illustrations/hero-discover.svg';"
                                         >
                                         <span class="learner-activity-discovery-card__open"><?= learner_icon('check', 14); ?> Đang mở</span>
                                         <span class="learner-activity-discovery-card__category"><?= learner_escape($displayCategory); ?></span>
@@ -246,5 +276,7 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
 
     <script src="../../assets/js/learner.js"></script>
     <script src="../../assets/js/learner-activities.js"></script>
+    <script src="../../assets/js/learner-api.js"></script>
+    <script src="../../assets/js/learner-activity-matches.js"></script>
 </body>
 </html>

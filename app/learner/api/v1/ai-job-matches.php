@@ -25,11 +25,12 @@ try {
     $context->mutation($request->header('x-csrf-token'));
     $context->allowedInput($request->json(), []);
     $idempotencyKey = $context->idempotencyKey($request->header('x-idempotency-key'));
-    (new PersistentActionRateLimiter($context->pdo()))->consume('learner.ai', $studentId, isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null);
+    $beforeGenerate = static fn () => (new PersistentActionRateLimiter($context->pdo()))->consume('learner.ai', $studentId, isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : null);
+    $result = $context->jobMatchingService($studentId)->generate($studentId, $context->requestId(), $idempotencyKey, $beforeGenerate);
     JsonResponder::sendSuccess(
-        $context->jobMatchingService($studentId)->generate($studentId, $context->requestId(), $idempotencyKey),
+        $result,
         $context->requestId(),
-        202,
+        ($result['state'] ?? null) === 'pending' ? 202 : 200,
     );
 } catch (ApiException $exception) {
     if ($exception->errorCode === 'AUTHENTICATION_REQUIRED') $exception = new ApiException(401, 'AUTH_REQUIRED', $exception->getMessage(), $exception->details, $exception->headers);

@@ -7,26 +7,6 @@ $pageTitle = 'Đánh giá & Nhận xét Năng lực';
 $currentRoute = '/app/learner/evaluation.php';
 $evaluationSourceState = 'ready';
 
-function learner_eval_classification(float $score): string {
-    $norm = $score > 10 ? $score / 10.0 : $score;
-    return match (true) {
-        $norm >= 8.5 => 'Xuất sắc',
-        $norm >= 7.0 => 'Tốt / Giỏi',
-        $norm >= 5.0 => 'Khá / Đạt',
-        default => 'Cần cải thiện',
-    };
-}
-
-function learner_eval_ranking(float $score): string {
-    $norm = $score > 10 ? $score / 10.0 : $score;
-    return match (true) {
-        $norm >= 9.0 => 'Mức xuất sắc (từ 9/10)',
-        $norm >= 8.0 => 'Mức nổi trội (từ 8/10)',
-        $norm >= 7.0 => 'Mức đạt chuẩn (từ 7/10)',
-        default => 'Đang rèn luyện và tiến bộ',
-    };
-}
-
 if ($isDatabaseMode) {
     try {
         $studentIdForEval = learner_current_student_id();
@@ -47,14 +27,14 @@ if ($isDatabaseMode) {
                 $parsedPublishedAt = date_create_immutable($publishedAt);
                 $publishedDate = $parsedPublishedAt === false ? $publishedAt : $parsedPublishedAt->format('d/m/Y');
             }
-            $activityTitle = trim((string) ($eval['activity_title'] ?? ''));
+            $activityTitle = trim((string) ($eval['context_label'] ?? '') . ' · ' . (string) ($eval['context_title'] ?? ''));
             $evaluationLabel = $activityTitle !== '' ? $activityTitle : 'Đánh giá đồ án & năng lực';
             if ($publishedDate !== '') {
                 $evaluationLabel .= ' · ' . $publishedDate;
             }
 
-            $rawScore = (float) ($eval['overall_score'] ?? 8.5);
-            $displayScore = $rawScore > 10 ? number_format($rawScore / 10.0, 1) : number_format($rawScore, 1);
+            $rawScore = $eval['overall_score'] === null ? null : (float) $eval['overall_score'];
+            $displayScore = \TalentHub\Support\CompetencyScore::display($rawScore);
 
             $criteria = [];
             $toneMap = ['primary', 'secondary', 'accent', 'primary', 'secondary'];
@@ -83,8 +63,8 @@ if ($isDatabaseMode) {
                     'criteria' => $criteria,
                     'total' => $displayScore,
                     'max_total' => '10',
-                    'classification' => learner_eval_classification($rawScore),
-                    'ranking' => learner_eval_ranking($rawScore),
+                    'classification' => \TalentHub\Support\GradeClassifier::getClassification($rawScore),
+                    'ranking' => 'Điểm năng lực trên thang 10',
                     'comment' => (string) ($eval['comment'] ?? 'Chưa có nhận xét chi tiết.'),
                     'reviewer' => $reviewerName,
                     'reviewer_initials' => $reviewerInitials,

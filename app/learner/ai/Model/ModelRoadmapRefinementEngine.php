@@ -16,6 +16,8 @@ use TalentHub\Learner\Ai\RateLimit\RecommendationRateLimiter;
 
 final class ModelRoadmapRefinementEngine
 {
+    private const RETRY_INSTRUCTION = 'The previous response failed validation. Return only a corrected JSON object that follows the supplied schema, preserves every immutable identifier and contains only claims supported by the supplied learner evidence.';
+
     public function __construct(
         private readonly RoadmapProvider $provider,
         private readonly RoadmapRefinementPromptRegistry $prompts,
@@ -40,43 +42,52 @@ final class ModelRoadmapRefinementEngine
             throw new RoadmapRefinementUnavailable('invalid_request');
         }
 
-        try {
-            $response = $this->provider->generate(
-                $request,
-                new BoundProviderAttemptAuthorizer($this->consentGate, $studentId, $input, $context),
-            );
-        } catch (ProviderConsentDenied $exception) {
-            $reason = in_array($exception->reason(), ['consent_revoked', 'consent_missing', 'consent_changed'], true)
-                ? $exception->reason()
-                : 'consent_changed';
-            throw new RoadmapRefinementUnavailable($reason);
-        } catch (\Throwable) {
-            throw new RoadmapRefinementUnavailable('provider_unavailable');
-        }
-        if (!$response->isSuccess()) {
-            $reason = (string) $response->errorCode();
-            if (!in_array($reason, ['rate_limited', 'provider_unavailable', 'provider_rejected', 'consent_revoked', 'consent_missing', 'consent_changed'], true)) {
-                $reason = 'provider_unavailable';
+        $attempts = min(2, $this->config->maxAttempts());
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            $attemptRequest = $attempt === 1 ? $request : $request->forValidationRetry(self::RETRY_INSTRUCTION);
+            try {
+                $response = $this->provider->generate(
+                    $attemptRequest,
+                    new BoundProviderAttemptAuthorizer($this->consentGate, $studentId, $input, $context),
+                );
+            } catch (ProviderConsentDenied $exception) {
+                $reason = in_array($exception->reason(), ['consent_revoked', 'consent_missing', 'consent_changed'], true)
+                    ? $exception->reason()
+                    : 'consent_changed';
+                throw new RoadmapRefinementUnavailable($reason);
+            } catch (\Throwable) {
+                throw new RoadmapRefinementUnavailable('provider_unavailable');
             }
-            throw new RoadmapRefinementUnavailable($reason);
-        }
-
-        try {
-            $candidate = RoadmapEditorDraft::fromArray($response->payload());
-            $draft->assertSameStructure($candidate);
-            $responseHash = (string) $response->responseHash();
-            if (preg_match('/\A[a-f0-9]{64}\z/', $responseHash) !== 1) {
-                throw new \RuntimeException('Missing refinement response hash.');
+            if (!$response->isSuccess()) {
+                $reason = (string) $response->errorCode();
+                if (!in_array($reason, ['rate_limited', 'provider_unavailable', 'provider_rejected', 'consent_revoked', 'consent_missing', 'consent_changed'], true)) {
+                    $reason = 'provider_unavailable';
+                }
+                throw new RoadmapRefinementUnavailable($reason);
             }
-        } catch (\Throwable) {
-            throw new RoadmapRefinementUnavailable('invalid_refinement_contract');
-        }
 
-        return [
-            'draft' => $candidate,
-            'provider_request_id' => $response->providerRequestId(),
-            'response_hash' => $responseHash,
-            'prompt_version' => $request->promptVersion(),
-        ];
+            try {
+                $candidate = RoadmapEditorDraft::fromArray($response->payload());
+                (new \TalentHub\Learner\Ai\Grounding\GroundedProseGuard())->assertTree(
+                    $candidate->toArray(), \TalentHub\Learner\Ai\Grounding\GroundedProseGuard::skillsFromInput($input),
+                );
+                $draft->assertSameStructure($candidate);
+                $responseHash = (string) $response->responseHash();
+                if (preg_match('/\A[a-f0-9]{64}\z/', $responseHash) !== 1) {
+                    throw new \RuntimeException('Missing refinement response hash.');
+                }
+                return [
+                    'draft' => $candidate,
+                    'provider_request_id' => $response->providerRequestId(),
+                    'response_hash' => $responseHash,
+                    'prompt_version' => $request->promptVersion(),
+                ];
+            } catch (\Throwable) {
+                if ($attempt === $attempts) {
+                    throw new RoadmapRefinementUnavailable('invalid_refinement_contract');
+                }
+            }
+        }
+        throw new RoadmapRefinementUnavailable('invalid_refinement_contract');
     }
 }

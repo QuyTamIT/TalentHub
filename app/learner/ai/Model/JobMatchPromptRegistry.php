@@ -13,7 +13,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
 
 final class JobMatchPromptRegistry
 {
-    public const VERSION = 'learner-job-match-1.2.0';
+    public const VERSION = 'learner-job-match-1.4.0';
 
     /**
      * @param list<OpportunityCandidate> $candidates
@@ -58,8 +58,13 @@ final class JobMatchPromptRegistry
                 'role' => 'Bạn là chuyên gia phân tích mức độ phù hợp vị trí cho học sinh, sinh viên. Chỉ giải thích từ dữ liệu được cung cấp; không tự tạo vị trí, doanh nghiệp, điểm số, URL hoặc bằng chứng.',
             ],
             'instructions' => [
+                ...\TalentHub\Learner\Ai\Grounding\GroundedProseGuard::instructions(),
                 'Trả về một phân tích riêng cho mỗi catalog_id trong candidate_allow_list.',
-                'analysis phải gồm 3 đến 4 câu tiếng Việt tự nhiên, giải thích vì sao phù hợp và khoảng kỹ năng cần cải thiện.',
+                'analysis gồm 5 đến 7 câu tiếng Việt, tối đa 2400 ký tự: kết luận mức phù hợp hiện tại; đối chiếu điểm mạnh, kỹ năng và kinh nghiệm đã xác nhận với yêu cầu vị trí; nêu hạn chế hoặc dữ liệu còn thiếu; bước chuẩn bị trước khi ứng tuyển nếu cần. Có thể dùng hai đoạn văn ngắn.',
+                'Mục tiêu là chọn vị trí phù hợp với năng lực hiện có. Khoảng thiếu là hạn chế khi ứng tuyển, không phải lý do đề cử vị trí để rèn kỹ năng yếu. Không khuyên ứng tuyển chỉ vì vị trí giúp bù điểm yếu.',
+                'assessment_signals phân biệt từng loại bài test; không gộp các chiều trùng tên giữa DISC, MBTI, Holland và MI, không xem điểm tính cách là điểm thành thạo kỹ năng. confirmed_experience_tags chỉ chứng minh kinh nghiệm đã xác nhận, không tự gán điểm kỹ năng.',
+                'current_score hoặc target_score null có nghĩa chưa biết, tuyệt đối không thay bằng 0. target_basis=candidate là yêu cầu của tin; role_benchmark là tiêu chí nghề tham khảo, không phải doanh nghiệp đã công bố. Giải thích sự khác biệt khi cần.',
+                'evidence_ref_ids phải gồm bằng chứng của chính vị trí đang giải thích và bằng chứng hồ sơ người học được dùng để đối chiếu; không viện dẫn vị trí khác. Chỉ nói đến kỹ năng trong skill_gaps của vị trí này.',
                 'Nếu total_score dưới 40, phải nói rõ vị trí hiện chưa phù hợp hoặc chưa đáp ứng, so sánh năng lực hiện tại với benchmark và giải thích cụ thể nguyên nhân có bằng chứng.',
                 'Mỗi item chỉ được trả đúng catalog_id, analysis và evidence_ref_ids; không lặp lại kỹ năng hoặc khoảng cách kỹ năng vì backend sẽ gắn dữ liệu canonical.',
                 'Chỉ dùng catalog_id và evidence_ref_ids có trong allow-list.',
@@ -67,11 +72,12 @@ final class JobMatchPromptRegistry
                 'Không hứa hẹn chắc chắn được tuyển dụng.',
             ],
             'input' => [
+                'matching_objective' => 'current_strengths_and_requirement_attainment',
                 'student_profile' => [
                     'education_band' => $profile->educationBand(),
                     'skills' => $profile->skills(),
-                    'assessment_dimensions' => $profile->assessmentDimensions(),
-                    'experience_tags' => $profile->experienceTags(),
+                    'assessment_signals' => $profile->assessmentSignals(),
+                    'confirmed_experience_tags' => $profile->confirmedExperienceTags(),
                 ],
                 'candidate_allow_list' => $jobs,
                 'deterministic_scores' => $scores,
@@ -99,7 +105,7 @@ final class JobMatchPromptRegistry
                     'required' => ['catalog_id', 'analysis', 'evidence_ref_ids'],
                     'properties' => [
                         'catalog_id' => ['type' => 'string', 'enum' => $catalogIds],
-                        'analysis' => ['type' => 'string', 'minLength' => 120, 'maxLength' => 1200],
+                        'analysis' => ['type' => 'string', 'minLength' => 120, 'maxLength' => 2400],
                         'evidence_ref_ids' => [
                             'type' => 'array', 'minItems' => 1, 'uniqueItems' => true,
                             'items' => ['type' => 'string', 'enum' => $evidenceRefs],
