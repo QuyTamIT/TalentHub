@@ -163,7 +163,7 @@
   const statusTone = (value) => ['active','verified','paid','sent','completed','approved'].includes(String(value).toLowerCase()) ? 'success' : ['rejected','failed','disabled','cancelled'].includes(String(value).toLowerCase()) ? 'danger' : 'warning';
   const formatCell = (key,value) => { if (dateKeys.has(key)) return escapeHtml(formatDate(value)); if (key==='role'||key==='type') return escapeHtml(roleLabels[value]||value||'—'); if (key==='isRead') return value ? 'Đã đọc' : 'Chưa đọc'; if (key==='amount'&&value!==null) return Number(value).toLocaleString('vi-VN'); if (key==='matchScore'&&value!==null&&value!=='') return `${Number(value).toLocaleString('vi-VN')}%`; if (key.toLowerCase().includes('status')) return `<span class="status-badge ${statusTone(value)}">${escapeHtml(statusLabels[String(value).toLowerCase()]||value||'—')}</span>`; return escapeHtml(value??'—'); };
   const labels = {
-    users:['Người dùng','Danh tính, vai trò, trạng thái và truy cập tài khoản.'],
+    users:['Quản lý người dùng','Phân khu tài khoản học đường, tổ chức và hệ thống vận hành.'],
     organizations:['Tổ chức','School, Enterprise và hàng đợi xác minh.'],
     activities:['Học tập & hoạt động','Theo dõi hoạt động, lịch và trạng thái vận hành.'],
     applications:['Cơ hội & ứng tuyển','Theo dõi quy trình và các hồ sơ cần duyệt.'],
@@ -204,6 +204,289 @@
     } catch (error) { showToast(`Không thể cập nhật dashboard: ${error.message}`); }
   };
 
+  const svgIcon = (name) => {
+    const paths = {
+      book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+      building: '<path d="M3 21h18M6 21V5l6-3 6 3v16M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01"/>',
+      briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M12 12v.01M3 12a18 18 0 0 0 18 0"/>',
+      shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
+      search: '<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>',
+      pulse: '<path d="M3 12h4l2-7 4 14 2-7h6"/>',
+      plus: '<path d="M12 5v14M5 12h14"/>',
+      refresh: '<path d="M21 12a9 9 0 1 1-2.63-6.36L21 8"/><path d="M21 3v5h-5"/>',
+      check: '<polyline points="20 6 9 17 4 12"/>',
+    };
+    return `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.search}</svg>`;
+  };
+
+  let activeUserZone = 'education';
+  let activeUserSubRole = 'all';
+  let activeUserStatus = 'all';
+  let activeUserSearch = '';
+  let userActionsRef = null;
+
+  const userZones = [
+    {
+      id: 'education',
+      number: 'KHU 1',
+      name: 'NGƯỜI DÙNG HỌC ĐƯỜNG',
+      shortName: 'Người dùng học đường',
+      subtitle: 'Học sinh & Giáo viên',
+      roles: ['student', 'teacher'],
+      icon: 'book',
+      roleMap: {
+        student: 'Học sinh',
+        teacher: 'Giáo viên',
+      },
+    },
+    {
+      id: 'school',
+      number: 'KHU 2',
+      name: 'NHÀ TRƯỜNG',
+      shortName: 'Nhà trường',
+      subtitle: 'Trường học & Cơ sở đào tạo',
+      roles: ['school'],
+      icon: 'building',
+      roleMap: {
+        school: 'Nhà trường',
+      },
+    },
+    {
+      id: 'enterprise',
+      number: 'KHU 3',
+      name: 'DOANH NGHIỆP',
+      shortName: 'Doanh nghiệp',
+      subtitle: 'Đối tác & Doanh nghiệp',
+      roles: ['enterprise'],
+      icon: 'briefcase',
+      roleMap: {
+        enterprise: 'Doanh nghiệp',
+      },
+    },
+    {
+      id: 'system',
+      number: 'KHU 4',
+      name: 'QUẢN TRỊ HỆ THỐNG',
+      shortName: 'Quản trị hệ thống',
+      subtitle: 'Quản trị nền tảng',
+      roles: ['platform_admin', 'admin'],
+      icon: 'shield',
+      roleMap: {
+        platform_admin: 'Quản trị nền tảng',
+        admin: 'Quản trị viên',
+      },
+    },
+  ];
+
+  const getFilteredUsers = (currentZone) => {
+    const zoneUsers = currentRows.filter((r) => currentZone.roles.includes(r.role));
+    let filtered = zoneUsers;
+    if (activeUserSubRole !== 'all') {
+      filtered = filtered.filter((r) => r.role === activeUserSubRole);
+    }
+    if (activeUserStatus !== 'all') {
+      filtered = filtered.filter((r) => String(r.status).toLowerCase() === activeUserStatus);
+    }
+    if (activeUserSearch.trim() !== '') {
+      const q = normalizeSearch(activeUserSearch.trim());
+      filtered = filtered.filter((r) => {
+        const nameMatch = normalizeSearch(r.fullName).includes(q);
+        const emailMatch = normalizeSearch(r.email).includes(q);
+        const idMatch = normalizeSearch(r.id).includes(q);
+        return nameMatch || emailMatch || idMatch;
+      });
+    }
+    return { zoneUsers, filtered };
+  };
+
+  const renderUserTable = (rows, currentZone, zoneUsers, actions) => {
+    if (!rows.length) {
+      return `<div class="user-empty-state">
+        <div class="empty-icon-box">${svgIcon('search')}</div>
+        <strong>Không tìm thấy tài khoản phù hợp</strong>
+        <p>Không có tài khoản nào trong "${escapeHtml(currentZone.shortName)}" khớp với từ khóa tìm kiếm hoặc bộ lọc trạng thái đã chọn.</p>
+        ${(activeUserSearch || activeUserStatus !== 'all' || activeUserSubRole !== 'all') ? `
+          <button type="button" class="button secondary small user-btn-reset-filters" data-user-reset-filters>Xóa tất cả bộ lọc</button>
+        ` : ''}
+      </div>`;
+    }
+    return `
+      <div class="table-scroll user-table-scroll">
+        <table class="user-table">
+          <caption class="sr-only">Danh sách người dùng ${escapeHtml(currentZone.name)}</caption>
+          <thead>
+            <tr>
+              <th scope="col" class="th-user">Họ và tên</th>
+              <th scope="col" class="th-email">Email</th>
+              <th scope="col" class="th-role">Vai trò</th>
+              <th scope="col" class="th-status">Trạng thái</th>
+              <th scope="col" class="th-created">Ngày tạo</th>
+              <th scope="col" class="th-lastlogin">Đăng nhập gần nhất</th>
+              <th scope="col" class="th-actions">Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((row) => `
+              <tr class="user-table-row">
+                <td class="td-user">
+                  <div class="user-identity-cell">
+                    <span class="user-avatar-mini" aria-hidden="true">${escapeHtml(String(row.fullName || row.email || '?').slice(0, 1).toUpperCase())}</span>
+                    <div class="user-identity-info">
+                      <strong class="user-fullname">${escapeHtml(row.fullName || '—')}</strong>
+                      <span class="user-id-sub" title="Mã ID: ${escapeHtml(row.id || '')}">#${escapeHtml(String(row.id || '').slice(0, 8))}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="td-email">
+                  <span class="user-email-text" title="${escapeHtml(row.email || '')}">${escapeHtml(row.email || '—')}</span>
+                </td>
+                <td class="td-role">
+                  <span class="user-role-badge role-${escapeHtml(row.role)}">${escapeHtml(roleLabels[row.role] || row.role)}</span>
+                </td>
+                <td class="td-status">
+                  <span class="user-status-pill status-${escapeHtml(String(row.status || '').toLowerCase())}">
+                    <span class="status-dot-mini" aria-hidden="true"></span>
+                    <span>${escapeHtml(statusLabels[String(row.status).toLowerCase()] || row.status || '—')}</span>
+                  </span>
+                </td>
+                <td class="td-created">
+                  <time class="user-datetime">${escapeHtml(formatDate(row.createdAt))}</time>
+                </td>
+                <td class="td-lastlogin">
+                  <time class="user-datetime">${escapeHtml(formatDate(row.lastLoginAt))}</time>
+                </td>
+                <td class="td-actions">
+                  ${actions(row)}
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  };
+
+  const renderUsersSection = (actions) => {
+    userActionsRef = actions;
+    const currentZone = userZones.find((z) => z.id === activeUserZone) || userZones[0];
+    const { zoneUsers, filtered } = getFilteredUsers(currentZone);
+
+    const categoryNavHtml = `
+      <nav class="user-category-nav" role="tablist" aria-label="Phân khu quản lý người dùng">
+        ${userZones.map((zone) => {
+          const count = currentRows.filter((r) => zone.roles.includes(r.role)).length;
+          const isActive = zone.id === activeUserZone;
+          return `
+            <div class="user-cat-card ${isActive ? 'is-active' : ''}" data-zone-select="${zone.id}" role="tab" tabindex="0" aria-selected="${isActive}">
+              <div class="user-cat-accent" aria-hidden="true"></div>
+              <div class="user-cat-inner">
+                <div class="user-cat-icon-box">
+                  ${svgIcon(zone.icon)}
+                </div>
+                <div class="user-cat-info">
+                  <div class="user-cat-heading">
+                    <span class="user-cat-number">${zone.number}</span>
+                    <span class="user-cat-sep">·</span>
+                    <h3 class="user-cat-name">${zone.shortName}</h3>
+                    <span class="user-cat-count-pill">${count.toLocaleString('vi-VN')}</span>
+                  </div>
+                  <div class="user-cat-meta">
+                    <span class="user-cat-sublabel">${zone.subtitle}</span>
+                    <span class="user-cat-dot">·</span>
+                    <span class="user-cat-role-chips">
+                      ${zone.roles.map((r) => {
+                        const rCount = currentRows.filter((row) => row.role === r).length;
+                        return `<span class="cat-mini-chip">${zone.roleMap[r] || r} <b class="chip-num">(${rCount})</b></span>`;
+                      }).join('')}
+                    </span>
+                    ${isActive ? `<span class="active-tag" title="Đang quản lý khu vực này"><span class="active-dot"></span>Đang xem</span>` : ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </nav>
+    `;
+
+    moduleContent.innerHTML = `
+      <div class="user-management-wrapper">
+        ${categoryNavHtml}
+        <section class="panel user-management-panel" aria-labelledby="user-panel-heading-title">
+          <div class="user-panel-toolbar">
+            <div class="user-toolbar-primary">
+              <div class="user-context-meta">
+                <h3 id="user-panel-heading-title" class="user-context-title">${currentZone.shortName}</h3>
+                <span class="user-context-count" data-user-zone-count>${filtered.length.toLocaleString('vi-VN')} / ${zoneUsers.length.toLocaleString('vi-VN')} tài khoản</span>
+              </div>
+
+              ${currentZone.roles.length > 1 ? `
+                <div class="user-subrole-tabs" role="tablist" aria-label="Lọc theo vai trò">
+                  <button type="button" class="user-tab-item ${activeUserSubRole === 'all' ? 'is-active' : ''}" data-user-subrole="all">
+                    Tất cả vai trò <span class="tab-num">(${zoneUsers.length})</span>
+                  </button>
+                  ${currentZone.roles.map((r) => {
+                    const rCount = currentRows.filter((row) => row.role === r).length;
+                    return `
+                      <button type="button" class="user-tab-item ${activeUserSubRole === r ? 'is-active' : ''}" data-user-subrole="${r}">
+                        ${currentZone.roleMap[r] || r} <span class="tab-num">(${rCount})</span>
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              ` : ''}
+
+              <div class="user-toolbar-ctas">
+                <button class="button secondary small user-btn-refresh" type="button" data-user-refresh-btn title="Làm mới danh sách dữ liệu">
+                  ${svgIcon('refresh')}
+                  <span>Làm mới</span>
+                </button>
+                <button class="button primary small user-btn-create" type="button" data-user-create title="Thêm tài khoản người dùng mới">
+                  ${svgIcon('plus')}
+                  <span>Thêm tài khoản</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="user-toolbar-secondary">
+              <div class="user-search-wrapper">
+                ${svgIcon('search')}
+                <input type="search" class="user-search-input" placeholder="Tìm kiếm theo tên, email, ID..." value="${escapeHtml(activeUserSearch)}" data-user-search-input>
+                ${activeUserSearch ? `<button type="button" class="user-search-clear" data-user-search-clear aria-label="Xóa tìm kiếm">&times;</button>` : ''}
+              </div>
+
+              <div class="user-filter-controls">
+                <label for="user-status-filter-select" class="user-filter-label">Trạng thái:</label>
+                <select id="user-status-filter-select" class="typeui-select user-status-filter" data-user-status-select>
+                  <option value="all"${activeUserStatus === 'all' ? ' selected' : ''}>Tất cả trạng thái</option>
+                  <option value="active"${activeUserStatus === 'active' ? ' selected' : ''}>Đang hoạt động</option>
+                  <option value="pending"${activeUserStatus === 'pending' ? ' selected' : ''}>Chờ duyệt</option>
+                  <option value="suspended"${activeUserStatus === 'suspended' ? ' selected' : ''}>Tạm khóa</option>
+                  <option value="disabled"${activeUserStatus === 'disabled' ? ' selected' : ''}>Vô hiệu hóa</option>
+                </select>
+              </div>
+
+              <div class="user-filter-status-info" data-user-filter-info>
+                ${(activeUserSearch || activeUserStatus !== 'all' || activeUserSubRole !== 'all') ? `
+                  <span class="user-filtered-tag">
+                    Đang lọc: <b>${filtered.length}</b> kết quả
+                    <button type="button" class="user-btn-reset-filters" data-user-reset-filters title="Xóa toàn bộ bộ lọc">Xóa lọc</button>
+                  </span>
+                ` : `
+                  <span class="user-total-info">Hiển thị toàn bộ <b>${filtered.length}</b> tài khoản</span>
+                `}
+              </div>
+            </div>
+          </div>
+
+          <div class="user-table-wrap">
+            ${renderUserTable(filtered, currentZone, zoneUsers, actions)}
+          </div>
+        </section>
+      </div>
+    `;
+  };
+
   const table = (rows, actions = null) => {
     if (!rows.length) return '<div class="empty-state"><strong>Chưa có dữ liệu</strong><p>Không có bản ghi phù hợp với bộ lọc hiện tại.</p></div>';
     const columns = Object.keys(rows[0]).filter((key) => key !== 'passwordHash'&&!hiddenColumns.has(key));
@@ -221,14 +504,19 @@
       return;
     }
     currentRows = data.items || [];
-    const actions = section === 'users' ? (row) => {const organizationPending=['school','enterprise'].includes(row.role)&&row.status==='pending';return `<div class="row-actions"><button class="button secondary small" data-user-edit data-id="${escapeHtml(row.id)}">Sửa</button>${organizationPending?'<span class="action-note">Duyệt tại Tổ chức</span>':`<button class="button secondary small" data-user-action data-id="${escapeHtml(row.id)}" data-status="${row.status==='active'?'suspended':'active'}">${row.status==='active'?'Đình chỉ':'Kích hoạt'}</button>`}${row.status!=='disabled'?`<button class="button danger small" data-user-delete data-id="${escapeHtml(row.id)}">Vô hiệu hóa</button>`:''}</div>`;} : section === 'organizations' ? (row) => `<button class="button secondary small" data-org-action data-id="${escapeHtml(row.id)}" data-type="${escapeHtml(row.type)}" data-current-status="${escapeHtml(row.verificationStatus)}">Xem xét</button>` : null;
+    const actions = section === 'users' ? (row) => {
+      const organizationPending = ['school','enterprise'].includes(row.role) && row.status === 'pending';
+      return `<div class="row-actions user-row-actions"><button class="button secondary small user-act-btn edit" data-user-edit data-id="${escapeHtml(row.id)}" title="Sửa tài khoản">Sửa</button>${organizationPending ? '<span class="action-note action-note-badge" title="Tổ chức cần xác minh">Duyệt tại Tổ chức</span>' : `<button class="button secondary small user-act-btn toggle ${row.status === 'active' ? 'is-suspend' : 'is-activate'}" data-user-action data-id="${escapeHtml(row.id)}" data-status="${row.status === 'active' ? 'suspended' : 'active'}" title="${row.status === 'active' ? 'Đình chỉ tài khoản' : 'Kích hoạt lại'}">${row.status === 'active' ? 'Đình chỉ' : 'Kích hoạt'}</button>`}${row.status !== 'disabled' ? `<button class="button danger small user-act-btn delete" data-user-delete data-id="${escapeHtml(row.id)}" title="Vô hiệu hóa tài khoản">Vô hiệu hóa</button>` : ''}</div>`;
+    } : section === 'organizations' ? (row) => `<button class="button secondary small" data-org-action data-id="${escapeHtml(row.id)}" data-type="${escapeHtml(row.type)}" data-current-status="${escapeHtml(row.verificationStatus)}">Xem xét</button>` : null;
     if (section === 'organizations') {
-      const schools=currentRows.filter((row)=>row.type==='school');
-      const enterprises=currentRows.filter((row)=>row.type==='enterprise');
-      moduleContent.innerHTML=`<div class="organization-groups"><section><div class="organization-group-heading"><h3>Nhà trường</h3><span>${schools.length.toLocaleString('vi-VN')} tổ chức</span></div>${table(schools,actions)}</section><section><div class="organization-group-heading"><h3>Doanh nghiệp</h3><span>${enterprises.length.toLocaleString('vi-VN')} tổ chức</span></div>${table(enterprises,actions)}</section></div>`;
+      renderOrganizationsSection(actions);
       return;
     }
-    moduleContent.innerHTML = (section==='users'?'<button class="button primary module-primary-action" data-user-create>Thêm tài khoản</button>':'')+table(currentRows, actions);
+    if (section === 'users') {
+      renderUsersSection(actions);
+      return;
+    }
+    moduleContent.innerHTML = table(currentRows, actions);
   };
   const loadSection = async (section, search = '') => {
     currentSection = section;
@@ -242,6 +530,9 @@
     }
     dashboardView.hidden=true;moduleView.hidden=false;moduleContent.hidden=true;moduleState.hidden=false;moduleState.textContent='Đang tải dữ liệu…';
     const [title,description]=labels[section]||['Module Admin',''];document.querySelector('[data-module-title]').textContent=title;document.querySelector('[data-module-description]').textContent=description;if(moduleSearch){moduleSearch.value=search;moduleSearch.placeholder=`Tìm trong ${title.toLocaleLowerCase('vi')}...`;}
+    const moduleTools = document.querySelector('.module-toolbar .table-tools');
+    if (moduleTools) moduleTools.hidden = (section === 'users' || section === 'organizations');
+    if (section === 'users') activeUserSearch = search;
     const basePath = ['users','organizations','audit','rbac','system'].includes(section)?`/admin/${section}`:`/admin/resources/${section}`;
     const path = ['users','organizations'].includes(section) && search !== '' ? `${basePath}?search=${encodeURIComponent(search)}` : basePath;
     try { const data=await api(path);renderModule(section,data);moduleState.hidden=true;moduleContent.hidden=false;history.replaceState(null,'',`#${section}`); }
@@ -256,15 +547,477 @@
   let moduleSearchTimer=null;
   moduleSearch?.addEventListener('input',()=>{const query=moduleSearch.value.trim();if(['users','organizations'].includes(currentSection)){window.clearTimeout(moduleSearchTimer);moduleSearchTimer=window.setTimeout(()=>loadSection(currentSection,query),250);return;}const normalized=query.toLocaleLowerCase('vi');moduleContent.querySelectorAll('tbody tr').forEach((row)=>row.hidden=normalized!==''&&!row.textContent.toLocaleLowerCase('vi').includes(normalized));});
 
+  let orgSchoolSearch = '';
+  let orgSchoolVerification = 'all';
+  let orgEnterpriseSearch = '';
+  let orgEnterpriseVerification = 'all';
+  let orgActionsRef = null;
+
+  const getFilteredSchools = (schools) => {
+    return schools.filter((row) => {
+      if (orgSchoolVerification !== 'all') {
+        const v = String(row.verificationStatus || '').toLowerCase();
+        if (v !== orgSchoolVerification) return false;
+      }
+      if (orgSchoolSearch) {
+        const q = normalizeSearch(orgSchoolSearch);
+        const text = normalizeSearch(`${row.name || ''} ${row.id || ''} ${row.email || ''}`);
+        if (!text.includes(q)) return false;
+      }
+      return true;
+    });
+  };
+
+  const getFilteredEnterprises = (enterprises) => {
+    return enterprises.filter((row) => {
+      if (orgEnterpriseVerification !== 'all') {
+        const v = String(row.verificationStatus || '').toLowerCase();
+        if (v !== orgEnterpriseVerification) return false;
+      }
+      if (orgEnterpriseSearch) {
+        const q = normalizeSearch(orgEnterpriseSearch);
+        const text = normalizeSearch(`${row.name || ''} ${row.id || ''} ${row.email || ''}`);
+        if (!text.includes(q)) return false;
+      }
+      return true;
+    });
+  };
+
+  const renderOrgTable = (rows, type, totalCount, actions) => {
+    if (!rows.length) {
+      return `
+        <div class="empty-state compact">
+          <strong>Không tìm thấy ${type === 'school' ? 'nhà trường' : 'doanh nghiệp'}</strong>
+          <p>Không có dữ liệu phù hợp với bộ lọc tìm kiếm hiện tại.</p>
+        </div>
+      `;
+    }
+    return `
+      <div class="table-scroll org-table-scroll">
+        <table class="org-data-table">
+          <caption class="sr-only">Danh sách ${type === 'school' ? 'nhà trường' : 'doanh nghiệp'}</caption>
+          <thead>
+            <tr>
+              <th scope="col" class="th-org-name">TỔ CHỨC</th>
+              <th scope="col" class="th-org-status">TRẠNG THÁI</th>
+              <th scope="col" class="th-org-verification">XÁC MINH</th>
+              <th scope="col" class="th-org-created">NGÀY TẠO</th>
+              <th scope="col" class="th-org-actions text-right">HÀNH ĐỘNG</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((row) => {
+              const statusKey = String(row.status || 'active').toLowerCase();
+              const vKey = String(row.verificationStatus || 'pending').toLowerCase();
+              const logoLetter = escapeHtml(String(row.name || '?').trim().slice(0, 1).toUpperCase());
+              const isVerified = ['verified', 'active', 'hoạt động', 'đã xác minh'].includes(vKey);
+              const isPending = ['pending', 'chờ duyệt', 'chờ xác minh'].includes(vKey);
+              const isRejected = ['rejected', 'từ chối'].includes(vKey);
+              const verifTone = isVerified ? 'v-verified' : isPending ? 'v-pending' : isRejected ? 'v-rejected' : 'v-verified';
+              const verifLabel = isVerified ? 'Đã xác minh' : isPending ? 'Chờ xác minh' : isRejected ? 'Từ chối' : 'Đã xác minh';
+              return `
+                <tr class="org-row" data-org-id="${escapeHtml(row.id)}">
+                  <td class="td-org-name">
+                    <div class="org-cell-identity">
+                      <div class="org-cell-avatar type-${type}" aria-hidden="true">${logoLetter}</div>
+                      <div class="org-cell-details">
+                        <strong class="org-cell-title">${escapeHtml(row.name || 'Tổ chức')}</strong>
+                        <div class="org-cell-sub">
+                          <span class="org-cell-id">#${escapeHtml(String(row.id || '').slice(0, 8))}</span>
+                          ${row.email ? `<span class="org-cell-email">${escapeHtml(row.email)}</span>` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="td-org-status">
+                    <span class="user-status-pill status-${statusKey}">
+                      <span class="status-dot"></span>
+                      <span class="status-text">${escapeHtml(statusLabels[statusKey] || row.status || 'Hoạt động')}</span>
+                    </span>
+                  </td>
+                  <td class="td-org-verification">
+                    <span class="org-verif-badge ${verifTone}">
+                      <span class="verif-dot"></span>
+                      <span class="verif-text">${escapeHtml(verifLabel)}</span>
+                    </span>
+                  </td>
+                  <td class="td-org-created">
+                    <time class="user-datetime">${escapeHtml(formatDate(row.createdAt))}</time>
+                  </td>
+                  <td class="td-org-actions text-right">
+                    <button class="button secondary small org-action-btn" type="button" data-org-action data-id="${escapeHtml(row.id)}" data-type="${escapeHtml(row.type)}" data-current-status="${escapeHtml(row.verificationStatus || 'pending')}" title="Xem xét hồ sơ tổ chức">
+                      Xem xét
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  };
+
+  const renderOrganizationsSection = (actions) => {
+    orgActionsRef = actions;
+    const schools = currentRows.filter((row) => row.type === 'school');
+    const enterprises = currentRows.filter((row) => row.type === 'enterprise');
+
+    const filteredSchools = getFilteredSchools(schools);
+    const filteredEnterprises = getFilteredEnterprises(enterprises);
+
+    moduleContent.innerHTML = `
+      <div class="org-management-wrapper">
+        <!-- KHU 1: TỔNG QUAN (2 card nhỏ gọn) -->
+        <section class="org-overview-panel" aria-label="Tổng quan số liệu tổ chức">
+          <div class="org-overview-grid">
+            <!-- Card 1: Nhà trường -->
+            <div class="org-stat-card card-school">
+              <div class="org-stat-header">
+                <div class="org-stat-icon-wrap icon-school">
+                  ${svgIcon('building')}
+                </div>
+                <div class="org-stat-heading-meta">
+                  <span class="org-stat-kicker">KHU 1 — ĐÀO TẠO</span>
+                  <h4 class="org-stat-title">Nhà trường</h4>
+                </div>
+              </div>
+              <div class="org-stat-body">
+                <div class="org-stat-main-num">
+                  <strong class="org-stat-val">${schools.length.toLocaleString('vi-VN')}</strong>
+                  <span class="org-stat-unit">tổ chức giáo dục</span>
+                </div>
+                <div class="org-stat-chips">
+                  <span class="org-chip chip-verified">
+                    <span class="chip-dot"></span><b>${schools.length}</b> đang hoạt động
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 2: Doanh nghiệp -->
+            <div class="org-stat-card card-enterprise">
+              <div class="org-stat-header">
+                <div class="org-stat-icon-wrap icon-enterprise">
+                  ${svgIcon('briefcase')}
+                </div>
+                <div class="org-stat-heading-meta">
+                  <span class="org-stat-kicker">KHU 2 — ĐỐI TÁC</span>
+                  <h4 class="org-stat-title">Doanh nghiệp</h4>
+                </div>
+              </div>
+              <div class="org-stat-body">
+                <div class="org-stat-main-num">
+                  <strong class="org-stat-val">${enterprises.length.toLocaleString('vi-VN')}</strong>
+                  <span class="org-stat-unit">doanh nghiệp liên kết</span>
+                </div>
+                <div class="org-stat-chips">
+                  <span class="org-chip chip-verified">
+                    <span class="chip-dot"></span><b>${enterprises.length}</b> đang hoạt động
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- KHU 2: NHÀ TRƯỜNG -->
+        <section class="panel org-section-card" id="org-schools-section" aria-labelledby="org-schools-title">
+          <div class="org-card-header">
+            <div class="org-header-left">
+              <div class="org-header-badge icon-school">
+                ${svgIcon('building')}
+              </div>
+              <div>
+                <div class="org-title-line">
+                  <h3 id="org-schools-title" class="org-section-title">Nhà trường</h3>
+                  <span class="org-count-tag" data-school-count-pill>${filteredSchools.length} / ${schools.length} tổ chức</span>
+                </div>
+                <p class="org-section-sub">Trường đại học, cao đẳng và các cơ sở giáo dục đối tác</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="org-section-toolbar">
+            <div class="org-search-box">
+              ${svgIcon('search')}
+              <input type="search" class="org-input-search" placeholder="Tìm trường học theo tên, mã ID..." value="${escapeHtml(orgSchoolSearch)}" data-school-search-input>
+              ${orgSchoolSearch ? `<button type="button" class="org-clear-btn" data-school-search-clear aria-label="Xóa tìm kiếm">&times;</button>` : ''}
+            </div>
+
+            <div class="org-filter-group">
+              <label for="org-school-verification-select" class="org-label-filter">Xác minh:</label>
+              <select id="org-school-verification-select" class="typeui-select org-select-field" data-school-verification-select>
+                <option value="all"${orgSchoolVerification === 'all' ? ' selected' : ''}>Tất cả trạng thái</option>
+                <option value="verified"${orgSchoolVerification === 'verified' ? ' selected' : ''}>Đã xác minh</option>
+                <option value="pending"${orgSchoolVerification === 'pending' ? ' selected' : ''}>Chờ duyệt</option>
+                <option value="rejected"${orgSchoolVerification === 'rejected' ? ' selected' : ''}>Từ chối</option>
+              </select>
+            </div>
+
+            <div class="org-toolbar-status-meta">
+              ${(orgSchoolSearch || orgSchoolVerification !== 'all') ? `
+                <span class="org-active-filter-badge">
+                  Đang lọc: <b>${filteredSchools.length}</b> kết quả
+                  <button type="button" class="org-btn-reset" data-school-reset-filters title="Xóa lọc">Xóa lọc</button>
+                </span>
+              ` : `
+                <span class="org-all-count-text">Hiển thị <b>${schools.length}</b> trường học</span>
+              `}
+            </div>
+          </div>
+
+          <div class="org-table-container" data-schools-table-wrap>
+            ${renderOrgTable(filteredSchools, 'school', schools.length, actions)}
+          </div>
+        </section>
+
+        <!-- KHU 3: DOANH NGHIỆP -->
+        <section class="panel org-section-card" id="org-enterprises-section" aria-labelledby="org-enterprises-title">
+          <div class="org-card-header">
+            <div class="org-header-left">
+              <div class="org-header-badge icon-enterprise">
+                ${svgIcon('briefcase')}
+              </div>
+              <div>
+                <div class="org-title-line">
+                  <h3 id="org-enterprises-title" class="org-section-title">Doanh nghiệp</h3>
+                  <span class="org-count-tag" data-enterprise-count-pill>${filteredEnterprises.length} / ${enterprises.length} tổ chức</span>
+                </div>
+                <p class="org-section-sub">Doanh nghiệp, công ty tiếp nhận thực tập và đối tác tuyển dụng</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="org-section-toolbar">
+            <div class="org-search-box">
+              ${svgIcon('search')}
+              <input type="search" class="org-input-search" placeholder="Tìm doanh nghiệp theo tên, mã ID..." value="${escapeHtml(orgEnterpriseSearch)}" data-enterprise-search-input>
+              ${orgEnterpriseSearch ? `<button type="button" class="org-clear-btn" data-enterprise-search-clear aria-label="Xóa tìm kiếm">&times;</button>` : ''}
+            </div>
+
+            <div class="org-filter-group">
+              <label for="org-enterprise-verification-select" class="org-label-filter">Xác minh:</label>
+              <select id="org-enterprise-verification-select" class="typeui-select org-select-field" data-enterprise-verification-select>
+                <option value="all"${orgEnterpriseVerification === 'all' ? ' selected' : ''}>Tất cả trạng thái</option>
+                <option value="verified"${orgEnterpriseVerification === 'verified' ? ' selected' : ''}>Đã xác minh</option>
+                <option value="pending"${orgEnterpriseVerification === 'pending' ? ' selected' : ''}>Chờ duyệt</option>
+                <option value="rejected"${orgEnterpriseVerification === 'rejected' ? ' selected' : ''}>Từ chối</option>
+              </select>
+            </div>
+
+            <div class="org-toolbar-status-meta">
+              ${(orgEnterpriseSearch || orgEnterpriseVerification !== 'all') ? `
+                <span class="org-active-filter-badge">
+                  Đang lọc: <b>${filteredEnterprises.length}</b> kết quả
+                  <button type="button" class="org-btn-reset" data-enterprise-reset-filters title="Xóa lọc">Xóa lọc</button>
+                </span>
+              ` : `
+                <span class="org-all-count-text">Hiển thị <b>${enterprises.length}</b> doanh nghiệp</span>
+              `}
+            </div>
+          </div>
+
+          <div class="org-table-container" data-enterprises-table-wrap>
+            ${renderOrgTable(filteredEnterprises, 'enterprise', enterprises.length, actions)}
+          </div>
+        </section>
+      </div>
+    `;
+  };
+
+  const updateSchoolTableView = () => {
+    const schools = currentRows.filter((row) => row.type === 'school');
+    const filteredSchools = getFilteredSchools(schools);
+    const wrap = moduleContent.querySelector('[data-schools-table-wrap]');
+    if (wrap) wrap.innerHTML = renderOrgTable(filteredSchools, 'school', schools.length, orgActionsRef);
+    const pill = moduleContent.querySelector('[data-school-count-pill]');
+    if (pill) pill.textContent = `${filteredSchools.length} / ${schools.length} tổ chức`;
+    const statusMeta = moduleContent.querySelector('#org-schools-section .org-toolbar-status-meta');
+    if (statusMeta) {
+      statusMeta.innerHTML = (orgSchoolSearch || orgSchoolVerification !== 'all')
+        ? `<span class="org-active-filter-badge">Đang lọc: <b>${filteredSchools.length}</b> kết quả <button type="button" class="org-btn-reset" data-school-reset-filters title="Xóa lọc">Xóa lọc</button></span>`
+        : `<span class="org-all-count-text">Hiển thị <b>${schools.length}</b> trường học</span>`;
+    }
+  };
+
+  const updateEnterpriseTableView = () => {
+    const enterprises = currentRows.filter((row) => row.type === 'enterprise');
+    const filteredEnterprises = getFilteredEnterprises(enterprises);
+    const wrap = moduleContent.querySelector('[data-enterprises-table-wrap]');
+    if (wrap) wrap.innerHTML = renderOrgTable(filteredEnterprises, 'enterprise', enterprises.length, orgActionsRef);
+    const pill = moduleContent.querySelector('[data-enterprise-count-pill]');
+    if (pill) pill.textContent = `${filteredEnterprises.length} / ${enterprises.length} tổ chức`;
+    const statusMeta = moduleContent.querySelector('#org-enterprises-section .org-toolbar-status-meta');
+    if (statusMeta) {
+      statusMeta.innerHTML = (orgEnterpriseSearch || orgEnterpriseVerification !== 'all')
+        ? `<span class="org-active-filter-badge">Đang lọc: <b>${filteredEnterprises.length}</b> kết quả <button type="button" class="org-btn-reset" data-enterprise-reset-filters title="Xóa lọc">Xóa lọc</button></span>`
+        : `<span class="org-all-count-text">Hiển thị <b>${enterprises.length}</b> doanh nghiệp</span>`;
+    }
+  };
+
+  const updateUserTableView = () => {
+    const currentZone = userZones.find((z) => z.id === activeUserZone) || userZones[0];
+    const { zoneUsers, filtered } = getFilteredUsers(currentZone);
+    const countBadge = moduleContent.querySelector('[data-user-zone-count]');
+    if (countBadge) countBadge.textContent = `${filtered.length.toLocaleString('vi-VN')} / ${zoneUsers.length.toLocaleString('vi-VN')} tài khoản`;
+    const filterInfo = moduleContent.querySelector('[data-user-filter-info]');
+    if (filterInfo) {
+      filterInfo.innerHTML = (activeUserSearch || activeUserStatus !== 'all' || activeUserSubRole !== 'all')
+        ? `<span class="user-filtered-tag">Đang lọc: <b>${filtered.length}</b> kết quả <button type="button" class="user-btn-reset-filters" data-user-reset-filters title="Xóa toàn bộ bộ lọc">Xóa lọc</button></span>`
+        : `<span class="user-total-info">Hiển thị toàn bộ <b>${filtered.length}</b> tài khoản</span>`;
+    }
+    const tableWrap = moduleContent.querySelector('.user-table-wrap');
+    if (tableWrap) tableWrap.innerHTML = renderUserTable(filtered, currentZone, zoneUsers, userActionsRef);
+  };
+
+  moduleContent?.addEventListener('click', (event) => {
+    if (currentSection === 'organizations') {
+      const refreshBtn = event.target.closest('[data-org-refresh-btn]');
+      if (refreshBtn) {
+        loadSection('organizations');
+        return;
+      }
+      const schoolClear = event.target.closest('[data-school-search-clear]');
+      if (schoolClear) {
+        orgSchoolSearch = '';
+        const input = moduleContent.querySelector('[data-school-search-input]');
+        if (input) input.value = '';
+        updateSchoolTableView();
+        return;
+      }
+      const schoolReset = event.target.closest('[data-school-reset-filters]');
+      if (schoolReset) {
+        orgSchoolSearch = '';
+        orgSchoolVerification = 'all';
+        const input = moduleContent.querySelector('[data-school-search-input]');
+        if (input) input.value = '';
+        const select = moduleContent.querySelector('[data-school-verification-select]');
+        if (select) select.value = 'all';
+        updateSchoolTableView();
+        return;
+      }
+      const enterpriseClear = event.target.closest('[data-enterprise-search-clear]');
+      if (enterpriseClear) {
+        orgEnterpriseSearch = '';
+        const input = moduleContent.querySelector('[data-enterprise-search-input]');
+        if (input) input.value = '';
+        updateEnterpriseTableView();
+        return;
+      }
+      const enterpriseReset = event.target.closest('[data-enterprise-reset-filters]');
+      if (enterpriseReset) {
+        orgEnterpriseSearch = '';
+        orgEnterpriseVerification = 'all';
+        const input = moduleContent.querySelector('[data-enterprise-search-input]');
+        if (input) input.value = '';
+        const select = moduleContent.querySelector('[data-enterprise-verification-select]');
+        if (select) select.value = 'all';
+        updateEnterpriseTableView();
+        return;
+      }
+      return;
+    }
+    if (currentSection !== 'users') return;
+    const zoneCard = event.target.closest('[data-zone-select]');
+    if (zoneCard && !event.target.closest('[data-user-create]')) {
+      const newZone = zoneCard.dataset.zoneSelect;
+      if (newZone && newZone !== activeUserZone) {
+        activeUserZone = newZone;
+        activeUserSubRole = 'all';
+        renderUsersSection(userActionsRef);
+      }
+      return;
+    }
+    const subRoleBtn = event.target.closest('[data-user-subrole]');
+    if (subRoleBtn) {
+      activeUserSubRole = subRoleBtn.dataset.userSubrole;
+      renderUsersSection(userActionsRef);
+      return;
+    }
+    const refreshBtn = event.target.closest('[data-user-refresh-btn]');
+    if (refreshBtn) {
+      loadSection('users');
+      return;
+    }
+    const clearSearchBtn = event.target.closest('[data-user-search-clear]');
+    if (clearSearchBtn) {
+      activeUserSearch = '';
+      const searchInput = moduleContent.querySelector('[data-user-search-input]');
+      if (searchInput) searchInput.value = '';
+      updateUserTableView();
+      return;
+    }
+    const resetFiltersBtn = event.target.closest('[data-user-reset-filters]');
+    if (resetFiltersBtn) {
+      activeUserSearch = '';
+      activeUserStatus = 'all';
+      activeUserSubRole = 'all';
+      renderUsersSection(userActionsRef);
+      return;
+    }
+  });
+
+  moduleContent?.addEventListener('change', (event) => {
+    if (currentSection === 'organizations') {
+      const schoolSelect = event.target.closest('[data-school-verification-select]');
+      if (schoolSelect) {
+        orgSchoolVerification = schoolSelect.value;
+        updateSchoolTableView();
+        return;
+      }
+      const enterpriseSelect = event.target.closest('[data-enterprise-verification-select]');
+      if (enterpriseSelect) {
+        orgEnterpriseVerification = enterpriseSelect.value;
+        updateEnterpriseTableView();
+        return;
+      }
+      return;
+    }
+    if (currentSection !== 'users') return;
+    const statusSelect = event.target.closest('[data-user-status-select]');
+    if (statusSelect) {
+      activeUserStatus = statusSelect.value;
+      updateUserTableView();
+    }
+  });
+
+  moduleContent?.addEventListener('input', (event) => {
+    if (currentSection === 'organizations') {
+      const schoolInput = event.target.closest('[data-school-search-input]');
+      if (schoolInput) {
+        orgSchoolSearch = schoolInput.value;
+        updateSchoolTableView();
+        return;
+      }
+      const enterpriseInput = event.target.closest('[data-enterprise-search-input]');
+      if (enterpriseInput) {
+        orgEnterpriseSearch = enterpriseInput.value;
+        updateEnterpriseTableView();
+        return;
+      }
+      return;
+    }
+    if (currentSection !== 'users') return;
+    const searchInput = event.target.closest('[data-user-search-input]');
+    if (searchInput) {
+      activeUserSearch = searchInput.value;
+      updateUserTableView();
+    }
+  });
+
   const actionDialog=document.querySelector('[data-action-dialog]');
   moduleContent?.addEventListener('click',(event)=>{const userButton=event.target.closest('[data-user-action]');const orgButton=event.target.closest('[data-org-action]');const deleteButton=event.target.closest('[data-user-delete]');if(!userButton&&!orgButton&&!deleteButton)return;pendingAction=deleteButton?{kind:'delete',id:deleteButton.dataset.id}:userButton?{kind:'user',id:userButton.dataset.id,status:userButton.dataset.status}:{kind:'organization',id:orgButton.dataset.id,type:orgButton.dataset.type};const decisionField=document.querySelector('[data-decision-field]');const decisionSelect=document.querySelector('[data-organization-decision]');const isOrganization=Boolean(orgButton);decisionField.hidden=!isOrganization;decisionSelect.hidden=!isOrganization;if(isOrganization){const current=orgButton.dataset.currentStatus;decisionSelect.value=current==='rejected'?'rejected':'verified';}document.querySelector('[data-action-title]').textContent=deleteButton?'Vô hiệu hóa tài khoản':userButton?(userButton.dataset.status==='active'?'Đình chỉ tài khoản':'Kích hoạt tài khoản'):'Xét duyệt tổ chức';document.querySelector('[data-action-description]').textContent=deleteButton?'Tài khoản sẽ chuyển sang trạng thái vô hiệu hóa; dữ liệu liên quan và audit log được giữ nguyên.':'Thao tác này sẽ được ghi vào audit log. Vui lòng cung cấp lý do.';actionDialog.showModal();document.querySelector('#action-reason').focus();});
   document.querySelector('[data-action-form]')?.addEventListener('submit',async(event)=>{event.preventDefault();if(!pendingAction)return;const reason=document.querySelector('#action-reason').value.trim();if(reason.length<5){showToast('Lý do phải có ít nhất 5 ký tự.');return;}const submit=event.submitter;submit.disabled=true;const original=submit.textContent;submit.textContent='Đang xử lý…';try{const csrf=(await api('/auth/csrf')).csrfToken;const isDelete=pendingAction.kind==='delete';const path=isDelete?`/admin/users/${encodeURIComponent(pendingAction.id)}`:pendingAction.kind==='user'?`/admin/users/${encodeURIComponent(pendingAction.id)}/status`:`/admin/organizations/${encodeURIComponent(pendingAction.type)}/${encodeURIComponent(pendingAction.id)}/verification`;const body=pendingAction.kind==='user'?{status:pendingAction.status,reason}:pendingAction.kind==='organization'?{decision:document.querySelector('[data-organization-decision]').value,reason}:{reason};await api(path,{method:isDelete?'DELETE':'PATCH',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(body)});actionDialog.close();document.querySelector('#action-reason').value='';showToast('Đã cập nhật và ghi audit log.');await loadSection(currentSection);}catch(error){showToast(error.message);}finally{submit.disabled=false;submit.textContent=original;}});
   const accountDialog=document.querySelector('[data-account-dialog]');const accountForm=document.querySelector('[data-account-form]');
-  moduleContent?.addEventListener('click',(event)=>{const create=event.target.closest('[data-user-create]');const edit=event.target.closest('[data-user-edit]');if(!create&&!edit)return;accountForm.reset();const row=edit?currentRows.find((item)=>item.id===edit.dataset.id):null;accountForm.elements.id.value=row?.id||'';accountForm.elements.fullName.value=row?.fullName||'';accountForm.elements.email.value=row?.email||'';accountForm.elements.role.value=row?.role||'student';accountForm.elements.password.required=!row;document.querySelector('[data-password-field]').hidden=Boolean(row);document.querySelector('[data-account-title]').textContent=row?'Sửa tài khoản':'Thêm tài khoản';accountDialog.showModal();accountForm.elements.fullName.focus();});
+  moduleContent?.addEventListener('click',(event)=>{const create=event.target.closest('[data-user-create]');const edit=event.target.closest('[data-user-edit]');if(!create&&!edit)return;accountForm.reset();const row=edit?currentRows.find((item)=>item.id===edit.dataset.id):null;accountForm.elements.id.value=row?.id||'';accountForm.elements.fullName.value=row?.fullName||'';accountForm.elements.email.value=row?.email||'';if(row){accountForm.elements.role.value=row.role||'student';}else{const defaultRole=activeUserZone==='school'?'school':activeUserZone==='enterprise'?'enterprise':activeUserZone==='system'?'platform_admin':'student';accountForm.elements.role.value=defaultRole;}accountForm.elements.password.required=!row;document.querySelector('[data-password-field]').hidden=Boolean(row);document.querySelector('[data-account-title]').textContent=row?'Sửa tài khoản':'Thêm tài khoản';accountDialog.showModal();accountForm.elements.fullName.focus();});
   document.querySelectorAll('[data-account-close]').forEach((button)=>button.addEventListener('click',()=>accountDialog.close()));
   accountForm?.addEventListener('submit',async(event)=>{event.preventDefault();if(!accountForm.checkValidity()){accountForm.reportValidity();return;}const values=Object.fromEntries(new FormData(accountForm));const editing=values.id!=='';const csrf=(await api('/auth/csrf')).csrfToken;try{await api(editing?`/admin/users/${encodeURIComponent(values.id)}`:'/admin/users',{method:editing?'PATCH':'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(values)});accountDialog.close();showToast(editing?'Đã cập nhật tài khoản.':'Đã tạo tài khoản.');await loadSection('users');}catch(error){showToast(error.message);}});
   document.querySelector('[data-dashboard-organizations]')?.addEventListener('click',(event)=>{if(event.target.closest('[data-dashboard-section="organizations"]'))loadSection('organizations');});
-  const initial=location.hash.slice(1);if(labels[initial])loadSection(initial);else if(initial==='tasks'||initial==='queue')loadSection('tasks');else{document.querySelectorAll('[data-admin-section]').forEach((item)=>{const active=item.dataset.adminSection==='dashboard';item.classList.toggle('is-active',active);active?item.setAttribute('aria-current','page'):item.removeAttribute('aria-current');});refreshDashboard();}
+  const urlParams = new URLSearchParams(window.location.search);
+  const pathSection = window.location.pathname.includes('/users') ? 'users' : '';
+  const initial = location.hash.slice(1) || urlParams.get('section') || pathSection;
+  if(labels[initial])loadSection(initial);else if(initial==='tasks'||initial==='queue')loadSection('tasks');else{document.querySelectorAll('[data-admin-section]').forEach((item)=>{const active=item.dataset.adminSection==='dashboard';item.classList.toggle('is-active',active);active?item.setAttribute('aria-current','page'):item.removeAttribute('aria-current');});refreshDashboard();}
   document.querySelector('[data-admin-logout]')?.addEventListener('click', async (event) => {
     const button = event.currentTarget;
     button.disabled = true;

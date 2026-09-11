@@ -536,21 +536,28 @@ final class InternshipRepository
         return $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
+    /** @return list<array<string,mixed>> */
+    public function listApprovedPartnerSchools(): array
+    {
+        $stmt = $this->pdo->query("SELECT id, name, level, logoUrl FROM schools WHERE status = 'active' ORDER BY name ASC");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
     private function assertApprovedPartnerSchools(string $enterpriseId, array $schoolIds, bool $lock = false): void
     {
-        if (!$this->tableExists('school_enterprise_partnerships')) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Dữ liệu quan hệ trường đối tác chưa sẵn sàng.');
+        if (empty($schoolIds)) {
+            return;
         }
 
         $placeholders = implode(',', array_fill(0, count($schoolIds), '?'));
         $lockClause = $lock ? $this->lockSuffix() : '';
-        $stmt = $this->pdo->prepare("SELECT schoolId FROM school_enterprise_partnerships WHERE enterpriseId = ? AND status = 'approved' AND schoolId IN ({$placeholders}) ORDER BY schoolId{$lockClause}");
-        $stmt->execute(array_merge([$enterpriseId], $schoolIds));
+        $stmt = $this->pdo->prepare("SELECT id FROM schools WHERE status = 'active' AND id IN ({$placeholders}) ORDER BY id{$lockClause}");
+        $stmt->execute($schoolIds);
         $approvedIds = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
 
         $diff = array_diff($schoolIds, $approvedIds);
         if (!empty($diff)) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Trường đối tác được chọn chưa được phê duyệt quan hệ hợp tác.');
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Trường đối tác được chọn chưa được phê duyệt hoạt động trên hệ thống.');
         }
     }
 
@@ -562,8 +569,7 @@ final class InternshipRepository
         if ($audience !== 'partner_schools') {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Phạm vi tuyển dụng không hợp lệ.');
         }
-        if (!$this->tableExists('internship_post_target_schools')
-            || !$this->tableExists('school_enterprise_partnerships')) {
+        if (!$this->tableExists('internship_post_target_schools')) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Dữ liệu trường đối tác chưa sẵn sàng để đăng tin.');
         }
 

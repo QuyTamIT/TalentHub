@@ -7780,54 +7780,253 @@ body.ent-sidebar-open {
     transform: translateY(-1px) !important;
 }
 
-/* Empty State */
+/* ==========================================================================
+   TalentHub Enterprise - Internship Management Layout & Empty State
+   ========================================================================== */
+
+/* 1. Filter Toolbar */
+.ent-search-toolbar {
+    background-color: #FFFFFF;
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin: 0 0 16px 0;
+    box-shadow: 0 2px 8px rgba(50, 32, 20, 0.04);
+    box-sizing: border-box;
+}
+
+.ent-internship-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+.ent-search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 260px;
+}
+
+.ent-search-input-wrapper .ent-search-icon {
+    position: absolute;
+    left: 14px;
+    color: #9E897D;
+    pointer-events: none;
+    width: 16px;
+    height: 16px;
+}
+
+.ent-search-input-wrapper .ent-search-input {
+    width: 100%;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 36px 0 40px;
+    background-color: #FFFFFF;
+    border: 1.5px solid #F0E6DD;
+    border-radius: 8px;
+    font-size: 13.5px;
+    color: #322014;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ent-search-input-wrapper .ent-search-input:focus {
+    border-color: #FF6B45;
+    box-shadow: 0 0 0 3px rgba(255, 107, 69, 0.12);
+}
+
+.ent-search-input-wrapper .ent-search-clear {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    color: #9E897D;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 6px;
+    display: none;
+    transition: color 0.15s ease;
+}
+
+.ent-search-input-wrapper .ent-search-clear:hover {
+    color: #322014;
+}
+
+.ent-filter-select-wrapper {
+    flex-shrink: 0;
+    position: relative;
+}
+
+.ent-filter-select-wrapper--status {
+    flex: 0 0 170px;
+    width: 170px;
+}
+
+.ent-filter-select-wrapper--field {
+    flex: 0 0 210px;
+    width: 210px;
+}
+
+.ent-filter-select-wrapper--sort {
+    flex: 0 0 160px;
+    width: 160px;
+}
+
+.ent-filter-select-wrapper select.ent-filter-select,
+.ent-filter-select-wrapper select.typeui-select {
+    width: 100% !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    min-block-size: 40px !important;
+    padding: 0 2.25rem 0 0.875rem !important;
+    border: 1.5px solid #F0E6DD !important;
+    border-radius: 8px !important;
+    font-size: 13.5px !important;
+    color: #322014 !important;
+    background-color: #FFFFFF !important;
+    box-sizing: border-box !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.ent-filter-select-wrapper select.ent-filter-select:focus,
+.ent-filter-select-wrapper select.typeui-select:focus {
+    border-color: #FF6B45 !important;
+    box-shadow: 0 0 0 3px rgba(255, 107, 69, 0.12) !important;
+    outline: none !important;
+}
+
+/* 2. Job Cards Grid */
+.ent-job-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+/* 3. Empty State Card */
 .ent-internship-empty-state {
     background-color: #FFFFFF;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border, #F0E6DD);
     border-radius: 16px;
-    padding: 48px 24px;
+    padding: 56px 24px;
+    min-height: 380px;
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
+    justify-content: center;
+    box-shadow: 0 2px 12px rgba(50, 32, 20, 0.04);
     margin-bottom: 24px;
     width: 100%;
+    box-sizing: border-box;
 }
 
 .ent-internship-empty-state__graphic {
     width: 72px;
     height: 72px;
     border-radius: 20px;
-    background-color: #FFF0EB;
+    background: linear-gradient(135deg, #FFF0EB 0%, #FFE5DC 100%);
     border: 1px solid #FFDACB;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--primary-coral);
-    margin-bottom: 4px;
+    color: var(--primary-coral, #FF6B45);
+    margin: 0 auto 16px auto;
+    box-shadow: 0 6px 16px rgba(255, 107, 69, 0.12);
+    flex-shrink: 0;
 }
 
 .ent-internship-empty-state__title {
     font-size: 18px;
-    font-weight: var(--font-bold);
-    color: var(--text-primary);
-    margin: 0;
+    font-weight: 700;
+    color: var(--text-primary, #322014);
+    margin: 0 0 8px 0;
+    text-align: center;
+    line-height: 1.4;
 }
 
 .ent-internship-empty-state__desc {
     font-size: 14px;
-    color: var(--text-secondary);
+    color: var(--text-secondary, #6B5548);
     max-width: 480px;
-    margin: 0 0 8px 0;
-    line-height: 1.5;
+    margin: 0 auto 20px auto;
+    line-height: 1.6;
+    text-align: center;
+}
+
+.ent-internship-empty-state .ent-btn-create-post {
+    margin: 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--primary-gradient);
+    color: #FFFFFF !important;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 24px;
+    border-radius: 999px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    white-space: nowrap;
+}
+
+.ent-internship-empty-state .ent-btn-create-post:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(248, 63, 112, 0.38);
+}
+
+.ent-internship-empty-state #reset-search-btn {
+    margin: 0 auto;
+    border-radius: 999px;
+    padding: 8px 20px;
+    font-size: 13.5px;
+    font-weight: 600;
+    background: #FFF0EB;
+    border: 1px solid #FFDACB;
+    color: #FF6B45;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ent-internship-empty-state #reset-search-btn:hover {
+    background: #FFE4DC;
+    color: #E05330;
 }
 
 /* Responsive Media Queries */
+@media (max-width: 991.98px) {
+    .ent-internship-filter-row {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .ent-search-input-wrapper {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+
+    .ent-filter-select-wrapper {
+        flex: 1 1 calc(33.333% - 8px);
+        min-width: 140px;
+        width: auto;
+    }
+}
+
 @media (max-width: 767.98px) {
     .ent-page-header {
         flex-direction: column;
         align-items: flex-start;
+        gap: 12px;
     }
 
     .ent-btn-create-post {
@@ -7835,23 +8034,33 @@ body.ent-sidebar-open {
         justify-content: center;
     }
 
+    .ent-search-toolbar {
+        padding: 12px;
+        margin-bottom: 14px;
+    }
+
     .ent-internship-filter-row {
         flex-direction: column;
         align-items: stretch;
+        gap: 10px;
     }
 
+    .ent-search-input-wrapper,
     .ent-filter-select-wrapper,
-    .ent-filter-select {
+    .ent-filter-select-wrapper--status,
+    .ent-filter-select-wrapper--field,
+    .ent-filter-select-wrapper--sort {
         width: 100%;
+        flex: 1 1 100%;
     }
 
     .ent-job-grid {
-        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-columns: 1fr !important;
     }
 
-    .ent-job-card-box {
-        width: 100%;
-        max-width: 100%;
+    .ent-internship-empty-state {
+        padding: 40px 16px;
+        min-height: 320px;
     }
 }
 

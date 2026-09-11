@@ -197,20 +197,19 @@ foreach ($posts as $post) {
                     <?php endif; ?>
 
                     <!-- PHẦN 1: HEADER & NÚT CTA (Không bị lặp dấu +) -->
-                    <div class="ent-page-header" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <div class="ent-page-header">
                         <div class="ent-page-header__left">
-                            <h1 class="ent-page-header__title" style="font-size: 22px; font-weight: 700; color: #322014; margin: 0 0 4px 0;">
+                            <h1 class="ent-page-header__title">
                                 Tuyển thực tập sinh
                             </h1>
-                            <p class="ent-page-header__subtitle" style="font-size: 14px; color: #6B5548; margin: 0;">
+                            <p class="ent-page-header__subtitle">
                                 <?= count($posts); ?> tin đăng &bull; <?= $metrics['total_applicants']; ?> ứng viên đang xét duyệt
                             </p>
                         </div>
                         <div class="ent-page-header__actions">
                             <a href="<?= function_exists('app_href') ? app_href('/app/enterprise/internships/create.php') : 'create.php'; ?>" 
                                class="ent-btn-create-post" 
-                               id="btn-create-internship"
-                               style="display: inline-flex; align-items: center; gap: 8px; background: var(--primary-gradient); color: #FFFFFF !important; font-size: 14px; font-weight: 600; padding: 10px 22px; border-radius: 999px; text-decoration: none; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28); transition: all 0.2s ease; white-space: nowrap;">
+                               id="btn-create-internship">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
                                     <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -221,11 +220,11 @@ foreach ($posts as $post) {
                     </div>
 
                     <!-- PHẦN 2: THANH TÌM KIẾM & BỘ LỌC (SEARCH & FILTER TOOLBAR) -->
-                    <div class="ent-search-toolbar" style="background-color: #FFFFFF; border: 1px solid #F0E6DD; border-radius: 12px; padding: 10px 16px; margin: 0 0 24px 0; box-shadow: 0 2px 8px rgba(50, 32, 20, 0.04); box-sizing: border-box;">
-                        <div class="ent-internship-filter-row" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <div class="ent-search-toolbar">
+                        <div class="ent-internship-filter-row">
                             <!-- Ô Tìm kiếm -->
-                            <div class="ent-search-input-wrapper flex-1" style="position: relative; display: flex; align-items: center; min-width: 260px; flex: 1;">
-                                <svg class="ent-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="position: absolute; left: 12px; color: #9E897D; pointer-events: none;">
+                            <div class="ent-search-input-wrapper">
+                                <svg class="ent-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                     <circle cx="11" cy="11" r="8"></circle>
                                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                                 </svg>
@@ -233,13 +232,12 @@ foreach ($posts as $post) {
                                        id="internship-search-input" 
                                        class="ent-search-input" 
                                        placeholder="Tìm theo tiêu đề vị trí tuyển dụng (Frontend, AI, Backend...)"
-                                       aria-label="Tìm kiếm tin tuyển dụng"
-                                       style="width: 100%; height: 38px; padding: 0 34px 0 38px; background-color: #FFFFFF; border: 1.5px solid #F0E6DD; border-radius: 8px; font-size: 13px; color: #322014; outline: none; box-sizing: border-box;">
-                                <button type="button" class="ent-search-clear" id="internship-search-clear" aria-label="Xóa tìm kiếm" style="display: none; position: absolute; right: 10px; background: none; border: none; color: #9E897D; font-size: 16px; cursor: pointer;">&times;</button>
+                                       aria-label="Tìm kiếm tin tuyển dụng">
+                                <button type="button" class="ent-search-clear" id="internship-search-clear" aria-label="Xóa tìm kiếm">&times;</button>
                             </div>
 
                             <!-- Lọc Trạng thái -->
-                            <div class="ent-filter-select-wrapper" style="flex-shrink: 0;">
+                            <div class="ent-filter-select-wrapper ent-filter-select-wrapper--status">
                                 <select id="filter-status-select" class="ent-filter-select typeui-select typeui-select--compact" aria-label="Lọc theo trạng thái">
                                     <option value="">Tất cả trạng thái</option>
                                     <option value="active">Đang tuyển</option>
@@ -249,7 +247,7 @@ foreach ($posts as $post) {
                             </div>
 
                             <!-- Lọc Lĩnh vực -->
-                            <div class="ent-filter-select-wrapper" style="flex-shrink: 0;">
+                            <div class="ent-filter-select-wrapper ent-filter-select-wrapper--field">
                                 <select id="filter-field-select" class="ent-filter-select typeui-select typeui-select--compact" aria-label="Lọc theo lĩnh vực">
                                     <option value="">Tất cả lĩnh vực</option>
                                     <option value="Công nghệ thông tin">Công nghệ thông tin</option>
@@ -260,7 +258,7 @@ foreach ($posts as $post) {
                             </div>
 
                             <!-- Sắp xếp -->
-                            <div class="ent-filter-select-wrapper" style="flex-shrink: 0;">
+                            <div class="ent-filter-select-wrapper ent-filter-select-wrapper--sort">
                                 <select id="sort-select" class="ent-filter-select typeui-select typeui-select--compact" aria-label="Sắp xếp danh sách">
                                     <option value="newest">Mới nhất</option>
                                     <option value="deadline">Sắp hết hạn</option>
@@ -271,7 +269,7 @@ foreach ($posts as $post) {
                     </div>
 
                     <!-- PHẦN 3: LƯỚI CARD CÔNG VIỆC VUÔNG VẮN, GIÀU THÔNG TIN (Grid 3 Cột / 2 Cột) -->
-                    <div class="ent-job-grid" id="internship-cards-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; width: 100%; margin-bottom: 24px;">
+                    <div class="ent-job-grid" id="internship-cards-container" style="<?= empty($posts) ? 'display: none;' : ''; ?>">
                         <?php if (!empty($posts)): ?>
                             <?php foreach ($posts as $post): 
                                 $postId = (string) $post['id'];
@@ -406,17 +404,17 @@ foreach ($posts as $post) {
                     </div>
 
                     <!-- PHẦN 4: TRẠNG THÁI TRỐNG SẠCH SẼ (Empty State) -->
-                    <div class="ent-internship-empty-state" id="internships-empty-state" style="<?= empty($posts) ? 'display: flex;' : 'display: none;'; ?> background-color: #FFFFFF; border: 1px solid #F0E6DD; border-radius: 16px; padding: 48px 24px; text-align: center; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 24px; width: 100%;">
-                        <div class="ent-internship-empty-state__graphic" style="width: 72px; height: 72px; border-radius: 20px; background-color: #FFF0EB; border: 1px solid #FFDACB; display: flex; align-items: center; justify-content: center; color: #FF6B45; margin-bottom: 4px;" aria-hidden="true">
+                    <div class="ent-internship-empty-state" id="internships-empty-state" style="<?= empty($posts) ? 'display: flex;' : 'display: none;'; ?>">
+                        <div class="ent-internship-empty-state__graphic" aria-hidden="true">
                             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
                                 <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
                             </svg>
                         </div>
-                        <h2 class="ent-internship-empty-state__title" style="font-size: 18px; font-weight: 700; color: #322014; margin: 0;">
+                        <h2 class="ent-internship-empty-state__title">
                             <?= empty($posts) ? 'Chưa có tin tuyển dụng nào được tạo' : 'Không tìm thấy tin tuyển dụng'; ?>
                         </h2>
-                        <p class="ent-internship-empty-state__desc" style="font-size: 14px; color: #6B5548; max-width: 480px; margin: 0 0 8px 0; line-height: 1.5;">
+                        <p class="ent-internship-empty-state__desc">
                             <?= empty($posts) 
                                 ? 'Hãy đăng tin tuyển dụng thực tập đầu tiên để kết nối ngay với hàng ngàn sinh viên tài năng từ các trường đối tác trên toàn quốc.' 
                                 : 'Không có tin tuyển dụng nào khớp với từ khóa tìm kiếm hoặc bộ lọc hiện tại của bạn.'; ?>
@@ -424,8 +422,7 @@ foreach ($posts as $post) {
                         
                         <?php if (empty($posts)): ?>
                             <a href="<?= function_exists('app_href') ? app_href('/app/enterprise/internships/create.php') : 'create.php'; ?>" 
-                               class="ent-btn-create-post"
-                               style="display: inline-flex; align-items: center; gap: 8px; background: var(--primary-gradient); color: #FFFFFF !important; font-size: 14px; font-weight: 600; padding: 10px 22px; border-radius: 999px; text-decoration: none; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28); transition: all 0.2s ease;">
+                               class="ent-btn-create-post">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
                                     <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -433,7 +430,7 @@ foreach ($posts as $post) {
                                 <span>Đăng tin tuyển dụng đầu tiên</span>
                             </a>
                         <?php else: ?>
-                            <button type="button" class="btn btn-secondary btn-sm" id="reset-search-btn" style="border-radius: 999px; padding: 7px 18px;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="reset-search-btn">
                                 Đặt lại bộ lọc
                             </button>
                         <?php endif; ?>

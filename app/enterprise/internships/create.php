@@ -39,6 +39,30 @@ if (!function_exists('getInitials')) {
     }
 }
 
+if (!function_exists('getSchoolCode')) {
+    function getSchoolCode(string $name): string {
+        $clean = trim($name);
+        if (stripos($clean, 'BTEC') !== false) return 'BTEC';
+        if (stripos($clean, 'FPT') !== false) return 'FPTU';
+        if (stripos($clean, 'CTU') !== false || stripos($clean, 'Đại học Cần Thơ') !== false) return 'CTU';
+        if (stripos($clean, 'UEH') !== false || stripos($clean, 'Kinh tế') !== false) return 'UEH';
+        if (stripos($clean, 'Tây Đô') !== false) return 'DNTD';
+        if (stripos($clean, 'Nam Cần Thơ') !== false) return 'DNC';
+        if (stripos($clean, 'Công nghệ Cần Thơ') !== false) return 'CTUT';
+
+        $words = preg_split('/\s+/u', $clean);
+        if (empty($words) || $words[0] === '') return 'TH';
+        if (count($words) === 1) return mb_strtoupper(mb_substr($words[0], 0, 4));
+        $acronym = '';
+        foreach ($words as $w) {
+            if (mb_strlen($w) > 0 && !in_array(mb_strtolower($w), ['và', 'các', 'của', 'ở', 'tại', 'trường'], true)) {
+                $acronym .= mb_substr($w, 0, 1);
+            }
+        }
+        return mb_strtoupper(mb_substr($acronym, 0, 5));
+    }
+}
+
 $companyInitials = getInitials($enterprise['name']);
 $isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
 $accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
@@ -177,6 +201,24 @@ if ($editingPost) {
 
 $postAudience = $editingPost ? ($editingPost['audience'] ?? 'public') : 'public';
 $selectedTargetSchoolIds = $editingPost ? ($editingPost['targetSchoolIds'] ?? []) : [];
+
+$rawApprovedSchools = [];
+try {
+    $rawApprovedSchools = $internshipService->listApprovedPartnerSchools();
+} catch (\Throwable) {
+    $rawApprovedSchools = [];
+}
+
+$approvedPartners = [];
+foreach ($rawApprovedSchools as $schoolRow) {
+    $approvedPartners[] = [
+        'id'      => (string) $schoolRow['id'],
+        'name'    => (string) $schoolRow['name'],
+        'code'    => getSchoolCode((string) $schoolRow['name']),
+        'level'   => !empty($schoolRow['level']) ? (string) $schoolRow['level'] : 'Đại học / Cao đẳng',
+        'logoUrl' => $schoolRow['logoUrl'] ?? null,
+    ];
+}
 
 $isEdit = !empty($editingPost);
 $pageTitle = $isEdit ? ('Chỉnh sửa: ' . $editingPost['title']) : 'Đăng tin tuyển dụng mới';
@@ -552,15 +594,6 @@ $sidebarNav = [
                                     </div>
                                 </div>
 
-                                <?php 
-                                // Mock data for testing
-                                $approvedPartners = [
-                                    ['id' => 'BTEC-01', 'name' => 'Cao đẳng Quốc tế BTEC FPT', 'code' => 'BTEC', 'level' => 'Cao đẳng'],
-                                    ['id' => 'FPTU-01', 'name' => 'Đại học FPT', 'code' => 'FPTU', 'level' => 'Đại học'],
-                                    ['id' => 'CTU-01', 'name' => 'Đại học Cần Thơ', 'code' => 'CTU', 'level' => 'Đại học'],
-                                    ['id' => 'UEH-01', 'name' => 'Đại học Kinh tế TP.HCM', 'code' => 'UEH', 'level' => 'Đại học']
-                                ];
-                                ?>
                                 <?php if (empty($approvedPartners)): ?>
                                     <div class="alert alert-warning mb-0 py-2 small">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1 inline-block">
@@ -568,8 +601,7 @@ $sidebarNav = [
                                             <line x1="12" y1="8" x2="12" y2="12"></line>
                                             <line x1="12" y1="16" x2="12.01" y2="16"></line>
                                         </svg>
-                                        Doanh nghiệp chưa có quan hệ hợp tác nào ở trạng thái đã phê duyệt (Approved).
-                                        <a href="/app/enterprise/partnerships.php" class="fw-semibold ms-1" style="color: var(--primary);">Kết nối với Nhà trường ngay &rarr;</a>
+                                        Hiện chưa có trường đối tác nào được phê duyệt hoạt động trên hệ thống.
                                     </div>
                                 <?php else: ?>
                                     <div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto; padding-right: 0.5rem;">

@@ -202,8 +202,12 @@ function initInternshipManagementModule() {
 
         sortedRows.forEach(r => tbody.appendChild(r));
 
+        if (tbody) {
+            tbody.style.display = visibleCount === 0 ? 'none' : 'grid';
+        }
+
         if (emptyState) {
-            emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
+            emptyState.style.display = visibleCount === 0 ? 'flex' : 'none';
         }
     }
 

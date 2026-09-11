@@ -82,12 +82,13 @@ function icon(string $name, string $class = ''): string
 $currentScript = basename((string) ($_SERVER['SCRIPT_NAME'] ?? 'index.php'));
 $currentSection = (string) ($_GET['section'] ?? '');
 $isTasksPage = ($currentScript === 'tasks.php') || ($currentSection === 'tasks');
-$isDashboardPage = !$isTasksPage && (($currentScript === 'index.php') || ($currentSection === 'dashboard') || ($currentSection === ''));
+$isUsersPage = ($currentSection === 'users');
+$isDashboardPage = !$isTasksPage && !$isUsersPage && (($currentScript === 'index.php') || ($currentSection === 'dashboard') || ($currentSection === ''));
 
 $nav = [
     ['label' => 'Tổng quan', 'icon' => 'grid', 'section' => 'dashboard', 'active' => $isDashboardPage],
     ['label' => 'Việc cần xử lý', 'icon' => 'tasks', 'section' => 'tasks', 'active' => $isTasksPage, 'count' => 0],
-    ['label' => 'Người dùng', 'icon' => 'users', 'section' => 'users'],
+    ['label' => 'Người dùng', 'icon' => 'users', 'section' => 'users', 'active' => $isUsersPage],
     ['label' => 'Tổ chức', 'icon' => 'building', 'section' => 'organizations'],
     ['label' => 'Học tập & hoạt động', 'icon' => 'book', 'section' => 'activities'],
     ['label' => 'Cơ hội & ứng tuyển', 'icon' => 'briefcase', 'section' => 'applications'],
@@ -104,7 +105,7 @@ $nav = [
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
-    <title>Trung tâm vận hành | TalentHub Admin</title>
+    <title><?= $isUsersPage ? 'Quản lý người dùng' : ($isTasksPage ? 'Việc cần xử lý' : 'Trung tâm vận hành') ?> | TalentHub Admin</title>
     <link rel="icon" href="<?= app_href('/assets/images/logo.svg'); ?>" type="image/svg+xml">
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
@@ -161,6 +162,7 @@ $nav = [
         </header>
 
         <main id="main-content" tabindex="-1">
+            <div data-dashboard-view<?= $isUsersPage ? ' hidden' : '' ?>>
             <section class="page-heading" aria-labelledby="page-title">
                 <div>
                     <p class="eyebrow">Trung tâm vận hành</p>
@@ -173,8 +175,6 @@ $nav = [
                     <button class="button primary" type="button" data-command-open><?= icon('command') ?>Mở trung tâm lệnh</button>
                 </div>
             </section>
-
-            <div data-dashboard-view>
             <section aria-labelledby="metrics-title">
                 <div class="section-heading"><div><p class="eyebrow">Tổng quan vận hành</p><h2 id="metrics-title">Chỉ số quan trọng</h2></div><a href="#analytics">Xem phân tích <?= icon('arrow') ?></a></div>
                 <div class="metric-grid">
@@ -258,7 +258,7 @@ $nav = [
                 </aside>
             </div>
             </div>
-            <section class="admin-module" data-module-view hidden aria-live="polite">
+            <section class="admin-module" data-module-view<?= $isUsersPage ? '' : ' hidden' ?> aria-live="polite">
                 <div class="module-toolbar">
                     <div><p class="eyebrow" data-module-kicker>Quản trị</p><h2 data-module-title>Module</h2><p data-module-description></p></div>
                     <div class="table-tools"><label><?= icon('search') ?><span class="sr-only">Tìm trong module</span><input type="search" placeholder="Tìm kiếm..." data-module-search></label><button class="button secondary small" type="button" data-module-refresh>Làm mới</button></div>
