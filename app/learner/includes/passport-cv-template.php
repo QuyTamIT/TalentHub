@@ -1,7 +1,7 @@
 <?php
 /** @var array $cv Fresh, bounded PassportCvViewModel output. No database or sharing side effects here. */
 $escapeCv = static fn($value): string => htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-$cvVerificationUrl = $verificationUrl ?? ((function_exists('app_href') ? app_href('/app/learner/shared-profile.php') : '/app/learner/shared-profile.php') . '?code=' . urlencode($cv['passport_code'] ?? 'PASSPORT-TEST-002'));
+$cvVerificationUrl = $verificationUrl ?? ((function_exists('app_href') ? app_href('/app/learner/shared-profile.php') : '/app/learner/shared-profile.php') . '?code=' . urlencode($cv['passport_code'] ?? ''));
 ?>
 <!doctype html>
 <html lang="vi">

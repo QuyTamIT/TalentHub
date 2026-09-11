@@ -127,45 +127,7 @@ if (!function_exists('learner_assessment_mock_questions')) {
 if (!function_exists('learner_assessment_mock_history')) {
     function learner_assessment_mock_history(string $studentId, string $assessmentId): array
     {
-        if ($studentId !== 'student-demo-001' || $assessmentId !== 'holland') {
-            return [];
-        }
-        return [
-            [
-                'id' => 'attempt-holland-demo-20260615',
-                'student_id' => $studentId,
-                'assessment_id' => 'holland',
-                'assessment_version' => '1.0',
-                'status' => 'submitted',
-                'started_at' => '2026-06-15T08:20:00+07:00',
-                'updated_at' => '2026-06-15T08:29:00+07:00',
-                'expires_at' => '2026-06-15T08:32:00+07:00',
-                'submitted_at' => '2026-06-15T08:29:00+07:00',
-                'answers' => [],
-                'result' => [
-                    'code' => 'IRA',
-                    'scores' => ['R' => 69, 'I' => 88, 'A' => 75, 'S' => 56, 'E' => 44, 'C' => 63],
-                    'primary_dimension' => 'I',
-                ],
-            ],
-            [
-                'id' => 'attempt-holland-demo-20260110',
-                'student_id' => $studentId,
-                'assessment_id' => 'holland',
-                'assessment_version' => '1.0',
-                'status' => 'submitted',
-                'started_at' => '2026-01-10T14:10:00+07:00',
-                'updated_at' => '2026-01-10T14:21:00+07:00',
-                'expires_at' => '2026-01-10T14:22:00+07:00',
-                'submitted_at' => '2026-01-10T14:21:00+07:00',
-                'answers' => [],
-                'result' => [
-                    'code' => 'RIA',
-                    'scores' => ['R' => 81, 'I' => 75, 'A' => 69, 'S' => 50, 'E' => 38, 'C' => 56],
-                    'primary_dimension' => 'R',
-                ],
-            ],
-        ];
+        return [];
     }
 }
 

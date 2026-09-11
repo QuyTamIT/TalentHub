@@ -77,8 +77,9 @@ $kpiApplicantsChange = ($summary['total_applicants'] ?? 0) > 0
     ? "+ {$summary['total_applicants']} hồ sơ mới" 
     : '0 hồ sơ mới chờ xem';
 
-$kpiJobsVal = (string) (max((int)($summary['active_posts'] ?? 0), 2));
-$kpiJobsChange = "{$kpiJobsVal} tin đang mở";
+$activePostsCount = (int) ($summary['active_posts'] ?? 0);
+$kpiJobsVal = (string) $activePostsCount;
+$kpiJobsChange = $activePostsCount > 0 ? "{$activePostsCount} tin đang mở" : 'Chưa có tin mở';
 
 $kpiProjectsVal = (string) ($summary['sponsored_projects_count'] ?? 0);
 $kpiProjectsChange = (!empty($summary['total_sponsored_formatted']) && $summary['total_sponsored_formatted'] !== '0 VNĐ') 
@@ -107,7 +108,7 @@ $kpis = [
         'label' => 'Tin tuyển dụng',
         'value' => $kpiJobsVal,
         'change' => $kpiJobsChange,
-        'change_type' => 'positive',
+        'change_type' => $activePostsCount > 0 ? 'positive' : 'neutral',
         'icon' => 'file-text',
         'color' => 'amber'
     ],

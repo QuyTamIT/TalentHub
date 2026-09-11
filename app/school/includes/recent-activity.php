@@ -3,28 +3,10 @@
  * School Dashboard - Recent Activity Component
  */
 
-$recentActivities = [
-    [
-        'text' => 'Trần Minh Đức đạt giải Nhất cuộc thi AI Hackathon 2026',
-        'time' => '2 giờ trước'
-    ],
-    [
-        'text' => 'Lớp BTEC-AI-2026A hoàn thành 100% hồ sơ năng lực',
-        'time' => '4 giờ trước'
-    ],
-    [
-        'text' => 'CLB Khởi nghiệp & AI khai giảng khóa mới với 45 thành viên',
-        'time' => '1 ngày trước'
-    ],
-    [
-        'text' => '25 sinh viên đăng ký tham gia phỏng vấn tuyển dụng thực tập',
-        'time' => '1 ngày trước'
-    ],
-    [
-        'text' => 'Nhà trường ký kết hợp tác hướng nghiệp cùng Doanh nghiệp đối tác',
-        'time' => '2 ngày trước'
-    ]
-];
+$recentActivities = $dashboard['recentActivity'] ?? $recentActivities ?? [];
+if (!is_array($recentActivities)) {
+    $recentActivities = [];
+}
 ?>
 <section class="school-section-box">
     <div class="school-section-box__header">
@@ -34,12 +16,18 @@ $recentActivities = [
         </div>
     </div>
     <div class="school-activity-timeline">
-        <?php foreach ($recentActivities as $activity): ?>
-            <div class="school-activity-item">
-                <span class="school-activity-item__indicator"></span>
-                <span class="school-activity-item__text"><?= htmlspecialchars($activity['text']); ?></span>
-                <span class="school-activity-item__time"><?= htmlspecialchars($activity['time']); ?></span>
+        <?php if (!empty($recentActivities)): ?>
+            <?php foreach ($recentActivities as $activity): ?>
+                <div class="school-activity-item">
+                    <span class="school-activity-item__indicator"></span>
+                    <span class="school-activity-item__text"><?= htmlspecialchars(is_array($activity) ? ($activity['text'] ?? $activity['title'] ?? '') : (string)$activity); ?></span>
+                    <span class="school-activity-item__time"><?= htmlspecialchars(is_array($activity) ? ($activity['time'] ?? $activity['created_at'] ?? '') : ''); ?></span>
+                </div>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <div class="school-empty-state" style="padding: 24px; text-align: center; color: var(--school-text-secondary, #64748b);">
+                <p>Chưa có hoạt động nào được ghi nhận gần đây.</p>
             </div>
-        <?php endforeach; ?>
+        <?php endif; ?>
     </div>
 </section>

@@ -29,10 +29,6 @@ final class AuthRepository
             'vuducanh@student.edu.vn'       => ['vuducanh@student.btec.edu.vn', 'vuducanh@student.edu.vn'],
             'vuducanh@student.btec.edu.vn'  => ['vuducanh@student.btec.edu.vn', 'vuducanh@student.edu.vn'],
             'teacher@talenthub.local'       => ['teacher@talenthub.local', 'teacher@test.talenthub.local'],
-            'school@talenthub.local'     => ['school@talenthub.local', 'btec@school.edu.vn', 'btec@talenthub.local', 'school@test.talenthub.local'],
-            'btec@talenthub.local'       => ['btec@talenthub.local', 'btec@school.edu.vn', 'school@talenthub.local'],
-            'btec@school.edu.vn'         => ['btec@school.edu.vn', 'btec@talenthub.local', 'school@talenthub.local'],
-            'ctu@talenthub.local'        => ['ctu@talenthub.local'],
             'fpt@talenthub.local'        => ['fpt@talenthub.local', 'enterprise@talenthub.local', 'business@test.talenthub.local'],
             'enterprise@talenthub.local' => ['enterprise@talenthub.local', 'fpt@talenthub.local', 'business@test.talenthub.local'],
             'business@talenthub.local'   => ['business@test.talenthub.local', 'fpt@talenthub.local', 'enterprise@talenthub.local'],
@@ -52,6 +48,15 @@ final class AuthRepository
                 }
             }
         }
+
+        try {
+            $req = $this->pdo->prepare("SELECT id, email, passwordHash, fullName, status, type AS role FROM organization_registration_requests WHERE LOWER(email)=? AND status='pending' AND expiresAt>UTC_TIMESTAMP(6) LIMIT 1");
+            $req->execute([$normalized]);
+            $row = $req->fetch(\PDO::FETCH_ASSOC);
+            if (is_array($row)) {
+                return $this->enrichRole($row);
+            }
+        } catch (\Throwable) {}
 
         return null;
     }

@@ -110,7 +110,7 @@ try {
         $searchQ = trim((string) ($_GET['search'] ?? ''));
         $sql = "
             SELECT sp.id as studentId, u.fullName, u.email, sp.phone, 
-                   COALESCE(sp.talentScore, 85.00) as talentScore,
+                   sp.talentScore,
                    c.name as className, spd.headline, sp.createdAt,
                    s.name as schoolName
             FROM teacher_profiles tp
@@ -136,7 +136,12 @@ try {
 
         if (!empty($classStudents)) {
             $classRows = [];
+            $assessedCount = 0;
             foreach ($classStudents as $cs) {
+                $hasScore = $cs['talentScore'] !== null;
+                if ($hasScore) {
+                    $assessedCount++;
+                }
                 $classRows[] = [
                     'studentId' => $cs['studentId'],
                     'fullName' => $cs['fullName'],
@@ -147,14 +152,14 @@ try {
                     'registrationStatus' => 'approved',
                     'registeredAt' => date('d/m/Y', strtotime($cs['createdAt'] ?? 'now')),
                     'teacherActivityCount' => 1,
-                    'assessmentStatus' => 'published',
-                    'overallScore' => number_format((float)$cs['talentScore'], 0) . '%',
+                    'assessmentStatus' => $hasScore ? 'published' : 'none',
+                    'overallScore' => $hasScore ? number_format((float)$cs['talentScore'], 0) . '%' : 'Chưa có',
                 ];
             }
             $pageData['rows'] = $classRows;
             $pageData['summary']['uniqueStudents'] = count($classRows);
             $pageData['summary']['totalRegistrations'] = count($classRows);
-            $pageData['summary']['assessedRegistrations'] = count($classRows);
+            $pageData['summary']['assessedRegistrations'] = $assessedCount;
             $pageData['summary']['pendingRegistrations'] = 0;
             $pageData['pagination']['total'] = count($classRows);
             $pageData['pagination']['lastPage'] = 1;

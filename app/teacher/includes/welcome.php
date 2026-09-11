@@ -4,16 +4,13 @@
  */
 $todayLabel = $todayLabel ?? date('d/m/Y');
 $rawTeacherName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
-$teacherName = $rawTeacherName !== '' && $rawTeacherName !== 'Test Teacher'
+$teacherName = $rawTeacherName !== ''
     ? $rawTeacherName
     : ($teacherInfo['full_name'] ?? 'Thầy/Cô');
 
-if (($teacherName === 'Test Teacher' || $teacherName === 'Thầy/Cô' || $teacherName === 'Giáo viên') && !empty($_SESSION['user']['email']) && !str_contains((string)$_SESSION['user']['email'], 'test')) {
+if (($teacherName === '' || $teacherName === 'Thầy/Cô' || $teacherName === 'Giáo viên') && !empty($_SESSION['user']['email'])) {
     $parts = explode('@', (string)$_SESSION['user']['email']);
     $teacherName = ucwords(str_replace(['.', '_', '-'], ' ', $parts[0] ?? 'Thầy/Cô'));
-}
-if ($teacherName === 'minh triet') {
-    $teacherName = 'Minh Triết';
 }
 ?>
 <section class="teacher-welcome">

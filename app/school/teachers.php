@@ -129,7 +129,7 @@ include __DIR__ . '/includes/page-banner.php';
                             <td>
                                 <strong><?= htmlspecialchars($t['fullName']); ?></strong>
                                 <div class="school-text-sm-muted">
-                                    <?= htmlspecialchars($t['userStatus']); ?>
+                                    <?= htmlspecialchars($t['userStatus'] === 'pending' ? 'Chờ kích hoạt' : ($t['userStatus'] === 'active' ? 'Đang hoạt động' : 'Đã vô hiệu')); ?>
                                 </div>
                             </td>
                             <td><span class="school-text-sm-muted"><?= htmlspecialchars($t['email']); ?></span></td>
@@ -141,7 +141,9 @@ include __DIR__ . '/includes/page-banner.php';
                                     <span class="school-class-badge school-class-badge--neutral">Giảng viên</span>
                                 <?php endif; ?>
                                 <?php if ($t['userStatus'] !== 'active'): ?>
-                                    <span class="school-class-badge school-class-badge--warning">Vô hiệu</span>
+                                    <span class="school-class-badge school-class-badge--warning">
+                                        <?= $t['userStatus'] === 'pending' ? 'Chờ kích hoạt' : 'Vô hiệu'; ?>
+                                    </span>
                                 <?php endif; ?>
                             </td>
                             <td style="text-align: right;">

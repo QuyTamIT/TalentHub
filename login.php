@@ -26,6 +26,7 @@ $roleMessages=[
     'school'=>['label'=>'Nhà trường','icon'=>'school','desc'=>'Vui lòng đăng nhập tài khoản Nhà trường để truy cập khu vực này.'],
     'enterprise'=>['label'=>'Doanh nghiệp','icon'=>'business','desc'=>'Vui lòng đăng nhập tài khoản Doanh nghiệp để truy cập khu vực này.'],
     'admin'=>['label'=>'Quản trị viên','icon'=>'admin','desc'=>'Vui lòng đăng nhập tài khoản Quản trị viên để truy cập khu vực này.'],
+    'platform_admin'=>['label'=>'Quản trị viên','icon'=>'admin','desc'=>'Vui lòng đăng nhập tài khoản Quản trị viên để truy cập khu vực này.'],
 ];
 $roleAlert=null;
 if($requiredRole!==null&&isset($roleMessages[$requiredRole])){

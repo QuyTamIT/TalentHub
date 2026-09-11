@@ -96,16 +96,13 @@ function teacherDashboardBackendContext(bool $forceRefresh = false): array
         }
 
         $sessionName = (string) ($_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? '')));
-        $userFullName = $sessionName !== '' && $sessionName !== 'Test Teacher'
+        $userFullName = $sessionName !== ''
             ? $sessionName
             : (string) ($user['fullName'] ?? ($user['full_name'] ?? ($user['name'] ?? '')));
 
-        if (($userFullName === '' || $userFullName === 'Test Teacher' || $userFullName === 'Giáo viên') && !empty($user['email']) && !str_contains((string)$user['email'], 'test')) {
+        if ($userFullName === '' && !empty($user['email'])) {
             $parts = explode('@', (string)$user['email']);
             $userFullName = ucwords(str_replace(['.', '_', '-'], ' ', $parts[0] ?? 'Giáo viên'));
-        }
-        if ($userFullName === 'minh triet') {
-            $userFullName = 'Minh Triết';
         }
         $user['fullName'] = $userFullName;
 
@@ -135,16 +132,16 @@ function teacherDashboardBackendContext(bool $forceRefresh = false): array
             'pdo' => null,
             'session' => null,
             'user' => [
-                'id' => $_SESSION['user_id'] ?? 'mock-teacher',
-                'email' => $_SESSION['user']['email'] ?? 'teacher@talenthub.local',
-                'fullName' => $_SESSION['user']['fullName'] ?? ($_SESSION['user_name'] ?? 'Giáo viên'),
+                'id' => (string) ($_SESSION['user_id'] ?? ''),
+                'email' => (string) ($_SESSION['user']['email'] ?? ($_SESSION['email'] ?? '')),
+                'fullName' => (string) ($_SESSION['user']['fullName'] ?? ($_SESSION['user_name'] ?? 'Giáo viên')),
                 'role' => RoleCodes::TEACHER,
                 'status' => 'active',
             ],
             'profile' => [
-                'id' => $_SESSION['user_id'] ?? 'mock-teacher',
-                'userId' => $_SESSION['user_id'] ?? 'mock-teacher',
-                'fullName' => $_SESSION['user']['fullName'] ?? ($_SESSION['user_name'] ?? 'Giáo viên'),
+                'id' => (string) ($_SESSION['user_id'] ?? ''),
+                'userId' => (string) ($_SESSION['user_id'] ?? ''),
+                'fullName' => (string) ($_SESSION['user']['fullName'] ?? ($_SESSION['user_name'] ?? 'Giáo viên')),
                 'schoolName' => '',
             ],
             'error' => $exception->getMessage(),
@@ -202,13 +199,10 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
     $user = is_array($context['user']) ? $context['user'] : null;
 
     $sessionName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
-    $teacherName = trim((string) ($sessionName !== '' && $sessionName !== 'Test Teacher' ? $sessionName : ($profile['fullName'] ?? ($user['fullName'] ?? 'Giáo viên TalentHub'))));
-    if (($teacherName === 'Test Teacher' || $teacherName === 'Giáo viên TalentHub' || $teacherName === '') && !empty($_SESSION['user']['email']) && !str_contains((string)$_SESSION['user']['email'], 'test')) {
+    $teacherName = trim((string) ($sessionName !== '' ? $sessionName : ($profile['fullName'] ?? ($user['fullName'] ?? 'Giáo viên TalentHub'))));
+    if (($teacherName === '' || $teacherName === 'Giáo viên TalentHub') && !empty($_SESSION['user']['email'])) {
         $parts = explode('@', (string)$_SESSION['user']['email']);
         $teacherName = ucwords(str_replace(['.', '_', '-'], ' ', $parts[0] ?? 'Giáo viên'));
-    }
-    if ($teacherName === 'minh triet') {
-        $teacherName = 'Minh Triết';
     }
 
     $school = is_array($profile['school'] ?? null) ? $profile['school'] : [];

@@ -192,9 +192,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $service !== null && ($error !== nu
 $rawName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
 $teacher = $data['teacher'] ?? [];
 $teacherName = trim((string) ($rawName !== '' ? $rawName : ($teacher['fullName'] ?? ($user['fullName'] ?? 'Giáo viên'))));
-if ($teacherName === 'minh triet') {
-    $teacherName = 'Minh Triết';
-}
 $teacherInfo = [
     'full_name' => $teacherName !== '' ? $teacherName : 'Giáo viên',
     'role_label' => 'Giáo viên / Hướng dẫn viên',

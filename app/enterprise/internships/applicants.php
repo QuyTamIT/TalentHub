@@ -46,8 +46,8 @@ $enterpriseInfo = [
     'account_type'      => $accountType,
     'logo_initials'     => $companyInitials,
     'logo_url'          => $enterprise['logoUrl'] ?? null,
-    'new_matches_count' => 86,
-    'total_talents'     => 1247,
+    'new_matches_count' => 0,
+    'total_talents'     => 0,
 ];
 
 $internshipService = $context['internships'];
@@ -225,26 +225,6 @@ try {
         ];
     }
 } catch (\Throwable $e) {}
-
-if (empty($applicants) && !empty($mockApplicantsByPost)) {
-    $postIdKey = (int) $postId;
-    $mockList = $mockApplicantsByPost[$postIdKey] ?? reset($mockApplicantsByPost);
-    foreach ($mockList as $m) {
-        $status = $m['status'] === 'new' ? 'submitted' : ($m['status'] === 'interviewing' ? 'interview' : ($m['status'] === 'rejected' ? 'declined' : $m['status']));
-        $m['status'] = $status;
-        $m['status_label'] = [
-            'submitted' => 'Đã nộp',
-            'reviewing' => 'Đang xem xét',
-            'interview' => 'Phỏng vấn',
-            'accepted' => 'Đã nhận',
-            'hired' => 'Đã nhận',
-            'declined' => 'Từ chối',
-            'withdrawn' => 'Đã rút',
-            'invited' => 'Đã mời'
-        ][$status] ?? ($m['status_label'] ?? 'Đang xem xét');
-        $applicants[] = $m;
-    }
-}
 
 $pipelineCounts = ['all' => count($applicants), 'submitted' => 0, 'reviewing' => 0, 'interview' => 0, 'accepted' => 0, 'declined' => 0, 'invited' => 0];
 foreach ($applicants as $applicant) {

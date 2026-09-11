@@ -115,15 +115,12 @@ if ($teacherService && $teacherId !== '') {
 
 $rawSessionName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
 $displayName = (string) ($dbUser['fullName'] ?? ($profile['fullName'] ?? ($rawSessionName !== '' ? $rawSessionName : 'Giáo viên')));
-if (($displayName === 'Test Teacher' || $displayName === 'Thầy Nguyễn Văn Bình' || $displayName === 'Giáo viên TalentHub') && !empty($_SESSION['user']['email']) && !str_contains((string)$_SESSION['user']['email'], 'test')) {
+if (($displayName === '' || $displayName === 'Giáo viên' || $displayName === 'Giáo viên TalentHub') && !empty($_SESSION['user']['email'])) {
     $parts = explode('@', (string)$_SESSION['user']['email']);
     $displayName = ucwords(str_replace(['.', '_', '-'], ' ', $parts[0] ?? 'Giáo viên'));
 }
-if ($displayName === 'minh triet') {
-    $displayName = 'Minh Triết';
-}
 
-$displayEmail = (string) ($dbUser['email'] ?? ($profile['email'] ?? ($_SESSION['user']['email'] ?? ($_SESSION['email'] ?? 'teacher@talenthub.local'))));
+$displayEmail = (string) ($dbUser['email'] ?? ($profile['email'] ?? ($_SESSION['user']['email'] ?? ($_SESSION['email'] ?? ''))));
 $displayPhone = (string) ($dbUser['phone'] ?? ($profile['phone'] ?? ($_SESSION['user']['phone'] ?? '')));
 $displaySpec = (string) ($dbUser['specialization'] ?? ($profile['specialization'] ?? ''));
 $displayBio = (string) ($dbUser['bio'] ?? ($profile['bio'] ?? ''));

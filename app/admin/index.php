@@ -79,9 +79,14 @@ function icon(string $name, string $class = ''): string
     return '<svg class="icon ' . htmlspecialchars($class) . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . ($paths[$name] ?? $paths['grid']) . '</svg>';
 }
 
+$currentScript = basename((string) ($_SERVER['SCRIPT_NAME'] ?? 'index.php'));
+$currentSection = (string) ($_GET['section'] ?? '');
+$isTasksPage = ($currentScript === 'tasks.php') || ($currentSection === 'tasks');
+$isDashboardPage = !$isTasksPage && (($currentScript === 'index.php') || ($currentSection === 'dashboard') || ($currentSection === ''));
+
 $nav = [
-    ['label' => 'Tổng quan', 'icon' => 'grid', 'section' => 'dashboard', 'active' => true],
-    ['label' => 'Việc cần xử lý', 'icon' => 'tasks', 'section' => 'dashboard', 'count' => 8],
+    ['label' => 'Tổng quan', 'icon' => 'grid', 'section' => 'dashboard', 'active' => $isDashboardPage],
+    ['label' => 'Việc cần xử lý', 'icon' => 'tasks', 'section' => 'tasks', 'active' => $isTasksPage, 'count' => 0],
     ['label' => 'Người dùng', 'icon' => 'users', 'section' => 'users'],
     ['label' => 'Tổ chức', 'icon' => 'building', 'section' => 'organizations'],
     ['label' => 'Học tập & hoạt động', 'icon' => 'book', 'section' => 'activities'],
@@ -100,14 +105,14 @@ $nav = [
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
     <title>Trung tâm vận hành | TalentHub Admin</title>
-    <link rel="icon" href="/assets/images/logo.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/assets/css/home.css">
-    <link rel="stylesheet" href="/assets/css/global.css">
-    <link rel="stylesheet" href="/assets/css/brand-component.css">
-    <link rel="stylesheet" href="/assets/css/polish.css">
-    <link rel="stylesheet" href="/assets/css/admin.css">
-    <link rel="stylesheet" href="/assets/css/typeui-selects.css">
-    <script src="/assets/js/admin.js" defer></script>
+    <link rel="icon" href="<?= app_href('/assets/images/logo.svg'); ?>" type="image/svg+xml">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/brand-component.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/polish.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/admin.css'); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
+    <script src="<?= app_href('/assets/js/admin.js'); ?>" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main-content">Bỏ qua điều hướng</a>
@@ -131,7 +136,7 @@ $nav = [
                 <a class="nav-item <?= !empty($item['active']) ? 'is-active' : '' ?>" href="#<?= htmlspecialchars($item['section']) ?>" data-admin-section="<?= htmlspecialchars($item['section']) ?>" <?= !empty($item['active']) ? 'aria-current="page"' : '' ?>>
                     <?= icon($item['icon']) ?>
                     <span><?= htmlspecialchars($item['label']) ?></span>
-                    <?php if (isset($item['count'])): ?><span class="nav-count" data-nav-count="<?= htmlspecialchars($item['section']) ?>" aria-label="<?= $item['count'] ?> mục"><?= $item['count'] ?></span><?php endif; ?>
+                    <?php if (isset($item['count'])): ?><span class="nav-count" data-nav-count="<?= htmlspecialchars($item['section']) ?>" aria-label="<?= $item['count'] ?> mục"<?= empty($item['count']) ? ' hidden' : '' ?>><?= $item['count'] ?></span><?php endif; ?>
                 </a>
             <?php endforeach; ?>
         </nav>

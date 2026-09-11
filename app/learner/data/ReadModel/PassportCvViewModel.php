@@ -38,7 +38,7 @@ final class PassportCvViewModel
             'generated_at'=>$generatedAt,
             'skills'=>[], 'projects'=>[], 'internships'=>[], 'evaluations'=>[], 'activities'=>[],
             'badges'=>[], 'assessments'=>[], 'activity_summary'=>['total_hours'=>0.0,'total_activities'=>0],
-            'passport_code'=>!empty($student['id']) ? ('TP-' . strtoupper(substr(str_replace('-', '', (string)$student['id']), 0, 8))) : 'PASSPORT-TEST-002',
+            'passport_code'=>!empty($student['id']) ? ('TP-' . strtoupper(substr(str_replace('-', '', (string)$student['id']), 0, 8))) : '',
             'has_experience'=>false, 'strengths_summary'=>'',
             'omitted'=>0,
         ];

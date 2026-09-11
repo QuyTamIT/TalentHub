@@ -208,9 +208,6 @@ $sidebarNav = [
 // 4. Thông tin giáo viên cho header (đồng bộ với các trang teacher khác)
 $rawName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
 $teacherName = trim((string) ($rawName !== '' ? $rawName : ($user['fullName'] ?? 'Giáo viên')));
-if ($teacherName === 'minh triet') {
-    $teacherName = 'Minh Triết';
-}
 $teacherInfo = [
     'full_name' => $teacherName !== '' ? $teacherName : 'Giáo viên',
     'role_label' => 'Giáo viên / Hướng dẫn viên',
@@ -371,6 +368,9 @@ $teacherInfo = [
                             <div class="typeui-select-shell" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.75rem;">
                                 <label for="classFilterSelect" style="font-size: 0.85rem; font-weight: 700; color: #475569; margin: 0; white-space: nowrap;">Chọn Lớp:</label>
                                 <select id="classFilterSelect" class="typeui-select typeui-select--bare" onchange="location.href='grading.php?class=' + encodeURIComponent(this.value)">
+                                    <?php if (empty($classList)): ?>
+                                        <option value="">Chưa có lớp</option>
+                                    <?php endif; ?>
                                     <?php foreach ($classList as $c): ?>
                                         <option value="<?= htmlspecialchars($c['name']); ?>" <?= $c['name'] === $activeClassName ? 'selected' : ''; ?>>
                                             <?= htmlspecialchars($c['name']); ?> (<?= (int)$c['studentCount']; ?> SV)

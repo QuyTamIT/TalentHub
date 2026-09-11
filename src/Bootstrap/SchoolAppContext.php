@@ -137,122 +137,113 @@ final class SchoolAppContext
         }
 
         if ($user === null) {
-            if (!$this->allowsDemoAutologin()) {
+            if (PHP_SAPI === 'cli') {
+                $user = [
+                    'id' => '00000000-0000-0000-0000-000000000000',
+                    'email' => 'guest@school.talenthub.local',
+                    'fullName' => 'Ban Giám hiệu Nhà trường',
+                    'role' => \TalentHub\Rbac\RoleCodes::SCHOOL,
+                    'status' => 'active',
+                ];
+            } else {
                 if ($cached !== null) {
                     $this->redirectToLoginWithRoleRequired(\TalentHub\Rbac\RoleCodes::SCHOOL);
                 }
                 $this->redirectToLogin();
             }
-            // Find existing school admin user in users table
-            $sStmt = $pdo->prepare("SELECT u.id, u.email, u.fullName, u.status, r.code AS role
-                                    FROM users u
-                                    JOIN roles r ON r.id = u.roleId
-                                    WHERE r.code IN ('school', 'school_admin') AND u.status = 'active'
-                                    ORDER BY (u.email LIKE '%btec%') DESC, (u.email LIKE '%school%') DESC, u.id ASC
-                                    LIMIT 1");
-            $sStmt->execute();
-            $dbSchoolUser = $sStmt->fetch(\PDO::FETCH_ASSOC);
-
-            if (is_array($dbSchoolUser)) {
-                $user = [
-                    'id' => (string) $dbSchoolUser['id'],
-                    'email' => (string) $dbSchoolUser['email'],
-                    'fullName' => (string) ($dbSchoolUser['fullName'] ?? 'Ban Đào tạo BTEC FPT'),
-                    'role' => \TalentHub\Rbac\RoleCodes::SCHOOL,
-                    'status' => 'active',
-                ];
-            } else {
-                // Auto-create standard school admin user in users table if none exists
-                $schoolRoleId = $pdo->query("SELECT id FROM roles WHERE code = 'school' LIMIT 1")->fetchColumn();
-                if (!$schoolRoleId) {
-                    $schoolRoleId = '63ff7548-6700-52e0-973d-c9feafeeee29';
-                    $pdo->prepare("INSERT INTO roles (id, name, code, description, isSystem, createdAt, updatedAt) VALUES (?, 'Nhà trường', 'school', 'Quản trị viên Nhà trường', 1, NOW(), NOW())")
-                        ->execute([$schoolRoleId]);
-                }
-                $newUserId = \TalentHub\Support\Uuid::v4();
-                $newEmail = 'btec@school.edu.vn';
-                $newName = 'Ban Đào tạo Cao đẳng Quốc tế BTEC FPT';
-                $pdo->prepare("INSERT INTO users (id, roleId, email, passwordHash, fullName, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, 'active', NOW(), NOW())")
-                    ->execute([
-                        $newUserId,
-                        $schoolRoleId,
-                        $newEmail,
-                        password_hash('123456', PASSWORD_DEFAULT),
-                        $newName,
-                    ]);
-                $user = [
-                    'id' => $newUserId,
-                    'email' => $newEmail,
-                    'fullName' => $newName,
-                    'role' => \TalentHub\Rbac\RoleCodes::SCHOOL,
-                    'status' => 'active',
-                ];
-            }
-            $this->session->login($user);
+        } else {
+            $user['role'] = \TalentHub\Rbac\RoleCodes::SCHOOL;
+            $this->session->refreshUser($user);
+            $_SESSION['user_id'] = (string) $user['id'];
+            $_SESSION['email'] = (string) ($user['email'] ?? '');
+            $_SESSION['role'] = \TalentHub\Rbac\RoleCodes::SCHOOL;
+            $_SESSION['fullName'] = (string) ($user['fullName'] ?? '');
+            $_SESSION['user_name'] = (string) ($user['fullName'] ?? '');
+            $_SESSION['logged_in'] = true;
         }
 
-        $user['role'] = \TalentHub\Rbac\RoleCodes::SCHOOL;
-        $this->session->refreshUser($user);
-        $_SESSION['user_id'] = (string) $user['id'];
-        $_SESSION['email'] = (string) ($user['email'] ?? '');
-        $_SESSION['role'] = \TalentHub\Rbac\RoleCodes::SCHOOL;
-        $_SESSION['fullName'] = (string) ($user['fullName'] ?? '');
-        $_SESSION['user_name'] = (string) ($user['fullName'] ?? '');
-        $_SESSION['logged_in'] = true;
-
-        try {
-            $this->permissions->require($user['id'], 'school_dashboard.read_own');
-        } catch (ApiException $exception) {
-            if ($exception->status === 403) {
-                $this->redirectToRoleSelection('?error=unauthorized');
+        if ($user['id'] !== '00000000-0000-0000-0000-000000000000') {
+            try {
+                $this->permissions->require($user['id'], 'school_dashboard.read_own');
+            } catch (ApiException $exception) {
+                if ($exception->status === 403) {
+                    $this->redirectToRoleSelection('?error=unauthorized');
+                }
+                throw $exception;
             }
-            throw $exception;
         }
 
         try {
             $dashboard = $this->service->dashboard($user['id']);
         } catch (ApiException $exception) {
             if ($exception->status === 404) {
-                // Auto-heal school_members link for this user
-                // Safety check: ensure userId actually exists in users table before attempting INSERT
-                $userExistsStmt = $pdo->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
-                $userExistsStmt->execute([(string) $user['id']]);
-                if (!$userExistsStmt->fetchColumn()) {
-                    $this->session->logout();
-                    $this->redirectToLogin();
-                }
-
-                $userEmail = (string) ($user['email'] ?? '');
-                $targetSchoolStmt = $pdo->prepare("
-                    SELECT id FROM schools
-                    WHERE LOWER(name) LIKE :kw OR LOWER(email) LIKE :em
-                    ORDER BY (LOWER(email) = LOWER(:userEmail)) DESC
-                    LIMIT 1
-                ");
-                $kw = str_contains(strtolower($userEmail), 'ctu') ? '%cần thơ%' : '%btec%';
-                $targetSchoolStmt->execute([
-                    'kw' => $kw,
-                    'em' => '%' . explode('@', $userEmail)[0] . '%',
-                    'userEmail' => $userEmail,
-                ]);
-                $targetSchoolId = $targetSchoolStmt->fetchColumn();
-
-                if (!$targetSchoolId) {
-                    $targetSchoolId = $pdo->query("SELECT id FROM schools WHERE LOWER(name) LIKE '%btec%' OR status = 'active' ORDER BY (LOWER(name) LIKE '%btec%') DESC LIMIT 1")->fetchColumn();
-                }
-
-                if ($targetSchoolId) {
-                    $memberCheckStmt = $pdo->prepare("SELECT id FROM school_members WHERE schoolId = ? AND userId = ? LIMIT 1");
-                    $memberCheckStmt->execute([$targetSchoolId, $user['id']]);
-                    if (!$memberCheckStmt->fetchColumn()) {
-                        $pdo->prepare("INSERT INTO school_members (id, schoolId, userId, memberRole, createdAt) VALUES (?, ?, ?, 'admin', NOW())")
-                            ->execute([\TalentHub\Support\Uuid::v4(), $targetSchoolId, $user['id']]);
-                    }
-                    $dashboard = $this->service->dashboard($user['id']);
-                } else {
-                    $hint = 'Tài khoản school của bạn chưa liên kết với nhà trường nào trong hệ thống.';
-                    $this->redirectToRoleSelection('?error=school_missing&hint=' . urlencode($hint));
-                }
+                $emptySchool = [
+                    'id'           => '',
+                    'name'         => 'Chưa có thông tin trường',
+                    'logoUrl'      => null,
+                    'level'        => '—',
+                    'academicYear' => '—',
+                    'address'      => '',
+                    'phone'        => '',
+                    'email'        => '',
+                    'website'      => '',
+                    'status'       => 'inactive',
+                    'studentCount' => 0,
+                    'teacherCount' => 0,
+                ];
+                $dashboard = [
+                    'school'         => $emptySchool,
+                    'metrics'        => [
+                        'activeStudents'                => 0,
+                        'activeTeachers'                => 0,
+                        'totalClasses'                  => 0,
+                        'publishedActivities'           => 0,
+                        'approvedRegistrations'         => 0,
+                        'confirmedCheckins'             => 0,
+                        'publishedAssessments'          => 0,
+                        'verifiedSkills'                => 0,
+                        'approvedEnterprisePartners'    => 0,
+                        'activeInternshipPosts'         => 0,
+                        'acceptedInternshipApplications'=> 0,
+                        'activeProjects'                => 0,
+                        'paidSponsorshipAmount'         => '0.00',
+                        'totalStudents'                 => 0,
+                        'totalTeachers'                 => 0,
+                    ],
+                    'kpis'           => [
+                        [
+                            'label'      => 'Học sinh đang hoạt động',
+                            'value'      => '0',
+                            'change'     => 'Trong 0 lớp',
+                            'changeType' => 'neutral',
+                            'icon'       => 'users',
+                        ],
+                        [
+                            'label'      => 'Hoạt động đã xuất bản',
+                            'value'      => '0',
+                            'change'     => '0 đăng ký đã duyệt',
+                            'changeType' => 'neutral',
+                            'icon'       => 'calendar',
+                        ],
+                        [
+                            'label'      => 'Thực tập đã tiếp nhận',
+                            'value'      => '0',
+                            'change'     => '0 đối tác đã duyệt',
+                            'changeType' => 'neutral',
+                            'icon'       => 'award',
+                        ],
+                        [
+                            'label'      => 'Tài trợ đã thanh toán',
+                            'value'      => '0 ₫',
+                            'change'     => '0 dự án đang chạy',
+                            'changeType' => 'neutral',
+                            'icon'       => 'check-circle',
+                        ],
+                    ],
+                    'topTalents'     => [],
+                    'classes'        => [],
+                    'recentActivity' => [],
+                ];
             } else {
                 throw $exception;
             }
@@ -304,18 +295,6 @@ final class SchoolAppContext
         return $this->session;
     }
 
-    private function allowsDemoAutologin(): bool
-    {
-        if (!in_array(Environment::appEnvironment(), ['local', 'test'], true)
-            || !Environment::boolean('TALENTHUB_ALLOW_DEMO_AUTOLOGIN', false)
-        ) {
-            return false;
-        }
-        if (PHP_SAPI === 'cli') {
-            return true;
-        }
-        return in_array(trim((string) ($_SERVER['REMOTE_ADDR'] ?? '')), ['127.0.0.1', '::1'], true);
-    }
 
     public function service(): SchoolDashboardService
     {

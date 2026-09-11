@@ -12,7 +12,8 @@ echo "======================================================================\n";
 echo " APPLYING SCHOOL PORTAL (BTEC FPT) FIXES\n";
 echo "======================================================================\n\n";
 
-$schoolId = 'da811c4f-2f74-4fdd-80b0-dd6f26109783'; // Cao đẳng Quốc tế BTEC FPT
+echo "[INFO] Seeding of demo BTEC data has been permanently disabled for production handover.\n";
+exit(0);
 $teacherId = 'ef67c7f4-bc9b-4353-a484-e6ee21291c32'; // ThS. Nguyễn Văn Hùng
 
 // 1. Update School Student & Teacher Count in schools table

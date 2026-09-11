@@ -14,16 +14,13 @@ if (!function_exists('app_href') && is_file(dirname(__DIR__, 3) . '/bin/bootstra
 }
 
 $rawSessionName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
-$teacherFullName = $rawSessionName !== '' && $rawSessionName !== 'Test Teacher'
-    ? $rawSessionName 
+$teacherFullName = $rawSessionName !== ''
+    ? $rawSessionName
     : ($teacherInfo['full_name'] ?? 'Giáo viên');
 
-if (($teacherFullName === 'Test Teacher' || $teacherFullName === 'Thầy Nguyễn Văn Bình' || $teacherFullName === 'Giáo viên') && !empty($_SESSION['user']['email']) && !str_contains((string)$_SESSION['user']['email'], 'test')) {
+if (($teacherFullName === '' || $teacherFullName === 'Giáo viên') && !empty($_SESSION['user']['email'])) {
     $parts = explode('@', (string)$_SESSION['user']['email']);
     $teacherFullName = ucwords(str_replace(['.', '_', '-'], ' ', $parts[0] ?? 'Giáo viên'));
-}
-if ($teacherFullName === 'minh triet') {
-    $teacherFullName = 'Minh Triết';
 }
 
 $cleanName = preg_replace('/^(Thầy|Cô|Gv\.|GV|Ths\.|TS\.|ThS\.)\s+/iu', '', $teacherFullName);

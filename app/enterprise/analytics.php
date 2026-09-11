@@ -148,37 +148,6 @@ foreach ($positionsPerformance as $p) {
         'avg_match' => $apps > 0 ? (int) min(95, max(70, round(75 + ($p['accepted_count'] * 3)))) : 84,
     ];
 }
-
-// Fallback high-clarity data if no real job performance data yet
-if (empty($jobPerformanceData)) {
-    $jobPerformanceData = [
-        [
-            'id' => 'rec-fe-01',
-            'position' => 'Front End Developer Intern',
-            'code' => 'REC-FE01',
-            'department' => 'Công nghệ & Đổi mới',
-            'status' => 'active',
-            'applicants' => max(1, $summary['total_applicants']),
-            'qualified' => max(0, $summary['qualified_candidates']),
-            'interviewed' => max(0, $summary['interviewing']),
-            'passed' => max(0, $summary['passed_candidates']),
-            'avg_match' => 88,
-        ],
-        [
-            'id' => 'rec-full-02',
-            'position' => 'Fullstack Web Engineer Intern',
-            'code' => 'REC-FS02',
-            'department' => 'Công nghệ & Đổi mới',
-            'status' => 'active',
-            'applicants' => max(1, (int) round($summary['total_applicants'] * 0.8)),
-            'qualified' => max(0, (int) round($summary['qualified_candidates'] * 0.8)),
-            'interviewed' => max(0, (int) round($summary['interviewing'] * 0.8)),
-            'passed' => max(0, (int) round($summary['passed_candidates'] * 0.8)),
-            'avg_match' => 85,
-        ],
-    ];
-}
-
 $pageTitle = 'Phân tích tuyển dụng';
 $currentRoute = '/app/enterprise/analytics.php';
 
@@ -541,35 +510,43 @@ $sidebarNav = [
                                     </tr>
                                 </thead>
                                 <tbody id="job-performance-tbody">
-                                    <?php foreach ($jobPerformanceData as $job): ?>
-                                        <tr style="border-bottom: 1px solid #F0E6DD; transition: background 0.15s ease;">
-                                            <td style="padding: 12px 14px;">
-                                                <div style="font-weight: 700; color: #322014; margin-bottom: 2px;">
-                                                    <?= htmlspecialchars($job['position']); ?>
-                                                </div>
-                                                <div style="font-size: 12px; color: #64748B;">
-                                                    <?= htmlspecialchars($job['code']); ?> &bull; <?= htmlspecialchars($job['department']); ?>
-                                                </div>
-                                            </td>
-                                            <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #322014;">
-                                                <?= (int) $job['applicants']; ?>
-                                            </td>
-                                            <td style="padding: 12px 14px; text-align: center; color: #322014; font-weight: 600;">
-                                                <?= (int) $job['qualified']; ?>
-                                            </td>
-                                            <td style="padding: 12px 14px; text-align: center; color: #322014; font-weight: 600;">
-                                                <?= (int) $job['interviewed']; ?>
-                                            </td>
-                                            <td style="padding: 12px 14px; text-align: center; color: #322014; font-weight: 700;">
-                                                <?= (int) $job['passed']; ?>
-                                            </td>
-                                            <td style="padding: 12px 14px; text-align: right;">
-                                                <span style="background: #FFF0EB; color: #E04058; border: 1px solid #FFDACB; padding: 3px 10px; border-radius: 999px; font-weight: 600; font-size: 12px;">
-                                                    <?= (int) $job['avg_match']; ?> điểm
-                                                </span>
+                                    <?php if (empty($jobPerformanceData)): ?>
+                                        <tr>
+                                            <td colspan="6" style="padding: 32px 14px; text-align: center; color: #64748B; font-size: 13px;">
+                                                Chưa có dữ liệu vị trí tuyển dụng
                                             </td>
                                         </tr>
-                                    <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <?php foreach ($jobPerformanceData as $job): ?>
+                                            <tr style="border-bottom: 1px solid #F0E6DD; transition: background 0.15s ease;">
+                                                <td style="padding: 12px 14px;">
+                                                    <div style="font-weight: 700; color: #322014; margin-bottom: 2px;">
+                                                        <?= htmlspecialchars($job['position']); ?>
+                                                    </div>
+                                                    <div style="font-size: 12px; color: #64748B;">
+                                                        <?= htmlspecialchars($job['code']); ?> &bull; <?= htmlspecialchars($job['department']); ?>
+                                                    </div>
+                                                </td>
+                                                <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #322014;">
+                                                    <?= (int) $job['applicants']; ?>
+                                                </td>
+                                                <td style="padding: 12px 14px; text-align: center; color: #322014; font-weight: 600;">
+                                                    <?= (int) $job['qualified']; ?>
+                                                </td>
+                                                <td style="padding: 12px 14px; text-align: center; color: #322014; font-weight: 600;">
+                                                    <?= (int) $job['interviewed']; ?>
+                                                </td>
+                                                <td style="padding: 12px 14px; text-align: center; color: #322014; font-weight: 700;">
+                                                    <?= (int) $job['passed']; ?>
+                                                </td>
+                                                <td style="padding: 12px 14px; text-align: right;">
+                                                    <span style="background: #FFF0EB; color: #E04058; border: 1px solid #FFDACB; padding: 3px 10px; border-radius: 999px; font-weight: 600; font-size: 12px;">
+                                                        <?= (int) $job['avg_match']; ?> điểm
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>

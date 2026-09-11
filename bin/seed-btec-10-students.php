@@ -13,7 +13,8 @@ echo "======================================================================\n";
 echo " SEED: NẠP DANH SÁCH 10 SINH VIÊN CHUẨN CHO CAO ĐẲNG QUỐC TẾ BTEC FPT\n";
 echo "======================================================================\n\n";
 
-$pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
+echo "[INFO] Seeding of demo BTEC students has been permanently disabled for production handover.\n";
+exit(0);
 
 $btecSchoolId = 'da811c4f-2f74-4fdd-80b0-dd6f26109783';
 $roleStudentId = 'c8b7001c-6496-5dcf-ab0a-dd384c1ba673';

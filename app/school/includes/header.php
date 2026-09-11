@@ -14,19 +14,20 @@ if (!function_exists('app_href') && is_file(dirname(__DIR__, 3) . '/bin/bootstra
 }
 
 $schoolRole = 'Ban Giám hiệu';
-$displayName = !empty($schoolInfo['name']) ? $schoolInfo['name'] : (!empty($school['name']) ? $school['name'] : 'Cao đẳng Quốc tế BTEC FPT');
+$displayName = !empty($schoolInfo['name']) ? $schoolInfo['name'] : (!empty($school['name']) ? $school['name'] : 'Nhà trường');
 
-if (stripos($displayName, 'BTEC') !== false) {
-    $initials = 'BF';
-} elseif (stripos($displayName, 'Cần Thơ') !== false || stripos($displayName, 'CTU') !== false) {
-    $initials = 'CTU';
-} elseif (stripos($displayName, 'FPT') !== false) {
-    $initials = 'FPT';
-} elseif (!empty($schoolInfo['logo_initials'])) {
+if (!empty($schoolInfo['logo_initials'])) {
     $initials = $schoolInfo['logo_initials'];
 } else {
-    $words = explode(' ', trim($displayName));
-    $initials = count($words) > 1 ? mb_substr($words[0], 0, 1) . mb_substr($words[count($words) - 1], 0, 1) : mb_substr($displayName, 0, 2);
+    $cleanName = trim($displayName);
+    $words = preg_split('/\s+/', $cleanName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    if (count($words) > 1) {
+        $initials = mb_strtoupper(mb_substr($words[0], 0, 1) . mb_substr($words[count($words) - 1], 0, 1));
+    } elseif (!empty($cleanName)) {
+        $initials = mb_strtoupper(mb_substr($cleanName, 0, 2));
+    } else {
+        $initials = 'NT';
+    }
 }
 
 $profileRoute = '/app/school/account.php';

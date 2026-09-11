@@ -72,13 +72,6 @@ if ($currentStudentId !== '') {
         } catch (Throwable) {
             // Safe fallback
         }
-    } else {
-        // Mock fallback: map mock enterprise if applications or mock portfolio exists
-        if (!empty($enterprises)) {
-            $firstEnt = $enterprises[0];
-            $completedEnterprises[(string) ($firstEnt['id'] ?? '')] = true;
-            $completedEnterprises[mb_strtolower(trim((string) ($firstEnt['name'] ?? '')))] = true;
-        }
     }
 }
 

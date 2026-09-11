@@ -12,7 +12,8 @@ echo "====================================================================\n";
 echo "   SEEDING & STANDARDIZING COLLEGES / UNIVERSITIES & STUDENTS\n";
 echo "====================================================================\n\n";
 
-// 1. Get School Role ID
+echo "[INFO] Seeding of demo schools (BTEC/CTU) has been permanently disabled for production handover.\n";
+exit(0);
 $schoolRoleIdStmt = $pdo->query("SELECT id FROM roles WHERE code = 'school' LIMIT 1");
 $schoolRoleId = (string) ($schoolRoleIdStmt->fetchColumn() ?: '63ff7548-6700-52e0-973d-c9feafeeee29');
 

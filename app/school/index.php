@@ -51,10 +51,15 @@ ob_start();
                 </svg>
                 Khu vực Nhà trường
             </span>
-            <h2 class="school-welcome__title">Xin chào, Ban Giám hiệu <?= htmlspecialchars($school['name']); ?>!</h2>
+            <h2 class="school-welcome__title">Xin chào, Ban Giám hiệu <?= htmlspecialchars(!empty($school['name']) ? $school['name'] : 'Nhà trường'); ?>!</h2>
             <p class="school-welcome__description">
-                Theo dõi tổng quan hoạt động đào tạo của trường, quản lý hồ sơ học sinh / sinh viên và xem báo cáo chi tiết về tiềm năng phát triển tài năng trong năm học <?= htmlspecialchars($school['academicYear']); ?>.
+                Theo dõi tổng quan hoạt động đào tạo của trường, quản lý hồ sơ học sinh / sinh viên và xem báo cáo chi tiết về tiềm năng phát triển tài năng<?= !empty($school['academicYear']) ? ' trong năm học ' . htmlspecialchars($school['academicYear']) : ''; ?>.
             </p>
+            <?php if (empty($school['id'])): ?>
+                <div style="margin-top: 12px; padding: 10px 14px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; color: #1e40af; font-size: 13px;">
+                    Chưa có trường học nào được thiết lập trong cơ sở dữ liệu. Bắt đầu bằng cách tạo mới trường học hoặc liên hệ Quản trị viên hệ thống.
+                </div>
+            <?php endif; ?>
             <div class="school-welcome__actions">
                 <a href="./analytics.php" class="btn btn-primary">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -73,7 +78,7 @@ ob_start();
                 <a href="./settings.php" class="btn btn-outline">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                         <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83-2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
                     Cài đặt trường
                 </a>
@@ -119,19 +124,27 @@ ob_start();
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($classes as $class): ?>
+                    <?php if (!empty($classes)): ?>
+                        <?php foreach ($classes as $class): ?>
+                            <tr>
+                                <td><strong><?= htmlspecialchars($class['name']); ?></strong></td>
+                                <td><?= htmlspecialchars($class['grade']); ?></td>
+                                <td><?= htmlspecialchars((string) $class['students']); ?> HS</td>
+                                <td><?= htmlspecialchars($class['academicYear']); ?></td>
+                                <td>
+                                    <span class="school-class-badge school-class-badge--<?= htmlspecialchars($class['status']); ?>">
+                                        <?= htmlspecialchars($class['statusText']); ?>
+                                    </span>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
                         <tr>
-                            <td><strong><?= htmlspecialchars($class['name']); ?></strong></td>
-                            <td><?= htmlspecialchars($class['grade']); ?></td>
-                            <td><?= htmlspecialchars((string) $class['students']); ?> HS</td>
-                            <td><?= htmlspecialchars($class['academicYear']); ?></td>
-                            <td>
-                                <span class="school-class-badge school-class-badge--<?= htmlspecialchars($class['status']); ?>">
-                                    <?= htmlspecialchars($class['statusText']); ?>
-                                </span>
+                            <td colspan="5" style="text-align: center; padding: 24px; color: var(--school-text-secondary, #64748b);">
+                                Chưa có lớp học nào trong hệ thống.
                             </td>
                         </tr>
-                    <?php endforeach; ?>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </section>
@@ -146,13 +159,19 @@ ob_start();
                 </div>
             </div>
             <div class="school-activity-timeline">
-                <?php foreach ($recentActivities as $activity): ?>
-                    <div class="school-activity-item">
-                        <span class="school-activity-item__indicator"></span>
-                        <span class="school-activity-item__text"><?= htmlspecialchars($activity['text']); ?></span>
-                        <span class="school-activity-item__time"><?= htmlspecialchars($activity['time']); ?></span>
+                <?php if (!empty($recentActivities)): ?>
+                    <?php foreach ($recentActivities as $activity): ?>
+                        <div class="school-activity-item">
+                            <span class="school-activity-item__indicator"></span>
+                            <span class="school-activity-item__text"><?= htmlspecialchars(is_array($activity) ? ($activity['text'] ?? $activity['title'] ?? '') : (string)$activity); ?></span>
+                            <span class="school-activity-item__time"><?= htmlspecialchars(is_array($activity) ? ($activity['time'] ?? $activity['created_at'] ?? '') : ''); ?></span>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div style="padding: 24px; text-align: center; color: var(--school-text-secondary, #64748b);">
+                        Chưa có hoạt động nào được ghi nhận gần đây.
                     </div>
-                <?php endforeach; ?>
+                <?php endif; ?>
             </div>
         </section>
     </div>

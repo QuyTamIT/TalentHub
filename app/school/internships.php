@@ -304,15 +304,15 @@ ob_start();
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                             <div>
                                 <div class="school-text-xs-upper" style="margin-bottom: 0.2rem;">Mã sinh viên</div>
-                                <div style="font-size: 0.95rem; color: #1E293B; font-weight: 600;">BTEC-AI-2026A</div>
+                                <div style="font-size: 0.95rem; color: #1E293B; font-weight: 600;">—</div>
                             </div>
                             <div>
                                 <div class="school-text-xs-upper" style="margin-bottom: 0.2rem;">Số điện thoại</div>
-                                <div style="font-size: 0.95rem; color: #1E293B; font-weight: 600;">090.123.4567</div>
+                                <div style="font-size: 0.95rem; color: #1E293B; font-weight: 600;">—</div>
                             </div>
                             <div style="grid-column: span 2;">
                                 <div class="school-text-xs-upper" style="margin-bottom: 0.2rem;">Email</div>
-                                <div style="font-size: 0.95rem; color: #1E293B; font-weight: 600;">student.btec@fpt.edu.vn</div>
+                                <div style="font-size: 0.95rem; color: #1E293B; font-weight: 600;">—</div>
                             </div>
                         </div>
                     </div>
@@ -485,8 +485,8 @@ function openInternshipDetail(id, studentName, postTitle, enterpriseName, status
     document.getElementById('detailEnterprise').textContent = enterpriseName;
     document.getElementById('detailStatus').textContent = status;
     document.getElementById('detailMentor').textContent = mentorName;
-    document.getElementById('detailAppliedDate').textContent = appliedAt || '01/08/2026';
-    document.getElementById('timelineAppliedDate').textContent = appliedAt || '01/08/2026';
+    document.getElementById('detailAppliedDate').textContent = appliedAt || '—';
+    document.getElementById('timelineAppliedDate').textContent = appliedAt || '—';
 }
 function closeInternshipDetail() { document.getElementById('detailModalOverlay').style.display = 'none'; }
 

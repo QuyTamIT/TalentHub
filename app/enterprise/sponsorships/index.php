@@ -48,8 +48,8 @@ $enterpriseInfo = [
     'account_type'      => $accountType,
     'logo_initials'     => $companyInitials,
     'logo_url'          => $enterprise['logoUrl'] ?? null,
-    'new_matches_count' => 86,
-    'total_talents'     => 1247,
+    'new_matches_count' => 0,
+    'total_talents'     => 0,
 ];
 
 $pageTitle = 'Tài trợ dự án';
@@ -137,50 +137,7 @@ if (!empty($projectIds)) {
 
 $dbSponsorships = $workflowService->sponsorships((string) $user['id']);
 
-$projectDetails = [
-    '50000000-0000-4000-8000-000000000001' => [
-        'problem_statement' => 'Tình trạng lãng phí nguồn nước và thiếu hụt nhân lực giám sát cây trồng nông nghiệp tại các đô thị và mô hình nhà kính công nghệ cao.',
-        'solution' => 'Sử dụng mạng lưới cảm biến IoT kết hợp vi điều khiển ESP32 và máy học phân tích độ ẩm đất để tối ưu hóa 40% lượng nước tưới và tự động hóa chu trình chăm sóc.',
-        'milestones' => [
-            ['phase' => 'Giai đoạn 1', 'title' => 'Nghiên cứu kiến trúc cảm biến & Lập trình vi điều khiển ESP32', 'date' => '07/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
-            ['phase' => 'Giai đoạn 2', 'title' => 'Thử nghiệm hệ thống tưới tự động tại Vườn thực nghiệm BTEC Cần Thơ', 'date' => '08/2026', 'status' => 'in_progress', 'status_label' => 'Đang triển khai'],
-            ['phase' => 'Giai đoạn 3', 'title' => 'Triển khai thử nghiệm quy mô 5 nhà kính và đóng gói sản phẩm', 'date' => '11/2026', 'status' => 'planned', 'status_label' => 'Kế hoạch']
-        ],
-        'expected_use_of_funds' => [
-            ['category' => 'Module Cảm biến IoT & Vi điều khiển ESP32', 'amount' => '25.000.000 VNĐ', 'percentage' => 50],
-            ['category' => 'Hệ thống bơm van tự động & Hạ tầng Cloud Server', 'amount' => '15.000.000 VNĐ', 'percentage' => 30],
-            ['category' => 'Học bổng & Hỗ trợ nhóm sinh viên nghiên cứu', 'amount' => '10.000.000 VNĐ', 'percentage' => 20]
-        ]
-    ],
-    '50000000-0000-4000-8000-000000000002' => [
-        'problem_statement' => 'Tình trạng rác thải sinh hoạt và rác tái chế bị vứt lẫn lộn gây khó khăn lớn cho công tác xử lý và làm giảm 70% giá trị tái chế nguyên liệu.',
-        'solution' => 'Sử dụng camera AI nhận diện thời gian thực kết hợp mô hình Computer Vision YOLOv8 trên vi xử lý Jetson Nano và hệ thống cánh lật phân loại tự động vào 3 ngăn.',
-        'milestones' => [
-            ['phase' => 'Giai đoạn 1', 'title' => 'Huấn luyện mô hình YOLOv8 trên 15.000 ảnh rác thải', 'date' => '07/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
-            ['phase' => 'Giai đoạn 2', 'title' => 'Chế tạo và thử nghiệm thùng rác thông minh tại Campus BTEC', 'date' => '08/2026', 'status' => 'in_progress', 'status_label' => 'Đang triển khai'],
-            ['phase' => 'Giai đoạn 3', 'title' => 'Thương mại hóa và lắp đặt thử nghiệm tại các tòa nhà văn phòng FPT', 'date' => '11/2026', 'status' => 'planned', 'status_label' => 'Kế hoạch']
-        ],
-        'expected_use_of_funds' => [
-            ['category' => 'Module AI Camera & Vi xử lý Edge (Jetson Nano)', 'amount' => '15.000.000 VNĐ', 'percentage' => 50],
-            ['category' => 'Cơ khí khung thùng rác & Động cơ Servo công nghiệp', 'amount' => '9.000.000 VNĐ', 'percentage' => 30],
-            ['category' => 'Học bổng & Hỗ trợ sinh viên nghiên cứu', 'amount' => '6.000.000 VNĐ', 'percentage' => 20]
-        ]
-    ],
-    '50000000-0000-4000-8000-000000000003' => [
-        'problem_statement' => 'Áp lực quá tải tại các bệnh viện tuyến dưới và nguy cơ bỏ sót các tổn thương phổi giai đoạn đầu trên phim chụp X-quang lồng ngực.',
-        'solution' => 'Ứng dụng mô hình Deep Learning phân tích ảnh chụp X-quang lồng ngực hỗ trợ bác sĩ phát hiện sớm tổn thương phổi và các bệnh lý hô hấp với độ chính xác >94%.',
-        'milestones' => [
-            ['phase' => 'Giai đoạn 1', 'title' => 'Xây dựng tập dữ liệu chuẩn hóa 20.000 phim X-quang', 'date' => '06/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
-            ['phase' => 'Giai đoạn 2', 'title' => 'Huấn luyện mô hình Deep Learning DenseNet/ResNet và thử nghiệm lab', 'date' => '08/2026', 'status' => 'in_progress', 'status_label' => 'Đang triển khai'],
-            ['phase' => 'Giai đoạn 3', 'title' => 'Tích hợp phần mềm hỗ trợ chẩn đoán cho các phòng khám thực nghiệm', 'date' => '12/2026', 'status' => 'planned', 'status_label' => 'Kế hoạch']
-        ],
-        'expected_use_of_funds' => [
-            ['category' => 'Hạ tầng GPU Cloud & Server huấn luyện AI', 'amount' => '20.000.000 VNĐ', 'percentage' => 50],
-            ['category' => 'Hợp tác chuyên gia y tế cố vấn & Đánh giá mô hình', 'amount' => '12.000.000 VNĐ', 'percentage' => 30],
-            ['category' => 'Học bổng & Khen thưởng nhóm nghiên cứu', 'amount' => '8.000.000 VNĐ', 'percentage' => 20]
-        ]
-    ]
-];
+$projectDetails = [];
 
 $projects = [];
 foreach ($dbProjects as $p) {
@@ -390,17 +347,16 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                         <!-- Bên phải: Filter Pills Danh mục nhanh -->
                         <div class="spon-filter-pills" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                             <button type="button" class="spon-pill-btn is-active" data-cat="all">
-                                Tất cả (3)
+                                Tất cả (<?= (int)$openProjectsCount; ?>)
                             </button>
-                            <button type="button" class="spon-pill-btn" data-cat="IoT & AI Nhúng">
-                                IoT &amp; AI Nhúng
-                            </button>
-                            <button type="button" class="spon-pill-btn" data-cat="Trí tuệ nhân tạo & Thị giác máy tính">
-                                Trí tuệ nhân tạo &amp; CV
-                            </button>
-                            <button type="button" class="spon-pill-btn" data-cat="AI Y tế & Chuyển đổi số">
-                                AI Y tế &amp; Chuyển đổi số
-                            </button>
+                            <?php 
+                            $projectCategories = array_values(array_unique(array_filter(array_map(static fn($pr) => trim((string)($pr['category'] ?? '')), $displayProjects))));
+                            foreach ($projectCategories as $catName): 
+                            ?>
+                                <button type="button" class="spon-pill-btn" data-cat="<?= htmlspecialchars($catName, ENT_QUOTES, 'UTF-8'); ?>">
+                                    <?= htmlspecialchars($catName, ENT_QUOTES, 'UTF-8'); ?>
+                                </button>
+                            <?php endforeach; ?>
                         </div>
                     </div>
 

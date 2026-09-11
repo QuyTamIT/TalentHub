@@ -26,15 +26,6 @@ $school     = $context['school'];
 $flash = null;
 $error = null;
 
-// Determine School Code
-$schoolCode = 'BTEC-FPT';
-if (stripos($school['name'], 'Cần Thơ') !== false || stripos($school['name'], 'CTU') !== false) {
-    $schoolCode = 'CTU';
-} elseif (stripos($school['name'], 'FPT') !== false && stripos($school['name'], 'BTEC') === false) {
-    $schoolCode = 'FPTU';
-} elseif (stripos($school['name'], 'BTEC') !== false) {
-    $schoolCode = 'BTEC-FPT';
-}
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
@@ -86,15 +77,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 // Logo Initials
-if (stripos($school['name'], 'BTEC') !== false) {
-    $initials = 'BF';
-} elseif (stripos($school['name'], 'Cần Thơ') !== false || stripos($school['name'], 'CTU') !== false) {
-    $initials = 'CTU';
-} elseif (stripos($school['name'], 'FPT') !== false) {
-    $initials = 'FPT';
+$cleanSchoolName = trim((string)($school['name'] ?? ''));
+if ($cleanSchoolName !== '') {
+    $words = preg_split('/\s+/', $cleanSchoolName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+    $initials = count($words) > 1 
+        ? mb_strtoupper(mb_substr($words[0], 0, 1) . mb_substr($words[count($words) - 1], 0, 1))
+        : mb_strtoupper(mb_substr($cleanSchoolName, 0, 2));
 } else {
-    $words = explode(' ', trim($school['name']));
-    $initials = count($words) > 1 ? mb_substr($words[0], 0, 1) . mb_substr($words[count($words) - 1], 0, 1) : mb_substr($school['name'], 0, 2);
+    $initials = 'NT';
 }
 
 // Calculate active student count accurately from database
@@ -157,17 +147,29 @@ include __DIR__ . '/includes/page-banner.php';
         <div>
             <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
                 <h2 style="font-size: 1.35rem; font-weight: 700; color: var(--text-primary); margin: 0;">
-                    <?= htmlspecialchars($school['name']); ?>
+                    <?= htmlspecialchars(!empty($school['name']) ? $school['name'] : 'Nhà trường'); ?>
                 </h2>
-                <span class="school-badge school-badge--info">
-                    Mã: <?= htmlspecialchars($schoolCode); ?>
-                </span>
-                <span class="school-badge school-badge--success">
-                    ✓ Đã xác thực
-                </span>
+                <?php if (!empty($school['code'])): ?>
+                    <span class="school-badge school-badge--info">
+                        Mã: <?= htmlspecialchars((string) $school['code']); ?>
+                    </span>
+                <?php elseif (!empty($school['id'])): ?>
+                    <span class="school-badge school-badge--info">
+                        Mã: <?= htmlspecialchars(substr($school['id'], 0, 8)); ?>
+                    </span>
+                <?php endif; ?>
+                <?php if (($school['status'] ?? '') === 'active'): ?>
+                    <span class="school-badge school-badge--success">
+                        ✓ Đã xác thực
+                    </span>
+                <?php else: ?>
+                    <span class="school-badge school-badge--neutral">
+                        Chưa thiết lập
+                    </span>
+                <?php endif; ?>
             </div>
             <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0.35rem 0 0 0;">
-                <?= htmlspecialchars($school['level'] ?: 'Đại học / Cao đẳng'); ?> • Niên khóa: <strong><?= htmlspecialchars($school['academicYear']); ?></strong> • Quản trị: <strong><?= htmlspecialchars($context['user']['email']); ?></strong>
+                <?= htmlspecialchars(!empty($school['level']) ? $school['level'] : 'Đại học / Cao đẳng'); ?> • Niên khóa: <strong><?= htmlspecialchars(!empty($school['academicYear']) ? $school['academicYear'] : '—'); ?></strong> • Quản trị: <strong><?= htmlspecialchars($context['user']['email']); ?></strong>
             </p>
         </div>
     </div>
@@ -221,14 +223,14 @@ include __DIR__ . '/includes/page-banner.php';
 
                 <label class="school-form__field">
                     <span>Mã trường / Đơn vị</span>
-                    <input type="text" name="school_code" value="<?= htmlspecialchars($schoolCode); ?>" readonly style="background: #F8FAFC; cursor: not-allowed;">
+                    <input type="text" name="school_code" value="<?= htmlspecialchars((string)($school['code'] ?? (!empty($school['id']) ? substr($school['id'], 0, 8) : ''))); ?>" readonly style="background: #F8FAFC; cursor: not-allowed;">
                 </label>
 
                 <label class="school-form__field">
                     <span>Loại hình đào tạo <em>*</em></span>
                     <select name="level" class="typeui-select" required>
-                        <option value="Cao đẳng Quốc tế" <?= ($school['level'] ?? '') === 'Cao đẳng Quốc tế' || stripos($school['level'] ?? '', 'Cao đẳng') !== false ? 'selected' : ''; ?>>Cao đẳng Quốc tế</option>
-                        <option value="Đại học Công lập" <?= ($school['level'] ?? '') === 'Đại học Công lập' || stripos($school['name'], 'Cần Thơ') !== false ? 'selected' : ''; ?>>Đại học Công lập</option>
+                        <option value="Cao đẳng Quốc tế" <?= ($school['level'] ?? '') === 'Cao đẳng Quốc tế' ? 'selected' : ''; ?>>Cao đẳng Quốc tế</option>
+                        <option value="Đại học Công lập" <?= ($school['level'] ?? '') === 'Đại học Công lập' ? 'selected' : ''; ?>>Đại học Công lập</option>
                         <option value="Đại học Tư thục" <?= ($school['level'] ?? '') === 'Đại học Tư thục' ? 'selected' : ''; ?>>Đại học Tư thục</option>
                         <option value="Học viện" <?= ($school['level'] ?? '') === 'Học viện' ? 'selected' : ''; ?>>Học viện</option>
                         <option value="Trung học Phổ thông" <?= ($school['level'] ?? '') === 'Trung học Phổ thông' ? 'selected' : ''; ?>>Trung học Phổ thông</option>
@@ -252,7 +254,7 @@ include __DIR__ . '/includes/page-banner.php';
 
                 <label class="school-form__field">
                     <span>Số điện thoại liên hệ</span>
-                    <input type="tel" name="phone" value="<?= htmlspecialchars((string) ($school['phone'] ?? '')); ?>" placeholder="024 7300 9268">
+                    <input type="tel" name="phone" value="<?= htmlspecialchars((string) ($school['phone'] ?? '')); ?>" placeholder="024 1234 5678">
                 </label>
 
                 <label class="school-form__field">

@@ -202,10 +202,10 @@ final class SessionManager
 
                 // 3. Fallback when no session exists: use deterministic canonical account for the role
                 $targetEmails = match ($role) {
-                    \TalentHub\Rbac\RoleCodes::ENTERPRISE => ['fpt@talenthub.local', 'enterprise@talenthub.local'],
+                    \TalentHub\Rbac\RoleCodes::ENTERPRISE => [],
                     \TalentHub\Rbac\RoleCodes::STUDENT => ['vo-duc-anh@student.btec.talenthub.local', 'student@talenthub.local', 'vuducanh@student.btec.edu.vn'],
-                    \TalentHub\Rbac\RoleCodes::TEACHER => ['teacher@talenthub.local'],
-                    \TalentHub\Rbac\RoleCodes::SCHOOL => ['btec@school.edu.vn', 'btec@talenthub.local', 'school@talenthub.local'],
+                    \TalentHub\Rbac\RoleCodes::TEACHER => [],
+                    \TalentHub\Rbac\RoleCodes::SCHOOL => [],
                     \TalentHub\Rbac\RoleCodes::PLATFORM_ADMIN => ['admin@talenthub.local'],
                     default => [],
                 };
@@ -251,21 +251,15 @@ final class SessionManager
 
         $defaultEmails = [
             \TalentHub\Rbac\RoleCodes::STUDENT => 'student@talenthub.local',
-            \TalentHub\Rbac\RoleCodes::TEACHER => 'teacher@talenthub.local',
             \TalentHub\Rbac\RoleCodes::SCHOOL => 'school@talenthub.local',
-            \TalentHub\Rbac\RoleCodes::ENTERPRISE => 'fpt@talenthub.local',
             \TalentHub\Rbac\RoleCodes::PLATFORM_ADMIN => 'admin@talenthub.local',
         ];
         $defaultNames = [
             \TalentHub\Rbac\RoleCodes::STUDENT => 'Học viên TalentHub',
-            \TalentHub\Rbac\RoleCodes::TEACHER => 'Giáo viên TalentHub',
             \TalentHub\Rbac\RoleCodes::SCHOOL => 'Ban Giám hiệu TalentHub',
-            \TalentHub\Rbac\RoleCodes::ENTERPRISE => 'FPT Software',
             \TalentHub\Rbac\RoleCodes::PLATFORM_ADMIN => 'Admin TalentHub',
         ];
-        $defaultIds = [
-            \TalentHub\Rbac\RoleCodes::ENTERPRISE => '31000000-0000-4000-8000-000000000015',
-        ];
+        $defaultIds = [];
         return [
             'id' => $defaultIds[$role] ?? \TalentHub\Support\Uuid::v4(),
             'email' => $defaultEmails[$role] ?? 'demo@talenthub.local',

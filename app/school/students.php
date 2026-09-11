@@ -19,9 +19,9 @@ if (isset($_GET['download_template'])) {
     // UTF-8 BOM for Excel compatibility
     fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
     fputcsv($out, ['Họ và tên', 'Email', 'Mã lớp', 'Chuyên ngành', 'Số điện thoại', 'Ngày sinh']);
-    fputcsv($out, ['Nguyễn Hoàng Long', 'long.nh@student.btec.fpt.edu.vn', 'BTEC-AI-2026A', 'Kỹ thuật Phần mềm & Trí tuệ nhân tạo AI', '0981234567', '2005-03-15']);
-    fputcsv($out, ['Phan Thị Thanh Hằng', 'hang.ptt@student.btec.fpt.edu.vn', 'BTEC-SE-2026A', 'Lập trình Fullstack Web & Mobile', '0972345678', '2005-07-20']);
-    fputcsv($out, ['Đặng Quốc Huy', 'huy.dq@student.ctu.edu.vn', 'K47 Quản trị Kinh doanh', 'Quản trị Kinh doanh & Chuỗi cung ứng', '0913456789', '2004-11-05']);
+    fputcsv($out, ['Nguyễn Văn An', 'nguyenvanan@school.edu.vn', '10A1', 'Công nghệ thông tin', '0981234567', '2006-03-15']);
+    fputcsv($out, ['Trần Thị Mai', 'tranthimai@school.edu.vn', '10A1', 'Kinh tế & Quản trị', '0972345678', '2006-07-20']);
+    fputcsv($out, ['Lê Hoàng Nam', 'lehoangnam@school.edu.vn', '10A2', 'Thiết kế đồ họa', '0913456789', '2006-11-05']);
     fclose($out);
     exit;
 }
@@ -83,12 +83,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? '')
         $errorCount = 0;
         $defaultPasswordHash = password_hash('123456', PASSWORD_BCRYPT);
         $studentRoleIdStmt = $pdo->query("SELECT id FROM roles WHERE code = 'student' LIMIT 1");
-        $studentRoleId = (string) ($studentRoleIdStmt->fetchColumn() ?: '10000000-0000-4000-8000-000000000010');
+        $studentRoleId = (string) $studentRoleIdStmt->fetchColumn();
 
         foreach ($rows as $row) {
             $fullName = trim((string)($row[0] ?? ''));
             $email = trim(strtolower((string)($row[1] ?? '')));
-            $className = trim((string)($row[2] ?? 'BTEC-AI-2026A'));
+            $className = trim((string)($row[2] ?? '10A1'));
             $major = trim((string)($row[3] ?? 'Công nghệ thông tin'));
             $phone = trim((string)($row[4] ?? ''));
             $dob = trim((string)($row[5] ?? '2005-01-01'));
@@ -209,7 +209,6 @@ if (!empty($studentIds)) {
         ];
     }
 }
-$schoolPrefix = stripos($context['school']['name'], 'Cần Thơ') !== false ? 'CTU-' : 'BTEC-';
 
 $classes = $service->classesWithArchived($userId);
 
@@ -471,7 +470,7 @@ include __DIR__ . '/includes/page-banner.php';
                 <summary style="cursor:pointer;font-weight:600;color:#2563EB;">Hoặc dán trực tiếp dữ liệu CSV</summary>
                 <div style="margin-top:0.5rem;">
                     <textarea name="csv_raw" rows="4" class="school-inline-textarea" placeholder="Họ và tên,Email,Mã lớp,Chuyên ngành,Số điện thoại,Ngày sinh
-Nguyễn Văn A,nguyenvana@student.edu.vn,BTEC-AI-2026A,AI & Robotics,0901234567,2005-01-01"></textarea>
+Nguyễn Văn A,nguyenvana@school.edu.vn,10A1,Công nghệ thông tin,0901234567,2005-01-01"></textarea>
                 </div>
             </details>
 

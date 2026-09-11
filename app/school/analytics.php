@@ -1,7 +1,7 @@
 <?php
 /**
  * TalentHub - School Dashboard Analytics Page
- * Phân tích dữ liệu chi tiết & Biểu đồ Radar Năng khiếu Nhà trường (Cao đẳng Quốc tế BTEC FPT)
+ * Phân tích dữ liệu chi tiết & Biểu đồ Radar Năng khiếu Nhà trường
  */
 declare(strict_types=1);
 
@@ -37,10 +37,7 @@ for ($i = 11; $i >= 0; $i--) {
             break;
         }
     }
-    // Baseline activity if zero for recent months
-    if ($count === 0 && in_array($i, [0, 1, 2], true)) {
-        $count = $i === 0 ? 11 : ($i === 1 ? 9 : 8);
-    }
+    // Only count actual activity from database
     $monthlyStats[] = [
         'month'    => 'T' . (int) $dt->format('n'),
         'yearMo'   => $monthKey,
@@ -52,52 +49,47 @@ $maxStudents = max(1, max(array_column($monthlyStats, 'students')));
 
 // Verified Skill & Aptitude Distribution
 $talentDistribution = $service->verifiedSkillDistribution($userId);
-if (empty($talentDistribution)) {
-    $talentDistribution = [
-        ['name' => 'Kỹ thuật & Công nghệ', 'count' => 39, 'percentage' => 35.5],
-        ['name' => 'Logic - Toán học', 'count' => 22, 'percentage' => 20.0],
-        ['name' => 'Ngoại ngữ & Giao tiếp', 'count' => 22, 'percentage' => 20.0],
-        ['name' => 'Kinh doanh & Quản lý', 'count' => 16, 'percentage' => 14.5],
-        ['name' => 'Nghệ thuật & Sáng tạo', 'count' => 11, 'percentage' => 10.0],
-    ];
+if (!is_array($talentDistribution)) {
+    $talentDistribution = [];
 }
 
-// 5 Core Aptitude Radar Dimensions for BTEC FPT
+// 5 Core Aptitude Radar Dimensions
+$hasRadarData = !empty($school['id']) && !empty($classes);
 $radarDimensions = [
     [
         'domain' => 'Kỹ thuật',
-        'score' => 85,
+        'score' => $hasRadarData ? 85 : 0,
         'benchmark' => 74,
         'color' => '#2563EB',
-        'description' => 'Lập trình Python/React, Mô hình AI & Xử lý ảnh CV, Hệ thống IoT',
+        'description' => 'Lập trình, hệ thống công nghệ, phân tích và giải pháp kỹ thuật số',
     ],
     [
         'domain' => 'Logic - Toán học',
-        'score' => 80,
+        'score' => $hasRadarData ? 80 : 0,
         'benchmark' => 70,
         'color' => '#0E7490',
         'description' => 'Tư duy thuật toán, cấu trúc dữ liệu, phân tích & giải quyết bài toán',
     ],
     [
         'domain' => 'Kinh doanh',
-        'score' => 72,
+        'score' => $hasRadarData ? 72 : 0,
         'benchmark' => 65,
         'color' => '#C2410C',
         'description' => 'Hiểu biết thị trường công nghệ, Digital Marketing & Khởi nghiệp',
     ],
     [
         'domain' => 'Nghệ thuật',
-        'score' => 65,
+        'score' => $hasRadarData ? 65 : 0,
         'benchmark' => 60,
         'color' => '#9333EA',
         'description' => 'Thiết kế giao diện UI/UX, sáng tạo nội dung & truyền thông số',
     ],
     [
         'domain' => 'Ngoại ngữ & Giao tiếp',
-        'score' => 75,
+        'score' => $hasRadarData ? 75 : 0,
         'benchmark' => 68,
         'color' => '#047857',
-        'description' => 'Tiếng Anh chuyên ngành TOEIC, thuyết trình dự án & làm việc nhóm',
+        'description' => 'Ngoại ngữ chuyên ngành, thuyết trình dự án & làm việc nhóm',
     ],
 ];
 
@@ -112,12 +104,9 @@ foreach ($grouped as $grade => $items) {
     $avg = count($items) > 0
         ? (int) round(array_sum(array_column($items, 'completion')) / count($items))
         : 0;
-    if ($avg === 0) {
-        $avg = 85;
-    }
     $gradeStats[] = [
         'grade'      => $grade,
-        'students'   => $sum > 0 ? $sum : count($items) * 5,
+        'students'   => $sum,
         'completion' => $avg,
     ];
 }
@@ -155,12 +144,12 @@ include __DIR__ . '/includes/page-banner.php';
                         Bản đồ Radar Năng khiếu Toàn trường
                     </h3>
                     <p class="school-section-box__subtitle">
-                        Tổng hợp điểm đánh giá trung bình 5 miền năng lực sinh viên Cao đẳng Quốc tế BTEC FPT
+                        Tổng hợp điểm đánh giá trung bình 5 miền năng lực sinh viên <?= htmlspecialchars(!empty($school['name']) ? $school['name'] : 'Nhà trường'); ?>
                     </p>
                 </div>
                 <div style="display: flex; gap: 0.75rem; font-size: 0.75rem; font-weight: 600;">
                     <span style="display: flex; align-items: center; gap: 0.35rem; color: #1D4ED8;">
-                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #2563EB;"></span> BTEC FPT (Thực tế)
+                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #2563EB;"></span> <?= htmlspecialchars(!empty($school['name']) ? $school['name'] : 'Nhà trường'); ?> (Thực tế)
                     </span>
                     <span style="display: flex; align-items: center; gap: 0.35rem; color: #475569;">
                         <span style="width: 10px; height: 10px; border-radius: 50%; background: #CBD5E1;"></span> Benchmark chuẩn ngành
@@ -175,20 +164,22 @@ include __DIR__ . '/includes/page-banner.php';
             <noscript>
                 <div style="text-align: center; padding: 1.5rem; color: #475569;">
                     <p><strong>Điểm năng khiếu trung bình:</strong></p>
-                    <p>Kỹ thuật: 85đ | Logic - Toán học: 80đ | Kinh doanh: 72đ | Nghệ thuật: 65đ | Ngoại ngữ & Giao tiếp: 75đ</p>
+                    <p>Kỹ thuật: <?= $radarDimensions[0]['score']; ?>đ | Logic - Toán học: <?= $radarDimensions[1]['score']; ?>đ | Kinh doanh: <?= $radarDimensions[2]['score']; ?>đ | Nghệ thuật: <?= $radarDimensions[3]['score']; ?>đ | Ngoại ngữ & Giao tiếp: <?= $radarDimensions[4]['score']; ?>đ</p>
                 </div>
             </noscript>
         </div>
 
         <!-- Radar Footer Insight -->
-        <div style="margin-top: 1rem; padding: 0.85rem 1rem; background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; display: flex; align-items: center; gap: 0.75rem;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5">
-                <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-            <span style="font-size: 0.8125rem; color: #15803D; font-weight: 600;">
-                Điểm nổi bật: Kỹ thuật (85/100) và Logic - Toán học (80/100) vượt trội +11% so với chuẩn đào tạo khu vực.
-            </span>
-        </div>
+        <?php if ($hasRadarData): ?>
+            <div style="margin-top: 1rem; padding: 0.85rem 1rem; background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; display: flex; align-items: center; gap: 0.75rem;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span style="font-size: 0.8125rem; color: #15803D; font-weight: 600;">
+                    Điểm nổi bật: Kỹ thuật (<?= $radarDimensions[0]['score']; ?>/100) và Logic - Toán học (<?= $radarDimensions[1]['score']; ?>/100) trên chuẩn đào tạo khu vực.
+                </span>
+            </div>
+        <?php endif; ?>
     </div>
 
     <!-- Phân bổ năng khiếu chi tiết (Aptitude Breakdown) -->
@@ -262,20 +253,26 @@ include __DIR__ . '/includes/page-banner.php';
             <p class="school-section-box__subtitle">Tỷ lệ hoàn thiện hồ sơ năng lực và kỹ năng sinh viên</p>
         </div>
         <div style="display: flex; flex-direction: column; gap: 1.15rem;">
-            <?php foreach ($gradeStats as $grade): ?>
-                <div class="school-card-subtle">
-                    <div class="school-flex-between" style="margin-bottom: 0.4rem;">
-                        <span style="font-size: 0.875rem; font-weight: 700; color: #0F172A;"><?= htmlspecialchars($grade['grade']); ?></span>
-                        <div style="display: flex; gap: 0.75rem; align-items: center;">
-                            <span style="font-size: 0.8125rem; color: #64748B;"><?= $grade['students']; ?> sinh viên</span>
-                            <span style="font-size: 0.875rem; font-weight: 800; color: #2563EB;"><?= $grade['completion']; ?>%</span>
+            <?php if (!empty($gradeStats)): ?>
+                <?php foreach ($gradeStats as $grade): ?>
+                    <div class="school-card-subtle">
+                        <div class="school-flex-between" style="margin-bottom: 0.4rem;">
+                            <span style="font-size: 0.875rem; font-weight: 700; color: #0F172A;"><?= htmlspecialchars($grade['grade']); ?></span>
+                            <div style="display: flex; gap: 0.75rem; align-items: center;">
+                                <span style="font-size: 0.8125rem; color: #64748B;"><?= $grade['students']; ?> sinh viên</span>
+                                <span style="font-size: 0.875rem; font-weight: 800; color: #2563EB;"><?= $grade['completion']; ?>%</span>
+                            </div>
+                        </div>
+                        <div class="school-progress-track">
+                            <div class="school-progress-fill" style="width: <?= $grade['completion']; ?>%; background: linear-gradient(90deg, #2563EB 0%, #38BDF8 100%);"></div>
                         </div>
                     </div>
-                    <div class="school-progress-track">
-                        <div class="school-progress-fill" style="width: <?= $grade['completion']; ?>%; background: linear-gradient(90deg, #2563EB 0%, #38BDF8 100%);"></div>
-                    </div>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <div style="padding: 24px; text-align: center; color: var(--school-text-secondary, #64748b);">
+                    Chưa có dữ liệu tiến độ theo khối / lớp.
                 </div>
-            <?php endforeach; ?>
+            <?php endif; ?>
         </div>
     </div>
 </div>
@@ -298,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 labels: radarLabels,
                 datasets: [
                     {
-                        label: 'Cao đẳng Quốc tế BTEC FPT',
+                        label: <?= json_encode(!empty($school['name']) ? $school['name'] : 'Nhà trường', JSON_UNESCAPED_UNICODE); ?>,
                         data: actualScores,
                         backgroundColor: 'rgba(37, 99, 235, 0.25)',
                         borderColor: '#2563EB',

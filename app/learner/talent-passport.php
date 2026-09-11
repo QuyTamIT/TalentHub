@@ -1454,7 +1454,7 @@ if ($professionalSummary === '') {
                                 <!-- 6. QR Code Verification -->
                                 <div class="passport-sidebar-section passport-sidebar-qr-box">
                                     <?php
-                                    $passportCode = !empty($studentId) ? ('TP-' . strtoupper(substr(str_replace('-', '', (string)$studentId), 0, 8))) : 'PASSPORT-TEST-002';
+                                    $passportCode = !empty($studentId) ? ('TP-' . strtoupper(substr(str_replace('-', '', (string)$studentId), 0, 8))) : '';
                                     $defaultVerifyUrl = (function_exists('app_href') ? app_href('/app/learner/shared-profile.php') : '/app/learner/shared-profile.php') . '?code=' . urlencode($passportCode);
                                     ?>
                                     <div class="passport-qr-cv-img" id="passport-verification-qr" data-default-url="<?= learner_escape($defaultVerifyUrl); ?>" role="img" aria-label="Mã QR xác thực Talent Passport">

@@ -65,7 +65,7 @@ final class PortalGuard
                 if ($cached !== null && !$isRoleAllowed) {
                     self::renderRoleMismatch($currentRole, $role);
                 }
-                if (!$allowDemoAutologin) {
+                if (!$allowDemoAutologin || $role === RoleCodes::TEACHER || $role === RoleCodes::ENTERPRISE) {
                     self::redirectToLogin($fallbackPath, $role);
                 }
                 $cached = SessionManager::getFallbackUserForRole($role, $pdo);
@@ -74,12 +74,12 @@ final class PortalGuard
 
             try {
                 $user = (new AuthService(new AuthRepository($pdo)))->current((string) ($cached['id'] ?? ''));
-                if (!empty($cached['email']) && !empty($cached['fullName']) && (empty($user['email']) || $user['email'] === 'teacher@test.talenthub.local')) {
+                if (!empty($cached['email']) && !empty($cached['fullName']) && empty($user['email'])) {
                     $user['email'] = $cached['email'];
                     $user['fullName'] = $cached['fullName'];
                 }
             } catch (\Throwable) {
-                if ($allowDemoAutologin) {
+                if ($allowDemoAutologin && $role !== RoleCodes::TEACHER && $role !== RoleCodes::ENTERPRISE) {
                     $user = SessionManager::getFallbackUserForRole($role, $pdo);
                     $session->login($user);
                 } else {
@@ -97,12 +97,9 @@ final class PortalGuard
         }
 
         $fullName = (string) ($user['fullName'] ?? ($user['full_name'] ?? ($user['name'] ?? ($user['email'] ?? ''))));
-        if (($fullName === '' || $fullName === 'Test Teacher') && !empty($user['email']) && !str_contains((string)$user['email'], 'test')) {
+        if ($fullName === '' && !empty($user['email'])) {
             $parts = explode('@', (string)$user['email']);
             $fullName = ucwords(str_replace(['.', '_', '-'], ' ', $parts[0] ?? 'Giáo viên'));
-        }
-        if ($fullName === 'minh triet') {
-            $fullName = 'Minh Triết';
         }
         $user['fullName'] = $fullName;
 

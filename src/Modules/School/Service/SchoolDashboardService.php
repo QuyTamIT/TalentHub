@@ -57,18 +57,57 @@ final class SchoolDashboardService
         private readonly ?SchoolAuthorization $authorization = null,
     ) {}
 
-    public function getByUser(string $userId): array
+    public function getByUserOrNull(string $userId): ?array
     {
         $row = $this->repository->findByUserId($userId);
         if ($row === null) {
-            throw new ApiException(404, 'SCHOOL_NOT_FOUND', 'Không tìm thấy trường cho người dùng hiện tại.');
+            return null;
         }
         return $this->presentSchool($row);
     }
 
+    public function getByUser(string $userId): array
+    {
+        $school = $this->getByUserOrNull($userId);
+        if ($school === null) {
+            throw new ApiException(404, 'SCHOOL_NOT_FOUND', 'Không tìm thấy trường cho người dùng hiện tại.');
+        }
+        return $school;
+    }
+
     public function dashboard(string $userId): array
     {
-        $school = $this->getByUser($userId);
+        $school = $this->getByUserOrNull($userId);
+        if ($school === null) {
+            $emptySchool = [
+                'id'           => '',
+                'name'         => 'Chưa có thông tin trường',
+                'logoUrl'      => null,
+                'level'        => '—',
+                'academicYear' => '—',
+                'address'      => '',
+                'phone'        => '',
+                'email'        => '',
+                'website'      => '',
+                'status'       => 'inactive',
+                'studentCount' => 0,
+                'teacherCount' => 0,
+            ];
+            $metrics = [
+                'activeStudents'      => 0,
+                'activeTeachers'      => 0,
+                'totalClasses'        => 0,
+                'publishedActivities' => 0,
+            ];
+            return [
+                'school'         => $emptySchool,
+                'metrics'        => $metrics,
+                'kpis'           => $this->buildKpis($metrics, []),
+                'topTalents'     => [],
+                'classes'        => [],
+                'recentActivity' => [],
+            ];
+        }
         $schoolId = $school['id'];
         if ($this->usesLegacySchoolSchema()) {
             $studentStmt=$this->pdo->prepare("SELECT COUNT(*) FROM student_profiles sp JOIN classes c ON c.id=sp.classId WHERE c.schoolId=? AND sp.studyStatus='active'");$studentStmt->execute([$schoolId]);
@@ -136,7 +175,10 @@ final class SchoolDashboardService
 
     public function classes(string $userId): array
     {
-        $school = $this->getByUser($userId);
+        $school = $this->getByUserOrNull($userId);
+        if ($school === null) {
+            return [];
+        }
         return $this->presentClasses($this->repository->listClasses($school['id']));
     }
 
@@ -145,7 +187,10 @@ final class SchoolDashboardService
      */
     public function classesWithArchived(string $userId): array
     {
-        $school = $this->getByUser($userId);
+        $school = $this->getByUserOrNull($userId);
+        if ($school === null) {
+            return [];
+        }
         return $this->presentClasses($this->repository->listClasses($school['id'], true));
     }
 
@@ -282,7 +327,10 @@ final class SchoolDashboardService
 
     public function teachers(string $userId, int $limit = 50, int $offset = 0): array
     {
-        $school = $this->getByUser($userId);
+        $school = $this->getByUserOrNull($userId);
+        if ($school === null) {
+            return [];
+        }
         $rows = $this->repository->listTeachers($school['id'], $limit, $offset);
         return array_map(static function (array $row): array {
             return [
@@ -470,7 +518,10 @@ final class SchoolDashboardService
      */
     public function students(string $userId, int $limit = 50, int $offset = 0): array
     {
-        $school = $this->getByUser($userId);
+        $school = $this->getByUserOrNull($userId);
+        if ($school === null) {
+            return [];
+        }
         $rows = $this->repository->listStudents($school['id'], $limit, $offset);
         return array_map(static function (array $row): array {
             return [
@@ -662,7 +713,15 @@ final class SchoolDashboardService
      */
     public function analytics(string $userId): array
     {
-        $school = $this->getByUser($userId);
+        $school = $this->getByUserOrNull($userId);
+        if ($school === null) {
+            return [
+                'monthly'           => [],
+                'actions'           => [],
+                'totalEvents'       => 0,
+                'checkinExperience' => 0,
+            ];
+        }
 
         $monthlyStmt = $this->pdo->prepare(
             "SELECT DATE_FORMAT(al.createdAt, '%Y-%m') AS month, COUNT(*) AS cnt
@@ -710,7 +769,10 @@ final class SchoolDashboardService
     /** @return list<array{name:string,count:int,percentage:float}> */
     public function verifiedSkillDistribution(string $userId): array
     {
-        $school = $this->getByUser($userId);
+        $school = $this->getByUserOrNull($userId);
+        if ($school === null) {
+            return [];
+        }
         $items = $this->repository->verifiedSkillDistribution($school['id']);
         $total = array_sum(array_column($items, 'count'));
         return array_map(static function (array $item) use ($total): array {
@@ -754,8 +816,6 @@ final class SchoolDashboardService
     /** @return array{items:list<array<string,mixed>>,summary:array<string,int>} */
     public function internshipOversight(string $userId): array
     {
-        $school = $this->getByUser($userId);
-        $items = $this->repository->listInternshipApplications($school['id']);
         $summary = [
             'submitted' => 0,
             'reviewing' => 0,
@@ -766,6 +826,11 @@ final class SchoolDashboardService
             'lockedApplications' => 0,
             'acceptedWithoutMentor' => 0,
         ];
+        $school = $this->getByUserOrNull($userId);
+        if ($school === null) {
+            return ['items' => [], 'summary' => $summary];
+        }
+        $items = $this->repository->listInternshipApplications($school['id']);
         foreach ($items as $item) {
             $status = (string) ($item['status'] ?? '');
             if (array_key_exists($status, $summary)) { $summary[$status]++; }
@@ -912,7 +977,10 @@ final class SchoolDashboardService
      */
     public function listReports(string $userId, int $limit = 20): array
     {
-        $school = $this->getByUser($userId);
+        $school = $this->getByUserOrNull($userId);
+        if ($school === null) {
+            return [];
+        }
         return $this->repository->listReports($school['id'], $limit);
     }
 
@@ -1102,8 +1170,14 @@ final class SchoolDashboardService
 
     private function buildKpis(array $metrics, array $classes): array
     {
-        $students     = (int) $metrics['activeStudents'];
-        $classesCount = (int) $metrics['totalClasses'];
+        $students     = (int) ($metrics['activeStudents'] ?? 0);
+        $classesCount = (int) ($metrics['totalClasses'] ?? count($classes));
+        $published    = (int) ($metrics['publishedActivities'] ?? 0);
+        $registrations= (int) ($metrics['approvedRegistrations'] ?? 0);
+        $internships  = (int) ($metrics['acceptedInternshipApplications'] ?? 0);
+        $partners     = (int) ($metrics['approvedEnterprisePartners'] ?? 0);
+        $sponsorship  = (float) ($metrics['paidSponsorshipAmount'] ?? 0);
+        $projects     = (int) ($metrics['activeProjects'] ?? 0);
 
         return [
             [
@@ -1115,23 +1189,23 @@ final class SchoolDashboardService
             ],
             [
                 'label'      => 'Hoạt động đã xuất bản',
-                'value'      => number_format((int) $metrics['publishedActivities']),
-                'change'     => number_format((int) $metrics['approvedRegistrations']) . ' đăng ký đã duyệt',
+                'value'      => number_format($published),
+                'change'     => number_format($registrations) . ' đăng ký đã duyệt',
                 'changeType' => 'neutral',
                 'icon'       => 'calendar',
             ],
             [
                 'label'      => 'Thực tập đã tiếp nhận',
-                'value'      => number_format((int) $metrics['acceptedInternshipApplications']),
-                'change'     => number_format((int) $metrics['approvedEnterprisePartners']) . ' đối tác đã duyệt',
-                'changeType' => (int) $metrics['acceptedInternshipApplications'] > 0 ? 'positive' : 'neutral',
+                'value'      => number_format($internships),
+                'change'     => number_format($partners) . ' đối tác đã duyệt',
+                'changeType' => $internships > 0 ? 'positive' : 'neutral',
                 'icon'       => 'award',
             ],
             [
                 'label'      => 'Tài trợ đã thanh toán',
-                'value'      => number_format((float) $metrics['paidSponsorshipAmount'], 0, ',', '.') . ' ₫',
-                'change'     => number_format((int) $metrics['activeProjects']) . ' dự án đang chạy',
-                'changeType' => (float) $metrics['paidSponsorshipAmount'] > 0 ? 'positive' : 'neutral',
+                'value'      => number_format($sponsorship, 0, ',', '.') . ' ₫',
+                'change'     => number_format($projects) . ' dự án đang chạy',
+                'changeType' => $sponsorship > 0 ? 'positive' : 'neutral',
                 'icon'       => 'check-circle',
             ],
         ];

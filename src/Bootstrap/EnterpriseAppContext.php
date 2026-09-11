@@ -102,19 +102,12 @@ final class EnterpriseAppContext
         }
 
         if ($cached === null || !RoleCodes::matches((string)($cached['role'] ?? ''), RoleCodes::ENTERPRISE)) {
-            if (!$this->allowsDemoAutologin()) {
-                if ($cached !== null) {
-                    $this->redirectToLoginWithRoleRequired(RoleCodes::ENTERPRISE);
-                }
-                $this->redirectToLogin();
-            }
-            $cached = SessionManager::getFallbackUserForRole(RoleCodes::ENTERPRISE, $pdo);
-            $this->session->login($cached);
+            $this->redirectToLoginWithRoleRequired(RoleCodes::ENTERPRISE);
         }
         try {
             $user = $this->auth->current((string) $cached['id']);
         } catch (\Throwable) {
-            $user = $cached;
+            $this->redirectToLoginWithRoleRequired(RoleCodes::ENTERPRISE);
         }
         $user['role'] = RoleCodes::ENTERPRISE;
         $this->session->refreshUser($user);
@@ -155,7 +148,7 @@ final class EnterpriseAppContext
                     }
                 }
                 if (!$healed) {
-                    $hint = 'Tài khoản enterprise của bạn chưa liên kết với doanh nghiệp nào trong hệ thống. Vui lòng chạy seed testing: php bin/seed.php --testing';
+                    $hint = 'Tài khoản enterprise của bạn chưa liên kết với doanh nghiệp nào trong hệ thống. Vui lòng liên hệ quản trị viên để thiết lập doanh nghiệp.';
                     $this->redirectToRoleSelection('?error=enterprise_missing&hint=' . urlencode($hint));
                 }
             } else {

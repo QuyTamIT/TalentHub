@@ -40,7 +40,14 @@ $statusFilter = isset($_GET['status']) ? trim((string) $_GET['status']) : null;
 if (!in_array($statusFilter, [null, '', 'pending', 'approved', 'rejected', 'suspended'], true)) {
     $statusFilter = null;
 }
-$partnerships = $service->listSchoolPartnerships($userId, $statusFilter)['items'];
+$partnerships = [];
+if (!empty($context['school']['id'])) {
+    try {
+        $partnerships = $service->listSchoolPartnerships($userId, $statusFilter)['items'];
+    } catch (\Throwable) {
+        $partnerships = [];
+    }
+}
 $schoolInfo = [
     'name' => $context['school']['name'],
     'logo_initials' => mb_substr($context['school']['name'], 0, 2),
@@ -51,6 +58,15 @@ $schoolInfo = [
 $currentRoute = '/app/school/partnerships.php';
 $pageTitle = 'Đối tác doanh nghiệp';
 $labels = ['pending' => 'Chờ duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Đã từ chối', 'suspended' => 'Tạm dừng'];
+
+$pdo = $context['pdo'] ?? null;
+$availableEnterprises = [];
+if ($pdo instanceof PDO) {
+    try {
+        $entStmt = $pdo->query("SELECT id, name FROM enterprises WHERE status = 'active' ORDER BY name ASC");
+        $availableEnterprises = $entStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (\Throwable) {}
+}
 
 ob_start();
 ?>
@@ -126,12 +142,9 @@ ob_start();
                 -->
                 <select name="enterpriseId" class="typeui-select" required>
                     <option value="">-- Chọn doanh nghiệp khả dụng --</option>
-                    <option value="ent_g">Google Vietnam</option>
-                    <option value="ent_m">Microsoft Vietnam</option>
-                    <option value="ent_s">Samsung R&D Institute</option>
-                    <option value="ent_i">Intel Products Vietnam</option>
-                    <option value="ent_b">Bosch Global Software</option>
-                    <option value="ent_v">VinBrain</option>
+                    <?php foreach ($availableEnterprises as $ent): ?>
+                        <option value="<?= htmlspecialchars((string) $ent['id']); ?>"><?= htmlspecialchars((string) $ent['name']); ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             

@@ -202,9 +202,6 @@ if (isset($pdo) && $pdo instanceof PDO) {
 }
 $rawName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
 $teacherName = trim((string) ($rawName !== '' ? $rawName : ($teacher['fullName'] ?? ($user['fullName'] ?? 'Giáo viên'))));
-if ($teacherName === 'minh triet') {
-    $teacherName = 'Minh Triết';
-}
 $teacherInfo = [
     'full_name' => $teacherName !== '' ? $teacherName : 'Giáo viên',
     'role_label' => 'Giáo viên / Hướng dẫn viên',

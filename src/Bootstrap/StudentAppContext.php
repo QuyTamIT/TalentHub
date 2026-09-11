@@ -159,13 +159,13 @@ SELECT u.id, u.email, u.fullName
 FROM users u
 INNER JOIN roles r ON r.id = u.roleId
 WHERE u.status = 'active' AND r.code IN ('student', 'learner')
-ORDER BY CASE WHEN u.email = 'vo-duc-anh@student.btec.talenthub.local' THEN 0 WHEN u.email = 'student@test.talenthub.local' THEN 1 ELSE 2 END, u.id ASC
+ORDER BY u.createdAt ASC, u.id ASC
 LIMIT 1
 SQL);
         $statement->execute();
         $student = $statement->fetch(\PDO::FETCH_ASSOC);
         if (!is_array($student)) {
-            throw new ApiException(401, 'AUTHENTICATION_REQUIRED', 'Không có tài khoản học viên thử nghiệm đang hoạt động.');
+            $this->redirectToLoginWithRoleRequired(\TalentHub\Rbac\RoleCodes::STUDENT);
         }
 
         return [

@@ -67,6 +67,7 @@ include __DIR__ . '/includes/page-banner.php';
     </a>
 </div>
 
+<?php if (!empty($gradeStats)): ?>
 <div class="school-grade-grid" style="grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 1.75rem;">
     <?php foreach ($gradeStats as $stat): ?>
         <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1.25rem;">
@@ -91,6 +92,7 @@ include __DIR__ . '/includes/page-banner.php';
         </div>
     <?php endforeach; ?>
 </div>
+<?php endif; ?>
 
 <?php foreach ($grades as $gradeName => $gradeClasses): ?>
     <div style="margin-bottom: 2rem;">

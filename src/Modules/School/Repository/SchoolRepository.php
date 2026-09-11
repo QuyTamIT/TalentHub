@@ -162,7 +162,7 @@ final class SchoolRepository
                     u.email, u.fullName, u.status AS userStatus
              FROM teacher_profiles tp
              JOIN users u ON u.id = tp.userId
-             WHERE tp.schoolId = :schoolId AND u.status = \'active\'
+             WHERE tp.schoolId = :schoolId
              GROUP BY u.fullName, tp.id, tp.userId, tp.isSchoolAdmin, tp.specialization, tp.phone, tp.bio, u.email, u.status
              ORDER BY u.fullName ASC
              LIMIT ' . (int) $limit . ' OFFSET ' . (int) $offset
@@ -197,6 +197,32 @@ final class SchoolRepository
             'id'       => $profileId,
             'schoolId' => $schoolId,
         ]);
+
+        if ($this->hasTable('school_members')) {
+            $teacherStmt = $this->pdo->prepare('SELECT userId FROM teacher_profiles WHERE id = :id AND schoolId = :schoolId LIMIT 1');
+            $teacherStmt->execute(['id' => $profileId, 'schoolId' => $schoolId]);
+            $userId = $teacherStmt->fetchColumn();
+            if (is_string($userId)) {
+                $memberStmt = $this->pdo->prepare('SELECT id FROM school_members WHERE userId = :userId LIMIT 1');
+                $memberStmt->execute(['userId' => $userId]);
+                if ($memberStmt->fetchColumn()) {
+                    $updateMember = $this->pdo->prepare('UPDATE school_members SET memberRole = :role WHERE userId = :userId AND schoolId = :schoolId');
+                    $updateMember->execute([
+                        'role'     => $isAdmin ? 'admin' : 'member',
+                        'userId'   => $userId,
+                        'schoolId' => $schoolId,
+                    ]);
+                } else {
+                    $insertMember = $this->pdo->prepare('INSERT INTO school_members (id, schoolId, userId, memberRole) VALUES (:id, :schoolId, :userId, :role)');
+                    $insertMember->execute([
+                        'id'       => Uuid::v4(),
+                        'schoolId' => $schoolId,
+                        'userId'   => $userId,
+                        'role'     => $isAdmin ? 'admin' : 'member',
+                    ]);
+                }
+            }
+        }
     }
 
     /**
@@ -236,6 +262,28 @@ final class SchoolRepository
              WHERE tp.id = :id AND tp.schoolId = :schoolId'
         );
         $stmt->execute(['id' => $profileId, 'schoolId' => $schoolId]);
+
+        if ($this->hasTable('school_members')) {
+            $teacherStmt = $this->pdo->prepare('SELECT userId, isSchoolAdmin FROM teacher_profiles WHERE id = :id AND schoolId = :schoolId LIMIT 1');
+            $teacherStmt->execute(['id' => $profileId, 'schoolId' => $schoolId]);
+            $t = $teacherStmt->fetch();
+            if (is_array($t) && !empty($t['userId'])) {
+                $memberStmt = $this->pdo->prepare('SELECT id FROM school_members WHERE userId = :userId LIMIT 1');
+                $memberStmt->execute(['userId' => $t['userId']]);
+                if (!$memberStmt->fetchColumn()) {
+                    $insertMember = $this->pdo->prepare(
+                        'INSERT INTO school_members (id, schoolId, userId, memberRole)
+                         VALUES (:id, :schoolId, :userId, :role)'
+                    );
+                    $insertMember->execute([
+                        'id'       => Uuid::v4(),
+                        'schoolId' => $schoolId,
+                        'userId'   => $t['userId'],
+                        'role'     => !empty($t['isSchoolAdmin']) ? 'admin' : 'member',
+                    ]);
+                }
+            }
+        }
     }
 
     /**

@@ -49,8 +49,8 @@ $enterpriseInfo = [
     'account_type'      => $accountType,
     'logo_initials'     => $companyInitials,
     'logo_url'          => $enterprise['logoUrl'] ?? null,
-    'new_matches_count' => 86,
-    'total_talents'     => 1247,
+    'new_matches_count' => 0,
+    'total_talents'     => 0,
 ];
 
 $internshipService = $context['internships'];

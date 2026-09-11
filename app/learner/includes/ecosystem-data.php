@@ -366,61 +366,7 @@ if (!function_exists('learner_ecosystem_mock_opportunities')) {
 if (!function_exists('learner_ecosystem_mock_applications')) {
     function learner_ecosystem_mock_applications(): array
     {
-        return [
-            [
-                'id' => 'APP-2026-0812',
-                'opportunity_type' => 'internship',
-                'opportunity_id' => 1,
-                'title' => 'Thực tập sinh Frontend Developer (React / TypeScript)',
-                'partner_name' => 'FPT Software',
-                'submitted_at' => '12/08/2026',
-                'updated_at' => '13/08/2026',
-                'status' => 'reviewing',
-                'status_label' => 'Đang xem xét',
-                'can_withdraw' => true,
-                'timeline' => [
-                    ['label' => 'Đã nộp hồ sơ', 'date' => '12/08/2026', 'state' => 'complete'],
-                    ['label' => 'Doanh nghiệp đang xem xét', 'date' => '13/08/2026', 'state' => 'current'],
-                    ['label' => 'Phỏng vấn', 'date' => 'Chờ cập nhật', 'state' => 'pending'],
-                    ['label' => 'Kết quả', 'date' => 'Chờ cập nhật', 'state' => 'pending'],
-                ],
-            ],
-            [
-                'id' => 'APP-2026-0728',
-                'opportunity_type' => 'internship',
-                'opportunity_id' => 2,
-                'title' => 'Thực tập sinh AI Research & Data Science 2026',
-                'partner_name' => 'FPT Software',
-                'submitted_at' => '28/07/2026',
-                'updated_at' => '05/08/2026',
-                'status' => 'interview',
-                'status_label' => 'Mời phỏng vấn',
-                'can_withdraw' => true,
-                'timeline' => [
-                    ['label' => 'Đã nộp hồ sơ', 'date' => '28/07/2026', 'state' => 'complete'],
-                    ['label' => 'Đã duyệt hồ sơ', 'date' => '02/08/2026', 'state' => 'complete'],
-                    ['label' => 'Phỏng vấn trực tuyến', 'date' => '15:00 · 18/08/2026', 'state' => 'current'],
-                    ['label' => 'Kết quả', 'date' => 'Chờ cập nhật', 'state' => 'pending'],
-                ],
-            ],
-            [
-                'id' => 'APP-2026-0615',
-                'opportunity_type' => 'internship',
-                'opportunity_id' => 5,
-                'title' => 'Thực tập sinh Digital Marketing & Content TalentHub',
-                'partner_name' => 'FPT Software',
-                'submitted_at' => '15/06/2026',
-                'updated_at' => '02/07/2026',
-                'status' => 'declined',
-                'status_label' => 'Chưa phù hợp',
-                'can_withdraw' => false,
-                'timeline' => [
-                    ['label' => 'Đã nộp hồ sơ', 'date' => '15/06/2026', 'state' => 'complete'],
-                    ['label' => 'Đã xem xét', 'date' => '25/06/2026', 'state' => 'complete'],
-                    ['label' => 'Kết quả: Chưa phù hợp', 'date' => '02/07/2026', 'state' => 'declined'],
-                ],
-            ],
-        ];
+        return [];
     }
 }
 
