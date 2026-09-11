@@ -162,7 +162,7 @@ $nav = [
         </header>
 
         <main id="main-content" tabindex="-1">
-            <div data-dashboard-view<?= $isUsersPage ? ' hidden' : '' ?>>
+            <div data-dashboard-view<?= ($isUsersPage || $isTasksPage) ? ' hidden' : '' ?>>
             <section class="page-heading" aria-labelledby="page-title">
                 <div>
                     <p class="eyebrow">Trung tâm vận hành</p>
@@ -234,7 +234,7 @@ $nav = [
                             <thead><tr><th scope="col">Tổ chức</th><th scope="col">Trạng thái</th><th scope="col">Thành viên</th><th scope="col">Hoạt động cuối</th><th scope="col">Rủi ro</th><th scope="col"><span class="sr-only">Hành động</span></th></tr></thead>
                             <tbody data-dashboard-organizations>
                                 <?php foreach ($organizations as $org): ?>
-                                <tr data-org-row>
+                                 <tr data-org-row>
                                     <td><div class="org-cell"><span class="org-logo"><?= htmlspecialchars(substr($org['name'], 0, 1)) ?></span><div><strong><?= htmlspecialchars($org['name']) ?></strong><small><?= htmlspecialchars($org['type']) ?></small></div></div></td>
                                     <td><span class="status-badge <?= $org['status'] === 'Đang hoạt động' ? 'success' : ($org['status'] === 'Chờ xác minh' ? 'warning' : 'neutral') ?>"><?= htmlspecialchars($org['status']) ?></span></td>
                                     <td><?= htmlspecialchars($org['members']) ?></td><td><?= htmlspecialchars($org['activity']) ?></td>
@@ -258,7 +258,98 @@ $nav = [
                 </aside>
             </div>
             </div>
-            <section class="admin-module" data-module-view<?= $isUsersPage ? '' : ' hidden' ?> aria-live="polite">
+
+            <!-- ACTION CENTER: VIỆC CẦN XỬ LÝ (TÁCH BIỆT HOÀN TOÀN VỚI TỔNG QUAN) -->
+            <div data-tasks-view<?= $isTasksPage ? '' : ' hidden' ?> class="tasks-action-center" id="tasks-action-center">
+                <section class="tasks-heading" aria-labelledby="tasks-page-title">
+                    <div class="tasks-heading-main">
+                        <div class="tasks-eyebrow-pill">
+                            <span class="tasks-pill-dot"></span>
+                            <span>TRUNG TÂM XỬ LÝ · ACTION CENTER</span>
+                        </div>
+                        <h1 id="tasks-page-title" class="tasks-title">Việc cần xử lý</h1>
+                        <p class="tasks-subtitle">Tập trung vào các yêu cầu đang chờ duyệt, đối soát và các trường hợp cần quản trị viên can thiệp xử lý.</p>
+                    </div>
+                    <div class="tasks-heading-actions">
+                        <div class="tasks-live-badge">
+                            <span class="status-dot is-ok"></span>
+                            <span data-tasks-sync-time>Đồng bộ thời gian thực</span>
+                        </div>
+                        <button class="button secondary tasks-btn-refresh" type="button" data-tasks-refresh>
+                            <?= icon('pulse') ?><span>Làm mới tác vụ</span>
+                        </button>
+                    </div>
+                </section>
+
+                <div class="tasks-tabs-container">
+                    <nav class="tasks-tabs" role="tablist" aria-label="Bộ lọc phân loại việc cần xử lý">
+                        <button type="button" role="tab" class="tasks-tab is-active" data-tasks-tab="all" aria-selected="true">
+                            <span class="tasks-tab-label">Tất cả</span>
+                            <span class="tasks-tab-count" data-tasks-count="all">0</span>
+                        </button>
+                        <button type="button" role="tab" class="tasks-tab" data-tasks-tab="pending_approval" aria-selected="false">
+                            <span class="tasks-tab-label">Chờ duyệt</span>
+                            <span class="tasks-tab-count" data-tasks-count="pending_approval">0</span>
+                        </button>
+                        <button type="button" role="tab" class="tasks-tab" data-tasks-tab="needs_inspection" aria-selected="false">
+                            <span class="tasks-tab-label">Cần kiểm tra</span>
+                            <span class="tasks-tab-count" data-tasks-count="needs_inspection">0</span>
+                        </button>
+                        <button type="button" role="tab" class="tasks-tab" data-tasks-tab="high_priority" aria-selected="false">
+                            <span class="tasks-tab-label">Ưu tiên cao</span>
+                            <span class="tasks-tab-count is-urgent" data-tasks-count="high_priority">0</span>
+                        </button>
+                    </nav>
+                </div>
+
+                <div class="tasks-toolbar">
+                    <div class="tasks-search-wrap">
+                        <label class="tasks-search-label">
+                            <span class="sr-only">Tìm kiếm việc cần xử lý</span>
+                            <?= icon('search') ?>
+                            <input type="search" placeholder="Tìm kiếm theo tiêu đề, đối tượng, email, mã yêu cầu..." data-tasks-search autocomplete="off">
+                        </label>
+                    </div>
+                    <div class="tasks-toolbar-filters">
+                        <label class="tasks-type-filter">
+                            <span class="sr-only">Lọc theo nhóm đối tượng</span>
+                            <select class="typeui-select tasks-select" data-tasks-domain-filter>
+                                <option value="all">Tất cả đối tượng</option>
+                                <option value="organizations">Tổ chức (Trường / Doanh nghiệp)</option>
+                                <option value="users">Tài khoản người dùng</option>
+                                <option value="payments">Giao dịch & Thanh toán</option>
+                                <option value="applications">Hồ sơ ứng tuyển</option>
+                            </select>
+                        </label>
+                        <div class="tasks-summary-pill" data-tasks-summary-pill>
+                            Đang kiểm tra yêu cầu...
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tasks-stream-container" data-tasks-stream-container>
+                    <div class="tasks-loading-state" data-tasks-loading>
+                        <div class="tasks-spinner"></div>
+                        <p>Đang kiểm tra hàng đợi và các yêu cầu cần xử lý...</p>
+                    </div>
+                    <div class="tasks-cards-list" data-tasks-list hidden></div>
+                    <div class="tasks-empty-state" data-tasks-empty hidden>
+                        <div class="tasks-empty-icon-box">
+                            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                        </div>
+                        <h3 class="tasks-empty-title">Không có việc cần xử lý</h3>
+                        <p class="tasks-empty-desc">Hệ thống hiện không có yêu cầu đang chờ. Mọi tác vụ phê duyệt, xác minh và đối soát đã được xử lý hoàn tất.</p>
+                        <button class="button secondary small tasks-empty-action" type="button" data-tasks-refresh>
+                            <?= icon('pulse') ?><span>Kiểm tra lại dữ liệu</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <section class="admin-module" data-module-view<?= ($isUsersPage && !$isTasksPage) ? '' : ' hidden' ?> aria-live="polite">
                 <div class="module-toolbar">
                     <div><p class="eyebrow" data-module-kicker>Quản trị</p><h2 data-module-title>Module</h2><p data-module-description></p></div>
                     <div class="table-tools"><label><?= icon('search') ?><span class="sr-only">Tìm trong module</span><input type="search" placeholder="Tìm kiếm..." data-module-search></label><button class="button secondary small" type="button" data-module-refresh>Làm mới</button></div>

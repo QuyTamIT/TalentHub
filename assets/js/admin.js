@@ -174,6 +174,16 @@
     system:['Hệ thống','Trạng thái runtime, cơ sở dữ liệu và migration. Chỉ quản trị viên có quyền xem.'],
   };
   const dashboardView = document.querySelector('[data-dashboard-view]');
+  const tasksView = document.querySelector('[data-tasks-view]');
+  const tasksList = document.querySelector('[data-tasks-list]');
+  const tasksEmpty = document.querySelector('[data-tasks-empty]');
+  const tasksLoading = document.querySelector('[data-tasks-loading]');
+  const tasksSyncTime = document.querySelector('[data-tasks-sync-time]');
+  const tasksSummaryPill = document.querySelector('[data-tasks-summary-pill]');
+  let tasksAllItems = [];
+  let activeTasksTab = 'all';
+  let activeTasksDomain = 'all';
+  let activeTasksSearch = '';
   const moduleView = document.querySelector('[data-module-view]');
   const moduleContent = document.querySelector('[data-module-content]');
   const moduleState = document.querySelector('[data-module-state]');
@@ -518,17 +528,312 @@
     }
     moduleContent.innerHTML = table(currentRows, actions);
   };
+
+  const loadTasksSection = async () => {
+    if (!tasksView) return;
+    if (tasksLoading) tasksLoading.hidden = false;
+    if (tasksList) tasksList.hidden = true;
+    if (tasksEmpty) tasksEmpty.hidden = true;
+    if (tasksSummaryPill) tasksSummaryPill.textContent = 'Đang đồng bộ dữ liệu...';
+
+    try {
+      const [dashData, orgData, userData, paymentData, appData] = await Promise.all([
+        api('/admin/dashboard').catch(() => ({})),
+        api('/admin/organizations').catch(() => ({ items: [] })),
+        api('/admin/users').catch(() => ({ items: [] })),
+        api('/admin/resources/payments').catch(() => ({ items: [] })),
+        api('/admin/resources/applications').catch(() => ({ items: [] })),
+      ]);
+
+      const items = [];
+
+      // 1. Tổ chức chờ xác minh (School / Enterprise pending verification or registration request)
+      const orgItems = (orgData.items || []).filter((org) => {
+        const vs = String(org.verificationStatus || '').toLowerCase();
+        const st = String(org.status || '').toLowerCase();
+        return vs === 'pending' || vs === 'inactive' || st === 'pending' || Boolean(org.registrationRequest);
+      });
+      orgItems.forEach((org) => {
+        items.push({
+          id: org.id,
+          domain: 'organizations',
+          domainLabel: org.type === 'school' ? 'Trường học' : 'Doanh nghiệp',
+          domainIcon: org.type === 'school' ? 'building' : 'briefcase',
+          title: `Xác minh ${org.type === 'school' ? 'Trường học' : 'Doanh nghiệp'}: ${org.name || 'Tổ chức'}`,
+          meta: `Email: ${org.email || '—'} · Loại: ${org.type === 'school' ? 'Nhà trường' : 'Doanh nghiệp'} · ID: #${String(org.id).slice(0, 8)}`,
+          category: 'pending_approval',
+          severity: 'high',
+          severityLabel: 'Ưu tiên cao',
+          status: 'pending',
+          statusLabel: 'Chờ duyệt',
+          statusTone: 'warning',
+          createdAt: org.createdAt,
+          actionType: 'org',
+          actionPayload: { id: org.id, type: org.type, currentStatus: org.verificationStatus || 'pending' },
+          viewSection: 'organizations',
+        });
+      });
+
+      // 2. Tài khoản người dùng cần xử lý (pending approval or suspended)
+      const userItems = (userData.items || []).filter((u) => {
+        const st = String(u.status || '').toLowerCase();
+        return st === 'pending' || st === 'suspended';
+      });
+      userItems.forEach((u) => {
+        const isPending = String(u.status).toLowerCase() === 'pending';
+        items.push({
+          id: u.id,
+          domain: 'users',
+          domainLabel: roleLabels[u.role] || u.role || 'Người dùng',
+          domainIcon: 'shield',
+          title: `Tài khoản ${roleLabels[u.role] || u.role}: ${u.fullName || u.email}`,
+          meta: `Email: ${u.email} · Vai trò: ${roleLabels[u.role] || u.role} · ID: #${String(u.id).slice(0, 8)}`,
+          category: isPending ? 'pending_approval' : 'needs_inspection',
+          severity: isPending ? 'medium' : 'high',
+          severityLabel: isPending ? 'Cần xem xét' : 'Ưu tiên cao',
+          status: u.status,
+          statusLabel: isPending ? 'Chờ duyệt' : 'Tạm khóa',
+          statusTone: isPending ? 'warning' : 'danger',
+          createdAt: u.createdAt,
+          actionType: 'user',
+          actionPayload: { id: u.id, status: isPending ? 'active' : 'active' },
+          viewSection: 'users',
+        });
+      });
+
+      // 3. Thanh toán đang chờ kiểm tra đối soát (payment orders pending)
+      const paymentItems = (paymentData.items || []).filter((p) => {
+        const ps = String(p.paymentStatus || '').toLowerCase();
+        return ps === 'pending' || ps === 'pending_payment';
+      });
+      paymentItems.forEach((p) => {
+        items.push({
+          id: p.id,
+          domain: 'payments',
+          domainLabel: 'Thanh toán',
+          domainIcon: 'book',
+          title: `Lệnh thanh toán: ${p.orderCode || '#' + String(p.id).slice(0, 8)}`,
+          meta: `${p.enterpriseName ? p.enterpriseName + ' · ' : ''}${Number(p.amount || 0).toLocaleString('vi-VN')} ${p.currency || 'VND'} · PT: ${p.paymentMethod || 'Chuyển khoản'}`,
+          category: 'needs_inspection',
+          severity: 'critical',
+          severityLabel: 'Ưu tiên cao',
+          status: p.paymentStatus,
+          statusLabel: 'Chờ thanh toán',
+          statusTone: 'warning',
+          createdAt: p.createdAt,
+          actionType: 'navigate',
+          actionPayload: { id: p.id },
+          viewSection: 'payments',
+        });
+      });
+
+      // 4. Hồ sơ ứng tuyển đang chờ xem xét (applications submitted/pending)
+      const appItems = (appData.items || []).filter((a) => {
+        const st = String(a.status || '').toLowerCase();
+        return st === 'submitted' || st === 'pending' || st === 'applied';
+      });
+      appItems.forEach((a) => {
+        items.push({
+          id: a.id,
+          domain: 'applications',
+          domainLabel: 'Ứng tuyển',
+          domainIcon: 'briefcase',
+          title: `Hồ sơ ứng tuyển: ${a.studentName || 'Ứng viên'}`,
+          meta: `Vị trí: ${a.postTitle || 'Thực tập sinh'}${a.matchScore ? ' · Độ phù hợp: ' + a.matchScore + '%' : ''}`,
+          category: 'needs_inspection',
+          severity: 'medium',
+          severityLabel: 'Cần kiểm tra',
+          status: a.status,
+          statusLabel: 'Chờ xem xét',
+          statusTone: 'warning',
+          createdAt: a.appliedAt || a.createdAt,
+          actionType: 'navigate',
+          actionPayload: { id: a.id },
+          viewSection: 'applications',
+        });
+      });
+
+      tasksAllItems = items;
+      renderTasksView();
+      if (tasksSyncTime) {
+        tasksSyncTime.textContent = `Đồng bộ lúc ${formatDate(new Date().toISOString())}`;
+      }
+    } catch (error) {
+      if (tasksLoading) tasksLoading.hidden = true;
+      if (tasksSummaryPill) tasksSummaryPill.textContent = 'Lỗi kết nối';
+      showToast(`Không thể tải việc cần xử lý: ${error.message}`);
+    }
+  };
+
+  const renderTasksView = () => {
+    if (!tasksView) return;
+    if (tasksLoading) tasksLoading.hidden = true;
+
+    const countAll = tasksAllItems.length;
+    const countPending = tasksAllItems.filter(t => t.category === 'pending_approval').length;
+    const countInspect = tasksAllItems.filter(t => t.category === 'needs_inspection').length;
+    const countUrgent = tasksAllItems.filter(t => t.severity === 'critical' || t.severity === 'high').length;
+
+    const badgeAll = document.querySelector('[data-tasks-count="all"]');
+    if (badgeAll) badgeAll.textContent = countAll;
+    const badgePending = document.querySelector('[data-tasks-count="pending_approval"]');
+    if (badgePending) badgePending.textContent = countPending;
+    const badgeInspect = document.querySelector('[data-tasks-count="needs_inspection"]');
+    if (badgeInspect) badgeInspect.textContent = countInspect;
+    const badgeUrgent = document.querySelector('[data-tasks-count="high_priority"]');
+    if (badgeUrgent) badgeUrgent.textContent = countUrgent;
+
+    document.querySelectorAll('[data-nav-count="tasks"]').forEach(b => {
+      b.textContent = countAll.toLocaleString('vi-VN');
+      b.hidden = countAll === 0;
+      b.setAttribute('aria-label', `${countAll} việc cần xử lý`);
+    });
+    const alertBtn = document.querySelector('[data-alert-count]');
+    if (alertBtn) {
+      alertBtn.hidden = countAll === 0;
+      alertBtn.setAttribute('aria-label', `${countAll} việc cần xử lý`);
+    }
+
+    let filtered = tasksAllItems;
+    if (activeTasksTab === 'pending_approval') {
+      filtered = filtered.filter(t => t.category === 'pending_approval');
+    } else if (activeTasksTab === 'needs_inspection') {
+      filtered = filtered.filter(t => t.category === 'needs_inspection');
+    } else if (activeTasksTab === 'high_priority') {
+      filtered = filtered.filter(t => t.severity === 'critical' || t.severity === 'high');
+    }
+
+    if (activeTasksDomain !== 'all') {
+      filtered = filtered.filter(t => t.domain === activeTasksDomain);
+    }
+
+    if (activeTasksSearch.trim() !== '') {
+      const q = normalizeSearch(activeTasksSearch.trim());
+      filtered = filtered.filter(t => {
+        return normalizeSearch(t.title).includes(q) ||
+               normalizeSearch(t.meta).includes(q) ||
+               normalizeSearch(t.domainLabel).includes(q) ||
+               normalizeSearch(t.id).includes(q);
+      });
+    }
+
+    if (tasksSummaryPill) {
+      tasksSummaryPill.textContent = countAll === 0
+        ? '0 việc cần xử lý'
+        : `Hiển thị ${filtered.length} / ${countAll} việc cần xử lý`;
+    }
+
+    if (countAll === 0) {
+      if (tasksList) tasksList.hidden = true;
+      if (tasksEmpty) {
+        tasksEmpty.hidden = false;
+        tasksEmpty.innerHTML = `
+          <div class="tasks-empty-icon-box">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+          </div>
+          <h3 class="tasks-empty-title">Không có việc cần xử lý</h3>
+          <p class="tasks-empty-desc">Hệ thống hiện không có yêu cầu đang chờ. Mọi tác vụ phê duyệt, xác minh và đối soát đã được xử lý hoàn tất.</p>
+          <button class="button secondary small tasks-empty-action" type="button" data-tasks-refresh>
+            ${svgIcon('refresh')}<span>Kiểm tra lại dữ liệu</span>
+          </button>
+        `;
+      }
+      return;
+    }
+
+    if (filtered.length === 0) {
+      if (tasksList) tasksList.hidden = true;
+      if (tasksEmpty) {
+        tasksEmpty.hidden = false;
+        tasksEmpty.innerHTML = `
+          <div class="tasks-empty-icon-box">
+            ${svgIcon('search')}
+          </div>
+          <h3 class="tasks-empty-title">Không có việc cần xử lý trong nhóm này</h3>
+          <p class="tasks-empty-desc">Không tìm thấy yêu cầu nào phù hợp với bộ lọc hoặc từ khóa tìm kiếm hiện tại.</p>
+          <button class="button secondary small tasks-empty-action" type="button" data-tasks-reset-filter>
+            Xóa bộ lọc tìm kiếm
+          </button>
+        `;
+      }
+      return;
+    }
+
+    if (tasksEmpty) tasksEmpty.hidden = true;
+    if (tasksList) {
+      tasksList.hidden = false;
+      tasksList.innerHTML = filtered.map(item => `
+        <article class="task-action-card severity-${escapeHtml(item.severity)}" data-task-id="${escapeHtml(item.id)}">
+          <div class="task-card-accent" aria-hidden="true"></div>
+          <div class="task-card-main">
+            <div class="task-card-header-row">
+              <div class="task-domain-pill domain-${escapeHtml(item.domain)}">
+                ${svgIcon(item.domainIcon || 'search')}
+                <span>${escapeHtml(item.domainLabel)}</span>
+              </div>
+              <span class="task-severity-badge severity-${escapeHtml(item.severity)}">
+                <span class="task-severity-dot"></span>
+                <span>${escapeHtml(item.severityLabel)}</span>
+              </span>
+            </div>
+
+            <h3 class="task-card-title">${escapeHtml(item.title)}</h3>
+            <p class="task-card-meta">${escapeHtml(item.meta)}</p>
+
+            <div class="task-card-footer-row">
+              <div class="task-time-wrap">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span>${escapeHtml(formatDate(item.createdAt))}</span>
+              </div>
+              <span class="status-badge ${escapeHtml(item.statusTone)}">${escapeHtml(item.statusLabel)}</span>
+            </div>
+          </div>
+
+          <div class="task-card-actions">
+            <button type="button" class="button secondary small task-btn-view" data-task-view="${escapeHtml(item.viewSection)}" data-id="${escapeHtml(item.id)}" title="Xem chi tiết">
+              Xem
+            </button>
+            <button type="button" class="button primary small task-btn-action" data-task-action="${escapeHtml(item.actionType)}" data-id="${escapeHtml(item.id)}" data-type="${escapeHtml(item.actionPayload?.type || '')}" data-status="${escapeHtml(item.actionPayload?.status || '')}" data-current-status="${escapeHtml(item.actionPayload?.currentStatus || '')}" title="Xử lý ngay">
+              Xử lý
+            </button>
+          </div>
+        </article>
+      `).join('');
+    }
+  };
+
   const loadSection = async (section, search = '') => {
     currentSection = section;
     document.querySelectorAll('[data-admin-section]').forEach((item)=>{const active=item.dataset.adminSection===section;item.classList.toggle('is-active',active);active?item.setAttribute('aria-current','page'):item.removeAttribute('aria-current');});
-    if (section === 'dashboard') { dashboardView.hidden=false;moduleView.hidden=true;history.replaceState(null,'','#dashboard');refreshDashboard();closeSidebar();return; }
-    if (section === 'tasks' || section === 'queue') {
-      dashboardView.hidden=false;moduleView.hidden=true;history.replaceState(null,'','#tasks');refreshDashboard();closeSidebar();
-      const queuePanel=document.querySelector('#việc-cần-xử-lý')||document.querySelector('.queue-panel');
-      if(queuePanel){queuePanel.scrollIntoView({behavior:'smooth',block:'start'});}
+    if (section === 'dashboard') {
+      if (dashboardView) dashboardView.hidden = false;
+      if (tasksView) tasksView.hidden = true;
+      if (moduleView) moduleView.hidden = true;
+      history.replaceState(null, '', '#dashboard');
+      refreshDashboard();
+      closeSidebar();
       return;
     }
-    dashboardView.hidden=true;moduleView.hidden=false;moduleContent.hidden=true;moduleState.hidden=false;moduleState.textContent='Đang tải dữ liệu…';
+    if (section === 'tasks' || section === 'queue') {
+      if (dashboardView) dashboardView.hidden = true;
+      if (tasksView) tasksView.hidden = false;
+      if (moduleView) moduleView.hidden = true;
+      history.replaceState(null, '', '#tasks');
+      loadTasksSection();
+      closeSidebar();
+      return;
+    }
+    if (dashboardView) dashboardView.hidden = true;
+    if (tasksView) tasksView.hidden = true;
+    if (moduleView) moduleView.hidden = false;
+    moduleContent.hidden = true;
+    moduleState.hidden = false;
+    moduleState.textContent = 'Đang tải dữ liệu…';
     const [title,description]=labels[section]||['Module Admin',''];document.querySelector('[data-module-title]').textContent=title;document.querySelector('[data-module-description]').textContent=description;if(moduleSearch){moduleSearch.value=search;moduleSearch.placeholder=`Tìm trong ${title.toLocaleLowerCase('vi')}...`;}
     const moduleTools = document.querySelector('.module-toolbar .table-tools');
     if (moduleTools) moduleTools.hidden = (section === 'users' || section === 'organizations');
@@ -1003,6 +1308,107 @@
     if (searchInput) {
       activeUserSearch = searchInput.value;
       updateUserTableView();
+    }
+  });
+
+  tasksView?.addEventListener('click', (event) => {
+    const tabBtn = event.target.closest('[data-tasks-tab]');
+    if (tabBtn) {
+      activeTasksTab = tabBtn.dataset.tasksTab;
+      document.querySelectorAll('[data-tasks-tab]').forEach((b) => {
+        const active = b === tabBtn;
+        b.classList.toggle('is-active', active);
+        b.setAttribute('aria-selected', String(active));
+      });
+      renderTasksView();
+      return;
+    }
+
+    const refreshBtn = event.target.closest('[data-tasks-refresh]');
+    if (refreshBtn) {
+      const original = refreshBtn.innerHTML;
+      refreshBtn.disabled = true;
+      loadTasksSection().finally(() => {
+        refreshBtn.disabled = false;
+        showToast('Đã làm mới danh sách việc cần xử lý.');
+      });
+      return;
+    }
+
+    const resetFilterBtn = event.target.closest('[data-tasks-reset-filter]');
+    if (resetFilterBtn) {
+      activeTasksTab = 'all';
+      activeTasksDomain = 'all';
+      activeTasksSearch = '';
+      const searchInp = document.querySelector('[data-tasks-search]');
+      if (searchInp) searchInp.value = '';
+      const selectInp = document.querySelector('[data-tasks-domain-filter]');
+      if (selectInp) selectInp.value = 'all';
+      document.querySelectorAll('[data-tasks-tab]').forEach((b) => {
+        const active = b.dataset.tasksTab === 'all';
+        b.classList.toggle('is-active', active);
+        b.setAttribute('aria-selected', String(active));
+      });
+      renderTasksView();
+      return;
+    }
+
+    const viewBtn = event.target.closest('[data-task-view]');
+    if (viewBtn) {
+      const sec = viewBtn.dataset.taskView;
+      const id = viewBtn.dataset.id;
+      loadSection(sec, id);
+      return;
+    }
+
+    const actionBtn = event.target.closest('[data-task-action]');
+    if (actionBtn) {
+      const act = actionBtn.dataset.taskAction;
+      const id = actionBtn.dataset.id;
+      if (act === 'org') {
+        pendingAction = { kind: 'organization', id: id, type: actionBtn.dataset.type };
+        const decisionField = document.querySelector('[data-decision-field]');
+        const decisionSelect = document.querySelector('[data-organization-decision]');
+        if (decisionField) decisionField.hidden = false;
+        if (decisionSelect) {
+          decisionSelect.hidden = false;
+          decisionSelect.value = actionBtn.dataset.currentStatus === 'rejected' ? 'rejected' : 'verified';
+        }
+        document.querySelector('[data-action-title]').textContent = 'Xét duyệt tổ chức';
+        document.querySelector('[data-action-description]').textContent = 'Thao tác này sẽ được ghi vào audit log. Vui lòng cung cấp lý do.';
+        actionDialog?.showModal();
+        document.querySelector('#action-reason')?.focus();
+      } else if (act === 'user') {
+        pendingAction = { kind: 'user', id: id, status: actionBtn.dataset.status || 'active' };
+        const decisionField = document.querySelector('[data-decision-field]');
+        const decisionSelect = document.querySelector('[data-organization-decision]');
+        if (decisionField) decisionField.hidden = true;
+        if (decisionSelect) decisionSelect.hidden = true;
+        document.querySelector('[data-action-title]').textContent = 'Kích hoạt / Xem xét tài khoản';
+        document.querySelector('[data-action-description]').textContent = 'Thao tác này sẽ được ghi vào audit log. Vui lòng cung cấp lý do.';
+        actionDialog?.showModal();
+        document.querySelector('#action-reason')?.focus();
+      } else {
+        const sec = actionBtn.dataset.viewSection || 'dashboard';
+        loadSection(sec, id);
+      }
+      return;
+    }
+  });
+
+  tasksView?.addEventListener('input', (event) => {
+    const searchInp = event.target.closest('[data-tasks-search]');
+    if (searchInp) {
+      activeTasksSearch = searchInp.value;
+      renderTasksView();
+    }
+  });
+
+  tasksView?.addEventListener('change', (event) => {
+    const domainSelect = event.target.closest('[data-tasks-domain-filter]');
+    if (domainSelect) {
+      activeTasksDomain = domainSelect.value;
+      renderTasksView();
     }
   });
 
