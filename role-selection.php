@@ -109,7 +109,9 @@ unset($role);
     <header class="role-selection-header">
         <div class="container role-selection-header__container">
             <!-- Brand Logo -->
-            <?php renderBrandHeader('index.php', 'Lựa chọn khu vực', 'Về trang chủ FTalentHub'); ?>
+            <a href="<?= htmlspecialchars(function_exists('app_href') ? app_href('/index.php') : 'index.php'); ?>" class="role-selection-header__brand-link" aria-label="Về trang chủ FTalentHub">
+                <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : 'assets/images/talenthub-logo.png'); ?>" alt="FTalentHub Logo" class="role-selection-header__logo-img">
+            </a>
 
             <!-- Back to Home Button -->
             <a href="index.php" class="btn btn-secondary role-selection-header__back-btn" aria-label="Quay lại trang chủ">
