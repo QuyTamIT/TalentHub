@@ -132,27 +132,24 @@ ob_start();
         <div class="school-form__grid school-form__grid--2col">
             <label class="school-form__field">
                 <span>Tên lớp <em>*</em></span>
-                <input type="text" name="name" maxlength="100" required value="<?= htmlspecialchars((string) $row['name']); ?>" placeholder="<?= $gradeOptions === [] ? 'Vd: K1, K2-CNTT…' : '10A, 11B1...'; ?>">
+                <input type="text" name="name" maxlength="100" required value="<?= htmlspecialchars((string) $row['name']); ?>" placeholder="<?= $tier === 'college' ? 'Vd: K1, K2-CNTT…' : '10A, 11B1...'; ?>">
             </label>
             <label class="school-form__field">
-                <span><?= $gradeOptions === [] ? 'Khoá' : 'Khối'; ?> <em>*</em></span>
-                <?php if ($gradeOptions === []): // college/university: free-text input ?>
-                    <input
-                        type="text"
-                        name="gradeLevel"
-                        maxlength="50"
-                        required
-                        value="<?= htmlspecialchars((string) $row['gradeLevel']); ?>"
-                        placeholder="K1"
-                        title="Nhập khoá học (vd: K1, K2, K24-CNTT…)"
-                    >
-                <?php else: // THCS or THPT: dropdown ?>
-                    <select name="gradeLevel" class="typeui-select" required>
-                        <?php foreach ($gradeOptions as $g): ?>
-                            <option value="<?= $g; ?>" <?= ((string) $row['gradeLevel'] === (string) $g) ? 'selected' : ''; ?>>Khối <?= $g; ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                <?php endif; ?>
+                <span><?= $tier === 'college' ? 'Khóa' : 'Khối'; ?> <em>*</em></span>
+                <select name="gradeLevel" class="typeui-select" required>
+                    <?php foreach ($gradeOptions as $g): ?>
+                        <?php
+                            $optVal = (string) $g;
+                            $optLabel = $tier === 'college' ? $optVal : 'Khối ' . $optVal;
+                            $isSelected = ((string) $row['gradeLevel'] === $optVal
+                                || ($tier === 'college' && (string) $row['gradeLevel'] === (string) str_replace('Năm ', '', $optVal)));
+                        ?>
+                        <option value="<?= htmlspecialchars($optVal); ?>" <?= $isSelected ? 'selected' : ''; ?>><?= htmlspecialchars($optLabel); ?></option>
+                    <?php endforeach; ?>
+                    <?php if ($row['gradeLevel'] !== '' && !in_array((string) $row['gradeLevel'], array_map('strval', $gradeOptions), true) && !in_array('Năm ' . $row['gradeLevel'], array_map('strval', $gradeOptions), true)): ?>
+                        <option value="<?= htmlspecialchars((string) $row['gradeLevel']); ?>" selected><?= htmlspecialchars((string) $row['gradeLevel']); ?></option>
+                    <?php endif; ?>
+                </select>
             </label>
             <label class="school-form__field">
                 <span>Niên khóa <em>*</em></span>
