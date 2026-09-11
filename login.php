@@ -104,7 +104,9 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
 <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
 <main class="auth-layout" id="main-content">
     <section class="auth-brand" aria-labelledby="auth-brand-title">
-        <div class="auth-brand__logo"><?php renderBrandHeader('./index.php', 'Nền tảng hướng nghiệp', 'FTalentHub - Về trang chủ', 'learner-brand'); ?></div>
+        <a class="auth-brand__logo" href="<?= htmlspecialchars(function_exists('app_href') ? app_href('/index.php') : './index.php'); ?>" aria-label="FTalentHub - Về trang chủ">
+            <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : './assets/images/talenthub-logo.png'); ?>" alt="FTalentHub Logo" class="auth-brand__logo-img">
+        </a>
         <div class="auth-brand__content">
             <p class="auth-eyebrow">Một tài khoản, đúng không gian</p>
             <h1 id="auth-brand-title">Tiếp tục hành trình phát triển tài năng</h1>
@@ -120,7 +122,9 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
     </section>
     <section class="auth-panel" aria-labelledby="login-title">
         <div class="auth-panel__inner">
-            <?php renderBrandHeader('./index.php', 'Nền tảng hướng nghiệp', 'FTalentHub - Về trang chủ', 'learner-brand auth-mobile-logo'); ?>
+            <a class="auth-mobile-logo" href="<?= htmlspecialchars(function_exists('app_href') ? app_href('/index.php') : './index.php'); ?>" aria-label="FTalentHub - Về trang chủ">
+                <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : './assets/images/talenthub-logo.png'); ?>" alt="FTalentHub Logo" class="auth-mobile-logo__img">
+            </a>
             <div class="auth-heading"><p class="auth-kicker">Chào mừng trở lại</p><h2 id="login-title">Đăng nhập tài khoản</h2><p>Nhập thông tin đã đăng ký hoặc được tổ chức cấp.</p></div>
             <?php if($registrationSucceeded): ?><div class="auth-alert auth-alert--success" role="status"><strong>Đăng ký thành công.</strong> <?= $registrationPending ? 'Yêu cầu đã được gửi đến Admin. Tài khoản chỉ được tạo sau khi hồ sơ được duyệt và yêu cầu chưa xử lý sẽ hết hạn sau 3 ngày.' : 'Bạn có thể đăng nhập bằng tài khoản vừa tạo.' ?></div><?php endif; ?>
             <?php if(is_array($roleAlert)): ?><div class="auth-alert auth-alert--warning" role="alert"><strong>Yêu cầu đăng nhập <?=authEscape($roleAlert['label'])?>:</strong> <?=authEscape($roleAlert['desc'])?></div><?php endif; ?>
