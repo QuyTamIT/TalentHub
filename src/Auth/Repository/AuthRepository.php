@@ -130,12 +130,12 @@ final class AuthRepository
     public function recordLogin(string $id): void{if($this->isLegacySchema()){return;}$s=$this->pdo->prepare('UPDATE users SET lastLoginAt=UTC_TIMESTAMP(6) WHERE id=?');$s->execute([$id]);}
     public function updatePassword(string $id,string $hash): void{$s=$this->pdo->prepare('UPDATE users SET passwordHash=? WHERE id=?');$s->execute([$hash,$id]);}
 
-    /** @return list<array{id:string,name:string,gradeLevel:int,academicYear:string,schoolId:string,schoolName:string}> */
+    /** @return list<array{id:string,name:string,gradeLevel:string,academicYear:string,schoolId:string,schoolName:string}> */
     public function registrationClasses(): array
     {
         $classCondition=$this->isLegacySchema()?"s.status='active'":"c.status='active' AND s.status='active'";
         $statement=$this->pdo->query("SELECT c.id,c.name,c.gradeLevel,c.academicYear,s.id AS schoolId,s.name AS schoolName FROM classes c JOIN schools s ON s.id=c.schoolId WHERE {$classCondition} ORDER BY s.name,c.gradeLevel,c.name");
-        return array_map(static fn(array $row):array=>['id'=>(string)$row['id'],'name'=>(string)$row['name'],'gradeLevel'=>(int)$row['gradeLevel'],'academicYear'=>(string)$row['academicYear'],'schoolId'=>(string)$row['schoolId'],'schoolName'=>(string)$row['schoolName']],$statement->fetchAll());
+        return array_map(static fn(array $row):array=>['id'=>(string)$row['id'],'name'=>(string)$row['name'],'gradeLevel'=>(string)$row['gradeLevel'],'academicYear'=>(string)$row['academicYear'],'schoolId'=>(string)$row['schoolId'],'schoolName'=>(string)$row['schoolName']],$statement->fetchAll());
     }
 
     /** @param array{email:string,passwordHash:string,fullName:string,classId:string,dateOfBirth:string,phone:string} $data */

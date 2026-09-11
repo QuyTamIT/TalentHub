@@ -848,7 +848,7 @@ CREATE TABLE `classes` (
   `id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `schoolId` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `gradeLevel` tinyint unsigned NOT NULL,
+  `gradeLevel` varchar(50) NOT NULL,
   `academicYear` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
   `createdAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
@@ -856,7 +856,6 @@ CREATE TABLE `classes` (
   PRIMARY KEY (`id`),
   KEY `idx_classes_school_status` (`schoolId`,`status`),
   CONSTRAINT `fk_classes_school` FOREIGN KEY (`schoolId`) REFERENCES `schools` (`id`),
-  CONSTRAINT `chk_classes_grade` CHECK ((`gradeLevel` between 1 and 12)),
   CONSTRAINT `chk_classes_status` CHECK ((`status` in (_utf8mb4'active',_utf8mb4'archived')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

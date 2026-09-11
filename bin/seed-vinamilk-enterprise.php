@@ -67,7 +67,7 @@ try {
         'id' => $ctuClassId,
         'schoolId' => $ctuSchoolId,
         'name' => 'K47 Quản trị Kinh doanh (Năm 4)',
-        'gradeLevel' => 4,
+        'gradeLevel' => 'Năm 4',
         'academicYear' => '2022-2026'
     ]);
     echo "  [OK] CTU Business Administration class verified.\n";

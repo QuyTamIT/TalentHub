@@ -17,6 +17,7 @@ Thumbs.db
 # Runtime-generated uploads and reports
 /src/storage/
 /storage/student-avatars/
+/storage/errors/
 /artifacts/
 
 # Local audit artifacts, backups, and linked Codex worktrees.
@@ -76,6 +77,8 @@ Thumbs.db
 !/tests/enterprise_ai_gemini_matcher_test.php
 !/tests/enterprise_ai_matches_api_test.php
 !/tests/enterprise_ai_matches_ui_test.ps1
+!/tests/*.spec.ts
+!/tests/*.spec.js
 /docs/
 /design/
 /Document/
@@ -93,3 +96,11 @@ Thumbs.db
 /assets/mockups/
 /.docx_review/
 /.worktrees/
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

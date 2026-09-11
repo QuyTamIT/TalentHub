@@ -8,7 +8,7 @@ VALUES ('10000000-0000-4000-8000-000000000031', 'TalentHub Test School', 'active
 INSERT IGNORE INTO classes (id, schoolId, name, gradeLevel, academicYear)
 VALUES ('10000000-0000-4000-8000-000000000032',
         '10000000-0000-4000-8000-000000000031',
-        'Test Class 12A', 12, '2026-2027');
+        'Test Class 12A', '12', '2026-2027');
 
 -- 2. Bootstrap student_profile linking to user student@test.talenthub.local
 INSERT INTO student_profiles (id, userId, classId, dateOfBirth, phone, studyStatus)

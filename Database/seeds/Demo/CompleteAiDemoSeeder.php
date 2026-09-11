@@ -249,7 +249,7 @@ final class CompleteAiDemoSeeder
                 'id' => $classId,
                 'schoolId' => $fptSchoolId,
                 'name' => 'Năm ' . $year,
-                'gradeLevel' => $year,
+                'gradeLevel' => 'Năm ' . $year,
                 'academicYear' => '2026 - 2027',
                 'status' => 'active',
             ], $counts, 'classes');

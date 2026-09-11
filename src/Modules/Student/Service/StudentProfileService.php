@@ -224,7 +224,7 @@ final class StudentProfileService
             'email' => (string) $row['email'],
             'fullName' => (string) $row['fullName'],
             'school' => ['id' => (string) $row['schoolId'], 'name' => (string) $row['schoolName']],
-            'class' => ['id' => (string) $row['classId'], 'name' => (string) $row['className'], 'gradeLevel' => (int) $row['gradeLevel'], 'academicYear' => (string) $row['academicYear']],
+            'class' => ['id' => (string) $row['classId'], 'name' => (string) $row['className'], 'gradeLevel' => (string) $row['gradeLevel'], 'academicYear' => (string) $row['academicYear']],
             'dateOfBirth' => (string) $row['dateOfBirth'],
             'phone' => (string) $row['phone'],
             'location' => isset($row['location']) && is_string($row['location']) ? $row['location'] : null,

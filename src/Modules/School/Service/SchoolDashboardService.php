@@ -76,7 +76,7 @@ final class SchoolDashboardService
             $teacherStmt=$this->pdo->prepare('SELECT COUNT(*) FROM teacher_profiles WHERE schoolId=?');$teacherStmt->execute([$schoolId]);
             $metrics=['totalStudents'=>(int)$studentStmt->fetchColumn(),'totalClasses'=>(int)$classStmt->fetchColumn(),'totalTeachers'=>(int)$teacherStmt->fetchColumn()];
             $classesStmt=$this->pdo->prepare("SELECT c.id,c.schoolId,c.name,c.gradeLevel,c.academicYear,'active' AS status,(SELECT COUNT(*) FROM student_profiles sp WHERE sp.classId=c.id AND sp.studyStatus='active') AS studentCount FROM classes c WHERE c.schoolId=? ORDER BY c.gradeLevel,c.name");$classesStmt->execute([$schoolId]);$classes=$classesStmt->fetchAll();
-            return ['school'=>$school,'metrics'=>$metrics,'kpis'=>$this->buildKpis($metrics,$classes),'topTalents'=>[],'classes'=>$this->presentClasses($classes),'recentActivity'=>[]];
+            return ['school'=>$school,'metrics'=>$metrics,'kpis'=>$this->buildKpis($metrics,$classes),'topTalents'=>[],'classes'=>$this->presentClasses($classes, $school),'recentActivity'=>[]];
         }
         $metrics  = $this->repository->dashboardMetrics($schoolId);
 
@@ -90,7 +90,7 @@ final class SchoolDashboardService
             'metrics'       => $metrics,
             'kpis'          => $kpis,
             'topTalents'    => $topTalents,
-            'classes'       => $this->presentClasses($classes),
+            'classes'       => $this->presentClasses($classes, $school),
             'recentActivity'=> $recent,
         ];
     }
@@ -137,7 +137,7 @@ final class SchoolDashboardService
     public function classes(string $userId): array
     {
         $school = $this->getByUser($userId);
-        return $this->presentClasses($this->repository->listClasses($school['id']));
+        return $this->presentClasses($this->repository->listClasses($school['id']), $school);
     }
 
     /**
@@ -146,7 +146,7 @@ final class SchoolDashboardService
     public function classesWithArchived(string $userId): array
     {
         $school = $this->getByUser($userId);
-        return $this->presentClasses($this->repository->listClasses($school['id'], true));
+        return $this->presentClasses($this->repository->listClasses($school['id'], true), $school);
     }
 
     /**
@@ -172,7 +172,7 @@ final class SchoolDashboardService
         $school = $this->getByUser($userId);
         $this->guardWrite($userId, $school['id']);
         $name   = $this->text($input['name'] ?? null, 'name', 2, 100, false);
-        $grade  = $this->intRange($input['gradeLevel'] ?? null, 'gradeLevel', 1, 12);
+        $grade  = $this->validateGradeLevel($input['gradeLevel'] ?? null, $school);
         $year   = $this->text($input['academicYear'] ?? null, 'academicYear', 4, 20, false);
         $status = $this->text($input['status'] ?? 'active', 'status', 4, 20, false);
         if (!in_array($status, ['active', 'archived'], true)) {
@@ -227,7 +227,7 @@ final class SchoolDashboardService
             $fields['name'] = $this->text($input['name'], 'name', 2, 100, false);
         }
         if (array_key_exists('gradeLevel', $input)) {
-            $fields['gradeLevel'] = $this->intRange($input['gradeLevel'], 'gradeLevel', 1, 12);
+            $fields['gradeLevel'] = $this->validateGradeLevel($input['gradeLevel'], $school);
         }
         if (array_key_exists('academicYear', $input)) {
             $fields['academicYear'] = $this->text($input['academicYear'], 'academicYear', 4, 20, false);
@@ -480,7 +480,7 @@ final class SchoolDashboardService
                 'fullName'    => (string) $row['fullName'],
                 'classId'     => (string) $row['classId'],
                 'className'   => (string) $row['className'],
-                'gradeLevel'  => (int) $row['gradeLevel'],
+                'gradeLevel'  => (string) $row['gradeLevel'],
                 'phone'       => (string) $row['phone'],
                 'studyStatus' => (string) $row['studyStatus'],
             ];
@@ -1137,8 +1137,9 @@ final class SchoolDashboardService
         ];
     }
 
-    private function presentClasses(array $rows): array
+    private function presentClasses(array $rows, ?array $school = null): array
     {
+        $tier = $school !== null ? $this->detectSchoolTier($school) : 'unknown';
         $result = [];
         foreach ($rows as $row) {
             $count = (int) ($row['studentCount'] ?? 0);
@@ -1155,10 +1156,8 @@ final class SchoolDashboardService
                 $text   = 'Cần cải thiện';
             }
             $completion = (int) ($row['profileCompletion'] ?? 0);
-            $gradeLevel = (int) ($row['gradeLevel'] ?? 1);
-            $gradeLabel = $gradeLevel >= 10
-                ? sprintf('Khối %d', $gradeLevel)
-                : sprintf('Năm %d (Chuyên ngành)', $gradeLevel);
+            $gradeLevel = (string) ($row['gradeLevel'] ?? '');
+            $gradeLabel = $this->buildGradeLabel($gradeLevel, $tier);
 
             $result[] = [
                 'id'           => (string) $row['id'],
@@ -1217,7 +1216,7 @@ final class SchoolDashboardService
                 (string) $row['email'],
                 (string) $row['phone'],
                 (string) $row['className'],
-                (int) $row['gradeLevel'],
+                (string) $row['gradeLevel'],
                 (string) $row['studyStatus'],
                 (string) $row['dateOfBirth'],
             ];
@@ -1242,7 +1241,7 @@ final class SchoolDashboardService
         foreach ($stmt->fetchAll() as $row) {
             $rows[] = [
                 (string) $row['name'],
-                (int) $row['gradeLevel'],
+                (string) $row['gradeLevel'],
                 (string) $row['academicYear'],
                 (string) $row['status'],
                 (int) $row['studentCount'],
@@ -1424,6 +1423,120 @@ final class SchoolDashboardService
             throw new ApiException(422, 'VALIDATION_FAILED', "{$field} phải nằm trong [{$min}, {$max}].");
         }
         return $intVal;
+    }
+
+    /**
+     * Detect the school tier (academic level) from the school's level/name.
+     * Returns one of: 'thcs', 'thpt', 'college', 'unknown'.
+     *
+     * - 'thcs'    : Trung học Cơ sở (lower secondary) → grades 6-9
+     * - 'thpt'    : Trung học Phổ thông (upper secondary) → grades 10-12
+     * - 'college' : Cao đẳng / Đại học (college / university) → custom labels
+     * - 'unknown' : fallback (still returns grades 6-12 for safety)
+     *
+     * @param array<string,mixed> $school
+     */
+    public function detectSchoolTier(array $school): string
+    {
+        $level = mb_strtolower((string) ($school['level'] ?? ''));
+        $name  = mb_strtolower((string) ($school['name']  ?? ''));
+
+        if (str_contains($level, 'trung học cơ sở')
+            || str_contains($level, 'thcs')
+            || str_contains($name, 'thcs')) {
+            return 'thcs';
+        }
+        if (str_contains($level, 'trung học phổ thông')
+            || str_contains($level, 'thpt')
+            || str_contains($name, 'thpt')) {
+            return 'thpt';
+        }
+        if (str_contains($level, 'cao đẳng')
+            || str_contains($level, 'đại học')
+            || str_contains($name, 'btec')
+            || str_contains($name, 'đại học')
+            || str_contains($name, 'cao đẳng')) {
+            return 'college';
+        }
+        return 'unknown';
+    }
+
+    /**
+     * Suggested grade-level options for the school.
+     * - THCS:    [6, 7, 8, 9]
+     * - THPT:    [10, 11, 12]
+     * - college: []   (caller must use a free-text input)
+     * - unknown: [6, 7, 8, 9, 10, 11, 12] (fallback)
+     *
+     * @param array<string,mixed> $school
+     * @return int[]
+     */
+    public function gradeOptionsForSchool(array $school): array
+    {
+        return match ($this->detectSchoolTier($school)) {
+            'thcs'    => [6, 7, 8, 9],
+            'thpt'    => [10, 11, 12],
+            'college' => [],
+            default   => [6, 7, 8, 9, 10, 11, 12],
+        };
+    }
+
+    /**
+     * Validate gradeLevel input according to the school's tier.
+     * - THCS:    string must be one of "6", "7", "8", "9"
+     * - THPT:    string must be one of "10", "11", "12"
+     * - college: any non-empty string up to 50 chars
+     * - unknown: any non-empty string up to 50 chars (safe fallback)
+     *
+     * @param array<string,mixed> $school
+     */
+    public function validateGradeLevel(mixed $value, array $school): string
+    {
+        if (is_string($value)) {
+            $raw = trim($value);
+        } elseif (is_numeric($value)) {
+            $raw = trim((string) $value);
+        } else {
+            $raw = '';
+        }
+        if ($raw === '') {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Vui lòng nhập khối.');
+        }
+        if (mb_strlen($raw) > 50) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Khối tối đa 50 ký tự.');
+        }
+        $tier = $this->detectSchoolTier($school);
+        if ($tier === 'thcs' && !in_array($raw, ['6', '7', '8', '9'], true)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Khối phải từ 6 đến 9 đối với trường THCS.');
+        }
+        if ($tier === 'thpt' && !in_array($raw, ['10', '11', '12'], true)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Khối phải từ 10 đến 12 đối với trường THPT.');
+        }
+        return $raw;
+    }
+
+    /**
+     * Build a human-readable grade label from a stored gradeLevel value.
+     * - thcs/thpt: "Khối 6", "Khối 10", ...
+     * - college:  echo the value as-is (e.g. "Năm 1", "Khóa 2024")
+     * - unknown:  fall back to a generic label
+     */
+    public function buildGradeLabel(string $gradeLevel, string $tier): string
+    {
+        if ($gradeLevel === '') {
+            return '—';
+        }
+        if ($tier === 'thcs' || $tier === 'thpt') {
+            return 'Khối ' . $gradeLevel;
+        }
+        if ($tier === 'college') {
+            return $gradeLevel;
+        }
+        // unknown: if numeric, treat as Khối; otherwise show as-is
+        if (ctype_digit($gradeLevel)) {
+            return 'Khối ' . $gradeLevel;
+        }
+        return $gradeLevel;
     }
 
     private function date(mixed $value, string $field): string

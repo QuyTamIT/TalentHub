@@ -45,7 +45,7 @@ echo $schoolId . PHP_EOL;
 // --- 1. CRUD Lớp ---
 $createdClass = $service->createClass($adminId, [
     'name'         => 'TEST-CLASS',
-    'gradeLevel'   => 11,
+    'gradeLevel'   => '11',
     'academicYear' => '2025 - 2026',
     'status'       => 'active',
 ]);

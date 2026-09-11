@@ -24,8 +24,8 @@ INSERT INTO `schools` (`id`,`name`,`status`,`logoUrl`,`address`,`phone`,`email`,
 ON DUPLICATE KEY UPDATE `id`=VALUES(`id`);
 
 INSERT INTO `classes` (`id`,`schoolId`,`name`,`gradeLevel`,`academicYear`,`status`,`createdAt`,`updatedAt`) VALUES
-('bc0be670-12fd-545b-a70f-3ebf8ce3fad7','da811c4f-2f74-4fdd-80b0-dd6f26109783','BTEC-SE-2026A',1,'2026-2027','active','2026-08-25 14:30:00.000000','2026-08-25 14:30:00.000000'),
-('a1e2894b-2386-5404-9695-78a78f5a60d3','da811c4f-2f74-4fdd-80b0-dd6f26109783','BTEC-DB-2026A',1,'2026-2027','active','2026-08-25 14:30:00.000000','2026-08-25 14:30:00.000000')
+('bc0be670-12fd-545b-a70f-3ebf8ce3fad7','da811c4f-2f74-4fdd-80b0-dd6f26109783','BTEC-SE-2026A','Năm 1','2026-2027','active','2026-08-25 14:30:00.000000','2026-08-25 14:30:00.000000'),
+('a1e2894b-2386-5404-9695-78a78f5a60d3','da811c4f-2f74-4fdd-80b0-dd6f26109783','BTEC-DB-2026A','Năm 1','2026-2027','active','2026-08-25 14:30:00.000000','2026-08-25 14:30:00.000000')
 ON DUPLICATE KEY UPDATE `id`=VALUES(`id`);
 
 INSERT INTO `users` (`id`,`roleId`,`email`,`passwordHash`,`fullName`,`status`,`lastLoginAt`,`createdAt`,`updatedAt`) VALUES

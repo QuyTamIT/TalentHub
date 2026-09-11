@@ -95,6 +95,11 @@ $schoolInfo = [
 $currentRoute = '/app/school/classes.php';
 $pageTitle    = $isEdit ? 'Chỉnh sửa lớp ' . ($row['name'] ?? '') : 'Thêm lớp mới';
 
+// Grade-level options based on school tier.
+$schoolRow    = $context['school'];
+$tier         = $service->detectSchoolTier($schoolRow);
+$gradeOptions = $service->gradeOptionsForSchool($schoolRow);
+
 ob_start();
 ?>
 <div class="school-section-box" style="margin-bottom: 1.5rem;">
@@ -131,11 +136,22 @@ ob_start();
             </label>
             <label class="school-form__field">
                 <span>Khối <em>*</em></span>
-                <select name="gradeLevel" class="typeui-select" required>
-                    <?php for ($g = 1; $g <= 12; $g++): ?>
-                        <option value="<?= $g; ?>" <?= ((int) $row['gradeLevel'] === $g) ? 'selected' : ''; ?>>Khối <?= $g; ?></option>
-                    <?php endfor; ?>
-                </select>
+                <?php if ($gradeOptions === []): // college/university: free-text input ?>
+                    <input
+                        type="text"
+                        name="gradeLevel"
+                        maxlength="50"
+                        required
+                        value="<?= htmlspecialchars((string) $row['gradeLevel']); ?>"
+                        placeholder="VD: Năm 1, Khóa 2026, Chuyên ngành A…"
+                    >
+                <?php else: // THCS or THPT: dropdown ?>
+                    <select name="gradeLevel" class="typeui-select" required>
+                        <?php foreach ($gradeOptions as $g): ?>
+                            <option value="<?= $g; ?>" <?= ((string) $row['gradeLevel'] === (string) $g) ? 'selected' : ''; ?>>Khối <?= $g; ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php endif; ?>
             </label>
             <label class="school-form__field">
                 <span>Niên khóa <em>*</em></span>

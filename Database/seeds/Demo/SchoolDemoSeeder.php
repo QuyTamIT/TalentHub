@@ -239,12 +239,12 @@ final class SchoolDemoSeeder
                  VALUES (:id, :schoolId, :name, :grade, :year, :status)';
         $stmt = $pdo->prepare($sql);
         $rows = [
-            ['id' => self::IDS['class10a'],      'name' => '10A', 'grade' => 10, 'status' => 'active'],
-            ['id' => self::IDS['class10b'],      'name' => '10B', 'grade' => 10, 'status' => 'active'],
-            ['id' => self::IDS['class11a'],      'name' => '11A', 'grade' => 11, 'status' => 'active'],
-            ['id' => self::IDS['class12a'],      'name' => '12A', 'grade' => 12, 'status' => 'active'],
-            ['id' => self::IDS['class10c'],      'name' => '10C', 'grade' => 10, 'status' => 'active'],
-            ['id' => self::IDS['classArchived'], 'name' => '9A',  'grade' => 9,  'status' => 'archived'],
+            ['id' => self::IDS['class10a'],      'name' => '10A', 'grade' => '10', 'status' => 'active'],
+            ['id' => self::IDS['class10b'],      'name' => '10B', 'grade' => '10', 'status' => 'active'],
+            ['id' => self::IDS['class11a'],      'name' => '11A', 'grade' => '11', 'status' => 'active'],
+            ['id' => self::IDS['class12a'],      'name' => '12A', 'grade' => '12', 'status' => 'active'],
+            ['id' => self::IDS['class10c'],      'name' => '10C', 'grade' => '10', 'status' => 'active'],
+            ['id' => self::IDS['classArchived'], 'name' => '9A',  'grade' => '9',  'status' => 'archived'],
         ];
         foreach ($rows as $row) {
             $stmt->execute([

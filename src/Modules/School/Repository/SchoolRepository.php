@@ -109,7 +109,7 @@ final class SchoolRepository
     }
 
     /**
-     * @param array{name:string,gradeLevel:int,academicYear:string,status?:string} $data
+     * @param array{name:string,gradeLevel:string,academicYear:string,status?:string} $data
      */
     public function createClass(string $schoolId, array $data): string
     {
