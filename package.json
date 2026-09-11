@@ -1,0 +1,29 @@
+{
+  "name": "talenthub",
+  "version": "1.0.0",
+  "description": "Ứng dụng PHP 8.3 + MySQL, gồm các cổng Học viên, Giáo viên, Nhà trường, Doanh nghiệp và Quản trị viên.",
+  "main": "index.js",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QuyTamIT/TalentHub.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/QuyTamIT/TalentHub/issues"
+  },
+  "homepage": "https://github.com/QuyTamIT/TalentHub#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.20.2",
+    "typescript": "^5.9.3"
+  }
+}

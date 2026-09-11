@@ -199,10 +199,10 @@ foreach ($schools as $sch) {
 
 // Classes for schools
 $classes = [
-    ['id' => '22000000-ba56-41f9-800b-26b41b0a9b5c', 'schoolId' => '22000000-b512-4ede-852b-f4a508f3e837', 'name' => 'K18 CNTT (Năm 4)', 'gradeLevel' => 4, 'academicYear' => '2025-2026'],
-    ['id' => 'bc0be670-12fd-545b-a70f-3ebf8ce3fad7', 'schoolId' => 'da811c4f-2f74-4fdd-80b0-dd6f26109783', 'name' => 'BTEC-SE-2026A', 'gradeLevel' => 3, 'academicYear' => '2025-2026'],
-    ['id' => 'a1e2894b-2386-5404-9695-78a78f5a60d3', 'schoolId' => 'da811c4f-2f74-4fdd-80b0-dd6f26109783', 'name' => 'BTEC-AI-2026A', 'gradeLevel' => 3, 'academicYear' => '2025-2026'],
-    ['id' => '23000000-0000-4000-8000-000000000002', 'schoolId' => '23000000-0000-4000-8000-000000000001', 'name' => 'K47 CNTT (Năm 4)', 'gradeLevel' => 4, 'academicYear' => '2025-2026'],
+    ['id' => '22000000-ba56-41f9-800b-26b41b0a9b5c', 'schoolId' => '22000000-b512-4ede-852b-f4a508f3e837', 'name' => 'K18 CNTT (Năm 4)', 'gradeLevel' => 'Năm 4', 'academicYear' => '2025-2026'],
+    ['id' => 'bc0be670-12fd-545b-a70f-3ebf8ce3fad7', 'schoolId' => 'da811c4f-2f74-4fdd-80b0-dd6f26109783', 'name' => 'BTEC-SE-2026A', 'gradeLevel' => 'Năm 3', 'academicYear' => '2025-2026'],
+    ['id' => 'a1e2894b-2386-5404-9695-78a78f5a60d3', 'schoolId' => 'da811c4f-2f74-4fdd-80b0-dd6f26109783', 'name' => 'BTEC-AI-2026A', 'gradeLevel' => 'Năm 3', 'academicYear' => '2025-2026'],
+    ['id' => '23000000-0000-4000-8000-000000000002', 'schoolId' => '23000000-0000-4000-8000-000000000001', 'name' => 'K47 CNTT (Năm 4)', 'gradeLevel' => 'Năm 4', 'academicYear' => '2025-2026'],
 ];
 
 foreach ($classes as $cls) {

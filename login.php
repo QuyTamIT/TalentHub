@@ -1,7 +1,6 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/bin/bootstrap.php';
-require_once __DIR__.'/app/shared/BrandHeader.php';
 
 use TalentHub\Auth\Repository\AuthRepository;
 use TalentHub\Auth\Service\AuthPortalRouter;
@@ -96,9 +95,8 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
     <title>Đăng nhập | TalentHub</title>
     <link rel="stylesheet" href="assets/css/home.css">
     <link rel="stylesheet" href="assets/css/global.css">
-    <link rel="stylesheet" href="assets/css/brand-component.css">
-    <link rel="stylesheet" href="assets/css/polish.css">
     <link rel="stylesheet" href="assets/css/auth.css">
+    <link rel="stylesheet" href="assets/css/polish.css">
 </head>
 <body class="auth-page">
 <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>

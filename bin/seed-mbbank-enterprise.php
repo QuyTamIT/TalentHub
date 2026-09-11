@@ -54,14 +54,14 @@ try {
             'id' => '23000000-0000-4000-8000-000000000003',
             'schoolId' => '23000000-0000-4000-8000-000000000001', // ĐH Cần Thơ
             'name' => 'K47 Kinh doanh Quốc tế (Năm 4)',
-            'gradeLevel' => 4,
+            'gradeLevel' => 'Năm 4',
             'academicYear' => '2022-2026'
         ],
         [
             'id' => '22000000-ba56-41f9-800b-26b41b0a9b5d',
             'schoolId' => '22000000-b512-4ede-852b-f4a508f3e837', // ĐH FPT
             'name' => 'K18 Digital Marketing (Năm 4)',
-            'gradeLevel' => 4,
+            'gradeLevel' => 'Năm 4',
             'academicYear' => '2022-2026'
         ]
     ];

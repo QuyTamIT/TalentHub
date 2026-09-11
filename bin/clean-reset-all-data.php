@@ -178,8 +178,8 @@ $pdo->prepare("
 $classId = 'a1e2894b-2386-5404-9695-78a78f5a60d3';
 $pdo->prepare("
     INSERT INTO classes (id, schoolId, name, gradeLevel, academicYear, status, createdAt, updatedAt)
-    VALUES (?, ?, 'BTEC-AI-2026A', 2, '2025-2026', 'active', NOW(), NOW())
-    ON DUPLICATE KEY UPDATE schoolId = VALUES(schoolId), name = VALUES(name), gradeLevel = 2, status = 'active', updatedAt = NOW()
+    VALUES (?, ?, 'BTEC-AI-2026A', 'Năm 2', '2025-2026', 'active', NOW(), NOW())
+    ON DUPLICATE KEY UPDATE schoolId = VALUES(schoolId), name = VALUES(name), gradeLevel = 'Năm 2', status = 'active', updatedAt = NOW()
 ")->execute([$classId, $schoolId]);
 
 // 4.5. Clean Student Account: vuducanh@student.edu.vn (New Clean State)

@@ -31,7 +31,7 @@ $error = null;
 $row   = [
     'id'           => '',
     'name'         => '',
-    'gradeLevel'   => 10,
+    'gradeLevel'   => '',
     'academicYear' => $context['school']['academicYear'] ?? '2025 - 2026',
     'status'       => 'active',
 ];
@@ -80,7 +80,7 @@ if ($isEdit) {
         $row = $service->getClass($userId, $classId);
     } catch (ApiException $e) {
         $error = $e->getMessage();
-        $row = ['id' => $classId, 'name' => '', 'gradeLevel' => 10, 'academicYear' => '', 'status' => 'active'];
+        $row = ['id' => $classId, 'name' => '', 'gradeLevel' => '', 'academicYear' => '', 'status' => 'active'];
     }
 }
 
@@ -94,6 +94,11 @@ $schoolInfo = [
 
 $currentRoute = '/app/school/classes.php';
 $pageTitle    = $isEdit ? 'Chỉnh sửa lớp ' . ($row['name'] ?? '') : 'Thêm lớp mới';
+
+// Grade-level options based on school tier.
+$schoolRow    = $context['school'];
+$tier         = $service->detectSchoolTier($schoolRow);
+$gradeOptions = $service->gradeOptionsForSchool($schoolRow);
 
 ob_start();
 ?>
@@ -127,15 +132,27 @@ ob_start();
         <div class="school-form__grid school-form__grid--2col">
             <label class="school-form__field">
                 <span>Tên lớp <em>*</em></span>
-                <input type="text" name="name" maxlength="100" required value="<?= htmlspecialchars((string) $row['name']); ?>" placeholder="10A, 11B1...">
+                <input type="text" name="name" maxlength="100" required value="<?= htmlspecialchars((string) $row['name']); ?>" placeholder="<?= $gradeOptions === [] ? 'Vd: K1, K2-CNTT…' : '10A, 11B1...'; ?>">
             </label>
             <label class="school-form__field">
-                <span>Khối <em>*</em></span>
-                <select name="gradeLevel" class="typeui-select" required>
-                    <?php for ($g = 1; $g <= 12; $g++): ?>
-                        <option value="<?= $g; ?>" <?= ((int) $row['gradeLevel'] === $g) ? 'selected' : ''; ?>>Khối <?= $g; ?></option>
-                    <?php endfor; ?>
-                </select>
+                <span><?= $gradeOptions === [] ? 'Khoá' : 'Khối'; ?> <em>*</em></span>
+                <?php if ($gradeOptions === []): // college/university: free-text input ?>
+                    <input
+                        type="text"
+                        name="gradeLevel"
+                        maxlength="50"
+                        required
+                        value="<?= htmlspecialchars((string) $row['gradeLevel']); ?>"
+                        placeholder="K1"
+                        title="Nhập khoá học (vd: K1, K2, K24-CNTT…)"
+                    >
+                <?php else: // THCS or THPT: dropdown ?>
+                    <select name="gradeLevel" class="typeui-select" required>
+                        <?php foreach ($gradeOptions as $g): ?>
+                            <option value="<?= $g; ?>" <?= ((string) $row['gradeLevel'] === (string) $g) ? 'selected' : ''; ?>>Khối <?= $g; ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php endif; ?>
             </label>
             <label class="school-form__field">
                 <span>Niên khóa <em>*</em></span>

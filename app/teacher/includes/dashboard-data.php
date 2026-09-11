@@ -221,18 +221,20 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
         $schoolName = (string) ($stmtSchool->fetchColumn() ?: '');
     }
 
-    // Find managed class (either assigned as homeroom, or first active class in teacher's school)
+    // Find managed class (either assigned via teacher_class_assignments, or first active class in teacher's school)
     $managedClass = null;
     if ($schoolId !== '') {
         $stmt = $pdo->prepare("
-            SELECT id, name
-            FROM classes
-            WHERE schoolId = :schoolId
-              AND (homeroomTeacherId = :uid OR homeroomTeacherId = :teacherId)
-              AND status = 'active'
+            SELECT c.id, c.name
+            FROM classes c
+            INNER JOIN teacher_class_assignments tca ON tca.classId = c.id AND tca.status = 'active'
+            WHERE c.schoolId = :schoolId
+              AND tca.teacherId = :teacherId
+              AND c.status = 'active'
+            ORDER BY c.name ASC
             LIMIT 1
         ");
-        $stmt->execute(['schoolId' => $schoolId, 'uid' => $userId, 'teacherId' => $teacherId]);
+        $stmt->execute(['schoolId' => $schoolId, 'teacherId' => $teacherId]);
         $managedClass = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
 
         if (!$managedClass) {

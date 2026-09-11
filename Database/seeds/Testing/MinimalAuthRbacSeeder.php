@@ -61,7 +61,7 @@ final class MinimalAuthRbacSeeder
         $this->insertIgnore($pdo, 'INSERT IGNORE INTO schools (id, name, status) VALUES (?, ?, ?)',
             [self::IDS['school'], 'TalentHub Test School', 'active']);
         $this->insertIgnore($pdo, 'INSERT IGNORE INTO classes (id, schoolId, name, gradeLevel, academicYear) VALUES (?, ?, ?, ?, ?)',
-            [self::IDS['class'], self::IDS['school'], 'Test Class 12A', 12, '2026-2027']);
+            [self::IDS['class'], self::IDS['school'], 'Test Class 12A', '12', '2026-2027']);
     }
 
     private function insertUsers(PDO $pdo, string $hash): void
