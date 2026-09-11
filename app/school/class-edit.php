@@ -31,7 +31,7 @@ $error = null;
 $row   = [
     'id'           => '',
     'name'         => '',
-    'gradeLevel'   => 10,
+    'gradeLevel'   => '',
     'academicYear' => $context['school']['academicYear'] ?? '2025 - 2026',
     'status'       => 'active',
 ];
@@ -80,7 +80,7 @@ if ($isEdit) {
         $row = $service->getClass($userId, $classId);
     } catch (ApiException $e) {
         $error = $e->getMessage();
-        $row = ['id' => $classId, 'name' => '', 'gradeLevel' => 10, 'academicYear' => '', 'status' => 'active'];
+        $row = ['id' => $classId, 'name' => '', 'gradeLevel' => '', 'academicYear' => '', 'status' => 'active'];
     }
 }
 
@@ -132,10 +132,10 @@ ob_start();
         <div class="school-form__grid school-form__grid--2col">
             <label class="school-form__field">
                 <span>Tên lớp <em>*</em></span>
-                <input type="text" name="name" maxlength="100" required value="<?= htmlspecialchars((string) $row['name']); ?>" placeholder="10A, 11B1...">
+                <input type="text" name="name" maxlength="100" required value="<?= htmlspecialchars((string) $row['name']); ?>" placeholder="<?= $gradeOptions === [] ? 'Vd: K1, K2-CNTT…' : '10A, 11B1...'; ?>">
             </label>
             <label class="school-form__field">
-                <span>Khối <em>*</em></span>
+                <span><?= $gradeOptions === [] ? 'Khoá' : 'Khối'; ?> <em>*</em></span>
                 <?php if ($gradeOptions === []): // college/university: free-text input ?>
                     <input
                         type="text"
@@ -143,7 +143,8 @@ ob_start();
                         maxlength="50"
                         required
                         value="<?= htmlspecialchars((string) $row['gradeLevel']); ?>"
-                        placeholder="VD: Năm 1, Khóa 2026, Chuyên ngành A…"
+                        placeholder="K1"
+                        title="Nhập khoá học (vd: K1, K2, K24-CNTT…)"
                     >
                 <?php else: // THCS or THPT: dropdown ?>
                     <select name="gradeLevel" class="typeui-select" required>
