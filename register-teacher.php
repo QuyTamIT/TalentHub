@@ -23,7 +23,7 @@ $session->start();
 try {
     $pdo = (new Connection(require __DIR__ . '/config/database.php'))->connect();
     $schools = $pdo
-        ->query("SELECT id, name FROM schools WHERE status = 'active' ORDER BY name")
+        ->query("SELECT id, name, level FROM schools WHERE status = 'active' ORDER BY name")
         ->fetchAll();
 } catch (Throwable) {
     $error = 'Chưa thể tải danh sách nhà trường. Vui lòng thử lại sau.';
@@ -133,7 +133,7 @@ function teacherEscape(mixed $value): string
                         <select id="schoolId" name="schoolId" class="typeui-select typeui-select--large" required <?= $schools === [] ? 'disabled' : '' ?>>
                             <option value="">Chọn nhà trường</option>
                             <?php foreach ($schools as $school): ?>
-                                <option value="<?= teacherEscape($school['id']) ?>" <?= hash_equals($values['schoolId'], (string) $school['id']) ? 'selected' : '' ?>><?= teacherEscape($school['name']) ?></option>
+                                <option value="<?= teacherEscape($school['id']) ?>" <?= hash_equals($values['schoolId'], (string) $school['id']) ? 'selected' : '' ?>><?= teacherEscape($school['name']) ?><?php if (!empty($school['level'])): ?> · <?= teacherEscape(['cap2' => 'Cấp 2', 'cap3' => 'Cấp 3', 'cao_dang_dai_hoc' => 'Cao đẳng / Đại học'][$school['level']] ?? $school['level']) ?><?php endif; ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>

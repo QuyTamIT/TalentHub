@@ -89,6 +89,7 @@
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
   const statusLabels = {active:'Hoạt động',draft:'Bản nháp',published:'Đã công bố',ongoing:'Đang diễn ra',completed:'Hoàn thành',archived:'Đã lưu trữ',pending:'Chờ duyệt',suspended:'Tạm khóa',disabled:'Vô hiệu hóa',verified:'Đã xác minh',rejected:'Từ chối',inactive:'Chưa kích hoạt',paid:'Đã thanh toán',pending_payment:'Chờ thanh toán',pledged:'Đã cam kết',refunded:'Đã hoàn tiền',cancelled:'Đã hủy',sent:'Đã gửi',failed:'Thất bại',submitted:'Đã nộp',reviewing:'Đang xem xét',interview:'Phỏng vấn',accepted:'Đã chấp nhận',declined:'Đã từ chối',withdrawn:'Đã rút',invited:'Được mời',applied:'Đã ứng tuyển'};
   const roleLabels = {student:'Học sinh',teacher:'Giáo viên',school:'Nhà trường',enterprise:'Doanh nghiệp',platform_admin:'Quản trị nền tảng'};
+  const schoolLevelLabel = (code) => ({cap2:'Cấp 2',cap3:'Cấp 3',cao_dang_dai_hoc:'Cao đẳng / Đại học'}[String(code || '').toLowerCase()] || '—');
   const commandActions = [
     {section:'dashboard', title:'Tổng quan vận hành', description:'Mở Dashboard Admin', keywords:'tong quan dashboard van hanh trang chu'},
     {section:'users', title:'Quản lý người dùng', description:'Tìm, tạo và cập nhật tài khoản', keywords:'nguoi dung user tai khoan hoc sinh giao vien admin'},
@@ -560,7 +561,7 @@
           domainLabel: org.type === 'school' ? 'Trường học' : 'Doanh nghiệp',
           domainIcon: org.type === 'school' ? 'building' : 'briefcase',
           title: `Xác minh ${org.type === 'school' ? 'Trường học' : 'Doanh nghiệp'}: ${org.name || 'Tổ chức'}`,
-          meta: `Email: ${org.email || '—'} · Loại: ${org.type === 'school' ? 'Nhà trường' : 'Doanh nghiệp'} · ID: #${String(org.id).slice(0, 8)}`,
+          meta: `Email: ${org.email || '—'} · Loại: ${org.type === 'school' ? 'Nhà trường' : 'Doanh nghiệp'}${org.type === 'school' && org.schoolLevel ? ` · Cấp bậc: ${schoolLevelLabel(org.schoolLevel)}` : ''} · ID: #${String(org.id).slice(0, 8)}`,
           category: 'pending_approval',
           severity: 'high',
           severityLabel: 'Ưu tiên cao',
@@ -853,6 +854,7 @@
   moduleSearch?.addEventListener('input',()=>{const query=moduleSearch.value.trim();if(['users','organizations'].includes(currentSection)){window.clearTimeout(moduleSearchTimer);moduleSearchTimer=window.setTimeout(()=>loadSection(currentSection,query),250);return;}const normalized=query.toLocaleLowerCase('vi');moduleContent.querySelectorAll('tbody tr').forEach((row)=>row.hidden=normalized!==''&&!row.textContent.toLocaleLowerCase('vi').includes(normalized));});
 
   let orgSchoolSearch = '';
+  let orgSchoolLevel = 'all';
   let orgSchoolVerification = 'all';
   let orgEnterpriseSearch = '';
   let orgEnterpriseVerification = 'all';
@@ -863,6 +865,10 @@
       if (orgSchoolVerification !== 'all') {
         const v = String(row.verificationStatus || '').toLowerCase();
         if (v !== orgSchoolVerification) return false;
+      }
+      if (orgSchoolLevel !== 'all') {
+        const lvl = String(row.schoolLevel || '').toLowerCase();
+        if (lvl !== orgSchoolLevel) return false;
       }
       if (orgSchoolSearch) {
         const q = normalizeSearch(orgSchoolSearch);
@@ -904,6 +910,7 @@
           <thead>
             <tr>
               <th scope="col" class="th-org-name">TỔ CHỨC</th>
+              ${type === 'school' ? '<th scope="col" class="th-org-level">CẤP BẬC</th>' : ''}
               <th scope="col" class="th-org-status">TRẠNG THÁI</th>
               <th scope="col" class="th-org-verification">XÁC MINH</th>
               <th scope="col" class="th-org-created">NGÀY TẠO</th>
@@ -934,6 +941,7 @@
                       </div>
                     </div>
                   </td>
+                  ${type === 'school' ? `<td class="td-org-level"><span class="org-level-pill">${escapeHtml(schoolLevelLabel(row.schoolLevel))}</span></td>` : ''}
                   <td class="td-org-status">
                     <span class="user-status-pill status-${statusKey}">
                       <span class="status-dot"></span>
@@ -1060,8 +1068,18 @@
               </select>
             </div>
 
+            <div class="org-filter-group">
+              <label for="org-school-level-select" class="org-label-filter">Cấp bậc:</label>
+              <select id="org-school-level-select" class="typeui-select org-select-field" data-school-level-select>
+                <option value="all"${orgSchoolLevel === 'all' ? ' selected' : ''}>Tất cả cấp bậc</option>
+                <option value="cap2"${orgSchoolLevel === 'cap2' ? ' selected' : ''}>Cấp 2</option>
+                <option value="cap3"${orgSchoolLevel === 'cap3' ? ' selected' : ''}>Cấp 3</option>
+                <option value="cao_dang_dai_hoc"${orgSchoolLevel === 'cao_dang_dai_hoc' ? ' selected' : ''}>Cao đẳng / Đại học</option>
+              </select>
+            </div>
+
             <div class="org-toolbar-status-meta">
-              ${(orgSchoolSearch || orgSchoolVerification !== 'all') ? `
+              ${(orgSchoolSearch || orgSchoolVerification !== 'all' || orgSchoolLevel !== 'all') ? `
                 <span class="org-active-filter-badge">
                   Đang lọc: <b>${filteredSchools.length}</b> kết quả
                   <button type="button" class="org-btn-reset" data-school-reset-filters title="Xóa lọc">Xóa lọc</button>
@@ -1194,11 +1212,14 @@
       const schoolReset = event.target.closest('[data-school-reset-filters]');
       if (schoolReset) {
         orgSchoolSearch = '';
+        orgSchoolLevel = 'all';
         orgSchoolVerification = 'all';
         const input = moduleContent.querySelector('[data-school-search-input]');
         if (input) input.value = '';
-        const select = moduleContent.querySelector('[data-school-verification-select]');
-        if (select) select.value = 'all';
+        const selectV = moduleContent.querySelector('[data-school-verification-select]');
+        if (selectV) selectV.value = 'all';
+        const selectL = moduleContent.querySelector('[data-school-level-select]');
+        if (selectL) selectL.value = 'all';
         updateSchoolTableView();
         return;
       }
@@ -1268,6 +1289,12 @@
       const schoolSelect = event.target.closest('[data-school-verification-select]');
       if (schoolSelect) {
         orgSchoolVerification = schoolSelect.value;
+        updateSchoolTableView();
+        return;
+      }
+      const schoolLevelSelect = event.target.closest('[data-school-level-select]');
+      if (schoolLevelSelect) {
+        orgSchoolLevel = schoolLevelSelect.value;
         updateSchoolTableView();
         return;
       }

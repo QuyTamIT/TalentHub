@@ -16,10 +16,34 @@ $service = $context['service'];
 $userId  = $context['user']['id'];
 $session = $context['session'];
 
+$rawSchoolLevel   = trim((string) ($context['school']['level'] ?? ''));
+$schoolNameLower  = mb_strtolower(trim((string) ($context['school']['name'] ?? '')));
+$schoolLevelLower = mb_strtolower($rawSchoolLevel);
+
+$selectedLevel = '';
+if ($rawSchoolLevel === 'Trung Học Cơ Sở'
+    || in_array($schoolLevelLower, ['cap2', 'c2', 'trung học cơ sở', 'thcs'], true)
+    || str_contains($schoolLevelLower, 'cơ sở') || str_contains($schoolLevelLower, 'thcs')
+    || ($rawSchoolLevel === '' && (str_contains($schoolNameLower, 'thcs') || str_contains($schoolNameLower, 'trung học cơ sở') || str_contains($schoolNameLower, 'cấp 2')))) {
+    $selectedLevel = 'Trung Học Cơ Sở';
+} elseif ($rawSchoolLevel === 'Trung Học Phổ Thông'
+    || in_array($schoolLevelLower, ['cap3', 'c3', 'trung học phổ thông', 'thpt'], true)
+    || str_contains($schoolLevelLower, 'phổ thông') || str_contains($schoolLevelLower, 'thpt')
+    || ($rawSchoolLevel === '' && (str_contains($schoolNameLower, 'thpt') || str_contains($schoolNameLower, 'trung học phổ thông') || str_contains($schoolNameLower, 'cấp 3')))) {
+    $selectedLevel = 'Trung Học Phổ Thông';
+} elseif ($rawSchoolLevel === 'Cao Đẳng / Đại Học'
+    || in_array($schoolLevelLower, ['cao_dang_dai_hoc', 'cao đẳng / đại học', 'cao đẳng', 'đại học', 'học viện'], true)
+    || str_contains($schoolLevelLower, 'cao đẳng') || str_contains($schoolLevelLower, 'đại học') || str_contains($schoolLevelLower, 'học viện')
+    || ($rawSchoolLevel === '' && (str_contains($schoolNameLower, 'cao đẳng') || str_contains($schoolNameLower, 'đại học') || str_contains($schoolNameLower, 'btec')))) {
+    $selectedLevel = 'Cao Đẳng / Đại Học';
+} else {
+    $selectedLevel = $rawSchoolLevel !== '' ? $rawSchoolLevel : 'Cao Đẳng / Đại Học';
+}
+
 $schoolInfo = [
     'name'          => $context['school']['name'],
     'logo_initials' => mb_substr($context['school']['name'], 0, 2),
-    'level'         => $context['school']['level'] ?? 'Đại học / Cao đẳng',
+    'level'         => !empty($context['school']['level']) ? $context['school']['level'] : $selectedLevel,
     'district'      => $context['school']['address'] ?? '',
     'academic_year' => $context['school']['academicYear'] ?? '',
 ];
@@ -100,8 +124,12 @@ include __DIR__ . '/includes/page-banner.php';
                 <input type="text" name="name" value="<?= htmlspecialchars($school['name']); ?>" maxlength="255" required>
             </label>
             <label class="school-form__field">
-                <span>Cấp học</span>
-                <input type="text" name="level" value="<?= htmlspecialchars($school['level'] ?? ''); ?>" maxlength="100" placeholder="Tiểu học, THCS, THPT...">
+                <span>Loại hình đào tạo</span>
+                <select name="level" class="typeui-select">
+                    <option value="Trung Học Cơ Sở" <?= $selectedLevel === 'Trung Học Cơ Sở' ? 'selected' : ''; ?>>Trung Học Cơ Sở</option>
+                    <option value="Trung Học Phổ Thông" <?= $selectedLevel === 'Trung Học Phổ Thông' ? 'selected' : ''; ?>>Trung Học Phổ Thông</option>
+                    <option value="Cao Đẳng / Đại Học" <?= $selectedLevel === 'Cao Đẳng / Đại Học' ? 'selected' : ''; ?>>Cao Đẳng / Đại Học</option>
+                </select>
             </label>
             <label class="school-form__field">
                 <span>Niên khóa <em>*</em></span>

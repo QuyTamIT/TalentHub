@@ -155,20 +155,31 @@ ob_start();
             </label>
             <label class="school-form__field">
                 <span><?= $tier === 'college' ? 'Khóa' : 'Khối'; ?> <em>*</em></span>
-                <select name="gradeLevel" class="typeui-select" required>
-                    <?php foreach ($gradeOptions as $g): ?>
-                        <?php
-                            $optVal = (string) $g;
-                            $optLabel = $tier === 'college' ? $optVal : 'Khối ' . $optVal;
-                            $isSelected = ((string) $row['gradeLevel'] === $optVal
-                                || ($tier === 'college' && (string) $row['gradeLevel'] === (string) str_replace('Năm ', '', $optVal)));
-                        ?>
-                        <option value="<?= htmlspecialchars($optVal); ?>" <?= $isSelected ? 'selected' : ''; ?>><?= htmlspecialchars($optLabel); ?></option>
-                    <?php endforeach; ?>
-                    <?php if ($row['gradeLevel'] !== '' && !in_array((string) $row['gradeLevel'], array_map('strval', $gradeOptions), true) && !in_array('Năm ' . $row['gradeLevel'], array_map('strval', $gradeOptions), true)): ?>
-                        <option value="<?= htmlspecialchars((string) $row['gradeLevel']); ?>" selected><?= htmlspecialchars((string) $row['gradeLevel']); ?></option>
-                    <?php endif; ?>
-                </select>
+                <?php if ($tier === 'college'): ?>
+                    <?php
+                        $collegeValue = (string) $row['gradeLevel'];
+                        if ($collegeValue !== '' && preg_match('/^\d+$/', $collegeValue)) {
+                            $collegeValue = 'Năm ' . $collegeValue;
+                        }
+                    ?>
+                    <input type="text" name="gradeLevel" maxlength="50" required
+                           value="<?= htmlspecialchars($collegeValue); ?>"
+                           placeholder="K1" autocomplete="off" />
+                <?php else: ?>
+                    <select name="gradeLevel" class="typeui-select" required>
+                        <?php foreach ($gradeOptions as $g): ?>
+                            <?php
+                                $optVal   = (string) $g;
+                                $optLabel = 'Khối ' . $optVal;
+                                $isSelected = ((string) $row['gradeLevel'] === $optVal);
+                            ?>
+                            <option value="<?= htmlspecialchars($optVal); ?>" <?= $isSelected ? 'selected' : ''; ?>><?= htmlspecialchars($optLabel); ?></option>
+                        <?php endforeach; ?>
+                        <?php if ($row['gradeLevel'] !== '' && !in_array((string) $row['gradeLevel'], array_map('strval', $gradeOptions), true)): ?>
+                            <option value="<?= htmlspecialchars((string) $row['gradeLevel']); ?>" selected><?= htmlspecialchars((string) $row['gradeLevel']); ?></option>
+                        <?php endif; ?>
+                    </select>
+                <?php endif; ?>
             </label>
             <label class="school-form__field">
                 <span>Niên khóa <em>*</em></span>
