@@ -191,12 +191,12 @@ final class TeacherActivityService
         }
 
         $coverImageUrl = $this->nullableString($input['coverImageUrl'] ?? null, 'Ảnh bìa', 500);
-        if ($coverImageUrl !== null && preg_match('#\A(?:/app/learner/)?assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg)\z#i', $coverImageUrl) !== 1) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Ảnh bìa phải là asset cục bộ hợp lệ của hoạt động.');
+        if ($coverImageUrl !== null && preg_match('#\A(?:(?:/app/learner/)?assets/activities/[a-z0-9/_-]+\.(?:webp|png|jpe?g|svg)|/?storage/activity-covers/[a-zA-Z0-9_\-\.]+\.(?:webp|png|jpe?g))\z#i', $coverImageUrl) !== 1) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Ảnh bìa phải là asset hợp lệ của hoạt động hoặc tệp tải lên từ hệ thống.');
         }
         $coverImageAlt = $this->nullableString($input['coverImageAlt'] ?? null, 'Alt ảnh bìa', 255);
-        if ($coverImageUrl !== null && $coverImageAlt === null) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Cần nhập alt text khi có ảnh bìa.');
+        if ($coverImageUrl !== null && ($coverImageAlt === null || $coverImageAlt === '')) {
+            $coverImageAlt = 'Ảnh minh họa cho hoạt động ' . $title;
         }
 
         $feeAmount = $input['feeAmount'] ?? '0';
