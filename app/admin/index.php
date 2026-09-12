@@ -120,17 +120,9 @@ $nav = [
 <div class="admin-shell">
     <div class="sidebar-scrim" data-sidebar-close hidden></div>
     <aside class="sidebar" id="admin-sidebar" aria-label="Điều hướng quản trị">
-        <?php renderBrandHeader('/app/admin/index.php', 'Bảng quản trị', 'FTalentHub Admin - Tổng quan', 'brand learner-brand'); if (false): ?>
-            <span class="brand-mark learner-brand__mark" aria-hidden="true">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
-                </svg>
-            </span>
-            <div class="learner-brand__text">
-                <span class="learner-brand__name">FTalent<span>Hub</span></span>
-                <span class="learner-brand__subtitle">Bảng quản trị</span>
-            </div>
-        <?php endif; ?>
+        <a href="<?= htmlspecialchars(function_exists('app_href') ? app_href('/app/admin/index.php') : '/app/admin/index.php'); ?>" class="brand" aria-label="FTalentHub Admin - Tổng quan">
+            <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : '/assets/images/talenthub-logo.png'); ?>" alt="FTalentHub Logo" class="admin-sidebar__logo-img" style="display: block; width: 178px; max-width: 100%; height: auto; object-fit: contain; aspect-ratio: 401 / 122;">
+        </a>
         <nav class="side-nav">
             <p class="nav-label">Điều hành</p>
             <?php foreach ($nav as $item): ?>
