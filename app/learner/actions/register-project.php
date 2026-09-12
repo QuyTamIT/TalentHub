@@ -80,7 +80,7 @@ function learner_project_registration_submit(
 
     $repository = new DatabaseProjectMembershipCommandRepository($pdo);
     try {
-        $repository->registerActiveMember(
+        $repository->registerPendingMember(
             $studentId,
             $projectId,
             $now ?? new DateTimeImmutable('now', new DateTimeZone('UTC')),

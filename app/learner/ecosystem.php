@@ -55,7 +55,8 @@ $currentStudentId = learner_current_student_id();
 if ($currentStudentId !== '') {
     if ($isDatabaseSource) {
         try {
-            $db = \TalentHub\Database\Connection::instance();
+            $config = require dirname(__DIR__, 2) . '/config/database.php';
+            $db = (new \TalentHub\Database\Connection($config))->connect();
             $stmt = $db->prepare(<<<'SQL'
                 SELECT DISTINCT e.id, e.name
                 FROM internship_applications a
@@ -222,8 +223,8 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                                             $statusNote = 'Doanh nghiệp đang xem xét năng lực và dự án mẫu trong hồ sơ của bạn.';
                                         } elseif ($appStatus === 'interview') {
                                             $statusNote = 'Chúc mừng! Bạn đã được chọn vào vòng phỏng vấn. Hãy kiểm tra thông báo và email để nắm lịch chi tiết.';
-                                        } elseif ($appStatus === 'accepted') {
-                                            $statusNote = 'Chúc mừng bạn đã trúng tuyển thực tập! Nhà tuyển dụng sẽ sớm liên hệ hướng dẫn nhận việc.';
+                                        } elseif (in_array($appStatus, ['accepted', 'hired'], true)) {
+                                            $statusNote = 'Chúc mừng bạn đã trúng tuyển thực tập! Nhà tuyển dụng đã duyệt tiếp nhận và sẽ sớm liên hệ hướng dẫn nhận việc.';
                                         } elseif ($appStatus === 'declined') {
                                             $statusNote = 'Rất tiếc hồ sơ chưa phù hợp trong đợt này. Bạn có thể trau dồi thêm và ứng tuyển vị trí khác.';
                                         } elseif ($appStatus === 'withdrawn') {
@@ -515,6 +516,11 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                                 <article class="learner-project-card learner-card" data-ecosystem-item data-ecosystem-item-type="project" data-search="<?= learner_escape($projectSearch); ?>" data-field="<?= learner_escape($project['category_label']); ?>" data-status="<?= learner_escape($projectStatusAttr); ?>">
                                     <div class="learner-project-card__top">
                                         <span class="learner-badge learner-badge--secondary">Dự án</span>
+                                        <?php if (($project['membership_status'] ?? '') === 'pending'): ?>
+                                            <span class="learner-badge" style="background:#FEF3C7; color:#92400E; border:1px solid #FCD34D;">⏳ Đang chờ duyệt</span>
+                                        <?php elseif (($project['membership_status'] ?? '') === 'active'): ?>
+                                            <span class="learner-badge" style="background:#D1FAE5; color:#065F46; border:1px solid #A7F3D0;">✓ Đã tham gia</span>
+                                        <?php endif; ?>
                                         <span class="learner-status-dot learner-status-dot--active"><?= learner_escape($project['status_label']); ?></span>
                                     </div>
                                     <p class="learner-card-kicker"><?= learner_escape($project['category_label']); ?></p>

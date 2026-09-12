@@ -21,6 +21,82 @@ final class DatabaseProjectMembershipCommandRepository implements ProjectMembers
 {
     public function __construct(private readonly PDO $pdo) {}
 
+    public function registerPendingMember(string $studentId, string $projectId, DateTimeImmutable $now): array
+    {
+        $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
+        $projectId = Uuid::normalizeDatabase($projectId, 'project_id');
+        $timestamp = $now->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s.u');
+
+        $this->pdo->beginTransaction();
+        try {
+            $studentSchoolId = $this->activeStudentSchoolId($studentId);
+            if ($studentSchoolId === null) {
+                throw $this->unavailable();
+            }
+
+            if (!$this->projectIsJoinable($projectId, $studentSchoolId)) {
+                throw $this->unavailable();
+            }
+
+            $existing = $this->findMembership($projectId, $studentId);
+            if ($existing !== null && in_array($existing['status'] ?? '', ['active', 'pending'], true)) {
+                $this->pdo->commit();
+                return $existing + ['created' => false];
+            }
+
+            if ($existing !== null) {
+                $update = $this->pdo->prepare(<<<'SQL'
+                    UPDATE project_members
+                    SET status = 'pending', role = 'member', joinedAt = NULL,
+                        leftAt = NULL, updatedAt = :updatedAt
+                    WHERE id = :id AND projectId = :projectId AND studentId = :studentId
+                SQL
+                );
+                $update->execute([
+                    'updatedAt' => $timestamp,
+                    'id' => (string) $existing['id'],
+                    'projectId' => $projectId,
+                    'studentId' => $studentId,
+                ]);
+                $membership = $this->findMembership($projectId, $studentId)
+                    ?? throw new ApiException(500, 'MEMBERSHIP_FAILED', 'Không thể cập nhật trạng thái đăng ký dự án.');
+                $this->pdo->commit();
+                return $membership + ['created' => false];
+            }
+
+            $insert = $this->pdo->prepare(<<<'SQL'
+                INSERT INTO project_members (
+                    id, projectId, studentId, role, status, joinedAt, leftAt, createdAt, updatedAt
+                ) VALUES (
+                    :id, :projectId, :studentId, 'member', 'pending', NULL, NULL, :createdAt, :updatedAt
+                )
+            SQL
+            );
+            $insert->execute([
+                'id' => UuidGenerator::v4(),
+                'projectId' => $projectId,
+                'studentId' => $studentId,
+                'createdAt' => $timestamp,
+                'updatedAt' => $timestamp,
+            ]);
+            $membership = $this->findMembership($projectId, $studentId)
+                ?? throw new ApiException(500, 'MEMBERSHIP_FAILED', 'Không thể đọc bản ghi đăng ký dự án vừa tạo.');
+            $this->pdo->commit();
+            return $membership + ['created' => true];
+        } catch (Throwable $exception) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            if ($exception instanceof PDOException && $this->isDuplicate($exception)) {
+                $existing = $this->findMembership($projectId, $studentId);
+                if ($existing !== null && in_array($existing['status'] ?? '', ['active', 'pending'], true)) {
+                    return $existing + ['created' => false];
+                }
+            }
+            throw $exception;
+        }
+    }
+
     public function registerActiveMember(string $studentId, string $projectId, DateTimeImmutable $now): array
     {
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');

@@ -19,6 +19,10 @@ final class ProjectReadModel
             default => 'Chưa xác định',
         };
         $record['members_count'] = max(0, (int) ($record['members_count'] ?? 0));
+        $record['membership_status'] = (string) ($record['membership_status'] ?? $record['membershipStatus'] ?? 'recruiting');
+        $record['membershipStatus'] = $record['membership_status'];
+        $record['is_member'] = (int) ($record['is_member'] ?? $record['isMember'] ?? 0);
+        $record['isMember'] = $record['is_member'];
 
         foreach (['start_at', 'end_at'] as $dateField) {
             $labelField = $dateField . '_label';

@@ -80,7 +80,7 @@ final class ApplicationReadModel
             'invited' => 'Được mời thực tập',
             'reviewing' => 'Đang xem xét',
             'interview' => 'Mời phỏng vấn',
-            'accepted' => 'Đã chấp nhận',
+            'accepted', 'hired' => 'Đã nhận',
             'declined' => 'Chưa phù hợp',
             'withdrawn' => 'Đã rút',
             default => 'Chưa xác định',
@@ -130,14 +130,14 @@ final class ApplicationReadModel
             [
                 'id' => 'reviewing',
                 'label' => 'Tiếp nhận & Xem xét',
-                'desc' => in_array($status, ['reviewing', 'interview', 'accepted', 'declined'], true)
-                    ? 'Doanh nghiệp đang đánh giá hồ sơ'
+                'desc' => in_array($status, ['reviewing', 'interview', 'accepted', 'hired', 'declined'], true)
+                    ? 'Doanh nghiệp đã tiếp nhận hồ sơ'
                     : 'Chờ doanh nghiệp mở xét duyệt',
                 'date' => ($status === 'reviewing' && $updatedDate !== '') ? $updatedDate : null,
                 'state' => match ($status) {
                     'submitted' => 'current',
                     'reviewing' => 'current',
-                    'interview', 'accepted', 'declined' => 'complete',
+                    'interview', 'accepted', 'hired', 'declined' => 'complete',
                     'withdrawn' => 'withdrawn',
                     default => 'upcoming',
                 },
@@ -151,7 +151,7 @@ final class ApplicationReadModel
                 'date' => ($status === 'interview' && $updatedDate !== '') ? $updatedDate : null,
                 'state' => match ($status) {
                     'interview' => 'current',
-                    'accepted' => 'complete',
+                    'accepted', 'hired' => 'complete',
                     'declined' => 'declined',
                     'withdrawn' => 'withdrawn',
                     default => 'upcoming',
@@ -161,14 +161,14 @@ final class ApplicationReadModel
                 'id' => 'decision',
                 'label' => 'Kết quả tiếp nhận',
                 'desc' => match ($status) {
-                    'accepted' => 'Chúc mừng! Bạn đã trúng tuyển thực tập',
+                    'accepted', 'hired' => 'Chúc mừng! Bạn đã trúng tuyển thực tập',
                     'declined' => 'Chưa phù hợp trong đợt tuyển này',
                     'withdrawn' => 'Bạn đã chủ động rút hồ sơ',
                     default => 'Nhà tuyển dụng thông báo kết quả cuối',
                 },
-                'date' => in_array($status, ['accepted', 'declined', 'withdrawn'], true) && $updatedDate !== '' ? $updatedDate : null,
+                'date' => in_array($status, ['accepted', 'hired', 'declined', 'withdrawn'], true) && $updatedDate !== '' ? $updatedDate : null,
                 'state' => match ($status) {
-                    'accepted' => 'complete',
+                    'accepted', 'hired' => 'complete',
                     'declined' => 'declined',
                     'withdrawn' => 'withdrawn',
                     default => 'upcoming',

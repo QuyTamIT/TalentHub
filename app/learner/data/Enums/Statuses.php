@@ -110,7 +110,11 @@ enum ApplicationStatus: string
 
     public static function normalize(?string $value): self
     {
-        return self::tryFrom(strtolower(trim((string) $value))) ?? self::Unknown;
+        $val = strtolower(trim((string) $value));
+        if ($val === 'hired') {
+            return self::Accepted;
+        }
+        return self::tryFrom($val) ?? self::Unknown;
     }
 }
 

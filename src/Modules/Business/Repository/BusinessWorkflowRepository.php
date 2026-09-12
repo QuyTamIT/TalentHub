@@ -78,6 +78,10 @@ final class BusinessWorkflowRepository
     public function updatePost(string $enterpriseId, string $id, array $data): void
     {
         $this->getInternshipRepository()->updatePost($enterpriseId, $id, $data);
+        $students = (new AiAudienceResolver($this->pdo))->internshipStudents($id);
+        if ($students !== []) {
+            TransactionalAiOutboxPublisher::publish($this->pdo, 'internship_post', $id, TransactionalAiOutboxPublisher::version(), $students, 'opportunity.changed', ['status' => $data['status'] ?? null], $enterpriseId);
+        }
     }
 
     public function transitionPost(string $enterpriseId, string $id, string $from, string $to): bool
@@ -541,6 +545,24 @@ final class BusinessWorkflowRepository
         }
         $stmt = $this->pdo->prepare('SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ? LIMIT 1');
         $stmt->execute([$tableName]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    private function hasColumn(string $tableName, string $columnName): bool
+    {
+        $driver = (string) $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $stmt = $this->pdo->prepare("PRAGMA table_info({$tableName})");
+            $stmt->execute();
+            $cols = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+            foreach ($cols as $c) {
+                if (($c['name'] ?? '') === $columnName) return true;
+            }
+            return false;
+        }
+
+        $stmt = $this->pdo->prepare('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table_name AND COLUMN_NAME = :column_name LIMIT 1');
+        $stmt->execute(['table_name' => $tableName, 'column_name' => $columnName]);
         return (bool) $stmt->fetchColumn();
     }
 

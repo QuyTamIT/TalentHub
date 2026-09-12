@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace TalentHub\Modules\School\Repository;
 
+require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/TransactionalAiOutboxPublisher.php';
+
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
 use TalentHub\Http\ApiException;
 use TalentHub\Support\Uuid;
+use TalentHub\Learner\Ai\Queue\TransactionalAiOutboxPublisher;
 
 final class SchoolProjectRepository
 {
@@ -87,6 +90,7 @@ final class SchoolProjectRepository
 
         $topic = isset($input['topic']) && is_string($input['topic']) ? trim($input['topic']) : null;
         $authorIds = isset($input['authorIds']) && is_array($input['authorIds']) ? $input['authorIds'] : [];
+        $skillTags = $this->normalizeSkillTags($input['skillTags'] ?? []);
 
         $id = Uuid::v4();
         $now = $this->now();
@@ -127,16 +131,21 @@ SQL);
             ]);
 
             // Insert authorIds
+            $recipients = [];
             if (!empty($authorIds)) {
                 $memberStmt = $this->pdo->prepare('INSERT INTO project_members (id, projectId, studentId, role, status, joinedAt, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
                 foreach ($authorIds as $studentId) {
                     if (is_string($studentId) && trim($studentId) !== '') {
+                        $trimmed = trim($studentId);
                         $memberStmt->execute([
-                            Uuid::v4(), $id, trim($studentId), 'member', 'active', $now, $now, $now
+                            Uuid::v4(), $id, $trimmed, 'member', 'active', $now, $now, $now
                         ]);
+                        $recipients[] = $trimmed;
                     }
                 }
             }
+            $this->replaceProjectSkillTags($id, $skillTags, $now);
+            $this->publishProjectChanged($id, $recipients, $status);
 
             $this->pdo->commit();
         } catch (\Throwable $exception) {
@@ -184,13 +193,124 @@ SQL);
             "SELECT p.*,
                     COALESCE((SELECT SUM(ps.amount) FROM project_sponsorships ps WHERE ps.projectId = p.id AND ps.status = 'paid'), 0) AS raisedAmount,
                     COALESCE((SELECT COUNT(DISTINCT ps.enterpriseId) FROM project_sponsorships ps WHERE ps.projectId = p.id AND ps.status = 'paid'), 0) AS sponsorsCount,
-                    COALESCE((SELECT COUNT(*) FROM project_members pm WHERE pm.projectId = p.id AND pm.status = 'active'), 0) AS membersCount
+                    COALESCE((SELECT COUNT(*) FROM project_members pm WHERE pm.projectId = p.id AND pm.status = 'active'), 0) AS membersCount,
+                    COALESCE((SELECT COUNT(*) FROM project_members pm WHERE pm.projectId = p.id AND pm.status = 'pending'), 0) AS pendingMembersCount
              FROM projects p
              WHERE p.schoolId = :schoolId
              ORDER BY p.createdAt DESC"
         );
         $stmt->execute(['schoolId' => $schoolId]);
         return ['items' => $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []];
+    }
+
+    /**
+     * Lists all members and applicants for a school project.
+     *
+     * @param string $schoolId
+     * @param string $projectId
+     * @return list<array<string, mixed>>
+     */
+    public function listProjectMembers(string $schoolId, string $projectId): array
+    {
+        $this->getProject($schoolId, $projectId);
+
+        $stmt = $this->pdo->prepare(
+            "SELECT 
+                pm.id,
+                pm.projectId,
+                pm.studentId,
+                pm.role,
+                pm.status,
+                pm.joinedAt,
+                pm.createdAt,
+                pm.updatedAt,
+                u.fullName AS studentName,
+                u.email AS studentEmail,
+                sp.phone AS studentPhone,
+                c.name AS className,
+                c.id AS classId
+             FROM project_members pm
+             INNER JOIN student_profiles sp ON sp.id = pm.studentId
+             INNER JOIN users u ON u.id = sp.userId
+             LEFT JOIN classes c ON c.id = sp.classId
+             WHERE pm.projectId = :projectId
+             ORDER BY 
+                CASE WHEN pm.status = 'pending' THEN 0 WHEN pm.status = 'active' THEN 1 ELSE 2 END,
+                pm.createdAt DESC"
+        );
+        $stmt->execute(['projectId' => $projectId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    /**
+     * Approves or rejects a student's project membership.
+     *
+     * @param string $schoolId
+     * @param string $userId
+     * @param string $projectId
+     * @param string $studentId
+     * @param string $status
+     * @return array<string, mixed>
+     */
+    public function updateMemberStatus(string $schoolId, string $userId, string $projectId, string $studentId, string $status): array
+    {
+        $status = trim(strtolower($status));
+        if (!in_array($status, ['active', 'rejected', 'left', 'removed'], true)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Trạng thái thành viên không hợp lệ.');
+        }
+
+        $project = $this->getProject($schoolId, $projectId);
+
+        $checkStmt = $this->pdo->prepare('SELECT id, status, joinedAt FROM project_members WHERE projectId = :projectId AND studentId = :studentId LIMIT 1');
+        $checkStmt->execute(['projectId' => $projectId, 'studentId' => $studentId]);
+        $member = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($member)) {
+            throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy thông tin đăng ký của sinh viên trong dự án.');
+        }
+
+        $now = $this->now();
+        $joinedAt = $member['joinedAt'];
+        if ($status === 'active' && ($joinedAt === null || $joinedAt === '')) {
+            $joinedAt = $now;
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $updateStmt = $this->pdo->prepare(
+                'UPDATE project_members 
+                 SET status = :status, joinedAt = :joinedAt, updatedAt = :updatedAt 
+                 WHERE projectId = :projectId AND studentId = :studentId'
+            );
+            $updateStmt->execute([
+                'status' => $status,
+                'joinedAt' => $joinedAt,
+                'updatedAt' => $now,
+                'projectId' => $projectId,
+                'studentId' => $studentId,
+            ]);
+
+            if ($status === 'active') {
+                $this->publishProjectChanged($projectId, [$studentId], (string) $project['status']);
+            }
+
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
+
+        $fetchStmt = $this->pdo->prepare(
+            'SELECT pm.*, u.fullName AS studentName, u.email AS studentEmail, sp.phone AS studentPhone, c.name AS className
+             FROM project_members pm
+             INNER JOIN student_profiles sp ON sp.id = pm.studentId
+             INNER JOIN users u ON u.id = sp.userId
+             LEFT JOIN classes c ON c.id = sp.classId
+             WHERE pm.projectId = :projectId AND pm.studentId = :studentId LIMIT 1'
+        );
+        $fetchStmt->execute(['projectId' => $projectId, 'studentId' => $studentId]);
+        return $fetchStmt->fetch(PDO::FETCH_ASSOC) ?: [];
     }
 
     public function updateProject(string $schoolId, string $userId, string $projectId, array $input): array
@@ -212,6 +332,7 @@ SQL);
         $fundingGoal = array_key_exists('fundingGoal', $input)
             ? $this->normalizeFundingGoal($input['fundingGoal'])
             : $current['fundingGoal'];
+        $skillTags = array_key_exists('skillTags', $input) ? $this->normalizeSkillTags($input['skillTags']) : null;
 
         $this->pdo->beginTransaction();
         try {
@@ -232,11 +353,16 @@ SQL);
                 'id' => $projectId,
                 'schoolId' => $schoolId,
             ]);
+            if ($skillTags !== null) $this->replaceProjectSkillTags($projectId, $skillTags, $now);
 
             $this->writeAudit($userId, 'PROJECT_UPDATE', $projectId, 'school-project-ui', [
                 'schoolId' => $schoolId,
                 'changes' => array_keys($input),
             ]);
+            $members = $this->pdo->prepare('SELECT studentId FROM project_members WHERE projectId = :projectId AND status = "active"');
+            $members->execute(['projectId' => $projectId]);
+            $recipients = array_values(array_filter(array_map('strval', $members->fetchAll(PDO::FETCH_COLUMN) ?: [])));
+            $this->publishProjectChanged($projectId, $recipients, $status);
             $this->pdo->commit();
         } catch (\Throwable $exception) {
             if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); }
@@ -244,6 +370,26 @@ SQL);
         }
 
         return $this->getProject($schoolId, $projectId);
+    }
+
+    /** @param list<string> $recipients */
+    private function publishProjectChanged(string $projectId, array $recipients, string $status): void
+    {
+        if ($recipients === []) {
+            return;
+        }
+        $published = TransactionalAiOutboxPublisher::publish(
+            $this->pdo,
+            'project',
+            $projectId,
+            TransactionalAiOutboxPublisher::version(),
+            $recipients,
+            'project.changed',
+            ['status' => $status],
+        );
+        if ($published !== true) {
+            throw new \RuntimeException('Không ghi được sự kiện làm mới AI cho dự án ' . $projectId . '.');
+        }
     }
 
     private function assertTeacherBelongsToSchool(string $mentorTeacherId, string $schoolId): void
@@ -255,6 +401,37 @@ SQL);
             if (!is_string($tSchool) || $tSchool === '' || $tSchool !== $schoolId) {
                 throw new ApiException(422, 'VALIDATION_FAILED', 'Giáo viên hướng dẫn không thuộc trường học này.');
             }
+        }
+    }
+
+    /** @return list<string> */
+    private function normalizeSkillTags(mixed $value): array
+    {
+        if (!is_array($value)) throw new ApiException(422, 'VALIDATION_FAILED', 'skillTags phải là một danh sách.');
+        $codes = array_values(array_unique(array_filter(array_map(static fn ($item): string => strtolower(trim((string) $item)), $value))));
+        if ($codes === []) return [];
+        $placeholders = implode(',', array_fill(0, count($codes), '?'));
+        $stmt = $this->pdo->prepare("SELECT code FROM skills WHERE status='active' AND code IN ({$placeholders})");
+        $stmt->execute($codes);
+        $valid = array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN) ?: []);
+        sort($valid);
+        if (count($valid) !== count($codes)) throw new ApiException(422, 'VALIDATION_FAILED', 'skillTags chứa kỹ năng không tồn tại hoặc đã inactive.');
+        return $valid;
+    }
+
+    /** @param list<string> $codes */
+    private function replaceProjectSkillTags(string $projectId, array $codes, string $now): void
+    {
+        if (!$this->tableExists('project_skill_tags')) return;
+        $delete = $this->pdo->prepare('DELETE FROM project_skill_tags WHERE projectId=:projectId');
+        $delete->execute(['projectId' => $projectId]);
+        if ($codes === []) return;
+        $lookup = $this->pdo->prepare('SELECT id FROM skills WHERE code=:code AND status="active" LIMIT 1');
+        $insert = $this->pdo->prepare('INSERT INTO project_skill_tags (id,projectId,skillId,verifiedAt,createdAt) VALUES (:id,:projectId,:skillId,:verifiedAt,:createdAt)');
+        foreach ($codes as $code) {
+            $lookup->execute(['code' => $code]);
+            $skillId = $lookup->fetchColumn();
+            if (is_string($skillId) && $skillId !== '') $insert->execute(['id'=>Uuid::v4(),'projectId'=>$projectId,'skillId'=>$skillId,'verifiedAt'=>$now,'createdAt'=>$now]);
         }
     }
 

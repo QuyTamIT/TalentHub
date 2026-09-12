@@ -3629,3 +3629,35 @@ body.school-dashboard .school-pagination__info {
     color: var(--text-muted) !important;
 }
 
+/* 13. PROJECT MEMBER APPROVAL MODAL */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.school-modal-backdrop {
+    opacity: 1 !important;
+}
+
+#manageMembersModal {
+    opacity: 1 !important;
+    z-index: 99999 !important;
+}
+
+.school-modal-card {
+    animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-manage-members:hover {
+    background: #FFF7ED !important;
+    color: #C2410C !important;
+    border-color: #EA580C !important;
+}
+
+.btn-approve-member:hover {
+    background: #059669 !important;
+}
+
+.btn-reject-member:hover {
+    background: #DC2626 !important;
+}
+

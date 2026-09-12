@@ -1,7 +1,4 @@
 <?php
-/**
- * TalentHub - Teacher Portal: Chấm điểm Đồ án & Đánh giá Năng lực theo Lớp
- */
 declare(strict_types=1);
 
 require dirname(__DIR__, 2) . '/bin/bootstrap.php';

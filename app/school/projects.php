@@ -17,6 +17,19 @@ $userId = (string) $context['user']['id'];
 $error = null;
 $flash = null;
 
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'members') {
+    header('Content-Type: application/json; charset=utf-8');
+    try {
+        $projId = (string) ($_GET['projectId'] ?? '');
+        $members = $service->listProjectMembers($userId, $projId);
+        echo json_encode(['success' => true, 'members' => $members]);
+    } catch (Throwable $e) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
     try {
@@ -66,11 +79,43 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         } elseif ($action === 'status') {
             $service->updateProject($userId, (string) ($_POST['projectId'] ?? ''), ['status' => $_POST['status'] ?? 'draft']);
             $flash = 'Đã cập nhật trạng thái dự án.';
+        } elseif ($action === 'approve_member') {
+            $projectId = (string) ($_POST['projectId'] ?? '');
+            $studentId = (string) ($_POST['studentId'] ?? '');
+            $service->updateMemberStatus($userId, $projectId, $studentId, 'active');
+            $flash = 'Đã phê duyệt sinh viên tham gia dự án thành công.';
+            if (isset($_POST['ajax']) && $_POST['ajax'] === '1') {
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode(['success' => true, 'message' => $flash]);
+                exit;
+            }
+        } elseif ($action === 'reject_member') {
+            $projectId = (string) ($_POST['projectId'] ?? '');
+            $studentId = (string) ($_POST['studentId'] ?? '');
+            $service->updateMemberStatus($userId, $projectId, $studentId, 'rejected');
+            $flash = 'Đã từ chối đơn đăng ký tham gia dự án của sinh viên.';
+            if (isset($_POST['ajax']) && $_POST['ajax'] === '1') {
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode(['success' => true, 'message' => $flash]);
+                exit;
+            }
         }
     } catch (ApiException $exception) {
         $error = $exception->getMessage();
+        if (isset($_POST['ajax']) && $_POST['ajax'] === '1') {
+            http_response_code($exception->status);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => false, 'message' => $error]);
+            exit;
+        }
     } catch (Throwable $exception) {
         $error = 'Không thể cập nhật dự án: ' . $exception->getMessage();
+        if (isset($_POST['ajax']) && $_POST['ajax'] === '1') {
+            http_response_code(500);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => false, 'message' => $error]);
+            exit;
+        }
     }
 }
 
@@ -333,6 +378,11 @@ include __DIR__ . '/includes/page-banner.php';
                             <div class="school-project-card__stat">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                                 <span><?= (int) ($project['membersCount'] ?? 0); ?> thành viên</span>
+                                <?php if (!empty($project['pendingMembersCount']) && (int) $project['pendingMembersCount'] > 0): ?>
+                                    <span class="school-badge" style="background:#FEF3C7; color:#B45309; border:1px solid #FCD34D; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:12px; margin-left:6px;">
+                                        ⏳ <?= (int) $project['pendingMembersCount']; ?> chờ duyệt
+                                    </span>
+                                <?php endif; ?>
                             </div>
                             <?php if (!empty($project['fundingGoal']) && $project['fundingGoal'] > 0): ?>
                             <div class="school-project-card__stat school-project-card__stat--funding">
@@ -346,12 +396,23 @@ include __DIR__ . '/includes/page-banner.php';
                             <?php endif; ?>
                         </div>
                         
-                        <div class="school-project-card__actions">
+                        <div class="school-project-card__actions" style="display:flex; flex-direction:column; gap:0.5rem; width:100%;">
+                            <button type="button" class="btn btn-outline btn-sm btn-manage-members"
+                                data-project-id="<?= htmlspecialchars((string)$project['id'], ENT_QUOTES, 'UTF-8'); ?>"
+                                data-project-title="<?= htmlspecialchars((string)$project['title'], ENT_QUOTES, 'UTF-8'); ?>"
+                                onclick="openManageMembersModal(this.dataset.projectId, this.dataset.projectTitle)"
+                                style="width:100%; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:600; font-size:0.825rem; padding:6px 12px; border-color:#EA580C; color:#EA580C; cursor:pointer;">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                Thành viên &amp; Đơn đăng ký
+                                <?php if (!empty($project['pendingMembersCount']) && (int) $project['pendingMembersCount'] > 0): ?>
+                                    <span style="background:#EA580C; color:#fff; border-radius:10px; padding:1px 6px; font-size:0.75rem; font-weight:700;"><?= (int) $project['pendingMembersCount']; ?></span>
+                                <?php endif; ?>
+                            </button>
                             <form method="post" style="display:flex; align-items:center; gap:0.5rem; width:100%;">
                                 <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
                                 <input type="hidden" name="action" value="status">
                                 <input type="hidden" name="projectId" value="<?= htmlspecialchars((string) $project['id']); ?>">
-                                <label style="font-size:0.8rem; color:var(--text-secondary); white-space:nowrap;">Cập nhật:</label>
+                                <label style="font-size:0.8rem; color:var(--text-secondary); white-space:nowrap;">Trạng thái:</label>
                                 <select name="status" class="school-status-select typeui-select typeui-select--compact typeui-select--status" onchange="this.form.submit()">
                                     <?php foreach ($statusLabels as $value => $label): ?>
                                         <option value="<?= $value; ?>" <?= $project['status'] === $value ? 'selected' : ''; ?>>
@@ -366,6 +427,55 @@ include __DIR__ . '/includes/page-banner.php';
             </div>
         <?php endif; ?>
     </section>
+</div>
+
+<!-- Modal Quản lý Thành viên & Duyệt Đơn (đặt ngoài grid container) -->
+<div id="manageMembersModal" class="school-modal-backdrop" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.6); z-index:99999; opacity:1; backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;">
+    <div class="school-modal-card" style="background:#fff; border-radius:16px; width:100%; max-width:760px; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); overflow:hidden;">
+        <div class="school-modal-header" style="padding:1.25rem 1.5rem; border-bottom:1px solid #E2E8F0; display:flex; align-items:center; justify-content:space-between;">
+            <div>
+                <h3 id="modalProjectTitle" style="margin:0; font-size:1.15rem; font-weight:700; color:#0F172A; display:flex; align-items:center; gap:8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    Quản lý thành viên &amp; Phê duyệt đăng ký
+                </h3>
+                <p id="modalProjectSubtitle" style="margin:4px 0 0; font-size:0.85rem; color:#64748B;">Dự án: <span id="modalProjectName" style="font-weight:600; color:#1E293B;">...</span></p>
+            </div>
+            <button type="button" onclick="closeManageMembersModal()" style="background:none; border:none; color:#94A3B8; cursor:pointer; padding:6px; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+
+        <div id="modalMembersContent" style="padding:1.5rem; overflow-y:auto; flex:1;">
+            <div id="modalLoading" style="text-align:center; padding:2rem; color:#64748B;">
+                <div class="school-spinner" style="display:inline-block; width:28px; height:28px; border:3px solid #E2E8F0; border-top-color:#EA580C; border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+                <p style="margin-top:0.75rem; font-size:0.9rem;">Đang tải danh sách thành viên...</p>
+            </div>
+            <div id="modalEmpty" style="display:none; text-align:center; padding:3rem 1rem; color:#64748B;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.5" style="margin-bottom:0.5rem;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                <p style="font-size:0.95rem; font-weight:600; color:#334155; margin:0;">Chưa có thành viên hoặc đơn đăng ký nào</p>
+                <small style="color:#94A3B8;">Khi sinh viên đăng ký tham gia, thông tin sẽ xuất hiện tại đây.</small>
+            </div>
+            <div id="modalTableWrapper" style="display:none;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.875rem;">
+                    <thead>
+                        <tr style="border-bottom:2px solid #E2E8F0; text-align:left; color:#64748B; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em;">
+                            <th style="padding:0.75rem 0.5rem;">Sinh viên</th>
+                            <th style="padding:0.75rem 0.5rem;">Lớp</th>
+                            <th style="padding:0.75rem 0.5rem;">Ngày gửi đơn</th>
+                            <th style="padding:0.75rem 0.5rem;">Trạng thái</th>
+                            <th style="padding:0.75rem 0.5rem; text-align:right;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalMembersList">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="padding:1rem 1.5rem; background:#F8FAFC; border-top:1px solid #E2E8F0; display:flex; justify-content:flex-end;">
+            <button type="button" class="btn btn-outline" onclick="closeManageMembersModal()">Đóng</button>
+        </div>
+    </div>
 </div>
 
 <?php
@@ -609,6 +719,161 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+let currentModalProjectId = null;
+
+function openManageMembersModal(projectId, projectTitle) {
+    if (!projectId) return;
+    currentModalProjectId = projectId;
+    const nameEl = document.getElementById('modalProjectName');
+    if (nameEl) nameEl.textContent = projectTitle || '...';
+    const modal = document.getElementById('manageMembersModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.style.opacity = '1';
+        modal.style.visibility = 'visible';
+    }
+    loadProjectMembers(projectId);
+}
+
+function closeManageMembersModal() {
+    const modal = document.getElementById('manageMembersModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.style.opacity = '0';
+    }
+    currentModalProjectId = null;
+}
+
+async function loadProjectMembers(projectId) {
+    const loading = document.getElementById('modalLoading');
+    const empty = document.getElementById('modalEmpty');
+    const wrapper = document.getElementById('modalTableWrapper');
+    const tbody = document.getElementById('modalMembersList');
+
+    if (!loading || !empty || !wrapper || !tbody) return;
+
+    loading.style.display = 'block';
+    empty.style.display = 'none';
+    wrapper.style.display = 'none';
+    tbody.innerHTML = '';
+
+    try {
+        const response = await fetch(`projects.php?ajax=members&projectId=${encodeURIComponent(projectId)}`);
+        const data = await response.json();
+        loading.style.display = 'none';
+
+        if (!data.success || !data.members || data.members.length === 0) {
+            empty.style.display = 'block';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        wrapper.style.display = 'block';
+        data.members.forEach(member => {
+            const tr = document.createElement('tr');
+            tr.style = 'border-bottom:1px solid #F1F5F9;';
+
+            let statusBadge = '';
+            if (member.status === 'pending') {
+                statusBadge = '<span class="status-badge-pending" style="background:#FEF3C7; color:#92400E; border:1px solid #FCD34D; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:3px;">⏳ Chờ duyệt</span>';
+            } else if (member.status === 'active') {
+                statusBadge = '<span class="status-badge-active" style="background:#D1FAE5; color:#065F46; border:1px solid #A7F3D0; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:3px;">✓ Đang tham gia</span>';
+            } else if (member.status === 'rejected') {
+                statusBadge = '<span class="status-badge-rejected" style="background:#FEE2E2; color:#991B1B; border:1px solid #FECACA; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:3px;">✕ Đã từ chối</span>';
+            } else {
+                statusBadge = `<span style="color:#64748B; font-size:0.75rem;">${escapeHtml(member.status)}</span>`;
+            }
+
+            const dateStr = member.createdAt ? new Date(member.createdAt).toLocaleDateString('vi-VN') : '—';
+
+            let actionButtons = '';
+            if (member.status === 'pending') {
+                actionButtons = `
+                    <div style="display:flex; justify-content:flex-end; gap:6px;">
+                        <button type="button" class="btn btn-sm btn-approve-member" style="background:#10B981; color:#fff; border:none; padding:4px 10px; font-size:0.775rem; font-weight:600; border-radius:6px; cursor:pointer;" onclick="submitMemberStatus('${projectId}', '${member.studentId}', 'approve_member')">
+                            ✓ Chấp thuận
+                        </button>
+                        <button type="button" class="btn btn-sm btn-reject-member" style="background:#EF4444; color:#fff; border:none; padding:4px 10px; font-size:0.775rem; font-weight:600; border-radius:6px; cursor:pointer;" onclick="submitMemberStatus('${projectId}', '${member.studentId}', 'reject_member')">
+                            ✕ Từ chối
+                        </button>
+                    </div>
+                `;
+            } else if (member.status === 'active') {
+                actionButtons = `
+                    <div style="display:flex; justify-content:flex-end; gap:6px;">
+                        <button type="button" class="btn btn-sm" style="background:none; border:1px solid #EF4444; color:#EF4444; padding:3px 8px; font-size:0.75rem; border-radius:6px; cursor:pointer;" onclick="submitMemberStatus('${projectId}', '${member.studentId}', 'reject_member')">
+                            Gỡ khỏi dự án
+                        </button>
+                    </div>
+                `;
+            } else {
+                actionButtons = `
+                    <div style="display:flex; justify-content:flex-end;">
+                        <button type="button" class="btn btn-sm" style="background:none; border:1px solid #10B981; color:#10B981; padding:3px 8px; font-size:0.75rem; border-radius:6px; cursor:pointer;" onclick="submitMemberStatus('${projectId}', '${member.studentId}', 'approve_member')">
+                            Duyệt lại
+                        </button>
+                    </div>
+                `;
+            }
+
+            tr.innerHTML = `
+                <td style="padding:0.75rem 0.5rem;">
+                    <div style="font-weight:600; color:#1E293B;">${escapeHtml(member.studentName || 'Sinh viên')}</div>
+                    <div style="font-size:0.75rem; color:#64748B;">${escapeHtml(member.studentEmail || '')}</div>
+                </td>
+                <td style="padding:0.75rem 0.5rem; color:#475569;">${escapeHtml(member.className || '—')}</td>
+                <td style="padding:0.75rem 0.5rem; color:#64748B;">${dateStr}</td>
+                <td style="padding:0.75rem 0.5rem;">${statusBadge}</td>
+                <td style="padding:0.75rem 0.5rem; text-align:right;">${actionButtons}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        loading.style.display = 'none';
+        empty.style.display = 'block';
+        empty.innerHTML = `<p style="color:#EF4444;">Lỗi khi tải thành viên: ${err.message}</p>`;
+    }
+}
+
+async function submitMemberStatus(projectId, studentId, action) {
+    const csrfToken = document.querySelector('input[name="csrfToken"]')?.value || '';
+    const formData = new FormData();
+    formData.append('csrfToken', csrfToken);
+    formData.append('action', action);
+    formData.append('projectId', projectId);
+    formData.append('studentId', studentId);
+    formData.append('ajax', '1');
+
+    try {
+        const res = await fetch('projects.php', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+            loadProjectMembers(projectId);
+        } else {
+            alert('Lỗi: ' + (data.message || 'Không thể cập nhật'));
+        }
+    } catch (err) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = `
+            <input type="hidden" name="csrfToken" value="${csrfToken}">
+            <input type="hidden" name="action" value="${action}">
+            <input type="hidden" name="projectId" value="${projectId}">
+            <input type="hidden" name="studentId" value="${studentId}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
 </script>
 HTML;
 

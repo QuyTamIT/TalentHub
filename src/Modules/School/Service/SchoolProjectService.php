@@ -54,4 +54,31 @@ final class SchoolProjectService
         $schoolId = $this->schoolId($userId);
         return $this->repository->updateProject($schoolId, $userId, $projectId, $input);
     }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function listProjectMembers(string $userId, string $projectId): array
+    {
+        if (!Uuid::isValid($projectId)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'projectId không đúng định dạng UUID.');
+        }
+        $schoolId = $this->schoolId($userId);
+        return $this->repository->listProjectMembers($schoolId, $projectId);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function updateMemberStatus(string $userId, string $projectId, string $studentId, string $status): array
+    {
+        if (!Uuid::isValid($projectId)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'projectId không đúng định dạng UUID.');
+        }
+        if (!Uuid::isValid($studentId)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'studentId không đúng định dạng UUID.');
+        }
+        $schoolId = $this->schoolId($userId);
+        return $this->repository->updateMemberStatus($schoolId, $userId, $projectId, $studentId, $status);
+    }
 }

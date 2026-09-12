@@ -90,6 +90,10 @@ if (!function_exists('learner_project_money')) {
                         <div class="learner-project-detail__notice learner-project-detail__notice--success" role="status">
                             Đăng ký dự án thành công. Bạn đã trở thành thành viên đang hoạt động của dự án này.
                         </div>
+                    <?php elseif ($learnerProjectRegistered && (($project['membershipStatus'] ?? $project['membership_status'] ?? '') === 'pending')): ?>
+                        <div class="learner-project-detail__notice learner-project-detail__notice--success" role="status" style="background:#FEF3C7; border-color:#FCD34D; color:#92400E;">
+                            Đăng ký dự án thành công. Đơn của bạn đang chờ Nhà trường phê duyệt.
+                        </div>
                     <?php elseif ($learnerProjectRegisterFailed): ?>
                         <div class="learner-project-detail__notice learner-project-detail__notice--error" role="alert">
                             Không thể đăng ký dự án lúc này. Vui lòng thử lại.
@@ -99,6 +103,11 @@ if (!function_exists('learner_project_money')) {
                         <div class="learner-project-detail__hero-main">
                             <div class="learner-project-detail__badges">
                                 <span class="learner-badge learner-badge--secondary">Dự án</span>
+                                <?php if (($project['membershipStatus'] ?? $project['membership_status'] ?? '') === 'pending'): ?>
+                                    <span class="learner-badge" style="background:#FEF3C7; color:#92400E; border:1px solid #FCD34D;">⏳ Đang chờ duyệt</span>
+                                <?php elseif ($learnerProjectJoined): ?>
+                                    <span class="learner-badge" style="background:#D1FAE5; color:#065F46; border:1px solid #A7F3D0;">✓ Đã tham gia</span>
+                                <?php endif; ?>
                                 <span class="learner-status-dot learner-status-dot--active"><?= learner_escape($project['status_label']); ?></span>
                             </div>
                             <p class="learner-card-kicker"><?= learner_escape($project['category_label']); ?></p>
@@ -107,7 +116,9 @@ if (!function_exists('learner_project_money')) {
                         </div>
                         <div class="learner-project-detail__actions">
                             <?php if ($learnerProjectJoined): ?>
-                                <button class="learner-btn learner-btn--primary" type="button" disabled>Đã tham gia dự án</button>
+                                <button class="learner-btn learner-btn--primary" type="button" disabled style="background:#10B981; border-color:#10B981; color:#fff;">✓ Đã tham gia dự án</button>
+                            <?php elseif (($project['membershipStatus'] ?? $project['membership_status'] ?? '') === 'pending'): ?>
+                                <button class="learner-btn learner-btn--pending" type="button" disabled>⏳ Đã đăng ký — Chờ Nhà trường duyệt</button>
                             <?php else: ?>
                                 <form class="learner-project-detail__register" method="post" action="actions/register-project.php">
                                     <input type="hidden" name="projectId" value="<?= learner_escape($project['id']); ?>">
@@ -186,7 +197,6 @@ if (!function_exists('learner_project_money')) {
                         </aside>
                     </div>
                 <?php endif; ?>
-                <?php if ($project && $learnerProjectJoined): $portfolioProjectId=$project['id']; include __DIR__.'/includes/portfolio-panel.php'; endif; ?>
             </main>
         </div>
     </div>

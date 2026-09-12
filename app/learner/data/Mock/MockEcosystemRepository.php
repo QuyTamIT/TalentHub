@@ -98,7 +98,7 @@ final class MockEcosystemRepository implements EcosystemRepository
         $opportunity['application_status'] = is_string($rawAppStatus) && $rawAppStatus !== '' ? $rawAppStatus : null;
         $opportunity['user_participation_status'] = match ($rawAppStatus) {
             'submitted', 'reviewing', 'interview' => 'applied',
-            'accepted' => 'interning',
+            'accepted', 'hired' => 'interning',
             'completed' => 'completed',
             default => 'open',
         };

@@ -40,33 +40,40 @@ document.addEventListener('DOMContentLoaded', () => {
         const app = applicants.find(a => String(a.id) === String(appId));
         if (!app) return;
 
-        if (app.status === 'accepted') {
+        if (app.status === 'accepted' || app.status === 'hired') {
             showToast('Hồ sơ ứng viên đã ở trạng thái Đã duyệt / Đã nhận.');
             return;
         }
 
         const prevStatus = app.status;
-        try {
-            app.status = 'accepted';
-            app.status_label = 'Đã nhận';
-            renderList();
-            showToast('Duyệt hồ sơ ứng viên thành công!');
+        const prevStatusLabel = app.status_label;
+        const btn = document.querySelector(`button.btn-approve-candidate[data-app-id="${appId}"]`);
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Đang duyệt...';
+        }
 
+        try {
             const res = await enterpriseRequest('PATCH', `/businesses/me/internship-applications/${encodeURIComponent(appId)}`, {
                 expectedCurrentStatus: prevStatus,
                 targetStatus: 'accepted',
                 reviewerNote: app.reviewer_note || 'Đã duyệt hồ sơ qua hệ thống TalentHub Enterprise.'
-            }).catch(e => {
-                console.warn('API sync status note:', e);
             });
-            if (res?.application?.status) {
-                app.status = res.application.status;
-                app.status_label = getStatusLabel(res.application.status);
-                renderList();
+
+            const newStatus = res?.application?.status || 'accepted';
+            app.status = newStatus;
+            app.status_label = getStatusLabel(newStatus);
+            if (res?.application?.reviewerNote) {
+                app.reviewer_note = res.application.reviewerNote;
             }
+            renderList();
+            showToast('Duyệt tiếp nhận ứng viên thành công!');
         } catch (error) {
             console.error('Approve candidate error:', error);
-            showToast('Duyệt hồ sơ ứng viên thành công!');
+            app.status = prevStatus;
+            app.status_label = prevStatusLabel;
+            renderList();
+            showToast(error?.message || 'Không thể duyệt hồ sơ ứng viên.');
         }
     }
 
@@ -335,7 +342,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <tr data-applicant-id="${app.id}">
                         <td>
                             <div class="ent-applicant-identity">
-                                <div class="ent-applicant-avatar" style="background: var(--primary-gradient) !important; color: #ffffff !important; font-weight: 800 !important; border: 1.5px solid #FFDACB !important; box-shadow: 0 2px 5px rgba(248,63,112,0.2) !important;">${escapeHtml(app.avatar_initials)}</div>
+                                ${app.avatar_url
+                                    ? `<div class="ent-applicant-avatar" style="overflow: hidden; padding: 0; border: 1.5px solid #FFDACB !important; box-shadow: 0 2px 5px rgba(248,63,112,0.2) !important;"><img src="${escapeHtml(app.avatar_url)}" alt="${escapeHtml(app.name)}" style="width: 100%; height: 100%; object-fit: cover; display: block;"></div>`
+                                    : `<div class="ent-applicant-avatar" style="background: var(--primary-gradient) !important; color: #ffffff !important; font-weight: 800 !important; border: 1.5px solid #FFDACB !important; box-shadow: 0 2px 5px rgba(248,63,112,0.2) !important;">${escapeHtml(app.avatar_initials)}</div>`
+                                }
                                 <div class="ent-applicant-info">
                                     <button type="button" class="ent-applicant-info__name btn-view-cv" data-app-id="${app.id}" title="Xem hồ sơ ứng viên">
                                         ${escapeHtml(app.name)}
@@ -411,9 +421,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <article class="ent-applicant-mobile-card" data-applicant-id="${app.id}">
                         <div class="ent-applicant-mobile-card__header">
                             <div class="ent-applicant-identity">
-                                <div class="ent-applicant-avatar" style="width:34px; height:34px; font-size:0.8rem; background: var(--primary-gradient) !important; color: #ffffff !important; font-weight: 800 !important; border: 1.5px solid #FFDACB !important;">
-                                    ${escapeHtml(app.avatar_initials)}
-                                </div>
+                                ${app.avatar_url
+                                    ? `<div class="ent-applicant-avatar" style="width:34px; height:34px; overflow:hidden; padding:0; border: 1.5px solid #FFDACB !important;"><img src="${escapeHtml(app.avatar_url)}" alt="${escapeHtml(app.name)}" style="width:100%; height:100%; object-fit:cover; display:block;"></div>`
+                                    : `<div class="ent-applicant-avatar" style="width:34px; height:34px; font-size:0.8rem; background: var(--primary-gradient) !important; color: #ffffff !important; font-weight: 800 !important; border: 1.5px solid #FFDACB !important;">${escapeHtml(app.avatar_initials)}</div>`
+                                }
                                 <div class="ent-applicant-info">
                                     <button type="button" class="ent-applicant-info__name btn-view-cv" data-app-id="${app.id}">
                                         ${escapeHtml(app.name)}
@@ -590,7 +601,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. Recruiter Profile Header & Metadata
         const avatarEl = document.getElementById('drawer-app-avatar');
         if (avatarEl) {
-            avatarEl.textContent = app.avatar_initials || (app.name ? app.name.split(' ').map(n => n[0]).join('').slice(-2).toUpperCase() : 'UV');
+            if (app.avatar_url) {
+                avatarEl.innerHTML = `<img src="${escapeHtml(app.avatar_url)}" alt="${escapeHtml(app.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;">`;
+            } else {
+                avatarEl.textContent = app.avatar_initials || (app.name ? app.name.split(' ').map(n => n[0]).join('').slice(-2).toUpperCase() : 'UV');
+            }
         }
 
         const nameEl = document.getElementById('drawer-app-name');
@@ -604,6 +619,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const locTextEl = document.getElementById('drawer-app-location-text');
         if (locTextEl) {
             locTextEl.textContent = app.location || 'Chưa có dữ liệu';
+        }
+
+        // Student Cover Message (if present)
+        const studentMsgSec = document.getElementById('drawer-student-message-section');
+        const studentMsgEl = document.getElementById('drawer-student-message');
+        if (studentMsgSec && studentMsgEl) {
+            if (app.message && app.message.trim() !== '') {
+                studentMsgEl.textContent = app.message;
+                studentMsgSec.style.display = 'block';
+            } else {
+                studentMsgSec.style.display = 'none';
+            }
         }
 
         // Score Tag in Header
@@ -755,11 +782,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const appIndex = applicants.findIndex(a => a.id === currentActiveAppId);
             if (appIndex !== -1) {
                 try {
-                    if (newStatus === applicants[appIndex].status) throw new Error('Vui lòng chọn bước xử lý tiếp theo.');
+                    const currentStatus = applicants[appIndex].status;
+                    const currentNote = applicants[appIndex].reviewer_note || '';
+                    if (newStatus === currentStatus && newNote === currentNote) {
+                        showToast('Không có thay đổi nào để lưu.');
+                        closeReviewDrawer();
+                        return;
+                    }
+
                     saveReviewBtn.disabled = true;
+                    saveReviewBtn.textContent = 'Đang lưu...';
                     const data = await enterpriseRequest('PATCH', `/businesses/me/internship-applications/${encodeURIComponent(currentActiveAppId)}`, {
-                        expectedCurrentStatus: applicants[appIndex].status,
-                        targetStatus: newStatus,
+                        expectedCurrentStatus: currentStatus,
+                        targetStatus: newStatus || currentStatus,
                         reviewerNote: newNote,
                     });
                     applicants[appIndex].status = data.application.status;
@@ -772,6 +807,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     showToast(error?.message || 'Không thể cập nhật hồ sơ ứng viên.');
                 } finally {
                     saveReviewBtn.disabled = false;
+                    saveReviewBtn.textContent = 'Lưu đánh giá';
                 }
             }
         });

@@ -16,6 +16,9 @@ $hasApplied = !empty($opportunity['application_id']);
 $studentName = !empty($student['name']) ? $student['name'] : 'Học viên';
 $studentInitials = !empty($student['initials']) ? $student['initials'] : (mb_strtoupper(mb_substr($studentName, 0, 1)));
 $studentAvatarUrl = !empty($student['avatar_url']) ? $student['avatar_url'] : (!empty($student['avatarUrl']) ? $student['avatarUrl'] : null);
+if (empty($studentAvatarUrl)) {
+    $studentAvatarUrl = 'https://api.dicebear.com/7.x/avataaars/svg?seed=' . urlencode($studentName) . '&backgroundColor=b6e3f4';
+}
 $studentSchool = !empty($student['school']) ? $student['school'] : 'Chưa cập nhật trường';
 $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nhật lớp';
 ?>
@@ -101,12 +104,27 @@ $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nh�
 
                         <aside class="learner-card learner-apply-card" aria-labelledby="apply-card-title" data-apply-card>
                             <?php if ($hasApplied): ?>
-                                <span class="learner-apply-card__icon" style="background: #ecfdf5; color: #16a34a;"><?= learner_icon('check-circle', 28); ?></span>
-                                <h2 id="apply-card-title">Bạn đã nộp hồ sơ</h2>
-                                <p>Đơn ứng tuyển của bạn đã được chuyển tới <?= learner_escape($opportunity['partner_name']); ?>. Bạn có thể theo dõi tiến độ xét duyệt tại Hồ sơ ứng tuyển.</p>
+                                <?php
+                                $appStatus = (string) ($opportunity['application_status'] ?? 'submitted');
+                                $isAccepted = in_array($appStatus, ['accepted', 'hired'], true);
+                                $isDeclined = ($appStatus === 'declined');
+                                $statusLabel = match ($appStatus) {
+                                    'accepted', 'hired' => 'Đã nhận / Trúng tuyển',
+                                    'reviewing' => 'Đang xem xét',
+                                    'interview' => 'Mời phỏng vấn',
+                                    'declined' => 'Chưa phù hợp',
+                                    'withdrawn' => 'Đã rút hồ sơ',
+                                    default => 'Đang chờ xét duyệt',
+                                };
+                                $statusColor = $isAccepted ? '#16a34a' : ($isDeclined ? '#dc2626' : '#2563eb');
+                                $statusBg = $isAccepted ? '#ecfdf5' : ($isDeclined ? '#fef2f2' : '#eff6ff');
+                                ?>
+                                <span class="learner-apply-card__icon" style="background: <?= $statusBg; ?>; color: <?= $statusColor; ?>;"><?= learner_icon($isAccepted ? 'check-circle' : ($isDeclined ? 'alert-circle' : 'file-text'), 28); ?></span>
+                                <h2 id="apply-card-title"><?= $isAccepted ? 'Bạn đã trúng tuyển!' : ($isDeclined ? 'Hồ sơ chưa phù hợp' : 'Bạn đã nộp hồ sơ'); ?></h2>
+                                <p><?= $isAccepted ? 'Chúc mừng bạn đã được ' . learner_escape($opportunity['partner_name']) . ' tiếp nhận thực tập. Nhà tuyển dụng sẽ sớm liên hệ.' : 'Đơn ứng tuyển của bạn đã được chuyển tới ' . learner_escape($opportunity['partner_name']) . '. Bạn có thể theo dõi tiến độ xét duyệt tại Hồ sơ ứng tuyển.'; ?></p>
                                 <a class="learner-btn learner-btn--primary learner-btn--block" href="ecosystem.php?view=applications#applications-tracker-title"><?= learner_icon('file-text', 17); ?> Xem hồ sơ ứng tuyển</a>
                                 <div class="learner-apply-card__deadline"><span>Hạn đăng ký</span><strong><?= learner_escape($deadlineLabel); ?></strong></div>
-                                <p class="learner-apply-card__privacy"><?= learner_icon('info', 15); ?> Trạng thái: <strong>Đang chờ xét duyệt</strong></p>
+                                <p class="learner-apply-card__privacy"><?= learner_icon('info', 15); ?> Trạng thái: <strong style="color: <?= $statusColor; ?>;"><?= learner_escape($statusLabel); ?></strong></p>
                             <?php else: ?>
                                 <span class="learner-apply-card__icon"><?= learner_icon('file-text', 24); ?></span>
                                 <h2 id="apply-card-title"><?= learner_escape($canApply ? 'Sẵn sàng ứng tuyển?' : 'Cơ hội đã đóng'); ?></h2>
@@ -139,19 +157,20 @@ $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nh�
                 <form data-application-form novalidate style="margin-top: 16px;">
                     <!-- Candidate Profile Card with Real Profile Avatar -->
                     <div class="learner-profile-preview" style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid var(--border); border-radius: 12px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);">
-                        <div class="learner-modal-avatar" style="width: 52px; height: 52px; border-radius: 50%; overflow: hidden; flex-shrink: 0; border: 2.5px solid var(--primary); box-shadow: 0 3px 10px rgba(249, 115, 22, 0.25); background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1.15rem;">
+                        <div class="learner-modal-avatar" style="flex: 0 0 54px !important; width: 54px !important; min-width: 54px !important; max-width: 54px !important; height: 54px !important; border-radius: 50% !important; aspect-ratio: 1 / 1 !important; overflow: hidden !important; flex-shrink: 0 !important; border: 2.5px solid var(--primary); box-shadow: 0 3px 10px rgba(248, 63, 112, 0.25); background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1.15rem;">
                             <?php if (!empty($studentAvatarUrl)): ?>
-                                <img src="<?= learner_escape($studentAvatarUrl); ?>" alt="<?= learner_escape($studentName); ?>" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                                <img src="<?= learner_escape($studentAvatarUrl); ?>" alt="<?= learner_escape($studentName); ?>" style="width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+                                <span style="display: none; align-items: center; justify-content: center; width: 100%; height: 100%;"><?= learner_escape($studentInitials); ?></span>
                             <?php else: ?>
-                                <span><?= learner_escape($studentInitials); ?></span>
+                                <span style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;"><?= learner_escape($studentInitials); ?></span>
                             <?php endif; ?>
                         </div>
                         <div style="flex: 1; min-width: 0;">
                             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                <strong style="font-size: 1rem; color: var(--text-primary); font-weight: 700;"><?= learner_escape($studentName); ?></strong>
+                                <strong style="font-size: 1.05rem; color: var(--text-primary); font-weight: 700;"><?= learner_escape($studentName); ?></strong>
                                 <span class="learner-verified-pill" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: #ecfdf5; color: #059669; font-size: 0.72rem; font-weight: 600;"><?= learner_icon('check', 13); ?> Hồ sơ TalentHub</span>
                             </div>
-                            <span style="display: block; color: var(--text-secondary); font-size: 0.8rem; margin-top: 3px;"><?= learner_escape($studentClass . ' · ' . $studentSchool); ?></span>
+                            <span style="display: block; color: var(--text-secondary); font-size: 0.82rem; margin-top: 3px;"><?= learner_escape($studentClass . ' · ' . $studentSchool); ?></span>
                         </div>
                     </div>
 

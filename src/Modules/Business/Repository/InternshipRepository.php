@@ -390,14 +390,16 @@ final class InternshipRepository
                 throw new ApiException(409, 'CONCURRENT_MODIFICATION', 'Trạng thái hồ sơ đã thay đổi.');
             }
             $allowed = [
-                'submitted' => ['reviewing', 'declined'],
-                'reviewing' => ['interview', 'accepted', 'declined'],
-                'interview' => ['accepted', 'declined'],
+                'submitted' => ['submitted', 'reviewing', 'interview', 'accepted', 'declined'],
+                'reviewing' => ['reviewing', 'interview', 'accepted', 'declined'],
+                'interview' => ['interview', 'reviewing', 'accepted', 'declined'],
+                'accepted'  => ['accepted', 'declined'],
+                'declined'  => ['declined', 'reviewing', 'interview', 'accepted'],
             ];
             if (!in_array($targetStatus, $allowed[$current] ?? [], true)) {
                 throw new ApiException(422, 'ILLEGAL_STATUS_TRANSITION', 'Chuyển trạng thái hồ sơ không hợp lệ.');
             }
-            if ($targetStatus === 'accepted' && $this->hasOtherAcceptedPlacement((string) $application['studentId'], $applicationId)) {
+            if ($targetStatus === 'accepted' && $expectedStatus !== 'accepted' && $this->hasOtherAcceptedPlacement((string) $application['studentId'], $applicationId)) {
                 throw new ApiException(409, 'INTERNSHIP_PLACEMENT_LOCKED', 'Sinh viên đã được tiếp nhận cho một vị trí thực tập khác.');
             }
             $now = $this->now();
@@ -425,30 +427,33 @@ final class InternshipRepository
                 $update->execute(['targetStatus' => $targetStatus, 'updatedAt' => $now, 'id' => $applicationId, 'expectedStatus' => $expectedStatus]);
             }
 
-            if ($update->rowCount() !== 1) {
+            if ($update->rowCount() !== 1 && $targetStatus !== $expectedStatus) {
                 throw new ApiException(409, 'CONCURRENT_MODIFICATION', 'Trạng thái hồ sơ đã thay đổi.');
             }
-            $history = $this->pdo->prepare('INSERT INTO application_status_history (id, applicationId, fromStatus, toStatus, changedByUserId, changedByRole, note, createdAt) VALUES (:id, :applicationId, :fromStatus, :toStatus, :changedByUserId, \'enterprise\', :note, :createdAt)');
-            $history->execute(['id' => Uuid::v4(), 'applicationId' => $applicationId, 'fromStatus' => $expectedStatus, 'toStatus' => $targetStatus, 'changedByUserId' => $validReviewerId, 'note' => $reviewerNote === '' ? null : $reviewerNote, 'createdAt' => $now]);
 
-            $studentId = (string) ($application['studentId'] ?? '');
-            if ($studentId === '') {
-                throw new \RuntimeException('Application is missing its notification recipient.');
-            }
-            $studentUserId = $this->userIdForStudent($studentId);
-            $this->getNotificationService()->publish(
-                $studentUserId,
-                'internship_application_status_changed',
-                'Cập nhật trạng thái ứng tuyển',
-                'Hồ sơ ứng tuyển cho vị trí ' . ($application['title'] ?? '') . ' của bạn đã chuyển sang trạng thái ' . $targetStatus . '.',
-                '/app/learner/ecosystem.php',
-                'internship_application_status:' . $applicationId . ':' . $targetStatus,
-                $studentId
-            );
+            if ($targetStatus !== $expectedStatus) {
+                $history = $this->pdo->prepare('INSERT INTO application_status_history (id, applicationId, fromStatus, toStatus, changedByUserId, changedByRole, note, createdAt) VALUES (:id, :applicationId, :fromStatus, :toStatus, :changedByUserId, \'enterprise\', :note, :createdAt)');
+                $history->execute(['id' => Uuid::v4(), 'applicationId' => $applicationId, 'fromStatus' => $expectedStatus, 'toStatus' => $targetStatus, 'changedByUserId' => $validReviewerId, 'note' => $reviewerNote === '' ? null : $reviewerNote, 'createdAt' => $now]);
 
-            if ($targetStatus === 'accepted') {
-                $this->lockCompetingApplications($studentId, $applicationId, $now);
-                $this->notifySchoolPlacement($applicationId, $studentId, (string) ($application['title'] ?? 'Vị trí thực tập'));
+                $studentId = (string) ($application['studentId'] ?? '');
+                if ($studentId === '') {
+                    throw new \RuntimeException('Application is missing its notification recipient.');
+                }
+                $studentUserId = $this->userIdForStudent($studentId);
+                $this->getNotificationService()->publish(
+                    $studentUserId,
+                    'internship_application_status_changed',
+                    'Cập nhật trạng thái ứng tuyển',
+                    'Hồ sơ ứng tuyển cho vị trí ' . ($application['title'] ?? '') . ' của bạn đã chuyển sang trạng thái ' . $targetStatus . '.',
+                    '/app/learner/ecosystem.php',
+                    'internship_application_status:' . $applicationId . ':' . $targetStatus,
+                    $studentId
+                );
+
+                if ($targetStatus === 'accepted') {
+                    $this->lockCompetingApplications($studentId, $applicationId, $now);
+                    $this->notifySchoolPlacement($applicationId, $studentId, (string) ($application['title'] ?? 'Vị trí thực tập'));
+                }
             }
 
             $this->pdo->commit();

@@ -128,6 +128,8 @@ try {
             u.email as studentEmail,
             sp.talentScore,
             sp.studyStatus,
+            spd.avatarUrl,
+            spd.location as studentLocation,
             s.name as schoolName,
             c.name as className,
             ip.title as postTitle
@@ -137,6 +139,7 @@ try {
         JOIN internship_posts ip ON ip.id = ia.postId
         LEFT JOIN classes c ON c.id = sp.classId
         LEFT JOIN schools s ON s.id = c.schoolId
+        LEFT JOIN student_profile_details spd ON spd.studentId = sp.id
         WHERE {$whereClause}
         ORDER BY ia.updatedAt DESC, ia.createdAt DESC
     ");
@@ -190,7 +193,7 @@ try {
         ];
 
         $status = $row['status'];
-        $statusLabel = $statusLabels[$status] ?? 'Đã nhận';
+        $statusLabel = $statusLabels[$status] ?? 'Đã nộp';
         $appliedDate = !empty($row['appliedAt']) ? date('d/m/Y', strtotime($row['appliedAt'])) : date('d/m/Y');
 
         $applicants[] = [
@@ -199,14 +202,16 @@ try {
             'student_id' => (string) $row['studentId'],
             'name' => $name,
             'avatar_initials' => $initials,
+            'avatar_url' => !empty($row['avatarUrl']) ? (string) $row['avatarUrl'] : null,
             'school' => $school,
             'class_code' => $className,
             'education_level' => 'Cao đẳng (Chuẩn bị tốt nghiệp)',
-            'location' => 'Hà Nội',
+            'location' => !empty($row['studentLocation']) ? (string) $row['studentLocation'] : 'Hà Nội',
+            'message' => (string) ($row['message'] ?? ''),
             'status' => $status,
             'status_label' => $statusLabel,
             'applied_at' => $appliedDate,
-            'reviewer_note' => $row['reviewerNote'] ?: 'Sinh viên xuất sắc chuyên ngành AI BTEC FPT. Đã duyệt tiếp nhận thực tập.',
+            'reviewer_note' => (string) ($row['reviewerNote'] ?? ''),
             'experience_hours' => 240,
             'main_skills' => array_slice($skillNames, 0, 3),
             'matching_skills' => array_slice($skillNames, 0, 3),
@@ -219,6 +224,7 @@ try {
                     'email' => $row['studentEmail'],
                     'schoolName' => $school,
                     'className' => $className,
+                    'avatarUrl' => !empty($row['avatarUrl']) ? (string) $row['avatarUrl'] : null,
                 ],
                 'skills' => $skillRows
             ]
@@ -590,6 +596,17 @@ $sidebarNav = [
             <!-- Drawer Scrollable Content -->
             <div class="ent-drawer-body ats-drawer-body">
                 
+                <!-- Candidate Application Cover Message (if any) -->
+                <section class="ats-section" id="drawer-student-message-section" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+                    <div class="ats-section-header mb-1" style="display: flex; align-items: center; gap: 6px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <h4 class="ats-section-title" style="font-size: 0.82rem; font-weight: 700; color: #1e293b; margin: 0;">Lời nhắn từ ứng viên</h4>
+                    </div>
+                    <p class="ats-field-helper" id="drawer-student-message" style="margin: 6px 0 0; color: #334155; font-size: 0.84rem; line-height: 1.55; white-space: pre-wrap;"></p>
+                </section>
+
                 <!-- 1. Candidate Snapshot Bar -->
                 <div class="ats-snapshot-bar" aria-label="Thông tin tổng quan ứng viên">
                     <div class="ats-snapshot-item">

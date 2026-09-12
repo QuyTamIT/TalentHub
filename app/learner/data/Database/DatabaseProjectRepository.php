@@ -17,6 +17,7 @@ final class DatabaseProjectRepository extends AbstractDatabaseRepository impleme
             p.mentorTeacherId,
             p.title,
             p.category,
+            p.topic,
             p.description,
             p.fundingGoal,
             p.projectUrl,
@@ -29,6 +30,7 @@ final class DatabaseProjectRepository extends AbstractDatabaseRepository impleme
             mentor.fullName AS mentorName,
             CASE WHEN pm.status = 'active' AND p.status = 'completed' THEN 'completed'
                  WHEN pm.status = 'active' THEN 'active'
+                 WHEN pm.status = 'pending' THEN 'pending'
                  ELSE 'recruiting' END AS membershipStatus,
             CASE WHEN pm.status = 'active' THEN 1 ELSE 0 END AS isMember,
             COALESCE((
@@ -65,11 +67,17 @@ final class DatabaseProjectRepository extends AbstractDatabaseRepository impleme
     {
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
 
-        return $this->fetchAll(
+        $rows = $this->fetchAll(
             'listVisibleForStudent',
             self::BASE_SELECT . ' ORDER BY p.updatedAt DESC, p.id',
             ['student_id' => $studentId],
         );
+
+        return array_map(static function (array $row): array {
+            $row['membershipStatus'] = (string) ($row['membership_status'] ?? 'recruiting');
+            $row['isMember'] = (int) ($row['is_member'] ?? 0);
+            return $row;
+        }, $rows);
     }
 
     public function findVisibleForStudent(string $studentId, string $projectId): ?array
@@ -84,6 +92,9 @@ final class DatabaseProjectRepository extends AbstractDatabaseRepository impleme
         if ($project === null) {
             return null;
         }
+
+        $project['membershipStatus'] = (string) ($project['membership_status'] ?? 'recruiting');
+        $project['isMember'] = (int) ($project['is_member'] ?? 0);
 
         try {
             $project['sponsorships'] = $this->fetchAll(
