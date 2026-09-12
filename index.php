@@ -571,7 +571,7 @@ $audiences = [
                                 <path d="M5 12h14M12 5l7 7-7 7"/>
                             </svg>
                         </a>
-                        <a href="<?= app_href('/contact.php') ?>" class="btn btn-outline-white">
+                        <a href="./contact.php" class="btn btn-outline-white">
                             Liên hệ tư vấn
                         </a>
                     </div>
