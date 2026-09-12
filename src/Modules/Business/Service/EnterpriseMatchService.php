@@ -73,6 +73,17 @@ final class EnterpriseMatchService
                     'level_score' => (float) ($sk['level_score'] ?? 0.0),
                 ];
             }
+            $candProjects = [];
+            foreach ((array) ($cand['projects'] ?? []) as $pr) {
+                $candProjects[] = [
+                    'title' => (string) ($pr['title'] ?? ''),
+                    'category' => (string) ($pr['category'] ?? ''),
+                    'topic' => (string) ($pr['topic'] ?? ''),
+                    'description' => (string) ($pr['description'] ?? ''),
+                    'role' => (string) ($pr['role'] ?? 'member'),
+                    'contribution' => (string) ($pr['contribution'] ?? ''),
+                ];
+            }
             $candidateProjections[] = [
                 'candidate_ref' => $ref,
                 'headline' => (string) ($cand['headline'] ?? ''),
@@ -81,6 +92,7 @@ final class EnterpriseMatchService
                 'talent_score' => $cand['talent_score'] ?? null,
                 'verified_skills' => $verifiedSkills,
                 'badges' => (array) ($cand['badges'] ?? []),
+                'projects' => $candProjects,
             ];
         }
 
@@ -88,7 +100,21 @@ final class EnterpriseMatchService
         $cached = $this->repository->cachedMatchRanking($enterpriseId, $jobHash);
         if ($cached !== null && $this->isCurrentLkg($cached)) {
             $cachedItems = $this->validatedCachedItems($cached['items'] ?? null, $candidates);
-            if ($cachedItems !== null) {
+            $cacheTime = strtotime((string) ($cached['generated_at'] ?? $cached['updated_at'] ?? ''));
+            $hasNewerCandidateData = false;
+            if ($cacheTime !== false) {
+                foreach ($candidates as $cand) {
+                    foreach ((array) ($cand['projects'] ?? []) as $p) {
+                        $pTime = strtotime((string) ($p['updatedAt'] ?? $p['createdAt'] ?? ''));
+                        if ($pTime !== false && $pTime > $cacheTime) {
+                            $hasNewerCandidateData = true;
+                            break 2;
+                        }
+                    }
+                }
+            }
+
+            if ($cachedItems !== null && count($cachedItems) === count($candidates) && !$hasNewerCandidateData) {
                 $enrichedCached = $this->enrichItemsWithCandidateData($cachedItems, $refMap, $normalized);
                 return [
                     'state' => 'ready_model',
@@ -362,6 +388,14 @@ final class EnterpriseMatchService
             'java' => 'java',
             'php' => 'php',
             'spring boot' => 'springboot',
+            'backend development' => 'backend',
+            'lập trình backend' => 'backend',
+            'phát triển backend' => 'backend',
+            'backend' => 'backend',
+            'frontend development' => 'frontend',
+            'lập trình frontend' => 'frontend',
+            'phát triển frontend' => 'frontend',
+            'frontend' => 'frontend',
         ];
         if (isset($synonyms[$s])) {
             return $synonyms[$s];
@@ -419,6 +453,56 @@ final class EnterpriseMatchService
     }
 
     /**
+     * Determines whether a required skill is demonstrated in candidate project text.
+     */
+    public function matchSkillInText(string $requiredSkill, string $text): bool
+    {
+        $text = mb_strtolower($text);
+        $req = mb_strtolower(trim($requiredSkill));
+        if ($req === '' || $text === '') {
+            return false;
+        }
+
+        $quoted = preg_quote($req, '/');
+        if (preg_match('/\b' . $quoted . '\b/ui', $text) === 1) {
+            return true;
+        }
+
+        $patterns = [
+            'sql' => '/\b(?:sql|mysql|postgresql|sqlite|mariadb|database|cơ sở dữ liệu)\b/ui',
+            'mysql' => '/\b(?:mysql|sql)\b/ui',
+            'postgresql' => '/\b(?:postgresql|postgres|sql)\b/ui',
+            'php' => '/\bphp\b/ui',
+            'backend development' => '/\b(?:backend|back-end|lập trình backend|phát triển backend|hệ thống quản lý|hệ thống|server-side|web backend)\b/ui',
+            'backend' => '/\b(?:backend|back-end|lập trình backend|phát triển backend|hệ thống quản lý|hệ thống|server-side|web backend)\b/ui',
+            'frontend development' => '/\b(?:frontend|front-end|giao diện|ui|html|css|javascript)\b/ui',
+            'frontend' => '/\b(?:frontend|front-end|giao diện|ui|html|css|javascript)\b/ui',
+            'rest api' => '/\b(?:rest[ -]?api|api|web service|endpoints)\b/ui',
+            'api' => '/\b(?:rest[ -]?api|api)\b/ui',
+            'docker' => '/\bdocker\b/ui',
+            'python' => '/\bpython\b/ui',
+            'java' => '/\bjava\b/ui',
+            'spring boot' => '/\b(?:spring boot|springboot|spring)\b/ui',
+            'react' => '/\b(?:react|reactjs|react\.js)\b/ui',
+            'vue' => '/\b(?:vue|vuejs|vue\.js)\b/ui',
+            'node' => '/\b(?:node|nodejs|node\.js)\b/ui',
+            'teamwork' => '/\b(?:teamwork|làm việc nhóm|nhóm|thành viên)\b/ui',
+            'problem solving' => '/\b(?:problem solving|giải quyết vấn đề|tối ưu|xử lý)\b/ui',
+        ];
+
+        if (isset($patterns[$req]) && preg_match($patterns[$req], $text) === 1) {
+            return true;
+        }
+
+        $canon = $this->canonicalizeSkill($requiredSkill);
+        if ($canon !== '' && isset($patterns[$canon]) && preg_match($patterns[$canon], $text) === 1) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Ranks candidates based on model output, attaching student details,
      * competency assessment scores, match level, and recommendation reason.
      * Enforces professional skills priority and factual candidate data.
@@ -459,6 +543,7 @@ final class EnterpriseMatchService
             'strong_verified_level',
             'domain_match',
             'teacher_recommended',
+            'project_experience',
         ], true);
 
         $seenRefs = [];
@@ -487,9 +572,10 @@ final class EnterpriseMatchService
             $seenRefs[$ref] = true;
             $candidate = $refMap[$ref];
             $candSkills = (array) ($candidate['skills'] ?? []);
+            $candProjects = (array) ($candidate['projects'] ?? []);
 
-            // Candidates must have verified skills OR relevant domain/teacher recommendation
-            if (empty($candSkills) && !in_array('domain_match', $reasons, true) && !in_array('teacher_recommended', $reasons, true)) {
+            // Candidates must have verified skills OR practical projects OR relevant domain/teacher recommendation
+            if (empty($candSkills) && empty($candProjects) && !in_array('domain_match', $reasons, true) && !in_array('teacher_recommended', $reasons, true)) {
                 continue;
             }
 
@@ -531,6 +617,65 @@ final class EnterpriseMatchService
                 }
             }
 
+            // Also evaluate skills demonstrated in real practical projects
+            $matchedProjects = [];
+            foreach ($candProjects as $proj) {
+                $projTitle = (string) ($proj['title'] ?? '');
+                $projText = trim(
+                    ($proj['title'] ?? '') . ' ' .
+                    ($proj['topic'] ?? '') . ' ' .
+                    ($proj['category'] ?? '') . ' ' .
+                    ($proj['description'] ?? '') . ' ' .
+                    ($proj['contribution'] ?? '')
+                );
+                if ($projText === '') continue;
+
+                $projectMatchedSkills = [];
+                foreach ($reqProfSkills as $rps) {
+                    if ($this->matchSkillInText($rps, $projText)) {
+                        $projectMatchedSkills[] = $rps;
+                        if (!isset($matchedProf[$rps])) {
+                            $matchedProf[$rps] = [
+                                'actual' => $rps,
+                                'level' => 80.0,
+                                'source' => 'project',
+                                'project_title' => $projTitle,
+                            ];
+                        }
+                    }
+                }
+                foreach ($reqSoftSkills as $rss) {
+                    if ($this->matchSkillInText($rss, $projText)) {
+                        $projectMatchedSkills[] = $rss;
+                        if (!isset($matchedSoft[$rss])) {
+                            $matchedSoft[$rss] = [
+                                'actual' => $rss,
+                                'level' => 75.0,
+                                'source' => 'project',
+                                'project_title' => $projTitle,
+                            ];
+                        }
+                    }
+                }
+
+                if (!empty($projectMatchedSkills)) {
+                    $matchedProjects[] = [
+                        'title' => $projTitle,
+                        'skills' => $projectMatchedSkills,
+                    ];
+                    $evidence[] = [
+                        'source_type' => 'project',
+                        'source_id' => (string) ($proj['project_id'] ?? ''),
+                        'observed_at' => $nowIso,
+                        'safe_value' => [
+                            'project_title' => $projTitle,
+                            'matched_skills' => $projectMatchedSkills,
+                            'role' => (string) ($proj['role'] ?? 'member'),
+                        ],
+                    ];
+                }
+            }
+
             $profCount = count($matchedProf);
             $softCount = count($matchedSoft);
             $totalReqProf = max(1, count($reqProfSkills));
@@ -565,6 +710,13 @@ final class EnterpriseMatchService
                 } else {
                     $reasonsParts[] = "Chưa ghi nhận kỹ năng chuyên môn trực tiếp (" . implode(', ', array_slice(array_keys($reqProfSkills), 0, 3)) . ")";
                 }
+                if (!empty($matchedProjects)) {
+                    $pTitles = array_column($matchedProjects, 'title');
+                    $reasonsParts[] = "Kinh nghiệm thực tế từ dự án: \"" . implode('", "', $pTitles) . "\"";
+                    if (!in_array('project_experience', $reasons, true)) {
+                        $reasons[] = 'project_experience';
+                    }
+                }
                 if ($softCount > 0) {
                     $sNames = array_map(static fn(array $i): string => $i['actual'], $matchedSoft);
                     $reasonsParts[] = "Kỹ năng bổ trợ: " . implode(', ', $sNames);
@@ -584,6 +736,9 @@ final class EnterpriseMatchService
                 if ($sName !== '') {
                     $candSkillNames[] = $sName;
                 }
+            }
+            if (empty($candSkillNames) && !empty($matchedProf)) {
+                $candSkillNames = array_values(array_unique(array_keys($matchedProf)));
             }
 
             $items[] = [
@@ -672,6 +827,7 @@ final class EnterpriseMatchService
 
         foreach ($refMap as $candidate) {
             $candSkills = (array) ($candidate['skills'] ?? []);
+            $candProjects = (array) ($candidate['projects'] ?? []);
 
             $matchedProf = [];
             $matchedSoft = [];
@@ -711,11 +867,74 @@ final class EnterpriseMatchService
                 }
             }
 
+            // Also evaluate skills demonstrated in real practical projects
+            $matchedProjects = [];
+            foreach ($candProjects as $proj) {
+                $projTitle = (string) ($proj['title'] ?? '');
+                $projText = trim(
+                    ($proj['title'] ?? '') . ' ' .
+                    ($proj['topic'] ?? '') . ' ' .
+                    ($proj['category'] ?? '') . ' ' .
+                    ($proj['description'] ?? '') . ' ' .
+                    ($proj['contribution'] ?? '')
+                );
+                if ($projText === '') continue;
+
+                $projectMatchedSkills = [];
+                foreach ($reqProfSkills as $rps) {
+                    if ($this->matchSkillInText($rps, $projText)) {
+                        $projectMatchedSkills[] = $rps;
+                        if (!isset($matchedProf[$rps])) {
+                            $matchedProf[$rps] = [
+                                'actual' => $rps,
+                                'level' => 80.0,
+                                'source' => 'project',
+                                'project_title' => $projTitle,
+                            ];
+                        }
+                    }
+                }
+                foreach ($reqSoftSkills as $rss) {
+                    if ($this->matchSkillInText($rss, $projText)) {
+                        $projectMatchedSkills[] = $rss;
+                        if (!isset($matchedSoft[$rss])) {
+                            $matchedSoft[$rss] = [
+                                'actual' => $rss,
+                                'level' => 75.0,
+                                'source' => 'project',
+                                'project_title' => $projTitle,
+                            ];
+                        }
+                    }
+                }
+
+                if (!empty($projectMatchedSkills)) {
+                    $matchedProjects[] = [
+                        'title' => $projTitle,
+                        'skills' => $projectMatchedSkills,
+                    ];
+                    $evidence[] = [
+                        'source_type' => 'project',
+                        'source_id' => (string) ($proj['project_id'] ?? ''),
+                        'observed_at' => $nowIso,
+                        'safe_value' => [
+                            'project_title' => $projTitle,
+                            'matched_skills' => $projectMatchedSkills,
+                            'role' => (string) ($proj['role'] ?? 'member'),
+                        ],
+                    ];
+                }
+            }
+
             $candHeadline = mb_strtolower((string) ($candidate['headline'] ?? ''));
             $candBio = mb_strtolower((string) ($candidate['bio'] ?? ''));
             $candClass = mb_strtolower((string) ($candidate['class_name'] ?? ''));
             $candSchool = mb_strtolower((string) ($candidate['school_name'] ?? ''));
-            $candText = $candHeadline . ' ' . $candBio . ' ' . $candClass . ' ' . $candSchool;
+            $allProjText = '';
+            foreach ($candProjects as $pr) {
+                $allProjText .= ' ' . ($pr['title'] ?? '') . ' ' . ($pr['topic'] ?? '') . ' ' . ($pr['description'] ?? '');
+            }
+            $candText = $candHeadline . ' ' . $candBio . ' ' . $candClass . ' ' . $candSchool . ' ' . mb_strtolower($allProjText);
 
             // Domain alignment check
             $domainMatch = false;
@@ -757,8 +976,8 @@ final class EnterpriseMatchService
                 ? (float) $candidate['talent_score']
                 : 0.0;
 
-            // Candidate must have at least 1 matched skill (prof or soft) OR domain match
-            if ($profCount === 0 && $softCount === 0 && !$domainMatch) {
+            // Candidate must have at least 1 matched skill (prof or soft) OR practical project OR domain match
+            if ($profCount === 0 && $softCount === 0 && empty($matchedProjects) && !$domainMatch) {
                 continue;
             }
 
@@ -824,6 +1043,9 @@ final class EnterpriseMatchService
             if ($talentScore >= 80.0) {
                 $reasonCodes[] = 'teacher_recommended';
             }
+            if (!empty($matchedProjects)) {
+                $reasonCodes[] = 'project_experience';
+            }
 
             // Accurate recommendation reason based strictly on REAL candidate data
             $reasonParts = [];
@@ -835,6 +1057,11 @@ final class EnterpriseMatchService
                 $reasonParts[] = "Trùng khớp {$profCount} kỹ năng chuyên môn cốt lõi: " . implode(', ', $details);
             } else {
                 $reasonParts[] = "Chưa ghi nhận kỹ năng chuyên môn trực tiếp (" . implode(', ', array_slice(array_keys($reqProfSkills), 0, 3)) . ")";
+            }
+
+            if (!empty($matchedProjects)) {
+                $pTitles = array_column($matchedProjects, 'title');
+                $reasonParts[] = "Kinh nghiệm thực tế từ dự án: \"" . implode('", "', $pTitles) . "\"";
             }
 
             if ($softCount > 0) {
@@ -858,6 +1085,9 @@ final class EnterpriseMatchService
                 if ($sName !== '') {
                     $candSkillNames[] = $sName;
                 }
+            }
+            if (empty($candSkillNames) && !empty($matchedProf)) {
+                $candSkillNames = array_values(array_unique(array_keys($matchedProf)));
             }
 
             $items[] = [
@@ -957,6 +1187,23 @@ final class EnterpriseMatchService
                         }
                     }
                 }
+                foreach ((array) ($cand['projects'] ?? []) as $proj) {
+                    $projText = trim(
+                        ($proj['title'] ?? '') . ' ' .
+                        ($proj['topic'] ?? '') . ' ' .
+                        ($proj['category'] ?? '') . ' ' .
+                        ($proj['description'] ?? '') . ' ' .
+                        ($proj['contribution'] ?? '')
+                    );
+                    foreach ($reqProfSkills as $rps) {
+                        if (!isset($matchedProf[$rps]) && $this->matchSkillInText($rps, $projText)) {
+                            $matchedProf[$rps] = $rps;
+                        }
+                    }
+                }
+                if (empty($candSkillNames) && !empty($matchedProf)) {
+                    $candSkillNames = array_values(array_unique(array_keys($matchedProf)));
+                }
                 $item['skills'] = $candSkillNames;
                 $item['matched_prof_skills'] = array_keys($matchedProf);
 
@@ -1029,6 +1276,7 @@ final class EnterpriseMatchService
             'strong_verified_level',
             'domain_match',
             'teacher_recommended',
+            'project_experience',
         ], true);
         $seenStudents = [];
         foreach ($rawItems as $item) {

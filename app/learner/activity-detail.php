@@ -91,8 +91,11 @@ $formatDateTime = static function (mixed $value, string $format): string {
     if (!is_string($value) || trim($value) === '') return 'Chưa cập nhật';
     try {
         $clean = trim($value);
-        $dt = new DateTimeImmutable($clean, new DateTimeZone('Asia/Ho_Chi_Minh'));
-        return $dt->format($format);
+        $tz = preg_match('/(?:Z|[+-]\d{2}(?::?\d{2})?)$/i', $clean) === 1
+            ? null
+            : new DateTimeZone('UTC');
+        $dt = $tz !== null ? new DateTimeImmutable($clean, $tz) : new DateTimeImmutable($clean);
+        return $dt->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'))->format($format);
     } catch (Throwable) {
         return 'Chưa cập nhật';
     }

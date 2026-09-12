@@ -90,7 +90,7 @@ final class SchoolActivityApprovalRepository
             $previous = (string) $activity['approvalStatus'];
             if ($previous === $nextStatus) {
                 if ($ownsTransaction) $this->pdo->commit();
-                return $activity + ['approvalStatus' => $nextStatus, 'approvalReason' => $reason];
+                return array_merge($activity, ['approvalStatus' => $nextStatus, 'approvalReason' => $reason]);
             }
             if ($previous !== 'pending_school_review') {
                 throw new ApiException(409, 'APPROVAL_STATUS_CONFLICT', 'Hoạt động không còn ở trạng thái chờ Nhà trường duyệt.');
@@ -122,32 +122,29 @@ final class SchoolActivityApprovalRepository
                 'createdAt' => $now,
             ]);
 
-            $teacherType = match ($nextStatus) {
-                'approved' => 'activity_approved',
-                'changes_requested' => 'activity_changes_requested',
-                default => 'activity_rejected',
-            };
-            $this->notificationService()->publish(
-                (string) $activity['teacherUserId'], $teacherType,
-                $nextStatus === 'approved' ? 'Hoạt động đã được duyệt' : ($nextStatus === 'changes_requested' ? 'Hoạt động cần chỉnh sửa' : 'Hoạt động bị từ chối'),
-                'Hoạt động ' . (string) $activity['title'] . ($reason ? ': ' . $reason : ' đã được Nhà trường phê duyệt.'),
-                '/app/teacher/activities/index.php', $teacherType . ':' . $activityId,
-            );
-
-            if ($nextStatus === 'approved') {
-                $students = $this->pdo->prepare('SELECT sp.id,sp.userId FROM student_profiles sp INNER JOIN classes c ON c.id=sp.classId WHERE c.schoolId=:schoolId AND sp.studyStatus=\'active\'');
-                $students->execute(['schoolId' => $schoolId]);
-                foreach ($students->fetchAll(PDO::FETCH_ASSOC) ?: [] as $student) {
-                    $this->notificationService()->publish(
-                        (string) $student['userId'], 'activity_approved', 'Hoạt động mới đã được duyệt',
-                        'Hoạt động ' . (string) $activity['title'] . ' đã được Nhà trường phê duyệt.',
-                        '/app/learner/activities.php', 'activity_approved:' . $activityId . ':' . (string) $student['id'], (string) $student['id'],
-                    );
-                }
+            try {
+                $teacherType = match ($nextStatus) {
+                    'approved' => 'activity_approved',
+                    'changes_requested' => 'activity_changes_requested',
+                    default => 'activity_rejected',
+                };
+                $this->notificationService()->publish(
+                    (string) $activity['teacherUserId'], $teacherType,
+                    $nextStatus === 'approved' ? 'Hoạt động đã được duyệt' : ($nextStatus === 'changes_requested' ? 'Hoạt động cần chỉnh sửa' : 'Hoạt động bị từ chối'),
+                    'Hoạt động ' . (string) $activity['title'] . ($reason ? ': ' . $reason : ' đã được Nhà trường phê duyệt.'),
+                    '/app/teacher/activities/index.php', $teacherType . ':' . $activityId,
+                );
+            } catch (Throwable $teacherNotifEx) {
+                error_log('Teacher notification for activity review failed: ' . $teacherNotifEx->getMessage());
             }
 
             if ($ownsTransaction) $this->pdo->commit();
-            return $activity + ['approvalStatus' => $nextStatus, 'approvalReason' => $nextStatus === 'approved' ? null : $reason, 'approvedAt' => $nextStatus === 'approved' ? $now : null, 'approvedBy' => $nextStatus === 'approved' ? $schoolUserId : null];
+            return array_merge($activity, [
+                'approvalStatus' => $nextStatus,
+                'approvalReason' => $nextStatus === 'approved' ? null : $reason,
+                'approvedAt' => $nextStatus === 'approved' ? $now : null,
+                'approvedBy' => $nextStatus === 'approved' ? $schoolUserId : null,
+            ]);
         } catch (Throwable $exception) {
             if ($ownsTransaction && $this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $exception;
@@ -156,6 +153,12 @@ final class SchoolActivityApprovalRepository
 
     private function notificationService(): NotificationService
     {
+        if (!class_exists('TalentHub\Learner\Data\Service\NotificationService', false)) {
+            $path = dirname(__DIR__, 4) . '/app/learner/data/bootstrap.php';
+            if (file_exists($path)) {
+                require_once $path;
+            }
+        }
         return $this->notifications ?? new NotificationService(new DatabaseNotificationRepository($this->pdo));
     }
 }

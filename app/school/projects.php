@@ -22,6 +22,34 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $action = (string) ($_POST['action'] ?? 'create');
         if ($action === 'create') {
+            $rawFundingGoal = $_POST['fundingGoal'] ?? null;
+            $fundingGoal = null;
+            if ($rawFundingGoal !== null && trim((string) $rawFundingGoal) !== '') {
+                $cleanGoal = preg_replace('/[^\d]/', '', (string) $rawFundingGoal);
+                $fundingGoal = $cleanGoal !== '' ? $cleanGoal : null;
+            }
+
+            // Kiểm tra phân bổ kinh phí nếu có mục tiêu tài trợ và hạng mục phân bổ
+            $budgetAmounts = $_POST['budgetAmounts'] ?? [];
+            if (is_array($budgetAmounts) && !empty($budgetAmounts) && $fundingGoal !== null && (float) $fundingGoal > 0) {
+                $totalBudget = 0.0;
+                $hasBudget = false;
+                foreach ($budgetAmounts as $amt) {
+                    $cleanAmt = preg_replace('/[^\d]/', '', (string) $amt);
+                    if ($cleanAmt !== '') {
+                        $totalBudget += (float) $cleanAmt;
+                        $hasBudget = true;
+                    }
+                }
+                if ($hasBudget && abs($totalBudget - (float) $fundingGoal) > 0.01) {
+                    throw new ApiException(
+                        422,
+                        'VALIDATION_FAILED',
+                        'Mục tiêu tài trợ (' . number_format((float) $fundingGoal, 0, ',', '.') . ' VNĐ) phải bằng Tổng ngân sách phân bổ (' . number_format($totalBudget, 0, ',', '.') . ' VNĐ).'
+                    );
+                }
+            }
+
             $service->createProject($userId, [
                 'title'           => $_POST['title'] ?? '',
                 'category'        => $_POST['category'] ?? 'general',
@@ -29,7 +57,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'mentorTeacherId' => $_POST['mentorTeacherId'] ?? null,
                 'authorIds'       => $_POST['authorIds'] ?? [],
                 'description'     => $_POST['description'] ?? '',
-                'fundingGoal'     => $_POST['fundingGoal'] ?? null,
+                'fundingGoal'     => $fundingGoal,
                 'startAt'         => $_POST['startAt'] ?? null,
                 'endAt'           => $_POST['endAt'] ?? null,
                 'status'          => $_POST['status'] ?? 'draft',
@@ -172,7 +200,7 @@ include __DIR__ . '/includes/page-banner.php';
                         <span>Mục tiêu tài trợ (VND)</span>
                         <div class="school-input-icon">
                             <span class="school-input-icon__prefix">₫</span>
-                            <input name="fundingGoal" id="fundingGoalInput" type="number" min="1" step="1000" placeholder="Ví dụ: 50000000" oninput="calculateBudgets()">
+                            <input name="fundingGoal" id="fundingGoalInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Nhập mục tiêu tài trợ (VD: 10.000.000)" value="<?= htmlspecialchars((string) ($_POST['fundingGoal'] ?? '')) ?>" oninput="handleCurrencyInput(this, event)">
                         </div>
                     </label>
                     <label class="school-form__field">
@@ -239,7 +267,7 @@ include __DIR__ . '/includes/page-banner.php';
                         </label>
                         <label class="school-form__field" style="flex: 1.5; margin: 0;">
                             <span>Thành tiền (VNĐ)</span>
-                            <input type="number" class="budget-amount-input" name="budgetAmounts[]" required min="1" placeholder="VD: 20000000" oninput="calculateBudgets()">
+                            <input type="text" inputmode="numeric" class="budget-amount-input" name="budgetAmounts[]" required autocomplete="off" placeholder="VD: 5.000.000" oninput="handleCurrencyInput(this, event)">
                         </label>
                         <label class="school-form__field" style="flex: 1; margin: 0;">
                             <span>Tỉ lệ (%)</span>
@@ -385,6 +413,75 @@ function addMilestone() {
     container.appendChild(row);
 }
 
+function formatVND(val) {
+    if (val === null || val === undefined || val === '') return '';
+    const clean = val.toString().replace(/\D/g, '');
+    if (!clean) return '';
+    return clean.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function parseVND(val) {
+    if (val === null || val === undefined || val === '') return 0;
+    const clean = val.toString().replace(/\D/g, '');
+    return clean ? parseInt(clean, 10) : 0;
+}
+
+function handleCurrencyInput(input, event) {
+    if (event && event.isComposing) {
+        return;
+    }
+
+    const val = input.value;
+    const rawDigits = val.replace(/\D/g, '');
+    
+    if (!rawDigits) {
+        if (input.value !== '') {
+            input.value = '';
+        }
+        calculateBudgets();
+        return;
+    }
+    
+    const formatted = formatVND(rawDigits);
+    
+    // Nếu giá trị hiện tại đã đúng định dạng thì tuyệt đối không gán lại input.value
+    // Tránh xung đột với bộ gõ tiếng Việt (Unikey/EVKey) làm chèn lặp số (như gõ 2 thành 22)
+    if (val === formatted) {
+        calculateBudgets();
+        return;
+    }
+    
+    // Tính số chữ số nằm trước vị trí con trỏ hiện tại
+    const cursorPos = input.selectionStart || 0;
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const digitsBeforeCursor = textBeforeCursor.replace(/\D/g, '').length;
+    
+    input.value = formatted;
+    
+    // Đặt lại con trỏ tương ứng với số chữ số đã gõ
+    if (input.setSelectionRange) {
+        let newPos = 0;
+        let digitCount = 0;
+        for (let i = 0; i < formatted.length; i++) {
+            if (/\d/.test(formatted[i])) {
+                digitCount++;
+            }
+            if (digitCount === digitsBeforeCursor) {
+                newPos = i + 1;
+                break;
+            }
+        }
+        if (digitsBeforeCursor === 0) {
+            newPos = 0;
+        } else if (digitCount < digitsBeforeCursor) {
+            newPos = formatted.length;
+        }
+        input.setSelectionRange(newPos, newPos);
+    }
+    
+    calculateBudgets();
+}
+
 function addBudgetItem() {
     const container = document.getElementById('budgetsContainer');
     const row = document.createElement('div');
@@ -397,7 +494,7 @@ function addBudgetItem() {
         </label>
         <label class="school-form__field" style="flex: 1.5; margin: 0;">
             <span>Thành tiền (VNĐ)</span>
-            <input type="number" class="budget-amount-input" name="budgetAmounts[]" required min="1" placeholder="VD: 20000000" oninput="calculateBudgets()">
+            <input type="text" inputmode="numeric" class="budget-amount-input" name="budgetAmounts[]" required autocomplete="off" placeholder="VD: 5.000.000" oninput="handleCurrencyInput(this, event)">
         </label>
         <label class="school-form__field" style="flex: 1; margin: 0;">
             <span>Tỉ lệ (%)</span>
@@ -413,7 +510,7 @@ function addBudgetItem() {
 
 function calculateBudgets() {
     const goalInput = document.getElementById('fundingGoalInput');
-    const totalGoal = parseFloat(goalInput.value) || 0;
+    const totalGoal = parseVND(goalInput ? goalInput.value : '');
     
     const amtInputs = document.querySelectorAll('.budget-amount-input');
     const pctDisplays = document.querySelectorAll('.budget-pct-display');
@@ -421,7 +518,7 @@ function calculateBudgets() {
     let totalAmt = 0;
     
     amtInputs.forEach((input, index) => {
-        const amt = parseFloat(input.value) || 0;
+        const amt = parseVND(input.value);
         totalAmt += amt;
         
         if (pctDisplays[index]) {
@@ -436,28 +533,82 @@ function calculateBudgets() {
     const summaryText = document.getElementById('budgetSummaryText');
     if (!summaryText) return;
     
-    const formattedTotalAmt = new Intl.NumberFormat('vi-VN').format(totalAmt);
-    const formattedTotalGoal = new Intl.NumberFormat('vi-VN').format(totalGoal);
+    const formattedTotalAmt = formatVND(totalAmt) || '0';
+    const formattedTotalGoal = formatVND(totalGoal) || '0';
     
-    if (totalAmt === 0) {
-        summaryText.innerHTML = `Tổng phân bổ: 0 / ${formattedTotalGoal} VNĐ`;
+    if (totalAmt === 0 && totalGoal === 0) {
+        summaryText.innerHTML = `Tổng phân bổ: 0% / 100% (0 VNĐ)`;
+        summaryText.style.color = '#64748B';
+    } else if (totalAmt === 0) {
+        summaryText.innerHTML = `Tổng phân bổ: 0 / ${formattedTotalGoal} VNĐ (0%)`;
         summaryText.style.color = '#64748B';
     } else if (totalAmt < totalGoal) {
-        const diff = new Intl.NumberFormat('vi-VN').format(totalGoal - totalAmt);
-        summaryText.innerHTML = `Tổng phân bổ: ${formattedTotalAmt} / ${formattedTotalGoal} VNĐ - <span style="color: #F59E0B;">Còn thiếu ${diff} VNĐ</span>`;
+        const diff = formatVND(totalGoal - totalAmt);
+        const pct = totalGoal > 0 ? ((totalAmt / totalGoal) * 100).toFixed(1) : '0';
+        summaryText.innerHTML = `Tổng phân bổ: ${formattedTotalAmt} / ${formattedTotalGoal} VNĐ (${pct}%) - <span style="color: #F59E0B; font-weight: 700;">Còn thiếu ${diff} VNĐ</span>`;
         summaryText.style.color = '#F59E0B';
-    } else if (totalAmt === totalGoal) {
-        summaryText.innerHTML = `Tổng phân bổ: ${formattedTotalAmt} / ${formattedTotalGoal} VNĐ - <span style="color: #10B981;">Đã phân bổ đủ ngân sách</span>`;
+    } else if (totalAmt === totalGoal && totalGoal > 0) {
+        summaryText.innerHTML = `Tổng phân bổ: ${formattedTotalAmt} / ${formattedTotalGoal} VNĐ (100%) - <span style="color: #10B981; font-weight: 700;">✓ Đã phân bổ đủ ngân sách</span>`;
         summaryText.style.color = '#10B981';
     } else {
-        const diff = new Intl.NumberFormat('vi-VN').format(totalAmt - totalGoal);
-        summaryText.innerHTML = `Tổng phân bổ: ${formattedTotalAmt} / ${formattedTotalGoal} VNĐ - <span style="color: #EF4444;">Vượt quá ${diff} VNĐ</span>`;
+        const diff = formatVND(totalAmt - totalGoal);
+        const pct = totalGoal > 0 ? ((totalAmt / totalGoal) * 100).toFixed(1) : '100';
+        summaryText.innerHTML = `Tổng phân bổ: ${formattedTotalAmt} / ${formattedTotalGoal} VNĐ (${pct}%) - <span style="color: #EF4444; font-weight: 700;">Vượt quá ${diff} VNĐ</span>`;
         summaryText.style.color = '#EF4444';
     }
 }
 
-// Chạy tính toán lần đầu nếu có dữ liệu sẵn
-document.addEventListener('DOMContentLoaded', calculateBudgets);
+document.addEventListener('DOMContentLoaded', () => {
+    // Tự động định dạng lại số tiền nếu form có dữ liệu sẵn
+    const goalInput = document.getElementById('fundingGoalInput');
+    if (goalInput && goalInput.value) {
+        goalInput.value = formatVND(goalInput.value);
+    }
+    document.querySelectorAll('.budget-amount-input').forEach(input => {
+        if (input.value) {
+            input.value = formatVND(input.value);
+        }
+    });
+
+    calculateBudgets();
+
+    // Lắng nghe sự kiện kết thúc composition của bộ gõ (IME)
+    document.addEventListener('compositionend', (e) => {
+        if (e.target && (e.target.id === 'fundingGoalInput' || e.target.classList.contains('budget-amount-input'))) {
+            handleCurrencyInput(e.target, e);
+        }
+    });
+
+    // Tự động định dạng lại khi blur khỏi ô nhập
+    document.addEventListener('blur', (e) => {
+        if (e.target && (e.target.id === 'fundingGoalInput' || e.target.classList.contains('budget-amount-input'))) {
+            handleCurrencyInput(e.target, e);
+        }
+    }, true);
+
+    // Kiểm tra tính hợp lệ trước khi submit form
+    const form = document.querySelector('.project-form');
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            const currentGoal = parseVND(goalInput ? goalInput.value : '');
+            const amtInputs = document.querySelectorAll('.budget-amount-input');
+            let currentTotalAmt = 0;
+            let hasBudgetItems = false;
+            
+            amtInputs.forEach(input => {
+                const amt = parseVND(input.value);
+                if (amt > 0) hasBudgetItems = true;
+                currentTotalAmt += amt;
+            });
+            
+            if (currentGoal > 0 && hasBudgetItems && currentTotalAmt !== currentGoal) {
+                e.preventDefault();
+                alert(`Tổng phân bổ ngân sách (${formatVND(currentTotalAmt)} VNĐ) phải bằng đúng Mục tiêu tài trợ (${formatVND(currentGoal)} VNĐ). Vui lòng kiểm tra lại!`);
+                return false;
+            }
+        });
+    }
+});
 </script>
 HTML;
 

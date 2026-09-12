@@ -34,7 +34,7 @@ final class EnterpriseAiGeminiMatcher
 
     /**
      * @param array<string,mixed> $job
-     * @param list<array{candidate_ref:string,verified_skills:list<array{name:string,level_score:float}>}> $candidateProjections
+     * @param list<array<string,mixed>> $candidateProjections
      * @return array{model_version:string,items:list<array{candidate_ref:string,match_score:float,reason_codes:list<string>}>}
      */
     public function __invoke(array $job, array $candidateProjections): array
@@ -62,20 +62,20 @@ final class EnterpriseAiGeminiMatcher
             'required_skills' => array_values((array) ($job['required_skills'] ?? [])),
         ];
 
-        $systemInstruction = "You are TalentHub Enterprise AI Matcher. Evaluate anonymous candidate projections against internship job requirements based on verified skills, domain/major, achievements, and teacher competency assessment scores.\n"
+        $systemInstruction = "You are TalentHub Enterprise AI Matcher. Evaluate anonymous candidate projections against internship job requirements based on verified skills, real practical projects, domain/major, achievements, and teacher competency assessment scores.\n"
             . "CRITICAL MATCHING & RANKING RULES:\n"
-            . "1. DIRECT PROFESSIONAL SKILLS FIRST: Technical and specialized domain skills directly required by the job position MUST have the highest weight and priority.\n"
+            . "1. DIRECT PROFESSIONAL SKILLS & REAL PRACTICAL PROJECTS FIRST: Technical and specialized domain skills directly required by the job position—demonstrated either via verified skills or real practical projects (e.g. project title, topic, description, technologies)—MUST have the highest weight and priority.\n"
             . "2. HIERARCHY OF RELEVANCE:\n"
-            . "   - Candidates with multiple directly matching professional skills MUST be ranked at the very top and receive highest scores.\n"
-            . "   - Candidates with at least one directly matching professional skill MUST still be included and scored appropriately.\n"
+            . "   - Candidates with multiple directly matching professional skills or relevant practical project experience MUST be ranked at the very top and receive highest scores (>= 75 for strong alignment, 45-74 for solid partial alignment).\n"
+            . "   - Candidates with real practical projects directly utilizing required technologies (e.g. PHP, MySQL/SQL, Backend Development) are highly relevant candidates.\n"
             . "   - Soft skills (Teamwork, Communication, etc.), badges, and teacher assessment scores are strictly supplementary.\n"
-            . "   - Candidates who lack direct professional skills MUST NOT be ranked high or classified as 'Rất phù hợp' or 'Phù hợp', regardless of high teacher scores or soft skills. If included, they must receive low scores (<= 35) and 'Có liên quan'.\n"
-            . "   - Do not include candidates who have 0 skills or no relevance to the job.\n"
-            . "3. FACTUAL REASONING FROM REAL DATA ONLY: In 'recommendation_reason', provide a concise, natural Vietnamese explanation strictly referencing ONLY the skills and metrics that the candidate ACTUALLY possesses. NEVER hallucinate or mention skills the candidate does not have.\n"
+            . "   - Candidates who lack both direct professional skills and relevant practical projects MUST NOT be ranked high or classified as 'Rất phù hợp' or 'Phù hợp'. If included, they must receive low scores (<= 35) and 'Có liên quan'.\n"
+            . "   - Do not include candidates who have 0 skills, no projects, and no relevance to the job.\n"
+            . "3. FACTUAL REASONING FROM REAL DATA ONLY: In 'recommendation_reason', provide a concise, natural Vietnamese explanation strictly referencing ONLY the skills, projects, and metrics that the candidate ACTUALLY possesses. NEVER hallucinate.\n"
             . "4. CLASSIFICATION:\n"
-            . "   - 'Rất phù hợp': Score >= 75.0 (possesses multiple directly matching professional skills).\n"
-            . "   - 'Phù hợp': Score 45.0 - 74.9 (possesses at least 1 core matching professional skill).\n"
-            . "   - 'Có liên quan': Score < 45.0 (related field or supporting skills without core professional skills).\n"
+            . "   - 'Rất phù hợp': Score >= 75.0 (possesses multiple directly matching professional skills or strong relevant practical project experience).\n"
+            . "   - 'Phù hợp': Score 45.0 - 74.9 (possesses at least 1 core matching professional skill or relevant practical project).\n"
+            . "   - 'Có liên quan': Score < 45.0 (related field or supporting skills without core professional skills or projects).\n"
             . "Respond strictly in JSON format matching the schema without markdown formatting.";
 
         $userPayload = [
@@ -90,7 +90,7 @@ final class EnterpriseAiGeminiMatcher
                         'match_score' => 'float between 0.0 and 100.0',
                         'match_level' => 'Rất phù hợp | Phù hợp | Có liên quan',
                         'recommendation_reason' => 'string in Vietnamese',
-                        'reason_codes' => ['verified_skill_match', 'partial_skill_match', 'skill_gap', 'strong_verified_level', 'domain_match', 'teacher_recommended'],
+                        'reason_codes' => ['verified_skill_match', 'partial_skill_match', 'skill_gap', 'strong_verified_level', 'domain_match', 'teacher_recommended', 'project_experience'],
                     ],
                 ],
             ],
@@ -117,6 +117,7 @@ final class EnterpriseAiGeminiMatcher
             'strong_verified_level',
             'domain_match',
             'teacher_recommended',
+            'project_experience',
         ];
 
         $timeout = max(15, (int) $this->config->timeoutSeconds());

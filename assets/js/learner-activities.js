@@ -19,17 +19,28 @@ function getStatusLabel(status){
 function resolveRegistrationMessage(explanation,commandFeedback=''){
   return String(commandFeedback||'').trim()||String(explanation||'');
 }
+function parseDate(value){
+  if(!value)return Number.NaN;
+  if(value instanceof Date)return value.getTime();
+  if(typeof value==='number')return value;
+  const raw=String(value).trim();
+  if(!raw)return Number.NaN;
+  const normalized=/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(raw)
+    ? raw.replace(' ','T')+'Z'
+    : raw;
+  const parsed=new Date(normalized).getTime();
+  return Number.isFinite(parsed)?parsed:Number.NaN;
+}
 function activityAvailabilityState(activity,now){
   const status=String(activity?.status||'').toLowerCase();
   if(['ongoing','active'].includes(status))return{code:'ongoing',label:'Đang diễn ra',explanation:'Hoạt động đang diễn ra và không nhận đăng ký mới.'};
   if(status==='completed')return{code:'completed',label:'Đã kết thúc',explanation:'Hoạt động đã kết thúc.'};
   if(status!=='published')return{code:'unavailable',label:'Không nhận đăng ký',explanation:'Hoạt động hiện không nhận đăng ký.'};
-  const current=new Date(now??Date.now()).getTime();
-  const starts=new Date(activity?.start_at||'').getTime();
-  const ends=new Date(activity?.end_at||activity?.start_at||'').getTime();
-  const opensValue=activity?.registration_opens_at;
-  const opens=opensValue?new Date(opensValue).getTime():Number.NaN;
-  const closes=new Date(activity?.registration_closes_at||activity?.start_at||'').getTime();
+  const current=parseDate(now??Date.now());
+  const starts=parseDate(activity?.start_at);
+  const ends=parseDate(activity?.end_at||activity?.start_at);
+  const opens=parseDate(activity?.registration_opens_at);
+  const closes=parseDate(activity?.registration_closes_at||activity?.start_at);
   if(!Number.isFinite(current)||!Number.isFinite(closes))return{code:'unavailable',label:'Không nhận đăng ký',explanation:'Không thể xác định thời gian đăng ký.'};
   if(Number.isFinite(ends)&&current>=ends)return{code:'completed',label:'Đã kết thúc',explanation:'Hoạt động đã kết thúc.'};
   if(Number.isFinite(opens)&&current<opens)return{code:'not_open',label:'Chưa mở đăng ký',explanation:'Hoạt động chưa đến thời gian mở đăng ký.'};
@@ -68,8 +79,8 @@ function activityMatchesDiscoveryFilters(activity,filters={},now){
   if(time==='all')return true;
   const days=time==='7d'?7:time==='30d'?30:null;
   if(days===null)return true;
-  const current=new Date(now||Date.now()).getTime();
-  const starts=new Date(activity.startAt||'').getTime();
+  const current=parseDate(now||Date.now());
+  const starts=parseDate(activity.startAt||activity.start_at);
   if(!Number.isFinite(current)||!Number.isFinite(starts))return false;
   return starts>=current&&starts<=current+(days*24*60*60*1000);
 }
@@ -124,8 +135,8 @@ function registrationMatchesRegisteredFilters(registration,activity,filters={}){
 }
 function canCancelRegistration(registration,activity,now=Date.now()){
   if(!['pending','approved','waitlisted'].includes(registration?.status))return false;
-  const current=new Date(now).getTime();
-  const closes=new Date(activity?.cancellation_closes_at||'').getTime();
+  const current=parseDate(now);
+  const closes=parseDate(activity?.cancellation_closes_at);
   return Number.isFinite(current)&&Number.isFinite(closes)&&current<closes;
 }
 function canCheckinRegistration(registration){
@@ -133,7 +144,7 @@ function canCheckinRegistration(registration){
 }
 function historyRecordTimestamp(record){
   for(const field of ['attendance_resolved_at','checked_in_at','end_at','updated_at']){
-    const value=new Date(record?.[field]||'').getTime();
+    const value=parseDate(record?.[field]);
     if(Number.isFinite(value))return value;
   }
   return 0;
@@ -176,7 +187,7 @@ function hasScheduleConflict(activity,registrations,catalog){
   return registrations.some(r=>{
     if(!active.has(r.status)||r.activity_id===activity.id)return false;
     const other=catalog.find(a=>a.id===r.activity_id);
-    return other&&new Date(activity.start_at)<new Date(other.end_at)&&new Date(activity.end_at)>new Date(other.start_at);
+    return other&&parseDate(activity.start_at)<parseDate(other.end_at)&&parseDate(activity.end_at)>parseDate(other.start_at);
   });
 }
 function createActivityStorage(storage=null,key=KEY){
@@ -352,6 +363,7 @@ function resolveRegistrationCollection(serverRegistrations,localRegistrations,so
   return mergeRegistrations(server,Array.isArray(localRegistrations)?localRegistrations:[]);
 }
 global.LearnerActivities={
+  parseDate,
   canRegisterActivity,
   activityCtaState,
   resolveRegistrationStatus,

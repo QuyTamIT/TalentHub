@@ -7,6 +7,7 @@ require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/TransactionalAiOutboxP
 require_once dirname(__DIR__, 4) . '/app/learner/ai/Queue/AiAudienceResolver.php';
 
 use PDO;
+use Throwable;
 use TalentHub\Http\ApiException;
 use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
 use TalentHub\Learner\Data\Service\NotificationService;
@@ -38,11 +39,34 @@ final class TeacherActivityRepository
         return $teacherId === false ? null : (string) $teacherId;
     }
 
+    private function teacherActivityScopeWhere(string $teacherId, array &$params, string $prefix = 't_'): string
+    {
+        $schoolId = $this->schoolIdForTeacher($teacherId);
+        $tParam = $prefix . 'teacherId';
+        $params[$tParam] = $teacherId;
+
+        $clauses = ["a.createdByTeacherId = :{$tParam}"];
+        if ($this->hasTable('activity_details')) {
+            $rParam = $prefix . 'respId';
+            $params[$rParam] = $teacherId;
+            $clauses[] = "d.responsibleTeacherId = :{$rParam}";
+        }
+
+        if ($schoolId !== null && $schoolId !== '') {
+            $sParam = $prefix . 'schoolId';
+            $params[$sParam] = $schoolId;
+            $clauses[] = "(a.schoolId IS NOT NULL AND a.schoolId = :{$sParam})";
+        }
+
+        return '(' . implode(' OR ', $clauses) . ')';
+    }
+
     /** @return list<array<string,mixed>> */
     public function list(string $teacherId, string $search = ''): array
     {
-        $sql = $this->activitySelectSql() . ' WHERE a.createdByTeacherId = :teacherId';
-        $params = ['teacherId' => $teacherId];
+        $params = [];
+        $scopeWhere = $this->teacherActivityScopeWhere($teacherId, $params, 'l_');
+        $sql = $this->activitySelectSql() . " WHERE {$scopeWhere}";
 
         if ($search !== '') {
             $sql .= ' AND LOWER(a.title) LIKE :search';
@@ -59,8 +83,10 @@ final class TeacherActivityRepository
     /** @return array<string,mixed>|null */
     public function find(string $teacherId, string $activityId): ?array
     {
-        $statement = $this->pdo->prepare($this->activitySelectSql() . ' WHERE a.createdByTeacherId = :teacherId AND a.id = :activityId LIMIT 1');
-        $statement->execute(['teacherId' => $teacherId, 'activityId' => $activityId]);
+        $params = ['activityId' => $activityId];
+        $scopeWhere = $this->teacherActivityScopeWhere($teacherId, $params, 'f_');
+        $statement = $this->pdo->prepare($this->activitySelectSql() . " WHERE {$scopeWhere} AND a.id = :activityId LIMIT 1");
+        $statement->execute($params);
         $row = $statement->fetch();
 
         return is_array($row) ? $row : null;
@@ -69,6 +95,9 @@ final class TeacherActivityRepository
     /** @return list<array<string,mixed>> */
     public function registrations(string $teacherId, string $activityId): array
     {
+        $params = ['activityId' => $activityId];
+        $scopeWhere = $this->teacherActivityScopeWhere($teacherId, $params, 'r_');
+        $detailJoin = $this->hasTable('activity_details') ? ' LEFT JOIN activity_details d ON d.activityId = a.id' : '';
         $statement = $this->pdo->prepare("
             SELECT
                 ar.id,
@@ -77,13 +106,14 @@ final class TeacherActivityRepository
                 u.email AS student_email
             FROM activity_registrations ar
             INNER JOIN activities a ON a.id = ar.activityId
+            {$detailJoin}
             INNER JOIN student_profiles sp ON sp.id = ar.studentId
             INNER JOIN users u ON u.id = sp.userId
-            WHERE a.createdByTeacherId = :teacherId
+            WHERE {$scopeWhere}
               AND ar.activityId = :activityId
             ORDER BY u.fullName ASC
         ");
-        $statement->execute(['teacherId' => $teacherId, 'activityId' => $activityId]);
+        $statement->execute($params);
 
         return $statement->fetchAll();
     }
@@ -123,14 +153,16 @@ final class TeacherActivityRepository
         $ownsTransaction = !$this->pdo->inTransaction();
         if ($ownsTransaction) $this->pdo->beginTransaction();
         try {
+            $current = $this->activityScope($teacherId, $activityId);
+            if ($current === null) throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.');
             $lock = $this->lockSuffix();
             $approvalProjection = $this->hasColumn('activities', 'approvalStatus') ? ', approvalStatus' : '';
-            $activity = $this->pdo->prepare("SELECT id, schoolId, capacity, status{$approvalProjection} FROM activities WHERE id=:activityId AND createdByTeacherId=:teacherId LIMIT 1{$lock}");
-            $activity->execute(['activityId' => $activityId, 'teacherId' => $teacherId]);
+            $activity = $this->pdo->prepare("SELECT id, schoolId, capacity, status{$approvalProjection} FROM activities WHERE id=:activityId LIMIT 1{$lock}");
+            $activity->execute(['activityId' => $activityId]);
             $row = $activity->fetch(PDO::FETCH_ASSOC);
             if (!is_array($row)) throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.');
-            if (isset($row['approvalStatus']) && in_array((string) $row['approvalStatus'], ['pending_school_review', 'rejected'], true)) {
-                throw new ApiException(409, 'APPROVAL_STATUS_CONFLICT', 'Không thể sửa hoạt động khi đang chờ duyệt hoặc đã bị từ chối.');
+            if (isset($row['approvalStatus']) && in_array((string) $row['approvalStatus'], ['pending_school_review', 'approved', 'rejected'], true)) {
+                throw new ApiException(409, 'APPROVAL_STATUS_CONFLICT', 'Không thể sửa hoạt động khi đang chờ duyệt, đã duyệt hoặc đã bị từ chối.');
             }
             $occupied = $this->pdo->prepare("SELECT COUNT(*) FROM activity_registrations WHERE activityId=:activityId AND status IN ('approved','attended')");
             $occupied->execute(['activityId' => $activityId]);
@@ -138,10 +170,10 @@ final class TeacherActivityRepository
                 throw new ApiException(409, 'CAPACITY_REACHED', 'Sức chứa không được thấp hơn số đăng ký đã được duyệt hoặc đã tham dự.');
             }
             $this->assertResponsibleTeacher($data['responsibleTeacherId'] ?? null, (string) $row['schoolId']);
-            $statement = $this->pdo->prepare('UPDATE activities SET title=:title, category=:category, startAt=:startAt, endAt=:endAt, capacity=:capacity WHERE id=:activityId AND createdByTeacherId=:teacherId');
+            $statement = $this->pdo->prepare('UPDATE activities SET title=:title, category=:category, startAt=:startAt, endAt=:endAt, capacity=:capacity WHERE id=:activityId');
             $statement->execute([
                 'title' => $data['title'], 'category' => $data['category'], 'startAt' => $data['startAt'],
-                'endAt' => $data['endAt'], 'capacity' => $data['capacity'], 'activityId' => $activityId, 'teacherId' => $teacherId,
+                'endAt' => $data['endAt'], 'capacity' => $data['capacity'], 'activityId' => $activityId,
             ]);
             $this->writeDetails($activityId, (string) $row['schoolId'], $data);
             $this->writePolicies($activityId, $data);
@@ -176,7 +208,15 @@ final class TeacherActivityRepository
         $join = $this->hasTable('users') ? 'LEFT JOIN users u ON u.id = t.userId' : '';
         $statement = $this->pdo->prepare("SELECT t.id, {$name} AS name FROM teacher_profiles t {$join} WHERE t.schoolId=:schoolId ORDER BY name, t.id");
         $statement->execute(['schoolId' => $schoolId]);
-        return array_map(static fn (array $row): array => ['id' => (string) $row['id'], 'name' => (string) $row['name']], $statement->fetchAll(PDO::FETCH_ASSOC));
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+        $unique = [];
+        foreach ($rows as $row) {
+            $tName = trim((string) $row['name']);
+            if (!isset($unique[$tName])) {
+                $unique[$tName] = ['id' => (string) $row['id'], 'name' => $tName];
+            }
+        }
+        return array_values($unique);
     }
 
     private function activitySelectSql(): string
@@ -201,7 +241,7 @@ final class TeacherActivityRepository
             {$detail('organizerEmail')}, {$detail('organizerPhone')}, {$detail('coverImageUrl')}, {$detail('coverImageAlt')},
             {$detail('feeAmount')}, {$detail('currency')}, {$detail('targetAudience')}, {$detail('certificateLabel')},
             {$policy('registrationOpensAt')}, {$policy('registrationClosesAt')}, {$policy('cancellationClosesAt')}, {$policy('approvalMode')},
-            {$hours}, (SELECT COUNT(*) FROM activity_registrations ar WHERE ar.activityId=a.id AND ar.status IN ('approved','attended')) AS registered_count
+            {$hours}, (SELECT COUNT(*) FROM activity_registrations ar WHERE ar.activityId=a.id AND ar.status IN ('pending','approved','attended','waitlisted')) AS registered_count
             FROM activities a{$detailJoin}{$policyJoin}{$experienceJoin}";
     }
 
@@ -238,8 +278,8 @@ final class TeacherActivityRepository
     private function assertResponsibleTeacher(mixed $responsible, string $schoolId): void
     {
         if ($responsible === null || $responsible === '') return;
-        $teacher = $this->pdo->prepare('SELECT id FROM teacher_profiles WHERE id=:teacherId AND schoolId=:schoolId LIMIT 1');
-        $teacher->execute(['teacherId' => (string) $responsible, 'schoolId' => $schoolId]);
+        $teacher = $this->pdo->prepare('SELECT id FROM teacher_profiles WHERE (id=:teacherId OR userId=:teacherId2) AND schoolId=:schoolId LIMIT 1');
+        $teacher->execute(['teacherId' => (string) $responsible, 'teacherId2' => (string) $responsible, 'schoolId' => $schoolId]);
         if ($teacher->fetchColumn() === false) throw new ApiException(422, 'VALIDATION_FAILED', 'Giáo viên phụ trách phải thuộc cùng trường.');
     }
 
@@ -275,10 +315,25 @@ final class TeacherActivityRepository
 
     private function schoolIdForTeacher(string $teacherId): ?string
     {
-        $statement = $this->pdo->prepare('SELECT schoolId FROM teacher_profiles WHERE id=:teacherId LIMIT 1');
-        $statement->execute(['teacherId' => $teacherId]);
+        $statement = $this->pdo->prepare('SELECT schoolId FROM teacher_profiles WHERE id=:teacherId OR userId=:teacherId2 LIMIT 1');
+        $statement->execute(['teacherId' => $teacherId, 'teacherId2' => $teacherId]);
         $schoolId = $statement->fetchColumn();
-        return is_string($schoolId) && $schoolId !== '' ? $schoolId : null;
+        if (is_string($schoolId) && $schoolId !== '') {
+            return $schoolId;
+        }
+
+        $smStmt = $this->pdo->prepare('SELECT schoolId FROM school_members WHERE userId=:userId LIMIT 1');
+        $smStmt->execute(['userId' => $teacherId]);
+        $smSchoolId = $smStmt->fetchColumn();
+        if (is_string($smSchoolId) && $smSchoolId !== '') {
+            try {
+                $ins = $this->pdo->prepare('INSERT INTO teacher_profiles (id, userId, schoolId, isSchoolAdmin) VALUES (?, ?, ?, 0)');
+                $ins->execute([\TalentHub\Support\Uuid::v4(), $teacherId, $smSchoolId]);
+            } catch (\Throwable) {}
+            return $smSchoolId;
+        }
+
+        return null;
     }
 
     private function assertPublishable(string $teacherId, string $activityId): void
@@ -300,6 +355,9 @@ final class TeacherActivityRepository
             if (!is_numeric($row['confirmedHours'] ?? null)) $missing[] = 'số giờ trải nghiệm';
             if (!in_array((string) ($row['approvalMode'] ?? ''), ['automatic', 'teacher_review'], true)) $missing[] = 'cách duyệt đăng ký';
             if (!in_array((string) ($row['deliveryMode'] ?? ''), ['in_person', 'online', 'hybrid'], true)) $missing[] = 'hình thức tổ chức';
+            if ($this->hasColumn('activities', 'approvalStatus') && (string) ($row['approvalStatus'] ?? '') !== 'approved') {
+                $missing[] = 'phê duyệt của Nhà trường';
+            }
         }
         if ($missing) throw new ApiException(422, 'INVALID_ACTIVITY_CONFIGURATION', 'Chưa thể công bố: còn thiếu hoặc chưa hợp lệ ' . implode(', ', array_unique($missing)) . '.');
     }
@@ -351,7 +409,6 @@ final class TeacherActivityRepository
             $params = [
                 'nextStatus' => $nextStatus,
                 'activityId' => $activityId,
-                'teacherId' => $teacherId,
                 'expectedStatus' => $expectedStatus,
             ];
 
@@ -373,7 +430,6 @@ final class TeacherActivityRepository
 
             $sql = 'UPDATE activities SET ' . implode(', ', $setClauses) . '
                     WHERE id = :activityId
-                      AND createdByTeacherId = :teacherId
                       AND status = :expectedStatus';
             $statement = $this->pdo->prepare($sql);
             $statement->execute($params);
@@ -384,13 +440,13 @@ final class TeacherActivityRepository
             $audit = $this->pdo->prepare(
                 'INSERT INTO audit_logs (id,userId,action,entityType,entityId,requestId,ipAddress,metadata,createdAt)
                  SELECT :id,tp.userId,:action,\'activity\',:entityId,:requestId,NULL,:metadata,:createdAt
-                 FROM teacher_profiles tp WHERE tp.id=:teacherId LIMIT 1'
+                 FROM teacher_profiles tp WHERE (tp.id=:teacherId OR tp.userId=:teacherId2) LIMIT 1'
             );
             $audit->execute([
                 'id' => Uuid::v4(), 'action' => 'activity.' . $nextStatus, 'entityId' => $activityId,
                 'requestId' => $requestId ?? strtoupper(bin2hex(random_bytes(13))),
                 'metadata' => json_encode(['previousStatus' => $expectedStatus, 'status' => $nextStatus], JSON_THROW_ON_ERROR),
-                'createdAt' => gmdate('Y-m-d H:i:s.u'), 'teacherId' => $teacherId,
+                'createdAt' => gmdate('Y-m-d H:i:s.u'), 'teacherId' => $teacherId, 'teacherId2' => $teacherId,
             ]);
             $students = (new AiAudienceResolver($this->pdo))->schoolStudents((string) $current['schoolId']);
             if ($students !== []) {
@@ -423,8 +479,10 @@ final class TeacherActivityRepository
         $ownsTransaction = !$this->pdo->inTransaction();
         if ($ownsTransaction) $this->pdo->beginTransaction();
         try {
+            $current = $this->activityScope($teacherId, $activityId);
+            if ($current === null) throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.');
             $lock = $this->lockSuffix();
-            $statement = $this->pdo->prepare('SELECT a.id,a.title,a.schoolId,a.status,a.approvalStatus,tp.userId AS teacherUserId FROM activities a INNER JOIN teacher_profiles tp ON tp.id=a.createdByTeacherId WHERE a.id=:activityId AND a.createdByTeacherId=:teacherId LIMIT 1' . $lock);
+            $statement = $this->pdo->prepare('SELECT a.id,a.title,a.schoolId,a.status,a.approvalStatus,COALESCE(tp.userId, :teacherId) AS teacherUserId FROM activities a LEFT JOIN teacher_profiles tp ON tp.id=a.createdByTeacherId WHERE a.id=:activityId LIMIT 1' . $lock);
             $statement->execute(['activityId' => $activityId, 'teacherId' => $teacherId]);
             $activity = $statement->fetch(PDO::FETCH_ASSOC);
             if (!is_array($activity)) throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.');
@@ -433,8 +491,8 @@ final class TeacherActivityRepository
             }
             $this->assertPublishableConfiguration($teacherId, $activityId);
             $now = gmdate('Y-m-d H:i:s.u');
-            $update = $this->pdo->prepare("UPDATE activities SET approvalStatus='pending_school_review',approvalRequestedAt=:requestedAt,approvedAt=NULL,approvedBy=NULL,approvalReason=NULL WHERE id=:activityId AND createdByTeacherId=:teacherId AND approvalStatus=:expected");
-            $update->execute(['requestedAt' => $now, 'activityId' => $activityId, 'teacherId' => $teacherId, 'expected' => (string) $activity['approvalStatus']]);
+            $update = $this->pdo->prepare("UPDATE activities SET approvalStatus='pending_school_review',approvalRequestedAt=:requestedAt,approvedAt=NULL,approvedBy=NULL,approvalReason=NULL WHERE id=:activityId AND approvalStatus=:expected");
+            $update->execute(['requestedAt' => $now, 'activityId' => $activityId, 'expected' => (string) $activity['approvalStatus']]);
             if ($update->rowCount() !== 1) throw new ApiException(409, 'APPROVAL_STATUS_CONFLICT', 'Trạng thái duyệt đã thay đổi bởi một yêu cầu khác.');
             $audit = $this->pdo->prepare('INSERT INTO audit_logs (id,userId,action,entityType,entityId,requestId,ipAddress,metadata,createdAt) VALUES (:id,:userId,\'activity.submitted_for_review\',\'activity\',:entityId,:requestId,NULL,:metadata,:createdAt)');
             $audit->execute(['id' => Uuid::v4(), 'userId' => (string) $activity['teacherUserId'], 'entityId' => $activityId, 'requestId' => $requestId, 'metadata' => json_encode(['schoolId' => $activity['schoolId'], 'previousStatus' => $activity['approvalStatus'], 'status' => 'pending_school_review'], JSON_THROW_ON_ERROR), 'createdAt' => $now]);
@@ -444,7 +502,7 @@ final class TeacherActivityRepository
                 $this->getNotificationService()->publish((string) $member['userId'], 'activity_submitted_for_review', 'Hoạt động chờ duyệt', 'Hoạt động ' . (string) $activity['title'] . ' vừa được Giáo viên gửi duyệt.', '/app/school/activities.php', 'activity_submitted_for_review:' . $activityId . ':' . (string) $member['userId']);
             }
             if ($ownsTransaction) $this->pdo->commit();
-            return $activity + ['approvalStatus' => 'pending_school_review', 'approvalRequestedAt' => $now];
+            return array_merge($activity, ['approvalStatus' => 'pending_school_review', 'approvalRequestedAt' => $now, 'approvalReason' => null]);
         } catch (Throwable $exception) {
             if ($ownsTransaction && $this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $exception;
@@ -469,8 +527,11 @@ final class TeacherActivityRepository
     /** @return array{schoolId:string,status:string}|null */
     private function activityScope(string $teacherId, string $activityId): ?array
     {
-        $statement = $this->pdo->prepare('SELECT schoolId, status FROM activities WHERE id = :id AND createdByTeacherId = :teacherId LIMIT 1');
-        $statement->execute(['id' => $activityId, 'teacherId' => $teacherId]);
+        $params = ['id' => $activityId];
+        $scopeWhere = $this->teacherActivityScopeWhere($teacherId, $params, 'as_');
+        $detailJoin = $this->hasTable('activity_details') ? ' LEFT JOIN activity_details d ON d.activityId = a.id' : '';
+        $statement = $this->pdo->prepare("SELECT a.schoolId, a.status FROM activities a{$detailJoin} WHERE a.id = :id AND {$scopeWhere} LIMIT 1");
+        $statement->execute($params);
         $row = $statement->fetch(PDO::FETCH_ASSOC);
         return is_array($row) ? ['schoolId' => (string) $row['schoolId'], 'status' => (string) $row['status']] : null;
     }

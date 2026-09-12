@@ -46,6 +46,18 @@ if ($action === 'archive' && $isEdit) {
     }
 }
 
+if ($action === 'delete' && $isEdit) {
+    try {
+        $service->deleteClass($userId, $classId);
+        header('Location: ./classes.php?msg=deleted');
+        exit;
+    } catch (\TalentHub\Http\ApiException $e) {
+        $error = $e->getMessage();
+    } catch (\Throwable $e) {
+        $error = 'Đã xảy ra lỗi: ' . $e->getMessage();
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($action, ['create', 'update'], true)) {
     try {
         if ($action === 'create') {
@@ -113,11 +125,18 @@ ob_start();
             </p>
         </div>
         <?php if ($isEdit): ?>
-            <form method="post" data-confirm="Lưu trữ lớp này? Học sinh vẫn giữ hồ sơ nhưng sẽ không hiển thị ở dashboard.">
-                <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
-                <input type="hidden" name="action" value="archive">
-                <button type="submit" class="btn btn-outline" style="border-color:#FCA5A5;color:#B91C1C;">Lưu trữ lớp</button>
-            </form>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <form method="post" data-confirm="Lưu trữ lớp này? Học sinh vẫn giữ hồ sơ nhưng sẽ không hiển thị ở dashboard.">
+                    <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                    <input type="hidden" name="action" value="archive">
+                    <button type="submit" class="btn btn-outline" style="border-color:#FCD34D;color:#D97706;">Lưu trữ lớp</button>
+                </form>
+                <form method="post" data-confirm="Bạn có chắc chắn muốn xóa lớp này? Chỉ có thể xóa khi lớp chưa có sinh viên hoặc dữ liệu liên quan.">
+                    <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                    <input type="hidden" name="action" value="delete">
+                    <button type="submit" class="btn btn-outline" style="border-color:#FCA5A5;color:#B91C1C;">Xóa lớp</button>
+                </form>
+            </div>
         <?php endif; ?>
     </div>
 
@@ -153,7 +172,7 @@ ob_start();
             </label>
             <label class="school-form__field">
                 <span>Niên khóa <em>*</em></span>
-                <input type="text" name="academicYear" maxlength="20" required value="<?= htmlspecialchars((string) $row['academicYear']); ?>" placeholder="2025 - 2026">
+                <input type="text" name="academicYear" maxlength="20" required value="<?= htmlspecialchars((string) $row['academicYear']); ?>" placeholder="2025 - 2026" onfocus="this.select()">
             </label>
             <label class="school-form__field">
                 <span>Trạng thái</span>

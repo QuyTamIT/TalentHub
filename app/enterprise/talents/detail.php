@@ -61,7 +61,7 @@ $enterpriseInfo = [
 ];
 
 // Handle direct POST invitation in detail.php
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['postId']) || isset($_POST['action']))) {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (isset($_POST['postId']) || isset($_POST['action']))) {
     require dirname(__DIR__) . '/actions/send-invitation.php';
     exit;
 }
@@ -94,7 +94,8 @@ if ($rawTalent !== null) {
         ];
     }
 
-    $talentScore = (int) ($rawTalent['talent_score'] ?? $rawTalent['talentScore'] ?? 85);
+    $rawScore = $rawTalent['talent_score'] ?? $rawTalent['talentScore'] ?? null;
+    $talentScore = is_numeric($rawScore) ? (int) $rawScore : 0;
 
     // Normalize projects
     $normalizedProjects = [];
@@ -107,23 +108,13 @@ if ($rawTalent !== null) {
         };
         $normalizedProjects[] = [
             'id' => $pr['id'] ?? '',
-            'name' => $pr['title'] ?? ($pr['name'] ?? 'Dự án thực tế'),
-            'description' => $pr['description'] ?? 'Dự án phát triển phần mềm và ứng dụng trí tuệ nhân tạo giải quyết bài toán thực tiễn.',
-            'role' => $pr['role'] ?? 'Lập trình viên & Kỹ sư AI',
-            'category' => $pr['category'] ?? 'AI & Phần mềm',
+            'name' => $pr['title'] ?? ($pr['name'] ?? 'Dự án'),
+            'description' => (string) ($pr['description'] ?? ''),
+            'role' => (string) ($pr['role'] ?? 'Thành viên'),
+            'category' => (string) ($pr['category'] ?? ''),
             'result' => $resultLabel,
             'sponsorName' => $pr['sponsorName'] ?? ($pr['sponsor_name'] ?? ''),
-            'technologies' => !empty($pr['technologies']) ? (array) $pr['technologies'] : array_slice(array_column($skillsList, 'name'), 0, 4),
-        ];
-    }
-    if (empty($normalizedProjects)) {
-        $normalizedProjects[] = [
-            'name' => 'Ứng dụng AI phân loại rác & Tái chế thông minh',
-            'description' => 'Mô hình Computer Vision nhận diện tự động phân loại rác thải, áp dụng deep learning YOLOv8.',
-            'role' => 'Lập trình viên & Kỹ sư AI',
-            'category' => 'AI & Phần mềm',
-            'result' => 'Đang phát triển',
-            'technologies' => ['Python', 'PyTorch', 'OpenCV', 'REST API']
+            'technologies' => !empty($pr['technologies']) ? (array) $pr['technologies'] : [],
         ];
     }
 
@@ -131,48 +122,31 @@ if ($rawTalent !== null) {
     $experienceLogs = [];
     foreach ($experienceEntries as $entry) {
         $experienceLogs[] = [
-            'title' => $entry['title'] ?? ($entry['activityTitle'] ?? 'Xưởng thực hành & Dự án nghiên cứu'),
+            'title' => $entry['title'] ?? ($entry['activityTitle'] ?? 'Hoạt động trải nghiệm'),
             'role' => $entry['role'] ?? 'Thành viên tham gia',
-            'duration' => !empty($entry['createdAt']) ? substr((string)$entry['createdAt'], 0, 10) : '2026',
-            'hours' => $entry['hours'] ?? 24,
-            'description' => $entry['description'] ?? 'Tham gia nghiên cứu, phát triển và thử nghiệm các mô hình AI/IoT thực tế.',
+            'duration' => !empty($entry['createdAt']) ? substr((string)$entry['createdAt'], 0, 10) : '',
+            'hours' => (int) ($entry['hours'] ?? 0),
+            'description' => (string) ($entry['description'] ?? ''),
         ];
     }
-    if (empty($experienceLogs)) {
-        $experienceLogs = [
-            [
-                'title' => 'IoT Lab - Cảm biến thông minh & AI Nhúng',
-                'role' => 'Lập trình viên & Kỹ sư nhúng',
-                'duration' => '08/2026',
-                'hours' => 24,
-                'description' => 'Xưởng thực hành lập trình vi điều khiển ESP32 và tích hợp mô hình AI nhận diện tại Phòng B305 - BTEC FPT.',
-            ],
-            [
-                'title' => 'Hackathon Sáng tạo Trẻ BTEC FPT 2026',
-                'role' => 'Trưởng nhóm phát triển AI',
-                'duration' => '07/2026',
-                'hours' => 36,
-                'description' => 'Phát triển nguyên mẫu hệ thống nhận diện và phân loại rác thải tự động đạt giải Nhì chung cuộc.',
-            ]
-        ];
-    }
-    $totalExpHours = !empty($rawTalent['experience']['confirmed_hours'])
-        ? (int)$rawTalent['experience']['confirmed_hours']
-        : (int)array_sum(array_column($experienceLogs, 'hours'));
+
+    $totalExpHours = isset($rawTalent['experience']['confirmed_hours'])
+        ? (int) $rawTalent['experience']['confirmed_hours']
+        : (int) array_sum(array_column($experienceLogs, 'hours'));
 
     $talent = [
         'id' => $rawTalent['studentId'],
         'userId' => $rawTalent['userId'] ?? '',
         'name' => $rawTalent['displayName'],
         'avatar_initials' => getInitials($rawTalent['displayName']),
-        'talent_score' => min(100, max(60, $talentScore)),
-        'school' => $rawTalent['schoolName'] ?: 'Cao đẳng Quốc tế BTEC FPT',
-        'class_year' => $rawTalent['className'] ?: 'BTEC-AI-2026A',
-        'education_level' => $rawTalent['studyStatus'] ?: 'Sinh viên',
-        'major_field' => $rawTalent['headline'] ?: 'Kỹ thuật phần mềm & AI',
+        'talent_score' => $talentScore > 0 ? min(100, max(0, $talentScore)) : 0,
+        'school' => !empty(trim((string)($rawTalent['schoolName'] ?? ''))) ? trim((string)$rawTalent['schoolName']) : 'Chưa cập nhật',
+        'class_year' => !empty(trim((string)($rawTalent['className'] ?? ''))) ? trim((string)$rawTalent['className']) : 'Chưa cập nhật',
+        'education_level' => !empty(trim((string)($rawTalent['studyStatus'] ?? ''))) ? trim((string)$rawTalent['studyStatus']) : 'Sinh viên',
+        'major_field' => !empty(trim((string)($rawTalent['headline'] ?? ''))) ? trim((string)$rawTalent['headline']) : 'Chưa cập nhật',
         'internship_status_label' => 'Sẵn sàng thực tập',
-        'bio' => $rawTalent['bio'],
-        'location' => $rawTalent['location'] ?? 'Hà Nội',
+        'bio' => trim((string)($rawTalent['bio'] ?? '')),
+        'location' => !empty(trim((string)($rawTalent['location'] ?? ''))) ? trim((string)$rawTalent['location']) : 'Chưa cập nhật',
         'detailed_skills' => $skillsList,
         'experience_entries' => $experienceEntries,
         'experience_logs' => $experienceLogs,
@@ -388,9 +362,11 @@ $sidebarNav = [
                                 <!-- 2. Giới thiệu (Learner Bio & Orientation) -->
                                 <section class="ent-section-box">
                                     <h3 class="ent-section-box__title">Giới thiệu bản thân & Định hướng</h3>
-                                    <p class="ent-passport-bio-text">
-                                        <?= htmlspecialchars($talent['bio'] ?? 'Học sinh / Sinh viên năng động, ham học hỏi và luôn chủ động trau dồi kỹ năng thực tế thông qua các dự án và sảnh chơi công nghệ.'); ?>
-                                    </p>
+                                    <?php if (!empty($talent['bio'])): ?>
+                                        <p class="ent-passport-bio-text"><?= nl2br(htmlspecialchars($talent['bio'])); ?></p>
+                                    <?php else: ?>
+                                        <p class="text-muted" style="margin: 0; font-size: 0.875rem; font-style: italic;">Chưa cập nhật giới thiệu bản thân.</p>
+                                    <?php endif; ?>
                                 </section>
 
                                 <!-- 3. Kỹ năng (Detailed Skills Grid) -->
@@ -422,6 +398,8 @@ $sidebarNav = [
                                                     </div>
                                                 </div>
                                             <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <p class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.875rem; font-style: italic;">Chưa có kỹ năng nào được ghi nhận.</p>
                                         <?php endif; ?>
                                     </div>
                                 </section>
@@ -455,6 +433,8 @@ $sidebarNav = [
                                                     <p class="ent-passport-timeline-item__desc"><?= htmlspecialchars($exp['description']); ?></p>
                                                 </div>
                                             <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <p class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.875rem; font-style: italic;">Chưa có nhật ký giờ trải nghiệm thực tế.</p>
                                         <?php endif; ?>
                                     </div>
                                 </section>
@@ -468,6 +448,7 @@ $sidebarNav = [
                                     <div class="ent-passport-projects-list">
                                         <?php if (!empty($talent['projects'])): ?>
                                             <?php foreach ($talent['projects'] as $proj): ?>
+                                                <div class="ent-passport-project-card">
                                                     <div class="ent-passport-project-card__header" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
                                                         <h4 class="ent-passport-project-card__title" style="margin: 0;"><?= htmlspecialchars($proj['name']); ?></h4>
                                                         <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -482,18 +463,24 @@ $sidebarNav = [
                                                             <?php endif; ?>
                                                         </div>
                                                     </div>
-                                                    <p class="ent-passport-project-card__desc"><?= htmlspecialchars($proj['description']); ?></p>
+                                                    <?php if (!empty($proj['description'])): ?>
+                                                        <p class="ent-passport-project-card__desc"><?= htmlspecialchars($proj['description']); ?></p>
+                                                    <?php endif; ?>
                                                     <div class="ent-passport-project-card__meta">
                                                         <span class="label">Vai trò:</span>
                                                         <span class="val font-medium"><?= htmlspecialchars($proj['role']); ?></span>
                                                     </div>
-                                                    <div class="ent-passport-project-card__techs">
-                                                        <?php foreach ($proj['technologies'] as $tech): ?>
-                                                            <span class="skill-tag"><?= htmlspecialchars($tech); ?></span>
-                                                        <?php endforeach; ?>
-                                                    </div>
+                                                    <?php if (!empty($proj['technologies'])): ?>
+                                                        <div class="ent-passport-project-card__techs">
+                                                            <?php foreach ($proj['technologies'] as $tech): ?>
+                                                                <span class="skill-tag"><?= htmlspecialchars($tech); ?></span>
+                                                            <?php endforeach; ?>
+                                                        </div>
+                                                    <?php endif; ?>
                                                 </div>
                                             <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <p class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.875rem; font-style: italic;">Chưa có dự án nào.</p>
                                         <?php endif; ?>
                                     </div>
                                 </section>
@@ -516,7 +503,7 @@ $sidebarNav = [
                                                     </div>
                                                     <div class="ent-passport-cert-row__info">
                                                         <h4 class="cert-name"><?= htmlspecialchars($cert['title'] ?? $cert['name'] ?? 'Chứng chỉ chuyên môn'); ?></h4>
-                                                        <span class="cert-issuer"><?= htmlspecialchars($cert['issuingOrganization'] ?? $cert['issuer'] ?? 'Tổ chức đào tạo'); ?> &bull; <?= htmlspecialchars($cert['issueDate'] ?? $cert['issue_date'] ?? '2025'); ?></span>
+                                                        <span class="cert-issuer"><?= htmlspecialchars($cert['issuingOrganization'] ?? $cert['issuer'] ?? 'Tổ chức đào tạo'); ?><?= !empty($cert['issueDate'] ?? $cert['issue_date']) ? ' &bull; ' . htmlspecialchars($cert['issueDate'] ?? $cert['issue_date']) : ''; ?></span>
                                                     </div>
                                                     <?php if (!empty($cert['verified']) || (($cert['verificationStatus'] ?? '') === 'verified')): ?>
                                                         <span class="ent-verified-badge">
@@ -528,6 +515,8 @@ $sidebarNav = [
                                                     <?php endif; ?>
                                                 </div>
                                             <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <p class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.875rem; font-style: italic;">Chưa có chứng chỉ hoặc thành tích.</p>
                                         <?php endif; ?>
                                     </div>
                                 </section>
@@ -558,16 +547,23 @@ $sidebarNav = [
 
                                         <div class="ent-readiness-widget__strengths">
                                             <span class="label">Điểm mạnh nổi bật:</span>
-                                            <ul>
-                                                <?php foreach (($talent['readiness_summary']['strengths'] ?? ['Tư duy kỹ thuật tốt', 'Kỹ năng thực hành cao']) as $st): ?>
-                                                    <li>&bull; <?= htmlspecialchars($st); ?></li>
-                                                <?php endforeach; ?>
-                                            </ul>
+                                            <?php 
+                                            $strengths = $talent['readiness_summary']['strengths'] ?? [];
+                                            if (!empty($strengths)): 
+                                            ?>
+                                                <ul>
+                                                    <?php foreach ($strengths as $st): ?>
+                                                        <li>&bull; <?= htmlspecialchars($st); ?></li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            <?php else: ?>
+                                                <p class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.8125rem; font-style: italic;">Chưa có thông tin điểm mạnh</p>
+                                            <?php endif; ?>
                                         </div>
 
                                         <div class="ent-readiness-widget__exp">
                                             <span class="label">Tổng giờ trải nghiệm:</span>
-                                            <span class="val font-bold text-primary"><?= htmlspecialchars($talent['readiness_summary']['total_exp_hours'] ?? ($talent['experience_hours'] . 'h thực án')); ?></span>
+                                            <span class="val font-bold text-primary"><?= htmlspecialchars($talent['readiness_summary']['total_exp_hours'] ?? ($talent['experience_hours'] . 'h thực tế')); ?></span>
                                         </div>
                                     </div>
                                 </div>
@@ -651,7 +647,7 @@ $sidebarNav = [
                             <span>Gửi Lời Mời Thực Tập / Tuyển Dụng</span>
                         </h3>
                         <p class="ent-skills-modal__subtitle" style="margin: 0.25rem 0 0; font-size: 0.85rem; color: #6B5548;">
-                            Mời ứng viên <strong><?= htmlspecialchars($talent['name']); ?></strong> (<?= htmlspecialchars($talent['talent_score']); ?> điểm) vào đội ngũ FPT Software
+                            Mời ứng viên <strong><?= htmlspecialchars($talent['name']); ?></strong> (<?= htmlspecialchars($talent['talent_score']); ?> điểm) vào đội ngũ <?= htmlspecialchars($enterpriseInfo['company_name']); ?>
                         </p>
                     </div>
                     <button type="button" class="ent-skills-modal__close" onclick="closeInviteModal()" style="border: none; background: transparent; font-size: 1.6rem; line-height: 1; cursor: pointer; color: #9E897D; padding: 0.2rem 0.5rem;">&times;</button>
@@ -696,7 +692,7 @@ $sidebarNav = [
                         <textarea id="inviteMessageInput"
                                   rows="3"
                                   style="width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid #F0E6DD; border-radius: 8px; font-size: 0.875rem; color: #322014; resize: vertical;"
-                                  placeholder="Ví dụ: Chào bạn <?= htmlspecialchars($talent['name']); ?>, FPT Software rất ấn tượng với hồ sơ năng lực và điểm đánh giá <?= htmlspecialchars($talent['talent_score']); ?> điểm của bạn. Trân trọng mời bạn tham gia thực tập..."></textarea>
+                                  placeholder="Ví dụ: Chào bạn <?= htmlspecialchars($talent['name']); ?>, <?= htmlspecialchars($enterpriseInfo['company_name']); ?> rất ấn tượng với hồ sơ năng lực và điểm đánh giá <?= htmlspecialchars($talent['talent_score']); ?> điểm của bạn. Trân trọng mời bạn tham gia thực tập..."></textarea>
                     </div>
 
                     <!-- Privacy / Notification Tip -->

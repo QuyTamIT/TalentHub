@@ -218,7 +218,7 @@ final class SchoolDashboardService
         $this->guardWrite($userId, $school['id']);
         $name   = $this->text($input['name'] ?? null, 'name', 2, 100, false);
         $grade  = $this->validateGradeLevel($input['gradeLevel'] ?? null, $school);
-        $year   = $this->text($input['academicYear'] ?? null, 'academicYear', 4, 20, false);
+        $year   = $this->normalizeAcademicYear($this->text($input['academicYear'] ?? null, 'academicYear', 4, 20, false));
         $status = $this->text($input['status'] ?? 'active', 'status', 4, 20, false);
         if (!in_array($status, ['active', 'archived'], true)) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'status không hợp lệ.', [
@@ -275,7 +275,7 @@ final class SchoolDashboardService
             $fields['gradeLevel'] = $this->validateGradeLevel($input['gradeLevel'], $school);
         }
         if (array_key_exists('academicYear', $input)) {
-            $fields['academicYear'] = $this->text($input['academicYear'], 'academicYear', 4, 20, false);
+            $fields['academicYear'] = $this->normalizeAcademicYear($this->text($input['academicYear'], 'academicYear', 4, 20, false));
         }
         if (array_key_exists('status', $input)) {
             $status = $this->text($input['status'], 'status', 4, 20, false);
@@ -323,6 +323,53 @@ final class SchoolDashboardService
         $this->repository->refreshCounters($school['id']);
 
         return $this->repository->findClassById($classId, $school['id']) ?? [];
+    }
+
+    /**
+     * Delete a class safely only when it has no students, assessments or teacher assignments.
+     */
+    public function deleteClass(string $userId, string $classId): void
+    {
+        $school = $this->getByUser($userId);
+        $this->guardWrite($userId, $school['id']);
+        Uuid::orFail($classId, 'classId');
+        $existing = $this->repository->findClassById($classId, $school['id']);
+        if ($existing === null) {
+            throw new ApiException(404, 'CLASS_NOT_FOUND', 'Không tìm thấy lớp.');
+        }
+
+        $deps = $this->repository->countClassDependencies($classId, $school['id']);
+        if ($deps['students'] > 0) {
+            throw new ApiException(
+                422,
+                'CLASS_HAS_STUDENTS',
+                'Không thể xóa lớp đang có ' . $deps['students'] . ' sinh viên. Vui lòng chuyển sinh viên sang lớp khác hoặc chọn Lưu trữ lớp.'
+            );
+        }
+        if ($deps['assessments'] > 0) {
+            throw new ApiException(
+                422,
+                'CLASS_HAS_ASSESSMENTS',
+                'Không thể xóa lớp đã có dữ liệu đánh giá phụ thuộc. Bạn có thể chọn Lưu trữ lớp.'
+            );
+        }
+        if ($deps['teachers'] > 0) {
+            throw new ApiException(
+                422,
+                'CLASS_HAS_TEACHERS',
+                'Không thể xóa lớp đang được phân công giáo viên phụ trách. Vui lòng gỡ phân công hoặc chọn Lưu trữ lớp.'
+            );
+        }
+
+        $this->repository->deleteClass($classId, $school['id']);
+        $this->repository->writeAudit(
+            $userId,
+            'CLASS_DELETE',
+            'class',
+            $classId,
+            ['schoolId' => $school['id'], 'name' => $existing['name']]
+        );
+        $this->repository->refreshCounters($school['id']);
     }
 
     public function teachers(string $userId, int $limit = 50, int $offset = 0): array
@@ -1238,7 +1285,7 @@ final class SchoolDashboardService
                 'name'         => (string) $row['name'],
                 'grade'        => $gradeLabel,
                 'gradeLevel'   => $gradeLevel,
-                'academicYear' => (string) $row['academicYear'],
+                'academicYear' => $this->normalizeAcademicYear((string) $row['academicYear']),
                 'students'     => $count,
                 'homeroom'     => '—',
                 'status'       => $status,
@@ -1570,6 +1617,24 @@ final class SchoolDashboardService
             'college' => ['Năm 1', 'Năm 2', 'Năm 3', 'Năm 4'],
             default   => ['Năm 1', 'Năm 2', 'Năm 3', 'Năm 4'],
         };
+    }
+
+    /**
+     * Normalize an academic year string (e.g. deduplicate "2025-20262025-2026" to "2025-2026").
+     */
+    public function normalizeAcademicYear(?string $raw): string
+    {
+        if ($raw === null) {
+            return '';
+        }
+        $trimmed = trim($raw);
+        if ($trimmed === '') {
+            return '';
+        }
+        if (preg_match('~^(\d{4}\s*[-–/]\s*\d{4})\s*\1+$~u', $trimmed, $matches)) {
+            return $matches[1];
+        }
+        return $trimmed;
     }
 
     /**

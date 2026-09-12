@@ -373,7 +373,16 @@ final class ActivityReadModel
     private static function date(mixed $value): ?\DateTimeImmutable
     {
         $value = self::text($value);
-        return $value === '' ? null : new \DateTimeImmutable($value, new \DateTimeZone('UTC'));
+        if ($value === '') return null;
+        try {
+            $tz = preg_match('/(?:Z|[+-]\d{2}(?::?\d{2})?)$/i', $value) === 1
+                ? null
+                : new \DateTimeZone('UTC');
+            $dt = $tz !== null ? new \DateTimeImmutable($value, $tz) : new \DateTimeImmutable($value);
+            return $dt->setTimezone(new \DateTimeZone('UTC'));
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private static function deliveryModeLabel(mixed $value): string

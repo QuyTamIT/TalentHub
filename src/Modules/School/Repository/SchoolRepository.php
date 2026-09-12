@@ -152,6 +152,35 @@ final class SchoolRepository
         $stmt->execute($params);
     }
 
+    /**
+     * Count dependencies that would prevent hard deletion of a class.
+     *
+     * @return array{students:int,assessments:int,teachers:int}
+     */
+    public function countClassDependencies(string $classId, string $schoolId): array
+    {
+        $stmt = $this->pdo->prepare('
+            SELECT
+                (SELECT COUNT(*) FROM student_profiles WHERE classId = :c1) AS studentCount,
+                (SELECT COUNT(*) FROM assessments WHERE classId = :c2) AS assessmentCount,
+                (SELECT COUNT(*) FROM teacher_class_assignments WHERE classId = :c3) AS teacherCount
+        ');
+        $stmt->execute(['c1' => $classId, 'c2' => $classId, 'c3' => $classId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return [
+            'students'    => (int) ($row['studentCount'] ?? 0),
+            'assessments' => (int) ($row['assessmentCount'] ?? 0),
+            'teachers'    => (int) ($row['teacherCount'] ?? 0),
+        ];
+    }
+
+    public function deleteClass(string $classId, string $schoolId): bool
+    {
+        $stmt = $this->pdo->prepare('DELETE FROM classes WHERE id = :id AND schoolId = :schoolId');
+        $stmt->execute(['id' => $classId, 'schoolId' => $schoolId]);
+        return $stmt->rowCount() > 0;
+    }
+
     /** @return list<array<string,mixed>> */
     public function listTeachers(string $schoolId, int $limit = 50, int $offset = 0): array
     {

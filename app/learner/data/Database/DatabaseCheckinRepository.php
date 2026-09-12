@@ -48,7 +48,7 @@ final class DatabaseCheckinRepository implements CheckinRepository
             if ($this->existingCheckinId((string) $registration['id']) !== null) {
                 throw new ApiException(409, 'CHECKIN_ALREADY_EXISTS', 'Dang ky nay da check-in.');
             }
-            if ((string) $registration['status'] !== 'approved') {
+            if (!in_array((string) $registration['status'], ['approved', 'pending'], true)) {
                 throw new ApiException(409, 'REGISTRATION_NOT_ELIGIBLE', 'Dang ky khong du dieu kien check-in.');
             }
             $session = $this->lockSession($tokenHash);
@@ -210,7 +210,7 @@ final class DatabaseCheckinRepository implements CheckinRepository
 
     private function markAttended(string $registrationId, string $now): void
     {
-        $statement = $this->pdo->prepare("UPDATE activity_registrations SET status = 'attended', updatedAt = :now WHERE id = :id AND status = 'approved'");
+        $statement = $this->pdo->prepare("UPDATE activity_registrations SET status = 'attended', updatedAt = :now WHERE id = :id AND status IN ('approved', 'pending')");
         $statement->execute(['now' => $now, 'id' => $registrationId]);
         if ($statement->rowCount() !== 1) {
             throw new ApiException(409, 'CHECKIN_STATE_CONFLICT', 'Dang ky da thay doi truoc khi check-in hoan tat.');
@@ -347,6 +347,7 @@ final class DatabaseCheckinRepository implements CheckinRepository
         }
 
         if (!class_exists('TalentHub\Learner\Data\Service\BadgeAwardService', false)) {
+            require_once dirname(__DIR__) . '/bootstrap.php';
             require_once dirname(__DIR__) . '/Contracts/BadgeRepository.php';
             require_once dirname(__DIR__) . '/Contracts/StatisticsRepository.php';
             require_once dirname(__DIR__) . '/Domain/LevelProgression.php';

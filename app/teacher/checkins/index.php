@@ -327,7 +327,7 @@ $statusClasses = [
                                         <option value="">Chọn hoạt động đang diễn ra</option>
                                         <?php foreach ($data['activities'] as $activity): ?>
                                             <option value="<?= teacherQrEscape($activity['id']); ?>" <?= $formValues['activity_id'] === (string) $activity['id'] ? 'selected' : ''; ?>>
-                                                <?= teacherQrEscape($activity['title']); ?><?= !empty($activity['category']) ? ' · ' . teacherQrEscape($activity['category']) : ''; ?>
+                                                <?= teacherQrEscape($activity['title']); ?>
                                             </option>
                                         <?php endforeach; ?>
                                     </select>

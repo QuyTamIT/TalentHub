@@ -206,11 +206,24 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                                     $locationLabel,
                                     implode(' ', array_map('strval', $activity['skills'] ?? [])),
                                 ]);
-                                $startAt = new DateTimeImmutable((string) $activity['start_at'], $activityDisplayTimezone);
+                                $toDisplayDt = static function (?string $raw) use ($activityDisplayTimezone): ?DateTimeImmutable {
+                                    if (!$raw || trim($raw) === '') return null;
+                                    try {
+                                        $clean = trim($raw);
+                                        $tz = preg_match('/(?:Z|[+-]\d{2}(?::?\d{2})?)$/i', $clean) === 1
+                                            ? null
+                                            : new DateTimeZone('UTC');
+                                        $dt = $tz !== null ? new DateTimeImmutable($clean, $tz) : new DateTimeImmutable($clean);
+                                        return $dt->setTimezone($activityDisplayTimezone);
+                                    } catch (Throwable) {
+                                        return null;
+                                    }
+                                };
+                                $startAt = $toDisplayDt((string) $activity['start_at']) ?? new DateTimeImmutable('now', $activityDisplayTimezone);
                                 $endAt = !empty($activity['end_at'])
-                                    ? new DateTimeImmutable((string) $activity['end_at'], $activityDisplayTimezone)
+                                    ? $toDisplayDt((string) $activity['end_at'])
                                     : null;
-                                $registrationClosesAt = new DateTimeImmutable((string) $activity['registration_closes_at'], $activityDisplayTimezone);
+                                $registrationClosesAt = $toDisplayDt((string) $activity['registration_closes_at']) ?? $startAt;
 
                                 if ($endAt && $endAt->format('d/m/Y') !== $startAt->format('d/m/Y')) {
                                     $timeRangeFormatted = $startAt->format('d/m/Y H:i') . ' – ' . $endAt->format('d/m/Y H:i');

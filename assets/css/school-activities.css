@@ -1,223 +1,1551 @@
 /* ==========================================================================
-   TalentHub — School Activity Review (Duyệt hoạt động)
-   Single source for app/school/activities.php.
-   Naming: BEM-ish within .school-activities / .school-activity-review.
-   All layout inherits surface/border tokens from global.css & school.css.
+   TalentHub — Modern School Activity Approval (Duyệt hoạt động)
+   EdTech Dashboard Design System.
+   Harmonious with TalentHub warm palette (#FDF7F1) & signature gradient.
    ========================================================================== */
+
+:root {
+    --th-brand-gradient: linear-gradient(135deg, #FF5B26 0%, #E91E63 50%, #8A2BE2 100%);
+    --th-brand-gradient-hover: linear-gradient(135deg, #FF4500 0%, #D81B60 50%, #7B1FA2 100%);
+    --th-brand-glow: 0 8px 20px -4px rgba(233, 30, 99, 0.35);
+    
+    --th-bg-warm: #FDF7F1;
+    --th-surface: #FFFFFF;
+    --th-surface-subtle: #F8FAFC;
+    --th-surface-warm: #FFFDF9;
+    
+    --th-border: #E2E8F0;
+    --th-border-subtle: #F1F5F9;
+    --th-border-accent: rgba(233, 30, 99, 0.2);
+    
+    --th-text-heading: #0F172A;
+    --th-text-body: #334155;
+    --th-text-muted: #64748B;
+    --th-text-light: #94A3B8;
+
+    --th-shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+    --th-shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+    --th-shadow-hover: 0 10px 25px -3px rgba(15, 23, 42, 0.09), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+
+    --th-radius-xl: 18px;
+    --th-radius-lg: 14px;
+    --th-radius-md: 10px;
+    --th-radius-sm: 8px;
+    --th-radius-full: 9999px;
+}
 
 /* Page wrapper */
 .school-activities {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 1.5rem;
+    color: var(--th-text-body);
 }
 
-/* Filter block */
-.school-activities__filters { gap: 0.75rem; }
-.school-activities__filter-form {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    align-items: flex-end;
-    margin-top: 0.875rem;
+/* ── 1. Breadcrumbs ── */
+.school-act-breadcrumb {
+    margin-bottom: -0.5rem;
 }
-.school-activities__search { min-width: 240px; flex: 1 1 260px; }
-.school-activities__timezone {
-    font-size: 0.8125rem;
-    color: var(--text-muted);
+.school-act-breadcrumb ol {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 0.84rem;
+    color: var(--th-text-muted);
+}
+.school-act-breadcrumb a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--th-text-muted);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.15s ease;
+}
+.school-act-breadcrumb a:hover {
+    color: #FF5B26;
+}
+.school-act-breadcrumb .separator {
+    display: flex;
+    align-items: center;
+    color: var(--th-text-light);
+}
+.school-act-breadcrumb [aria-current="page"] {
+    color: var(--th-text-heading);
+    font-weight: 600;
+}
+
+/* ── 2. Hero Header ── */
+.school-act-hero {
+    position: relative;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(254, 247, 240, 0.9) 100%);
+    border: 1px solid rgba(255, 91, 38, 0.15);
+    border-radius: var(--th-radius-xl);
+    padding: 1.75rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.5rem;
+    box-shadow: var(--th-shadow-card);
+    overflow: hidden;
+}
+.school-act-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--th-brand-gradient);
+}
+.school-act-hero__content {
+    flex: 1 1 auto;
+    max-width: 52rem;
+}
+.school-act-hero__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: rgba(255, 91, 38, 0.08);
+    color: #C2410C;
+    border: 1px solid rgba(255, 91, 38, 0.2);
+    padding: 0.3rem 0.75rem;
+    border-radius: var(--th-radius-full);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.65rem;
+}
+.school-act-hero__badge .badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #FF5B26;
+    box-shadow: 0 0 0 3px rgba(255, 91, 38, 0.25);
+    animation: thPulse 2s infinite ease-in-out;
+}
+.school-act-hero__title {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: var(--th-text-heading);
+    margin: 0 0 0.5rem;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+}
+.school-act-hero__desc {
+    font-size: 0.93rem;
+    color: var(--th-text-muted);
+    line-height: 1.6;
+    margin: 0;
+}
+.school-act-hero__meta {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+.school-act-hero__tz {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--th-surface);
+    border: 1px solid var(--th-border);
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--th-radius-full);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--th-text-muted);
+    box-shadow: var(--th-shadow-sm);
     white-space: nowrap;
 }
 
-/* Empty state variant for this page — inherits school-empty-state from school.css */
-.school-activities .school-empty-state {
-    text-align: center;
-    padding: 2rem 1rem;
+/* ── 3. Approval Summary Metric Cards Grid ── */
+.school-act-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1rem;
 }
-.school-activities .school-empty-state__title {
-    font-size: 1rem;
-    font-weight: var(--font-bold);
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
-}
-.school-activities .school-empty-state__desc {
-    font-size: 0.9375rem;
-    color: var(--text-secondary);
-    max-width: 36rem;
-    margin: 0 auto;
-}
-
-/* ── Card — each activity under review ── */
-.school-activity-review {
+.school-act-stat {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    padding: 1.25rem 1.25rem 1rem;
+    justify-content: space-between;
+    background: var(--th-surface);
+    border: 1px solid var(--th-border);
+    border-radius: var(--th-radius-lg);
+    padding: 1.25rem 1.35rem;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: var(--th-shadow-sm);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
 }
-.school-activity-review__header {
+.school-act-stat:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--th-shadow-hover);
+    border-color: rgba(233, 30, 99, 0.3);
+}
+.school-act-stat--active {
+    border-color: #FF5B26;
+    box-shadow: 0 4px 18px -2px rgba(255, 91, 38, 0.2);
+    background: linear-gradient(180deg, #FFFFFF 0%, #FFFDF9 100%);
+}
+.school-act-stat--active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3.5px;
+    background: var(--th-brand-gradient);
+}
+.school-act-stat__head {
     display: flex;
     justify-content: space-between;
-    gap: 1rem;
-    align-items: flex-start;
+    align-items: center;
+    margin-bottom: 0.65rem;
 }
-.school-activity-review__eyebrow {
-    font-size: 0.75rem;
-    font-weight: var(--font-semibold);
-    letter-spacing: 0.04em;
+.school-act-stat__label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--th-text-muted);
     text-transform: uppercase;
-    color: var(--text-muted);
-    margin: 0 0 0.25rem;
+    letter-spacing: 0.04em;
 }
-.school-activity-review__header h3 {
-    font-size: 1.0625rem;
-    font-weight: var(--font-bold);
-    color: var(--text-primary);
-    margin: 0;
+.school-act-stat__icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--th-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.school-act-stat--pending .school-act-stat__icon { background: #FEF3C7; color: #D97706; }
+.school-act-stat--changes .school-act-stat__icon { background: #FFEDD5; color: #EA580C; }
+.school-act-stat--approved .school-act-stat__icon { background: #D1FAE5; color: #059669; }
+.school-act-stat--all .school-act-stat__icon { background: #EDE9FE; color: #7C3AED; }
+
+.school-act-stat__value-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    margin-bottom: 0.25rem;
+}
+.school-act-stat__value {
+    font-size: 1.85rem;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--th-text-heading);
+    letter-spacing: -0.02em;
+}
+.school-act-stat--pending.school-act-stat--active .school-act-stat__value {
+    color: #D97706;
+}
+.school-act-stat--approved.school-act-stat--active .school-act-stat__value {
+    color: #059669;
+}
+.school-act-stat__sub {
+    font-size: 0.78rem;
+    color: var(--th-text-muted);
     line-height: 1.35;
 }
-.school-activity-review__meta {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    margin: 0.35rem 0 0;
+
+/* ── 4. Search & Filter Bar ── */
+.school-act-filters {
+    background: var(--th-surface);
+    border: 1px solid var(--th-border);
+    border-radius: var(--th-radius-lg);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--th-shadow-sm);
 }
-.school-activity-review__summary {
-    font-size: 0.9375rem;
-    color: var(--text-secondary);
-    line-height: 1.6;
+.school-act-filters__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+.school-act-filters__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--th-text-heading);
     margin: 0;
-    white-space: pre-line;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.school-act-filters__count-pill {
+    background: #F1F5F9;
+    color: var(--th-text-muted);
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--th-radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.school-act-filters__form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem;
+    align-items: flex-end;
+}
+.school-act-filters__search {
+    flex: 1 1 280px;
+    position: relative;
+}
+.school-act-filters__search input {
+    width: 100%;
+    height: 42px;
+    padding: 0 1rem 0 2.4rem;
+    border: 1.5px solid var(--th-border);
+    border-radius: var(--th-radius-md);
+    background: var(--th-surface-subtle);
+    font-size: 0.875rem;
+    color: var(--th-text-heading);
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+.school-act-filters__search input:focus {
+    outline: none;
+    border-color: #E91E63;
+    background: #FFFFFF;
+    box-shadow: 0 0 0 3.5px rgba(233, 30, 99, 0.12);
+}
+.school-act-filters__search-icon {
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--th-text-light);
+    pointer-events: none;
+}
+.school-act-filters__select {
+    flex: 0 1 200px;
+}
+.school-act-filters__select select {
+    width: 100%;
+    height: 42px;
+    padding: 0 2rem 0 0.85rem;
+    border: 1.5px solid var(--th-border);
+    border-radius: var(--th-radius-md);
+    background: var(--th-surface-subtle);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--th-text-heading);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+}
+.school-act-filters__select select:focus {
+    outline: none;
+    border-color: #E91E63;
+    background-color: #FFFFFF;
+    box-shadow: 0 0 0 3.5px rgba(233, 30, 99, 0.12);
+}
+.school-act-filters__btn {
+    height: 42px;
+    padding: 0 1.35rem;
+    border-radius: var(--th-radius-md);
+    border: none;
+    background: var(--th-brand-gradient);
+    color: #FFFFFF;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px -1px rgba(233, 30, 99, 0.3);
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.school-act-filters__btn:hover {
+    box-shadow: var(--th-brand-glow);
+    transform: translateY(-1px);
+}
+.school-act-filters__reset {
+    height: 42px;
+    padding: 0 1rem;
+    border-radius: var(--th-radius-md);
+    border: 1px solid var(--th-border);
+    background: var(--th-surface);
+    color: var(--th-text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: all 0.15s ease;
+}
+.school-act-filters__reset:hover {
+    color: var(--th-text-heading);
+    border-color: var(--th-text-light);
+    background: #F8FAFC;
 }
 
-/* Status badge on the card header */
-.school-activity-review__badge {
+/* ── 5. Empty State ── */
+.school-act-empty {
+    background: var(--th-surface);
+    border: 1px dashed var(--th-border);
+    border-radius: var(--th-radius-xl);
+    padding: 3.5rem 2rem;
+    text-align: center;
+    box-shadow: var(--th-shadow-sm);
+}
+.school-act-empty__icon-wrap {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1.25rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(255, 91, 38, 0.1) 0%, rgba(233, 30, 99, 0.1) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #E91E63;
+}
+.school-act-empty__title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--th-text-heading);
+    margin: 0 0 0.5rem;
+}
+.school-act-empty__desc {
+    font-size: 0.9rem;
+    color: var(--th-text-muted);
+    max-width: 32rem;
+    margin: 0 auto 1.5rem;
+    line-height: 1.6;
+}
+.school-act-empty__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: var(--th-radius-md);
+    background: var(--th-surface);
+    border: 1px solid var(--th-border);
+    color: var(--th-text-body);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: var(--th-shadow-sm);
+    transition: all 0.15s ease;
+}
+.school-act-empty__action:hover {
+    border-color: #E91E63;
+    color: #E91E63;
+}
+
+/* ── 6. Activity Approval Card ── */
+.school-act-card {
+    background: var(--th-surface);
+    border: 1px solid var(--th-border);
+    border-radius: var(--th-radius-xl);
+    padding: 1.75rem;
+    box-shadow: var(--th-shadow-card);
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    position: relative;
+}
+.school-act-card:hover {
+    border-color: rgba(233, 30, 99, 0.25);
+    box-shadow: var(--th-shadow-hover);
+}
+.school-act-card--pending {
+    border-left: 4px solid #F59E0B;
+}
+.school-act-card--approved {
+    border-left: 4px solid #10B981;
+}
+.school-act-card--changes {
+    border-left: 4px solid #F97316;
+}
+.school-act-card--rejected {
+    border-left: 4px solid #EF4444;
+}
+
+/* Card Header */
+.school-act-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.25rem;
+}
+.school-act-card__head-left {
+    flex: 1 1 auto;
+}
+.school-act-card__top-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.65rem;
+}
+.school-act-card__category {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.7rem;
+    border-radius: var(--th-radius-full);
+    background: #F1F5F9;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+.school-act-card__teacher-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.2rem 0.65rem;
+    border-radius: var(--th-radius-full);
+    background: #FFF7ED;
+    border: 1px solid #FFEDD5;
+    color: #C2410C;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.school-act-card__avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #EA580C;
+    color: #FFFFFF;
+    font-size: 0.62rem;
+    font-weight: 700;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.3rem 0.7rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: var(--font-semibold);
+    text-transform: uppercase;
+}
+.school-act-card__time {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.78rem;
+    color: var(--th-text-muted);
+}
+.school-act-card__title {
+    font-size: 1.32rem;
+    font-weight: 800;
+    color: var(--th-text-heading);
+    margin: 0 0 0.5rem;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+}
+.school-act-card__summary {
+    background: var(--th-surface-warm);
+    border-left: 3px solid #FF5B26;
+    padding: 0.75rem 1rem;
+    border-radius: 0 var(--th-radius-sm) var(--th-radius-sm) 0;
+    font-size: 0.92rem;
+    color: var(--th-text-body);
+    line-height: 1.6;
+    margin: 0.25rem 0 0;
+}
+
+/* Status Badges */
+.school-act-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: var(--th-radius-full);
+    font-size: 0.8rem;
+    font-weight: 700;
     white-space: nowrap;
     flex-shrink: 0;
+    box-shadow: var(--th-shadow-sm);
 }
-.school-activity-review__badge--pending { background: #FEF3C7; color: #92400E; }
-.school-activity-review__badge--changes { background: #FFEDD5; color: #9A3412; }
-.school-activity-review__badge--approved { background: var(--color-success-light); color: #047857; }
-.school-activity-review__badge--rejected { background: var(--color-danger-light); color: var(--color-danger-hover); }
-.school-activity-review__badge--draft { background: #E2E8F0; color: #475569; }
+.school-act-badge .pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+.school-act-badge--pending {
+    background: #FEF3C7;
+    color: #92400E;
+    border: 1px solid #FDE68A;
+}
+.school-act-badge--pending .pulse-dot {
+    background: #D97706;
+    box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.25);
+    animation: thPulse 2s infinite ease-in-out;
+}
+.school-act-badge--changes {
+    background: #FFEDD5;
+    color: #9A3412;
+    border: 1px solid #FED7AA;
+}
+.school-act-badge--approved {
+    background: #D1FAE5;
+    color: #065F46;
+    border: 1px solid #A7F3D0;
+}
+.school-act-badge--approved .pulse-dot {
+    background: #059669;
+}
+.school-act-badge--rejected {
+    background: #FFE4E6;
+    color: #9F1239;
+    border: 1px solid #FECDD3;
+}
+.school-act-badge--draft {
+    background: #F1F5F9;
+    color: #475569;
+    border: 1px solid #E2E8F0;
+}
 
-/* Key facts row (Bắt đầu · Kết thúc · …) */
-.school-activity-review__facts {
+/* ── 7. Quick Facts Ribbon (Thông tin tổng quan & Hình thức) ── */
+.school-act-ribbon {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 0.75rem 1.5rem;
-    margin: 0;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.85rem;
+    background: var(--th-surface-subtle);
+    border: 1px solid var(--th-border-subtle);
+    border-radius: var(--th-radius-lg);
+    padding: 0.85rem 1rem;
+    box-sizing: border-box;
 }
-.school-activity-review__facts div { display: flex; flex-direction: column; gap: 0.125rem; }
-.school-activity-review__facts dt {
-    font-size: 0.75rem;
-    font-weight: var(--font-semibold);
-    color: var(--text-muted);
+.school-act-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 0.65rem 0.85rem;
+    background: #FFFFFF;
+    border: 1px solid var(--th-border);
+    border-radius: var(--th-radius-md);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
 }
-.school-activity-review__facts dd {
+.school-act-pill:hover {
+    border-color: rgba(233, 30, 99, 0.25);
+    box-shadow: var(--th-shadow-sm);
+}
+.school-act-pill__icon {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--th-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+.school-act-pill__icon svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    display: block;
+}
+.school-act-pill--time .school-act-pill__icon {
+    background: #EFF6FF;
+    border: 1px solid #DBEAFE;
+    color: #2563EB;
+}
+.school-act-pill--delivery .school-act-pill__icon {
+    background: #FFF7ED;
+    border: 1px solid #FFEDD5;
+    color: #EA580C;
+}
+.school-act-pill--capacity .school-act-pill__icon {
+    background: #F0FDF4;
+    border: 1px solid #DCFCE7;
+    color: #16A34A;
+}
+.school-act-pill--fee .school-act-pill__icon {
+    background: #FAF5FF;
+    border: 1px solid #F3E8FF;
+    color: #9333EA;
+}
+
+.school-act-pill__data {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+}
+.school-act-pill__label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--th-text-muted);
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.school-act-pill__val {
     font-size: 0.875rem;
-    color: var(--text-primary);
-    margin: 0;
+    font-weight: 700;
+    color: var(--th-text-heading);
+    line-height: 1.35;
     word-break: break-word;
 }
-
-/* Collapsible detail block */
-.school-activity-review__details {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: #F8FAFC;
-}
-.school-activity-review__details summary {
-    padding: 0.75rem 1rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: var(--font-semibold);
-    color: var(--text-primary);
-    list-style: none;
-}
-.school-activity-review__details summary::-webkit-details-marker { display: none; }
-.school-activity-review__details[open] summary { border-bottom: 1px solid var(--border); }
-.school-activity-review__details-body {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
-    padding: 1rem;
-}
-@media (min-width: 860px) {
-    .school-activity-review__details-body { grid-template-columns: 1.4fr 1fr; }
-}
-.school-activity-review__section h4 {
-    font-size: 0.875rem;
-    font-weight: var(--font-bold);
-    color: var(--text-primary);
-    margin: 0 0 0.5rem;
-}
-.school-activity-review__section--spacer { margin-top: 0; }
-.school-activity-review__text {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    line-height: 1.6;
-    white-space: pre-line;
-    margin: 0;
-}
-.school-activity-review__list h5 {
+.pill-date-start,
+.pill-date-end {
+    display: inline-block;
     font-size: 0.8125rem;
-    font-weight: var(--font-semibold);
-    color: var(--text-primary);
-    margin: 0.75rem 0 0.25rem;
+    font-weight: 700;
+    white-space: nowrap;
 }
-.school-activity-review__list ul { margin: 0; padding-left: 1.15rem; }
-.school-activity-review__list li { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5; }
-.school-activity-review__resource { font-size: 0.8125rem; margin: 0.75rem 0 0; }
+.pill-date-sep {
+    color: #94A3B8;
+    margin: 0 0.2rem;
+    font-weight: 500;
+}
 
-/* Review form (approve / request_changes / reject) */
-.school-activity-review__form {
-    border-top: 1px solid var(--border);
-    padding-top: 1rem;
+/* ── 8. Collapsible Structured Detail Sections ── */
+.school-act-details {
+    border: 1px solid var(--th-border);
+    border-radius: var(--th-radius-lg);
+    background: #FFFFFF;
+    overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.school-act-details[open] {
+    border-color: rgba(233, 30, 99, 0.25);
+    box-shadow: var(--th-shadow-sm);
+}
+.school-act-details summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.95rem 1.35rem;
+    cursor: pointer;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--th-text-heading);
+    background: var(--th-surface-subtle);
+    list-style: none;
+    user-select: none;
+    transition: background 0.15s ease;
+}
+.school-act-details summary::-webkit-details-marker { display: none; }
+.school-act-details summary:hover {
+    background: #F1F5F9;
+}
+.school-act-details summary .summary-left {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+.summary-icon-box {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--th-radius-sm);
+    background: rgba(255, 91, 38, 0.1);
+    color: #FF5B26;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.summary-icon-box svg {
+    flex-shrink: 0;
+}
+.summary-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--th-text-heading);
+}
+.summary-pill {
+    background: #E2E8F0;
+    color: #475569;
+    padding: 0.15rem 0.55rem;
+    border-radius: var(--th-radius-full);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+.school-act-details summary .summary-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #E91E63;
+}
+.school-act-details summary .toggle-icon {
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+}
+.school-act-details[open] summary .toggle-icon {
+    transform: rotate(180deg);
+}
+
+/* Details Body - 5 Organized Sections */
+.school-act-details__body {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    background: #FAFAFC;
+    border-top: 1px solid var(--th-border);
+}
+
+/* Sections Row Split Layout (Section 1 & 2 side-by-side) */
+.act-sections-row--split {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 1.25rem;
+    align-items: stretch;
+}
+
+/* Group Card (Common section card) */
+.act-group-card {
+    background: #FFFFFF;
+    border: 1px solid var(--th-border);
+    border-radius: var(--th-radius-lg);
+    padding: 1.35rem 1.45rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+    transition: border-color 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+.act-group-card:hover {
+    border-color: rgba(255, 91, 38, 0.25);
+}
+.act-group-card__header {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #F1F5F9;
+}
+.act-group-card__badge {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #FF5B26;
+    background: rgba(255, 91, 38, 0.08);
+    border: 1px solid rgba(255, 91, 38, 0.2);
+    border-radius: 6px;
+    padding: 0.15rem 0.45rem;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+.act-group-card__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--th-text-heading);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    line-height: 1.3;
+}
+.act-group-card__title svg {
+    color: #FF5B26;
+    flex-shrink: 0;
+}
+.act-group-card__content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    flex: 1 1 auto;
+}
+
+/* Section 1: Overview & Cover Wrap */
+.act-desc-text {
+    font-size: 0.88rem;
+    color: var(--th-text-body);
+    line-height: 1.7;
+    margin: 0;
+    white-space: pre-line;
+}
+.act-cover-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.75rem 1rem;
+    background: #FFF5F8;
+    border: 1px solid rgba(233, 30, 99, 0.18);
+    border-radius: var(--th-radius-md);
+}
+.act-cover-wrap__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #FFFFFF;
+    border: 1px solid rgba(233, 30, 99, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #E91E63;
+    flex-shrink: 0;
+}
+.act-cover-wrap__icon svg {
+    flex-shrink: 0;
+}
+.act-cover-wrap__content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.act-cover-wrap__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #E91E63;
+    font-weight: 700;
+    font-size: 0.84rem;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+.act-cover-wrap__link:hover {
+    color: #BE185D;
+    text-decoration: underline;
+}
+.act-cover-wrap__link svg {
+    flex-shrink: 0;
+}
+.act-cover-wrap__alt {
+    font-size: 0.76rem;
+    color: var(--th-text-muted);
+    margin-top: 0.2rem;
+}
+
+/* Section 2: Content & Skills */
+.act-sub-section {
+    display: flex;
+    flex-direction: column;
     gap: 0.5rem;
 }
-.school-activity-review__hint {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    margin: 0;
+.act-sub-section:not(:last-child) {
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px dashed #F1F5F9;
 }
-.school-activity-review__form .school-form__actions { justify-content: flex-start; }
-.school-activity-review__reject { color: var(--color-danger-hover); border-color: var(--color-danger-border); }
-.school-activity-review__reject:hover { background: var(--color-danger-light); }
+.act-sub-section__heading {
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--th-text-muted);
+}
+.act-skills-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+.act-skill-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: #FAF5FF;
+    border: 1px solid #E9D5FF;
+    color: #7E22CE;
+    padding: 0.28rem 0.65rem;
+    border-radius: var(--th-radius-full);
+    font-size: 0.8rem;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(126, 34, 206, 0.05);
+    transition: all 0.15s ease;
+}
+.act-skill-chip:hover {
+    background: #F3E8FF;
+    border-color: #D8B4FE;
+}
+.act-skill-chip__prefix {
+    color: #A855F7;
+    font-weight: 700;
+    font-size: 0.82rem;
+}
+.act-highlights-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.act-highlights-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.86rem;
+    color: var(--th-text-body);
+    line-height: 1.5;
+}
+.act-highlight-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ECFDF5;
+    border: 1px solid #A7F3D0;
+    color: #059669;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+}
+.act-highlight-icon svg {
+    flex-shrink: 0;
+}
+.act-empty-note {
+    font-size: 0.84rem;
+    color: var(--th-text-muted);
+    margin: 0;
+    font-style: italic;
+}
 
-/* Outcome message for non-pending items */
-.school-activity-review__outcome {
-    border-left: 3px solid var(--border);
-    padding: 0.75rem 1rem;
+/* Section 3: Eligibility & Benefits 2-Col */
+.act-split-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+.act-sub-box {
+    border-radius: var(--th-radius-md);
+    padding: 1.1rem 1.25rem;
+    border: 1px solid;
+    display: flex;
+    flex-direction: column;
+}
+.act-sub-box--eligibility {
     background: #F8FAFC;
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    border-color: #E2E8F0;
 }
-.school-activity-review__outcome p {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
+.act-sub-box--benefits {
+    background: #FAF5FF;
+    border-color: #F3E8FF;
+}
+.act-sub-box__head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.75rem;
+}
+.act-sub-box--eligibility .act-sub-box__head { color: #1E40AF; }
+.act-sub-box--benefits .act-sub-box__head { color: #6B21A8; }
+.act-sub-box__icon-wrap {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.act-sub-box--eligibility .act-sub-box__icon-wrap {
+    background: #DBEAFE;
+    color: #2563EB;
+}
+.act-sub-box--benefits .act-sub-box__icon-wrap {
+    background: #EDE9FE;
+    color: #7C3AED;
+}
+.act-sub-box__icon-wrap svg {
+    flex-shrink: 0;
+}
+.act-sub-box__list {
     margin: 0;
-    line-height: 1.6;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.act-sub-box__list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--th-text-body);
+    line-height: 1.5;
+}
+.act-bullet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+}
+.act-bullet--check {
+    background: #DBEAFE;
+    color: #1D4ED8;
+}
+.act-bullet--star {
+    background: #F3E8FF;
+    color: #7E22CE;
 }
 
-/* ── Validation hint shown when reason is required ── */
-.school-activity-review__field-error {
+/* Section 4 & 5: Common Tiles Grid */
+.act-tiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 0.75rem;
+}
+.act-tile {
+    background: #F8FAFC;
+    border: 1px solid #EDF2F7;
+    border-radius: var(--th-radius-md);
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.act-tile--highlight {
+    background: #FFF7ED;
+    border-color: #FED7AA;
+}
+.act-tile__label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--th-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+}
+.act-tile__value {
+    font-size: 0.86rem;
+    color: var(--th-text-heading);
+    font-weight: 600;
+    line-height: 1.45;
+    word-break: break-word;
+}
+.act-tile__sub {
+    font-size: 0.78rem;
+    color: var(--th-text-muted);
+    margin-top: 0.2rem;
+    font-weight: normal;
+}
+.act-tile__sub a {
+    color: #E91E63;
+    text-decoration: none;
+}
+.act-tile__sub a:hover {
+    text-decoration: underline;
+}
+.act-tile__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #E91E63;
+    text-decoration: none;
+    word-break: break-all;
+    font-weight: 600;
+    transition: color 0.15s ease;
+}
+.act-tile__link:hover {
+    color: #BE185D;
+    text-decoration: underline;
+}
+.act-tile__link svg {
+    flex-shrink: 0;
+}
+.act-tile__muted {
+    color: var(--th-text-muted);
+    font-size: 0.84rem;
+    font-weight: normal;
+}
+
+/* Section 5: Timeline Milestone Pipeline */
+.act-timeline-pipeline {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: var(--th-radius-md);
+    padding: 1rem 1.15rem;
+    box-sizing: border-box;
+}
+.act-timeline-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    min-width: 0;
+}
+.act-timeline-step__marker {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.act-timeline-step__marker svg {
+    flex-shrink: 0;
+}
+.act-timeline-step__marker--open {
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    color: #2563EB;
+}
+.act-timeline-step__marker--close {
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    color: #D97706;
+}
+.act-timeline-step__marker--cancel {
+    background: #F8FAFC;
+    border: 1px solid #CBD5E1;
+    color: #64748B;
+}
+.act-timeline-step__content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+.act-timeline-step__label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--th-text-muted);
+    line-height: 1.2;
+}
+.act-timeline-step__date {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: var(--th-text-heading);
+    word-break: break-word;
+}
+.act-badge-hours {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #ECFDF5;
+    border: 1px solid #A7F3D0;
+    color: #047857;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--th-radius-full);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+.act-badge-hours svg {
+    flex-shrink: 0;
+}
+
+/* ── 9. Approval Form & Sticky Action Bar ── */
+.school-act-form {
+    border-top: 2px dashed rgba(226, 232, 240, 0.9);
+    padding-top: 1.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+}
+.school-act-feedback-card {
+    background: linear-gradient(180deg, #FFFDFB 0%, #FFF8F1 100%);
+    border: 1.5px solid #FED7AA;
+    border-radius: var(--th-radius-lg);
+    padding: 1.25rem 1.4rem;
+    box-shadow: var(--th-shadow-sm);
+}
+.school-act-feedback-card__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.65rem;
+}
+.school-act-feedback-card__label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #9A3412;
+}
+.school-act-feedback-card__label svg {
+    color: #EA580C;
+}
+.school-act-feedback-card__counter {
     font-size: 0.75rem;
-    color: var(--color-danger);
+    font-weight: 600;
+    color: #C2410C;
+    background: rgba(234, 88, 12, 0.1);
+    padding: 0.2rem 0.55rem;
+    border-radius: var(--th-radius-full);
+}
+.school-act-feedback-card textarea {
+    width: 100%;
+    min-height: 85px;
+    border: 1.5px solid #FDBA74;
+    border-radius: var(--th-radius-md);
+    padding: 0.85rem 1rem;
+    font-size: 0.88rem;
+    color: var(--th-text-heading);
+    background: #FFFFFF;
+    line-height: 1.6;
+    transition: all 0.2s ease;
+    resize: vertical;
+    box-sizing: border-box;
+}
+.school-act-feedback-card textarea:focus {
+    outline: none;
+    border-color: #E91E63;
+    box-shadow: 0 0 0 4px rgba(233, 30, 99, 0.12);
+}
+.school-act-feedback-card__hint {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    color: #9A3412;
+    margin: 0.5rem 0 0;
+}
+
+/* Action Buttons Cluster */
+.school-act-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.85rem;
+}
+.btn-approve {
+    height: 44px;
+    padding: 0 1.5rem;
+    border-radius: var(--th-radius-md);
+    border: none;
+    background: var(--th-brand-gradient);
+    color: #FFFFFF;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px -2px rgba(233, 30, 99, 0.4);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-approve:hover {
+    box-shadow: 0 6px 20px -2px rgba(233, 30, 99, 0.5);
+    transform: translateY(-1.5px);
+}
+.btn-approve.is-loading {
+    opacity: 0.88;
+    pointer-events: none;
+    cursor: wait;
+}
+.btn-approve.is-loading:hover {
+    transform: none;
+}
+@keyframes schoolActSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.school-act-spin {
+    animation: schoolActSpin 1s linear infinite;
+    flex-shrink: 0;
+}
+.btn-request-changes {
+    height: 44px;
+    padding: 0 1.35rem;
+    border-radius: var(--th-radius-md);
+    background: #FFF7ED;
+    border: 1.5px solid #FDBA74;
+    color: #C2410C;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+.btn-request-changes:hover {
+    background: #FFEDD5;
+    border-color: #FB923C;
+    transform: translateY(-1.5px);
+}
+.btn-reject {
+    height: 44px;
+    padding: 0 1.25rem;
+    border-radius: var(--th-radius-md);
+    background: #FFF1F2;
+    border: 1.5px solid #FECDD3;
+    color: #E11D48;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+.btn-reject:hover {
+    background: #FFE4E6;
+    border-color: #FDA4AF;
+    transform: translateY(-1.5px);
+}
+
+/* Outcome Card for non-pending activities */
+.school-act-outcome {
+    border-radius: var(--th-radius-lg);
+    padding: 1.15rem 1.35rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    border: 1px solid var(--th-border);
+}
+.school-act-outcome--approved {
+    background: #ECFDF5;
+    border-color: #A7F3D0;
+    color: #065F46;
+}
+.school-act-outcome--changes {
+    background: #FFF7ED;
+    border-color: #FED7AA;
+    color: #9A3412;
+}
+.school-act-outcome--rejected {
+    background: #FFF1F2;
+    border-color: #FECDD3;
+    color: #9F1239;
+}
+.school-act-outcome__icon {
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+}
+.school-act-outcome__text {
+    font-size: 0.88rem;
+    line-height: 1.6;
     margin: 0;
+}
+.school-act-outcome__text strong {
+    font-weight: 700;
+}
+
+/* Validation error inline */
+.school-activity-review__field-error {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #E11D48;
+    background: #FFF1F2;
+    border: 1px solid #FECDD3;
+    padding: 0.55rem 0.85rem;
+    border-radius: var(--th-radius-sm);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    animation: thShake 0.35s ease-in-out;
+}
+
+/* Animations */
+@keyframes thPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.35); opacity: 0.6; }
+}
+@keyframes thShake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-4px); }
+    40%, 80% { transform: translateX(4px); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    .school-act-ribbon {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .act-sections-row--split {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 900px) {
+    .school-act-hero {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 1.5rem;
+    }
+    .school-act-hero__meta {
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 768px) {
+    .act-split-grid {
+        grid-template-columns: 1fr;
+    }
+    .act-timeline-pipeline {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
 }
 
 @media (max-width: 640px) {
-    .school-activities__filter-form { flex-direction: column; align-items: stretch; }
-    .school-activity-review { padding: 1rem; }
-    .school-activity-review__header { flex-direction: column; gap: 0.5rem; }
-    .school-activity-review__facts { grid-template-columns: 1fr 1fr; }
-    .school-activity-review__form .school-form__actions {
+    .school-act-summary {
+        grid-template-columns: 1fr 1fr;
+    }
+    .school-act-filters__form {
         flex-direction: column;
         align-items: stretch;
     }
-    .school-activity-review__form .school-form__actions .btn { width: 100%; justify-content: center; }
+    .school-act-filters__select {
+        flex: 1 1 auto;
+    }
+    .school-act-card {
+        padding: 1.25rem;
+    }
+    .school-act-card__header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.85rem;
+    }
+    .school-act-ribbon {
+        grid-template-columns: 1fr;
+    }
+    .school-act-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .school-act-actions button {
+        width: 100%;
+        justify-content: center;
+    }
+    .act-tiles-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .school-act-summary {
+        grid-template-columns: 1fr;
+    }
+    .school-act-card {
+        padding: 1rem;
+    }
+    .school-act-details summary {
+        padding: 0.85rem 1rem;
+    }
+    .school-act-details__body {
+        padding: 1rem;
+    }
+    .act-group-card {
+        padding: 1rem;
+    }
 }

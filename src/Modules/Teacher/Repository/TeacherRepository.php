@@ -21,19 +21,44 @@ final class TeacherRepository
             return $row;
         }
 
-        // Self-heal: If user exists in users table, insert a teacher_profiles row
+        // Self-heal: If user exists in users table, insert a teacher_profiles row with valid schoolId
         try {
             $uStmt = $this->pdo->prepare('SELECT id, email, fullName FROM users WHERE id = ? LIMIT 1');
             $uStmt->execute([$userId]);
             $uRow = $uStmt->fetch();
             if (is_array($uRow)) {
-                $schoolId = '22000000-b512-4ede-852b-f4a508f3e837';
-                $ins = $this->pdo->prepare('INSERT INTO teacher_profiles (id, userId, schoolId, isSchoolAdmin) VALUES (?, ?, ?, 0)');
-                $ins->execute([\TalentHub\Support\Uuid::v4(), $userId, $schoolId]);
-                $s->execute([$userId]);
-                $row = $s->fetch();
-                if (is_array($row)) {
-                    return $row;
+                $schoolId = null;
+                $smStmt = $this->pdo->prepare('SELECT schoolId FROM school_members WHERE userId = ? LIMIT 1');
+                $smStmt->execute([$userId]);
+                $smVal = $smStmt->fetchColumn();
+                if (is_string($smVal) && $smVal !== '') {
+                    $schoolId = $smVal;
+                }
+
+                if ($schoolId === null && !empty($uRow['email'])) {
+                    $scStmt = $this->pdo->prepare('SELECT id FROM schools WHERE email = ? LIMIT 1');
+                    $scStmt->execute([$uRow['email']]);
+                    $scVal = $scStmt->fetchColumn();
+                    if (is_string($scVal) && $scVal !== '') {
+                        $schoolId = $scVal;
+                    }
+                }
+
+                if ($schoolId === null) {
+                    $defaultSc = $this->pdo->query('SELECT id FROM schools ORDER BY createdAt ASC LIMIT 1')->fetchColumn();
+                    if (is_string($defaultSc) && $defaultSc !== '') {
+                        $schoolId = $defaultSc;
+                    }
+                }
+
+                if ($schoolId !== null) {
+                    $ins = $this->pdo->prepare('INSERT INTO teacher_profiles (id, userId, schoolId, isSchoolAdmin) VALUES (?, ?, ?, 0)');
+                    $ins->execute([\TalentHub\Support\Uuid::v4(), $userId, $schoolId]);
+                    $s->execute([$userId]);
+                    $row = $s->fetch();
+                    if (is_array($row)) {
+                        return $row;
+                    }
                 }
             }
         } catch (\Throwable) {}

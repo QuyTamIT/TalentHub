@@ -50,12 +50,7 @@ final class SchoolProjectRepository
             throw new ApiException(422, 'VALIDATION_FAILED', 'Tiêu đề dự án không được để trống.');
         }
 
-        $fundingGoal = isset($input['fundingGoal']) && trim((string) $input['fundingGoal']) !== '' ? trim((string) $input['fundingGoal']) : null;
-        if ($fundingGoal !== null) {
-            if (!preg_match('/^\d+(\.\d{1,2})?$/', $fundingGoal) || (float) $fundingGoal <= 0) {
-                throw new ApiException(422, 'VALIDATION_FAILED', 'Mục tiêu tài trợ (fundingGoal) phải là số dương lớn hơn 0.');
-            }
-        }
+        $fundingGoal = $this->normalizeFundingGoal($input['fundingGoal'] ?? null);
 
         $category = trim((string) ($input['category'] ?? 'general'));
         if ($category === '') {
@@ -214,10 +209,9 @@ SQL);
         if ($title === '' || mb_strlen($title) > 255) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Tiêu đề dự án phải có từ 1 đến 255 ký tự.');
         }
-        $fundingGoal = array_key_exists('fundingGoal', $input) && trim((string) $input['fundingGoal']) !== '' ? trim((string) $input['fundingGoal']) : $current['fundingGoal'];
-        if ($fundingGoal !== null && (!preg_match('/^\d+(\.\d{1,2})?$/', (string) $fundingGoal) || (float) $fundingGoal <= 0)) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Mục tiêu tài trợ phải là số dương.');
-        }
+        $fundingGoal = array_key_exists('fundingGoal', $input)
+            ? $this->normalizeFundingGoal($input['fundingGoal'])
+            : $current['fundingGoal'];
 
         $this->pdo->beginTransaction();
         try {
@@ -285,6 +279,53 @@ SQL);
             'requestId' => $requestId,
             'metadata' => json_encode($metadata, JSON_THROW_ON_ERROR),
         ]);
+    }
+
+    private function normalizeFundingGoal(mixed $raw): ?string
+    {
+        if ($raw === null) {
+            return null;
+        }
+        $str = trim((string) $raw);
+        if ($str === '') {
+            return null;
+        }
+
+        // Remove whitespace
+        $str = str_replace(' ', '', $str);
+
+        // If both comma and dot exist: determine which one is the decimal separator
+        if (str_contains($str, ',') && str_contains($str, '.')) {
+            if (strrpos($str, ',') > strrpos($str, '.')) {
+                // Comma is decimal separator (e.g. 10.000.000,50)
+                $str = str_replace('.', '', $str);
+                $str = str_replace(',', '.', $str);
+            } else {
+                // Dot is decimal separator (e.g. 10,000,000.50)
+                $str = str_replace(',', '', $str);
+            }
+        } elseif (substr_count($str, '.') > 1) {
+            // Multiple dots (e.g. 10.000.000 -> 10000000)
+            $str = str_replace('.', '', $str);
+        } elseif (substr_count($str, ',') > 1) {
+            // Multiple commas (e.g. 10,000,000 -> 10000000)
+            $str = str_replace(',', '', $str);
+        } elseif (preg_match('/^\d{1,3}\.\d{3}$/', $str)) {
+            // Exactly 3 digits after a single dot: VND thousands separator (e.g. 10.000 -> 10000)
+            $str = str_replace('.', '', $str);
+        } elseif (str_contains($str, ',')) {
+            if (preg_match('/^\d{1,3},\d{3}$/', $str)) {
+                $str = str_replace(',', '', $str);
+            } else {
+                $str = str_replace(',', '.', $str);
+            }
+        }
+
+        if (!preg_match('/^\d+(\.\d{1,2})?$/', $str) || (float) $str <= 0) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Mục tiêu tài trợ (fundingGoal) phải là số dương lớn hơn 0.');
+        }
+
+        return $str;
     }
 
     private function tableExists(string $tableName): bool

@@ -216,6 +216,7 @@ function initTalentSearchModule() {
             major_field: majorField,
             headline: headline,
             skills: skills,
+            projects: Array.isArray(raw.projects) ? raw.projects : [],
             experience_hours: expHours,
             talent_score: score,
             match_score: matchScore,
@@ -337,81 +338,107 @@ function initTalentSearchModule() {
             // Quick Filters (Economic / FMCG / General Business)
             if (activeQuickFilters.has('marketing_pr') || activeQuickFilters.has('marketing_media')) {
                 const mktSet = new Set(['digital marketing', 'marketing', 'pr', 'sáng tạo nội dung', 'content creator', 'content marketing', 'quản trị thương hiệu', 'social ads', 'seo', 'quảng bá', 'truyền thông', 'copywriting', 'media']);
-                const hasMkt = talent.skills.some(s => mktSet.has(s.toLowerCase().trim())) || /marketing|pr|truyền thông|brand|quảng cáo|media/i.test(talent.headline || talent.major_field || '');
+                const hasMkt = talent.skills.some(s => mktSet.has(s.toLowerCase().trim())) 
+                    || /marketing|pr|truyền thông|brand|quảng cáo|media/i.test(talent.headline || talent.major_field || '')
+                    || (Array.isArray(talent.projects) && talent.projects.some(p => /marketing|pr|truyền thông|quảng cáo|media|brand/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
                 if (!hasMkt) return false;
             }
 
             if (activeQuickFilters.has('biz_mgmt')) {
                 const bizSet = new Set(['quản trị kinh doanh', 'quản trị thương hiệu', 'phân tích thị trường', 'nghiên cứu thị trường', 'kinh doanh quốc tế', 'quản lý dự án', 'kỹ năng thuyết trình', 'khởi nghiệp & quản trị', 'kinh doanh & quản trị', 'quản trị', 'bán hàng', 'sales']);
-                const hasBiz = talent.skills.some(s => bizSet.has(s.toLowerCase().trim())) || /kinh doanh|quản trị|business|qtkd|thương mại|khởi nghiệp/i.test(talent.headline || talent.major_field || '');
+                const hasBiz = talent.skills.some(s => bizSet.has(s.toLowerCase().trim())) 
+                    || /kinh doanh|quản trị|business|qtkd|thương mại|khởi nghiệp/i.test(talent.headline || talent.major_field || '')
+                    || (Array.isArray(talent.projects) && talent.projects.some(p => /kinh doanh|quản trị|business|khởi nghiệp/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
                 if (!hasBiz) return false;
             }
 
             if (activeQuickFilters.has('data_bi')) {
                 const biSet = new Set(['powerbi', 'power bi', 'phân tích dữ liệu', 'data analysis', 'data analytics', 'excel nâng cao', 'sql', 'tableau', 'thống kê']);
-                const hasBI = talent.skills.some(s => biSet.has(s.toLowerCase().trim())) || /bi|phân tích|data|dữ liệu|analytics/i.test(talent.headline || talent.major_field || '');
+                const hasBI = talent.skills.some(s => biSet.has(s.toLowerCase().trim())) 
+                    || /bi|phân tích|data|dữ liệu|analytics/i.test(talent.headline || talent.major_field || '')
+                    || (Array.isArray(talent.projects) && talent.projects.some(p => /bi|phân tích|data|dữ liệu|analytics|powerbi/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
                 if (!hasBI) return false;
             }
 
             if (activeQuickFilters.has('logistics_sc')) {
                 const logSet = new Set(['logistics', 'quản trị kho vận', 'quản lý kho vận', 'chuỗi cung ứng', 'supply chain', 'tối ưu hóa đơn hàng', 'phân tích dữ liệu vận hành', 'vận hành', 'kho vận', 'xuất nhập khẩu', 'vận tải']);
-                const hasLog = talent.skills.some(s => logSet.has(s.toLowerCase().trim())) || /logistics|chuỗi cung ứng|kho vận|supply chain|vận tải|xuất nhập khẩu/i.test(talent.headline || talent.major_field || '');
+                const hasLog = talent.skills.some(s => logSet.has(s.toLowerCase().trim())) 
+                    || /logistics|chuỗi cung ứng|kho vận|supply chain|vận tải|xuất nhập khẩu/i.test(talent.headline || talent.major_field || '')
+                    || (Array.isArray(talent.projects) && talent.projects.some(p => /logistics|chuỗi cung ứng|kho vận|supply chain/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
                 if (!hasLog) return false;
             }
 
             if (activeQuickFilters.has('finance_acc')) {
                 const finSet = new Set(['tài chính', 'kế toán', 'lập báo cáo tài chính', 'kế toán chi phí', 'cost accounting', 'finance', 'excel nâng cao', 'ifrs', 'kế toán quản trị', 'kiểm toán', 'tài chính - ngân hàng', 'ngân hàng']);
-                const hasFin = talent.skills.some(s => finSet.has(s.toLowerCase().trim())) || /tài chính|kế toán|finance|accounting|ngân hàng|kiểm toán/i.test(talent.headline || talent.major_field || '');
+                const hasFin = talent.skills.some(s => finSet.has(s.toLowerCase().trim())) 
+                    || /tài chính|kế toán|finance|accounting|ngân hàng|kiểm toán/i.test(talent.headline || talent.major_field || '')
+                    || (Array.isArray(talent.projects) && talent.projects.some(p => /tài chính|kế toán|finance|accounting/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
                 if (!hasFin) return false;
             }
 
             // Quick Filters (Tech / IT)
             if (activeQuickFilters.has('ai_ml')) {
-                const aiSkillsSet = new Set(['ai/ml', 'machine learning', 'deep learning', 'pytorch', 'tensorflow', 'trí tuệ nhân tạo', 'ai / machine learning', 'computer vision', 'opencv', 'python']);
-                const hasAIML = talent.skills.some(s => aiSkillsSet.has(s.toLowerCase().trim())) || /ai|machine learning|computer vision|data/i.test(talent.headline || '');
+                const aiSkillsSet = new Set(['ai/ml', 'machine learning', 'deep learning', 'pytorch', 'tensorflow', 'trí tuệ nhân tạo', 'ai / machine learning', 'computer vision', 'opencv', 'python', 'ai']);
+                const hasAIML = talent.skills.some(s => aiSkillsSet.has(s.toLowerCase().trim())) 
+                    || /ai|machine learning|computer vision|data|trí tuệ nhân tạo|deep learning/i.test(talent.headline || talent.major_field || '')
+                    || (Array.isArray(talent.projects) && talent.projects.some(p => /ai|machine learning|deep learning|trí tuệ nhân tạo|computer vision|opencv|pytorch|tensorflow/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
                 if (!hasAIML) return false;
             }
 
             if (activeQuickFilters.has('frontend')) {
-                const feSkillsSet = new Set(['react', 'vue.js', 'vuejs', 'html', 'css', 'javascript', 'typescript', 'frontend', 'ui/ux', 'tailwind']);
-                const hasFE = talent.skills.some(s => feSkillsSet.has(s.toLowerCase().trim())) || /frontend|react|vue|web/i.test(talent.headline || '');
+                const feSkillsSet = new Set(['react', 'reactjs', 'react.js', 'vue.js', 'vuejs', 'vue', 'angular', 'html', 'html5', 'html/css', 'css', 'css3', 'javascript', 'typescript', 'frontend', 'frontend development', 'ui/ux', 'tailwind', 'tailwind css', 'bootstrap', 'next.js', 'nextjs', 'web development']);
+                const hasFE = talent.skills.some(s => feSkillsSet.has(s.toLowerCase().trim())) 
+                    || /frontend|react|vue|angular|web|ui\/ux|giao diện/i.test(talent.headline || talent.major_field || '')
+                    || (Array.isArray(talent.projects) && talent.projects.some(p => /frontend|react|vue|angular|html|css|giao diện/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
                 if (!hasFE) return false;
             }
 
             if (activeQuickFilters.has('backend')) {
-                const beSkillsSet = new Set(['node.js', 'nodejs', 'java', 'spring boot', 'springboot', 'docker', 'mysql', 'sql', 'rest api', 'backend', 'microservices', 'postgresql', 'python']);
-                const hasBE = talent.skills.some(s => beSkillsSet.has(s.toLowerCase().trim())) || /backend|java|spring|node/i.test(talent.headline || '');
+                const beSkillsSet = new Set(['node.js', 'nodejs', 'java', 'spring boot', 'springboot', 'docker', 'mysql', 'sql', 'rest api', 'backend', 'backend development', 'microservices', 'postgresql', 'python', 'php', 'laravel', 'c#', '.net', 'asp.net', 'golang', 'go', 'django', 'fastapi', 'express', 'database', 'cơ sở dữ liệu']);
+                const hasBE = talent.skills.some(s => beSkillsSet.has(s.toLowerCase().trim())) 
+                    || /backend|java|spring|node|php|mysql|c#|\.net|python|sql|database|hệ thống/i.test(talent.headline || talent.major_field || '')
+                    || (Array.isArray(talent.projects) && talent.projects.some(p => /backend|php|mysql|sql|java|spring|node|api|quản lý sinh viên|máy chủ|cơ sở dữ liệu/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
                 if (!hasBE) return false;
             }
 
             if (activeQuickFilters.has('security')) {
                 const secSkillsSet = new Set(['an toàn thông tin', 'cyber_security', 'cyber security', 'security', 'bảo mật', 'an ninh mạng']);
-                const hasSec = talent.skills.some(s => secSkillsSet.has(s.toLowerCase().trim())) || /security|an toàn thông tin|an ninh/i.test(talent.headline || '');
+                const hasSec = talent.skills.some(s => secSkillsSet.has(s.toLowerCase().trim())) 
+                    || /security|an toàn thông tin|an ninh|bảo mật/i.test(talent.headline || talent.major_field || '')
+                    || (Array.isArray(talent.projects) && talent.projects.some(p => /security|an toàn thông tin|bảo mật|an ninh/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
                 if (!hasSec) return false;
             }
 
             // Quick Filters (Engineering, Creative & Service)
             if (activeQuickFilters.has('electronics_automation')) {
                 const elecSet = new Set(['điện tử', 'tự động hóa', 'automation', 'electronics', 'robotics', 'plc', 'scada', 'vi điều khiển', 'nhúng', 'embedded', 'iot', 'cơ điện tử', 'mạch điện tử', 'pcb', 'arduino', 'kỹ thuật điện tử']);
-                const hasElec = talent.skills.some(s => elecSet.has(s.toLowerCase().trim())) || /điện tử|tự động hóa|automation|electronics|robotics|plc|vi điều khiển|nhúng|embedded|iot|cơ điện tử/i.test(talent.headline || talent.major_field || '');
+                const hasElec = talent.skills.some(s => elecSet.has(s.toLowerCase().trim())) 
+                    || /điện tử|tự động hóa|automation|electronics|robotics|plc|vi điều khiển|nhúng|embedded|iot|cơ điện tử/i.test(talent.headline || talent.major_field || '')
+                    || (Array.isArray(talent.projects) && talent.projects.some(p => /điện tử|tự động hóa|iot|robotics|embedded/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
                 if (!hasElec) return false;
             }
 
             if (activeQuickFilters.has('mechanical_engineering')) {
                 const mechSet = new Set(['cơ khí', 'kỹ thuật cơ khí', 'mechanical', 'chế tạo máy', 'cad', 'cam', 'cnc', 'solidworks', 'autocad', 'kỹ thuật chế tạo', 'bảo trì cơ khí', 'cơ điện tử']);
-                const hasMech = talent.skills.some(s => mechSet.has(s.toLowerCase().trim())) || /cơ khí|chế tạo|mechanical|cad|cam|cnc|solidworks|autocad|kỹ thuật cơ khí/i.test(talent.headline || talent.major_field || '');
+                const hasMech = talent.skills.some(s => mechSet.has(s.toLowerCase().trim())) 
+                    || /cơ khí|chế tạo|mechanical|cad|cam|cnc|solidworks|autocad|kỹ thuật cơ khí/i.test(talent.headline || talent.major_field || '')
+                    || (Array.isArray(talent.projects) && talent.projects.some(p => /cơ khí|chế tạo|mechanical|cad|cam|cnc/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
                 if (!hasMech) return false;
             }
 
             if (activeQuickFilters.has('design_multimedia')) {
                 const designSet = new Set(['thiết kế sáng tạo & ui/ux', 'thiết kế đồ họa', 'graphic design', 'ui/ux', 'ui/ux design', 'photoshop', 'illustrator', 'figma', 'video editing', 'dựng video', 'animation', '3d', 'sáng tạo nội dung', 'multimedia', 'đa phương tiện', 'thiết kế', 'design']);
-                const hasDesign = talent.skills.some(s => designSet.has(s.toLowerCase().trim())) || /thiết kế|đa phương tiện|multimedia|graphic|đồ họa|ui\/ux|design|figma|photoshop|video|animation/i.test(talent.headline || talent.major_field || '');
+                const hasDesign = talent.skills.some(s => designSet.has(s.toLowerCase().trim())) 
+                    || /thiết kế|đa phương tiện|multimedia|graphic|đồ họa|ui\/ux|design|figma|photoshop|video|animation/i.test(talent.headline || talent.major_field || '')
+                    || (Array.isArray(talent.projects) && talent.projects.some(p => /thiết kế|đồ họa|ui\/ux|design|figma|photoshop/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
                 if (!hasDesign) return false;
             }
 
             if (activeQuickFilters.has('tourism_hospitality')) {
                 const tourSet = new Set(['du lịch', 'khách sạn', 'tourism', 'hospitality', 'quản trị khách sạn', 'nhà hàng', 'lữ hành', 'hướng dẫn viên', 'lễ tân', 'f&b', 'quản trị dịch vụ du lịch', 'tour guide', 'nghiệp vụ nhà hàng', 'nghiệp vụ khách sạn']);
-                const hasTour = talent.skills.some(s => tourSet.has(s.toLowerCase().trim())) || /du lịch|khách sạn|tourism|hospitality|nhà hàng|lữ hành|hướng dẫn viên|lễ tân|f&b|tour/i.test(talent.headline || talent.major_field || '');
+                const hasTour = talent.skills.some(s => tourSet.has(s.toLowerCase().trim())) 
+                    || /du lịch|khách sạn|tourism|hospitality|nhà hàng|lữ hành|hướng dẫn viên|lễ tân|f&b|tour/i.test(talent.headline || talent.major_field || '')
+                    || (Array.isArray(talent.projects) && talent.projects.some(p => /du lịch|khách sạn|tourism|nhà hàng|lữ hành/i.test((p.title || '') + ' ' + (p.description || '') + ' ' + (p.category || ''))));
                 if (!hasTour) return false;
             }
 

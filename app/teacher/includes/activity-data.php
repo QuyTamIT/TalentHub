@@ -7,6 +7,13 @@
 use TalentHub\Modules\Teacher\Repository\TeacherActivityRepository;
 use TalentHub\Modules\Teacher\Service\TeacherActivityService;
 
+if (!function_exists('teacherActivitiesEscape')) {
+    function teacherActivitiesEscape(mixed $value): string
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    }
+}
+
 function teacherActivitiesService(PDO $pdo): TeacherActivityService
 {
     return new TeacherActivityService(new TeacherActivityRepository($pdo));
@@ -131,11 +138,24 @@ function teacherActivitiesNormalize(array $row, ?DateTimeImmutable $now = null):
         $registrationLabel = 'Đã lưu trữ';
     }
 
+    $displayCategory = trim((string) ($row['displayCategory'] ?? ''));
+    if ($displayCategory === '') {
+        $categoryCatalog = [
+            'career_technical' => 'Kỹ thuật',
+            'career_business' => 'Kinh doanh',
+            'career_arts' => 'Sáng tạo',
+            'career_sports_academic' => 'Cộng đồng',
+        ];
+        $categoryKey = strtolower(trim((string) ($row['category'] ?? '')));
+        $displayCategory = $categoryCatalog[$categoryKey] ?? '';
+    }
+
     return array_merge($row, [
         'raw_status' => $rawStatus,
         'status_key' => $statusKey,
         'status_label' => $statusLabels[$statusKey] ?? 'Không xác định',
         'status_class' => $statusClasses[$statusKey] ?? 'muted',
+        'category_label' => $displayCategory,
         'registered_count' => $registeredCount,
         'capacity' => $capacity,
         'registration_available' => $registrationAvailable,
@@ -225,11 +245,22 @@ function teacherActivitiesSchoolId(PDO $pdo, string $teacherId): ?string
     $rows = teacherDashboardRows($pdo, "
         SELECT schoolId
         FROM teacher_profiles
-        WHERE id = :teacherId
+        WHERE id = :teacherId OR userId = :teacherId2
         LIMIT 1
-    ", ['teacherId' => $teacherId]);
+    ", ['teacherId' => $teacherId, 'teacherId2' => $teacherId]);
 
-    return !empty($rows[0]['schoolId']) ? (string) $rows[0]['schoolId'] : null;
+    if (!empty($rows[0]['schoolId'])) {
+        return (string) $rows[0]['schoolId'];
+    }
+
+    $smRows = teacherDashboardRows($pdo, "
+        SELECT schoolId
+        FROM school_members
+        WHERE userId = :userId
+        LIMIT 1
+    ", ['userId' => $teacherId]);
+
+    return !empty($smRows[0]['schoolId']) ? (string) $smRows[0]['schoolId'] : null;
 }
 
 function teacherActivitiesRegistrations(PDO $pdo, string $teacherId, string $activityId): array
@@ -248,4 +279,34 @@ function teacherActivitiesUuid(): string
     $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
 
     return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
+}
+
+if (!function_exists('teacherActivitiesLifecycleAction')) {
+    function teacherActivitiesLifecycleAction(array $activity): ?array
+    {
+        $rawStatus = strtolower(trim((string) ($activity['raw_status'] ?? '')));
+
+        if ($rawStatus === 'draft') {
+            return match ((string) ($activity['approval_status'] ?? 'draft')) {
+                'draft' => ['label' => 'Gửi Nhà trường duyệt', 'form_action' => 'submit_for_school_review'],
+                'changes_requested' => ['label' => 'Gửi duyệt lại', 'form_action' => 'submit_for_school_review'],
+                'approved' => ['label' => 'Công bố hoạt động', 'form_action' => 'advance_status'],
+                default => null,
+            };
+        }
+
+        if ($rawStatus === 'published') {
+            return [
+                'label' => 'Bắt đầu hoạt động',
+                'form_action' => 'advance_status',
+            ];
+        }
+
+        return match ($rawStatus) {
+            'ongoing' => ['label' => 'Kết thúc hoạt động', 'form_action' => 'advance_status'],
+            'completed' => ['label' => 'Lưu trữ hoạt động', 'form_action' => 'advance_status'],
+            'archived' => null,
+            default => null,
+        };
+    }
 }

@@ -63,64 +63,72 @@ if (!function_exists('teacherActivitiesCategoryCatalog')) {
     }
 }
 
-function teacherActivitiesCategoryChoice(array $activity, array $catalog): string
-{
-    foreach ($catalog as $choice => $mapping) {
-        if (
-            (string) ($activity['category'] ?? '') === $mapping['category']
-            && (string) ($activity['displayCategory'] ?? '') === $mapping['displayCategory']
-            && (string) ($activity['filterCategory'] ?? '') === $mapping['filterCategory']
-        ) {
-            return $choice;
+if (!function_exists('teacherActivitiesCategoryChoice')) {
+    function teacherActivitiesCategoryChoice(array $activity, array $catalog): string
+    {
+        foreach ($catalog as $choice => $mapping) {
+            if (
+                (string) ($activity['category'] ?? '') === $mapping['category']
+                && (string) ($activity['displayCategory'] ?? '') === $mapping['displayCategory']
+                && (string) ($activity['filterCategory'] ?? '') === $mapping['filterCategory']
+            ) {
+                return $choice;
+            }
         }
-    }
 
-    return '__preserve__';
+        return '__preserve__';
+    }
 }
 
-function teacherActivitiesResolveCategory(string $choice, array $catalog, ?array $ownedActivity): ?array
-{
-    if (isset($catalog[$choice])) {
-        return $catalog[$choice];
-    }
+if (!function_exists('teacherActivitiesResolveCategory')) {
+    function teacherActivitiesResolveCategory(string $choice, array $catalog, ?array $ownedActivity): ?array
+    {
+        if (isset($catalog[$choice])) {
+            return $catalog[$choice];
+        }
 
-    if ($choice === '__preserve__' && $ownedActivity !== null) {
-        return [
-            'category' => (string) ($ownedActivity['category'] ?? ''),
-            'displayCategory' => (string) ($ownedActivity['displayCategory'] ?? ''),
-            'filterCategory' => (string) ($ownedActivity['filterCategory'] ?? ''),
+        if ($choice === '__preserve__' && $ownedActivity !== null) {
+            return [
+                'category' => (string) ($ownedActivity['category'] ?? ''),
+                'displayCategory' => (string) ($ownedActivity['displayCategory'] ?? ''),
+                'filterCategory' => (string) ($ownedActivity['filterCategory'] ?? ''),
+            ];
+        }
+
+        return null;
+    }
+}
+
+if (!function_exists('teacherActivitiesSummaryDate')) {
+    function teacherActivitiesSummaryDate(string $value): string
+    {
+        $date = teacherActivitiesFormDate($value);
+        return $date ? $date->format('d/m/Y H:i') : 'Chưa thiết lập';
+    }
+}
+
+if (!function_exists('teacherActivitiesErrorField')) {
+    function teacherActivitiesErrorField(string $message): ?string
+    {
+        $message = mb_strtolower($message, 'UTF-8');
+        $patterns = [
+            'tóm tắt' => 'summary', 'mở đăng ký' => 'registrationOpensAt', 'đóng đăng ký' => 'registrationClosesAt',
+            'hủy đăng ký' => 'cancellationClosesAt',
+            'title' => 'title', 'tên hoạt động' => 'title', 'nhóm hoạt động' => 'categoryChoice',
+            'category' => 'categoryChoice', 'bắt đầu' => 'startAt', 'kết thúc' => 'endAt',
+            'sức chứa' => 'capacity', 'hình thức' => 'deliveryMode', 'online' => 'onlineMeetingUrl',
+            'trực tuyến' => 'onlineMeetingUrl', 'công nhận' => 'confirmedHours',
+            'giờ trải nghiệm' => 'confirmedHours', 'cách duyệt' => 'approvalMode',
+            'chi phí' => 'feeAmount', 'tiền tệ' => 'currency', 'email' => 'organizerEmail',
+            'điện thoại' => 'organizerPhone', 'alt' => 'coverImageAlt', 'ảnh bìa' => 'coverImageUrl',
+            'đơn vị tổ chức' => 'organizerName', 'giáo viên phụ trách' => 'responsibleTeacherId',
+            'mô tả' => 'description', 'địa điểm' => 'locationName',
         ];
+        foreach ($patterns as $needle => $field) {
+            if (str_contains($message, $needle)) return $field;
+        }
+        return null;
     }
-
-    return null;
-}
-
-function teacherActivitiesSummaryDate(string $value): string
-{
-    $date = teacherActivitiesFormDate($value);
-    return $date ? $date->format('d/m/Y H:i') : 'Chưa thiết lập';
-}
-
-function teacherActivitiesErrorField(string $message): ?string
-{
-    $message = mb_strtolower($message, 'UTF-8');
-    $patterns = [
-        'tóm tắt' => 'summary', 'mở đăng ký' => 'registrationOpensAt', 'đóng đăng ký' => 'registrationClosesAt',
-        'hủy đăng ký' => 'cancellationClosesAt',
-        'title' => 'title', 'tên hoạt động' => 'title', 'nhóm hoạt động' => 'categoryChoice',
-        'category' => 'categoryChoice', 'bắt đầu' => 'startAt', 'kết thúc' => 'endAt',
-        'sức chứa' => 'capacity', 'hình thức' => 'deliveryMode', 'online' => 'onlineMeetingUrl',
-        'trực tuyến' => 'onlineMeetingUrl', 'công nhận' => 'confirmedHours',
-        'giờ trải nghiệm' => 'confirmedHours', 'cách duyệt' => 'approvalMode',
-        'chi phí' => 'feeAmount', 'tiền tệ' => 'currency', 'email' => 'organizerEmail',
-        'điện thoại' => 'organizerPhone', 'alt' => 'coverImageAlt', 'ảnh bìa' => 'coverImageUrl',
-        'đơn vị tổ chức' => 'organizerName', 'giáo viên phụ trách' => 'responsibleTeacherId',
-        'mô tả' => 'description', 'địa điểm' => 'locationName',
-    ];
-    foreach ($patterns as $needle => $field) {
-        if (str_contains($message, $needle)) return $field;
-    }
-    return null;
 }
 
 if (!function_exists('teacherActivitiesLifecycleAction')) {
@@ -138,20 +146,9 @@ if (!function_exists('teacherActivitiesLifecycleAction')) {
         }
 
         if ($rawStatus === 'published') {
-            try {
-                $startAt = new DateTimeImmutable((string) ($activity['startAt'] ?? ''), new DateTimeZone('UTC'));
-                $canStart = new DateTimeImmutable('now', new DateTimeZone('UTC')) >= $startAt;
-                $startLabel = $startAt->setTimezone(new DateTimeZone('Asia/Ho_Chi_Minh'))->format('d/m/Y H:i');
-            } catch (Throwable) {
-                $canStart = false;
-                $startLabel = 'thời gian đã lên lịch';
-            }
-
             return [
                 'label' => 'Bắt đầu hoạt động',
                 'form_action' => 'advance_status',
-                'disabled' => !$canStart,
-                'title' => $canStart ? '' : 'Có thể bắt đầu từ ' . $startLabel,
             ];
         }
 
@@ -211,7 +208,7 @@ $action = strtolower(trim((string) ($_GET['action'] ?? '')));
 $activityId = trim((string) ($_GET['id'] ?? ''));
 $search = trim((string) ($_GET['q'] ?? ''));
 $statusFilter = strtolower(trim((string) ($_GET['status'] ?? '')));
-    $statusFilters = ['draft', 'published', 'ongoing', 'completed', 'archived'];
+$statusFilters = ['draft', 'pending_school_review', 'approved', 'published', 'ongoing', 'completed', 'archived'];
 if (!in_array($statusFilter, $statusFilters, true)) {
     $statusFilter = '';
 }
@@ -242,6 +239,7 @@ if (isset($_GET['saved'])) {
         'created' => 'Đã lưu bản nháp. Chọn “Gửi Nhà trường duyệt” để xin phê duyệt trước khi công bố.',
         'updated' => 'Đã cập nhật hoạt động. Bạn có thể gửi Nhà trường duyệt khi thông tin đã hoàn tất.',
         'advanced' => 'Đã chuyển hoạt động sang trạng thái mới.',
+        'started' => 'Đã bắt đầu hoạt động thành công. Hoạt động hiện đang diễn ra.',
         'registration' => 'Đã cập nhật trạng thái đăng ký.',
         'submitted' => 'Đã gửi hoạt động đến Nhà trường. Bạn có thể công bố sau khi được duyệt.',
     ];
@@ -298,8 +296,8 @@ if ($action === 'edit' && $selectedActivity) {
         'title' => (string) ($selectedActivity['title'] ?? ''),
         'categoryChoice' => teacherActivitiesCategoryChoice($selectedActivity, $categoryCatalog),
         'category' => (string) ($selectedActivity['category'] ?? ''),
-        'displayCategory' => (string) ($selectedActivity['displayCategory'] ?? $selectedActivity['category'] ?? ''),
-        'filterCategory' => (string) ($selectedActivity['filterCategory'] ?? $selectedActivity['category'] ?? ''),
+        'displayCategory' => (string) (!empty($selectedActivity['displayCategory']) ? $selectedActivity['displayCategory'] : ($selectedActivity['category_label'] ?? '')),
+        'filterCategory' => (string) (!empty($selectedActivity['filterCategory']) ? $selectedActivity['filterCategory'] : ($selectedActivity['category_label'] ?? '')),
         'summary' => (string) ($selectedActivity['summary'] ?? ''),
         'description' => (string) ($selectedActivity['description'] ?? ''),
         'experienceHighlights' => implode("\n", $selectedActivity['experience_highlights_list'] ?? []),
@@ -393,8 +391,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$errors) {
             try {
-                $activityService->advanceStatus($teacherId, $postedActivityId);
-                header('Location: index.php?saved=advanced');
+                $nextStatus = $activityService->advanceStatus($teacherId, $postedActivityId);
+                $savedKey = $nextStatus === 'ongoing' ? 'started' : 'advanced';
+                $redirectUrl = 'index.php?saved=' . $savedKey;
+                if ($action === 'view') {
+                    $redirectUrl = 'index.php?action=view&id=' . rawurlencode($postedActivityId) . '&saved=' . $savedKey;
+                }
+                header('Location: ' . $redirectUrl);
                 exit;
             } catch (Throwable $exception) {
                 $msg = $exception->getMessage() ?: 'Không thể cập nhật trạng thái hoạt động. Vui lòng kiểm tra lại kết nối dữ liệu.';
@@ -712,6 +715,12 @@ $additionalSummary = $additionalLabels ? 'Đã có ' . implode(', ', $additional
 $activities = $pdo && $teacherId !== '' ? teacherActivitiesRead($pdo, $teacherId, $search) : [];
 if ($statusFilter !== '') {
     $activities = array_values(array_filter($activities, static function (array $activity) use ($statusFilter): bool {
+        if ($statusFilter === 'approved') {
+            return ($activity['approval_status'] ?? '') === 'approved' && ($activity['raw_status'] ?? '') === 'draft';
+        }
+        if ($statusFilter === 'pending_school_review') {
+            return ($activity['approval_status'] ?? '') === 'pending_school_review';
+        }
         return $activity['status_key'] === $statusFilter;
     }));
 }
@@ -720,6 +729,16 @@ $registrationRows = [];
 if ($action === 'registrations' && $selectedActivity && $pdo && $teacherId !== '') {
     $registrationRows = teacherActivitiesRegistrations($pdo, $teacherId, $activityId);
 }
+
+$selectedRespId = (string) ($formValues['responsibleTeacherId'] ?? '');
+$dedupedTeachers = [];
+foreach ($responsibleTeachers as $rt) {
+    $tName = (string) $rt['name'];
+    if (!isset($dedupedTeachers[$tName]) || $rt['id'] === $selectedRespId) {
+        $dedupedTeachers[$tName] = $rt;
+    }
+}
+$responsibleTeachers = array_values($dedupedTeachers);
 
 $showForm = in_array($action, ['create', 'edit'], true);
 $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo hoạt động mới';
@@ -786,6 +805,9 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                     <div class="teacher-activities-form__heading-row">
                                         <h2 class="teacher-section-box__title"><?= teacherActivitiesEscape($formHeading); ?></h2>
                                         <span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($action === 'edit' ? ($selectedActivity['status_class'] ?? 'draft') : 'draft'); ?>"><?= teacherActivitiesEscape($action === 'edit' ? ($selectedActivity['status_label'] ?? 'Bản nháp') : 'Bản nháp'); ?></span>
+                                        <?php if ($action === 'edit' && !empty($selectedActivity['approval_status_label']) && ($selectedActivity['approval_status'] ?? '') !== 'draft'): ?>
+                                            <span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($selectedActivity['approval_status_class']); ?>"><?= teacherActivitiesEscape($selectedActivity['approval_status_label']); ?></span>
+                                        <?php endif; ?>
                                     </div>
                                     <p class="teacher-section-box__subtitle">Nhập thông tin chính trước, sau đó bổ sung thiết lập khi cần.</p>
                                 </div>
@@ -881,12 +903,17 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                 </div>
                             </div>
                             <div class="teacher-activity-detail-grid">
-                                <div><span>Trạng thái</span><strong><span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($selectedActivity['status_class']); ?>"><?= teacherActivitiesEscape($selectedActivity['status_label']); ?></span></strong></div>
+                                <div><span>Trạng thái</span><strong>
+                                    <span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($selectedActivity['status_class']); ?>"><?= teacherActivitiesEscape($selectedActivity['status_label']); ?></span>
+                                    <?php if (!empty($selectedActivity['approval_status_label']) && ($selectedActivity['approval_status'] ?? '') !== 'draft'): ?>
+                                        <span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($selectedActivity['approval_status_class']); ?>"><?= teacherActivitiesEscape($selectedActivity['approval_status_label']); ?></span>
+                                    <?php endif; ?>
+                                </strong></div>
                                 <div><span>Thời gian</span><strong><?= teacherActivitiesEscape($selectedActivity['start_label']); ?> – <?= teacherActivitiesEscape($selectedActivity['end_label']); ?></strong></div>
                                 <div><span>Địa điểm</span><strong><?= teacherActivitiesEscape($selectedActivity['locationName'] ?? 'Chưa xác định địa điểm'); ?></strong></div>
                                 <div><span>Đăng ký</span><strong><?= teacherActivitiesEscape((string) $selectedActivity['registered_count']); ?> / <?= teacherActivitiesEscape((string) $selectedActivity['capacity']); ?></strong></div>
                                 <div><span>Khả năng đăng ký</span><strong><span class="teacher-registration-pill teacher-registration-pill--<?= $selectedActivity['registration_available'] ? 'available' : 'unavailable'; ?>"><?= teacherActivitiesEscape($selectedActivity['registration_label']); ?></span></strong></div>
-                                <div><span>Nhóm</span><strong><?= teacherActivitiesEscape($selectedActivity['category']); ?></strong></div>
+                                <div><span>Nhóm</span><strong><?= teacherActivitiesEscape(!empty($selectedActivity['category_label']) ? $selectedActivity['category_label'] : (!empty($selectedActivity['displayCategory']) ? $selectedActivity['displayCategory'] : 'Chưa phân loại')); ?></strong></div>
                             </div>
                         </section>
                     <?php elseif ($action === 'registrations' && $selectedActivity): ?>
@@ -976,6 +1003,8 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                 <select name="status" class="typeui-select typeui-select--compact">
                                     <option value="">Tất cả trạng thái</option>
                                     <option value="draft" <?= $statusFilter === 'draft' ? 'selected' : ''; ?>>Bản nháp</option>
+                                    <option value="pending_school_review" <?= $statusFilter === 'pending_school_review' ? 'selected' : ''; ?>>Chờ duyệt</option>
+                                    <option value="approved" <?= $statusFilter === 'approved' ? 'selected' : ''; ?>>Đã duyệt (chờ công bố)</option>
                                     <option value="published" <?= $statusFilter === 'published' ? 'selected' : ''; ?>>Đã công bố</option>
                                     <option value="ongoing" <?= $statusFilter === 'ongoing' ? 'selected' : ''; ?>>Đang diễn ra</option>
                                     <option value="completed" <?= $statusFilter === 'completed' ? 'selected' : ''; ?>>Đã hoàn tất</option>
@@ -1019,7 +1048,9 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                             <tr>
                                                 <td data-label="Hoạt động">
                                                     <a href="?action=view&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-title"><?= teacherActivitiesEscape($activity['title']); ?></a>
-                                                    <span class="teacher-activity-category"><?= teacherActivitiesEscape($activity['category']); ?></span>
+                                                    <?php if (!empty($activity['category_label'])): ?>
+                                                        <span class="teacher-activity-category"><?= teacherActivitiesEscape($activity['category_label']); ?></span>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td data-label="Thời gian">
                                                     <span class="teacher-activity-time"><?= teacherActivitiesEscape($activity['start_label']); ?></span>
@@ -1029,6 +1060,9 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                                 <td data-label="Đăng ký"><strong><?= teacherActivitiesEscape((string) $activity['registered_count']); ?> / <?= teacherActivitiesEscape((string) $activity['capacity']); ?></strong></td>
                                                 <td data-label="Trạng thái">
                                                     <span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($activity['status_class']); ?>"><?= teacherActivitiesEscape($activity['status_label']); ?></span>
+                                                    <?php if (!empty($activity['approval_status_label']) && ($activity['approval_status'] ?? '') !== 'draft'): ?>
+                                                        <span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($activity['approval_status_class']); ?>"><?= teacherActivitiesEscape($activity['approval_status_label']); ?></span>
+                                                    <?php endif; ?>
                                                     <span class="teacher-registration-pill teacher-registration-pill--<?= $activity['registration_available'] ? 'available' : 'unavailable'; ?>"><?= teacherActivitiesEscape($activity['registration_label']); ?></span>
                                                 </td>
                                                 <td data-label="Thao tác">

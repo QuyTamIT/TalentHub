@@ -188,6 +188,7 @@ final class EnterpriseTalentRepository
                 'skills' => [],
                 'badges' => [],
                 'assessments' => [],
+                'projects' => [],
             ];
         }
 
@@ -240,6 +241,70 @@ final class EnterpriseTalentRepository
                 if (isset($candidates[$sId])) {
                     $candidates[$sId]['badges'][] = (string) $bRow['name'];
                 }
+            }
+        }
+
+        // Fetch projects for candidates if tables exist
+        $hasProjects = $this->tableExists('projects') && $this->tableExists('project_members');
+        if ($hasProjects) {
+            $studentLookup = [];
+            foreach ($candidates as $sId => $cand) {
+                $studentLookup[$sId] = $sId;
+                $uId = (string) ($cand['user_id'] ?? '');
+                if ($uId !== '') {
+                    $studentLookup[$uId] = $sId;
+                }
+            }
+
+            $hasTopic = $this->columnExists('projects', 'topic');
+            $topicCol = $hasTopic ? 'p.topic,' : "'' AS topic,";
+            $hasContrib = $this->columnExists('project_members', 'contribution');
+            $contribCol = $hasContrib ? 'pm.contribution,' : "'' AS contribution,";
+
+            $pSql = <<<SQL
+                SELECT 
+                    pm.studentId,
+                    p.id AS project_id,
+                    p.title,
+                    p.category,
+                    {$topicCol}
+                    p.description,
+                    p.projectUrl,
+                    p.status,
+                    p.createdAt,
+                    p.updatedAt,
+                    pm.role,
+                    {$contribCol}
+                    pm.status AS member_status
+                FROM project_members pm
+                INNER JOIN projects p ON p.id = pm.projectId
+                WHERE (pm.status = 'active' OR pm.status IS NULL)
+                ORDER BY p.createdAt DESC
+            SQL;
+
+            try {
+                $pStmt = $this->pdo->query($pSql);
+                while ($pRow = $pStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $rawMemberStudentId = (string) ($pRow['studentId'] ?? '');
+                    $targetStudentId = $studentLookup[$rawMemberStudentId] ?? null;
+                    if ($targetStudentId !== null && isset($candidates[$targetStudentId])) {
+                        $candidates[$targetStudentId]['projects'][] = [
+                            'project_id' => (string) ($pRow['project_id'] ?? ''),
+                            'title' => (string) ($pRow['title'] ?? ''),
+                            'category' => (string) ($pRow['category'] ?? ''),
+                            'topic' => (string) ($pRow['topic'] ?? ''),
+                            'description' => (string) ($pRow['description'] ?? ''),
+                            'project_url' => (string) ($pRow['projectUrl'] ?? ''),
+                            'status' => (string) ($pRow['status'] ?? ''),
+                            'role' => (string) ($pRow['role'] ?? 'member'),
+                            'contribution' => (string) ($pRow['contribution'] ?? ''),
+                            'createdAt' => (string) ($pRow['createdAt'] ?? ''),
+                            'updatedAt' => (string) ($pRow['updatedAt'] ?? ''),
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {
+                error_log('EnterpriseTalentRepository matchCandidates project query error: ' . $e->getMessage());
             }
         }
 
@@ -454,6 +519,11 @@ final class EnterpriseTalentRepository
                 JOIN skills skk ON ssk.skillId = skk.id
                 WHERE ssk.studentId = student.id
                   AND (skk.name LIKE :searchSkill1 OR skk.code LIKE :searchSkill2)
+            ) OR EXISTS (
+                SELECT 1 FROM project_members pm
+                JOIN projects p ON p.id = pm.projectId
+                WHERE pm.studentId = student.id
+                  AND (p.title LIKE :searchProj1 OR p.description LIKE :searchProj2 OR p.category LIKE :searchProj3)
             ))';
             $params['search1'] = $searchWildcard;
             $params['search2'] = $searchWildcard;
@@ -462,6 +532,9 @@ final class EnterpriseTalentRepository
             $params['search5'] = $searchWildcard;
             $params['searchSkill1'] = $searchWildcard;
             $params['searchSkill2'] = $searchWildcard;
+            $params['searchProj1'] = $searchWildcard;
+            $params['searchProj2'] = $searchWildcard;
+            $params['searchProj3'] = $searchWildcard;
         }
 
         // Filter: Major / Domain / Lĩnh vực năng lực
@@ -545,11 +618,18 @@ final class EnterpriseTalentRepository
                     OR spd.headline LIKE '%AI%'
                     OR spd.bio LIKE '%Công nghệ%'
                     OR c.name LIKE '%BTEC%'
+                    OR c.name LIKE '%CNTT%'
+                    OR c.name LIKE '%Công nghệ%'
                     OR EXISTS (
                         SELECT 1 FROM student_skills ss
                         JOIN skills ON ss.skillId = skills.id
                         WHERE ss.studentId = student.id
                           AND skills.name IN ('React', 'Node.js', 'Python', 'TypeScript', 'JavaScript', 'HTML', 'CSS', 'Java', 'PHP', 'Docker', 'Git', 'REST API', 'MySQL', 'AI / Machine Learning')
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM project_members pm
+                        JOIN projects p ON p.id = pm.projectId
+                        WHERE pm.studentId = student.id
                     )
                 )";
             } else {
@@ -650,6 +730,56 @@ final class EnterpriseTalentRepository
         $stmt->execute($params);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
+        // Preload candidate projects to extract demonstrated skills and provide actual project data
+        $studentProjectsMap = [];
+        if ($rows !== [] && $this->tableExists('projects') && $this->tableExists('project_members')) {
+            $studentIds = array_map(static fn($r) => (string) $r['studentId'], $rows);
+            $userIds = array_values(array_filter(array_map(static fn($r) => (string) ($r['userId'] ?? ''), $rows)));
+            $allIdKeys = array_unique(array_merge($studentIds, $userIds));
+
+            if ($allIdKeys !== []) {
+                $placeholders = implode(',', array_fill(0, count($allIdKeys), '?'));
+                $pSql = <<<SQL
+                    SELECT 
+                        pm.studentId,
+                        p.id AS project_id,
+                        p.title,
+                        p.category,
+                        p.description,
+                        p.projectUrl,
+                        p.status,
+                        p.createdAt,
+                        p.updatedAt,
+                        pm.role,
+                        pm.contribution,
+                        pm.status AS member_status
+                    FROM project_members pm
+                    INNER JOIN projects p ON p.id = pm.projectId
+                    WHERE pm.studentId IN ({$placeholders})
+                      AND (pm.status = 'active' OR pm.status IS NULL)
+                    ORDER BY p.createdAt DESC
+                SQL;
+                try {
+                    $pStmt = $this->pdo->prepare($pSql);
+                    $pStmt->execute($allIdKeys);
+                    while ($pRow = $pStmt->fetch(PDO::FETCH_ASSOC)) {
+                        $mStudentId = (string) ($pRow['studentId'] ?? '');
+                        $studentProjectsMap[$mStudentId][] = [
+                            'id' => (string) ($pRow['project_id'] ?? ''),
+                            'title' => (string) ($pRow['title'] ?? ''),
+                            'category' => (string) ($pRow['category'] ?? ''),
+                            'description' => (string) ($pRow['description'] ?? ''),
+                            'projectUrl' => (string) ($pRow['projectUrl'] ?? ''),
+                            'role' => (string) ($pRow['role'] ?? 'member'),
+                            'contribution' => (string) ($pRow['contribution'] ?? ''),
+                        ];
+                    }
+                } catch (\Throwable $e) {
+                    error_log('listTalents project query error: ' . $e->getMessage());
+                }
+            }
+        }
+
         // Post-process skills filter and populate verifiedSkills list
         $filterSkills = [];
         if (isset($filters['skills'])) {
@@ -660,7 +790,15 @@ final class EnterpriseTalentRepository
         $items = [];
         foreach ($rows as $row) {
             $studentId = (string) $row['studentId'];
+            $userId = (string) ($row['userId'] ?? '');
             $skills = $this->allSkillsForStudent($studentId);
+            $studentProjects = $studentProjectsMap[$studentId] ?? $studentProjectsMap[$userId] ?? [];
+
+            // Extract demonstrated practical skills from actual projects
+            $projectSkills = $this->extractSkillsFromProjects($studentProjects);
+            if ($projectSkills !== []) {
+                $skills = array_values(array_unique(array_merge($skills, $projectSkills)));
+            }
 
             if ($filterSkills !== []) {
                 $hasAllSkills = true;
@@ -706,7 +844,7 @@ final class EnterpriseTalentRepository
             $score = is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null;
             $items[] = [
                 'studentId' => $studentId,
-                'userId' => (string) ($row['userId'] ?? ''),
+                'userId' => $userId,
                 'displayName' => (string) ($row['displayName'] ?? 'Ứng viên'),
                 'schoolName' => (string) ($row['schoolName'] ?? ''),
                 'className' => (string) ($row['className'] ?? ''),
@@ -716,10 +854,11 @@ final class EnterpriseTalentRepository
                 'bio' => (string) ($row['bio'] ?? ''),
                 'avatarUrl' => $row['avatarUrl'] !== null ? (string) $row['avatarUrl'] : null,
                 'talentScore' => $score === null ? null : min(100, max(0, $score)),
-                'skillCount' => (int) $row['skillCount'],
+                'skillCount' => count($skills),
                 'verifiedSkillCount' => (int) $row['verifiedSkillCount'],
                 'verifiedSkills' => $skills,
                 'skills' => $skills,
+                'projects' => $studentProjects,
                 'contactAllowed' => (bool) ((int) ($row['contactAllowed'] ?? 0) === 1),
                 'hasPendingContactRequest' => (bool) ((int) ($row['hasPendingContactRequest'] ?? 0) === 1),
             ];
@@ -1141,6 +1280,89 @@ final class EnterpriseTalentRepository
         $stmt->execute(['studentId' => $studentId]);
         $names = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
         return array_values(array_filter($names, static fn ($n) => is_string($n) && trim($n) !== ''));
+    }
+
+    /**
+     * Extract actual skills demonstrated in candidate projects.
+     *
+     * @param list<array<string,mixed>> $projects
+     * @return list<string>
+     */
+    public function extractSkillsFromProjects(array $projects): array
+    {
+        if (empty($projects)) {
+            return [];
+        }
+
+        $discoveredSkills = [];
+        $patterns = [
+            'PHP' => '/\bphp\b/i',
+            'MySQL' => '/\bmysql\b/i',
+            'SQL' => '/\bsql\b/i',
+            'PostgreSQL' => '/\b(postgres|postgresql)\b/i',
+            'MongoDB' => '/\bmongodb\b/i',
+            'Redis' => '/\bredis\b/i',
+            'Node.js' => '/\bnode(\.?js)?\b/i',
+            'Java' => '/\bjava\b(?!script)/i',
+            'Spring Boot' => '/\b(spring\s*boot|springboot)\b/i',
+            'Python' => '/\bpython\b/i',
+            'Django' => '/\bdjango\b/i',
+            'FastAPI' => '/\bfastapi\b/i',
+            'C#' => '/\bc#\b|\bcsharp\b/i',
+            '.NET' => '/\b(\.net|dotnet|asp\.net)\b/i',
+            'Docker' => '/\bdocker\b/i',
+            'REST API' => '/\brest(\s*ful)?\s*api\b|\bapi\b/i',
+            'React' => '/\breact(\.?js)?\b/i',
+            'Vue.js' => '/\bvue(\.?js)?\b/i',
+            'Angular' => '/\bangular\b/i',
+            'JavaScript' => '/\bjavascript\b|\bjs\b/i',
+            'TypeScript' => '/\btypescript\b|\bts\b/i',
+            'HTML/CSS' => '/\bhtml5?\b|\bcss3?\b/i',
+            'Tailwind CSS' => '/\btailwind(\s*css)?\b/i',
+            'Bootstrap' => '/\bbootstrap\b/i',
+            'UI/UX' => '/\bui\/ux\b|\bfigma\b/i',
+            'AI / Machine Learning' => '/\b(machine\s*learning|deep\s*learning|pytorch|tensorflow|opencv|trí tuệ nhân tạo|ai)\b/i',
+            'Digital Marketing' => '/\b(digital\s*marketing|marketing|seo|content)\b/i',
+            'Logistics' => '/\b(logistics|kho\s*vận|chuỗi\s*cung\s*ứng|supply\s*chain)\b/i',
+            'Tài chính' => '/\b(tài\s*chính|kế\s*toán|accounting|finance)\b/i',
+        ];
+
+        $hasBackendIndicators = false;
+        $hasFrontendIndicators = false;
+
+        foreach ($projects as $proj) {
+            $text = ($proj['title'] ?? '') . ' ' . ($proj['category'] ?? '') . ' ' . ($proj['description'] ?? '') . ' ' . ($proj['contribution'] ?? '');
+            foreach ($patterns as $skillName => $regex) {
+                if (preg_match($regex, $text)) {
+                    $discoveredSkills[$skillName] = true;
+                    if (in_array($skillName, ['PHP', 'MySQL', 'SQL', 'PostgreSQL', 'MongoDB', 'Redis', 'Node.js', 'Java', 'Spring Boot', 'Python', 'Django', 'FastAPI', 'C#', '.NET', 'Docker', 'REST API'], true)) {
+                        $hasBackendIndicators = true;
+                    }
+                    if (in_array($skillName, ['React', 'Vue.js', 'Angular', 'HTML/CSS', 'Tailwind CSS', 'Bootstrap', 'UI/UX'], true)) {
+                        $hasFrontendIndicators = true;
+                    }
+                }
+            }
+            if (stripos($text, 'backend') !== false || stripos($text, 'hệ thống quản lý') !== false || stripos($text, 'máy chủ') !== false || stripos($text, 'cơ sở dữ liệu') !== false) {
+                $hasBackendIndicators = true;
+            }
+            if (stripos($text, 'frontend') !== false || stripos($text, 'giao diện') !== false) {
+                $hasFrontendIndicators = true;
+            }
+        }
+
+        if (isset($discoveredSkills['MySQL']) || isset($discoveredSkills['PostgreSQL'])) {
+            $discoveredSkills['SQL'] = true;
+        }
+
+        if ($hasBackendIndicators) {
+            $discoveredSkills['Backend Development'] = true;
+        }
+        if ($hasFrontendIndicators) {
+            $discoveredSkills['Frontend Development'] = true;
+        }
+
+        return array_keys($discoveredSkills);
     }
 
     /** @return list<string> */
