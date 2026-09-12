@@ -75,7 +75,7 @@ $funnelStages = [
     ],
     [
         'id' => 'passed',
-        'name' => 'Đạt / Tuyển dụng',
+        'name' => 'Đạt / Nhận thực tập',
         'sub' => 'Chính thức nhận vào thực tập',
         'count' => 0,
         'percentage' => 0,

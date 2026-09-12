@@ -12,7 +12,7 @@
     <div class="ent-activity-timeline">
         <?php if (empty($recentActivities)): ?>
             <div style="text-align: center; padding: 2rem 1rem; color: var(--text-muted); font-size: 0.8125rem;">
-                Chưa có hoạt động tuyển dụng mới nào được ghi nhận.
+                Chưa có hoạt động tuyển thực tập mới nào được ghi nhận.
             </div>
         <?php else: ?>
             <?php foreach ($recentActivities as $act): ?>

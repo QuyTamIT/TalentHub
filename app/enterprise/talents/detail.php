@@ -87,10 +87,22 @@ if ($talentId !== '' && $isVerified && $talentService !== null) {
 if ($rawTalent !== null) {
     $skillsList = [];
     foreach ($rawTalent['skills'] ?? [] as $sk) {
+        // Primary path (DatabaseTalentPassportRepository) trả về snake_case keys qua KeyMapper::toSnake():
+        //   levelScore → level_score, verificationStatus → verification_status, name → name
+        // Fallback path (skillsWithDetailsForStudent) trả về camelCase keys trực tiếp từ PDO:
+        //   skillName, levelScore, verificationStatus, level (computed CASE column)
+        $rawLevelScore = $sk['level_score'] ?? $sk['levelScore'] ?? null;
+        $levelLabel = match(true) {
+            is_numeric($rawLevelScore) && (int)$rawLevelScore >= 85 => 'Nâng cao',
+            is_numeric($rawLevelScore) && (int)$rawLevelScore >= 65 => 'Trung bình',
+            is_numeric($rawLevelScore) => 'Cơ bản',
+            default => (string) ($sk['proficiencyLevel'] ?? $sk['level'] ?? 'Nâng cao'),
+        };
+        $verifStatus = (string) ($sk['verification_status'] ?? $sk['verificationStatus'] ?? '');
         $skillsList[] = [
-            'name' => (string) ($sk['skillName'] ?? $sk['name'] ?? ''),
-            'level' => (string) ($sk['proficiencyLevel'] ?? $sk['level'] ?? 'Nâng cao'),
-            'verified' => ($sk['verificationStatus'] ?? '') === 'verified' || !empty($sk['verified']),
+            'name'     => (string) ($sk['skillName'] ?? $sk['name'] ?? ''),
+            'level'    => $levelLabel,
+            'verified' => $verifStatus === 'verified' || !empty($sk['verified']),
         ];
     }
 
@@ -106,11 +118,22 @@ if ($rawTalent !== null) {
             'funded', 'goal_reached' => 'Đã nhận tài trợ',
             default => 'Đang thực hiện'
         };
+        // Translate English role values stored in DB to Vietnamese display labels.
+        // DB values: 'member', 'leader', 'mentor', 'advisor' — never hardcoded as skill.
+        $rawRole = strtolower(trim((string) ($pr['role'] ?? '')));
+        $roleLabel = match($rawRole) {
+            'member'  => 'Thành viên',
+            'leader'  => 'Trưởng nhóm',
+            'mentor'  => 'Cố vấn',
+            'advisor' => 'Cố vấn',
+            ''        => 'Thành viên',
+            default   => (string) ($pr['role'] ?? 'Thành viên'),
+        };
         $normalizedProjects[] = [
             'id' => $pr['id'] ?? '',
             'name' => $pr['title'] ?? ($pr['name'] ?? 'Dự án'),
             'description' => (string) ($pr['description'] ?? ''),
-            'role' => (string) ($pr['role'] ?? 'Thành viên'),
+            'role' => $roleLabel,
             'category' => (string) ($pr['category'] ?? ''),
             'result' => $resultLabel,
             'sponsorName' => $pr['sponsorName'] ?? ($pr['sponsor_name'] ?? ''),
@@ -121,11 +144,22 @@ if ($rawTalent !== null) {
     $experienceEntries = $rawTalent['experience']['confirmed_entries'] ?? [];
     $experienceLogs = [];
     foreach ($experienceEntries as $entry) {
+        // Primary path (DatabaseTalentPassportRepository) trả về snake_case keys qua KeyMapper::toSnake():
+        //   activityTitle → activity_title, confirmedAt → confirmed_at
+        // Fallback path (experienceForStudent / student_experience_entries) trả về camelCase keys.
+        $entryTitle = $entry['activity_title']  // primary path: snake_case
+            ?? $entry['activityTitle']           // fallback camelCase
+            ?? $entry['title']                   // student_experience_entries fallback
+            ?? 'Hoạt động trải nghiệm';
+        $entryDate = $entry['confirmed_at']      // primary path: snake_case
+            ?? $entry['confirmedAt']             // fallback camelCase
+            ?? $entry['createdAt']               // student_experience_entries
+            ?? '';
         $experienceLogs[] = [
-            'title' => $entry['title'] ?? ($entry['activityTitle'] ?? 'Hoạt động trải nghiệm'),
-            'role' => $entry['role'] ?? 'Thành viên tham gia',
-            'duration' => !empty($entry['createdAt']) ? substr((string)$entry['createdAt'], 0, 10) : '',
-            'hours' => (int) ($entry['hours'] ?? 0),
+            'title'       => $entryTitle,
+            'role'        => $entry['role'] ?? 'Thành viên tham gia',
+            'duration'    => !empty($entryDate) ? substr((string)$entryDate, 0, 10) : '',
+            'hours'       => (int) ($entry['hours'] ?? 0),
             'description' => (string) ($entry['description'] ?? ''),
         ];
     }
@@ -168,12 +202,25 @@ if (!empty($enterprise['id'])) {
     $pStmt->execute([$enterprise['id']]);
     $activePosts = $pStmt->fetchAll(PDO::FETCH_ASSOC);
 }
-if (empty($activePosts)) {
-    $activePosts = [
-        ['id' => '40000000-0000-4000-8000-000000000001', 'title' => 'Thực tập sinh Trí tuệ Nhân tạo & LLM (AI/GenAI Intern)', 'location' => 'Hà Nội'],
-        ['id' => '10909e00-1e49-4373-97a0-c9519c74d659', 'title' => 'Frontend Developer (ReactJS / Vue.js)', 'location' => 'Hà Nội'],
-        ['id' => '40000000-0000-4000-8000-000000000003', 'title' => 'Kỹ sư Kiểm thử Phần mềm Tự động (Automation QA Trainee)', 'location' => 'Hà Nội'],
-    ];
+
+// Check if this enterprise has already invited this candidate
+$hasInvited = false;
+$invitedPostTitle = '';
+if (!empty($enterprise['id']) && !empty($talent['id'])) {
+    $invCheckStmt = $pdo->prepare("
+        SELECT ia.id, ia.postId, ia.status, ip.title as postTitle
+        FROM internship_applications ia
+        JOIN internship_posts ip ON ip.id = ia.postId
+        WHERE ip.enterpriseId = ? AND (ia.studentId = ? OR ia.studentId = ?) AND ia.status = 'invited'
+        ORDER BY ia.updatedAt DESC
+        LIMIT 1
+    ");
+    $invCheckStmt->execute([$enterprise['id'], $talent['id'], $talent['userId'] ?? '']);
+    $existingInvite = $invCheckStmt->fetch(PDO::FETCH_ASSOC);
+    if ($existingInvite) {
+        $hasInvited = true;
+        $invitedPostTitle = (string) $existingInvite['postTitle'];
+    }
 }
 
 $pageTitle = $talent ? ('Hồ sơ nhân tài - ' . $talent['name']) : 'Không tìm thấy hồ sơ';
@@ -202,12 +249,6 @@ $sidebarNav = [
         'title'  => 'Tài trợ dự án',
         'route'  => '/app/enterprise/sponsorships/',
         'icon'   => 'award',
-        'active' => false,
-    ],
-    [
-        'title'  => 'Phân tích tuyển dụng',
-        'route'  => '/app/enterprise/analytics.php',
-        'icon'   => 'bar-chart-2',
         'active' => false,
     ],
     [
@@ -283,141 +324,97 @@ $sidebarNav = [
                         </div>
                     <?php else: ?>
 
-                        <!-- Talent Passport Main Detail Layout (2 Columns) -->
+                        <!-- ═══════════════════════════════════════════════════
+                             TALENT PASSPORT — redesigned layout
+                             Main: bio · experience · projects
+                             Sidebar: score · readiness · skills · certs
+                             ═══════════════════════════════════════════════════ -->
                         <div class="ent-passport-grid">
 
-                            <!-- Left / Main Column (Overview, Bio, Skills, Experience, Projects, Certificates) -->
+                            <!-- ── LEFT / MAIN COLUMN ──────────────────────── -->
                             <div class="ent-passport-main">
 
-                                <!-- 1. Profile Overview Header Card -->
-                                <section class="ent-section-box ent-passport-overview-card">
-                                    <div class="ent-passport-overview__top">
-                                        <div class="ent-passport-overview__avatar">
-                                            <?= htmlspecialchars($talent['avatar_initials']); ?>
+                                <!-- 1. PROFILE HEADER -->
+                                <div class="ent-profile-header">
+                                    <div class="ent-profile-header__avatar">
+                                        <?= htmlspecialchars($talent['avatar_initials']); ?>
+                                    </div>
+                                    <div class="ent-profile-header__body">
+                                        <div class="ent-profile-header__name-row">
+                                            <h2 class="ent-profile-header__name"><?= htmlspecialchars($talent['name']); ?></h2>
+                                            <span class="ent-passport-score-badge"><?= htmlspecialchars($talent['talent_score']); ?> điểm</span>
                                         </div>
-                                        <div class="ent-passport-overview__info">
-                                            <div class="ent-passport-overview__title-row">
-                                                <h2 class="ent-passport-overview__name"><?= htmlspecialchars($talent['name']); ?></h2>
-                                                <span class="ent-passport-score-badge">
-                                                    <?= htmlspecialchars($talent['talent_score']); ?> điểm
+                                        <p class="ent-profile-header__meta">
+                                            <?= htmlspecialchars($talent['school']); ?>
+                                            <?php if (!empty(trim($talent['class_year'])) && $talent['class_year'] !== 'Chưa cập nhật'): ?>
+                                                <span class="ent-meta-dot">&bull;</span><?= htmlspecialchars($talent['class_year']); ?>
+                                            <?php endif; ?>
+                                            <?php if (!empty(trim($talent['education_level'])) && $talent['education_level'] !== 'Sinh viên'): ?>
+                                                <span class="ent-meta-dot">&bull;</span><?= htmlspecialchars($talent['education_level']); ?>
+                                            <?php endif; ?>
+                                            <?php if ($talent['major_field'] !== 'Chưa cập nhật'): ?>
+                                                <span class="ent-meta-dot">&bull;</span><?= htmlspecialchars($talent['major_field']); ?>
+                                            <?php endif; ?>
+                                        </p>
+                                        <div class="ent-profile-header__status-row">
+                                            <span class="ent-passport-status-pill">
+                                                <span class="status-dot"></span>
+                                                <?= htmlspecialchars($talent['internship_status_label']); ?>
+                                            </span>
+                                            <?php if ($talent['experience_hours'] > 0): ?>
+                                                <span class="ent-profile-header__exp-chip">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                    <?= htmlspecialchars($talent['experience_hours']); ?>h trải nghiệm
                                                 </span>
-                                            </div>
-
-                                            <div class="ent-passport-overview__meta">
-                                                <span><?= htmlspecialchars($talent['school']); ?></span>
-                                                <span class="dot">&bull;</span>
-                                                <span><?= htmlspecialchars($talent['class_year']); ?></span>
-                                                <span class="dot">&bull;</span>
-                                                <span><?= htmlspecialchars($talent['education_level']); ?></span>
-                                            </div>
-
-                                            <div class="ent-passport-overview__sub">
-                                                <span class="label">Lĩnh vực năng lực:</span>
-                                                <span class="val font-semibold"><?= htmlspecialchars($talent['major_field']); ?></span>
-                                            </div>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
-
-                                    <div class="ent-passport-overview__actions-bar">
-                                        <div class="ent-passport-status-pill">
-                                            <span class="status-dot"></span>
-                                            <?= htmlspecialchars($talent['internship_status_label']); ?>
-                                        </div>
-
-                                        <div class="ent-passport-btn-group">
-                                            <button type="button"
-                                                    class="btn btn-secondary btn-sm ent-passport-save-btn <?= $talent['saved'] ? 'is-saved' : ''; ?>"
-                                                    id="detail-save-btn"
-                                                    data-talent-id="<?= htmlspecialchars($talent['id']); ?>">
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="<?= $talent['saved'] ? 'currentColor' : 'none'; ?>" stroke="currentColor" stroke-width="2">
-                                                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                                                </svg>
-                                                <span class="btn-text"><?= $talent['saved'] ? 'Đã lưu hồ sơ' : 'Lưu hồ sơ'; ?></span>
-                                            </button>
-
-                                            <button type="button"
-                                                    class="btn btn-primary btn-sm"
-                                                    id="detail-invite-btn"
-                                                    onclick="openInviteModal()"
-                                                    style="font-weight: 700; display: inline-flex; align-items: center; gap: 0.45rem;">
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                                                </svg>
-                                                <span>Mời thực tập / Tuyển dụng</span>
-                                            </button>
-
-                                            <button type="button"
-                                                    class="btn btn-secondary btn-sm"
-                                                    id="detail-contact-btn">
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                                                    <polyline points="22,6 12,13 2,6"></polyline>
-                                                </svg>
-                                                Liên hệ
-                                            </button>
-                                        </div>
+                                    <div class="ent-profile-header__actions">
+                                        <button type="button"
+                                                class="btn btn-secondary btn-sm ent-passport-save-btn <?= $talent['saved'] ? 'is-saved' : ''; ?>"
+                                                id="detail-save-btn"
+                                                data-talent-id="<?= htmlspecialchars($talent['id']); ?>">
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="<?= $talent['saved'] ? 'currentColor' : 'none'; ?>" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                                            <span class="btn-text"><?= $talent['saved'] ? 'Đã lưu' : 'Lưu hồ sơ'; ?></span>
+                                        </button>
+                                        <button type="button"
+                                                class="btn <?= $hasInvited ? 'btn-success' : 'btn-primary'; ?> btn-sm"
+                                                id="detail-invite-btn"
+                                                onclick="openInviteModal()"
+                                                <?= $hasInvited ? 'style="background: #059669; border-color: #059669;"' : ''; ?>>
+                                            <?php if ($hasInvited): ?>
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                <span>Đã gửi lời mời</span>
+                                            <?php else: ?>
+                                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                                <span>Mời thực tập</span>
+                                            <?php endif; ?>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary btn-sm" id="detail-contact-btn">
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                                            Liên hệ
+                                        </button>
                                     </div>
-                                </section>
+                                </div>
 
-                                <!-- 2. Giới thiệu (Learner Bio & Orientation) -->
-                                <section class="ent-section-box">
-                                    <h3 class="ent-section-box__title">Giới thiệu bản thân & Định hướng</h3>
-                                    <?php if (!empty($talent['bio'])): ?>
-                                        <p class="ent-passport-bio-text"><?= nl2br(htmlspecialchars($talent['bio'])); ?></p>
-                                    <?php else: ?>
-                                        <p class="text-muted" style="margin: 0; font-size: 0.875rem; font-style: italic;">Chưa cập nhật giới thiệu bản thân.</p>
-                                    <?php endif; ?>
-                                </section>
+                                <!-- 2. BIO — chỉ hiện khi có data -->
+                                <?php if (!empty($talent['bio'])): ?>
+                                <div class="ent-profile-section">
+                                    <h3 class="ent-profile-section__title">Giới thiệu</h3>
+                                    <p class="ent-passport-bio-text"><?= nl2br(htmlspecialchars($talent['bio'])); ?></p>
+                                </div>
+                                <?php endif; ?>
 
-                                <!-- 3. Kỹ năng (Detailed Skills Grid) -->
-                                <section class="ent-section-box">
-                                    <div class="ent-section-box__header">
-                                        <h3 class="ent-section-box__title">Năng lực & Kỹ năng</h3>
-                                        <span class="ent-section-box__count"><?= count($talent['detailed_skills'] ?? []); ?> kỹ năng</span>
-                                    </div>
-
-                                    <div class="ent-passport-skills-grid">
-                                        <?php if (!empty($talent['detailed_skills'])): ?>
-                                            <?php foreach ($talent['detailed_skills'] as $sk): ?>
-                                                <div class="ent-passport-skill-card">
-                                                    <div class="ent-passport-skill-card__name">
-                                                        <?= htmlspecialchars($sk['name']); ?>
-                                                    </div>
-                                                    <div class="ent-passport-skill-card__footer">
-                                                        <span class="ent-skill-level"><?= htmlspecialchars($sk['level']); ?></span>
-                                                        <?php if ($sk['verified']): ?>
-                                                            <span class="ent-verified-badge" title="Đã được giáo viên / nhà trường xác thực">
-                                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                                                                    <polyline points="20 6 9 17 4 12"></polyline>
-                                                                </svg>
-                                                                Đã xác thực
-                                                            </span>
-                                                        <?php else: ?>
-                                                            <span class="ent-unverified-badge">Tự đánh giá</span>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </div>
-                                            <?php endforeach; ?>
-                                        <?php else: ?>
-                                            <p class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.875rem; font-style: italic;">Chưa có kỹ năng nào được ghi nhận.</p>
+                                <!-- 3. KINH NGHIỆM & HOẠT ĐỘNG -->
+                                <div class="ent-profile-section">
+                                    <div class="ent-profile-section__header">
+                                        <h3 class="ent-profile-section__title">Kinh nghiệm & Hoạt động</h3>
+                                        <?php if ($talent['experience_hours'] > 0): ?>
+                                            <span class="ent-exp-hours-badge"><?= htmlspecialchars($talent['experience_hours']); ?>h</span>
                                         <?php endif; ?>
                                     </div>
-                                </section>
-
-                                <!-- 4. Kinh nghiệm & Hoạt động (Experience Logs Timeline) -->
-                                <section class="ent-section-box">
-                                    <div class="ent-section-box__header">
-                                        <div>
-                                            <h3 class="ent-section-box__title">Kinh nghiệm & Hoạt động thực án</h3>
-                                            <p class="ent-section-box__subtitle">Nhật ký giờ trải nghiệm thực tế được lưu vết tự động</p>
-                                        </div>
-                                        <span class="ent-exp-hours-badge">
-                                            Tổng: <?= htmlspecialchars($talent['experience_hours']); ?>h trải nghiệm
-                                        </span>
-                                    </div>
-
-                                    <div class="ent-passport-timeline">
-                                        <?php if (!empty($talent['experience_logs'])): ?>
+                                    <?php if (!empty($talent['experience_logs'])): ?>
+                                        <div class="ent-passport-timeline">
                                             <?php foreach ($talent['experience_logs'] as $exp): ?>
                                                 <div class="ent-passport-timeline-item">
                                                     <div class="ent-passport-timeline-item__indicator"></div>
@@ -430,161 +427,171 @@ $sidebarNav = [
                                                         <span class="dot">&bull;</span>
                                                         <span class="hours text-primary"><?= htmlspecialchars($exp['hours']); ?> giờ thực án</span>
                                                     </div>
-                                                    <p class="ent-passport-timeline-item__desc"><?= htmlspecialchars($exp['description']); ?></p>
-                                                </div>
-                                            <?php endforeach; ?>
-                                        <?php else: ?>
-                                            <p class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.875rem; font-style: italic;">Chưa có nhật ký giờ trải nghiệm thực tế.</p>
-                                        <?php endif; ?>
-                                    </div>
-                                </section>
-
-                                <!-- 5. Dự án nổi bật (Featured Projects) -->
-                                <section class="ent-section-box">
-                                    <div class="ent-section-box__header">
-                                        <h3 class="ent-section-box__title">Dự án nổi bật</h3>
-                                    </div>
-
-                                    <div class="ent-passport-projects-list">
-                                        <?php if (!empty($talent['projects'])): ?>
-                                            <?php foreach ($talent['projects'] as $proj): ?>
-                                                <div class="ent-passport-project-card">
-                                                    <div class="ent-passport-project-card__header" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
-                                                        <h4 class="ent-passport-project-card__title" style="margin: 0;"><?= htmlspecialchars($proj['name']); ?></h4>
-                                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                                            <?php if (!empty($proj['sponsorName'])): ?>
-                                                                <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; background: #FAF5FF; color: var(--primary-violet); border: 1px solid rgba(139, 77, 232, 0.25);">
-                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                                                                    Được bảo trợ bởi <?= htmlspecialchars($proj['sponsorName']); ?>
-                                                                </span>
-                                                            <?php endif; ?>
-                                                            <?php if (!empty($proj['result'])): ?>
-                                                                <span class="ent-project-result-badge"><?= htmlspecialchars($proj['result']); ?></span>
-                                                            <?php endif; ?>
-                                                        </div>
-                                                    </div>
-                                                    <?php if (!empty($proj['description'])): ?>
-                                                        <p class="ent-passport-project-card__desc"><?= htmlspecialchars($proj['description']); ?></p>
-                                                    <?php endif; ?>
-                                                    <div class="ent-passport-project-card__meta">
-                                                        <span class="label">Vai trò:</span>
-                                                        <span class="val font-medium"><?= htmlspecialchars($proj['role']); ?></span>
-                                                    </div>
-                                                    <?php if (!empty($proj['technologies'])): ?>
-                                                        <div class="ent-passport-project-card__techs">
-                                                            <?php foreach ($proj['technologies'] as $tech): ?>
-                                                                <span class="skill-tag"><?= htmlspecialchars($tech); ?></span>
-                                                            <?php endforeach; ?>
-                                                        </div>
+                                                    <?php if (!empty($exp['description'])): ?>
+                                                        <p class="ent-passport-timeline-item__desc"><?= htmlspecialchars($exp['description']); ?></p>
                                                     <?php endif; ?>
                                                 </div>
                                             <?php endforeach; ?>
-                                        <?php else: ?>
-                                            <p class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.875rem; font-style: italic;">Chưa có dự án nào.</p>
-                                        <?php endif; ?>
-                                    </div>
-                                </section>
-
-                                <!-- 6. Chứng chỉ & Thành tích -->
-                                <section class="ent-section-box">
-                                    <div class="ent-section-box__header">
-                                        <h3 class="ent-section-box__title">Chứng chỉ & Thành tích</h3>
-                                    </div>
-
-                                    <div class="ent-passport-certs-list">
-                                        <?php if (!empty($talent['certificates'])): ?>
-                                            <?php foreach ($talent['certificates'] as $cert): ?>
-                                                <div class="ent-passport-cert-row">
-                                                    <div class="ent-passport-cert-row__icon">
-                                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                            <circle cx="12" cy="8" r="7"></circle>
-                                                            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
-                                                        </svg>
-                                                    </div>
-                                                    <div class="ent-passport-cert-row__info">
-                                                        <h4 class="cert-name"><?= htmlspecialchars($cert['title'] ?? $cert['name'] ?? 'Chứng chỉ chuyên môn'); ?></h4>
-                                                        <span class="cert-issuer"><?= htmlspecialchars($cert['issuingOrganization'] ?? $cert['issuer'] ?? 'Tổ chức đào tạo'); ?><?= !empty($cert['issueDate'] ?? $cert['issue_date']) ? ' &bull; ' . htmlspecialchars($cert['issueDate'] ?? $cert['issue_date']) : ''; ?></span>
-                                                    </div>
-                                                    <?php if (!empty($cert['verified']) || (($cert['verificationStatus'] ?? '') === 'verified')): ?>
-                                                        <span class="ent-verified-badge">
-                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                                                                <polyline points="20 6 9 17 4 12"></polyline>
-                                                            </svg>
-                                                            Đã minh chứng
-                                                        </span>
-                                                    <?php endif; ?>
-                                                </div>
-                                            <?php endforeach; ?>
-                                        <?php else: ?>
-                                            <p class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.875rem; font-style: italic;">Chưa có chứng chỉ hoặc thành tích.</p>
-                                        <?php endif; ?>
-                                    </div>
-                                </section>
-
-                            </div>
-
-                            <!-- Right Column Sidebar (Readiness Summary & Privacy Card) -->
-                            <aside class="ent-passport-sidebar">
-
-                                <!-- 7. Internship Readiness Summary Widget -->
-                                <div class="ent-section-box">
-                                    <div class="ent-section-box__header">
-                                        <h3 class="ent-section-box__title">Tóm tắt Mức độ Sẵn sàng</h3>
-                                    </div>
-
-                                    <div class="ent-readiness-widget">
-                                        <div class="ent-readiness-widget__status">
-                                            <span class="status-label">Trạng thái tuyển dụng:</span>
-                                            <span class="status-value text-accent font-bold">
-                                                ● <?= htmlspecialchars($talent['readiness_summary']['status_label'] ?? $talent['internship_status_label']); ?>
-                                            </span>
                                         </div>
-
-                                        <div class="ent-readiness-widget__field">
-                                            <span class="label">Vị trí mong muốn:</span>
-                                            <span class="val font-semibold"><?= htmlspecialchars($talent['readiness_summary']['preferred_field'] ?? $talent['major_field']); ?></span>
-                                        </div>
-
-                                        <div class="ent-readiness-widget__strengths">
-                                            <span class="label">Điểm mạnh nổi bật:</span>
-                                            <?php 
-                                            $strengths = $talent['readiness_summary']['strengths'] ?? [];
-                                            if (!empty($strengths)): 
-                                            ?>
-                                                <ul>
-                                                    <?php foreach ($strengths as $st): ?>
-                                                        <li>&bull; <?= htmlspecialchars($st); ?></li>
-                                                    <?php endforeach; ?>
-                                                </ul>
-                                            <?php else: ?>
-                                                <p class="text-muted" style="margin: 0.25rem 0 0; font-size: 0.8125rem; font-style: italic;">Chưa có thông tin điểm mạnh</p>
-                                            <?php endif; ?>
-                                        </div>
-
-                                        <div class="ent-readiness-widget__exp">
-                                            <span class="label">Tổng giờ trải nghiệm:</span>
-                                            <span class="val font-bold text-primary"><?= htmlspecialchars($talent['readiness_summary']['total_exp_hours'] ?? ($talent['experience_hours'] . 'h thực tế')); ?></span>
-                                        </div>
-                                    </div>
+                                    <?php else: ?>
+                                        <p class="ent-profile-empty-inline">Chưa có nhật ký hoạt động thực tế.</p>
+                                    <?php endif; ?>
                                 </div>
 
-                                <!-- Privacy Protection Notice Card -->
-                                <div class="ent-section-box ent-privacy-card">
-                                    <div class="ent-privacy-card__icon">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                        </svg>
+                                <!-- 4. DỰ ÁN NỔI BẬT -->
+                                <?php if (!empty($talent['projects'])): ?>
+                                <div class="ent-profile-section">
+                                    <h3 class="ent-profile-section__title">Dự án</h3>
+                                    <div class="ent-passport-projects-list">
+                                        <?php foreach ($talent['projects'] as $proj): ?>
+                                            <div class="ent-passport-project-card">
+                                                <div class="ent-passport-project-card__header" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;">
+                                                    <h4 class="ent-passport-project-card__title" style="margin:0"><?= htmlspecialchars($proj['name']); ?></h4>
+                                                    <div style="display:flex;align-items:center;gap:.5rem;">
+                                                        <?php if (!empty($proj['sponsorName'])): ?>
+                                                            <span class="ent-sponsor-chip">
+                                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                                                <?= htmlspecialchars($proj['sponsorName']); ?>
+                                                            </span>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($proj['result'])): ?>
+                                                            <span class="ent-project-result-badge"><?= htmlspecialchars($proj['result']); ?></span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                                <?php if (!empty($proj['description'])): ?>
+                                                    <p class="ent-passport-project-card__desc"><?= htmlspecialchars($proj['description']); ?></p>
+                                                <?php endif; ?>
+                                                <div class="ent-passport-project-card__meta">
+                                                    <span class="label">Vai trò:</span>
+                                                    <span class="val font-medium"><?= htmlspecialchars($proj['role']); ?></span>
+                                                </div>
+                                                <?php if (!empty($proj['technologies'])): ?>
+                                                    <div class="ent-passport-project-card__techs">
+                                                        <?php foreach ($proj['technologies'] as $tech): ?>
+                                                            <span class="skill-tag"><?= htmlspecialchars($tech); ?></span>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endforeach; ?>
                                     </div>
-                                    <h4>Quyền riêng tư được bảo vệ</h4>
-                                    <p>
-                                        Thông tin liên hệ cá nhân (Số điện thoại, Email) của người học được ẩn theo tiêu chuẩn bảo mật TalentHub. Khi gửi yêu cầu liên hệ, thông báo sẽ được gửi tới người học để nhận sự chấp thuận.
-                                    </p>
+                                </div>
+                                <?php endif; ?>
+
+                            </div><!-- /.ent-passport-main -->
+
+                            <!-- ── RIGHT / SIDEBAR COLUMN ──────────────────── -->
+                            <aside class="ent-passport-sidebar">
+
+                                <!-- READINESS SUMMARY -->
+                                <div class="ent-sidebar-card">
+                                    <div class="ent-sidebar-card__score-row">
+                                        <span class="ent-sidebar-card__score-num"><?= htmlspecialchars($talent['talent_score']); ?></span>
+                                        <span class="ent-sidebar-card__score-label">điểm năng lực</span>
+                                    </div>
+                                    <div class="ent-sidebar-card__row">
+                                        <span class="ent-sidebar-card__key">Trạng thái</span>
+                                        <span class="ent-passport-status-pill ent-passport-status-pill--sm">
+                                            <span class="status-dot"></span>
+                                            <?= htmlspecialchars($talent['readiness_summary']['status_label'] ?? $talent['internship_status_label']); ?>
+                                        </span>
+                                    </div>
+                                    <?php $prefField = $talent['readiness_summary']['preferred_field'] ?? $talent['major_field']; ?>
+                                    <?php if ($prefField && $prefField !== 'Chưa cập nhật'): ?>
+                                    <div class="ent-sidebar-card__row">
+                                        <span class="ent-sidebar-card__key">Vị trí mong muốn</span>
+                                        <span class="ent-sidebar-card__val"><?= htmlspecialchars($prefField); ?></span>
+                                    </div>
+                                    <?php endif; ?>
+                                    <?php if ($talent['experience_hours'] > 0): ?>
+                                    <div class="ent-sidebar-card__row">
+                                        <span class="ent-sidebar-card__key">Giờ trải nghiệm</span>
+                                        <span class="ent-sidebar-card__val ent-sidebar-card__val--accent"><?= htmlspecialchars($talent['experience_hours']); ?>h</span>
+                                    </div>
+                                    <?php endif; ?>
+                                    <?php $strengths = $talent['readiness_summary']['strengths'] ?? []; ?>
+                                    <?php if (!empty($strengths)): ?>
+                                    <div class="ent-sidebar-card__strengths">
+                                        <span class="ent-sidebar-card__key">Điểm mạnh</span>
+                                        <ul class="ent-sidebar-card__strength-list">
+                                            <?php foreach ($strengths as $st): ?>
+                                                <li><?= htmlspecialchars($st); ?></li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+
+                                <!-- KỸ NĂNG -->
+                                <div class="ent-sidebar-card">
+                                    <div class="ent-sidebar-card__heading">
+                                        <h3 class="ent-sidebar-card__title">Kỹ năng</h3>
+                                        <?php if (!empty($talent['detailed_skills'])): ?>
+                                            <span class="ent-sidebar-card__count"><?= count($talent['detailed_skills']); ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <?php if (!empty($talent['detailed_skills'])): ?>
+                                        <div class="ent-skills-inline-list">
+                                            <?php foreach ($talent['detailed_skills'] as $sk): ?>
+                                                <div class="ent-skill-inline-item">
+                                                    <span class="ent-skill-inline-item__name"><?= htmlspecialchars($sk['name']); ?></span>
+                                                    <div class="ent-skill-inline-item__meta">
+                                                        <span class="ent-skill-level"><?= htmlspecialchars($sk['level']); ?></span>
+                                                        <?php if ($sk['verified']): ?>
+                                                            <span class="ent-verified-badge" title="Đã xác thực">
+                                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                                Xác thực
+                                                            </span>
+                                                        <?php else: ?>
+                                                            <span class="ent-unverified-badge">Tự đánh giá</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <p class="ent-profile-empty-inline">Chưa có kỹ năng được ghi nhận.</p>
+                                    <?php endif; ?>
+                                </div>
+
+                                <!-- CHỨNG CHỈ -->
+                                <?php if (!empty($talent['certificates'])): ?>
+                                <div class="ent-sidebar-card">
+                                    <h3 class="ent-sidebar-card__title">Chứng chỉ & Thành tích</h3>
+                                    <div class="ent-passport-certs-list">
+                                        <?php foreach ($talent['certificates'] as $cert): ?>
+                                            <div class="ent-passport-cert-row">
+                                                <div class="ent-passport-cert-row__icon">
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
+                                                </div>
+                                                <div class="ent-passport-cert-row__info">
+                                                    <h4 class="cert-name"><?= htmlspecialchars($cert['title'] ?? $cert['name'] ?? 'Chứng chỉ'); ?></h4>
+                                                    <span class="cert-issuer"><?= htmlspecialchars($cert['issuingOrganization'] ?? $cert['issuer'] ?? ''); ?><?= !empty($cert['issueDate'] ?? $cert['issue_date']) ? ' &bull; ' . htmlspecialchars($cert['issueDate'] ?? $cert['issue_date']) : ''; ?></span>
+                                                </div>
+                                                <?php if (!empty($cert['verified']) || (($cert['verificationStatus'] ?? '') === 'verified')): ?>
+                                                    <span class="ent-verified-badge">
+                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                        Đã minh chứng
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
+
+                                <!-- PRIVACY NOTICE -->
+                                <div class="ent-privacy-card ent-sidebar-card ent-sidebar-card--muted">
+                                    <div class="ent-privacy-card__icon">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                    </div>
+                                    <p>Thông tin liên hệ cá nhân được ẩn theo tiêu chuẩn bảo mật TalentHub. Yêu cầu liên hệ sẽ chờ sự đồng ý của người học.</p>
                                 </div>
 
                             </aside>
 
-                        </div>
+                        </div><!-- /.ent-passport-grid -->
 
                     <?php endif; ?>
 
@@ -601,7 +608,7 @@ $sidebarNav = [
                 <div class="ent-skills-modal__header">
                     <div>
                         <h3 class="ent-skills-modal__title">Gửi yêu cầu liên hệ</h3>
-                        <p class="ent-skills-modal__subtitle">Gửi đề xuất kết nối tuyển dụng tới ứng viên <?= htmlspecialchars($talent['name']); ?></p>
+                        <p class="ent-skills-modal__subtitle">Gửi đề xuất kết nối thực tập tới ứng viên <?= htmlspecialchars($talent['name']); ?></p>
                     </div>
                     <button type="button" class="ent-skills-modal__close" id="close-contact-modal-btn" aria-label="Đóng">&times;</button>
                 </div>
@@ -644,7 +651,7 @@ $sidebarNav = [
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-coral)" stroke-width="2.5">
                                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                             </svg>
-                            <span>Gửi Lời Mời Thực Tập / Tuyển Dụng</span>
+                            <span>Gửi Lời Mời Thực Tập</span>
                         </h3>
                         <p class="ent-skills-modal__subtitle" style="margin: 0.25rem 0 0; font-size: 0.85rem; color: #6B5548;">
                             Mời ứng viên <strong><?= htmlspecialchars($talent['name']); ?></strong> (<?= htmlspecialchars($talent['talent_score']); ?> điểm) vào đội ngũ <?= htmlspecialchars($enterpriseInfo['company_name']); ?>
@@ -673,15 +680,24 @@ $sidebarNav = [
                     <!-- Job Post Selector -->
                     <div style="margin-bottom: 1.25rem;">
                         <label for="invitePostSelect" style="display: block; font-size: 0.875rem; font-weight: 700; color: #322014; margin-bottom: 0.4rem;">
-                            Chọn vị trí tuyển dụng đang mở <span style="color: #EF4444;">*</span>
+                            Chọn vị trí thực tập đang mở <span style="color: #EF4444;">*</span>
                         </label>
-                        <select id="invitePostSelect" class="typeui-select" style="border: 1.5px solid #F0E6DD;">
-                            <?php foreach ($activePosts as $post): ?>
-                                <option value="<?= htmlspecialchars($post['id']); ?>">
-                                    <?= htmlspecialchars($post['title']); ?> (<?= htmlspecialchars($post['location'] ?? 'Toàn thời gian'); ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                        <?php if (empty($activePosts)): ?>
+                            <div style="background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem;">
+                                Doanh nghiệp hiện chưa có tin tuyển thực tập nào đang mở. Vui lòng tạo tin tuyển dụng trước khi gửi lời mời.
+                            </div>
+                        <?php else: ?>
+                            <select id="invitePostSelect" class="typeui-select" style="border: 1.5px solid #F0E6DD; width: 100%;">
+                                <?php foreach ($activePosts as $post): 
+                                    $isPreferred = (isset($_GET['postId']) && $_GET['postId'] === $post['id'])
+                                        || (empty($_GET['postId']) && stripos($post['title'], 'Backend') !== false && stripos($talent['major_field'] ?? '', 'Backend') !== false);
+                                ?>
+                                    <option value="<?= htmlspecialchars($post['id']); ?>" <?= $isPreferred ? 'selected' : ''; ?>>
+                                        <?= htmlspecialchars($post['title']); ?> (<?= htmlspecialchars($post['location'] ?? 'Toàn thời gian'); ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        <?php endif; ?>
                     </div>
 
                     <!-- Short Message -->
@@ -704,7 +720,7 @@ $sidebarNav = [
 
                 <div style="background: #FFFDFB; border-top: 1px solid #F0E6DD; padding: 1rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
                     <button type="button" class="btn btn-secondary" onclick="closeInviteModal()" style="font-weight: 600;">Hủy</button>
-                    <button type="button" class="btn btn-primary" id="confirmSendInviteBtn" onclick="submitInternshipInvitation()" style="font-weight: 700; padding: 0.5rem 1.25rem;">
+                    <button type="button" class="btn btn-primary" id="confirmSendInviteBtn" onclick="submitInternshipInvitation()" <?= empty($activePosts) ? 'disabled style="opacity:0.6; cursor:not-allowed; font-weight:700; padding:0.5rem 1.25rem;"' : 'style="font-weight: 700; padding: 0.5rem 1.25rem;"'; ?>>
                         Xác nhận gửi lời mời
                     </button>
                 </div>
@@ -771,13 +787,17 @@ $sidebarNav = [
             const btn = document.getElementById('confirmSendInviteBtn');
 
             if (!postSelect || !postSelect.value) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Cảnh báo',
-                    text: 'Vui lòng chọn một vị trí thực tập.',
-                    confirmButtonColor: '#059669',
-                    confirmButtonText: 'Đóng'
-                });
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Cảnh báo',
+                        text: 'Vui lòng chọn một vị trí thực tập.',
+                        confirmButtonColor: '#059669',
+                        confirmButtonText: 'Đóng'
+                    });
+                } else {
+                    alert('Vui lòng chọn một vị trí thực tập.');
+                }
                 return;
             }
 
@@ -797,46 +817,60 @@ $sidebarNav = [
                     body: formData,
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
-                const data = await res.json();
+                const data = await res.json().catch(() => ({}));
 
-                if (data.success) {
+                if (res.ok && data.success) {
                     closeInviteModal();
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Thành công!',
-                        text: data.message || 'Đã gửi lời mời thực tập thành công!',
-                        confirmButtonColor: '#059669',
-                        confirmButtonText: 'Đóng'
-                    });
+                    if (window.Swal) {
+                        await Swal.fire({
+                            icon: 'success',
+                            title: 'Thành công!',
+                            text: data.message || 'Đã gửi lời mời thực tập thành công!',
+                            confirmButtonColor: '#059669',
+                            confirmButtonText: 'Đóng'
+                        });
+                    } else {
+                        alert(data.message || 'Đã gửi lời mời thực tập thành công!');
+                    }
                     const mainInviteBtn = document.getElementById('detail-invite-btn');
                     if (mainInviteBtn) {
+                        mainInviteBtn.className = 'btn btn-success btn-sm';
+                        mainInviteBtn.style.background = '#059669';
+                        mainInviteBtn.style.borderColor = '#059669';
                         mainInviteBtn.innerHTML = `
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <polyline points="20 6 9 17 4 12"></polyline>
                             </svg>
                             <span>Đã gửi lời mời</span>
                         `;
-                        mainInviteBtn.style.background = '#059669';
-                        mainInviteBtn.style.borderColor = '#059669';
                     }
                 } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Lỗi',
-                        text: data.message || 'Không thể gửi lời mời lúc này.',
-                        confirmButtonColor: '#059669',
-                        confirmButtonText: 'Đóng'
-                    });
+                    const errText = data.message || 'Không thể gửi lời mời lúc này.';
+                    if (window.Swal) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Thông báo',
+                            text: errText,
+                            confirmButtonColor: '#059669',
+                            confirmButtonText: 'Đóng'
+                        });
+                    } else {
+                        alert(errText);
+                    }
                 }
             } catch (err) {
                 console.error(err);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Lỗi',
-                    text: 'Lỗi kết nối tới máy chủ khi gửi lời mời.',
-                    confirmButtonColor: '#059669',
-                    confirmButtonText: 'Đóng'
-                });
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Lỗi',
+                        text: 'Lỗi kết nối tới máy chủ khi gửi lời mời.',
+                        confirmButtonColor: '#059669',
+                        confirmButtonText: 'Đóng'
+                    });
+                } else {
+                    alert('Lỗi kết nối tới máy chủ khi gửi lời mời.');
+                }
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Xác nhận gửi lời mời';

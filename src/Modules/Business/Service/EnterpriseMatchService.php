@@ -731,10 +731,12 @@ final class EnterpriseMatchService
             }
 
             $candSkillNames = [];
+            $verifiedSkillNames = [];
             foreach ($candSkills as $cSk) {
                 $sName = trim((string) ($cSk['name'] ?? ''));
                 if ($sName !== '') {
                     $candSkillNames[] = $sName;
+                    $verifiedSkillNames[] = $sName;
                 }
             }
             if (empty($candSkillNames) && !empty($matchedProf)) {
@@ -751,6 +753,8 @@ final class EnterpriseMatchService
                 'study_status' => (string) ($candidate['study_status'] ?? 'Sinh viên'),
                 'talent_score' => $candidate['talent_score'] ?? null,
                 'skills' => $candSkillNames,
+                'verified_skills' => $verifiedSkillNames,
+                'verifiedSkills' => $verifiedSkillNames,
                 'match_score' => round($score, 1),
                 'match_level' => $matchLevel,
                 'recommendation_reason' => $recReason,
@@ -1080,10 +1084,12 @@ final class EnterpriseMatchService
             $recReason = implode('. ', $reasonParts) . '.';
 
             $candSkillNames = [];
+            $verifiedSkillNames = [];
             foreach ($candSkills as $cSk) {
                 $sName = trim((string) ($cSk['name'] ?? ''));
                 if ($sName !== '') {
                     $candSkillNames[] = $sName;
+                    $verifiedSkillNames[] = $sName;
                 }
             }
             if (empty($candSkillNames) && !empty($matchedProf)) {
@@ -1100,6 +1106,8 @@ final class EnterpriseMatchService
                 'study_status' => (string) ($candidate['study_status'] ?? 'Sinh viên'),
                 'talent_score' => $candidate['talent_score'] ?? null,
                 'skills' => $candSkillNames,
+                'verified_skills' => $verifiedSkillNames,
+                'verifiedSkills' => $verifiedSkillNames,
                 'match_score' => $finalScore,
                 'match_level' => $matchLevel,
                 'recommendation_reason' => $recReason,
@@ -1175,11 +1183,13 @@ final class EnterpriseMatchService
                 $item['talent_score'] = $cand['talent_score'] ?? null;
                 $item['badges'] = $cand['badges'] ?? [];
                 $candSkillNames = [];
+                $verifiedSkillNames = [];
                 $matchedProf = [];
                 foreach ((array) ($cand['skills'] ?? []) as $cSk) {
                     $sName = trim((string) ($cSk['name'] ?? ''));
                     if ($sName !== '') {
                         $candSkillNames[] = $sName;
+                        $verifiedSkillNames[] = $sName;
                         foreach ($reqProfSkills as $rps) {
                             if ($this->matchSkill($sName, $rps)) {
                                 $matchedProf[$rps] = $sName;
@@ -1205,6 +1215,8 @@ final class EnterpriseMatchService
                     $candSkillNames = array_values(array_unique(array_keys($matchedProf)));
                 }
                 $item['skills'] = $candSkillNames;
+                $item['verified_skills'] = $verifiedSkillNames;
+                $item['verifiedSkills'] = $verifiedSkillNames;
                 $item['matched_prof_skills'] = array_keys($matchedProf);
 
                 $score = (float) ($item['match_score'] ?? 0);

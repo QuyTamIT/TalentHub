@@ -38,7 +38,35 @@ if (!function_exists('getInitials')) {
 
 $companyInitials = getInitials($enterprise['name']);
 $isVerified = ($enterprise['verificationStatus'] ?? 'pending') === 'verified';
-$accountType = $isVerified ? 'Doanh nghiệp Đã xác thực' : 'Tài khoản Doanh nghiệp';
+// accountType chỉ mô tả loại tài khoản — không nhúng trạng thái verified vào
+// vì badge verified/pending đã được render riêng trong ent-profile-hero__badges.
+$accountType = 'Tài khoản Doanh nghiệp';
+
+// ── Completion breakdown: hiển thị đúng trường nào đã điền/chưa điền ──────
+// Phải khớp chính xác với công thức trong BusinessProfileService::completion()
+$completionFields = [
+    'name'        => 'Tên doanh nghiệp',
+    'logoUrl'     => 'Logo',
+    'industry'    => 'Lĩnh vực hoạt động',
+    'companySize' => 'Quy mô nhân sự',
+    'foundedYear' => 'Năm thành lập',
+    'taxCode'     => 'Mã số thuế',
+    'description' => 'Giới thiệu doanh nghiệp',
+    'email'       => 'Email liên hệ',
+    'phone'       => 'Số điện thoại',
+    'website'     => 'Website',
+    'address'     => 'Địa chỉ',
+];
+$completionDone    = [];
+$completionMissing = [];
+foreach ($completionFields as $key => $label) {
+    $val = $enterprise[$key] ?? null;
+    if ($val !== null && $val !== '') {
+        $completionDone[]    = $label;
+    } else {
+        $completionMissing[] = $label;
+    }
+}
 
 $enterpriseInfo = [
     'id'                => $enterprise['id'],
@@ -76,12 +104,6 @@ $sidebarNav = [
         'title'  => 'Tài trợ dự án',
         'route'  => '/app/enterprise/sponsorships/',
         'icon'   => 'award',
-        'active' => false,
-    ],
-    [
-        'title'  => 'Phân tích tuyển dụng',
-        'route'  => '/app/enterprise/analytics.php',
-        'icon'   => 'bar-chart-2',
         'active' => false,
     ],
     [
@@ -204,6 +226,32 @@ $sidebarNav = [
                                 </div>
                             </div>
                             <p class="ent-completion-hint">Hồ sơ đầy đủ giúp thu hút nhiều ứng viên tiềm năng và tăng độ tin cậy kết nối với nhà trường.</p>
+
+                            <!-- Completion breakdown: trường đã điền / còn thiếu -->
+                            <div class="ent-completion-breakdown" aria-label="Chi tiết hoàn thiện hồ sơ">
+                                <?php if (!empty($completionMissing)): ?>
+                                    <div class="ent-completion-breakdown__group">
+                                        <span class="ent-completion-breakdown__badge ent-completion-breakdown__badge--missing">
+                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                            Còn thiếu (<?= count($completionMissing); ?>)
+                                        </span>
+                                        <?php foreach ($completionMissing as $label): ?>
+                                            <span class="ent-completion-chip ent-completion-chip--missing"><?= htmlspecialchars($label); ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($completionDone)): ?>
+                                    <div class="ent-completion-breakdown__group">
+                                        <span class="ent-completion-breakdown__badge ent-completion-breakdown__badge--done">
+                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                                            Đã có (<?= count($completionDone); ?>)
+                                        </span>
+                                        <?php foreach ($completionDone as $label): ?>
+                                            <span class="ent-completion-chip ent-completion-chip--done"><?= htmlspecialchars($label); ?></span>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </section>
 

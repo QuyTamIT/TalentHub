@@ -917,38 +917,178 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                             </div>
                         </section>
                     <?php elseif ($action === 'registrations' && $selectedActivity): ?>
-                        <section class="teacher-section-box teacher-registrations-panel">
-                            <div class="teacher-section-box__header">
-                                <div>
-                                    <span class="teacher-welcome__tag">Danh sách đăng ký</span>
-                                    <h2 class="teacher-section-box__title"><?= teacherActivitiesEscape($selectedActivity['title']); ?></h2>
-                                </div>
-                                <a href="index.php" class="btn btn-secondary btn-sm">Quay lại danh sách</a>
+                        <?php
+                        // ── helpers (scoped to registrations view) ──────────────────────────────
+                        $regStatusLabel = static function (string $status): string {
+                            return match ($status) {
+                                'pending'   => 'Chờ duyệt',
+                                'approved'  => 'Đã duyệt',
+                                'attended'  => 'Đã tham dự',
+                                'rejected'  => 'Từ chối',
+                                'cancelled' => 'Đã hủy',
+                                'absent'    => 'Vắng mặt',
+                                default     => $status ?: 'Đã đăng ký',
+                            };
+                        };
+                        $regStatusClass = static function (string $status): string {
+                            return match ($status) {
+                                'pending'             => 'pending',
+                                'approved', 'attended'=> 'attended',
+                                'rejected', 'absent'  => 'absent',
+                                'cancelled'           => 'cancelled',
+                                default               => 'default',
+                            };
+                        };
+                        $checkinLabel = static function (?string $status): array {
+                            return match ($status) {
+                                'confirmed' => ['Đã xác nhận',   'confirmed'],
+                                'pending'   => ['Chờ xác nhận',  'pending'],
+                                'rejected'  => ['Bị từ chối',    'rejected'],
+                                null, ''    => ['Chưa điểm danh','none'],
+                                default     => [$status,          'default'],
+                            };
+                        };
+
+                        // ── summary counters ────────────────────────────────────────────────────
+                        $totalReg      = count($registrationRows);
+                        $totalCheckedIn = 0;
+                        $totalPending   = 0;
+                        foreach ($registrationRows as $_r) {
+                            if (($_r['checkin_status'] ?? '') === 'confirmed') $totalCheckedIn++;
+                            elseif (($_r['checkin_status'] ?? '') === 'pending')  $totalPending++;
+                        }
+                        $totalNotCheckedIn = $totalReg - $totalCheckedIn - $totalPending;
+                        $capacity = (int) ($selectedActivity['capacity'] ?? 0);
+                        ?>
+
+                        <!-- ── Breadcrumb / back link ──────────────────────────── -->
+                        <nav class="teacher-reg-breadcrumb" aria-label="Điều hướng">
+                            <a href="index.php" class="teacher-reg-breadcrumb__back">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+                                Quay lại danh sách hoạt động
+                            </a>
+                        </nav>
+
+                        <!-- ── Page heading ───────────────────────────────────── -->
+                        <div class="teacher-reg-heading">
+                            <div class="teacher-reg-heading__main">
+                                <span class="teacher-welcome__tag">Danh sách sinh viên</span>
+                                <h2 class="teacher-reg-heading__title"><?= teacherActivitiesEscape($selectedActivity['title']); ?></h2>
+                                <p class="teacher-reg-heading__meta">
+                                    <strong><?= teacherActivitiesEscape((string) $totalReg); ?></strong> sinh viên đăng ký
+                                    <?php if ($capacity > 0): ?>
+                                        &nbsp;·&nbsp; Sức chứa <strong><?= teacherActivitiesEscape((string) $capacity); ?></strong>
+                                    <?php endif; ?>
+                                    <?php if (!empty($selectedActivity['start_label'])): ?>
+                                        &nbsp;·&nbsp; <?= teacherActivitiesEscape($selectedActivity['start_label']); ?>
+                                    <?php endif; ?>
+                                </p>
                             </div>
+                            <?php if (in_array($selectedActivity['status'] ?? '', ['published', 'ongoing'], true)): ?>
+                                <a href="../checkins/index.php?activity_id=<?= teacherActivitiesEscape($selectedActivity['id']); ?>"
+                                   class="btn btn-primary btn-sm teacher-reg-qr-btn">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3"/><path d="M17 14h3"/><path d="M17 17v3"/></svg>
+                                    Tạo QR điểm danh
+                                </a>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- ── Summary cards ──────────────────────────────────── -->
+                        <?php if ($totalReg > 0): ?>
+                        <div class="teacher-reg-summary">
+                            <div class="teacher-reg-summary__card">
+                                <span class="teacher-reg-summary__value"><?= $totalReg; ?></span>
+                                <span class="teacher-reg-summary__label">Đã đăng ký</span>
+                            </div>
+                            <div class="teacher-reg-summary__card teacher-reg-summary__card--success">
+                                <span class="teacher-reg-summary__value"><?= $totalCheckedIn; ?></span>
+                                <span class="teacher-reg-summary__label">Đã điểm danh</span>
+                            </div>
+                            <?php if ($totalPending > 0): ?>
+                            <div class="teacher-reg-summary__card teacher-reg-summary__card--warn">
+                                <span class="teacher-reg-summary__value"><?= $totalPending; ?></span>
+                                <span class="teacher-reg-summary__label">Chờ xác nhận</span>
+                            </div>
+                            <?php endif; ?>
+                            <div class="teacher-reg-summary__card teacher-reg-summary__card--muted">
+                                <span class="teacher-reg-summary__value"><?= $totalNotCheckedIn; ?></span>
+                                <span class="teacher-reg-summary__label">Chưa điểm danh</span>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+
+                        <!-- ── Student list ───────────────────────────────────── -->
+                        <section class="teacher-section-box teacher-reg-panel" aria-labelledby="teacher-reg-panel-title">
+                            <div class="teacher-section-box__header">
+                                <h3 class="teacher-section-box__title" id="teacher-reg-panel-title">
+                                    Danh sách sinh viên
+                                </h3>
+                            </div>
+
                             <?php if (!$registrationRows): ?>
                                 <div class="teacher-empty-state">
                                     <div class="teacher-empty-state__icon" aria-hidden="true">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="9" cy="7" r="4"></circle>
-                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                            <path d="M16 11a4 4 0 0 1 0 8"></path>
+                                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                                            <circle cx="9" cy="7" r="4"/><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                            <path d="M16 11a4 4 0 0 1 0 8"/>
                                         </svg>
                                     </div>
-                                    <h3 class="teacher-empty-state__title">Chưa có người đăng ký</h3>
-                                    <p class="teacher-empty-state__desc">Danh sách sẽ hiển thị khi học viên đăng ký hoạt động này.</p>
+                                    <h4 class="teacher-empty-state__title">Chưa có sinh viên đăng ký</h4>
+                                    <p class="teacher-empty-state__desc">Danh sách sẽ hiển thị ngay khi có học viên đăng ký hoạt động này.</p>
                                 </div>
                             <?php else: ?>
                                 <div class="teacher-activities-table-wrap">
-                                    <table class="teacher-activities-table teacher-registrations-table">
-                                        <thead><tr><th>Học viên</th><th>Email</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                                    <table class="teacher-activities-table teacher-reg-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Sinh viên</th>
+                                                <th>Ngày đăng ký</th>
+                                                <th>Trạng thái đăng ký</th>
+                                                <th>Điểm danh</th>
+                                                <th class="teacher-activities-table__actions-heading">Thao tác</th>
+                                            </tr>
+                                        </thead>
                                         <tbody>
                                             <?php foreach ($registrationRows as $registration): ?>
+                                                <?php
+                                                    $regDate = '';
+                                                    if (!empty($registration['registeredAt'])) {
+                                                        $dt = teacherActivitiesDate((string) $registration['registeredAt']);
+                                                        $regDate = $dt ? $dt->format('d/m/Y H:i') : substr((string) $registration['registeredAt'], 0, 16);
+                                                    }
+                                                    [$ciLabel, $ciClass] = $checkinLabel($registration['checkin_status'] ?? null);
+                                                    $rSt = $registration['status'] ?? '';
+                                                    $ciTime = '';
+                                                    if (!empty($registration['checkin_confirmed_at'])) {
+                                                        $ciDt = teacherActivitiesDate((string) $registration['checkin_confirmed_at']);
+                                                        $ciTime = $ciDt ? $ciDt->format('d/m/Y H:i') : '';
+                                                    }
+                                                ?>
                                                 <tr>
-                                                    <td data-label="Học viên"><?= teacherActivitiesEscape($registration['student_name'] ?: 'Học viên'); ?></td>
-                                                    <td data-label="Email"><?= teacherActivitiesEscape($registration['student_email'] ?: 'Chưa có email'); ?></td>
-                                                    <td data-label="Trạng thái"><span class="teacher-registration-pill teacher-registration-pill--status"><?= teacherActivitiesEscape($registration['status'] ?: 'Đã đăng ký'); ?></span></td>
+                                                    <td data-label="Sinh viên">
+                                                        <span class="teacher-reg-student-name"><?= teacherActivitiesEscape($registration['student_name'] ?: 'Học viên'); ?></span>
+                                                        <?php if (!empty($registration['student_email'])): ?>
+                                                            <span class="teacher-reg-student-email"><?= teacherActivitiesEscape($registration['student_email']); ?></span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td data-label="Ngày đăng ký">
+                                                        <span class="teacher-text-muted"><?= teacherActivitiesEscape($regDate ?: '—'); ?></span>
+                                                    </td>
+                                                    <td data-label="Trạng thái đăng ký">
+                                                        <span class="teacher-registration-pill teacher-registration-pill--reg-<?= teacherActivitiesEscape($regStatusClass($rSt)); ?>">
+                                                            <?= teacherActivitiesEscape($regStatusLabel($rSt)); ?>
+                                                        </span>
+                                                    </td>
+                                                    <td data-label="Điểm danh">
+                                                        <span class="teacher-registration-pill teacher-registration-pill--checkin-<?= teacherActivitiesEscape($ciClass); ?>">
+                                                            <?= teacherActivitiesEscape($ciLabel); ?>
+                                                        </span>
+                                                        <?php if ($ciTime !== ''): ?>
+                                                            <span class="teacher-reg-checkin-time"><?= teacherActivitiesEscape($ciTime); ?></span>
+                                                        <?php endif; ?>
+                                                    </td>
                                                     <td data-label="Thao tác">
-                                                        <?php if (($registration['status'] ?? '') === 'pending'): ?>
+                                                        <?php if ($rSt === 'pending'): ?>
                                                             <div class="teacher-activities-row-actions">
                                                                 <form method="post" class="teacher-activities-inline-form">
                                                                     <input type="hidden" name="csrfToken" value="<?= teacherActivitiesEscape($csrfToken); ?>">
@@ -968,7 +1108,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                                                 </form>
                                                             </div>
                                                         <?php else: ?>
-                                                            <span class="teacher-text-muted">Đã xử lý</span>
+                                                            <span class="teacher-text-muted">—</span>
                                                         <?php endif; ?>
                                                     </td>
                                                 </tr>
@@ -982,6 +1122,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                         <div class="teacher-activities-notice teacher-activities-notice--error" role="alert">Không tìm thấy hoạt động thuộc hồ sơ giáo viên này.</div>
                     <?php endif; ?>
 
+                    <?php if ($action !== 'registrations'): ?>
                     <section class="teacher-section-box teacher-activities-list-panel">
                         <div class="teacher-section-box__header">
                             <div>
@@ -1069,7 +1210,9 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                                                     <div class="teacher-activities-row-actions">
                                                         <a href="?action=view&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-action">Chi tiết</a>
                                                         <a href="?action=edit&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-action">Chỉnh sửa</a>
-                                                        <a href="?action=registrations&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-action">Đăng ký</a>
+                                                        <a href="?action=registrations&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-action teacher-activity-action--students" title="Xem danh sách sinh viên đã đăng ký hoạt động này">
+                                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true" style="vertical-align:-2px;margin-right:2px"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>Xem sinh viên
+                                                        </a>
                                                         <?php if (in_array($activity['status'] ?? '', ['published', 'ongoing'], true)): ?>
                                                             <a href="../checkins/index.php?activity_id=<?= urlencode((string) $activity['id']); ?>" class="teacher-activity-action" style="color: var(--color-success, #15803D); font-weight: 600;">Tạo QR điểm danh</a>
                                                         <?php endif; ?>
@@ -1095,6 +1238,7 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
                             </div>
                         <?php endif; ?>
                     </section>
+                    <?php endif; /* $action !== 'registrations' */ ?>
                 </div>
             </main>
         </div>

@@ -274,8 +274,12 @@ final class Application
             }elseif(isset($input['limit'])&&is_numeric($input['limit'])){
                 $limit=max(1,min(100,(int)$input['limit']));
             }elseif(isset($input['slots'])&&is_numeric($input['slots'])){
+                // 'slots' = chỉ tiêu tuyển dụng của doanh nghiệp — chỉ dùng cho metadata hiển thị,
+                // KHÔNG cắt số lượng kết quả AI. Ranking vẫn trả đầy đủ để doanh nghiệp tự chọn.
                 $limit=max(1,min(100,(int)$input['slots']));
             }
+            // $limit (nếu có) chỉ được lưu vào desired_count trong response metadata.
+            // match() luôn nhận null để trả toàn bộ candidates đã ranked — không slice theo chỉ tiêu.
             return JsonResponse::success($enterpriseMatchService->match((string)$enterprise['id'],$job,null,null),$requestId);
         });
         $router->add('GET','/api/v1/businesses/me/talents/{studentId}',function(Request $r)use($session,$permissions,$talents,$requestId){$user=$this->requireRole($session,RoleCodes::ENTERPRISE,'doanh nghiệp');$permissions->require($user['id'],'talent.read_consented');$studentId=(string)$r->pathParam('studentId');return JsonResponse::success(['talent'=>$talents->getTalent($user['id'],$studentId,$requestId,isset($_SERVER['REMOTE_ADDR'])?(string)$_SERVER['REMOTE_ADDR']:null)],$requestId);});

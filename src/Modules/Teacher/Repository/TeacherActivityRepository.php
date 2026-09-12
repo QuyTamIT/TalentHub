@@ -98,17 +98,25 @@ final class TeacherActivityRepository
         $params = ['activityId' => $activityId];
         $scopeWhere = $this->teacherActivityScopeWhere($teacherId, $params, 'r_');
         $detailJoin = $this->hasTable('activity_details') ? ' LEFT JOIN activity_details d ON d.activityId = a.id' : '';
+        // LEFT JOIN checkins để hiển thị trạng thái điểm danh; mỗi registration có tối đa 1 checkin
+        $checkinJoin = $this->hasTable('checkins') ? ' LEFT JOIN checkins ci ON ci.registrationId = ar.id' : '';
+        $checkinSelect = $this->hasTable('checkins')
+            ? ', ci.status AS checkin_status, ci.confirmedAt AS checkin_confirmed_at'
+            : ", NULL AS checkin_status, NULL AS checkin_confirmed_at";
         $statement = $this->pdo->prepare("
             SELECT
                 ar.id,
                 ar.status,
+                ar.registeredAt,
                 u.fullName AS student_name,
                 u.email AS student_email
+                {$checkinSelect}
             FROM activity_registrations ar
             INNER JOIN activities a ON a.id = ar.activityId
             {$detailJoin}
             INNER JOIN student_profiles sp ON sp.id = ar.studentId
             INNER JOIN users u ON u.id = sp.userId
+            {$checkinJoin}
             WHERE {$scopeWhere}
               AND ar.activityId = :activityId
             ORDER BY u.fullName ASC

@@ -16,7 +16,7 @@ $sidebarNav = [
         'active' => true,
     ],
     [
-        'title'  => 'Tìm nhân tài',
+        'title'  => 'Tìm kiếm & Đánh giá nhân tài',
         'route'  => '/app/enterprise/talents.php',
         'icon'   => 'search-users',
         'active' => false,
@@ -31,12 +31,6 @@ $sidebarNav = [
         'title'  => 'Tài trợ dự án',
         'route'  => '/app/enterprise/sponsorships/',
         'icon'   => 'award',
-        'active' => false,
-    ],
-    [
-        'title'  => 'Phân tích tuyển dụng',
-        'route'  => '/app/enterprise/analytics.php',
-        'icon'   => 'bar-chart-2',
         'active' => false,
     ],
     [
@@ -86,17 +80,29 @@ $kpiProjectsChange = (!empty($summary['total_sponsored_formatted']) && $summary[
     ? "Tổng: {$summary['total_sponsored_formatted']}" 
     : 'Tổng: 0 VNĐ';
 
-$kpiPassRateVal = (!empty($summary['pass_rate_formatted']) && $summary['pass_rate_formatted'] !== '0%') 
-    ? $summary['pass_rate_formatted'] 
-    : (($summary['passed_candidates'] ?? 0) > 0 ? '100%' : '0%');
-$kpiPassRateChange = (!empty($summary['pass_rate']) && $summary['pass_rate'] > 0) 
-    ? "↑ " . round($summary['pass_rate']) . "%" 
-    : (($summary['passed_candidates'] ?? 0) > 0 ? "100% tiếp nhận" : 'Chưa có ứng viên');
+// Tỷ lệ nhận thực tập — chỉ hiển thị % khi có đủ dữ liệu thực tế.
+// Nếu chưa có ứng viên nào, hiển thị "—" thay vì "0%" để tránh hiểu nhầm.
+$totalApplicants  = (int) ($summary['total_applicants']  ?? 0);
+$passedCandidates = (int) ($summary['passed_candidates'] ?? 0);
+
+if ($totalApplicants > 0 && !empty($summary['pass_rate_formatted'])) {
+    $kpiPassRateVal    = $summary['pass_rate_formatted'];
+    $kpiPassRateChange = "↑ " . round((float) $summary['pass_rate']) . "% tiếp nhận";
+} elseif ($totalApplicants > 0 && $passedCandidates > 0) {
+    // fallback: có ứng viên nhưng pass_rate chưa được tính từ DB
+    $kpiPassRateVal    = '100%';
+    $kpiPassRateChange = '100% tiếp nhận';
+} else {
+    // Chưa có đủ dữ liệu — không hiển thị con số
+    $kpiPassRateVal    = '—';
+    $kpiPassRateChange = 'Chưa có dữ liệu';
+}
 
 $kpis = [
     [
         'id' => 'talents',
         'label' => 'Hồ sơ ứng tuyển',
+        'route' => '/app/enterprise/internships/applicants.php',
         'value' => $kpiApplicantsVal,
         'change' => $kpiApplicantsChange,
         'change_type' => 'neutral',
@@ -105,7 +111,8 @@ $kpis = [
     ],
     [
         'id' => 'jobs',
-        'label' => 'Tin tuyển dụng',
+        'label' => 'Tin tuyển thực tập',
+        'route' => '/app/enterprise/internships/',
         'value' => $kpiJobsVal,
         'change' => $kpiJobsChange,
         'change_type' => $activePostsCount > 0 ? 'positive' : 'neutral',
@@ -115,6 +122,7 @@ $kpis = [
     [
         'id' => 'projects',
         'label' => 'Dự án đã tài trợ',
+        'route' => '/app/enterprise/sponsorships/',
         'value' => $kpiProjectsVal,
         'change' => $kpiProjectsChange,
         'change_type' => 'neutral',
@@ -123,7 +131,8 @@ $kpis = [
     ],
     [
         'id' => 'pass_rate',
-        'label' => 'Tỷ lệ tuyển dụng',
+        'label' => 'Tỷ lệ nhận thực tập',
+        'route' => '/app/enterprise/internships/applicants.php',
         'value' => $kpiPassRateVal,
         'change' => $kpiPassRateChange,
         'change_type' => 'neutral',
@@ -236,7 +245,7 @@ if ($pdo !== null) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="TalentHub Enterprise Dashboard - Quản lý tuyển dụng và kết nối tài năng dành cho Doanh nghiệp.">
+    <meta name="description" content="TalentHub Enterprise Dashboard - Quản lý tuyển thực tập và kết nối tài năng dành cho Doanh nghiệp.">
     <title>Dashboard Doanh Nghiệp - <?= htmlspecialchars($enterpriseInfo['company_name']); ?> | TalentHub</title>
     
     <!-- CSS Assets -->
@@ -271,7 +280,7 @@ if ($pdo !== null) {
                     <!-- 2. Hàng Thẻ Thống Kê Chỉ Số (Metrics Bar) -->
                     <?php include __DIR__ . '/includes/kpi-cards.php'; ?>
 
-                    <!-- 3. Bảng Nhân Tài Nổi Bật Tuần Này (Featured Talents) -->
+                    <!-- 3. Bảng Nhân Tài Nổi Bật (Featured Talents) -->
                     <?php include __DIR__ . '/includes/featured-talents.php'; ?>
 
                 </div>

@@ -39,16 +39,12 @@ final class InternshipInvitationResponseService
                 throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy lời mời thực tập thuộc tài khoản của bạn.');
             }
 
-            $applicationId = $this->applicationIdFromEventKey((string) ($notification['eventKey'] ?? ''));
-            if ($applicationId === null) {
-                throw new ApiException(409, 'INVITATION_LINK_INVALID', 'Lời mời thực tập không có liên kết hồ sơ hợp lệ.');
-            }
-
-            $application = $this->lockApplication($applicationId, $studentId);
+            $application = $this->lockApplicationForNotification($notification, $studentId, $userId);
             if ($application === null) {
                 throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hồ sơ thực tập của lời mời này.');
             }
 
+            $applicationId = (string) $application['id'];
             $currentStatus = (string) $application['status'];
             if ($currentStatus === $targetStatus) {
                 $this->markNotificationRead($notificationId, $userId);
@@ -65,13 +61,14 @@ final class InternshipInvitationResponseService
             $now = gmdate('Y-m-d H:i:s.u');
             $update = $this->pdo->prepare(
                 'UPDATE internship_applications SET status = :status, updatedAt = :updatedAt '
-                . "WHERE id = :id AND studentId = :studentId AND status = 'invited'"
+                . "WHERE id = :id AND (studentId = :studentId OR studentId IN (SELECT id FROM student_profiles WHERE userId = :userId)) AND status = 'invited'"
             );
             $update->execute([
                 'status' => $targetStatus,
                 'updatedAt' => $now,
                 'id' => $applicationId,
                 'studentId' => $studentId,
+                'userId' => $userId,
             ]);
             if ($update->rowCount() !== 1) {
                 throw new ApiException(409, 'CONCURRENT_MODIFICATION', 'Trạng thái lời mời đã thay đổi.');
@@ -108,7 +105,7 @@ final class InternshipInvitationResponseService
     private function lockNotification(string $notificationId, string $userId): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, userId, eventKey, notificationType, readAt FROM notifications '
+            'SELECT id, userId, eventKey, notificationType, deepLink, readAt FROM notifications '
             . 'WHERE id = :id AND userId = :userId LIMIT 1' . $this->lockSuffix()
         );
         $statement->execute(['id' => $notificationId, 'userId' => $userId]);
@@ -116,7 +113,41 @@ final class InternshipInvitationResponseService
         return is_array($row) ? $row : null;
     }
 
-    private function lockApplication(string $applicationId, string $studentId): ?array
+    private function lockApplicationForNotification(array $notification, string $studentId, string $userId): ?array
+    {
+        $eventKey = (string) ($notification['eventKey'] ?? '');
+        $deepLink = (string) ($notification['deepLink'] ?? '');
+
+        // 1. Direct regex match on standard eventKey format: internship_invitation:{appId}
+        if (preg_match('/\Ainternship_invitation:([0-9a-f-]{36})(?::[A-Za-z0-9_-]+)?\z/i', $eventKey, $matches) === 1) {
+            $app = $this->lockApplicationById($matches[1], $studentId, $userId);
+            if ($app !== null) {
+                return $app;
+            }
+        }
+
+        // 2. Extract any candidate UUIDs from eventKey and deepLink
+        $candidateUuids = [];
+        if (preg_match_all('/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i', $eventKey . ' ' . $deepLink, $matches)) {
+            $candidateUuids = array_unique(array_map('strtolower', $matches[1]));
+        }
+
+        foreach ($candidateUuids as $uuid) {
+            $app = $this->lockApplicationById($uuid, $studentId, $userId);
+            if ($app !== null) {
+                return $app;
+            }
+            $app = $this->lockApplicationByPostId($uuid, $studentId, $userId);
+            if ($app !== null) {
+                return $app;
+            }
+        }
+
+        // 3. Fallback: match most recent invited application for this student
+        return $this->lockLatestInvitedApplication($studentId, $userId);
+    }
+
+    private function lockApplicationById(string $applicationId, string $studentId, string $userId): ?array
     {
         $statement = $this->pdo->prepare(<<<SQL
             SELECT ia.id, ia.postId, ia.studentId, ia.status,
@@ -124,20 +155,50 @@ final class InternshipInvitationResponseService
             FROM internship_applications ia
             INNER JOIN internship_posts ip ON ip.id = ia.postId
             INNER JOIN enterprises e ON e.id = ip.enterpriseId
-            WHERE ia.id = :id AND ia.studentId = :studentId
+            INNER JOIN student_profiles sp ON sp.id = ia.studentId
+            WHERE ia.id = :id AND (ia.studentId = :studentId OR sp.userId = :userId)
             LIMIT 1{$this->lockSuffix()}
         SQL);
-        $statement->execute(['id' => $applicationId, 'studentId' => $studentId]);
+        $statement->execute(['id' => $applicationId, 'studentId' => $studentId, 'userId' => $userId]);
         $row = $statement->fetch(PDO::FETCH_ASSOC);
         return is_array($row) ? $row : null;
     }
 
-    private function applicationIdFromEventKey(string $eventKey): ?string
+    private function lockApplicationByPostId(string $postId, string $studentId, string $userId): ?array
     {
-        if (preg_match('/\Ainternship_invitation:([0-9a-f-]{36})(?::[A-Za-z0-9_-]+)?\z/i', $eventKey, $matches) !== 1) {
-            return null;
-        }
-        return Uuid::isValid($matches[1]) ? strtolower($matches[1]) : null;
+        $statement = $this->pdo->prepare(<<<SQL
+            SELECT ia.id, ia.postId, ia.studentId, ia.status,
+                   ip.title AS postTitle, e.name AS enterpriseName
+            FROM internship_applications ia
+            INNER JOIN internship_posts ip ON ip.id = ia.postId
+            INNER JOIN enterprises e ON e.id = ip.enterpriseId
+            INNER JOIN student_profiles sp ON sp.id = ia.studentId
+            WHERE ia.postId = :postId AND (ia.studentId = :studentId OR sp.userId = :userId)
+            ORDER BY (ia.status = 'invited') DESC, ia.updatedAt DESC
+            LIMIT 1{$this->lockSuffix()}
+        SQL);
+        $statement->execute(['postId' => $postId, 'studentId' => $studentId, 'userId' => $userId]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    private function lockLatestInvitedApplication(string $studentId, string $userId): ?array
+    {
+        $statement = $this->pdo->prepare(<<<SQL
+            SELECT ia.id, ia.postId, ia.studentId, ia.status,
+                   ip.title AS postTitle, e.name AS enterpriseName
+            FROM internship_applications ia
+            INNER JOIN internship_posts ip ON ip.id = ia.postId
+            INNER JOIN enterprises e ON e.id = ip.enterpriseId
+            INNER JOIN student_profiles sp ON sp.id = ia.studentId
+            WHERE (ia.studentId = :studentId OR sp.userId = :userId)
+              AND ia.status = 'invited'
+            ORDER BY ia.updatedAt DESC
+            LIMIT 1{$this->lockSuffix()}
+        SQL);
+        $statement->execute(['studentId' => $studentId, 'userId' => $userId]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
     }
 
     private function hasOtherAcceptedPlacement(string $studentId, string $applicationId): bool

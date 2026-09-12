@@ -12,7 +12,6 @@ $sidebarNav = [
     ['title' => 'Tìm nhân tài', 'route' => '/app/enterprise/talents.php', 'icon' => 'search-users', 'active' => false],
     ['title' => 'Tuyển thực tập', 'route' => '/app/enterprise/internships/', 'icon' => 'briefcase', 'active' => false],
     ['title' => 'Tài trợ dự án', 'route' => '/app/enterprise/sponsorships/', 'icon' => 'award', 'active' => false],
-    ['title' => 'Phân tích tuyển dụng', 'route' => '/app/enterprise/analytics.php', 'icon' => 'bar-chart-2', 'active' => false],
     ['title' => 'Hồ sơ doanh nghiệp', 'route' => '/app/enterprise/profile.php', 'icon' => 'building', 'active' => false],
 ];
 ?>

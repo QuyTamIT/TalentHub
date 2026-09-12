@@ -9,8 +9,13 @@
 <section class="ent-metrics-bar" aria-label="Các chỉ số hoạt động chính">
     <?php foreach ($kpis as $kpi): 
         $colorClass = $kpi['color'] ?? 'blue';
+        $kpiRoute = !empty($kpi['route']) ? app_href($kpi['route']) : null;
     ?>
-        <article class="ent-metric-card ent-metric-card--<?= htmlspecialchars($colorClass); ?>">
+        <?php if ($kpiRoute): ?>
+            <a href="<?= htmlspecialchars($kpiRoute); ?>" class="ent-metric-card ent-metric-card--<?= htmlspecialchars($colorClass); ?> ent-metric-card--clickable" data-route="<?= htmlspecialchars($kpi['route']); ?>" style="text-decoration: none; color: inherit; display: flex; flex-direction: column;">
+        <?php else: ?>
+            <article class="ent-metric-card ent-metric-card--<?= htmlspecialchars($colorClass); ?>">
+        <?php endif; ?>
             <!-- Top Row: Pastel Icon Badge -->
             <div class="ent-metric-card__header">
                 <div class="ent-metric-card__icon-box ent-metric-card__icon-box--<?= htmlspecialchars($colorClass); ?>" aria-hidden="true">
@@ -63,6 +68,10 @@
                     <span><?= htmlspecialchars($kpi['change']); ?></span>
                 </span>
             </div>
-        </article>
+        <?php if ($kpiRoute): ?>
+            </a>
+        <?php else: ?>
+            </article>
+        <?php endif; ?>
     <?php endforeach; ?>
 </section>

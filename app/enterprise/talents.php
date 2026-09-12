@@ -198,12 +198,6 @@ $sidebarNav = [
         'active' => false,
     ],
     [
-        'title'  => 'Phân tích tuyển dụng',
-        'route'  => '/app/enterprise/analytics.php',
-        'icon'   => 'bar-chart-2',
-        'active' => false,
-    ],
-    [
         'title'  => 'Hồ sơ doanh nghiệp',
         'route'  => '/app/enterprise/profile.php',
         'icon'   => 'building',
@@ -299,13 +293,13 @@ $sidebarNav = [
                             </div>
                         </div>
                         <p class="ent-ai-matcher-card__description">
-                            Khớp nối tự động và xếp hạng ứng viên dựa trên điểm đánh giá năng lực và kỹ năng đã kiểm chứng đối chiếu với yêu cầu của vị trí tuyển dụng thực tập.
+                            Khớp nối tự động và xếp hạng ứng viên dựa trên điểm đánh giá năng lực và kỹ năng đã kiểm chứng đối chiếu với yêu cầu của vị trí thực tập.
                         </p>
                         <div class="ent-ai-matcher-card__controls" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem;">
                             <div class="ent-ai-matcher-card__field" style="flex: 1 1 320px;">
-                                <label for="enterprise-ai-job-select" class="ent-ai-matcher-card__label">Chọn vị trí thực tập đang tuyển dụng:</label>
+                                <label for="enterprise-ai-job-select" class="ent-ai-matcher-card__label">Chọn vị trí thực tập đang mở:</label>
                                 <select id="enterprise-ai-job-select" class="ent-ai-matcher-card__select" data-enterprise-ai-job>
-                                    <option value="">-- Chọn vị trí thực tập tuyển dụng --</option>
+                                    <option value="">-- Chọn tin tuyển thực tập --</option>
                                     <?php foreach ($activeJobs as $job): ?>
                                         <option value="<?= htmlspecialchars((string) $job['id']); ?>" data-slots="<?= htmlspecialchars((string) ($job['slots'] ?? '5')); ?>" data-field="<?= htmlspecialchars((string) ($job['field'] ?? '')); ?>"><?= htmlspecialchars((string) $job['title']); ?> (Hạn: <?= htmlspecialchars((string) substr($job['deadline'] ?? '', 0, 10)); ?><?= !empty($job['slots']) ? ' • Chỉ tiêu: ' . (int) $job['slots'] : '' ?>)</option>
                                     <?php endforeach; ?>
@@ -574,8 +568,10 @@ $sidebarNav = [
                                     $school = htmlspecialchars((string) ($talent['schoolName'] ?? 'Nhà trường'));
                                     $classYear = htmlspecialchars((string) ($talent['className'] ?? ''));
                                     $major = htmlspecialchars((string) ($talent['headline'] ?? ''));
-                                    $skills = (array) ($talent['skills'] ?? []);
-                                    $verifiedCount = (int) ($talent['verifiedSkillCount'] ?? count($skills));
+                                    $verifiedSkills = (array) ($talent['verifiedSkills'] ?? []);
+                                    $allSkills = (array) ($talent['skills'] ?? []);
+                                    $verifiedCount = (int) ($talent['verifiedSkillCount'] ?? count($verifiedSkills));
+                                    $inferredCount = max(0, count($allSkills) - $verifiedCount);
                                     $studyStatus = (string) ($talent['studyStatus'] ?? 'Sinh viên');
                                 ?>
                                 <article class="ent-talent-card-item" data-talent-id="<?= $tId ?>">
@@ -633,6 +629,13 @@ $sidebarNav = [
                                             <span class="ent-meta-item__label">Trạng thái:</span>
                                             <span class="val-status badge-ready-now">Sẵn sàng thực tập</span>
                                         </div>
+                                        <?php if ($inferredCount > 0): ?>
+                                            <div class="ent-meta-item__divider"></div>
+                                            <div class="ent-meta-item">
+                                                <span class="ent-meta-item__label">Kỹ năng từ dự án:</span>
+                                                <span class="ent-meta-item__value"><?= $inferredCount ?> kỹ năng</span>
+                                            </div>
+                                        <?php endif; ?>
                                         <div class="ent-meta-item__divider"></div>
                                         <div class="ent-meta-item">
                                             <span class="ent-meta-item__label">Bậc học:</span>
@@ -643,11 +646,15 @@ $sidebarNav = [
                                     <div class="ent-talent-card-item__skills">
                                         <span class="skills-label">Kỹ năng:</span>
                                         <div class="skills-chips">
-                                            <?php foreach (array_slice($skills, 0, 4) as $sk): ?>
-                                                <span class="skill-tag"><?= htmlspecialchars($sk); ?></span>
-                                            <?php endforeach; ?>
-                                            <?php if (count($skills) > 4): ?>
-                                                <span class="skill-tag skill-tag--more">+<?= count($skills) - 4; ?></span>
+                                            <?php if (empty($verifiedSkills)): ?>
+                                                <span class="skill-tag skill-tag--empty">Chưa có kỹ năng</span>
+                                            <?php else: ?>
+                                                <?php foreach (array_slice($verifiedSkills, 0, 4) as $sk): ?>
+                                                    <span class="skill-tag"><?= htmlspecialchars($sk); ?></span>
+                                                <?php endforeach; ?>
+                                                <?php if (count($verifiedSkills) > 4): ?>
+                                                    <span class="skill-tag skill-tag--more">+<?= count($verifiedSkills) - 4; ?></span>
+                                                <?php endif; ?>
                                             <?php endif; ?>
                                         </div>
                                     </div>

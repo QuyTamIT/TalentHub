@@ -1729,6 +1729,28 @@ body.teacher-sidebar-open { overflow: hidden; }
     color: var(--text-muted);
 }
 
+/* Pill điểm danh (checkin) — hiển thị trong bảng danh sách sinh viên */
+.teacher-registration-pill--checkin-confirmed {
+    border-color: rgba(22, 163, 74, 0.28);
+    background-color: #dcfce7;
+    color: #15803d;
+}
+.teacher-registration-pill--checkin-pending {
+    border-color: rgba(202, 138, 4, 0.28);
+    background-color: #fef9c3;
+    color: #a16207;
+}
+.teacher-registration-pill--checkin-rejected {
+    border-color: rgba(185, 28, 28, 0.22);
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+.teacher-registration-pill--checkin-none,
+.teacher-registration-pill--checkin-default {
+    background-color: var(--background);
+    color: var(--text-muted);
+}
+
 .teacher-activities-row-actions { display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; flex-wrap: wrap; min-width: 0; }
 .teacher-activities-header-actions, .teacher-activities-inline-form { display: inline-flex; align-items: center; gap: 0.5rem; }
 
@@ -1759,6 +1781,14 @@ body.teacher-sidebar-open { overflow: hidden; }
 .teacher-activity-action--button:hover,
 .teacher-activity-action--button:focus-visible { text-decoration: underline; }
 .teacher-activity-action:hover { color: var(--primary-dark); text-decoration: underline; }
+
+/* Nút "Xem sinh viên" — nhấn mạnh nhẹ để dễ nhìn thấy */
+.teacher-activity-action--students {
+    color: var(--color-info, #0369a1);
+}
+.teacher-activity-action--students:hover {
+    color: #075985;
+}
 
 .teacher-activities-form-panel,
 .teacher-activity-detail-panel,
@@ -2997,4 +3027,212 @@ body.teacher-dashboard a:not(.btn):not(.teacher-sidebar__link):not(.teacher-acco
 
 body.teacher-dashboard a:not(.btn):not(.teacher-sidebar__link):not(.teacher-account-menu__item):not(.teacher-grading-button):not(.teacher-activity-action):hover {
     color: var(--primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TEACHER REGISTRATIONS PAGE  (action=registrations)
+   Trang danh sách sinh viên độc lập — không ghép với danh sách hoạt động.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Breadcrumb back-link */
+.teacher-reg-breadcrumb {
+    margin-bottom: 1rem;
+}
+.teacher-reg-breadcrumb__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8125rem;
+    font-weight: var(--font-semibold);
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+.teacher-reg-breadcrumb__back:hover {
+    color: var(--primary);
+    text-decoration: none;
+}
+.teacher-reg-breadcrumb__back svg {
+    flex-shrink: 0;
+}
+
+/* Page heading */
+.teacher-reg-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+}
+.teacher-reg-heading__title {
+    font-size: 1.375rem;
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+    margin: 0.25rem 0 0.375rem;
+    line-height: 1.3;
+}
+.teacher-reg-heading__meta {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.5;
+}
+.teacher-reg-heading__meta strong {
+    color: var(--text-primary);
+    font-weight: var(--font-semibold);
+}
+.teacher-reg-qr-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+}
+
+/* Summary cards */
+.teacher-reg-summary {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+}
+.teacher-reg-summary__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 5.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-lg, 10px);
+    border: 1px solid var(--border);
+    background: var(--surface, #fff);
+    text-align: center;
+    gap: 0.125rem;
+}
+.teacher-reg-summary__value {
+    font-size: 1.5rem;
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+    line-height: 1.1;
+}
+.teacher-reg-summary__label {
+    font-size: 0.6875rem;
+    font-weight: var(--font-semibold);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+.teacher-reg-summary__card--success {
+    border-color: rgba(22, 163, 74, 0.22);
+    background: #f0fdf4;
+}
+.teacher-reg-summary__card--success .teacher-reg-summary__value {
+    color: #15803d;
+}
+.teacher-reg-summary__card--warn {
+    border-color: rgba(202, 138, 4, 0.22);
+    background: #fefce8;
+}
+.teacher-reg-summary__card--warn .teacher-reg-summary__value {
+    color: #a16207;
+}
+.teacher-reg-summary__card--muted {
+    background: var(--background, #f9f9f9);
+}
+
+/* Student name + email in table */
+.teacher-reg-student-name {
+    display: block;
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    line-height: 1.35;
+}
+.teacher-reg-student-email {
+    display: block;
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+/* Checkin timestamp */
+.teacher-reg-checkin-time {
+    display: block;
+    font-size: 0.71rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* Registration status pills */
+.teacher-registration-pill--reg-attended,
+.teacher-registration-pill--reg-approved {
+    border-color: rgba(22, 163, 74, 0.25);
+    background: #dcfce7;
+    color: #15803d;
+}
+.teacher-registration-pill--reg-pending {
+    border-color: rgba(202, 138, 4, 0.25);
+    background: #fef9c3;
+    color: #a16207;
+}
+.teacher-registration-pill--reg-rejected,
+.teacher-registration-pill--reg-absent {
+    border-color: rgba(185, 28, 28, 0.2);
+    background: #fee2e2;
+    color: #b91c1c;
+}
+.teacher-registration-pill--reg-cancelled {
+    background: var(--background);
+    color: var(--text-muted);
+}
+.teacher-registration-pill--reg-default {
+    background: var(--background);
+    color: var(--text-muted);
+}
+
+/* Responsive: stack summary cards smaller */
+@media (max-width: 480px) {
+    .teacher-reg-summary {
+        gap: 0.5rem;
+    }
+    .teacher-reg-summary__card {
+        min-width: 4.5rem;
+        padding: 0.625rem 0.75rem;
+    }
+    .teacher-reg-summary__value {
+        font-size: 1.25rem;
+    }
+    .teacher-reg-heading__title {
+        font-size: 1.125rem;
+    }
+}
+
+/* Dark-mode overrides for teacher dashboard */
+body.teacher-dashboard .teacher-reg-summary__card {
+    background: var(--surface, #fff);
+}
+body.teacher-dashboard .teacher-reg-summary__card--success {
+    background: #f0fdf4 !important;
+}
+body.teacher-dashboard .teacher-reg-summary__card--warn {
+    background: #fefce8 !important;
+}
+body.teacher-dashboard .teacher-reg-summary__card--muted {
+    background: var(--background) !important;
+}
+body.teacher-dashboard .teacher-registration-pill--reg-attended,
+body.teacher-dashboard .teacher-registration-pill--reg-approved {
+    background-color: #dcfce7 !important;
+    color: #15803d !important;
+}
+body.teacher-dashboard .teacher-registration-pill--reg-pending {
+    background-color: #fef9c3 !important;
+    color: #a16207 !important;
+}
+body.teacher-dashboard .teacher-registration-pill--reg-rejected,
+body.teacher-dashboard .teacher-registration-pill--reg-absent {
+    background-color: #fee2e2 !important;
+    color: #b91c1c !important;
 }

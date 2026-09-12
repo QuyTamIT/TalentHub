@@ -36,28 +36,33 @@ $isFpt = (stripos($enterpriseName, 'FPT') !== false || stripos($enterpriseName, 
 
         <!-- High-Contrast Subtitle -->
         <p class="ent-hero-banner__subtitle">
-            Hệ thống ghi nhận tin tuyển dụng và hồ sơ ứng tuyển mới sẵn sàng xử lý.
+            Hệ thống ghi nhận tin tuyển thực tập và hồ sơ ứng tuyển mới sẵn sàng xử lý.
         </p>
 
         <!-- Action Buttons -->
         <div class="ent-hero-banner__actions">
-            <a href="<?= app_href('/app/enterprise/internships/create.php'); ?>" class="ent-hero-btn ent-hero-btn--primary" data-route="/app/enterprise/internships/">
+            <a href="<?= app_href('/app/enterprise/talents.php'); ?>" class="ent-hero-btn ent-hero-btn--primary" data-route="/app/enterprise/talents.php" title="Tìm kiếm & Đánh giá nhân tài">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="16"></line>
-                    <line x1="8" y1="12" x2="16" y2="12"></line>
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
-                <span>Đăng tin tuyển dụng</span>
+                <span>Tìm kiếm & Đánh giá nhân tài</span>
             </a>
 
-            <a href="<?= app_href('/app/enterprise/internships/applicants.php'); ?>" class="ent-hero-btn ent-hero-btn--outline" data-route="/app/enterprise/internships/">
+            <a href="<?= app_href('/app/enterprise/internships/'); ?>" class="ent-hero-btn ent-hero-btn--outline" data-route="/app/enterprise/internships/" title="Tuyển thực tập">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
                 </svg>
-                <span>Quản lý hồ sơ</span>
+                <span>Tuyển thực tập</span>
+            </a>
+
+            <a href="<?= app_href('/app/enterprise/sponsorships/'); ?>" class="ent-hero-btn ent-hero-btn--outline" data-route="/app/enterprise/sponsorships/" title="Tài trợ dự án">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="8" r="7"></circle>
+                    <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+                </svg>
+                <span>Tài trợ dự án</span>
             </a>
         </div>
     </div>
