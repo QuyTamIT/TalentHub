@@ -778,6 +778,7 @@
         const evaluationSummary = document.querySelector('[data-evaluation-summary]');
         const evaluationEmpty = document.querySelector('[data-evaluation-empty]');
         const evaluationCriteria = document.querySelector('[data-evaluation-criteria]');
+        const evaluationSkillsList = document.querySelector('[data-evaluation-skills-list]');
         const evaluationStatus = document.querySelector('[data-evaluation-status]');
 
         if (evaluationSelect && evaluationPayload) {
@@ -787,6 +788,38 @@
             } catch (error) {
                 showToast('Không thể tải dữ liệu đánh giá.', 'warning');
             }
+
+            const SKILL_CATEGORY_LABELS = {
+                technical: 'Công nghệ & Kỹ thuật',
+                business: 'Kinh doanh & Khởi nghiệp',
+                marketing: 'Marketing & Truyền thông',
+                creative: 'Thiết kế & Sáng tạo',
+                data: 'Dữ liệu & AI',
+                academic: 'Học thuật & Nghiên cứu',
+                finance: 'Tài chính & Kế toán',
+                music: 'Âm nhạc & Trình diễn',
+                arts: 'Mỹ thuật & Nghệ thuật',
+                soft: 'Kỹ năng mềm',
+                soft_skills: 'Kỹ năng mềm',
+                operations: 'Vận hành & Sản xuất',
+                sports: 'Thể thao & Thể chất',
+            };
+
+            const SKILL_TONE_MAP = {
+                technical: 'primary',
+                data: 'secondary',
+                creative: 'accent',
+                business: 'warning',
+                finance: 'secondary',
+                marketing: 'accent',
+                music: 'primary',
+                arts: 'accent',
+                soft: 'secondary',
+                soft_skills: 'secondary',
+                operations: 'warning',
+                academic: 'secondary',
+                sports: 'accent',
+            };
 
             const setEvaluationText = (selector, value) => {
                 const target = document.querySelector(selector);
@@ -804,45 +837,118 @@
                 if (evaluationContent) evaluationContent.hidden = !evaluation;
                 if (evaluationSummary) evaluationSummary.hidden = !evaluation;
                 if (evaluationEmpty) evaluationEmpty.hidden = Boolean(evaluation);
-                if (!evaluation || !evaluationCriteria) return;
+                if (!evaluation) return;
 
-                const rows = (evaluation.criteria || []).map((criterion) => {
-                    const row = document.createElement('div');
-                    row.className = 'eval-criterion-row';
-                    row.dataset.evaluationCriterion = '';
+                // Render Secondary: Rubric Criteria (compact items)
+                if (evaluationCriteria) {
+                    const rows = (evaluation.criteria || []).map((criterion) => {
+                        const item = document.createElement('div');
+                        item.className = 'eval-rubric-item';
+                        item.dataset.evaluationCriterion = '';
 
-                    const heading = document.createElement('div');
-                    heading.className = 'eval-criterion-header';
-                    const name = document.createElement('span');
-                    name.textContent = criterion.name;
+                        const heading = document.createElement('div');
+                        heading.className = 'eval-rubric-item__header';
+                        const name = document.createElement('span');
+                        name.className = 'eval-rubric-item__name';
+                        name.textContent = criterion.name;
 
-                    const score = document.createElement('span');
-                    score.className = 'eval-criterion-score';
-                    const maximum = Number(criterion.max) || 10;
-                    const scoreVal = Number(criterion.score) || 0;
-                    const percentage = maximum > 0
-                        ? Math.max(0, Math.min(100, scoreVal / maximum * 100))
-                        : 0;
-                    score.textContent = `${scoreVal.toFixed(1)} / ${maximum.toFixed(0)} (${Math.round(percentage)}%)`;
-                    heading.append(name, score);
+                        const score = document.createElement('span');
+                        score.className = 'eval-rubric-item__score';
+                        const maximum = Number(criterion.max) || 10;
+                        const scoreVal = Number(criterion.score) || 0;
+                        const percentage = maximum > 0
+                            ? Math.max(0, Math.min(100, scoreVal / maximum * 100))
+                            : 0;
+                        score.innerHTML = `${scoreVal.toFixed(1)} <small>/ ${maximum.toFixed(0)}</small>`;
+                        heading.append(name, score);
 
-                    const track = document.createElement('div');
-                    track.className = 'eval-progress-track';
-                    track.setAttribute('role', 'progressbar');
-                    track.setAttribute('aria-label', criterion.name);
-                    track.setAttribute('aria-valuemin', '0');
-                    track.setAttribute('aria-valuemax', String(maximum));
-                    track.setAttribute('aria-valuenow', String(scoreVal));
+                        const track = document.createElement('div');
+                        track.className = 'eval-rubric-item__track';
+                        track.setAttribute('role', 'progressbar');
+                        track.setAttribute('aria-label', criterion.name);
+                        track.setAttribute('aria-valuemin', '0');
+                        track.setAttribute('aria-valuemax', String(maximum));
+                        track.setAttribute('aria-valuenow', String(scoreVal));
 
-                    const fill = document.createElement('div');
-                    fill.className = `eval-progress-fill eval-progress-fill--${criterion.tone || 'primary'}`;
-                    fill.style.width = `${percentage}%`;
-                    track.append(fill);
-                    row.append(heading, track);
-                    return row;
-                });
+                        const fill = document.createElement('div');
+                        fill.className = `eval-rubric-item__fill eval-progress-fill--${criterion.tone || 'primary'}`;
+                        fill.style.width = `${percentage}%`;
+                        track.append(fill);
+                        item.append(heading, track);
+                        return item;
+                    });
+                    evaluationCriteria.replaceChildren(...rows);
+                }
 
-                evaluationCriteria.replaceChildren(...rows);
+                // Render Primary: Skills Competency (0-100 scale progress bars)
+                if (evaluationSkillsList) {
+                    const skills = evaluation.skills || [];
+                    if (skills.length > 0) {
+                        const skillRows = skills.map((sk) => {
+                            const row = document.createElement('div');
+                            row.className = 'eval-skill-row';
+                            row.dataset.evaluationSkillRow = '';
+
+                            const header = document.createElement('div');
+                            header.className = 'eval-skill-header';
+
+                            const titleGroup = document.createElement('div');
+                            titleGroup.className = 'eval-skill-title-group';
+
+                            const nameStrong = document.createElement('strong');
+                            nameStrong.className = 'eval-skill-name';
+                            nameStrong.textContent = sk.label || sk.skillName || 'Kỹ năng';
+
+                            const catBadge = document.createElement('span');
+                            const catKey = sk.category || 'technical';
+                            catBadge.className = `eval-cat-badge eval-cat-badge--${catKey}`;
+                            catBadge.textContent = SKILL_CATEGORY_LABELS[catKey] || 'Chuyên môn';
+
+                            titleGroup.append(nameStrong, catBadge);
+
+                            const scoreGroup = document.createElement('div');
+                            scoreGroup.className = 'eval-skill-score-group';
+
+                            const scoreSpan = document.createElement('span');
+                            scoreSpan.className = 'eval-skill-score';
+                            const scoreVal = Number(sk.score) || 0;
+                            const maxScore = Number(sk.maxScore) || 100;
+                            const pct = maxScore > 0 ? Math.max(0, Math.min(100, (scoreVal / maxScore) * 100)) : 0;
+                            scoreSpan.innerHTML = `${scoreVal.toFixed(1)} <small>/ 100</small>`;
+
+                            const pctSpan = document.createElement('span');
+                            pctSpan.className = 'eval-skill-percent';
+                            pctSpan.textContent = `(${Math.round(pct)}%)`;
+
+                            scoreGroup.append(scoreSpan, pctSpan);
+                            header.append(titleGroup, scoreGroup);
+
+                            const track = document.createElement('div');
+                            track.className = 'eval-progress-track';
+                            track.setAttribute('role', 'progressbar');
+                            track.setAttribute('aria-label', sk.label || sk.skillName || 'Kỹ năng');
+                            track.setAttribute('aria-valuemin', '0');
+                            track.setAttribute('aria-valuemax', '100');
+                            track.setAttribute('aria-valuenow', String(scoreVal));
+
+                            const fillTone = SKILL_TONE_MAP[catKey] || 'primary';
+                            const fill = document.createElement('div');
+                            fill.className = `eval-progress-fill eval-progress-fill--${fillTone}`;
+                            fill.style.width = `${pct}%`;
+                            track.append(fill);
+
+                            row.append(header, track);
+                            return row;
+                        });
+                        evaluationSkillsList.replaceChildren(...skillRows);
+                    } else {
+                        const emptyNotice = document.createElement('div');
+                        emptyNotice.className = 'eval-skills-empty-notice';
+                        emptyNotice.textContent = 'Đợt đánh giá này tập trung vào tiêu chí chung, chưa có ghi nhận kỹ năng chuyên môn riêng biệt.';
+                        evaluationSkillsList.replaceChildren(emptyNotice);
+                    }
+                }
+
                 setEvaluationText('[data-evaluation-total]', evaluation.total);
                 setEvaluationText('[data-evaluation-classification]', evaluation.classification);
                 setEvaluationText('[data-evaluation-ranking]', evaluation.ranking);
@@ -850,6 +956,30 @@
                 setEvaluationText('[data-evaluation-reviewer]', evaluation.reviewer);
                 setEvaluationText('[data-evaluation-reviewer-avatar]', evaluation.reviewer_initials || 'GV');
                 setEvaluationText('[data-evaluation-activity]', evaluation.activity_title || 'Đồ án');
+
+                const evaluationSkills = document.querySelector('[data-evaluation-skills]');
+                if (evaluationSkills) {
+                    const skills = evaluation.skills || [];
+                    const label = document.createElement('span');
+                    label.style.cssText = 'font-size: 0.8rem; color: var(--text-secondary); font-weight: 600;';
+                    label.textContent = 'Kỹ năng trọng tâm:';
+                    if (skills.length > 0) {
+                        const tags = skills.map(sk => {
+                            const span = document.createElement('span');
+                            span.className = 'eval-tag';
+                            const score = Number(sk.score) || 0;
+                            const name = sk.label || sk.skillName || 'Kỹ năng';
+                            span.textContent = `✦ ${name} (${score.toFixed(0)}/100)`;
+                            return span;
+                        });
+                        evaluationSkills.replaceChildren(label, ...tags);
+                    } else {
+                        const t1 = document.createElement('span'); t1.className = 'eval-tag'; t1.textContent = '✦ Tư duy giải quyết vấn đề';
+                        const t2 = document.createElement('span'); t2.className = 'eval-tag'; t2.textContent = '✦ Tinh thần trách nhiệm';
+                        const t3 = document.createElement('span'); t3.className = 'eval-tag'; t3.textContent = '✦ Kỹ năng thực hành';
+                        evaluationSkills.replaceChildren(label, t1, t2, t3);
+                    }
+                }
             };
 
             evaluationSelect.addEventListener('change', () => {

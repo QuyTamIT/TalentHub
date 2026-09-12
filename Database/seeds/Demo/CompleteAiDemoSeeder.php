@@ -745,7 +745,7 @@ final class CompleteAiDemoSeeder
             }
             $assId = CompleteAiDemoDataset::uuid($owner, 'assessment', $reg['key']);
             $hash = hexdec(substr(hash('sha256', $reg['key'] . ':overall'), 0, 4));
-            $overall = 7.2 + (($hash % 23) / 10); // 7.2-9.4
+            $overall = 72.0 + ($hash % 23); // 72-94
             $overall = round($overall, 2);
             $comment = $comments[$hash % count($comments)];
             $this->upsertOwned($pdo, 'assessments', $assId, [

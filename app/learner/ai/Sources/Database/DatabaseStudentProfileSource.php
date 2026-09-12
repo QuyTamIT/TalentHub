@@ -48,8 +48,11 @@ SQL;
                 $profile[$field] = $value;
             }
         }
-        if (is_numeric($row['grade_level'] ?? null)) {
-            $profile['grade_level'] = (int) $row['grade_level'];
+        $rawGrade = $row['grade_level'] ?? null;
+        if (is_numeric($rawGrade)) {
+            $profile['grade_level'] = (int) $rawGrade;
+        } elseif (is_string($rawGrade) && preg_match('/(\d+)/', $rawGrade, $matches)) {
+            $profile['grade_level'] = (int) $matches[1];
         }
         $academicYear = trim((string) ($row['academic_year'] ?? ''));
         if ($academicYear !== '') {

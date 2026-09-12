@@ -18,6 +18,8 @@ Thumbs.db
 /src/storage/
 /storage/student-avatars/
 /storage/errors/
+storage/student-avatars/**
+storage/test-screenshots/**
 /artifacts/
 
 # Local audit artifacts, backups, and linked Codex worktrees.
@@ -34,6 +36,7 @@ Thumbs.db
 !/tests/learner_journey_dashboard_ui_test.ps1
 !/tests/learner_credential_cards_ui_test.ps1
 !/tests/teacher_grading_hardening_test.php
+!/tests/teacher_grading_school_skills_test.php
 !/tests/learner_ai_strict_mode_test.php
 !/tests/learner_ai_end_to_end_test.php
 !/tests/learner_ai_provider_test.php

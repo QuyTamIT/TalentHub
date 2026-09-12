@@ -191,6 +191,20 @@ final class LearnerOpportunityProfile
             if ($grade >= 13) return 'college';
         }
 
+        $schoolName = $payload['profile']['school_name'] ?? null;
+        if (is_string($schoolName) && trim($schoolName) !== '') {
+            $schoolLower = mb_strtolower(trim($schoolName), 'UTF-8');
+            if (str_contains($schoolLower, 'cao đẳng') || str_contains($schoolLower, 'đại học') || str_contains($schoolLower, 'btec') || str_contains($schoolLower, 'college') || str_contains($schoolLower, 'university')) {
+                return 'college';
+            }
+            if (str_contains($schoolLower, 'trung học cơ sở') || preg_match('/\bthcs\b/u', $schoolLower) === 1) {
+                return 'middle';
+            }
+            if (str_contains($schoolLower, 'trung học phổ thông') || preg_match('/\bthpt\b/u', $schoolLower) === 1) {
+                return 'high';
+            }
+        }
+
         return null;
     }
 

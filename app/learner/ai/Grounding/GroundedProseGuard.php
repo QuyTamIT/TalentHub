@@ -161,11 +161,15 @@ final class GroundedProseGuard
             $unit = preg_match('/(?:diem|phan tram|\/\s*100)/', $matched) === 1;
             // Counts of proposed exercises and durations are not skill scores.
             if (!$unit && preg_match('/^\s*(?:bai|du an|phut|gio|ngay|tuan|thang|truy van|buoc|lan|vi du|san pham|ke hoach)\b/', substr($plain, $end))) continue;
+            // Overall / aggregate match scores of the opportunity are not skill scores.
+            if (preg_match('/\b(?:tong (?:diem|muc)|muc do (?:dap ung|phu hop)(?: tong the)?)\b/u', $prefix) === 1) continue;
             $mention = null;
             foreach ($mentions as $candidate) {
                 if ($candidate['offset'] <= $offset) { $mention = $candidate; continue; }
-                $between = substr($plain, $end, max(0, $candidate['offset'] - $end));
-                if (preg_match('/^\s*(?:(?:cho |cua )?(?:ky nang )?)?$/', $between)) $mention = $candidate;
+                if ($mention === null) {
+                    $between = substr($plain, $end, max(0, $candidate['offset'] - $end));
+                    if (preg_match('/^\s*(?:(?:cho |cua )?(?:ky nang )?)?$/', $between)) $mention = $candidate;
+                }
                 break;
             }
             if ($mention === null) continue;

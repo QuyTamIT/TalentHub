@@ -7,10 +7,64 @@ $pageTitle = 'Đánh giá & Nhận xét Năng lực';
 $currentRoute = '/app/learner/evaluation.php';
 $evaluationSourceState = 'ready';
 
+$skillCategoryNames = [
+    'technical' => 'Công nghệ & Kỹ thuật',
+    'business' => 'Kinh doanh & Khởi nghiệp',
+    'marketing' => 'Marketing & Truyền thông',
+    'creative' => 'Thiết kế & Sáng tạo',
+    'data' => 'Dữ liệu & AI',
+    'academic' => 'Học thuật & Nghiên cứu',
+    'finance' => 'Tài chính & Kế toán',
+    'music' => 'Âm nhạc & Trình diễn',
+    'arts' => 'Mỹ thuật & Nghệ thuật',
+    'soft' => 'Kỹ năng mềm',
+    'soft_skills' => 'Kỹ năng mềm',
+    'operations' => 'Vận hành & Sản xuất',
+    'sports' => 'Thể thao & Thể chất',
+];
+
+$skillToneMap = [
+    'technical' => 'primary',
+    'data' => 'secondary',
+    'creative' => 'accent',
+    'business' => 'warning',
+    'finance' => 'secondary',
+    'marketing' => 'accent',
+    'music' => 'primary',
+    'arts' => 'accent',
+    'soft' => 'secondary',
+    'soft_skills' => 'secondary',
+    'operations' => 'warning',
+    'academic' => 'secondary',
+    'sports' => 'accent',
+];
+
 if ($isDatabaseMode) {
     try {
         $studentIdForEval = learner_current_student_id();
         $publishedEvaluations = learner_repository_factory()->assessment()->publishedEvaluationsForStudent($studentIdForEval);
+
+        $evalPdo = ($GLOBALS['learner_page_context'] ?? [])['pdo'] ?? null;
+        $skillsByEvalId = [];
+        if ($evalPdo instanceof PDO) {
+            try {
+                $skillStmt = $evalPdo->prepare("
+                    SELECT le.legacyAssessmentId, lei.label, lei.score, lei.maxScore, s.name AS skillName, s.category
+                    FROM learner_evaluation_items lei
+                    JOIN learner_evaluations le ON le.id = lei.evaluationId
+                    LEFT JOIN skills s ON s.id = lei.skillId
+                    WHERE le.studentId = ? AND lei.itemKind = 'skill' AND lei.confirmed = 1
+                    ORDER BY lei.score DESC
+                ");
+                $skillStmt->execute([$studentIdForEval]);
+                foreach ($skillStmt->fetchAll(PDO::FETCH_ASSOC) as $skRow) {
+                    $legId = (string) ($skRow['legacyAssessmentId'] ?? '');
+                    if ($legId !== '') {
+                        $skillsByEvalId[$legId][] = $skRow;
+                    }
+                }
+            } catch (\Throwable) {}
+        }
 
         $evaluationTerms = [];
         $defaultEvaluationTerm = '';
@@ -56,6 +110,8 @@ if ($isDatabaseMode) {
                 ? mb_strtoupper(mb_substr($words[0], 0, 1) . mb_substr(end($words), 0, 1))
                 : 'GV';
 
+            $termSkills = $skillsByEvalId[$evaluationId] ?? [];
+
             $evaluationTerms[$evaluationId] = [
                 'label' => $evaluationLabel,
                 'status' => 'Đã công bố',
@@ -64,12 +120,13 @@ if ($isDatabaseMode) {
                     'total' => $displayScore,
                     'max_total' => '10',
                     'classification' => \TalentHub\Support\GradeClassifier::getClassification($rawScore),
-                    'ranking' => 'Điểm năng lực trên thang 10',
+                    'ranking' => \TalentHub\Support\GradeClassifier::getRankingPercentile($rawScore),
                     'comment' => (string) ($eval['comment'] ?? 'Chưa có nhận xét chi tiết.'),
                     'reviewer' => $reviewerName,
                     'reviewer_initials' => $reviewerInitials,
                     'published_date' => $publishedDate,
                     'activity_title' => $activityTitle ?: 'Đồ án Chuyên ngành & Năng lực',
+                    'skills' => $termSkills,
                 ],
             ];
 
@@ -215,45 +272,140 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
             font-weight: 600;
         }
 
-        /* Criteria Section */
-        .eval-criteria-card {
+        /* Generic Card Style */
+        .eval-card {
             background: var(--surface);
             border: 1.5px solid var(--border);
             border-radius: var(--radius-md);
             padding: 1.5rem;
+            margin-bottom: 1.5rem;
             box-shadow: 0 1px 3px rgba(0,0,0,0.03);
         }
 
-        .eval-criteria-card h2 {
+        .eval-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.35rem;
+        }
+
+        .eval-card-header h2,
+        .eval-card-header h3 {
             font-size: 1.15rem;
             font-weight: 800;
             color: var(--text-primary);
-            margin: 0 0 1.25rem;
+            margin: 0;
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
 
-        .eval-criterion-row {
+        .eval-card-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin: 0 0 1.25rem;
+            line-height: 1.5;
+        }
+
+        .eval-scale-badge {
+            display: inline-flex;
+            align-items: center;
+            background: var(--primary-light);
+            color: var(--primary);
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 0.2rem 0.65rem;
+            border-radius: 999px;
+            border: 1px solid rgba(249, 115, 22, 0.25);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        /* Primary: Skills Competency (Scale 0-100) */
+        .eval-skills-card {
+            border: 1.5px solid rgba(249, 115, 22, 0.25);
+            background: linear-gradient(180deg, rgba(255, 247, 237, 0.25) 0%, #FFFFFF 20%);
+        }
+
+        .eval-skill-row {
             margin-bottom: 1.25rem;
         }
 
-        .eval-criterion-row:last-child {
+        .eval-skill-row:last-child {
             margin-bottom: 0;
         }
 
-        .eval-criterion-header {
+        .eval-skill-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 0.45rem;
-            font-size: 0.92rem;
-            font-weight: 700;
+            flex-wrap: wrap;
+            gap: 0.5rem;
         }
 
-        .eval-criterion-score {
-            color: var(--primary);
+        .eval-skill-title-group {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .eval-skill-name {
+            font-size: 0.98rem;
             font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .eval-cat-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 0.15rem 0.55rem;
+            border-radius: 999px;
+            background: #F1F5F9;
+            color: #475569;
+            border: 1px solid #CBD5E1;
+            white-space: nowrap;
+        }
+
+        .eval-cat-badge--technical { background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE; }
+        .eval-cat-badge--creative  { background: #FDF2F8; color: #BE185D; border-color: #FBCFE8; }
+        .eval-cat-badge--data      { background: #F0FDF4; color: #15803D; border-color: #BBF7D0; }
+        .eval-cat-badge--business  { background: #FEF3C7; color: #B45309; border-color: #FDE68A; }
+        .eval-cat-badge--finance   { background: #ECFDF5; color: #047857; border-color: #A7F3D0; }
+        .eval-cat-badge--music     { background: #FAF5FF; color: #7E22CE; border-color: #E9D5FF; }
+        .eval-cat-badge--arts      { background: #FFF1F2; color: #BE123C; border-color: #FECDD3; }
+        .eval-cat-badge--soft,
+        .eval-cat-badge--soft_skills { background: #F8FAFC; color: #334155; border-color: #CBD5E1; }
+        .eval-cat-badge--marketing { background: #FFFBEB; color: #D97706; border-color: #FCD34D; }
+        .eval-cat-badge--academic  { background: #F0F9FF; color: #0284C7; border-color: #BAE6FD; }
+        .eval-cat-badge--operations { background: #F1F5F9; color: #475569; border-color: #CBD5E1; }
+        .eval-cat-badge--sports    { background: #F0FDF4; color: #16A34A; border-color: #BBF7D0; }
+
+        .eval-skill-score-group {
+            display: flex;
+            align-items: baseline;
+            gap: 0.35rem;
+        }
+
+        .eval-skill-score {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .eval-skill-score small {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .eval-skill-percent {
+            font-size: 0.825rem;
+            font-weight: 600;
+            color: var(--text-secondary);
         }
 
         .eval-progress-track {
@@ -274,6 +426,90 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
         .eval-progress-fill--secondary { background: linear-gradient(90deg, #2563EB, #1D4ED8); }
         .eval-progress-fill--accent { background: linear-gradient(90deg, #16A34A, #15803D); }
         .eval-progress-fill--warning { background: linear-gradient(90deg, #F59E0B, #D97706); }
+
+        .eval-skills-empty-notice {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 1rem 1.25rem;
+            background: #F8FAFC;
+            border: 1px dashed #CBD5E1;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Secondary: Rubric Criteria (Scale 0-10) */
+        .eval-rubric-card {
+            border: 1px solid var(--border);
+            padding: 1.25rem 1.5rem;
+            background: #FCFCFD;
+        }
+
+        .eval-rubric-hint {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            background: #F1F5F9;
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+        }
+
+        .eval-rubric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.85rem;
+        }
+
+        .eval-rubric-item {
+            background: var(--surface);
+            border: 1px solid #E2E8F0;
+            border-radius: var(--radius-sm);
+            padding: 0.85rem 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        .eval-rubric-item__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 0.45rem;
+        }
+
+        .eval-rubric-item__name {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .eval-rubric-item__score {
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .eval-rubric-item__score small {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .eval-rubric-item__track {
+            height: 6px;
+            background: #E2E8F0;
+            border-radius: 999px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .eval-rubric-item__fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 0.6s ease;
+        }
 
         /* Summary Score Card */
         .eval-summary-panel {
@@ -422,22 +658,90 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
                                 <?= learner_escape($currentEvaluation['comment'] ?? 'Chưa có nhận xét từ giảng viên.'); ?>
                             </blockquote>
 
-                            <div class="eval-feedback-tags">
-                                <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600;">Ghi nhận:</span>
-                                <span class="eval-tag">✦ Tư duy giải quyết vấn đề</span>
-                                <span class="eval-tag">✦ Tinh thần trách nhiệm</span>
-                                <span class="eval-tag">✦ Kỹ năng thực hành</span>
+                            <div class="eval-feedback-tags" data-evaluation-skills>
+                                <span style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600;">Kỹ năng ghi nhận:</span>
+                                <?php $evalSkills = $currentEvaluation['skills'] ?? []; ?>
+                                <?php if (!empty($evalSkills)): ?>
+                                    <?php foreach ($evalSkills as $sk): ?>
+                                        <span class="eval-tag" title="Điểm năng lực: <?= number_format((float) ($sk['score'] ?? 0), 1); ?>/100">
+                                            ✦ <?= learner_escape($sk['label'] ?? $sk['skillName']); ?> <strong>(<?= number_format((float) ($sk['score'] ?? 0), 0); ?>/100)</strong>
+                                        </span>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <span class="eval-tag">✦ Tư duy giải quyết vấn đề</span>
+                                    <span class="eval-tag">✦ Tinh thần trách nhiệm</span>
+                                    <span class="eval-tag">✦ Kỹ năng thực hành</span>
+                                <?php endif; ?>
                             </div>
                         </section>
 
-                        <!-- 2. Criteria Progress Bars -->
-                        <section class="eval-criteria-card" aria-labelledby="eval-criteria-title">
-                            <h2 id="eval-criteria-title">
-                                <?= learner_icon('chart', 20); ?>
-                                <span>Bảng Tiêu chí Đánh giá Chi tiết</span>
-                            </h2>
+                        <!-- 2. Primary: Bảng Đánh giá Năng lực Kỹ năng (Thang điểm 100) -->
+                        <section class="eval-card eval-skills-card" aria-labelledby="eval-skills-title">
+                            <div class="eval-card-header">
+                                <h2 id="eval-skills-title">
+                                    <?= learner_icon('award', 20); ?>
+                                    <span>Bảng Đánh giá Năng lực Kỹ năng</span>
+                                </h2>
+                                <span class="eval-scale-badge">Thang điểm 100</span>
+                            </div>
+                            <p class="eval-card-subtitle">
+                                Kỹ năng chuyên môn do giảng viên ghi nhận và xác thực vào Talent Passport, kết nối trực tiếp với hệ thống AI Matching việc làm & cơ hội nghề nghiệp.
+                            </p>
 
-                            <div data-evaluation-criteria>
+                            <div data-evaluation-skills-list>
+                                <?php if (!empty($evalSkills)): ?>
+                                    <?php foreach ($evalSkills as $sk): ?>
+                                        <?php
+                                        $sScore = (float) ($sk['score'] ?? 0);
+                                        $sMax = (float) ($sk['maxScore'] ?? 100);
+                                        if ($sMax <= 0) $sMax = 100;
+                                        $sPct = max(0.0, min(100.0, $sScore / $sMax * 100));
+                                        $sCat = $sk['category'] ?? 'technical';
+                                        $sCatName = $skillCategoryNames[$sCat] ?? 'Chuyên môn';
+                                        $sTone = $skillToneMap[$sCat] ?? 'primary';
+                                        $sName = $sk['label'] ?? $sk['skillName'] ?? 'Kỹ năng';
+                                        ?>
+                                        <div class="eval-skill-row" data-evaluation-skill-row>
+                                            <div class="eval-skill-header">
+                                                <div class="eval-skill-title-group">
+                                                    <strong class="eval-skill-name"><?= learner_escape($sName); ?></strong>
+                                                    <span class="eval-cat-badge eval-cat-badge--<?= learner_escape($sCat); ?>">
+                                                        <?= learner_escape($sCatName); ?>
+                                                    </span>
+                                                </div>
+                                                <div class="eval-skill-score-group">
+                                                    <span class="eval-skill-score"><?= number_format($sScore, 1); ?> <small>/ 100</small></span>
+                                                    <span class="eval-skill-percent">(<?= round($sPct); ?>%)</span>
+                                                </div>
+                                            </div>
+                                            <div class="eval-progress-track" role="progressbar" aria-label="<?= learner_escape($sName); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= learner_escape($sScore); ?>">
+                                                <div class="eval-progress-fill eval-progress-fill--<?= learner_escape($sTone); ?>" style="width: <?= learner_escape($sPct); ?>%;"></div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <div class="eval-skills-empty-notice">
+                                        <?= learner_icon('info', 16); ?>
+                                        <span>Đợt đánh giá này tập trung vào tiêu chí chung, chưa có ghi nhận kỹ năng chuyên môn riêng biệt.</span>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </section>
+
+                        <!-- 3. Secondary: Tiêu chí Phương pháp & Thái độ làm việc (Rubric thang 10) -->
+                        <section class="eval-card eval-rubric-card" aria-labelledby="eval-rubric-title">
+                            <div class="eval-card-header">
+                                <h3 id="eval-rubric-title">
+                                    <?= learner_icon('chart', 18); ?>
+                                    <span>Tiêu chí Phương pháp & Thái độ làm việc</span>
+                                </h3>
+                                <span class="eval-rubric-hint">Rubric thang điểm 10.0</span>
+                            </div>
+                            <p class="eval-card-subtitle" style="margin-bottom: 0.75rem;">
+                                Các tiêu chí bổ trợ đánh giá phương pháp học tập, tính chủ động và khả năng phối hợp nhóm.
+                            </p>
+
+                            <div class="eval-rubric-grid" data-evaluation-criteria>
                                 <?php foreach (($currentEvaluation['criteria'] ?? []) as $criterion): ?>
                                     <?php
                                     $maximum = (float) $criterion['max'];
@@ -447,13 +751,13 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
                                         : 0.0;
                                     $tone = $criterion['tone'] ?? 'primary';
                                     ?>
-                                    <div class="eval-criterion-row" data-evaluation-criterion="">
-                                        <div class="eval-criterion-header">
-                                            <span><?= learner_escape($criterion['name']); ?></span>
-                                            <span class="eval-criterion-score"><?= number_format($scoreVal, 1); ?> / <?= number_format($maximum, 0); ?> (<?= round($percentage); ?>%)</span>
+                                    <div class="eval-rubric-item" data-evaluation-criterion="">
+                                        <div class="eval-rubric-item__header">
+                                            <span class="eval-rubric-item__name"><?= learner_escape($criterion['name']); ?></span>
+                                            <span class="eval-rubric-item__score"><?= number_format($scoreVal, 1); ?> <small>/ <?= number_format($maximum, 0); ?></small></span>
                                         </div>
-                                        <div class="eval-progress-track" role="progressbar" aria-label="<?= learner_escape($criterion['name']); ?>" aria-valuemin="0" aria-valuemax="<?= learner_escape($maximum); ?>" aria-valuenow="<?= learner_escape($scoreVal); ?>">
-                                            <div class="eval-progress-fill eval-progress-fill--<?= learner_escape($tone); ?>" style="width: <?= learner_escape($percentage); ?>%;"></div>
+                                        <div class="eval-rubric-item__track" role="progressbar" aria-label="<?= learner_escape($criterion['name']); ?>" aria-valuemin="0" aria-valuemax="<?= learner_escape($maximum); ?>" aria-valuenow="<?= learner_escape($scoreVal); ?>">
+                                            <div class="eval-rubric-item__fill eval-progress-fill--<?= learner_escape($tone); ?>" style="width: <?= learner_escape($percentage); ?>%;"></div>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>

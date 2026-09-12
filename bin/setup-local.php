@@ -5,6 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
 require dirname(__DIR__) . '/Database/seeds/System/RolePermissionSeeder.php';
 require dirname(__DIR__) . '/Database/seeds/System/CareerRoleBenchmarkSeeder.php';
+require dirname(__DIR__) . '/Database/seeds/System/MultidisciplinarySkillCatalogSeeder.php';
 require dirname(__DIR__) . '/Database/seeds/Testing/MinimalAuthRbacSeeder.php';
 require dirname(__DIR__) . '/Database/seeds/Demo/SchoolDemoSeeder.php';
 require dirname(__DIR__) . '/Database/seeds/Demo/CompleteAiDemoDataset.php';
@@ -27,6 +28,7 @@ use TalentHub\Database\Seeds\Demo\SchoolCredentialDemoSeeder;
 use TalentHub\Database\Seeds\Demo\SchoolDemoSeeder;
 use TalentHub\Database\Seeds\Local\AdminAccountSeeder;
 use TalentHub\Database\Seeds\System\CareerRoleBenchmarkSeeder;
+use TalentHub\Database\Seeds\System\MultidisciplinarySkillCatalogSeeder;
 use TalentHub\Database\Seeds\System\RolePermissionSeeder;
 use TalentHub\Database\Seeds\Testing\MinimalAuthRbacSeeder;
 use TalentHub\Learner\Seeds\AssessmentCatalogMasterSeeder;
@@ -74,6 +76,7 @@ try {
     try {
         (new RolePermissionSeeder())->run($pdo);
         (new CareerRoleBenchmarkSeeder())->run($pdo);
+        (new MultidisciplinarySkillCatalogSeeder())->run($pdo);
         (new MinimalAuthRbacSeeder())->run($pdo, $environment, $password);
         (new AdminAccountSeeder())->run($pdo, $environment, $adminPassword);
 

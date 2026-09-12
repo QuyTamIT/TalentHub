@@ -54,6 +54,7 @@ final class GitScopeGuard
         'tests/complete_ai_demo_runner_test.php',
         'src/Modules/School/Service/SchoolDashboardService.php',
         'src/Modules/Teacher/Repository/TeacherGradingRepository.php',
+        'src/Modules/Teacher/Service/TeacherGradingService.php',
     ];
     private const PROTECTED_PREFIXES = ['app/teacher/', 'app/school/', 'app/enterprise/', 'src/', 'api/'];
     private const ALWAYS_DENIED_EXACT_PATHS = ['.env'];

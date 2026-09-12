@@ -17,35 +17,45 @@ final class TeacherGradingService
     public function __construct(private readonly TeacherGradingRepository $repository) {}
 
     /** @return array<string,mixed> */
-    public function pageData(string $userId, ?string $activityId, string $search = ''): array
+    public function pageData(string $userId, ?string $contextId, string $search = '', string $mode = 'activity'): array
     {
+        $mode = $this->mode($mode);
         $teacher = $this->teacher($userId);
-        $activities = $this->repository->activities((string) $teacher['id']);
-        $selectedActivity = null;
+        $teacherId = (string) $teacher['id'];
+        $contexts = match ($mode) {
+            'class' => $this->repository->classes($teacherId),
+            'project' => $this->repository->projects($teacherId),
+            'activity' => $this->repository->activities($teacherId),
+        };
+        $selected = null;
         $students = [];
-        $criteria = [];
-
-        if ($activityId !== null && $activityId !== '') {
-            $this->assertUuid($activityId, 'activityId');
-            $selectedActivity = $this->repository->activityForTeacher((string) $teacher['id'], $activityId);
-            if ($selectedActivity === null) {
-                throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Hoạt động không thuộc phạm vi phụ trách của bạn.');
+        if ($contextId !== null && $contextId !== '') {
+            $this->assertUuid($contextId, 'contextId');
+            $selected = $this->repository->contextForTeacher($teacherId, $mode, $contextId);
+            if ($selected === null) throw new ApiException(403, 'FORBIDDEN', 'Bạn không được phân công chấm trong ngữ cảnh này.');
+            $students = $this->repository->studentsForContext($teacherId,$mode,$contextId,$this->search($search));
+            $skillMap = $this->repository->studentSkillsByStudentIds(array_column($students, 'studentId'));
+            foreach ($students as &$student) {
+                $student['studentSkills'] = $skillMap[(string) $student['studentId']] ?? [];
             }
-
-            $criteria = $this->repository->activeCriteria();
-            $students = $this->studentsWithCriteria(
-                $this->repository->registrationsWithAssessments((string) $teacher['id'], $activityId, $this->search($search)),
-                $this->repository->assessmentScores((string) $teacher['id'], $activityId)
-            );
+            unset($student);
         }
-
         return [
-            'teacher' => $teacher,
-            'activities' => $activities,
-            'selectedActivity' => $selectedActivity,
-            'students' => $students,
-            'criteria' => $criteria,
+            'teacher'=>$teacher, 'mode'=>$mode, 'contexts'=>$contexts, 'selectedContext'=>$selected,
+            'classes'=>$mode==='class' ? $contexts : [], 'projects'=>$mode==='project' ? $contexts : [],
+            'activities'=>$mode==='activity' ? $contexts : [], 'selectedActivity'=>$mode==='activity' ? $selected : null,
+            'students'=>$students, 'criteria'=>$selected !== null ? $this->repository->activeCriteria() : [],
+            'availableSkills'=>$this->repository->activeSkills(),
+            'skillCategories'=>TeacherGradingRepository::SKILL_CATEGORIES,
         ];
+    }
+
+    private function mode(mixed $mode): string
+    {
+        if (!is_string($mode) || !in_array($mode, ['class','project','activity'], true)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Ngữ cảnh chấm điểm không hợp lệ.');
+        }
+        return $mode;
     }
 
     /** @param array<string,mixed> $input */
@@ -53,17 +63,19 @@ final class TeacherGradingService
     {
         $teacher = $this->teacher($userId);
         $teacherId = (string) $teacher['id'];
-        $activityId = $this->id($input['activityId'] ?? null, 'activityId');
+        $mode = $this->mode($input['mode'] ?? 'activity');
+        $column = \TalentHub\Modules\Teacher\Repository\TeacherAssessmentScope::column($mode);
+        $activityId = $this->id($input['contextId'] ?? $input[$column] ?? null, 'contextId');
+        foreach (['activityId','classId','projectId'] as $field) {
+            if (isset($input[$field]) && $input[$field] !== '' && ($field !== $column || $input[$field] !== $activityId)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Chỉ được chọn một ngữ cảnh đánh giá.');
+            }
+        }
         $studentId = $this->id($input['studentId'] ?? null, 'studentId');
         $assessmentId = $this->assessmentId($input['assessmentId'] ?? null);
         $expectedVersion = $this->version($input['expectedVersion'] ?? null);
-        $activity = $this->repository->activityForTeacher($teacherId, $activityId);
-
-        if ($activity === null) {
-            throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Hoạt động không thuộc phạm vi phụ trách của bạn.');
-        }
-        if ($this->repository->registrationForActivity($teacherId, $activityId, $studentId) === null) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Học viên chưa có registration được duyệt cho hoạt động này.');
+        if (!$this->repository->studentInContext($teacherId,$mode,$activityId,$studentId)) {
+            throw new ApiException(403, 'FORBIDDEN', 'Sinh viên hoặc ngữ cảnh nằm ngoài phạm vi được phân công.');
         }
         if ($expectedVersion === 0 && $assessmentId !== null) {
             throw new TeacherGradingConflictException('A new assessment cannot carry an existing assessment id.');
@@ -107,7 +119,7 @@ final class TeacherGradingService
                 $criteriaScores[] = ['criteriaId' => $criteriaId, 'score' => $score];
             }
         }
-        if ($status === 'published' && count($criteriaScores) !== count($criteriaById)) {
+        if ($status === 'published' && ($criteriaById === [] || count($criteriaScores) !== count($criteriaById))) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Assessment đã công bố phải có điểm cho toàn bộ tiêu chí đang active.');
         }
 
@@ -123,7 +135,9 @@ final class TeacherGradingService
             $status === 'published' ? gmdate('Y-m-d H:i:s.u') : null,
             $criteriaScores,
             $userId,
-            substr($requestId ?? RequestId::make(null), 0, 26)
+            substr($requestId ?? RequestId::make(null), 0, 26),
+            $mode,
+            $this->skillsInput($input['skills'] ?? [])
         );
 
         return $activityId;
@@ -139,7 +153,8 @@ final class TeacherGradingService
         if (($assessment['status'] ?? null) !== 'draft') throw new TeacherGradingConflictException('Published assessments are immutable.');
         if ((int) ($assessment['version'] ?? 0) !== $expectedVersion) throw new TeacherGradingConflictException('Assessment version no longer matches.');
         $this->save($teacherUserId, [
-            'activityId' => (string) $assessment['activityId'],
+            'mode' => $assessment['mode'],
+            'contextId' => $assessment['contextId'],
             'studentId' => (string) $assessment['studentId'],
             'assessmentId' => $assessmentId,
             'expectedVersion' => (string) $expectedVersion,
@@ -250,11 +265,64 @@ final class TeacherGradingService
         return $comment === '' ? null : $comment;
     }
 
+    /**
+     * @return list<array{skillId?:string,skillName?:string,score:string,category?:string}>
+     */
+    private function skillsInput(mixed $value): array
+    {
+        if ($value === null || $value === '' || $value === []) {
+            return [];
+        }
+        if (!is_array($value)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Danh sách kỹ năng không hợp lệ.');
+        }
+
+        $skills = [];
+        foreach ($value as $index => $item) {
+            if (!is_array($item)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'skills[' . $index . '] không hợp lệ.');
+            }
+            $skillId = trim((string) ($item['skillId'] ?? ''));
+            $skillName = trim((string) ($item['skillName'] ?? $item['name'] ?? ''));
+            $scoreValue = $item['score'] ?? null;
+            if ($skillId === '' && $skillName === '' && ($scoreValue === null || $scoreValue === '')) {
+                continue;
+            }
+            if ($skillId === '' && $skillName === '') {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'skills[' . $index . '] cần skillId hoặc skillName.');
+            }
+            if ($skillId !== '' && !Uuid::isValid($skillId)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'skills[' . $index . '].skillId không hợp lệ.');
+            }
+            $scoreValue = $item['score'] ?? null;
+            if (is_int($scoreValue) || is_float($scoreValue)) {
+                $scoreValue = number_format((float) $scoreValue, 2, '.', '');
+            }
+            $score = $this->score($scoreValue, 0.0, 100.0, 'skills[' . $index . '].score', false);
+            if ($score === null) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'skills[' . $index . '].score là bắt buộc.');
+            }
+            $entry = ['score' => $score];
+            if ($skillId !== '') {
+                $entry['skillId'] = strtolower($skillId);
+            }
+            if ($skillName !== '') {
+                $entry['skillName'] = mb_substr($skillName, 0, 150);
+            }
+            $category = $item['category'] ?? null;
+            if (is_string($category) && $category !== '') {
+                $entry['category'] = strtolower(trim($category));
+            }
+            $skills[] = $entry;
+        }
+
+        return $skills;
+    }
+
     private function search(string $value): string
     {
         return mb_substr(trim($value), 0, 100);
     }
-
     /** @param list<array<string,mixed>> $students @param list<array<string,mixed>> $scores */
     private function studentsWithCriteria(array $students, array $scores): array
     {
