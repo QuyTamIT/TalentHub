@@ -89,6 +89,7 @@
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
   const statusLabels = {active:'Hoạt động',draft:'Bản nháp',published:'Đã công bố',ongoing:'Đang diễn ra',completed:'Hoàn thành',archived:'Đã lưu trữ',pending:'Chờ duyệt',suspended:'Tạm khóa',disabled:'Vô hiệu hóa',verified:'Đã xác minh',rejected:'Từ chối',inactive:'Chưa kích hoạt',paid:'Đã thanh toán',pending_payment:'Chờ thanh toán',pledged:'Đã cam kết',refunded:'Đã hoàn tiền',cancelled:'Đã hủy',sent:'Đã gửi',failed:'Thất bại',submitted:'Đã nộp',reviewing:'Đang xem xét',interview:'Phỏng vấn',accepted:'Đã chấp nhận',declined:'Đã từ chối',withdrawn:'Đã rút',invited:'Được mời',applied:'Đã ứng tuyển'};
   const roleLabels = {student:'Học sinh',teacher:'Giáo viên',school:'Nhà trường',enterprise:'Doanh nghiệp',platform_admin:'Quản trị nền tảng'};
+  const categoryLabels = {career_technical:'Kỹ thuật & Công nghệ',career_business:'Kinh doanh & Quản trị',career_arts:'Nghệ thuật & Sáng tạo',career_sports_academic:'Thể thao & Học thuật',workshop:'Workshop & Thực hành',competition:'Cuộc thi & Thử thách',project:'Dự án & Đồ án',talkshow:'Tọa đàm & Chia sẻ',field_trip:'Tham quan thực tế',community:'Cộng đồng & Tình nguyện',technical:'Kỹ thuật & Công nghệ',business:'Kinh doanh & Quản trị',arts:'Nghệ thuật & Sáng tạo',sports:'Thể thao & Học thuật'};
   const commandActions = [
     {section:'dashboard', title:'Tổng quan vận hành', description:'Mở Dashboard Admin', keywords:'tong quan dashboard van hanh trang chu'},
     {section:'users', title:'Quản lý người dùng', description:'Tìm, tạo và cập nhật tài khoản', keywords:'nguoi dung user tai khoan hoc sinh giao vien admin'},
@@ -161,7 +162,7 @@
   const dateKeys = new Set(['createdAt','expiresAt','lastLoginAt','startAt','endAt','appliedAt','reviewedAt','paidAt']);
   const formatDate = (value) => { if (!value) return 'Chưa có'; const raw=String(value);const normalized=/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(raw)?raw.replace(' ','T')+'Z':raw;const date=new Date(normalized);return Number.isNaN(date.getTime())?raw:new Intl.DateTimeFormat('vi-VN',{dateStyle:'short',timeStyle:'short',timeZone:'Asia/Ho_Chi_Minh'}).format(date); };
   const statusTone = (value) => ['active','verified','paid','sent','completed','approved'].includes(String(value).toLowerCase()) ? 'success' : ['rejected','failed','disabled','cancelled'].includes(String(value).toLowerCase()) ? 'danger' : 'warning';
-  const formatCell = (key,value) => { if (dateKeys.has(key)) return escapeHtml(formatDate(value)); if (key==='role'||key==='type') return escapeHtml(roleLabels[value]||value||'—'); if (key==='isRead') return value ? 'Đã đọc' : 'Chưa đọc'; if (key==='amount'&&value!==null) return Number(value).toLocaleString('vi-VN'); if (key==='matchScore'&&value!==null&&value!=='') return `${Number(value).toLocaleString('vi-VN')}%`; if (key.toLowerCase().includes('status')) return `<span class="status-badge ${statusTone(value)}">${escapeHtml(statusLabels[String(value).toLowerCase()]||value||'—')}</span>`; return escapeHtml(value??'—'); };
+  const formatCell = (key,value) => { if (dateKeys.has(key)) return escapeHtml(formatDate(value)); if (key==='role'||key==='type') return escapeHtml(roleLabels[value]||value||'—'); if (key==='category') return escapeHtml(categoryLabels[String(value).toLowerCase().replace(/-/g, '_')]||value||'—'); if (key==='isRead') return value ? 'Đã đọc' : 'Chưa đọc'; if (key==='amount'&&value!==null) return Number(value).toLocaleString('vi-VN'); if (key==='matchScore'&&value!==null&&value!=='') return `${Number(value).toLocaleString('vi-VN')}%`; if (key.toLowerCase().includes('status')) return `<span class="status-badge ${statusTone(value)}">${escapeHtml(statusLabels[String(value).toLowerCase()]||value||'—')}</span>`; return escapeHtml(value??'—'); };
   const labels = {
     users:['Quản lý người dùng','Phân khu tài khoản học đường, tổ chức và hệ thống vận hành.'],
     organizations:['Tổ chức','School, Enterprise và hàng đợi xác minh.'],
@@ -497,10 +498,11 @@
     `;
   };
 
+  const cellTitle = (key, val) => (key === 'category' ? categoryLabels[String(val).toLowerCase().replace(/-/g, '_')] : null) || val || '';
   const table = (rows, actions = null) => {
     if (!rows.length) return '<div class="empty-state"><strong>Chưa có dữ liệu</strong><p>Không có bản ghi phù hợp với bộ lọc hiện tại.</p></div>';
     const columns = Object.keys(rows[0]).filter((key) => key !== 'passwordHash'&&!hiddenColumns.has(key));
-    return `<div class="table-summary">Hiển thị ${rows.length.toLocaleString('vi-VN')} bản ghi</div><div class="table-scroll"><table><caption class="sr-only">Dữ liệu ${escapeHtml(currentSection)}</caption><thead><tr>${columns.map((key)=>`<th scope="col">${escapeHtml(columnLabels[key]||key)}</th>`).join('')}${actions?'<th scope="col">Hành động</th>':''}</tr></thead><tbody>${rows.map((row)=>`<tr>${columns.map((key)=>`<td title="${escapeHtml(row[key]??'')}">${formatCell(key,row[key])}</td>`).join('')}${actions?`<td>${actions(row)}</td>`:''}</tr>`).join('')}</tbody></table></div>`;
+    return `<div class="table-summary">Hiển thị ${rows.length.toLocaleString('vi-VN')} bản ghi</div><div class="table-scroll"><table><caption class="sr-only">Dữ liệu ${escapeHtml(currentSection)}</caption><thead><tr>${columns.map((key)=>`<th scope="col">${escapeHtml(columnLabels[key]||key)}</th>`).join('')}${actions?'<th scope="col">Hành động</th>':''}</tr></thead><tbody>${rows.map((row)=>`<tr>${columns.map((key)=>`<td title="${escapeHtml(cellTitle(key, row[key]))}">${formatCell(key,row[key])}</td>`).join('')}${actions?`<td>${actions(row)}</td>`:''}</tr>`).join('')}</tbody></table></div>`;
   };
   const renderModule = (section, data) => {
     if (section === 'rbac') {
@@ -527,6 +529,64 @@
       return;
     }
     moduleContent.innerHTML = table(currentRows, actions);
+  };
+
+  /* ---- Synced horizontal scroll mirror above module tables ---- */
+  const setupScrollMirror = () => {
+    // Clean up any existing mirrors
+    document.querySelectorAll('.table-scroll-mirror').forEach((el) => el.remove());
+
+    if (!moduleContent) return;
+
+    // Find ALL .table-scroll containers (generic, user, org)
+    const scrollContainers = moduleContent.querySelectorAll('.table-scroll');
+    if (!scrollContainers.length) return;
+
+    requestAnimationFrame(() => {
+      scrollContainers.forEach((tableScroll) => {
+        const tableEl = tableScroll.querySelector('table');
+        if (!tableEl) return;
+        if (tableEl.scrollWidth <= tableScroll.clientWidth) return;
+
+        const mirror = document.createElement('div');
+        mirror.className = 'table-scroll-mirror';
+        const spacer = document.createElement('div');
+        spacer.style.width = tableEl.scrollWidth + 'px';
+        mirror.appendChild(spacer);
+
+        // Insert mirror right before the module-content panel
+        moduleContent.parentElement.insertBefore(mirror, moduleContent);
+
+        // Bidirectional scroll sync using rAF for smoothness
+        let syncing = false;
+        mirror.addEventListener('scroll', () => {
+          if (syncing) return;
+          syncing = true;
+          requestAnimationFrame(() => {
+            tableScroll.scrollLeft = mirror.scrollLeft;
+            syncing = false;
+          });
+        });
+        tableScroll.addEventListener('scroll', () => {
+          if (syncing) return;
+          syncing = true;
+          requestAnimationFrame(() => {
+            mirror.scrollLeft = tableScroll.scrollLeft;
+            syncing = false;
+          });
+        });
+
+        // Auto-hide/show + update width on resize
+        if (typeof ResizeObserver !== 'undefined') {
+          const ro = new ResizeObserver(() => {
+            spacer.style.width = tableEl.scrollWidth + 'px';
+            mirror.style.display = tableEl.scrollWidth <= tableScroll.clientWidth ? 'none' : '';
+          });
+          ro.observe(tableEl);
+          ro.observe(tableScroll);
+        }
+      });
+    });
   };
 
   const loadTasksSection = async () => {
@@ -840,7 +900,7 @@
     if (section === 'users') activeUserSearch = search;
     const basePath = ['users','organizations','audit','rbac','system'].includes(section)?`/admin/${section}`:`/admin/resources/${section}`;
     const path = ['users','organizations'].includes(section) && search !== '' ? `${basePath}?search=${encodeURIComponent(search)}` : basePath;
-    try { const data=await api(path);renderModule(section,data);moduleState.hidden=true;moduleContent.hidden=false;history.replaceState(null,'',`#${section}`); }
+    try { const data=await api(path);renderModule(section,data);moduleState.hidden=true;moduleContent.hidden=false;setupScrollMirror();history.replaceState(null,'',`#${section}`); }
     catch(error){moduleState.hidden=false;moduleState.innerHTML=`<strong>Không thể tải dữ liệu</strong><p>${escapeHtml(error.message)}</p>`;}
     closeSidebar();
   };
