@@ -115,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_internship']))
 
         // Validate required fields
         if ($title === '') {
-            throw new \InvalidArgumentException('Vui lòng nhập tiêu đề vị trí tuyển dụng.');
+            throw new \InvalidArgumentException('Vui lòng nhập tiêu đề vị trí thực tập.');
         }
         if ($field === '') {
             throw new \InvalidArgumentException('Vui lòng chọn lĩnh vực chuyên môn.');
@@ -164,15 +164,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_internship']))
             if ($action === 'publish' && ($savedPost['status'] ?? '') === 'draft') {
                 $savedPost = $internshipService->publish((string) $user['id'], $postId, 'draft');
             }
-            $_SESSION['flash_message'] = 'Đã cập nhật tin tuyển dụng "' . htmlspecialchars($title) . '" thành công!';
+            $_SESSION['flash_message'] = 'Đã cập nhật tin tuyển thực tập "' . htmlspecialchars($title) . '" thành công!';
         } else {
             $savedPost = $internshipService->createPost((string) $user['id'], $payload);
             if ($action === 'publish' && isset($savedPost['id'])) {
                 $savedPost = $internshipService->publish((string) $user['id'], (string) $savedPost['id'], 'draft');
             }
             $_SESSION['flash_message'] = ($action === 'publish') 
-                ? 'Đã phát hành tin tuyển dụng "' . htmlspecialchars($title) . '" thành công!' 
-                : 'Đã lưu bản nháp tin tuyển dụng thành công!';
+                ? 'Đã phát hành tin tuyển thực tập "' . htmlspecialchars($title) . '" thành công!' 
+                : 'Đã lưu bản nháp tin tuyển thực tập thành công!';
         }
 
         $targetUrl = function_exists('app_href') ? app_href('/app/enterprise/internships/index.php') : 'index.php';
@@ -221,7 +221,7 @@ foreach ($rawApprovedSchools as $schoolRow) {
 }
 
 $isEdit = !empty($editingPost);
-$pageTitle = $isEdit ? ('Chỉnh sửa: ' . $editingPost['title']) : 'Đăng tin tuyển dụng mới';
+$pageTitle = $isEdit ? ('Chỉnh sửa: ' . $editingPost['title']) : 'Đăng tin tuyển thực tập mới';
 $currentRoute = '/app/enterprise/internships/create.php';
 
 $sidebarNav = [
@@ -250,12 +250,6 @@ $sidebarNav = [
         'active' => false,
     ],
     [
-        'title'  => 'Phân tích tuyển dụng',
-        'route'  => '/app/enterprise/analytics.php',
-        'icon'   => 'bar-chart-2',
-        'active' => false,
-    ],
-    [
         'title'  => 'Hồ sơ doanh nghiệp',
         'route'  => '/app/enterprise/profile.php',
         'icon'   => 'building',
@@ -268,7 +262,7 @@ $sidebarNav = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Đăng tin tuyển dụng thực tập doanh nghiệp trên TalentHub Enterprise.">
+    <meta name="description" content="Đăng tin tuyển thực tập doanh nghiệp trên TalentHub Enterprise.">
     <title><?= htmlspecialchars($pageTitle); ?> | TalentHub Enterprise</title>
     
     <!-- CSS Assets -->
@@ -301,7 +295,7 @@ $sidebarNav = [
                     <!-- Back Link Bar -->
                     <div class="ent-back-bar">
                         <a href="<?= function_exists('app_href') ? app_href('/app/enterprise/internships/index.php') : 'index.php'; ?>" class="ent-back-link">
-                            &larr; Quay lại Danh sách Tin tuyển dụng
+                            &larr; Quay lại Danh sách Tin tuyển thực tập
                         </a>
                     </div>
 
@@ -316,7 +310,7 @@ $sidebarNav = [
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                             <div>
                                 <h2 class="ent-section-box__title">
-                                    <?= $isEdit ? 'Chỉnh sửa Tin tuyển dụng' : 'Tạo Tin tuyển dụng Thực tập Mới'; ?>
+                                    <?= $isEdit ? 'Chỉnh sửa Tin tuyển thực tập' : 'Tạo Tin tuyển thực tập Mới'; ?>
                                 </h2>
                                 <p class="ent-section-box__subtitle">
                                     <?= $isEdit ? ('Đang chỉnh sửa bài đăng ID #' . htmlspecialchars((string) $editingPost['id'])) : 'Nhập thông tin chi tiết để kết nối với các ứng viên phù hợp trên hệ thống TalentHub.'; ?>
@@ -341,12 +335,12 @@ $sidebarNav = [
                         
                         <!-- 1. General Info Section -->
                         <section class="ent-section-box mb-4">
-                            <h3 class="ent-section-box__title mb-3" style="font-size: 1.0625rem;">1. Thông tin chung về vị trí tuyển dụng</h3>
+                            <h3 class="ent-section-box__title mb-3" style="font-size: 1.0625rem;">1. Thông tin chung về vị trí thực tập</h3>
                             
                             <div class="ent-form-grid">
-                                <!-- Tiêu đề tuyển dụng -->
+                                <!-- Tiêu đề thực tập -->
                                 <div class="ent-form-group col-12">
-                                    <label for="form-title" class="ent-form-label required">Tiêu đề vị trí tuyển dụng</label>
+                                    <label for="form-title" class="ent-form-label required">Tiêu đề vị trí thực tập</label>
                                     <input type="text" 
                                            id="form-title" 
                                            name="title"
@@ -488,7 +482,7 @@ $sidebarNav = [
                             <div class="ent-form-group mb-5">
                                 <div class="ent-field-header mb-3">
                                     <label class="ent-form-label required mb-1">Yêu cầu kỹ năng (Tags)</label>
-                                    <p class="ent-form-help-text mb-0">Chọn hoặc nhập các kỹ năng cần thiết cho vị trí tuyển dụng.</p>
+                                    <p class="ent-form-help-text mb-0">Chọn hoặc nhập các kỹ năng cần thiết cho vị trí thực tập.</p>
                                 </div>
 
                                 <div class="ent-skill-picker-card" id="skill-picker-container" data-initial-skills="<?= htmlspecialchars(json_encode($isEdit ? $editingPost['skills'] : [])); ?>">
@@ -557,7 +551,7 @@ $sidebarNav = [
 
                         <!-- 3. Audience & Partner Schools Targeting Section -->
                         <section class="ent-section-box mb-4">
-                            <h3 class="ent-section-box__title mb-3">3. Phạm vi tuyển dụng & Đối tượng hướng đích</h3>
+                            <h3 class="ent-section-box__title mb-3">3. Phạm vi tuyển thực tập & Đối tượng hướng đích</h3>
                             <p class="text-muted small mb-3">Chọn đối tượng sinh viên có thể xem và nộp hồ sơ ứng tuyển vị trí này.</p>
 
                             <div class="ent-form-group mb-3">
@@ -700,7 +694,7 @@ $sidebarNav = [
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="20 6 9 17 4 12"></polyline>
                                     </svg>
-                                    <span><?= $isEdit ? 'Cập nhật tin tuyển dụng' : 'Đăng tuyển ngay'; ?></span>
+                                    <span><?= $isEdit ? 'Cập nhật tin tuyển thực tập' : 'Đăng tuyển ngay'; ?></span>
                                 </button>
                             </div>
                         </div>

@@ -189,8 +189,14 @@ function initTalentSearchModule() {
     function normalizeTalent(raw) {
         const id = String(raw.studentId || raw.student_id || raw.id || '');
         const name = raw.displayName || raw.display_name || raw.name || 'Ứng viên tiềm năng';
-        const rawSkills = Array.isArray(raw.skills) ? raw.skills : (Array.isArray(raw.verifiedSkills) ? raw.verifiedSkills : (Array.isArray(raw.matched_skills) ? raw.matched_skills : []));
+        // skills = toàn bộ (DB + inferred từ project) — dùng cho matching/filter
+        const rawSkills = Array.isArray(raw.skills) ? raw.skills : (Array.isArray(raw.matched_skills) ? raw.matched_skills : []);
         const skills = rawSkills.map(s => typeof s === 'string' ? s : (s.name || s.skillName || ''));
+        // verifiedSkills = chỉ từ student_skills (DB) — dùng cho label "Kỹ năng xác thực" trên UI
+        const rawVerifiedSkills = Array.isArray(raw.verifiedSkills)
+            ? raw.verifiedSkills
+            : (Array.isArray(raw.verified_skills) ? raw.verified_skills : []);
+        const verifiedSkills = rawVerifiedSkills.map(s => typeof s === 'string' ? s : (s.name || s.skillName || ''));
         const school = raw.schoolName || raw.school_name || raw.school || '';
         const classYear = raw.className || raw.class_name || raw.class_year || '';
         const eduLevel = raw.studyStatus || raw.study_status || raw.education_level || '';
@@ -216,6 +222,7 @@ function initTalentSearchModule() {
             major_field: majorField,
             headline: headline,
             skills: skills,
+            verifiedSkills: verifiedSkills,
             projects: Array.isArray(raw.projects) ? raw.projects : [],
             experience_hours: expHours,
             talent_score: score,
@@ -268,6 +275,8 @@ function initTalentSearchModule() {
         const params = new URLSearchParams();
         if (currentSearchQuery) params.append('search', currentSearchQuery);
         if (activeFilters.school) params.append('school', activeFilters.school);
+        if (activeFilters.eduLevel) params.append('education_level', activeFilters.eduLevel);
+        if (activeFilters.majorField) params.append('major_field', activeFilters.majorField);
         if (selectedSkillsSet.size > 0) {
             params.append('skills', Array.from(selectedSkillsSet).join(','));
         }
@@ -692,9 +701,13 @@ function initTalentSearchModule() {
             const mLabel1 = document.createElement('span');
             mLabel1.className = 'ent-meta-item__label';
             mLabel1.textContent = 'Kỹ năng xác thực:';
+            // Chỉ đếm verifiedSkills (từ student_skills DB).
+            // Skills suy diễn từ project không được tính vào "Kỹ năng xác thực".
+            const verifiedCount = Array.isArray(talent.verifiedSkills) ? talent.verifiedSkills.length : 0;
+            const inferredCount = Math.max(0, (Array.isArray(talent.skills) ? talent.skills.length : 0) - verifiedCount);
             const mVal1 = document.createElement('span');
             mVal1.className = 'ent-meta-item__value font-semibold text-dark';
-            mVal1.textContent = ` ${talent.skills.length} kỹ năng`;
+            mVal1.textContent = ` ${verifiedCount} kỹ năng`;
             metaItem1.appendChild(mLabel1);
             metaItem1.appendChild(mVal1);
 
@@ -715,6 +728,23 @@ function initTalentSearchModule() {
             metaStrip.appendChild(metaItem1);
             metaStrip.appendChild(div1);
             metaStrip.appendChild(metaItem2);
+
+            if (inferredCount > 0) {
+                const divProj = document.createElement('div');
+                divProj.className = 'ent-meta-item__divider';
+                const metaItemProj = document.createElement('div');
+                metaItemProj.className = 'ent-meta-item';
+                const mLabelProj = document.createElement('span');
+                mLabelProj.className = 'ent-meta-item__label';
+                mLabelProj.textContent = 'Kỹ năng từ dự án:';
+                const mValProj = document.createElement('span');
+                mValProj.className = 'ent-meta-item__value font-semibold text-dark';
+                mValProj.textContent = ` ${inferredCount} kỹ năng`;
+                metaItemProj.appendChild(mLabelProj);
+                metaItemProj.appendChild(mValProj);
+                metaStrip.appendChild(divProj);
+                metaStrip.appendChild(metaItemProj);
+            }
 
             if (Array.isArray(talent.badges) && talent.badges.length > 0) {
                 const div2 = document.createElement('div');
@@ -743,7 +773,10 @@ function initTalentSearchModule() {
             chipsDiv.className = 'skills-chips';
 
             const matchedSet = new Set((talent.matched_skills || []).map(s => s.toLowerCase().trim()));
-            const orderedSkills = [...talent.skills];
+            // Chỉ render verifiedSkills (từ student_skills DB).
+            // talent.skills (merged + inferred từ project) vẫn tồn tại để AI matching dùng,
+            // nhưng không hiển thị như kỹ năng của ứng viên trên UI card.
+            const orderedSkills = [...(talent.verifiedSkills || [])];
             orderedSkills.sort((a, b) => {
                 const aMatch = matchedSet.has(a.toLowerCase().trim());
                 const bMatch = matchedSet.has(b.toLowerCase().trim());
@@ -752,18 +785,25 @@ function initTalentSearchModule() {
                 return 0;
             });
 
-            orderedSkills.slice(0, 5).forEach(sk => {
-                const chip = document.createElement('span');
-                const isMatched = matchedSet.has(sk.toLowerCase().trim());
-                chip.className = isMatched ? 'skill-tag skill-tag--matched' : 'skill-tag';
-                chip.textContent = isMatched ? `✓ ${sk}` : sk;
-                chipsDiv.appendChild(chip);
-            });
-            if (orderedSkills.length > 5) {
-                const moreChip = document.createElement('span');
-                moreChip.className = 'skill-tag skill-tag--more';
-                moreChip.textContent = `+${orderedSkills.length - 5}`;
-                chipsDiv.appendChild(moreChip);
+            if (orderedSkills.length === 0) {
+                const emptyChip = document.createElement('span');
+                emptyChip.className = 'skill-tag skill-tag--empty';
+                emptyChip.textContent = 'Chưa có kỹ năng';
+                chipsDiv.appendChild(emptyChip);
+            } else {
+                orderedSkills.slice(0, 5).forEach(sk => {
+                    const chip = document.createElement('span');
+                    const isMatched = matchedSet.has(sk.toLowerCase().trim());
+                    chip.className = isMatched ? 'skill-tag skill-tag--matched' : 'skill-tag';
+                    chip.textContent = isMatched ? `✓ ${sk}` : sk;
+                    chipsDiv.appendChild(chip);
+                });
+                if (orderedSkills.length > 5) {
+                    const moreChip = document.createElement('span');
+                    moreChip.className = 'skill-tag skill-tag--more';
+                    moreChip.textContent = `+${orderedSkills.length - 5}`;
+                    chipsDiv.appendChild(moreChip);
+                }
             }
 
             skillsDiv.appendChild(sLabel);
@@ -934,10 +974,10 @@ function initTalentSearchModule() {
         });
     });
 
-    if (filterEduLevel) filterEduLevel.addEventListener('change', (e) => { activeFilters.eduLevel = e.target.value; currentPage = 1; updateAndRender(); });
+    if (filterEduLevel) filterEduLevel.addEventListener('change', (e) => { activeFilters.eduLevel = e.target.value; currentPage = 1; fetchFromApi(); });
     if (filterSchool) filterSchool.addEventListener('change', (e) => { activeFilters.school = e.target.value; currentPage = 1; fetchFromApi(); });
     if (filterClassYear) filterClassYear.addEventListener('change', (e) => { activeFilters.classYear = e.target.value; currentPage = 1; updateAndRender(); });
-    if (filterMajorField) filterMajorField.addEventListener('change', (e) => { activeFilters.majorField = e.target.value; currentPage = 1; updateAndRender(); });
+    if (filterMajorField) filterMajorField.addEventListener('change', (e) => { activeFilters.majorField = e.target.value; currentPage = 1; fetchFromApi(); });
     if (filterMatchScore) filterMatchScore.addEventListener('change', (e) => { activeFilters.matchScore = parseInt(e.target.value, 10) || 0; currentPage = 1; updateAndRender(); });
     if (filterExpHours) filterExpHours.addEventListener('change', (e) => { activeFilters.expHours = parseInt(e.target.value, 10) || 0; currentPage = 1; updateAndRender(); });
     if (filterReadiness) filterReadiness.addEventListener('change', (e) => { activeFilters.readiness = e.target.value; currentPage = 1; updateAndRender(); });
@@ -1197,6 +1237,12 @@ function initTalentSearchModule() {
                     const norm = normalizeTalent(item);
                     norm.is_ai_matched = true;
                     norm.ai_rank = idx + 1;
+                    if (!item.verifiedSkills && !item.verified_skills) {
+                        const orig = originalTalents.find(t => String(t.id) === String(norm.id));
+                        if (orig && Array.isArray(orig.verifiedSkills)) {
+                            norm.verifiedSkills = [...orig.verifiedSkills];
+                        }
+                    }
                     return norm;
                 });
 

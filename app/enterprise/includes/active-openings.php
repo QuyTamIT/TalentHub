@@ -1,6 +1,6 @@
 <?php
 /**
- * Enterprise Dashboard - Active Job Openings Component ("Tin tuyển dụng đang hoạt động")
+ * Enterprise Dashboard - Active Job Openings Component ("Tin tuyển thực tập đang hoạt động")
  * 
  * Displays currently active internship job posts with applicant counters, deadlines,
  * and direct actions for managing applications.
@@ -8,11 +8,11 @@
 
 $openingsList = !empty($activePosts) ? $activePosts : [];
 ?>
-<section class="ent-active-openings-box" aria-label="Tin tuyển dụng đang hoạt động">
+<section class="ent-active-openings-box" aria-label="Tin tuyển thực tập đang hoạt động">
     <!-- Header of the Active Openings Section -->
     <div class="ent-active-openings-box__header">
         <div class="ent-active-openings-box__titles">
-            <h2 class="ent-active-openings-box__title">Tin tuyển dụng đang hoạt động</h2>
+            <h2 class="ent-active-openings-box__title">Tin tuyển thực tập đang hoạt động</h2>
             <p class="ent-active-openings-box__subtitle">Theo dõi tiến độ tiếp nhận hồ sơ các vị trí thực tập đang mở</p>
         </div>
         <a href="<?= app_href('/app/enterprise/internships/'); ?>" class="ent-active-openings-box__view-all" data-route="/app/enterprise/internships/">
@@ -34,16 +34,16 @@ $openingsList = !empty($activePosts) ? $activePosts : [];
                         <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
                     </svg>
                 </div>
-                <h3 class="ent-empty-state__title">Chưa có tin tuyển dụng nào đang mở</h3>
-                <p class="ent-empty-state__desc">Đăng tin tuyển dụng mới để tiếp cận hàng nghìn sinh viên tiềm năng từ các trường đại học hàng đầu.</p>
+                <h3 class="ent-empty-state__title">Chưa có tin tuyển thực tập nào đang mở</h3>
+                <p class="ent-empty-state__desc">Đăng tin tuyển thực tập mới để tiếp cận hàng nghìn sinh viên tiềm năng từ các trường đại học hàng đầu.</p>
                 <a href="<?= app_href('/app/enterprise/internships/create.php'); ?>" class="btn btn-primary" data-route="/app/enterprise/internships/">
-                    + Đăng tin tuyển dụng ngay
+                    + Đăng tin tuyển thực tập ngay
                 </a>
             </div>
         <?php else: ?>
             <?php foreach ($openingsList as $post): 
                 $postId = (string) ($post['id'] ?? '');
-                $postTitle = (string) ($post['title'] ?? 'Vị trí tuyển dụng');
+                $postTitle = (string) ($post['title'] ?? 'Vị trí thực tập');
                 $postLocation = (string) ($post['location'] ?? 'Hà Nội / Toàn quốc');
                 $postWorkType = (string) ($post['work_type'] ?? 'Full-time');
                 $postDeadline = (string) ($post['deadline'] ?? 'Đang nhận hồ sơ');

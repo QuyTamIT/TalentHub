@@ -178,6 +178,9 @@ function initRouteNavigation() {
             
             // Allow default navigation if clicking implemented pages
             if (
+                !route ||
+                route.startsWith('/app/enterprise') ||
+                route.startsWith('#') ||
                 route === '/app/enterprise' || 
                 route === '/app/enterprise/index.php' ||
                 route === '/app/enterprise/talents' ||

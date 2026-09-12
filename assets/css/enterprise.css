@@ -514,6 +514,7 @@ body.ent-sidebar-open {
 .ent-header__user-info {
     display: flex;
     flex-direction: column;
+    min-width: 0; /* allow flex child to shrink so ellipsis can work */
 }
 
 .ent-header__company-name {
@@ -521,6 +522,10 @@ body.ent-sidebar-open {
     font-weight: var(--font-bold);
     color: var(--text-primary);
     line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 18ch;
 }
 
 .ent-header__package-name {
@@ -617,6 +622,7 @@ body.ent-sidebar-open {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 22ch;
 }
 
 .ent-account-menu__badge {
@@ -926,6 +932,15 @@ body.ent-sidebar-open {
     transform: translateY(-3px);
     box-shadow: var(--shadow-glow);
     border-color: rgba(255, 107, 107, 0.3);
+}
+
+.ent-metric-card--clickable {
+    cursor: pointer;
+    text-decoration: none;
+}
+.ent-metric-card--clickable:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .ent-metric-card__header {
@@ -2773,6 +2788,13 @@ body.ent-sidebar-open {
     background-color: transparent;
     border-style: dashed;
     color: var(--text-muted);
+}
+
+.skill-tag--empty {
+    font-style: italic;
+    color: var(--text-muted);
+    background-color: transparent;
+    border-style: dashed;
 }
 
 /* Card Footer & Privacy Note */
@@ -8839,3 +8861,508 @@ body.enterprise-dashboard .ent-search-input:focus {
 }
 
 /*
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TALENT PASSPORT — Redesigned Layout
+   Replaces card-per-section approach with a clean 2-column profile layout.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Grid ────────────────────────────────────────────────────────────────── */
+.ent-passport-grid {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 1.75rem;
+    align-items: start;
+}
+
+.ent-passport-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0; /* sections use border-top dividers instead of gap */
+    min-width: 0;
+}
+
+.ent-passport-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    position: sticky;
+    top: 1.5rem;
+}
+
+/* ── Profile Header ──────────────────────────────────────────────────────── */
+.ent-profile-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+    padding: 1.5rem 0 1.5rem;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+}
+
+.ent-profile-header__avatar {
+    width: 5rem;
+    height: 5rem;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--primary-light) 0%, #fde8dc 100%);
+    color: var(--primary);
+    font-size: 1.625rem;
+    font-weight: var(--font-extrabold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(255, 107, 69, 0.18);
+    letter-spacing: -0.5px;
+}
+
+.ent-profile-header__body {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.ent-profile-header__name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.ent-profile-header__name {
+    font-size: 1.625rem;
+    font-weight: var(--font-extrabold);
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.3px;
+}
+
+.ent-profile-header__meta {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+
+.ent-meta-dot {
+    color: var(--text-muted);
+    opacity: .5;
+}
+
+.ent-profile-header__status-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+    margin-top: 0.125rem;
+}
+
+.ent-profile-header__exp-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.78125rem;
+    font-weight: var(--font-semibold);
+    color: var(--primary);
+    background: var(--primary-light);
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,107,69,.18);
+}
+
+.ent-profile-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    align-self: flex-start;
+    padding-top: 0.125rem;
+}
+
+/* ── Main Column Sections (divider-based, no cards) ─────────────────────── */
+.ent-profile-section {
+    padding: 1.375rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.ent-profile-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0.5rem;
+}
+
+.ent-profile-section__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.ent-profile-section__title {
+    font-size: 0.9375rem;
+    font-weight: var(--font-bold);
+    color: var(--text-primary);
+    margin: 0 0 0.875rem;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.ent-profile-section__header .ent-profile-section__title {
+    margin: 0;
+}
+
+.ent-profile-empty-inline {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin: 0;
+}
+
+/* ── Sidebar Cards ───────────────────────────────────────────────────────── */
+.ent-sidebar-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.125rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ent-sidebar-card--muted {
+    background: var(--background);
+    box-shadow: none;
+}
+
+/* Score display */
+.ent-sidebar-card__score-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.375rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.ent-sidebar-card__score-num {
+    font-size: 2.25rem;
+    font-weight: var(--font-extrabold);
+    color: var(--primary);
+    line-height: 1;
+    letter-spacing: -1px;
+}
+
+.ent-sidebar-card__score-label {
+    font-size: 0.78125rem;
+    font-weight: var(--font-semibold);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Key–value rows inside sidebar card */
+.ent-sidebar-card__row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+}
+
+.ent-sidebar-card__key {
+    color: var(--text-muted);
+    font-size: 0.78125rem;
+    flex-shrink: 0;
+}
+
+.ent-sidebar-card__val {
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    text-align: right;
+    font-size: 0.8125rem;
+}
+
+.ent-sidebar-card__val--accent {
+    color: var(--primary);
+}
+
+/* Strengths list */
+.ent-sidebar-card__strengths {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.ent-sidebar-card__strength-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.25rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.ent-sidebar-card__strength-list li {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    padding-left: 0.875rem;
+    position: relative;
+}
+
+.ent-sidebar-card__strength-list li::before {
+    content: '·';
+    position: absolute;
+    left: 0;
+    color: var(--primary);
+    font-weight: 700;
+}
+
+/* Sidebar card heading row */
+.ent-sidebar-card__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.625rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0.125rem;
+}
+
+.ent-sidebar-card__title {
+    font-size: 0.75rem;
+    font-weight: var(--font-bold);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0;
+}
+
+.ent-sidebar-card__count {
+    font-size: 0.71875rem;
+    font-weight: var(--font-semibold);
+    color: var(--text-muted);
+    background: var(--background);
+    border: 1px solid var(--border);
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+}
+
+/* ── Skills inline list (sidebar) ──────────────────────────────────────────*/
+.ent-skills-inline-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.ent-skill-inline-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.ent-skill-inline-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.ent-skill-inline-item__name {
+    font-size: 0.875rem;
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ent-skill-inline-item__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+/* ── Sponsor chip ───────────────────────────────────────────────────────── */
+.ent-sponsor-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.71875rem;
+    font-weight: 600;
+    background: #FAF5FF;
+    color: var(--primary-violet, #8b4de8);
+    border: 1px solid rgba(139, 77, 232, 0.22);
+}
+
+/* ── Status pill — smaller variant for sidebar ───────────────────────────── */
+.ent-passport-status-pill--sm {
+    font-size: 0.75rem;
+    padding: 0.175rem 0.55rem;
+}
+
+/* ── Privacy card (sidebar) ─────────────────────────────────────────────── */
+.ent-privacy-card {
+    font-size: 0.8rem;
+}
+
+.ent-privacy-card .ent-privacy-card__icon {
+    color: var(--text-muted);
+    margin-bottom: -0.125rem;
+}
+
+.ent-privacy-card p {
+    margin: 0;
+    font-size: 0.78125rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+}
+
+/* ── Experience hours badge — compact in section header ─────────────────── */
+.ent-profile-section__header .ent-exp-hours-badge {
+    margin-top: 0;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+    .ent-passport-grid {
+        grid-template-columns: 1fr 270px;
+        gap: 1.25rem;
+    }
+}
+
+@media (max-width: 900px) {
+    .ent-passport-grid {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .ent-passport-sidebar {
+        position: static;
+        /* On mobile the sidebar moves below main content,
+           rendered as a horizontal row of cards */
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 0.875rem;
+        padding-top: 1.25rem;
+        border-top: 2px solid var(--border);
+        margin-top: 0.25rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .ent-profile-header {
+        padding: 1.25rem 0;
+    }
+
+    .ent-profile-header__avatar {
+        width: 4rem;
+        height: 4rem;
+        font-size: 1.25rem;
+        border-radius: 10px;
+    }
+
+    .ent-profile-header__name {
+        font-size: 1.25rem;
+    }
+
+    .ent-profile-header__actions {
+        width: 100%;
+    }
+
+    .ent-profile-header__actions .btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .ent-passport-sidebar {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROFILE COMPLETION BREAKDOWN
+   Hiển thị danh sách trường đã điền / còn thiếu dưới thanh completion bar.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.ent-completion-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.ent-completion-breakdown__group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+}
+
+/* Group label badge */
+.ent-completion-breakdown__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: var(--font-bold);
+    padding: 0.175rem 0.55rem;
+    border-radius: 999px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.ent-completion-breakdown__badge--missing {
+    background: #FEF2F2;
+    color: #B91C1C;
+    border: 1px solid rgba(185, 28, 28, 0.18);
+}
+
+.ent-completion-breakdown__badge--done {
+    background: #F0FDF4;
+    color: #15803D;
+    border: 1px solid rgba(22, 163, 74, 0.18);
+}
+
+/* Individual field chips */
+.ent-completion-chip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.71875rem;
+    font-weight: var(--font-semibold);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.ent-completion-chip--missing {
+    background: #FFF1F2;
+    color: #9F1239;
+    border: 1px solid rgba(159, 18, 57, 0.14);
+}
+
+.ent-completion-chip--done {
+    background: #F0FDF4;
+    color: #166534;
+    border: 1px solid rgba(22, 101, 52, 0.14);
+}
+
+@media (max-width: 600px) {
+    .ent-completion-breakdown__group {
+        gap: 0.3rem;
+    }
+    .ent-completion-chip {
+        font-size: 0.6875rem;
+    }
+}

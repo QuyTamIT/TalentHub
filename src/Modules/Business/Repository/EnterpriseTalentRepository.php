@@ -449,6 +449,27 @@ final class EnterpriseTalentRepository
         ];
         $params = [];
 
+        // Enterprise Talent Discovery requires candidates to have demonstrated competency evaluation data:
+        // Either evaluated talentScore, standardized assessment score, verified/scored skills, or active practical projects.
+        // Profiles with zero evaluation data and no practical skills/projects are excluded from enterprise talent evaluation.
+        $hasAssessments = $this->tableExists('assessments');
+        $hasProjects = $this->tableExists('projects') && $this->tableExists('project_members');
+        $talentScoreCol = $this->columnExists('student_profiles', 'talentScore') ? 'student.talentScore' : 'NULL';
+
+        $assessSubCondition = $hasAssessments
+            ? "EXISTS (SELECT 1 FROM assessments sa WHERE sa.studentId = student.id AND sa.overallScore IS NOT NULL)"
+            : "0=1";
+        $projectSubCondition = $hasProjects
+            ? "EXISTS (SELECT 1 FROM project_members pm WHERE pm.studentId = student.id AND (pm.status = 'active' OR pm.status IS NULL))"
+            : "0=1";
+
+        $where[] = "(
+            ({$talentScoreCol} IS NOT NULL AND {$talentScoreCol} > 0)
+            OR {$assessSubCondition}
+            OR EXISTS (SELECT 1 FROM student_skills ss WHERE ss.studentId = student.id AND (ss.levelScore > 0 OR ss.verificationStatus = 'verified'))
+            OR {$projectSubCondition}
+        )";
+
         $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
         if ($driver === 'sqlite') {
             $where[] = "EXISTS (
@@ -497,8 +518,12 @@ final class EnterpriseTalentRepository
             }
         }
 
-        // Filter: Skill tag (only when specified and not 'all')
-        $skillTag = trim((string) ($filters['skill_tag'] ?? $filters['skill'] ?? ''));
+        // Filter: Skill tag — JS gửi key 'skills' (comma-separated), cũng hỗ trợ 'skill_tag'/'skill' (legacy).
+        // Lưu ý: filter 'skills' (multi) được xử lý thêm ở bước post-query PHP bên dưới (với alias map).
+        // WHERE clause này chỉ xử lý single-skill hoặc first-skill khi chỉ có 1 kỹ năng được chọn.
+        $rawSkillsParam = trim((string) ($filters['skill_tag'] ?? $filters['skill'] ?? $filters['skills'] ?? ''));
+        // Nếu có nhiều kỹ năng (comma-separated), bỏ qua bước SQL WHERE — post-processing sẽ handle.
+        $skillTag = (str_contains($rawSkillsParam, ',') ? '' : $rawSkillsParam);
         if ($skillTag !== '' && $skillTag !== 'all') {
             $where[] = 'EXISTS (
                 SELECT 1 FROM student_skills ss
@@ -791,14 +816,17 @@ final class EnterpriseTalentRepository
         foreach ($rows as $row) {
             $studentId = (string) $row['studentId'];
             $userId = (string) ($row['userId'] ?? '');
-            $skills = $this->allSkillsForStudent($studentId);
+            // $dbSkills = kỹ năng thực tế từ student_skills (dùng cho "Kỹ năng xác thực" và Talent Profile)
+            $dbSkills = $this->allSkillsForStudent($studentId);
             $studentProjects = $studentProjectsMap[$studentId] ?? $studentProjectsMap[$userId] ?? [];
 
-            // Extract demonstrated practical skills from actual projects
+            // Extract inferred skills from project content — chỉ dùng cho AI matching/filter,
+            // KHÔNG được gọi là "xác thực" vì không có nguồn gốc từ student_skills.
             $projectSkills = $this->extractSkillsFromProjects($studentProjects);
-            if ($projectSkills !== []) {
-                $skills = array_values(array_unique(array_merge($skills, $projectSkills)));
-            }
+            // $skills = merged set cho mục đích matching và filter (bao gồm cả inferred)
+            $skills = $projectSkills !== []
+                ? array_values(array_unique(array_merge($dbSkills, $projectSkills)))
+                : $dbSkills;
 
             if ($filterSkills !== []) {
                 $hasAllSkills = true;
@@ -856,7 +884,7 @@ final class EnterpriseTalentRepository
                 'talentScore' => $score === null ? null : min(100, max(0, $score)),
                 'skillCount' => count($skills),
                 'verifiedSkillCount' => (int) $row['verifiedSkillCount'],
-                'verifiedSkills' => $skills,
+                'verifiedSkills' => $dbSkills,
                 'skills' => $skills,
                 'projects' => $studentProjects,
                 'contactAllowed' => (bool) ((int) ($row['contactAllowed'] ?? 0) === 1),
@@ -1534,7 +1562,7 @@ final class EnterpriseTalentRepository
                        WHERE ps.projectId = p.id AND ps.status = 'paid'
                    ) AS totalFundedAmount
             FROM projects p
-            INNER JOIN project_members pm ON pm.projectId = p.id
+            INNER JOIN project_members pm ON pm.projectId = p.id AND pm.status = 'active'
             WHERE pm.studentId = ? OR pm.studentId IN (SELECT sp.id FROM student_profiles sp WHERE sp.userId = ?)
             ORDER BY p.createdAt DESC
         ");

@@ -155,6 +155,37 @@ document.addEventListener('DOMContentLoaded', function () {
     const detailModal = document.getElementById('project-detail-modal');
     const closeDetailBtn = document.getElementById('close-detail-modal');
 
+    function appendDetailText(parent, tag, className, value) {
+        const element = document.createElement(tag);
+        element.className = className;
+        element.textContent = value == null || String(value).trim() === '' ? 'Chưa có dữ liệu' : String(value);
+        parent.appendChild(element);
+        return element;
+    }
+
+    function renderDetailFacts(id, entries) {
+        const container = document.getElementById(id);
+        if (!container) return;
+        container.replaceChildren();
+        entries.forEach(([label, value]) => {
+            const row = document.createElement('div');
+            appendDetailText(row, 'dt', '', label);
+            appendDetailText(row, 'dd', '', value);
+            container.appendChild(row);
+        });
+    }
+
+    function formatDetailDate(value) {
+        // Preserve the stored calendar date; parsing as a browser Date can shift its timezone.
+        const date = typeof value === 'string' ? value.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|[ T])/) : null;
+        return date ? `${date[3]}/${date[2]}/${date[1]}` : null;
+    }
+
+    function formatDetailMoney(value) {
+        if (value == null || String(value).trim() === '' || !Number.isFinite(Number(value))) return null;
+        return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(Number(value)) + ' VNĐ';
+    }
+
     document.querySelectorAll('.btn-view-detail').forEach(btn => {
         btn.addEventListener('click', function () {
             const projectId = this.getAttribute('data-project-id');
@@ -179,33 +210,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Populate Modal Fields
         document.getElementById('modal-project-title').textContent = project.title;
-        document.getElementById('modal-school-badge').textContent = (project.school_badge || 'Đại học') + ' • ' + project.school_name;
+        document.getElementById('modal-school-badge').textContent = project.school_badge ? (project.school_badge + ' • ' + project.school_name) : project.school_name;
         document.getElementById('modal-category-badge').textContent = project.category;
         document.getElementById('modal-status-badge').textContent = project.status_label || 'Đang gọi vốn';
         document.getElementById('modal-problem-desc').textContent = project.problem_statement || project.description;
         document.getElementById('modal-solution-desc').textContent = project.solution;
 
-        // Populate Leader Info
+        // Populate Leader Info (mentor teacher)
         document.getElementById('modal-leader-avatar').textContent = project.team_leader.avatar_initial;
         document.getElementById('modal-leader-name').textContent = project.team_leader.name;
-        document.getElementById('modal-leader-role').textContent = project.team_leader.role + ' (' + project.team_leader.school + ')';
+        document.getElementById('modal-leader-role').textContent = project.team_leader.role + (project.team_leader.school ? ' (' + project.team_leader.school + ')' : '');
 
-        // Populate Members List
+        // Populate Members List (student members)
         const membersContainer = document.getElementById('modal-team-members');
         if (membersContainer) {
             membersContainer.innerHTML = '';
             (project.team_members || []).forEach(m => {
                 const initials = m.name ? m.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : 'TV';
-                const skills = m.skills || ['Nghiên cứu', 'Thực hành'];
+                const skills = m.skills || [];
+                const skillsHtml = skills.length > 0
+                    ? `<div class="spon-skills-row">${skills.map(s => `<span class="spon-skill-tag">${s}</span>`).join('')}</div>`
+                    : '';
                 const memberHtml = `
                     <div class="spon-team-card">
                         <div class="spon-avatar">${initials}</div>
                         <div class="spon-team-info">
-                            <h5>${m.name}</h5>
+                            <h6>${m.name}</h6>
                             <p>${m.role}</p>
-                            <div class="spon-skills-row">
-                                ${skills.map(s => `<span class="spon-skill-tag">${s}</span>`).join('')}
-                            </div>
+                            ${skillsHtml}
                         </div>
                     </div>
                 `;
@@ -213,43 +245,63 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        // Populate Milestones Timeline
+        // Overall project dates/status are separate from research phase records.
+        const schedule = project.project_schedule || {};
+        renderDetailFacts('modal-project-schedule', [
+            ['Ngày bắt đầu dự án', formatDetailDate(schedule.start_at)],
+            ['Ngày kết thúc dự án', formatDetailDate(schedule.end_at)],
+            ['Trạng thái dự án', schedule.status_label]
+        ]);
+
+        // Render only supplied phase records; never infer phases from project dates/status.
         const milestoneContainer = document.getElementById('modal-milestones-timeline');
         if (milestoneContainer) {
-            milestoneContainer.innerHTML = '';
-            (project.milestones || []).forEach(ms => {
-                const msHtml = `
-                    <div class="spon-timeline-item ${ms.status}">
-                        <div class="spon-timeline-node"></div>
-                        <div class="spon-timeline-content">
-                            <div class="spon-timeline-header">
-                                <span class="spon-timeline-title">${ms.phase}: ${ms.title}</span>
-                                <span class="spon-timeline-date">${ms.date} • ${ms.status_label}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                milestoneContainer.insertAdjacentHTML('beforeend', msHtml);
+            milestoneContainer.replaceChildren();
+            const milestones = Array.isArray(project.milestones) ? project.milestones : [];
+            milestoneContainer.classList.toggle('spon-timeline-empty', milestones.length === 0);
+            if (milestones.length === 0) {
+                appendDetailText(milestoneContainer, 'p', 'spon-detail-empty', 'Chưa có dữ liệu về các giai đoạn nghiên cứu và nghiệm thu.');
+            }
+            milestones.forEach(ms => {
+                const item = document.createElement('div');
+                item.className = 'spon-timeline-item';
+                if (['completed', 'in_progress', 'planned'].includes(ms.status)) item.classList.add(ms.status);
+                const node = document.createElement('div');
+                node.className = 'spon-timeline-node';
+                item.appendChild(node);
+                const content = document.createElement('div');
+                content.className = 'spon-timeline-content';
+                const header = document.createElement('div');
+                header.className = 'spon-timeline-header';
+                appendDetailText(header, 'span', 'spon-timeline-title', [ms.phase, ms.title].filter(Boolean).join(': '));
+                appendDetailText(header, 'span', 'spon-timeline-date', [ms.date, ms.status_label].filter(Boolean).join(' • '));
+                content.appendChild(header);
+                item.appendChild(content);
+                milestoneContainer.appendChild(item);
             });
         }
 
-        // Populate Fund Allocation Bars
+        // Show the stored funding state; reaching a computed percentage does not set a status.
+        const funding = project.funding_plan || {};
+        renderDetailFacts('modal-funding-summary', [
+            ['Mục tiêu tài trợ', formatDetailMoney(funding.goal)],
+            ['Đã nhận tài trợ', formatDetailMoney(funding.received_amount)],
+            ['Trạng thái tài trợ', funding.status_label]
+        ]);
+
         const fundContainer = document.getElementById('modal-fund-allocation');
         if (fundContainer) {
-            fundContainer.innerHTML = '';
-            (project.expected_use_of_funds || []).forEach(f => {
-                const fHtml = `
-                    <div style="margin-bottom: 0.875rem;">
-                        <div style="display: flex; justify-content: space-between; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.25rem;">
-                            <span>${f.category}</span>
-                            <span>${f.amount} (${f.percentage}%)</span>
-                        </div>
-                        <div class="spon-progress-track" style="height: 6px;">
-                            <div class="spon-progress-fill" style="width: ${f.percentage}%;"></div>
-                        </div>
-                    </div>
-                `;
-                fundContainer.insertAdjacentHTML('beforeend', fHtml);
+            fundContainer.replaceChildren();
+            const allocations = Array.isArray(project.expected_use_of_funds) ? project.expected_use_of_funds : [];
+            if (allocations.length === 0) {
+                appendDetailText(fundContainer, 'p', 'spon-detail-empty', 'Chưa có dữ liệu về phân bổ chi phí chi tiết.');
+            }
+            allocations.forEach(f => {
+                const item = document.createElement('div');
+                item.className = 'spon-detail-fund-item';
+                appendDetailText(item, 'span', '', f.category);
+                appendDetailText(item, 'span', '', f.amount);
+                fundContainer.appendChild(item);
             });
         }
 
@@ -593,11 +645,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (sponsorSubmitBtn) {
                 sponsorSubmitBtn.disabled = true;
-                sponsorSubmitBtn.textContent = 'Đang xử lý cam kết...';
+                sponsorSubmitBtn.textContent = 'Đang ghi cam kết...';
             }
 
             try {
-                // 1. Pledge sponsorship
+                // Bước 1: Ghi cam kết tài trợ (status = pledged)
                 const sponRes = await request('POST', '/businesses/me/sponsorships', {
                     projectId: activeSponsorProjectId,
                     amount: String(amountNum),
@@ -607,7 +659,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 const sponsorshipId = sponRes.id;
 
-                // 2. Create Payment Order
+                // Bước 2: Tạo lệnh thanh toán (payment_orders.paymentStatus = pending)
                 const paymentRes = await request('POST', '/businesses/me/payments', {
                     sponsorshipId: sponsorshipId,
                     provider: 'vnpay',
@@ -615,12 +667,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 const orderId = paymentRes.id;
 
-                // 3. Confirm Payment (Simulated Provider Callback)
+                // Bước 3: Xác nhận thanh toán từ cổng (status → paid, paymentStatus → paid)
                 await request('POST', `/businesses/me/payments/${encodeURIComponent(orderId)}/confirm`, {
                     providerReference: 'VNPAY_' + Date.now(),
                 });
 
-                // 4. Live update project card in DOM
+                // Bước 4: Cập nhật thẻ project trong DOM (chỉ phản ánh số đã thanh toán)
                 if (project) {
                     project.raised_amount = Number(project.raised_amount || 0) + amountNum;
                     const target = Number(project.target_amount || 1);
@@ -642,9 +694,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 closeFormModal();
 
-                showSuccessToast(`Tài trợ thành công ${(amountNum).toLocaleString('vi-VN')} VNĐ cho dự án "${project ? project.title : ''}". Giao dịch đã được xác nhận thanh toán!`);
+                // Toast phân biệt: cam kết + thanh toán đã xác nhận
+                showSuccessToast(
+                    `Cam kết tài trợ ${amountNum.toLocaleString('vi-VN')} VNĐ cho dự án` +
+                    ` "${project ? project.title : ''}" đã được ghi nhận và thanh toán xác nhận thành công.`
+                );
 
-                // Reload page after a brief moment to sync server state
+                // Reload để đồng bộ trạng thái server
                 setTimeout(() => {
                     window.location.reload();
                 }, 1500);

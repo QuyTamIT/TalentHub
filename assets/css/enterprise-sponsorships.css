@@ -778,6 +778,147 @@
     color: var(--text-secondary);
 }
 
+/* Independent mentor/member groups in Enterprise Project Detail only. */
+.spon-team-section .spon-team-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+    align-items: start;
+    gap: 1.5rem;
+}
+
+.spon-team-section .spon-team-group,
+.spon-team-section .spon-team-info {
+    min-width: 0;
+}
+
+.spon-team-section .spon-team-group-heading {
+    margin: 0 0 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.spon-team-section .spon-team-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+}
+
+.spon-team-section .spon-team-card {
+    min-width: 0;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: var(--radius-md);
+}
+
+.spon-team-section .spon-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 0.875rem;
+}
+
+.spon-team-section .spon-team-info h6 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.spon-team-section .spon-team-info p {
+    margin: 0.25rem 0 0;
+    line-height: 1.5;
+}
+
+.spon-team-section .spon-team-info,
+.spon-team-section .spon-skill-tag {
+    overflow-wrap: anywhere;
+}
+
+.spon-team-section .spon-skills-row {
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+}
+
+.spon-team-section .spon-skill-tag {
+    max-width: 100%;
+}
+
+.spon-team-section .spon-team-empty {
+    display: none;
+    margin: 0;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background-color: var(--background);
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+
+.spon-team-section .spon-team-grid:empty + .spon-team-empty {
+    display: block;
+}
+
+/* Database-backed schedule and funding facts in Project Detail. */
+#project-detail-modal .spon-detail-facts {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0 0 0.875rem;
+}
+
+#project-detail-modal .spon-detail-facts > div,
+#modal-fund-allocation .spon-detail-fund-item {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+#project-detail-modal .spon-detail-facts dt {
+    color: var(--text-secondary);
+}
+
+#project-detail-modal .spon-detail-facts dd {
+    min-width: 0;
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+#modal-milestones-timeline.spon-timeline-empty {
+    padding-left: 0;
+    border-left: 0;
+}
+
+#modal-milestones-timeline .spon-detail-empty,
+#modal-fund-allocation .spon-detail-empty {
+    margin: 0;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background-color: var(--background);
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+#modal-milestones-timeline .spon-timeline-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    overflow-wrap: anywhere;
+}
+
+#modal-fund-allocation .spon-detail-fund-item + .spon-detail-fund-item {
+    margin-top: 0.75rem;
+}
+
 /* Timeline Milestones */
 .spon-timeline {
     position: relative;

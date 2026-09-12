@@ -85,7 +85,7 @@ if (!is_string($portalNotificationBootJson)) {
                     <?php endif; ?>
                 </div>
                 <div class="ent-header__user-info">
-                    <span class="ent-header__company-name"><?= htmlspecialchars($enterpriseInfo['company_name'] ?? 'Doanh nghiệp'); ?></span>
+                    <span class="ent-header__company-name" title="<?= htmlspecialchars($enterpriseInfo['company_name'] ?? 'Doanh nghiệp'); ?>"><?= htmlspecialchars($enterpriseInfo['company_name'] ?? 'Doanh nghiệp'); ?></span>
                     <span class="ent-header__package-name"><?= htmlspecialchars($enterpriseInfo['account_type'] ?? 'Tài khoản Doanh nghiệp'); ?></span>
                 </div>
                 <span class="ent-header__chevron" aria-hidden="true">
@@ -114,7 +114,7 @@ if (!is_string($portalNotificationBootJson)) {
                         <?php endif; ?>
                     </div>
                     <div class="ent-account-menu__details">
-                        <span class="ent-account-menu__company-name"><?= htmlspecialchars($enterpriseInfo['company_name'] ?? 'Doanh nghiệp'); ?></span>
+                        <span class="ent-account-menu__company-name" title="<?= htmlspecialchars($enterpriseInfo['company_name'] ?? 'Doanh nghiệp'); ?>"><?= htmlspecialchars($enterpriseInfo['company_name'] ?? 'Doanh nghiệp'); ?></span>
                         <span class="ent-account-menu__badge"><?= htmlspecialchars($enterpriseInfo['account_type'] ?? 'Tài khoản Doanh nghiệp'); ?></span>
                     </div>
                 </div>

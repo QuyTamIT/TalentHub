@@ -102,12 +102,6 @@ $sidebarNav = [
         'active' => false,
     ],
     [
-        'title'  => 'Phân tích tuyển dụng',
-        'route'  => '/app/enterprise/analytics.php',
-        'icon'   => 'bar-chart-2',
-        'active' => false,
-    ],
-    [
         'title'  => 'Hồ sơ doanh nghiệp',
         'route'  => '/app/enterprise/profile.php',
         'icon'   => 'building',
@@ -158,7 +152,7 @@ foreach ($posts as $post) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Quản lý tin tuyển dụng thực tập doanh nghiệp trên TalentHub Enterprise.">
+    <meta name="description" content="Quản lý tin tuyển thực tập doanh nghiệp trên TalentHub Enterprise.">
     <title>Tuyển thực tập sinh - Enterprise | TalentHub</title>
     
     <!-- CSS Assets -->
@@ -231,8 +225,8 @@ foreach ($posts as $post) {
                                 <input type="text" 
                                        id="internship-search-input" 
                                        class="ent-search-input" 
-                                       placeholder="Tìm theo tiêu đề vị trí tuyển dụng (Frontend, AI, Backend...)"
-                                       aria-label="Tìm kiếm tin tuyển dụng">
+                                       placeholder="Tìm theo tiêu đề vị trí thực tập (Frontend, AI, Backend...)"
+                                       aria-label="Tìm kiếm tin tuyển thực tập">
                                 <button type="button" class="ent-search-clear" id="internship-search-clear" aria-label="Xóa tìm kiếm">&times;</button>
                             </div>
 
@@ -285,7 +279,7 @@ foreach ($posts as $post) {
                                 $detailUrl = function_exists('app_href') ? app_href('/app/enterprise/internships/create.php?id=' . urlencode($postId)) : ('create.php?id=' . urlencode($postId));
                                 $applicantsUrl = function_exists('app_href') ? app_href('/app/enterprise/internships/applicants.php?postId=' . urlencode($postId)) : ('applicants.php?postId=' . urlencode($postId));
                             ?>
-                                <!-- Thẻ Card Tin Tuyển Dụng Độc Lập Có Chiều Sâu -->
+                                <!-- Thẻ Card Tin Tuyển Thực Tập Độc Lập Có Chiều Sâu -->
                                 <article class="ent-job-card-box" 
                                          data-post-id="<?= htmlspecialchars($postId); ?>" 
                                          data-status="<?= htmlspecialchars($status); ?>" 
@@ -412,12 +406,12 @@ foreach ($posts as $post) {
                             </svg>
                         </div>
                         <h2 class="ent-internship-empty-state__title">
-                            <?= empty($posts) ? 'Chưa có tin tuyển dụng nào được tạo' : 'Không tìm thấy tin tuyển dụng'; ?>
+                            <?= empty($posts) ? 'Chưa có tin tuyển thực tập nào được tạo' : 'Không tìm thấy tin tuyển thực tập'; ?>
                         </h2>
                         <p class="ent-internship-empty-state__desc">
                             <?= empty($posts) 
-                                ? 'Hãy đăng tin tuyển dụng thực tập đầu tiên để kết nối ngay với hàng ngàn sinh viên tài năng từ các trường đối tác trên toàn quốc.' 
-                                : 'Không có tin tuyển dụng nào khớp với từ khóa tìm kiếm hoặc bộ lọc hiện tại của bạn.'; ?>
+                                ? 'Hãy đăng tin tuyển thực tập đầu tiên để kết nối ngay với hàng ngàn sinh viên tài năng từ các trường đối tác trên toàn quốc.' 
+                                : 'Không có tin tuyển thực tập nào khớp với từ khóa tìm kiếm hoặc bộ lọc hiện tại của bạn.'; ?>
                         </p>
                         
                         <?php if (empty($posts)): ?>
@@ -427,7 +421,7 @@ foreach ($posts as $post) {
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
                                     <line x1="5" y1="12" x2="19" y2="12"></line>
                                 </svg>
-                                <span>Đăng tin tuyển dụng đầu tiên</span>
+                                <span>Đăng tin tuyển thực tập đầu tiên</span>
                             </a>
                         <?php else: ?>
                             <button type="button" class="btn btn-secondary btn-sm" id="reset-search-btn">

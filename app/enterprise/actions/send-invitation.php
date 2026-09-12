@@ -51,7 +51,7 @@ try {
 
     if (empty($postId)) {
         http_response_code(422);
-        echo json_encode(['success' => false, 'message' => 'Vui lòng chọn vị trí tuyển dụng thực tập.']);
+        echo json_encode(['success' => false, 'message' => 'Vui lòng chọn vị trí thực tập.']);
         exit;
     }
 
@@ -84,7 +84,7 @@ try {
 
     if (!$post) {
         http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'Vị trí tuyển dụng không tồn tại hoặc không thuộc doanh nghiệp của bạn.']);
+        echo json_encode(['success' => false, 'message' => 'Vị trí thực tập không tồn tại hoặc không thuộc doanh nghiệp của bạn.']);
         exit;
     }
 
@@ -97,18 +97,21 @@ try {
     // 3. Save into internship_applications (Status: 'invited')
     $appCheck = $pdo->prepare("
         SELECT id, status FROM internship_applications
-        WHERE postId = ? AND studentId = ? AND status NOT IN ('rejected', 'declined', 'withdrawn', 'cancelled')
+        WHERE postId = ? AND studentId = ?
         ORDER BY updatedAt DESC
         LIMIT 1
     ");
     $appCheck->execute([$postId, $resolvedStudentId]);
-    $existingActiveApp = $appCheck->fetch(PDO::FETCH_ASSOC);
+    $existingApp = $appCheck->fetch(PDO::FETCH_ASSOC);
 
     $invitationPrefix = "[LỜI MỜI THỰC TẬP TỪ " . mb_strtoupper($enterpriseName) . "]\n";
     $finalMessage = $invitationPrefix . ($message !== '' ? $message : "Trân trọng mời bạn tham gia ứng tuyển và thực tập cho vị trí {$postTitle} tại {$enterpriseName}.");
+    if (mb_strlen($finalMessage) > 500) {
+        $finalMessage = mb_substr($finalMessage, 0, 497) . '...';
+    }
 
-    if ($existingActiveApp) {
-        $st = (string) $existingActiveApp['status'];
+    if ($existingApp) {
+        $st = (string) $existingApp['status'];
         if (in_array($st, ['accepted', 'hired', 'interview', 'interviewing', 'reviewing'], true)) {
             $statusLabel = match($st) {
                 'accepted', 'hired' => 'Đã tiếp nhận thực tập',
@@ -120,7 +123,7 @@ try {
             echo json_encode([
                 'success' => false,
                 'message' => "Sinh viên đã có đơn đang hoạt động ({$statusLabel}) tại vị trí này. Không thể tạo trùng lặp.",
-                'applicationId' => $existingActiveApp['id'],
+                'applicationId' => $existingApp['id'],
                 'status' => $st
             ]);
             if (!defined('TEST_MODE')) { exit; }
@@ -131,20 +134,16 @@ try {
             UPDATE internship_applications
             SET status = 'invited',
                 message = ?,
-                updatedAt = NOW()
+                updatedAt = NOW(6)
             WHERE id = ?
         ");
-        $updApp->execute([$finalMessage, $existingActiveApp['id']]);
-        $appId = $existingActiveApp['id'];
+        $updApp->execute([$finalMessage, $existingApp['id']]);
+        $appId = $existingApp['id'];
     } else {
         $appId = Uuid::v4();
         $insApp = $pdo->prepare("
             INSERT INTO internship_applications (id, postId, studentId, status, message, appliedAt, createdAt, updatedAt)
-            VALUES (?, ?, ?, 'invited', ?, NOW(), NOW(), NOW())
-            ON DUPLICATE KEY UPDATE
-                status = 'invited',
-                message = VALUES(message),
-                updatedAt = NOW()
+            VALUES (?, ?, ?, 'invited', ?, NOW(6), NOW(6), NOW(6))
         ");
         $insApp->execute([$appId, $postId, $resolvedStudentId, $finalMessage]);
     }
@@ -153,10 +152,10 @@ try {
     $notifId = Uuid::v4();
     $notifTitle = "Lời mời thực tập từ " . $enterpriseName;
     $notifMsg = "Doanh nghiệp {$enterpriseName} vừa gửi lời mời bạn tham gia thực tập cho vị trí: {$postTitle}." . ($message !== '' ? "\nLời nhắn: \"{$message}\"" : "");
-    $deepLink = "/app/student/internships/" . $postId;
+    $deepLink = app_href('/app/learner/opportunity.php?type=internship&id=' . urlencode($postId));
 
     // Unique eventKey per invitation + post + timestamp to guarantee uniqueness and allow multiple invites
-    $eventKey = 'internship_invitation_' . $postId . '_' . time() . '_' . substr(bin2hex(random_bytes(4)), 0, 8);
+    $eventKey = 'internship_invitation:' . $appId . ':' . time() . ':' . substr(bin2hex(random_bytes(4)), 0, 8);
 
     $insNotif = $pdo->prepare("
         INSERT INTO notifications (id, userId, eventKey, notificationType, title, message, deepLink, createdAt)
@@ -175,8 +174,9 @@ try {
         'message' => "Đã gửi lời mời thực tập vị trí '{$postTitle}' đến sinh viên {$studentName} thành công!",
         'data' => [
             'applicationId' => $appId,
-            'studentId' => $studentId,
+            'studentId' => $resolvedStudentId,
             'studentName' => $studentName,
+            'postId' => $postId,
             'postTitle' => $postTitle,
             'status' => 'invited'
         ]

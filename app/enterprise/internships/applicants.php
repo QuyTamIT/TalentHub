@@ -84,7 +84,7 @@ if (!$postRaw) {
 }
 
 if (!$postRaw) {
-    $postRaw = ['id' => '', 'title' => 'Chưa chọn tin tuyển dụng', 'status' => 'draft', 'field' => 'Tổng hợp', 'workType' => 'Full-time / Hybrid', 'deadline' => date('Y-m-d', strtotime('+30 days')), 'slots' => 0];
+    $postRaw = ['id' => '', 'title' => 'Chưa chọn tin tuyển thực tập', 'status' => 'draft', 'field' => 'Tổng hợp', 'workType' => 'Full-time / Hybrid', 'deadline' => date('Y-m-d', strtotime('+30 days')), 'slots' => 0];
     $postId = '';
     $validPostId = false;
 }
@@ -270,12 +270,6 @@ $sidebarNav = [
         'active' => false,
     ],
     [
-        'title'  => 'Phân tích tuyển dụng',
-        'route'  => '/app/enterprise/analytics.php',
-        'icon'   => 'bar-chart-2',
-        'active' => false,
-    ],
-    [
         'title'  => 'Hồ sơ doanh nghiệp',
         'route'  => '/app/enterprise/profile.php',
         'icon'   => 'building',
@@ -288,7 +282,7 @@ $sidebarNav = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Quản lý và duyệt danh sách ứng viên thực tập nộp hồ sơ vào tin tuyển dụng Enterprise TalentHub.">
+    <meta name="description" content="Quản lý và duyệt danh sách ứng viên thực tập nộp hồ sơ vào tin tuyển thực tập Enterprise TalentHub.">
     <title><?= htmlspecialchars($pageTitle); ?> - <?= $post ? htmlspecialchars($post['title']) : 'TalentHub Enterprise'; ?> | TalentHub Enterprise</title>
     
     <!-- CSS Assets -->
@@ -338,8 +332,8 @@ $sidebarNav = [
                                     <line x1="12" y1="16" x2="12.01" y2="16"></line>
                                 </svg>
                             </div>
-                            <h3 class="ent-empty-state__title">Không tìm thấy tin tuyển dụng</h3>
-                            <p class="ent-empty-state__desc">Tin tuyển dụng với mã số #<?= htmlspecialchars($postId); ?> không tồn tại hoặc đã bị gỡ khỏi hệ thống.</p>
+                            <h3 class="ent-empty-state__title">Không tìm thấy tin tuyển thực tập</h3>
+                            <p class="ent-empty-state__desc">Tin tuyển thực tập với mã số #<?= htmlspecialchars($postId); ?> không tồn tại hoặc đã bị gỡ khỏi hệ thống.</p>
                             <a href="index.php" class="btn btn-primary">&larr; Quay lại Tuyển thực tập</a>
                         </div>
 
@@ -683,12 +677,12 @@ $sidebarNav = [
                 <!-- 3. Recruitment Pipeline Status Selector -->
                 <section class="ats-section">
                     <div class="ats-section-header mb-2">
-                        <h4 class="ats-section-title">Quy trình tuyển dụng</h4>
+                        <h4 class="ats-section-title">Quy trình tuyển thực tập</h4>
                         <span class="ats-section-hint">Chọn bước xử lý tiếp theo</span>
                     </div>
 
                     <!-- Linear Positive Pipeline Stepper -->
-                    <div class="ats-pipeline-stepper" role="radiogroup" aria-label="Quy trình tuyển dụng">
+                    <div class="ats-pipeline-stepper" role="radiogroup" aria-label="Quy trình tuyển thực tập">
                         <button type="button" class="ats-pipeline-step is-active" data-status="submitted" role="radio" aria-checked="true">
                             <span class="ats-pipeline-step__num">1</span>
                             <span class="ats-pipeline-step__label">Mới</span>
@@ -720,7 +714,7 @@ $sidebarNav = [
                             </svg>
                             <span>Từ chối hồ sơ ứng viên</span>
                         </button>
-                        <span class="ats-reject-caption" id="ats-reject-caption-text">Chuyển hồ sơ sang nhóm không tiếp tục tuyển dụng</span>
+                        <span class="ats-reject-caption" id="ats-reject-caption-text">Chuyển hồ sơ sang nhóm không tiếp tục tuyển thực tập</span>
                     </div>
 
                     <!-- Hidden inputs for backward-compatible form sync -->

@@ -1,6 +1,6 @@
 <?php
 /**
- * Enterprise Dashboard - Featured Talents Component ("Nhân tài nổi bật trong tuần")
+ * Enterprise Dashboard - Featured Talents Component ("Nhân tài nổi bật")
  * 
  * Clean Flexbox Architecture:
  * - Dynamic list of top real students queried from database.
@@ -9,12 +9,12 @@
 
 $talentsList = !empty($featuredTalents) ? $featuredTalents : [];
 ?>
-<section class="ent-featured-talents-box" aria-label="Nhân tài nổi bật trong tuần">
+<section class="ent-featured-talents-box" aria-label="Nhân tài nổi bật">
     <!-- Header: Title on the left, Link on the right -->
     <div class="ent-featured-talents-box__header">
-        <h2 class="ent-featured-talents-box__title">Nhân tài nổi bật trong tuần</h2>
-        <a href="<?= app_href('/app/enterprise/talents.php'); ?>" class="ent-featured-talents-box__view-all" data-route="/app/enterprise/talents.php">
-            <span>Xem tất cả →</span>
+        <h2 class="ent-featured-talents-box__title">Nhân tài nổi bật</h2>
+        <a href="<?= app_href('/app/enterprise/talents.php'); ?>" class="ent-featured-talents-box__view-all" data-route="/app/enterprise/talents.php" title="Tìm kiếm & Đánh giá nhân tài">
+            <span>Tìm kiếm & Đánh giá nhân tài →</span>
         </a>
     </div>
 
@@ -30,7 +30,7 @@ $talentsList = !empty($featuredTalents) ? $featuredTalents : [];
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                     </svg>
                 </div>
-                <h3 class="ent-empty-state__title">Chưa có đề xuất nhân tài trong tuần</h3>
+                <h3 class="ent-empty-state__title">Chưa có đề xuất nhân tài nào</h3>
                 <p class="ent-empty-state__desc">Hệ thống sẽ tự động tổng hợp các hồ sơ sinh viên, học sinh tiềm năng có điểm số và kỹ năng nổi bật khi có dữ liệu mới.</p>
                 <a href="<?= app_href('/app/enterprise/talents.php'); ?>" class="ent-btn-search-talents" data-route="/app/enterprise/talents.php">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

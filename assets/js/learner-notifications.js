@@ -423,7 +423,7 @@
                         style: 'background: #ecfdf5 !important; color: #047857 !important; border: 1.5px solid #10b981 !important; font-weight: 700 !important; font-size: 13.5px !important; padding: 7px 16px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; width: auto !important; height: auto !important; white-space: nowrap !important;',
                     }, [
                         createSvgIcon('check', 15, 15, '3'),
-                        el('span', { textContent: 'Đã tiếp nhận thực tập' }),
+                        el('span', { textContent: 'Đã chấp nhận' }),
                     ]));
                 } else if (inviteStatus === 'declined' || inviteStatus === 'rejected') {
                     actionBox.appendChild(el('span', {
@@ -511,7 +511,7 @@
                         style: 'background: #ecfdf5 !important; color: #047857 !important; border: 1.5px solid #10b981 !important; font-weight: 700 !important; font-size: 13.5px !important; padding: 7px 16px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; width: auto !important; height: auto !important; white-space: nowrap !important;',
                     }, [
                         createSvgIcon('check', 15, 15, '3'),
-                        el('span', { textContent: 'Đã tiếp nhận thực tập' }),
+                        el('span', { textContent: 'Đã chấp nhận' }),
                     ]));
                     showToast(data.message || `Bạn đã chấp nhận lời mời thực tập từ ${entName}!`);
                 } else {

@@ -81,12 +81,6 @@ $sidebarNav = [
         'active' => true,
     ],
     [
-        'title'  => 'Phân tích tuyển dụng',
-        'route'  => '/app/enterprise/analytics.php',
-        'icon'   => 'bar-chart-2',
-        'active' => false,
-    ],
-    [
         'title'  => 'Hồ sơ doanh nghiệp',
         'route'  => '/app/enterprise/profile.php',
         'icon'   => 'building',
@@ -98,9 +92,12 @@ $sidebarNav = [
 $db = $context['pdo'];
 $sql = "
     SELECT p.*, 
+           s.name AS schoolName,
+           s.level AS schoolLevel,
            COALESCE(ps_sub.total_sponsored, 0) as total_sponsored,
            COALESCE(pm_sub.member_count, 0) as member_count
     FROM projects p
+    LEFT JOIN schools s ON p.schoolId = s.id
     LEFT JOIN (
         SELECT projectId, SUM(amount) as total_sponsored
         FROM project_sponsorships
@@ -135,6 +132,35 @@ if (!empty($projectIds)) {
     }
 }
 
+// Fetch mentor teachers for all projects that have mentorTeacherId
+$mentorTeacherIds = array_filter(array_unique(array_column($dbProjects, 'mentorTeacherId')));
+$allMentors = [];
+if (!empty($mentorTeacherIds)) {
+    $inMentor = implode(',', array_fill(0, count($mentorTeacherIds), '?'));
+    $sqlMentors = "
+        SELECT tp.id AS teacherProfileId, u.fullName, tp.specialization
+        FROM teacher_profiles tp
+        INNER JOIN users u ON tp.userId = u.id
+        WHERE tp.id IN ($inMentor)
+    ";
+    $stmtMentors = $db->prepare($sqlMentors);
+    $stmtMentors->execute(array_values($mentorTeacherIds));
+    foreach ($stmtMentors->fetchAll(\PDO::FETCH_ASSOC) as $mt) {
+        $allMentors[$mt['teacherProfileId']] = $mt;
+    }
+}
+
+// Map internal role values to user-friendly Vietnamese labels
+$roleLabels = [
+    'leader' => 'Trưởng nhóm',
+    'member' => 'Thành viên',
+    'contributor' => 'Cộng tác viên',
+    'reviewer' => 'Phản biện',
+];
+function translateRole(string $role, array $roleLabels): string {
+    return $roleLabels[$role] ?? $role;
+}
+
 $dbSponsorships = $workflowService->sponsorships((string) $user['id']);
 
 $projectDetails = [];
@@ -146,35 +172,29 @@ foreach ($dbProjects as $p) {
     $target = (float) ($p['fundingGoal'] ?? 0);
     $pct = $target > 0 ? (int) min(100, round(($raised / $target) * 100)) : 0;
     $cat = (string) ($p['category'] ?? 'Công nghệ & Đổi mới sáng tạo');
-    $schName = (string) ($p['schoolName'] ?? 'Đại học đối tác');
-    $schCode = (string) ($p['schoolLevel'] ?? $p['schoolCode'] ?? 'Đại học');
+    $schName = !empty($p['schoolName']) ? (string) $p['schoolName'] : 'Chưa liên kết trường';
+    $schCode = !empty($p['schoolLevel']) ? (string) $p['schoolLevel'] : '';
 
     $members = $allMembers[$pId] ?? [];
-    $teamLeader = !empty($members) ? [
-        'name' => (string) $members[0]['fullName'],
-        'role' => (string) $members[0]['role'],
+
+    // Mentor teacher (from projects.mentorTeacherId)
+    $mentorId = $p['mentorTeacherId'] ?? null;
+    $mentor = $mentorId ? ($allMentors[$mentorId] ?? null) : null;
+    $teamLeader = $mentor ? [
+        'name' => (string) $mentor['fullName'],
+        'role' => 'Giảng viên hướng dẫn' . (!empty($mentor['specialization']) ? ' — ' . $mentor['specialization'] : ''),
         'school' => $schName,
-        'avatar_initial' => mb_strtoupper(mb_substr($members[0]['fullName'], 0, 2)),
+        'avatar_initial' => mb_strtoupper(mb_substr($mentor['fullName'], 0, 2)),
     ] : [
-        'name' => 'Chưa cập nhật thành viên',
-        'role' => 'Thành viên dự án',
+        'name' => 'Chưa có giảng viên hướng dẫn',
+        'role' => 'Giảng viên hướng dẫn',
         'school' => $schName,
-        'avatar_initial' => 'NA',
+        'avatar_initial' => 'GV',
     ];
 
     $extra = $projectDetails[$pId] ?? [
         'problem_statement' => (string) ($p['description'] ?? 'Giải quyết bài toán thực tiễn từ doanh nghiệp và xã hội.'),
         'solution' => 'Giải pháp công nghệ kết hợp nghiên cứu thực tiễn do sinh viên và giảng viên hướng dẫn triển khai.',
-        'milestones' => [
-            ['phase' => 'Giai đoạn 1', 'title' => 'Nghiên cứu & Thiết kế', 'date' => '08/2026', 'status' => 'completed', 'status_label' => 'Đã hoàn thành'],
-            ['phase' => 'Giai đoạn 2', 'title' => 'Thử nghiệm & Đánh giá', 'date' => '10/2026', 'status' => 'in_progress', 'status_label' => 'Đang triển khai'],
-            ['phase' => 'Giai đoạn 3', 'title' => 'Nghiệm thu & Ứng dụng', 'date' => '12/2026', 'status' => 'planned', 'status_label' => 'Kế hoạch']
-        ],
-        'expected_use_of_funds' => [
-            ['category' => 'Trang thiết bị & Linh kiện', 'amount' => number_format($target * 0.5, 0, ',', '.') . ' VNĐ', 'percentage' => 50],
-            ['category' => 'Thử nghiệm & Thu thập dữ liệu', 'amount' => number_format($target * 0.3, 0, ',', '.') . ' VNĐ', 'percentage' => 30],
-            ['category' => 'Học bổng & Hỗ trợ sinh viên', 'amount' => number_format($target * 0.2, 0, ',', '.') . ' VNĐ', 'percentage' => 20]
-        ]
     ];
 
     $projects[] = [
@@ -194,62 +214,119 @@ foreach ($dbProjects as $p) {
         'problem_statement' => $extra['problem_statement'],
         'solution' => $extra['solution'],
         'team_leader' => $teamLeader,
-        'team_members' => array_map(static fn($m): array => [
-            'name' => (string) $m['fullName'],
-            'role' => (string) $m['role'],
-            'skills' => ['AI / ML', 'Phần mềm', 'Thực hành', 'Nghiên cứu']
-        ], $members),
-        'milestones' => $extra['milestones'],
-        'expected_use_of_funds' => $extra['expected_use_of_funds'],
+        'team_members' => array_map(static function($m) use ($roleLabels): array {
+            return [
+                'name' => (string) $m['fullName'],
+                'role' => translateRole((string) $m['role'], $roleLabels),
+            ];
+        }, $members),
+        'project_schedule' => [
+            'start_at' => $p['startAt'] ?? null,
+            'end_at' => $p['endAt'] ?? null,
+            'status' => $p['status'] ?? null,
+            'status_label' => match ($p['status'] ?? null) {
+                'draft' => 'Bản nháp',
+                'in_progress' => 'Đang thực hiện',
+                'completed' => 'Đã hoàn thành',
+                'archived' => 'Đã lưu trữ',
+                default => $p['status'] ?? null,
+            },
+        ],
+        // The project schema has no phase records; overall dates are not milestones.
+        'milestones' => [],
+        'funding_plan' => [
+            'goal' => $p['fundingGoal'] ?? null,
+            'received_amount' => $p['total_sponsored'],
+            'status' => $p['fundingStatus'] ?? null,
+            'status_label' => match ($p['fundingStatus'] ?? null) {
+                'not_required' => 'Không cần tài trợ',
+                'open' => 'Đang gọi tài trợ',
+                'goal_reached' => 'Đã đạt mục tiêu',
+                default => $p['fundingStatus'] ?? null,
+            },
+        ],
+        // fundingGoal is a target, not an itemized expense plan. No allocation store exists.
+        'expected_use_of_funds' => [],
     ];
 }
 
 $displayProjects = $projects;
 
 $mySponsorships = [];
-$totalSponsoredAmount = 0.0;
+$totalSponsoredAmount = 0.0;    // Tổng đã thanh toán (payment_orders.paymentStatus = paid)
+$totalPledgedAmount   = 0.0;    // Tổng cam kết chưa thanh toán (pledged / pending_payment)
 $activeSponsorshipsCount = 0;
 
 foreach ($dbSponsorships as $s) {
-    $amount = (float) ($s['amount'] ?? 0);
-    $status = (string) ($s['status'] ?? 'pledged');
-    $paymentStatus = (string) ($s['paymentStatus'] ?? 'pending');
+    $amount        = (float) ($s['amount'] ?? 0);
+    $status        = (string) ($s['status'] ?? 'pledged');
+    $paymentStatus = (string) ($s['paymentStatus'] ?? '');
 
-    if ($status === 'paid' || $paymentStatus === 'paid') {
+    // Đã thanh toán: project_sponsorships.status='paid' VÀ payment_orders.paymentStatus='paid'
+    $isPaid = ($status === 'paid' && $paymentStatus === 'paid');
+
+    if ($isPaid) {
         $totalSponsoredAmount += $amount;
         $activeSponsorshipsCount++;
+    } elseif (in_array($status, ['pledged', 'pending_payment'], true)) {
+        $totalPledgedAmount += $amount;
     }
 
-    $statusLabel = match ($status) {
-        'paid' => 'Đã giải ngân',
-        'pending_payment' => 'Chờ thanh toán',
-        'pledged' => 'Đã cam kết',
-        'cancelled' => 'Đã hủy',
-        default => $status,
+    // Label phân biệt rõ cam kết vs thanh toán
+    $statusLabel = match (true) {
+        $isPaid                         => 'Đã thanh toán',
+        $status === 'pending_payment'   => 'Chờ thanh toán',
+        $status === 'pledged'           => 'Cam kết — chưa thanh toán',
+        $status === 'cancelled'         => 'Đã hủy',
+        default                         => $status,
+    };
+
+    // Label trạng thái thanh toán riêng để hiển thị cột riêng
+    $paymentLabel = match (true) {
+        $paymentStatus === 'paid'    => 'Đã thanh toán',
+        $paymentStatus === 'pending' => 'Chờ thanh toán',
+        $paymentStatus === 'failed'  => 'Thanh toán thất bại',
+        $status === 'pledged'        => 'Chưa có lệnh thanh toán',
+        $status === 'cancelled'      => 'Đã hủy',
+        default                      => 'Chưa thanh toán',
     };
 
     $mySponsorships[] = [
-        'id' => (string) $s['id'],
-        'project_id' => (string) $s['projectId'],
-        'project_title' => (string) ($s['projectTitle'] ?? 'Dự án'),
-        'school_name' => (string) ($s['schoolName'] ?? 'Trường đối tác'),
-        'category' => (string) ($s['projectCategory'] ?? 'Đổi mới sáng tạo'),
-        'sponsored_amount' => $amount,
-        'sponsored_amount_formatted' => number_format($amount, 0, ',', '.') . ' VNĐ',
-        'status' => $status,
-        'status_label' => $statusLabel,
-        'pledged_date' => substr((string) ($s['createdAt'] ?? ''), 0, 10),
-        'payment_status' => $paymentStatus,
-        'payment_order_id' => (string) ($s['paymentOrderId'] ?? ''),
-        'paid_at' => (string) ($s['paidAt'] ?? ''),
+        'id'                        => (string) $s['id'],
+        'project_id'                => (string) $s['projectId'],
+        'project_title'             => (string) ($s['projectTitle'] ?? 'Dự án'),
+        'school_name'               => (string) ($s['schoolName'] ?? 'Chưa liên kết trường'),
+        'category'                  => (string) ($s['projectCategory'] ?? 'Đổi mới sáng tạo'),
+        'sponsored_amount'          => $amount,
+        'sponsored_amount_formatted'=> number_format($amount, 0, ',', '.') . ' VNĐ',
+        'status'                    => $status,
+        'status_label'              => $statusLabel,
+        'payment_status'            => $paymentStatus,
+        'payment_label'             => $paymentLabel,
+        'is_paid'                   => $isPaid,
+        'pledged_date'              => substr((string) ($s['createdAt'] ?? ''), 0, 10),
+        'paid_at'                   => $isPaid ? substr((string) ($s['paidAt'] ?? ''), 0, 10) : '',
+        'payment_order_id'          => (string) ($s['paymentOrderId'] ?? ''),
+        'latest_update'             => [
+            'date'    => substr((string) ($s['createdAt'] ?? ''), 0, 10),
+            'title'   => $isPaid ? 'Thanh toán đã xác nhận' : 'Cam kết tài trợ đã ghi nhận',
+            'author'  => (string) ($s['schoolName'] ?? ''),
+            'summary' => $isPaid
+                ? 'Khoản thanh toán đã được xác nhận và ghi nhận vào dự án.'
+                : 'Cam kết tài trợ đã được ghi nhận, đang chờ xử lý thanh toán.',
+        ],
     ];
 }
 
-$openProjectsCount = count($displayProjects);
-$totalTalentsCount = array_sum(array_column($displayProjects, 'member_count'));
-$totalCapitalMobilized = array_sum(array_column($displayProjects, 'raised_amount'));
+$openProjectsCount    = count($displayProjects);
+$totalTalentsCount    = array_sum(array_column($displayProjects, 'member_count'));
+$totalCapitalMobilized = array_sum(array_column($displayProjects, 'raised_amount')); // chỉ paid
 
-$totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VNĐ';
+// Hiển thị: số tiền thực đã thanh toán vào các dự án (raised = paid only)
+$totalBudgetDisplay   = number_format($totalCapitalMobilized, 0, ',', '.') . ' VNĐ';
+$totalPledgedDisplay  = $totalPledgedAmount > 0
+    ? number_format($totalPledgedAmount, 0, ',', '.') . ' VNĐ'
+    : null;
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -314,11 +391,16 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                         <!-- CỘT PHẢI: Hộp thống kê ngân sách nền Frosted Glass -->
                         <div style="background: rgba(255, 255, 255, 0.18); border: 1.5px solid rgba(255, 255, 255, 0.45); border-radius: 16px; padding: 18px 24px; display: flex; flex-direction: column; gap: 4px; min-width: 260px; box-sizing: border-box; backdrop-filter: blur(8px); color: #FFFFFF; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);">
                             <span style="font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, 0.9); text-transform: uppercase; letter-spacing: 0.05em;">
-                                TỔNG NGÂN SÁCH ĐÃ CAM KẾT
+                                TỔNG ĐÃ THANH TOÁN VÀO DỰ ÁN
                             </span>
-                            <div style="font-size: 28px; font-weight: 800; color: #FFFFFF; line-height: 1.15; margin: 2px 0 6px 0; letter-spacing: -0.01em; text-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+                            <div style="font-size: 28px; font-weight: 800; color: #FFFFFF; line-height: 1.15; margin: 2px 0 4px 0; letter-spacing: -0.01em; text-shadow: 0 2px 8px rgba(0,0,0,0.15);">
                                 <?= htmlspecialchars($totalBudgetDisplay); ?>
                             </div>
+                            <?php if ($totalPledgedDisplay !== null): ?>
+                            <div style="font-size: 11.5px; font-weight: 600; color: rgba(255, 255, 255, 0.82); margin-bottom: 4px;">
+                                + <?= htmlspecialchars($totalPledgedDisplay); ?> cam kết — chưa thanh toán
+                            </div>
+                            <?php endif; ?>
                             <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, 0.94);">
                                 <span style="display: inline-flex; align-items: center; gap: 4px;">📁 <?= (int)$openProjectsCount; ?> Đề án bảo trợ</span>
                                 <span>&bull;</span>
@@ -411,8 +493,11 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                                     </span>
                                 </div>
 
-                                <!-- Hàng 3: Thanh tiến độ tài trợ -->
+                                <!-- Hàng 3: Thanh tiến độ tài trợ (chỉ tính khoản đã thanh toán) -->
                                 <div style="display: flex; flex-direction: column; gap: 6px;">
+                                    <div style="font-size: 11px; font-weight: 600; color: #9A7B6E; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px;">
+                                        Đã thanh toán / Mục tiêu
+                                    </div>
                                     <div style="display: flex; align-items: center; justify-content: space-between; font-size: 13px;">
                                         <span style="color: #322014; font-weight: 500;"><?= $progressText; ?></span>
                                         <span style="color: var(--primary-coral); font-weight: 700;"><?= $percent; ?>%</span>
@@ -466,14 +551,98 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                         </button>
                     </div>
 
-                </div>
-            </main>
-        </div>
-    </div>
+                    <!-- PHẦN 4: BẢNG LỊCH SỬ TÀI TRỢ CỦA DOANH NGHIỆP -->
+                    <?php if (!empty($mySponsorships)): ?>
+                    <div style="background: #FFFFFF; border: 1px solid #F0E6DD; border-radius: 16px; padding: 24px 28px; box-shadow: 0 4px 16px -2px rgba(50,32,20,0.04); margin-bottom: 24px; width: 100%; box-sizing: border-box;">
+                        <h2 style="font-size: 16px; font-weight: 700; color: #322014; margin: 0 0 4px 0;">
+                            Lịch sử tài trợ của doanh nghiệp
+                        </h2>
+                        <p style="font-size: 13px; color: #9A7B6E; margin: 0 0 20px 0;">
+                            Mỗi dòng thể hiện một cam kết tài trợ riêng biệt. Cột <strong>Thanh toán</strong> phản ánh trạng thái thanh toán thực tế.
+                        </p>
+                        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                            <table style="width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #F0E6DD;">
+                            <th style="text-align: left; padding: 8px 12px; font-weight: 700; color: #6B5548; white-space: nowrap;">Dự án</th>
+                            <th style="text-align: right; padding: 8px 12px; font-weight: 700; color: #6B5548; white-space: nowrap;">Số tiền cam kết</th>
+                            <th style="text-align: center; padding: 8px 12px; font-weight: 700; color: #6B5548; white-space: nowrap;">Cam kết</th>
+                            <th style="text-align: center; padding: 8px 12px; font-weight: 700; color: #6B5548; white-space: nowrap;">Thanh toán</th>
+                            <th style="text-align: center; padding: 8px 12px; font-weight: 700; color: #6B5548; white-space: nowrap;">Ngày cam kết</th>
+                            <th style="text-align: center; padding: 8px 12px; font-weight: 700; color: #6B5548; white-space: nowrap;">Ngày thanh toán</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($mySponsorships as $spon): ?>
+                        <?php
+                            // Màu badge cam kết
+                            [$pledgeBg, $pledgeColor, $pledgeBorder] = match ($spon['status']) {
+                                'paid'            => ['#F0FDF4', '#166534', '#BBF7D0'],
+                                'pending_payment' => ['#FFFBEB', '#92400E', '#FDE68A'],
+                                'pledged'         => ['#EFF6FF', '#1D4ED8', '#BFDBFE'],
+                                'cancelled'       => ['#F8FAFC', '#64748B', '#E2E8F0'],
+                                default           => ['#F8FAFC', '#64748B', '#E2E8F0'],
+                            };
+                            // Màu badge thanh toán
+                            [$payBg, $payColor, $payBorder] = match ($spon['payment_status']) {
+                                'paid'    => ['#F0FDF4', '#166534', '#BBF7D0'],
+                                'pending' => ['#FFFBEB', '#92400E', '#FDE68A'],
+                                'failed'  => ['#FFF1F2', '#9F1239', '#FECDD3'],
+                                default   => ['#F8FAFC', '#64748B', '#E2E8F0'],
+                            };
+                        ?>
+                        <tr style="border-bottom: 1px solid #F9F3EF;">
+                            <td style="padding: 10px 12px; color: #322014; font-weight: 600;">
+                                <?= htmlspecialchars($spon['project_title']); ?>
+                                <div style="font-size: 11.5px; font-weight: 400; color: #9A7B6E; margin-top: 2px;">
+                                    <?= htmlspecialchars($spon['school_name']); ?>
+                                </div>
+                            </td>
+                            <td style="padding: 10px 12px; text-align: right; font-weight: 700; color: #322014; white-space: nowrap;">
+                                <?= htmlspecialchars($spon['sponsored_amount_formatted']); ?>
+                            </td>
+                            <td style="padding: 10px 12px; text-align: center;">
+                                <span style="display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; background: <?= $pledgeBg ?>; color: <?= $pledgeColor ?>; border: 1px solid <?= $pledgeBorder ?>; white-space: nowrap;">
+                                    <?= htmlspecialchars($spon['status_label']); ?>
+                                </span>
+                            </td>
+                            <td style="padding: 10px 12px; text-align: center;">
+                                <span style="display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; background: <?= $payBg ?>; color: <?= $payColor ?>; border: 1px solid <?= $payBorder ?>; white-space: nowrap;">
+                                    <?= htmlspecialchars($spon['payment_label']); ?>
+                                </span>
+                            </td>
+                            <td style="padding: 10px 12px; text-align: center; color: #6B5548; white-space: nowrap;">
+                                <?= htmlspecialchars($spon['pledged_date']); ?>
+                            </td>
+                            <td style="padding: 10px 12px; text-align: center; color: #6B5548; white-space: nowrap;">
+                                <?= $spon['paid_at'] !== '' ? htmlspecialchars($spon['paid_at']) : '—'; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                    <tfoot>
+                        <tr style="border-top: 2px solid #F0E6DD; background: #FAFAF9;">
+                            <td style="padding: 10px 12px; font-weight: 700; color: #322014;">Tổng cộng</td>
+                            <td style="padding: 10px 12px; text-align: right; font-weight: 800; color: #322014; white-space: nowrap;">
+                                <?= number_format(array_sum(array_column($mySponsorships, 'sponsored_amount')), 0, ',', '.'); ?> VNĐ
+                            </td>
+                            <td colspan="4" style="padding: 10px 12px; font-size: 12px; color: #9A7B6E;">
+                                <?= $activeSponsorshipsCount; ?> khoản đã thanh toán
+                                <?php if ($totalPledgedAmount > 0): ?>
+                                &bull; <?= number_format($totalPledgedAmount, 0, ',', '.'); ?> VNĐ cam kết chưa thanh toán
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    </tfoot>
+                            </table>
+                        </div><!-- /overflow-x:auto -->
+                    </div><!-- /card -->
+                    <?php endif; ?>
 
-    <!-- ---------------------------------------------------------------------- -->
-    <!-- 4. Project Detail Modal                                               -->
-    <!-- ---------------------------------------------------------------------- -->
+                </div><!-- /container-fluid -->
+            </main>
+        </div><!-- /ent-main-wrapper -->
+    </div><!-- /ent-layout -->
     <div class="spon-modal" id="project-detail-modal" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important; background: rgba(15, 23, 42, 0.6) !important; backdrop-filter: blur(4px) !important; -webkit-backdrop-filter: blur(4px) !important; display: none; align-items: center; justify-content: center; z-index: 99999 !important; padding: 1.5rem; box-sizing: border-box;" aria-hidden="true" role="dialog">
         <div class="spon-modal-dialog">
             <div class="spon-modal-header">
@@ -499,25 +668,33 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
                     </div>
                 </div>
 
-                <!-- Team Leader & Research Team -->
-                <div class="spon-detail-section">
+                <!-- Mentor & Project Members -->
+                <div class="spon-detail-section spon-team-section">
                     <h4 class="spon-section-heading">Nhóm tác giả &amp; Người hướng dẫn</h4>
-                    <div class="spon-leader-highlight">
-                        <div class="spon-avatar" id="modal-leader-avatar">NL</div>
-                        <div>
-                            <h5 style="margin: 0; font-size: 0.9375rem; font-weight: 700; color: var(--text-primary);" id="modal-leader-name">Nguyễn Hoàng Long</h5>
-                            <p style="margin: 0; font-size: 0.8125rem; color: var(--text-secondary);" id="modal-leader-role">Trưởng nhóm IoT (THPT Chuyên KHTN)</p>
-                        </div>
-                    </div>
+                    <div class="spon-team-layout">
+                        <section class="spon-team-group" aria-labelledby="modal-mentor-heading">
+                            <h5 class="spon-team-group-heading" id="modal-mentor-heading">Người hướng dẫn</h5>
+                            <div class="spon-team-card">
+                                <div class="spon-avatar" id="modal-leader-avatar"></div>
+                                <div class="spon-team-info">
+                                    <h6 id="modal-leader-name"></h6>
+                                    <p id="modal-leader-role"></p>
+                                </div>
+                            </div>
+                        </section>
 
-                    <div class="spon-team-grid" id="modal-team-members">
-                        <!-- Dynamic team members list -->
+                        <section class="spon-team-group" aria-labelledby="modal-members-heading">
+                            <h5 class="spon-team-group-heading" id="modal-members-heading">Thành viên dự án</h5>
+                            <div class="spon-team-grid" id="modal-team-members"><!-- Dynamic team members list --></div>
+                            <p class="spon-team-empty">Chưa có thành viên dự án.</p>
+                        </section>
                     </div>
                 </div>
 
                 <!-- Milestones Timeline -->
                 <div class="spon-detail-section">
                     <h4 class="spon-section-heading">Lộ trình nghiên cứu &amp; Nghiệm thu</h4>
+                    <dl class="spon-detail-facts" id="modal-project-schedule"></dl>
                     <div class="spon-timeline" id="modal-milestones-timeline">
                         <!-- Dynamic timeline items -->
                     </div>
@@ -525,7 +702,8 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
 
                 <!-- Expected Use of Funds -->
                 <div class="spon-detail-section">
-                    <h4 class="spon-section-heading">Kế hoạch phân bổ nguồn kinh phí tài trợ</h4>
+                    <h4 class="spon-section-heading">Kế hoạch tài trợ</h4>
+                    <dl class="spon-detail-facts" id="modal-funding-summary"></dl>
                     <div id="modal-fund-allocation">
                         <!-- Dynamic fund allocation bars -->
                     </div>
@@ -645,6 +823,7 @@ $totalBudgetDisplay = number_format($totalCapitalMobilized, 0, ',', '.') . ' VN�
     <!-- JavaScript Data Boot & Module Controller -->
     <script>
         window.ENTERPRISE_PROJECTS = <?= json_encode($displayProjects, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+        window.ENTERPRISE_SPONSORSHIPS = <?= json_encode($mySponsorships, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
     </script>
     <script id="enterprise-session-boot" type="application/json"><?= json_encode(['csrfToken' => $context['csrfToken'], 'apiBase' => app_href('/api/v1')], JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES); ?></script>
     <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
