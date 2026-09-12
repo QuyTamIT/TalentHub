@@ -15,7 +15,7 @@ use TalentHub\Modules\Contact\Service\ConsultationRequestService;
 
 $session = new SessionManager(require __DIR__ . '/config/session.php');
 $session->start();
-$formGuard = new ConsultationFormGuard();
+$formGuard = null;
 
 /** @param mixed $value */
 function contact_escape(mixed $value): string
@@ -52,6 +52,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $old = contact_old_input($input);
     $baseFlash = ['old' => $old, 'formToken' => $formToken];
 
+    if (!class_exists(ConsultationFormGuard::class)) {
+        contact_redirect_with_flash($baseFlash + ['errors' => ['form' => 'Chức năng tư vấn đang được cập nhật. Vui lòng thử lại sau.']]);
+    }
+
+    $formGuard = new ConsultationFormGuard();
+
     try {
         $formGuard->assertCsrf($session->csrfToken(), $csrfToken);
     } catch (RuntimeException) {
@@ -61,6 +67,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $formGuard->assertFormToken($tokens, $formToken);
     } catch (RuntimeException) {
         contact_redirect_with_flash($baseFlash + ['errors' => ['form' => 'Biểu mẫu đã được gửi hoặc hết hạn. Vui lòng tải lại trang.']]);
+    }
+
+    if (!class_exists(ConsultationRequestService::class) || !class_exists(ConsultationRequestRepository::class) || !class_exists(ConsultationRateLimiter::class)) {
+        contact_redirect_with_flash($baseFlash + ['errors' => ['form' => 'Chức năng tư vấn đang được cập nhật. Vui lòng thử lại sau.']]);
     }
 
     try {
