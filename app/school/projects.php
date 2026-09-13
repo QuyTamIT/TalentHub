@@ -208,9 +208,9 @@ include __DIR__ . '/includes/page-banner.php';
                         <select name="mentorTeacherId" class="school-select-enhanced typeui-select">
                             <option value="">-- Chọn giảng viên --</option>
                             <?php foreach ($teachers as $teacher): ?>
+                                <?php $teacherCode = 'GV-' . strtoupper(substr((string) $teacher['id'], 0, 8)); ?>
                                 <option value="<?= htmlspecialchars((string) $teacher['id']); ?>">
-                                    <?= htmlspecialchars((string) $teacher['fullName']); ?> 
-                                    <?= isset($teacher['email']) ? '('.htmlspecialchars($teacher['email']).')' : ''; ?>
+                                    <?= htmlspecialchars('[{$teacherCode}] ' . (string) $teacher['fullName']); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -219,19 +219,19 @@ include __DIR__ . '/includes/page-banner.php';
                     <label class="school-form__field">
                         <span>Nhóm tác giả (Sinh viên)</span>
                         <div class="school-author-box">
-                            <div class="school-author-search">
-                                <input type="text" id="authorSearch" placeholder="Tìm kiếm sinh viên..." onkeyup="filterAuthors()">
-                            </div>
-                            <div class="school-author-list" id="authorList">
+                            <input type="text" id="authorSearch" class="school-author-search-input" placeholder="🔍 Tìm mã SV, họ tên, lớp..." oninput="filterAuthorSelect()" autocomplete="off">
+                            <select name="authorIds[]" id="authorSelect" multiple size="8" class="school-author-select">
                                 <?php foreach ($students as $student): ?>
-                                    <label class="school-author-item">
-                                        <input type="checkbox" name="authorIds[]" value="<?= htmlspecialchars((string) $student['id']); ?>">
-                                        <div class="school-author-info">
-                                            <span class="school-author-name"><?= htmlspecialchars((string) $student['fullName']); ?></span>
-                                            <span class="school-author-class"><?= htmlspecialchars((string) ($student['className'] ?? '')); ?></span>
-                                        </div>
-                                    </label>
+                                    <?php $studentCode = 'SV-' . strtoupper(substr((string) $student['id'], 0, 8)); ?>
+                                    <option value="<?= htmlspecialchars((string) $student['id']); ?>"
+                                            data-search="<?= htmlspecialchars(strtolower($studentCode . ' ' . (string) $student['fullName'] . ' ' . (string) ($student['className'] ?? ''))); ?>">
+                                        <?= htmlspecialchars("[{$studentCode}] " . (string) $student['fullName'] . ' - ' . (string) ($student['className'] ?? '')); ?>
+                                    </option>
                                 <?php endforeach; ?>
+                            </select>
+                            <div class="school-author-hint" id="authorHint">
+                                Giữ <kbd>Ctrl</kbd> (Windows) / <kbd>⌘ Cmd</kbd> (Mac) để chọn nhiều sinh viên.
+                                <span id="authorCount"></span>
                             </div>
                         </div>
                     </label>
@@ -485,21 +485,27 @@ $extraStyles = ''; // Component styles extracted to assets/css/school.css
 
 $extraScripts = <<<'HTML'
 <script>
-function filterAuthors() {
+function filterAuthorSelect() {
     const input = document.getElementById('authorSearch');
-    const filter = input.value.toLowerCase();
-    const nodes = document.querySelectorAll('.school-author-item');
+    const select = document.getElementById('authorSelect');
+    const filter = input.value.toLowerCase().trim();
+    const options = select.querySelectorAll('option');
+    let visibleCount = 0;
 
-    nodes.forEach(node => {
-        const name = node.querySelector('.school-author-name').innerText.toLowerCase();
-        const className = node.querySelector('.school-author-class').innerText.toLowerCase();
-        
-        if (name.includes(filter) || className.includes(filter)) {
-            node.style.display = 'flex';
+    options.forEach(opt => {
+        const searchText = opt.dataset.search || opt.textContent.toLowerCase();
+        if (filter === '' || searchText.includes(filter)) {
+            opt.style.display = '';
+            visibleCount++;
         } else {
-            node.style.display = 'none';
+            opt.style.display = 'none';
         }
     });
+
+    const countEl = document.getElementById('authorCount');
+    if (countEl) {
+        countEl.textContent = ' | Hiển thị ' + visibleCount + '/' + options.length + ' sinh viên';
+    }
 }
 
 function addMilestone() {
