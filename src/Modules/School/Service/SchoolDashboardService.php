@@ -1562,51 +1562,50 @@ final class SchoolDashboardService
         $level = mb_strtolower((string) ($school['level'] ?? ''));
         $name  = mb_strtolower((string) ($school['name']  ?? ''));
 
-        // New canonical level codes from registration
+        // ---- Phase 1: Authoritative detection from the `level` field ----
+        // Canonical code values from registration form (select option values).
         if ($level === 'cap2' || $level === 'c2' || str_contains($level, 'cap 2')) {
             return 'thcs';
         }
         if ($level === 'cap3' || $level === 'c3' || str_contains($level, 'cap 3')) {
             return 'thpt';
         }
-        if ($level === 'cao_dang_dai_hoc' || $level === 'cao-dang-dai-hoc' || $level === 'caodangdaihoc') {
+        if (in_array($level, ['cao_dang_dai_hoc', 'cao-dang-dai-hoc', 'caodangdaihoc'], true)) {
             return 'college';
         }
 
-        // Check THCS (Trung học Cơ sở)
-        if (str_contains($level, 'trung học cơ sở')
-            || str_contains($level, 'thcs')
-            || str_contains($name, 'thcs')
-            || str_contains($name, 'trung học cơ sở')) {
+        // Human-readable level values saved by account.php / settings.
+        if (str_contains($level, 'trung học cơ sở') || str_contains($level, 'thcs')) {
             return 'thcs';
         }
-
-        // Check THPT (Trung học Phổ thông)
-        if (str_contains($level, 'trung học phổ thông')
-            || str_contains($level, 'thpt')
-            || str_contains($name, 'thpt')
-            || str_contains($name, 'trung học phổ thông')) {
+        if (str_contains($level, 'trung học phổ thông') || str_contains($level, 'thpt')) {
             return 'thpt';
         }
-
-        // Check College / University (Cao đẳng / Đại học / Học viện / Viện...)
-        if (str_contains($level, 'cao đẳng')
-            || str_contains($level, 'đại học')
-            || str_contains($name, 'btec')
-            || str_contains($name, 'đại học')
-            || str_contains($name, 'cao đẳng')
-            || str_starts_with($name, 'dh ')
-            || str_starts_with($name, 'đh ')
-            || str_contains($name, 'ctu')
-            || str_contains($name, 'học viện')
-            || str_contains($name, 'university')
-            || str_contains($name, 'college')
-            || str_contains($name, 'polytechnic')
-            || str_contains($name, 'academy')) {
+        if (str_contains($level, 'cao đẳng') || str_contains($level, 'đại học')
+            || str_contains($level, 'học viện') || str_contains($level, 'college')
+            || str_contains($level, 'university')) {
             return 'college';
         }
 
-        // Default: TalentHub is designed for higher-education (Đại học / Cao đẳng).
+        // ---- Phase 2: Fallback based on school name (only when level is empty/unrecognised) ----
+        if ($level === '') {
+            if (str_contains($name, 'thcs') || str_contains($name, 'trung học cơ sở')) {
+                return 'thcs';
+            }
+            if (str_contains($name, 'thpt') || str_contains($name, 'trung học phổ thông')) {
+                return 'thpt';
+            }
+            if (str_contains($name, 'btec') || str_contains($name, 'đại học')
+                || str_contains($name, 'cao đẳng') || str_starts_with($name, 'dh ')
+                || str_starts_with($name, 'đh ') || str_contains($name, 'ctu')
+                || str_contains($name, 'học viện') || str_contains($name, 'university')
+                || str_contains($name, 'college') || str_contains($name, 'polytechnic')
+                || str_contains($name, 'academy')) {
+                return 'college';
+            }
+        }
+
+        // Default: higher-education.
         return 'college';
     }
 
@@ -1614,8 +1613,8 @@ final class SchoolDashboardService
      * Suggested grade-level options for the school.
      * - THCS:    [6, 7, 8, 9]
      * - THPT:    [10, 11, 12]
-     * - college: ['Năm 1', 'Năm 2', 'Năm 3', 'Năm 4']
-     * - default: ['Năm 1', 'Năm 2', 'Năm 3', 'Năm 4']
+     * - college: ['Năm 1', 'Năm 2', 'Năm 3', 'Năm 4', 'Năm 5']
+     * - default: ['Năm 1', 'Năm 2', 'Năm 3', 'Năm 4', 'Năm 5']
      *
      * @param array<string,mixed> $school
      * @return array<int|string>
@@ -1625,8 +1624,8 @@ final class SchoolDashboardService
         return match ($this->detectSchoolTier($school)) {
             'thcs'    => [6, 7, 8, 9],
             'thpt'    => [10, 11, 12],
-            'college' => ['Năm 1', 'Năm 2', 'Năm 3', 'Năm 4'],
-            default   => ['Năm 1', 'Năm 2', 'Năm 3', 'Năm 4'],
+            'college' => ['Năm 1', 'Năm 2', 'Năm 3', 'Năm 4', 'Năm 5'],
+            default   => ['Năm 1', 'Năm 2', 'Năm 3', 'Năm 4', 'Năm 5'],
         };
     }
 
@@ -1679,7 +1678,7 @@ final class SchoolDashboardService
         if ($tier === 'thpt' && !in_array($raw, ['10', '11', '12'], true)) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Khối phải từ 10 đến 12 đối với trường THPT.');
         }
-        if ($tier === 'college' && in_array($raw, ['1', '2', '3', '4'], true)) {
+        if ($tier === 'college' && in_array($raw, ['1', '2', '3', '4', '5'], true)) {
             return 'Năm ' . $raw;
         }
         return $raw;

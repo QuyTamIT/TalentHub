@@ -151,7 +151,7 @@ ob_start();
         <div class="school-form__grid school-form__grid--2col">
             <label class="school-form__field">
                 <span>Tên lớp <em>*</em></span>
-                <input type="text" name="name" maxlength="100" required value="<?= htmlspecialchars((string) $row['name']); ?>" placeholder="<?= $tier === 'college' ? 'Vd: K1, K2-CNTT…' : '10A, 11B1...'; ?>">
+                <input type="text" name="name" maxlength="100" required value="<?= htmlspecialchars((string) $row['name']); ?>" placeholder="<?= match ($tier) { 'thcs' => '6A1, 9A2...', 'thpt' => '10A1, 12B1...', default => 'CNTT-K45, KTKT-K01...' }; ?>">
             </label>
             <label class="school-form__field">
                 <span><?= $tier === 'college' ? 'Khóa' : 'Khối'; ?> <em>*</em></span>
@@ -167,17 +167,19 @@ ob_start();
                            placeholder="K1" autocomplete="off" />
                 <?php else: ?>
                     <select name="gradeLevel" class="typeui-select" required>
+                        <?php
+                            $validValues  = array_map('strval', $gradeOptions);
+                            $oldValue     = (string) $row['gradeLevel'];
+                            $hasValidOld  = $oldValue !== '' && in_array($oldValue, $validValues, true);
+                        ?>
                         <?php foreach ($gradeOptions as $g): ?>
                             <?php
-                                $optVal   = (string) $g;
-                                $optLabel = 'Khối ' . $optVal;
-                                $isSelected = ((string) $row['gradeLevel'] === $optVal);
+                                $optVal     = (string) $g;
+                                $optLabel   = 'Khối ' . $optVal;
+                                $isSelected = $hasValidOld && ($oldValue === $optVal);
                             ?>
                             <option value="<?= htmlspecialchars($optVal); ?>" <?= $isSelected ? 'selected' : ''; ?>><?= htmlspecialchars($optLabel); ?></option>
                         <?php endforeach; ?>
-                        <?php if ($row['gradeLevel'] !== '' && !in_array((string) $row['gradeLevel'], array_map('strval', $gradeOptions), true)): ?>
-                            <option value="<?= htmlspecialchars((string) $row['gradeLevel']); ?>" selected><?= htmlspecialchars((string) $row['gradeLevel']); ?></option>
-                        <?php endif; ?>
                     </select>
                 <?php endif; ?>
             </label>
