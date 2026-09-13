@@ -402,9 +402,9 @@
         role.textContent = String(project?.role || 'Thành viên');
 
         const status = document.createElement('span');
-        status.className = `learner-badge learner-badge--${String(project?.tone || 'warning')}`;
+        status.className = `learner-badge learner-badge--${String(project?.tone || 'success')}`;
         status.setAttribute('data-project-status', '');
-        status.textContent = String(project?.status || 'Đang triển khai');
+        status.textContent = String(project?.status || 'Hoàn thành');
 
         item.append(icon, name, role, status);
         return item;
@@ -412,9 +412,7 @@
 
     function replaceProjects(projects) {
         const data = projects && typeof projects === 'object' ? projects : {};
-        setText('[data-projects-total]', data.total ?? 0);
         setText('[data-projects-completed]', data.completed ?? 0);
-        setText('[data-projects-in-progress]', data.in_progress ?? 0);
         setText('[data-projects-leader]', data.leader_roles ?? 0);
 
         const featured = Array.isArray(data.featured) ? data.featured : [];

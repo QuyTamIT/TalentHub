@@ -11,7 +11,7 @@ use TalentHub\Learner\Ai\Sources\Database\DatabaseActivityCandidateSource;
 
 final class ActivityMatchService
 {
-    public const VERSION = 'activity-model-v4';
+    public const VERSION = 'activity-model-v5';
     public const DEVELOPMENT_THRESHOLD = 70;
     public function __construct(private readonly PDO $pdo, private readonly Closure $snapshot, private readonly Closure $scopes, private readonly ?\TalentHub\Learner\Ai\Model\ModelActivityMatchEngine $engine = null, private readonly string $modelVersion = '') {}
     public function latest(string $studentId): array { return $this->resolve($studentId, false); }
@@ -29,7 +29,7 @@ final class ActivityMatchService
         $profile = $this->profile($input);
         if ($profile->skills() === []) return ['state'=>'insufficient_data','items'=>[]];
         $candidates = (new DatabaseActivityCandidateSource($this->pdo))->candidates($studentId);
-        if ($candidates === []) return ['state'=>'no_matches','items'=>[]];
+        if ($candidates === []) return ['state'=>'no_matches','items'=>[], 'no_match_reason'=>'no_activities'];
         $hash = $this->hash($input, $candidates);
         $query = $this->pdo->prepare('SELECT inputHash,payloadJson FROM learner_activity_match_runs WHERE studentId=? ORDER BY createdAt DESC,id DESC LIMIT 1');
         $query->execute([$studentId]);
@@ -42,6 +42,7 @@ final class ActivityMatchService
             $ids = array_column(array_map(static fn ($c) => $c->toArray(), $candidates), 'activity_id');
             $result['items'] = array_values(array_filter($result['items'], static fn ($item) => in_array($item['activity_id'], $ids, true)));
             $result['state'] = 'stale_model';
+            unset($result['analysis'], $result['evidence_ref_ids'], $result['no_match_reason']);
             return $result;
         }
         $items = [];
@@ -78,16 +79,20 @@ final class ActivityMatchService
         }
         usort($items, static fn ($a,$b) => ($b['score'] <=> $a['score']) ?: strcmp($a['activity_id'],$b['activity_id']));
         $items = array_slice($items, 0, 3);
+        $emptyAnalysis = [];
         if ($items !== []) {
             if ($this->engine === null) throw new \RuntimeException('activity_provider_not_configured');
             $items = $this->engine->generate($input, $items);
+        } else {
+            if ($this->engine === null) throw new \RuntimeException('activity_provider_not_configured');
+            $emptyAnalysis = $this->engine->explainNoMatches($input, $candidates);
         }
         // Re-read after the provider call. Never persist a result built on a superseded snapshot.
         if (array_diff(['skills','assessment','activity','evaluation'], ($this->scopes)($studentId)) !== []) return ['state'=>'consent_required','items'=>[]];
         $currentInput = ($this->snapshot)($studentId);
         $currentCandidates = (new DatabaseActivityCandidateSource($this->pdo))->candidates($studentId);
         if (!hash_equals($hash, $this->hash($currentInput, $currentCandidates))) return ['state'=>'stale_model','items'=>[]];
-        $result = ['state'=>$items === [] ? 'no_matches' : 'completed','engine'=>$items === [] ? 'eligibility_rules' : 'model','score_version'=>self::VERSION,'input_hash'=>$hash,'generated_at'=>gmdate('c'),'items'=>$items];
+        $result = ['state'=>$items === [] ? 'no_matches' : 'completed','engine'=>'model','score_version'=>self::VERSION,'input_hash'=>$hash,'generated_at'=>gmdate('c'),'items'=>$items] + $emptyAnalysis;
         $insert = $this->pdo->prepare('INSERT INTO learner_activity_match_runs (id,studentId,inputHash,payloadJson,createdAt) VALUES (?,?,?,?,?)');
         $runId = sprintf('%016x', (int)(microtime(true) * 1000000)) . bin2hex(random_bytes(8));
         $insert->execute([$runId, $studentId, $hash, json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), gmdate('Y-m-d H:i:s')]);

@@ -71,14 +71,18 @@ final class JobMatchingService
             $activeIds[] = $candidate->catalogId(); $currentScores[$candidate->catalogId()] = $score;
         }
         $run = $this->repository->latestValid($studentId, $activeIds);
+        $scoresChanged = false;
         if ($run !== null) {
             foreach ($run['items'] ?? [] as $item) {
                 $id = (string) ($item['catalogId'] ?? '');
-                if (!isset($currentScores[$id]) || (int) ($item['matchScore'] ?? -1) !== $currentScores[$id]) { $run = null; break; }
+                if (!isset($currentScores[$id]) || (int) ($item['matchScore'] ?? -1) !== $currentScores[$id]) {
+                    $scoresChanged = true;
+                    break;
+                }
             }
         }
         if ($run === null) return self::emptyResponse('not_generated');
-        $stale = $this->runIsStale($run, MatchingInputSnapshot::build($prepared['input'], $candidates, $roles, $prepared['decision']->decisionHash()));
+        $stale = $scoresChanged || $this->runIsStale($run, MatchingInputSnapshot::build($prepared['input'], $candidates, $roles, $prepared['decision']->decisionHash()));
         return $this->mapRun($run, $candidates, $stale);
     }
 

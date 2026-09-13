@@ -67,7 +67,8 @@ interface StatisticsRepository
     public function latestPublishedEvaluation(string $studentId): array;
 
     /**
-     * Project participation statistics for the student.
+     * Completed project statistics for the student.
+     * The in_progress field remains zero for response compatibility.
      *
      * @return array{
      *     total: int,
