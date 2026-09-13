@@ -764,6 +764,7 @@ final class SchoolDashboardService
         if ($school === null) {
             return [
                 'monthly'           => [],
+                'monthlyStudents'   => [],
                 'actions'           => [],
                 'totalEvents'       => 0,
                 'checkinExperience' => 0,
@@ -806,9 +807,10 @@ final class SchoolDashboardService
         $total = (int) $totalStmt->fetchColumn();
 
         return [
-            'monthly'     => $monthly,
-            'actions'     => $actions,
-            'totalEvents' => $total,
+            'monthly'         => $monthly,
+            'monthlyStudents' => $this->monthlyStudentActivity($userId),
+            'actions'         => $actions,
+            'totalEvents'     => $total,
             'checkinExperience' => (new SchoolCheckinAggregateService($this->pdo))->confirmedForSchool($school['id']),
         ];
     }
@@ -826,6 +828,209 @@ final class SchoolDashboardService
             $item['percentage'] = $total > 0 ? round($item['count'] * 100 / $total, 1) : 0.0;
             return $item;
         }, $items);
+    }
+
+    /**
+     * 4 miền Radar lấy từ 4 bài đánh giá năng khiếu (holland, mbti, disc, multiple_intelligence).
+     * Mỗi bài trả về dimensionScores. Ghép các dimension thành 4 miền như bảng MIỀN:
+     *
+     *  Kỹ thuật       = R/I (Holland) + LOGI/SPAT/BODY (MI)
+     *  Logic - Toán   = LOGI/INTRA (MI) + I/C (Holland) + T/J (MBTI)
+     *  Kinh doanh     = E/C (Holland) + D (DISC) + INTER (MI)
+     *  Nghệ thuật     = A (Holland) + MUSIC/LING/SPAT (MI)
+     *
+     * Tổng hợp = trung bình cộng tất cả dimension được đóng góp từ các attempts
+     * status='submitted' của các HS active thuộc schoolId = :sid. Nếu không có attempt nào => điểm 0 (fallback,
+     * Sẽ hiển thị +0đ theo yêu cầu).
+     *
+     * @return list<array{domain:string,score:int,benchmark:int,color:string,description:string}>
+     */
+    public function radarScores(string $userId): array
+    {
+        $school = $this->getByUserOrNull($userId);
+        if ($school === null) {
+            return self::radarDimensions([]);
+        }
+        $schoolId = $school['id'];
+
+        // Map: domain -> [testType => [dimensionKeys...]]
+        // Chỉ 4 miền — bỏ Ngoại ngữ & Giao tiếp (không tương ứng trực tiếp với 4 bài)
+        $domainMap = [
+            'Kỹ thuật' => [
+                'holland' => ['R','I'],
+                'multiple_intelligence' => ['LOGI','SPAT','BODY'],
+            ],
+            'Logic - Toán học' => [
+                'multiple_intelligence' => ['LOGI','INTRA'],
+                'holland' => ['I','C'],
+                'mbti' => ['T','J'],
+            ],
+            'Kinh doanh' => [
+                'holland' => ['E','C'],
+                'disc' => ['D'],
+                'multiple_intelligence' => ['INTER'],
+            ],
+            'Nghệ thuật' => [
+                'holland' => ['A'],
+                'multiple_intelligence' => ['MUSIC','LING','SPAT'],
+            ],
+        ];
+
+        // All submitted attempts from active students in this school
+        $stmt = $this->pdo->prepare(<<<'SQL'
+            SELECT tt.type AS testType, tr.dimensionScoresJson, tr.teacherScoreOverrideJson, tr.gradingStatus
+            FROM test_attempts ta
+            INNER JOIN talent_tests tt ON tt.id = ta.testId
+            INNER JOIN test_results tr ON tr.attemptId = ta.id
+            INNER JOIN student_profiles sp ON sp.id = ta.studentId
+            INNER JOIN classes c ON c.id = sp.classId
+            INNER JOIN users u ON u.id = sp.userId
+            WHERE c.schoolId = :sid
+              AND sp.studyStatus = 'active'
+              AND u.status = 'active'
+              AND ta.status = 'submitted'
+SQL);
+        $stmt->execute(['sid' => $schoolId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Aggregate: per domain collect all dimension values contributed
+        $sums = []; $counts = [];
+        foreach (array_keys($domainMap) as $d) { $sums[$d] = 0.0; $counts[$d] = 0; }
+
+        foreach ($rows as $row) {
+            $type = strtolower((string) ($row['testType'] ?? ''));
+            // Normalize type: some seed use 'holland_middle' style in tt.code? But tt.type is canonical
+            // Ensure e.g. 'disc' / 'multiple_intelligence'
+            if ($type === '') continue;
+            $json = (string) ($row['dimensionScoresJson'] ?? '');
+            if ($json === '') continue;
+            $dims = json_decode($json, true);
+            if (!is_array($dims)) continue;
+
+            // Official score wins: a TEACHER_VERIFIED override per dimension replaces the AI-scored value.
+            $gradingStatus = strtolower((string) ($row['gradingStatus'] ?? 'ai_graded'));
+            if ($gradingStatus === 'teacher_verified') {
+                $overrideRaw = (string) ($row['teacherScoreOverrideJson'] ?? '');
+                if ($overrideRaw !== '') {
+                    $overrides = json_decode($overrideRaw, true);
+                    if (is_array($overrides)) {
+                        $dims = array_replace($dims, $overrides);
+                    }
+                }
+            }
+
+            foreach ($domainMap as $domain => $typeMap) {
+                if (!isset($typeMap[$type])) continue;
+                foreach ($typeMap[$type] as $key) {
+                    if (array_key_exists($key, $dims)) {
+                        $val = (float) $dims[$key];
+                        // dimensionScores 0-100 already
+                        $sums[$domain] += $val;
+                        $counts[$domain]++;
+                    }
+                }
+            }
+        }
+
+        $aggregated = [];
+        foreach ($domainMap as $domain => $_) {
+            $n = $counts[$domain] ?? 0;
+            $aggregated[$domain] = $n > 0 ? (int) round($sums[$domain] / $n) : 0;
+        }
+
+        return self::radarDimensions($aggregated);
+    }
+
+    /** @param array<string,int> $aggregated @return list<array{domain:string,score:int,benchmark:int,color:string,description:string}> */
+    private static function radarDimensions(array $aggregated): array
+    {
+        $dimensions = [
+            ['domain' => 'Kỹ thuật',              'color' => '#2563EB', 'description' => 'Lập trình, hệ thống công nghệ, phân tích và giải pháp kỹ thuật số', 'bench' => 74],
+            ['domain' => 'Logic - Toán học',      'color' => '#0E7490', 'description' => 'Tư duy thuật toán, cấu trúc dữ liệu, phân tích & giải quyết bài toán', 'bench' => 70],
+            ['domain' => 'Kinh doanh',            'color' => '#C2410C', 'description' => 'Hiểu biết thị trường công nghệ, Digital Marketing & Khởi nghiệp', 'bench' => 65],
+            ['domain' => 'Nghệ thuật',            'color' => '#9333EA', 'description' => 'Thiết kế giao diện UI/UX, sáng tạo nội dung & truyền thông số', 'bench' => 60],
+        ];
+        $out = [];
+        foreach ($dimensions as $d) {
+            $name = $d['domain'];
+            $score = (int) ($aggregated[$name] ?? 0);
+            // Clamp to valid 0-100 range (levelScore is already 0-100)
+            if ($score < 0) {
+                $score = 0;
+            } elseif ($score > 100) {
+                $score = 100;
+            }
+            $out[] = [
+                'domain'      => $name,
+                'score'       => $score,
+                'benchmark'   => $d['bench'],
+                'color'       => $d['color'],
+                'description' => $d['description'],
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * Monthly student activity for the past 12 months, scoped to the school
+     * and the school's current academic year.
+     *
+     * @return list<array{month:string,students:int}>
+     */
+    public function monthlyStudentActivity(string $userId): array
+    {
+        $school = $this->getByUserOrNull($userId);
+        if ($school === null) {
+            return [];
+        }
+        $schoolId = $school['id'];
+        $academicYear = (string) ($school['academicYear'] ?? '');
+        [$startDate, $endDate] = $this->resolveAcademicYearRange($academicYear);
+
+        // Students who have any audit event in that month
+        $stmt = $this->pdo->prepare(
+            "SELECT DATE_FORMAT(al.createdAt, '%Y-%m') AS month, COUNT(DISTINCT al.userId) AS cnt
+             FROM audit_logs al
+             WHERE al.userId IN (
+                SELECT sp.userId FROM student_profiles sp
+                INNER JOIN classes c ON c.id = sp.classId
+                WHERE c.schoolId = :sid AND sp.studyStatus = 'active'
+             )
+               AND al.createdAt >= :start AND al.createdAt < :end
+             GROUP BY DATE_FORMAT(al.createdAt, '%Y-%m')
+             ORDER BY month ASC"
+        );
+        $stmt->execute([
+            'sid'   => $schoolId,
+            'start' => $startDate,
+            'end'   => $endDate,
+        ]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $out = [];
+        foreach ($rows as $r) {
+            $out[] = ['month' => (string) $r['month'], 'students' => (int) $r['cnt']];
+        }
+        return $out;
+    }
+
+    /** @return array{0:string,1:string} */
+    private function resolveAcademicYearRange(string $academicYear): array
+    {
+        $academicYear = trim($academicYear);
+        if ($academicYear === '') {
+            $academicYear = '2025 - 2026';
+        }
+        // Match "2025 - 2026" or "2025-2026"
+        if (preg_match('/(\d{4})\s*-\s*(\d{4})/', $academicYear, $m) === 1) {
+            $startYear = (int) $m[1];
+            $endYear = (int) $m[2];
+        } else {
+            $startYear = (int) date('Y');
+            $endYear = $startYear + 1;
+        }
+        $start = sprintf('%04d-09-01', $startYear); // academic year starts Sep 1
+        $end   = sprintf('%04d-09-01', $endYear);
+        return [$start, $end];
     }
 
     public function changePassword(string $userId, string $currentPassword, string $newPassword): void

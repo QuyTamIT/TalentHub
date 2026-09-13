@@ -324,13 +324,24 @@ SQL,
                 ->score($questions, $answers)
                 ->toArray();
             $now = $this->now();
+
+            // Auto AI grade: compose detailed per-dimension feedback + summary (status AI_GRADED).
+            $aiGrade = $this->aiGrader()->grade(
+                $this->testTypeFromScoringVersion($attempt['scoring_version']),
+                (string) $scored['result_code'],
+                $scored['dimension_scores'],
+                $scored['leader_code'] ?? ''
+            );
+
             $this->execute(
-                'INSERT INTO test_results (id, attemptId, resultCode, summary, dimensionScoresJson, scoringVersion, createdAt) VALUES (:id, :attempt_id, :result_code, :summary, :dimension_scores_json, :scoring_version, :created_at)',
+                'INSERT INTO test_results (id, attemptId, resultCode, summary, gradingStatus, aiSummary, dimensionScoresJson, scoringVersion, createdAt) VALUES (:id, :attempt_id, :result_code, :summary, :grading_status, :ai_summary, :dimension_scores_json, :scoring_version, :created_at)',
                 [
                     'id' => $this->newUuid(),
                     'attempt_id' => $attemptId,
                     'result_code' => $scored['result_code'],
                     'summary' => $scored['summary'],
+                    'grading_status' => $aiGrade['status'],
+                    'ai_summary' => $this->encodeAiSummary($aiGrade),
                     'dimension_scores_json' => $this->encodeJson($scored['dimension_scores']),
                     'scoring_version' => $attempt['scoring_version'],
                     'created_at' => $now,
@@ -598,6 +609,49 @@ SQL,
         } catch (JsonException $exception) {
             throw new RuntimeException('Assessment answer cannot be encoded as JSON.', 0, $exception);
         }
+    }
+
+    private function aiGrader(): \TalentHub\Learner\Ai\Service\AssessmentAiGrader
+    {
+        if (!class_exists(\TalentHub\Learner\Ai\Service\AssessmentAiGrader::class, false)) {
+            require_once dirname(__DIR__, 2) . '/ai/Service/AssessmentAiGrader.php';
+        }
+
+        return new \TalentHub\Learner\Ai\Service\AssessmentAiGrader();
+    }
+
+    private function testTypeFromScoringVersion(string $scoringVersion): string
+    {
+        $value = strtolower(trim($scoringVersion));
+        if (str_starts_with($value, 'holland')) {
+            return 'holland';
+        }
+        if (str_starts_with($value, 'mbti')) {
+            return 'mbti';
+        }
+        if (str_starts_with($value, 'disc')) {
+            return 'disc';
+        }
+        if (str_starts_with($value, 'multiple_intelligence') || str_starts_with($value, 'multiple-intelligence')) {
+            return 'multiple_intelligence';
+        }
+
+        return 'aptitude';
+    }
+
+    /**
+     * @param array{status:string, summary:string, feedback:array<string,string>} $grade
+     */
+    private function encodeAiSummary(array $grade): string
+    {
+        return (string) json_encode(
+            [
+                'gradingStatus' => $grade['status'],
+                'summary' => $grade['summary'],
+                'feedback' => $grade['feedback'],
+            ],
+            JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+        );
     }
 
     private function decodeJson(string $value): mixed
