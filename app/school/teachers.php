@@ -34,6 +34,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $flash = 'Đã tạo tài khoản chờ kích hoạt. Gửi liên kết dùng một lần này cho giảng viên trước '
                 . htmlspecialchars((string) $result['expiresAt'], ENT_QUOTES, 'UTF-8') . ': '
                 . '<a href="' . htmlspecialchars($invitationUrl, ENT_QUOTES, 'UTF-8') . '">Mở lời mời</a>';
+        } elseif ($action === 'approve' && !empty($_POST['profileId']) && Uuid::isValid($_POST['profileId'])) {
+            $service->approveTeacher($userId, $_POST['profileId']);
+            $flash = 'Đã duyệt hồ sơ giảng viên thành công. Tài khoản giảng viên đã được kích hoạt.';
+        } elseif ($action === 'reject' && !empty($_POST['profileId']) && Uuid::isValid($_POST['profileId'])) {
+            $reason = trim((string) ($_POST['rejectReason'] ?? ''));
+            $service->rejectTeacher($userId, $_POST['profileId'], $reason ?: null);
+            $flash = 'Đã từ chối hồ sơ giảng viên.';
         } elseif ($action === 'toggle_admin' && !empty($_POST['profileId']) && Uuid::isValid($_POST['profileId'])) {
             $service->setTeacherAdmin($userId, $_POST['profileId'], !empty($_POST['isAdmin']));
             $flash = 'Đã cập nhật vai trò giảng viên.';
@@ -48,10 +55,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$perPage = 4;
+$perPage = 6;
 $page    = max(1, (int) ($_GET['page'] ?? 1));
 $offset  = ($page - 1) * $perPage;
 $teachers = $service->teachers($userId, $perPage, $offset);
+$pendingTeachers = $service->pendingTeachers($userId);
 
 $schoolInfo = [
     'name'          => $context['school']['name'],
@@ -67,7 +75,7 @@ $pageTitle    = 'Giảng viên';
 ob_start();
 ?>
 <?php
-$pageDescription = 'Thêm giảng viên mới và quản lý hồ sơ giảng viên trong trường.';
+$pageDescription = 'Duyệt hồ sơ đăng ký giảng viên mới và quản lý danh sách giảng viên của trường.';
 include __DIR__ . '/includes/page-banner.php';
 ?>
 
@@ -76,6 +84,76 @@ include __DIR__ . '/includes/page-banner.php';
 <?php endif; ?>
 <?php if ($error): ?>
     <div class="school-flash school-flash--error"><?= htmlspecialchars($error); ?></div>
+<?php endif; ?>
+
+<?php if ($pendingTeachers !== []): ?>
+    <section class="school-section-box" style="margin-bottom: 1.5rem; border-left: 4px solid var(--primary, #0284c7); background: #f8fafc;">
+        <div class="school-section-box__header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h3 class="school-section-box__title" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>Hồ sơ giảng viên chờ duyệt</span>
+                    <span class="school-class-badge school-class-badge--warning" style="font-size: 0.85rem;"><?= count($pendingTeachers); ?> hồ sơ</span>
+                </h3>
+            </div>
+            <span class="school-text-sm-muted">Đơn vị: <?= htmlspecialchars($schoolInfo['name']); ?></span>
+        </div>
+        <p class="school-text-sm-muted" style="margin-top: 0.25rem; margin-bottom: 1rem;">
+            Các giảng viên dưới đây đã đăng ký tài khoản công tác tại trường của bạn. Vui lòng kiểm tra và duyệt hồ sơ để kích hoạt tài khoản.
+        </p>
+        <div class="table-scroll" style="overflow-x: auto;">
+            <table class="school-class-table">
+                <thead>
+                    <tr>
+                        <th>Giảng viên</th>
+                        <th>Email & Số điện thoại</th>
+                        <th>Chuyên môn giảng dạy</th>
+                        <th>Thời gian đăng ký</th>
+                        <th style="text-align: right;">Quyết định duyệt</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($pendingTeachers as $pt): ?>
+                        <tr>
+                            <td>
+                                <strong><?= htmlspecialchars($pt['fullName']); ?></strong>
+                                <div><span class="school-class-badge school-class-badge--warning">Chờ duyệt</span></div>
+                            </td>
+                            <td>
+                                <div><?= htmlspecialchars($pt['email']); ?></div>
+                                <div class="school-text-sm-muted"><?= htmlspecialchars((string) ($pt['phone'] ?? '—')); ?></div>
+                            </td>
+                            <td>
+                                <strong><?= htmlspecialchars((string) ($pt['specialization'] ?? 'Chưa cập nhật')); ?></strong>
+                            </td>
+                            <td>
+                                <span class="school-text-sm-muted"><?= !empty($pt['createdAt']) ? htmlspecialchars(date('d/m/Y H:i', strtotime((string)$pt['createdAt']))) : '—'; ?></span>
+                            </td>
+                            <td style="text-align: right;">
+                                <div style="display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
+                                    <form method="post" style="display:inline;">
+                                        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                                        <input type="hidden" name="action" value="approve">
+                                        <input type="hidden" name="profileId" value="<?= htmlspecialchars($pt['id']); ?>">
+                                        <button type="submit" class="btn btn-sm btn-primary" style="background:#16a34a; border-color:#16a34a; color:#fff;" data-confirm="Xác nhận duyệt hồ sơ và kích hoạt tài khoản giảng viên này?">
+                                            Duyệt
+                                        </button>
+                                    </form>
+                                    <form method="post" style="display:inline;">
+                                        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                                        <input type="hidden" name="action" value="reject">
+                                        <input type="hidden" name="profileId" value="<?= htmlspecialchars($pt['id']); ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline" style="color:#dc2626; border-color:#fca5a5;" data-confirm="Từ chối hồ sơ giảng viên này?">
+                                            Từ chối
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </section>
 <?php endif; ?>
 
 <div class="school-grid-2col school-grid-2col--teachers">
@@ -108,7 +186,7 @@ include __DIR__ . '/includes/page-banner.php';
 
     <div class="school-section-box">
         <div class="school-section-box__header">
-            <h3 class="school-section-box__title">Danh sách giảng viên</h3>
+            <h3 class="school-section-box__title">Tất cả giảng viên</h3>
         </div>
         <?php if ($teachers === []): ?>
             <p class="school-text-sm-muted">Trường chưa có giảng viên nào.</p>
@@ -129,7 +207,7 @@ include __DIR__ . '/includes/page-banner.php';
                             <td>
                                 <strong><?= htmlspecialchars($t['fullName']); ?></strong>
                                 <div class="school-text-sm-muted">
-                                    <?= htmlspecialchars($t['userStatus'] === 'pending' ? 'Chờ kích hoạt' : ($t['userStatus'] === 'active' ? 'Đang hoạt động' : 'Đã vô hiệu')); ?>
+                                    <?= htmlspecialchars($t['userStatus'] === 'pending' ? 'Chờ duyệt' : ($t['userStatus'] === 'active' ? 'Đang hoạt động' : ($t['userStatus'] === 'rejected' ? 'Đã từ chối' : 'Đã vô hiệu'))); ?>
                                 </div>
                             </td>
                             <td><span class="school-text-sm-muted"><?= htmlspecialchars($t['email']); ?></span></td>
@@ -140,32 +218,53 @@ include __DIR__ . '/includes/page-banner.php';
                                 <?php else: ?>
                                     <span class="school-class-badge school-class-badge--neutral">Giảng viên</span>
                                 <?php endif; ?>
-                                <?php if ($t['userStatus'] !== 'active'): ?>
-                                    <span class="school-class-badge school-class-badge--warning">
-                                        <?= $t['userStatus'] === 'pending' ? 'Chờ kích hoạt' : 'Vô hiệu'; ?>
-                                    </span>
+                                <?php if ($t['userStatus'] === 'pending'): ?>
+                                    <span class="school-class-badge school-class-badge--warning">Chờ duyệt</span>
+                                <?php elseif ($t['userStatus'] === 'rejected'): ?>
+                                    <span class="school-class-badge" style="background:#FEE2E2; color:#991B1B;">Đã từ chối</span>
+                                <?php elseif ($t['userStatus'] !== 'active'): ?>
+                                    <span class="school-class-badge school-class-badge--warning">Vô hiệu</span>
                                 <?php endif; ?>
                             </td>
                             <td style="text-align: right;">
                                 <div style="display: flex; gap: 0.375rem; justify-content: flex-end;">
-                                    <form method="post" style="display:inline;">
-                                        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
-                                        <input type="hidden" name="action" value="toggle_admin">
-                                        <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
-                                        <input type="hidden" name="isAdmin" value="<?= $t['isSchoolAdmin'] ? '0' : '1'; ?>">
-                                        <button type="submit" class="btn btn-sm btn-outline">
-                                            <?= $t['isSchoolAdmin'] ? 'Bỏ quản trị' : 'Cấp quản trị'; ?>
-                                        </button>
-                                    </form>
-                                    <form method="post" style="display:inline;">
-                                        <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
-                                        <input type="hidden" name="action" value="toggle_active">
-                                        <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
-                                        <input type="hidden" name="isActive" value="<?= $t['userStatus'] === 'active' ? '0' : '1'; ?>">
-                                        <button type="submit" class="btn btn-sm btn-outline" data-confirm="Đổi trạng thái giảng viên này?">
-                                            <?= $t['userStatus'] === 'active' ? 'Vô hiệu hoá' : 'Kích hoạt'; ?>
-                                        </button>
-                                    </form>
+                                    <?php if ($t['userStatus'] === 'pending'): ?>
+                                        <form method="post" style="display:inline;">
+                                            <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                                            <input type="hidden" name="action" value="approve">
+                                            <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
+                                            <button type="submit" class="btn btn-sm btn-primary" style="background:#16a34a; border-color:#16a34a; color:#fff;" data-confirm="Phê duyệt hồ sơ giảng viên này?">
+                                                Duyệt
+                                            </button>
+                                        </form>
+                                        <form method="post" style="display:inline;">
+                                            <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                                            <input type="hidden" name="action" value="reject">
+                                            <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline" style="color:#dc2626; border-color:#fca5a5;" data-confirm="Từ chối hồ sơ giảng viên này?">
+                                                Từ chối
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
+                                        <form method="post" style="display:inline;">
+                                            <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                                            <input type="hidden" name="action" value="toggle_admin">
+                                            <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
+                                            <input type="hidden" name="isAdmin" value="<?= $t['isSchoolAdmin'] ? '0' : '1'; ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline">
+                                                <?= $t['isSchoolAdmin'] ? 'Bỏ quản trị' : 'Cấp quản trị'; ?>
+                                            </button>
+                                        </form>
+                                        <form method="post" style="display:inline;">
+                                            <input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+                                            <input type="hidden" name="action" value="toggle_active">
+                                            <input type="hidden" name="profileId" value="<?= htmlspecialchars($t['id']); ?>">
+                                            <input type="hidden" name="isActive" value="<?= $t['userStatus'] === 'active' ? '0' : '1'; ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline" data-confirm="Đổi trạng thái giảng viên này?">
+                                                <?= $t['userStatus'] === 'active' ? 'Vô hiệu hoá' : 'Kích hoạt'; ?>
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
@@ -190,3 +289,4 @@ $pageBody = ob_get_clean();
 $extraStyles = '';
 
 require __DIR__ . '/includes/layout.php';
+

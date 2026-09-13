@@ -83,6 +83,7 @@ final class PortalGuard
                     $user = SessionManager::getFallbackUserForRole($role, $pdo);
                     $session->login($user);
                 } else {
+                    SessionManager::clearAllRoleSessions();
                     self::redirectToLogin($fallbackPath, $role);
                 }
             }

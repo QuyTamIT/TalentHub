@@ -146,6 +146,7 @@ final class SchoolAppContext
                     'status' => 'active',
                 ];
             } else {
+                SessionManager::clearAllRoleSessions();
                 if ($cached !== null) {
                     $this->redirectToLoginWithRoleRequired(\TalentHub\Rbac\RoleCodes::SCHOOL);
                 }

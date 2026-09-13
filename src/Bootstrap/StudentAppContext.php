@@ -67,7 +67,8 @@ final class StudentAppContext
                 $this->session->login($cached);
                 $user = $this->auth->current((string) $cached['id']);
             } else {
-                $this->redirectToLogin();
+                SessionManager::clearAllRoleSessions();
+                $this->redirectToLoginWithRoleRequired(\TalentHub\Rbac\RoleCodes::STUDENT);
             }
         }
         $user['role'] = \TalentHub\Rbac\RoleCodes::STUDENT;
