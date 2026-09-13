@@ -41,6 +41,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $website      = trim((string) ($_POST['website'] ?? ''));
             $academicYear = trim((string) ($_POST['academicYear'] ?? $school['academicYear']));
 
+            $allowedLevels = ['Trung Học Cơ Sở', 'Trung Học Phổ Thông', 'Cao Đẳng / Đại Học'];
+            if (!in_array($level, $allowedLevels, true)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Loại hình đào tạo không hợp lệ. Vui lòng chọn: Trung Học Cơ Sở, Trung Học Phổ Thông hoặc Cao Đẳng / Đại Học.');
+            }
+
             $updated = $service->update($userId, [
                 'name'         => $name,
                 'level'        => $level,
@@ -87,6 +92,31 @@ if ($cleanSchoolName !== '') {
     $initials = 'NT';
 }
 
+// Normalize school level for select options and display
+$rawSchoolLevel   = trim((string) ($school['level'] ?? ''));
+$schoolNameLower  = mb_strtolower(trim((string) ($school['name'] ?? '')));
+$schoolLevelLower = mb_strtolower($rawSchoolLevel);
+
+$selectedLevel = '';
+if ($rawSchoolLevel === 'Trung Học Cơ Sở'
+    || in_array($schoolLevelLower, ['cap2', 'c2', 'trung học cơ sở', 'thcs'], true)
+    || str_contains($schoolLevelLower, 'cơ sở') || str_contains($schoolLevelLower, 'thcs')
+    || ($rawSchoolLevel === '' && (str_contains($schoolNameLower, 'thcs') || str_contains($schoolNameLower, 'trung học cơ sở') || str_contains($schoolNameLower, 'cấp 2')))) {
+    $selectedLevel = 'Trung Học Cơ Sở';
+} elseif ($rawSchoolLevel === 'Trung Học Phổ Thông'
+    || in_array($schoolLevelLower, ['cap3', 'c3', 'trung học phổ thông', 'thpt'], true)
+    || str_contains($schoolLevelLower, 'phổ thông') || str_contains($schoolLevelLower, 'thpt')
+    || ($rawSchoolLevel === '' && (str_contains($schoolNameLower, 'thpt') || str_contains($schoolNameLower, 'trung học phổ thông') || str_contains($schoolNameLower, 'cấp 3')))) {
+    $selectedLevel = 'Trung Học Phổ Thông';
+} elseif ($rawSchoolLevel === 'Cao Đẳng / Đại Học'
+    || in_array($schoolLevelLower, ['cao_dang_dai_hoc', 'cao đẳng / đại học', 'cao đẳng', 'đại học', 'học viện'], true)
+    || str_contains($schoolLevelLower, 'cao đẳng') || str_contains($schoolLevelLower, 'đại học') || str_contains($schoolLevelLower, 'học viện')
+    || ($rawSchoolLevel === '' && (str_contains($schoolNameLower, 'cao đẳng') || str_contains($schoolNameLower, 'đại học') || str_contains($schoolNameLower, 'btec')))) {
+    $selectedLevel = 'Cao Đẳng / Đại Học';
+} else {
+    $selectedLevel = $rawSchoolLevel !== '' ? $rawSchoolLevel : 'Cao Đẳng / Đại Học';
+}
+
 // Calculate active student count accurately from database
 $totalStudents = 0;
 if ($pdo !== null && !empty($school['id'])) {
@@ -108,7 +138,7 @@ if ($totalStudents === 0) {
 $schoolInfo = [
     'name'          => $school['name'],
     'logo_initials' => $initials,
-    'level'         => $school['level'] ?? 'Đại học / Cao đẳng',
+    'level'         => !empty($school['level']) ? $school['level'] : $selectedLevel,
     'district'      => $school['address'] ?? '',
     'academic_year' => $school['academicYear'] ?? '2025 - 2026',
     'total_students'=> $totalStudents,
@@ -169,14 +199,14 @@ include __DIR__ . '/includes/page-banner.php';
                 <?php endif; ?>
             </div>
             <p style="font-size: 0.875rem; color: var(--text-secondary); margin: 0.35rem 0 0 0;">
-                <?= htmlspecialchars(!empty($school['level']) ? $school['level'] : 'Đại học / Cao đẳng'); ?> • Niên khóa: <strong><?= htmlspecialchars(!empty($school['academicYear']) ? $school['academicYear'] : '—'); ?></strong> • Quản trị: <strong><?= htmlspecialchars($context['user']['email']); ?></strong>
+                <?= htmlspecialchars(!empty($school['level']) ? $school['level'] : $selectedLevel); ?> • Niên khóa: <strong><?= htmlspecialchars(!empty($school['academicYear']) ? $school['academicYear'] : '—'); ?></strong> • Quản trị: <strong><?= htmlspecialchars($context['user']['email']); ?></strong>
             </p>
         </div>
     </div>
     <div style="display: flex; gap: 1.5rem; text-align: right;">
         <div>
             <div style="font-size: 1.25rem; font-weight: 700; color: #1D4ED8;"><?= (int) $totalStudents; ?></div>
-            <div class="school-text-xs-upper">Sinh viên</div>
+            <div class="school-text-xs-upper"><?= $selectedLevel === 'Cao Đẳng / Đại Học' ? 'Sinh viên' : 'Học sinh'; ?></div>
         </div>
         <div style="border-left: 1px solid var(--border); padding-left: 1.5rem;">
             <div style="font-size: 1.25rem; font-weight: 700; color: #059669;">Hoạt động</div>
@@ -229,11 +259,9 @@ include __DIR__ . '/includes/page-banner.php';
                 <label class="school-form__field">
                     <span>Loại hình đào tạo <em>*</em></span>
                     <select name="level" class="typeui-select" required>
-                        <option value="Cao đẳng Quốc tế" <?= ($school['level'] ?? '') === 'Cao đẳng Quốc tế' ? 'selected' : ''; ?>>Cao đẳng Quốc tế</option>
-                        <option value="Đại học Công lập" <?= ($school['level'] ?? '') === 'Đại học Công lập' ? 'selected' : ''; ?>>Đại học Công lập</option>
-                        <option value="Đại học Tư thục" <?= ($school['level'] ?? '') === 'Đại học Tư thục' ? 'selected' : ''; ?>>Đại học Tư thục</option>
-                        <option value="Học viện" <?= ($school['level'] ?? '') === 'Học viện' ? 'selected' : ''; ?>>Học viện</option>
-                        <option value="Trung học Phổ thông" <?= ($school['level'] ?? '') === 'Trung học Phổ thông' ? 'selected' : ''; ?>>Trung học Phổ thông</option>
+                        <option value="Trung Học Cơ Sở" <?= $selectedLevel === 'Trung Học Cơ Sở' ? 'selected' : ''; ?>>Trung Học Cơ Sở</option>
+                        <option value="Trung Học Phổ Thông" <?= $selectedLevel === 'Trung Học Phổ Thông' ? 'selected' : ''; ?>>Trung Học Phổ Thông</option>
+                        <option value="Cao Đẳng / Đại Học" <?= $selectedLevel === 'Cao Đẳng / Đại Học' ? 'selected' : ''; ?>>Cao Đẳng / Đại Học</option>
                     </select>
                 </label>
 

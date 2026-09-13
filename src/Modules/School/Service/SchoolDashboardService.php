@@ -1562,6 +1562,17 @@ final class SchoolDashboardService
         $level = mb_strtolower((string) ($school['level'] ?? ''));
         $name  = mb_strtolower((string) ($school['name']  ?? ''));
 
+        // New canonical level codes from registration
+        if ($level === 'cap2' || $level === 'c2' || str_contains($level, 'cap 2')) {
+            return 'thcs';
+        }
+        if ($level === 'cap3' || $level === 'c3' || str_contains($level, 'cap 3')) {
+            return 'thpt';
+        }
+        if ($level === 'cao_dang_dai_hoc' || $level === 'cao-dang-dai-hoc' || $level === 'caodangdaihoc') {
+            return 'college';
+        }
+
         // Check THCS (Trung học Cơ sở)
         if (str_contains($level, 'trung học cơ sở')
             || str_contains($level, 'thcs')

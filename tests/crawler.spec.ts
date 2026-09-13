@@ -98,19 +98,21 @@ async function detectSystemError(page: Page, res: Response | null): Promise<stri
 const LOGIN_EMAIL = process.env.PLAYWRIGHT_LOGIN_EMAIL || 'hs.minh@talenthub.vn';
 const LOGIN_PASSWORD = process.env.PLAYWRIGHT_LOGIN_PASSWORD || 'TestPass_2026_local';
 
-/** Đăng nhập vào /login.php bằng email/password. */
+/** Đăng nhập vào /login.php; FAIL nếu vẫn ở /login.php (BUG 2 false-positive fix). */
 async function loginAs(page: Page, email: string, password: string): Promise<void> {
   await page.goto('/login.php', { waitUntil: 'domcontentloaded' });
-  // Xác nhận đang ở form login và điền credential.
   await expect(page.locator('#email')).toBeVisible({ timeout: 7000 });
   await page.fill('#email', email);
   await page.fill('#password', password);
-  // Submit form qua click nút submit (giảm flake so với form.submit trực tiếp).
   await Promise.all([
     page.waitForNavigation({ timeout: 12000 }).catch(() => {}),
     page.click('button.auth-submit, button[data-submit]', { force: true }),
   ]);
   await page.waitForLoadState('domcontentloaded');
+  expect(
+    page.url(),
+    `[${email}] dang nhap KHONG thanh cong (van o /login.php) — BUG 2: crawler da qua 108 route app trong trang thai CHUA dang nhap (redirect ve login nhung khong phai 5xx -> passed == blind).`,
+  ).not.toContain('/login.php');
 }
 
 /** NULL nếu OK; chuỗi mô tả lỗi nếu là "trang lỗi hệ thống". */
