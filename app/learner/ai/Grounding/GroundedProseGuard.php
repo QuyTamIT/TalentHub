@@ -116,12 +116,20 @@ final class GroundedProseGuard
                 if ($alias === '') continue;
                 if (preg_match_all('/\b'.preg_quote($alias,'/').'\b/', $plain, $found, PREG_OFFSET_CAPTURE)) {
                     foreach ($found[0] as $occurrence) {
-                        $mentions[$occurrence[1].':'.$index] = ['offset'=>$occurrence[1], 'skill'=>$skill, 'index'=>$index];
+                        $mentions[$occurrence[1].':'.$index] = ['offset'=>$occurrence[1], 'len'=>strlen($alias), 'skill'=>$skill, 'index'=>$index];
                     }
                 }
             }
         }
-        usort($mentions, static fn(array $a,array $b):int=>$a['offset']<=>$b['offset']);
+        usort($mentions, static fn(array $a,array $b):int=>($a['offset']<=>$b['offset']) ?: (($b['len']??0)<=>($a['len']??0)));
+        $filtered = [];
+        $covered = -1;
+        foreach ($mentions as $m) {
+            if ($m['offset'] < $covered) continue;
+            $filtered[] = $m;
+            $covered = max($covered, $m['offset'] + ($m['len'] ?? 0));
+        }
+        $mentions = $filtered;
         $this->assertMeasurements($plain, $mentions);
         foreach ($mentions as $i=>$mention) {
             $end = $mentions[$i+1]['offset'] ?? strlen($plain);
@@ -156,6 +164,7 @@ final class GroundedProseGuard
         foreach ($numbers[1] as $index => [$number, $offset]) {
             $matched = $numbers[0][$index][0];
             $end = $offset + strlen($matched);
+            $segmentStart = $previousEnd;
             $prefix = substr($plain, $previousEnd, $offset - $previousEnd);
             $previousEnd = $end;
             $unit = preg_match('/(?:diem|phan tram|\/\s*100)/', $matched) === 1;
@@ -180,8 +189,21 @@ final class GroundedProseGuard
             $target = $skill['target_score'] ?? null;
             // The last explicit kind wins. A prior requirement cannot leak
             // into a later "hiện tại" measurement in the same sentence.
-            preg_match_all('/\b(?:yeu cau|nguong|benchmark|muc tieu|tieu chuan|hien tai|hien|chenh lech|khoang thieu|con thieu|thieu them|bo sung them)\b/', $prefix, $kinds);
-            $kind = $kinds[0] === [] ? '' : end($kinds[0]);
+            $kindPattern = '/\b(?:yeu cau|nguong|benchmark|muc tieu|tieu chuan|hien tai|hien|diem so|so diem|muc diem|chenh lech|khoang thieu|con thieu|thieu them|bo sung them)\b/';
+            $kind = '';
+            if ($mention['offset'] <= $offset) {
+                $localStart = max($segmentStart, $mention['offset'] + ($mention['len'] ?? 0));
+                $localPrefix = substr($plain, $localStart, $offset - $localStart);
+                if (preg_match_all($kindPattern, $localPrefix, $localKinds) && $localKinds[0] !== []) {
+                    $kind = end($localKinds[0]);
+                }
+            }
+            if ($kind === '') {
+                $cleanPrefix = preg_replace('/\b(?:da )?(?:vuot|dap ung) (?:[a-z0-9]+ )*(?:yeu cau|benchmark|tieu chuan|nguong)\b/', '', $prefix) ?? $prefix;
+                if (preg_match_all($kindPattern, $cleanPrefix, $kinds) && $kinds[0] !== []) {
+                    $kind = end($kinds[0]);
+                }
+            }
             $isGap = in_array($kind, ['chenh lech','khoang thieu','con thieu','thieu them','bo sung them'], true);
             $isTarget = in_array($kind, ['yeu cau','nguong','benchmark','muc tieu','tieu chuan'], true);
             $expected = $isGap

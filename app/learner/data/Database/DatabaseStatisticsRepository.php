@@ -481,7 +481,7 @@ final class DatabaseStatisticsRepository extends AbstractDatabaseRepository impl
             INNER JOIN project_members pm ON pm.projectId = p.id
             WHERE pm.studentId = :student_id
               AND pm.status = 'active'
-              AND p.status IN ('in_progress', 'completed')
+              AND p.status = 'completed'
             ORDER BY p.createdAt DESC, p.title ASC
         SQL;
 

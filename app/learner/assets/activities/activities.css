@@ -619,24 +619,45 @@
 
 .learner-activities-shell .learner-activity-discovery-card__body > a {
     align-items: center;
-    background: linear-gradient(90deg, var(--activity-primary), #FF5A00);
-    border-radius: var(--activity-radius-sm);
-    color: var(--activity-surface);
+    background: var(--primary-gradient, linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%)) !important;
+    border: 1px solid transparent !important;
+    border-radius: var(--radius-sm, 10px);
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28) !important;
+    color: #FFFFFF !important;
     display: flex;
     font-size: 14px;
     font-weight: 700;
+    gap: 8px;
     justify-content: center;
     min-height: 44px;
     padding: 0 16px;
     text-decoration: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
 .learner-activities-shell .learner-activity-discovery-card__body > a svg {
-    margin-left: auto;
+    color: #FFFFFF;
+    stroke: currentColor;
+    flex-shrink: 0;
+    margin-left: 0;
+    transition: transform 0.15s ease;
 }
 
 .learner-activities-shell .learner-activity-discovery-card__body > a:hover {
-    background: var(--activity-primary-hover);
+    background: var(--primary-gradient, linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%)) !important;
+    box-shadow: 0 6px 20px rgba(248, 63, 112, 0.38) !important;
+    color: #FFFFFF !important;
+    filter: brightness(1.04);
+    transform: translateY(-1px);
+}
+
+.learner-activities-shell .learner-activity-discovery-card__body > a:hover svg {
+    transform: translateX(2px);
+}
+
+.learner-activities-shell .learner-activity-discovery-card__body > a:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.35), 0 4px 14px rgba(248, 63, 112, 0.28) !important;
 }
 
 .learner-activities-shell .learner-activity-discovery-empty {
