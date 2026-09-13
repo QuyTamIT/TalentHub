@@ -9366,3 +9366,183 @@ body.enterprise-dashboard .ent-search-input:focus {
         font-size: 0.6875rem;
     }
 }
+
+/* ==========================================================================
+   UI/UX Polish — spacing, hover, focus, mobile refinements (auto-injected)
+   Shared across all 4 portal dashboards (teacher / school / learner / enterprise)
+   ========================================================================== */
+
+.teacher-dashboard .page-header,
+.teacher-dashboard .teacher-page-header,
+.school-dashboard .page-header,
+.school-dashboard .school-page-header,
+.learner-dashboard .page-header,
+.learner-dashboard .learner-page-header,
+.ent-dashboard .page-header,
+.ent-dashboard .ent-page-header {
+    padding: 1.5rem 0 1.25rem;
+    border-bottom: 1px solid var(--border, #e7e5e4);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.teacher-dashboard .page-header__title,
+.school-dashboard .page-header__title,
+.learner-dashboard .page-header__title,
+.ent-dashboard .page-header__title {
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    color: var(--text-primary, #1c1917);
+}
+
+.teacher-dashboard .page-header__subtitle,
+.school-dashboard .page-header__subtitle,
+.learner-dashboard .page-header__subtitle,
+.ent-dashboard .page-header__subtitle {
+    margin-top: 0.35rem;
+    color: var(--text-secondary, #57534e);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    max-width: 60ch;
+}
+
+.teacher-dashboard .page-header__actions,
+.school-dashboard .page-header__actions,
+.learner-dashboard .page-header__actions,
+.ent-dashboard .page-header__actions {
+    display: flex;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+}
+
+.teacher-dashboard table,
+.school-dashboard table,
+.learner-dashboard table,
+.ent-dashboard table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+
+.teacher-dashboard table thead th,
+.school-dashboard table thead th,
+.learner-dashboard table thead th,
+.ent-dashboard table thead th {
+    background: #fafaf9;
+    color: var(--text-secondary, #57534e);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border, #e7e5e4);
+}
+
+.teacher-dashboard table tbody td,
+.school-dashboard table tbody td,
+.learner-dashboard table tbody td,
+.ent-dashboard table tbody td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--border, #e7e5e4);
+    color: var(--text-primary, #1c1917);
+    vertical-align: middle;
+}
+
+.teacher-dashboard table tbody tr,
+.school-dashboard table tbody tr,
+.learner-dashboard table tbody tr,
+.ent-dashboard table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.teacher-dashboard table tbody tr:hover,
+.school-dashboard table tbody tr:hover,
+.learner-dashboard table tbody tr:hover,
+.ent-dashboard table tbody tr:hover {
+    background: rgba(255, 247, 237, 0.5);
+}
+
+.teacher-dashboard table tbody tr:last-child td,
+.school-dashboard table tbody tr:last-child td,
+.learner-dashboard table tbody tr:last-child td,
+.ent-dashboard table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.teacher-dashboard input,
+.teacher-dashboard select,
+.teacher-dashboard textarea,
+.school-dashboard input,
+.school-dashboard select,
+.school-dashboard textarea,
+.learner-dashboard input,
+.learner-dashboard select,
+.learner-dashboard textarea,
+.ent-dashboard input,
+.ent-dashboard select,
+.ent-dashboard textarea {
+    font-family: inherit;
+    max-width: 100%;
+}
+
+.teacher-dashboard input:focus,
+.teacher-dashboard select:focus,
+.teacher-dashboard textarea:focus,
+.school-dashboard input:focus,
+.school-dashboard select:focus,
+.school-dashboard textarea:focus,
+.learner-dashboard input:focus,
+.learner-dashboard select:focus,
+.learner-dashboard textarea:focus,
+.ent-dashboard input:focus,
+.ent-dashboard select:focus,
+.ent-dashboard textarea:focus {
+    outline: none;
+    border-color: var(--primary, #c2410c);
+    box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.14);
+}
+
+@media (max-width: 768px) {
+    .teacher-dashboard .page-header,
+    .school-dashboard .page-header,
+    .learner-dashboard .page-header,
+    .ent-dashboard .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 1.25rem 0 1rem;
+        margin-bottom: 1.25rem;
+        gap: 0.875rem;
+    }
+    .teacher-dashboard .page-header__actions,
+    .school-dashboard .page-header__actions,
+    .learner-dashboard .page-header__actions,
+    .ent-dashboard .page-header__actions {
+        width: 100%;
+    }
+    .teacher-dashboard table thead th,
+    .teacher-dashboard table tbody td,
+    .school-dashboard table thead th,
+    .school-dashboard table tbody td,
+    .learner-dashboard table thead th,
+    .learner-dashboard table tbody td,
+    .ent-dashboard table thead th,
+    .ent-dashboard table tbody td {
+        padding: 0.625rem 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .teacher-dashboard .page-header__title,
+    .school-dashboard .page-header__title,
+    .learner-dashboard .page-header__title,
+    .ent-dashboard .page-header__title {
+        font-size: 1.4rem;
+    }
+}

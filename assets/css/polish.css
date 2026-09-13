@@ -963,3 +963,117 @@ body:not(.landing-page) .ent-header {
         animation: none;
     }
 }
+
+/* --------------------------------------------------------------------------
+   29. RESPONSIVE — viewport stability, mobile-first fallback guards
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 480px) {
+    .learner-header,
+    .teacher-header,
+    .school-header,
+    .ent-header {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .page-header__title,
+    .ent-page-title,
+    .teacher-page-title,
+    .school-page-title {
+        font-size: clamp(1.25rem, 5vw, 1.5rem);
+        line-height: 1.25;
+    }
+
+    .page-header__subtitle,
+    .ent-page-header__subtitle,
+    .teacher-page-header__subtitle,
+    .school-page-header__subtitle {
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    .data-table,
+    .teacher-students-table,
+    .school-class-table {
+        font-size: 0.825rem;
+    }
+
+    .data-table thead th,
+    .teacher-students-table thead th,
+    .school-class-table thead th {
+        padding: 0.5rem 0.625rem;
+        font-size: 0.65rem;
+        letter-spacing: 0.02em;
+    }
+
+    .data-table tbody td,
+    .teacher-students-table tbody td,
+    .school-class-table tbody td {
+        padding: 0.625rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .learner-content,
+    .teacher-body,
+    .school-body,
+    .ent-body {
+        padding: 1rem;
+    }
+
+    .page-header {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .page-header__actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   30. OVERFLOW SAFETY — prevent horizontal scroll from long content
+   -------------------------------------------------------------------------- */
+
+.learner-card,
+.teacher-section-box,
+.school-section-box,
+.section-box,
+.card,
+.stat-card,
+.bento-card,
+.ent-metric-card,
+.metric-card {
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.data-table,
+.teacher-students-table,
+.school-class-table {
+    table-layout: auto;
+    width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   31. ACCESSIBILITY FOCUS POLISH — clear, branded focus for non-button links
+   -------------------------------------------------------------------------- */
+
+a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+    border-radius: var(--radius-sm, 4px);
+}
+
+/* --------------------------------------------------------------------------
+   32. SMOOTH HEADER ON SCROLL — soft elevation
+   -------------------------------------------------------------------------- */
+
+body:not(.landing-page) .portal-header.is-scrolled,
+body:not(.landing-page) .teacher-header.is-scrolled,
+body:not(.landing-page) .school-header.is-scrolled,
+body:not(.landing-page) .ent-header.is-scrolled {
+    box-shadow: 0 1px 0 rgb(28 25 23 / 0.05), 0 12px 32px rgb(15 23 42 / 0.08);
+}

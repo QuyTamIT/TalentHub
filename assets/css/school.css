@@ -2074,6 +2074,17 @@ textarea:focus-visible {
     .school-grid-2col {
         grid-template-columns: 1fr;
     }
+
+    /* Analytics chart header — stack title + kỳ badge on narrow screens */
+    .school-chart-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.6rem;
+    }
+    .school-chart-header .school-badge {
+        white-space: normal;
+        line-height: 1.4;
+    }
 }
 
 /* --------------------------------------------------------------------------
@@ -3661,3 +3672,160 @@ body.school-dashboard .school-pagination__info {
     background: #DC2626 !important;
 }
 
+
+/* ==========================================================================
+   UI/UX Polish — spacing, hover, focus, mobile refinements
+   ========================================================================== */
+
+.school-dashboard .page-header,
+.school-dashboard .school-page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1.5rem 0 1.25rem;
+    border-bottom: 1px solid var(--border, #e7e5e4);
+    margin-bottom: 1.5rem;
+}
+
+.school-dashboard .page-header__title,
+.school-dashboard .school-page-title {
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--text-primary, #1c1917);
+    line-height: 1.2;
+    margin: 0;
+}
+
+.school-dashboard .page-header__subtitle {
+    margin: 0.35rem 0 0;
+    color: var(--text-secondary, #57534e);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    max-width: 60ch;
+}
+
+.school-dashboard .page-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+}
+
+.school-dashboard .school-section-box,
+.school-dashboard .school-card,
+.school-dashboard .school-grade-card {
+    transition: border-color 0.18s ease, box-shadow 0.22s ease, transform 0.18s ease;
+}
+
+.school-dashboard .school-section-box:hover,
+.school-dashboard .school-grade-card:hover {
+    border-color: rgba(194, 65, 12, 0.30);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(194, 65, 12, 0.06);
+    transform: translateY(-2px);
+}
+
+.school-dashboard .school-kpi-card__value,
+.school-dashboard .school-stat-value {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+
+.school-dashboard input,
+.school-dashboard select,
+.school-dashboard textarea {
+    font-family: inherit;
+    max-width: 100%;
+}
+
+.school-dashboard input:focus,
+.school-dashboard select:focus,
+.school-dashboard textarea:focus {
+    outline: none;
+    border-color: var(--primary, #c2410c);
+    box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.14);
+}
+
+.school-dashboard table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+
+.school-dashboard table thead th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    background: #fafaf9;
+    color: var(--text-secondary, #57534e);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border, #e7e5e4);
+}
+
+.school-dashboard table tbody td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--border, #e7e5e4);
+    color: var(--text-primary, #1c1917);
+    vertical-align: middle;
+}
+
+.school-dashboard table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.school-dashboard table tbody tr:hover {
+    background: rgba(255, 247, 237, 0.55);
+}
+
+.school-dashboard table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.school-dashboard .school-account-menu {
+    border-radius: 12px;
+    box-shadow: 0 20px 44px rgba(28, 25, 23, 0.14);
+    border: 1px solid var(--border, #e7e5e4);
+    background: #fff;
+    overflow: hidden;
+}
+
+.school-dashboard .school-account-menu__item {
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.school-dashboard .school-account-menu__item:hover {
+    background: var(--primary-light, #fff7ed);
+    color: var(--primary, #c2410c);
+}
+
+@media (max-width: 768px) {
+    .school-dashboard .page-header,
+    .school-dashboard .school-page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.875rem;
+        padding: 1.25rem 0 1rem;
+        margin-bottom: 1.25rem;
+    }
+    .school-dashboard .page-header__actions {
+        width: 100%;
+    }
+    .school-dashboard table {
+        font-size: 0.85rem;
+    }
+    .school-dashboard table thead th,
+    .school-dashboard table tbody td {
+        padding: 0.625rem 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .school-dashboard .page-header__title,
+    .school-dashboard .school-page-title {
+        font-size: 1.4rem;
+    }
+}
