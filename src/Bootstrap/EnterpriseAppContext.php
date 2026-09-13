@@ -107,6 +107,7 @@ final class EnterpriseAppContext
         try {
             $user = $this->auth->current((string) $cached['id']);
         } catch (\Throwable) {
+            SessionManager::clearAllRoleSessions();
             $this->redirectToLoginWithRoleRequired(RoleCodes::ENTERPRISE);
         }
         $user['role'] = RoleCodes::ENTERPRISE;

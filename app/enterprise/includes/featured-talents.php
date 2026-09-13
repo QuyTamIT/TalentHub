@@ -44,8 +44,8 @@ $talentsList = !empty($featuredTalents) ? $featuredTalents : [];
             <?php foreach ($talentsList as $talent): 
                 $talentId = (string) ($talent['id'] ?? '');
                 $talentName = (string) ($talent['name'] ?? 'Ứng viên tiềm năng');
-                $talentScore = (int) ($talent['talent_score'] ?? $talent['match_score'] ?? 95);
-                $talentMeta = (string) ($talent['meta_description'] ?? 'Lớp 12 • THPT • AI, Python');
+                $talentScore = (int) ($talent['talent_score'] ?? $talent['match_score'] ?? 0);
+                $talentMeta = (string) ($talent['meta_description'] ?? 'Học sinh / Sinh viên tiềm năng');
                 $avatarLetter = (string) ($talent['avatar_letter'] ?? 'UV');
                 $avatarBg = (string) ($talent['avatar_bg'] ?? '#F97316');
                 $detailUrl = app_href('/app/enterprise/talents/detail.php' . (!empty($talentId) ? '?id=' . urlencode($talentId) : ''));

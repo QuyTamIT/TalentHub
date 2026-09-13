@@ -164,14 +164,13 @@ if ($pdo !== null) {
                 sp.id AS studentId,
                 u.id AS userId,
                 u.fullName AS name,
-                COALESCE(s.name, 'Cao đẳng Quốc tế BTEC FPT') AS schoolName,
-                COALESCE(c.name, 'BTEC-AI-2026A') AS className,
-                COALESCE(spd.headline, 'Trí tuệ Nhân tạo & LLM') AS majorField,
+                COALESCE(s.name, '') AS schoolName,
+                COALESCE(c.name, '') AS className,
+                COALESCE(spd.headline, '') AS majorField,
                 COALESCE(
                     sp.talentScore,
-                    (SELECT ROUND(AVG(sa.overallScore) * 10, 0) FROM assessments sa WHERE sa.studentId = sp.id AND sa.overallScore IS NOT NULL),
-                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = sp.id AND ss.levelScore > 0),
-                    94
+                    (SELECT ROUND(AVG(sa.overallScore), 0) FROM assessments sa WHERE sa.studentId = sp.id AND sa.overallScore IS NOT NULL),
+                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = sp.id AND ss.levelScore > 0)
                 ) AS talentScore,
                 COALESCE(
                     (SELECT GROUP_CONCAT(sk.name ORDER BY (ss.verificationStatus = 'verified') DESC, ss.levelScore DESC SEPARATOR ', ')
@@ -187,12 +186,13 @@ if ($pdo !== null) {
             LEFT JOIN schools s ON s.id = c.schoolId
             LEFT JOIN student_profile_details spd ON spd.studentId = sp.id
             WHERE u.status = 'active'
-              AND u.email NOT LIKE '%@example.%'
-              AND u.fullName NOT LIKE '%Test%'
-              AND u.fullName NOT LIKE '%Codex%'
-              AND (s.name NOT LIKE '%THPT%' AND COALESCE(c.name, '') NOT REGEXP '^(10|11|12)[A-Z]?$')
+              AND (
+                  (sp.talentScore IS NOT NULL AND sp.talentScore > 0)
+                  OR EXISTS (SELECT 1 FROM assessments sa WHERE sa.studentId = sp.id AND sa.overallScore IS NOT NULL AND sa.overallScore > 0)
+                  OR EXISTS (SELECT 1 FROM student_skills ss WHERE ss.studentId = sp.id AND ss.levelScore > 0)
+              )
             ORDER BY 
-                COALESCE(sp.talentScore, 0) DESC, 
+                talentScore DESC, 
                 skillCount DESC, 
                 sp.createdAt ASC
             LIMIT 5
@@ -205,14 +205,16 @@ if ($pdo !== null) {
         foreach ($rows as $r) {
             $name = trim((string) ($r['name'] ?? ''));
             if ($name === '') continue;
+            $score = isset($r['talentScore']) && is_numeric($r['talentScore']) ? (int) round((float) $r['talentScore']) : 0;
+            if ($score <= 0) continue;
+
             $nameWords = preg_split('/\s+/', $name);
             $lastWord = end($nameWords);
             $avatarLetter = mb_strtoupper(mb_substr((string) $lastWord, 0, 1, 'UTF-8'));
             $skillsStr = trim((string) ($r['skillsStr'] ?? ''));
-            $className = (string) ($r['className'] ?? '');
-            $schoolName = (string) ($r['schoolName'] ?? '');
-            $majorField = (string) ($r['majorField'] ?? '');
-            $score = (int) $r['talentScore'];
+            $className = trim((string) ($r['className'] ?? ''));
+            $schoolName = trim((string) ($r['schoolName'] ?? ''));
+            $majorField = trim((string) ($r['majorField'] ?? ''));
 
             $skillsList = array_filter(array_map('trim', explode(',', $skillsStr)));
             $skillsShort = !empty($skillsList) ? implode(', ', array_slice($skillsList, 0, 4)) : $majorField;
@@ -227,7 +229,7 @@ if ($pdo !== null) {
                 'name'             => $name,
                 'avatar_letter'    => $avatarLetter,
                 'avatar_bg'        => $avatarBg,
-                'talent_score'     => min(100, max(60, $score)),
+                'talent_score'     => min(100, max(0, $score)),
                 'meta_description' => $metaText,
                 'school'           => $schoolName,
                 'major'            => $majorField,

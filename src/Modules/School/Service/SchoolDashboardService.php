@@ -561,6 +561,117 @@ final class SchoolDashboardService
     }
 
     /**
+     * Lấy danh sách hồ sơ giáo viên đang chờ Nhà trường phê duyệt.
+     * @return list<array<string,mixed>>
+     */
+    public function pendingTeachers(string $userId): array
+    {
+        $school = $this->getByUserOrNull($userId);
+        if ($school === null) {
+            return [];
+        }
+        $stmt = $this->pdo->prepare(
+            'SELECT tp.id, tp.userId, tp.isSchoolAdmin,
+                    COALESCE(tp.specialization, \'Giảng viên chuyên ngành\') AS specialization,
+                    tp.phone, tp.bio, tp.createdAt,
+                    u.email, u.fullName, u.status AS userStatus
+             FROM teacher_profiles tp
+             JOIN users u ON u.id = tp.userId
+             WHERE tp.schoolId = :schoolId AND u.status = \'pending\'
+             ORDER BY tp.createdAt DESC'
+        );
+        $stmt->execute(['schoolId' => $school['id']]);
+        return array_values($stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /**
+     * Nhà trường phê duyệt hồ sơ giáo viên đăng ký.
+     * @return array<string,mixed>
+     */
+    public function approveTeacher(string $userId, string $profileId): array
+    {
+        $school = $this->getByUser($userId);
+        $this->guardWrite($userId, $school['id']);
+        Uuid::orFail($profileId, 'profileId');
+        $existing = $this->repository->findTeacherById($profileId, $school['id']);
+        if ($existing === null) {
+            throw new ApiException(404, 'TEACHER_NOT_FOUND', 'Không tìm thấy hồ sơ giáo viên.');
+        }
+
+        $this->repository->reactivateTeacher($profileId, $school['id']);
+        $this->repository->writeAudit(
+            $userId,
+            'school.teacher_approved',
+            'teacher_profile',
+            $profileId,
+            ['schoolId' => $school['id'], 'teacherUserId' => $existing['userId']]
+        );
+
+        // Gửi thông báo đến giáo viên
+        try {
+            $notifStmt = $this->pdo->prepare("INSERT INTO notifications (id, userId, eventKey, notificationType, title, message, deepLink) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $notifStmt->execute([
+                Uuid::v4(),
+                $existing['userId'],
+                'teacher_approval:' . $profileId,
+                'teacher_approved',
+                'Hồ sơ giáo viên đã được phê duyệt',
+                'Chúc mừng! Nhà trường ' . ($school['name'] ?? '') . ' đã phê duyệt hồ sơ của bạn. Bạn đã có thể đăng nhập vào cổng Giáo viên.',
+                '/login.php',
+            ]);
+        } catch (\Throwable) {}
+
+        $this->repository->refreshCounters($school['id']);
+        return $this->repository->findTeacherById($profileId, $school['id']) ?? [];
+    }
+
+    /**
+     * Nhà trường từ chối hồ sơ giáo viên đăng ký.
+     * @return array<string,mixed>
+     */
+    public function rejectTeacher(string $userId, string $profileId, ?string $reason = null): array
+    {
+        $school = $this->getByUser($userId);
+        $this->guardWrite($userId, $school['id']);
+        Uuid::orFail($profileId, 'profileId');
+        $existing = $this->repository->findTeacherById($profileId, $school['id']);
+        if ($existing === null) {
+            throw new ApiException(404, 'TEACHER_NOT_FOUND', 'Không tìm thấy hồ sơ giáo viên.');
+        }
+
+        $stmt = $this->pdo->prepare(
+            'UPDATE users u JOIN teacher_profiles tp ON tp.userId = u.id
+             SET u.status = \'rejected\'
+             WHERE tp.id = :id AND tp.schoolId = :schoolId'
+        );
+        $stmt->execute(['id' => $profileId, 'schoolId' => $school['id']]);
+
+        $this->repository->writeAudit(
+            $userId,
+            'school.teacher_rejected',
+            'teacher_profile',
+            $profileId,
+            ['schoolId' => $school['id'], 'teacherUserId' => $existing['userId'], 'reason' => $reason]
+        );
+
+        try {
+            $notifStmt = $this->pdo->prepare("INSERT INTO notifications (id, userId, eventKey, notificationType, title, message, deepLink) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $notifStmt->execute([
+                Uuid::v4(),
+                $existing['userId'],
+                'teacher_rejection:' . $profileId,
+                'teacher_rejected',
+                'Hồ sơ giáo viên chưa được chấp thuận',
+                'Nhà trường ' . ($school['name'] ?? '') . ' chưa thể phê duyệt hồ sơ của bạn' . ($reason ? ': ' . $reason : '. Vui lòng liên hệ nhà trường để biết thêm chi tiết.'),
+                '/login.php',
+            ]);
+        } catch (\Throwable) {}
+
+        $this->repository->refreshCounters($school['id']);
+        return $this->repository->findTeacherById($profileId, $school['id']) ?? [];
+    }
+
+    /**
      * @return list<array<string,mixed>>
      */
     public function students(string $userId, int $limit = 50, int $offset = 0): array

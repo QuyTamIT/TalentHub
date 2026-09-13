@@ -458,4 +458,32 @@ final class SessionManager
             session_destroy();
         }
     }
+
+    public static function clearAllRoleSessions(): void
+    {
+        $_SESSION = [];
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            @session_destroy();
+        }
+        if (!headers_sent()) {
+            $sessionNames = [
+                self::SESSION_STUDENT,
+                self::SESSION_ENTERPRISE,
+                self::SESSION_SCHOOL,
+                self::SESSION_TEACHER,
+                self::SESSION_ADMIN,
+                self::SESSION_DEFAULT,
+                'PHPSESSID',
+            ];
+            foreach ($sessionNames as $sName) {
+                setcookie($sName, '', [
+                    'expires' => time() - 86400,
+                    'path' => '/',
+                    'httponly' => true,
+                    'samesite' => 'Lax',
+                ]);
+                unset($_COOKIE[$sName]);
+            }
+        }
+    }
 }

@@ -17,8 +17,11 @@ final class AdminRepository
         $queue=[];
         $pendingOrganizations=0;foreach($this->organizations() as $organization){if(in_array(strtolower((string)$organization['verificationStatus']),['pending','inactive'],true)){$pendingOrganizations++;}}
         if($pendingOrganizations>0){$queue[]=['type'=>'organizations','severity'=>'high','title'=>'Tổ chức chờ xác minh','count'=>$pendingOrganizations,'detail'=>'Nhà trường hoặc doanh nghiệp cần duyệt','owner'=>'Xác minh'];$pendingOrganizations=0;}
-        if($pendingOrganizations>0){$queue[]=['type'=>'organizations','severity'=>'high','title'=>'Tổ chức chờ xác minh','count'=>$pendingOrganizations,'detail'=>'School/Enterprise cáº§n duyệt','owner'=>'Verification'];}
-        $suspended=$this->countWhere('users',"status IN ('suspended','disabled','pending')");if($suspended>0){$queue[]=['type'=>'users','severity'=>'medium','title'=>'Tài khoản cần xử lý','count'=>$suspended,'detail'=>'Chờ duyệt, tạm khóa hoặc vô hiệu hóa','owner'=>'Quản lý tài khoản'];$suspended=0;}
+        $legacy=$this->columnExists('users','roles');
+        $userWhere=$legacy
+            ? "status IN ('suspended','disabled') OR (status='pending' AND roles != 'teacher')"
+            : "status IN ('suspended','disabled') OR (status='pending' AND roleId NOT IN (SELECT id FROM roles WHERE code='teacher'))";
+        $suspended=$this->countWhere('users',$userWhere);if($suspended>0){$queue[]=['type'=>'users','severity'=>'medium','title'=>'Tài khoản cần xử lý','count'=>$suspended,'detail'=>'Chờ duyệt, tạm khóa hoặc vô hiệu hóa','owner'=>'Quản lý tài khoản'];$suspended=0;}
         $payments=$this->countWhere('payment_orders',"paymentStatus='pending'");if($payments>0){$queue[]=['type'=>'payments','severity'=>'critical','title'=>'Payment order đang chờ','count'=>$payments,'detail'=>'Cần kiểm tra đối soát','owner'=>'Finance Ops'];}
         $applications=$this->countWhere('internship_applications',"status IN ('submitted','pending','applied')");if($applications>0){$queue[]=['type'=>'applications','severity'=>'medium','title'=>'Ứng tuyển chưa review','count'=>$applications,'detail'=>'Hồ sơ đang trong hàng đợi','owner'=>'Partner Ops'];}
         $legacy=$this->columnExists('users','roles');

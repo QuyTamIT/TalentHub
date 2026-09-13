@@ -87,10 +87,6 @@ function teacherDashboardBackendContext(bool $forceRefresh = false): array
             } catch (\Throwable) {}
         }
 
-        if ($user === null && !empty($_SESSION['user']) && is_array($_SESSION['user'])) {
-            $user = $_SESSION['user'];
-        }
-
         if ($user === null) {
             $user = PortalGuard::requireRole(RoleCodes::TEACHER, '/app/teacher/index.php');
         }
