@@ -48,6 +48,7 @@ $partnerTypeLabel = $isEnterprise
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <meta name="description" content="Chi tiết đối tác trong hệ sinh thái TalentHub dành cho học sinh, sinh viên.">
     <title><?= learner_escape($partner['name'] ?? 'Không tìm thấy đối tác'); ?> | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">

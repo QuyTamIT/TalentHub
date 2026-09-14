@@ -6,40 +6,20 @@
 
 /* Page Base - Scoped Design Tokens for Enterprise */
 .enterprise-dashboard {
-    /* Reference Sunset / Coral Theme Variables */
-    --primary: #FF6B45;
-    --primary-coral: #F83F70;
-    --primary-pink: #F23585;
-    --primary-purple: #A14FC9;
-    --primary-violet: #8B4DE8;
-    --primary-hover: #F83F70;
-    --primary-light: #FFF0EB;
-    --primary-light-border: #FFDACB;
-    --secondary: #A14FC9;
-    --accent: #F23585;
-    --background: #FDF7F1;
-    --surface: #FFFFFF;
-    --border: #F0E6DD;
-    --border-hover: #FFDACB;
-    --text-primary: #322014;
-    --text-secondary: #6B5548;
-    --text-muted: #9E897D;
+    /* Brand colors are shared via portal-tokens.css — do NOT duplicate here. */
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-xl: 20px;
     --radius-full: 9999px;
-    --shadow-soft: 0 4px 20px rgba(50, 32, 20, 0.04);
-    --shadow-glow: 0 6px 20px rgba(248, 63, 112, 0.28);
-    --primary-gradient: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
-    --font-primary: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-primary: var(--font-sans);
 
     font-family: var(--font-primary);
-    background-color: var(--background) !important;
+    background-color: var(--background);
     color: var(--text-primary);
     min-height: 100vh;
     overflow-x: hidden;
-    font-size: 15px;
+    font-size: var(--text-md);
     line-height: 1.6;
 }
 
@@ -48,7 +28,7 @@ body.enterprise-dashboard,
 .enterprise-dashboard .ent-layout,
 .enterprise-dashboard .ent-main-wrapper,
 .enterprise-dashboard .ent-body {
-    background-color: var(--background) !important;
+    background-color: var(--background);
 }
 
 body.ent-sidebar-open {
@@ -296,8 +276,8 @@ body.ent-sidebar-open {
 
 .ent-sidebar__link.is-active {
     position: relative;
-    background: var(--primary-gradient) !important;
-    color: #FFFFFF !important;
+    background: var(--primary-gradient);
+    color: #FFFFFF;
     font-weight: var(--font-semibold);
     border-radius: var(--radius-md);
     box-shadow: 0 4px 14px rgba(248, 63, 112, 0.35);
@@ -309,8 +289,8 @@ body.ent-sidebar-open {
 
 .ent-sidebar__link.is-active .ent-sidebar__icon,
 .ent-sidebar__link.is-active svg {
-    color: #FFFFFF !important;
-    stroke: #FFFFFF !important;
+    color: #FFFFFF;
+    stroke: #FFFFFF;
 }
 
 .ent-sidebar__icon {
@@ -768,7 +748,7 @@ body.ent-sidebar-open {
     gap: 6px;
     background-color: rgba(255, 255, 255, 0.2);
     color: #FFFFFF;
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: var(--font-semibold);
     padding: 5px 14px;
     border-radius: var(--radius-full);
@@ -784,7 +764,7 @@ body.ent-sidebar-open {
 }
 
 .ent-hero-banner__title {
-    font-size: 28px;
+    font-size: 1.75rem;
     font-weight: var(--font-bold);
     color: #FFFFFF;
     line-height: 1.3;
@@ -798,12 +778,12 @@ body.ent-sidebar-open {
 }
 
 .ent-hero-banner__icon {
-    font-size: 26px;
+    font-size: 1.625rem;
     line-height: 1;
 }
 
 .ent-hero-banner__subtitle {
-    font-size: 15px;
+    font-size: var(--text-md);
     font-weight: var(--font-normal);
     color: rgba(255, 255, 255, 0.92);
     line-height: 1.6;
@@ -826,7 +806,7 @@ body.ent-sidebar-open {
     justify-content: center;
     gap: 8px;
     border-radius: var(--radius-full);
-    font-size: 15px;
+    font-size: var(--text-md);
     text-decoration: none;
     padding: 10px 24px;
     transition: all 0.2s ease;
@@ -1065,7 +1045,7 @@ body.ent-sidebar-open {
 }
 
 .ent-featured-talents-box__title {
-    font-size: 18px;
+    font-size: var(--text-xl);
     font-weight: var(--font-bold);
     color: var(--text-primary);
     margin: 0;
@@ -1077,7 +1057,7 @@ body.ent-sidebar-open {
     align-items: center;
     min-height: 44px;
     gap: 0.35rem;
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: var(--font-semibold);
     color: var(--primary);
     text-decoration: none;
@@ -1121,7 +1101,7 @@ body.ent-sidebar-open {
     height: 44px;
     border-radius: 50%;
     color: #FFFFFF;
-    font-size: 16px;
+    font-size: var(--text-lg);
     font-weight: var(--font-bold);
     display: flex;
     align-items: center;
@@ -1145,7 +1125,7 @@ body.ent-sidebar-open {
 }
 
 .ent-talent-row__name {
-    font-size: 15px;
+    font-size: var(--text-md);
     font-weight: var(--font-bold);
     color: var(--text-primary);
     text-decoration: none;
@@ -1161,7 +1141,7 @@ body.ent-sidebar-open {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: var(--font-semibold);
     color: var(--primary-hover);
     background-color: var(--primary-light);
@@ -1173,7 +1153,7 @@ body.ent-sidebar-open {
 }
 
 .ent-talent-row__meta-text {
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
     margin: 3px 0 0 0;
     line-height: 1.4;
@@ -1195,7 +1175,7 @@ body.ent-sidebar-open {
     justify-content: center;
     background: var(--primary-gradient);
     color: #FFFFFF;
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: var(--font-semibold);
     padding: 8px 18px;
     border-radius: var(--radius-full);
@@ -1244,14 +1224,14 @@ body.ent-sidebar-open {
 }
 
 .ent-empty-state__title {
-    font-size: 15px;
+    font-size: var(--text-md);
     font-weight: var(--font-bold);
     color: #0F172A;
     margin: 0;
 }
 
 .ent-empty-state__desc {
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: #64748B;
     max-width: 480px;
     margin: 0 0 0.75rem 0;
@@ -1265,7 +1245,7 @@ body.ent-sidebar-open {
     background-color: var(--primary-light);
     color: var(--primary);
     border: 1px solid rgba(255, 107, 107, 0.25);
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: var(--font-semibold);
     padding: 7px 18px;
     border-radius: var(--radius-full);
@@ -1478,11 +1458,11 @@ body.ent-sidebar-open {
     }
 
     .ent-hero-banner__title {
-        font-size: 22px;
+        font-size: 1.375rem;
     }
 
     .ent-hero-banner__subtitle {
-        font-size: 14px;
+        font-size: var(--text-base);
         max-width: 100%;
     }
 
@@ -1550,11 +1530,11 @@ body.ent-sidebar-open {
     }
 
     .ent-hero-banner__title {
-        font-size: 20px;
+        font-size: var(--text-2xl);
     }
 
     .ent-hero-banner__subtitle {
-        font-size: 14px;
+        font-size: var(--text-base);
         margin: 6px 0 16px 0;
     }
 
@@ -1791,29 +1771,29 @@ body.ent-sidebar-open {
     padding: 0.625rem 1.25rem;
     white-space: normal;
     overflow-wrap: anywhere;
-    background: var(--primary-gradient) !important;
-    color: #FFFFFF !important;
-    font-weight: 700 !important;
-    border: none !important;
-    border-radius: var(--radius-sm) !important;
-    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28) !important;
+    background: var(--primary-gradient);
+    color: #FFFFFF;
+    font-weight: 700;
+    border: none;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28);
     cursor: pointer;
-    transition: all var(--transition-fast) !important;
+    transition: all var(--transition-fast);
 }
 
 .ent-ai-matcher-card__button:hover:not(:disabled) {
-    color: #FFFFFF !important;
-    background: var(--primary-gradient) !important;
-    box-shadow: 0 6px 20px rgba(248, 63, 112, 0.38) !important;
-    transform: translateY(-1px) !important;
-    filter: brightness(1.04) !important;
+    color: #FFFFFF;
+    background: var(--primary-gradient);
+    box-shadow: 0 6px 20px rgba(248, 63, 112, 0.38);
+    transform: translateY(-1px);
+    filter: brightness(1.04);
 }
 
 .ent-ai-matcher-card__button:focus,
 .ent-ai-matcher-card__button:focus-visible {
-    color: #FFFFFF !important;
-    outline: none !important;
-    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.35), 0 6px 20px rgba(248, 63, 112, 0.28) !important;
+    color: #FFFFFF;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(248, 63, 112, 0.35), 0 6px 20px rgba(248, 63, 112, 0.28);
 }
 
 .ent-ai-matcher-card__button svg {
@@ -2824,8 +2804,8 @@ body.ent-sidebar-open {
 
 /* AI Ranking Specific Card Enhancements */
 .ent-talent-card-item--ai-top {
-    border-color: #A7F3D0 !important;
-    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.08) !important;
+    border-color: var(--color-success-border);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.08);
 }
 
 .ent-ai-rank-badge {
@@ -2910,10 +2890,10 @@ body.ent-sidebar-open {
 }
 
 .skill-tag--matched {
-    background-color: #ECFDF5 !important;
-    color: #065F46 !important;
-    border-color: #A7F3D0 !important;
-    font-weight: 600 !important;
+    background-color: var(--color-success-light);
+    color: var(--color-success);
+    border-color: var(--color-success-border);
+    font-weight: 600;
 }
 
 @keyframes ent-spin {
@@ -6365,9 +6345,9 @@ body.ent-sidebar-open {
 .ent-talent-hero__title,
 .ent-internship-hero__title,
 .ent-sponsorship-hero__title {
-    font-size: var(--text-4xl) !important;
-    font-weight: var(--font-bold) !important;
-    line-height: var(--leading-tight) !important;
+    font-size: var(--text-4xl);
+    font-weight: var(--font-bold);
+    line-height: var(--leading-tight);
     color: var(--text-primary);
     letter-spacing: -0.02em;
     margin-bottom: 0.35rem;
@@ -6380,9 +6360,9 @@ body.ent-sidebar-open {
 .ent-talent-hero__subtitle,
 .ent-internship-hero__desc,
 .ent-sponsorship-hero__desc {
-    font-size: var(--text-md) !important;
-    font-weight: var(--font-normal) !important;
-    line-height: var(--leading-normal) !important;
+    font-size: var(--text-md);
+    font-weight: var(--font-normal);
+    line-height: var(--leading-normal);
     color: var(--text-secondary);
     overflow-wrap: anywhere;
 }
@@ -6397,9 +6377,9 @@ body.ent-sidebar-open {
 .ent-featured__title,
 .ent-chart-section__title,
 .ent-activities__title {
-    font-size: var(--text-2xl) !important;
-    font-weight: var(--font-bold) !important;
-    line-height: var(--leading-snug) !important;
+    font-size: var(--text-2xl);
+    font-weight: var(--font-bold);
+    line-height: var(--leading-snug);
     color: var(--text-primary);
     letter-spacing: -0.01em;
     overflow-wrap: anywhere;
@@ -6415,9 +6395,9 @@ body.ent-sidebar-open {
 .ent-skills-modal__title,
 .ent-modal__title,
 .spon-modal-title {
-    font-size: var(--text-xl) !important;
-    font-weight: var(--font-bold) !important;
-    line-height: var(--leading-snug) !important;
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
+    line-height: var(--leading-snug);
     color: var(--text-primary);
     overflow-wrap: anywhere;
 }
@@ -6430,9 +6410,9 @@ body.ent-sidebar-open {
 .ats-section-title,
 .ent-form-section-title,
 .spon-section-heading {
-    font-size: var(--text-lg) !important;
-    font-weight: var(--font-semibold) !important;
-    line-height: var(--leading-normal) !important;
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    line-height: var(--leading-normal);
     overflow-wrap: anywhere;
 }
 
@@ -6458,9 +6438,9 @@ body.ent-sidebar-open {
 .ent-internship-empty-state__title,
 .ent-empty-state__title,
 .ats-resume-item__title {
-    font-size: var(--text-lg) !important;
-    font-weight: var(--font-semibold) !important;
-    line-height: var(--leading-normal) !important;
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    line-height: var(--leading-normal);
     color: var(--text-primary);
     overflow-wrap: anywhere;
 }
@@ -6492,17 +6472,17 @@ body.ent-sidebar-open {
 .ent-table thead th,
 .ana-table thead th,
 .applicants-table thead th {
-    font-size: var(--text-sm) !important;
-    font-weight: var(--font-semibold) !important;
-    line-height: var(--leading-tight) !important;
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    line-height: var(--leading-tight);
 }
 
 .ent-table tbody td,
 .ana-table tbody td,
 .applicants-table tbody td {
-    font-size: var(--text-base) !important;
-    font-weight: var(--font-normal) !important;
-    line-height: var(--leading-snug) !important;
+    font-size: var(--text-base);
+    font-weight: var(--font-normal);
+    line-height: var(--leading-snug);
 }
 
 /* 8. Input / Select */
@@ -6515,9 +6495,9 @@ body.ent-sidebar-open {
 .spon-select,
 .form-control,
 .form-select {
-    font-size: var(--text-base) !important;
-    font-weight: var(--font-normal) !important;
-    line-height: var(--leading-normal) !important;
+    font-size: var(--text-base);
+    font-weight: var(--font-normal);
+    line-height: var(--leading-normal);
 }
 
 /* 9. Button */
@@ -6531,22 +6511,22 @@ body.ent-sidebar-open {
 .ats-action-btn,
 .ats-footer-btn,
 .ent-btn-view-applicants {
-    font-size: var(--text-base) !important;
-    font-weight: var(--font-semibold) !important;
-    line-height: var(--leading-tight) !important;
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    line-height: var(--leading-tight);
 }
 
 /* 10. Sidebar Navigation */
 .ent-sidebar__link {
-    font-size: var(--text-base) !important;
-    font-weight: var(--font-medium) !important;
-    line-height: var(--leading-snug) !important;
+    font-size: var(--text-base);
+    font-weight: var(--font-medium);
+    line-height: var(--leading-snug);
 }
 
 .ent-sidebar__company-info h4 {
-    font-size: var(--text-base) !important;
-    font-weight: var(--font-semibold) !important;
-    line-height: 1.3 !important;
+    font-size: var(--text-base);
+    font-weight: var(--font-semibold);
+    line-height: 1.3;
 }
 
 /* 11. KPI Label & Value */
@@ -6554,9 +6534,9 @@ body.ent-sidebar-open {
 .ent-metric-card__header .label,
 .ana-kpi-title,
 .spon-metric-label {
-    font-size: var(--text-base) !important;
-    font-weight: var(--font-medium) !important;
-    line-height: var(--leading-tight) !important;
+    font-size: var(--text-base);
+    font-weight: var(--font-medium);
+    line-height: var(--leading-tight);
 }
 
 .ent-kpi-card__value,
@@ -6564,9 +6544,9 @@ body.ent-sidebar-open {
 .ana-kpi-value,
 .spon-metric-value,
 .ent-result-card__number {
-    font-size: var(--text-4xl) !important;
-    font-weight: var(--font-bold) !important;
-    line-height: var(--leading-tight) !important;
+    font-size: var(--text-4xl);
+    font-weight: var(--font-bold);
+    line-height: var(--leading-tight);
 }
 
 /* 12. Secondary Metadata */
@@ -6592,9 +6572,9 @@ body.ent-sidebar-open {
 .ats-resume-item__desc,
 .ats-cv-header__meta,
 .ent-page-header__breadcrumb {
-    font-size: var(--text-sm) !important;
-    font-weight: var(--font-normal) !important;
-    line-height: var(--leading-tight) !important;
+    font-size: var(--text-sm);
+    font-weight: var(--font-normal);
+    line-height: var(--leading-tight);
 }
 
 /* 13. Badge / Status / Skill Tag */
@@ -6610,8 +6590,8 @@ body.ent-sidebar-open {
 .ent-talent-card__score-badge,
 .ent-applicant-count-cell,
 .ats-resume-skill-tag {
-    font-size: var(--text-xs) !important;
-    font-weight: var(--font-semibold) !important;
+    font-size: var(--text-xs);
+    font-weight: var(--font-semibold);
 }
 
 /* 14. Chart Axis & Legend */
@@ -6619,8 +6599,8 @@ body.ent-sidebar-open {
 .ana-legend-item,
 .ent-chart-legend,
 .ent-chart-axis {
-    font-size: var(--text-xs) !important;
-    font-weight: var(--font-medium) !important;
+    font-size: var(--text-xs);
+    font-weight: var(--font-medium);
 }
 
 /* 16. Standardized Enterprise Hero Banner System */
@@ -7430,7 +7410,7 @@ body.ent-sidebar-open {
 }
 
 .ent-page-header__title {
-    font-size: 22px;
+    font-size: 1.375rem;
     font-weight: var(--font-bold);
     color: var(--text-primary);
     margin: 0 0 4px 0;
@@ -7439,7 +7419,7 @@ body.ent-sidebar-open {
 }
 
 .ent-page-header__subtitle {
-    font-size: 14px;
+    font-size: var(--text-base);
     color: var(--text-secondary);
     margin: 0;
     font-weight: var(--font-normal);
@@ -7451,7 +7431,7 @@ body.ent-sidebar-open {
     gap: 8px;
     background: var(--primary-gradient);
     color: #FFFFFF !important;
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: var(--font-semibold);
     padding: 10px 22px;
     border-radius: 999px;
@@ -7516,7 +7496,7 @@ body.ent-sidebar-open {
     background-color: #F8FAFC;
     border: 1px solid var(--border);
     border-radius: 8px;
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--text-primary);
     outline: none;
     transition: all 0.15s ease;
@@ -7535,7 +7515,7 @@ body.ent-sidebar-open {
     background: none;
     border: none;
     color: #94A3B8;
-    font-size: 16px;
+    font-size: var(--text-lg);
     cursor: pointer;
     line-height: 1;
     padding: 2px;
@@ -7551,7 +7531,7 @@ body.ent-sidebar-open {
     background-color: #F8FAFC;
     border: 1px solid var(--border);
     border-radius: 8px;
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: var(--font-medium);
     color: var(--text-primary);
     outline: none;
@@ -7625,7 +7605,7 @@ body.ent-sidebar-open {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: var(--font-semibold);
     padding: 3px 10px;
     border-radius: 999px;
@@ -7680,7 +7660,7 @@ body.ent-sidebar-open {
 }
 
 .ent-job-card-box__title {
-    font-size: 16px;
+    font-size: var(--text-lg);
     font-weight: var(--font-bold);
     color: var(--text-primary);
     text-decoration: none;
@@ -7701,7 +7681,7 @@ body.ent-sidebar-open {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--text-secondary);
 }
 
@@ -7726,7 +7706,7 @@ body.ent-sidebar-open {
     border: 1px solid #FFDACB;
     border-radius: 8px;
     padding: 6px 12px;
-    font-size: 12px;
+    font-size: var(--text-xs);
     font-weight: var(--font-semibold);
     color: var(--primary-coral);
     display: inline-flex;
@@ -7758,7 +7738,7 @@ body.ent-sidebar-open {
     background-color: #FFFFFF;
     border: 1.5px solid #F0E6DD;
     color: #322014 !important;
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: var(--font-semibold);
     padding: 8px 14px;
     border-radius: 999px;
@@ -7782,7 +7762,7 @@ body.ent-sidebar-open {
     background-color: #FFF0EB;
     border: 1px solid #FFDACB;
     color: var(--primary-coral) !important;
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: 600;
     padding: 8px 14px;
     border-radius: 999px;
@@ -7867,7 +7847,7 @@ body.ent-sidebar-open {
     background: none;
     border: none;
     color: #9E897D;
-    font-size: 18px;
+    font-size: var(--text-xl);
     line-height: 1;
     cursor: pointer;
     padding: 2px 6px;
@@ -7965,7 +7945,7 @@ body.ent-sidebar-open {
 }
 
 .ent-internship-empty-state__title {
-    font-size: 18px;
+    font-size: var(--text-xl);
     font-weight: 700;
     color: var(--text-primary, #322014);
     margin: 0 0 8px 0;
@@ -7974,7 +7954,7 @@ body.ent-sidebar-open {
 }
 
 .ent-internship-empty-state__desc {
-    font-size: 14px;
+    font-size: var(--text-base);
     color: var(--text-secondary, #6B5548);
     max-width: 480px;
     margin: 0 auto 20px auto;
@@ -7990,7 +7970,7 @@ body.ent-sidebar-open {
     gap: 8px;
     background: var(--primary-gradient);
     color: #FFFFFF !important;
-    font-size: 14px;
+    font-size: var(--text-base);
     font-weight: 600;
     padding: 10px 24px;
     border-radius: 999px;

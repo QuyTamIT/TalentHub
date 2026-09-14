@@ -45,11 +45,18 @@ function initMobileNav() {
 
     if (!toggleBtn || !mobileMenu) return;
 
+    function getFocusableElements() {
+        return mobileMenu.querySelectorAll('a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    }
+
     function openMenu() {
         toggleBtn.setAttribute('aria-expanded', 'true');
         mobileMenu.setAttribute('aria-hidden', 'false');
         mobileMenu.classList.add('is-active');
         document.body.classList.add('mobile-menu-open');
+
+        const firstFocusable = getFocusableElements()[0];
+        if (firstFocusable) firstFocusable.focus();
     }
 
     function closeMenu() {
@@ -57,6 +64,7 @@ function initMobileNav() {
         mobileMenu.setAttribute('aria-hidden', 'true');
         mobileMenu.classList.remove('is-active');
         document.body.classList.remove('mobile-menu-open');
+        toggleBtn.focus();
     }
 
     toggleBtn.addEventListener('click', () => {
@@ -78,6 +86,24 @@ function initMobileNav() {
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && mobileMenu.classList.contains('is-active')) {
             closeMenu();
+            return;
+        }
+
+        /* Focus trap within mobile menu */
+        if (event.key === 'Tab' && mobileMenu.classList.contains('is-active')) {
+            const focusable = getFocusableElements();
+            if (focusable.length === 0) return;
+
+            const firstEl = focusable[0];
+            const lastEl = focusable[focusable.length - 1];
+
+            if (event.shiftKey && document.activeElement === firstEl) {
+                event.preventDefault();
+                lastEl.focus();
+            } else if (!event.shiftKey && document.activeElement === lastEl) {
+                event.preventDefault();
+                firstEl.focus();
+            }
         }
     });
 }
@@ -168,10 +194,17 @@ function initStatsCounter() {
 
 function animateStatNumbers() {
     const statElements = document.querySelectorAll('.stat-number[data-target]');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     statElements.forEach(el => {
         const target = parseInt(el.getAttribute('data-target'), 10);
         const suffix = el.getAttribute('data-suffix') || '';
+
+        if (reduceMotion || isNaN(target)) {
+            el.textContent = (isNaN(target) ? '0' : target.toLocaleString('vi-VN')) + suffix;
+            return;
+        }
+
         const duration = 1500;
         const frameRate = 1000 / 60;
         const totalFrames = Math.round(duration / frameRate);

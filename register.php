@@ -53,6 +53,7 @@ $schools=[];foreach($classes as $class){$schools[$class['schoolId']]=['id'=>$cla
     <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <meta name="description" content="Tạo tài khoản học viên TalentHub và bắt đầu xây dựng hồ sơ năng lực.">
     <title>Đăng ký học viên | TalentHub</title>
     <link rel="stylesheet" href="assets/css/home.css">

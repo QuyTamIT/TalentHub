@@ -7,62 +7,10 @@
    1. Page Base & Layout
    -------------------------------------------------------------------------- */
 .auth-page {
-    /* Unified Sunset / Coral Brand System */
-    --primary:                  #FF6B45;
-    --primary-coral:            #F83F70;
-    --primary-pink:             #F23585;
-    --primary-purple:           #A14FC9;
-    --primary-violet:           #8B4DE8;
-    --primary-hover:            #F83F70;
-    --primary-light:            #FFF0EB;
-    --primary-light-border:     #FFDACB;
-    --primary-dark:             #E04058;
-    --primary-accent:           #FF6B45;
-    --color-brand:              #FF6B45;
-    --color-brand-hover:        #F83F70;
-
-    --secondary:                #A14FC9;
-    --secondary-hover:          #8B4DE8;
-    --secondary-light:          #FAF5FF;
-    --accent:                   #F23585;
-    --accent-hover:             #F83F70;
-    --accent-light:             #FFF0EB;
-
-    /* Semantic Warm Surfaces & Background */
-    --background:               #FDF7F1;
-    --surface:                  #FFFFFF;
-    --surface-hover:            #FFF7F2;
-    --border:                   #F0E6DD;
-    --border-hover:             #FFDACB;
-    --border-strong:            #E5D7CC;
-    --border-subtle:            #FDF7F1;
-
-    /* Semantic Warm Typography System */
-    --text-primary:             #322014;
-    --text-main:                #322014;
-    --text-secondary:           #6B5548;
-    --text-muted:               #9E897D;
-    --text-disabled:            #B8A599;
-
-    /* Shadows & Focus Ring */
-    --shadow-soft:              0 4px 20px rgba(50, 32, 20, 0.04);
-    --shadow-glow:              0 6px 20px rgba(248, 63, 112, 0.28);
-    --focus-ring:               0 0 0 3.5px rgba(255, 107, 69, 0.22);
-
-    /* Gradients */
-    --primary-gradient:         linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
-    --primary-gradient-subtle:  linear-gradient(135deg, #FFF0EB 0%, #FAF5FF 100%);
-
-    /* Brand Component Scoped Overrides */
-    --brand-icon-bg:            var(--primary-gradient);
-    --brand-icon-shadow:        0 2px 8px rgba(248, 63, 112, 0.35);
-    --brand-name-hub-color:     var(--primary-coral);
-    --brand-name-color:         var(--text-primary);
-    --brand-sub-color:          var(--primary-coral);
+    /* Brand tokens are shared via portal-tokens.css — do NOT duplicate here. */
 
     min-height: 100vh;
-    background: var(--background) !important;
-    background-color: #FDF7F1 !important;
+    background: var(--background);
     color: var(--text-primary);
 }
 
@@ -470,9 +418,9 @@
     -webkit-appearance: none;
     -moz-appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239E897D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat !important;
-    background-position: right 14px center !important;
-    background-size: 16px 16px !important;
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 16px 16px;
     cursor: pointer;
 }
 
@@ -485,20 +433,20 @@
 .auth-field input:focus,
 .auth-field select:focus,
 .auth-page .typeui-select:focus {
-    border-color: var(--primary, #FF6B45) !important;
-    background-color: #FFFFFF !important;
+    border-color: var(--primary, #FF6B45);
+    background-color: var(--surface, #FFFFFF);
     box-shadow:
         0 0 0 3.5px rgba(255, 107, 69, 0.20),
-        0 1px 2px rgba(50, 32, 20, 0.04) inset !important;
-    outline: none !important;
+        0 1px 2px rgba(50, 32, 20, 0.04) inset;
+    outline: none;
 }
 
 .auth-field input[aria-invalid="true"],
 .auth-field select[aria-invalid="true"],
 .auth-page .typeui-select[aria-invalid="true"] {
-    border-color: #DC2626 !important;
-    background-color: #FFF8F8 !important;
-    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+    border-color: var(--color-danger, #DC2626);
+    background-color: #FFF8F8;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
 }
 
 .auth-field input:disabled,
@@ -506,12 +454,12 @@
 .auth-page .typeui-select:disabled,
 .auth-page select.typeui-select:disabled {
     cursor: not-allowed;
-    background-color: var(--background, #FDF7F1) !important;
-    color: var(--text-disabled, #B8A599) !important;
-    border-color: var(--border, #F0E6DD) !important;
-    background-repeat: no-repeat !important;
-    background-position: right 14px center !important;
-    background-size: 16px 16px !important;
+    background-color: var(--background, #FDF7F1);
+    color: var(--text-disabled, #B8A599);
+    border-color: var(--border, #F0E6DD);
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 16px 16px;
     opacity: 0.85;
 }
 
@@ -583,7 +531,7 @@
     border: none;
     border-radius: var(--radius-md, 12px);
     background: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
-    color: #FFFFFF !important;
+    color: var(--text-inverse, #FFFFFF);
     font-family: var(--font-primary);
     font-size: 1rem;
     font-weight: var(--font-extrabold);
@@ -617,10 +565,10 @@
 
 .auth-submit:disabled {
     cursor: not-allowed;
-    background: #E5D7CC !important;
-    color: #9E897D !important;
-    box-shadow: none !important;
-    transform: none !important;
+    background: var(--border-strong, #E5D7CC);
+    color: var(--text-muted, #9E897D);
+    box-shadow: none;
+    transform: none;
 }
 
 .auth-submit.is-loading { justify-content: center; }
@@ -804,7 +752,7 @@
     /* Prevent iOS zoom on input focus */
     .auth-field input,
     .auth-field select {
-        font-size: 16px;
+        font-size: var(--text-lg);
     }
 }
 
@@ -905,11 +853,11 @@
 .auth-field input:focus,
 .auth-field select:focus,
 .auth-page .typeui-select:focus {
-    border-color: var(--primary, #FF6B45) !important;
+    border-color: var(--primary, #FF6B45);
     box-shadow:
         0 0 0 3.5px rgba(255, 107, 69, 0.20),
-        0 1px 2px rgba(50, 32, 20, 0.04) inset !important;
-    background: #ffffff !important;
+        0 1px 2px rgba(50, 32, 20, 0.04) inset;
+    background: var(--surface, #ffffff);
 }
 
 /* --------------------------------------------------------------------------
@@ -1032,7 +980,7 @@
 
 /* Panel: warm light canvas */
 .auth-panel {
-    background: var(--background, #FDF7F1) !important;
+    background: var(--background, #FDF7F1);
 }
 
 /* Heading h2: warm dark text */
@@ -1061,16 +1009,16 @@
 .auth-field input:focus,
 .auth-field select:focus,
 .auth-page .typeui-select:focus {
-    border-color: var(--primary, #FF6B45) !important;
-    background-color: #ffffff !important;
+    border-color: var(--primary, #FF6B45);
+    background-color: var(--surface, #ffffff);
     box-shadow:
         0 0 0 3.5px rgba(255, 107, 69, 0.20),
-        0 1px 2px rgba(50, 32, 20, 0.04) inset !important;
+        0 1px 2px rgba(50, 32, 20, 0.04) inset;
 }
 
 /* Submit button: Sunset Coral Brand Gradient */
 .auth-submit {
-    background: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%) !important;
+    background: linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
     border-radius: var(--radius-md, 12px);
     box-shadow:
         0 4px 14px rgba(248, 63, 112, 0.35),
@@ -1082,7 +1030,7 @@
 }
 
 .auth-submit:hover:not(:disabled) {
-    background: linear-gradient(135deg, #F83F70 0%, #F23585 28%, #A14FC9 65%, #8B4DE8 100%) !important;
+    background: linear-gradient(135deg, #F83F70 0%, #F23585 28%, #A14FC9 65%, #8B4DE8 100%);
     box-shadow:
         0 6px 20px rgba(248, 63, 112, 0.45),
         0 3px 8px rgba(255, 107, 69, 0.25);

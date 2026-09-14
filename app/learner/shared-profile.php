@@ -97,6 +97,7 @@ if (!function_exists('shared_hours_label')) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
   <title><?= $resolved ? shared_escape($resolved['student']['fullName'] ?? 'Hồ sơ học viên') : 'Hồ sơ không khả dụng' ?> | Xác thực Năng lực TalentHub</title>
   <link rel="stylesheet" href="../../assets/css/home.css">
   <link rel="stylesheet" href="../../assets/css/learner.css">

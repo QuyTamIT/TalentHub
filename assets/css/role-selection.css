@@ -5,64 +5,13 @@
 
 /* Page Container Layout & Scoped Brand Tokens */
 .role-selection-page {
-    /* Unified Sunset / Coral Brand System */
-    --primary:                  #FF6B45;
-    --primary-coral:            #F83F70;
-    --primary-pink:             #F23585;
-    --primary-purple:           #A14FC9;
-    --primary-violet:           #8B4DE8;
-    --primary-hover:            #F83F70;
-    --primary-light:            #FFF0EB;
-    --primary-light-border:     #FFDACB;
-    --primary-dark:             #E04058;
-    --primary-accent:           #FF6B45;
-    --color-brand:              #FF6B45;
-    --color-brand-hover:        #F83F70;
-
-    --secondary:                #A14FC9;
-    --secondary-hover:          #8B4DE8;
-    --secondary-light:          #FAF5FF;
-    --accent:                   #F23585;
-    --accent-hover:             #F83F70;
-    --accent-light:             #FFF0EB;
-
-    /* Semantic Warm Surfaces & Background */
-    --background:               #FDF7F1;
-    --surface:                  #FFFFFF;
-    --surface-hover:            #FFF7F2;
-    --border:                   #F0E6DD;
-    --border-hover:             #FFDACB;
-    --border-strong:            #E5D7CC;
-    --border-subtle:            #FDF7F1;
-
-    /* Semantic Warm Typography System */
-    --text-primary:             #322014;
-    --text-main:                #322014;
-    --text-secondary:           #6B5548;
-    --text-muted:               #9E897D;
-    --text-disabled:            #B8A599;
-
-    /* Shadows & Focus Ring */
-    --shadow-soft:              0 4px 20px rgba(50, 32, 20, 0.04);
-    --shadow-glow:              0 6px 20px rgba(248, 63, 112, 0.28);
-    --focus-ring:               0 0 0 3.5px rgba(255, 107, 69, 0.22);
-
-    /* Gradients */
-    --primary-gradient:         linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
-    --primary-gradient-subtle:  linear-gradient(135deg, #FFF0EB 0%, #FAF5FF 100%);
-
-    /* Brand Component Scoped Overrides */
-    --brand-icon-bg:            var(--primary-gradient);
-    --brand-icon-shadow:        0 2px 8px rgba(248, 63, 112, 0.35);
-    --brand-name-hub-color:     var(--primary-coral);
-    --brand-name-color:         var(--text-primary);
-    --brand-sub-color:          var(--primary-coral);
+    /* Brand tokens are shared via portal-tokens.css — do NOT duplicate here. */
 
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background-color: var(--background, #FDF7F1) !important;
-    color: var(--text-primary, #322014);
+    background-color: var(--background);
+    color: var(--text-primary);
 }
 
 /* Header Component */

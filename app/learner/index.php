@@ -88,6 +88,7 @@ if ($dashboardAiSummary === '') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <meta name="description" content="Tổng quan hành trình phát triển năng lực của <?= learner_escape($student['name']); ?> trên TalentHub.">
     <title>Tổng quan Học sinh | TalentHub</title>
     <meta name="csrf-token" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
@@ -135,7 +136,7 @@ if ($dashboardAiSummary === '') {
                     </div>
 
                     <div class="learner-welcome__visual" aria-hidden="true">
-                        <img class="learner-welcome__image" src="../../assets/images/learner/learner-journey-hero-v3.png" alt="" width="1448" height="1086" loading="eager" decoding="async">
+                        <img class="learner-welcome__image" src="../../assets/images/learner/learner-journey-hero-v3.png" alt="Học viên đang khám phá hành trình phát triển tài năng trên TalentHub" width="1448" height="1086" loading="eager" fetchpriority="high" decoding="async">
                     </div>
                 </section>
 

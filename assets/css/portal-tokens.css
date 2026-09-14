@@ -1,0 +1,95 @@
+/* ==========================================================================
+   TalentHub — Shared Portal Design Tokens (portal-tokens.css)
+   SINGLE SOURCE OF TRUTH for all portal color tokens.
+   Import this file in every portal CSS instead of duplicating variables.
+   Load order: home.css → portal-tokens.css → [portal].css
+   ========================================================================== */
+
+/* ── Sunset / Coral Brand System (shared across ALL portals) ── */
+.learner-app,
+body.learner-app,
+body.teacher-dashboard,
+.teacher-dashboard,
+body.school-dashboard,
+.school-dashboard,
+.enterprise-dashboard,
+.admin-shell,
+.auth-page,
+.role-selection-page,
+.contact-page {
+    /* ── Brand Colors ── */
+    --primary:                  #FF6B45;
+    --primary-coral:            #F83F70;
+    --primary-pink:             #F23585;
+    --primary-purple:           #A14FC9;
+    --primary-violet:           #8B4DE8;
+    --primary-hover:            #F83F70;
+    --primary-light:            #FFF0EB;
+    --primary-light-border:     #FFDACB;
+    --primary-dark:             #E04058;
+    --primary-accent:           #FF6B45;
+    --color-brand:              #FF6B45;
+    --color-brand-hover:        #F83F70;
+
+    --secondary:                #A14FC9;
+    --secondary-hover:          #8B4DE8;
+    --secondary-light:          #FAF5FF;
+    --accent:                   #F23585;
+    --accent-hover:             #F83F70;
+    --accent-light:             #FFF0EB;
+
+    /* ── Semantic Warm Surfaces & Background ── */
+    --background:               #FDF7F1;
+    --surface:                  #FFFFFF;
+    --surface-hover:            #FFF7F2;
+    --border:                   #F0E6DD;
+    --border-hover:             #FFDACB;
+    --border-strong:            #E5D7CC;
+    --border-subtle:            #FDF7F1;
+
+    /* ── Semantic Warm Typography System ── */
+    --text-primary:             #322014;
+    --text-main:                #322014;
+    --text-secondary:           #6B5548;
+    --text-muted:               #9E897D;
+    --text-disabled:            #B8A999;
+
+    /* ── Shadows & Focus Ring ── */
+    --shadow-soft:              0 4px 20px rgba(50, 32, 20, 0.04);
+    --shadow-glow:              0 6px 20px rgba(248, 63, 112, 0.28);
+    --focus-ring:               0 0 0 3px rgba(248, 63, 112, 0.25);
+
+    /* ── Typography Scale ── */
+    --text-xs:    0.75rem;     /* 12px */
+    --text-sm:    0.8125rem;   /* 13px */
+    --text-base:  0.875rem;    /* 14px */
+    --text-md:    0.9375rem;   /* 15px */
+    --text-lg:    1rem;        /* 16px */
+    --text-xl:    1.125rem;    /* 18px */
+    --text-2xl:   1.25rem;     /* 20px */
+    --text-3xl:   1.5rem;      /* 24px */
+    --text-4xl:   1.875rem;    /* 30px */
+
+    /* ── Font Weight ── */
+    --font-normal:   400;
+    --font-medium:   500;
+    --font-semibold: 600;
+    --font-bold:     700;
+
+    /* ── Line Heights ── */
+    --leading-tight:  1.25;
+    --leading-snug:   1.375;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.625;
+
+    /* ── Gradients ── */
+    --primary-gradient:         linear-gradient(135deg, #FF6B45 0%, #F83F70 25%, #F23585 50%, #A14FC9 75%, #8B4DE8 100%);
+    --primary-gradient-subtle:  linear-gradient(135deg, #FFF0EB 0%, #FAF5FF 100%);
+
+    /* ── Brand Component Overrides ── */
+    --brand-icon-bg:            var(--primary-gradient);
+    --brand-icon-shadow:        0 2px 8px rgba(248, 63, 112, 0.35);
+    --brand-name-hub-color:     var(--primary-coral);
+    --brand-name-color:         var(--text-primary);
+    --brand-sub-color:          var(--primary-coral);
+}

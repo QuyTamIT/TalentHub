@@ -92,6 +92,7 @@ unset($role);
     <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <meta name="description" content="TalentHub - Chọn vai trò để bắt đầu đăng ký tài khoản phù hợp.">
     <title>Chọn vai trò đăng ký | TalentHub</title>
     

@@ -333,6 +333,7 @@ $totalPledgedDisplay  = $totalPledgedAmount > 0
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <meta name="description" content="Sàn ươm mầm sáng tạo và tài trợ các dự án nghiên cứu đột phá từ học sinh, sinh viên - TalentHub Enterprise.">
     <title>Tài trợ Dự án & Ươm mầm Sáng tạo - Enterprise | TalentHub</title>
 

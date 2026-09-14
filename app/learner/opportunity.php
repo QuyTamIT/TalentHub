@@ -27,6 +27,7 @@ $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nh�
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <meta name="description" content="Chi tiết cơ hội học tập và nghề nghiệp dành cho học sinh, sinh viên trên TalentHub.">
     <title><?= learner_escape($opportunity['title'] ?? 'Không tìm thấy cơ hội'); ?> | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">

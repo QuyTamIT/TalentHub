@@ -12,6 +12,7 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <meta name="description" content="Hồ sơ năng lực đã xác minh của <?= learner_escape($student['name']); ?> trên TalentHub.">
     <meta name="csrf-token" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ''); ?>">
     <title>Hồ sơ năng lực | TalentHub</title>
@@ -476,7 +477,7 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                 </label>
 
                 <div class="learner-modal__actions" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-                    <a class="learner-btn learner-btn--outline" href="talent-passport.php" target="_blank" style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.875rem;">
+                    <a class="learner-btn learner-btn--outline" href="talent-passport.php" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.875rem;">
                         <?= learner_icon('printer', 16); ?> Tải bản in PDF
                     </a>
                     <div style="display: flex; gap: 0.5rem;">
@@ -663,7 +664,7 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                     <a href="ecosystem.php?tab=enterprises&amp;filter=completed" class="learner-btn learner-btn--outline" style="border-color: #FDBA74; color: #EA580C; display: inline-flex; align-items: center; gap: 5px;">
                         <?= learner_icon('sparkles', 15); ?> Doanh nghiệp Hệ sinh thái
                     </a>
-                    <a href="#" class="learner-btn learner-btn--primary" data-intern-eco-link style="display: inline-flex; align-items: center; gap: 5px;" target="_blank">
+                    <a href="#" class="learner-btn learner-btn--primary" data-intern-eco-link style="display: inline-flex; align-items: center; gap: 5px;" target="_blank" rel="noopener noreferrer">
                         Xem hồ sơ Doanh nghiệp <?= learner_icon('arrow-right', 15); ?>
                     </a>
                 </div>

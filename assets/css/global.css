@@ -36,8 +36,9 @@
 }
 
 .btn:focus-visible {
-    box-shadow: var(--focus-ring);
-    outline: none;
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary);
+    outline: 2px solid transparent;
+    outline-offset: 3px;
 }
 
 .btn:disabled,
@@ -3971,7 +3972,7 @@ body {
     textarea:not(:disabled),
     [tabindex]:not([tabindex="-1"])
 ):focus-visible {
-    outline: 3px solid var(--primary, #c2410c) !important;
+    outline: 3px solid var(--primary, #c2410c);
     outline-offset: 3px;
-    box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--primary, #c2410c) !important;
+    box-shadow: 0 0 0 2px var(--surface, #fff), 0 0 0 5px var(--primary, #c2410c);
 }

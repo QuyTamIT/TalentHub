@@ -42,6 +42,7 @@ $bootData = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <meta name="description" content="Thực hiện bài đánh giá năng khiếu trên TalentHub.">
     <title><?= learner_escape($assessmentName); ?> | TalentHub</title>
     <meta name="csrf-token" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">

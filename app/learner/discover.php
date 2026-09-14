@@ -25,6 +25,7 @@ $onboardingStateLabels = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <meta name="description" content="Khám phá năng khiếu và định hướng phát triển của bạn trên TalentHub.">
     <title>Khám phá năng khiếu | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
