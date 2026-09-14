@@ -147,7 +147,8 @@ ob_start();
 require dirname(__DIR__) . '/app/learner/profile.php';
 $profileHtml = ob_get_clean();
 
-assertCondition("Profile page has button 'Xem & Tải Talent Passport'", str_contains($profileHtml, 'talent-passport.php') && str_contains($profileHtml, 'Talent Passport'));
+assertCondition("Profile page has button 'Xuất CV' linking to talent-passport-cv.php", str_contains($profileHtml, 'talent-passport-cv.php') && str_contains($profileHtml, 'Xuất CV') && !str_contains($profileHtml, 'Xuất CV A4'));
+assertCondition("Profile page does NOT link to talent-passport.php", !str_contains($profileHtml, 'href="talent-passport.php"'));
 assertCondition("Profile edit modal supports educationLevel select", str_contains($profileHtml, 'name="educationLevel"') && str_contains($profileHtml, 'THCS / THPT'));
 
 // 3. Render app/learner/badges.php (and app/student/badges.php)

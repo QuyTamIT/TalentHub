@@ -181,20 +181,50 @@ $onboardingStateLabels = [
                 <div class="learner-discovery-grid">
                     <section class="learner-card learner-radar-card" aria-labelledby="radar-title">
                         <div class="learner-discover-section-heading">
-                            <h2 id="radar-title">Bản đồ năng khiếu</h2>
-                            <span><i aria-hidden="true"></i> Điểm nổi trội</span>
+                            <div>
+                                <h2 id="radar-title">Bản đồ năng khiếu</h2>
+                                <p class="learner-discover-subtitle">Đa trí thông minh – Multiple Intelligence</p>
+                            </div>
+                            <span class="learner-discover-highlight-tag"><i aria-hidden="true"></i> Điểm nổi trội</span>
                         </div>
 
                         <div class="learner-discovery-talent-list" data-discovery-talents aria-label="Điểm đa trí thông minh" aria-live="polite"></div>
                     </section>
 
-                    <section class="learner-card learner-directions" aria-labelledby="directions-title">
+                    <section class="learner-card learner-directions learner-directions--gradient" aria-labelledby="directions-title">
                         <div class="learner-directions__heading">
                             <span>Kết quả tổng hợp</span>
                             <h2 id="directions-title">Định hướng của bạn</h2>
+                            <p class="learner-discover-subtitle">Dựa trên trắc nghiệm xu hướng nghề nghiệp Holland (RIASEC)</p>
                         </div>
                         <div class="learner-direction-list" data-discovery-career aria-live="polite"></div>
-                        <a class="learner-btn learner-btn--primary learner-directions__action" href="ecosystem.php">Khám phá cơ hội phù hợp <?= learner_icon('arrow-right', 17); ?></a>
+                        <a class="learner-btn learner-btn--white learner-directions__action" href="ecosystem.php">Khám phá cơ hội phù hợp <?= learner_icon('arrow-right', 17); ?></a>
+                    </section>
+                </div>
+
+                <div class="learner-discovery-grid learner-discovery-grid--secondary">
+                    <section class="learner-card learner-personality-card" aria-labelledby="mbti-title">
+                        <div class="learner-discover-section-heading">
+                            <div>
+                                <h2 id="mbti-title">Xu hướng tính cách</h2>
+                                <p class="learner-discover-subtitle">Trắc nghiệm tính cách MBTI (Myers-Briggs)</p>
+                            </div>
+                            <span class="learner-personality-tag" data-discovery-mbti-badge>—</span>
+                        </div>
+                        <p class="learner-discovery-summary-text" data-discovery-mbti-summary></p>
+                        <div class="learner-mbti-bipolar-list" data-discovery-mbti aria-label="Chỉ số 4 cặp tính cách MBTI" aria-live="polite"></div>
+                    </section>
+
+                    <section class="learner-card learner-behavior-card" aria-labelledby="disc-title">
+                        <div class="learner-discover-section-heading">
+                            <div>
+                                <h2 id="disc-title">Phong cách hành vi</h2>
+                                <p class="learner-discover-subtitle">Mô hình phong cách hành vi & giao tiếp DISC</p>
+                            </div>
+                            <span class="learner-behavior-tag" data-discovery-disc-badge>—</span>
+                        </div>
+                        <p class="learner-discovery-summary-text" data-discovery-disc-summary></p>
+                        <div class="learner-direction-list" data-discovery-disc aria-label="Chỉ số hành vi DISC" aria-live="polite"></div>
                     </section>
                 </div>
 

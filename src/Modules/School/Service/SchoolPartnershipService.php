@@ -41,6 +41,18 @@ final class SchoolPartnershipService
         return $this->repository->createPartnershipRequest($enterpriseId, $userId, $schoolId);
     }
 
+    public function requestPartnershipFromSchool(string $userId, array $input): array
+    {
+        $schoolId = $this->repository->schoolIdForUser($userId);
+        $enterpriseId = trim((string) ($input['enterpriseId'] ?? ''));
+
+        if (!Uuid::isValid($enterpriseId)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Mã doanh nghiệp không hợp lệ.');
+        }
+
+        return $this->repository->createSchoolPartnershipRequest($schoolId, $userId, $enterpriseId);
+    }
+
     public function listSchoolPartnerships(string $userId, ?string $status = null): array
     {
         $schoolId = $this->repository->schoolIdForUser($userId);

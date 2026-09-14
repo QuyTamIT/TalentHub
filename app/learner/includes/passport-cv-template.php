@@ -2,20 +2,33 @@
 /** @var array $cv Fresh, bounded PassportCvViewModel output. No database or sharing side effects here. */
 $escapeCv = static fn($value): string => htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $cvVerificationUrl = $verificationUrl ?? ((function_exists('app_href') ? app_href('/app/learner/shared-profile.php') : '/app/learner/shared-profile.php') . '?code=' . urlencode($cv['passport_code'] ?? ''));
+$isGuestView = $isGuestView ?? false;
 ?>
 <!doctype html>
 <html lang="vi">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title><?= $escapeCv($cv['name']); ?> - CV Talent Passport</title>
+    <title><?= $escapeCv($cv['name']); ?> - CV Năng lực TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/learner-passport-cv.css?v=<?= @filemtime(dirname(__DIR__, 3) . '/assets/css/learner-passport-cv.css') ?: time(); ?>">
 </head>
 <body data-cv-preview>
     <nav class="cv-toolbar" aria-label="Xuất CV">
-        <a href="talent-passport.php">← Talent Passport</a>
-        <p>CV 2 cột chọn lọc 1 trang A4. Khi lưu PDF: chọn A4, tỷ lệ 100%, bật đồ họa nền, tắt đầu/chân trang của trình duyệt.</p>
-        <button type="button" data-cv-export>Lấy dữ liệu mới &amp; xuất PDF</button>
+        <?php if ($isGuestView): ?>
+            <span style="font-weight: 700; color: #1e3a8a; display: inline-flex; align-items: center; gap: 6px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Hồ sơ CV xác thực điện tử bởi TalentHub • Mã số: <?= $escapeCv($cv['passport_code'] ?? ''); ?>
+            </span>
+            <p style="margin: 0; color: #475569; font-size: 13px;">Bản CV chuẩn A4 được trích xuất từ dữ liệu chứng thực của nhà trường.</p>
+            <button type="button" onclick="window.print()" style="background: #1e40af; display: inline-flex; align-items: center; gap: 6px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                In / Tải PDF
+            </button>
+        <?php else: ?>
+            <a href="profile.php">← Hồ sơ năng lực</a>
+            <p>CV 2 cột chọn lọc 1 trang A4. Khi lưu PDF: chọn A4, tỷ lệ 100%, bật đồ họa nền, tắt đầu/chân trang của trình duyệt.</p>
+            <button type="button" data-cv-export>Lấy dữ liệu mới &amp; xuất PDF</button>
+        <?php endif; ?>
     </nav>
     <p class="cv-error" data-cv-error role="alert" hidden></p>
     <main class="cv-sheet" aria-label="CV một trang A4">
@@ -27,13 +40,13 @@ $cvVerificationUrl = $verificationUrl ?? ((function_exists('app_href') ? app_hre
                         <div class="cv-profile-block">
                             <div class="cv-avatar">
                                 <?php if (!empty($cv['avatar_url'])): ?>
-                                    <img src="<?= $escapeCv($cv['avatar_url']); ?>" alt="<?= $escapeCv($cv['name']); ?>">
+                                     <img src="<?= $escapeCv($cv['avatar_url']); ?>" alt="<?= $escapeCv($cv['name']); ?>">
                                 <?php else: ?>
                                     <span><?= $escapeCv($cv['initials'] ?: 'SV'); ?></span>
                                 <?php endif; ?>
                             </div>
                             <h1 class="cv-name<?= mb_strlen($cv['name']) > 50 ? ' cv-name-sm' : ''; ?>"><?= $escapeCv($cv['name'] ?: 'Chưa cập nhật họ tên'); ?></h1>
-                            <div class="cv-badge-verified">✓ Xác thực TalentHub 360°</div>
+                            <div class="cv-badge-verified">✓ Xác thực Năng lực TalentHub</div>
                             <?php if (!empty($cv['headline'])): ?>
                                 <p class="cv-headline"><?= $escapeCv($cv['headline']); ?></p>
                             <?php elseif (!empty($cv['class'])): ?>
@@ -139,10 +152,10 @@ $cvVerificationUrl = $verificationUrl ?? ((function_exists('app_href') ? app_hre
                         <div class="cv-seal-inner">
                             <div class="cv-seal-header">
                                 <span class="cv-seal-emblem">🛡️</span>
-                                <span class="cv-seal-title">TALENT PASSPORT 360°</span>
+                                <span class="cv-seal-title">TALENT PASSPORT</span>
                             </div>
                             <div class="cv-seal-qr-wrap">
-                                <div class="cv-seal-qr" id="cv-seal-qr" data-qr-url="<?= $escapeCv($cvVerificationUrl); ?>" role="img" aria-label="Mã QR xác thực CV Talent Passport">
+                                <div class="cv-seal-qr" id="cv-seal-qr" data-qr-url="<?= $escapeCv($cvVerificationUrl); ?>" role="img" aria-label="Mã QR xác thực CV TalentHub">
                                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&amp;data=<?= urlencode($cvVerificationUrl); ?>" alt="QR xác thực CV" class="cv-seal-qr-img" width="58" height="58">
                                 </div>
                             </div>

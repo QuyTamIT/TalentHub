@@ -12,13 +12,11 @@ $onboardingPending = ($onboarding['required'] ?? false) === true
     && ($onboarding['status'] ?? '') === 'pending';
 $dashboardUpcomingActivities = array_slice(learner_activity_catalog(), 0, 3);
 $dashboardActivityDateTime = static function (mixed $value): array {
-    $rawValue = trim((string) $value);
-    if ($rawValue === '') {
+    if ($value === null || (is_string($value) && trim($value) === '')) {
         return ['date' => '--/--', 'time' => 'Chưa cập nhật'];
     }
     try {
-        $date = new DateTimeImmutable($rawValue, new DateTimeZone('UTC'));
-        return ['date' => $date->format('d/m'), 'time' => $date->format('H:i')];
+        return tz_split($value);
     } catch (Throwable) {
         return ['date' => '--/--', 'time' => 'Chưa cập nhật'];
     }

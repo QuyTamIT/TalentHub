@@ -490,14 +490,24 @@
             { code: 'C', label: 'Nghiệp vụ — Tổ chức', tone: 'primary' },
         ]),
         multiple_intelligence: Object.freeze([
-            { code: 'LING', label: 'Ngôn ngữ', tone: 'primary' },
-            { code: 'LOGI', label: 'Logic — Toán học', tone: 'secondary' },
-            { code: 'SPAT', label: 'Không gian — Hình ảnh', tone: 'warning' },
-            { code: 'BODY', label: 'Vận động — Cơ thể', tone: 'success' },
+            { code: 'LOGI', label: 'Logic', tone: 'secondary' },
+            { code: 'SPAT', label: 'Sáng tạo', tone: 'warning' },
+            { code: 'BODY', label: 'Vận động', tone: 'success' },
+            { code: 'INTER', label: 'Giao tiếp', tone: 'primary' },
             { code: 'MUSIC', label: 'Âm nhạc', tone: 'warning' },
-            { code: 'INTER', label: 'Tương tác xã hội', tone: 'success' },
-            { code: 'INTRA', label: 'Nội tâm', tone: 'primary' },
             { code: 'NAT', label: 'Tự nhiên', tone: 'success' },
+        ]),
+        disc: Object.freeze([
+            { code: 'D', label: 'Thống trị — Quyết đoán', short: 'D', tone: 'primary' },
+            { code: 'I', label: 'Ảnh hưởng — Cởi mở', short: 'I', tone: 'warning' },
+            { code: 'S', label: 'Kiên định — Hòa hợp', short: 'S', tone: 'success' },
+            { code: 'C', label: 'Tận tâm — Chuẩn mực', short: 'C', tone: 'secondary' },
+        ]),
+        mbti: Object.freeze([
+            { axis: 'EI', leftCode: 'E', leftLabel: 'Hướng ngoại', rightCode: 'I', rightLabel: 'Hướng nội' },
+            { axis: 'SN', leftCode: 'S', leftLabel: 'Thực tế', rightCode: 'N', rightLabel: 'Trực giác' },
+            { axis: 'TF', leftCode: 'T', leftLabel: 'Lý trí', rightCode: 'F', rightLabel: 'Cảm xúc' },
+            { axis: 'JP', leftCode: 'J', leftLabel: 'Nguyên tắc', rightCode: 'P', rightLabel: 'Linh hoạt' },
         ]),
     });
 
@@ -618,9 +628,39 @@
                 score: Number(scores[dimension.code]) || 0,
             }));
         };
+
+        const mbtiItem = latestByType.get('mbti') || null;
+        let mbtiAxes = [];
+        if (mbtiItem) {
+            const scores = mbtiItem.dimension_scores && typeof mbtiItem.dimension_scores === 'object'
+                ? mbtiItem.dimension_scores
+                : {};
+            mbtiAxes = (DISCOVERY_DIMENSIONS.mbti || []).map((axisDef) => {
+                const leftScore = Number(scores[axisDef.leftCode]) || 0;
+                const rightScore = Number(scores[axisDef.rightCode]) || 0;
+                const total = leftScore + rightScore;
+                const leftPercent = total > 0 ? Math.round((leftScore / total) * 100) : 50;
+                const rightPercent = 100 - leftPercent;
+                return {
+                    ...axisDef,
+                    leftScore,
+                    rightScore,
+                    leftPercent,
+                    rightPercent,
+                    dominant: leftScore >= rightScore ? axisDef.leftCode : axisDef.rightCode,
+                };
+            });
+        }
+
         return {
             career: latestByType.has('holland') ? present('holland') : [],
+            careerItem: latestByType.get('holland') || null,
             talents: latestByType.has('multiple_intelligence') ? present('multiple_intelligence') : [],
+            talentsItem: latestByType.get('multiple_intelligence') || null,
+            disc: latestByType.has('disc') ? present('disc') : [],
+            discItem: latestByType.get('disc') || null,
+            mbti: mbtiAxes,
+            mbtiItem,
         };
     }
 
@@ -1008,9 +1048,6 @@
             const description = createTextElement(doc, 'p', item?.description || meta.description);
             article.appendChild(title);
             article.appendChild(description);
-            if (complete && item?.latest_result?.result_code) {
-                article.appendChild(createTextElement(doc, 'span', item.latest_result.result_code, 'learner-assessment-card__result'));
-            }
             const action = doc.createElement(published ? 'a' : 'button');
             action.className = `learner-btn learner-btn--${published ? (complete ? 'primary' : 'primary') : 'secondary'} learner-btn--block`;
             action.textContent = published ? (item?.attempt_status === 'in_progress' ? 'Tiếp tục bài test' : (complete ? 'Làm lại bài đánh giá' : 'Bắt đầu bài test')) : 'Chưa có phiên bản được duyệt';
@@ -1021,7 +1058,7 @@
                 const resultLink = doc.createElement('a');
                 resultLink.className = 'learner-btn learner-btn--outline learner-btn--block';
                 resultLink.href = `assessment-result.php?code=${encodeURIComponent(code)}&attempt=${encodeURIComponent(item.latest_result.id)}${bandQuery}`;
-                resultLink.textContent = `Xem kết quả ${item.latest_result.result_code || ''}`.trim();
+                resultLink.textContent = 'Xem kết quả';
                 article.appendChild(resultLink);
             }
             cards.appendChild(article);
@@ -1035,12 +1072,17 @@
     }
 
     function renderTalentRadar(doc, container, talents) {
-        const width = 520;
-        const height = 320;
+        const width = 540;
+        const height = 330;
         const centerX = width / 2;
         const centerY = height / 2;
-        const radius = 105;
+        const radius = 96;
         const count = talents.length;
+        const scores = talents.map((t) => Number(t.score) || 0);
+        const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
+        const minScore = scores.length > 0 ? Math.min(...scores) : 0;
+        const hasVariation = maxScore > minScore;
+
         const pointAt = (index, scale = 1) => {
             const angle = (-Math.PI / 2) + ((Math.PI * 2 * index) / count);
             return [centerX + Math.cos(angle) * radius * scale, centerY + Math.sin(angle) * radius * scale];
@@ -1054,7 +1096,7 @@
             class: 'learner-radar',
             viewBox: `0 0 ${width} ${height}`,
             role: 'img',
-            'aria-label': talents.map((item) => `${item.label} ${item.score}`).join(', '),
+            'aria-label': talents.map((item) => `${item.label} ${item.score}%`).join(', '),
         });
         [0.25, 0.5, 0.75, 1].forEach((scale) => {
             svg.appendChild(createSvgElement(doc, 'polygon', {
@@ -1077,23 +1119,46 @@
             points: points((item) => Math.max(0, Math.min(100, Number(item.score) || 0)) / 100),
         }));
         talents.forEach((item, index) => {
-            const scoreScale = Math.max(0, Math.min(100, Number(item.score) || 0)) / 100;
+            const numScore = Math.max(0, Math.min(100, Number(item.score) || 0));
+            const scoreScale = numScore / 100;
             const [pointX, pointY] = pointAt(index, scoreScale);
+            const isDominant = hasVariation && maxScore > 0 && numScore === maxScore;
+
+            if (isDominant) {
+                svg.appendChild(createSvgElement(doc, 'circle', {
+                    class: 'learner-radar__point learner-radar__point--highlight-ring',
+                    cx: pointX,
+                    cy: pointY,
+                    r: 9,
+                }));
+            }
+
             svg.appendChild(createSvgElement(doc, 'circle', {
-                class: 'learner-radar__point',
+                class: `learner-radar__point${isDominant ? ' learner-radar__point--highlight' : ''}`,
                 cx: pointX,
                 cy: pointY,
-                r: 4,
+                r: isDominant ? 5.5 : 3.5,
             }));
-            const [labelX, labelY] = pointAt(index, 1.28);
+
+            const [labelX, labelY] = pointAt(index, 1.32);
             const label = createSvgElement(doc, 'text', {
-                class: 'learner-radar__labels',
+                class: `learner-radar__labels${isDominant ? ' is-dominant' : ''}`,
                 x: labelX,
                 y: labelY,
-                'text-anchor': labelX < centerX - 8 ? 'end' : (labelX > centerX + 8 ? 'start' : 'middle'),
+                'text-anchor': labelX < centerX - 10 ? 'end' : (labelX > centerX + 10 ? 'start' : 'middle'),
                 'dominant-baseline': 'middle',
             });
-            label.textContent = `${item.label} ${item.score}`;
+            const nameSpan = createSvgElement(doc, 'tspan', {
+                class: 'learner-radar__label-name',
+            });
+            nameSpan.textContent = item.label;
+            const scoreSpan = createSvgElement(doc, 'tspan', {
+                class: isDominant ? 'learner-radar__score--highlight' : 'learner-radar__score',
+                dx: '5',
+            });
+            scoreSpan.textContent = `${numScore}%`;
+            label.appendChild(nameSpan);
+            label.appendChild(scoreSpan);
             svg.appendChild(label);
         });
         container.appendChild(svg);
@@ -1101,14 +1166,29 @@
 
     function renderDiscoverySummary(root, summary) {
         const doc = root.ownerDocument || root;
-        const renderEmpty = (container, message) => {
-            container.appendChild(createTextElement(doc, 'p', message, 'learner-discovery-empty'));
+        const renderEmptyWithCta = (container, message, ctaText, ctaHref) => {
+            const emptyWrap = doc.createElement('div');
+            emptyWrap.className = 'learner-discovery-empty-wrap';
+            emptyWrap.appendChild(createTextElement(doc, 'p', message, 'learner-discovery-empty'));
+            if (ctaText && ctaHref) {
+                const link = doc.createElement('a');
+                link.className = 'learner-btn learner-btn--outline learner-btn--sm';
+                link.href = ctaHref;
+                link.textContent = ctaText;
+                emptyWrap.appendChild(link);
+            }
+            container.appendChild(emptyWrap);
         };
         const talents = root.querySelector('[data-discovery-talents]');
         if (talents) {
             while (talents.firstChild) talents.removeChild(talents.firstChild);
             if (!Array.isArray(summary?.talents) || summary.talents.length === 0) {
-                renderEmpty(talents, 'Hoàn thành bài Đa trí thông minh để xem bản đồ năng khiếu.');
+                renderEmptyWithCta(
+                    talents,
+                    'Hoàn thành bài Đa trí thông minh để xem bản đồ năng khiếu.',
+                    'Làm bài Đa trí thông minh',
+                    'assessment.php?code=multiple_intelligence'
+                );
             } else {
                 renderTalentRadar(doc, talents, summary.talents);
             }
@@ -1117,31 +1197,181 @@
         if (career) {
             while (career.firstChild) career.removeChild(career.firstChild);
             if (!Array.isArray(summary?.career) || summary.career.length === 0) {
-                renderEmpty(career, 'Hoàn thành bài Holland để xem định hướng phù hợp.');
+                renderEmptyWithCta(
+                    career,
+                    'Hoàn thành bài Holland để xem định hướng phù hợp.',
+                    'Làm bài Holland',
+                    'assessment.php?code=holland'
+                );
             } else {
+                const careerScores = summary.career.map((i) => Number(i.score) || 0);
+                const maxCareerScore = careerScores.length > 0 ? Math.max(...careerScores) : 0;
+                const minCareerScore = careerScores.length > 0 ? Math.min(...careerScores) : 0;
+                const hasCareerVariation = maxCareerScore > minCareerScore;
+
                 summary.career.forEach((item) => {
+                    const numScore = Math.max(0, Math.min(100, Number(item.score) || 0));
+                    const isTop = hasCareerVariation && maxCareerScore > 0 && numScore === maxCareerScore;
+
                     const article = doc.createElement('article');
-                    article.className = 'learner-direction-row';
+                    article.className = `learner-direction-row${isTop ? ' is-dominant' : ''}`;
                     const content = doc.createElement('div');
                     content.className = 'learner-direction-row__content';
                     const heading = doc.createElement('div');
-                    heading.appendChild(createTextElement(doc, 'span', item.label));
-                    heading.appendChild(createTextElement(doc, 'strong', `${item.score}%`));
+
+                    const titleWrapper = doc.createElement('div');
+                    titleWrapper.className = 'learner-direction-row__title';
+                    titleWrapper.appendChild(createTextElement(doc, 'span', item.label));
+                    if (isTop) {
+                        const topBadge = createTextElement(doc, 'span', 'Nổi trội', 'learner-direction-badge');
+                        titleWrapper.appendChild(topBadge);
+                    }
+                    heading.appendChild(titleWrapper);
+
+                    const scoreEl = createTextElement(doc, 'strong', `${numScore}%`);
+                    if (isTop) scoreEl.className = 'learner-direction-score--dominant';
+                    heading.appendChild(scoreEl);
+
                     const progress = doc.createElement('div');
                     progress.className = 'learner-progress';
                     progress.setAttribute('role', 'progressbar');
                     progress.setAttribute('aria-label', item.label);
                     progress.setAttribute('aria-valuemin', '0');
                     progress.setAttribute('aria-valuemax', '100');
-                    progress.setAttribute('aria-valuenow', String(item.score));
+                    progress.setAttribute('aria-valuenow', String(numScore));
                     const bar = doc.createElement('span');
-                    bar.className = `learner-progress--${item.tone}`;
-                    bar.style.setProperty('--learner-progress', `${item.score}%`);
+                    bar.className = isTop ? 'learner-progress--primary is-dominant' : `learner-progress--${item.tone}`;
+                    bar.style.setProperty('--learner-progress', `${numScore}%`);
                     progress.appendChild(bar);
                     content.appendChild(heading);
                     content.appendChild(progress);
                     article.appendChild(content);
                     career.appendChild(article);
+                });
+            }
+        }
+
+        // Render MBTI (Xu hướng tính cách)
+        const mbtiContainer = root.querySelector('[data-discovery-mbti]');
+        const mbtiBadge = root.querySelector('[data-discovery-mbti-badge]');
+        const mbtiSummary = root.querySelector('[data-discovery-mbti-summary]');
+        if (mbtiContainer) {
+            while (mbtiContainer.firstChild) mbtiContainer.removeChild(mbtiContainer.firstChild);
+            if (!Array.isArray(summary?.mbti) || summary.mbti.length === 0) {
+                if (mbtiBadge) mbtiBadge.textContent = '—';
+                if (mbtiSummary) mbtiSummary.textContent = '';
+                renderEmptyWithCta(
+                    mbtiContainer,
+                    'Hoàn thành bài MBTI để khám phá xu hướng tính cách của bạn.',
+                    'Làm bài MBTI',
+                    'assessment.php?code=mbti'
+                );
+            } else {
+                if (mbtiBadge) mbtiBadge.textContent = summary.mbtiItem?.result_code || summary.mbtiItem?.code || '—';
+                if (mbtiSummary) mbtiSummary.textContent = summary.mbtiItem?.summary || 'Kết quả phân tích 4 cặp đối cực xu hướng tính cách Myers-Briggs.';
+                summary.mbti.forEach((axis) => {
+                    const row = doc.createElement('div');
+                    row.className = 'learner-mbti-row';
+
+                    const labels = doc.createElement('div');
+                    labels.className = 'learner-mbti-labels';
+
+                    const isLeftDominant = axis.leftPercent >= axis.rightPercent;
+                    const leftSpan = createTextElement(
+                        doc,
+                        'span',
+                        `${axis.leftLabel} (${axis.leftCode}) ${axis.leftPercent}%`,
+                        `learner-mbti-label${isLeftDominant ? ' learner-mbti-label--dominant' : ''}`
+                    );
+                    const rightSpan = createTextElement(
+                        doc,
+                        'span',
+                        `${axis.rightPercent}% ${axis.rightLabel} (${axis.rightCode})`,
+                        `learner-mbti-label${!isLeftDominant ? ' learner-mbti-label--dominant' : ''}`
+                    );
+                    labels.appendChild(leftSpan);
+                    labels.appendChild(rightSpan);
+
+                    const bar = doc.createElement('div');
+                    bar.className = 'learner-mbti-bar';
+                    const leftFill = doc.createElement('div');
+                    leftFill.className = `learner-mbti-bar__left${isLeftDominant ? ' is-dominant' : ''}`;
+                    leftFill.style.width = `${axis.leftPercent}%`;
+                    const rightFill = doc.createElement('div');
+                    rightFill.className = `learner-mbti-bar__right${!isLeftDominant ? ' is-dominant' : ''}`;
+                    rightFill.style.width = `${axis.rightPercent}%`;
+                    bar.appendChild(leftFill);
+                    bar.appendChild(rightFill);
+
+                    row.appendChild(labels);
+                    row.appendChild(bar);
+                    mbtiContainer.appendChild(row);
+                });
+            }
+        }
+
+        // Render DISC (Phong cách hành vi)
+        const discContainer = root.querySelector('[data-discovery-disc]');
+        const discBadge = root.querySelector('[data-discovery-disc-badge]');
+        const discSummary = root.querySelector('[data-discovery-disc-summary]');
+        if (discContainer) {
+            while (discContainer.firstChild) discContainer.removeChild(discContainer.firstChild);
+            if (!Array.isArray(summary?.disc) || summary.disc.length === 0) {
+                if (discBadge) discBadge.textContent = '—';
+                if (discSummary) discSummary.textContent = '';
+                renderEmptyWithCta(
+                    discContainer,
+                    'Hoàn thành bài DISC để nhận diện phong cách hành vi & giao tiếp.',
+                    'Làm bài DISC',
+                    'assessment.php?code=disc'
+                );
+            } else {
+                const discScores = summary.disc.map((i) => Number(i.score) || 0);
+                const maxDiscScore = discScores.length > 0 ? Math.max(...discScores) : 0;
+                const minDiscScore = discScores.length > 0 ? Math.min(...discScores) : 0;
+                const hasDiscVariation = maxDiscScore > minDiscScore;
+
+                if (discBadge) discBadge.textContent = summary.discItem?.result_code || summary.discItem?.code || '—';
+                if (discSummary) discSummary.textContent = summary.discItem?.summary || 'Kết quả phân tích 4 nhóm phong cách hành vi DISC.';
+
+                summary.disc.forEach((item) => {
+                    const numScore = Math.max(0, Math.min(100, Number(item.score) || 0));
+                    const isTop = hasDiscVariation && maxDiscScore > 0 && numScore === maxDiscScore;
+
+                    const article = doc.createElement('article');
+                    article.className = `learner-direction-row${isTop ? ' is-dominant' : ''}`;
+                    const content = doc.createElement('div');
+                    content.className = 'learner-direction-row__content';
+                    const heading = doc.createElement('div');
+
+                    const titleWrapper = doc.createElement('div');
+                    titleWrapper.className = 'learner-direction-row__title';
+                    titleWrapper.appendChild(createTextElement(doc, 'span', `${item.label} (${item.code})`));
+                    if (isTop) {
+                        const topBadge = createTextElement(doc, 'span', 'Nổi trội', 'learner-direction-badge');
+                        titleWrapper.appendChild(topBadge);
+                    }
+                    heading.appendChild(titleWrapper);
+
+                    const scoreEl = createTextElement(doc, 'strong', `${numScore}%`);
+                    if (isTop) scoreEl.className = 'learner-direction-score--dominant';
+                    heading.appendChild(scoreEl);
+
+                    const progress = doc.createElement('div');
+                    progress.className = 'learner-progress';
+                    progress.setAttribute('role', 'progressbar');
+                    progress.setAttribute('aria-label', item.label);
+                    progress.setAttribute('aria-valuemin', '0');
+                    progress.setAttribute('aria-valuemax', '100');
+                    progress.setAttribute('aria-valuenow', String(numScore));
+                    const bar = doc.createElement('span');
+                    bar.className = isTop ? 'learner-progress--primary is-dominant' : `learner-progress--${item.tone}`;
+                    bar.style.setProperty('--learner-progress', `${numScore}%`);
+                    progress.appendChild(bar);
+                    content.appendChild(heading);
+                    content.appendChild(progress);
+                    article.appendChild(content);
+                    discContainer.appendChild(article);
                 });
             }
         }

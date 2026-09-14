@@ -98,6 +98,44 @@ $nav = [
     ['label' => 'RBAC & quyền', 'icon' => 'shield', 'section' => 'rbac'],
     ['label' => 'Hệ thống', 'icon' => 'server', 'section' => 'system'],
 ];
+
+// Bảng ánh xạ section -> tiêu đề header. Mặc định là "Trung tâm vận hành".
+$sectionTitles = [
+    'dashboard'     => 'Trung tâm vận hành',
+    'tasks'         => 'Việc cần xử lý',
+    'users'         => 'Quản lý người dùng',
+    'organizations' => 'Tổ chức',
+    'activities'    => 'Học tập & hoạt động',
+    'applications'  => 'Cơ hội & ứng tuyển',
+    'payments'      => 'Tài trợ & thanh toán',
+    'notifications' => 'Thông báo',
+    'audit'         => 'Audit & bảo mật',
+    'rbac'          => 'RBAC & quyền',
+    'system'        => 'Hệ thống',
+];
+$activeSection = $isTasksPage ? 'tasks' : ($isUsersPage ? 'users' : ($currentSection !== '' ? $currentSection : 'dashboard'));
+$headerTitle = $sectionTitles[$activeSection] ?? 'Trung tâm vận hành';
+
+// AJAX endpoint: trả JSON feed công việc cần xử lý cho dropdown chuông.
+if (($_GET['action'] ?? '') === 'queue_feed') {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    try {
+        $config = require dirname(__DIR__, 2) . '/config/database.php';
+        $pdo = (new \TalentHub\Database\Connection($config))->connect();
+        $repo = new \TalentHub\Modules\Admin\Repository\AdminRepository($pdo);
+        $dashboard = $repo->dashboard();
+        $queue = is_array($dashboard['queue'] ?? null) ? $dashboard['queue'] : [];
+        echo json_encode([
+            'ok' => true,
+            'items' => $queue,
+            'total' => array_sum(array_map(static fn ($it) => (int) ($it['count'] ?? 0), $queue)),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    } catch (\Throwable $e) {
+        echo json_encode(['ok' => false, 'items' => [], 'total' => 0, 'error' => 'unavailable'], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
 ?>
 <!doctype html>
 <html lang="vi" data-theme="light">
@@ -105,7 +143,7 @@ $nav = [
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
-    <title><?= $isUsersPage ? 'Quản lý người dùng' : ($isTasksPage ? 'Việc cần xử lý' : 'Trung tâm vận hành') ?> | TalentHub Admin</title>
+    <title><?= htmlspecialchars($headerTitle) ?> | TalentHub Admin</title>
     <link rel="icon" href="<?= app_href('/assets/images/logo.svg'); ?>" type="image/svg+xml">
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
@@ -114,6 +152,7 @@ $nav = [
     <link rel="stylesheet" href="<?= app_href('/assets/css/admin.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/typeui-selects.css'); ?>">
     <script src="<?= app_href('/assets/js/admin.js'); ?>" defer></script>
+    <script>window.SECTION_TITLES = <?= json_encode($sectionTitles, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP); ?>;</script>
 </head>
 <body>
 <a class="skip-link" href="#main-content">Bỏ qua điều hướng</a>
@@ -144,12 +183,113 @@ $nav = [
 
     <div class="workspace">
         <header class="topbar">
-            <button class="icon-button mobile-menu" type="button" aria-label="Mở điều hướng" aria-controls="admin-sidebar" aria-expanded="false" data-sidebar-toggle><?= icon('menu') ?></button>
-            <button class="command-trigger" type="button" data-command-open aria-haspopup="dialog">
-                <?= icon('search') ?><span>Tìm người dùng, tổ chức, mã yêu cầu...</span><kbd>⌘ K</kbd>
-            </button>
+            <button class="topbar__toggle" type="button" aria-label="Mở điều hướng" aria-controls="admin-sidebar" aria-expanded="false" data-sidebar-toggle><?= icon('menu') ?></button>
+            <h1 class="topbar__title" data-topbar-title><?= htmlspecialchars($headerTitle) ?></h1>
+
             <div class="topbar-actions">
-                <button class="icon-button has-indicator" type="button" data-alert-count aria-label="Việc cần xử lý" hidden><?= icon('bell') ?><span></span></button>
+                <div class="topbar__notif-wrapper" id="admin-notif-wrapper">
+                    <button
+                        type="button"
+                        class="topbar__icon-btn"
+                        id="admin-notif-trigger"
+                        aria-haspopup="dialog"
+                        aria-expanded="false"
+                        aria-controls="admin-notif-menu"
+                        aria-label="Việc cần xử lý"
+                    >
+                        <?= icon('bell') ?>
+                        <span class="topbar__badge" id="admin-notif-badge" aria-hidden="true" hidden>0</span>
+                    </button>
+
+                    <div
+                        class="topbar-notif-menu"
+                        id="admin-notif-menu"
+                        role="dialog"
+                        aria-labelledby="admin-notif-heading"
+                        hidden
+                    >
+                        <header class="topbar-notif-menu__header">
+                            <div>
+                                <p class="topbar-notif-menu__eyebrow">Action center</p>
+                                <h2 class="topbar-notif-menu__title" id="admin-notif-heading">Việc cần xử lý</h2>
+                            </div>
+                            <span class="topbar-notif-menu__count" data-admin-notif-count>0 mục</span>
+                        </header>
+                        <div class="topbar-notif-menu__list" data-admin-notif-list>
+                            <div class="topbar-notif-menu__loading" data-admin-notif-loading>
+                                <div class="topbar-notif-menu__spinner"></div>
+                                <span>Đang tải...</span>
+                            </div>
+                            <div class="topbar-notif-menu__empty" data-admin-notif-empty hidden>
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                    <polyline points="22 4 12 14.01 9 11.01"/>
+                                </svg>
+                                <p>Không có việc cần xử lý.</p>
+                            </div>
+                        </div>
+                        <footer class="topbar-notif-menu__footer">
+                            <a class="topbar-notif-menu__cta" href="<?= htmlspecialchars(function_exists('app_href') ? app_href('/app/admin/index.php?section=tasks') : '/app/admin/index.php?section=tasks'); ?>" data-admin-notif-detail>
+                                Xem chi tiết
+                                <?= icon('arrow') ?>
+                            </a>
+                        </footer>
+                    </div>
+                </div>
+
+                <div class="topbar__account-wrapper" id="admin-account-wrapper">
+                    <button
+                        type="button"
+                        class="topbar__account"
+                        id="admin-account-trigger"
+                        aria-haspopup="menu"
+                        aria-expanded="false"
+                        aria-controls="admin-account-menu"
+                        aria-label="Tài khoản quản trị: <?= htmlspecialchars($adminName); ?>"
+                    >
+                        <span class="topbar__avatar" aria-hidden="true"><?= htmlspecialchars($adminInitials) ?></span>
+                        <span class="topbar__user-info">
+                            <span class="topbar__user-name" title="<?= htmlspecialchars($adminName); ?>"><?= htmlspecialchars($adminName); ?></span>
+                            <span class="topbar__user-role">Quản trị hệ thống</span>
+                        </span>
+                        <span class="topbar__chevron" aria-hidden="true">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </span>
+                    </button>
+
+                    <div
+                        class="topbar-account-menu"
+                        id="admin-account-menu"
+                        role="menu"
+                        aria-labelledby="admin-account-trigger"
+                        hidden
+                    >
+                        <div class="topbar-account-menu__identity" role="none">
+                            <span class="topbar-account-menu__avatar" aria-hidden="true"><?= htmlspecialchars($adminInitials) ?></span>
+                            <span class="topbar-account-menu__details">
+                                <span class="topbar-account-menu__name" title="<?= htmlspecialchars($adminName); ?>"><?= htmlspecialchars($adminName); ?></span>
+                                <span class="topbar-account-menu__badge">Quản trị hệ thống</span>
+                            </span>
+                        </div>
+
+                        <div class="topbar-account-menu__divider" role="separator"></div>
+
+                        <ul class="topbar-account-menu__list" role="none">
+                            <li role="none">
+                                <button type="button" class="topbar-account-menu__item topbar-account-menu__item--logout" role="menuitem" tabindex="-1" data-admin-logout>
+                                    <svg class="topbar-account-menu__item-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                        <polyline points="16 17 21 12 16 7"></polyline>
+                                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                                    </svg>
+                                    <span>Đăng xuất</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -217,16 +357,32 @@ $nav = [
             <div class="operations-grid">
                 <section class="panel table-panel" id="tổ-chức" aria-labelledby="org-title">
                     <div class="panel-heading">
-                        <div><p class="eyebrow">Tổ chức</p><h2 id="org-title">Cần theo dõi</h2><p>School và Enterprise có hoạt động hoặc rủi ro gần đây.</p></div>
-                        <div class="table-tools"><label><span class="sr-only">Lọc tổ chức</span><?= icon('search') ?><input type="search" placeholder="Lọc tổ chức..." data-org-filter></label><button class="button secondary small" type="button">Tất cả tổ chức</button></div>
+                        <div><p class="eyebrow">Tổ chức</p><h2 id="org-title">Cần theo dõi</h2><p>Phân tách rõ ràng theo từng nhóm: Nhà trường và Doanh nghiệp.</p></div>
+                        <div class="table-tools"><label><span class="sr-only">Lọc tổ chức</span><?= icon('search') ?><input type="search" placeholder="Lọc tổ chức..." data-org-filter></label></div>
                     </div>
+                    <nav class="org-type-tabs" role="tablist" aria-label="Phân loại tổ chức cần theo dõi">
+                        <button type="button" role="tab" class="org-type-tab is-active" data-org-tab="all" aria-selected="true">
+                            <span class="org-type-tab-label">Tất cả</span>
+                            <span class="org-type-tab-count" data-org-tab-count="all">0</span>
+                        </button>
+                        <button type="button" role="tab" class="org-type-tab" data-org-tab="school" aria-selected="false">
+                            <span class="org-type-tab-dot org-type-tab-dot--school" aria-hidden="true"></span>
+                            <span class="org-type-tab-label">Nhà trường</span>
+                            <span class="org-type-tab-count" data-org-tab-count="school">0</span>
+                        </button>
+                        <button type="button" role="tab" class="org-type-tab" data-org-tab="enterprise" aria-selected="false">
+                            <span class="org-type-tab-dot org-type-tab-dot--enterprise" aria-hidden="true"></span>
+                            <span class="org-type-tab-label">Doanh nghiệp</span>
+                            <span class="org-type-tab-count" data-org-tab-count="enterprise">0</span>
+                        </button>
+                    </nav>
                     <div class="table-scroll">
                         <table>
                             <caption class="sr-only">Danh sách tổ chức cần theo dõi</caption>
                             <thead><tr><th scope="col">Tổ chức</th><th scope="col">Trạng thái</th><th scope="col">Thành viên</th><th scope="col">Hoạt động cuối</th><th scope="col">Rủi ro</th><th scope="col"><span class="sr-only">Hành động</span></th></tr></thead>
                             <tbody data-dashboard-organizations>
                                 <?php foreach ($organizations as $org): ?>
-                                 <tr data-org-row>
+                                 <tr data-org-row data-org-type="<?= htmlspecialchars(strtolower($org['type'])) ?>">
                                     <td><div class="org-cell"><span class="org-logo"><?= htmlspecialchars(substr($org['name'], 0, 1)) ?></span><div><strong><?= htmlspecialchars($org['name']) ?></strong><small><?= htmlspecialchars($org['type']) ?></small></div></div></td>
                                     <td><span class="status-badge <?= $org['status'] === 'Đang hoạt động' ? 'success' : ($org['status'] === 'Chờ xác minh' ? 'warning' : 'neutral') ?>"><?= htmlspecialchars($org['status']) ?></span></td>
                                     <td><?= htmlspecialchars($org['members']) ?></td><td><?= htmlspecialchars($org['activity']) ?></td>
@@ -235,6 +391,9 @@ $nav = [
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
+                            <tfoot data-dashboard-organizations-empty hidden>
+                                <tr><td colspan="6"><div class="empty-state compact" data-org-empty-message>Chưa có tổ chức trong nhóm này.</div></td></tr>
+                            </tfoot>
                         </table>
                     </div>
                 </section>
@@ -368,10 +527,10 @@ $nav = [
 
 <dialog class="action-dialog" data-action-dialog aria-labelledby="action-title">
     <form method="dialog" data-action-form>
-        <div class="action-dialog-header"><div><p class="eyebrow">Xác nhận thao tác</p><h2 id="action-title" data-action-title>Thay đổi trạng thái</h2></div><button class="icon-button" value="cancel" aria-label="Đóng"><?= icon('close') ?></button></div>
+        <div class="action-dialog-header"><div><p class="eyebrow">Xác nhận thao tác</p><h2 id="action-title" data-action-title>Thay đổi trạng thái</h2></div><button type="button" class="icon-button" data-action-close aria-label="Đóng"><?= icon('close') ?></button></div>
         <p data-action-description></p>
         <label class="field-label" for="organization-decision" data-decision-field hidden>Quyết định</label>
-        <select id="organization-decision" class="typeui-select" data-organization-decision hidden><option value="verified">Phê duyệt</option><option value="rejected">Từ chối</option><option value="pending">Chuyển về chờ duyệt</option></select>
+        <select id="organization-decision" class="typeui-select" data-organization-decision hidden><option value="verified">Phê duyệt</option><option value="rejected">Từ chối</option><option value="pending">Chuyển về chờ duyệt</option><option value="suspended">Đình chỉ</option></select>
         <label class="field-label" for="action-reason">Lý do <span aria-hidden="true">*</span></label>
         <textarea id="action-reason" rows="4" minlength="5" required placeholder="Nhập lý do để ghi vào audit log..."></textarea>
         <div class="dialog-actions"><button class="button secondary" value="cancel">Hủy</button><button class="button primary" type="submit" value="confirm" data-action-submit>Xác nhận</button></div>

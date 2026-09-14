@@ -413,7 +413,7 @@ SQL);
             $credential = $this->fetchOne(<<<'SQL'
 SELECT b.id, b.name, r.id AS ruleId
 FROM badges b
-INNER JOIN badge_rule_definitions r ON r.badgeId = b.id AND r.isActive = 1
+LEFT JOIN badge_rule_definitions r ON r.badgeId = b.id AND r.isActive = 1
 WHERE b.id = :id AND b.schoolId = :schoolId AND b.status = 'active'
 LIMIT 1
 SQL, ['id' => $credentialId, 'schoolId' => $schoolId]);
@@ -426,6 +426,7 @@ SQL, ['id' => $credentialId, 'schoolId' => $schoolId]);
         if ($credential === null) {
             throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy mẫu thành tích đang hoạt động thuộc trường hiện tại.');
         }
+        $credential['ruleId'] = $credential['ruleId'] ?? null;
         return $credential;
     }
 

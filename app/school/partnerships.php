@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/bin/bootstrap.php';
-require dirname(__DIR__, 2) . '/src/Bootstrap/SchoolAppContext.php';
+require_once dirname(__DIR__, 2) . '/bin/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/Bootstrap/SchoolAppContext.php';
 
 use TalentHub\Bootstrap\SchoolAppContext;
 use TalentHub\Http\ApiException;
@@ -19,19 +19,31 @@ $flash = null;
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
     try {
-        $partnershipId = (string) ($_POST['partnershipId'] ?? '');
-        $status = (string) ($_POST['status'] ?? '');
-        if (!Uuid::isValid($partnershipId)) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Mã quan hệ đối tác không hợp lệ.');
+        $action = (string) ($_POST['action'] ?? 'review');
+        if ($action === 'request_partnership') {
+            $enterpriseId = trim((string) ($_POST['enterpriseId'] ?? ''));
+            if (!Uuid::isValid($enterpriseId)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Mã doanh nghiệp không hợp lệ.');
+            }
+            $service->requestPartnershipFromSchool($userId, ['enterpriseId' => $enterpriseId]);
+            $flash = 'Đã gửi yêu cầu hợp tác tới doanh nghiệp thành công.';
+        } else {
+            $partnershipId = trim((string) ($_POST['partnershipId'] ?? $_POST['relationshipId'] ?? $_POST['id'] ?? ''));
+            $status = trim((string) ($_POST['status'] ?? ''));
+            if (!Uuid::isValid($partnershipId)) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Mã quan hệ đối tác không hợp lệ.');
+            }
+            $service->reviewPartnership($userId, $partnershipId, ['status' => $status]);
+            $flash = match ($status) {
+                'approved' => 'Đã chấp thuận quan hệ đối tác.',
+                'rejected' => 'Đã từ chối yêu cầu hợp tác.',
+                'suspended' => 'Đã tạm dừng quan hệ đối tác.',
+                default => 'Đã cập nhật quan hệ đối tác.',
+            };
         }
-        $service->reviewPartnership($userId, $partnershipId, ['status' => $status]);
-        $flash = match ($status) {
-            'approved' => 'Đã chấp thuận quan hệ đối tác.',
-            'rejected' => 'Đã từ chối yêu cầu hợp tác.',
-            'suspended' => 'Đã tạm dừng quan hệ đối tác.',
-            default => 'Đã cập nhật quan hệ đối tác.',
-        };
     } catch (ApiException $exception) {
+        $error = $exception->getMessage();
+    } catch (\Throwable $exception) {
         $error = $exception->getMessage();
     }
 }
@@ -64,7 +76,12 @@ $availableEnterprises = [];
 if ($pdo instanceof PDO) {
     try {
         $entStmt = $pdo->query("SELECT id, name FROM enterprises WHERE status = 'active' ORDER BY name ASC");
-        $availableEnterprises = $entStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $allEnterprises = $entStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $existingPartnerEnterpriseIds = array_column($partnerships, 'enterpriseId');
+        $availableEnterprises = array_values(array_filter(
+            $allEnterprises,
+            fn($ent) => !in_array($ent['id'], $existingPartnerEnterpriseIds, true)
+        ));
     } catch (\Throwable) {}
 }
 
@@ -94,7 +111,7 @@ ob_start();
         </div>
     </div>
     <?php if ($partnerships === []): ?>
-        <p>Chưa có yêu cầu hợp tác phù hợp.</p>
+        <p><?= $statusFilter ? 'Chưa có yêu cầu hợp tác phù hợp.' : 'Chưa có yêu cầu hợp tác.'; ?></p>
     <?php else: ?>
         <table class="school-class-table"><thead><tr><th>Doanh nghiệp</th><th>Ngành</th><th>Trạng thái</th><th>Cập nhật</th><th style="text-align:right">Thao tác</th></tr></thead><tbody>
         <?php foreach ($partnerships as $item): ?><tr>
@@ -141,10 +158,14 @@ ob_start();
                      e.g. options = allEnterprises.filter(enterprise => !currentPartnerIds.includes(enterprise.id))
                 -->
                 <select name="enterpriseId" class="typeui-select" required>
-                    <option value="">-- Chọn doanh nghiệp khả dụng --</option>
-                    <?php foreach ($availableEnterprises as $ent): ?>
-                        <option value="<?= htmlspecialchars((string) $ent['id']); ?>"><?= htmlspecialchars((string) $ent['name']); ?></option>
-                    <?php endforeach; ?>
+                    <?php if ($availableEnterprises === []): ?>
+                        <option value="">-- Không còn doanh nghiệp nào khả dụng --</option>
+                    <?php else: ?>
+                        <option value="">-- Chọn doanh nghiệp khả dụng --</option>
+                        <?php foreach ($availableEnterprises as $ent): ?>
+                            <option value="<?= htmlspecialchars((string) $ent['id']); ?>"><?= htmlspecialchars((string) $ent['name']); ?></option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </select>
             </div>
             
@@ -185,12 +206,26 @@ document.addEventListener('click', function(event) {
     }
 });
 document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape' && menu && !menu.hidden) {
-        menu.hidden = true;
-        toggle?.setAttribute('aria-expanded', 'false');
-        toggle?.focus();
+    if (event.key === 'Escape') {
+        if (menu && !menu.hidden) {
+            menu.hidden = true;
+            toggle?.setAttribute('aria-expanded', 'false');
+            toggle?.focus();
+        }
+        const modal = document.getElementById('addPartnerModal');
+        if (modal && modal.style.display !== 'none') {
+            closeAddPartnerModal();
+        }
     }
 });
+const modal = document.getElementById('addPartnerModal');
+if (modal) {
+    modal.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            closeAddPartnerModal();
+        }
+    });
+}
 </script>
 HTML;
 require __DIR__ . '/includes/layout.php';
