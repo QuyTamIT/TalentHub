@@ -834,7 +834,19 @@
     const actions = section === 'users' ? (row) => {
       const organizationPending = ['school','enterprise'].includes(row.role) && row.status === 'pending';
       return `<div class="row-actions user-row-actions"><button class="button secondary small user-act-btn edit" data-user-edit data-id="${escapeHtml(row.id)}" title="Sửa tài khoản">Sửa</button>${organizationPending ? '<span class="action-note action-note-badge" title="Tổ chức cần xác minh">Duyệt tại Tổ chức</span>' : `<button class="button secondary small user-act-btn toggle ${row.status === 'active' ? 'is-suspend' : 'is-activate'}" data-user-action data-id="${escapeHtml(row.id)}" data-status="${row.status === 'active' ? 'suspended' : 'active'}" title="${row.status === 'active' ? 'Đình chỉ tài khoản' : 'Kích hoạt lại'}">${row.status === 'active' ? 'Đình chỉ' : 'Kích hoạt'}</button>`}${row.status !== 'disabled' ? `<button class="button danger small user-act-btn delete" data-user-delete data-id="${escapeHtml(row.id)}" title="Vô hiệu hóa tài khoản">Vô hiệu hóa</button>` : ''}</div>`;
-    } : section === 'organizations' ? (row) => `<button class="button secondary small" data-org-action data-id="${escapeHtml(row.id)}" data-type="${escapeHtml(row.type)}" data-current-status="${escapeHtml(row.verificationStatus)}">Xem xét</button>` : null;
+    } : section === 'organizations' ? (row) => {
+      const status = row.verificationStatus || 'pending';
+      if (status === 'pending') {
+        return `<button class="button secondary small" data-org-action data-id="${escapeHtml(row.id)}" data-type="${escapeHtml(row.type)}" data-current-status="pending">Xem xét</button>`;
+      }
+      if (status === 'verified') {
+        return `<button class="button secondary small" data-org-action data-id="${escapeHtml(row.id)}" data-type="${escapeHtml(row.type)}" data-current-status="verified">Tùy chọn</button>`;
+      }
+      if (status === 'suspended') {
+        return `<button class="button secondary small" data-org-action data-id="${escapeHtml(row.id)}" data-type="${escapeHtml(row.type)}" data-current-status="suspended">Mở lại</button>`;
+      }
+      return `<button class="button secondary small" data-org-action data-id="${escapeHtml(row.id)}" data-type="${escapeHtml(row.type)}" data-current-status="${escapeHtml(status)}">Xem xét</button>`;
+    } : null;
     if (section === 'organizations') {
       renderOrganizationsSection(actions);
       return;
@@ -1747,15 +1759,25 @@
       const act = actionBtn.dataset.taskAction;
       const id = actionBtn.dataset.id;
       if (act === 'org') {
-        pendingAction = { kind: 'organization', id: id, type: actionBtn.dataset.type };
+        pendingAction = { kind: 'organization', id: id, type: actionBtn.dataset.type, currentStatus: actionBtn.dataset.currentStatus || 'pending' };
         const decisionField = document.querySelector('[data-decision-field]');
         const decisionSelect = document.querySelector('[data-organization-decision]');
         if (decisionField) decisionField.hidden = false;
         if (decisionSelect) {
           decisionSelect.hidden = false;
-          decisionSelect.value = actionBtn.dataset.currentStatus === 'rejected' ? 'rejected' : 'verified';
+          const current = actionBtn.dataset.currentStatus || 'pending';
+          if (current === 'pending') {
+            decisionSelect.value = 'verified';
+          } else if (current === 'verified') {
+            decisionSelect.value = 'suspended';
+          } else if (current === 'suspended') {
+            decisionSelect.value = 'verified';
+          } else {
+            decisionSelect.value = current;
+          }
         }
-        document.querySelector('[data-action-title]').textContent = 'Xét duyệt tổ chức';
+        const currentStatus = actionBtn.dataset.currentStatus || 'pending';
+        document.querySelector('[data-action-title]').textContent = currentStatus === 'pending' ? 'Xét duyệt tổ chức' : currentStatus === 'verified' ? 'Đình chỉ tổ chức' : 'Mở lại tổ chức';
         document.querySelector('[data-action-description]').textContent = 'Thao tác này sẽ được ghi vào audit log. Vui lòng cung cấp lý do.';
         actionDialog?.showModal();
         document.querySelector('#action-reason')?.focus();
@@ -1794,8 +1816,9 @@
   });
 
   const actionDialog=document.querySelector('[data-action-dialog]');
-  moduleContent?.addEventListener('click',(event)=>{const userButton=event.target.closest('[data-user-action]');const orgButton=event.target.closest('[data-org-action]');const deleteButton=event.target.closest('[data-user-delete]');if(!userButton&&!orgButton&&!deleteButton)return;pendingAction=deleteButton?{kind:'delete',id:deleteButton.dataset.id}:userButton?{kind:'user',id:userButton.dataset.id,status:userButton.dataset.status}:{kind:'organization',id:orgButton.dataset.id,type:orgButton.dataset.type};const decisionField=document.querySelector('[data-decision-field]');const decisionSelect=document.querySelector('[data-organization-decision]');const isOrganization=Boolean(orgButton);decisionField.hidden=!isOrganization;decisionSelect.hidden=!isOrganization;if(isOrganization){const current=orgButton.dataset.currentStatus;decisionSelect.value=current==='rejected'?'rejected':'verified';}document.querySelector('[data-action-title]').textContent=deleteButton?'Vô hiệu hóa tài khoản':userButton?(userButton.dataset.status==='active'?'Đình chỉ tài khoản':'Kích hoạt tài khoản'):'Xét duyệt tổ chức';document.querySelector('[data-action-description]').textContent=deleteButton?'Tài khoản sẽ chuyển sang trạng thái vô hiệu hóa; dữ liệu liên quan và audit log được giữ nguyên.':'Thao tác này sẽ được ghi vào audit log. Vui lòng cung cấp lý do.';actionDialog.showModal();document.querySelector('#action-reason').focus();});
-  document.querySelector('[data-action-form]')?.addEventListener('submit',async(event)=>{event.preventDefault();if(!pendingAction)return;const reason=document.querySelector('#action-reason').value.trim();if(reason.length<5){showToast('Lý do phải có ít nhất 5 ký tự.');return;}const submit=event.submitter;submit.disabled=true;const original=submit.textContent;submit.textContent='Đang xử lý…';try{const csrf=(await api('/auth/csrf')).csrfToken;const isDelete=pendingAction.kind==='delete';const path=isDelete?`/admin/users/${encodeURIComponent(pendingAction.id)}`:pendingAction.kind==='user'?`/admin/users/${encodeURIComponent(pendingAction.id)}/status`:`/admin/organizations/${encodeURIComponent(pendingAction.type)}/${encodeURIComponent(pendingAction.id)}/verification`;const body=pendingAction.kind==='user'?{status:pendingAction.status,reason}:pendingAction.kind==='organization'?{decision:document.querySelector('[data-organization-decision]').value,reason}:{reason};await api(path,{method:isDelete?'DELETE':'PATCH',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(body)});actionDialog.close();document.querySelector('#action-reason').value='';showToast('Đã cập nhật và ghi audit log.');await loadSection(currentSection);}catch(error){showToast(error.message);}finally{submit.disabled=false;submit.textContent=original;}});
+  moduleContent?.addEventListener('click',(event)=>{const userButton=event.target.closest('[data-user-action]');const orgButton=event.target.closest('[data-org-action]');const deleteButton=event.target.closest('[data-user-delete]');if(!userButton&&!orgButton&&!deleteButton)return;pendingAction=deleteButton?{kind:'delete',id:deleteButton.dataset.id}:userButton?{kind:'user',id:userButton.dataset.id,status:userButton.dataset.status}:{kind:'organization',id:orgButton.dataset.id,type:orgButton.dataset.type,currentStatus:orgButton.dataset.currentStatus};const decisionField=document.querySelector('[data-decision-field]');const decisionSelect=document.querySelector('[data-organization-decision]');const isOrganization=Boolean(orgButton);decisionField.hidden=!isOrganization;decisionSelect.hidden=!isOrganization;if(isOrganization){const current=orgButton.dataset.currentStatus;if(current==='pending'){decisionSelect.value='verified';}else if(current==='verified'){decisionSelect.value='suspended';}else if(current==='suspended'){decisionSelect.value='verified';}else{decisionSelect.value=current||'verified';}}document.querySelector('[data-action-title]').textContent=deleteButton?'Vô hiệu hóa tài khoản':userButton?(userButton.dataset.status==='active'?'Đình chỉ tài khoản':'Kích hoạt tài khoản'):orgButton?(orgButton.dataset.currentStatus==='pending'?'Xét duyệt tổ chức':orgButton.dataset.currentStatus==='verified'?'Đình chỉ tổ chức':'Mở lại tổ chức'):'Thay đổi trạng thái';document.querySelector('[data-action-description]').textContent=deleteButton?'Tài khoản sẽ chuyển sang trạng thái vô hiệu hóa; dữ liệu liên quan và audit log được giữ nguyên.':'Thao tác này sẽ được ghi vào audit log. Vui lòng cung cấp lý do.';actionDialog.showModal();document.querySelector('#action-reason').focus();});
+  document.querySelectorAll('[data-action-close]').forEach((button)=>button.addEventListener('click',()=>{actionDialog.close();document.querySelector('#action-reason').value='';pendingAction=null;}));
+  document.querySelector('[data-action-form]')?.addEventListener('submit',async(event)=>{event.preventDefault();if(!pendingAction)return;const submit=event.submitter;const submitValue=submit instanceof HTMLButtonElement?String(submit.value||''):'';if(submitValue==='cancel'){actionDialog.close();document.querySelector('#action-reason').value='';pendingAction=null;return;}const reason=document.querySelector('#action-reason').value.trim();if(reason.length<5){showToast('Lý do phải có ít nhất 5 ký tự.');return;}submit.disabled=true;const original=submit.textContent;submit.textContent='Đang xử lý…';try{const csrf=(await api('/auth/csrf')).csrfToken;const isDelete=pendingAction.kind==='delete';const path=isDelete?`/admin/users/${encodeURIComponent(pendingAction.id)}`:pendingAction.kind==='user'?`/admin/users/${encodeURIComponent(pendingAction.id)}/status`:`/admin/organizations/${encodeURIComponent(pendingAction.type)}/${encodeURIComponent(pendingAction.id)}/verification`;const body=pendingAction.kind==='user'?{status:pendingAction.status,reason}:pendingAction.kind==='organization'?{decision:document.querySelector('[data-organization-decision]').value,reason}:{reason};await api(path,{method:isDelete?'DELETE':'PATCH',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(body)});actionDialog.close();document.querySelector('#action-reason').value='';showToast('Đã cập nhật và ghi audit log.');await loadSection(currentSection);}catch(error){showToast(error.message);}finally{submit.disabled=false;submit.textContent=original;}});
   const accountDialog=document.querySelector('[data-account-dialog]');const accountForm=document.querySelector('[data-account-form]');
   moduleContent?.addEventListener('click',(event)=>{const create=event.target.closest('[data-user-create]');const edit=event.target.closest('[data-user-edit]');if(!create&&!edit)return;accountForm.reset();const row=edit?currentRows.find((item)=>item.id===edit.dataset.id):null;accountForm.elements.id.value=row?.id||'';accountForm.elements.fullName.value=row?.fullName||'';accountForm.elements.email.value=row?.email||'';if(row){accountForm.elements.role.value=row.role||'student';}else{const defaultRole=activeUserZone==='school'?'school':activeUserZone==='enterprise'?'enterprise':activeUserZone==='system'?'platform_admin':'student';accountForm.elements.role.value=defaultRole;}accountForm.elements.password.required=!row;document.querySelector('[data-password-field]').hidden=Boolean(row);document.querySelector('[data-account-title]').textContent=row?'Sửa tài khoản':'Thêm tài khoản';accountDialog.showModal();accountForm.elements.fullName.focus();});
   document.querySelectorAll('[data-account-close]').forEach((button)=>button.addEventListener('click',()=>accountDialog.close()));
