@@ -29,9 +29,9 @@ $sidebarNav = [
         'active' => true,
     ],
     [
-        'title' => 'Hoạt động',
+        'title' => 'Sân chơi của tôi',
         'route' => 'activities/',
-        'href' => 'activities/',
+        'href' => '/app/teacher/activities/index.php',
         'icon' => 'trophy',
         'active' => false,
     ],
@@ -54,122 +54,47 @@ $sidebarNav = [
 $managedClassName = (string) ($teacherInfo['managed_class_name'] ?? '');
 $managedClassLabel = $managedClassName !== '' ? "Lớp {$managedClassName}" : 'Chưa phân công lớp';
 $totalStudents = (int) ($metrics['total_students'] ?? 0);
+$openActivities = (int) ($metrics['open_activities'] ?? 0);
+$managedActivitiesCount = (int) ($metrics['managed_activities'] ?? 0);
 $pendingAssessments = (int) ($metrics['pending_assessments'] ?? 0);
 $assessedCount = max(0, $totalStudents - $pendingAssessments);
 
 $kpis = [
     [
-        'label' => 'Sinh viên lớp phụ trách',
+        'label' => 'Học viên',
         'value' => number_format($totalStudents),
         'change' => $managedClassLabel,
         'change_type' => ($totalStudents > 0) ? 'positive' : 'neutral',
         'icon' => 'users',
-        'status' => ($totalStudents > 0) ? ($totalStudents . ' sinh viên') : 'Chưa có học viên',
+        'status' => ($totalStudents > 0) ? ($totalStudents . ' học viên') : 'Chưa có học viên',
     ],
     [
-        'label' => 'Điểm đánh giá TB lớp',
-        'value' => $metrics['average_score'] !== null ? number_format((float) $metrics['average_score'], 1) : 'Chưa có',
-        'change' => 'Thang điểm 100',
-        'change_type' => $metrics['average_score'] !== null ? 'positive' : 'neutral',
-        'icon' => 'star',
-        'status' => $metrics['average_score'] !== null ? 'Đã có điểm' : 'Chưa có điểm',
-    ],
-    [
-        'label' => 'Đánh giá năng lực',
-        'value' => ($totalStudents > 0) ? "{$assessedCount} / {$totalStudents} SV" : '0 / 0 SV',
-        'change' => $managedClassLabel,
-        'change_type' => ($totalStudents > 0) ? 'positive' : 'neutral',
-        'icon' => 'clipboard-check',
-        'status' => ($totalStudents > 0) ? 'Sẵn sàng chấm' : 'Chưa có học viên',
-    ],
-    [
-        'label' => 'Hoạt động & Dự án',
-        'value' => number_format((int) $metrics['open_activities']),
-        'change' => 'Học kỳ 2025 - 2026',
-        'change_type' => ((int) $metrics['open_activities'] > 0) ? 'positive' : 'neutral',
+        'label' => 'Sân chơi đang mở',
+        'value' => number_format($openActivities),
+        'change' => ($managedActivitiesCount > 0) ? "{$managedActivitiesCount} sân chơi phụ trách" : 'Tổng hoạt động',
+        'change_type' => ($openActivities > 0) ? 'positive' : 'neutral',
         'icon' => 'trophy',
-        'status' => ((int) $metrics['open_activities'] > 0) ? 'Đang diễn ra' : 'Chưa có hoạt động',
+        'status' => ($openActivities > 0) ? 'Đang diễn ra' : 'Chưa có sân chơi',
     ],
-];
-
-$pendingActions = [
     [
-        'title' => 'Chấm điểm & Đánh giá năng lực theo lớp',
-        'subtitle' => $managedClassName !== '' 
-            ? "Chấm điểm đồ án và cập nhật điểm năng lực cho sinh viên lớp {$managedClassName}."
-            : 'Chấm điểm đồ án và cập nhật điểm năng lực cho sinh viên.',
-        'count' => $totalStudents,
-        'type' => 'primary',
+        'label' => 'Bài cần chấm',
+        'value' => number_format($pendingAssessments),
+        'change' => $managedClassName !== '' ? "Lớp {$managedClassName}" : 'Chờ đánh giá',
+        'change_type' => ($pendingAssessments > 0) ? 'warning' : 'positive',
         'icon' => 'clipboard-check',
-        'status' => $managedClassLabel,
-        'action_label' => 'Chấm điểm ngay',
-        'route' => '/app/teacher/grading.php' . ($managedClassName !== '' ? '?class=' . urlencode($managedClassName) : ''),
-        'disabled' => false,
+        'status' => ($pendingAssessments > 0) ? 'Cần chấm ngay' : 'Đã hoàn tất',
     ],
     [
-        'title' => 'Học viên mới đăng ký hoạt động',
-        'subtitle' => number_format((int) $metrics['pending_registrations']) . ' lượt đăng ký đang chờ theo dõi/xác nhận.',
-        'count' => (int) $metrics['pending_registrations'],
-        'type' => ((int) $metrics['pending_registrations'] > 0) ? 'info' : 'success',
-        'icon' => 'users',
-        'status' => ((int) $metrics['pending_registrations'] > 0) ? 'Cần theo dõi' : 'Không có mục mới',
-        'action_label' => 'Xem đăng ký',
-        'disabled' => true,
-    ],
-    [
-        'title' => 'Check-in cần theo dõi',
-        'subtitle' => number_format((int) $metrics['qr_tokens_expiring']) . ' QR token sắp hết hạn trong 24 giờ.',
-        'count' => (int) $metrics['qr_tokens_expiring'],
-        'type' => ((int) $metrics['qr_tokens_expiring'] > 0) ? 'warning' : 'success',
-        'icon' => 'qr',
-        'status' => ((int) $metrics['qr_tokens_expiring'] > 0) ? 'Kiểm tra QR' : 'QR ổn định',
-        'action_label' => 'Điểm danh QR',
-        'disabled' => true,
-    ],
-    [
-        'title' => 'Hoạt động sắp diễn ra',
-        'subtitle' => number_format((int) $metrics['upcoming_activities']) . ' hoạt động trong 7 ngày tới.',
-        'count' => (int) $metrics['upcoming_activities'],
-        'type' => ((int) $metrics['upcoming_activities'] > 0) ? 'info' : 'neutral',
-        'icon' => 'calendar',
-        'status' => ((int) $metrics['upcoming_activities'] > 0) ? 'Sắp diễn ra' : 'Chưa có lịch gần',
-        'action_label' => 'Xem lịch',
-        'disabled' => true,
+        'label' => 'Đánh giá HV',
+        'value' => ($totalStudents > 0) ? "{$assessedCount} / {$totalStudents} SV" : '0 / 0 SV',
+        'change' => ($totalStudents > 0 && $assessedCount > 0) ? (round(($assessedCount / $totalStudents) * 100) . '% hoàn thành') : '0% hoàn thành',
+        'change_type' => ($assessedCount > 0) ? 'positive' : 'neutral',
+        'icon' => 'star',
+        'status' => ($assessedCount > 0) ? 'Đã có điểm' : 'Chưa đánh giá',
     ],
 ];
 
-$recentActivities = $dashboardData['recentActivities'];
-
-$activityOverview = [
-    [
-        'label' => 'Sân chơi phụ trách',
-        'value' => number_format((int) $metrics['managed_activities']),
-        'meta' => 'Tổng hoạt động do giáo viên tạo',
-        'bar_label' => 'Đang công bố/diễn ra',
-        'bar_value' => teacherDashboardPercent((int) $metrics['open_activities'], max(1, (int) $metrics['managed_activities'])),
-    ],
-    [
-        'label' => 'Lượt đăng ký',
-        'value' => number_format((int) $metrics['registrations']),
-        'meta' => 'Tổng lượt đăng ký',
-        'bar_label' => 'Đã check-in',
-        'bar_value' => teacherDashboardPercent((int) $metrics['checkins'], max(1, (int) $metrics['registrations'])),
-    ],
-    [
-        'label' => 'Lượt điểm danh',
-        'value' => number_format((int) $metrics['checkins']),
-        'meta' => 'Tổng điểm danh đã ghi nhận',
-        'bar_label' => 'Có dữ liệu',
-        'bar_value' => ((int) $metrics['checkins'] > 0) ? 100 : 0,
-    ],
-    [
-        'label' => 'Giờ trải nghiệm',
-        'value' => number_format((float) $metrics['experience_hours'], 1),
-        'meta' => 'Tổng giờ trải nghiệm',
-        'bar_label' => 'Mục tiêu 100 giờ',
-        'bar_value' => teacherDashboardPercent((float) $metrics['experience_hours'], 100),
-    ],
-];
+$managedActivities = $dashboardData['managedActivities'] ?? [];
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -198,36 +123,7 @@ $activityOverview = [
                     <?php require_once __DIR__ . '/includes/welcome.php'; ?>
                     <?php require_once __DIR__ . '/includes/kpi-cards.php'; ?>
 
-                    <div class="teacher-grid-layout">
-                        <div class="teacher-grid-layout__main">
-                            <?php require_once __DIR__ . '/includes/pending-actions.php'; ?>
-                            <?php require_once __DIR__ . '/includes/activity-overview.php'; ?>
-                        </div>
-
-                        <aside class="teacher-grid-layout__sidebar">
-                            <?php require_once __DIR__ . '/includes/recent-activity.php'; ?>
-
-                            <section class="teacher-section-box">
-                                <div class="teacher-section-box__header">
-                                    <h3 class="teacher-section-box__title">Hồ sơ giáo viên</h3>
-                                </div>
-                                <div class="teacher-info-widget">
-                                    <div class="teacher-info-widget__row">
-                                        <span class="label">Tên:</span>
-                                        <span class="value font-bold"><?= htmlspecialchars($teacherInfo['full_name']); ?></span>
-                                    </div>
-                                    <div class="teacher-info-widget__row">
-                                        <span class="label">Vai trò:</span>
-                                        <span class="value badge-primary"><?= htmlspecialchars($teacherInfo['role_label']); ?></span>
-                                    </div>
-                                    <div class="teacher-info-widget__row">
-                                        <span class="label">Trường:</span>
-                                        <span class="value"><?= htmlspecialchars($teacherInfo['school_name']); ?></span>
-                                    </div>
-                                </div>
-                            </section>
-                        </aside>
-                    </div>
+                    <?php require_once __DIR__ . '/includes/activities-list.php'; ?>
                 </div>
             </main>
         </div>
