@@ -1529,6 +1529,7 @@
         shareForm?.addEventListener('submit', async (event) => {
             event.preventDefault();
             const submitBtn = shareForm.querySelector('button[type="submit"]');
+            const formData = new FormData(shareForm);
             let sharedFields = formData.getAll('sharedFields[]');
             if (sharedFields.length === 0) {
                 sharedFields = ['fullName', 'headline', 'bio', 'location', 'school', 'class', 'skills', 'experience', 'certificates', 'projects', 'email', 'phone'];

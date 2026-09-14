@@ -60,6 +60,11 @@ assertTest("Share modal links to talent-passport-cv.php",
 assertTest("Share modal has NO checkboxes (removed sharedFields checklist)",
     !str_contains($profileHtml, 'name="sharedFields[]"'));
 
+$learnerJsContent = file_get_contents(dirname(__DIR__) . '/assets/js/learner.js');
+assertTest("learner.js initializes formData before accessing sharedFields in shareForm listener",
+    str_contains($learnerJsContent, 'const formData = new FormData(shareForm);') &&
+    strpos($learnerJsContent, 'const formData = new FormData(shareForm);') < strpos($learnerJsContent, "formData.getAll('sharedFields[]')"));
+
 // ----------------------------------------------------------------------
 // 2. Test CV Template Content & '360' Removal
 // ----------------------------------------------------------------------
