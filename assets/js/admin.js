@@ -63,6 +63,204 @@
     }
   });
 
+  // Account dropdown (sync style with enterprise header)
+  const accountTrigger = document.querySelector('#admin-account-trigger');
+  const accountMenu = document.querySelector('#admin-account-menu');
+  const closeAccountMenu = () => {
+    if (!accountMenu || !accountTrigger) return;
+    accountMenu.classList.remove('is-open');
+    accountMenu.hidden = true;
+    accountTrigger.setAttribute('aria-expanded', 'false');
+  };
+  const openAccountMenu = () => {
+    if (!accountMenu || !accountTrigger) return;
+    accountMenu.hidden = false;
+    accountMenu.classList.add('is-open');
+    accountTrigger.setAttribute('aria-expanded', 'true');
+  };
+  accountTrigger?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (accountMenu?.classList.contains('is-open')) {
+      closeAccountMenu();
+    } else {
+      openAccountMenu();
+      closeNotifMenu();
+    }
+  });
+  document.addEventListener('click', (event) => {
+    if (!accountMenu?.classList.contains('is-open')) return;
+    if (event.target instanceof Node && accountMenu.contains(event.target)) return;
+    if (event.target instanceof Node && accountTrigger?.contains(event.target)) return;
+    closeAccountMenu();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && accountMenu?.classList.contains('is-open')) {
+      closeAccountMenu();
+      accountTrigger?.focus();
+    }
+  });
+
+  // Notification dropdown (chuông - danh sách việc cần xử lý)
+  const notifTrigger = document.querySelector('#admin-notif-trigger');
+  const notifMenu = document.querySelector('#admin-notif-menu');
+  const notifBadge = document.querySelector('#admin-notif-badge');
+  const notifList = document.querySelector('[data-admin-notif-list]');
+  const notifCount = document.querySelector('[data-admin-notif-count]');
+  const notifLoading = document.querySelector('[data-admin-notif-loading]');
+  const notifEmpty = document.querySelector('[data-admin-notif-empty]');
+  const queueFeedUrl = new URL(window.location.href);
+  queueFeedUrl.searchParams.set('action', 'queue_feed');
+  queueFeedUrl.searchParams.delete('section');
+  const queueFeedEndpoint = queueFeedUrl.pathname + '?' + queueFeedUrl.searchParams.toString();
+
+  let notifLoaded = false;
+  let notifLoadingPromise = null;
+
+  const severityToClass = {
+    critical: 'critical',
+    high: 'high',
+    medium: 'medium',
+    low: 'low',
+  };
+
+  const escapeAdmin = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+  const formatOwner = (item) => {
+    const owner = String(item?.owner ?? '').trim();
+    const detail = String(item?.detail ?? '').trim();
+    if (owner && detail) return `${owner} · ${detail}`;
+    return owner || detail;
+  };
+
+  const renderNotifItems = (items) => {
+    if (!notifList) return;
+    const loadingEl = notifList.querySelector('[data-admin-notif-loading]');
+    const emptyEl = notifList.querySelector('[data-admin-notif-empty]');
+    notifList.querySelectorAll('.topbar-notif-item').forEach((node) => node.remove());
+    if (!Array.isArray(items) || items.length === 0) {
+      if (loadingEl) loadingEl.hidden = true;
+      if (emptyEl) emptyEl.hidden = false;
+      return;
+    }
+    if (loadingEl) loadingEl.hidden = true;
+    if (emptyEl) emptyEl.hidden = true;
+    items.forEach((item) => {
+      const dotClass = severityToClass[item?.severity] || 'low';
+      const node = document.createElement('a');
+      node.className = 'topbar-notif-item';
+      node.href = `?section=tasks&type=${encodeURIComponent(item?.type ?? '')}`;
+      node.innerHTML = `
+        <span class="topbar-notif-item__dot ${dotClass}" aria-hidden="true"></span>
+        <div class="topbar-notif-item__body">
+          <p class="topbar-notif-item__title">${escapeAdmin(item?.title ?? 'Mục việc')}${(item?.count ?? 0) > 0 ? `<span class="topbar-notif-item__count">${escapeAdmin(item.count)}</span>` : ''}</p>
+          <p class="topbar-notif-item__meta">${escapeAdmin(formatOwner(item))}</p>
+        </div>
+      `;
+      notifList.appendChild(node);
+    });
+  };
+
+  const updateNotifBadge = (total) => {
+    if (!notifBadge) return;
+    const n = Number(total) || 0;
+    if (n <= 0) {
+      notifBadge.hidden = true;
+      notifBadge.textContent = '0';
+    } else {
+      notifBadge.hidden = false;
+      notifBadge.textContent = n > 99 ? '99+' : String(n);
+    }
+  };
+
+  const fetchNotifFeed = async (force = false) => {
+    if (notifLoadingPromise) return notifLoadingPromise;
+    if (notifLoaded && !force) return;
+    if (notifLoading) notifLoading.hidden = false;
+    if (notifEmpty) notifEmpty.hidden = true;
+    notifLoadingPromise = fetch(queueFeedEndpoint, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then((response) => response.json().catch(() => ({ ok: false })))
+      .then((payload) => {
+        const items = Array.isArray(payload?.items) ? payload.items : [];
+        const total = Number(payload?.total ?? 0);
+        renderNotifItems(items);
+        if (notifCount) notifCount.textContent = `${total} mục`;
+        updateNotifBadge(total);
+        notifLoaded = true;
+      })
+      .catch(() => {
+        if (notifLoading) notifLoading.hidden = true;
+        if (notifEmpty) notifEmpty.hidden = false;
+        notifEmpty.querySelector('p').textContent = 'Không thể tải việc cần xử lý.';
+      })
+      .finally(() => {
+        notifLoadingPromise = null;
+      });
+    return notifLoadingPromise;
+  };
+
+  const closeNotifMenu = () => {
+    if (!notifMenu || !notifTrigger) return;
+    notifMenu.classList.remove('is-open');
+    notifMenu.hidden = true;
+    notifTrigger.setAttribute('aria-expanded', 'false');
+  };
+
+  const openNotifMenu = () => {
+    if (!notifMenu || !notifTrigger) return;
+    notifMenu.hidden = false;
+    notifMenu.classList.add('is-open');
+    notifTrigger.setAttribute('aria-expanded', 'true');
+    fetchNotifFeed();
+  };
+
+  notifTrigger?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (notifMenu?.classList.contains('is-open')) {
+      closeNotifMenu();
+    } else {
+      openNotifMenu();
+      closeAccountMenu();
+    }
+  });
+  document.addEventListener('click', (event) => {
+    if (!notifMenu?.classList.contains('is-open')) return;
+    if (event.target instanceof Node && notifMenu.contains(event.target)) return;
+    if (event.target instanceof Node && notifTrigger?.contains(event.target)) return;
+    closeNotifMenu();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && notifMenu?.classList.contains('is-open')) {
+      closeNotifMenu();
+      notifTrigger?.focus();
+    }
+  });
+
+  // Tải số liệu badge ngay khi trang load (không cần mở dropdown)
+  fetchNotifFeed();
+
+  // Đổi tiêu đề header khi admin điều hướng giữa các section mà không reload
+  const topbarTitle = document.querySelector('[data-topbar-title]');
+  const sectionTitleFallback = topbarTitle?.textContent?.trim() || 'Trung tâm vận hành';
+  const updateTopbarTitle = (section) => {
+    if (!topbarTitle) return;
+    const titles = window.SECTION_TITLES || {};
+    const next = (section && titles[section]) ? titles[section] : sectionTitleFallback;
+    if (document.title) {
+      document.title = `${next} | TalentHub Admin`;
+    }
+    topbarTitle.textContent = next;
+  };
+  window.addEventListener('hashchange', () => {
+    const hash = window.location.hash.replace(/^#/, '');
+    updateTopbarTitle(hash);
+  });
+  // Đồng bộ tiêu đề khi quay lại trang (back/forward) và khi load lần đầu có hash
+  if (window.location.hash) {
+    updateTopbarTitle(window.location.hash.replace(/^#/, ''));
+  }
+
   document.querySelector('[data-refresh]')?.addEventListener('click', (event) => {
     const button = event.currentTarget;
     button.disabled = true;
@@ -75,10 +273,78 @@
   });
 
   const orgFilter = document.querySelector('[data-org-filter]');
-  orgFilter?.addEventListener('input', () => {
-    const query = orgFilter.value.trim().toLocaleLowerCase('vi');
-    document.querySelectorAll('[data-dashboard-organizations] [data-org-row]').forEach((row) => { row.hidden = query !== '' && !row.textContent.toLocaleLowerCase('vi').includes(query); });
+  let activeOrgTab = 'all';
+  const getOrgRows = () => document.querySelectorAll('[data-dashboard-organizations] [data-org-row]');
+  const getOrgEmptyRow = () => document.querySelector('[data-dashboard-organizations-empty]');
+  const getOrgEmptyMessage = () => document.querySelector('[data-org-empty-message]');
+
+  const updateOrgTabCounts = () => {
+    const rows = getOrgRows();
+    const counts = { all: rows.length, school: 0, enterprise: 0 };
+    rows.forEach((row) => {
+      const t = String(row.dataset.orgType || '').toLowerCase();
+      if (counts[t] !== undefined) counts[t] += 1;
+    });
+    document.querySelectorAll('[data-org-tab-count]').forEach((el) => {
+      const key = el.dataset.orgTabCount;
+      const value = counts[key] ?? 0;
+      el.textContent = String(value);
+    });
+    // Cập nhật aria-label số lượng cho tab đang chọn
+    document.querySelectorAll('[data-org-tab]').forEach((tab) => {
+      const key = tab.dataset.orgTab;
+      const labelMap = { all: 'Tất cả', school: 'Nhà trường', enterprise: 'Doanh nghiệp' };
+      tab.setAttribute('aria-label', `${labelMap[key] || key}: ${counts[key] ?? 0} mục`);
+    });
+  };
+
+  const applyOrgTabFilter = () => {
+    const rows = getOrgRows();
+    const query = (orgFilter?.value || '').trim().toLowerCase();
+    let visible = 0;
+    rows.forEach((row) => {
+      const type = String(row.dataset.orgType || '').toLowerCase();
+      const typeMatch = activeOrgTab === 'all' || type === activeOrgTab;
+      const textMatch = query === '' || row.textContent.toLocaleLowerCase('vi').includes(query);
+      const show = typeMatch && textMatch;
+      row.hidden = !show;
+      if (show) visible += 1;
+    });
+    const empty = getOrgEmptyRow();
+    const emptyMsg = getOrgEmptyMessage();
+    if (empty) {
+      empty.hidden = visible > 0;
+      if (emptyMsg) {
+        const labelMap = { all: 'tổ chức', school: 'nhà trường', enterprise: 'doanh nghiệp' };
+        emptyMsg.textContent = visible === 0
+          ? (query
+            ? `Không có ${labelMap[activeOrgTab] || 'tổ chức'} khớp với "${query}".`
+            : `Chưa có ${labelMap[activeOrgTab] || 'tổ chức'} nào trong nhóm này.`)
+          : 'Chưa có tổ chức trong nhóm này.';
+      }
+    }
+  };
+
+  document.querySelectorAll('[data-org-tab]').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const key = String(tab.dataset.orgTab || 'all');
+      activeOrgTab = key;
+      document.querySelectorAll('[data-org-tab]').forEach((t) => {
+        const isActive = t === tab;
+        t.classList.toggle('is-active', isActive);
+        t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+      applyOrgTabFilter();
+    });
   });
+
+  orgFilter?.addEventListener('input', () => {
+    applyOrgTabFilter();
+  });
+
+  // Khởi tạo: đếm count & áp dụng tab mặc định lần đầu (khi render từ PHP)
+  updateOrgTabCounts();
+  applyOrgTabFilter();
 
   const basePath = location.pathname.includes('/app/') ? location.pathname.split('/app/')[0] : '';
   const api = (path, options = {}) => fetch(`${basePath}/api/v1${path}`, { credentials: 'same-origin', ...options }).then(async (response) => {
@@ -160,7 +426,53 @@
   const columnLabels = {fullName:'Họ và tên',email:'Email',role:'Vai trò',status:'Trạng thái',createdAt:'Ngày tạo',expiresAt:'Hết hạn',lastLoginAt:'Đăng nhập gần nhất',name:'Tổ chức',type:'Loại',verificationStatus:'Xác minh',title:'Tiêu đề',category:'Danh mục',schoolName:'Nhà trường',startAt:'Bắt đầu',endAt:'Kết thúc',capacity:'Sức chứa',postTitle:'Vị trí thực tập',studentName:'Ứng viên',matchScore:'Độ phù hợp',appliedAt:'Ngày ứng tuyển',reviewedAt:'Ngày xem xét',orderCode:'Mã thanh toán',enterpriseName:'Doanh nghiệp',amount:'Số tiền',currency:'Tiền tệ',paymentMethod:'Phương thức',paymentStatus:'Thanh toán',provider:'Nhà cung cấp',providerReference:'Mã đối soát',paidAt:'Thời gian thanh toán',notificationStatus:'Trạng thái',deliveryChannel:'Kênh gửi',isRead:'Đã đọc',action:'Sự kiện',entityType:'Đối tượng',entityId:'Mã đối tượng',userId:'Người thực hiện',requestId:'Request ID',permissions:'Số quyền',description:'Mô tả',code:'Mã vai trò'};
   const hiddenColumns = new Set(['id','postId','studentId','orderId','registrationRequest']);
   const dateKeys = new Set(['createdAt','expiresAt','lastLoginAt','startAt','endAt','appliedAt','reviewedAt','paidAt']);
-  const formatDate = (value) => { if (!value) return 'Chưa có'; const raw=String(value);const normalized=/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(raw)?raw.replace(' ','T')+'Z':raw;const date=new Date(normalized);return Number.isNaN(date.getTime())?raw:new Intl.DateTimeFormat('vi-VN',{dateStyle:'short',timeStyle:'short',timeZone:'Asia/Ho_Chi_Minh'}).format(date); };
+  // Chuẩn hoá nhiều dạng timestamp từ MySQL/PHP/ISO về Date object hợp lệ.
+  // Tất cả datetime từ server được lưu ở UTC (Connection set time_zone='+00:00').
+  const parseServerDate = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const raw = String(value).trim();
+    // MySQL DATETIME: "YYYY-MM-DD HH:MM:SS[.ffffff]"
+    const mysqlMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?$/);
+    if (mysqlMatch) {
+      const [, y, mo, d, h, mi, s] = mysqlMatch;
+      const iso = `${y}-${mo}-${d}T${h}:${mi}:${s}Z`;
+      const date = new Date(iso);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+    // ISO 8601 / RFC 2822 — Date.parse xử lý trực tiếp
+    const date = new Date(raw);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+  const formatDate = (value) => {
+    const date = parseServerDate(value);
+    if (!date) return 'Chưa có';
+    return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(date);
+  };
+  // Relative time cho action center: ưu tiên "X phút/giờ/ngày trước".
+  const formatRelative = (value, now = Date.now()) => {
+    const date = parseServerDate(value);
+    if (!date) return { relative: 'Chưa rõ', absolute: '' };
+    const diffMs = now - date.getTime();
+    const diffSec = Math.round(diffMs / 1000);
+    const absText = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(date);
+    // Trong tương lai (clock skew) → fallback tuyệt đối
+    if (diffSec < 0) return { relative: absText, absolute: absText };
+    if (diffSec < 45) return { relative: 'Vừa xong', absolute: absText };
+    if (diffSec < 3600) {
+      const m = Math.floor(diffSec / 60);
+      return { relative: `${m} phút trước`, absolute: absText };
+    }
+    if (diffSec < 86400) {
+      const h = Math.floor(diffSec / 3600);
+      return { relative: `${h} giờ trước`, absolute: absText };
+    }
+    if (diffSec < 604800) {
+      const d = Math.floor(diffSec / 86400);
+      return { relative: `${d} ngày trước`, absolute: absText };
+    }
+    // Quá 7 ngày → hiển thị ngày tuyệt đối
+    return { relative: absText, absolute: absText };
+  };
   const statusTone = (value) => ['active','verified','paid','sent','completed','approved'].includes(String(value).toLowerCase()) ? 'success' : ['rejected','failed','disabled','cancelled'].includes(String(value).toLowerCase()) ? 'danger' : 'warning';
   const formatCell = (key,value) => { if (dateKeys.has(key)) return escapeHtml(formatDate(value)); if (key==='role'||key==='type') return escapeHtml(roleLabels[value]||value||'—'); if (key==='category') return escapeHtml(categoryLabels[String(value).toLowerCase().replace(/-/g, '_')]||value||'—'); if (key==='isRead') return value ? 'Đã đọc' : 'Chưa đọc'; if (key==='amount'&&value!==null) return Number(value).toLocaleString('vi-VN'); if (key==='matchScore'&&value!==null&&value!=='') return `${Number(value).toLocaleString('vi-VN')}%`; if (key.toLowerCase().includes('status')) return `<span class="status-badge ${statusTone(value)}">${escapeHtml(statusLabels[String(value).toLowerCase()]||value||'—')}</span>`; return escapeHtml(value??'—'); };
   const labels = {
@@ -209,7 +521,10 @@
       document.querySelectorAll('[data-nav-count]').forEach((badge)=>{const matched=visibleQueue.find((item)=>item.type===badge.dataset.navCount);const count=(badge.dataset.navCount==='dashboard'||badge.dataset.navCount==='tasks'||badge.dataset.navCount==='queue')?queueCount:Number(matched?.count||0);badge.textContent=count.toLocaleString('vi-VN');badge.hidden=count===0;badge.setAttribute('aria-label',`${count} mục cần xử lý`);});
       const alertButton=document.querySelector('[data-alert-count]');if(alertButton){alertButton.hidden=queueCount===0;alertButton.setAttribute('aria-label',`${queueCount} mục cần xử lý`);}
       const roleBox=document.querySelector('[data-role-distribution]');if(roleBox){const entries=Object.entries(data.usersByRole||{});const max=Math.max(1,...entries.map(([,count])=>Number(count)));roleBox.innerHTML=entries.length?`<div class="distribution-list">${entries.map(([role,count])=>`<div class="distribution-row"><div><span>${escapeHtml(roleLabels[role]||role)}</span><strong>${Number(count).toLocaleString('vi-VN')}</strong></div><div class="distribution-track"><span style="width:${Math.max(3,Number(count)/max*100)}%"></span></div></div>`).join('')}</div>`:'<div class="empty-state compact"><strong>Chưa có người dùng</strong></div>';}
-      const orgBody=document.querySelector('[data-dashboard-organizations]');if(orgBody){orgBody.innerHTML=(data.recentOrganizations||[]).map((org)=>`<tr data-org-row><td><div class="org-cell"><span class="org-logo">${escapeHtml(String(org.name||'?').slice(0,1).toUpperCase())}</span><div><strong>${escapeHtml(org.name)}</strong><small>${escapeHtml(roleLabels[org.type]||org.type)}</small></div></div></td><td><span class="status-badge ${statusTone(org.verificationStatus)}">${escapeHtml(statusLabels[org.verificationStatus]||org.verificationStatus)}</span></td><td colspan="3" class="muted-cell">Tạo lúc ${escapeHtml(formatDate(org.createdAt))}</td><td><button class="button secondary small" type="button" data-dashboard-section="organizations">Mở</button></td></tr>`).join('')||'<tr><td colspan="6"><div class="empty-state compact">Chưa có tổ chức.</div></td></tr>';}
+      const orgBody=document.querySelector('[data-dashboard-organizations]');if(orgBody){orgBody.innerHTML=(data.recentOrganizations||[]).map((org)=>`<tr data-org-row data-org-type="${escapeHtml(String(org.type||'').toLowerCase())}"><td><div class="org-cell"><span class="org-logo">${escapeHtml(String(org.name||'?').slice(0,1).toUpperCase())}</span><div><strong>${escapeHtml(org.name)}</strong><small>${escapeHtml(roleLabels[org.type]||org.type)}</small></div></div></td><td><span class="status-badge ${statusTone(org.verificationStatus)}">${escapeHtml(statusLabels[org.verificationStatus]||org.verificationStatus)}</span></td><td colspan="3" class="muted-cell">Tạo lúc ${escapeHtml(formatDate(org.createdAt))}</td><td><button class="button secondary small" type="button" data-dashboard-section="organizations">Mở</button></td></tr>`).join('')||'';}
+      // Cập nhật count + lọc sau khi render (áp dụng tab đang chọn + từ khoá)
+      updateOrgTabCounts();
+      applyOrgTabFilter();
       const auditList=document.querySelector('[data-dashboard-audit]');if(auditList){auditList.innerHTML=(data.recentAudits||[]).map((event)=>`<li><time>${escapeHtml(formatDate(event.createdAt))}</time><span class="audit-dot"></span><div><strong>${escapeHtml(event.action)}</strong><small>${escapeHtml(event.entityType)} · ${escapeHtml(event.entityId)}</small></div></li>`).join('')||'<li><div>Chưa có sự kiện audit.</div></li>';}
       const updated=document.querySelector('.last-updated');if(updated)updated.lastChild.textContent=` Cập nhật ${formatDate(data.generatedAt)}`;
     } catch (error) { showToast(`Không thể cập nhật dashboard: ${error.message}`); }
@@ -849,11 +1164,11 @@
             <p class="task-card-meta">${escapeHtml(item.meta)}</p>
 
             <div class="task-card-footer-row">
-              <div class="task-time-wrap">
+              <div class="task-time-wrap" title="${escapeHtml(formatRelative(item.createdAt).absolute)}">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                 </svg>
-                <span>${escapeHtml(formatDate(item.createdAt))}</span>
+                <time datetime="${escapeHtml(item.createdAt || '')}">${escapeHtml(formatRelative(item.createdAt).relative)}</time>
               </div>
               <span class="status-badge ${escapeHtml(item.statusTone)}">${escapeHtml(item.statusLabel)}</span>
             </div>
@@ -874,6 +1189,7 @@
 
   const loadSection = async (section, search = '') => {
     currentSection = section;
+    if (typeof updateTopbarTitle === 'function') updateTopbarTitle(section);
     document.querySelectorAll('[data-admin-section]').forEach((item)=>{const active=item.dataset.adminSection===section;item.classList.toggle('is-active',active);active?item.setAttribute('aria-current','page'):item.removeAttribute('aria-current');});
     if (section === 'dashboard') {
       if (dashboardView) dashboardView.hidden = false;
