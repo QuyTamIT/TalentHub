@@ -77,6 +77,8 @@ if (PHP_SAPI !== 'cli') {
     \TalentHub\Http\UnhandledExceptionHandler::register();
 }
 
+require_once dirname(__DIR__) . '/app/shared/timezone_helper.php';
+
 /**
  * Convert an app-relative path (e.g. "/app/enterprise/index.php" or "login.php") into
  * a robust, base-prefixed URL path (e.g. "/TalentHub/app/enterprise/index.php" when mounted

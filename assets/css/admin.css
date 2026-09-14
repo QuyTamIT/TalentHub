@@ -1856,12 +1856,17 @@ tbody tr:last-child td { border-bottom: 0; }
    -------------------------------------------------------------------------- */
 .command-dialog {
     width: min(680px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
     padding: 0;
     border: 0;
     border-radius: var(--radius-lg);
     background: var(--surface);
     color: var(--text-primary);
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.25);
+    margin: auto;
+    position: fixed;
+    inset: 0;
+    overflow: auto;
 }
 
 .command-dialog::backdrop {
@@ -2127,15 +2132,28 @@ tbody tr:last-child td { border-bottom: 0; }
    -------------------------------------------------------------------------- */
 .action-dialog {
     width: min(520px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
     padding: 0;
     border: 0;
     border-radius: var(--radius-lg);
     background: var(--surface);
     color: var(--text-primary);
     box-shadow: 0 24px 70px rgba(16, 24, 40, 0.25);
+    margin: auto;
+    position: fixed;
+    inset: 0;
+    overflow: auto;
+}
+.action-dialog::backdrop {
+    background: rgba(15, 23, 42, 0.45);
 }
 
-.action-dialog::backdrop {
+/* Đảm bảo mọi <dialog> đều căn giữa viewport khi showModal(). */
+dialog {
+    margin: auto;
+}
+
+dialog::backdrop {
     background: rgba(15, 23, 42, 0.45);
 }
 
