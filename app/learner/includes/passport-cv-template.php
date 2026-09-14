@@ -258,6 +258,6 @@ $cvVerificationUrl = $verificationUrl ?? ((function_exists('app_href') ? app_hre
         </div>
     </main>
     <script src="../../assets/vendor/qrcodejs/qrcode.min.js"></script>
-    <script src="../../assets/js/learner-passport-cv.js"></script>
+    <script src="../../assets/js/learner-passport-cv.js?v=<?= @filemtime(dirname(__DIR__, 3) . '/assets/js/learner-passport-cv.js') ?: time(); ?>"></script>
 </body>
 </html>

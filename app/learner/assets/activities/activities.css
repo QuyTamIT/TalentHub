@@ -1443,6 +1443,7 @@
 .learner-activities-shell .learner-activity-register-card,
 .learner-activities-shell .learner-activity-contact-card {
     padding: 22px;
+    position: static !important;
 }
 
 .learner-activities-shell .learner-activity-capacity {
