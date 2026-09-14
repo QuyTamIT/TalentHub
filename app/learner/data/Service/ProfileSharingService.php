@@ -273,6 +273,8 @@ final class ProfileSharingService
         $passportCode = 'TP-' . strtoupper(substr(str_replace('-', '', (string)$studentId), 0, 8));
         $result = [
             'student' => $studentView,
+            'studentId' => $studentId,
+            'sharedFields' => array_values($sharedFields),
             'sharedAt' => (string) $share['createdAt'],
             'expiresAt' => (string) $share['expiresAt'],
             'passportCode' => $passportCode,
@@ -374,6 +376,7 @@ final class ProfileSharingService
 
         return [
             'student' => $studentView,
+            'studentId' => $studentId,
             'sharedAt' => date('Y-m-d H:i:s'),
             'expiresAt' => date('Y-m-d H:i:s', strtotime('+30 days')),
             'passportCode' => $passportCode,
