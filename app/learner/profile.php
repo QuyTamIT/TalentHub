@@ -439,29 +439,11 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
             <div class="learner-modal__header">
                 <div>
                     <h2 id="learner-share-title">Chia sẻ hồ sơ năng lực</h2>
-                    <p>Chọn các thông tin bạn đồng ý chia sẻ và thời hạn của liên kết.</p>
+                    <p>Tạo liên kết trực tuyến để nhà tuyển dụng và đối tác xem bản CV chứng thực của bạn.</p>
                 </div>
                 <button class="learner-icon-button" type="button" data-close-modal aria-label="Đóng cửa sổ chia sẻ"><?= learner_icon('x', 22); ?></button>
             </div>
             <form id="learner-share-form">
-                <fieldset style="border: none; padding: 0; margin-bottom: 1rem;">
-                    <legend style="font-weight: 600; margin-bottom: 0.5rem;">Thông tin cho phép chia sẻ:</legend>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                        <label><input type="checkbox" name="sharedFields[]" value="fullName" checked disabled> Họ và tên (cơ bản)</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="headline" checked> Chức danh / Headline</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="bio" checked> Giới thiệu bản thân</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="location" checked> Địa điểm</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="school" checked> Trường học</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="class" checked> Lớp học</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="skills" checked> Kỹ năng</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="certificates" checked> Chứng chỉ</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="projects" checked> Dự án</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="experience" checked> Trải nghiệm & Giờ hoạt động</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="email"> Email (nhạy cảm)</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="phone"> Số điện thoại (nhạy cảm)</label>
-                    </div>
-                </fieldset>
-
                 <label class="learner-field" style="margin-bottom: 1rem;">
                     <span>Thời hạn chia sẻ:</span>
                     <select name="expiresInDays" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; width: 100%;">

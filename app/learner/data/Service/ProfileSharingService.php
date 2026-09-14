@@ -36,6 +36,9 @@ final class ProfileSharingService
      */
     public function createShare(string $studentId, array $sharedFields, int $expiresInDays = 30): array
     {
+        if ($sharedFields === []) {
+            $sharedFields = self::ALLOWED_FIELDS;
+        }
         $this->validateFields($sharedFields);
         if ($expiresInDays < 1 || $expiresInDays > 365) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Thời hạn chia sẻ phải từ 1 đến 365 ngày.');

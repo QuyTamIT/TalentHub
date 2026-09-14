@@ -57,6 +57,8 @@ assertTest("Profile has 'Chỉnh sửa' button",
     str_contains($profileHtml, 'Chỉnh sửa'));
 assertTest("Share modal links to talent-passport-cv.php",
     str_contains($profileHtml, 'href="talent-passport-cv.php"'));
+assertTest("Share modal has NO checkboxes (removed sharedFields checklist)",
+    !str_contains($profileHtml, 'name="sharedFields[]"'));
 
 // ----------------------------------------------------------------------
 // 2. Test CV Template Content & '360' Removal
