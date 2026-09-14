@@ -145,19 +145,75 @@ final class SchoolPartnershipRepository
                 INSERT INTO school_enterprise_partnerships
                     (id, schoolId, enterpriseId, status, requestedByUserId, createdAt, updatedAt)
                 VALUES
-                    (:id, :schoolId, :enterpriseId, 'pending', :userId, :now, :now)
+                    (:id, :schoolId, :enterpriseId, 'pending', :userId, :createdAt, :updatedAt)
             SQL);
             $stmtInsert->execute([
                 'id' => $id,
                 'schoolId' => $schoolId,
                 'enterpriseId' => $enterpriseId,
                 'userId' => $userId,
-                'now' => $now,
+                'createdAt' => $now,
+                'updatedAt' => $now,
             ]);
         }
 
         // Notify School Admin
-        $this->notifySchool($schoolId, 'Yêu cầu hợp tác mới từ Doanh nghiệp', "Doanh nghiệp đã gửi yêu cầu hợp tác với nhà trường.", "/app/teacher/partnerships.php?id={$id}");
+        $this->notifySchool($schoolId, 'Yêu cầu hợp tác mới từ Doanh nghiệp', "Doanh nghiệp đã gửi yêu cầu hợp tác với nhà trường.", "/app/school/partnerships.php?id={$id}");
+
+        return $this->getPartnership($id);
+    }
+
+    public function createSchoolPartnershipRequest(string $schoolId, string $userId, string $enterpriseId): array
+    {
+        $enterpriseId = trim($enterpriseId);
+        if (!Uuid::isValid($enterpriseId)) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Mã doanh nghiệp không hợp lệ.');
+        }
+
+        // Verify enterprise exists and is active
+        $stmtEnt = $this->pdo->prepare('SELECT id, name FROM enterprises WHERE id = ? AND status = \'active\' LIMIT 1');
+        $stmtEnt->execute([$enterpriseId]);
+        $enterprise = $stmtEnt->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($enterprise)) {
+            throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy doanh nghiệp hoặc doanh nghiệp đang tạm dừng.');
+        }
+
+        // Check if partnership already exists
+        $stmtExisting = $this->pdo->prepare('SELECT id, status FROM school_enterprise_partnerships WHERE schoolId = ? AND enterpriseId = ? LIMIT 1');
+        $stmtExisting->execute([$schoolId, $enterpriseId]);
+        $existing = $stmtExisting->fetch(PDO::FETCH_ASSOC);
+
+        $now = $this->now();
+        $id = is_array($existing) ? (string) $existing['id'] : Uuid::v4();
+
+        if (is_array($existing)) {
+            $currentStatus = (string) $existing['status'];
+            if ($currentStatus === 'approved' || $currentStatus === 'pending') {
+                return $this->getPartnership($id);
+            }
+
+            // Re-request if rejected or suspended
+            $stmtUpd = $this->pdo->prepare('UPDATE school_enterprise_partnerships SET status = \'pending\', requestedByUserId = :userId, reviewedByUserId = NULL, reviewedAt = NULL, updatedAt = :now WHERE id = :id');
+            $stmtUpd->execute(['userId' => $userId, 'now' => $now, 'id' => $id]);
+        } else {
+            $stmtInsert = $this->pdo->prepare(<<<'SQL'
+                INSERT INTO school_enterprise_partnerships
+                    (id, schoolId, enterpriseId, status, requestedByUserId, createdAt, updatedAt)
+                VALUES
+                    (:id, :schoolId, :enterpriseId, 'pending', :userId, :createdAt, :updatedAt)
+            SQL);
+            $stmtInsert->execute([
+                'id' => $id,
+                'schoolId' => $schoolId,
+                'enterpriseId' => $enterpriseId,
+                'userId' => $userId,
+                'createdAt' => $now,
+                'updatedAt' => $now,
+            ]);
+        }
+
+        // Notify Enterprise
+        $this->notifyEnterprise($enterpriseId, 'Yêu cầu hợp tác mới từ Nhà trường', 'Nhà trường đã gửi yêu cầu hợp tác với doanh nghiệp.', '/app/enterprise/partnerships.php');
 
         return $this->getPartnership($id);
     }
@@ -218,14 +274,15 @@ final class SchoolPartnershipRepository
                 UPDATE school_enterprise_partnerships
                 SET status = :targetStatus,
                     reviewedByUserId = :reviewerUserId,
-                    reviewedAt = :now,
-                    updatedAt = :now
+                    reviewedAt = :reviewedAt,
+                    updatedAt = :updatedAt
                 WHERE id = :id AND schoolId = :schoolId AND status = :currentStatus
             SQL);
             $upd->execute([
                 'targetStatus' => $targetStatus,
                 'reviewerUserId' => $reviewerUserId,
-                'now' => $now,
+                'reviewedAt' => $now,
+                'updatedAt' => $now,
                 'id' => $partnershipId,
                 'schoolId' => $schoolId,
                 'currentStatus' => $currentStatus,
