@@ -111,8 +111,8 @@ $formatDateTime = static function (mixed $value, string $format): string {
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">
     <link rel="stylesheet" href="../../assets/css/polish.css">
-    <link rel="stylesheet" href="../../assets/css/learner.css">
-    <link rel="stylesheet" href="assets/activities/activities.css">
+    <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= @filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css') ?: time() ?>">
+    <link rel="stylesheet" href="assets/activities/activities.css?v=<?= @filemtime(__DIR__ . '/assets/activities/activities.css') ?: time() ?>">
 </head>
 <body class="learner-app learner-page-activity-detail">
 <div class="learner-layout">

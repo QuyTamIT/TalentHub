@@ -30,6 +30,7 @@ function teacherDashboardDefaults(): array
         ],
         'metrics' => [
             'total_students' => 0,
+            'managed_classes' => 0,
             'open_activities' => 0,
             'pending_assessments' => 0,
             'average_score' => null,
@@ -42,6 +43,7 @@ function teacherDashboardDefaults(): array
             'qr_tokens_expiring' => 0,
         ],
         'recentActivities' => [],
+        'managedActivities' => [],
     ];
 }
 
@@ -85,10 +87,6 @@ function teacherDashboardBackendContext(bool $forceRefresh = false): array
                     ];
                 }
             } catch (\Throwable) {}
-        }
-
-        if ($user === null && !empty($_SESSION['user']) && is_array($_SESSION['user'])) {
-            $user = $_SESSION['user'];
         }
 
         if ($user === null) {
@@ -288,6 +286,8 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
           AND sp.studyStatus = 'active'
     ", ['schoolId' => $schoolId]) ?? 0) : 0);
 
+    $data['metrics']['managed_classes'] = $managedClassId !== '' ? 1 : 0;
+
     $data['metrics']['managed_activities'] = (int) (teacherDashboardScalar($pdo, "
         SELECT COUNT(*)
         FROM activities
@@ -407,8 +407,102 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
     ", ['userId' => $userId]) ?? 0);
 
     $data['recentActivities'] = teacherDashboardRecentActivities($pdo, $teacherId);
+    $data['managedActivities'] = teacherDashboardActivitiesList($pdo, $teacherId);
 
     return $data;
+}
+
+function teacherDashboardActivitiesList(PDO $pdo, string $teacherId): array
+{
+    if ($teacherId === '') {
+        return [];
+    }
+
+    $rows = teacherDashboardRows($pdo, "
+        SELECT 
+            a.id,
+            a.title,
+            a.category,
+            a.startAt,
+            a.endAt,
+            a.capacity,
+            a.status,
+            a.approvalStatus,
+            COUNT(ar.id) as registered_count
+        FROM activities a
+        LEFT JOIN activity_registrations ar ON ar.activityId = a.id
+        WHERE a.createdByTeacherId = :teacherId
+        GROUP BY a.id, a.title, a.category, a.startAt, a.endAt, a.capacity, a.status, a.approvalStatus
+        ORDER BY a.startAt DESC, a.createdAt DESC
+        LIMIT 10
+    ", ['teacherId' => $teacherId]);
+
+    $list = [];
+    $categoryCatalog = [
+        'career_technical' => 'Kỹ thuật',
+        'career_business' => 'Kinh doanh',
+        'career_arts' => 'Sáng tạo',
+        'career_sports_academic' => 'Cộng đồng',
+    ];
+
+    foreach ($rows as $r) {
+        $capacity = (int) ($r['capacity'] ?? 0);
+        $regCount = (int) ($r['registered_count'] ?? 0);
+        $rawStatus = strtolower(trim((string) ($r['status'] ?? 'published')));
+
+        $statusLabel = match($rawStatus) {
+            'ongoing' => 'Đang diễn ra',
+            'published' => 'Đã công bố',
+            'completed' => 'Đã hoàn tất',
+            'draft' => 'Bản nháp',
+            'archived' => 'Đã lưu trữ',
+            default => 'Đang mở'
+        };
+
+        $statusType = match($rawStatus) {
+            'ongoing' => 'success',
+            'published' => 'primary',
+            'completed' => 'neutral',
+            'draft' => 'warning',
+            default => 'info'
+        };
+
+        $timeDisplay = 'Chưa thiết lập';
+        if (!empty($r['startAt'])) {
+            $startTime = strtotime($r['startAt']);
+            $endTime = !empty($r['endAt']) ? strtotime($r['endAt']) : null;
+            if ($startTime) {
+                if ($endTime && date('Y-m-d', $startTime) === date('Y-m-d', $endTime)) {
+                    $timeDisplay = date('d/m/Y H:i', $startTime) . ' - ' . date('H:i', $endTime);
+                } elseif ($endTime) {
+                    $timeDisplay = date('d/m/Y H:i', $startTime) . ' - ' . date('d/m/Y H:i', $endTime);
+                } else {
+                    $timeDisplay = date('d/m/Y H:i', $startTime);
+                }
+            }
+        }
+
+        $categoryKey = strtolower(trim((string) ($r['category'] ?? '')));
+        $categoryLabel = $categoryCatalog[$categoryKey] ?? ($r['category'] ? ucfirst($r['category']) : 'Hoạt động');
+
+        $list[] = [
+            'id' => (string) $r['id'],
+            'title' => (string) ($r['title'] ?: 'Hoạt động chưa đặt tên'),
+            'category_label' => $categoryLabel,
+            'startAt' => $r['startAt'],
+            'endAt' => $r['endAt'],
+            'time_display' => $timeDisplay,
+            'capacity' => $capacity,
+            'registered_count' => $regCount,
+            'students_label' => $capacity > 0 ? "{$regCount} / {$capacity} học viên" : "{$regCount} học viên",
+            'status' => $rawStatus,
+            'status_label' => $statusLabel,
+            'status_type' => $statusType,
+            'detail_url' => '/app/teacher/activities/index.php?activity_id=' . urlencode((string) $r['id']),
+        ];
+    }
+
+    return $list;
 }
 
 function teacherDashboardRecentActivities(PDO $pdo, string $teacherId): array

@@ -64,7 +64,7 @@ if ($statsData !== null) {
         ['id' => 'hours', 'label' => 'Giờ trải nghiệm', 'value' => 0, 'suffix' => 'giờ', 'tone' => 'teal', 'icon' => 'clock'],
         ['id' => 'streak', 'label' => 'Chuỗi rèn luyện', 'value' => 0, 'suffix' => 'ngày', 'tone' => 'orange', 'icon' => 'flame'],
         ['id' => 'activities', 'label' => 'Hoạt động hoàn thành', 'value' => 0, 'suffix' => 'hoạt động', 'tone' => 'success', 'icon' => 'activity'],
-        ['id' => 'projects', 'label' => 'Dự án tham gia', 'value' => 0, 'suffix' => 'dự án', 'tone' => 'purple', 'icon' => 'folder'],
+        ['id' => 'projects', 'label' => 'Dự án đã hoàn thành', 'value' => 0, 'suffix' => 'dự án', 'tone' => 'purple', 'icon' => 'folder'],
         ['id' => 'badges', 'label' => 'Huy hiệu đạt được', 'value' => 0, 'suffix' => 'huy hiệu', 'tone' => 'blue', 'icon' => 'award'],
     ];
     $experience = ['hours' => [0, 0, 0, 0, 0, 0, 0], 'labels' => ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'], 'dates' => []];
@@ -478,13 +478,11 @@ $fieldLabelMap = [
                     <div class="learner-statistics-grid learner-statistics-grid--growth">
                         <section class="learner-card learner-projects-card" aria-labelledby="learner-projects-title" data-projects-card>
                             <header class="learner-projects-card__header">
-                                <h2 id="learner-projects-title">Dự án & Nghiên cứu</h2>
-                                <span class="learner-projects-card__hint">Vai trò thực tế của bạn trong các dự án</span>
+                                <h2 id="learner-projects-title">Dự án & Nghiên cứu đã hoàn thành</h2>
+                                <span class="learner-projects-card__hint">Vai trò thực tế của bạn trong các dự án đã hoàn thành</span>
                             </header>
                             <div class="learner-projects-card__stats">
-                                <div class="learner-projects-card__stat learner-projects-card__stat--purple"><strong data-projects-total><?= learner_escape($projects['total'] ?? 0); ?></strong><span>Dự án tham gia</span></div>
-                                <div class="learner-projects-card__stat learner-projects-card__stat--success"><strong data-projects-completed><?= learner_escape($projects['completed'] ?? 0); ?></strong><span>Hoàn thành</span></div>
-                                <div class="learner-projects-card__stat learner-projects-card__stat--warning"><strong data-projects-in-progress><?= learner_escape($projects['in_progress'] ?? 0); ?></strong><span>Đang triển khai</span></div>
+                                <div class="learner-projects-card__stat learner-projects-card__stat--success"><strong data-projects-completed><?= learner_escape($projects['completed'] ?? 0); ?></strong><span>Dự án đã hoàn thành</span></div>
                                 <div class="learner-projects-card__stat learner-projects-card__stat--primary"><strong data-projects-leader><?= learner_escape($projects['leader_roles'] ?? 0); ?></strong><span>Vai trò trưởng nhóm</span></div>
                             </div>
                             <ul class="learner-projects-card__list" data-projects-list <?= empty($projects['featured']) ? 'hidden' : ''; ?>>
@@ -497,7 +495,7 @@ $fieldLabelMap = [
                                     </li>
                                 <?php endforeach; ?>
                             </ul>
-                            <p class="learner-statistics-field-empty" data-projects-empty <?= empty($projects['featured']) ? '' : 'hidden'; ?>>Chưa tham gia dự án nào. Hãy đăng ký dự án hoặc nghiên cứu để tích lũy sản phẩm thực tế.</p>
+                            <p class="learner-statistics-field-empty" data-projects-empty <?= empty($projects['featured']) ? '' : 'hidden'; ?>>Chưa có dự án nào được ghi nhận hoàn thành.</p>
                         </section>
 
                         <section class="learner-card learner-level-summary-card learner-level-summary-card--panel" aria-labelledby="learner-level-title">

@@ -29,6 +29,21 @@ $roleMessages=[
 ];
 $roleAlert=null;
 if($requiredRole!==null&&isset($roleMessages[$requiredRole])){
+    $isDbUserValid = static function (?array $candidate): bool {
+        if (!$candidate || empty($candidate['id'])) {
+            return false;
+        }
+        try {
+            $dbPdo = (new Connection(require __DIR__ . '/config/database.php'))->connect();
+            $stmt = $dbPdo->prepare('SELECT id, status FROM users WHERE id = :id LIMIT 1');
+            $stmt->execute(['id' => (string)$candidate['id']]);
+            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+            return is_array($row) && (($row['status'] ?? '') === 'active');
+        } catch (\Throwable) {
+            return false;
+        }
+    };
+
     $roleSessionName = SessionManager::sessionNameForRole($requiredRole);
     if (isset($_COOKIE[$roleSessionName])) {
         if (session_status() === PHP_SESSION_ACTIVE) {
@@ -38,8 +53,11 @@ if($requiredRole!==null&&isset($roleMessages[$requiredRole])){
         $rSession->start();
         $rUser = $rSession->user();
         if ($rUser !== null && \TalentHub\Rbac\RoleCodes::matches((string)($rUser['role'] ?? ''), $requiredRole)) {
-            header('Location: '.app_href(AuthPortalRouter::destination((string)$rUser['role'], $requestedNext)));
-            exit;
+            if ($isDbUserValid($rUser)) {
+                header('Location: '.app_href(AuthPortalRouter::destination((string)$rUser['role'], $requestedNext)));
+                exit;
+            }
+            SessionManager::clearAllRoleSessions();
         }
         session_write_close();
         $session->start();
@@ -47,8 +65,11 @@ if($requiredRole!==null&&isset($roleMessages[$requiredRole])){
     $currentUser=$session->user();
     $currentRole=$currentUser['role']??null;
     if($currentRole!==null && \TalentHub\Rbac\RoleCodes::matches((string)$currentRole, $requiredRole)){
-        header('Location: '.app_href(AuthPortalRouter::destination((string)$currentRole, $requestedNext)));
-        exit;
+        if ($isDbUserValid($currentUser)) {
+            header('Location: '.app_href(AuthPortalRouter::destination((string)$currentRole, $requestedNext)));
+            exit;
+        }
+        SessionManager::clearAllRoleSessions();
     }
     $roleAlert=$roleMessages[$requiredRole];
 }
@@ -125,7 +146,20 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
                 <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : './assets/images/talenthub-logo.png'); ?>" alt="FTalentHub Logo" class="auth-mobile-logo__img">
             </a>
             <div class="auth-heading"><p class="auth-kicker">Chào mừng trở lại</p><h2 id="login-title">Đăng nhập tài khoản</h2><p>Nhập thông tin đã đăng ký hoặc được tổ chức cấp.</p></div>
-            <?php if($registrationSucceeded): ?><div class="auth-alert auth-alert--success" role="status"><strong>Đăng ký thành công.</strong> <?= $registrationPending ? 'Hồ sơ giáo viên đã gửi duyệt. Tài khoản sẽ được kích hoạt sau khi nhà trường phê duyệt.' : 'Bạn có thể đăng nhập bằng tài khoản vừa tạo.' ?></div><?php endif; ?>
+            <?php if($registrationSucceeded): ?>
+                <div class="auth-alert auth-alert--success" role="status">
+                    <strong>Đăng ký thành công.</strong>
+                    <?php if($registrationPending): ?>
+                        <?php if((is_array($flash) && (($flash['role'] ?? '') === 'teacher' || !empty($flash['schoolName'])))): ?>
+                            Yêu cầu đã được gửi đến Nhà trường <strong><?= authEscape($flash['schoolName'] ?? 'đã chọn') ?></strong>. Hồ sơ giáo viên đang chờ Nhà trường phê duyệt. Tài khoản sẽ được kích hoạt sau khi Nhà trường xác nhận.
+                        <?php else: ?>
+                            Yêu cầu đã được gửi đến Admin. Tài khoản chỉ được tạo sau khi hồ sơ được duyệt và yêu cầu chưa xử lý sẽ hết hạn sau 3 ngày.
+                        <?php endif; ?>
+                    <?php else: ?>
+                        Bạn có thể đăng nhập bằng tài khoản vừa tạo.
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
             <?php if(is_array($roleAlert)): ?><div class="auth-alert auth-alert--warning" role="alert"><strong>Yêu cầu đăng nhập <?=authEscape($roleAlert['label'])?>:</strong> <?=authEscape($roleAlert['desc'])?></div><?php endif; ?>
             <?php if($errorMessage!==null): ?><div class="auth-alert auth-alert--error" role="alert"><?=authEscape($errorMessage)?></div><?php endif; ?>
             <form class="auth-form" method="post" action="./login.php" data-auth-form>

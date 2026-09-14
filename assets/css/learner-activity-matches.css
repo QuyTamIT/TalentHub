@@ -16,8 +16,18 @@
 .learner-activity-matches article { line-height: 1.6; }
 .learner-activity-matches article h3 { margin: 0; font-size: var(--text-xl); }
 .learner-activity-matches article a { color: #6d28d9; font-weight: 700; }
+.learner-activity-matches article.learner-activity-matches__insight { grid-column: 1 / -1; padding: 24px; border-left: 4px solid #8b5cf6; background: linear-gradient(120deg, #faf5ff, #fff 75%); }
+.learner-activity-matches__analysis { white-space: pre-line; line-height: 1.8; margin: 14px 0; }
+.learner-activity-matches__invitation { padding: 14px 16px; background: #f1f5f9; border-radius: 10px; color: #475569; }
+.learner-activity-matches__insight a { display: inline-block; padding: 8px 0; text-underline-offset: 4px; }
+#activity-catalog { scroll-margin-top: 24px; }
+@media (max-width: 1100px) {
+    /* The entrance animation retains transform: none and otherwise covers the analysis with the closed drawer. */
+    .learner-page-activities .learner-sidebar { animation: none; }
+}
 @media (max-width: 640px) {
     .learner-activity-matches__panel { padding: 16px; }
+    .learner-activity-matches article.learner-activity-matches__insight { padding: 18px; }
     .learner-activity-matches__header { flex-wrap: wrap; }
     .learner-activity-matches__header h2 { font-size: 1.1875rem; }
     .learner-activity-matches__actions .learner-btn { width: 100%; justify-content: center; white-space: normal; }

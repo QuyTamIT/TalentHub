@@ -54,6 +54,9 @@ final class AuthService
             throw new ApiException(401, 'INVALID_CREDENTIALS', 'Email hoặc mật khẩu không chính xác.');
         }
         if (($row['status'] ?? '') !== 'active') {
+            if (($row['status'] ?? '') === 'pending' && ($row['role'] ?? '') === 'teacher') {
+                throw new ApiException(403, 'ACCOUNT_UNAVAILABLE', 'Hồ sơ giáo viên đang chờ Nhà trường phê duyệt. Vui lòng thử lại sau khi được Nhà trường kích hoạt.');
+            }
             throw new ApiException(403, 'ACCOUNT_UNAVAILABLE', 'Tài khoản chưa sẵn sàng để đăng nhập. Vui lòng liên hệ quản trị viên.');
         }
         if(isset($row['id'])){

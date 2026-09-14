@@ -70,6 +70,19 @@ body.teacher-sidebar-open { overflow: hidden; }
     z-index: var(--z-dropdown);
     padding: 1.25rem 1rem;
     transition: transform var(--transition-base);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+.teacher-sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.teacher-sidebar::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
 }
 
 /* --------------------------------------------------------------------------
@@ -78,15 +91,18 @@ body.teacher-sidebar-open { overflow: hidden; }
 .teacher-sidebar__brand {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    padding-bottom: 0.75rem;
+    align-items: center;
+    padding-bottom: 0.875rem;
     border-bottom: 1px solid var(--border, #F0E6DD);
     margin-bottom: 1rem;
     width: 100%;
+    text-align: center;
 }
 
 .teacher-sidebar__brand-link {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-decoration: none;
     line-height: 1;
     transition: opacity var(--transition-fast, 0.15s ease), transform var(--transition-fast, 0.15s ease);
@@ -99,7 +115,7 @@ body.teacher-sidebar-open { overflow: hidden; }
 
 .teacher-sidebar__logo-img {
     display: block;
-    width: 178px;
+    width: 168px;
     max-width: 100%;
     height: auto;
     object-fit: contain;
@@ -117,39 +133,48 @@ body.teacher-sidebar-open { overflow: hidden; }
     border: 1px solid var(--primary-light-border, #FFDACB);
     padding: 2px 9px;
     border-radius: 999px;
-    margin: 10px auto 2px auto;
-    align-self: center;
+    margin: 8px auto 0 auto;
     letter-spacing: 0.02em;
     line-height: 1.4;
     text-align: center;
     margin-inline-end: 0;
 }
 
+.teacher-sidebar__nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
 .teacher-sidebar__nav-title {
     font-size: 0.6875rem;
-    font-weight: var(--font-bold);
-    color: var(--text-muted);
+    font-weight: var(--font-bold, 700);
+    color: var(--text-muted, #9E897D);
     letter-spacing: 0.06em;
     margin-bottom: 0.5rem;
     padding-left: 0.5rem;
+    text-transform: uppercase;
 }
 
 .teacher-sidebar__nav ul {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.375rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
 
 .teacher-sidebar__link {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.625rem 0.875rem;
-    border-radius: var(--radius-md);
-    font-size: var(--text-base);
-    font-weight: var(--font-medium);
-    color: var(--text-secondary);
-    transition: all var(--transition-fast);
+    padding: 0.6875rem 0.875rem;
+    border-radius: var(--radius-md, 10px);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--text-secondary, #6B5548);
+    transition: all var(--transition-fast, 0.15s ease);
     text-decoration: none;
     border: 1px solid transparent;
     position: relative;
@@ -158,12 +183,13 @@ body.teacher-sidebar-open { overflow: hidden; }
 .teacher-sidebar__link:hover,
 .teacher-sidebar__link:focus-visible {
     background-color: rgba(255, 107, 69, 0.08);
-    color: var(--primary);
+    color: var(--primary, #F97316);
 }
 
 .teacher-sidebar__link:hover .teacher-sidebar__icon,
 .teacher-sidebar__link:hover svg {
-    color: var(--primary);
+    color: var(--primary, #F97316);
+    stroke: var(--primary, #F97316);
 }
 
 .teacher-sidebar__link.is-active {
@@ -187,31 +213,173 @@ body.teacher-sidebar-open { overflow: hidden; }
 }
 
 .teacher-sidebar__icon {
-    color: var(--text-secondary);
+    color: var(--text-secondary, #6B5548);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: color var(--transition-fast);
+    width: 20px;
+    height: 20px;
+    transition: color var(--transition-fast, 0.15s ease);
 }
 
-.teacher-sidebar__footer {
+.teacher-sidebar__text {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --------------------------------------------------------------------------
+   Teacher Profile & Stats Card at Bottom of Sidebar (Slide Design)
+   -------------------------------------------------------------------------- */
+.teacher-sidebar__teacher-card {
     margin-top: auto;
-    padding-top: 0.875rem;
-    border-top: 1px solid var(--border);
+    margin-bottom: 0.75rem;
+    padding: 0.875rem 0.875rem 0.75rem;
+    background: #FDFBF9;
+    border: 1px solid #F0E6DD;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.teacher-sidebar__teacher-header {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    margin-bottom: 0.625rem;
+}
+
+.teacher-sidebar__teacher-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #FF6B45 0%, #F83F70 100%);
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 0.8125rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(248, 63, 112, 0.22);
+    letter-spacing: 0.02em;
+}
+
+.teacher-sidebar__teacher-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.teacher-sidebar__teacher-name {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #1E293B;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+.teacher-sidebar__teacher-role {
+    font-size: 0.75rem;
+    color: #64748B;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+    margin-top: 1px;
+}
+
+.teacher-sidebar__teacher-stats {
+    border-top: 1px dashed #E2E8F0;
+    padding-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.teacher-sidebar__stat-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    padding: 0.1rem 0;
+}
+
+.teacher-sidebar__stat-row .label {
+    color: #64748B;
+    font-size: 0.78125rem;
+}
+
+.teacher-sidebar__stat-row .value {
+    font-weight: 700;
+    color: #1E293B;
+    font-size: 0.8125rem;
+}
+
+/* Backward compatibility for legacy summary */
+.teacher-sidebar__summary {
+    margin-top: auto;
+    margin-bottom: 0.875rem;
+    padding: 0.875rem 1rem;
+    background: var(--background, #FDF7F1);
+    border: 1px solid var(--border, #F0E6DD);
+    border-radius: var(--radius-md, 12px);
+}
+
+.teacher-sidebar__summary-title {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted, #9E897D);
+    margin-bottom: 0.5rem;
+}
+
+.teacher-sidebar__summary-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    color: var(--text-secondary, #6B5548);
+    padding: 0.2rem 0;
+}
+
+.teacher-sidebar__summary-item .label {
+    color: var(--text-secondary, #6B5548);
+}
+
+.teacher-sidebar__summary-item .value {
+    font-weight: 700;
+    color: var(--text-primary, #322014);
+}
+
+/* --------------------------------------------------------------------------
+   Logout Action at Bottom
+   -------------------------------------------------------------------------- */
+.teacher-sidebar__footer {
+    padding-top: 0.625rem;
+    border-top: 1px solid var(--border, #F0E6DD);
 }
 
 .teacher-sidebar__link--logout {
-    color: var(--text-secondary);
+    color: #64748B;
+    padding: 0.5625rem 0.875rem;
+    font-size: 0.875rem;
+    border-radius: 8px;
 }
 
 .teacher-sidebar__link--logout:hover {
-    background-color: var(--color-danger-light);
-    color: var(--color-danger);
+    background-color: #FEF2F2;
+    color: #DC2626;
 }
 
-.teacher-sidebar__link--logout:hover .teacher-sidebar__icon {
-    transform: translateX(3px);
+.teacher-sidebar__link--logout:hover .teacher-sidebar__icon,
+.teacher-sidebar__link--logout:hover svg {
+    color: #DC2626;
+    stroke: #DC2626;
+    transform: translateX(2px);
 }
 
 .teacher-sidebar__link--logout:active { transform: scale(0.98); }
@@ -619,6 +787,16 @@ body.teacher-sidebar-open { overflow: hidden; }
     color: var(--text-secondary);
 }
 
+.teacher-welcome__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--border);
+    flex-wrap: wrap;
+}
+
 /* --------------------------------------------------------------------------
    KPI Grid — uses global .portal-kpis-grid pattern
    -------------------------------------------------------------------------- */
@@ -835,6 +1013,106 @@ body.teacher-sidebar-open { overflow: hidden; }
 }
 
 .teacher-action-row__btn[disabled] { opacity: 0.65; cursor: not-allowed; }
+
+.teacher-section-link {
+    font-size: var(--text-sm, 0.8125rem);
+    font-weight: var(--font-semibold, 600);
+    color: var(--primary, #FF6B45);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: color var(--transition-fast);
+}
+
+.teacher-section-link:hover {
+    color: var(--primary-coral, #F83F70);
+    text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   Teacher Activity Cards (Activities in charge)
+   -------------------------------------------------------------------------- */
+.teacher-activity-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    padding: 1.125rem 1.25rem;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 8px);
+    margin-bottom: 0.875rem;
+    transition: all var(--transition-fast);
+}
+
+.teacher-activity-card:last-child {
+    margin-bottom: 0;
+}
+
+.teacher-activity-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-sm);
+    background-color: var(--surface-hover);
+}
+
+.teacher-activity-card__main {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.teacher-activity-card__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.375rem;
+    flex-wrap: wrap;
+}
+
+.teacher-activity-card__title {
+    font-size: 1rem;
+    font-weight: var(--font-bold, 700);
+    color: var(--text-primary);
+    margin: 0.25rem 0 0.5rem 0;
+    line-height: 1.35;
+}
+
+.teacher-activity-card__title a {
+    color: inherit;
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.teacher-activity-card__title a:hover {
+    color: var(--primary);
+}
+
+.teacher-activity-card__meta-row {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.teacher-activity-card__meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.teacher-activity-card__meta-item svg {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.teacher-activity-card__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
 
 /* --------------------------------------------------------------------------
    Overview card

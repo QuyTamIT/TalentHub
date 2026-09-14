@@ -171,8 +171,8 @@ final class StatisticsService
             ],
             [
                 'id' => 'projects',
-                'label' => 'Dự án tham gia',
-                'value' => $projects['total'],
+                'label' => 'Dự án đã hoàn thành',
+                'value' => $projects['completed'],
                 'suffix' => 'dự án',
                 'tone' => 'purple',
                 'icon' => 'folder',
@@ -709,7 +709,7 @@ final class StatisticsService
         }
 
         if ($projects['total'] === 0) {
-            $recommendations[] = 'Tham gia một dự án thực tế hoặc nghiên cứu cùng giảng viên để chứng minh năng lực qua sản phẩm.';
+            $recommendations[] = 'Hoàn thành một dự án thực tế hoặc nghiên cứu cùng giảng viên để ghi nhận sản phẩm vào hồ sơ năng lực.';
         }
 
         if ($streak === 0) {

@@ -45,7 +45,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 ...$values,
                 'password' => $password,
             ]);
-            $_SESSION['authFlash']=['type'=>'registered-pending','email'=>$result['email']];
+            $_SESSION['authFlash'] = [
+                'type' => 'registered-pending',
+                'role' => 'teacher',
+                'email' => $result['email'],
+                'schoolId' => $result['schoolId'] ?? '',
+                'schoolName' => $result['schoolName'] ?? '',
+            ];
             header('Location: ./login.php');
             exit;
         } catch (Throwable $exception) {

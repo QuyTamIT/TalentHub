@@ -636,8 +636,13 @@
       });
 
       // 2. Tài khoản người dùng cần xử lý (pending approval or suspended)
+      // Hồ sơ Giáo viên chờ trường duyệt thuộc thẩm quyền của Nhà trường, không đưa vào hàng đợi duyệt của Platform Admin
       const userItems = (userData.items || []).filter((u) => {
         const st = String(u.status || '').toLowerCase();
+        const role = String(u.role || '').toLowerCase();
+        if (role === 'teacher' && st === 'pending') {
+          return false;
+        }
         return st === 'pending' || st === 'suspended';
       });
       userItems.forEach((u) => {

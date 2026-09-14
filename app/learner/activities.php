@@ -184,7 +184,7 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                             <p>Hiện chưa có hoạt động còn hạn và còn chỗ dành cho trường của bạn.</p>
                         </section>
                     <?php else: ?>
-                        <section class="learner-activity-discovery-grid" aria-label="Danh sách hoạt động đang mở">
+                        <section id="activity-catalog" class="learner-activity-discovery-grid" aria-label="Danh sách hoạt động đang mở">
                             <?php foreach ($activityCatalog as $activity): ?>
                                 <?php
                                 $participants = max(0, (int) ($activity['participants'] ?? 0));
@@ -268,7 +268,7 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                                             <strong>Còn <?= learner_escape($remaining); ?> chỗ</strong>
                                         </div>
                                         <progress value="<?= learner_escape($participants); ?>" max="<?= learner_escape($capacity); ?>" aria-label="Mức đăng ký của <?= learner_escape($activity['title']); ?>"></progress>
-                                        <a href="activity-detail.php?id=<?= learner_escape(rawurlencode((string) $activity['id'])); ?>">
+                                        <a class="learner-btn learner-btn--primary" href="activity-detail.php?id=<?= learner_escape(rawurlencode((string) $activity['id'])); ?>">
                                             Xem chi tiết <?= learner_icon('arrow-right', 18); ?>
                                         </a>
                                     </div>

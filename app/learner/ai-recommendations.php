@@ -232,7 +232,6 @@ $assetVersion = static function (string $relativePath): string {
             </footer>
         </section>
     </div>
-    <script id="learner-session-boot" type="application/json"><?= json_encode(['csrfToken' => $GLOBALS['learner_page_context']['csrfToken'] ?? ''], JSON_HEX_TAG | JSON_HEX_AMP); ?></script>
     <script src="../../assets/js/learner-api.js?v=<?= $assetVersion('assets/js/learner-api.js'); ?>"></script>
     <script src="../../assets/js/learner.js?v=<?= $assetVersion('assets/js/learner.js'); ?>"></script>
     <script src="../../assets/js/learner-ai-roadmap-editor.js?v=<?= $assetVersion('assets/js/learner-ai-roadmap-editor.js'); ?>"></script>
