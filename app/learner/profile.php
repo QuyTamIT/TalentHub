@@ -20,6 +20,48 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
     <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/polish.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
+    <style>
+        .learner-avatar-presets {
+            display: flex !important;
+            gap: 0.6rem !important;
+            flex-wrap: wrap !important;
+            align-items: center !important;
+        }
+        .learner-avatar-preset-btn {
+            width: 36px !important;
+            height: 36px !important;
+            min-width: 36px !important;
+            min-height: 36px !important;
+            max-width: 36px !important;
+            max-height: 36px !important;
+            flex: 0 0 36px !important;
+            aspect-ratio: 1 / 1 !important;
+            border-radius: 50% !important;
+            border: 2px solid #CBD5E1 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: hidden !important;
+            cursor: pointer !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
+            background: transparent !important;
+            transition: all 0.2s ease !important;
+        }
+        .learner-avatar-preset-btn:hover {
+            border-color: #2563EB !important;
+            transform: scale(1.1) !important;
+        }
+        .learner-avatar-preset-btn img {
+            width: 100% !important;
+            height: 100% !important;
+            aspect-ratio: 1 / 1 !important;
+            object-fit: cover !important;
+            border-radius: 50% !important;
+            display: block !important;
+        }
+    </style>
 </head>
 <body class="learner-app learner-page-profile" data-learner-source="<?= ($isDatabaseMode ?? false) ? 'database' : 'mock'; ?>">
     <div class="learner-layout">
@@ -58,7 +100,7 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                                 <p class="learner-profile-school"><span data-profile-class><?= learner_escape($student['class']); ?></span> <span aria-hidden="true">•</span> <span data-profile-school><?= learner_escape($student['school']); ?></span></p>
                                 <div class="learner-profile-contact">
                                     <span><?= learner_icon('mail', 17); ?> <span data-profile-email><?= learner_escape($student['email']); ?></span></span>
-                                    <span><?= learner_icon('map-pin', 17); ?> <span data-profile-location><?= learner_escape($student['location']); ?></span></span>
+                                    <span data-profile-location style="display: none;"><?= learner_escape($student['location']); ?></span>
                                 </div>
                             </div>
                         </div>
@@ -350,24 +392,24 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                                     <span id="learner-avatar-file-status" style="font-size: 0.775rem; color: #059669; font-weight: 600; display: none;"></span>
                                 </div>
                                 <div style="font-size: 0.775rem; color: #64748B; font-weight: 600; margin-bottom: 0.35rem;">Hoặc chọn nhanh mẫu đại diện AI:</div>
-                                <div class="learner-avatar-presets" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/bottts/svg?seed=Talent1&amp;backgroundColor=b6e3f4" title="Robot AI 1" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
-                                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Talent1&amp;backgroundColor=b6e3f4" alt="Robot AI 1" style="width: 100%; height: 100%; object-fit: cover;">
+                                <div class="learner-avatar-presets" style="display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;">
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/bottts/svg?seed=Talent1&amp;backgroundColor=b6e3f4" title="Robot AI 1" style="width: 36px; height: 36px; min-width: 36px; min-height: 36px; max-width: 36px; max-height: 36px; flex: 0 0 36px; aspect-ratio: 1 / 1; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; margin: 0; overflow: hidden; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Talent1&amp;backgroundColor=b6e3f4" alt="Robot AI 1" style="width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%; display: block;">
                                     </button>
-                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/avataaars/svg?seed=Student2&amp;backgroundColor=c0aede" title="Minh họa 2" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
-                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student2&amp;backgroundColor=c0aede" alt="Minh họa 2" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/avataaars/svg?seed=Student2&amp;backgroundColor=c0aede" title="Minh họa 2" style="width: 36px; height: 36px; min-width: 36px; min-height: 36px; max-width: 36px; max-height: 36px; flex: 0 0 36px; aspect-ratio: 1 / 1; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; margin: 0; overflow: hidden; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student2&amp;backgroundColor=c0aede" alt="Minh họa 2" style="width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%; display: block;">
                                     </button>
-                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=Student3&amp;backgroundColor=d1d4f9" title="Robot AI 3" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
-                                        <img src="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=Student3&amp;backgroundColor=d1d4f9" alt="Robot AI 3" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=Student3&amp;backgroundColor=d1d4f9" title="Robot AI 3" style="width: 36px; height: 36px; min-width: 36px; min-height: 36px; max-width: 36px; max-height: 36px; flex: 0 0 36px; aspect-ratio: 1 / 1; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; margin: 0; overflow: hidden; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=Student3&amp;backgroundColor=d1d4f9" alt="Robot AI 3" style="width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%; display: block;">
                                     </button>
-                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/adventurer/svg?seed=Student4&amp;backgroundColor=ffd5dc" title="Phiêu lưu 4" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
-                                        <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Student4&amp;backgroundColor=ffd5dc" alt="Phiêu lưu 4" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/adventurer/svg?seed=Student4&amp;backgroundColor=ffd5dc" title="Phiêu lưu 4" style="width: 36px; height: 36px; min-width: 36px; min-height: 36px; max-width: 36px; max-height: 36px; flex: 0 0 36px; aspect-ratio: 1 / 1; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; margin: 0; overflow: hidden; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Student4&amp;backgroundColor=ffd5dc" alt="Phiêu lưu 4" style="width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%; display: block;">
                                     </button>
-                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Student5&amp;backgroundColor=ffdfbf" title="Emoji vui 5" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
-                                        <img src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Student5&amp;backgroundColor=ffdfbf" alt="Emoji vui 5" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Student5&amp;backgroundColor=ffdfbf" title="Emoji vui 5" style="width: 36px; height: 36px; min-width: 36px; min-height: 36px; max-width: 36px; max-height: 36px; flex: 0 0 36px; aspect-ratio: 1 / 1; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; margin: 0; overflow: hidden; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Student5&amp;backgroundColor=ffdfbf" alt="Emoji vui 5" style="width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%; display: block;">
                                     </button>
-                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/thumbs/svg?seed=Student6&amp;backgroundColor=d3d3d3" title="Ngón tay 6" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
-                                        <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=Student6&amp;backgroundColor=d3d3d3" alt="Ngón tay 6" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/thumbs/svg?seed=Student6&amp;backgroundColor=d3d3d3" title="Ngón tay 6" style="width: 36px; height: 36px; min-width: 36px; min-height: 36px; max-width: 36px; max-height: 36px; flex: 0 0 36px; aspect-ratio: 1 / 1; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; margin: 0; overflow: hidden; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=Student6&amp;backgroundColor=d3d3d3" alt="Ngón tay 6" style="width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%; display: block;">
                                     </button>
                                 </div>
                             </div>
