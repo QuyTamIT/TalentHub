@@ -130,6 +130,7 @@ body.teacher-sidebar-open { overflow: hidden; }
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     padding-bottom: 0.875rem;
     border-bottom: 1px solid var(--border, #F0E6DD);
     margin-bottom: 1rem;
@@ -143,6 +144,7 @@ body.teacher-sidebar-open { overflow: hidden; }
     justify-content: center;
     text-decoration: none;
     line-height: 1;
+    margin: 0 auto;
     transition: opacity var(--transition-fast, 0.15s ease), transform var(--transition-fast, 0.15s ease);
 }
 
@@ -158,6 +160,7 @@ body.teacher-sidebar-open { overflow: hidden; }
     height: auto;
     object-fit: contain;
     aspect-ratio: 401 / 122;
+    margin: 0 auto;
 }
 
 .teacher-sidebar__role-tag {
@@ -175,6 +178,7 @@ body.teacher-sidebar-open { overflow: hidden; }
     letter-spacing: 0.02em;
     line-height: 1.4;
     text-align: center;
+    white-space: nowrap;
 }
 
 .teacher-sidebar__nav {

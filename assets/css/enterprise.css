@@ -111,17 +111,22 @@ body.ent-sidebar-open {
 .ent-sidebar__brand {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    padding-bottom: 0.75rem;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 0.875rem;
     border-bottom: 1px solid var(--border);
     margin-bottom: 1rem;
     width: 100%;
+    text-align: center;
 }
 
 .ent-sidebar__brand-link {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-decoration: none;
     line-height: 1;
+    margin: 0 auto;
     transition: opacity var(--transition-fast), transform var(--transition-fast);
 }
 
@@ -137,6 +142,7 @@ body.ent-sidebar-open {
     height: auto;
     object-fit: contain;
     aspect-ratio: 401 / 122;
+    margin: 0 auto;
 }
 
 .ent-sidebar__role-tag {
@@ -148,13 +154,13 @@ body.ent-sidebar-open {
     color: var(--primary-coral, #F83F70);
     background-color: #FFF0EB;
     border: 1px solid #FFDACB;
-    padding: 2px 9px;
+    padding: 3px 12px;
     border-radius: 999px;
-    margin: 10px auto 2px auto;
-    align-self: center;
+    margin: 8px auto 0 auto;
     letter-spacing: 0.02em;
     line-height: 1.4;
     text-align: center;
+    white-space: nowrap;
 }
 
 /* Sidebar Company Card (Refined Enterprise Design) */
