@@ -14,6 +14,7 @@ date_default_timezone_set('Asia/Ho_Chi_Minh');
 $dashboardData = teacherDashboardReadData();
 $metrics = $dashboardData['metrics'];
 
+$teacherSlideUi = true;
 $pageTitle = 'Tổng quan Giáo viên';
 $currentRoute = 'index.php';
 
@@ -92,84 +93,19 @@ $kpis = [
     ],
 ];
 
-$pendingActions = [
-    [
-        'title' => 'Chấm điểm & Đánh giá năng lực theo lớp',
-        'subtitle' => $managedClassName !== '' 
-            ? "Chấm điểm đồ án và cập nhật điểm năng lực cho sinh viên lớp {$managedClassName}."
-            : 'Chấm điểm đồ án và cập nhật điểm năng lực cho sinh viên.',
-        'count' => $totalStudents,
-        'type' => 'primary',
-        'icon' => 'clipboard-check',
-        'status' => $managedClassLabel,
-        'action_label' => 'Chấm điểm ngay',
-        'route' => '/app/teacher/grading.php' . ($managedClassName !== '' ? '?class=' . urlencode($managedClassName) : ''),
-        'disabled' => false,
-    ],
-    [
-        'title' => 'Học viên mới đăng ký hoạt động',
-        'subtitle' => number_format((int) $metrics['pending_registrations']) . ' lượt đăng ký đang chờ theo dõi/xác nhận.',
-        'count' => (int) $metrics['pending_registrations'],
-        'type' => ((int) $metrics['pending_registrations'] > 0) ? 'info' : 'success',
-        'icon' => 'users',
-        'status' => ((int) $metrics['pending_registrations'] > 0) ? 'Cần theo dõi' : 'Không có mục mới',
-        'action_label' => 'Xem đăng ký',
-        'disabled' => true,
-    ],
-    [
-        'title' => 'Check-in cần theo dõi',
-        'subtitle' => number_format((int) $metrics['qr_tokens_expiring']) . ' QR token sắp hết hạn trong 24 giờ.',
-        'count' => (int) $metrics['qr_tokens_expiring'],
-        'type' => ((int) $metrics['qr_tokens_expiring'] > 0) ? 'warning' : 'success',
-        'icon' => 'qr',
-        'status' => ((int) $metrics['qr_tokens_expiring'] > 0) ? 'Kiểm tra QR' : 'QR ổn định',
-        'action_label' => 'Điểm danh QR',
-        'disabled' => true,
-    ],
-    [
-        'title' => 'Hoạt động sắp diễn ra',
-        'subtitle' => number_format((int) $metrics['upcoming_activities']) . ' hoạt động trong 7 ngày tới.',
-        'count' => (int) $metrics['upcoming_activities'],
-        'type' => ((int) $metrics['upcoming_activities'] > 0) ? 'info' : 'neutral',
-        'icon' => 'calendar',
-        'status' => ((int) $metrics['upcoming_activities'] > 0) ? 'Sắp diễn ra' : 'Chưa có lịch gần',
-        'action_label' => 'Xem lịch',
-        'disabled' => true,
-    ],
-];
-
-$recentActivities = $dashboardData['recentActivities'];
-
-$activityOverview = [
-    [
-        'label' => 'Sân chơi phụ trách',
-        'value' => number_format((int) $metrics['managed_activities']),
-        'meta' => 'Tổng hoạt động do giáo viên tạo',
-        'bar_label' => 'Đang công bố/diễn ra',
-        'bar_value' => teacherDashboardPercent((int) $metrics['open_activities'], max(1, (int) $metrics['managed_activities'])),
-    ],
-    [
-        'label' => 'Lượt đăng ký',
-        'value' => number_format((int) $metrics['registrations']),
-        'meta' => 'Tổng lượt đăng ký',
-        'bar_label' => 'Đã check-in',
-        'bar_value' => teacherDashboardPercent((int) $metrics['checkins'], max(1, (int) $metrics['registrations'])),
-    ],
-    [
-        'label' => 'Lượt điểm danh',
-        'value' => number_format((int) $metrics['checkins']),
-        'meta' => 'Tổng điểm danh đã ghi nhận',
-        'bar_label' => 'Có dữ liệu',
-        'bar_value' => ((int) $metrics['checkins'] > 0) ? 100 : 0,
-    ],
-    [
-        'label' => 'Giờ trải nghiệm',
-        'value' => number_format((float) $metrics['experience_hours'], 1),
-        'meta' => 'Tổng giờ trải nghiệm',
-        'bar_label' => 'Mục tiêu 100 giờ',
-        'bar_value' => teacherDashboardPercent((float) $metrics['experience_hours'], 100),
-    ],
-];
+// Reuse the managed activity reader so the overview uses the same data as the list.
+require_once __DIR__ . '/includes/activity-data.php';
+$overviewPdo = teacherDashboardConnect();
+$managedActivities = $overviewPdo && !empty($teacherInfo['id'])
+    ? array_slice(teacherActivitiesRead($overviewPdo, (string) $teacherInfo['id']), 0, 4) : [];
+$kpis = [$kpis[0], $kpis[3], $kpis[2], $kpis[1]];
+$kpis[0]['label'] = 'Học viên';
+$kpis[1]['label'] = 'Sân chơi đang mở';
+$kpis[1]['change'] = number_format((int) $metrics['upcoming_activities']) . ' sắp diễn ra';
+$kpis[2]['label'] = 'Học viên cần đánh giá';
+$kpis[2]['value'] = number_format($pendingAssessments);
+$kpis[2]['change'] = 'Theo lớp phụ trách';
+$kpis[3]['label'] = 'Điểm đánh giá trung bình';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -184,8 +120,9 @@ $activityOverview = [
     <link rel="stylesheet" href="../../assets/css/brand-component.css">
     <link rel="stylesheet" href="../../assets/css/polish.css">
     <link rel="stylesheet" href="../../assets/css/teacher.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/teacher-slide.css'); ?>">
 </head>
-<body class="teacher-dashboard">
+<body class="teacher-dashboard teacher-slide-ui">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
     <div class="teacher-layout">
         <?php require_once __DIR__ . '/includes/sidebar.php'; ?>
@@ -198,36 +135,7 @@ $activityOverview = [
                     <?php require_once __DIR__ . '/includes/welcome.php'; ?>
                     <?php require_once __DIR__ . '/includes/kpi-cards.php'; ?>
 
-                    <div class="teacher-grid-layout">
-                        <div class="teacher-grid-layout__main">
-                            <?php require_once __DIR__ . '/includes/pending-actions.php'; ?>
-                            <?php require_once __DIR__ . '/includes/activity-overview.php'; ?>
-                        </div>
-
-                        <aside class="teacher-grid-layout__sidebar">
-                            <?php require_once __DIR__ . '/includes/recent-activity.php'; ?>
-
-                            <section class="teacher-section-box">
-                                <div class="teacher-section-box__header">
-                                    <h3 class="teacher-section-box__title">Hồ sơ giáo viên</h3>
-                                </div>
-                                <div class="teacher-info-widget">
-                                    <div class="teacher-info-widget__row">
-                                        <span class="label">Tên:</span>
-                                        <span class="value font-bold"><?= htmlspecialchars($teacherInfo['full_name']); ?></span>
-                                    </div>
-                                    <div class="teacher-info-widget__row">
-                                        <span class="label">Vai trò:</span>
-                                        <span class="value badge-primary"><?= htmlspecialchars($teacherInfo['role_label']); ?></span>
-                                    </div>
-                                    <div class="teacher-info-widget__row">
-                                        <span class="label">Trường:</span>
-                                        <span class="value"><?= htmlspecialchars($teacherInfo['school_name']); ?></span>
-                                    </div>
-                                </div>
-                            </section>
-                        </aside>
-                    </div>
+                    <?php require __DIR__ . '/includes/slide-overview.php'; ?>
                 </div>
             </main>
         </div>

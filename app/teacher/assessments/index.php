@@ -83,6 +83,7 @@ if (!isset($modeLabels[$mode])) {
     exit('Ngữ cảnh chấm điểm không hợp lệ.');
 }
 
+$teacherSlideUi = true;
 $pageTitle = 'Chấm điểm';
 $currentRoute = 'assessments';
 $teacherSidebarHomeHref = '/index.php';
@@ -344,8 +345,9 @@ function teacherGradingInitials(string $name): string
             .teacher-grading-form__actions button{width:100%}
         }
     </style>
+    <link rel="stylesheet" href="<?= app_href('/assets/css/teacher-slide.css'); ?>">
 </head>
-<body class="teacher-dashboard teacher-grading-page">
+<body class="teacher-dashboard teacher-slide-ui teacher-grading-page">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
     <div class="teacher-layout">
         <?php require_once dirname(__DIR__) . '/includes/sidebar.php'; ?>
@@ -360,7 +362,7 @@ function teacherGradingInitials(string $name): string
                             <div class="teacher-grading-intro__mark" aria-hidden="true">✦</div>
                             <div>
                                 <span class="teacher-section-box__eyebrow">ĐÁNH GIÁ HỌC VIÊN</span>
-                                <h2 class="teacher-grading-intro__title">Chấm Rubric năng lực</h2>
+                                <h1 class="teacher-grading-intro__title">Chấm điểm</h1>
                                 <p class="teacher-grading-intro__description">Chọn lớp, dự án hoặc hoạt động được phân công để đánh giá học viên.</p>
                             </div>
                         </div>
@@ -449,12 +451,22 @@ function teacherGradingInitials(string $name): string
                                 <p class="teacher-empty-state__desc">Chưa có học viên đủ điều kiện trong ngữ cảnh đã chọn, hoặc bộ lọc không có kết quả.</p>
                             </div>
                         <?php else: ?>
+                            <div class="teacher-grading-workspace" data-grading-workspace>
+                            <nav class="teacher-grading-queue" aria-label="Danh sách học viên chấm điểm">
+                                <h3>Danh sách học viên <span><?= count($data['students']); ?></span></h3>
+                                <?php foreach ($data['students'] as $queueStudent): ?>
+                                <a href="#assessment-<?= $escape($queueStudent['studentId']); ?>" class="teacher-queue-item" data-grading-target="assessment-<?= $escape($queueStudent['studentId']); ?>">
+                                    <strong><?= $escape($queueStudent['fullName']); ?></strong>
+                                    <span><?= $escape($assessmentStatusLabels[$queueStudent['assessmentStatus'] ?? ''] ?? 'Chưa chấm'); ?> · <?= $escape($data['selectedContext']['title']); ?></span>
+                                </a>
+                                <?php endforeach; ?>
+                            </nav>
                             <div class="teacher-grading-list">
                                 <?php foreach ($data['students'] as $student):
                                     $assessmentStatus = $student['assessmentStatus'] ?? null;
                                     $assessmentLabel = $assessmentStatusLabels[$assessmentStatus] ?? 'Chưa chấm';
                                 ?>
-                                    <article class="teacher-section-box teacher-grading-card">
+                                    <article class="teacher-section-box teacher-grading-card" id="assessment-<?= $escape($student['studentId']); ?>" tabindex="-1">
                                         <div class="teacher-grading-card__header">
                                             <div class="teacher-grading-card__identity">
                                                 <div class="teacher-grading-card__avatar" aria-hidden="true"><?= $escape(teacherGradingInitials((string) $student['fullName'])); ?></div>
@@ -472,6 +484,7 @@ function teacherGradingInitials(string $name): string
                                         <?php require __DIR__ . '/rubric-form.php'; ?>
                                     </article>
                                 <?php endforeach; ?>
+                            </div>
                             </div>
                         <?php endif; ?>
                     <?php elseif ($data['contexts'] === []): ?>
@@ -622,5 +635,6 @@ function teacherGradingInitials(string $name): string
         }
     };
     </script>
+    <script src="<?= app_href('/assets/js/teacher-slide.js'); ?>"></script>
 </body>
 </html>

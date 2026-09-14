@@ -150,8 +150,9 @@ final class TeacherStudentRepository
         $params = ['teacherId' => $teacherId];
 
         if ($filters['search'] !== '') {
-            $clauses[] = '(LOWER(u.fullName) LIKE :search OR LOWER(u.email) LIKE :search)';
+            $clauses[] = '(LOWER(u.fullName) LIKE :search OR LOWER(u.email) LIKE :searchEmail)';
             $params['search'] = '%' . mb_strtolower($filters['search']) . '%';
+            $params['searchEmail'] = $params['search'];
         }
 
         if ($filters['activityId'] !== '') {

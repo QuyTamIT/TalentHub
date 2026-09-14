@@ -66,7 +66,11 @@ if (!is_string($portalNotificationBootJson)) {
             </svg>
         </button>
 
+        <?php if (!empty($teacherSlideUi)): ?>
+        <a class="teacher-role-back" href="<?= htmlspecialchars(app_href('/role-selection.php')); ?>"><span aria-hidden="true">←</span> Đổi vai trò</a>
+        <?php else: ?>
         <h1 class="teacher-header__title"><?= isset($pageTitle) ? htmlspecialchars($pageTitle) : 'Tổng quan Giáo viên'; ?></h1>
+        <?php endif; ?>
     </div>
 
     <div class="teacher-header__right">

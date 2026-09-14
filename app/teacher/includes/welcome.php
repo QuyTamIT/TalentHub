@@ -16,23 +16,13 @@ if (($teacherName === '' || $teacherName === 'Thầy/Cô' || $teacherName === 'G
 <section class="teacher-welcome">
     <div class="teacher-welcome__content">
         <div>
-            <span class="teacher-welcome__tag">Tổng quan Giáo viên</span>
-            <h2 class="teacher-welcome__title">Xin chào, <?= htmlspecialchars($teacherName); ?></h2>
-            <p class="teacher-welcome__description">
-                Theo dõi học viên, sân chơi đang phụ trách, bài cần chấm và điểm danh QR trong một màn hình tổng quan gọn gàng.
-            </p>
-        </div>
-        <div class="teacher-welcome__meta">
-            <span class="teacher-chip teacher-chip--primary"><?= htmlspecialchars($teacherInfo['role_label'] ?? 'Giáo viên / Hướng dẫn viên'); ?></span>
-            <?php if (!empty($teacherInfo['school_name'])): ?>
-                <span class="teacher-chip"><?= htmlspecialchars($teacherInfo['school_name']); ?></span>
-            <?php endif; ?>
-            <?php if (!empty($teacherInfo['managed_class_name'])): ?>
-                <span class="teacher-chip" style="background: #FAF5FF; color: #8B4DE8; font-weight: 700; border: 1px solid rgba(139, 77, 232, 0.25);">Lớp phụ trách: <?= htmlspecialchars($teacherInfo['managed_class_name']); ?></span>
-            <?php else: ?>
-                <span class="teacher-chip" style="background: #F1F5F9; color: #64748B; font-weight: 600;">Chưa phân công lớp</span>
-            <?php endif; ?>
-            <span class="teacher-chip"><?= htmlspecialchars($todayLabel); ?></span>
+            <span class="teacher-welcome__tag">Xin chào</span>
+            <h1 class="teacher-welcome__title"><?= htmlspecialchars($teacherName); ?></h1>
+            <p class="teacher-welcome__description">Có <?= number_format((int) ($metrics['upcoming_activities'] ?? 0)); ?> sân chơi sắp diễn ra và <?= number_format((int) ($metrics['pending_assessments'] ?? 0)); ?> học viên cần đánh giá.</p>
+            <div class="teacher-welcome-actions">
+                <a class="btn teacher-welcome-create" href="<?= app_href('/app/teacher/activities/index.php?action=create'); ?>">＋ Tạo sân chơi mới</a>
+                <a class="btn teacher-welcome-grade" href="<?= app_href('/app/teacher/assessments/index.php'); ?>">Vào chấm điểm</a>
+            </div>
         </div>
     </div>
 </section>

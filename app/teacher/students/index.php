@@ -126,8 +126,9 @@ try {
         ";
         $params = ['teacherUserId' => (string) $user['id']];
         if ($searchQ !== '') {
-            $sql .= " AND (u.fullName LIKE :q OR u.email LIKE :q)";
+            $sql .= " AND (u.fullName LIKE :q OR u.email LIKE :qEmail)";
             $params['q'] = '%' . $searchQ . '%';
+            $params['qEmail'] = $params['q'];
         }
         $sql .= " ORDER BY u.fullName ASC";
         $cStmt = $pdo->prepare($sql);
@@ -180,7 +181,14 @@ $teacherInfo = $pageData['teacher'];
 $filters = $pageData['filters'];
 $summary = $pageData['summary'];
 $rows = $pageData['rows'];
+require_once dirname(__DIR__) . '/includes/student-slide-data.php';
+$studentFacts = isset($pdo) && $pdo instanceof PDO ? teacherStudentSlideFacts($pdo, $rows) : [];
 $pagination = $pageData['pagination'];
+$studentGroups = [];
+foreach ($rows as $registrationRow) {
+    $studentGroups[$registrationRow['studentId']][] = $registrationRow;
+}
+$teacherSlideUi = true;
 $pageTitle = 'Học viên của tôi';
 $currentRoute = 'students';
 $todayLabel = date('d/m/Y');
@@ -215,8 +223,9 @@ $kpis = [
     <link rel="stylesheet" href="../../../assets/css/polish.css">
     <link rel="stylesheet" href="../../../assets/css/teacher.css">
     <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/teacher-slide.css'); ?>">
 </head>
-<body class="teacher-dashboard">
+<body class="teacher-dashboard teacher-slide-ui">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
     <div class="teacher-layout">
         <?php require dirname(__DIR__) . '/includes/sidebar.php'; ?>
@@ -226,33 +235,13 @@ $kpis = [
 
             <main class="teacher-body" id="main-content">
                 <div class="teacher-container">
-                    <section class="teacher-welcome">
-                        <div class="teacher-welcome__content">
-                            <div>
-                                <span class="teacher-welcome__tag">Danh sách theo hoạt động phụ trách</span>
-                                <h2 class="teacher-welcome__title">Học viên của tôi</h2>
-                                <p class="teacher-welcome__description">
-                                    Chỉ hiển thị học viên có đăng ký trong các hoạt động do giáo viên hiện tại tạo. Trang này không hiển thị hồ sơ đầy đủ hoặc dữ liệu nhạy cảm.
-                                </p>
-                            </div>
-                            <div class="teacher-welcome__meta">
-                                <span class="teacher-chip teacher-chip--primary"><?= teacher_students_escape($teacherInfo['role_label']); ?></span>
-                                <?php if (!empty($teacherInfo['school_name'])): ?>
-                                    <span class="teacher-chip"><?= teacher_students_escape($teacherInfo['school_name']); ?></span>
-                                <?php endif; ?>
-                                <span class="teacher-chip"><?= teacher_students_escape($todayLabel); ?></span>
-                            </div>
-                        </div>
-                    </section>
-
-                    <?php require dirname(__DIR__) . '/includes/kpi-cards.php'; ?>
-
+                    <div class="teacher-slide-heading"><h1>Học viên của tôi</h1><p>Quản lý và theo dõi học viên tham gia các sân chơi phụ trách.</p></div>
                     <section class="teacher-section-box teacher-students-panel">
                         <div class="teacher-section-box__header teacher-students-panel__header">
                             <div>
-                                <h3 class="teacher-section-box__title">Danh sách học viên</h3>
+                                <h2 class="teacher-section-box__title"><?= number_format((int) $summary['uniqueStudents']); ?> học viên</h2>
                                 <p class="teacher-section-box__subtitle">
-                                    <?= number_format((int) $pagination['total']); ?> lượt đăng ký phù hợp bộ lọc
+                                    <?= number_format((int) $pagination['total']); ?> lượt tham gia phù hợp bộ lọc
                                 </p>
                             </div>
                             <span class="teacher-section-box__count">Trang <?= (int) $pagination['page']; ?> / <?= (int) $pagination['lastPage']; ?></span>
@@ -311,51 +300,39 @@ $kpis = [
                             <div class="teacher-students-table-wrap">
                                 <table class="teacher-students-table">
                                     <thead>
-                                        <tr>
-                                            <th>Học viên</th>
-                                            <th>Hoạt động tham gia</th>
-                                            <th>Đăng ký</th>
-                                            <th>Số hoạt động</th>
-                                            <th>Assessment</th>
-                                            <th>Điểm tổng</th>
-                                        </tr>
+                                        <tr><th>Học viên</th><th>Lớp</th><th>Điểm năng lực</th><th>Giờ trải nghiệm</th><th>Huy hiệu</th><th>Năng khiếu / kỹ năng</th></tr>
                                     </thead>
                                     <tbody>
-                                        <?php foreach ($rows as $row): ?>
-                                            <tr>
-                                                <td data-label="Học viên">
-                                                    <strong><?= teacher_students_escape($row['fullName']); ?></strong>
-                                                    <span><?= teacher_students_escape($row['email']); ?></span>
-                                                </td>
-                                                <td data-label="Hoạt động tham gia">
-                                                    <strong><?= teacher_students_escape($row['activityTitle']); ?></strong>
-                                                    <span>
-                                                        <?= teacher_students_escape($row['activityCategory']); ?>
-                                                        <?php if ($row['activityStartAt'] !== ''): ?>
-                                                            · <?= teacher_students_escape($row['activityStartAt']); ?>
-                                                        <?php endif; ?>
-                                                    </span>
-                                                </td>
-                                                <td data-label="Đăng ký">
-                                                    <span class="teacher-status-pill teacher-status-pill--<?= teacher_students_escape(teacher_students_status_tone($row['registrationStatus'])); ?>">
-                                                        <?= teacher_students_escape(teacher_students_status_label($row['registrationStatus'])); ?>
-                                                    </span>
-                                                    <?php if ($row['registeredAt'] !== ''): ?>
-                                                        <small><?= teacher_students_escape($row['registeredAt']); ?></small>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td data-label="Số hoạt động">
-                                                    <?= number_format((int) $row['teacherActivityCount']); ?>
-                                                </td>
-                                                <td data-label="Assessment">
-                                                    <span class="teacher-status-pill teacher-status-pill--<?= teacher_students_escape(teacher_students_status_tone($row['assessmentStatus'])); ?>">
-                                                        <?= teacher_students_escape(teacher_students_status_label($row['assessmentStatus'])); ?>
-                                                    </span>
-                                                </td>
-                                                <td data-label="Điểm tổng">
-                                                    <?= $row['overallScore'] !== null ? teacher_students_escape($row['overallScore']) : '<span class="teacher-students-muted">--</span>'; ?>
-                                                </td>
-                                            </tr>
+                                        <?php foreach ($studentGroups as $studentRegistrations): $row = $studentRegistrations[0]; $facts = $studentFacts[$row['studentId']] ?? []; ?>
+                                        <tr>
+                                            <td data-label="Học viên">
+                                                <div class="teacher-student-identity">
+                                                    <span class="teacher-student-avatar" aria-hidden="true"><?= teacher_students_escape(mb_strtoupper(mb_substr(trim($row['fullName']), 0, 1))); ?></span>
+                                                    <div><strong><?= teacher_students_escape($row['fullName']); ?></strong>
+                                                        <details class="teacher-student-context"><summary>Thông tin tham gia</summary>
+                                                            <span><?= teacher_students_escape($row['email']); ?></span>
+                                                            <?php foreach ($studentRegistrations as $registration): ?>
+                                                            <span><?= teacher_students_escape($registration['activityTitle']); ?> · <?= teacher_students_escape(teacher_students_status_label($registration['registrationStatus'])); ?></span>
+                                                            <?php endforeach; ?>
+                                                            <span><?= teacher_students_escape(teacher_students_status_label($row['registrationStatus'])); ?> · <?= (int) $row['teacherActivityCount']; ?> hoạt động</span>
+                                                            <span>Đánh giá: <?= teacher_students_escape(teacher_students_status_label($row['assessmentStatus'])); ?> · <?= teacher_students_escape($row['overallScore'] ?? 'Chưa có điểm'); ?></span>
+                                                        </details>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td data-label="Lớp"><?= teacher_students_escape($facts['className'] ?? '—'); ?></td>
+                                            <td data-label="Điểm năng lực"><strong class="teacher-student-score"><?= isset($facts['talentScore']) ? number_format((float) $facts['talentScore'], 0) : '—'; ?></strong></td>
+                                            <td data-label="Giờ trải nghiệm"><?= isset($facts['experienceHours']) ? number_format((float) $facts['experienceHours'], 1) . 'h' : '—'; ?></td>
+                                            <td data-label="Huy hiệu"><span class="teacher-student-badges"><?= isset($facts['badgeCount']) ? '★ ' . (int) $facts['badgeCount'] : '—'; ?></span></td>
+                                            <td data-label="Năng khiếu / kỹ năng">
+                                                <div class="teacher-student-skills">
+                                                <?php foreach (array_slice($facts['skills'] ?? [], 0, 3) as $skill): ?>
+                                                    <span class="teacher-slide-tag"><?= teacher_students_escape($skill); ?></span>
+                                                <?php endforeach; ?>
+                                                <?php if (empty($facts['skills'])): ?><span class="teacher-students-muted">Chưa cập nhật</span><?php endif; ?>
+                                                </div>
+                                            </td>
+                                        </tr>
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>

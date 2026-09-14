@@ -44,6 +44,13 @@ $teacherRouteHrefs = [
         <ul>
             <?php foreach ($sidebarNav as $navItem):
                 $isActive = (isset($currentRoute) && ($navItem['route'] === $currentRoute || strpos($currentRoute, strtok($navItem['route'], '.')) === 0)) || (!isset($currentRoute) && !empty($navItem['active']));
+                if (!empty($teacherSlideUi)) {
+                    if ($navItem['icon'] === 'trophy') $navItem['title'] = 'Sân chơi của tôi';
+                    if ($navItem['icon'] === 'clipboard-check') {
+                        $navItem['title'] = 'Chấm điểm';
+                        $navItem['href'] = '/app/teacher/assessments/index.php';
+                    }
+                }
                 $navHref = $navItem['href'] ?? ($teacherRouteHrefs[$navItem['icon']] ?? '#');
                 if (function_exists('app_href') && str_starts_with((string)$navHref, '/app/teacher/')) {
                     $navHref = app_href($navHref);
@@ -104,6 +111,15 @@ $teacherRouteHrefs = [
         </ul>
     </nav>
 
+    <?php if (!empty($teacherSlideUi)): ?>
+    <div class="teacher-sidebar-summary">
+        <span>Đang phụ trách</span>
+        <strong><?= htmlspecialchars($teacherInfo['managed_class_name'] ?? ($teacherInfo['school_name'] ?? 'Khu vực Giáo viên')); ?></strong>
+        <?php if (isset($dashboardData['metrics']['total_students'])): ?>
+        <small><?= number_format((int) $dashboardData['metrics']['managed_activities']); ?> sân chơi · <?= number_format((int) $dashboardData['metrics']['total_students']); ?> học viên</small>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
     <!-- Bottom Action: Logout -->
     <div class="teacher-sidebar__footer">
         <a href="<?= function_exists('app_href') ? app_href('/logout.php?role=teacher') : '/logout.php?role=teacher'; ?>"
