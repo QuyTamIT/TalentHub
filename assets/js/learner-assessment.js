@@ -1347,7 +1347,10 @@
 
         root.querySelector('[data-assessment-start]')?.addEventListener('click', () => start(selectedBand));
         root.querySelector('[data-assessment-resume]')?.addEventListener('click', () => start(selectedBand));
-        root.querySelector('[data-assessment-restart]')?.addEventListener('click', () => start(selectedBand));
+        root.querySelector('[data-assessment-restart]')?.addEventListener('click', () => {
+            if (!window.confirm('Bạn sẽ mất toàn bộ tiến trình hiện tại. Bạn có chắc muốn bắt đầu phiên mới?')) return;
+            start(selectedBand);
+        });
         doc.querySelector('[data-confirm-band]')?.addEventListener('click', () => {
             const selected = doc.querySelector('[name="education_band"]:checked');
             return start(selected?.value || '');
@@ -1357,7 +1360,13 @@
         ));
         root.querySelector('[data-assessment-retry-save]')?.addEventListener('click', () => controller.retry());
         root.querySelector('[data-assessment-back-to-questions]')?.addEventListener('click', () => {
-            if (currentAttempt) view.render('ready', currentAttempt);
+            if (!currentAttempt) return;
+            view.render('ready', currentAttempt);
+            const firstUnanswered = root.querySelector('.learner-assessment-question-item:not(.is-answered)');
+            if (firstUnanswered) {
+                firstUnanswered.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstUnanswered.focus?.();
+            }
         });
         root.querySelector('[data-assessment-previous]')?.addEventListener('click', () => {
             if (!currentAttempt) return;

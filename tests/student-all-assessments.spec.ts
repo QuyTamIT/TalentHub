@@ -4,8 +4,8 @@ import { test, expect, type Page } from '@playwright/test';
  * Login tai khoan co san → lam 4 bai assessment qua API
  *   npx playwright test tests/student-all-assessments.spec.ts --project=chromium --headed
  */
-const EMAIL = 'hscap2@gmail.com';
-const PASSWORD = '0889461844!@#aA';
+const EMAIL = 'vuducanh@student.edu.vn';
+const PASSWORD = 'TalentHub/.env';
 const CODES = ['holland', 'mbti', 'disc', 'multiple_intelligence'] as const;
 
 async function authedFetch(

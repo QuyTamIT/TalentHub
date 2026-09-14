@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSchoolNotifications();
     initSchoolConfirmForms();
     initSchoolAccountDropdown();
+    initSchoolRoutes();
 });
 
 function initSchoolAccountDropdown() {
@@ -178,3 +179,22 @@ function showSchoolToast(message, variant) {
 }
 
 window.showSchoolToast = showSchoolToast;
+
+function initSchoolRoutes() {
+    const links = document.querySelectorAll('[data-route]');
+
+    links.forEach(link => {
+        link.addEventListener('click', (event) => {
+            const route = link.getAttribute('data-route');
+            const href = link.getAttribute('href') || '';
+
+            if (href.trim() !== '' && href.trim() !== '#') {
+                return;
+            }
+
+            event.preventDefault();
+            const label = link.textContent.trim().replace(/\s+/g, ' ');
+            showSchoolToast(`Tính năng "${label}" (${route}) đang được phát triển.`);
+        });
+    });
+}

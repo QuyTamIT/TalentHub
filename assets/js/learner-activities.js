@@ -649,7 +649,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       mine.querySelectorAll('[data-registration-filter]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
       filter=b.dataset.registrationFilter||'all';applyFilters();
     }));
-    mine.querySelectorAll('[data-cancel-registration]').forEach(button=>button.addEventListener('click',async()=>{
+    mine.querySelectorAll('[data-cancel-registration]').forEach(button=>button.addEventListener('click',async()=>{if(!window.confirm('Bạn chắc chắn muốn hủy đăng ký hoạt động này?'))return;
       const registration=all().find(item=>item.id===button.dataset.cancelRegistration);
       const status=mine.querySelector('[data-registration-command-status]');
       if(!registration||!canCancelRegistration(registration,{cancellation_closes_at:button.dataset.cancellationClosesAt}))return;
