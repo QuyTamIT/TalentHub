@@ -113,8 +113,8 @@ $bootData = [
                             <p data-assessment-intro-desc>Khám phá năng khiếu và định hướng học tập qua các câu hỏi trắc nghiệm khách quan.</p>
                             <div class="learner-assessment-intro__facts">
                                 <span><?= learner_icon('file-text', 18); ?><strong data-assessment-intro-count>Đang tải số câu</strong></span>
-                                <span><?= learner_icon('clock', 18); ?><strong data-assessment-intro-duration>12 phút</strong></span>
                                 <span><?= learner_icon('check', 18); ?><strong>Tự động lưu câu trả lời</strong></span>
+                                <span><?= learner_icon('compass', 18); ?><strong>Định hướng học tập</strong></span>
                             </div>
                             <div class="learner-data-note"><?= learner_icon('info', 17); ?><p>Kết quả chỉ phục vụ định hướng giáo dục và tham khảo học tập, không phải chẩn đoán tâm lý hay đánh giá tuyển sinh bắt buộc.</p></div>
                             <div class="learner-assessment-intro__actions">
@@ -125,43 +125,39 @@ $bootData = [
                         </div>
                     </section>
 
-                    <!-- Active Runner -->
+                    <!-- Active Runner (Continuous Scroll Stream) -->
                     <section class="learner-assessment-runner" data-assessment-active hidden>
-                        <header class="learner-card learner-assessment-runner__header">
-                            <div>
-                                <span class="learner-eyebrow" data-assessment-header-version><?= learner_escape($assessmentName); ?></span>
-                                <h1 id="assessment-question-heading" tabindex="-1">Câu <span data-assessment-position>1</span></h1>
+                        <header class="learner-assessment-sticky-header" data-assessment-sticky-header>
+                            <div class="learner-assessment-sticky-header__left">
+                                <span class="learner-assessment-progress-text"><strong data-assessment-answered-counter>0</strong>/<span data-assessment-total-counter>0</span></span>
                             </div>
-                            <div class="learner-assessment-timer" role="timer" aria-live="off">
-                                <?= learner_icon('clock', 18); ?><span>Còn lại</span><strong data-assessment-timer>12:00</strong>
+                            <div class="learner-assessment-progress-bar" role="progressbar" aria-label="Tiến độ bài đánh giá" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-assessment-progress>
+                                <span class="learner-assessment-progress-fill" style="width: 0%;"></span>
                             </div>
-                            <div class="learner-progress learner-assessment-overall-progress" role="progressbar" aria-label="Tiến độ bài đánh giá" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-assessment-progress>
-                                <span style="--learner-progress: 0%;"></span>
+                            <div class="learner-assessment-sticky-header__right">
+                                <button type="button" class="learner-assessment-btn-detail" data-assessment-open-sheet>
+                                    <?= learner_icon('list', 16); ?> Xem chi tiết
+                                </button>
+                                <button type="button" class="learner-btn learner-btn--primary btn-sm" data-assessment-open-submit data-assessment-header-submit hidden>
+                                    Nộp bài
+                                </button>
                             </div>
-                            <p class="learner-assessment-save-status" role="status" aria-live="polite" data-assessment-save-status>Đã sẵn sàng.</p>
                         </header>
 
-                        <div class="learner-assessment-runner__layout">
-                            <section class="learner-card learner-question-card">
-                                <p class="learner-question-card__hint">Mức độ phát biểu dưới đây phù hợp với bạn:</p>
-                                <h2 data-assessment-question></h2>
-                                <fieldset class="learner-likert-options" data-assessment-options>
-                                    <legend class="learner-visually-hidden">Chọn mức độ phù hợp nhất</legend>
-                                </fieldset>
-                                <p class="learner-form-error" role="alert" hidden data-assessment-question-error>Hãy chọn một phương án trước khi tiếp tục.</p>
-                                <div class="learner-question-card__actions">
-                                    <button class="learner-btn learner-btn--secondary" type="button" data-assessment-previous><?= learner_icon('arrow-left', 17); ?> Câu trước</button>
-                                    <button class="learner-btn learner-btn--primary" type="button" data-assessment-next>Câu tiếp <?= learner_icon('arrow-right', 17); ?></button>
-                                    <button class="learner-btn learner-btn--primary" type="button" data-open-modal="learner-assessment-submit-modal" data-assessment-open-submit hidden>Kiểm tra &amp; nộp bài</button>
-                                </div>
-                            </section>
+                        <!-- Continuous Question Stream Container -->
+                        <div class="learner-assessment-stream" data-assessment-stream>
+                            <!-- Dynamically populated question cards -->
+                        </div>
 
-                            <aside class="learner-card learner-question-navigator" aria-labelledby="question-navigator-title">
-                                <div class="learner-section-heading"><h2 id="question-navigator-title">Danh sách câu hỏi</h2><span><b data-assessment-answered-count>0</b> đã trả lời</span></div>
-                                <div class="learner-question-navigator__grid" data-assessment-navigator>
-                                </div>
-                                <div class="learner-question-navigator__legend"><span><i class="is-current"></i> Đang xem</span><span><i class="is-answered"></i> Đã trả lời</span></div>
-                            </aside>
+                        <!-- Completion Card / Submit Actions at Bottom -->
+                        <div class="learner-assessment-stream-footer" data-assessment-stream-footer hidden>
+                            <div class="learner-assessment-complete-card">
+                                <h2>Bạn đã hoàn thành tất cả câu hỏi!</h2>
+                                <p>Hãy kiểm tra lại các lựa chọn nếu cần hoặc nhấn nút bên dưới để hoàn tất nộp bài đánh giá.</p>
+                                <button type="button" class="learner-btn learner-btn--primary" data-assessment-open-submit>
+                                    Kiểm tra &amp; nộp bài <?= learner_icon('arrow-right', 17); ?>
+                                </button>
+                            </div>
                         </div>
                     </section>
                 </div>
@@ -244,6 +240,30 @@ $bootData = [
             <div class="learner-modal__actions">
                 <button class="learner-btn learner-btn--secondary" type="button" data-cancel-retake data-close-retake-modal>Giữ kết quả hiện tại</button>
                 <button class="learner-btn learner-btn--primary" type="button" data-confirm-retake>Xác nhận làm lại</button>
+            </div>
+        </section>
+    </div>
+
+    <!-- Quick Jump Sheet Modal (Xem chi tiết) -->
+    <div class="learner-modal" id="learner-assessment-sheet-modal" hidden data-assessment-sheet-modal>
+        <button class="learner-modal__backdrop" type="button" data-close-sheet-modal aria-label="Đóng danh sách câu hỏi"></button>
+        <section class="learner-modal__dialog learner-modal__dialog--compact" role="dialog" aria-modal="true" aria-labelledby="assessment-sheet-title">
+            <div class="learner-modal__header">
+                <div>
+                    <span class="learner-modal__eyebrow">Danh sách câu hỏi</span>
+                    <h2 id="assessment-sheet-title">Chi tiết tiến độ làm bài</h2>
+                </div>
+                <button class="learner-icon-button" type="button" data-close-sheet-modal aria-label="Đóng"><?= learner_icon('x', 21); ?></button>
+            </div>
+            <p class="learner-modal__copy">Nhấp vào ô số bất kỳ để nhảy nhanh tới câu hỏi tương ứng:</p>
+            <div class="learner-question-navigator__grid" data-assessment-sheet-grid></div>
+            <div class="learner-question-navigator__legend">
+                <span><i class="is-answered"></i> Đã trả lời</span>
+                <span><i class="is-unanswered"></i> Chưa trả lời</span>
+            </div>
+            <div class="learner-modal__actions" style="margin-top: 20px;">
+                <button class="learner-btn learner-btn--secondary" type="button" data-close-sheet-modal>Đóng</button>
+                <button class="learner-btn learner-btn--primary" type="button" data-assessment-open-submit>Nộp bài ngay</button>
             </div>
         </section>
     </div>
