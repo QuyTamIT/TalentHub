@@ -74,7 +74,7 @@ $bootData = [
                     <!-- Source error state -->
                     <section class="learner-card learner-assessment-state learner-assessment-state--error" data-assessment-error hidden>
                         <?= learner_icon('info', 32); ?>
-                        <h1>Không thể tải bài đánh giá</h1>
+                        <h1 data-assessment-error-title>Không thể tải bài đánh giá</h1>
                         <p data-assessment-error-message>Đã xảy ra lỗi kết nối với máy chủ. Vui lòng thử lại.</p>
                         <button class="learner-btn learner-btn--primary" type="button" data-assessment-retry>Thử lại</button>
                     </section>

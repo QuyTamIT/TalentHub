@@ -140,7 +140,7 @@ SQL, ['school_id' => $schoolId]);
         $rows = $this->fetchAll('issuedSchoolCertificates', <<<'SQL'
 SELECT ssc.id AS award_id, ssc.certificateCatalogId AS catalog_id, ssc.status, ssc.issuedAt AS issued_at,
        ssc.evidenceContext AS evidence_context
-FROM student_school_certificates ssc
+FROM student_certificates ssc
 WHERE ssc.studentId = :student_id
 ORDER BY ssc.issuedAt DESC, ssc.id DESC
 SQL, ['student_id' => $studentId]);

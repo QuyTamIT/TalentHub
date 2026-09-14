@@ -6,6 +6,7 @@ namespace TalentHub\Learner\Data\Service;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use InvalidArgumentException;
 use RuntimeException;
 use TalentHub\Learner\Data\Contracts\BadgeRepository;
 use TalentHub\Learner\Data\Contracts\StatisticsRepository;
@@ -52,7 +53,15 @@ final class BadgeAwardService
                     continue;
                 }
 
-                $evalResult = $this->ruleEngine->evaluate($rule['thresholdCriteria'], $facts);
+                // Badge rules are operator-authored data; a malformed rule must
+                // never abort the surrounding business transaction (for example
+                // an assessment submission that awards badges on the side).
+                try {
+                    $evalResult = $this->ruleEngine->evaluate($rule['thresholdCriteria'], $facts);
+                } catch (InvalidArgumentException $exception) {
+                    error_log('[badge-rule] Skipped invalid rule ' . (string) ($rule['id'] ?? '') . ': ' . $exception->getMessage());
+                    continue;
+                }
                 if (!$evalResult['eligible']) {
                     continue;
                 }

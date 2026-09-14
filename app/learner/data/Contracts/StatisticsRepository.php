@@ -13,7 +13,8 @@ interface StatisticsRepository
      *     confirmed_experience_hours: float,
      *     attended_activity_count: int,
      *     submitted_assessment_type_count: int,
-     *     published_teacher_evaluation_count: int
+     *     published_teacher_evaluation_count: int,
+     *     online_learning_minutes: int
      * }
      */
     public function lifetimeFacts(string $studentId): array;

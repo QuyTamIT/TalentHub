@@ -87,6 +87,11 @@ try {
             $context?->requestId() ?? 'request-unavailable'
         );
     } else {
+        error_log(
+            'assessment-submit failed: ' . get_class($exception) . ' - ' . $exception->getMessage()
+            . ' at ' . $exception->getFile() . ':' . $exception->getLine()
+            . "\n" . $exception->getTraceAsString()
+        );
         JsonResponder::sendError(
             new ApiException(500, 'SOURCE_FAILURE', 'Đã xảy ra lỗi khi nộp bài đánh giá.'),
             $context?->requestId() ?? 'request-unavailable'

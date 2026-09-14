@@ -401,7 +401,7 @@ SQL,
             );
 
             if ($this->hasBadgesTable()) {
-                $this->getBadgeAwardService()->evaluateAndAward($studentId, 'system');
+                $this->awardBadgesIsolated($studentId);
             }
 
             TransactionalAiOutboxPublisher::publish($this->pdo,'assessment_attempt',$attemptId,TransactionalAiOutboxPublisher::version(),[$studentId],'assessment.submitted',['input_hash'=>$inputHash]);
@@ -721,6 +721,42 @@ SQL,
             new BadgeRuleEngine(),
             $this->getNotificationService()
         );
+    }
+
+    /**
+     * Award automatic badges without letting a failure abort the parent
+     * transaction. Badge rules are operator-authored data, so a malformed rule
+     * must never block a learner from submitting an assessment.
+     */
+    private function awardBadgesIsolated(string $studentId): void
+    {
+        if (!$this->pdo->inTransaction()) {
+            try {
+                $this->getBadgeAwardService()->evaluateAndAward($studentId, 'system');
+            } catch (Throwable $exception) {
+                error_log('Badge award failed: ' . $exception->getMessage());
+            }
+
+            return;
+        }
+
+        $savepoint = 'sp_badges_' . substr(hash('crc32b', $studentId . microtime()), 0, 8);
+        $this->pdo->exec('SAVEPOINT ' . $savepoint);
+        try {
+            $this->getBadgeAwardService()->evaluateAndAward($studentId, 'system');
+            $this->pdo->exec('RELEASE SAVEPOINT ' . $savepoint);
+        } catch (Throwable $exception) {
+            try {
+                $this->pdo->exec('ROLLBACK TO SAVEPOINT ' . $savepoint);
+            } catch (Throwable $rollbackError) {
+                error_log('Badge savepoint rollback failed: ' . $rollbackError->getMessage());
+            }
+            error_log(
+                'Badge award failed for student ' . $studentId . ': '
+                . get_class($exception) . ' - ' . $exception->getMessage()
+                . ' at ' . $exception->getFile() . ':' . $exception->getLine()
+            );
+        }
     }
 
     private function hasBadgesTable(): bool

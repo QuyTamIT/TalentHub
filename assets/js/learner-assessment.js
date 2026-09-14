@@ -385,7 +385,11 @@
                     if (error?.status === 422 || error?.code === 'VALIDATION_FAILED') {
                         view.render('validation-error', { error, attempt: currentAttempt });
                     } else {
-                        view.render('source-error', { error, attempt: currentAttempt });
+                        view.render('source-error', {
+                            error,
+                            title: 'Đã xảy ra lỗi khi nộp bài đánh giá.',
+                            attempt: currentAttempt,
+                        });
                     }
                     return { status: 'error', error };
                 })
@@ -707,6 +711,7 @@
         const nodes = {
             loading: root.querySelector('[data-assessment-loading]'),
             errorState: root.querySelector('[data-assessment-error]'),
+            errorTitle: root.querySelector('[data-assessment-error-title]'),
             errorMessage: root.querySelector('[data-assessment-error-message]'),
             saveError: root.querySelector('[data-assessment-save-error]'),
             saveErrorMessage: root.querySelector('[data-assessment-save-error-message]'),
@@ -894,7 +899,15 @@
                 setHidden(nodes.intro, true);
                 setHidden(nodes.active, true);
             }
-            if (state === 'source-error' && nodes.errorMessage) nodes.errorMessage.textContent = payload?.error?.message || 'Đã xảy ra lỗi kết nối với máy chủ.';
+            if (state === 'source-error') {
+                const fallbackTitle = 'Không thể tải bài đánh giá';
+                if (nodes.errorTitle) {
+                    nodes.errorTitle.textContent = payload?.title || fallbackTitle;
+                }
+                if (nodes.errorMessage) {
+                    nodes.errorMessage.textContent = payload?.error?.message || 'Đã xảy ra lỗi kết nối với máy chủ.';
+                }
+            }
             if (state === 'save-error' && nodes.saveErrorMessage) nodes.saveErrorMessage.textContent = payload?.error?.message || 'Không thể lưu câu trả lời. Vui lòng thử lại.';
             if (state === 'validation-error' && nodes.validationMessage) nodes.validationMessage.textContent = payload?.error?.message || 'Vui lòng hoàn thành các câu hỏi bắt buộc.';
             if (state === 'saving' && nodes.saveStatus) nodes.saveStatus.textContent = 'Đang lưu câu trả lời...';
