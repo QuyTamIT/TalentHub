@@ -29,5 +29,5 @@ try {
     require __DIR__.'/includes/passport-cv-template.php';
 } catch (Throwable $error) {
     http_response_code($error instanceof \TalentHub\Http\ApiException ? $error->status : 503);
-    echo '<!doctype html><html lang="vi"><meta charset="utf-8"><title>Chưa thể xuất CV</title><h1>Chưa thể tải CV mới nhất</h1><p>Vui lòng kiểm tra phiên đăng nhập hoặc thử lại sau. Không xuất bản dữ liệu cũ.</p><a href="talent-passport.php">Quay lại Talent Passport</a></html>';
+    echo '<!doctype html><html lang="vi"><meta charset="utf-8"><title>Chưa thể xuất CV</title><h1>Chưa thể tải CV mới nhất</h1><p>Vui lòng kiểm tra phiên đăng nhập hoặc thử lại sau. Không xuất bản dữ liệu cũ.</p><a href="profile.php">Quay lại Hồ sơ năng lực</a></html>';
 }
