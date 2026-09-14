@@ -72,12 +72,14 @@ final class HttpRoadmapProvider implements RoadmapProvider
             }
             try {
                 $response = ($this->http)($this->config->apiUrl(), $headers, $body, $this->config->roadmapTimeoutSeconds());
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                $this->logGeminiInteraction('Tạo bản phân tích (AI Roadmap)', $body, 'CURL/Network Error: ' . $e->getMessage(), 0);
                 if ($this->retryPolicy->shouldRetry(0,'network',$attempt)) { ($this->sleeper)($this->retryPolicy->delayMs($attempt)); continue; }
                 $this->circuitBreaker->recordFailure();
                 return RoadmapProviderResponse::failure('provider_unavailable', null, 'network');
             }
             $status = is_numeric($response['status'] ?? null) ? (int) $response['status'] : 0;
+            $this->logGeminiInteraction('Tạo bản phân tích (AI Roadmap)', $body, $response['body'] ?? '', $status);
             if ($status === 200) { $result=$this->success($response['body'] ?? null, $response['headers'] ?? []); if ($result->isSuccess()) $this->circuitBreaker->recordSuccess(); else $this->circuitBreaker->recordFailure(); return $result; }
             if ($status === 429) { $retryAfter=$this->retryAfter($response['headers'] ?? []); return RoadmapProviderResponse::failure('rate_limited', $retryAfter, '4xx'); }
             if ($this->retryPolicy->shouldRetry($status,null,$attempt)) { ($this->sleeper)($this->retryPolicy->delayMs($attempt)); continue; }
@@ -241,7 +243,7 @@ final class HttpRoadmapProvider implements RoadmapProvider
         $supported = [
             '$ref',
             'type', 'format', 'title', 'description', 'enum',
-            'items', 'prefixItems', 'minItems', 'maxItems',
+            'items', 'prefixItems', 'minItems',
             'minimum', 'maximum', 'anyOf',
             'properties', 'additionalProperties', 'required',
         ];
@@ -388,4 +390,48 @@ final class HttpRoadmapProvider implements RoadmapProvider
         $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
         return ['status' => $status, 'headers' => $responseHeaders, 'body' => is_string($responseBody) ? $responseBody : ''];
     }
+
+    private function logGeminiInteraction(string $action, mixed $requestBody, mixed $responseBody, int $status = 200): void
+    {
+        try {
+            $root = dirname(__DIR__, 4);
+            $logDir = $root . '/storage/logs';
+            if (!is_dir($logDir)) {
+                @mkdir($logDir, 0777, true);
+            }
+            $timestamp = date('Y-m-d H:i:s');
+
+            if (is_string($requestBody)) {
+                $decodedReq = json_decode($requestBody, true);
+                $reqText = ($decodedReq !== null)
+                    ? json_encode($decodedReq, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                    : $requestBody;
+            } else {
+                $reqText = json_encode($requestBody, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            }
+
+            if (is_string($responseBody)) {
+                $decodedRes = json_decode($responseBody, true);
+                $resText = ($decodedRes !== null)
+                    ? json_encode($decodedRes, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+                    : $responseBody;
+            } else {
+                $resText = json_encode($responseBody, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            }
+
+            $logEntry = "======================================================================\n"
+                      . "[{$timestamp}] HÀNH ĐỘNG: {$action} | HTTP STATUS: {$status}\n"
+                      . "======================================================================\n"
+                      . "PROMPT TRUYỀN LÊN GEMINI:\n"
+                      . $reqText . "\n\n"
+                      . "TOÀN BỘ RESPONSE TỪ GEMINI:\n"
+                      . $resText . "\n\n";
+
+            @file_put_contents($logDir . '/gemini_response.log', $logEntry, FILE_APPEND | LOCK_EX);
+            @file_put_contents($root . '/response.log', $logEntry, FILE_APPEND | LOCK_EX);
+        } catch (\Throwable) {
+            // Logging should not break execution
+        }
+    }
 }
+

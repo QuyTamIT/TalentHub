@@ -35,4 +35,21 @@ if (($teacherName === '' || $teacherName === 'Thầy/Cô' || $teacherName === 'G
             <span class="teacher-chip"><?= htmlspecialchars($todayLabel); ?></span>
         </div>
     </div>
+    <div class="teacher-welcome__actions">
+        <a href="/app/teacher/activities/index.php?action=create" class="btn btn-primary btn-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Tạo sân chơi mới
+        </a>
+        <a href="/app/teacher/grading.php" class="btn btn-secondary btn-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path>
+                <rect x="9" y="3" width="6" height="4" rx="2"></rect>
+                <polyline points="9 14 11 16 15 12"></polyline>
+            </svg>
+            Vào chấm điểm
+        </a>
+    </div>
 </section>
