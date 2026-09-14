@@ -17,7 +17,7 @@ use TalentHub\Learner\Ai\Matching\LearnerOpportunityProfile;
  */
 final class GroundedProseGuard
 {
-    public const RETRY_INSTRUCTION = 'Câu trả lời trước không đạt kiểm tra dữ liệu hoặc cấu trúc. Hãy tạo lại đúng schema, chỉ dùng điểm, ngưỡng và evidence của đúng kỹ năng và cơ hội. Không suy diễn thành thạo từ điểm số, không tự thêm tiểu sử hoặc yêu cầu tuyển dụng. Tách đề xuất bài tập khỏi dữ kiện; thiếu dữ liệu thì nói rõ. Không lặp lại nội dung cũ chưa được xác thực.';
+    public const RETRY_INSTRUCTION = 'Câu trả lời trước không đạt kiểm tra dữ liệu hoặc cấu trúc. Hãy tạo lại đúng schema, chỉ dùng điểm, ngưỡng và evidence của đúng kỹ năng và cơ hội. insights phải có đủ 3 category: strength, improvement, potential (mỗi category xuất hiện đúng 1 lần). Không suy diễn thành thạo từ điểm số, không tự thêm tiểu sử làm việc, thực tập, số năm kinh nghiệm hay chứng chỉ. Tách đề xuất bài tập khỏi dữ kiện; thiếu dữ liệu thì nói rõ. Không lặp lại nội dung cũ chưa được xác thực.';
 
     private const TEXT_FIELDS = [
         'analysis', 'executive_summary', 'label', 'rationale', 'title', 'summary',
@@ -57,11 +57,15 @@ final class GroundedProseGuard
         if (preg_match('/\b(?:se duoc tuyen|se trung tuyen|chac chan|dam bao (?:do|thanh cong|co viec|trung tuyen)|chan doan|mac chung|roi loan|tu ky|tram cam|bo hoc|tu tu|tu lam hai|will be hired|guaranteed)\b/', $plain) === 1) {
             throw new InvalidArgumentException('grounding_unsupported_outcome');
         }
-        // Negated missing-evidence statements and instructional "sau khi đã"
-        // are not claims that an achievement has already happened.
+        // Negated missing-evidence statements, instructional phrasing, and
+        // references to pre-existing technical artifacts/exercises are not
+        // claims that a personal achievement has already happened.
         $history = preg_replace('/\b(?:sau khi|khi|chua|khong) (?:ban |em )?(?:da )?/', ' instruction ', $plain) ?? $plain;
-        if (preg_match('/\b(?:da|tung) (?:hoan thanh|tham gia|thuc tap|lam viec|dat giai|nhan giai|nhan duoc danh gia|tot nghiep|xay dung|trien khai|lanh dao|dan dat|nam|thanh thao|buoc dau lam quen)\b/', $history) === 1
-            || preg_match('/\b(?:ban|em) (?:hien )?(?:co|so huu|tich luy|dat duoc)\b.{0,90}\b(?:nam kinh nghiem|chung chi|giai thuong|du an|bang cap)\b/', $history) === 1) {
+        // Only exempt subject-free references to technical artifacts in advice.
+        // Never erase "dự án mà bạn đã ..." or an evidence-prefixed biography.
+        $history = preg_replace('/\b(?:cho|tren|voi) (?:cac |nhung )?(?:api|tinh nang|chuc nang|module|ma nguon) da /', ' artifact ', $history) ?? $history;
+        if (preg_match('/\b(?:da|tung) (?:hoan thanh|tham gia|thuc tap|lam viec|dat giai|nhan giai|nhan duoc danh gia|tot nghiep|xay dung|trien khai|lanh dao|dan dat|nam|thanh thao|buoc dau lam quen)\b/', $history, $m1) === 1
+            || preg_match('/\b(?:ban|em) (?:hien )?(?:co(?! (?:the|co hoi|xu huong|loi the|tiem nang|kha nang|nhiem vu|ke hoach|muc tieu|dinh huong)\b)|so huu|tich luy|dat duoc)\b.{0,90}\b(?:nam kinh nghiem|chung chi|giai thuong|bang cap|du an)\b/', $history, $m2) === 1) {
             throw new InvalidArgumentException('grounding_unsupported_personal_history');
         }
 

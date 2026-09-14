@@ -51,7 +51,7 @@ $assetVersion = static function (string $relativePath): string {
                     <div class="learner-roadmap-processing__heading">
                         <span class="learner-roadmap-processing__icon" aria-hidden="true"><?= learner_icon('sparkles', 24); ?></span>
                         <div>
-                            <span class="learner-roadmap__eyebrow">AI ĐANG XỬ LÝ</span>
+                            <span class="learner-roadmap__eyebrow" data-roadmap-processing-label>AI ĐANG XỬ LÝ</span>
                             <h2 data-roadmap-processing-title>Đang chuẩn bị lộ trình của bạn</h2>
                             <p data-roadmap-processing-copy>TalentHub đang tổng hợp dữ liệu đã được bạn cho phép.</p>
                         </div>
@@ -105,6 +105,7 @@ $assetVersion = static function (string $relativePath): string {
                             </div>
                         </div>
                         <div class="learner-roadmap-progress" aria-hidden="true"><span data-roadmap-progress-bar></span></div>
+                        <section class="learner-roadmap-celebration" data-roadmap-celebration hidden aria-labelledby="roadmap-celebration-title"></section>
                         <div class="learner-roadmap-phases learner-roadmap-timeline" data-roadmap-phases></div>
                     </section>
                     <div class="learner-roadmap-analysis-stack" data-skill-gap>
@@ -230,6 +231,23 @@ $assetVersion = static function (string $relativePath): string {
                 </div>
             </footer>
         </section>
+    </div>
+    <div class="learner-roadmap-complete-modal" data-roadmap-complete-modal role="dialog" aria-modal="true" aria-labelledby="roadmap-complete-modal-title" aria-describedby="roadmap-complete-modal-desc" hidden>
+        <div class="learner-roadmap-complete-modal__backdrop" data-roadmap-complete-cancel></div>
+        <div class="learner-roadmap-complete-modal__dialog">
+            <button class="learner-roadmap-complete-modal__close" type="button" data-roadmap-complete-cancel aria-label="Đóng"><?= learner_icon('x', 20); ?></button>
+            <div class="learner-roadmap-complete-modal__icon-wrap">
+                <span class="learner-roadmap-complete-modal__icon"><?= learner_icon('trophy', 36); ?></span>
+            </div>
+            <div class="learner-roadmap-complete-modal__content">
+                <h3 id="roadmap-complete-modal-title">Xác nhận hoàn tất lộ trình AI 90 ngày</h3>
+                <p id="roadmap-complete-modal-desc">Các nhiệm vụ đã được đánh dấu hoàn thành. Bạn muốn mở bảng tổng kết lộ trình? Xác nhận này được lưu trên trình duyệt và không thay thế đánh giá hoặc chứng nhận của giảng viên.</p>
+            </div>
+            <div class="learner-roadmap-complete-modal__actions">
+                <button class="learner-btn learner-btn--outline" type="button" data-roadmap-complete-cancel>Hủy bỏ</button>
+                <button class="learner-btn learner-btn--primary" type="button" data-roadmap-complete-confirm><?= learner_icon('check', 16); ?> Xác nhận hoàn tất</button>
+            </div>
+        </div>
     </div>
     <script src="../../assets/js/learner-api.js?v=<?= $assetVersion('assets/js/learner-api.js'); ?>"></script>
     <script src="../../assets/js/learner.js?v=<?= $assetVersion('assets/js/learner.js'); ?>"></script>

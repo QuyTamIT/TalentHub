@@ -230,6 +230,19 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                                         } elseif ($appStatus === 'withdrawn') {
                                             $statusNote = 'Bạn đã chủ động rút hồ sơ khỏi vị trí tuyển dụng này.';
                                         }
+
+                                        $isAccepted = in_array($appStatus, ['accepted', 'hired'], true);
+                                        $acceptedDate = '';
+                                        if ($isAccepted) {
+                                            if (!empty($app['pipeline'])) {
+                                                $pipelineSteps = $app['pipeline'];
+                                                $lastStep = end($pipelineSteps);
+                                                $acceptedDate = $lastStep['date'] ?? '';
+                                            }
+                                            if (empty($acceptedDate)) {
+                                                $acceptedDate = $app['updated_at_formatted'] ?? '';
+                                            }
+                                        }
                                         ?>
                                         <article class="learner-application-card" data-app-card data-app-id="<?= learner_escape($app['id']); ?>">
                                             <div class="learner-application-card__header">
@@ -274,49 +287,74 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                                                 </div>
                                             </div>
 
-                                            <div class="learner-app-stepper" aria-label="Tiến trình xét duyệt">
-                                                <div class="learner-app-stepper__track">
-                                                    <?php
-                                                    $steps = !empty($app['pipeline']) ? $app['pipeline'] : [];
-                                                    foreach ($steps as $idx => $step):
-                                                        $sState = $step['state'] ?? 'upcoming';
-                                                    ?>
-                                                        <div class="learner-app-step is-<?= learner_escape($sState); ?>" data-step-id="<?= learner_escape($step['id']); ?>">
-                                                            <div class="learner-app-step__node" aria-hidden="true">
-                                                                <?php if ($sState === 'complete'): ?>
-                                                                    <?= learner_icon('check', 16); ?>
-                                                                <?php elseif ($sState === 'declined' || $sState === 'withdrawn'): ?>
-                                                                    <?= learner_icon('x', 16); ?>
-                                                                <?php elseif ($sState === 'current'): ?>
-                                                                    <?= learner_icon('clock', 15); ?>
-                                                                <?php else: ?>
-                                                                    <?= $idx + 1; ?>
-                                                                <?php endif; ?>
-                                                            </div>
-                                                            <div class="learner-app-step__content">
-                                                                <span class="learner-app-step__title"><?= learner_escape($step['label']); ?></span>
-                                                                <span class="learner-app-step__desc"><?= learner_escape($step['desc']); ?></span>
-                                                                <?php if (!empty($step['date'])): ?>
-                                                                    <time class="learner-app-step__time"><?= learner_escape($step['date']); ?></time>
-                                                                <?php endif; ?>
-                                                            </div>
+                                            <?php if ($isAccepted): ?>
+                                                <div class="learner-app-accepted-banner" role="status">
+                                                    <div class="learner-app-accepted-banner__icon" aria-hidden="true">
+                                                        <?= learner_icon('check', 20); ?>
+                                                    </div>
+                                                    <div class="learner-app-accepted-banner__body">
+                                                        <div class="learner-app-accepted-banner__header">
+                                                            <h4 class="learner-app-accepted-banner__title">Trúng tuyển &amp; Được tiếp nhận</h4>
+                                                            <?php if (!empty($acceptedDate)): ?>
+                                                                <span class="learner-app-accepted-banner__time">Hoàn tất lúc <?= learner_escape($acceptedDate); ?></span>
+                                                            <?php endif; ?>
                                                         </div>
-                                                    <?php endforeach; ?>
+                                                        <p class="learner-app-accepted-banner__message">
+                                                            Chúc mừng bạn đã trúng tuyển thực tập! Doanh nghiệp đã duyệt tiếp nhận hồ sơ và sẽ sớm liên hệ hướng dẫn nhận việc qua email hoặc số điện thoại.
+                                                        </p>
+                                                        <?php if (!empty($app['message'])): ?>
+                                                            <div class="learner-app-accepted-banner__user-note">
+                                                                <?= learner_icon('mail', 13); ?>
+                                                                <span>Lời nhắn gửi kèm của bạn: <em>“<?= learner_escape($app['message']); ?>”</em></span>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            <?php else: ?>
+                                                <div class="learner-app-stepper" aria-label="Tiến trình xét duyệt">
+                                                    <div class="learner-app-stepper__track">
+                                                        <?php
+                                                        $steps = !empty($app['pipeline']) ? $app['pipeline'] : [];
+                                                        foreach ($steps as $idx => $step):
+                                                            $sState = $step['state'] ?? 'upcoming';
+                                                        ?>
+                                                            <div class="learner-app-step is-<?= learner_escape($sState); ?>" data-step-id="<?= learner_escape($step['id']); ?>">
+                                                                <div class="learner-app-step__node" aria-hidden="true">
+                                                                    <?php if ($sState === 'complete'): ?>
+                                                                        <?= learner_icon('check', 16); ?>
+                                                                    <?php elseif ($sState === 'declined' || $sState === 'withdrawn'): ?>
+                                                                        <?= learner_icon('x', 16); ?>
+                                                                    <?php elseif ($sState === 'current'): ?>
+                                                                        <?= learner_icon('clock', 15); ?>
+                                                                    <?php else: ?>
+                                                                        <?= $idx + 1; ?>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                                <div class="learner-app-step__content">
+                                                                    <span class="learner-app-step__title"><?= learner_escape($step['label']); ?></span>
+                                                                    <span class="learner-app-step__desc"><?= learner_escape($step['desc']); ?></span>
+                                                                    <?php if (!empty($step['date'])): ?>
+                                                                        <time class="learner-app-step__time"><?= learner_escape($step['date']); ?></time>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                            </div>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                </div>
 
-                                            <?php if (!empty($app['message'])): ?>
-                                                <div class="learner-app-message-preview">
-                                                    <span class="learner-app-message-label"><?= learner_icon('mail', 14); ?> Lời nhắn gửi kèm của bạn:</span>
-                                                    <p class="learner-app-message-text">“<?= learner_escape($app['message']); ?>”</p>
-                                                </div>
-                                            <?php endif; ?>
+                                                <?php if (!empty($app['message'])): ?>
+                                                    <div class="learner-app-message-preview">
+                                                        <span class="learner-app-message-label"><?= learner_icon('mail', 14); ?> Lời nhắn gửi kèm của bạn:</span>
+                                                        <p class="learner-app-message-text">“<?= learner_escape($app['message']); ?>”</p>
+                                                    </div>
+                                                <?php endif; ?>
 
-                                            <?php if (!empty($statusNote)): ?>
-                                                <div class="learner-app-status-note">
-                                                    <?= learner_icon('info', 16); ?>
-                                                    <div><?= learner_escape($statusNote); ?></div>
-                                                </div>
+                                                <?php if (!empty($statusNote)): ?>
+                                                    <div class="learner-app-status-note">
+                                                        <?= learner_icon('info', 16); ?>
+                                                        <div><?= learner_escape($statusNote); ?></div>
+                                                    </div>
+                                                <?php endif; ?>
                                             <?php endif; ?>
                                         </article>
                                     <?php endforeach; ?>

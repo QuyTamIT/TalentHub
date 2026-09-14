@@ -96,7 +96,8 @@ final class ModelRoadmapEngine implements RoadmapEngine
                     throw new \RuntimeException('Roadmap safety evaluation failed.');
                 }
                 return $analysis;
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                error_log(sprintf('[ModelRoadmapEngine] validation attempt %d/%d failed: %s at %s:%d', $validationAttempt, $validationAttempts, $e->getMessage(), $e->getFile(), $e->getLine()));
                 if ($validationAttempt >= $validationAttempts) {
                     throw new RoadmapModelUnavailable('invalid_model_response');
                 }
