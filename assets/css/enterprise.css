@@ -8860,436 +8860,900 @@ body.enterprise-dashboard .ent-search-input:focus {
     outline: none !important;
 }
 
-/*
-
 /* ═══════════════════════════════════════════════════════════════════════════
-   TALENT PASSPORT — Redesigned Layout
-   Replaces card-per-section approach with a clean 2-column profile layout.
+   TALENT PROFILE DETAIL — Modern SaaS Talent Passport Layout
+   2-column responsive layout: Hero Header, Main Column & Sidebar Column
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Grid ────────────────────────────────────────────────────────────────── */
+/* ── Hero Profile Header ─────────────────────────────────────────────────── */
+.ent-profile-hero {
+    background: #FFFFFF;
+    border: 1px solid #EFE8E1;
+    border-radius: 16px;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 10px rgba(35, 24, 18, 0.03), 0 1px 3px rgba(35, 24, 18, 0.02);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.ent-profile-hero__main {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    min-width: 0;
+    flex: 1 1 480px;
+}
+
+.ent-profile-hero__avatar-box {
+    flex-shrink: 0;
+}
+
+.ent-profile-hero__avatar {
+    width: 72px;
+    height: 72px;
+    min-width: 72px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #FFF7F2 0%, #FFE4D6 100%);
+    border: 1.5px solid #FFDACB;
+    color: #E0471A;
+    font-size: 1.625rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(224, 71, 26, 0.1);
+    letter-spacing: -0.5px;
+}
+
+.ent-profile-hero__details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.ent-profile-hero__title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.ent-profile-hero__name {
+    font-size: 1.5625rem;
+    font-weight: 800;
+    color: #231812;
+    margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
+
+.ent-profile-hero__score-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: linear-gradient(135deg, #FFF9F6 0%, #FFF1EB 100%);
+    border: 1px solid #FFDACB;
+    color: #C2410C;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    line-height: 1;
+}
+
+.ent-profile-hero__score-chip svg {
+    color: #FF6B45;
+    flex-shrink: 0;
+}
+
+/* Status Pill "Sẵn sàng thực tập" */
+.ent-passport-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #ECFDF5;
+    border: 1px solid #A7F3D0;
+    color: #065F46;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    line-height: 1;
+}
+
+.ent-passport-status-pill .status-dot {
+    width: 7px;
+    height: 7px;
+    background: #10B981;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+    flex-shrink: 0;
+}
+
+.ent-passport-status-pill--sm {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.55rem;
+}
+
+.ent-profile-hero__meta-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.65rem;
+    font-size: 0.875rem;
+    color: #6B5548;
+    line-height: 1.4;
+}
+
+.ent-profile-hero__meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #6B5548;
+}
+
+.ent-profile-hero__meta-item svg {
+    color: #9E897D;
+    flex-shrink: 0;
+}
+
+.ent-meta-sep {
+    color: #D5C5B9;
+    font-size: 0.75rem;
+}
+
+.ent-profile-hero__meta-item--highlight {
+    color: #C2410C;
+    font-weight: 600;
+    background: #FFF7F2;
+    padding: 0.15rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid #FFE0D3;
+}
+
+.ent-profile-hero__meta-item--highlight svg {
+    color: #EA580C;
+}
+
+.ent-profile-hero__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.ent-btn-hero {
+    height: 38px;
+    padding: 0 0.95rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.ent-btn-hero svg {
+    flex-shrink: 0;
+}
+
+.ent-passport-save-btn.is-saved {
+    background: #FEF2F2 !important;
+    border-color: #FECACA !important;
+    color: #DC2626 !important;
+}
+
+.ent-passport-save-btn.is-saved svg {
+    color: #DC2626;
+}
+
+/* ── 2-Column Grid Layout ────────────────────────────────────────────────── */
 .ent-passport-grid {
     display: grid;
-    grid-template-columns: 1fr 300px;
-    gap: 1.75rem;
+    grid-template-columns: 1fr 340px;
+    gap: 1.5rem;
     align-items: start;
+    min-width: 0;
 }
 
 .ent-passport-main {
     display: flex;
     flex-direction: column;
-    gap: 0; /* sections use border-top dividers instead of gap */
+    gap: 1.375rem;
     min-width: 0;
 }
 
 .ent-passport-sidebar {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    position: sticky;
-    top: 1.5rem;
-}
-
-/* ── Profile Header ──────────────────────────────────────────────────────── */
-.ent-profile-header {
-    display: flex;
-    align-items: flex-start;
     gap: 1.25rem;
-    padding: 1.5rem 0 1.5rem;
-    border-bottom: 1px solid var(--border);
-    flex-wrap: wrap;
-}
-
-.ent-profile-header__avatar {
-    width: 5rem;
-    height: 5rem;
-    border-radius: 14px;
-    background: linear-gradient(135deg, var(--primary-light) 0%, #fde8dc 100%);
-    color: var(--primary);
-    font-size: 1.625rem;
-    font-weight: var(--font-extrabold);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(255, 107, 69, 0.18);
-    letter-spacing: -0.5px;
-}
-
-.ent-profile-header__body {
-    flex: 1 1 0;
+    position: sticky;
+    top: 1.25rem;
     min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
 }
 
-.ent-profile-header__name-row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
+/* ── Unified Section Cards ───────────────────────────────────────────────── */
+.ent-section-card {
+    background: #FFFFFF;
+    border: 1px solid #EFE8E1;
+    border-radius: 14px;
+    padding: 1.375rem 1.5rem;
+    box-shadow: 0 1px 3px rgba(35, 24, 18, 0.02), 0 3px 10px rgba(35, 24, 18, 0.03);
 }
 
-.ent-profile-header__name {
-    font-size: 1.625rem;
-    font-weight: var(--font-extrabold);
-    color: var(--text-primary);
-    margin: 0;
-    line-height: 1.2;
-    letter-spacing: -0.3px;
-}
-
-.ent-profile-header__meta {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    margin: 0;
-    line-height: 1.5;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-}
-
-.ent-meta-dot {
-    color: var(--text-muted);
-    opacity: .5;
-}
-
-.ent-profile-header__status-row {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    flex-wrap: wrap;
-    margin-top: 0.125rem;
-}
-
-.ent-profile-header__exp-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.78125rem;
-    font-weight: var(--font-semibold);
-    color: var(--primary);
-    background: var(--primary-light);
-    padding: 0.2rem 0.55rem;
-    border-radius: 999px;
-    border: 1px solid rgba(255,107,69,.18);
-}
-
-.ent-profile-header__actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-    align-self: flex-start;
-    padding-top: 0.125rem;
-}
-
-/* ── Main Column Sections (divider-based, no cards) ─────────────────────── */
-.ent-profile-section {
-    padding: 1.375rem 0;
-    border-bottom: 1px solid var(--border);
-}
-
-.ent-profile-section:last-child {
-    border-bottom: none;
-    padding-bottom: 0.5rem;
-}
-
-.ent-profile-section__header {
+.ent-section-card__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 1rem;
+    gap: 0.75rem;
+    margin-bottom: 1.125rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #F6F1ED;
 }
 
-.ent-profile-section__title {
-    font-size: 0.9375rem;
-    font-weight: var(--font-bold);
-    color: var(--text-primary);
-    margin: 0 0 0.875rem;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+.ent-section-card__title-group {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.ent-section-card__icon {
+    color: #FF6B45;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    background: #FFF5F0;
+    flex-shrink: 0;
+}
+
+.ent-section-card__title {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: #231812;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.ent-section-card__badge {
     font-size: 0.75rem;
-    color: var(--text-muted);
+    font-weight: 600;
+    color: #6B5548;
+    background: #FAF6F2;
+    border: 1px solid #EFE8E1;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    line-height: 1.2;
 }
 
-.ent-profile-section__header .ent-profile-section__title {
+.ent-section-card__badge--accent {
+    color: #C2410C;
+    background: #FFF5F0;
+    border-color: #FFDACB;
+    font-weight: 700;
+}
+
+/* ── Bio Block ───────────────────────────────────────────────────────────── */
+.ent-passport-bio-text {
+    font-size: 0.90625rem;
+    color: #574136;
+    line-height: 1.65;
     margin: 0;
 }
 
-.ent-profile-empty-inline {
-    font-size: 0.875rem;
-    color: var(--text-muted);
-    font-style: italic;
+/* ── Modern Timeline (Kinh nghiệm & Hoạt động) ──────────────────────────── */
+.ent-passport-timeline {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding-left: 1.5rem;
+}
+
+.ent-passport-timeline::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: #EDE4DC;
+    border-radius: 1px;
+}
+
+.ent-passport-timeline-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.ent-passport-timeline-item__indicator {
+    position: absolute;
+    left: -1.5rem;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #FF6B45;
+    border: 2px solid #FFFFFF;
+    box-shadow: 0 0 0 2.5px rgba(255, 107, 69, 0.25);
+}
+
+.ent-passport-timeline-item__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.ent-passport-timeline-item__title {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #231812;
     margin: 0;
+    line-height: 1.35;
+}
+
+.ent-passport-timeline-item__duration {
+    font-size: 0.78125rem;
+    color: #8C776B;
+    font-weight: 500;
+    background: #FAF6F2;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    border: 1px solid #EFE8E1;
+}
+
+.ent-passport-timeline-item__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    font-size: 0.8125rem;
+}
+
+.ent-exp-role-badge {
+    background: #F7F3EE;
+    color: #574136;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid #EAE0D6;
+}
+
+.ent-exp-hours-chip {
+    background: #FFF5F0;
+    color: #C2410C;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border: 1px solid #FFDACB;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.ent-passport-timeline-item__desc {
+    font-size: 0.84375rem;
+    color: #574136;
+    line-height: 1.6;
+    margin: 0.2rem 0 0;
+}
+
+/* ── Modern Project Cards (Dự án tiêu biểu) ──────────────────────────────── */
+.ent-passport-projects-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+}
+
+.ent-passport-project-card {
+    background: #FAF8F5;
+    border: 1px solid #EDE5DD;
+    border-radius: 11px;
+    padding: 1.125rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.ent-passport-project-card:hover {
+    border-color: #DFD2C6;
+    box-shadow: 0 4px 12px rgba(35, 24, 18, 0.04);
+}
+
+.ent-passport-project-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.ent-passport-project-card__title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #231812;
+    margin: 0;
+    line-height: 1.35;
+}
+
+.ent-project-badges-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.ent-project-result-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    line-height: 1.2;
+}
+
+.ent-project-result-badge--completed {
+    background: #DCFCE7;
+    color: #15803D;
+    border: 1px solid #BBF7D0;
+}
+
+.ent-project-result-badge--funded {
+    background: #F3E8FF;
+    color: #7E22CE;
+    border: 1px solid #E9D5FF;
+}
+
+.ent-project-result-badge--in_progress {
+    background: #EFF6FF;
+    color: #1D4ED8;
+    border: 1px solid #BFDBFE;
+}
+
+.ent-sponsor-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #FAF5FF;
+    color: #7E22CE;
+    border: 1px solid #E9D5FF;
+}
+
+.ent-passport-project-card__desc {
+    font-size: 0.84375rem;
+    color: #574136;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.ent-passport-project-card__meta-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding-top: 0.45rem;
+    border-top: 1px dashed #EDE5DD;
+    font-size: 0.8125rem;
+}
+
+.ent-passport-project-card__role {
+    color: #6B5548;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.ent-passport-project-card__role .val {
+    color: #231812;
+    font-weight: 600;
+}
+
+.ent-passport-project-card__techs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.ent-tech-tag {
+    background: #FFFFFF;
+    border: 1px solid #E5DBD1;
+    color: #574136;
+    font-size: 0.71875rem;
+    font-weight: 600;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
 }
 
 /* ── Sidebar Cards ───────────────────────────────────────────────────────── */
 .ent-sidebar-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 1.125rem 1.25rem;
+    background: #FFFFFF;
+    border: 1px solid #EFE8E1;
+    border-radius: 14px;
+    padding: 1.25rem 1.375rem;
+    box-shadow: 0 1px 3px rgba(35, 24, 18, 0.02), 0 3px 10px rgba(35, 24, 18, 0.03);
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.875rem;
 }
 
-.ent-sidebar-card--muted {
-    background: var(--background);
-    box-shadow: none;
+.ent-sidebar-card__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-bottom: 0.625rem;
+    border-bottom: 1px solid #F6F1ED;
 }
 
-/* Score display */
-.ent-sidebar-card__score-row {
+.ent-sidebar-card__title {
+    font-size: 0.8125rem;
+    font-weight: 800;
+    color: #6B5548;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.ent-sidebar-card__title svg {
+    color: #FF6B45;
+}
+
+.ent-sidebar-card__count {
+    font-size: 0.71875rem;
+    font-weight: 700;
+    color: #6B5548;
+    background: #FAF6F2;
+    border: 1px solid #EFE8E1;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+}
+
+/* Score Visual Display */
+.ent-score-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding: 0.25rem 0 0.5rem;
+}
+
+.ent-score-box__row {
     display: flex;
     align-items: baseline;
-    gap: 0.375rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border);
+    gap: 0.35rem;
 }
 
-.ent-sidebar-card__score-num {
-    font-size: 2.25rem;
-    font-weight: var(--font-extrabold);
-    color: var(--primary);
+.ent-score-box__num {
+    font-size: 2.75rem;
+    font-weight: 800;
+    color: #231812;
     line-height: 1;
-    letter-spacing: -1px;
+    letter-spacing: -0.04em;
 }
 
-.ent-sidebar-card__score-label {
-    font-size: 0.78125rem;
-    font-weight: var(--font-semibold);
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+.ent-score-box__scale {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #9E897D;
 }
 
-/* Key–value rows inside sidebar card */
-.ent-sidebar-card__row {
+.ent-score-box__level-badge {
+    margin-left: auto;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: #FFF5F0;
+    color: #C2410C;
+    border: 1px solid #FFDACB;
+}
+
+/* Progress bar */
+.ent-score-progress {
+    height: 7px;
+    background: #F3ECE5;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.ent-score-progress__bar {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #FF6B45 0%, #F83F70 100%);
+    transition: width 0.4s ease;
+}
+
+/* Key–Value metrics inside sidebar card */
+.ent-sidebar-stats-list {
     display: flex;
-    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding-top: 0.25rem;
+    border-top: 1px dashed #EDE5DD;
+}
+
+.ent-sidebar-stat-row {
+    display: flex;
+    align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
     font-size: 0.8125rem;
 }
 
-.ent-sidebar-card__key {
-    color: var(--text-muted);
-    font-size: 0.78125rem;
+.ent-sidebar-stat-key {
+    color: #8C776B;
+    font-size: 0.8125rem;
     flex-shrink: 0;
 }
 
-.ent-sidebar-card__val {
-    font-weight: var(--font-semibold);
-    color: var(--text-primary);
+.ent-sidebar-stat-val {
+    font-weight: 600;
+    color: #231812;
     text-align: right;
     font-size: 0.8125rem;
 }
 
-.ent-sidebar-card__val--accent {
-    color: var(--primary);
+.ent-sidebar-stat-val--accent {
+    color: #C2410C;
+    font-weight: 700;
 }
 
-/* Strengths list */
-.ent-sidebar-card__strengths {
+/* ── Skills Tags (Sidebar) ───────────────────────────────────────────────── */
+.ent-skills-chips-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.ent-skill-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #FAF8F5;
+    border: 1px solid #EAE0D6;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #231812;
+    transition: border-color 0.15s ease;
+}
+
+.ent-skill-chip:hover {
+    border-color: #D5C5B9;
+}
+
+.ent-skill-chip__level {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: #8C776B;
+    background: #FFFFFF;
+    padding: 0.05rem 0.3rem;
+    border-radius: 3px;
+    border: 1px solid #EDE5DD;
+}
+
+.ent-skill-chip__check {
+    color: #059669;
+    font-size: 0.6875rem;
+    display: flex;
+    align-items: center;
+}
+
+/* ── Certificates List (Sidebar) ─────────────────────────────────────────── */
+.ent-passport-certs-list {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.65rem;
 }
 
-.ent-sidebar-card__strength-list {
-    list-style: none;
-    padding: 0;
-    margin: 0.25rem 0 0;
+.ent-passport-cert-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    padding: 0.625rem;
+    background: #FAF8F5;
+    border: 1px solid #EDE5DD;
+    border-radius: 8px;
+}
+
+.ent-passport-cert-row__icon {
+    color: #FF6B45;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.ent-passport-cert-row__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ent-passport-cert-row__info .cert-name {
+    font-size: 0.84375rem;
+    font-weight: 700;
+    color: #231812;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.ent-passport-cert-row__info .cert-issuer {
+    font-size: 0.75rem;
+    color: #8C776B;
+    display: block;
+    margin-top: 0.15rem;
+}
+
+/* ── Privacy Card (Sidebar) ──────────────────────────────────────────────── */
+.ent-privacy-card {
+    background: #FAF8F5;
+    border: 1px solid #EFE6DE;
+    border-radius: 12px;
+    padding: 0.875rem 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+}
+
+.ent-privacy-card__icon {
+    color: #9E897D;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.ent-privacy-card__content {
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
 }
 
-.ent-sidebar-card__strength-list li {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    padding-left: 0.875rem;
-    position: relative;
-}
-
-.ent-sidebar-card__strength-list li::before {
-    content: '·';
-    position: absolute;
-    left: 0;
-    color: var(--primary);
-    font-weight: 700;
-}
-
-/* Sidebar card heading row */
-.ent-sidebar-card__heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: 0.625rem;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 0.125rem;
-}
-
-.ent-sidebar-card__title {
+.ent-privacy-card__title {
     font-size: 0.75rem;
-    font-weight: var(--font-bold);
-    color: var(--text-muted);
+    font-weight: 700;
+    color: #574136;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.03em;
     margin: 0;
 }
 
-.ent-sidebar-card__count {
-    font-size: 0.71875rem;
-    font-weight: var(--font-semibold);
-    color: var(--text-muted);
-    background: var(--background);
-    border: 1px solid var(--border);
-    padding: 0.1rem 0.45rem;
-    border-radius: 999px;
+.ent-privacy-card__text {
+    font-size: 0.78125rem;
+    color: #7A665A;
+    line-height: 1.5;
+    margin: 0;
 }
 
-/* ── Skills inline list (sidebar) ──────────────────────────────────────────*/
-.ent-skills-inline-list {
+/* ── Modern Empty State Box ──────────────────────────────────────────────── */
+.ent-empty-box {
     display: flex;
     flex-direction: column;
-    gap: 0;
-}
-
-.ent-skill-inline-item {
-    display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.45rem 0;
-    border-bottom: 1px solid var(--border);
-}
-
-.ent-skill-inline-item:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-}
-
-.ent-skill-inline-item__name {
-    font-size: 0.875rem;
-    font-weight: var(--font-semibold);
-    color: var(--text-primary);
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.ent-skill-inline-item__meta {
-    display: flex;
-    align-items: center;
+    justify-content: center;
+    text-align: center;
     gap: 0.35rem;
-    flex-shrink: 0;
+    padding: 1.5rem 1rem;
+    background: #FAF8F5;
+    border: 1px dashed #E2D7CE;
+    border-radius: 10px;
 }
 
-/* ── Sponsor chip ───────────────────────────────────────────────────────── */
-.ent-sponsor-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    padding: 2px 7px;
-    border-radius: 4px;
-    font-size: 0.71875rem;
+.ent-empty-box--compact {
+    padding: 1.125rem 0.875rem;
+}
+
+.ent-empty-box__icon {
+    color: #B4A296;
+    margin-bottom: 0.15rem;
+}
+
+.ent-empty-box__text {
+    font-size: 0.84375rem;
     font-weight: 600;
-    background: #FAF5FF;
-    color: var(--primary-violet, #8b4de8);
-    border: 1px solid rgba(139, 77, 232, 0.22);
-}
-
-/* ── Status pill — smaller variant for sidebar ───────────────────────────── */
-.ent-passport-status-pill--sm {
-    font-size: 0.75rem;
-    padding: 0.175rem 0.55rem;
-}
-
-/* ── Privacy card (sidebar) ─────────────────────────────────────────────── */
-.ent-privacy-card {
-    font-size: 0.8rem;
-}
-
-.ent-privacy-card .ent-privacy-card__icon {
-    color: var(--text-muted);
-    margin-bottom: -0.125rem;
-}
-
-.ent-privacy-card p {
+    color: #6B5548;
     margin: 0;
-    font-size: 0.78125rem;
-    color: var(--text-muted);
-    line-height: 1.55;
 }
 
-/* ── Experience hours badge — compact in section header ─────────────────── */
-.ent-profile-section__header .ent-exp-hours-badge {
-    margin-top: 0;
+.ent-empty-box__hint {
+    font-size: 0.75rem;
+    color: #9E897D;
+    margin: 0;
 }
 
-/* ── Responsive ─────────────────────────────────────────────────────────── */
-@media (max-width: 1100px) {
+/* ── Responsive Rules ────────────────────────────────────────────────────── */
+@media (max-width: 1080px) {
     .ent-passport-grid {
-        grid-template-columns: 1fr 270px;
+        grid-template-columns: 1fr 310px;
         gap: 1.25rem;
     }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 860px) {
     .ent-passport-grid {
         grid-template-columns: 1fr;
-        gap: 0;
+        gap: 1.25rem;
     }
 
     .ent-passport-sidebar {
         position: static;
-        /* On mobile the sidebar moves below main content,
-           rendered as a horizontal row of cards */
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 0.875rem;
-        padding-top: 1.25rem;
-        border-top: 2px solid var(--border);
-        margin-top: 0.25rem;
-    }
-}
-
-@media (max-width: 600px) {
-    .ent-profile-header {
-        padding: 1.25rem 0;
     }
 
-    .ent-profile-header__avatar {
-        width: 4rem;
-        height: 4rem;
-        font-size: 1.25rem;
-        border-radius: 10px;
+    .ent-profile-hero {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1.125rem;
+        padding: 1.25rem;
     }
 
-    .ent-profile-header__name {
-        font-size: 1.25rem;
+    .ent-profile-hero__main {
+        flex: 1 1 auto;
     }
 
-    .ent-profile-header__actions {
+    .ent-profile-hero__actions {
         width: 100%;
+        display: flex;
     }
 
-    .ent-profile-header__actions .btn {
+    .ent-profile-hero__actions .ent-btn-hero {
         flex: 1;
         justify-content: center;
     }
+}
 
-    .ent-passport-sidebar {
-        grid-template-columns: 1fr;
+@media (max-width: 580px) {
+    .ent-profile-hero__main {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.875rem;
+    }
+
+    .ent-profile-hero__avatar {
+        width: 60px;
+        height: 60px;
+        min-width: 60px;
+        font-size: 1.35rem;
+        border-radius: 14px;
+    }
+
+    .ent-profile-hero__name {
+        font-size: 1.35rem;
+    }
+
+    .ent-profile-hero__actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .ent-profile-hero__actions .ent-btn-hero {
+        width: 100%;
+    }
+
+    .ent-section-card {
+        padding: 1.125rem 1rem;
     }
 }
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    PROFILE COMPLETION BREAKDOWN
