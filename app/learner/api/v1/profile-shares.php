@@ -31,7 +31,9 @@ try {
         ]);
         $context->mutation($request->header('x-csrf-token'));
         $input = $context->allowedInput($request->json(), ['sharedFields', 'expiresInDays']);
-        $sharedFields = is_array($input['sharedFields'] ?? null) ? $input['sharedFields'] : [];
+        $sharedFields = is_array($input['sharedFields'] ?? null) && !empty($input['sharedFields'])
+            ? $input['sharedFields']
+            : ProfileSharingService::ALLOWED_FIELDS;
         $expiresInDays = isset($input['expiresInDays']) && is_numeric($input['expiresInDays']) ? (int) $input['expiresInDays'] : 30;
 
         $share = $service->createShare($studentId, $sharedFields, $expiresInDays);

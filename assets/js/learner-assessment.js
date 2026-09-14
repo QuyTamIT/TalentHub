@@ -73,6 +73,32 @@
         return label;
     }
 
+    function renderLikertPill(doc, questionId, option, selectedValue) {
+        const value = typeof option === 'object' && option !== null ? option.value : option;
+        const labelText = typeof option === 'object' && option !== null ? (option.label ?? option.value) : option;
+        const label = doc.createElement('label');
+        const isChecked = String(selectedValue ?? '') === String(value ?? '');
+        label.className = `learner-likert-pill${isChecked ? ' is-checked' : ''}`;
+
+        const input = doc.createElement('input');
+        input.type = 'radio';
+        input.name = `assessment-answer-${questionId}`;
+        input.value = String(value ?? '');
+        input.checked = isChecked;
+
+        const radio = doc.createElement('span');
+        radio.className = 'learner-likert-pill__radio';
+        radio.setAttribute('aria-hidden', 'true');
+
+        const text = doc.createElement('span');
+        text.className = 'learner-likert-pill__label';
+        text.textContent = String(labelText ?? '');
+
+        label.append(input, radio, text);
+        return label;
+    }
+
+
     function createAssessmentController({ api, view, createIdempotencyKey = defaultIdempotencyKey }) {
         if (!api || typeof api.get !== 'function' || typeof api.send !== 'function') {
             throw new TypeError('A learner assessment API client is required.');
@@ -714,6 +740,17 @@
             submitButton: doc.querySelector('[data-assessment-submit]'),
             bandModal: doc.querySelector('[data-assessment-band-confirmation]'),
             bandError: doc.querySelector('[data-assessment-band-error]'),
+            // Continuous Stream & Sticky Header additions
+            stream: root.querySelector('[data-assessment-stream]'),
+            stickyHeader: root.querySelector('[data-assessment-sticky-header]'),
+            answeredCounter: root.querySelector('[data-assessment-answered-counter]'),
+            totalCounter: root.querySelector('[data-assessment-total-counter]'),
+            progressFill: root.querySelector('.learner-assessment-progress-fill'),
+            streamFooter: root.querySelector('[data-assessment-stream-footer]'),
+            headerSubmit: root.querySelector('[data-assessment-header-submit]'),
+            openSheetBtn: root.querySelector('[data-assessment-open-sheet]'),
+            sheetModal: doc.querySelector('[data-assessment-sheet-modal]'),
+            sheetGrid: doc.querySelector('[data-assessment-sheet-grid]'),
         };
         let questionIndex = 0;
 
@@ -726,29 +763,103 @@
 
         function renderQuestion(attempt) {
             const questions = Array.isArray(attempt?.questions) ? attempt.questions : [];
-            const question = currentQuestion(attempt);
-            if (!question) return;
+            if (questions.length === 0) return;
             const answers = attempt.answers && typeof attempt.answers === 'object' ? attempt.answers : {};
-            if (nodes.questionHeading) nodes.questionHeading.textContent = String(question.prompt || question.content || '');
+            const answeredCount = Object.keys(answers).length;
+            const totalCount = questions.length;
+            const percent = totalCount > 0 ? Math.round((answeredCount / totalCount) * 100) : 0;
+
+            // Sticky Header counters & progress
+            if (nodes.answeredCounter) nodes.answeredCounter.textContent = String(answeredCount);
+            if (nodes.totalCounter) nodes.totalCounter.textContent = String(totalCount);
+            if (nodes.progressFill) nodes.progressFill.style.width = `${percent}%`;
+            if (nodes.progress) {
+                nodes.progress.setAttribute('aria-valuenow', String(percent));
+                const bar = nodes.progress.querySelector('span:not(.learner-assessment-progress-fill)');
+                if (bar) bar.style.setProperty('--learner-progress', `${percent}%`);
+            }
+            if (nodes.answeredCount) nodes.answeredCount.textContent = String(answeredCount);
+            if (nodes.headerSubmit) setHidden(nodes.headerSubmit, answeredCount < totalCount);
+            if (nodes.streamFooter) setHidden(nodes.streamFooter, answeredCount < totalCount);
+
+            // Populate Sheet Modal Grid (Xem chi tiết)
+            if (nodes.sheetGrid) {
+                while (nodes.sheetGrid.firstChild) nodes.sheetGrid.removeChild(nodes.sheetGrid.firstChild);
+                questions.forEach((item, index) => {
+                    const button = doc.createElement('button');
+                    button.type = 'button';
+                    button.className = 'learner-question-navigator__item';
+                    button.dataset.questionIndex = String(index);
+                    button.textContent = String(index + 1);
+                    button.classList.toggle('is-answered', Object.prototype.hasOwnProperty.call(answers, item.id));
+                    button.setAttribute('aria-label', `Câu ${index + 1}`);
+                    nodes.sheetGrid.appendChild(button);
+                });
+            }
+
+            // Stream rendering: all questions rendered into the stream
+            if (nodes.stream) {
+                if (nodes.stream.children.length === 0) {
+                    questions.forEach((question, index) => {
+                        const card = doc.createElement('article');
+                        card.className = 'learner-assessment-question-item';
+                        card.id = `assessment-question-${index}`;
+                        card.dataset.questionId = String(question.id);
+                        card.dataset.questionIndex = String(index);
+
+                        const title = doc.createElement('h2');
+                        title.className = 'learner-assessment-question-item__title';
+                        title.textContent = `${index + 1}. ${question.prompt || question.content || ''}`;
+                        card.appendChild(title);
+
+                        const fieldset = doc.createElement('fieldset');
+                        fieldset.className = 'learner-likert-pills';
+                        const options = Array.isArray(question.options) ? question.options : [];
+                        options.forEach((option) => {
+                            fieldset.appendChild(renderLikertPill(doc, question.id, option, answers[question.id]));
+                        });
+                        card.appendChild(fieldset);
+
+                        if (Object.prototype.hasOwnProperty.call(answers, question.id)) {
+                            card.classList.add('is-answered');
+                        }
+                        nodes.stream.appendChild(card);
+                    });
+                } else {
+                    // Update existing stream items answers
+                    questions.forEach((question, index) => {
+                        const card = nodes.stream.querySelector(`[data-question-index="${index}"]`);
+                        if (!card) return;
+                        const hasAnswer = Object.prototype.hasOwnProperty.call(answers, question.id);
+                        card.classList.toggle('is-answered', hasAnswer);
+                        const pills = card.querySelectorAll('.learner-likert-pill');
+                        pills.forEach((pill) => {
+                            const input = pill.querySelector('input[type="radio"]');
+                            if (input) {
+                                const isChecked = String(input.value) === String(answers[question.id] ?? '');
+                                input.checked = isChecked;
+                                pill.classList.toggle('is-checked', isChecked);
+                            }
+                        });
+                    });
+                }
+            }
+
+            // Fallback for single card question layout if present
+            const question = currentQuestion(attempt);
+            if (question && nodes.questionHeading) nodes.questionHeading.textContent = String(question.prompt || question.content || '');
             if (nodes.position) nodes.position.textContent = String(questionIndex + 1);
             if (nodes.options) {
                 while (nodes.options.firstChild) nodes.options.removeChild(nodes.options.firstChild);
-                const options = Array.isArray(question.options) ? question.options : [];
+                const options = Array.isArray(question?.options) ? question.options : [];
                 options.forEach((option) => {
-                    nodes.options.appendChild(renderLikertOption(doc, option, answers[question.id]));
+                    nodes.options.appendChild(renderLikertOption(doc, option, answers[question?.id]));
                 });
             }
             if (nodes.previous) nodes.previous.disabled = questionIndex === 0;
             if (nodes.next) setHidden(nodes.next, questionIndex >= questions.length - 1);
-            if (nodes.openSubmit) setHidden(nodes.openSubmit, questionIndex < questions.length - 1);
+            if (nodes.openSubmit && !nodes.stream) setHidden(nodes.openSubmit, questionIndex < questions.length - 1);
             if (nodes.questionError) nodes.questionError.hidden = true;
-            if (nodes.answeredCount) nodes.answeredCount.textContent = String(Object.keys(answers).length);
-            if (nodes.progress) {
-                const percent = questions.length > 0 ? Math.round((Object.keys(answers).length / questions.length) * 100) : 0;
-                nodes.progress.setAttribute('aria-valuenow', String(percent));
-                const bar = nodes.progress.querySelector('span');
-                if (bar) bar.style.setProperty('--learner-progress', `${percent}%`);
-            }
             if (nodes.navigator) {
                 while (nodes.navigator.firstChild) nodes.navigator.removeChild(nodes.navigator.firstChild);
                 questions.forEach((item, index) => {
@@ -808,6 +919,17 @@
             revealQuestion() {
                 const reducedMotion = typeof global.matchMedia === 'function'
                     && global.matchMedia('(prefers-reduced-motion: reduce)').matches === true;
+                if (nodes.stream) {
+                    const firstUnanswered = nodes.stream.querySelector('.learner-assessment-question-item:not(.is-answered)')
+                        || nodes.stream.querySelector('.learner-assessment-question-item');
+                    if (firstUnanswered) {
+                        firstUnanswered.scrollIntoView({
+                            behavior: reducedMotion ? 'auto' : 'smooth',
+                            block: 'center',
+                        });
+                    }
+                    return;
+                }
                 nodes.questionCard?.scrollIntoView?.({
                     behavior: reducedMotion ? 'auto' : 'smooth',
                     block: 'nearest',
@@ -1262,6 +1384,125 @@
             if (!question) return;
             controller.saveAnswer(question.id, input.value).catch(() => {});
         });
+
+        // Continuous stream option change & auto-scroll handler
+        view.nodes.stream?.addEventListener('change', (event) => {
+            const input = event.target;
+            if (!input || input.type !== 'radio' || !currentAttempt?.questions) return;
+            const card = input.closest('.learner-assessment-question-item');
+            if (!card) return;
+            const questionIndex = parseInt(card.dataset.questionIndex, 10);
+            const question = currentAttempt.questions[questionIndex];
+            if (!question) return;
+
+            // Visual update for pills in this card
+            const pills = card.querySelectorAll('.learner-likert-pill');
+            pills.forEach((pill) => {
+                const radio = pill.querySelector('input[type="radio"]');
+                pill.classList.toggle('is-checked', radio === input);
+            });
+            card.classList.add('is-answered');
+
+            // Optimistic answers update
+            if (!currentAttempt.answers || typeof currentAttempt.answers !== 'object') {
+                currentAttempt.answers = {};
+            }
+            currentAttempt.answers[question.id] = input.value;
+
+            // Update Progress in sticky header
+            const answeredCount = Object.keys(currentAttempt.answers).length;
+            const totalCount = currentAttempt.questions.length;
+            const percent = totalCount > 0 ? Math.round((answeredCount / totalCount) * 100) : 0;
+            if (view.nodes.answeredCounter) view.nodes.answeredCounter.textContent = String(answeredCount);
+            if (view.nodes.totalCounter) view.nodes.totalCounter.textContent = String(totalCount);
+            if (view.nodes.progressFill) view.nodes.progressFill.style.width = `${percent}%`;
+            if (view.nodes.headerSubmit) setHidden(view.nodes.headerSubmit, answeredCount < totalCount);
+            if (view.nodes.streamFooter) setHidden(view.nodes.streamFooter, answeredCount < totalCount);
+
+            // Update Sheet modal grid indicator
+            const gridBtn = view.nodes.sheetGrid?.querySelector(`[data-question-index="${questionIndex}"]`);
+            if (gridBtn) gridBtn.classList.add('is-answered');
+
+            // Save answer to server
+            controller.saveAnswer(question.id, input.value).catch(() => {});
+
+            // Auto-scroll to next question
+            const reducedMotion = typeof global.matchMedia === 'function'
+                && global.matchMedia('(prefers-reduced-motion: reduce)').matches === true;
+
+            let nextCard = null;
+            for (let i = questionIndex + 1; i < totalCount; i++) {
+                const nextQ = currentAttempt.questions[i];
+                if (!Object.prototype.hasOwnProperty.call(currentAttempt.answers, nextQ.id)) {
+                    nextCard = view.nodes.stream.querySelector(`[data-question-index="${i}"]`);
+                    break;
+                }
+            }
+            if (!nextCard && questionIndex + 1 < totalCount) {
+                nextCard = view.nodes.stream.querySelector(`[data-question-index="${questionIndex + 1}"]`);
+            }
+
+            if (nextCard) {
+                setTimeout(() => {
+                    nextCard.scrollIntoView({
+                        behavior: reducedMotion ? 'auto' : 'smooth',
+                        block: 'center',
+                    });
+                }, 200);
+            } else if (answeredCount >= totalCount && view.nodes.streamFooter) {
+                setTimeout(() => {
+                    view.nodes.streamFooter.scrollIntoView({
+                        behavior: reducedMotion ? 'auto' : 'smooth',
+                        block: 'center',
+                    });
+                }, 200);
+            }
+        });
+
+        // Open sheet modal (Xem chi tiết)
+        view.nodes.openSheetBtn?.addEventListener('click', () => {
+            if (view.nodes.sheetModal) {
+                if (typeof global.LearnerUI?.openModal === 'function') {
+                    global.LearnerUI.openModal(view.nodes.sheetModal);
+                } else {
+                    setHidden(view.nodes.sheetModal, false);
+                }
+            }
+        });
+
+        // Close sheet modal handlers
+        doc.querySelectorAll('[data-close-sheet-modal]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                if (view.nodes.sheetModal) {
+                    if (typeof global.LearnerUI?.closeModal === 'function') {
+                        global.LearnerUI.closeModal(view.nodes.sheetModal);
+                    } else {
+                        setHidden(view.nodes.sheetModal, true);
+                    }
+                }
+            });
+        });
+
+        // Click question number in sheet modal -> jump to question
+        view.nodes.sheetGrid?.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-question-index]');
+            if (!button || !view.nodes.stream) return;
+            const targetIndex = button.dataset.questionIndex;
+            const targetCard = view.nodes.stream.querySelector(`[data-question-index="${targetIndex}"]`);
+            if (view.nodes.sheetModal) {
+                if (typeof global.LearnerUI?.closeModal === 'function') {
+                    global.LearnerUI.closeModal(view.nodes.sheetModal);
+                } else {
+                    setHidden(view.nodes.sheetModal, true);
+                }
+            }
+            if (targetCard) {
+                targetCard.classList.add('is-active-target');
+                targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => targetCard.classList.remove('is-active-target'), 1500);
+            }
+        });
+
         view.nodes.navigator?.addEventListener('click', (event) => {
             const button = event.target.closest?.('[data-question-index]');
             if (!button || !currentAttempt) return;
@@ -1269,12 +1510,21 @@
             view.renderQuestion(currentAttempt);
             view.revealQuestion();
         });
-        view.nodes.openSubmit?.addEventListener('click', () => {
+
+        // Submit modal open handler across all submit buttons
+        const handleOpenSubmit = () => {
             const answers = currentAttempt?.answers || {};
             const total = currentAttempt?.questions?.length || 0;
             if (view.nodes.submitAnswered) view.nodes.submitAnswered.textContent = `${Object.keys(answers).length}/${total}`;
             if (view.nodes.submitUnanswered) view.nodes.submitUnanswered.textContent = String(Math.max(0, total - Object.keys(answers).length));
+            if (view.nodes.sheetModal) setHidden(view.nodes.sheetModal, true);
             setHidden(view.nodes.submitModal, false);
+        };
+        root.querySelectorAll('[data-assessment-open-submit]').forEach((btn) => {
+            btn.addEventListener('click', handleOpenSubmit);
+        });
+        doc.querySelectorAll('#learner-assessment-sheet-modal [data-assessment-open-submit]').forEach((btn) => {
+            btn.addEventListener('click', handleOpenSubmit);
         });
         view.nodes.submitButton?.addEventListener('click', async () => {
             const response = await controller.submit();

@@ -36,6 +36,9 @@ final class ProfileSharingService
      */
     public function createShare(string $studentId, array $sharedFields, int $expiresInDays = 30): array
     {
+        if ($sharedFields === []) {
+            $sharedFields = self::ALLOWED_FIELDS;
+        }
         $this->validateFields($sharedFields);
         if ($expiresInDays < 1 || $expiresInDays > 365) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Thời hạn chia sẻ phải từ 1 đến 365 ngày.');
@@ -273,6 +276,8 @@ final class ProfileSharingService
         $passportCode = 'TP-' . strtoupper(substr(str_replace('-', '', (string)$studentId), 0, 8));
         $result = [
             'student' => $studentView,
+            'studentId' => $studentId,
+            'sharedFields' => array_values($sharedFields),
             'sharedAt' => (string) $share['createdAt'],
             'expiresAt' => (string) $share['expiresAt'],
             'passportCode' => $passportCode,
@@ -374,6 +379,7 @@ final class ProfileSharingService
 
         return [
             'student' => $studentView,
+            'studentId' => $studentId,
             'sharedAt' => date('Y-m-d H:i:s'),
             'expiresAt' => date('Y-m-d H:i:s', strtotime('+30 days')),
             'passportCode' => $passportCode,

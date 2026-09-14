@@ -1529,9 +1529,10 @@
         shareForm?.addEventListener('submit', async (event) => {
             event.preventDefault();
             const submitBtn = shareForm.querySelector('button[type="submit"]');
-            const formData = new FormData(shareForm);
-            const sharedFields = formData.getAll('sharedFields[]');
-            if (!sharedFields.includes('fullName')) {
+            let sharedFields = formData.getAll('sharedFields[]');
+            if (sharedFields.length === 0) {
+                sharedFields = ['fullName', 'headline', 'bio', 'location', 'school', 'class', 'skills', 'experience', 'certificates', 'projects', 'email', 'phone'];
+            } else if (!sharedFields.includes('fullName')) {
                 sharedFields.unshift('fullName');
             }
             const expiresInDays = Number(formData.get('expiresInDays')) || 30;

@@ -20,6 +20,48 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
     <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/polish.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/polish.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
+    <style>
+        .learner-avatar-presets {
+            display: flex !important;
+            gap: 0.6rem !important;
+            flex-wrap: wrap !important;
+            align-items: center !important;
+        }
+        .learner-avatar-preset-btn {
+            width: 36px !important;
+            height: 36px !important;
+            min-width: 36px !important;
+            min-height: 36px !important;
+            max-width: 36px !important;
+            max-height: 36px !important;
+            flex: 0 0 36px !important;
+            aspect-ratio: 1 / 1 !important;
+            border-radius: 50% !important;
+            border: 2px solid #CBD5E1 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: hidden !important;
+            cursor: pointer !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
+            background: transparent !important;
+            transition: all 0.2s ease !important;
+        }
+        .learner-avatar-preset-btn:hover {
+            border-color: #2563EB !important;
+            transform: scale(1.1) !important;
+        }
+        .learner-avatar-preset-btn img {
+            width: 100% !important;
+            height: 100% !important;
+            aspect-ratio: 1 / 1 !important;
+            object-fit: cover !important;
+            border-radius: 50% !important;
+            display: block !important;
+        }
+    </style>
 </head>
 <body class="learner-app learner-page-profile" data-learner-source="<?= ($isDatabaseMode ?? false) ? 'database' : 'mock'; ?>">
     <div class="learner-layout">
@@ -58,17 +100,14 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                                 <p class="learner-profile-school"><span data-profile-class><?= learner_escape($student['class']); ?></span> <span aria-hidden="true">•</span> <span data-profile-school><?= learner_escape($student['school']); ?></span></p>
                                 <div class="learner-profile-contact">
                                     <span><?= learner_icon('mail', 17); ?> <span data-profile-email><?= learner_escape($student['email']); ?></span></span>
-                                    <span><?= learner_icon('map-pin', 17); ?> <span data-profile-location><?= learner_escape($student['location']); ?></span></span>
+                                    <span data-profile-location style="display: none;"><?= learner_escape($student['location']); ?></span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="learner-profile-actions">
-                            <a class="learner-btn learner-btn--primary" href="talent-passport-cv.php" style="background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%); color: #FFFFFF; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);" title="Xem trước và xuất bản CV A4 1 trang chuyên nghiệp">
-                                <?= learner_icon('file-text', 18); ?> Xuất CV A4
-                            </a>
-                            <a class="learner-btn learner-btn--outline" href="talent-passport.php" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none; font-weight: 600;" title="Xem & Tải Talent Passport đầy đủ">
-                                <?= learner_icon('award', 16); ?> Talent Passport
+                            <a class="learner-btn learner-btn--primary" href="talent-passport-cv.php" style="background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%); color: #FFFFFF; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25);" title="Xem trước và xuất bản CV A4 chuyên nghiệp">
+                                <?= learner_icon('file-text', 18); ?> Xuất CV
                             </a>
                             <button class="learner-btn learner-btn--outline" type="button" data-open-modal="learner-share-modal">
                                 <?= learner_icon('share', 18); ?> Chia sẻ hồ sơ
@@ -353,24 +392,24 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                                     <span id="learner-avatar-file-status" style="font-size: 0.775rem; color: #059669; font-weight: 600; display: none;"></span>
                                 </div>
                                 <div style="font-size: 0.775rem; color: #64748B; font-weight: 600; margin-bottom: 0.35rem;">Hoặc chọn nhanh mẫu đại diện AI:</div>
-                                <div class="learner-avatar-presets" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/bottts/svg?seed=Talent1&amp;backgroundColor=b6e3f4" title="Robot AI 1" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
-                                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Talent1&amp;backgroundColor=b6e3f4" alt="Robot AI 1" style="width: 100%; height: 100%; object-fit: cover;">
+                                <div class="learner-avatar-presets" style="display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;">
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/bottts/svg?seed=Talent1&amp;backgroundColor=b6e3f4" title="Robot AI 1" style="width: 36px; height: 36px; min-width: 36px; min-height: 36px; max-width: 36px; max-height: 36px; flex: 0 0 36px; aspect-ratio: 1 / 1; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; margin: 0; overflow: hidden; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Talent1&amp;backgroundColor=b6e3f4" alt="Robot AI 1" style="width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%; display: block;">
                                     </button>
-                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/avataaars/svg?seed=Student2&amp;backgroundColor=c0aede" title="Minh họa 2" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
-                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student2&amp;backgroundColor=c0aede" alt="Minh họa 2" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/avataaars/svg?seed=Student2&amp;backgroundColor=c0aede" title="Minh họa 2" style="width: 36px; height: 36px; min-width: 36px; min-height: 36px; max-width: 36px; max-height: 36px; flex: 0 0 36px; aspect-ratio: 1 / 1; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; margin: 0; overflow: hidden; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Student2&amp;backgroundColor=c0aede" alt="Minh họa 2" style="width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%; display: block;">
                                     </button>
-                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=Student3&amp;backgroundColor=d1d4f9" title="Robot AI 3" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
-                                        <img src="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=Student3&amp;backgroundColor=d1d4f9" alt="Robot AI 3" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=Student3&amp;backgroundColor=d1d4f9" title="Robot AI 3" style="width: 36px; height: 36px; min-width: 36px; min-height: 36px; max-width: 36px; max-height: 36px; flex: 0 0 36px; aspect-ratio: 1 / 1; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; margin: 0; overflow: hidden; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/bottts-neutral/svg?seed=Student3&amp;backgroundColor=d1d4f9" alt="Robot AI 3" style="width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%; display: block;">
                                     </button>
-                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/adventurer/svg?seed=Student4&amp;backgroundColor=ffd5dc" title="Phiêu lưu 4" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
-                                        <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Student4&amp;backgroundColor=ffd5dc" alt="Phiêu lưu 4" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/adventurer/svg?seed=Student4&amp;backgroundColor=ffd5dc" title="Phiêu lưu 4" style="width: 36px; height: 36px; min-width: 36px; min-height: 36px; max-width: 36px; max-height: 36px; flex: 0 0 36px; aspect-ratio: 1 / 1; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; margin: 0; overflow: hidden; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Student4&amp;backgroundColor=ffd5dc" alt="Phiêu lưu 4" style="width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%; display: block;">
                                     </button>
-                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Student5&amp;backgroundColor=ffdfbf" title="Emoji vui 5" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
-                                        <img src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Student5&amp;backgroundColor=ffdfbf" alt="Emoji vui 5" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Student5&amp;backgroundColor=ffdfbf" title="Emoji vui 5" style="width: 36px; height: 36px; min-width: 36px; min-height: 36px; max-width: 36px; max-height: 36px; flex: 0 0 36px; aspect-ratio: 1 / 1; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; margin: 0; overflow: hidden; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Student5&amp;backgroundColor=ffdfbf" alt="Emoji vui 5" style="width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%; display: block;">
                                     </button>
-                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/thumbs/svg?seed=Student6&amp;backgroundColor=d3d3d3" title="Ngón tay 6" style="width: 34px; height: 34px; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; overflow: hidden; cursor: pointer; transition: all 0.2s ease;">
-                                        <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=Student6&amp;backgroundColor=d3d3d3" alt="Ngón tay 6" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <button type="button" class="learner-avatar-preset-btn" data-avatar-url="https://api.dicebear.com/7.x/thumbs/svg?seed=Student6&amp;backgroundColor=d3d3d3" title="Ngón tay 6" style="width: 36px; height: 36px; min-width: 36px; min-height: 36px; max-width: 36px; max-height: 36px; flex: 0 0 36px; aspect-ratio: 1 / 1; border-radius: 50%; border: 2px solid #CBD5E1; padding: 0; margin: 0; overflow: hidden; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; background: transparent; transition: all 0.2s ease;">
+                                        <img src="https://api.dicebear.com/7.x/thumbs/svg?seed=Student6&amp;backgroundColor=d3d3d3" alt="Ngón tay 6" style="width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%; display: block;">
                                     </button>
                                 </div>
                             </div>
@@ -442,29 +481,11 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
             <div class="learner-modal__header">
                 <div>
                     <h2 id="learner-share-title">Chia sẻ hồ sơ năng lực</h2>
-                    <p>Chọn các thông tin bạn đồng ý chia sẻ và thời hạn của liên kết.</p>
+                    <p>Tạo liên kết trực tuyến để nhà tuyển dụng và đối tác xem bản CV chứng thực của bạn.</p>
                 </div>
                 <button class="learner-icon-button" type="button" data-close-modal aria-label="Đóng cửa sổ chia sẻ"><?= learner_icon('x', 22); ?></button>
             </div>
             <form id="learner-share-form">
-                <fieldset style="border: none; padding: 0; margin-bottom: 1rem;">
-                    <legend style="font-weight: 600; margin-bottom: 0.5rem;">Thông tin cho phép chia sẻ:</legend>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                        <label><input type="checkbox" name="sharedFields[]" value="fullName" checked disabled> Họ và tên (cơ bản)</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="headline" checked> Chức danh / Headline</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="bio" checked> Giới thiệu bản thân</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="location" checked> Địa điểm</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="school" checked> Trường học</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="class" checked> Lớp học</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="skills" checked> Kỹ năng</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="certificates" checked> Chứng chỉ</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="projects" checked> Dự án</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="experience" checked> Trải nghiệm & Giờ hoạt động</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="email"> Email (nhạy cảm)</label>
-                        <label><input type="checkbox" name="sharedFields[]" value="phone"> Số điện thoại (nhạy cảm)</label>
-                    </div>
-                </fieldset>
-
                 <label class="learner-field" style="margin-bottom: 1rem;">
                     <span>Thời hạn chia sẻ:</span>
                     <select name="expiresInDays" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; width: 100%;">
@@ -476,8 +497,8 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                 </label>
 
                 <div class="learner-modal__actions" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-                    <a class="learner-btn learner-btn--outline" href="talent-passport.php" target="_blank" style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.875rem;">
-                        <?= learner_icon('printer', 16); ?> Tải bản in PDF
+                    <a class="learner-btn learner-btn--outline" href="talent-passport-cv.php" target="_blank" style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.875rem;" title="Xem trước và tải bản CV A4">
+                        <?= learner_icon('file-text', 16); ?> Xem trước &amp; Tải CV
                     </a>
                     <div style="display: flex; gap: 0.5rem;">
                         <button class="learner-btn learner-btn--secondary" type="button" data-close-modal>Hủy</button>
