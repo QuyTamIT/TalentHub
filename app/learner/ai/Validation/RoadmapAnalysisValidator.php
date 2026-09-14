@@ -202,7 +202,13 @@ final class RoadmapAnalysisValidator
             'metric_label', 'position', 'skill_focus', 'start_day', 'tasks', 'title',
         ], 'Roadmap phase fields are invalid.');
         foreach (['title', 'goal', 'skill_focus', 'deliverable', 'effort_label', 'metric_label'] as $field) {
-            $this->assertVietnamese($this->requiredText($value[$field], 'Roadmap phase copy is required.'));
+            $copy = $this->requiredText($value[$field], 'Roadmap phase copy is required.');
+            // Technical identifiers such as SQL or python are language-neutral.
+            // Accept only an exact list of skills present in this snapshot;
+            // narrative fields still require Vietnamese prose.
+            if ($field !== 'skill_focus' || !$this->isKnownSkillList($copy)) {
+                $this->assertVietnamese($copy);
+            }
         }
         $taskRecords = $this->list($value['tasks'], 'Roadmap phase tasks are invalid.');
         $tasks = array_map(fn (mixed $task): RoadmapTask => $this->task($task), $taskRecords);
@@ -415,6 +421,20 @@ final class RoadmapAnalysisValidator
             && preg_match('/\b(bạn|của|và|phát triển|kỹ năng|hoàn thành|phản hồi)\b/iu', $value) !== 1) {
             throw new \InvalidArgumentException('Roadmap learner text must be Vietnamese.');
         }
+    }
+
+    private function isKnownSkillList(string $value): bool
+    {
+        $known = [];
+        foreach ($this->input?->payload()['skills'] ?? [] as $skill) {
+            if (is_array($skill) && is_string($skill['code'] ?? null)) {
+                $known[strtolower(trim($skill['code']))] = true;
+            }
+        }
+        foreach (explode(',', $value) as $code) {
+            if (!isset($known[strtolower(trim($code))])) return false;
+        }
+        return true;
     }
 
     /** @param mixed $value @param array<string,bool> $allowList @return list<string> */

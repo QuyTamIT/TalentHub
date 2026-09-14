@@ -313,6 +313,8 @@
         }
         return {
             ...payload,
+            id: payload?.roadmap_id || payload?.id || null,
+            roadmap_id: payload?.roadmap_id || payload?.id || null,
             phases,
             nextActions,
             activities,
@@ -567,6 +569,7 @@
         const nodes = {
             status: root.querySelector('[data-roadmap-status]'),
             processing: root.querySelector('[data-roadmap-processing]'),
+            processingLabel: root.querySelector('[data-roadmap-processing-label]'),
             processingTitle: root.querySelector('[data-roadmap-processing-title]'),
             processingCopy: root.querySelector('[data-roadmap-processing-copy]'),
             processingPercent: root.querySelector('[data-roadmap-processing-percent]'),
@@ -610,6 +613,9 @@
             analysisToggle: root.querySelector('[data-roadmap-analysis-toggle]'),
             analysisDetails: root.querySelector('[data-roadmap-analysis-details]'),
             feedbackStatus: root.querySelector('[data-roadmap-feedback-status]'),
+            celebration: root.querySelector('[data-roadmap-celebration]'),
+            completeModal: doc.querySelector('[data-roadmap-complete-modal]'),
+            planControls: root.querySelector('.learner-roadmap-plan__controls'),
         };
         const schedule = typeof options.schedule === 'function'
             ? options.schedule
@@ -637,6 +643,209 @@
             return node;
         }
 
+        let storage = null;
+        try {
+            storage = options.storage || options.global?.localStorage || global.localStorage;
+        } catch {
+            // Storage may be disabled. The roadmap must still render normally.
+        }
+        const confirmedInSession = new Set();
+
+        function getCompletionStorageKey(model = renderedModel) {
+            const target = model || renderedModel;
+            const id = target?.roadmap_id || target?.id;
+            return id ? `th_roadmap_completed_${id}` : null;
+        }
+
+        function isRoadmapCompletedConfirmed(model = renderedModel) {
+            const target = model || renderedModel;
+            const snapshot = roadmapProgressSnapshot(target?.phases);
+            const is100Pct = snapshot.totalTasks > 0 && snapshot.completedTasks === snapshot.totalTasks;
+            if (!is100Pct) return false;
+            const key = getCompletionStorageKey(target);
+            if (!key) return false;
+            if (confirmedInSession.has(key)) return true;
+            try {
+                return storage?.getItem(key) === 'confirmed';
+            } catch {
+                return false;
+            }
+        }
+
+        function setRoadmapCompletedConfirmed(model = renderedModel) {
+            const key = getCompletionStorageKey(model);
+            if (!key) return;
+            confirmedInSession.add(key);
+            try {
+                storage?.setItem(key, 'confirmed');
+            } catch {}
+        }
+
+        function clearRoadmapCompletedConfirmed(model = renderedModel) {
+            const key = getCompletionStorageKey(model);
+            if (!key) return;
+            confirmedInSession.delete(key);
+            try {
+                storage?.removeItem(key);
+            } catch {}
+        }
+
+        function openCompleteModal() {
+            if (!nodes.completeModal) return;
+            nodes.completeModal.hidden = false;
+            nodes.completeModal.classList.add('is-open');
+            const confirmBtn = nodes.completeModal.querySelector('[data-roadmap-complete-confirm]');
+            confirmBtn?.focus?.();
+        }
+
+        function closeCompleteModal() {
+            if (!nodes.completeModal) return;
+            nodes.completeModal.hidden = true;
+            nodes.completeModal.classList.remove('is-open');
+        }
+
+        function confirmCompleteRoadmap() {
+            closeCompleteModal();
+            const snapshot = roadmapProgressSnapshot(renderedModel?.phases);
+            if (snapshot.totalTasks === 0 || snapshot.completedTasks !== snapshot.totalTasks) return;
+            setRoadmapCompletedConfirmed();
+            renderCelebration(renderedModel);
+            const lastPosition = renderedPhasePositions[renderedPhasePositions.length - 1];
+            const lastBtn = root.querySelector(`[data-roadmap-continue-phase="${lastPosition}"]`);
+            if (lastBtn) {
+                lastBtn.textContent = '✓ Đã hoàn tất lộ trình';
+                lastBtn.classList.add('learner-btn--completed');
+                lastBtn.disabled = true;
+                lastBtn.setAttribute('aria-disabled', 'true');
+            }
+            nodes.celebration?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+        }
+
+        function renderCelebration(model) {
+            if (!nodes.celebration) return;
+            clear(nodes.celebration);
+            if (!model || !Array.isArray(model.phases)) {
+                hide(nodes.celebration, true);
+                hide(nodes.phases, false);
+                hide(nodes.planControls, false);
+                return;
+            }
+
+            const phases = model.phases;
+            const allTasks = phases.flatMap((p) => (Array.isArray(p.tasks) ? p.tasks : []));
+            const completedTasks = allTasks.filter((t) => t.status === 'completed');
+            const totalMinutes = allTasks.reduce((sum, t) => sum + integer(t.estimated_minutes), 0);
+
+            const card = element('div', 'learner-roadmap-celebration__card');
+
+            // 1. Header
+            const header = element('div', 'learner-roadmap-celebration__header');
+            const badge = element('div', 'learner-roadmap-celebration__badge');
+            badge.append(
+                element('span', 'learner-roadmap-celebration__badge-icon', '🎉'),
+                element('span', '', 'LỘ TRÌNH ĐÃ HOÀN TẤT')
+            );
+            const title = element('h2', 'learner-roadmap-celebration__title', 'Chúc mừng bạn đã hoàn thành toàn bộ lộ trình phát triển 90 ngày!');
+            title.id = 'roadmap-celebration-title';
+            const desc = element('p', 'learner-roadmap-celebration__desc',
+                'Các nhiệm vụ trong lộ trình đã được đánh dấu hoàn thành. Bảng dưới đây tổng hợp trạng thái nhiệm vụ và thời lượng dự kiến của kế hoạch.'
+            );
+            header.append(badge, title, desc);
+
+            // 2. Metrics Highlights
+            const metricsGrid = element('div', 'learner-roadmap-celebration__metrics');
+            const metricItems = [
+                { label: 'Tiến độ lộ trình', value: '100%', sub: 'Hoàn thành toàn diện' },
+                { label: 'Nhiệm vụ hoàn thành', value: `${completedTasks.length}/${allTasks.length}`, sub: 'Theo trạng thái nhiệm vụ' },
+                { label: 'Thời lượng dự kiến', value: formatRoadmapMinutes(totalMinutes), sub: 'Tổng ước tính của kế hoạch' },
+                { label: 'Chặng mục tiêu', value: `${phases.length}/${phases.length}`, sub: 'Các chặng đã hoàn thành' },
+            ];
+            for (const item of metricItems) {
+                const m = element('div', 'learner-roadmap-celebration__metric');
+                m.append(
+                    element('span', 'learner-roadmap-celebration__metric-label', item.label),
+                    element('strong', 'learner-roadmap-celebration__metric-value', item.value),
+                    element('span', 'learner-roadmap-celebration__metric-sub', item.sub)
+                );
+                metricsGrid.appendChild(m);
+            }
+
+            // 3. Phased Task Summary
+            const summarySection = element('div', 'learner-roadmap-celebration__summary');
+            const summaryHeading = element('h3', 'learner-roadmap-celebration__summary-heading', 'Tóm tắt các nhiệm vụ đã hoàn thành trong lộ trình');
+            summarySection.appendChild(summaryHeading);
+
+            const phasesGrid = element('div', 'learner-roadmap-celebration__phases');
+            for (const phase of phases) {
+                const phaseCol = element('div', 'learner-roadmap-celebration__phase');
+                const phaseHead = element('div', 'learner-roadmap-celebration__phase-head');
+                const phaseTitle = element('h4', '', `Chặng ${integer(phase.position)}: ${text(phase.title)}`);
+                const phaseRange = element('span', 'learner-roadmap-celebration__phase-range', text(phase.rangeLabel));
+                phaseHead.append(phaseTitle, phaseRange);
+
+                if (phase.deliverable) {
+                    const deliverable = element('p', 'learner-roadmap-celebration__phase-deliverable');
+                    deliverable.append(
+                        element('span', 'learner-roadmap-celebration__deliverable-icon', '📦'),
+                        element('span', '', `Đầu ra: ${text(phase.deliverable)}`)
+                    );
+                    phaseHead.appendChild(deliverable);
+                }
+
+                const taskList = element('ul', 'learner-roadmap-celebration__task-list');
+                const tasks = Array.isArray(phase.tasks) ? phase.tasks : [];
+                for (const task of tasks) {
+                    const taskItem = element('li', 'learner-roadmap-celebration__task-item');
+                    const check = element('span', 'learner-roadmap-celebration__task-check', '✓');
+                    const content = element('div', 'learner-roadmap-celebration__task-info');
+                    const pres = roadmapTaskPresentation(task);
+                    const taskTitle = element('span', 'learner-roadmap-celebration__task-title', pres.title);
+                    content.appendChild(taskTitle);
+                    if (pres.milestoneLabel) {
+                        content.appendChild(element('span', 'learner-roadmap-celebration__task-milestone', pres.milestoneLabel));
+                    }
+                    const duration = element('span', 'learner-roadmap-celebration__task-duration', pres.durationLabel);
+                    taskItem.append(check, content, duration);
+                    taskList.appendChild(taskItem);
+                }
+
+                phaseCol.append(phaseHead, taskList);
+                phasesGrid.appendChild(phaseCol);
+            }
+            summarySection.appendChild(phasesGrid);
+
+            // 4. Next Step Callout
+            const nextSteps = element('div', 'learner-roadmap-celebration__next');
+            const nextIcon = element('div', 'learner-roadmap-celebration__next-icon', '✨');
+            const nextContent = element('div', 'learner-roadmap-celebration__next-content');
+            const nextTitle = element('h4', '', 'Tiếp tục nâng tầm năng lực với AI');
+            const nextCopy = element('p', '',
+                'Cập nhật hồ sơ hoặc kết quả đánh giá để AI phân tích lại. Khi dữ liệu không thay đổi, hệ thống có thể sử dụng lại lộ trình hiện tại.'
+            );
+            nextContent.append(nextTitle, nextCopy);
+
+            const nextBtn = element('button', 'learner-btn learner-btn--primary learner-roadmap-celebration__cta-btn', '✨ Kiểm tra và phân tích lại');
+            nextBtn.type = 'button';
+            nextBtn.dataset.roadmapGenerate = 'refresh';
+
+            nextSteps.append(nextIcon, nextContent, nextBtn);
+
+            card.append(header, metricsGrid, summarySection, nextSteps);
+            nodes.celebration.appendChild(card);
+            hide(nodes.celebration, false);
+            hide(nodes.phases, true);
+            hide(nodes.planControls, true);
+        }
+
+        function hideCelebration() {
+            if (nodes.celebration) {
+                clear(nodes.celebration);
+                hide(nodes.celebration, true);
+            }
+            hide(nodes.phases, false);
+            hide(nodes.planControls, false);
+        }
+
         function setGenerateDisabled(disabled) {
             for (const button of Array.from(root.querySelectorAll?.('[data-roadmap-generate]') || [])) {
                 button.disabled = disabled;
@@ -649,16 +858,18 @@
             if (nodes.processingBar?.style) nodes.processingBar.style.width = `${integer(snapshot?.percent)}%`;
             const stepNodes = Array.from(nodes.processingSteps?.querySelectorAll?.('[data-processing-step]') || []);
             for (const [index, step] of (Array.isArray(snapshot?.steps) ? snapshot.steps : []).entries()) {
-                stepNodes[index]?.classList?.toggle('is-active', step.status === 'active' && snapshot?.status !== 'success');
+                stepNodes[index]?.classList?.toggle('is-active', step.status === 'active' && !snapshot?.status);
                 stepNodes[index]?.classList?.toggle('is-completed', step.status === 'completed' || snapshot?.status === 'success');
             }
             if (snapshot?.status === 'success') {
+                set(nodes.processingLabel, 'ĐÃ HOÀN TẤT');
                 set(nodes.processingTitle, 'Lộ trình mới đã sẵn sàng');
                 set(nodes.processingCopy, 'TalentHub đã hoàn thiện và kiểm tra lộ trình 90 ngày mới.');
                 set(nodes.processingNote, 'Nội dung mới đang được hiển thị bên dưới.');
                 return;
             }
             if (snapshot?.status === 'error') {
+                set(nodes.processingLabel, 'CẬP NHẬT CHƯA HOÀN TẤT');
                 set(nodes.processingTitle, 'Chưa thể cập nhật lộ trình');
                 set(nodes.processingCopy, 'Lần cập nhật này chưa hoàn tất. Lộ trình hiện tại của bạn không bị ảnh hưởng.');
                 set(nodes.processingNote, 'Bạn vẫn có thể tiếp tục xem và theo dõi bản hiện tại.');
@@ -688,6 +899,7 @@
         function beginProcessing(payload) {
             clearSuccessHide();
             processingActive = true;
+            set(nodes.processingLabel, 'ĐANG PHÂN TÍCH');
             processingPreserveReady = payload?.preserveReady === true;
             hide(nodes.processing, false);
             hide(nodes.ready, !processingPreserveReady);
@@ -700,6 +912,7 @@
                 : 'Bạn có thể để trang mở; TalentHub sẽ hiển thị kết quả ngay khi hoàn tất.');
             setGenerateDisabled(true);
             processingTracker.start();
+            nodes.processing?.scrollIntoView?.({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
         }
 
         function completeProcessing(success) {
@@ -813,7 +1026,8 @@
             set(nodes.confidence, model.confidenceLabel);
             set(nodes.directionLabel, text(model?.primary_direction?.label, 'Chưa xác định'));
             set(nodes.directionRationale, text(model?.primary_direction?.rationale, 'Hướng này cần được kiểm chứng qua trải nghiệm thực tế.'));
-            set(nodes.freshness, state === 'stale-model' ? `Bản gần nhất: ${displayDate(model.generated_at)} · Đang thử cập nhật lại` : `Cập nhật ngày ${displayDate(model.generated_at)}`);
+            const failedRefresh = state === 'stale-model' && model.refresh_state === 'fallback_not_applied';
+            set(nodes.freshness, state === 'stale-model' ? `Bản gần nhất: ${displayDate(model.generated_at)} · ${failedRefresh ? 'Lần cập nhật chưa hoàn tất' : 'Đang thử cập nhật lại'}` : `Cập nhật ngày ${displayDate(model.generated_at)}`);
             renderAlternatives(model.alternative_directions);
             renderInsights(model.insights);
             renderCapabilityAnalysis(model);
@@ -821,7 +1035,12 @@
             renderActivities(model.activities, model);
             renderEvidence(model.evidence_summary);
             renderEngine(model.engine, state);
-            renderHistory(model.version_history, model.version, model.changed_sections_from_previous);
+            renderHistory(model.version_history, model.version, failedRefresh ? [] : model.changed_sections_from_previous);
+            if (isRoadmapCompletedConfirmed(model)) {
+                renderCelebration(model);
+            } else {
+                hideCelebration();
+            }
             const complete = integer(model?.progress?.completed_tasks);
             const total = integer(model?.progress?.total_tasks);
             set(nodes.overallProgress, `${complete}/${total} nhiệm vụ hoàn thành`);
@@ -1007,10 +1226,19 @@
                     renderPhaseProgressTrack(phaseProgressPct),
                     element('strong', 'learner-roadmap-phase-panel__progress', `${phase.progress.completed_tasks}/${phase.progress.total_tasks}`),
                 );
-                const continueButton = element('button', 'learner-btn learner-btn--primary', text(phase.actionLabel, 'Tiếp tục nhiệm vụ'));
+                const isConfirmed = isRoadmapCompletedConfirmed();
+                const isLastPhase = position === renderedPhasePositions[renderedPhasePositions.length - 1];
+                const continueLabel = (isLastPhase && isConfirmed)
+                    ? '✓ Đã hoàn tất lộ trình'
+                    : text(phase.actionLabel, 'Tiếp tục nhiệm vụ');
+                const continueButton = element('button', `learner-btn learner-btn--primary${isLastPhase && isConfirmed ? ' learner-btn--completed' : ''}`, continueLabel);
                 continueButton.type = 'button';
                 continueButton.dataset.roadmapContinue = '';
                 continueButton.dataset.roadmapContinuePhase = String(position);
+                if (isLastPhase && isConfirmed) {
+                    continueButton.disabled = true;
+                    continueButton.setAttribute('aria-disabled', 'true');
+                }
                 footer.append(footerProgress, continueButton);
                 panel.append(panelBody, footer);
                 panels.appendChild(panel);
@@ -1183,6 +1411,10 @@
                 phase.actionLabel = progress.actionLabel;
                 preparePhaseTasks(phase);
             }
+            if (snapshot.completedTasks < snapshot.totalTasks) {
+                clearRoadmapCompletedConfirmed();
+                hideCelebration();
+            }
             const preservedExpansion = [...expandedPhasePositions];
             renderPhases(renderedModel.phases, preservedExpansion);
             if (focusedControl) {
@@ -1277,6 +1509,11 @@
                 root.querySelector?.(`[data-roadmap-phase-toggle="${nextPosition}"]`)?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
                 return;
             }
+            const snapshot = roadmapProgressSnapshot(renderedModel?.phases);
+            if (snapshot.totalTasks > 0 && snapshot.completedTasks === snapshot.totalTasks) {
+                openCompleteModal();
+                return;
+            }
             feedback('roadmap-completed');
         }
 
@@ -1299,7 +1536,6 @@
         }
 
         function toggleAnalysis() {
-            if (!nodes.analysisDetails || !nodes.analysisToggle) return;
             const expanded = nodes.analysisToggle.getAttribute('aria-expanded') === 'true';
             hide(nodes.analysisDetails, expanded);
             nodes.analysisToggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
@@ -1310,7 +1546,12 @@
             clearSuccessHide();
         }
 
-        return { render, updateTask, previewTaskCompletion, taskCompletionDelay: () => reduceMotion ? 0 : 500, setTaskPending, feedback, toggleAnalysis, togglePhase, setAllPhasesExpanded, continuePhase, dispose };
+        return {
+            render, updateTask, previewTaskCompletion, taskCompletionDelay: () => reduceMotion ? 0 : 500,
+            setTaskPending, feedback, toggleAnalysis, togglePhase, setAllPhasesExpanded, continuePhase,
+            openCompleteModal, closeCompleteModal, confirmCompleteRoadmap, renderCelebration, hideCelebration,
+            isRoadmapCompletedConfirmed, dispose
+        };
     }
 
     function displayDate(value) {
@@ -1359,6 +1600,20 @@
             else if (target.matches('[data-roadmap-task-id]')) controller.updateTask(target.dataset.roadmapTaskId, target.dataset.roadmapTaskStatus).catch(() => {});
             else if (target.matches('[data-roadmap-undo-task]')) controller.updateTask(target.dataset.roadmapUndoTask, 'completed').catch(() => {});
             else if (target.matches('[data-roadmap-feedback-value]')) controller.submitFeedback('', target.dataset.roadmapFeedbackValue).catch(() => {});
+        });
+        global.document?.addEventListener('click', (event) => {
+            const target = event.target instanceof global.Element ? event.target : null;
+            if (!target) return;
+            if (target.closest('[data-roadmap-complete-cancel]')) {
+                view.closeCompleteModal?.();
+            } else if (target.closest('[data-roadmap-complete-confirm]')) {
+                view.confirmCompleteRoadmap?.();
+            }
+        });
+        global.document?.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                view.closeCompleteModal?.();
+            }
         });
         root.querySelector('[data-roadmap-version-select]')?.addEventListener('change', (event) => controller.loadVersion(event.target.value));
         controller.load();

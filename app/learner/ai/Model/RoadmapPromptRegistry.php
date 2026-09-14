@@ -14,7 +14,7 @@ final class RoadmapPromptRegistry
 {
     public const VERSION = 'learner-roadmap-prompt-1.5.0';
 
-    private const TALENT_MAP_FIELDS = [
+    public const TALENT_MAP_FIELDS = [
         'Tư duy Logic & Hệ thống',
         'Kỹ năng Thực hành & Thao tác',
         'Tổ chức & Điều phối',
@@ -102,6 +102,7 @@ final class RoadmapPromptRegistry
                 'Không nhắc lại mã MBTI, điểm Holland, biểu đồ DISC hoặc điểm Multiple Intelligence.',
                 'Mỗi insight, phase và task phải trích dẫn evidence_ref_ids được cung cấp.',
                 'talent_map phải có đúng ba record, mỗi record dùng duy nhất một trong ba field chuẩn: Tư duy Logic & Hệ thống; Kỹ năng Thực hành & Thao tác; Tổ chức & Điều phối; mỗi field xuất hiện đúng một lần. Không gộp hai nhóm vào cùng một record.',
+                'insights phải có đúng ba record, mỗi record dùng duy nhất một trong ba category: strength, improvement, potential; mỗi category xuất hiện đúng một lần. Không dùng trùng lặp category.',
                 'Luôn phân tích từ 2 đến 3 điểm mạnh nổi bật (strengths) và từ 2 đến 3 hướng tiềm năng mở rộng (potential_paths) phù hợp nhất với học viên dựa trên kết hợp kết quả các bài đánh giá. Mỗi record phải trích dẫn evidence_ref_ids được cung cấp.',
                 'potential_paths nêu rõ tên hướng phát triển hoặc vai trò tiềm năng kèm lý giải ngắn gọn trong trường label (catalog_id là tùy chọn, chỉ điền khi có catalog evidence tương ứng).',
                 'Nếu có improvements, trend_signals hoặc growth_hypotheses thì mỗi record phải trích dẫn evidence_ref_ids được cung cấp.',
