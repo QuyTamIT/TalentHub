@@ -21,7 +21,6 @@ date_default_timezone_set('Asia/Ho_Chi_Minh');
 
 require __DIR__ . '/page-state.php';
 
-
 function teacherGradingLogUnexpected(string $stage, Throwable $exception, string $requestId): void
 {
     $environment = strtolower((string) ($_ENV['APP_ENV'] ?? $_SERVER['APP_ENV'] ?? getenv('APP_ENV') ?: 'production'));
@@ -84,6 +83,7 @@ if (!isset($modeLabels[$mode])) {
     exit('Ngữ cảnh chấm điểm không hợp lệ.');
 }
 
+$teacherSlideUi = true;
 $pageTitle = 'Chấm điểm';
 $currentRoute = 'assessments';
 $teacherSidebarHomeHref = '/index.php';
@@ -265,7 +265,7 @@ function teacherGradingInitials(string $name): string
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $escape($pageTitle); ?> | FTalentHub</title>
+    <title><?= $escape($pageTitle); ?> | TalentHub</title>
     <link rel="stylesheet" href="../../../assets/css/home.css">
     <link rel="stylesheet" href="../../../assets/css/global.css">
     <link rel="stylesheet" href="../../../assets/css/brand-component.css">
@@ -345,23 +345,31 @@ function teacherGradingInitials(string $name): string
             .teacher-grading-form__actions button{width:100%}
         }
     </style>
+    <link rel="stylesheet" href="<?= app_href('/assets/css/teacher-slide.css'); ?>">
 </head>
-<body class="teacher-dashboard teacher-grading-page">
+<body class="teacher-dashboard teacher-slide-ui teacher-grading-page">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
-    <div class="teacher-layout">
-        <?php require_once dirname(__DIR__) . '/includes/sidebar.php'; ?>
+    <div class="slide-layout">
+        <?php require_once __DIR__ . '/../includes/slide-sidebar.php'; ?>
 
-        <div class="teacher-main-wrapper">
-            <?php require_once dirname(__DIR__) . '/includes/header.php'; ?>
+        <div class="slide-main-wrapper">
+            <main class="slide-main-content" id="main-content">
+                <section class="teacher-slide-page-header">
+                    <div class="teacher-slide-page-header__content">
+                        <span class="teacher-slide-page-header__eyebrow">KHU VỰC GIÁO VIÊN</span>
+                        <h1 class="teacher-slide-page-header__title">Chấm điểm</h1>
+                    </div>
+                    <span class="slide-pill slide-pill--grading">CHẤM ĐIỂM</span>
+                </section>
 
-            <main class="teacher-body" id="main-content">
-                <div class="teacher-container">
-                    <section class="teacher-section-box teacher-grading-intro">
+                <section class="teacher-section-box teacher-grading-intro">
                         <div class="teacher-grading-intro__content">
-                            <div class="teacher-grading-intro__mark" aria-hidden="true">✦</div>
+                            <div class="teacher-grading-intro__mark" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v18"></path><path d="M3 12h18"></path><circle cx="12" cy="12" r="7"></circle></svg>
+                            </div>
                             <div>
                                 <span class="teacher-section-box__eyebrow">ĐÁNH GIÁ HỌC VIÊN</span>
-                                <h2 class="teacher-grading-intro__title">Chấm Rubric năng lực</h2>
+                                <h1 class="teacher-grading-intro__title">Chấm điểm</h1>
                                 <p class="teacher-grading-intro__description">Chọn lớp, dự án hoặc hoạt động được phân công để đánh giá học viên.</p>
                             </div>
                         </div>
@@ -425,7 +433,9 @@ function teacherGradingInitials(string $name): string
                     <?php if ($data['selectedContext'] !== null): ?>
                         <section class="teacher-section-box teacher-grading-activity-summary">
                             <div class="teacher-grading-activity-summary__identity">
-                                <div class="teacher-grading-activity-summary__icon" aria-hidden="true">✦</div>
+                                <div class="teacher-grading-activity-summary__icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                </div>
                                 <div>
                                     <span class="teacher-section-box__eyebrow">NGỮ CẢNH ĐANG CHỌN</span>
                                     <h2 class="teacher-grading-activity-summary__title"><?= $escape($data['selectedContext']['title']); ?></h2>
@@ -450,12 +460,22 @@ function teacherGradingInitials(string $name): string
                                 <p class="teacher-empty-state__desc">Chưa có học viên đủ điều kiện trong ngữ cảnh đã chọn, hoặc bộ lọc không có kết quả.</p>
                             </div>
                         <?php else: ?>
+                            <div class="teacher-grading-workspace" data-grading-workspace>
+                            <nav class="teacher-grading-queue" aria-label="Danh sách học viên chấm điểm">
+                                <h3>Danh sách học viên <span><?= count($data['students']); ?></span></h3>
+                                <?php foreach ($data['students'] as $queueStudent): ?>
+                                <a href="#assessment-<?= $escape($queueStudent['studentId']); ?>" class="teacher-queue-item" data-grading-target="assessment-<?= $escape($queueStudent['studentId']); ?>">
+                                    <strong><?= $escape($queueStudent['fullName']); ?></strong>
+                                    <span><?= $escape($assessmentStatusLabels[$queueStudent['assessmentStatus'] ?? ''] ?? 'Chưa chấm'); ?> · <?= $escape($data['selectedContext']['title']); ?></span>
+                                </a>
+                                <?php endforeach; ?>
+                            </nav>
                             <div class="teacher-grading-list">
                                 <?php foreach ($data['students'] as $student):
                                     $assessmentStatus = $student['assessmentStatus'] ?? null;
                                     $assessmentLabel = $assessmentStatusLabels[$assessmentStatus] ?? 'Chưa chấm';
                                 ?>
-                                    <article class="teacher-section-box teacher-grading-card">
+                                    <article class="teacher-section-box teacher-grading-card" id="assessment-<?= $escape($student['studentId']); ?>" tabindex="-1">
                                         <div class="teacher-grading-card__header">
                                             <div class="teacher-grading-card__identity">
                                                 <div class="teacher-grading-card__avatar" aria-hidden="true"><?= $escape(teacherGradingInitials((string) $student['fullName'])); ?></div>
@@ -473,6 +493,7 @@ function teacherGradingInitials(string $name): string
                                         <?php require __DIR__ . '/rubric-form.php'; ?>
                                     </article>
                                 <?php endforeach; ?>
+                            </div>
                             </div>
                         <?php endif; ?>
                     <?php elseif ($data['contexts'] === []): ?>
@@ -493,6 +514,7 @@ function teacherGradingInitials(string $name): string
             </main>
         </div>
     </div>
+    <div class="slide-footer-gradient"></div>
 
     <div class="teacher-toast" id="teacher-toast" aria-live="polite" aria-atomic="true">
         <div class="teacher-toast__content">
@@ -623,5 +645,6 @@ function teacherGradingInitials(string $name): string
         }
     };
     </script>
+    <script src="<?= app_href('/assets/js/teacher-slide.js'); ?>"></script>
 </body>
 </html>
