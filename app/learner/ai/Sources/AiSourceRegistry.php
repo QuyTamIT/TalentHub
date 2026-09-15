@@ -131,7 +131,7 @@ final class AiSourceRegistry
         };
         $this->register(new DatabaseLearnerAiExtendedSource(
             'certificate', 'certificate-1.0.0', 'skills',
-            ['title', 'issuingOrganization', 'issuing_organization', 'issueDate', 'issue_date', 'expiryDate', 'expiry_date', 'credentialId', 'credential_id', 'verificationStatus', 'verification_status', 'verifiedAt', 'verified_at', 'updatedAt', 'updated_at'],
+            ['title', 'issuer', 'issuingOrganization', 'issuing_organization', 'issueDate', 'issue_date', 'expiryDate', 'expiry_date', 'credentialId', 'credential_id', 'verificationStatus', 'verification_status', 'verifiedAt', 'verified_at', 'updatedAt', 'updated_at'],
             'certificate_changed',
             static function (string $studentId) use ($aggregateReader): array {
                 $aggregate = $aggregateReader($studentId);
@@ -207,8 +207,8 @@ final class AiSourceRegistry
             },
         ));
         $this->register(new DatabaseLearnerAiExtendedSource(
-            'portfolio_skill', 'portfolio-skill-1.0.0', 'skills',
-            ['code', 'name', 'category', 'source_type', 'verification_status', 'verified_at', 'skill_tags', 'skill_codes', 'kind', 'updated_at'],
+            'portfolio_skill', 'portfolio-skill-1.1.0', 'skills',
+            ['code', 'name', 'category', 'level_score', 'score', 'source_type', 'verification_status', 'verified_at', 'evidence_label', 'skill_tags', 'skill_codes', 'kind', 'report_id', 'updated_at'],
             'portfolio_skill_changed',
             static function (string $studentId) use ($aggregateReader): array {
                 $aggregate = $aggregateReader($studentId);
@@ -226,10 +226,13 @@ final class AiSourceRegistry
                         continue;
                     }
                     $verifiedAt = $row['verified_at'] ?? $row['verifiedAt'] ?? null;
+                    $score = array_key_exists('level_score',$row) ? $row['level_score'] : ($row['score'] ?? null);
                     $normalized[] = [
                         ...$row,
                         'source_id' => $kind . ':' . $reportId . ':' . $skillId,
                         'code' => $code,
+                        'score' => $score === null ? null : (float)$score,
+                        'level_score' => $score === null ? null : (float)$score,
                         'skill_codes' => [$code],
                         'skill_tags' => [['code' => $code, 'name' => (string) ($row['name'] ?? $code)]],
                         'verification_status' => 'verified',

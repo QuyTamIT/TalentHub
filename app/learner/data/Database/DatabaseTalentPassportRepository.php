@@ -271,14 +271,18 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             $skills[] = [
                 'student_id' => $row['student_id'] ?? $studentId,
                 'skill_id' => $id,
-                'level_score' => $row['level_score'] ?? null,
+                'level_score' => array_key_exists('level_score',$row) && $row['level_score'] !== null ? (float)$row['level_score'] : null,
                 'source_type' => $row['source_type'] ?? 'project_submission',
-                'verification_status' => 'verified',
+                'verification_status' => $row['evidence_status'] ?? 'verified',
                 'verified_at' => $row['verified_at'] ?? null,
                 'code' => $row['code'] ?? null,
                 'name' => $row['name'] ?? null,
                 'category' => $row['category'] ?? null,
                 'skill_status' => $row['skill_status'] ?? 'active',
+                'kind' => $row['kind'] ?? null,
+                'report_id' => $row['report_id'] ?? null,
+                'evidence_label' => $row['evidence_label'] ?? null,
+                'updated_at' => $row['updated_at'] ?? $row['verified_at'] ?? null,
             ];
         }
         usort($skills, static fn (array $left, array $right): int => [
@@ -309,7 +313,7 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
 
         $unions = [];
         $params = [];
-        if ($hasProjects) {
+        if ($hasProjects && $inspector->hasTable('project_members')) {
             $unions[] = "SELECT 'project' AS kind, r.id, r.studentId, r.reviewedAt FROM project_submissions r INNER JOIN project_members pm ON pm.projectId = r.projectId AND pm.studentId = r.studentId AND pm.status = 'active' WHERE r.studentId = :project_student AND r.status = 'verified'";
             $params['project_student'] = $studentId;
         }
@@ -317,25 +321,36 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             $unions[] = "SELECT 'internship' AS kind, r.id, r.studentId, r.reviewedAt FROM learner_internship_reports r WHERE r.studentId = :intern_student AND r.status = 'verified'";
             $params['intern_student'] = $studentId;
         }
+        if ($unions === []) {
+            return [];
+        }
         $unionSql = implode(' UNION ALL ', $unions);
+        $portfolioScore = $inspector->hasColumn('learner_portfolio_skills', 'score') ? 'ps.score' : 'NULL';
+        $portfolioSource = $inspector->hasColumn('learner_portfolio_skills', 'sourceType') ? 'ps.sourceType' : "CASE WHEN ps.kind='project' THEN 'project_submission' ELSE 'internship_completion' END";
+        $portfolioEvidence = $inspector->hasColumn('learner_portfolio_skills', 'evidenceStatus') ? 'ps.evidenceStatus' : "'verified'";
         $sql = <<<SQL
             SELECT
                 reports.studentId,
                 ps.skillId,
-                NULL AS levelScore,
-                CASE ps.kind
-                    WHEN 'project' THEN 'project_submission'
-                    WHEN 'internship' THEN 'internship_report'
-                    ELSE ps.kind
+                {$portfolioScore} AS levelScore,
+                CASE
+                    WHEN {$portfolioSource} IS NULL OR {$portfolioSource} = 'portfolio' THEN CASE WHEN ps.kind='project' THEN 'project_submission' ELSE 'internship_completion' END
+                    WHEN {$portfolioSource} = 'project_report' THEN 'project_submission'
+                    WHEN {$portfolioSource} = 'internship_report' THEN 'internship_completion'
+                    ELSE {$portfolioSource}
                 END AS sourceType,
-                'verified' AS verificationStatus,
+                {$portfolioEvidence} AS verificationStatus,
                 reports.reviewedAt AS verifiedAt,
                 s.code,
                 s.name,
                 s.category,
                 s.status AS skillStatus,
                 ps.kind,
-                ps.reportId
+                ps.reportId,
+                {$portfolioScore} AS score,
+                {$portfolioEvidence} AS evidenceStatus,
+                CASE WHEN ps.kind='internship' THEN 'Đã hoàn thành qua thực tập' ELSE 'Dự án đã được giảng viên xác nhận' END AS evidenceLabel,
+                reports.reviewedAt AS updatedAt
             FROM learner_portfolio_skills ps
             INNER JOIN skills s ON s.id = ps.skillId AND s.status = 'active'
             INNER JOIN (

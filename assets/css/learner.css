@@ -19002,3 +19002,60 @@ body.learner-page-ecosystem,
 }
 
 
+/* Simplified external certificate demo cards */
+.learner-certificate--external {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    padding: 14px;
+    background: var(--surface);
+    border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border));
+    border-left: 4px solid var(--primary);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, .055);
+}
+.learner-certificate--external .learner-certificate__icon {
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    background: var(--primary-light);
+    border-radius: 12px;
+}
+.learner-certificate--external .learner-certificate__content { min-width: 0; }
+.learner-certificate--external h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+.learner-certificate--external .learner-certificate__content > p {
+    margin: 4px 0 0;
+    color: var(--text-secondary);
+    font-size: .82rem;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+.learner-certificate--external .learner-certificate__date {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    color: var(--text-secondary);
+    font-size: .75rem;
+}
+@media (max-width: 560px) {
+    .learner-certificate--external { grid-template-columns: 38px minmax(0, 1fr); padding: 12px; gap: 10px; }
+    .learner-certificate--external .learner-certificate__icon { width: 38px; height: 38px; }
+}
+#learner-certificate-modal .learner-modal__dialog { max-width: 560px; }
+#learner-certificate-form .learner-form__grid { gap: 16px; }
+#learner-certificate-form .learner-field__error:empty { display: none; }
+#learner-certificate-form [aria-invalid="true"] { border-color: var(--danger, #dc2626); }
+.learner-certificates [data-certificate-empty][hidden] { display: none; }
+.learner-certificates > .learner-section-heading { flex-wrap: wrap; gap: 12px; }

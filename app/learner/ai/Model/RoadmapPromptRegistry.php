@@ -12,7 +12,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
 
 final class RoadmapPromptRegistry
 {
-    public const VERSION = 'learner-roadmap-prompt-1.5.0';
+    public const VERSION = 'learner-roadmap-prompt-1.6.0';
 
     public const TALENT_MAP_FIELDS = [
         'Tư duy Logic & Hệ thống',
@@ -28,7 +28,7 @@ final class RoadmapPromptRegistry
         'opportunity' => ['title', 'location', 'deadline_at', 'category', 'opportunity_type'],
         'profile' => ['study_status', 'school_name', 'class_name', 'grade_level', 'academic_year', 'updated_at'],
         'achievement' => ['code', 'title', 'label', 'category', 'description', 'level', 'status', 'awardedAt', 'updatedAt', 'updated_at'],
-        'certificate' => ['title', 'issuer', 'issuingOrganization', 'issue_date', 'issueDate', 'expiry_date', 'expiryDate', 'credentialId', 'verification_status', 'verificationStatus', 'verifiedAt', 'updatedAt', 'updated_at'],
+        'certificate' => ['title', 'issuer', 'issuingOrganization', 'issuing_organization', 'issue_date', 'issueDate', 'expiry_date', 'expiryDate', 'credentialId', 'credential_id', 'verification_status', 'verificationStatus', 'verifiedAt', 'verified_at', 'updatedAt', 'updated_at'],
         'project' => ['title', 'category', 'description', 'projectUrl', 'startAt', 'endAt', 'role', 'contribution', 'status', 'updatedAt', 'updated_at'],
         'activity' => ['title', 'category', 'location', 'status', 'updatedAt', 'updated_at'],
         'checkin' => ['activityId', 'activity_id', 'activityCategory', 'activity_category', 'displayCategory', 'display_category', 'filterCategory', 'filter_category', 'hours', 'checkedInAt', 'checked_in_at', 'checked_at', 'confirmedAt', 'confirmed_at', 'status', 'updatedAt', 'updated_at'],
@@ -89,6 +89,7 @@ final class RoadmapPromptRegistry
                 'Mỗi task nêu thao tác từng bước, sản phẩm phải lưu và tiêu chí tự kiểm tra; nối nhiệm vụ sau với sản phẩm nhiệm vụ trước. Đưa một điểm tự đánh giá hoặc xin góp ý giáo viên ở cuối mỗi giai đoạn.',
                 'Chưa có lịch rảnh hay ngân sách đã xác nhận: gọi thời lượng là dự kiến, dùng bài tập miễn phí có thể làm trong 15–120 phút, cho phép chia nhỏ; không tuyên bố biết lịch học thực của người học.',
                 'Không suy ra xu hướng tăng/giảm từ một lần đo. talent_map và growth_hypotheses chỉ là định hướng khám phá, không phải xác suất thành công hoặc đánh giá chuyên môn đã xác minh.',
+                'Chứng chỉ chỉ là ngữ cảnh hỗ trợ. Giữ nguyên verification status; chứng chỉ chưa xác minh không chứng minh kỹ năng, điểm số hoặc kinh nghiệm, không được tự động chuyển thành skill/score/experience.',
                 'Trả về duy nhất một JSON object hợp lệ theo learner-roadmap-1.0.0.',
                 'Tuân thủ chính xác output_schema được cung cấp. Không thêm trường ngoài schema.',
                 'Viết toàn bộ nội dung dành cho học viên bằng tiếng Việt tự nhiên.',
@@ -275,6 +276,7 @@ final class RoadmapPromptRegistry
             'assessments' => $this->safeRecords($payload['assessments'] ?? [], self::SAFE_FIELDS['assessment']),
             'skills' => $this->safeRecords($payload['skills'] ?? [], self::SAFE_FIELDS['skill']),
             'activities' => $this->safeRecords($payload['activities'] ?? [], self::SAFE_FIELDS['activity_experience']),
+            'certificates' => $this->safeRecords($payload['certificates'] ?? [], self::SAFE_FIELDS['certificate']),
             'evaluations' => $this->safeRecords($payload['evaluations'] ?? [], self::SAFE_FIELDS['evaluation']),
             'opportunities' => $this->safeRecords($payload['opportunities'] ?? [], self::SAFE_FIELDS['opportunity']),
             'sources' => $this->safeSourceRecords($payload['sources'] ?? []),
