@@ -440,7 +440,7 @@ include __DIR__ . '/includes/page-banner.php';
                         <line x1="9" y1="15" x2="15" y2="15"></line>
                     </svg>
                     <div>
-                        <strong>File mẫu chuẩn TalentHub (.CSV / Excel)</strong>
+                        <strong>File mẫu chuẩn FTalentHub (.CSV / Excel)</strong>
                         <p>Bao gồm các cột: Họ và tên, Email, Mã lớp, Chuyên ngành, Số điện thoại, Ngày sinh.</p>
                     </div>
                 </div>
@@ -592,7 +592,7 @@ Nguyễn Văn A,nguyenvana@school.edu.vn,10A1,Công nghệ thông tin,0901234567
         <!-- Footer -->
         <div class="school-flex-between" style="background: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 0.85rem 1.65rem;">
             <span style="font-size: 0.75rem; color: var(--text-muted);">
-                TalentHub Academic Portal • Dữ liệu hồ sơ sinh viên
+                FTalentHub Academic Portal • Dữ liệu hồ sơ sinh viên
             </span>
             <div style="display: flex; gap: 0.65rem;">
                 <button type="button" onclick="closeStudentDetailModal()" class="btn btn-secondary" style="padding: 0.4rem 1rem; font-weight: 600; cursor: pointer;">

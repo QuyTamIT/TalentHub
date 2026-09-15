@@ -15,8 +15,8 @@ final class StudentReadModel
         $view = ReadModelDefaults::apply($record, [
             'id' => '',
             'student_id' => '',
-            'name' => 'Học sinh TalentHub',
-            'initials' => 'TH',
+            'name' => 'Học sinh FTalentHub',
+            'initials' => 'FT',
             'class' => 'Chưa cập nhật',
             'school' => 'Chưa cập nhật',
             'email' => '',
@@ -26,7 +26,7 @@ final class StudentReadModel
             'experience_hours' => 0,
         ], 'student');
 
-        if (($view['initials'] ?? '') === 'TH' && ($view['name'] ?? '') !== 'Học sinh TalentHub') {
+        if (($view['initials'] ?? '') === 'FT' && ($view['name'] ?? '') !== 'Học sinh FTalentHub') {
             $parts = preg_split('/\s+/u', trim((string) $view['name']), -1, PREG_SPLIT_NO_EMPTY) ?: [];
             $last = (string) ($parts === [] ? '' : end($parts));
             $view['initials'] = function_exists('mb_substr') ? mb_substr($last, 0, 1, 'UTF-8') : substr($last, 0, 1);

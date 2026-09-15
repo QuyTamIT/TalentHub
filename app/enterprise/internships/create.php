@@ -262,8 +262,8 @@ $sidebarNav = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Đăng tin tuyển thực tập doanh nghiệp trên TalentHub Enterprise.">
-    <title><?= htmlspecialchars($pageTitle); ?> | TalentHub Enterprise</title>
+    <meta name="description" content="Đăng tin tuyển thực tập doanh nghiệp trên FTalentHub Enterprise.">
+    <title><?= htmlspecialchars($pageTitle); ?> | FTalentHub Enterprise</title>
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../../assets/css/home.css">
@@ -325,7 +325,7 @@ $sidebarNav = [
                                     <?= $isEdit ? 'Chỉnh sửa Tin tuyển thực tập' : 'Tạo Tin tuyển thực tập Mới'; ?>
                                 </h2>
                                 <p class="ent-create-header__desc">
-                                    <?= $isEdit ? ('Đang chỉnh sửa bài đăng ID #' . htmlspecialchars((string) $editingPost['id'])) : 'Nhập thông tin chi tiết để kết nối với các ứng viên phù hợp trên hệ thống TalentHub.'; ?>
+                                    <?= $isEdit ? ('Đang chỉnh sửa bài đăng ID #' . htmlspecialchars((string) $editingPost['id'])) : 'Nhập thông tin chi tiết để kết nối với các ứng viên phù hợp trên hệ thống FTalentHub.'; ?>
                                 </p>
                             </div>
                             <?php if ($isEdit): ?>
@@ -581,7 +581,7 @@ $sidebarNav = [
                                         <div class="ent-radio-card-content">
                                             <strong class="ent-radio-card-title">Công khai toàn hệ thống (Public)</strong>
                                             <p class="ent-radio-card-desc">
-                                                Tất cả học sinh, sinh viên trên TalentHub đều có thể tìm thấy và nộp hồ sơ.
+                                                Tất cả học sinh, sinh viên trên FTalentHub đều có thể tìm thấy và nộp hồ sơ.
                                             </p>
                                         </div>
                                     </label>

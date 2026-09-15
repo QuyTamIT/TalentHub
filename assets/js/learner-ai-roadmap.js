@@ -864,7 +864,7 @@
             if (snapshot?.status === 'success') {
                 set(nodes.processingLabel, 'ĐÃ HOÀN TẤT');
                 set(nodes.processingTitle, 'Lộ trình mới đã sẵn sàng');
-                set(nodes.processingCopy, 'TalentHub đã hoàn thiện và kiểm tra lộ trình 90 ngày mới.');
+                set(nodes.processingCopy, 'FTalentHub đã hoàn thiện và kiểm tra lộ trình 90 ngày mới.');
                 set(nodes.processingNote, 'Nội dung mới đang được hiển thị bên dưới.');
                 return;
             }
@@ -876,10 +876,10 @@
                 return;
             }
             const activeCopy = [
-                'TalentHub đang tổng hợp dữ liệu đã được bạn cho phép.',
+                'FTalentHub đang tổng hợp dữ liệu đã được bạn cho phép.',
                 'Gemini đang phân tích điểm mạnh và hướng phát triển phù hợp.',
                 'AI đang xây dựng ba giai đoạn trong lộ trình 90 ngày.',
-                'TalentHub đang kiểm tra cấu trúc, đầu ra và cách đo lường.',
+                'FTalentHub đang kiểm tra cấu trúc, đầu ra và cách đo lường.',
             ];
             set(nodes.processingCopy, activeCopy[integer(snapshot?.activeIndex)] || activeCopy[0]);
         }
@@ -909,7 +909,7 @@
             set(nodes.processingTitle, processingPreserveReady ? 'AI đang cập nhật lộ trình của bạn' : 'AI đang tạo lộ trình của bạn');
             set(nodes.processingNote, processingPreserveReady
                 ? 'Bạn có thể tiếp tục xem lộ trình hiện tại trong lúc chờ.'
-                : 'Bạn có thể để trang mở; TalentHub sẽ hiển thị kết quả ngay khi hoàn tất.');
+                : 'Bạn có thể để trang mở; FTalentHub sẽ hiển thị kết quả ngay khi hoàn tất.');
             setGenerateDisabled(true);
             processingTracker.start();
             nodes.processing?.scrollIntoView?.({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });

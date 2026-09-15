@@ -106,7 +106,7 @@ $formatDateTime = static function (mixed $value, string $format): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title><?= learner_escape($activity['title'] ?? 'Không tìm thấy') ?> | TalentHub</title>
+    <title><?= learner_escape($activity['title'] ?? 'Không tìm thấy') ?> | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">

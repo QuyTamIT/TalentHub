@@ -124,7 +124,7 @@ final class ActivityReadModel
             'school_id' => '',
             'school_name' => '',
             'responsible_teacher_name' => '',
-            'title' => 'Hoạt động TalentHub',
+            'title' => 'Hoạt động FTalentHub',
             'category' => 'Chưa phân loại',
             'display_category' => '',
             'filter_category' => 'Chưa phân loại',

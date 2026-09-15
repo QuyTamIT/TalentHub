@@ -193,7 +193,7 @@ if (!empty($rawActivities)) {
         $actCategory = trim((string) ($act['display_category'] ?? $act['category'] ?? 'Thực hành'));
         $rawTime = $act['activity_start_at'] ?? $act['time'] ?? null;
         $actTime = !empty($rawTime) && strtotime((string)$rawTime) !== false ? date('d/m/Y', strtotime((string)$rawTime)) : (string)($rawTime ?: '2026');
-        $actLocation = trim((string) ($act['location_name'] ?? $act['location'] ?? 'TalentHub Lab'));
+        $actLocation = trim((string) ($act['location_name'] ?? $act['location'] ?? 'FTalentHub Lab'));
         $actHours = (float) ($act['confirmed_hours'] ?? $act['hours'] ?? $act['hours_spent'] ?? 0);
         $displayActivities[] = [
             'title' => $actTitle,
@@ -228,7 +228,7 @@ $professionalSummary = trim((string) ($student['bio'] ?? ''));
 if ($professionalSummary === '') {
     $topSkillNames = array_slice(array_column($displaySkills, 'name'), 0, 3);
     $skillsText = !empty($topSkillNames) ? implode(', ', $topSkillNames) : 'công nghệ và kỹ năng số';
-    $schoolText = !empty($studentSchool) && $studentSchool !== 'Chưa cập nhật trường' ? $studentSchool : 'TalentHub';
+    $schoolText = !empty($studentSchool) && $studentSchool !== 'Chưa cập nhật trường' ? $studentSchool : 'FTalentHub';
     $hoursText = (int) ($student['experience_hours'] ?? ($talentPassport['experience']['confirmed_hours'] ?? 0));
     $headlineText = !empty($studentHeadline) ? $studentHeadline : 'Học viên đam mê nghiên cứu và đổi mới sáng tạo';
     $professionalSummary = "{$headlineText} tại {$schoolText} với hơn {$hoursText} giờ trải nghiệm thực tế. Có thế mạnh về {$skillsText}, định hướng chủ động phát triển các dự án thực tiễn và sẵn sàng tham gia nghiên cứu, thực tập trong môi trường doanh nghiệp chuyên nghiệp.";
@@ -242,7 +242,7 @@ if ($professionalSummary === '') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Talent Passport 360° - Hộ chiếu Năng lực Số của <?= learner_escape($studentName); ?> được chứng thực bởi <?= learner_escape($studentSchool); ?>.">
-    <title>Talent Passport 360° | <?= learner_escape($studentName); ?> | TalentHub</title>
+    <title>Talent Passport 360° | <?= learner_escape($studentName); ?> | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
@@ -1320,7 +1320,7 @@ if ($professionalSummary === '') {
                                     <div class="passport-sidebar-status">
                                         <span class="passport-verified-pill">
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                                            Sinh viên Xác thực TalentHub
+                                            Sinh viên Xác thực FTalentHub
                                         </span>
                                     </div>
                                 </div>
@@ -1370,7 +1370,7 @@ if ($professionalSummary === '') {
                                                 <span class="passport-score-scale">THANG ĐIỂM 10</span>
                                             </div>
                                             <div class="passport-score-badge"><?= learner_escape($gradeClassification); ?> • <?= learner_escape($rankingPercentile); ?></div>
-                                            <p class="passport-score-hint">Điểm và xếp loại lấy từ đánh giá đã được ghi nhận trong tài khoản TalentHub.</p>
+                                            <p class="passport-score-hint">Điểm và xếp loại lấy từ đánh giá đã được ghi nhận trong tài khoản FTalentHub.</p>
                                         </div>
                                     <?php endif; ?>
                                 </div>
@@ -1625,7 +1625,7 @@ if ($professionalSummary === '') {
                         <!-- Footer -->
                         <footer class="passport-footer">
                             <div>
-                                <span>Được xuất từ <strong>Hệ sinh thái TalentHub &amp; <?= learner_escape($studentSchool); ?></strong></span>
+                                <span>Được xuất từ <strong>Hệ sinh thái FTalentHub &amp; <?= learner_escape($studentSchool); ?></strong></span>
                             </div>
                             <div>
                                 <span>Thời gian xuất: <strong><?= date('d/m/Y H:i'); ?></strong> (QR hiệu lực 30 ngày)</span>

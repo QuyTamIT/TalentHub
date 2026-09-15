@@ -143,7 +143,7 @@ if (($_GET['action'] ?? '') === 'queue_feed') {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
-    <title><?= htmlspecialchars($headerTitle) ?> | TalentHub Admin</title>
+    <title><?= htmlspecialchars($headerTitle) ?> | FTalentHub Admin</title>
     <link rel="icon" href="<?= app_href('/assets/images/logo.svg'); ?>" type="image/svg+xml">
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
@@ -299,7 +299,7 @@ if (($_GET['action'] ?? '') === 'queue_feed') {
                 <div>
                     <p class="eyebrow">Trung tâm vận hành</p>
                     <h1 id="page-title">Chào buổi sáng, <?= htmlspecialchars($adminFirstName) ?>.</h1>
-                    <p>Mọi tín hiệu quan trọng của TalentHub tại một nơi. Ưu tiên ngoại lệ trước, số liệu sau.</p>
+                    <p>Mọi tín hiệu quan trọng của FTalentHub tại một nơi. Ưu tiên ngoại lệ trước, số liệu sau.</p>
                 </div>
                 <div class="heading-actions">
                     <span class="last-updated"><span class="status-dot is-ok"></span>Cập nhật 20 giây trước</span>

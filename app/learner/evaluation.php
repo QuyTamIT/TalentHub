@@ -155,8 +155,8 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Theo dõi điểm đánh giá năng lực và nhận xét phản hồi từ giảng viên, huấn luyện viên trên TalentHub.">
-    <title>Đánh giá & Nhận xét Năng lực | TalentHub</title>
+    <meta name="description" content="Theo dõi điểm đánh giá năng lực và nhận xét phản hồi từ giảng viên, huấn luyện viên trên FTalentHub.">
+    <title>Đánh giá & Nhận xét Năng lực | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">

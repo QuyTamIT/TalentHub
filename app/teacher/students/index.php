@@ -110,7 +110,7 @@ $sort = trim((string) ($_GET['sort'] ?? ''));
 $dir = strtolower(trim((string) ($_GET['dir'] ?? 'desc'))) === 'asc' ? 'asc' : 'desc';
 
 $teacherInfo = [
-    'full_name' => $user['fullName'] ?? 'Giáo viên TalentHub',
+    'full_name' => $user['fullName'] ?? 'Giáo viên FTalentHub',
     'role_label' => 'Giáo viên / Hướng dẫn viên',
     'school_name' => '',
     'avatar_initials' => 'GV',
@@ -139,7 +139,7 @@ try {
     $teacherId = (string) ($teacher['id'] ?? '');
     $schoolId = (string) ($teacher['schoolId'] ?? '');
     $schoolName = (string) ($teacher['schoolName'] ?? '');
-    $resolvedName = trim((string) ($user['fullName'] ?? ($teacher['fullName'] ?? 'Giáo viên TalentHub')));
+    $resolvedName = trim((string) ($user['fullName'] ?? ($teacher['fullName'] ?? 'Giáo viên FTalentHub')));
 
     $teacherInfo['full_name'] = $resolvedName;
     $teacherInfo['school_name'] = $schoolName;
@@ -305,8 +305,8 @@ $talentScoreSortUrl = './index.php?' . http_build_query($sortUrlParams);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Danh sách học viên đang theo dõi thuộc phạm vi quản lý của giáo viên trên TalentHub.">
-    <title>Học viên của tôi | TalentHub</title>
+    <meta name="description" content="Danh sách học viên đang theo dõi thuộc phạm vi quản lý của giáo viên trên FTalentHub.">
+    <title>Học viên của tôi | FTalentHub</title>
 
     <link rel="stylesheet" href="../../../assets/css/home.css">
     <link rel="stylesheet" href="../../../assets/css/global.css">

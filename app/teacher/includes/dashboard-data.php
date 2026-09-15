@@ -22,7 +22,7 @@ function teacherDashboardDefaults(): array
         'teacherInfo' => [
             'id' => null,
             'user_id' => null,
-            'full_name' => 'Giáo viên TalentHub',
+            'full_name' => 'Giáo viên FTalentHub',
             'role_label' => 'Giáo viên / Hướng dẫn viên',
             'school_name' => 'Chưa kết nối trường',
             'avatar_initials' => 'GV',
@@ -113,7 +113,7 @@ function teacherDashboardBackendContext(bool $forceRefresh = false): array
             $profile = [
                 'id' => $user['id'],
                 'userId' => $user['id'],
-                'fullName' => $userFullName ?: 'Giáo viên TalentHub',
+                'fullName' => $userFullName ?: 'Giáo viên FTalentHub',
                 'schoolName' => '',
             ];
         }
@@ -197,8 +197,8 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
     $user = is_array($context['user']) ? $context['user'] : null;
 
     $sessionName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
-    $teacherName = trim((string) ($sessionName !== '' ? $sessionName : ($profile['fullName'] ?? ($user['fullName'] ?? 'Giáo viên TalentHub'))));
-    if (($teacherName === '' || $teacherName === 'Giáo viên TalentHub') && !empty($_SESSION['user']['email'])) {
+    $teacherName = trim((string) ($sessionName !== '' ? $sessionName : ($profile['fullName'] ?? ($user['fullName'] ?? 'Giáo viên FTalentHub'))));
+    if (($teacherName === '' || $teacherName === 'Giáo viên FTalentHub') && !empty($_SESSION['user']['email'])) {
         $parts = explode('@', (string)$_SESSION['user']['email']);
         $teacherName = ucwords(str_replace(['.', '_', '-'], ' ', $parts[0] ?? 'Giáo viên'));
     }
@@ -255,7 +255,7 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
     $data['teacherInfo'] = [
         'id' => $profile['id'] ?? ($user['id'] ?? null),
         'user_id' => $profile['userId'] ?? ($user['id'] ?? null),
-        'full_name' => $teacherName !== '' ? $teacherName : 'Giáo viên TalentHub',
+        'full_name' => $teacherName !== '' ? $teacherName : 'Giáo viên FTalentHub',
         'role_label' => !empty($profile['isSchoolAdmin']) ? 'Giáo viên / Quản trị trường' : 'Giáo viên / Hướng dẫn viên',
         'school_name' => $schoolName,
         'managed_class_id' => $managedClassId,

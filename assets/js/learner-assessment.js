@@ -563,7 +563,7 @@
         multiple_intelligence: Object.freeze([
             'Đầu tư thời gian vào các lĩnh vực trí thông minh nổi trội thông qua các hoạt động ngoại khóa.',
             'Kết hợp các phương pháp học tập đa giác quan để nâng cao khả năng tiếp thu kiến thức.',
-            'Khám phá các dự án sáng tạo và cơ hội thực tập tương ứng trong hệ sinh thái TalentHub.',
+            'Khám phá các dự án sáng tạo và cơ hội thực tập tương ứng trong hệ sinh thái FTalentHub.',
         ]),
     });
 

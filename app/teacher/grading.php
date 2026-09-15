@@ -437,7 +437,7 @@ if ($selectedStudent) {
     }
 }
 
-$pageTitle = 'Chấm điểm - TalentHub';
+$pageTitle = 'Chấm điểm - FTalentHub';
 $currentRoute = 'assessments';
 
 $sidebarNav = [
@@ -483,7 +483,7 @@ if (!function_exists('getStudentSingleInitial')) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chấm điểm | TalentHub</title>
+    <title>Chấm điểm | FTalentHub</title>
 
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">

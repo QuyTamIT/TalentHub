@@ -49,7 +49,7 @@ ob_start();
 require dirname(__DIR__) . '/app/learner/includes/passport-cv-template.php';
 $guestHtml = ob_get_clean();
 
-assert(str_contains($guestHtml, 'Hồ sơ CV xác thực điện tử bởi TalentHub'), 'Guest toolbar shows verified banner');
+assert(str_contains($guestHtml, 'Hồ sơ CV xác thực điện tử bởi FTalentHub'), 'Guest toolbar shows verified banner');
 assert(str_contains($guestHtml, 'In / Tải PDF'), 'Guest toolbar has In / Tải PDF button');
 assert(!str_contains($guestHtml, 'talent-passport.php'), 'Guest view must not contain internal links');
 

@@ -28,7 +28,7 @@ $boot = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Thông báo | TalentHub</title>
+    <title>Thông báo | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">

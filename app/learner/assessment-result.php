@@ -34,8 +34,8 @@ $bootData = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Kết quả và lịch sử bài đánh giá năng khiếu trên TalentHub.">
-    <title>Kết quả <?= learner_escape($assessmentName); ?> | TalentHub</title>
+    <meta name="description" content="Kết quả và lịch sử bài đánh giá năng khiếu trên FTalentHub.">
+    <title>Kết quả <?= learner_escape($assessmentName); ?> | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">
@@ -59,7 +59,7 @@ $bootData = [
                 <section class="learner-card learner-assessment-state" data-assessment-result-loading>
                     <span class="learner-assessment-spinner" aria-hidden="true"></span>
                     <h1>Đang tải kết quả...</h1>
-                    <p>TalentHub đang lấy kết quả và lịch sử bài đánh giá từ hệ thống.</p>
+                    <p>FTalentHub đang lấy kết quả và lịch sử bài đánh giá từ hệ thống.</p>
                 </section>
 
                 <section class="learner-card learner-assessment-state learner-assessment-state--error" data-assessment-result-error hidden>
@@ -80,7 +80,7 @@ $bootData = [
                             <span class="learner-eyebrow">Kết quả đánh giá gần nhất</span>
                             <h1>Đặc điểm nổi bật: <span data-result-primary-name>Đang tải...</span></h1>
                             <p data-result-primary-summary></p>
-                            <span class="learner-demo-pill" data-result-source>Hệ thống TalentHub</span>
+                            <span class="learner-demo-pill" data-result-source>Hệ thống FTalentHub</span>
                         </div>
                         <div class="learner-result-hero__actions">
                             <button type="button" class="learner-btn learner-btn--primary" data-retake-assessment data-assessment-code="<?= learner_escape($assessmentCode); ?>">Làm lại bài đánh giá</button>

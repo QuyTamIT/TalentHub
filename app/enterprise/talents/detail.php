@@ -264,8 +264,8 @@ $sidebarNav = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Talent Passport - Hồ sơ năng lực chi tiết của ứng viên trên TalentHub Enterprise.">
-    <title><?= htmlspecialchars($pageTitle); ?> | TalentHub Enterprise</title>
+    <meta name="description" content="Talent Passport - Hồ sơ năng lực chi tiết của ứng viên trên FTalentHub Enterprise.">
+    <title><?= htmlspecialchars($pageTitle); ?> | FTalentHub Enterprise</title>
 
     <!-- CSS Assets -->
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
@@ -575,7 +575,7 @@ $sidebarNav = [
                                     <div class="ent-sidebar-card__heading">
                                         <h3 class="ent-sidebar-card__title">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                                            <span>Điểm năng lực TalentHub</span>
+                                            <span>Điểm năng lực FTalentHub</span>
                                         </h3>
                                     </div>
 
@@ -691,7 +691,7 @@ $sidebarNav = [
                                     </div>
                                     <div class="ent-privacy-card__content">
                                         <h4 class="ent-privacy-card__title">Bảo mật thông tin liên hệ</h4>
-                                        <p class="ent-privacy-card__text">Thông tin liên hệ cá nhân được ẩn theo tiêu chuẩn bảo vệ quyền riêng tư TalentHub. Hãy bấm <strong>Liên hệ</strong> hoặc <strong>Mời thực tập</strong> để gửi đề xuất trực tiếp tới người học.</p>
+                                        <p class="ent-privacy-card__text">Thông tin liên hệ cá nhân được ẩn theo tiêu chuẩn bảo vệ quyền riêng tư FTalentHub. Hãy bấm <strong>Liên hệ</strong> hoặc <strong>Mời thực tập</strong> để gửi đề xuất trực tiếp tới người học.</p>
                                     </div>
                                 </div>
 
@@ -820,7 +820,7 @@ $sidebarNav = [
                     <!-- Privacy / Notification Tip -->
                     <div style="background: #FFF9F5; border: 1px solid #FFE0D3; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.8125rem; color: #6B5548; display: flex; align-items: flex-start; gap: 0.5rem;">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" style="flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                        <span>Hệ thống sẽ lưu lời mời vào danh sách ứng tuyển thực tập và gửi thông báo trực tiếp đến tài khoản sinh viên trên TalentHub.</span>
+                        <span>Hệ thống sẽ lưu lời mời vào danh sách ứng tuyển thực tập và gửi thông báo trực tiếp đến tài khoản sinh viên trên FTalentHub.</span>
                     </div>
                 </div>
 

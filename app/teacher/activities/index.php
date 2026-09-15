@@ -351,7 +351,7 @@ $formValues = [
     'feeAmount' => '0.00',
     'currency' => 'VND',
     'targetAudience' => 'Học sinh trong trường',
-    'certificateLabel' => 'Minh chứng tham gia trên TalentHub',
+    'certificateLabel' => 'Minh chứng tham gia trên FTalentHub',
     'responsibleTeacherId' => $teacherId,
     'registrationOpensAt' => (new DateTimeImmutable('now'))->format('Y-m-d\TH:i'),
     'registrationClosesAt' => (new DateTimeImmutable('+2 days -2 hours'))->format('Y-m-d\TH:i'),
@@ -860,8 +860,8 @@ $formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo ho�
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Quản lý hoạt động và sân chơi do giáo viên phụ trách trên TalentHub.">
-    <title><?= teacherActivitiesEscape($pageTitle); ?> | TalentHub</title>
+    <meta name="description" content="Quản lý hoạt động và sân chơi do giáo viên phụ trách trên FTalentHub.">
+    <title><?= teacherActivitiesEscape($pageTitle); ?> | FTalentHub</title>
 <?php
 $teacherAssetUrl = static function (string $relPath): string {
     $fsPath = dirname(__DIR__, 3) . $relPath;
@@ -1211,7 +1211,7 @@ $teacherAssetUrl = static function (string $relPath): string {
 
                                             <label class="teacher-form-field teacher-form-field--wide" for="activity-certificate">
                                                 <span>Nhãn chứng nhận sau hoạt động</span>
-                                                <input id="activity-certificate" type="text" name="certificateLabel" maxlength="255" value="<?= teacherActivitiesEscape($formValues['certificateLabel']); ?>" placeholder="Ví dụ: Minh chứng tham gia trên TalentHub">
+                                                <input id="activity-certificate" type="text" name="certificateLabel" maxlength="255" value="<?= teacherActivitiesEscape($formValues['certificateLabel']); ?>" placeholder="Ví dụ: Minh chứng tham gia trên FTalentHub">
                                             </label>
                                         </div>
                                     </div>

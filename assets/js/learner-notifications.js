@@ -361,10 +361,10 @@
                 .replace(/^(Công ty TNHH Phần mềm|Công ty TNHH|Công ty Cổ phần|Công ty CP|Công ty|Tập đoàn|Trường Đại học|Trường Cao đẳng|Trường|Học viện)\s+/i, '')
                 .trim();
 
-            if (!cleanName) cleanName = name.trim() || 'TalentHub';
+            if (!cleanName) cleanName = name.trim() || 'FTalentHub';
 
             const words = cleanName.split(/\s+/).filter(Boolean);
-            let initials = 'TH';
+            let initials = 'FT';
             if (words.length >= 2) {
                 initials = (words[0][0] + words[1][0]).toUpperCase();
             } else if (words.length === 1) {

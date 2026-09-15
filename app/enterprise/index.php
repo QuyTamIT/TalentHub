@@ -247,8 +247,8 @@ if ($pdo !== null) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="TalentHub Enterprise Dashboard - Quản lý tuyển thực tập và kết nối tài năng dành cho Doanh nghiệp.">
-    <title>Dashboard Doanh Nghiệp - <?= htmlspecialchars($enterpriseInfo['company_name']); ?> | TalentHub</title>
+    <meta name="description" content="FTalentHub Enterprise Dashboard - Quản lý tuyển thực tập và kết nối tài năng dành cho Doanh nghiệp.">
+    <title>Dashboard Doanh Nghiệp - <?= htmlspecialchars($enterpriseInfo['company_name']); ?> | FTalentHub</title>
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../assets/css/home.css">
