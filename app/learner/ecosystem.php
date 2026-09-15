@@ -136,16 +136,20 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                         <label class="learner-visually-hidden" for="ecosystem-local-search">Tìm trong hệ sinh thái</label>
                         <input id="ecosystem-local-search" type="search" placeholder="Nhập tên dự án, trường hoặc lĩnh vực..." data-ecosystem-search>
                     </div>
-                    <label class="learner-select-control">
+                    <label class="learner-select-control" for="ecosystem-field-filter">
                         <span class="learner-visually-hidden">Lọc theo lĩnh vực</span>
                         <?= learner_icon('filter', 18); ?>
-                        <select data-ecosystem-filter="field">
+                        <select id="ecosystem-field-filter" data-ecosystem-filter="field">
                             <option value="all">Tất cả lĩnh vực</option>
                             <?php foreach ($ecosystemFields as $field): ?>
                                 <option value="<?= learner_escape($field); ?>"><?= learner_escape($field); ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <select data-ecosystem-filter="status" aria-label="Lọc trạng thái tham gia">
+                    </label>
+                    <label class="learner-select-control" for="ecosystem-status-filter">
+                        <span class="learner-visually-hidden">Lọc trạng thái tham gia</span>
+                        <?= learner_icon('filter', 18); ?>
+                        <select id="ecosystem-status-filter" data-ecosystem-filter="status" aria-label="Lọc trạng thái tham gia">
                             <option value="all" <?= $initialLifecycleFilter === 'all' ? 'selected' : ''; ?>>Tất cả trạng thái</option>
                             <option value="recruiting" <?= $initialLifecycleFilter === 'recruiting' ? 'selected' : ''; ?>>Đang mở</option>
                             <option value="active" <?= $initialLifecycleFilter === 'active' ? 'selected' : ''; ?>>Đang tham gia</option>
