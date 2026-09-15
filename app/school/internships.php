@@ -78,8 +78,6 @@ $teachers = $uniqueTeachers;
 
 // Filter and prioritize active named teachers
 usort($teachers, function($a, $b) {
-    if (($a['fullName'] ?? '') === 'ThS. Nguyễn Văn Hùng') return -1;
-    if (($b['fullName'] ?? '') === 'ThS. Nguyễn Văn Hùng') return 1;
     return strcmp((string)($a['fullName'] ?? ''), (string)($b['fullName'] ?? ''));
 });
 

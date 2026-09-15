@@ -227,16 +227,20 @@ $kpis = [
 </head>
 <body class="teacher-dashboard teacher-slide-ui">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
-    <div class="teacher-layout">
-        <?php require dirname(__DIR__) . '/includes/sidebar.php'; ?>
+    <div class="slide-layout">
+        <?php require dirname(__DIR__) . '/includes/slide-sidebar.php'; ?>
 
-        <div class="teacher-main-wrapper">
-            <?php require dirname(__DIR__) . '/includes/header.php'; ?>
+        <div class="slide-main-wrapper">
+            <main class="slide-main-content" id="main-content">
+                <section class="teacher-slide-page-header">
+                    <div class="teacher-slide-page-header__content">
+                        <span class="teacher-slide-page-header__eyebrow">KHU VỰC GIÁO VIÊN</span>
+                        <h1 class="teacher-slide-page-header__title">Học viên của tôi</h1>
+                    </div>
+                    <span class="slide-pill slide-pill--students">HỌC VIÊN CỦA TÔI</span>
+                </section>
 
-            <main class="teacher-body" id="main-content">
-                <div class="teacher-container">
-                    <div class="teacher-slide-heading"><h1>Học viên của tôi</h1><p>Quản lý và theo dõi học viên tham gia các sân chơi phụ trách.</p></div>
-                    <section class="teacher-section-box teacher-students-panel">
+                <section class="teacher-section-box teacher-students-panel">
                         <div class="teacher-section-box__header teacher-students-panel__header">
                             <div>
                                 <h2 class="teacher-section-box__title"><?= number_format((int) $summary['uniqueStudents']); ?> học viên</h2>
@@ -357,6 +361,7 @@ $kpis = [
             </main>
         </div>
     </div>
+    <div class="slide-footer-gradient"></div>
 
     <div class="teacher-toast" id="teacher-toast" aria-live="polite" aria-atomic="true">
         <div class="teacher-toast__content">

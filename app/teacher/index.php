@@ -124,21 +124,18 @@ $kpis[3]['label'] = 'Điểm đánh giá trung bình';
 </head>
 <body class="teacher-dashboard teacher-slide-ui">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
-    <div class="teacher-layout">
-        <?php require_once __DIR__ . '/includes/sidebar.php'; ?>
+    <div class="slide-layout">
+        <?php require_once __DIR__ . '/includes/slide-sidebar.php'; ?>
 
-        <div class="teacher-main-wrapper">
-            <?php require_once __DIR__ . '/includes/header.php'; ?>
+        <div class="slide-main-wrapper">
+            <main class="slide-main-content" id="main-content">
+                <?php require_once __DIR__ . '/includes/welcome.php'; ?>
+                <?php require_once __DIR__ . '/includes/kpi-cards.php'; ?>
 
-            <main class="teacher-body" id="main-content">
-                <div class="teacher-container">
-                    <?php require_once __DIR__ . '/includes/welcome.php'; ?>
-                    <?php require_once __DIR__ . '/includes/kpi-cards.php'; ?>
-
-                    <?php require __DIR__ . '/includes/slide-overview.php'; ?>
-                </div>
+                <?php require __DIR__ . '/includes/slide-overview.php'; ?>
             </main>
         </div>
+        <div class="slide-footer-gradient"></div>
     </div>
 
     <div class="teacher-toast" id="teacher-toast" aria-live="polite" aria-atomic="true">

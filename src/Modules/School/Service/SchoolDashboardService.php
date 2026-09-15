@@ -1400,7 +1400,7 @@ final class SchoolDashboardService
     {
         $stmt = $this->pdo->prepare(<<<'SQL'
             SELECT u.fullName, c.name AS className, ip.title AS positionTitle, e.name AS enterpriseName,
-                   ia.status AS applicationStatus, COALESCE(tu.fullName, 'ThS. Nguyễn Văn Hùng') AS mentorTeacherName,
+                   ia.status AS applicationStatus, COALESCE(tu.fullName, '') AS mentorTeacherName,
                    ia.createdAt AS appliedAt
             FROM internship_applications ia
             JOIN student_profiles sp ON sp.id = ia.studentId
@@ -1428,20 +1428,6 @@ final class SchoolDashboardService
                 (string) $row['appliedAt'],
             ];
         }
-        if (count($rows) === 1) {
-            $studentRows = $this->buildStudentRows($schoolId);
-            for ($i = 1; $i < min(count($studentRows), 6); $i++) {
-                $rows[] = [
-                    $studentRows[$i][0],
-                    $studentRows[$i][3],
-                    'Kỹ sư AI / Lập trình viên Phần mềm',
-                    'FPT Software',
-                    'accepted',
-                    'ThS. Nguyễn Văn Hùng',
-                    date('Y-m-d H:i:s'),
-                ];
-            }
-        }
         return $rows;
     }
 
@@ -1455,7 +1441,7 @@ final class SchoolDashboardService
                        WHEN sa.overallScore >= 65 THEN 'Khá'
                        ELSE 'Trung bình'
                    END AS classification,
-                   COALESCE(tu.fullName, 'ThS. Nguyễn Văn Hùng') AS reviewerName,
+                   COALESCE(tu.fullName, '') AS reviewerName,
                    sa.comment, sa.createdAt
             FROM assessments sa
             JOIN student_profiles sp ON sp.id = sa.studentId
@@ -1479,22 +1465,6 @@ final class SchoolDashboardService
                 (string) $row['comment'],
                 (string) $row['createdAt'],
             ];
-        }
-        if (count($rows) === 1) {
-            $studentRows = $this->buildStudentRows($schoolId);
-            for ($i = 1; $i < count($studentRows); $i++) {
-                $score = $i === 1 ? 85 : (84 - $i);
-                $classification = $score >= 80 ? 'Giỏi' : ($score >= 65 ? 'Khá' : 'Trung bình');
-                $rows[] = [
-                    $studentRows[$i][0],
-                    $studentRows[$i][3],
-                    (string) $score,
-                    $classification,
-                    'ThS. Nguyễn Văn Hùng',
-                    'Sinh viên nắm vững kiến thức chuyên môn, thực hành tốt và tích cực tham gia đề án thực tế.',
-                    date('Y-m-d H:i:s'),
-                ];
-            }
         }
         return $rows;
     }
