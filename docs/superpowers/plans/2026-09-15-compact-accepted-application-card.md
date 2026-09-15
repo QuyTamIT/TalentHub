@@ -4,7 +4,7 @@
 
 **Goal:** Thu gọn giao diện hồ sơ ứng tuyển đã được duyệt (trạng thái "Đã nhận" / trúng tuyển), thay thế thanh tiến trình 4 bước cồng kềnh bằng khối banner chúc mừng tinh gọn, đồng bộ màu sắc và tối ưu không gian.
 
-**Architecture:** 
+**Architecture:**
 Trong `app/learner/ecosystem.php`, kiểm tra `$isAccepted = in_array($appStatus, ['accepted', 'hired'], true);`. Nếu đúng, thay vì render `.learner-app-stepper` và `.learner-app-status-note`, render component `.learner-app-accepted-banner` chứa icon thành công, tiêu đề trúng tuyển, thời gian hoàn tất, thông báo chúc mừng & hướng dẫn nhận việc, cùng lời nhắn gửi kèm (nếu có). Thêm CSS chuyên biệt cho banner trong `assets/css/learner.css`.
 
 **Tech Stack:** PHP 8+, HTML5, CSS3 (Design tokens từ TalentHub).

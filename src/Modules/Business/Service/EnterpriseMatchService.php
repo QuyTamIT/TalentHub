@@ -25,6 +25,88 @@ final class EnterpriseMatchService
     ) {
         $this->provider = $provider;
     }
+    /**
+     * Matches candidates for a specific internship post, filtering out missing_source/evidence_only from scored matches.
+     *
+     * @return list<array{candidate: array{id: string, name?: string, talentScore?: ?float}, matched_skills: list<array{skillId: string, name?: string}>, reasons: list<string>}>
+     */
+    public function matchPostToTalents(string $postId, int $limit = 10): array
+    {
+        $pdo = $this->repository->pdo();
+        $post = null;
+        try {
+            $stmt = $pdo->prepare('SELECT id, enterpriseId, title FROM enterprise_internship_posts WHERE id = ? LIMIT 1');
+            $stmt->execute([$postId]);
+            $post = $stmt->fetch(\PDO::FETCH_ASSOC);
+        } catch (\Throwable) {}
+
+        if (!$post) {
+            try {
+                $stmt = $pdo->prepare('SELECT id, enterpriseId, title FROM internship_posts WHERE id = ? LIMIT 1');
+                $stmt->execute([$postId]);
+                $post = $stmt->fetch(\PDO::FETCH_ASSOC);
+            } catch (\Throwable) {}
+        }
+
+        if (!$post) {
+            return [];
+        }
+
+        $enterpriseId = (string) ($post['enterpriseId'] ?? '');
+        $reqSkillIds = [];
+        try {
+            $skillsStmt = $pdo->prepare('SELECT skillId FROM enterprise_post_skills WHERE postId = ?');
+            $skillsStmt->execute([$postId]);
+            $reqSkillIds = $skillsStmt->fetchAll(\PDO::FETCH_COLUMN) ?: [];
+        } catch (\Throwable) {}
+
+        $candidates = $this->repository->matchCandidates($enterpriseId, $reqSkillIds);
+        $results = [];
+
+        foreach ($candidates as $cand) {
+            $candId = (string) ($cand['id'] ?? $cand['student_id'] ?? '');
+            $rawSkills = $cand['skills'] ?? [];
+            $matchedSkills = [];
+
+            foreach ($rawSkills as $sk) {
+                $skId = (string) ($sk['skillId'] ?? $sk['skill_id'] ?? $sk['id'] ?? '');
+                $skState = (string) ($sk['scoreState'] ?? $sk['score_state'] ?? '');
+                // Exclude missing_source and evidence_only from scored matches
+                if ($skState === 'missing_source' || $skState === 'evidence_only') {
+                    continue;
+                }
+                if (in_array($skId, $reqSkillIds, true)) {
+                    $matchedSkills[] = [
+                        'skillId' => $skId,
+                        'name' => (string) ($sk['name'] ?? $sk['skillName'] ?? ''),
+                        'levelScore' => $sk['levelScore'] ?? $sk['level_score'] ?? null,
+                    ];
+                }
+            }
+
+            $reasons = [];
+            if (!empty($matchedSkills)) {
+                $reasons[] = 'Trùng khớp ' . count($matchedSkills) . ' kỹ năng chuyên môn yêu cầu';
+            }
+            $talentScore = isset($cand['talent_score']) ? $cand['talent_score'] : ($cand['talentScore'] ?? null);
+            if ($talentScore !== null && is_numeric($talentScore)) {
+                $reasons[] = 'Trung bình kỹ năng đã được chấm: ' . round((float) $talentScore) . '/100';
+            }
+
+            $results[] = [
+                'candidate' => [
+                    'id' => $candId,
+                    'name' => (string) ($cand['display_name'] ?? $cand['name'] ?? ''),
+                    'talentScore' => $talentScore !== null ? (float) $talentScore : null,
+                ],
+                'matched_skills' => $matchedSkills,
+                'reasons' => $reasons,
+            ];
+        }
+
+        return array_slice($results, 0, $limit);
+    }
+
 
     /**
      * @param array<string,mixed>|string $job
@@ -67,6 +149,10 @@ final class EnterpriseMatchService
             $refMap[$ref] = $cand;
             $verifiedSkills = [];
             foreach ((array) ($cand['skills'] ?? []) as $sk) {
+                $sState = $sk['score_state'] ?? null;
+                if ($sState === 'missing_source' || $sState === 'evidence_only') {
+                    continue;
+                }
                 $verifiedSkills[] = [
                     'name' => (string) ($sk['name'] ?? ''),
                     'category' => (string) ($sk['category'] ?? 'technical'),
@@ -584,10 +670,13 @@ final class EnterpriseMatchService
             $evidence = [];
 
             foreach ($candSkills as $skill) {
+                $sState = $skill['score_state'] ?? null;
+                if ($sState === 'missing_source' || $sState === 'evidence_only') {
+                    continue;
+                }
                 $name = trim((string) ($skill['name'] ?? ''));
                 if ($name === '') continue;
                 $level = (float) ($skill['level_score'] ?? 0.0);
-                $isMatched = false;
 
                 // Match against required professional skills
                 foreach ($reqProfSkills as $rps) {
@@ -721,8 +810,8 @@ final class EnterpriseMatchService
                     $sNames = array_map(static fn(array $i): string => $i['actual'], $matchedSoft);
                     $reasonsParts[] = "Kỹ năng bổ trợ: " . implode(', ', $sNames);
                 }
-                if (!empty($candidate['talent_score'])) {
-                    $reasonsParts[] = "Điểm đánh giá năng lực giáo viên: " . round((float) $candidate['talent_score']) . "/100";
+                if (isset($candidate['talent_score']) && is_numeric($candidate['talent_score'])) {
+                    $reasonsParts[] = "Trung bình kỹ năng đã được chấm: " . round((float) $candidate['talent_score']) . "/100";
                 }
                 if (!empty($candidate['headline'])) {
                     $reasonsParts[] = "Chuyên môn: " . $candidate['headline'];
@@ -733,6 +822,10 @@ final class EnterpriseMatchService
             $candSkillNames = [];
             $verifiedSkillNames = [];
             foreach ($candSkills as $cSk) {
+                $sState = $cSk['score_state'] ?? null;
+                if ($sState === 'missing_source' || $sState === 'evidence_only') {
+                    continue;
+                }
                 $sName = trim((string) ($cSk['name'] ?? ''));
                 if ($sName !== '') {
                     $candSkillNames[] = $sName;
@@ -838,10 +931,13 @@ final class EnterpriseMatchService
             $evidence = [];
 
             foreach ($candSkills as $sk) {
+                $sState = $sk['score_state'] ?? null;
+                if ($sState === 'missing_source' || $sState === 'evidence_only') {
+                    continue;
+                }
                 $skName = trim((string) ($sk['name'] ?? ''));
                 if ($skName === '') continue;
                 $level = (float) ($sk['level_score'] ?? 0.0);
-                $isMatched = false;
 
                 // Match against required professional skills
                 foreach ($reqProfSkills as $rps) {
@@ -978,7 +1074,7 @@ final class EnterpriseMatchService
             $softCount = count($matchedSoft);
             $talentScore = isset($candidate['talent_score']) && is_numeric($candidate['talent_score'])
                 ? (float) $candidate['talent_score']
-                : 0.0;
+                : null;
 
             // Candidate must have at least 1 matched skill (prof or soft) OR practical project OR domain match
             if ($profCount === 0 && $softCount === 0 && empty($matchedProjects) && !$domainMatch) {
@@ -1003,7 +1099,7 @@ final class EnterpriseMatchService
 
             $domainScore = $domainMatch ? 10.0 : 0.0; // 10% weight for domain
 
-            $teacherScore = ($talentScore / 100.0) * 10.0; // 10% weight for teacher score
+            $teacherScore = $talentScore !== null ? (($talentScore / 100.0) * 10.0) : 0.0; // 10% weight for teacher score
 
             $rawScore = $profScore + $profLevelScore + $softScore + $domainScore + $teacherScore;
 
@@ -1044,7 +1140,7 @@ final class EnterpriseMatchService
             if ($domainMatch) {
                 $reasonCodes[] = 'domain_match';
             }
-            if ($talentScore >= 80.0) {
+            if ($talentScore !== null && $talentScore >= 80.0) {
                 $reasonCodes[] = 'teacher_recommended';
             }
             if (!empty($matchedProjects)) {
@@ -1073,8 +1169,8 @@ final class EnterpriseMatchService
                 $reasonParts[] = "Kỹ năng bổ trợ: " . implode(', ', $sNames);
             }
 
-            if ($talentScore > 0) {
-                $reasonParts[] = "Điểm đánh giá năng lực giáo viên: " . round($talentScore) . "/100";
+            if ($talentScore !== null) {
+                $reasonParts[] = "Trung bình kỹ năng đã được chấm: " . round($talentScore) . "/100";
             }
 
             if ($domainMatch && !empty($candidate['headline'])) {
@@ -1086,6 +1182,10 @@ final class EnterpriseMatchService
             $candSkillNames = [];
             $verifiedSkillNames = [];
             foreach ($candSkills as $cSk) {
+                $sState = $cSk['score_state'] ?? null;
+                if ($sState === 'missing_source' || $sState === 'evidence_only') {
+                    continue;
+                }
                 $sName = trim((string) ($cSk['name'] ?? ''));
                 if ($sName !== '') {
                     $candSkillNames[] = $sName;

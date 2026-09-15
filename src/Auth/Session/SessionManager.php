@@ -255,15 +255,15 @@ final class SessionManager
             \TalentHub\Rbac\RoleCodes::PLATFORM_ADMIN => 'admin@talenthub.local',
         ];
         $defaultNames = [
-            \TalentHub\Rbac\RoleCodes::STUDENT => 'Học viên TalentHub',
-            \TalentHub\Rbac\RoleCodes::SCHOOL => 'Ban Giám hiệu TalentHub',
-            \TalentHub\Rbac\RoleCodes::PLATFORM_ADMIN => 'Admin TalentHub',
+            \TalentHub\Rbac\RoleCodes::STUDENT => 'Học viên FTalentHub',
+            \TalentHub\Rbac\RoleCodes::SCHOOL => 'Ban Giám hiệu FTalentHub',
+            \TalentHub\Rbac\RoleCodes::PLATFORM_ADMIN => 'Admin FTalentHub',
         ];
         $defaultIds = [];
         return [
             'id' => $defaultIds[$role] ?? \TalentHub\Support\Uuid::v4(),
             'email' => $defaultEmails[$role] ?? 'demo@talenthub.local',
-            'fullName' => $defaultNames[$role] ?? 'TalentHub User',
+            'fullName' => $defaultNames[$role] ?? 'FTalentHub User',
             'role' => $role,
             'status' => 'active',
         ];

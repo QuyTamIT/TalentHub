@@ -96,8 +96,8 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Khám phá doanh nghiệp và các dự án đang triển khai tại trường trên TalentHub.">
-    <title>Hệ sinh thái &amp; Dự án | TalentHub</title>
+    <meta name="description" content="Khám phá doanh nghiệp và các dự án đang triển khai tại trường trên FTalentHub.">
+    <title>Hệ sinh thái &amp; Dự án | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
@@ -453,7 +453,7 @@ ksort($ecosystemFields, SORT_NATURAL | SORT_FLAG_CASE);
                             <span class="learner-opportunity-ai__icon" aria-hidden="true"><?= learner_icon('sparkles', 22); ?></span>
                             <div>
                                 <h2 id="opportunity-ai-title">Top 3 dự án AI đề xuất cho bạn</h2>
-                                <p>Gemini đối chiếu hồ sơ năng lực và điểm đánh giá của bạn với các dự án thật trên TalentHub.</p>
+                                <p>Gemini đối chiếu hồ sơ năng lực và điểm đánh giá của bạn với các dự án thật trên FTalentHub.</p>
                             </div>
                             <div class="learner-opportunity-ai__header-actions">
                                 <p class="learner-opportunity-ai__status" data-opportunity-ai-status role="status" aria-live="polite">Sẵn sàng phân tích</p>

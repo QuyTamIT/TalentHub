@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace TalentHub\Modules\Teacher\Service;
 
+require_once __DIR__ . '/RubricScoreCalculator.php';
+
 use TalentHub\Http\ApiException;
 use TalentHub\Modules\Teacher\Exception\TeacherGradingConflictException;
 use TalentHub\Modules\Teacher\Repository\TeacherGradingRepository;
@@ -86,11 +88,8 @@ final class TeacherGradingService
 
         $status = $this->status($input['assessmentStatus'] ?? null);
         $overallScore = $this->score($input['overallScore'] ?? null, 0.0, 100.0, 'overallScore', true);
-        if ($status === 'published' && $overallScore === null) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Assessment đã công bố phải có overallScore.');
-        }
-
         $comment = $this->comment($input['comment'] ?? null);
+
         $criteria = $this->repository->activeCriteria();
         $criteriaById = [];
         foreach ($criteria as $criterion) {
@@ -119,8 +118,58 @@ final class TeacherGradingService
                 $criteriaScores[] = ['criteriaId' => $criteriaId, 'score' => $score];
             }
         }
-        if ($status === 'published' && ($criteriaById === [] || count($criteriaScores) !== count($criteriaById))) {
+
+        $scoreMethod = 'teacher_direct';
+        $formulaVersion = null;
+        $calculationJson = null;
+
+        if ($status === 'published' && $criteriaById !== [] && count($criteriaScores) !== count($criteriaById)) {
             throw new ApiException(422, 'VALIDATION_FAILED', 'Assessment đã công bố phải có điểm cho toàn bộ tiêu chí đang active.');
+        }
+
+        $hasNonZeroMin = false;
+        foreach ($criteriaScores as $cs) {
+            $cDef = $criteriaById[$cs['criteriaId']];
+            if ((float) ($cDef['minScore'] ?? 0.0) !== 0.0) {
+                $hasNonZeroMin = true;
+                break;
+            }
+        }
+
+        if ($criteriaScores !== [] && !$hasNonZeroMin) {
+            if ($status === 'published' && ($criteriaById === [] || count($criteriaScores) !== count($criteriaById))) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Assessment đã công bố phải có điểm cho toàn bộ tiêu chí đang active.');
+            }
+
+            try {
+                $calculator = new RubricScoreCalculator();
+                $rubricCriteria = [];
+                foreach ($criteriaScores as $cs) {
+                    $cDef = $criteriaById[$cs['criteriaId']];
+                    $rubricCriteria[] = [
+                        'id' => $cs['criteriaId'],
+                        'code' => (string) ($cDef['code'] ?? $cs['criteriaId']),
+                        'name' => (string) ($cDef['name'] ?? $cs['criteriaId']),
+                        'score' => (float) $cs['score'],
+                        'min' => (float) ($cDef['minScore'] ?? 0.0),
+                        'max' => (float) ($cDef['maxScore'] ?? 100.0),
+                        'weight' => (float) ($cDef['weight'] ?? 1.0),
+                    ];
+                }
+
+                $calcResult = $calculator->calculate($rubricCriteria);
+                // Strict rule: Rubric calculation takes absolute precedence over client overallScore
+                $overallScore = (string) $calcResult['score'];
+                $scoreMethod = RubricScoreCalculator::SCORE_METHOD;
+                $formulaVersion = RubricScoreCalculator::FORMULA_VERSION;
+                $calculationJson = json_encode($calcResult['calculation'], JSON_UNESCAPED_UNICODE);
+            } catch (\InvalidArgumentException $e) {
+                throw new ApiException(422, 'VALIDATION_FAILED', $e->getMessage(), 0, $e);
+            }
+        } else {
+            if ($status === 'published' && $overallScore === null) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Assessment đã công bố phải có overallScore.');
+            }
         }
 
         $this->repository->saveAssessment(
@@ -137,7 +186,10 @@ final class TeacherGradingService
             $userId,
             substr($requestId ?? RequestId::make(null), 0, 26),
             $mode,
-            $this->skillsInput($input['skills'] ?? [])
+            $this->skillsInput($input['skills'] ?? []),
+            $scoreMethod,
+            $formulaVersion,
+            $calculationJson
         );
 
         return $activityId;
@@ -162,6 +214,7 @@ final class TeacherGradingService
             'overallScore' => (string) ($assessment['overallScore'] ?? ''),
             'comment' => $assessment['comment'],
             'criteria' => $assessment['criteria'] ?? [],
+            'skills' => $assessment['skills'] ?? [],
         ], $requestId);
         return ['id' => $assessmentId, 'status' => 'published', 'version' => $expectedVersion + 1];
     }

@@ -148,16 +148,48 @@
 
     function formatTime(value) {
         if (!value) return '';
-        const date = new Date(value);
+        // Theo chuẩn dự án: datetime từ server được lưu ở UTC (MySQL session time_zone='+00:00').
+        // Chuyển 'YYYY-MM-DD HH:MM:SS' → ISO 8601 với 'Z' để JS Date hiểu là UTC.
+        const raw = String(value);
+        let isoString;
+        if (raw.includes('T')) {
+            isoString = raw;
+        } else if (/[+-]\d{2}:?\d{2}$/.test(raw) || /Z$/i.test(raw)) {
+            isoString = raw;
+        } else {
+            isoString = raw.replace(' ', 'T') + 'Z';
+        }
+        const date = new Date(isoString);
         if (Number.isNaN(date.getTime())) return String(value);
-        const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
-        if (minutes < 1) return 'Vừa xong';
-        if (minutes < 60) return `${minutes} phút trước`;
-        const hours = Math.floor(minutes / 60);
-        if (hours < 24) return `${hours} giờ trước`;
-        const days = Math.floor(hours / 24);
-        if (days < 7) return `${days} ngày trước`;
-        return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const diffMs = Date.now() - date.getTime();
+        // Trong tương lai (clock skew) → fallback tuyệt đối theo VN
+        if (diffMs < 0) {
+            return date.toLocaleString('vi-VN', {
+                timeZone: 'Asia/Ho_Chi_Minh',
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+        const diffSec = Math.round(diffMs / 1000);
+        if (diffSec < 45) return 'Vừa xong';
+        if (diffSec < 3600) {
+            const m = Math.floor(diffSec / 60);
+            return `${m} phút trước`;
+        }
+        if (diffSec < 86400) {
+            const h = Math.floor(diffSec / 3600);
+            return `${h} giờ trước`;
+        }
+        if (diffSec < 604800) {
+            const d = Math.floor(diffSec / 86400);
+            return `${d} ngày trước`;
+        }
+        // Quá 7 ngày → hiển thị tuyệt đối theo VN
+        return date.toLocaleString('vi-VN', {
+            timeZone: 'Asia/Ho_Chi_Minh',
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
     }
 
     function showToast(message) {
@@ -329,10 +361,10 @@
                 .replace(/^(Công ty TNHH Phần mềm|Công ty TNHH|Công ty Cổ phần|Công ty CP|Công ty|Tập đoàn|Trường Đại học|Trường Cao đẳng|Trường|Học viện)\s+/i, '')
                 .trim();
 
-            if (!cleanName) cleanName = name.trim() || 'TalentHub';
+            if (!cleanName) cleanName = name.trim() || 'FTalentHub';
 
             const words = cleanName.split(/\s+/).filter(Boolean);
-            let initials = 'TH';
+            let initials = 'FT';
             if (words.length >= 2) {
                 initials = (words[0][0] + words[1][0]).toUpperCase();
             } else if (words.length === 1) {

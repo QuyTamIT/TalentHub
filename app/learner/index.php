@@ -12,13 +12,11 @@ $onboardingPending = ($onboarding['required'] ?? false) === true
     && ($onboarding['status'] ?? '') === 'pending';
 $dashboardUpcomingActivities = array_slice(learner_activity_catalog(), 0, 3);
 $dashboardActivityDateTime = static function (mixed $value): array {
-    $rawValue = trim((string) $value);
-    if ($rawValue === '') {
+    if ($value === null || (is_string($value) && trim($value) === '')) {
         return ['date' => '--/--', 'time' => 'Chưa cập nhật'];
     }
     try {
-        $date = new DateTimeImmutable($rawValue, new DateTimeZone('UTC'));
-        return ['date' => $date->format('d/m'), 'time' => $date->format('H:i')];
+        return tz_split($value);
     } catch (Throwable) {
         return ['date' => '--/--', 'time' => 'Chưa cập nhật'];
     }
@@ -88,8 +86,8 @@ if ($dashboardAiSummary === '') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Tổng quan hành trình phát triển năng lực của <?= learner_escape($student['name']); ?> trên TalentHub.">
-    <title>Tổng quan Học sinh | TalentHub</title>
+    <meta name="description" content="Tổng quan hành trình phát triển năng lực của <?= learner_escape($student['name']); ?> trên FTalentHub.">
+    <title>Tổng quan Học sinh | FTalentHub</title>
     <meta name="csrf-token" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
     <meta name="csrfToken" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
@@ -261,7 +259,7 @@ if ($dashboardAiSummary === '') {
                                         <span><?= learner_escape($activityWhen['time']); ?></span>
                                     </time>
                                     <div>
-                                        <h3><?= learner_escape($activity['title'] ?? 'Hoạt động TalentHub'); ?></h3>
+                                        <h3><?= learner_escape($activity['title'] ?? 'Hoạt động FTalentHub'); ?></h3>
                                         <p><?= learner_icon('map-pin', 14); ?><?= learner_escape($activityLocation); ?></p>
                                         <a href="activity-detail.php?id=<?= rawurlencode($activityId); ?>">Xem chi tiết <?= learner_icon('arrow-right', 14); ?></a>
                                     </div>
@@ -318,7 +316,7 @@ if ($dashboardAiSummary === '') {
         >
             <span class="learner-onboarding__eyebrow">Bước bắt buộc cho tài khoản mới</span>
             <h2 id="onboarding-title">Hoàn thành đánh giá ban đầu</h2>
-            <p id="onboarding-description">Hoàn thành bốn bài đánh giá để TalentHub hiểu sở thích, năng khiếu và cá nhân hóa lộ trình phát triển của bạn.</p>
+            <p id="onboarding-description">Hoàn thành bốn bài đánh giá để FTalentHub hiểu sở thích, năng khiếu và cá nhân hóa lộ trình phát triển của bạn.</p>
             <ul class="learner-onboarding__tests" aria-label="Bốn bài đánh giá bắt buộc">
                 <li>Holland</li>
                 <li>MBTI</li>

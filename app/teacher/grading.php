@@ -6,6 +6,8 @@ require dirname(__DIR__, 2) . '/bin/bootstrap.php';
 use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Bootstrap\PortalGuard;
 use TalentHub\Database\Connection;
+use TalentHub\Modules\Teacher\Repository\TeacherGradingRepository;
+use TalentHub\Modules\Teacher\Service\TeacherGradingService;
 use TalentHub\Rbac\RoleCodes;
 use TalentHub\Support\Uuid;
 
@@ -19,65 +21,12 @@ $session->start();
 $config = require dirname(__DIR__, 2) . '/config/database.php';
 $pdo = (new Connection($config))->connect();
 
-// 2. Đảm bảo đúng 4 tiêu chí cốt lõi (0 - 100 điểm, không đổi trọng số 40/20/20/20)
+// 2. Read the configured rubric without changing its definitions.
 if (!function_exists('ensureAssessmentCriteria')) {
     function ensureAssessmentCriteria(PDO $pdo): array
     {
-        $needed = [
-            [
-                'code' => 'chuyen_mon',
-                'name' => 'Chuyên môn',
-                'description' => 'Kiến thức chuyên môn và kỹ năng thực hành',
-                'minScore' => 0.00,
-                'maxScore' => 100.00,
-                'displayOrder' => 1,
-            ],
-            [
-                'code' => 'sang_tao',
-                'name' => 'Sáng tạo',
-                'description' => 'Tư duy đổi mới và khả năng sáng tạo giải pháp',
-                'minScore' => 0.00,
-                'maxScore' => 100.00,
-                'displayOrder' => 2,
-            ],
-            [
-                'code' => 'ky_luat',
-                'name' => 'Kỷ luật',
-                'description' => 'Tinh thần kỷ luật, tính chuyên cần và trách nhiệm',
-                'minScore' => 0.00,
-                'maxScore' => 100.00,
-                'displayOrder' => 3,
-            ],
-            [
-                'code' => 'lam_viec_nhom',
-                'name' => 'Làm việc nhóm',
-                'description' => 'Khả năng giao tiếp, hợp tác và phối hợp đội nhóm',
-                'minScore' => 0.00,
-                'maxScore' => 100.00,
-                'displayOrder' => 4,
-            ],
-        ];
-
-        try {
-            foreach ($needed as $crit) {
-                $stmt = $pdo->prepare("SELECT id FROM assessment_criteria WHERE code = ? LIMIT 1");
-                $stmt->execute([$crit['code']]);
-                $existingId = $stmt->fetchColumn();
-
-                if (!$existingId) {
-                    $newId = Uuid::v4();
-                    $ins = $pdo->prepare("INSERT INTO assessment_criteria (id, code, name, description, minScore, maxScore, displayOrder, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')");
-                    $ins->execute([$newId, $crit['code'], $crit['name'], $crit['description'], $crit['minScore'], $crit['maxScore'], $crit['displayOrder']]);
-                } else {
-                    $upd = $pdo->prepare("UPDATE assessment_criteria SET name = ?, description = ?, minScore = ?, maxScore = ?, displayOrder = ?, status = 'active' WHERE id = ?");
-                    $upd->execute([$crit['name'], $crit['description'], $crit['minScore'], $crit['maxScore'], $crit['displayOrder'], $existingId]);
-                }
-            }
-
-            $pdo->exec("UPDATE assessment_criteria SET status = 'inactive' WHERE code NOT IN ('chuyen_mon', 'sang_tao', 'ky_luat', 'lam_viec_nhom')");
-        } catch (\Throwable $e) {}
-
-        $stmt = $pdo->prepare("SELECT id, code, name, description, minScore, maxScore, displayOrder FROM assessment_criteria WHERE status = 'active' ORDER BY displayOrder ASC");
+        // Criteria are configuration, not request-time data. This endpoint must be read-only on GET.
+        $stmt = $pdo->prepare("SELECT id, code, name, description, minScore, maxScore, displayOrder FROM assessment_criteria WHERE status = 'active' ORDER BY displayOrder ASC, name ASC");
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -165,73 +114,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $comment = trim((string) ($_POST['comment'] ?? ''));
     $scoresInput = $_POST['criteria'] ?? [];
 
-    $criteriaScores = [];
-    $validCount = 0;
-    $sumScore = 0.0;
-
-    foreach ($activeCriteria as $crit) {
-        $cid = (string) $crit['id'];
-        $rawVal = isset($scoresInput[$cid]) ? trim((string) $scoresInput[$cid]) : '';
-        if ($rawVal !== '' && is_numeric($rawVal)) {
-            $num = max(0.0, min(100.0, (float) $rawVal));
-            $criteriaScores[$cid] = $num;
-            $sumScore += $num;
-            $validCount++;
-        }
-    }
+    // Pass raw values through; the shared service rejects unknown, malformed and out-of-range scores.
+    $serviceCriteria = $scoresInput;
 
     if (!empty($studentId) && !empty($classId)) {
-        $overallScore = $validCount > 0 ? round($sumScore / $validCount, 2) : null;
-        if (isset($_POST['overallScore']) && trim((string) $_POST['overallScore']) !== '') {
-            $overrideScore = max(0.0, min(100.0, (float) $_POST['overallScore']));
-            $overallScore = round($overrideScore, 2);
-        }
-
         try {
-            $pdo->beginTransaction();
-
-            $chkStmt = $pdo->prepare("SELECT id, version, status FROM assessments WHERE teacherId = ? AND studentId = ? AND classId = ? FOR UPDATE");
+            $chkStmt = $pdo->prepare("SELECT id, version, status FROM assessments WHERE teacherId = ? AND studentId = ? AND classId = ? LIMIT 1");
             $chkStmt->execute([$teacherId, $studentId, $classId]);
             $existing = $chkStmt->fetch(PDO::FETCH_ASSOC);
 
-            $assessmentId = '';
-            $publishedAt = ($status === 'published') ? date('Y-m-d H:i:s') : null;
+            $assessmentId = $existing ? (string) $existing['id'] : null;
+            $expectedVersion = $existing ? (int) $existing['version'] : 0;
 
-            if ($existing) {
-                $assessmentId = (string) $existing['id'];
-                $updStmt = $pdo->prepare("
-                    UPDATE assessments
-                    SET overallScore = ?, comment = ?, status = ?, publishedAt = ?, version = version + 1, updatedAt = NOW()
-                    WHERE id = ?
-                ");
-                $updStmt->execute([$overallScore, $comment, $status, $publishedAt, $assessmentId]);
-            } else {
-                $assessmentId = Uuid::v4();
-                $insStmt = $pdo->prepare("
-                    INSERT INTO assessments
-                        (id, teacherId, studentId, classId, activityId, projectId, overallScore, comment, status, publishedAt, version, createdAt, updatedAt)
-                    VALUES
-                        (?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, 1, NOW(), NOW())
-                ");
-                $insStmt->execute([$assessmentId, $teacherId, $studentId, $classId, $overallScore, $comment, $status, $publishedAt]);
-            }
+            $gradingRepo = new TeacherGradingRepository($pdo);
+            $gradingService = new TeacherGradingService($gradingRepo);
 
-            // Lưu điểm từng tiêu chí vào assessment_scores
-            $delScores = $pdo->prepare("DELETE FROM assessment_scores WHERE assessmentId = ?");
-            $delScores->execute([$assessmentId]);
+            $gradingService->save((string) $user['id'], [
+                'mode' => 'class',
+                'contextId' => $classId,
+                'studentId' => $studentId,
+                'assessmentId' => $assessmentId,
+                'expectedVersion' => (string) $expectedVersion,
+                'assessmentStatus' => $status,
+                'comment' => $comment,
+                'criteria' => $serviceCriteria,
+            ]);
 
-            $insScore = $pdo->prepare("INSERT INTO assessment_scores (id, assessmentId, criteriaId, score, createdAt, updatedAt) VALUES (?, ?, ?, ?, NOW(), NOW())");
-            foreach ($criteriaScores as $cid => $scVal) {
-                $insScore->execute([Uuid::v4(), $assessmentId, $cid, $scVal]);
-            }
-
-            // Nếu gửi đánh giá (published) thì đồng bộ điểm vào student_profiles
-            if ($status === 'published' && $overallScore !== null) {
-                $updStudent = $pdo->prepare("UPDATE student_profiles SET talentScore = ?, updatedAt = NOW() WHERE id = ?");
-                $updStudent->execute([$overallScore, $studentId]);
-            }
-
-            $pdo->commit();
+            // Query back the saved assessment to retrieve backend-calculated overallScore and assessmentId
+            $fetchSaved = $pdo->prepare("SELECT id, overallScore FROM assessments WHERE teacherId = ? AND studentId = ? AND classId = ? LIMIT 1");
+            $fetchSaved->execute([$teacherId, $studentId, $classId]);
+            $savedRow = $fetchSaved->fetch(PDO::FETCH_ASSOC);
+            $assessmentId = $savedRow ? (string) $savedRow['id'] : ($assessmentId ?? '');
+            $overallScore = ($savedRow && is_numeric($savedRow['overallScore'])) ? (float) $savedRow['overallScore'] : null;
 
             $stName = 'Học viên';
             try {
@@ -261,12 +175,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ' . app_href('/app/teacher/grading.php') . '?student_id=' . urlencode($studentId) . $classQuery);
             exit;
         } catch (\Throwable $e) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
             if ($isAjax) {
                 header('Content-Type: application/json; charset=utf-8');
-                http_response_code(500);
+                http_response_code(400);
                 echo json_encode(['success' => false, 'message' => 'Lỗi lưu dữ liệu: ' . $e->getMessage()]);
                 exit;
             }
@@ -437,7 +348,7 @@ if ($selectedStudent) {
     }
 }
 
-$pageTitle = 'Chấm điểm - TalentHub';
+$pageTitle = 'Chấm điểm - FTalentHub';
 $currentRoute = 'assessments';
 
 $sidebarNav = [
@@ -466,13 +377,24 @@ if (!function_exists('getInitials')) {
         return mb_strtoupper(mb_substr($name, 0, 2)) ?: 'HV';
     }
 }
+
+if (!function_exists('getStudentSingleInitial')) {
+    function getStudentSingleInitial(string $name): string {
+        $words = preg_split('/\s+/', trim($name));
+        if (!empty($words)) {
+            $lastWord = end($words);
+            return mb_strtoupper(mb_substr($lastWord, 0, 1));
+        }
+        return 'A';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chấm điểm | TalentHub</title>
+    <title>Chấm điểm | FTalentHub</title>
 
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
@@ -490,10 +412,10 @@ if (!function_exists('getInitials')) {
             gap: 0.75rem;
         }
         .grading-main-title {
-            font-size: 1.5rem;
+            font-size: 1.65rem;
             font-weight: 800;
             color: #0F172A;
-            margin: 0 0 0.25rem 0;
+            margin: 0 0 0.35rem 0;
             letter-spacing: -0.01em;
         }
         .grading-subtitle {
@@ -503,10 +425,10 @@ if (!function_exists('getInitials')) {
             font-weight: 500;
         }
 
-        /* 2. Bố cục chính theo Slide: HÀNG CHỜ (trái) + ĐANG CHẤM (phải) */
+        /* 2. Bố cục 2 Panel theo Slide: HÀNG CHỜ (trái) | ĐANG CHẤM (phải) */
         .grading-layout-grid {
             display: grid;
-            grid-template-columns: 320px 1fr;
+            grid-template-columns: 310px 1fr;
             gap: 1.5rem;
             align-items: start;
         }
@@ -516,376 +438,384 @@ if (!function_exists('getInitials')) {
             }
         }
 
-        /* KHU VỰC BÊN TRÁI — HÀNG CHỜ */
-        .queue-box {
-            background: #FFFFFF;
-            border: 1px solid #E2E8F0;
-            border-radius: 10px;
-            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-            overflow: hidden;
-        }
-        .queue-box-header {
-            padding: 0.9rem 1.15rem;
-            background: #F8FAFC;
-            border-bottom: 1px solid #E2E8F0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .queue-box-title {
-            font-size: 0.85rem;
-            font-weight: 800;
-            color: #0F172A;
+        .panel-section-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #94A3B8;
             letter-spacing: 0.05em;
             text-transform: uppercase;
+            margin-bottom: 0.85rem;
+            padding-left: 0.2rem;
         }
-        .queue-box-badge {
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: #64748B;
-            background: #E2E8F0;
-            padding: 0.15rem 0.5rem;
-            border-radius: 9999px;
+
+        /* KHU VỰC BÊN TRÁI — HÀNG CHỜ */
+        .queue-box,
+        .queue-panel {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 14px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+            padding: 1.25rem;
         }
         .queue-items-list {
-            max-height: 620px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            max-height: 560px;
             overflow-y: auto;
+        }
+        .queue-items-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        .queue-items-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .queue-items-list::-webkit-scrollbar-thumb {
+            background: #E2E8F0;
+            border-radius: 9999px;
         }
         .queue-card-item {
             display: block;
-            padding: 0.9rem 1.15rem;
-            border-bottom: 1px solid #F1F5F9;
+            padding: 0.75rem 0.95rem;
+            border-radius: 10px;
             text-decoration: none;
-            color: inherit;
-            transition: background-color 0.12s ease;
-            border-left: 3px solid transparent;
+            color: #0F172A;
+            transition: all 0.15s ease;
+            background: transparent;
+            border: none;
         }
         .queue-card-item:hover {
             background: #FFF7ED;
         }
         .queue-card-item.is-selected {
-            background: #FFF7ED;
-            border-left-color: #F97316;
+            background: #FA6400;
+            color: #FFFFFF;
+            box-shadow: 0 2px 8px rgba(250, 100, 0, 0.22);
         }
         .queue-card-name {
-            font-size: 0.92rem;
+            font-size: 0.94rem;
             font-weight: 700;
             color: #0F172A;
             margin-bottom: 0.2rem;
+            line-height: 1.3;
         }
-        .queue-card-activity {
-            font-size: 0.82rem;
-            color: #475569;
-            margin-bottom: 0.35rem;
+        .queue-card-item.is-selected .queue-card-name {
+            color: #FFFFFF;
+        }
+        .queue-card-meta {
+            font-size: 0.78rem;
+            color: #64748B;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            line-height: 1.2;
         }
-        .queue-card-bottom {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 0.78rem;
+        .queue-card-act {
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .queue-card-time {
-            color: #94A3B8;
-            font-weight: 500;
+        .queue-card-item.is-selected .queue-card-meta {
+            color: rgba(255, 255, 255, 0.88);
         }
-
-        /* Status Badges */
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.18rem 0.55rem;
-            border-radius: 9999px;
-            font-size: 0.72rem;
-            font-weight: 700;
-            white-space: nowrap;
-        }
-        .status-badge--unassessed {
-            background: #F1F5F9;
-            color: #475569;
-            border: 1px solid #E2E8F0;
-        }
-        .status-badge--draft {
-            background: #FEF3C7;
-            color: #B45309;
-            border: 1px solid #FDE68A;
-        }
-        .status-badge--published {
-            background: #DCFCE7;
-            color: #15803D;
-            border: 1px solid #BBF7D0;
+        .queue-meta-sep {
+            opacity: 0.65;
         }
 
         /* KHU VỰC BÊN PHẢI — ĐANG CHẤM */
         .eval-workspace-panel {
             background: #FFFFFF;
             border: 1px solid #E2E8F0;
-            border-radius: 10px;
-            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+            border-radius: 14px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
             padding: 1.5rem;
         }
 
-        /* Thông tin học viên đang chấm */
+        /* Header học viên: Tên + Meta (Trái) & Avatar tròn cam (Phải) */
         .eval-student-card {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 1rem;
-            padding-bottom: 1.15rem;
-            border-bottom: 1px solid #F1F5F9;
+            padding-bottom: 1.35rem;
             margin-bottom: 1.25rem;
-            flex-wrap: wrap;
         }
-        .eval-student-left {
+        .eval-student-info {
+            flex: 1;
+        }
+        .eval-student-name {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #0F172A;
+            margin: 0 0 0.25rem 0;
+            letter-spacing: -0.01em;
+        }
+        .eval-student-meta {
+            font-size: 0.84rem;
+            color: #64748B;
             display: flex;
             align-items: center;
-            gap: 0.85rem;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+        }
+        .eval-meta-sep {
+            color: #CBD5E1;
         }
         .eval-student-avatar {
             width: 44px;
             height: 44px;
             border-radius: 50%;
-            background: #FFF7ED;
-            color: #EA580C;
-            border: 1.5px solid #FED7AA;
+            background: #FA6400;
+            color: #FFFFFF;
             font-weight: 800;
-            font-size: 0.95rem;
+            font-size: 1.15rem;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-        }
-        .eval-student-name {
-            font-size: 1.15rem;
-            font-weight: 800;
-            color: #0F172A;
-            margin: 0 0 0.15rem 0;
-        }
-        .eval-student-meta {
-            font-size: 0.82rem;
-            color: #64748B;
-            display: flex;
-            align-items: center;
-            gap: 0.45rem;
-            flex-wrap: wrap;
-        }
-        .eval-student-meta strong {
-            color: #334155;
-            font-weight: 600;
-        }
-        .eval-meta-sep {
-            color: #CBD5E1;
+            box-shadow: 0 2px 8px rgba(250, 100, 0, 0.25);
         }
 
-        /* 4 TIÊU CHÍ (Thanh kéo nhỏ gọn, hiện đại 0–100) */
+        /* 4 TIÊU CHÍ (Horizontal sliders 0–100 theo chuẩn Slide) */
         .criteria-container {
-            margin-bottom: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.15rem;
+            margin-bottom: 1.35rem;
+            border: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
         }
-        .criteria-header-row {
+        .criterion-slider-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .criterion-row-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.75rem;
         }
-        .criteria-title {
-            font-size: 0.85rem;
-            font-weight: 800;
-            color: #0F172A;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .criteria-scale-note {
-            font-size: 0.75rem;
-            color: #64748B;
-            font-weight: 600;
-        }
-
-        /* Lưới 2x2 cân đối, gọn nhẹ trên desktop, 1 cột trên mobile */
-        .criteria-sliders-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.75rem;
-        }
-        @media (max-width: 640px) {
-            .criteria-sliders-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .criterion-slider-card {
-            background: #F8FAFC;
-            border: 1px solid #E2E8F0;
-            border-radius: 8px;
-            padding: 0.7rem 0.95rem;
-            transition: all 0.15s ease;
-        }
-        .criterion-slider-card:focus-within,
-        .criterion-slider-card:hover {
-            border-color: #FED7AA;
-            background: #FFFFFF;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-        }
-
-        .criterion-card-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.45rem;
-        }
-        .criterion-card-label {
-            font-size: 0.88rem;
+        .criterion-name {
+            font-size: 0.9rem;
             font-weight: 700;
-            color: #1E293B;
+            color: #0F172A;
+            cursor: pointer;
+            margin: 0;
+            padding: 0;
         }
         .criterion-score-badge {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #475569;
             user-select: none;
             white-space: nowrap;
-            font-size: 0.82rem;
-            color: #64748B;
         }
         .criterion-score-val {
-            font-size: 1.05rem;
+            font-size: 0.92rem;
             font-weight: 800;
-            color: #EA580C;
-            transition: color 0.12s ease;
+            color: #0F172A;
         }
         .criterion-score-val.is-unset {
             color: #94A3B8;
             font-weight: 600;
         }
         .criterion-score-max {
-            font-size: 0.78rem;
-            color: #94A3B8;
+            font-size: 0.82rem;
+            color: #64748B;
             font-weight: 600;
         }
 
-        /* Range input styling: thanh kéo nhỏ gọn, mượt mà */
+        /* Range input styling theo chuẩn slide khách hàng:
+           Đường ngang mảnh 4px + thumb nhỏ tròn 11px, tuyệt đối không khối hộp dày, không viền, không outline */
         .criterion-slider-track {
             display: flex;
             align-items: center;
+            width: 100%;
+            height: auto;
+            min-height: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
         }
         .criterion-range-slider {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
             width: 100%;
+            height: 4px !important;
+            min-height: 0 !important;
+            max-height: 4px !important;
+            background: #EEF2F6;
+            border-radius: 2px !important;
+            outline: none !important;
+            outline-offset: 0 !important;
+            box-shadow: none !important;
+            -webkit-box-shadow: none !important;
+            cursor: pointer;
+            margin: 6px 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-sizing: border-box !important;
+            display: block;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .criterion-range-slider:focus,
+        .criterion-range-slider:focus-visible,
+        .criterion-range-slider:active,
+        .criterion-range-slider:focus-within {
+            outline: none !important;
+            outline-offset: 0 !important;
+            box-shadow: none !important;
+            -webkit-box-shadow: none !important;
+            border: none !important;
+        }
+        .criterion-range-slider::-webkit-slider-runnable-track {
             -webkit-appearance: none;
             appearance: none;
-            height: 6px;
-            border-radius: 3px;
-            background: #E2E8F0;
-            outline: none;
-            transition: background 0.12s ease;
-            cursor: pointer;
-            margin: 0;
+            width: 100%;
+            height: 4px !important;
+            min-height: 4px !important;
+            max-height: 4px !important;
+            border-radius: 2px !important;
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            box-sizing: border-box !important;
+        }
+        .criterion-range-slider::-moz-range-track {
+            width: 100%;
+            height: 4px !important;
+            min-height: 4px !important;
+            max-height: 4px !important;
+            border-radius: 2px !important;
+            background: #EEF2F6;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            box-sizing: border-box !important;
+        }
+        .criterion-range-slider::-moz-range-progress {
+            background: transparent;
+            height: 4px !important;
+            border-radius: 2px !important;
         }
         .criterion-range-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 16px;
-            height: 16px;
+            box-sizing: border-box;
+            width: 11px;
+            height: 11px;
             border-radius: 50%;
-            background: #F97316;
+            background: #FA6400;
             cursor: pointer;
-            border: 2px solid #FFFFFF;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
-            transition: transform 0.12s ease, background 0.12s ease;
+            border: 1.5px solid #FFFFFF;
+            outline: none !important;
+            box-shadow: none !important;
+            -webkit-box-shadow: none !important;
+            margin-top: -3.5px;
+            transition: background-color 0.15s ease;
         }
         .criterion-range-slider::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
-            background: #EA580C;
+            background: #E05300;
         }
         .criterion-range-slider::-moz-range-thumb {
-            width: 16px;
-            height: 16px;
+            box-sizing: border-box;
+            width: 11px;
+            height: 11px;
             border-radius: 50%;
-            background: #F97316;
+            background: #FA6400;
             cursor: pointer;
-            border: 2px solid #FFFFFF;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+            border: 1.5px solid #FFFFFF;
+            outline: none !important;
+            box-shadow: none !important;
+            transition: background-color 0.15s ease;
+        }
+        .criterion-range-slider::-moz-range-thumb:hover {
+            background: #E05300;
+        }
+        .criterion-range-slider:active::-webkit-slider-thumb {
+            cursor: grabbing;
+        }
+        .criterion-range-slider:active::-moz-range-thumb {
+            cursor: grabbing;
         }
         .criterion-range-slider[data-has-value="0"]::-webkit-slider-thumb {
-            background: #94A3B8;
+            background: #CBD5E1;
+            border: 1.5px solid #FFFFFF;
         }
         .criterion-range-slider[data-has-value="0"]::-moz-range-thumb {
-            background: #94A3B8;
+            background: #CBD5E1;
+            border: 1.5px solid #FFFFFF;
+        }
+        .criterion-range-slider:focus::-webkit-slider-thumb,
+        .criterion-range-slider:focus-visible::-webkit-slider-thumb,
+        .criterion-range-slider:focus::-moz-range-thumb,
+        .criterion-range-slider:focus-visible::-moz-range-thumb {
+            outline: none !important;
+            box-shadow: none !important;
         }
 
-        /* 5. ĐIỂM TỔNG KẾT */
-        .overall-score-indicator {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #FFF7ED;
-            border: 1px solid #FFEDD5;
-            padding: 0.75rem 1.15rem;
-            border-radius: 8px;
-            margin-bottom: 1.25rem;
-        }
-        .overall-score-title {
-            font-size: 0.85rem;
-            font-weight: 800;
-            color: #9A3412;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-        }
-        .overall-score-display {
-            font-size: 1.35rem;
-            font-weight: 800;
-            color: #EA580C;
-            white-space: nowrap;
-        }
-        .overall-score-unit {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #C2410C;
-        }
-
-        /* 6. NHẬN XÉT */
+        /* 6. NHẬN XÉT COMPACT THEO SLIDE */
         .comment-section {
             margin-bottom: 1.25rem;
         }
         .comment-label {
             display: block;
-            font-size: 0.82rem;
-            font-weight: 800;
-            color: #0F172A;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: #1E293B;
             margin-bottom: 0.45rem;
         }
         .comment-textarea {
             width: 100%;
-            min-height: 85px;
-            padding: 0.65rem 0.8rem;
-            border: 1.5px solid #CBD5E1;
+            min-height: 80px;
+            height: 80px;
+            padding: 0.75rem 0.9rem;
+            border: 1px solid #FED7AA;
             border-radius: 8px;
             font-size: 0.88rem;
             color: #0F172A;
             line-height: 1.45;
             resize: vertical;
-            background: #FFFFFF;
+            background: #FFFBF7;
             box-sizing: border-box;
             font-family: inherit;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
         .comment-textarea:focus {
             outline: none;
-            border-color: #F97316;
-            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+            border-color: #FB923C;
+            box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.15);
+        }
+        .comment-textarea::placeholder {
+            color: #94A3B8;
         }
 
-        /* 7. NÚT THAO TÁC (Lưu nháp | Gửi đánh giá) */
+        /* NÚT THAO TÁC Ở CUỐI PANEL */
         .action-buttons-footer {
             display: flex;
             justify-content: flex-end;
             gap: 0.75rem;
             align-items: center;
-            padding-top: 1.15rem;
-            border-top: 1px solid #F1F5F9;
+            padding-top: 0.5rem;
         }
         .btn-draft {
-            padding: 0.6rem 1.3rem;
-            border: 1.5px solid #CBD5E1;
-            border-radius: 6px;
+            padding: 0.6rem 1.4rem;
+            border: 1px solid #CBD5E1;
+            border-radius: 9999px;
             background: #FFFFFF;
             color: #334155;
             font-weight: 700;
@@ -894,23 +824,27 @@ if (!function_exists('getInitials')) {
             transition: all 0.15s ease;
         }
         .btn-draft:hover {
-            background: #F1F5F9;
+            background: #F8FAFC;
             border-color: #94A3B8;
         }
         .btn-submit {
-            padding: 0.6rem 1.5rem;
+            padding: 0.6rem 1.4rem;
             border: none;
-            border-radius: 6px;
-            background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+            border-radius: 9999px;
+            background: #FA6400;
             color: #FFFFFF;
             font-weight: 700;
             font-size: 0.88rem;
             cursor: pointer;
-            box-shadow: 0 2px 6px rgba(249, 115, 22, 0.28);
+            box-shadow: 0 2px 6px rgba(250, 100, 0, 0.25);
             transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
         }
         .btn-submit:hover {
-            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.38);
+            background: #EA580C;
+            box-shadow: 0 4px 12px rgba(250, 100, 0, 0.35);
             transform: translateY(-1px);
         }
     </style>
@@ -969,11 +903,8 @@ if (!function_exists('getInitials')) {
                     <div class="grading-layout-grid">
 
                         <!-- 2. KHU VỰC BÊN TRÁI — HÀNG CHỜ -->
-                        <div class="queue-box">
-                            <div class="queue-box-header">
-                                <span class="queue-box-title">Hàng chờ</span>
-                                <span class="queue-box-badge"><?= count($students); ?> bài</span>
-                            </div>
+                        <div class="queue-panel">
+                            <div class="panel-section-label">HÀNG CHỜ</div>
 
                             <div class="queue-items-list" id="queueListWrapper">
                                 <?php foreach ($students as $st): 
@@ -1000,21 +931,13 @@ if (!function_exists('getInitials')) {
                                         <div class="queue-card-name">
                                             <?= htmlspecialchars($st['fullName']); ?>
                                         </div>
-                                        <div class="queue-card-activity" title="<?= htmlspecialchars($actTitle); ?>">
-                                            <?= htmlspecialchars($actTitle); ?>
-                                        </div>
-                                        <div class="queue-card-bottom">
+                                        <div class="queue-card-meta">
+                                            <span class="queue-card-act" title="<?= htmlspecialchars($actTitle); ?>"><?= htmlspecialchars($actTitle); ?></span>
+                                            <span class="queue-meta-sep">•</span>
                                             <span class="queue-card-time"><?= htmlspecialchars($relTime); ?></span>
-                                            <div>
-                                                <?php if ($stStatus === 'published'): ?>
-                                                    <span class="status-badge status-badge--published">Đã đánh giá</span>
-                                                <?php elseif ($stStatus === 'draft'): ?>
-                                                    <span class="status-badge status-badge--draft">Bản nháp</span>
-                                                <?php else: ?>
-                                                    <span class="status-badge status-badge--unassessed">Chưa đánh giá</span>
-                                                <?php endif; ?>
-                                            </div>
                                         </div>
+                                        <!-- Giữ badge ẩn để JS cập nhật không bị lỗi -->
+                                        <span class="status-badge status-badge--<?= htmlspecialchars($stStatus); ?>" style="display: none;"><?= $stStatus === 'published' ? 'Đã đánh giá' : ($stStatus === 'draft' ? 'Bản nháp' : 'Chưa đánh giá'); ?></span>
                                     </a>
                                 <?php endforeach; ?>
                             </div>
@@ -1022,6 +945,7 @@ if (!function_exists('getInitials')) {
 
                         <!-- 3. KHU VỰC BÊN PHẢI — ĐANG CHẤM -->
                         <div class="eval-workspace-panel">
+                            <div class="panel-section-label">ĐANG CHẤM</div>
                             <?php if (!$selectedStudent): ?>
                                 <div style="text-align: center; padding: 3rem 1rem; color: #64748B;">
                                     Vui lòng chọn một bài đánh giá từ hàng chờ để tiến hành chấm điểm.
@@ -1052,112 +976,102 @@ if (!function_exists('getInitials')) {
                                     <input type="hidden" name="className" value="<?= htmlspecialchars($activeClassName); ?>">
                                     <input type="hidden" name="action" id="gradingActionInput" value="save_draft">
 
-                                    <!-- Thông tin học viên đang chấm: Avatar, Tên, Hoạt động, Thời gian, Trạng thái -->
+                                    <!-- Thông tin học viên đang chấm: Tên + Meta bên trái, Avatar tròn chữ cái bên phải -->
                                     <div class="eval-student-card">
-                                        <div class="eval-student-left">
-                                            <div class="eval-student-avatar">
-                                                <?= htmlspecialchars(getInitials($selectedStudent['fullName'])); ?>
-                                            </div>
-                                            <div>
-                                                <h2 class="eval-student-name"><?= htmlspecialchars($selectedStudent['fullName']); ?></h2>
-                                                <div class="eval-student-meta">
-                                                    <strong><?= htmlspecialchars($curActTitle); ?></strong>
-                                                    <span class="eval-meta-sep">•</span>
-                                                    <span><?= htmlspecialchars($curRelTime); ?></span>
-                                                </div>
+                                        <div class="eval-student-info">
+                                            <h2 class="eval-student-name"><?= htmlspecialchars($selectedStudent['fullName']); ?></h2>
+                                            <div class="eval-student-meta">
+                                                <span><?= htmlspecialchars($curActTitle); ?></span>
+                                                <span class="eval-meta-sep">•</span>
+                                                <span><?= htmlspecialchars($curRelTime); ?></span>
                                             </div>
                                         </div>
+                                        <div class="eval-student-avatar">
+                                            <?= htmlspecialchars(getStudentSingleInitial($selectedStudent['fullName'])); ?>
+                                        </div>
 
-                                        <div id="evalStatusTagContainer">
-                                            <?php if ($curStatus === 'published'): ?>
-                                                <span class="status-badge status-badge--published" style="font-size: 0.8rem; padding: 0.25rem 0.65rem;">Đã đánh giá</span>
-                                            <?php elseif ($curStatus === 'draft'): ?>
-                                                <span class="status-badge status-badge--draft" style="font-size: 0.8rem; padding: 0.25rem 0.65rem;">Bản nháp</span>
-                                            <?php else: ?>
-                                                <span class="status-badge status-badge--unassessed" style="font-size: 0.8rem; padding: 0.25rem 0.65rem;">Chưa đánh giá</span>
-                                            <?php endif; ?>
+                                        <div id="evalStatusTagContainer" style="display: none;">
+                                            <span class="status-badge status-badge--<?= htmlspecialchars($curStatus); ?>"><?= $curStatus === 'published' ? 'Đã đánh giá' : ($curStatus === 'draft' ? 'Bản nháp' : 'Chưa đánh giá'); ?></span>
                                         </div>
                                     </div>
 
-                                    <!-- 4. 4 TIÊU CHÍ (Thanh kéo nhỏ gọn, hiện đại 0–100) -->
+                                    <!-- 4. 4 TIÊU CHÍ (Thanh kéo horizontal slider 0–100 gọn gàng theo slide) -->
                                     <div class="criteria-container">
-                                        <div class="criteria-header-row">
-                                            <span class="criteria-title">Tiêu chí đánh giá</span>
-                                            <span class="criteria-scale-note">Thang điểm: 0 – 100</span>
-                                        </div>
-
-                                        <div class="criteria-sliders-grid">
-                                            <?php foreach ($activeCriteria as $crit): 
-                                                $cid = (string) $crit['id'];
-                                                $hasSaved = isset($studentSavedScores[$cid]);
-                                                $savedScoreVal = $hasSaved ? (float) $studentSavedScores[$cid] : null;
-                                            ?>
-                                                <div class="criterion-slider-card">
-                                                    <div class="criterion-card-top">
-                                                        <label class="criterion-card-label" for="slider_<?= htmlspecialchars($cid); ?>">
-                                                            <?= htmlspecialchars($crit['name']); ?>
-                                                        </label>
-                                                        <div class="criterion-score-badge">
-                                                            <strong id="val_display_<?= htmlspecialchars($cid); ?>" 
-                                                                    class="criterion-score-val <?= $savedScoreVal === null ? 'is-unset' : ''; ?>">
-                                                                <?= $savedScoreVal !== null ? (int)$savedScoreVal : '—'; ?>
-                                                            </strong>
-                                                            <span class="criterion-score-max"> / 100</span>
-                                                        </div>
-                                                    </div>
-                                                    <div class="criterion-slider-track">
-                                                        <input type="range" 
-                                                               class="criterion-range-slider"
-                                                               id="slider_<?= htmlspecialchars($cid); ?>"
-                                                               min="0" 
-                                                               max="100" 
-                                                               step="1"
-                                                               value="<?= $savedScoreVal !== null ? (int)$savedScoreVal : 0; ?>"
-                                                               data-has-value="<?= $savedScoreVal !== null ? '1' : '0'; ?>"
-                                                               data-cid="<?= htmlspecialchars($cid); ?>"
-                                                               oninput="handleSliderInput(this)">
-                                                        
-                                                        <input type="hidden" 
-                                                               id="crit_hidden_<?= htmlspecialchars($cid); ?>"
-                                                               name="criteria[<?= htmlspecialchars($cid); ?>]"
-                                                               value="<?= $savedScoreVal !== null ? (int)$savedScoreVal : ''; ?>"
-                                                               <?= $savedScoreVal !== null ? '' : 'disabled'; ?>>
+                                        <?php 
+                                        $criteriaWeights = [
+                                            'chuyen_mon' => 40,
+                                            'sang_tao' => 20,
+                                            'ky_luat' => 20,
+                                            'lam_viec_nhom' => 20,
+                                        ];
+                                        foreach ($activeCriteria as $crit): 
+                                            $cid = (string) $crit['id'];
+                                            $hasSaved = isset($studentSavedScores[$cid]);
+                                            $savedScoreVal = $hasSaved ? (float) $studentSavedScores[$cid] : null;
+                                            $cWeight = $criteriaWeights[$crit['code']] ?? null;
+                                        ?>
+                                            <div class="criterion-slider-row">
+                                                <div class="criterion-row-top">
+                                                    <label class="criterion-name" for="slider_<?= htmlspecialchars($cid); ?>">
+                                                        <?= htmlspecialchars($crit['name']); ?>
+                                                    </label>
+                                                    <div class="criterion-score-badge">
+                                                        <strong id="val_display_<?= htmlspecialchars($cid); ?>" 
+                                                                class="criterion-score-val <?= $savedScoreVal === null ? 'is-unset' : ''; ?>">
+                                                            <?= $savedScoreVal !== null ? (int)$savedScoreVal : '—'; ?>
+                                                        </strong>
+                                                        <span class="criterion-score-max"> / 100</span>
                                                     </div>
                                                 </div>
-                                            <?php endforeach; ?>
-                                        </div>
+                                                <div class="criterion-slider-track">
+                                                    <input type="range" 
+                                                           class="criterion-range-slider"
+                                                           id="slider_<?= htmlspecialchars($cid); ?>"
+                                                           min="0" 
+                                                           max="100" 
+                                                           step="1"
+                                                           value="<?= $savedScoreVal !== null ? (int)$savedScoreVal : 0; ?>"
+                                                           data-has-value="<?= $savedScoreVal !== null ? '1' : '0'; ?>"
+                                                           data-cid="<?= htmlspecialchars($cid); ?>"
+                                                           oninput="handleSliderInput(this)">
+                                                    
+                                                    <input type="hidden" 
+                                                           id="crit_hidden_<?= htmlspecialchars($cid); ?>"
+                                                           name="criteria[<?= htmlspecialchars($cid); ?>]"
+                                                           value="<?= $savedScoreVal !== null ? (int)$savedScoreVal : ''; ?>"
+                                                           <?= $savedScoreVal !== null ? '' : 'disabled'; ?>>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
                                     </div>
 
-                                    <!-- 5. ĐIỂM TỔNG KẾT (Tính từ 4 tiêu chí thật) -->
-                                    <div class="overall-score-indicator">
-                                        <span class="overall-score-title">Điểm tổng kết</span>
-                                        <div class="overall-score-display">
-                                            <span id="liveOverallScoreVal">
-                                                <?= $curOverallScore !== null ? number_format($curOverallScore, 1) : '—'; ?>
-                                            </span>
-                                            <span class="overall-score-unit" id="liveOverallScoreUnit" style="<?= $curOverallScore !== null ? '' : 'display:none;'; ?>">
-                                                / 100
-                                            </span>
-                                        </div>
-                                        <input type="hidden" name="overallScore" id="overallScoreHidden" value="<?= $curOverallScore !== null ? $curOverallScore : ''; ?>">
+                                    <!-- Giữ hidden overall score để logic tính toán và lưu DB không đổi -->
+                                    <div style="display: none;">
+                                        <span id="liveOverallScoreVal"><?= $curOverallScore !== null ? number_format($curOverallScore, 1) : '—'; ?></span>
+                                        <span id="liveOverallScoreUnit">/ 100</span>
                                     </div>
+                                    <input type="hidden" name="overallScore" id="overallScoreHidden" value="<?= $curOverallScore !== null ? $curOverallScore : ''; ?>">
 
-                                    <!-- 6. NHẬN XÉT -->
+                                    <!-- 6. NHẬN XÉT COMPACT -->
                                     <div class="comment-section">
                                         <label class="comment-label" for="teacherCommentField">Nhận xét</label>
                                         <textarea class="comment-textarea" 
                                                   id="teacherCommentField" 
                                                   name="comment" 
-                                                  placeholder="Nhập nhận xét của giáo viên..."><?= htmlspecialchars($curComment); ?></textarea>
+                                                  placeholder="Ghi nhận tiến bộ, góp ý cải thiện..."><?= htmlspecialchars($curComment); ?></textarea>
                                     </div>
 
-                                    <!-- 7. NÚT THAO TÁC (Lưu nháp | Gửi đánh giá) -->
+                                    <!-- 7. NÚT THAO TÁC Ở CUỐI PANEL -->
                                     <div class="action-buttons-footer">
                                         <button type="button" class="btn-draft" onclick="executeGradingAction('save_draft')">
                                             Lưu nháp
                                         </button>
                                         <button type="button" class="btn-submit" onclick="executeGradingAction('submit_assessment')">
-                                            Gửi đánh giá
+                                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <polyline points="16 9 10 15 7 12"></polyline>
+                                            </svg>
+                                            <span>Gửi đánh giá</span>
                                         </button>
                                     </div>
                                 </form>
@@ -1172,18 +1086,18 @@ if (!function_exists('getInitials')) {
     </div>
 
     <script>
-        // Cập nhật gradient màu fill của thanh trượt slider
+        // Cập nhật gradient màu fill của thanh trượt slider (cam TalentHub dịu + xám nhạt)
         function updateSliderFill(slider) {
             const hasVal = slider.getAttribute('data-has-value') === '1';
             if (!hasVal) {
-                slider.style.background = '#E2E8F0';
+                slider.style.background = '#EEF2F6';
                 return;
             }
             const min = parseFloat(slider.min) || 0;
             const max = parseFloat(slider.max) || 100;
             const val = parseFloat(slider.value) || 0;
             const pct = ((val - min) / (max - min)) * 100;
-            slider.style.background = `linear-gradient(to right, #F97316 0%, #F97316 ${pct}%, #E2E8F0 ${pct}%, #E2E8F0 100%)`;
+            slider.style.background = `linear-gradient(to right, #FA6400 0%, #FA6400 ${pct}%, #EEF2F6 ${pct}%, #EEF2F6 100%)`;
         }
 
         // Khi người dùng tương tác với slider

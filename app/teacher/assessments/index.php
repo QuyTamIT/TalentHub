@@ -21,8 +21,6 @@ date_default_timezone_set('Asia/Ho_Chi_Minh');
 
 require __DIR__ . '/page-state.php';
 
-header('Location: ' . (function_exists('app_href') ? app_href('/app/teacher/grading.php') : '/app/teacher/grading.php'));
-exit;
 
 function teacherGradingLogUnexpected(string $stage, Throwable $exception, string $requestId): void
 {
@@ -267,7 +265,7 @@ function teacherGradingInitials(string $name): string
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $escape($pageTitle); ?> | TalentHub</title>
+    <title><?= $escape($pageTitle); ?> | FTalentHub</title>
     <link rel="stylesheet" href="../../../assets/css/home.css">
     <link rel="stylesheet" href="../../../assets/css/global.css">
     <link rel="stylesheet" href="../../../assets/css/brand-component.css">

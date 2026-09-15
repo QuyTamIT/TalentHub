@@ -225,8 +225,8 @@ $statusClasses = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Quản lý phiên QR cho các hoạt động đang diễn ra do giáo viên phụ trách trên TalentHub.">
-    <title><?= teacherQrEscape($pageTitle); ?> | TalentHub</title>
+    <meta name="description" content="Quản lý phiên QR cho các hoạt động đang diễn ra do giáo viên phụ trách trên FTalentHub.">
+    <title><?= teacherQrEscape($pageTitle); ?> | FTalentHub</title>
     <link rel="stylesheet" href="../../../assets/css/home.css">
     <link rel="stylesheet" href="../../../assets/css/global.css">
     <link rel="stylesheet" href="../../../assets/css/brand-component.css">

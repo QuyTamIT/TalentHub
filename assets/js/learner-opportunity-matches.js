@@ -292,7 +292,7 @@
         const header = element('header', 'learner-opportunity-ai-card__header');
         const identity = element('div', 'learner-opportunity-ai-card__identity');
         identity.appendChild(element('span', 'learner-opportunity-ai-rank', `#${item.rank}`));
-        identity.appendChild(element('small', '', item.summary || 'Dự án cơ hội trên TalentHub'));
+        identity.appendChild(element('small', '', item.summary || 'Dự án cơ hội trên FTalentHub'));
         identity.appendChild(element('h3', '', item.title));
         header.appendChild(identity);
 

@@ -120,8 +120,8 @@ $audiences = [
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Gửi yêu cầu tư vấn đến TalentHub.">
-    <title>Liên hệ tư vấn | TalentHub</title>
+    <meta name="description" content="Gửi yêu cầu tư vấn đến FTalentHub.">
+    <title>Liên hệ tư vấn | FTalentHub</title>
     <link rel="icon" href="<?= contact_escape(app_href('/assets/images/logo.svg')) ?>" type="image/svg+xml">
     <link rel="stylesheet" href="<?= contact_escape(app_href('/assets/css/home.css')) ?>">
     <link rel="stylesheet" href="<?= contact_escape(app_href('/assets/css/contact.css')) ?>">
@@ -136,7 +136,7 @@ $audiences = [
         </a>
 
         <nav class="site-nav" aria-label="Điều hướng chính">
-            <a href="<?= contact_escape(app_href('/index.php#hero')) ?>" class="site-nav__link">Về TalentHub</a>
+            <a href="<?= contact_escape(app_href('/index.php#hero')) ?>" class="site-nav__link">Về FTalentHub</a>
             <a href="<?= contact_escape(app_href('/index.php#statistics')) ?>" class="site-nav__link">Thống kê</a>
             <a href="<?= contact_escape(app_href('/index.php#modules')) ?>" class="site-nav__link">Tính năng (8 mô-đun)</a>
             <a href="<?= contact_escape(app_href('/index.php#audiences')) ?>" class="site-nav__link">Đối tượng</a>
@@ -166,7 +166,7 @@ $audiences = [
 
     <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
         <nav class="mobile-menu__nav" aria-label="Điều hướng di động">
-            <a href="<?= contact_escape(app_href('/index.php#hero')) ?>" class="mobile-menu__link">Về TalentHub</a>
+            <a href="<?= contact_escape(app_href('/index.php#hero')) ?>" class="mobile-menu__link">Về FTalentHub</a>
             <a href="<?= contact_escape(app_href('/index.php#statistics')) ?>" class="mobile-menu__link">Thống kê</a>
             <a href="<?= contact_escape(app_href('/index.php#modules')) ?>" class="mobile-menu__link">Tính năng (8 mô-đun)</a>
             <a href="<?= contact_escape(app_href('/index.php#audiences')) ?>" class="mobile-menu__link">Đối tượng</a>
@@ -199,7 +199,7 @@ $audiences = [
                     <span>Cùng bạn</span>
                     <span>phát triển tài năng</span>
                 </h1>
-                <p class="contact-lead">Bạn cần tìm hiểu về TalentHub? Hãy để lại lời nhắn cho chúng tôi.</p>
+                <p class="contact-lead">Bạn cần tìm hiểu về FTalentHub? Hãy để lại lời nhắn cho chúng tôi.</p>
 
                 <div class="contact-support" aria-labelledby="support-title">
                     <h2 id="support-title" class="contact-support-title">Chúng tôi có thể hỗ trợ gì?</h2>
@@ -208,7 +208,7 @@ $audiences = [
                             <span class="contact-point-icon" aria-hidden="true">
                                 <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                             </span>
-                            <div><h3>Tìm hiểu nền tảng</h3><p>Cung cấp thông tin tổng quan, tính năng và cách hoạt động của TalentHub.</p></div>
+                            <div><h3>Tìm hiểu nền tảng</h3><p>Cung cấp thông tin tổng quan, tính năng và cách hoạt động của FTalentHub.</p></div>
                         </article>
                         <article>
                             <span class="contact-point-icon" aria-hidden="true">
@@ -229,7 +229,7 @@ $audiences = [
                     </div>
                 </div>
 
-                <div class="contact-hero-panel" aria-label="Tổng quan TalentHub">
+                <div class="contact-hero-panel" aria-label="Tổng quan FTalentHub">
                     <div class="hero-window-frame contact-hero-window">
                         <div class="window-bar">
                             <div class="window-dots">
@@ -328,7 +328,7 @@ $audiences = [
                     <div class="form-field form-field--checkbox">
                         <div class="contact-consent">
                             <input id="contactConsent" type="checkbox" name="contactConsent" value="1" required <?= ($old['contactConsent'] ?? '') === '1' ? 'checked' : '' ?> <?= isset($errors['contactConsent']) ? 'aria-invalid="true" aria-describedby="contactConsent-error"' : '' ?>>
-                            <label for="contactConsent">Tôi đồng ý để TalentHub liên hệ về yêu cầu này. <span class="required-mark" aria-hidden="true">*</span></label>
+                            <label for="contactConsent">Tôi đồng ý để FTalentHub liên hệ về yêu cầu này. <span class="required-mark" aria-hidden="true">*</span></label>
                         </div>
                         <?php if (isset($errors['contactConsent'])): ?>
                             <p class="field-error" id="contactConsent-error" role="alert"><?= contact_escape($errors['contactConsent']) ?></p>
@@ -357,7 +357,7 @@ $audiences = [
             <div>
                 <h4 class="footer-title">Khám phá</h4>
                 <ul class="footer-links">
-                    <li><a href="<?= contact_escape(app_href('/index.php#hero')) ?>">Về TalentHub</a></li>
+                    <li><a href="<?= contact_escape(app_href('/index.php#hero')) ?>">Về FTalentHub</a></li>
                     <li><a href="<?= contact_escape(app_href('/index.php#statistics')) ?>">Thống kê nền tảng</a></li>
                     <li><a href="<?= contact_escape(app_href('/index.php#modules')) ?>">8 mô-đun hệ thống</a></li>
                     <li><a href="<?= contact_escape(app_href('/index.php#audiences')) ?>">Đối tượng người dùng</a></li>
@@ -386,7 +386,7 @@ $audiences = [
         </div>
 
         <div class="footer-bottom">
-            <p>&copy; <?= date('Y') ?> TalentHub. Tất cả quyền được bảo lưu.</p>
+            <p>&copy; <?= date('Y') ?> FTalentHub. Tất cả quyền được bảo lưu.</p>
             <p>Thiết kế dành riêng cho hệ sinh thái giáo dục và phát triển tài năng.</p>
         </div>
     </div>

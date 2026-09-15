@@ -66,6 +66,15 @@ spl_autoload_register(static function(string $class): void {
         $path = dirname(__DIR__) . '/app/learner/ai/' . $relative . '.php';
         if (is_file($path)) { require_once $path; return; }
     }
+    if (str_starts_with($class, 'TalentHub\\Learner\\Data\\')) {
+        $dataBootstrap = dirname(__DIR__) . '/app/learner/data/bootstrap.php';
+        if (is_file($dataBootstrap)) {
+            require_once $dataBootstrap;
+        }
+        $relative = str_replace('\\', '/', substr($class, strlen('TalentHub\\Learner\\Data\\')));
+        $path = dirname(__DIR__) . '/app/learner/data/' . $relative . '.php';
+        if (is_file($path)) { require_once $path; return; }
+    }
     $relative=str_replace('\\','/',substr($class,strlen($prefix)));
     $roots=['Tests\\'=>dirname(__DIR__).'/tests/'];
     if(str_starts_with(substr($class,strlen($prefix)),'Tests\\')){$relative=str_replace('\\','/',substr($class,strlen('TalentHub\\Tests\\')));$path=dirname(__DIR__).'/tests/'.$relative.'.php';}
@@ -76,6 +85,8 @@ spl_autoload_register(static function(string $class): void {
 if (PHP_SAPI !== 'cli') {
     \TalentHub\Http\UnhandledExceptionHandler::register();
 }
+
+require_once dirname(__DIR__) . '/app/shared/timezone_helper.php';
 
 /**
  * Convert an app-relative path (e.g. "/app/enterprise/index.php" or "login.php") into

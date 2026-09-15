@@ -27,8 +27,8 @@ $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nh�
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Chi tiết cơ hội học tập và nghề nghiệp dành cho học sinh, sinh viên trên TalentHub.">
-    <title><?= learner_escape($opportunity['title'] ?? 'Không tìm thấy cơ hội'); ?> | TalentHub</title>
+    <meta name="description" content="Chi tiết cơ hội học tập và nghề nghiệp dành cho học sinh, sinh viên trên FTalentHub.">
+    <title><?= learner_escape($opportunity['title'] ?? 'Không tìm thấy cơ hội'); ?> | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">
@@ -128,7 +128,7 @@ $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nh�
                             <?php else: ?>
                                 <span class="learner-apply-card__icon"><?= learner_icon('file-text', 24); ?></span>
                                 <h2 id="apply-card-title"><?= learner_escape($canApply ? 'Sẵn sàng ứng tuyển?' : 'Cơ hội đã đóng'); ?></h2>
-                                <p><?= learner_escape($canApply ? 'Dùng hồ sơ TalentHub hiện tại và gửi lời nhắn ngắn tới đối tác.' : 'Bạn vẫn có thể xem thông tin, nhưng không thể gửi hồ sơ mới.'); ?></p>
+                                <p><?= learner_escape($canApply ? 'Dùng hồ sơ FTalentHub hiện tại và gửi lời nhắn ngắn tới đối tác.' : 'Bạn vẫn có thể xem thông tin, nhưng không thể gửi hồ sơ mới.'); ?></p>
                                 <button class="learner-btn learner-btn--primary learner-btn--block" type="button" data-open-modal="learner-application-modal" <?= !$canApply ? 'disabled' : ''; ?>><?= learner_icon('send', 17); ?> Ứng tuyển ngay</button>
                                 <button class="learner-btn learner-btn--outline learner-btn--block" type="button" disabled title="Tính năng lưu cơ hội chưa khả dụng"><?= learner_icon('bookmark', 17); ?> Lưu cơ hội — chưa hỗ trợ</button>
                                 <div class="learner-apply-card__deadline"><span>Hạn đăng ký</span><strong><?= learner_escape($deadlineLabel); ?></strong></div>
@@ -168,7 +168,7 @@ $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nh�
                         <div style="flex: 1; min-width: 0;">
                             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                 <strong style="font-size: 1.05rem; color: var(--text-primary); font-weight: 700;"><?= learner_escape($studentName); ?></strong>
-                                <span class="learner-verified-pill" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: #ecfdf5; color: #059669; font-size: 0.72rem; font-weight: 600;"><?= learner_icon('check', 13); ?> Hồ sơ TalentHub</span>
+                                <span class="learner-verified-pill" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: #ecfdf5; color: #059669; font-size: 0.72rem; font-weight: 600;"><?= learner_icon('check', 13); ?> Hồ sơ FTalentHub</span>
                             </div>
                             <span style="display: block; color: var(--text-secondary); font-size: 0.82rem; margin-top: 3px;"><?= learner_escape($studentClass . ' · ' . $studentSchool); ?></span>
                         </div>
@@ -203,7 +203,7 @@ $studentClass = !empty($student['class']) ? $student['class'] : 'Chưa cập nh�
                     <!-- Consent Field -->
                     <label class="learner-consent-field" style="display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; padding: 12px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; cursor: pointer;">
                         <input type="checkbox" name="consent" value="yes" checked data-application-consent style="margin-top: 3px; accent-color: var(--primary); width: 17px; height: 17px; flex-shrink: 0;">
-                        <span style="color: #92400e; font-size: 0.76rem; line-height: 1.5;">Tôi đồng ý chia sẻ hồ sơ năng lực TalentHub và thông tin liên hệ với <strong><?= learner_escape($opportunity['partner_name']); ?></strong> để phục vụ quá trình xét duyệt ứng tuyển.</span>
+                        <span style="color: #92400e; font-size: 0.76rem; line-height: 1.5;">Tôi đồng ý chia sẻ hồ sơ năng lực FTalentHub và thông tin liên hệ với <strong><?= learner_escape($opportunity['partner_name']); ?></strong> để phục vụ quá trình xét duyệt ứng tuyển.</span>
                     </label>
 
                     <p class="learner-form-error" role="alert" tabindex="-1" hidden data-application-error style="margin-top: 10px; padding: 8px 12px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; color: #dc2626; font-size: 0.78rem;"></p>
