@@ -91,7 +91,8 @@ final class EvidenceBackedScoreService
                 } else {
                     // Preserve legacy value, source, verifier and timestamps for audit. Only demote read metadata.
                     $state = $row['sourceType']==='teacher' || $row['verificationStatus']==='verified' ? 'missing_source' : 'unverified';
-                    $this->execute('UPDATE student_skills SET scoreState=? WHERE id=?', [$state,$row['id']]);
+                    // Explicit assignment prevents MySQL's ON UPDATE timestamp from rewriting source history.
+                    $this->execute('UPDATE student_skills SET scoreState=?, updatedAt=updatedAt WHERE id=?', [$state,$row['id']]);
                 }
             }
             foreach ($result['skills'] as $skill) {

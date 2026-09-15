@@ -40,6 +40,7 @@ storage/test-screenshots/**
 !/tests/merge_readiness_regression_test.php
 !/tests/shared_cv_score_access_test.php
 !/tests/score_provenance_migration_test.php
+!/tests/score_projection_mysql_history_test.php
 !/tests/merge-readiness.playwright.config.cjs
 !/tests/learner_ai_skill_gap_ui_test.js
 !/tests/learner_evidence_backed_scores_test.php
