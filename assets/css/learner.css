@@ -9274,12 +9274,13 @@ body.has-roadmap-editor {
     background: rgba(255, 255, 255, 0.12);
 }
 
-.learner-page-discover .learner-directions--gradient .learner-progress {
-    background: rgba(255, 255, 255, 0.28);
+/* Keep the contrast on this card above the shared progress theme overrides. */
+body.learner-app.learner-page-discover .learner-directions--gradient .learner-progress {
+    background: rgba(255, 255, 255, 0.28) !important;
 }
 
-.learner-page-discover .learner-directions--gradient .learner-progress > span {
-    background: #FFFFFF;
+body.learner-app.learner-page-discover .learner-directions--gradient .learner-progress > span {
+    background: #FFFFFF !important;
 }
 
 .learner-page-discover .learner-directions--gradient .learner-discovery-empty {
