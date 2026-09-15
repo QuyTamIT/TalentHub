@@ -159,21 +159,18 @@ if ($isDatabaseMode && !$deferTalentPassport) {
         $scoreValue = $dbSkill['levelScore'] ?? $dbSkill['level_score'] ?? null;
         $score = $scoreValue === null ? null : max(0, min(100, (int) round((float) $scoreValue)));
         $sourceType = strtolower(trim((string) ($dbSkill['sourceType'] ?? $dbSkill['source_type'] ?? '')));
-        $evidenceLabel = trim((string) ($dbSkill['evidenceLabel'] ?? $dbSkill['evidence_label'] ?? ''));
         if ($score !== null) {
             $allSkillScores[] = $score;
             if ($verificationStatus === 'verified') $verifiedSkillScores[] = $score;
         }
-        $levelLabel = $score === null && $evidenceLabel !== ''
-            ? $evidenceLabel
-            : ($score === null
-                ? (in_array($sourceType, ['internship_completion', 'internship_report'], true) ? 'Đã hoàn thành qua thực tập' : ($verificationStatus === 'verified' ? 'Đã xác minh' : 'Chưa có điểm đánh giá'))
-                : match (true) {
+        $levelLabel = $score === null
+            ? (in_array($sourceType, ['internship_completion', 'internship_report'], true) ? 'Đã hoàn thành qua thực tập' : ($verificationStatus === 'verified' ? 'Đã xác minh' : 'Chưa có điểm đánh giá'))
+            : match (true) {
                 $score >= 85 => 'Rất tốt',
                 $score >= 70 => 'Tốt',
                 $score >= 50 => 'Trung bình',
                 default => 'Cơ bản',
-            });
+            };
         $tone = match ($dbSkill['category'] ?? '') {
             'technical' => 'primary',
             'soft' => 'secondary',
