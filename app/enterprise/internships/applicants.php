@@ -179,7 +179,7 @@ try {
 
         $school = $row['schoolName'] ?: 'Cao đẳng Quốc tế BTEC FPT';
         $className = $row['className'] ?: 'BTEC-AI-2026A';
-        $score = !empty($row['talentScore']) ? (int) round((float) $row['talentScore']) : 96;
+        $score = (isset($row['talentScore']) && is_numeric($row['talentScore'])) ? (int) round((float) $row['talentScore']) : null;
 
         $statusLabels = [
             'submitted' => 'Đã nộp',

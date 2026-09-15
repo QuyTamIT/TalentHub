@@ -309,7 +309,7 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
             WHERE c.id = :classId
               AND c.schoolId = :schoolId
               AND sp.studyStatus = 'active'
-              AND (sp.talentScore IS NULL OR sp.talentScore = 0)
+              AND sp.talentScore IS NULL
         ", ['classId' => $managedClassId, 'schoolId' => $schoolId]) ?? 0);
     } elseif ($schoolId !== '') {
         $data['metrics']['pending_assessments'] = (int) (teacherDashboardScalar($pdo, "
@@ -318,7 +318,7 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
             INNER JOIN classes c ON c.id = sp.classId
             WHERE c.schoolId = :schoolId
               AND sp.studyStatus = 'active'
-              AND (sp.talentScore IS NULL OR sp.talentScore = 0)
+              AND sp.talentScore IS NULL
         ", ['schoolId' => $schoolId]) ?? 0);
     } else {
         $data['metrics']['pending_assessments'] = 0;
@@ -347,14 +347,6 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
         $averageScore = null;
     }
 
-    if ($averageScore === null && $teacherId !== '') {
-        $averageScore = teacherDashboardScalar($pdo, "
-            SELECT AVG(overallScore)
-            FROM assessments
-            WHERE teacherId = :teacherId
-              AND LOWER(status) NOT IN ('pending', 'draft', 'new', 'need_review', 'awaiting_review', 'cho_cham', 'chua_cham')
-        ", ['teacherId' => $teacherId]);
-    }
     $data['metrics']['average_score'] = $averageScore !== null ? round((float) $averageScore, 1) : null;
 
     $data['metrics']['registrations'] = (int) (teacherDashboardScalar($pdo, "

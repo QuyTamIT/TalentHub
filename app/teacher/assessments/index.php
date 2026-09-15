@@ -21,8 +21,6 @@ date_default_timezone_set('Asia/Ho_Chi_Minh');
 
 require __DIR__ . '/page-state.php';
 
-header('Location: ' . (function_exists('app_href') ? app_href('/app/teacher/grading.php') : '/app/teacher/grading.php'));
-exit;
 
 function teacherGradingLogUnexpected(string $stage, Throwable $exception, string $requestId): void
 {

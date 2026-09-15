@@ -224,9 +224,18 @@ final class LearnerOpportunityProfile
             if (!is_string($rawCode) || trim($rawCode) === '') {
                 throw new InvalidArgumentException('Learner opportunity profile requires a non-empty skill code.');
             }
+            $state = $entry['score_state'] ?? $entry['scoreState'] ?? $entry['state'] ?? null;
+            if ($state !== null) {
+                if (strtolower(trim((string) $state)) !== 'scored') {
+                    continue;
+                }
+            } elseif (array_key_exists('verification_status', $entry) || array_key_exists('verificationStatus', $entry)) {
+                // Legacy rows with verification status but without explicit scored state are rejected.
+                continue;
+            }
             $rawScore = $entry['score'] ?? $entry['level_score'] ?? null;
             if (!is_numeric($rawScore)) {
-                throw new InvalidArgumentException('Learner opportunity profile requires a numeric skill score.');
+                continue;
             }
             $score = (int) round((float) $rawScore);
             if ($score < 0 || $score > 100) {

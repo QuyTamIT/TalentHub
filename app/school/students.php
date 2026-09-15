@@ -193,8 +193,21 @@ if (!empty($studentIds)) {
         $detailsMap[$row['studentId']] = $row;
     }
 
+    $hasScoreState = false;
+    try {
+        $colStmt = $pdo->query("PRAGMA table_info(student_skills)");
+        if ($colStmt) {
+            $cols = $colStmt->fetchAll(PDO::FETCH_COLUMN, 1);
+            $hasScoreState = in_array('scoreState', $cols, true);
+        }
+    } catch (\Throwable) {
+        $hasScoreState = false;
+    }
+
+    $scoreStateCol = $hasScoreState ? ', ss.scoreState' : ", 'scored' AS scoreState";
+
     $skStmt = $pdo->prepare("
-        SELECT ss.studentId, s.name as skillName, ss.levelScore, ss.verificationStatus
+        SELECT ss.studentId, s.name as skillName, ss.levelScore, ss.verificationStatus {$scoreStateCol}
         FROM student_skills ss
         JOIN skills s ON s.id = ss.skillId
         WHERE ss.studentId IN ($inClause)
@@ -203,9 +216,10 @@ if (!empty($studentIds)) {
     $skStmt->execute($studentIds);
     foreach ($skStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $skillsMap[$row['studentId']][] = [
-            'name'     => $row['skillName'],
-            'score'    => (int) ($row['levelScore'] ?? 85),
-            'verified' => ($row['verificationStatus'] === 'verified'),
+            'name'       => $row['skillName'],
+            'score'      => $row['levelScore'] !== null ? (int) $row['levelScore'] : null,
+            'verified'   => ($row['verificationStatus'] === 'verified'),
+            'scoreState' => $row['scoreState'] ?? null,
         ];
     }
 }
@@ -330,11 +344,16 @@ include __DIR__ . '/includes/page-banner.php';
                         }
                     }
 
-                    // Talent score (%)
+                    // Talent score (%) from projection or scored skills
                     $talentScore = null;
-                    if (!empty($sk)) {
-                        $scores = array_column($sk, 'score');
-                        $talentScore = (int) round(array_sum($scores) / count($scores));
+                    if (isset($s['talentScore']) && $s['talentScore'] !== null) {
+                        $talentScore = (int) round((float) $s['talentScore']);
+                    } elseif (!empty($sk)) {
+                        $scoredSkills = array_filter($sk, fn($item) => ($item['scoreState'] ?? 'scored') === 'scored' && $item['score'] !== null);
+                        if (!empty($scoredSkills)) {
+                            $scores = array_column($scoredSkills, 'score');
+                            $talentScore = (int) round(array_sum($scores) / count($scores));
+                        }
                     }
 
                     $bio = !empty($d['bio']) ? $d['bio'] : "Sinh viên năng động, có năng lực tự học và tư duy giải quyết vấn đề tốt. Luôn tích cực tham gia các dự án thực hành và sẵn sàng thử sức tại các kỳ thực tập doanh nghiệp.";
@@ -646,7 +665,7 @@ function openStudentDetail(student) {
         document.getElementById('sd_score').textContent = student.talentScore + '%';
         document.getElementById('sd_score_bar').style.width = student.talentScore + '%';
     } else {
-        document.getElementById('sd_score').textContent = 'Chưa đánh giá';
+        document.getElementById('sd_score').textContent = 'Chưa có điểm';
         document.getElementById('sd_score_bar').style.width = '0%';
     }
 

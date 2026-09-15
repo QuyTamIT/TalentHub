@@ -586,12 +586,12 @@ $sidebarNav = [
                                                         <?= $tName ?>
                                                     </a>
                                                     <?php if ($score !== null): ?>
-                                                        <span class="ent-talent-card-item__score" title="Điểm đánh giá năng lực thực tế từ giáo viên">
+                                                        <span class="ent-talent-card-item__score" title="Trung bình kỹ năng đã được chấm">
                                                             ★ <?= round($score) ?> điểm đánh giá
                                                         </span>
                                                     <?php else: ?>
-                                                        <span class="ent-talent-card-item__score ent-talent-card-item__score--pending" title="Chưa có điểm đánh giá từ giáo viên">
-                                                            Chưa chấm điểm
+                                                        <span class="ent-talent-card-item__score ent-talent-card-item__score--pending" title="Hồ sơ chưa có điểm kỹ năng chính thức">
+                                                            Chưa đủ dữ liệu
                                                         </span>
                                                     <?php endif; ?>
                                                 </div>

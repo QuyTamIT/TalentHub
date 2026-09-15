@@ -147,6 +147,67 @@ final class PortfolioRepository
                     $this->pdo->prepare('INSERT INTO learner_portfolio_skills(kind,reportId,skillId) VALUES (:kind,:id,:skill)')->execute(['kind'=>$kind,'id'=>$reportId,'skill'=>$skillId]);
                 }
             }
+            if ($this->tableExists('learner_skill_evidence')) {
+                $sourceType = $kind === 'project' ? 'project_submission' : 'internship_report';
+                if ($decision === 'verified') {
+                    $evStmt = $this->pdo->prepare(<<<'SQL'
+INSERT INTO learner_skill_evidence (
+    id, studentId, skillId, verificationStatus, evidenceKind, sourceType, sourceId, sourceVersion,
+    score, observedAt, actorUserId, expiresAt, revokedAt, supersedesId, eventKey
+) VALUES (
+    :id, :studentId, :skillId, 'verified', 'skill', :sourceType, :sourceId, :sourceVersion,
+    NULL, :observedAt, :actorUserId, NULL, NULL, :supersedesId, :eventKey
+)
+SQL);
+                    $checkEventStmt = $this->pdo->prepare('SELECT id FROM learner_skill_evidence WHERE eventKey = :eventKey');
+                    $findPrevStmt = $this->pdo->prepare(<<<'SQL'
+SELECT id FROM learner_skill_evidence
+WHERE studentId = :studentId AND sourceType = :sourceType AND sourceId = :sourceId AND skillId = :skillId AND sourceVersion < :sourceVersion
+ORDER BY sourceVersion DESC, observedAt DESC LIMIT 1
+SQL);
+                    foreach ($skillIds as $skillId) {
+                        $eventKey = hash('sha256', "portfolio_evidence:{$kind}:{$reportId}:{$version}:{$skillId}");
+                        $checkEventStmt->execute(['eventKey' => $eventKey]);
+                        if ($checkEventStmt->fetchColumn()) {
+                            continue;
+                        }
+                        $findPrevStmt->execute([
+                            'studentId' => $report['studentId'],
+                            'sourceType' => $sourceType,
+                            'sourceId' => $reportId,
+                            'skillId' => $skillId,
+                            'sourceVersion' => $version,
+                        ]);
+                        $supersedesId = $findPrevStmt->fetchColumn() ?: null;
+                        $evidenceId = Uuid::v4();
+                        $evStmt->execute([
+                            'id' => $evidenceId,
+                            'studentId' => $report['studentId'],
+                            'skillId' => $skillId,
+                            'sourceType' => $sourceType,
+                            'sourceId' => $reportId,
+                            'sourceVersion' => $version,
+                            'observedAt' => $now,
+                            'actorUserId' => $teacherUserId,
+                            'supersedesId' => $supersedesId,
+                            'eventKey' => $eventKey,
+                        ]);
+                    }
+                } elseif (in_array($decision, ['revoked', 'changes_requested'], true)) {
+                    $revokeStmt = $this->pdo->prepare(<<<'SQL'
+UPDATE learner_skill_evidence
+SET revokedAt = :revokedAt
+WHERE sourceType = :sourceType
+  AND sourceId = :sourceId
+  AND revokedAt IS NULL
+SQL);
+                    $revokeStmt->execute([
+                        'revokedAt' => $now,
+                        'sourceType' => $sourceType,
+                        'sourceId' => $reportId,
+                    ]);
+                }
+            }
             $snapshot = $this->row($kind, $reportId);
             $snapshot['skillIds'] = $skillIds;
             $this->history($kind, $reportId, $version, $decision, $teacherUserId, $snapshot);
@@ -168,6 +229,7 @@ final class PortfolioRepository
                     ['kind' => $kind, 'status' => $decision, 'skill_count' => count($skillIds)],
                 );
             }
+            $this->projectScoresIfSupported($report['studentId']);
             $result = $this->row($kind, $reportId);
             $this->pdo->commit();
             return $result;
@@ -276,4 +338,44 @@ SQL);
     private function date(mixed $v): ?string { $v=$this->null($v);if($v===null||!preg_match('/^\d{4}-\d{2}-\d{2}$/',$v))return null;$d=DateTimeImmutable::createFromFormat('!Y-m-d',$v,new DateTimeZone('UTC'));return$d&&$d->format('Y-m-d')===$v?$v:null; }
     private function null(mixed $v): ?string { if($v===null)return null;$v=trim((string)$v);return$v===''?null:$v; }
     private function fail(int $status,string $code,string $message): never { throw new ApiException($status,$code,$message); }
+    private function tableExists(string $table): bool
+    {
+        try {
+            if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+                $q = $this->pdo->prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name");
+                $q->execute(['name' => $table]);
+                return $q->fetchColumn() !== false;
+            }
+            $q = $this->pdo->prepare('SELECT 1 FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=:name');
+            $q->execute(['name' => $table]);
+            return $q->fetchColumn() !== false;
+        } catch (Throwable) {
+            return false;
+        }
+    }
+    private function projectScoresIfSupported(string $studentId): void
+    {
+        if (!$this->tableExists('learner_skill_evidence') || !$this->tableExists('student_skills')) {
+            return;
+        }
+        if (!class_exists(\TalentHub\Learner\Data\Service\EvidenceBackedScoreService::class)) {
+            $file = dirname(__DIR__, 4) . '/app/learner/data/Service/EvidenceBackedScoreService.php';
+            if (is_file($file)) {
+                require_once $file;
+            }
+        }
+        if (!class_exists(\TalentHub\Learner\Data\Service\EvidenceBackedScoreService::class)) {
+            return;
+        }
+        try {
+            $service = new \TalentHub\Learner\Data\Service\EvidenceBackedScoreService($this->pdo);
+            $service->assertSchemaReady(true);
+            $service->projectOfficialScores($studentId);
+        } catch (\RuntimeException $e) {
+            if (str_starts_with($e->getMessage(), 'SCORE_SCHEMA_NOT_READY')) {
+                return;
+            }
+            throw $e;
+        }
+    }
 }

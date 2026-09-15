@@ -1243,21 +1243,43 @@ final class SchoolDashboardService
         ];
     }
 
+    private function hasColumn(string $table, string $column): bool
+    {
+        try {
+            $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+            if ($driver === 'sqlite') {
+                $stmt = $this->pdo->query("PRAGMA table_info({$table})");
+                if ($stmt) {
+                    $cols = $stmt->fetchAll(PDO::FETCH_COLUMN, 1);
+                    return in_array($column, $cols, true);
+                }
+            } else {
+                $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM information_schema.columns WHERE table_name = :t AND column_name = :c');
+                $stmt->execute(['t' => $table, 'c' => $column]);
+                return (int) $stmt->fetchColumn() > 0;
+            }
+        } catch (\Throwable) {}
+        return false;
+    }
+
     private function topStudentsByVerifiedEvidence(string $schoolId, int $limit): array
     {
+        $scoredSubquery = $this->hasColumn('student_skills', 'scoreState')
+            ? "(SELECT ROUND(AVG(ss_sub.levelScore), 1) FROM student_skills ss_sub WHERE ss_sub.studentId = sp.id AND ss_sub.scoreState = 'scored')"
+            : "(SELECT ROUND(AVG(ss_sub.levelScore), 1) FROM student_skills ss_sub WHERE ss_sub.studentId = sp.id AND ss_sub.levelScore IS NOT NULL)";
+
         $stmt = $this->pdo->prepare(
-            'SELECT sp.userId, sp.classId, u.fullName, c.name AS className, c.gradeLevel,
+            "SELECT sp.userId, sp.classId, u.fullName, c.name AS className, c.gradeLevel,
                     COUNT(DISTINCT ss.id) AS verifiedSkillCount,
-                    ROUND(AVG(CASE WHEN ass.status = \'published\' THEN ass.overallScore END), 1) AS assessmentAverage
+                    COALESCE(sp.talentScore, {$scoredSubquery}) AS assessmentAverage
              FROM student_profiles sp
              JOIN users u ON u.id = sp.userId
              JOIN classes c ON c.id = sp.classId
-             LEFT JOIN student_skills ss ON ss.studentId = sp.id AND ss.verificationStatus = \'verified\'
-             LEFT JOIN assessments ass ON ass.studentId = sp.id AND ass.status = \'published\'
-             WHERE c.schoolId = :schoolId AND sp.studyStatus = \'active\'
-             GROUP BY sp.id, sp.userId, sp.classId, u.fullName, c.name, c.gradeLevel
-             ORDER BY verifiedSkillCount DESC, assessmentAverage DESC, u.fullName ASC
-             LIMIT ' . (int) $limit
+             LEFT JOIN student_skills ss ON ss.studentId = sp.id AND ss.verificationStatus = 'verified'
+             WHERE c.schoolId = :schoolId AND sp.studyStatus = 'active'
+             GROUP BY sp.id, sp.userId, sp.classId, sp.talentScore, u.fullName, c.name, c.gradeLevel
+             ORDER BY verifiedSkillCount DESC, (COALESCE(sp.talentScore, {$scoredSubquery}) IS NULL) ASC, COALESCE(sp.talentScore, {$scoredSubquery}) DESC, u.fullName ASC
+             LIMIT " . (int) $limit
         );
         $stmt->execute(['schoolId' => $schoolId]);
         $rows = $stmt->fetchAll();

@@ -6,6 +6,8 @@ require dirname(__DIR__, 2) . '/bin/bootstrap.php';
 use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Bootstrap\PortalGuard;
 use TalentHub\Database\Connection;
+use TalentHub\Modules\Teacher\Repository\TeacherGradingRepository;
+use TalentHub\Modules\Teacher\Service\TeacherGradingService;
 use TalentHub\Rbac\RoleCodes;
 use TalentHub\Support\Uuid;
 
@@ -19,65 +21,12 @@ $session->start();
 $config = require dirname(__DIR__, 2) . '/config/database.php';
 $pdo = (new Connection($config))->connect();
 
-// 2. Đảm bảo đúng 4 tiêu chí cốt lõi (0 - 100 điểm, không đổi trọng số 40/20/20/20)
+// 2. Read the configured rubric without changing its definitions.
 if (!function_exists('ensureAssessmentCriteria')) {
     function ensureAssessmentCriteria(PDO $pdo): array
     {
-        $needed = [
-            [
-                'code' => 'chuyen_mon',
-                'name' => 'Chuyên môn',
-                'description' => 'Kiến thức chuyên môn và kỹ năng thực hành',
-                'minScore' => 0.00,
-                'maxScore' => 100.00,
-                'displayOrder' => 1,
-            ],
-            [
-                'code' => 'sang_tao',
-                'name' => 'Sáng tạo',
-                'description' => 'Tư duy đổi mới và khả năng sáng tạo giải pháp',
-                'minScore' => 0.00,
-                'maxScore' => 100.00,
-                'displayOrder' => 2,
-            ],
-            [
-                'code' => 'ky_luat',
-                'name' => 'Kỷ luật',
-                'description' => 'Tinh thần kỷ luật, tính chuyên cần và trách nhiệm',
-                'minScore' => 0.00,
-                'maxScore' => 100.00,
-                'displayOrder' => 3,
-            ],
-            [
-                'code' => 'lam_viec_nhom',
-                'name' => 'Làm việc nhóm',
-                'description' => 'Khả năng giao tiếp, hợp tác và phối hợp đội nhóm',
-                'minScore' => 0.00,
-                'maxScore' => 100.00,
-                'displayOrder' => 4,
-            ],
-        ];
-
-        try {
-            foreach ($needed as $crit) {
-                $stmt = $pdo->prepare("SELECT id FROM assessment_criteria WHERE code = ? LIMIT 1");
-                $stmt->execute([$crit['code']]);
-                $existingId = $stmt->fetchColumn();
-
-                if (!$existingId) {
-                    $newId = Uuid::v4();
-                    $ins = $pdo->prepare("INSERT INTO assessment_criteria (id, code, name, description, minScore, maxScore, displayOrder, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')");
-                    $ins->execute([$newId, $crit['code'], $crit['name'], $crit['description'], $crit['minScore'], $crit['maxScore'], $crit['displayOrder']]);
-                } else {
-                    $upd = $pdo->prepare("UPDATE assessment_criteria SET name = ?, description = ?, minScore = ?, maxScore = ?, displayOrder = ?, status = 'active' WHERE id = ?");
-                    $upd->execute([$crit['name'], $crit['description'], $crit['minScore'], $crit['maxScore'], $crit['displayOrder'], $existingId]);
-                }
-            }
-
-            $pdo->exec("UPDATE assessment_criteria SET status = 'inactive' WHERE code NOT IN ('chuyen_mon', 'sang_tao', 'ky_luat', 'lam_viec_nhom')");
-        } catch (\Throwable $e) {}
-
-        $stmt = $pdo->prepare("SELECT id, code, name, description, minScore, maxScore, displayOrder FROM assessment_criteria WHERE status = 'active' ORDER BY displayOrder ASC");
+        // Criteria are configuration, not request-time data. This endpoint must be read-only on GET.
+        $stmt = $pdo->prepare("SELECT id, code, name, description, minScore, maxScore, displayOrder FROM assessment_criteria WHERE status = 'active' ORDER BY displayOrder ASC, name ASC");
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -165,73 +114,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $comment = trim((string) ($_POST['comment'] ?? ''));
     $scoresInput = $_POST['criteria'] ?? [];
 
-    $criteriaScores = [];
-    $validCount = 0;
-    $sumScore = 0.0;
-
-    foreach ($activeCriteria as $crit) {
-        $cid = (string) $crit['id'];
-        $rawVal = isset($scoresInput[$cid]) ? trim((string) $scoresInput[$cid]) : '';
-        if ($rawVal !== '' && is_numeric($rawVal)) {
-            $num = max(0.0, min(100.0, (float) $rawVal));
-            $criteriaScores[$cid] = $num;
-            $sumScore += $num;
-            $validCount++;
-        }
-    }
+    // Pass raw values through; the shared service rejects unknown, malformed and out-of-range scores.
+    $serviceCriteria = $scoresInput;
 
     if (!empty($studentId) && !empty($classId)) {
-        $overallScore = $validCount > 0 ? round($sumScore / $validCount, 2) : null;
-        if (isset($_POST['overallScore']) && trim((string) $_POST['overallScore']) !== '') {
-            $overrideScore = max(0.0, min(100.0, (float) $_POST['overallScore']));
-            $overallScore = round($overrideScore, 2);
-        }
-
         try {
-            $pdo->beginTransaction();
-
-            $chkStmt = $pdo->prepare("SELECT id, version, status FROM assessments WHERE teacherId = ? AND studentId = ? AND classId = ? FOR UPDATE");
+            $chkStmt = $pdo->prepare("SELECT id, version, status FROM assessments WHERE teacherId = ? AND studentId = ? AND classId = ? LIMIT 1");
             $chkStmt->execute([$teacherId, $studentId, $classId]);
             $existing = $chkStmt->fetch(PDO::FETCH_ASSOC);
 
-            $assessmentId = '';
-            $publishedAt = ($status === 'published') ? date('Y-m-d H:i:s') : null;
+            $assessmentId = $existing ? (string) $existing['id'] : null;
+            $expectedVersion = $existing ? (int) $existing['version'] : 0;
 
-            if ($existing) {
-                $assessmentId = (string) $existing['id'];
-                $updStmt = $pdo->prepare("
-                    UPDATE assessments
-                    SET overallScore = ?, comment = ?, status = ?, publishedAt = ?, version = version + 1, updatedAt = NOW()
-                    WHERE id = ?
-                ");
-                $updStmt->execute([$overallScore, $comment, $status, $publishedAt, $assessmentId]);
-            } else {
-                $assessmentId = Uuid::v4();
-                $insStmt = $pdo->prepare("
-                    INSERT INTO assessments
-                        (id, teacherId, studentId, classId, activityId, projectId, overallScore, comment, status, publishedAt, version, createdAt, updatedAt)
-                    VALUES
-                        (?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, 1, NOW(), NOW())
-                ");
-                $insStmt->execute([$assessmentId, $teacherId, $studentId, $classId, $overallScore, $comment, $status, $publishedAt]);
-            }
+            $gradingRepo = new TeacherGradingRepository($pdo);
+            $gradingService = new TeacherGradingService($gradingRepo);
 
-            // Lưu điểm từng tiêu chí vào assessment_scores
-            $delScores = $pdo->prepare("DELETE FROM assessment_scores WHERE assessmentId = ?");
-            $delScores->execute([$assessmentId]);
+            $gradingService->save((string) $user['id'], [
+                'mode' => 'class',
+                'contextId' => $classId,
+                'studentId' => $studentId,
+                'assessmentId' => $assessmentId,
+                'expectedVersion' => (string) $expectedVersion,
+                'assessmentStatus' => $status,
+                'comment' => $comment,
+                'criteria' => $serviceCriteria,
+            ]);
 
-            $insScore = $pdo->prepare("INSERT INTO assessment_scores (id, assessmentId, criteriaId, score, createdAt, updatedAt) VALUES (?, ?, ?, ?, NOW(), NOW())");
-            foreach ($criteriaScores as $cid => $scVal) {
-                $insScore->execute([Uuid::v4(), $assessmentId, $cid, $scVal]);
-            }
-
-            // Nếu gửi đánh giá (published) thì đồng bộ điểm vào student_profiles
-            if ($status === 'published' && $overallScore !== null) {
-                $updStudent = $pdo->prepare("UPDATE student_profiles SET talentScore = ?, updatedAt = NOW() WHERE id = ?");
-                $updStudent->execute([$overallScore, $studentId]);
-            }
-
-            $pdo->commit();
+            // Query back the saved assessment to retrieve backend-calculated overallScore and assessmentId
+            $fetchSaved = $pdo->prepare("SELECT id, overallScore FROM assessments WHERE teacherId = ? AND studentId = ? AND classId = ? LIMIT 1");
+            $fetchSaved->execute([$teacherId, $studentId, $classId]);
+            $savedRow = $fetchSaved->fetch(PDO::FETCH_ASSOC);
+            $assessmentId = $savedRow ? (string) $savedRow['id'] : ($assessmentId ?? '');
+            $overallScore = ($savedRow && is_numeric($savedRow['overallScore'])) ? (float) $savedRow['overallScore'] : null;
 
             $stName = 'Học viên';
             try {
@@ -261,12 +175,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ' . app_href('/app/teacher/grading.php') . '?student_id=' . urlencode($studentId) . $classQuery);
             exit;
         } catch (\Throwable $e) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
             if ($isAjax) {
                 header('Content-Type: application/json; charset=utf-8');
-                http_response_code(500);
+                http_response_code(400);
                 echo json_encode(['success' => false, 'message' => 'Lỗi lưu dữ liệu: ' . $e->getMessage()]);
                 exit;
             }

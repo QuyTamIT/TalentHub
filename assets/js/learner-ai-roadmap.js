@@ -320,7 +320,7 @@
             activities,
             evidenceTotal,
             confidenceLabel: confidenceLabel(payload?.confidence_band),
-            talentMap: completeTalentMap(payload?.talent_map),
+            talentMap: completeTalentMap([]),
             strengths: records(payload?.strengths),
             improvements: records(payload?.improvements),
             potentialPaths,

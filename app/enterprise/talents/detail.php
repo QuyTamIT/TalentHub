@@ -91,8 +91,11 @@ if ($rawTalent !== null) {
         //   levelScore → level_score, verificationStatus → verification_status, name → name
         // Fallback path (skillsWithDetailsForStudent) trả về camelCase keys trực tiếp từ PDO:
         //   skillName, levelScore, verificationStatus, level (computed CASE column)
+        $sState = $sk['score_state'] ?? $sk['scoreState'] ?? null;
         $rawLevelScore = $sk['level_score'] ?? $sk['levelScore'] ?? null;
         $levelLabel = match(true) {
+            $sState === 'evidence_only' => 'Chỉ có minh chứng (chưa có điểm)',
+            $sState === 'missing_source' => 'Chưa xác thực nguồn',
             is_numeric($rawLevelScore) && (int)$rawLevelScore >= 85 => 'Nâng cao',
             is_numeric($rawLevelScore) && (int)$rawLevelScore >= 65 => 'Trung bình',
             is_numeric($rawLevelScore) => 'Cơ bản',
@@ -107,7 +110,7 @@ if ($rawTalent !== null) {
     }
 
     $rawScore = $rawTalent['talent_score'] ?? $rawTalent['talentScore'] ?? null;
-    $talentScore = is_numeric($rawScore) ? (int) $rawScore : 0;
+    $talentScore = is_numeric($rawScore) ? (int) $rawScore : null;
 
     // Normalize projects
     $normalizedProjects = [];
@@ -173,7 +176,7 @@ if ($rawTalent !== null) {
         'userId' => $rawTalent['userId'] ?? '',
         'name' => $rawTalent['displayName'],
         'avatar_initials' => getInitials($rawTalent['displayName']),
-        'talent_score' => $talentScore > 0 ? min(100, max(0, $talentScore)) : 0,
+        'talent_score' => $talentScore !== null ? min(100, max(0, $talentScore)) : null,
         'school' => !empty(trim((string)($rawTalent['schoolName'] ?? ''))) ? trim((string)$rawTalent['schoolName']) : 'Chưa cập nhật',
         'class_year' => !empty(trim((string)($rawTalent['className'] ?? ''))) ? trim((string)$rawTalent['className']) : 'Chưa cập nhật',
         'education_level' => !empty(trim((string)($rawTalent['studyStatus'] ?? ''))) ? trim((string)$rawTalent['studyStatus']) : 'Sinh viên',
@@ -343,7 +346,7 @@ $sidebarNav = [
                                         <h1 class="ent-profile-hero__name"><?= htmlspecialchars($talent['name']); ?></h1>
                                         <div class="ent-profile-hero__score-chip">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                                            <span><?= htmlspecialchars($talent['talent_score']); ?> điểm năng lực</span>
+                                            <span><?= $talent['talent_score'] !== null ? htmlspecialchars((string) $talent['talent_score']) . ' điểm năng lực' : 'Chưa có điểm'; ?></span>
                                         </div>
                                         <span class="ent-passport-status-pill">
                                             <span class="status-dot"></span>
@@ -581,7 +584,8 @@ $sidebarNav = [
 
                                     <div class="ent-score-box">
                                         <div class="ent-score-box__row">
-                                            <span class="ent-score-box__num"><?= htmlspecialchars($talent['talent_score']); ?></span>
+                                            <?php if ($talent['talent_score'] !== null): ?>
+                                            <span class="ent-score-box__num"><?= htmlspecialchars((string) $talent['talent_score']); ?></span>
                                             <span class="ent-score-box__scale">/ 100</span>
                                             <?php
                                                 $scoreLevel = match(true) {
@@ -592,10 +596,15 @@ $sidebarNav = [
                                                 };
                                             ?>
                                             <span class="ent-score-box__level-badge"><?= $scoreLevel; ?></span>
+                                            <?php else: ?>
+                                            <span class="ent-score-box__level-badge">Chưa có điểm</span>
+                                            <?php endif; ?>
                                         </div>
+                                        <?php if ($talent['talent_score'] !== null): ?>
                                         <div class="ent-score-progress">
-                                            <div class="ent-score-progress__bar" style="width: <?= min(100, max(6, (int)$talent['talent_score'])); ?>%;"></div>
+                                            <div class="ent-score-progress__bar" style="width: <?= min(100, max(0, (int)$talent['talent_score'])); ?>%;"></div>
                                         </div>
+                                        <?php endif; ?>
                                     </div>
 
                                     <div class="ent-sidebar-stats-list">
@@ -760,7 +769,7 @@ $sidebarNav = [
                             <span>Gửi Lời Mời Thực Tập</span>
                         </h3>
                         <p class="ent-skills-modal__subtitle" style="margin: 0.25rem 0 0; font-size: 0.85rem; color: #6B5548;">
-                            Mời ứng viên <strong><?= htmlspecialchars($talent['name']); ?></strong> (<?= htmlspecialchars($talent['talent_score']); ?> điểm) vào đội ngũ <?= htmlspecialchars($enterpriseInfo['company_name']); ?>
+                            Mời ứng viên <strong><?= htmlspecialchars($talent['name']); ?></strong> (<?= $talent['talent_score'] !== null ? htmlspecialchars((string) $talent['talent_score']) . ' điểm' : 'chưa có điểm'; ?>) vào đội ngũ <?= htmlspecialchars($enterpriseInfo['company_name']); ?>
                         </p>
                     </div>
                     <button type="button" class="ent-skills-modal__close" onclick="closeInviteModal()" style="border: none; background: transparent; font-size: 1.6rem; line-height: 1; cursor: pointer; color: #9E897D; padding: 0.2rem 0.5rem;">&times;</button>
@@ -778,9 +787,15 @@ $sidebarNav = [
                                 <div style="font-size: 0.75rem; color: #6B5548;"><?= htmlspecialchars($talent['major_field']); ?> • <?= htmlspecialchars($talent['school']); ?></div>
                             </div>
                         </div>
+                        <?php if ($talent['talent_score'] !== null): ?>
                         <div style="background: #DCFCE7; color: #15803D; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.85rem; border: 1px solid #BBF7D0;">
-                            <?= htmlspecialchars($talent['talent_score']); ?> điểm
+                            <?= htmlspecialchars((string) $talent['talent_score']); ?> điểm
                         </div>
+                        <?php else: ?>
+                        <div style="background: #F3F4F6; color: #6B7280; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.85rem; border: 1px solid #E5E7EB;">
+                            Chưa có điểm
+                        </div>
+                        <?php endif; ?>
                     </div>
 
                     <!-- Job Post Selector -->
@@ -814,7 +829,7 @@ $sidebarNav = [
                         <textarea id="inviteMessageInput"
                                   rows="3"
                                   style="width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid #F0E6DD; border-radius: 8px; font-size: 0.875rem; color: #322014; resize: vertical;"
-                                  placeholder="Ví dụ: Chào bạn <?= htmlspecialchars($talent['name']); ?>, <?= htmlspecialchars($enterpriseInfo['company_name']); ?> rất ấn tượng với hồ sơ năng lực và điểm đánh giá <?= htmlspecialchars($talent['talent_score']); ?> điểm của bạn. Trân trọng mời bạn tham gia thực tập..."></textarea>
+                                  placeholder="Ví dụ: Chào bạn <?= htmlspecialchars($talent['name']); ?>, <?= htmlspecialchars($enterpriseInfo['company_name']); ?> rất ấn tượng với hồ sơ năng lực của bạn. Trân trọng mời bạn tham gia thực tập..."></textarea>
                     </div>
 
                     <!-- Privacy / Notification Tip -->

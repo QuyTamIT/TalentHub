@@ -43,7 +43,10 @@ http_response_code($resolved === null ? 404 : 200);
 if ($resolved !== null && !empty($resolved['studentId']) && $pdo instanceof PDO) {
     $studentId = (string) $resolved['studentId'];
     try {
-        $data = (new \TalentHub\Learner\Data\Database\DatabasePassportCvRepository($pdo))->forStudent($studentId);
+        $scoreViewer = $token !== ''
+            ? \TalentHub\Learner\Data\Service\ScoreViewer::fromShareToken($pdo, $token)
+            : \TalentHub\Learner\Data\Service\ScoreViewer::fromPassportCode($pdo, $code);
+        $data = (new \TalentHub\Learner\Data\Database\DatabasePassportCvRepository($pdo, $scoreViewer))->forStudent($studentId);
         $stamp = (new DateTimeImmutable('now', new DateTimeZone('Asia/Ho_Chi_Minh')))->format('d/m/Y H:i:s');
         $cv = \TalentHub\Learner\Data\ReadModel\PassportCvViewModel::build($data, $stamp);
 
