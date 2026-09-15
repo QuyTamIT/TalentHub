@@ -588,29 +588,39 @@ function teacherDashboardRelativeTime(?string $datetime): string
         return 'Chưa rõ thời gian';
     }
 
-    $timestamp = strtotime($datetime);
-    if (!$timestamp) {
+    // Helper đã có sẵn xử lý việc convert UTC -> VN + format relative.
+    if (!function_exists('tz_relative')) {
+        $helper = dirname(__DIR__, 2) . '/shared/timezone_helper.php';
+        if (is_file($helper)) {
+            require_once $helper;
+        }
+    }
+    if (!function_exists('tz_to_dt')) {
         return 'Chưa rõ thời gian';
     }
 
-    $diff = $timestamp - time();
-    $absolute = abs($diff);
+    try {
+        $tz = new DateTimeZone('Asia/Ho_Chi_Minh');
+        $now = new DateTimeImmutable('now', $tz);
+        $dt = tz_to_dt($datetime)->setTimezone($tz);
+        $diff = $dt->getTimestamp() - $now->getTimestamp();
+        $absolute = abs($diff);
 
-    if ($absolute < 60) {
-        return $diff >= 0 ? 'Sắp diễn ra' : 'Vừa xong';
+        if ($absolute < 60) {
+            return $diff >= 0 ? 'Sắp diễn ra' : 'Vừa xong';
+        }
+        if ($absolute < 3600) {
+            $minutes = (int) floor($absolute / 60);
+            return $diff >= 0 ? "Sau {$minutes} phút" : "{$minutes} phút trước";
+        }
+        if ($absolute < 86400) {
+            $hours = (int) floor($absolute / 3600);
+            return $diff >= 0 ? "Sau {$hours} giờ" : "{$hours} giờ trước";
+        }
+        return $dt->format('d/m/Y H:i');
+    } catch (Throwable) {
+        return 'Chưa rõ thời gian';
     }
-
-    if ($absolute < 3600) {
-        $minutes = (int) floor($absolute / 60);
-        return $diff >= 0 ? "Sau {$minutes} phút" : "{$minutes} phút trước";
-    }
-
-    if ($absolute < 86400) {
-        $hours = (int) floor($absolute / 3600);
-        return $diff >= 0 ? "Sau {$hours} giờ" : "{$hours} giờ trước";
-    }
-
-    return date('d/m/Y H:i', $timestamp);
 }
 
 function teacherDashboardPercent(float|int $value, float|int $total): int
