@@ -299,6 +299,42 @@ if ($dashboardAiSummary === '') {
                         ?>
                     <?php endif; ?>
                 </section>
+
+                <section class="learner-card learner-certificates" aria-labelledby="dashboard-external-certificate-title" data-dashboard-external-certificates>
+                    <div class="learner-section-heading">
+                        <div>
+                            <h2 id="dashboard-external-certificate-title">Chứng chỉ bên ngoài của bạn</h2>
+                            <p>Các chứng chỉ đã lưu trong hồ sơ năng lực.</p>
+                        </div>
+                        <a href="profile.php#certificates-title">Xem hồ sơ <?= learner_icon('arrow-right', 16); ?></a>
+                    </div>
+                    <?php if (empty($certificates)): ?>
+                        <div class="learner-empty-state"><p>Bạn chưa thêm chứng chỉ bên ngoài.</p></div>
+                    <?php else: ?>
+                        <div class="learner-certificate-list">
+                            <?php foreach ($certificates as $certificate): ?>
+                                <?php
+                                $certificateTitle = $certificate['title'] ?? $certificate['name'] ?? '';
+                                $certificateIssuer = $certificate['issuing_organization'] ?? $certificate['issuingOrganization'] ?? $certificate['issuer'] ?? '';
+                                $certificateDate = (string) ($certificate['issue_date'] ?? $certificate['issueDate'] ?? $certificate['year'] ?? '');
+                                $certificateDateFormatted = preg_match('/^\d{4}-\d{2}-\d{2}$/', $certificateDate)
+                                    ? implode('/', array_reverse(explode('-', $certificateDate))) : $certificateDate;
+                                ?>
+                                <article class="learner-certificate learner-certificate--external">
+                                    <span class="learner-certificate__icon" aria-hidden="true"><?= learner_icon('award', 24); ?></span>
+                                    <div class="learner-certificate__content">
+                                        <h3 data-dashboard-certificate-title><?= learner_escape($certificateTitle); ?></h3>
+                                        <p data-dashboard-certificate-issuer><?= learner_escape($certificateIssuer); ?></p>
+                                        <div class="learner-certificate__date">
+                                            <?= learner_icon('calendar', 15); ?>
+                                            <span>Ngày cấp: <time data-dashboard-certificate-date datetime="<?= learner_escape($certificateDate); ?>"><?= learner_escape($certificateDateFormatted); ?></time></span>
+                                        </div>
+                                    </div>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </section>
             </main>
         </div>
     </div>

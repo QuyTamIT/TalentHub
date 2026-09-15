@@ -19,7 +19,7 @@ use TalentHub\Learner\Ai\Provider\ProviderRequest;
  */
 final class OpportunityMatchPromptRegistry
 {
-    public const VERSION = 'learner-opportunity-match-1.4.0';
+    public const VERSION = 'learner-opportunity-match-1.5.0';
 
     public const MAX_CANDIDATES = 10;
 
@@ -139,6 +139,7 @@ final class OpportunityMatchPromptRegistry
             'Mỗi phân tích ưu tiên mức đáp ứng yêu cầu hiện tại, điểm mạnh, kỹ năng và kinh nghiệm đã xác nhận; đối chiếu bằng chứng người học với yêu cầu cụ thể của dự án. Khoảng thiếu là hạn chế tham gia, không phải lý do đề cử dự án để bù kỹ năng yếu. Chỉ nêu bước chuẩn bị khi còn yêu cầu chưa đáp ứng.',
             'learning_outcomes mô tả kết quả dự kiến của dự án, không chứng minh người học hiện có năng lực đó và không làm tăng mức phù hợp vì người học còn thiếu kỹ năng. Thành phần growth_potential trong breakdown là khóa tương thích biểu thị mức sẵn sàng đáp ứng yêu cầu, không phải phần thưởng cho điểm yếu.',
             'assessment_signals phân biệt từng loại bài test; không gộp các chiều trùng tên giữa DISC, MBTI, Holland và MI, không xem điểm tính cách là điểm thành thạo kỹ năng. confirmed_experience_tags chỉ chứng minh kinh nghiệm đã xác nhận, không tự gán điểm kỹ năng.',
+            'certificates chỉ là ngữ cảnh hỗ trợ với trạng thái xác minh được cung cấp. Chứng chỉ chưa xác minh không chứng minh mức thành thạo hoặc kinh nghiệm đã xác nhận, không được chuyển thành kỹ năng, không tự tăng điểm hay mức phù hợp; chỉ nhắc đến khi có evidence tương ứng.',
             'minimum_score=0 là nguồn chưa công bố ngưỡng, không có nghĩa người học đã đạt. gemini_score chỉ là dữ liệu chẩn đoán nội bộ, điểm hiển thị và thứ hạng do backend quyết định; không diễn giải nó như xác suất thành công.',
             'Ngôn ngữ đầu ra bắt buộc là vi-VN. Viết toàn bộ nội dung hướng tới người học bằng tiếng Việt có dấu, tự nhiên, rõ ràng và phù hợp với học sinh, sinh viên.',
             'Không hiển thị mã kỹ năng hoặc mã điều kiện trong headline, explanation, why_fit, why_not_fit_yet, main_gaps, next_steps hay improvement_steps; hãy diễn đạt chúng thành tên tiếng Việt dễ hiểu.',
@@ -276,6 +277,7 @@ final class OpportunityMatchPromptRegistry
             'skills' => $profile->skills(),
             'assessment_signals' => $profile->assessmentSignals(),
             'confirmed_experience_tags' => $profile->confirmedExperienceTags(),
+            'certificates' => $profile->certificates(),
         ];
     }
 }

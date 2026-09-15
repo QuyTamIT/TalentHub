@@ -21,14 +21,20 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
         parent::__construct($pdo);
     }
 
-    private function officialScores(string $studentId): array
+    private function officialScores(string $studentId): ?array
     {
+        $inspector = $this->inspector();
+        if (!$inspector->hasTable('learner_evaluations') || !$inspector->hasTable('learner_skill_evidence')) {
+            return null;
+        }
         try {
             return (new \TalentHub\Learner\Data\Service\EvidenceBackedScoreService($this->pdo))->forStudent(
                 $studentId, $this->scoreViewer ?? \TalentHub\Learner\Data\Service\ScoreViewer::fromSession()
             );
         } catch (\DomainException) {
             return ['skills' => [], 'summary' => ['score' => null, 'formula_version' => 'skill-mean-1.0', 'included_skill_ids' => []], 'teacher_context_assessments' => []];
+        } catch (\Throwable) {
+            return null;
         }
     }
 
@@ -235,17 +241,49 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
 
     public function skills(string $studentId): array
     {
-        $result = $this->officialScores($studentId);
-        $rows = [];
-        foreach ($result['skills'] as $skill) {
-            if (!in_array($skill['state'], ['scored', 'evidence_only'], true)) continue;
-            $rows[] = array_merge($skill, [
-                'student_id' => $studentId, 'level_score' => $skill['score'], 'score_state' => $skill['state'],
-                'verification_status' => $skill['state'] === 'scored' ? 'verified' : 'pending',
-                'verified_at' => $skill['assessed_at'], 'skill_status' => 'active',
-            ]);
+        $official = $this->officialScores($studentId);
+        if ($official !== null) {
+            $rows = [];
+            foreach ($official['skills'] as $skill) {
+                if (!in_array($skill['state'], ['scored', 'evidence_only'], true)) continue;
+                $rows[] = array_merge($skill, [
+                    'student_id' => $studentId,
+                    'level_score' => $skill['score'],
+                    'score_state' => $skill['state'],
+                    'verification_status' => $skill['state'] === 'scored' ? 'verified' : 'pending',
+                    'verified_at' => $skill['assessed_at'],
+                    'skill_status' => 'active',
+                ]);
+            }
+            return $this->mergePortfolioSkills($studentId, $rows);
         }
-        return $rows;
+
+        if (!$this->inspector()->hasTable('student_skills') || !$this->inspector()->hasTable('skills')) {
+            return $this->mergePortfolioSkills($studentId, []);
+        }
+
+        // Historical projection values are not proof of a teacher assessment.
+        // Keep legacy skill labels available without restoring unverified scores.
+        $sql = <<<'SQL'
+            SELECT
+                ss.studentId AS student_id,
+                ss.skillId AS skill_id,
+                NULL AS level_score,
+                'missing_source' AS score_state,
+                ss.sourceType AS source_type,
+                ss.verificationStatus AS verification_status,
+                ss.verifiedAt AS verified_at,
+                s.code,
+                s.name,
+                s.category,
+                s.status AS skill_status
+            FROM student_skills ss
+            INNER JOIN skills s ON s.id = ss.skillId
+            WHERE ss.studentId = :student_id
+            ORDER BY s.category ASC, s.name ASC, ss.skillId ASC
+            SQL;
+
+        return $this->mergePortfolioSkills($studentId, $this->fetchAll('skills', $sql, ['student_id' => $studentId]));
     }
 
     /**
@@ -274,14 +312,18 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             $skills[] = [
                 'student_id' => $row['student_id'] ?? $studentId,
                 'skill_id' => $id,
-                'level_score' => $row['level_score'] ?? null,
+                'level_score' => array_key_exists('level_score',$row) && $row['level_score'] !== null ? (float)$row['level_score'] : null,
                 'source_type' => $row['source_type'] ?? 'project_submission',
-                'verification_status' => 'verified',
+                'verification_status' => $row['evidence_status'] ?? 'verified',
                 'verified_at' => $row['verified_at'] ?? null,
                 'code' => $row['code'] ?? null,
                 'name' => $row['name'] ?? null,
                 'category' => $row['category'] ?? null,
                 'skill_status' => $row['skill_status'] ?? 'active',
+                'kind' => $row['kind'] ?? null,
+                'report_id' => $row['report_id'] ?? null,
+                'evidence_label' => $row['evidence_label'] ?? null,
+                'updated_at' => $row['updated_at'] ?? $row['verified_at'] ?? null,
             ];
         }
         usort($skills, static fn (array $left, array $right): int => [
@@ -312,7 +354,7 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
 
         $unions = [];
         $params = [];
-        if ($hasProjects) {
+        if ($hasProjects && $inspector->hasTable('project_members')) {
             $unions[] = "SELECT 'project' AS kind, r.id, r.studentId, r.reviewedAt FROM project_submissions r INNER JOIN project_members pm ON pm.projectId = r.projectId AND pm.studentId = r.studentId AND pm.status = 'active' WHERE r.studentId = :project_student AND r.status = 'verified'";
             $params['project_student'] = $studentId;
         }
@@ -320,25 +362,36 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             $unions[] = "SELECT 'internship' AS kind, r.id, r.studentId, r.reviewedAt FROM learner_internship_reports r WHERE r.studentId = :intern_student AND r.status = 'verified'";
             $params['intern_student'] = $studentId;
         }
+        if ($unions === []) {
+            return [];
+        }
         $unionSql = implode(' UNION ALL ', $unions);
+        $portfolioScore = $inspector->hasColumn('learner_portfolio_skills', 'score') ? 'ps.score' : 'NULL';
+        $portfolioSource = $inspector->hasColumn('learner_portfolio_skills', 'sourceType') ? 'ps.sourceType' : "CASE WHEN ps.kind='project' THEN 'project_submission' ELSE 'internship_completion' END";
+        $portfolioEvidence = $inspector->hasColumn('learner_portfolio_skills', 'evidenceStatus') ? 'ps.evidenceStatus' : "'verified'";
         $sql = <<<SQL
             SELECT
                 reports.studentId,
                 ps.skillId,
-                NULL AS levelScore,
-                CASE ps.kind
-                    WHEN 'project' THEN 'project_submission'
-                    WHEN 'internship' THEN 'internship_report'
-                    ELSE ps.kind
+                {$portfolioScore} AS levelScore,
+                CASE
+                    WHEN {$portfolioSource} IS NULL OR {$portfolioSource} = 'portfolio' THEN CASE WHEN ps.kind='project' THEN 'project_submission' ELSE 'internship_completion' END
+                    WHEN {$portfolioSource} = 'project_report' THEN 'project_submission'
+                    WHEN {$portfolioSource} = 'internship_report' THEN 'internship_completion'
+                    ELSE {$portfolioSource}
                 END AS sourceType,
-                'verified' AS verificationStatus,
+                {$portfolioEvidence} AS verificationStatus,
                 reports.reviewedAt AS verifiedAt,
                 s.code,
                 s.name,
                 s.category,
                 s.status AS skillStatus,
                 ps.kind,
-                ps.reportId
+                ps.reportId,
+                {$portfolioScore} AS score,
+                {$portfolioEvidence} AS evidenceStatus,
+                CASE WHEN ps.kind='internship' THEN 'Đã hoàn thành qua thực tập' ELSE 'Dự án đã được giảng viên xác nhận' END AS evidenceLabel,
+                reports.reviewedAt AS updatedAt
             FROM learner_portfolio_skills ps
             INNER JOIN skills s ON s.id = ps.skillId AND s.status = 'active'
             INNER JOIN (

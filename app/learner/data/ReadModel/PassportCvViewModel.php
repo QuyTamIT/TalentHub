@@ -37,7 +37,7 @@ final class PassportCvViewModel
             'class'=>self::text($student['class_name'] ?? '', 70),
             'generated_at'=>$generatedAt,
             'skills'=>[], 'projects'=>[], 'internships'=>[], 'evaluations'=>[], 'activities'=>[],
-            'badges'=>[], 'assessments'=>[], 'activity_summary'=>['total_hours'=>0.0,'total_activities'=>0],
+            'badges'=>[], 'assessments'=>[], 'certificates'=>[], 'activity_summary'=>['total_hours'=>0.0,'total_activities'=>0],
             'passport_code'=>!empty($student['id']) ? ('TP-' . strtoupper(substr(str_replace('-', '', (string)$student['id']), 0, 8))) : '',
             'has_experience'=>false, 'strengths_summary'=>'',
             'omitted'=>0,
@@ -46,7 +46,8 @@ final class PassportCvViewModel
         foreach ($portfolio['skills'] as $skill) $skills[]=[
             'name'=>$skill['name'],'verified_at'=>$skill['reviewedAt'],'verification_status'=>'verified','skill_status'=>'active',
             'source_type'=>$skill['kind']==='internship'?'internship_evaluation':'project_evaluation',
-            'evidence_label'=>$skill['kind']==='internship'?'Thực tập · Giảng viên xác nhận':'Dự án · Giảng viên xác nhận'];
+            'level_score'=>$skill['kind']==='internship'?null:($skill['score']??null),
+            'evidence_label'=>$skill['kind']==='internship'?'Đã hoàn thành qua thực tập':'Dự án · Giảng viên xác nhận'];
         usort($skills, static fn($a,$b) => strcmp($b['verified_at'] ?? '',$a['verified_at'] ?? '') ?: strcmp($a['name'] ?? '',$b['name'] ?? ''));
         foreach ($skills as $skill) {
             if (($skill['verification_status'] ?? '') !== 'verified' || empty($skill['verified_at'])
@@ -55,15 +56,15 @@ final class PassportCvViewModel
             $name=self::text($skill['name'] ?? '',42);
             if ($name==='' || in_array($name,array_column($cv['skills'],'name'),true)) continue;
             $state = (string) ($skill['score_state'] ?? $skill['state'] ?? '');
-            $score = ($state === 'evidence_only')
+            $rawScore = array_key_exists('level_score',$skill) ? $skill['level_score'] : ($skill['levelScore'] ?? ($skill['score'] ?? null));
+            $score = $state === 'evidence_only' || $rawScore === null
                 ? null
-                : (isset($skill['level_score']) || isset($skill['levelScore'])
-                    ? max(0, min(100, (int) round((float) ($skill['level_score'] ?? $skill['levelScore']))))
-                    : (isset($skill['score']) ? max(0, min(100, (int) round((float)$skill['score']))) : null));
+                : max(0, min(100, (int) round((float)$rawScore)));
             $cv['skills'][]=[
                 'name'=>$name,
                 'score'=>$score,
                 'category'=>(string)($skill['category'] ?? ''),
+                'source_type'=>(string)($skill['source_type']??''),
                 'source'=>self::text($skill['evidence_label'] ?? 'Giảng viên xác nhận',55),
             ];
         }
@@ -141,6 +142,17 @@ final class PassportCvViewModel
             ];
         }
         $cv['badges'] = array_slice($cv['badges'], 0, 3);
+        foreach ($data['certificates'] ?? [] as $certificate) {
+            $title=self::text($certificate['title'] ?? '',95);
+            if ($title==='') continue;
+            $cv['certificates'][]=[
+                'title'=>$title,
+                'issuing_organization'=>self::text($certificate['issuing_organization'] ?? $certificate['issuingOrganization'] ?? '',85),
+                'issue_date'=>substr((string)($certificate['issue_date'] ?? $certificate['issueDate'] ?? ''),0,10),
+                'verification_status'=>(string)($certificate['verification_status'] ?? $certificate['verificationStatus'] ?? ''),
+            ];
+        }
+        $cv['certificates']=array_slice($cv['certificates'],0,8);
         $seenTests = [];
         foreach ($data['assessment_results'] ?? [] as $a) {
             $testType = strtolower(trim((string)($a['test_type'] ?? $a['testType'] ?? '')));

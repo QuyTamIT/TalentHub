@@ -198,7 +198,8 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                         <?php else: ?>
                             <div class="learner-profile-skills__grid">
                                 <?php foreach ($skills as $skill):
-                                    $skillScoreClamped = max(0, min(100, (int) round((float) ($skill['score'] ?? 0))));
+                                    $skillHasScore = array_key_exists('score', $skill) && $skill['score'] !== null;
+                                    $skillScoreClamped = $skillHasScore ? max(0, min(100, (int) round((float) $skill['score']))) : null;
                                     $skillTone = learner_escape($skill['tone'] ?? 'secondary');
                                     $skillColor = $skill['color'] ?? match ($skillTone) {
                                         'success' => '#10B981',
@@ -211,11 +212,13 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                                     <article class="learner-skill-bar">
                                         <div class="learner-skill-bar__header">
                                             <span><?= learner_escape($skill['name']); ?></span>
-                                            <strong style="color: #0F172A;"><?= $skillScoreClamped; ?>/100</strong>
+                                            <strong style="color: #0F172A;"><?= $skillHasScore ? ($skillScoreClamped . '/100') : learner_escape($skill['level'] ?? 'Chưa có điểm đánh giá'); ?></strong>
                                         </div>
+                                        <?php if ($skillHasScore): ?>
                                         <div class="learner-progress" role="progressbar" aria-valuenow="<?= $skillScoreClamped; ?>" aria-valuemin="0" aria-valuemax="100" style="position: relative; width: 100%; height: 8px; background: #E2E8F0; border-radius: 9999px; overflow: hidden;">
                                             <span class="learner-progress--<?= $skillTone; ?>" style="--learner-progress: <?= $skillScoreClamped; ?>%; width: <?= $skillScoreClamped; ?>%; background-color: <?= $skillColor; ?>; display: block; height: 100%; border-radius: inherit; transition: width 0.55s ease;"></span>
                                         </div>
+                                        <?php endif; ?>
                                     </article>
                                 <?php endforeach; ?>
                             </div>
@@ -232,48 +235,44 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
                                 + Thêm chứng chỉ ngoài
                             </button>
                         </div>
-                        <?php if (empty($certificates)): ?>
-                            <div class="learner-empty-state">
-                                <p>Chưa có chứng chỉ nào được ghi nhận.</p>
-                            </div>
-                        <?php else: ?>
-                            <div class="learner-certificate-list">
-                                <?php foreach ($certificates as $certificate): ?>
-                                    <?php
-                                    $certificateVerified = !empty($certificate['verified']) || ($certificate['verification_status'] ?? $certificate['verificationStatus'] ?? '') === 'verified';
-                                    $certificateTitle = $certificate['name'] ?? $certificate['title'] ?? '';
-                                    $certificateIssuer = $certificate['issuer'] ?? $certificate['issuing_organization'] ?? $certificate['issuingOrganization'] ?? '';
-                                    $certificateDate = $certificate['year'] ?? $certificate['issue_date'] ?? $certificate['issueDate'] ?? '';
-                                    $certificateCode = $certificate['credential_id'] ?? $certificate['credentialId'] ?? '';
-                                    ?>
-                                    <article class="learner-certificate learner-certificate--diploma<?= $certificateVerified ? ' learner-certificate--verified' : ''; ?>">
-                                        <div class="learner-certificate__frame">
-                                            <div class="learner-certificate__topline">
-                                                <span><?= learner_icon('graduation-cap', 18); ?> Chứng chỉ bên ngoài</span>
-                                                <span class="learner-certificate__status"><?= $certificateVerified ? 'Đã xác minh' : 'Chờ xác minh'; ?></span>
-                                            </div>
-                                            <span class="learner-certificate__icon" aria-hidden="true"><?= learner_icon('graduation-cap', 24); ?></span>
-                                            <div class="learner-certificate__content">
-                                                <h3><?= learner_escape($certificateTitle); ?></h3>
-                                                <div class="learner-certificate__meta">
-                                                    <span><?= learner_icon('building', 14); ?> <?= learner_escape($certificateIssuer); ?></span>
-                                                    <?php if ((string) $certificateDate !== ''): ?>
-                                                        <span><?= learner_icon('calendar', 14); ?> Cấp ngày <?= learner_escape($certificateDate); ?></span>
-                                                    <?php endif; ?>
-                                                    <?php if ((string) $certificateCode !== ''): ?>
-                                                        <span><?= learner_icon('file-text', 14); ?> Mã: <?= learner_escape($certificateCode); ?></span>
-                                                    <?php endif; ?>
-                                                </div>
-                                            </div>
-                                            <span class="learner-certificate__seal">
-                                                <?= learner_icon($certificateVerified ? 'shield-check' : 'clock', 20); ?>
-                                                <?= $certificateVerified ? 'Đã xác minh' : 'Đang chờ'; ?>
-                                            </span>
+                        <div class="learner-empty-state" data-certificate-empty<?= empty($certificates) ? '' : ' hidden'; ?>>
+                            <p>Chưa có chứng chỉ nào được ghi nhận.</p>
+                        </div>
+                        <div class="learner-certificate-list" data-certificate-list aria-live="polite">
+                            <?php foreach ($certificates as $certificate): ?>
+                                <?php
+                                $certificateTitle = $certificate['name'] ?? $certificate['title'] ?? '';
+                                $certificateIssuer = $certificate['issuer'] ?? $certificate['issuing_organization'] ?? $certificate['issuingOrganization'] ?? '';
+                                $certificateDate = (string) ($certificate['issueDate'] ?? $certificate['issue_date'] ?? $certificate['year'] ?? '');
+                                $certificateDateFormatted = preg_match('/^\d{4}-\d{2}-\d{2}$/', $certificateDate)
+                                    ? implode('/', array_reverse(explode('-', $certificateDate))) : $certificateDate;
+                                ?>
+                                <article class="learner-certificate learner-certificate--external">
+                                    <span class="learner-certificate__icon" aria-hidden="true"><?= learner_icon('award', 24); ?></span>
+                                    <div class="learner-certificate__content">
+                                        <h3 data-certificate-title><?= learner_escape($certificateTitle); ?></h3>
+                                        <p data-certificate-issuer><?= learner_escape($certificateIssuer); ?></p>
+                                        <div class="learner-certificate__date">
+                                            <?= learner_icon('calendar', 15); ?>
+                                            <span>Ngày cấp: <time data-certificate-date datetime="<?= learner_escape($certificateDate); ?>"><?= learner_escape($certificateDateFormatted); ?></time></span>
                                         </div>
-                                    </article>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
+                                    </div>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                        <template id="learner-certificate-template">
+                            <article class="learner-certificate learner-certificate--external">
+                                <span class="learner-certificate__icon" aria-hidden="true"><?= learner_icon('award', 24); ?></span>
+                                <div class="learner-certificate__content">
+                                    <h3 data-certificate-title></h3>
+                                    <p data-certificate-issuer></p>
+                                    <div class="learner-certificate__date">
+                                        <?= learner_icon('calendar', 15); ?>
+                                        <span>Ngày cấp: <time data-certificate-date></time></span>
+                                    </div>
+                                </div>
+                            </article>
+                        </template>
                     </section>
                 </div>
 
@@ -526,41 +525,26 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
             <div class="learner-modal__header">
                 <div>
                     <h2 id="learner-certificate-title">Thêm chứng chỉ</h2>
-                    <p>Khai báo chứng chỉ của bạn để lưu vào hồ sơ năng lực.</p>
+                    <p>Thêm chứng chỉ của bạn vào hồ sơ năng lực.</p>
                 </div>
                 <button class="learner-icon-button" type="button" data-close-modal aria-label="Đóng cửa sổ thêm chứng chỉ"><?= learner_icon('x', 22); ?></button>
             </div>
             <form class="learner-form" id="learner-certificate-form" novalidate>
                 <div class="learner-form__grid">
                     <label class="learner-field learner-field--wide">
-                        <span>Tên chứng chỉ / Chứng nhận *</span>
-                        <input id="cert-field-title" name="title" type="text" required placeholder="Ví dụ: Chứng chỉ Tin học văn phòng, AWS Certified Practitioner">
-                        <small class="learner-field__error" data-error-for="title" role="alert"></small>
+                        <span>Tên chứng chỉ *</span>
+                        <input id="cert-field-title" name="title" type="text" required aria-describedby="cert-error-title" placeholder="Ví dụ: Chứng chỉ Tin học văn phòng">
+                        <small id="cert-error-title" class="learner-field__error" data-error-for="title" role="alert"></small>
                     </label>
                     <label class="learner-field learner-field--wide">
                         <span>Tổ chức cấp *</span>
-                        <input id="cert-field-org" name="issuingOrganization" type="text" required placeholder="Ví dụ: British Council, Amazon Web Services">
-                        <small class="learner-field__error" data-error-for="issuingOrganization" role="alert"></small>
+                        <input id="cert-field-org" name="issuingOrganization" type="text" required aria-describedby="cert-error-issuingOrganization" placeholder="Ví dụ: British Council, Amazon Web Services">
+                        <small id="cert-error-issuingOrganization" class="learner-field__error" data-error-for="issuingOrganization" role="alert"></small>
                     </label>
-                    <label class="learner-field">
+                    <label class="learner-field learner-field--wide">
                         <span>Ngày cấp *</span>
-                        <input id="cert-field-issue-date" name="issueDate" type="date" required>
-                        <small class="learner-field__error" data-error-for="issueDate" role="alert"></small>
-                    </label>
-                    <label class="learner-field">
-                        <span>Ngày hết hạn (nếu có)</span>
-                        <input id="cert-field-expiry-date" name="expiryDate" type="date">
-                        <small class="learner-field__error" data-error-for="expiryDate" role="alert"></small>
-                    </label>
-                    <label class="learner-field">
-                        <span>Mã chứng chỉ (Credential ID)</span>
-                        <input id="cert-field-cred-id" name="credentialId" type="text">
-                        <small class="learner-field__error" data-error-for="credentialId" role="alert"></small>
-                    </label>
-                    <label class="learner-field">
-                        <span>Đường dẫn xác minh (URL)</span>
-                        <input id="cert-field-cred-url" name="credentialUrl" type="url" placeholder="https://...">
-                        <small class="learner-field__error" data-error-for="credentialUrl" role="alert"></small>
+                        <input id="cert-field-issue-date" name="issueDate" type="date" required max="<?= date('Y-m-d'); ?>" aria-describedby="cert-error-issueDate">
+                        <small id="cert-error-issueDate" class="learner-field__error" data-error-for="issueDate" role="alert"></small>
                     </label>
                 </div>
                 <div class="learner-modal__actions">
@@ -693,7 +677,7 @@ $shareUrl = ($isDatabaseMode ?? false) ? '' : (function_exists('app_href') ? app
     </div>
 
     <script src="../../assets/js/learner-api.js"></script>
-    <script src="../../assets/js/learner.js"></script>
+    <script src="../../assets/js/learner.js?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/js/learner.js'); ?>"></script>
     <script>
     document.addEventListener('click', function (e) {
         var btn = e.target.closest('[data-open-project-detail]');

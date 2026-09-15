@@ -23,9 +23,13 @@ final class DatabaseStatisticsRepository extends AbstractDatabaseRepository impl
 
     private function officialScores(string $studentId): array
     {
-        return (new \TalentHub\Learner\Data\Service\EvidenceBackedScoreService($this->pdo))->forStudent(
-            $studentId, $this->scoreViewer ?? \TalentHub\Learner\Data\Service\ScoreViewer::fromSession()
-        );
+        try {
+            return (new \TalentHub\Learner\Data\Service\EvidenceBackedScoreService($this->pdo))->forStudent(
+                $studentId, $this->scoreViewer ?? \TalentHub\Learner\Data\Service\ScoreViewer::fromSession()
+            );
+        } catch (\Throwable) {
+            return ['skills' => [], 'summary' => ['score' => null], 'teacher_context_assessments' => []];
+        }
     }
 
     public function lifetimeFacts(string $studentId): array

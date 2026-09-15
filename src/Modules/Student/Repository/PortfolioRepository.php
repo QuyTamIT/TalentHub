@@ -72,6 +72,7 @@ final class PortfolioRepository
         $items = array_values(array_filter($items, static fn(array $item): bool => ($item['report']['status'] ?? 'draft') !== 'draft'));
         foreach ($items as &$item) {
             $item['report']['history'] = array_values(array_filter($item['report']['history'], static fn(array $event): bool => $event['status'] !== 'draft'));
+            $item['availableSkills'] = $this->assignedSkills((string)$item['kind'], (string)$item['contextId']);
         }
         unset($item);
         return $items;
@@ -106,6 +107,10 @@ final class PortfolioRepository
             $params=['id'=>$id,'studentId'=>$studentId,'contextId'=>$contextId,'version'=>$version,'revision'=>$revision,'status'=>$status,'notes'=>$base['notes'],'repositoryUrl'=>$this->null($base['repositoryUrl']),'demoUrl'=>$this->null($base['demoUrl']),'startDate'=>$this->null($base['startDate']),'endDate'=>$this->null($base['endDate']),'hours'=>$base['hours']!==null&&$base['hours']!==''?(float)$base['hours']:null,'stage'=>$kind==='internship'?$this->null($base['stage']):null,'submittedAt'=>$submit?$now:($newRevision?null:($existing['submittedAt']??null)),'updatedAt'=>$now];
             if ($existing) $params['expectedVersion']=$expectedVersion;
             $stmt=$this->pdo->prepare($sql); $stmt->execute($params); if ($existing && $stmt->rowCount()!==1) $this->fail(409,'VERSION_CONFLICT','Phiên bản đã thay đổi.');
+            if ($newRevision && $this->hasTable('learner_portfolio_skills')) {
+                $this->pdo->prepare('DELETE FROM learner_portfolio_skills WHERE kind=:kind AND reportId=:id')->execute(['kind'=>$kind,'id'=>$id]);
+                if ($this->hasTable('learner_ai_data_outbox') && !TransactionalAiOutboxPublisher::publish($this->pdo,'portfolio_report',$id,$version,[$studentId],'portfolio.revoked',['kind'=>$kind,'status'=>'draft','reason'=>'new_revision','skill_count'=>0])) $this->fail(500,'AI_OUTBOX_FAILED','Không thể ghi sự kiện làm mới dữ liệu AI.');
+            }
             $actor=$student['userId']; $this->history($kind,$id,$version,$status,$actor,$this->row($kind,$id));
             if ($submit) { $mentor=$this->mentor($kind,$contextId); $this->notify('portfolio_submitted',$mentor['userId'],['title'=>'Báo cáo mới cần duyệt','message'=>'Học sinh đã gửi báo cáo portfolio.','deepLink'=>'/app/teacher/portfolio-reviews.php','eventKey'=>"portfolio_submitted:{$kind}:{$id}:{$version}",'studentId'=>$studentId]); }
             $result=$this->row($kind,$id);
@@ -114,7 +119,8 @@ final class PortfolioRepository
         catch (Throwable $e) { if ($this->pdo->inTransaction())$this->pdo->rollBack(); if ($e instanceof ApiException) throw $e; $this->fail(500,'PORTFOLIO_WRITE_FAILED','Không thể lưu báo cáo.'); }
     }
 
-    public function review(string $teacherUserId,string $kind,string $reportId,int $expectedVersion,string $decision,string $feedback,array $skillIds=[]): array
+    /** @param list<string> $skillIds @param array<string,mixed> $skillScores */
+    public function review(string $teacherUserId,string $kind,string $reportId,int $expectedVersion,string $decision,string $feedback,array $skillIds=[],array $skillScores=[]): array
     {
         $meta=$this->kind($kind); $teacher=$this->teacher($teacherUserId); $report=$this->row($kind,$reportId); if ((int)$report['version']!==$expectedVersion)$this->fail(409,'VERSION_CONFLICT','Phiên bản đã thay đổi.');
         $contextId=$report['contextId']; $student=$this->student($report['studentId']); $mentor=$this->mentor($kind,$contextId);
@@ -122,122 +128,53 @@ final class PortfolioRepository
         if (!in_array($decision,['verified','changes_requested','revoked'],true))$this->fail(422,'VALIDATION_FAILED','Quyết định không hợp lệ.');
         if (($decision==='revoked' && $report['status']!=='verified') || ($decision!=='revoked' && $report['status']!=='submitted'))$this->fail(422,'INVALID_TRANSITION','Trạng thái báo cáo không hợp lệ.');
         $feedback=trim($feedback); if (mb_strlen($feedback)>2000 || (in_array($decision,['changes_requested','revoked'],true)&&$feedback===''))$this->fail(422,'VALIDATION_FAILED','Phản hồi là bắt buộc và tối đa 2000 ký tự.');
-        $skillIds=array_values(array_unique(array_map('strval',$skillIds))); if(count($skillIds)>10)$this->fail(422,'VALIDATION_FAILED','Tối đa 10 kỹ năng.'); if($decision!=='verified'&&$skillIds)$this->fail(422,'VALIDATION_FAILED','Chỉ báo cáo verified được gắn kỹ năng.');
-        if($decision==='verified'){ $this->assertContext($student,$kind,$contextId,true); foreach($skillIds as $skillId){$s=$this->pdo->prepare("SELECT 1 FROM skills WHERE id=:id AND status='active'");$s->execute(['id'=>$skillId]);if(!$s->fetchColumn())$this->fail(422,'VALIDATION_FAILED','Kỹ năng không hoạt động.');} }
+        $skillIds=array_values(array_unique(array_map('strval',$skillIds))); if(count($skillIds)>10)$this->fail(422,'VALIDATION_FAILED','Tối đa 10 kỹ năng.'); if($decision!=='verified'&&($skillIds||$skillScores))$this->fail(422,'VALIDATION_FAILED','Chỉ báo cáo verified được gắn kỹ năng.');
+        if ($kind==='internship' && $skillScores !== []) $this->fail(422,'VALIDATION_FAILED','Thực tập hoàn thành tự động ghi nhận kỹ năng, không có điểm.');
+        if($decision==='verified'){
+            if ($kind === 'project' && $skillScores !== [] && !$this->portfolioSkillMetadataAvailable()) $this->fail(503, 'SCHEMA_UNAVAILABLE', 'Không thể lưu điểm kỹ năng: cần migration 022_extend_portfolio_skill_evidence.');
+            if ($kind==='internship' && ($report['stage']??'')!=='completed') $this->fail(422,'INVALID_TRANSITION','Chỉ báo cáo hoàn thành thực tập mới được xác nhận.');
+            $this->assertContext($student,$kind,$contextId,true);
+            if ($kind==='project') {
+                $this->assertProjectSkills($contextId,$skillIds);
+                foreach ($skillScores as $id=>$score) { if (!in_array((string)$id,$skillIds,true) || !is_numeric($score) || !is_finite((float)$score) || (float)$score<0 || (float)$score>100) $this->fail(422,'VALIDATION_FAILED','Điểm kỹ năng phải là số hữu hạn từ 0 đến 100.'); }
+                foreach ($skillIds as $id) if (!array_key_exists($id,$skillScores)) $this->fail(422,'VALIDATION_FAILED','Mỗi kỹ năng được chọn phải có điểm.');
+            }
+        }
         $now=$this->now(); $version=$expectedVersion+1;
         if ($this->pdo->inTransaction()) $this->fail(409,'TRANSACTION_CONFLICT','Không thể ghi portfolio trong transaction đang mở.');
         try {
-            $this->pdo->beginTransaction();
-            // Same lock order as learner save: owner -> context -> mentor -> report.
-            $student = $this->student($report['studentId'], true);
-            $this->assertContext($student, $kind, $contextId, $decision === 'verified', true);
-            $currentMentor = $this->mentor($kind, $contextId, true);
-            $teacher = $this->teacher($teacherUserId, true);
-            if ($currentMentor['teacherId'] !== $teacher['teacherId']
-                || $currentMentor['schoolId'] !== $student['schoolId']
-                || $teacher['schoolId'] !== $student['schoolId']) {
-                $this->fail(403, 'PERMISSION_DENIED', 'Giáo viên không được phân công.');
-            }
-            $stmt = $this->pdo->prepare("UPDATE {$meta['table']} SET version=:version,status=:status,reviewedAt=:reviewedAt,reviewedByUserId=:reviewer,feedback=:feedback,updatedAt=:updatedAt WHERE id=:id AND version=:expectedVersion");
-            $stmt->execute(['version'=>$version,'status'=>$decision,'reviewedAt'=>$now,'reviewer'=>$teacherUserId,'feedback'=>$this->null($feedback),'updatedAt'=>$now,'id'=>$reportId,'expectedVersion'=>$expectedVersion]);
-            if ($stmt->rowCount() !== 1) $this->fail(409, 'VERSION_CONFLICT', 'Phiên bản đã thay đổi.');
+            $this->pdo->beginTransaction(); $student=$this->student($report['studentId'],true); $this->assertContext($student,$kind,$contextId,$decision==='verified',true); $currentMentor=$this->mentor($kind,$contextId,true); $teacher=$this->teacher($teacherUserId,true);
+            if ($currentMentor['teacherId']!==$teacher['teacherId']||$currentMentor['schoolId']!==$student['schoolId']||$teacher['schoolId']!==$student['schoolId'])$this->fail(403,'PERMISSION_DENIED','Giáo viên không được phân công.');
+            if($decision==='verified'){ if($kind==='project'){$this->assertProjectSkills($contextId,$skillIds,true); $skillIds=array_values(array_unique($skillIds));} else $skillIds=array_values(array_unique($this->internshipSkillIds($contextId))); }
+            $stmt=$this->pdo->prepare("UPDATE {$meta['table']} SET version=:version,status=:status,reviewedAt=:reviewedAt,reviewedByUserId=:reviewer,feedback=:feedback,updatedAt=:updatedAt WHERE id=:id AND version=:expectedVersion");$stmt->execute(['version'=>$version,'status'=>$decision,'reviewedAt'=>$now,'reviewer'=>$teacherUserId,'feedback'=>$this->null($feedback),'updatedAt'=>$now,'id'=>$reportId,'expectedVersion'=>$expectedVersion]);if($stmt->rowCount()!==1)$this->fail(409,'VERSION_CONFLICT','Phiên bản đã thay đổi.');
             $this->pdo->prepare('DELETE FROM learner_portfolio_skills WHERE kind=:kind AND reportId=:id')->execute(['kind'=>$kind,'id'=>$reportId]);
-            if ($decision === 'verified') {
-                foreach ($skillIds as $skillId) {
-                    $this->pdo->prepare('INSERT INTO learner_portfolio_skills(kind,reportId,skillId) VALUES (:kind,:id,:skill)')->execute(['kind'=>$kind,'id'=>$reportId,'skill'=>$skillId]);
-                }
-            }
+            if($decision==='verified') foreach($skillIds as $skillId) $this->insertPortfolioSkill($kind,$reportId,$skillId,$kind==='project'?(float)$skillScores[$skillId]:null,$kind==='project'?'project_report':'internship_completion');
             if ($this->tableExists('learner_skill_evidence')) {
                 $sourceType = $kind === 'project' ? 'project_submission' : 'internship_report';
                 if ($decision === 'verified') {
                     $evStmt = $this->pdo->prepare(<<<'SQL'
-INSERT INTO learner_skill_evidence (
-    id, studentId, skillId, verificationStatus, evidenceKind, sourceType, sourceId, sourceVersion,
-    score, observedAt, actorUserId, expiresAt, revokedAt, supersedesId, eventKey
-) VALUES (
-    :id, :studentId, :skillId, 'verified', 'skill', :sourceType, :sourceId, :sourceVersion,
-    NULL, :observedAt, :actorUserId, NULL, NULL, :supersedesId, :eventKey
-)
+INSERT INTO learner_skill_evidence (id,studentId,skillId,verificationStatus,evidenceKind,sourceType,sourceId,sourceVersion,score,observedAt,actorUserId,expiresAt,revokedAt,supersedesId,eventKey)
+VALUES (:id,:studentId,:skillId,'verified','skill',:sourceType,:sourceId,:sourceVersion,NULL,:observedAt,:actorUserId,NULL,NULL,:supersedesId,:eventKey)
 SQL);
-                    $checkEventStmt = $this->pdo->prepare('SELECT id FROM learner_skill_evidence WHERE eventKey = :eventKey');
-                    $findPrevStmt = $this->pdo->prepare(<<<'SQL'
-SELECT id FROM learner_skill_evidence
-WHERE studentId = :studentId AND sourceType = :sourceType AND sourceId = :sourceId AND skillId = :skillId AND sourceVersion < :sourceVersion
-ORDER BY sourceVersion DESC, observedAt DESC LIMIT 1
-SQL);
+                    $checkEventStmt = $this->pdo->prepare('SELECT id FROM learner_skill_evidence WHERE eventKey=:eventKey');
+                    $findPrevStmt = $this->pdo->prepare('SELECT id FROM learner_skill_evidence WHERE studentId=:studentId AND sourceType=:sourceType AND sourceId=:sourceId AND skillId=:skillId AND sourceVersion<:sourceVersion ORDER BY sourceVersion DESC,observedAt DESC LIMIT 1');
                     foreach ($skillIds as $skillId) {
-                        $eventKey = hash('sha256', "portfolio_evidence:{$kind}:{$reportId}:{$version}:{$skillId}");
-                        $checkEventStmt->execute(['eventKey' => $eventKey]);
-                        if ($checkEventStmt->fetchColumn()) {
-                            continue;
-                        }
-                        $findPrevStmt->execute([
-                            'studentId' => $report['studentId'],
-                            'sourceType' => $sourceType,
-                            'sourceId' => $reportId,
-                            'skillId' => $skillId,
-                            'sourceVersion' => $version,
-                        ]);
-                        $supersedesId = $findPrevStmt->fetchColumn() ?: null;
-                        $evidenceId = Uuid::v4();
-                        $evStmt->execute([
-                            'id' => $evidenceId,
-                            'studentId' => $report['studentId'],
-                            'skillId' => $skillId,
-                            'sourceType' => $sourceType,
-                            'sourceId' => $reportId,
-                            'sourceVersion' => $version,
-                            'observedAt' => $now,
-                            'actorUserId' => $teacherUserId,
-                            'supersedesId' => $supersedesId,
-                            'eventKey' => $eventKey,
-                        ]);
+                        $eventKey=hash('sha256',"portfolio_evidence:{$kind}:{$reportId}:{$version}:{$skillId}");
+                        $checkEventStmt->execute(['eventKey'=>$eventKey]); if($checkEventStmt->fetchColumn()) continue;
+                        $findPrevStmt->execute(['studentId'=>$report['studentId'],'sourceType'=>$sourceType,'sourceId'=>$reportId,'skillId'=>$skillId,'sourceVersion'=>$version]);
+                        $evStmt->execute(['id'=>Uuid::v4(),'studentId'=>$report['studentId'],'skillId'=>$skillId,'sourceType'=>$sourceType,'sourceId'=>$reportId,'sourceVersion'=>$version,'observedAt'=>$now,'actorUserId'=>$teacherUserId,'supersedesId'=>$findPrevStmt->fetchColumn()?:null,'eventKey'=>$eventKey]);
                     }
-                } elseif (in_array($decision, ['revoked', 'changes_requested'], true)) {
-                    $revokeStmt = $this->pdo->prepare(<<<'SQL'
-UPDATE learner_skill_evidence
-SET revokedAt = :revokedAt
-WHERE sourceType = :sourceType
-  AND sourceId = :sourceId
-  AND revokedAt IS NULL
-SQL);
-                    $revokeStmt->execute([
-                        'revokedAt' => $now,
-                        'sourceType' => $sourceType,
-                        'sourceId' => $reportId,
-                    ]);
+                } elseif (in_array($decision,['revoked','changes_requested'],true)) {
+                    $revoke=$this->pdo->prepare('UPDATE learner_skill_evidence SET revokedAt=:revokedAt WHERE sourceType=:sourceType AND sourceId=:sourceId AND revokedAt IS NULL');
+                    $revoke->execute(['revokedAt'=>$now,'sourceType'=>$sourceType,'sourceId'=>$reportId]);
                 }
             }
-            $snapshot = $this->row($kind, $reportId);
-            $snapshot['skillIds'] = $skillIds;
-            $this->history($kind, $reportId, $version, $decision, $teacherUserId, $snapshot);
-            $this->notify('portfolio_reviewed', $student['userId'], [
-                'title'=>'Báo cáo portfolio đã được phản hồi',
-                'message'=>'Giáo viên đã cập nhật trạng thái báo cáo.',
-                'deepLink'=>'/app/learner/profile.php',
-                'eventKey'=>"portfolio_reviewed:{$kind}:{$reportId}:{$version}",
-                'studentId'=>$report['studentId'],
-            ]);
-            if (in_array($decision, ['verified', 'revoked'], true)) {
-                TransactionalAiOutboxPublisher::publish(
-                    $this->pdo,
-                    'portfolio_report',
-                    $reportId,
-                    $version,
-                    [$report['studentId']],
-                    $decision === 'verified' ? 'portfolio.verified' : 'portfolio.revoked',
-                    ['kind' => $kind, 'status' => $decision, 'skill_count' => count($skillIds)],
-                );
-            }
+            $snapshot=$this->row($kind,$reportId);$snapshot['skillIds']=$skillIds;$snapshot['skillScores']=$kind==='project'?$skillScores:[];$this->history($kind,$reportId,$version,$decision,$teacherUserId,$snapshot);
+            $this->notify('portfolio_reviewed',$student['userId'],['title'=>'Báo cáo portfolio đã được phản hồi','message'=>'Giáo viên đã cập nhật trạng thái báo cáo.','deepLink'=>'/app/learner/profile.php','eventKey'=>"portfolio_reviewed:{$kind}:{$reportId}:{$version}",'studentId'=>$report['studentId']]);
+            if(in_array($decision,['verified','revoked'],true) && $this->hasTable('learner_ai_data_outbox') && !TransactionalAiOutboxPublisher::publish($this->pdo,'portfolio_report',$reportId,$version,[$report['studentId']],$decision==='verified'?'portfolio.verified':'portfolio.revoked',['kind'=>$kind,'status'=>$decision,'skill_count'=>count($skillIds)])) $this->fail(500,'AI_OUTBOX_FAILED','Không thể ghi sự kiện làm mới dữ liệu AI.');
             $this->projectScoresIfSupported($report['studentId']);
-            $result = $this->row($kind, $reportId);
-            $this->pdo->commit();
-            return $result;
-        } catch (Throwable $e) {
-            if ($this->pdo->inTransaction()) $this->pdo->rollBack();
-            if ($e instanceof ApiException) throw $e;
-            $this->fail(500, 'PORTFOLIO_WRITE_FAILED', 'Không thể duyệt báo cáo.');
-        }
+            $result=$this->row($kind,$reportId);$this->pdo->commit();return$result;
+        } catch(Throwable $e){if($this->pdo->inTransaction())$this->pdo->rollBack();if($e instanceof ApiException)throw$e;$this->fail(500,'PORTFOLIO_WRITE_FAILED','Không thể duyệt báo cáo.');}
     }
 
     public function verifiedForStudent(string $studentId): array
@@ -262,8 +199,10 @@ JOIN users u ON u.id=r.reviewedByUserId
 WHERE r.studentId=:studentId AND r.status='verified'
 SQL);
         $intern->execute(['studentId'=>$studentId]);
-        $skills = $this->pdo->prepare(<<<'SQL'
-SELECT s.name,ps.skillId,ps.kind,ps.reportId,eligible.reviewedAt,u.fullName reviewerName
+        $skillMetadata = $this->portfolioSkillMetadataAvailable()
+            ? 'ps.score,ps.sourceType,ps.evidenceStatus'
+            : "NULL AS score,CASE WHEN ps.kind='internship' THEN 'internship_completion' ELSE 'project_submission' END AS sourceType,'verified' AS evidenceStatus";
+        $skills = $this->pdo->prepare("SELECT s.name,ps.skillId,ps.kind,ps.reportId,{$skillMetadata},eligible.reviewedAt,u.fullName reviewerName
 FROM learner_portfolio_skills ps
 JOIN skills s ON s.id=ps.skillId AND s.status='active'
 JOIN (
@@ -278,9 +217,11 @@ JOIN (
   JOIN internship_applications a ON a.id=r.applicationId AND a.studentId=r.studentId AND a.status='accepted'
   WHERE r.studentId=:internStudent AND r.status='verified'
 ) eligible ON eligible.id=ps.reportId AND eligible.kind=ps.kind
-JOIN users u ON u.id=eligible.reviewedByUserId
-SQL);
+JOIN users u ON u.id=eligible.reviewedByUserId");
         $skills->execute(['projectStudent'=>$studentId,'schoolId'=>$student['schoolId'],'internStudent'=>$studentId]);
+        $skillRows = $skills->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($skillRows as &$skillRow) { $skillRow['score'] = $skillRow['score'] === null ? null : (float)$skillRow['score']; }
+        unset($skillRow);
         $strip = static fn(array $rows): array => array_map(static function(array $row): array {
             unset($row['reportId']);
             if (isset($row['hours'])) $row['hours'] = (float)$row['hours'];
@@ -289,18 +230,20 @@ SQL);
         return [
             'projects'=>$strip($projects->fetchAll(PDO::FETCH_ASSOC) ?: []),
             'internships'=>$strip($intern->fetchAll(PDO::FETCH_ASSOC) ?: []),
-            'skills'=>$skills->fetchAll(PDO::FETCH_ASSOC) ?: [],
+            'skills'=>$skillRows,
         ];
     }
 
     private function contextRows(array $rows,?string $forcedKind): array { return array_map(function(array $r)use($forcedKind){$kind=$forcedKind??$r['kind'];$out=['kind'=>$kind,'contextId'=>$r['contextId'],'title'=>$r['title'],'organization'=>$r['organization'],'mentorName'=>$r['mentorName']??null];foreach(['studentName','studentId','projectStatus','applicationStatus']as$k)if(array_key_exists($k,$r))$out[$k]=$r[$k];$out['report']=$r['reportId']?$this->row($kind,$r['reportId']):null;return$out;},$rows); }
-    private function row(string $kind,string $id): array { $m=$this->kind($kind);$s=$this->pdo->prepare("SELECT *,{$m['context']} contextId FROM {$m['table']} WHERE id=:id");$s->execute(['id'=>$id]);$r=$s->fetch(PDO::FETCH_ASSOC);if(!$r)$this->fail(404,'RESOURCE_NOT_FOUND','Không tìm thấy báo cáo.');foreach(['version','revision']as$k)$r[$k]=(int)$r[$k];if($r['hours']!==null)$r['hours']=(float)$r['hours'];unset($r[$m['context']]);$skills=$this->pdo->prepare('SELECT s.id,s.name FROM learner_portfolio_skills ps JOIN skills s ON s.id=ps.skillId WHERE ps.kind=:kind AND ps.reportId=:id ORDER BY s.name,s.id');$skills->execute(['kind'=>$kind,'id'=>$id]);$r['skills']=$skills->fetchAll(PDO::FETCH_ASSOC)?:[];$h=$this->pdo->prepare('SELECT version,status,actorUserId,createdAt,snapshotJson FROM learner_portfolio_history WHERE kind=:kind AND reportId=:id ORDER BY version');$h->execute(['kind'=>$kind,'id'=>$id]);$r['history']=array_map(static function($x){$snapshot=json_decode($x['snapshotJson'],true)?:[];return array_merge($snapshot,['version'=>(int)$x['version'],'status'=>$x['status'],'actorUserId'=>$x['actorUserId'],'createdAt'=>$x['createdAt']]);},$h->fetchAll(PDO::FETCH_ASSOC)?:[]);return$r; }
+    private function row(string $kind,string $id): array { $m=$this->kind($kind);$s=$this->pdo->prepare("SELECT *,{$m['context']} contextId FROM {$m['table']} WHERE id=:id");$s->execute(['id'=>$id]);$r=$s->fetch(PDO::FETCH_ASSOC);if(!$r)$this->fail(404,'RESOURCE_NOT_FOUND','Không tìm thấy báo cáo.');foreach(['version','revision']as$k)$r[$k]=(int)$r[$k];if($r['hours']!==null)$r['hours']=(float)$r['hours'];unset($r[$m['context']]);$metadata=$this->portfolioSkillMetadataAvailable()?',ps.score,ps.sourceType,ps.evidenceStatus':",NULL AS score,CASE WHEN ps.kind='internship' THEN 'internship_completion' ELSE 'project_submission' END AS sourceType,'verified' AS evidenceStatus";$skills=$this->pdo->prepare("SELECT s.id,s.name{$metadata} FROM learner_portfolio_skills ps JOIN skills s ON s.id=ps.skillId WHERE ps.kind=:kind AND ps.reportId=:id ORDER BY s.name,s.id");$skills->execute(['kind'=>$kind,'id'=>$id]);$r['skills']=array_map(static function(array $skill):array{$skill['score']=$skill['score']===null?null:(float)$skill['score'];return$skill;},$skills->fetchAll(PDO::FETCH_ASSOC)?:[]);$h=$this->pdo->prepare('SELECT version,status,actorUserId,createdAt,snapshotJson FROM learner_portfolio_history WHERE kind=:kind AND reportId=:id ORDER BY version');$h->execute(['kind'=>$kind,'id'=>$id]);$r['history']=array_map(static function($x){$snapshot=json_decode($x['snapshotJson'],true)?:[];return array_merge($snapshot,['version'=>(int)$x['version'],'status'=>$x['status'],'actorUserId'=>$x['actorUserId'],'createdAt'=>$x['createdAt']]);},$h->fetchAll(PDO::FETCH_ASSOC)?:[]);return$r; }
     private function find(string $kind,string $studentId,string $contextId): ?array { $m=$this->kind($kind);$s=$this->pdo->prepare("SELECT *,{$m['context']} contextId FROM {$m['table']} WHERE studentId=:studentId AND {$m['context']}=:contextId");$s->execute(compact('studentId','contextId'));$r=$s->fetch(PDO::FETCH_ASSOC);return$r?:null; }
     private function student(string $id, bool $lock=false): array { $suffix=$lock&&$this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':'';$s=$this->pdo->prepare("SELECT sp.id,sp.userId,u.status,c.schoolId FROM student_profiles sp JOIN users u ON u.id=sp.userId JOIN roles r ON r.id=u.roleId AND r.code='student' JOIN classes c ON c.id=sp.classId WHERE sp.id=:id{$suffix}");$s->execute(['id'=>$id]);$r=$s->fetch(PDO::FETCH_ASSOC);if(!$r)$this->fail(404,'RESOURCE_NOT_FOUND','Không tìm thấy học sinh.');if($r['status']!=='active')$this->fail(403,'PERMISSION_DENIED','Tài khoản học sinh không hoạt động.');return$r; }
     private function teacher(string $userId, bool $lock=false): array { $suffix=$lock&&$this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':'';$s=$this->pdo->prepare("SELECT tp.id teacherId,tp.schoolId,u.status FROM teacher_profiles tp JOIN users u ON u.id=tp.userId JOIN roles r ON r.id=u.roleId AND r.code='teacher' WHERE tp.userId=:id{$suffix}");$s->execute(['id'=>$userId]);$r=$s->fetch(PDO::FETCH_ASSOC);if(!$r||$r['status']!=='active')$this->fail(403,'PERMISSION_DENIED','Giáo viên không hoạt động.');return$r; }
     private function assertContext(array $student,string $kind,string $contextId,bool $current,bool $lock=false): void { $suffix=$lock&&$this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':'';if($kind==='project'){$s=$this->pdo->prepare("SELECT p.schoolId,pm.status FROM projects p JOIN project_members pm ON pm.projectId=p.id AND pm.studentId=:studentId WHERE p.id=:id{$suffix}");$s->execute(['studentId'=>$student['id'],'id'=>$contextId]);$r=$s->fetch(PDO::FETCH_ASSOC);if(!$r)$this->fail(403,'PERMISSION_DENIED','Không thuộc dự án.');if($r['schoolId']!==$student['schoolId'])$this->fail(403,'PERMISSION_DENIED','Dự án khác trường.');if($current&&$r['status']!=='active')$this->fail(422,'INVALID_CONTEXT','Thành viên dự án không hoạt động.');}else{$s=$this->pdo->prepare("SELECT status,studentId FROM internship_applications WHERE id=:id{$suffix}");$s->execute(['id'=>$contextId]);$r=$s->fetch(PDO::FETCH_ASSOC);if(!$r||$r['studentId']!==$student['id'])$this->fail(403,'PERMISSION_DENIED','Không thuộc đơn thực tập.');if($current&&$r['status']!=='accepted')$this->fail(422,'INVALID_CONTEXT','Đơn thực tập chưa được chấp nhận.');} }
     private function mentor(string $kind,string $contextId,bool $lock=false): array { $suffix=$lock&&$this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':'';$sql=($kind==='project'?'SELECT tp.id teacherId,tp.userId,tp.schoolId FROM projects p JOIN teacher_profiles tp ON tp.id=p.mentorTeacherId WHERE p.id=:id':'SELECT tp.id teacherId,tp.userId,tp.schoolId FROM internship_mentor_assignments ima JOIN teacher_profiles tp ON tp.id=ima.mentorTeacherId WHERE ima.applicationId=:id').$suffix;$s=$this->pdo->prepare($sql);$s->execute(['id'=>$contextId]);$r=$s->fetch(PDO::FETCH_ASSOC);if(!$r)$this->fail(403,'PERMISSION_DENIED','Không có giáo viên hướng dẫn hiện tại.');return$r; }
     private function assertMentor(array $student,string $kind,string $contextId,bool $lock=false): void { try{$m=$this->mentor($kind,$contextId,$lock);}catch(ApiException){$this->fail(422,'MENTOR_REQUIRED','Cần phân công giáo viên hướng dẫn trước khi gửi.');}if($m['schoolId']!==$student['schoolId'])$this->fail(403,'PERMISSION_DENIED','Giáo viên hướng dẫn khác trường.'); }
+    /** @param list<string> $skillIds */
+    private function assertProjectSkills(string $projectId,array $skillIds,bool $lock=false): void { if(!$this->hasTable('project_skill_tags'))$this->fail(422,'VALIDATION_FAILED','Dự án chưa cấu hình kỹ năng được giao.');$suffix=$lock&&$this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)==='mysql'?' FOR UPDATE':'';foreach($skillIds as $skillId){$s=$this->pdo->prepare("SELECT 1 FROM project_skill_tags pst JOIN skills s ON s.id=pst.skillId AND s.status='active' WHERE pst.projectId=:project AND pst.skillId=:skill{$suffix}");$s->execute(['project'=>$projectId,'skill'=>$skillId]);if(!$s->fetchColumn())$this->fail(422,'VALIDATION_FAILED','Kỹ năng không được gán cho dự án.');} }
     private function validate(string $kind,array $v,bool $submit): void
     {
         foreach (['notes','repositoryUrl','demoUrl','startDate','endDate','hours','stage'] as $field) {
@@ -330,6 +273,33 @@ SQL);
         if ($submit&&(!$start||$start>$this->today())) $this->fail(422,'VALIDATION_FAILED','Ngày bắt đầu không hợp lệ.');
         if ($stage==='completed'&&$submit&&(!$end||$end>$this->today()||$hoursValue===null||$hoursValue<=0)) $this->fail(422,'VALIDATION_FAILED','Thông tin hoàn thành thực tập không hợp lệ.');
     }
+    /** @return list<array{id:string,name:string}> */
+    private function assignedSkills(string $kind,string $contextId): array
+    {
+        if($kind==='project'){$s=$this->pdo->prepare("SELECT s.id,s.name FROM project_skill_tags pst JOIN skills s ON s.id=pst.skillId AND s.status='active' WHERE pst.projectId=:id ORDER BY s.name,s.id");$s->execute(['id'=>$contextId]);return$s->fetchAll(PDO::FETCH_ASSOC)?:[];}
+        if(!$this->hasColumn('internship_posts','skillsJson'))return[];$s=$this->pdo->prepare('SELECT ip.skillsJson FROM internship_applications a JOIN internship_posts ip ON ip.id=a.postId WHERE a.id=:id');$s->execute(['id'=>$contextId]);$raw=$s->fetchColumn();$decoded=is_string($raw)?json_decode($raw,true):[];$result=[];foreach(is_array($decoded)?$decoded:[] as $entry){$name=is_string($entry)?trim($entry):trim((string)($entry['name']??$entry['code']??$entry['id']??''));if($name!=='')$result[]=['id'=>'','name'=>$name];}return$result;
+    }
+    /** @return list<string> */
+    private function internshipSkillIds(string $applicationId): array
+    {
+        if(!$this->hasColumn('internship_posts','skillsJson'))return[];
+        $s=$this->pdo->prepare('SELECT ip.skillsJson FROM internship_applications a JOIN internship_posts ip ON ip.id=a.postId WHERE a.id=:id');$s->execute(['id'=>$applicationId]);$raw=$s->fetchColumn();try{$items=is_string($raw)?json_decode($raw,true,64,JSON_THROW_ON_ERROR):[];}catch(\JsonException){$this->fail(422,'VALIDATION_FAILED','Danh sách kỹ năng thực tập không hợp lệ.');}
+        if(!is_array($items))$this->fail(422,'VALIDATION_FAILED','Danh sách kỹ năng thực tập không hợp lệ.');$ids=[];foreach($items as $item){$id=$this->resolveInternshipSkill($item);if($id!==null)$ids[$id]=true;}return array_keys($ids);
+    }
+    private function resolveInternshipSkill(mixed $item): ?string
+    {
+        $tokens=is_string($item)?[$item]:(is_array($item)?[$item['id']??null,$item['code']??null,$item['name']??null]:[]);foreach($tokens as $token){if(!is_scalar($token))continue;$token=trim((string)$token);if($token==='')continue;$s=$this->pdo->prepare("SELECT id FROM skills WHERE status='active' AND (id=:id OR LOWER(code)=LOWER(:code) OR LOWER(name)=LOWER(:name)) ORDER BY CASE WHEN id=:exact THEN 0 ELSE 1 END LIMIT 1");$s->execute(['id'=>$token,'code'=>$token,'name'=>$token,'exact'=>$token]);$found=$s->fetchColumn();if($found)return(string)$found;}
+        $name=is_string($item)?trim($item):trim((string)($item['name']??''));if($name===''||mb_strlen($name)>150||preg_match('/[\x00-\x1F\x7F]/u',$name))return null;$id=Uuid::v4();$code='internship-'.substr(hash('sha256',mb_strtolower($name,'UTF-8')),0,24);$columns=$this->tableColumns('skills');$values=['id'=>$id,'code'=>$code,'name'=>$name,'category'=>'internship','status'=>'active','createdAt'=>$this->now(),'updatedAt'=>$this->now()];$use=array_values(array_intersect(array_keys($values),$columns));$sql='INSERT INTO skills('.implode(',',$use).') VALUES ('.implode(',',array_map(static fn($c)=>':'.$c,$use)).')';try{$this->pdo->prepare($sql)->execute(array_intersect_key($values,array_flip($use)));}catch(PDOException $e){$s=$this->pdo->prepare('SELECT id FROM skills WHERE LOWER(code)=LOWER(:code) OR LOWER(name)=LOWER(:name) LIMIT 1');$s->execute(['code'=>$code,'name'=>$name]);$found=$s->fetchColumn();if($found)return(string)$found;throw $e;}return$id;
+    }
+    private function insertPortfolioSkill(string $kind,string $reportId,string $skillId,?float $score,string $source): void
+    {
+        if($this->portfolioSkillMetadataAvailable()){$s=$this->pdo->prepare('INSERT INTO learner_portfolio_skills(kind,reportId,skillId,score,sourceType,evidenceStatus) VALUES (:kind,:report,:skill,:score,:source,:status)');$s->execute(['kind'=>$kind,'report'=>$reportId,'skill'=>$skillId,'score'=>$score,'source'=>$source,'status'=>'verified']);return;}$this->pdo->prepare('INSERT INTO learner_portfolio_skills(kind,reportId,skillId) VALUES (:kind,:report,:skill)')->execute(['kind'=>$kind,'report'=>$reportId,'skill'=>$skillId]);
+    }
+    private function hasTable(string $table): bool { return $this->tableColumns($table)!==[]; }
+    private function portfolioSkillMetadataAvailable(): bool { return $this->hasColumn('learner_portfolio_skills','score') && $this->hasColumn('learner_portfolio_skills','sourceType') && $this->hasColumn('learner_portfolio_skills','evidenceStatus'); }
+    private function hasColumn(string $table,string $column): bool { return in_array($column,$this->tableColumns($table),true); }
+    /** @return list<string> */
+    private function tableColumns(string $table): array { try{$driver=(string)$this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);$rows=$driver==='sqlite'?$this->pdo->query('PRAGMA table_info('.$table.')')->fetchAll(PDO::FETCH_ASSOC):$this->pdo->query('SHOW COLUMNS FROM '.$table)->fetchAll(PDO::FETCH_ASSOC);return array_values(array_filter(array_map(static fn($r)=>$r['name']??$r['Field']??null,$rows),'is_string'));}catch(Throwable){return[];} }
     private function history(string $kind,string $reportId,int $version,string $status,string $actor,array $snapshot): void { unset($snapshot['history']);$s=$this->pdo->prepare('INSERT INTO learner_portfolio_history(id,kind,reportId,version,status,actorUserId,snapshotJson,createdAt) VALUES (:id,:kind,:reportId,:version,:status,:actor,:snapshot,:createdAt)');$s->execute(['id'=>Uuid::v4(),'kind'=>$kind,'reportId'=>$reportId,'version'=>$version,'status'=>$status,'actor'=>$actor,'snapshot'=>json_encode($snapshot,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE),'createdAt'=>$this->now()]); }
     private function notify(string $type,string $recipient,array $payload): void { ($this->notifier)($type,$recipient,$payload); }
     private function kind(string $kind): array { return match($kind){'project'=>['table'=>'project_submissions','context'=>'projectId'],'internship'=>['table'=>'learner_internship_reports','context'=>'applicationId'],default=>$this->fail(422,'VALIDATION_FAILED','Loại báo cáo không hợp lệ.')}; }

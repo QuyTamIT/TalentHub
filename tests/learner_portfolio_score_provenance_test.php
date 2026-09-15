@@ -164,6 +164,7 @@ CREATE TABLE learner_portfolio_skills (
     reportId VARCHAR(64) NOT NULL,
     skillId VARCHAR(64) NOT NULL
 );
+CREATE TABLE project_skill_tags(projectId TEXT,skillId TEXT);
 
 CREATE TABLE learner_portfolio_history (
     id VARCHAR(64) PRIMARY KEY,
@@ -293,6 +294,9 @@ INSERT INTO project_members VALUES
     ('pm_1', 'prj_1', 'sp_1', 'active', NULL),
     ('pm_2', 'prj_1', 'sp_2', 'active', NULL);
 SQL);
+    $pdo->exec("INSERT INTO project_skill_tags VALUES ('prj_1','sk_react'),('prj_1','sk_node'),('prj_1','sk_sql')");
+    $migration = require dirname(__DIR__) . '/Database/migrations/learner/022_extend_portfolio_skill_evidence.php';
+    foreach ($migration->migration->statements('sqlite') as $sql) $pdo->exec($sql);
 
     return $pdo;
 }
@@ -339,7 +343,7 @@ echo "Scenario 1 (T11): PASS - Unreviewed report generates no evidence or score\
 // =========================================================================
 // Scenario 2 (T12 - Báo cáo đã duyệt nhưng chưa chấm: evidence_only, score = NULL)
 // =========================================================================
-$verified = $repo->review('u_t1', 'project', $submitted['id'], 1, 'verified', 'Dự án tốt, kỹ năng phù hợp.', ['sk_react', 'sk_node']);
+$verified = $repo->review('u_t1', 'project', $submitted['id'], 1, 'verified', 'Dự án tốt, kỹ năng phù hợp.', ['sk_react', 'sk_node'], ['sk_react'=>80,'sk_node'=>75]);
 
 testCheck($verified['status'] === 'verified', 'Scenario 2: Status must be verified');
 
@@ -521,7 +525,7 @@ testCheck($resubmitted['status'] === 'submitted', 'Scenario 6: Resubmitted statu
 testCheck((int)$resubmitted['version'] === 4, 'Scenario 6: Version is 4');
 
 // Mentor verifies again with skill sk_react
-$reverified = $repo->review('u_t1', 'project', $submitted['id'], 4, 'verified', 'Mã nguồn viết lại tốt.', ['sk_react']);
+$reverified = $repo->review('u_t1', 'project', $submitted['id'], 4, 'verified', 'Mã nguồn viết lại tốt.', ['sk_react'], ['sk_react'=>85]);
 
 // Count evidence records for this report: should have 2 revoked (v2) + 1 new (v5)
 $allEvidence = $pdo->query("SELECT * FROM learner_skill_evidence WHERE sourceId = '{$submitted['id']}' ORDER BY observedAt, id")->fetchAll();

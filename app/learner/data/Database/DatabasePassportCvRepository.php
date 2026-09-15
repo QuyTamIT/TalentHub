@@ -48,7 +48,7 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
                     $student['bio'] = $details['bio'] ?? null;
                 }
             }
-            $result=['student'=>$student,'skills'=>[],'projects'=>[],'internships'=>[],'teacher_evaluations'=>[],'assessment_results'=>[],'experience'=>['confirmed_entries'=>[],'summary'=>['total_hours'=>0.0,'total_activities'=>0]],'badges'=>[]];
+            $result=['student'=>$student,'skills'=>[],'projects'=>[],'internships'=>[],'teacher_evaluations'=>[],'assessment_results'=>[],'experience'=>['confirmed_entries'=>[],'summary'=>['total_hours'=>0.0,'total_activities'=>0]],'badges'=>[],'certificates'=>[]];
             foreach ($official['skills'] as $skill) {
                 if ($skill['state'] !== 'scored' || $skill['score'] === null) continue;
                 $result['skills'][]=array_merge($skill, [
@@ -109,6 +109,10 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
                     FROM badges b INNER JOIN student_badges sb ON sb.badgeId=b.id
                     WHERE sb.studentId=:id ORDER BY {$timeCol} DESC,b.id LIMIT 3", ['id'=>$studentId]);
             }
+            if ($this->has('certificates','studentId') && $this->has('certificates','verificationStatus')) {
+                $result['certificates']=$this->fetchAll('cv certificates', "SELECT id,title,issuingOrganization,issueDate,verificationStatus,createdAt
+                    FROM certificates WHERE studentId=:id ORDER BY issueDate DESC, createdAt DESC, id", ['id'=>$studentId]);
+            }
             if ($this->has('experience_logs','hours')) {
                 $summaryRow=$this->fetchOne('cv experience summary', "SELECT COALESCE(SUM(hours),0) AS totalHours, COUNT(DISTINCT activityId) AS totalActivities
                     FROM experience_logs WHERE studentId=:id AND status='confirmed'", ['id'=>$studentId]);
@@ -159,7 +163,7 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
             $result['verified_portfolio']['internships'] = [];
             $result['experience'] = ['confirmed_entries'=>[], 'summary'=>['total_hours'=>0.0,'total_activities'=>0]];
         }
-        if (!in_array('certificates', $fields, true)) $result['badges'] = [];
+        if (!in_array('certificates', $fields, true)) { $result['badges'] = []; $result['certificates'] = []; }
         $result['teacher_evaluations'] = [];
         $result['assessment_results'] = [];
         foreach ($result['projects'] as &$project) {

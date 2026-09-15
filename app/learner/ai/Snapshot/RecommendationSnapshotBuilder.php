@@ -34,12 +34,12 @@ final class RecommendationSnapshotBuilder
             throw new \InvalidArgumentException('Legacy snapshot sources are incomplete.');
         }
         $this->registry = AiSourceRegistry::fromLegacySources([
-            $registryOrProfile,
-            $skillSource,
-            $assessmentSource,
-            $activityExperienceSource,
-            $publishedEvaluationSource,
-            $opportunitySource,
+            'profile' => $registryOrProfile,
+            'skill' => $skillSource,
+            'assessment' => $assessmentSource,
+            'activity_experience' => $activityExperienceSource,
+            'evaluation' => $publishedEvaluationSource,
+            'opportunity' => $opportunitySource,
         ]);
     }
 
