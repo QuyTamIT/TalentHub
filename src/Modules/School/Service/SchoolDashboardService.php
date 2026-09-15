@@ -1830,14 +1830,29 @@ final class SchoolDashboardService
         return $ts === false ? gmdate('Y-m-d\TH:i:s\Z') : gmdate('Y-m-d\TH:i:s\Z', $ts);
     }
 
+    /**
+     * Format thời gian relative theo chuẩn project: "X phút trước", "X giờ trước"...
+     * Ủy quyền cho helper thống nhất (giả định input là UTC) để đảm bảo
+     * hiển thị nhất quán với các module khác.
+     */
     private function relativeTime(string $mysql): string
     {
+        if (!function_exists('tz_relative')) {
+            $helper = dirname(__DIR__, 4) . '/app/shared/timezone_helper.php';
+            if (is_file($helper)) {
+                require_once $helper;
+            }
+        }
+        if (function_exists('tz_relative')) {
+            return tz_relative($mysql);
+        }
+        // Fallback nếu helper không tải được — vẫn cố hiển thị gì đó
         $ts = strtotime($mysql);
         if ($ts === false) {
             return '—';
         }
         $diff = time() - $ts;
-        if ($diff < 60)        { return $diff . ' giây trước'; }
+        if ($diff < 60)        { return max(0, $diff) . ' giây trước'; }
         if ($diff < 3600)      { return floor($diff / 60) . ' phút trước'; }
         if ($diff < 86400)     { return floor($diff / 3600) . ' giờ trước'; }
         if ($diff < 86400 * 7) { return floor($diff / 86400) . ' ngày trước'; }
