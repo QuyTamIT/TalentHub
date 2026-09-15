@@ -152,8 +152,8 @@ foreach ($posts as $post) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Quản lý tin tuyển thực tập doanh nghiệp trên FTalentHub Enterprise.">
-    <title>Tuyển thực tập sinh - Enterprise | FTalentHub</title>
+    <meta name="description" content="Quản lý tin tuyển thực tập doanh nghiệp trên TalentHub Enterprise.">
+    <title>Tuyển thực tập sinh - Enterprise | TalentHub</title>
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../../assets/css/home.css">

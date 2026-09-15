@@ -115,7 +115,7 @@ final class TeacherStudentService
 
         return [
             'id' => (string) $row['id'],
-            'full_name' => $name !== '' ? $name : 'Giáo viên FTalentHub',
+            'full_name' => $name !== '' ? $name : 'Giáo viên TalentHub',
             'role_label' => !empty($row['isSchoolAdmin']) ? 'Giáo viên / Quản trị trường' : 'Giáo viên / Hướng dẫn viên',
             'school_name' => (string) $row['schoolName'],
             'avatar_initials' => $this->initials($name),

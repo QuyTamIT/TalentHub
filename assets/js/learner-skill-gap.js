@@ -70,7 +70,7 @@
             target_is_approximate: raw?.target_is_approximate === true,
             evidence_count: Array.isArray(raw?.evidence_refs) ? raw.evidence_refs.length : 0,
         };
-        if (includeImpact) item.impact = cleanText(raw?.impact, 'Bạn chưa có kỹ năng này trong hồ sơ.');
+        if (includeImpact) item.impact = cleanText(raw?.impact, 'Kỹ năng này chưa đạt benchmark của vị trí mục tiêu.');
         return item;
     }
 
@@ -185,17 +185,8 @@
             titleWrap.appendChild(element('h4', '', skill.label));
 
             const unknown = skill.current_score === null || skill.target_score === null || skill.gap_score === null;
-            let badgeText = '✓ Đạt chuẩn';
-            if (isMissing) {
-                if (skill.current_score === null) {
-                    badgeText = 'Chưa có';
-                } else if (skill.gap_score !== null && skill.gap_score > 0) {
-                    badgeText = `Thiếu ${skill.gap_score}đ`;
-                } else {
-                    badgeText = 'Cần đối chiếu';
-                }
-            }
-            const badge = element('span', `learner-skill-badge ${isMissing ? 'learner-skill-badge--missing' : 'learner-skill-badge--met'}`, badgeText);
+            const badge = element('span', `learner-skill-badge ${isMissing ? 'learner-skill-badge--missing' : 'learner-skill-badge--met'}`,
+                unknown ? 'Cần đối chiếu' : (isMissing ? `Thiếu ${skill.gap_score}đ` : '✓ Đạt chuẩn'));
             heading.append(titleWrap, badge);
             card.appendChild(heading);
 
@@ -214,30 +205,20 @@
                 card.appendChild(barContainer);
             }
 
-            if (skill.current_score !== null) {
-                const metrics = element('div', 'learner-skill-gap__skill-metrics');
-                metrics.appendChild(element('span', 'learner-skill-metric-item', `Hiện tại: ${skill.current_score}/100`));
-                if (skill.target_score !== null) {
-                    metrics.appendChild(element('span', 'learner-skill-metric-target', `Chuẩn vị trí: ${skill.target_score}/100`));
-                }
-                card.appendChild(metrics);
-            }
+            const metrics = element('div', 'learner-skill-gap__skill-metrics');
+            metrics.append(
+                element('span', 'learner-skill-metric-item', `Hiện tại: ${skill.current_score === null ? 'Chưa có dữ liệu' : skill.current_score}`),
+                element('span', 'learner-skill-metric-target', `Chuẩn vị trí: ${skill.target_score === null ? 'Chưa xác định' : skill.target_score}`)
+            );
+            card.appendChild(metrics);
 
             if (isMissing) {
                 const impactEl = element('p', 'learner-skill-gap__impact');
-                let impactText = skill.impact || '';
-                if (skill.current_score === null) {
-                    impactText = 'Bạn chưa có kỹ năng này trong hồ sơ.';
-                } else if (skill.target_score === null || skill.gap_score === null) {
-                    impactText = 'Vị trí chưa công bố mức yêu cầu.';
-                } else if (skill.gap_score !== null && skill.gap_score > 0) {
-                    impactText = `Còn thiếu ${skill.gap_score} điểm so với chuẩn vị trí.`;
-                }
-                impactEl.textContent = impactText;
+                impactEl.textContent = skill.impact;
                 card.appendChild(impactEl);
             } else {
                 const evidenceEl = element('p', 'learner-skill-gap__evidence');
-                evidenceEl.textContent = 'Đã đạt yêu cầu';
+                evidenceEl.textContent = `${skill.evidence_count} bằng chứng năng lực đã xác thực`;
                 card.appendChild(evidenceEl);
             }
             return card;

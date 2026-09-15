@@ -97,22 +97,6 @@ final class StatisticsService
         private readonly StatisticsRepository $repository,
         private readonly ?DateTimeImmutable $clock = null
     ) {}
-    /**
-     * Format academic classification tier based on standardized academic grading (no arbitrary Top % tiers).
-     */
-    public static function formatAcademicClassification(?float $score): string
-    {
-        if ($score === null) {
-            return 'Chưa đủ dữ liệu';
-        }
-        return match (true) {
-            $score >= 90.0 => 'Xuất sắc',
-            $score >= 80.0 => 'Tốt',
-            $score >= 70.0 => 'Khá',
-            default => 'Đạt',
-        };
-    }
-
 
     /**
      * @return array{
@@ -503,7 +487,7 @@ final class StatisticsService
             ? DateTimeImmutable::createFromFormat('Y-m-d H:i:s.u', $publishedAt, new DateTimeZone('UTC')) ?: $now
             : $now;
 
-        $classification = 'Chưa đủ dữ liệu';
+        $classification = 'Chưa có đánh giá';
         $ranking = '';
         if ($totalScore !== null) {
             $classification = match (true) {
@@ -512,7 +496,12 @@ final class StatisticsService
                 $totalScore >= 70 => 'Khá',
                 default => 'Đạt',
             };
-            $ranking = $classification;
+            $ranking = match (true) {
+                $totalScore >= 90 => 'Top 10% học sinh tiêu biểu',
+                $totalScore >= 80 => 'Top 15% học sinh tiêu biểu',
+                $totalScore >= 70 => 'Top 30% học sinh tiêu biểu',
+                default => 'Trong nhóm tiến bộ vượt bậc',
+            };
         }
 
         return [

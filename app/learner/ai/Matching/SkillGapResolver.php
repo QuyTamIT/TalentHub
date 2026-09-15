@@ -78,20 +78,30 @@ final class SkillGapResolver
         ];
     }
 
-    /** @param array{current_score:?int,target_score:?int,gap:?int,weight:float,required:bool,label?:string,code?:string} $skill */
+    /** @param array{current_score:?int,target_score:?int,gap:?int,weight:float,required:bool} $skill */
     private static function impactLabel(array $skill): string
     {
         $gap = $skill['gap'];
-        $label = $skill['label'] ?? ($skill['code'] ?? 'kỹ năng này');
-        if ($skill['current_score'] === null) {
-            return 'Bạn chưa có kỹ năng này trong hồ sơ.';
-        }
         if ($skill['target_score'] === null) {
-            return 'Vị trí chưa công bố mức yêu cầu.';
+            return 'Ngưỡng yêu cầu chưa được nguồn công bố; cần đối chiếu thêm trước khi kết luận mức độ đáp ứng.';
         }
-        if ($gap !== null && $gap > 0) {
-            return "Còn thiếu {$gap} điểm về {$label} so với chuẩn vị trí.";
+        if ($skill['current_score'] === null) {
+            return 'Chưa có điểm quan sát cho kỹ năng này; cần đánh giá thêm trước khi kết luận mức độ đáp ứng.';
         }
-        return 'Đã đạt yêu cầu';
+        if ($skill['required'] && $gap >= 40) {
+            return 'Kỹ năng bắt buộc còn thiếu lớn, ảnh hưởng trực tiếp đến khả năng đảm nhận vị trí.';
+        }
+        if ($skill['required']) {
+            return ($skill['target_basis'] ?? '') === 'candidate'
+                ? 'Kỹ năng bắt buộc chưa đạt ngưỡng được công bố cho vị trí này.'
+                : 'Kỹ năng bắt buộc chưa đạt ngưỡng tham chiếu của nghề; cần đối chiếu yêu cầu thực tế của vị trí.';
+        }
+        if ($gap >= 40) {
+            return 'Khoảng thiếu lớn ảnh hưởng rõ rệt đến mức độ phù hợp.';
+        }
+        if ($skill['weight'] >= 15.0) {
+            return 'Khoảng thiếu nằm ở kỹ năng có trọng số cao trong phép đối chiếu hiện tại.';
+        }
+        return 'Khoảng thiếu nhỏ, có thể bù đắp qua luyện tập có mục tiêu.';
     }
 }

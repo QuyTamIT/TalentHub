@@ -165,76 +165,17 @@
               subtitle → padding-left = icon + gap để căn đúng text edge
    ========================================================================== */
 
-/* — Brand wrapper: flex-column, centered logo + caption — */
-.learner-sidebar__brand,
+/* — Brand wrapper: flex-column, link trên / subtitle dưới — */
 .teacher-sidebar__brand,
 .school-sidebar__brand,
 .ent-sidebar__brand {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    width: 100%;
+    align-items: flex-start;
     gap: 0;
     padding-bottom: 0.875rem;
-    border-bottom: 1px solid var(--border, #F0E6DD);
+    border-bottom: 1px solid var(--border);
     margin-bottom: 1rem;
-}
-
-.learner-sidebar__brand-link,
-.teacher-sidebar__brand-link,
-.school-sidebar__brand-link,
-.ent-sidebar__brand-link {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    line-height: 1;
-    margin: 0 auto;
-    transition: opacity var(--transition-fast, 0.15s ease), transform var(--transition-fast, 0.15s ease);
-}
-
-.learner-sidebar__brand-link:hover,
-.teacher-sidebar__brand-link:hover,
-.school-sidebar__brand-link:hover,
-.ent-sidebar__brand-link:hover {
-    opacity: 0.92;
-    transform: translateY(-1px);
-}
-
-.learner-sidebar__logo-img,
-.teacher-sidebar__logo-img,
-.school-sidebar__logo-img,
-.ent-sidebar__logo-img {
-    display: block;
-    max-width: 100%;
-    height: auto;
-    object-fit: contain;
-    aspect-ratio: 401 / 122;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.learner-sidebar__role-tag,
-.teacher-sidebar__role-tag,
-.school-sidebar__role-tag,
-.ent-sidebar__role-tag {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    color: var(--primary-coral, #F83F70);
-    background-color: #FFF0EB;
-    border: 1px solid #FFDACB;
-    padding: 3px 12px;
-    border-radius: 999px;
-    margin: 8px auto 0 auto;
-    letter-spacing: 0.02em;
-    line-height: 1.4;
-    text-align: center;
-    white-space: nowrap;
 }
 
 /* — Link: flex row (icon | text-col) — */

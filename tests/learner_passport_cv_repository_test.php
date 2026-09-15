@@ -5,7 +5,6 @@ require dirname(__DIR__).'/app/learner/data/bootstrap.php';
 require dirname(__DIR__).'/app/learner/data/Database/DatabasePassportCvRepository.php';
 require dirname(__DIR__).'/app/learner/data/ReadModel/PassportCvViewModel.php';
 use TalentHub\Learner\Data\Database\DatabasePassportCvRepository;
-use TalentHub\Learner\Data\Service\ScoreViewer;
 use TalentHub\Learner\Data\ReadModel\PassportCvViewModel;
 $pdo=new PDO('sqlite::memory:',null,null,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
 foreach ([
@@ -46,7 +45,7 @@ INSERT INTO internship_applications VALUES ('app','$student','post','accepted','
 INSERT INTO learner_evaluations VALUES ('ev1','series',1,'$student','teacher','published','Published comment','2026-09-01','project',NULL);
 INSERT INTO activities VALUES ('a','Club meeting');
 INSERT INTO experience_logs VALUES ('log','$student','a','confirmed','2026-09-01');");
-$repo=new DatabasePassportCvRepository($pdo,new ScoreViewer(ScoreViewer::ROLE_STUDENT,$user,$school));
+$repo=new DatabasePassportCvRepository($pdo);
 $one=$repo->forStudent($student);
 if (count($one['projects'])!==1 || $one['projects'][0]['id']!=='p') throw new RuntimeException('Cross-student data leak');
 echo "[PASS] Only authenticated student membership selected\n";

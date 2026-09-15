@@ -119,20 +119,8 @@ if ($isDatabaseMode) {
                     'criteria' => $criteria,
                     'total' => $displayScore,
                     'max_total' => '10',
-                    'classification' => match (true) {
-                        $rawScore === null => 'Chưa đủ dữ liệu',
-                        $rawScore >= 90.0 => 'Xuất sắc',
-                        $rawScore >= 80.0 => 'Tốt',
-                        $rawScore >= 70.0 => 'Khá',
-                        default => 'Đạt',
-                    },
-                    'ranking' => match (true) {
-                        $rawScore === null => 'Chưa đủ dữ liệu',
-                        $rawScore >= 90.0 => 'Xuất sắc',
-                        $rawScore >= 80.0 => 'Tốt',
-                        $rawScore >= 70.0 => 'Khá',
-                        default => 'Đạt',
-                    },
+                    'classification' => \TalentHub\Support\GradeClassifier::getClassification($rawScore),
+                    'ranking' => \TalentHub\Support\GradeClassifier::getRankingPercentile($rawScore),
                     'comment' => (string) ($eval['comment'] ?? 'Chưa có nhận xét chi tiết.'),
                     'reviewer' => $reviewerName,
                     'reviewer_initials' => $reviewerInitials,
@@ -167,8 +155,8 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Theo dõi điểm đánh giá năng lực và nhận xét phản hồi từ giảng viên, huấn luyện viên trên FTalentHub.">
-    <title>Đánh giá & Nhận xét Năng lực | FTalentHub</title>
+    <meta name="description" content="Theo dõi điểm đánh giá năng lực và nhận xét phản hồi từ giảng viên, huấn luyện viên trên TalentHub.">
+    <title>Đánh giá & Nhận xét Năng lực | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
@@ -790,7 +778,7 @@ $hasEvaluation = $evaluationSourceState === 'ready' && is_array($currentEvaluati
 
                         <div class="eval-rank-box">
                             <?= learner_icon('trophy', 16); ?>
-                            <span data-evaluation-ranking><?= learner_escape($currentEvaluation['ranking'] ?? ($currentEvaluation['classification'] ?? 'Đang cập nhật')); ?></span>
+                            <span data-evaluation-ranking><?= learner_escape($currentEvaluation['ranking'] ?? 'Top 15% lớp'); ?></span>
                         </div>
 
                         <div class="eval-passport-status">

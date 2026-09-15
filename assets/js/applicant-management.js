@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await enterpriseRequest('PATCH', `/businesses/me/internship-applications/${encodeURIComponent(appId)}`, {
                 expectedCurrentStatus: prevStatus,
                 targetStatus: 'accepted',
-                reviewerNote: app.reviewer_note || 'Đã duyệt hồ sơ qua hệ thống FTalentHub Enterprise.'
+                reviewerNote: app.reviewer_note || 'Đã duyệt hồ sơ qua hệ thống TalentHub Enterprise.'
             });
 
             const newStatus = res?.application?.status || 'accepted';

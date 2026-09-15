@@ -101,7 +101,7 @@ final class UnhandledExceptionHandler
         }
 
         $refHtml = $ref !== '' ? '<p class="error-ref">Mã lỗi: <code>' . htmlspecialchars($ref, ENT_QUOTES, 'UTF-8') . '</code> — chi tiết tại <code>storage/errors/' . htmlspecialchars($ref, ENT_QUOTES, 'UTF-8') . '.log</code></p>' : '';
-        echo '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lỗi hệ thống | FTalentHub</title></head><body><main><h1>Không thể tải trang</h1><p>Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.</p>'
+        echo '<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lỗi hệ thống | TalentHub</title></head><body><main><h1>Không thể tải trang</h1><p>Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.</p>'
             . $refHtml
             . '</main></body></html>';
     }

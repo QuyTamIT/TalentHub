@@ -184,7 +184,7 @@ SQL, ['student_id' => $studentId]);
         return [
             'executive_summary' => trim((string) ($row['executive_summary'] ?? '')),
             'primary_direction' => $primaryDirection,
-            'talent_map' => [],
+            'talent_map' => is_array($extended['talent_map'] ?? null) ? $extended['talent_map'] : [],
             'strengths' => is_array($extended['strengths'] ?? null) ? $extended['strengths'] : [],
             'improvements' => is_array($extended['improvements'] ?? null) ? $extended['improvements'] : [],
             'trend_signals' => is_array($extended['trend_signals'] ?? null) ? $extended['trend_signals'] : [],

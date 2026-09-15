@@ -215,12 +215,10 @@ final class JobMatchingService
             if (!$candidate) continue;
             $meta = is_array($item['analysis'] ?? null) ? $item['analysis'] : [];
             $ai = is_array($meta['analysis'] ?? null) ? $meta['analysis'] : [];
-            $itemSkillGap = self::sanitizeSkillGap(is_array($meta['skill_gap'] ?? null) ? $meta['skill_gap'] : []);
-            $gapExplanations = self::sanitizeGapExplanations($ai['gap_explanations'] ?? [], $itemSkillGap);
             $strengthSummary = self::strengthSummary($meta);
             $enterprise = $candidate->enterpriseId() !== '' ? $candidate->enterpriseId() : 'provider:' . hash('sha256', $candidate->providerName());
             if (($run['state'] ?? '') === 'no_matching_jobs') {
-                $gap = $itemSkillGap;
+                $gap = is_array($meta['skill_gap'] ?? null) ? $meta['skill_gap'] : [];
                 $gap['recommended_activities'] = is_array($meta['recommended_activities'] ?? null) ? $meta['recommended_activities'] : [];
                 $nearMatch = array_merge([
                     'enterprise_id' => $candidate->enterpriseId(), 'enterprise_name' => $candidate->providerName(),
@@ -228,7 +226,7 @@ final class JobMatchingService
                     'match_score' => (int) $item['matchScore'], 'match_tier' => 'low_fit',
                     'score_breakdown' => $meta['score_breakdown'] ?? [], 'analysis' => $ai['analysis'] ?? '',
                     'strength_skill_codes' => $ai['strength_skill_codes'] ?? [], 'gap_skill_codes' => $ai['gap_skill_codes'] ?? [],
-                    'gap_explanations' => $gapExplanations, 'evidence_ref_ids' => $ai['evidence_ref_ids'] ?? [],
+                    'gap_explanations' => $ai['gap_explanations'] ?? [], 'evidence_ref_ids' => $ai['evidence_ref_ids'] ?? [],
                 ], $strengthSummary);
                 return ['state'=>'no_matching_jobs','analysis_origin'=>'gemini','score_origin'=>'deterministic_40_35_25','enterprise_groups'=>[],'near_match'=>$nearMatch,'skill_gap'=>$gap,'run_id'=>$run['runId']??null,'freshness_status'=>$stale?'stale':'fresh'];
             }
@@ -238,10 +236,10 @@ final class JobMatchingService
                 'match_score'=>(int)$item['matchScore'],'match_tier'=>$meta['score_breakdown']['tier']??'developing_fit',
                 'score_breakdown'=>$meta['score_breakdown']??[],'analysis'=>$ai['analysis']??'',
                 'strength_skill_codes'=>$ai['strength_skill_codes']??[],'gap_skill_codes'=>$ai['gap_skill_codes']??[],
-                'gap_explanations'=>$gapExplanations,'evidence_ref_ids'=>$ai['evidence_ref_ids']??[],
+                'gap_explanations'=>$ai['gap_explanations']??[],'evidence_ref_ids'=>$ai['evidence_ref_ids']??[],
             ], $strengthSummary);
             if ($topGap === null) {
-                $topGap = $itemSkillGap;
+                $topGap = is_array($meta['skill_gap'] ?? null) ? $meta['skill_gap'] : [];
                 $topGap['recommended_activities'] = is_array($meta['recommended_activities'] ?? null) ? $meta['recommended_activities'] : [];
             }
         }
@@ -283,61 +281,6 @@ final class JobMatchingService
             || ($run['catalogFiltered'] ?? false) === true
             || (isset($run['inputHash'])
                 && (!is_string($run['inputHash']) || !hash_equals($input->contentHash(), $run['inputHash'])));
-    }
-
-    private static function sanitizeImpact(string $impact, ?int $currentScore, ?int $gapScore, string $label): string
-    {
-        if ($currentScore === null) {
-            return 'Bạn chưa có kỹ năng này trong hồ sơ.';
-        }
-        if ($gapScore === null) return 'Vị trí chưa công bố mức yêu cầu.';
-        if ($gapScore !== null && $gapScore > 0) {
-            return "Còn thiếu {$gapScore} điểm về {$label} so với chuẩn vị trí.";
-        }
-        return 'Đã đạt yêu cầu';
-    }
-
-    /** @param array<string,mixed> $gap @return array<string,mixed> */
-    private static function sanitizeSkillGap(array $gap): array
-    {
-        if (isset($gap['skills_missing']) && is_array($gap['skills_missing'])) {
-            foreach ($gap['skills_missing'] as &$skill) {
-                if (is_array($skill)) {
-                    $current = isset($skill['current_score']) && is_numeric($skill['current_score']) ? (int) $skill['current_score'] : null;
-                    $gapScore = isset($skill['gap_score']) && is_numeric($skill['gap_score']) ? (int) $skill['gap_score'] : null;
-                    $label = (string) ($skill['label'] ?? ($skill['code'] ?? 'kỹ năng này'));
-                    $skill['impact'] = self::sanitizeImpact((string) ($skill['impact'] ?? ''), $current, $gapScore, $label);
-                }
-            }
-            unset($skill);
-        }
-        return $gap;
-    }
-
-    /** @param list<array{skill_code?:string,explanation?:string}> $explanations @param array<string,mixed> $skillGap @return list<array{skill_code:string,explanation:string}> */
-    private static function sanitizeGapExplanations(array $explanations, array $skillGap): array
-    {
-        $gapLookup = [];
-        foreach ($skillGap['skills_missing'] ?? [] as $missing) {
-            if (is_array($missing) && isset($missing['code'])) {
-                $gapLookup[(string) $missing['code']] = $missing;
-            }
-        }
-        $out = [];
-        foreach ($explanations as $item) {
-            if (!is_array($item)) continue;
-            $code = (string) ($item['skill_code'] ?? '');
-            $rawExplanation = (string) ($item['explanation'] ?? '');
-            $missing = $gapLookup[$code] ?? null;
-            $current = isset($missing['current_score']) && is_numeric($missing['current_score']) ? (int) $missing['current_score'] : null;
-            $gap = isset($missing['gap_score']) && is_numeric($missing['gap_score']) ? (int) $missing['gap_score'] : null;
-            $label = (string) ($missing['label'] ?? $code);
-            $out[] = [
-                'skill_code' => $code,
-                'explanation' => self::sanitizeImpact($rawExplanation, $current, $gap, $label),
-            ];
-        }
-        return $out;
     }
 
     /** @return array<string,mixed> */

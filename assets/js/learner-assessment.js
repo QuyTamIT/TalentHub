@@ -487,12 +487,10 @@
         ]),
         multiple_intelligence: Object.freeze([
             { code: 'LOGI', label: 'Logic', tone: 'secondary' },
-            { code: 'LING', label: 'Ngôn ngữ', tone: 'primary' },
-            { code: 'SPAT', label: 'Không gian', tone: 'warning' },
-            { code: 'MUSIC', label: 'Âm nhạc', tone: 'warning' },
+            { code: 'SPAT', label: 'Sáng tạo', tone: 'warning' },
             { code: 'BODY', label: 'Vận động', tone: 'success' },
             { code: 'INTER', label: 'Giao tiếp', tone: 'primary' },
-            { code: 'INTRA', label: 'Nội tâm', tone: 'secondary' },
+            { code: 'MUSIC', label: 'Âm nhạc', tone: 'warning' },
             { code: 'NAT', label: 'Tự nhiên', tone: 'success' },
         ]),
         disc: Object.freeze([
@@ -565,7 +563,7 @@
         multiple_intelligence: Object.freeze([
             'Đầu tư thời gian vào các lĩnh vực trí thông minh nổi trội thông qua các hoạt động ngoại khóa.',
             'Kết hợp các phương pháp học tập đa giác quan để nâng cao khả năng tiếp thu kiến thức.',
-            'Khám phá các dự án sáng tạo và cơ hội thực tập tương ứng trong hệ sinh thái FTalentHub.',
+            'Khám phá các dự án sáng tạo và cơ hội thực tập tương ứng trong hệ sinh thái TalentHub.',
         ]),
     });
 
@@ -1257,7 +1255,7 @@
                 );
             } else {
                 if (mbtiBadge) mbtiBadge.textContent = summary.mbtiItem?.result_code || summary.mbtiItem?.code || '—';
-                if (mbtiSummary) mbtiSummary.textContent = summary.mbtiItem?.summary || 'Kết quả phân tích 4 cặp đối cực xu hướng tính cách Myers-Briggs (tỷ lệ % làm tròn từ điểm thô gốc).';
+                if (mbtiSummary) mbtiSummary.textContent = summary.mbtiItem?.summary || 'Kết quả phân tích 4 cặp đối cực xu hướng tính cách Myers-Briggs.';
                 summary.mbti.forEach((axis) => {
                     const row = doc.createElement('div');
                     row.className = 'learner-mbti-row';
@@ -1272,16 +1270,12 @@
                         `${axis.leftLabel} (${axis.leftCode}) ${axis.leftPercent}%`,
                         `learner-mbti-label${isLeftDominant ? ' learner-mbti-label--dominant' : ''}`
                     );
-                    leftSpan.title = `Điểm gốc: ${axis.leftScore}`;
-                    leftSpan.setAttribute('data-raw-score', String(axis.leftScore));
                     const rightSpan = createTextElement(
                         doc,
                         'span',
                         `${axis.rightPercent}% ${axis.rightLabel} (${axis.rightCode})`,
                         `learner-mbti-label${!isLeftDominant ? ' learner-mbti-label--dominant' : ''}`
                     );
-                    rightSpan.title = `Điểm gốc: ${axis.rightScore}`;
-                    rightSpan.setAttribute('data-raw-score', String(axis.rightScore));
                     labels.appendChild(leftSpan);
                     labels.appendChild(rightSpan);
 

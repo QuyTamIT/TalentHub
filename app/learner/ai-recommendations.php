@@ -16,8 +16,8 @@ $assetVersion = static function (string $relativePath): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Lộ trình phát triển 90 ngày do AI FTalentHub đề xuất từ dữ liệu bạn đã cho phép.">
-    <title>AI gợi ý | FTalentHub</title>
+    <meta name="description" content="Lộ trình phát triển 90 ngày do AI TalentHub đề xuất từ dữ liệu bạn đã cho phép.">
+    <title>AI gợi ý | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
@@ -53,7 +53,7 @@ $assetVersion = static function (string $relativePath): string {
                         <div>
                             <span class="learner-roadmap__eyebrow" data-roadmap-processing-label>AI ĐANG XỬ LÝ</span>
                             <h2 data-roadmap-processing-title>Đang chuẩn bị lộ trình của bạn</h2>
-                            <p data-roadmap-processing-copy>FTalentHub đang tổng hợp dữ liệu đã được bạn cho phép.</p>
+                            <p data-roadmap-processing-copy>TalentHub đang tổng hợp dữ liệu đã được bạn cho phép.</p>
                         </div>
                         <div class="learner-roadmap-processing__meta">
                             <strong data-roadmap-processing-percent>8%</strong>
@@ -72,7 +72,7 @@ $assetVersion = static function (string $relativePath): string {
                         <button class="learner-btn learner-btn--outline" type="button" data-roadmap-processing-retry data-roadmap-retry hidden>Thử cập nhật lại</button>
                     </div>
                 </section>
-                <section class="learner-card learner-roadmap-state" data-roadmap-loading aria-label="AI đang tải lộ trình"><span class="learner-ai-loading__spinner" aria-hidden="true"></span><div><h2>Đang tải lộ trình của bạn...</h2><p>FTalentHub đang kiểm tra bản phân tích mới nhất.</p></div></section>
+                <section class="learner-card learner-roadmap-state" data-roadmap-loading aria-label="AI đang tải lộ trình"><span class="learner-ai-loading__spinner" aria-hidden="true"></span><div><h2>Đang tải lộ trình của bạn...</h2><p>TalentHub đang kiểm tra bản phân tích mới nhất.</p></div></section>
                 <section class="learner-card learner-roadmap-state" data-roadmap-not-generated hidden><span class="learner-roadmap-state__icon"><?= learner_icon('sparkles', 30); ?></span><div><h2>Sẵn sàng tạo lộ trình 90 ngày</h2><p>AI sẽ tổng hợp bốn kết quả đánh giá đã hoàn thành để đề xuất các bước phát triển có thể thực hiện.</p></div><button class="learner-btn learner-btn--primary" type="button" data-roadmap-generate="generate">Phân tích và tạo lộ trình</button></section>
                 <section class="learner-card learner-roadmap-state" data-roadmap-consent hidden><span class="learner-roadmap-state__icon"><?= learner_icon('info', 30); ?></span><div><h2>Cần quyền sử dụng kết quả đánh giá</h2><p>Chỉ dữ liệu bạn cho phép mới được gửi tới dịch vụ AI.</p></div><a class="learner-btn learner-btn--primary" href="profile.php">Quản lý quyền dữ liệu</a></section>
                 <div class="learner-roadmap-insufficient" data-roadmap-insufficient hidden>

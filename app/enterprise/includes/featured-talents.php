@@ -44,8 +44,7 @@ $talentsList = !empty($featuredTalents) ? $featuredTalents : [];
             <?php foreach ($talentsList as $talent): 
                 $talentId = (string) ($talent['id'] ?? '');
                 $talentName = (string) ($talent['name'] ?? 'Ứng viên tiềm năng');
-                $rawScore = $talent['talent_score'] ?? $talent['match_score'] ?? null;
-                $talentScore = (isset($rawScore) && is_numeric($rawScore)) ? (int) round((float) $rawScore) : null;
+                $talentScore = (int) ($talent['talent_score'] ?? $talent['match_score'] ?? 0);
                 $talentMeta = (string) ($talent['meta_description'] ?? 'Học sinh / Sinh viên tiềm năng');
                 $avatarLetter = (string) ($talent['avatar_letter'] ?? 'UV');
                 $avatarBg = (string) ($talent['avatar_bg'] ?? '#F97316');
@@ -63,15 +62,9 @@ $talentsList = !empty($featuredTalents) ? $featuredTalents : [];
                                 <a href="<?= htmlspecialchars($detailUrl); ?>" class="ent-talent-row__name" data-route="/app/enterprise/talents/detail.php">
                                     <?= htmlspecialchars($talentName); ?>
                                 </a>
-                                <?php if ($talentScore !== null): ?>
-                                    <span class="ent-talent-row__score-badge">
-                                        ★ <?= htmlspecialchars((string)$talentScore); ?> điểm
-                                    </span>
-                                <?php else: ?>
-                                    <span class="ent-talent-row__score-badge ent-talent-row__score-badge--unavailable">
-                                        Chưa có điểm
-                                    </span>
-                                <?php endif; ?>
+                                <span class="ent-talent-row__score-badge">
+                                    ★ <?= htmlspecialchars((string)$talentScore); ?> điểm
+                                </span>
                             </div>
 
                             <p class="ent-talent-row__meta-text">

@@ -6,7 +6,7 @@ namespace TalentHub\Learner\Ai\Domain;
 
 final class RoadmapAnalysis
 {
-    public const CONTRACT_VERSION = 'learner-roadmap-1.1.0';
+    public const CONTRACT_VERSION = 'learner-roadmap-1.0.0';
 
     /** @var list<RoadmapDirection> */
     private readonly array $alternativeDirections;

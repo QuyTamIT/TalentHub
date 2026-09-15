@@ -70,9 +70,9 @@ function teacherEscape(mixed $value): string
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Đăng ký hồ sơ giáo viên trên FTalentHub.">
+    <meta name="description" content="Đăng ký hồ sơ giáo viên trên TalentHub.">
     <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml">
-    <title>Đăng ký giáo viên | FTalentHub</title>
+    <title>Đăng ký giáo viên | TalentHub</title>
     <link rel="stylesheet" href="assets/css/home.css">
     <link rel="stylesheet" href="assets/css/global.css">
     <link rel="stylesheet" href="assets/css/auth.css">
@@ -88,7 +88,7 @@ function teacherEscape(mixed $value): string
         </a>
         <div class="auth-brand__content">
             <p class="auth-eyebrow">Đồng hành cùng người học</p>
-            <h1 id="teacher-brand-title">Tham gia FTalentHub với vai trò giáo viên</h1>
+            <h1 id="teacher-brand-title">Tham gia TalentHub với vai trò giáo viên</h1>
             <p>Tạo hồ sơ chuyên môn, kết nối với nhà trường và quản lý hành trình phát triển năng lực của học viên.</p>
             <div class="auth-data-summary" aria-label="Các bước kích hoạt tài khoản">
                 <p><strong>Hồ sơ chuyên môn</strong><span>Cung cấp thông tin giảng dạy và lĩnh vực phụ trách.</span></p>
@@ -96,7 +96,7 @@ function teacherEscape(mixed $value): string
                 <p><strong>Kích hoạt an toàn</strong><span>Tài khoản được mở sau khi hồ sơ được duyệt.</span></p>
             </div>
         </div>
-        <p class="auth-brand__footer">FTalentHub · Không gian dành cho nhà giáo</p>
+        <p class="auth-brand__footer">TalentHub · Không gian dành cho nhà giáo</p>
     </section>
 
     <section class="auth-panel" aria-labelledby="register-title">

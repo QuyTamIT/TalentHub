@@ -239,15 +239,4 @@ final class RepositoryFactory
             new Service\CredentialRecommendationMatcher()
         );
     }
-
-    public function evidenceBackedScoreService(): Service\EvidenceBackedScoreService
-    {
-        if ($this->source !== 'database') {
-            throw new LearnerDataConfigurationException(
-                'Evidence-backed scores require the canonical learner database source.'
-            );
-        }
-
-        return new Service\EvidenceBackedScoreService($this->pdo);
-    }
 }

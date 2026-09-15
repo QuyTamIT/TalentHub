@@ -112,8 +112,8 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
     <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Đăng nhập FTalentHub để tiếp tục vào không gian học tập và quản lý của bạn.">
-    <title>Đăng nhập | FTalentHub</title>
+    <meta name="description" content="Đăng nhập TalentHub để tiếp tục vào không gian học tập và quản lý của bạn.">
+    <title>Đăng nhập | TalentHub</title>
     <link rel="stylesheet" href="assets/css/home.css">
     <link rel="stylesheet" href="assets/css/global.css">
     <link rel="stylesheet" href="assets/css/auth.css">
@@ -129,7 +129,7 @@ function authEscape(mixed $value): string{return htmlspecialchars((string)$value
         <div class="auth-brand__content">
             <p class="auth-eyebrow">Một tài khoản, đúng không gian</p>
             <h1 id="auth-brand-title">Tiếp tục hành trình phát triển tài năng</h1>
-            <p>FTalentHub tự nhận diện vai trò và đưa bạn đến dashboard phù hợp ngay sau khi đăng nhập.</p>
+            <p>TalentHub tự nhận diện vai trò và đưa bạn đến dashboard phù hợp ngay sau khi đăng nhập.</p>
             <ul class="auth-role-list" aria-label="Các khu vực trên FTalentHub">
                 <li><span class="auth-role-dot auth-role-dot--student"></span><strong>Học viên</strong><span>Hồ sơ năng lực và trải nghiệm</span></li>
                 <li><span class="auth-role-dot auth-role-dot--teacher"></span><strong>Giáo viên</strong><span>Đồng hành và đánh giá</span></li>

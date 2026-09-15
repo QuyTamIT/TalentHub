@@ -277,22 +277,13 @@
             }
             gaps.forEach((item) => {
                 const li = node('li');
-                let explanation = item.explanation || '';
-                if (!explanation || /ngưỡng yêu cầu chưa được|chưa có điểm quan sát|chưa có điểm đánh giá|chưa có điểm/i.test(explanation)) {
-                    explanation = 'Bạn chưa có kỹ năng này trong hồ sơ.';
-                } else {
-                    const gapMatch = explanation.match(/(\d+)\s*điểm/);
-                    if (gapMatch) {
-                        explanation = `Còn thiếu ${gapMatch[1]} điểm so với yêu cầu vị trí.`;
-                    }
-                }
-                if (item.skill && explanation) {
+                if (item.skill && item.explanation) {
                     li.append(
                         node('strong', 'learner-job-gap-title', item.skill),
-                        node('span', 'learner-job-gap-desc', explanation)
+                        node('span', 'learner-job-gap-desc', item.explanation)
                     );
                 } else {
-                    li.append(node('span', 'learner-job-gap-desc', item.skill || explanation));
+                    li.append(node('span', 'learner-job-gap-desc', item.skill || item.explanation));
                 }
                 gapList.appendChild(li);
             });

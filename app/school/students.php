@@ -193,21 +193,8 @@ if (!empty($studentIds)) {
         $detailsMap[$row['studentId']] = $row;
     }
 
-    $hasScoreState = false;
-    try {
-        $colStmt = $pdo->query("PRAGMA table_info(student_skills)");
-        if ($colStmt) {
-            $cols = $colStmt->fetchAll(PDO::FETCH_COLUMN, 1);
-            $hasScoreState = in_array('scoreState', $cols, true);
-        }
-    } catch (\Throwable) {
-        $hasScoreState = false;
-    }
-
-    $scoreStateCol = $hasScoreState ? ', ss.scoreState' : ", 'scored' AS scoreState";
-
     $skStmt = $pdo->prepare("
-        SELECT ss.studentId, s.name as skillName, ss.levelScore, ss.verificationStatus {$scoreStateCol}
+        SELECT ss.studentId, s.name as skillName, ss.levelScore, ss.verificationStatus
         FROM student_skills ss
         JOIN skills s ON s.id = ss.skillId
         WHERE ss.studentId IN ($inClause)
@@ -216,10 +203,9 @@ if (!empty($studentIds)) {
     $skStmt->execute($studentIds);
     foreach ($skStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $skillsMap[$row['studentId']][] = [
-            'name'       => $row['skillName'],
-            'score'      => $row['levelScore'] !== null ? (int) $row['levelScore'] : null,
-            'verified'   => ($row['verificationStatus'] === 'verified'),
-            'scoreState' => $row['scoreState'] ?? null,
+            'name'     => $row['skillName'],
+            'score'    => (int) ($row['levelScore'] ?? 85),
+            'verified' => ($row['verificationStatus'] === 'verified'),
         ];
     }
 }
@@ -344,16 +330,11 @@ include __DIR__ . '/includes/page-banner.php';
                         }
                     }
 
-                    // Talent score (%) from projection or scored skills
+                    // Talent score (%)
                     $talentScore = null;
-                    if (isset($s['talentScore']) && $s['talentScore'] !== null) {
-                        $talentScore = (int) round((float) $s['talentScore']);
-                    } elseif (!empty($sk)) {
-                        $scoredSkills = array_filter($sk, fn($item) => ($item['scoreState'] ?? 'scored') === 'scored' && $item['score'] !== null);
-                        if (!empty($scoredSkills)) {
-                            $scores = array_column($scoredSkills, 'score');
-                            $talentScore = (int) round(array_sum($scores) / count($scores));
-                        }
+                    if (!empty($sk)) {
+                        $scores = array_column($sk, 'score');
+                        $talentScore = (int) round(array_sum($scores) / count($scores));
                     }
 
                     $bio = !empty($d['bio']) ? $d['bio'] : "Sinh viên năng động, có năng lực tự học và tư duy giải quyết vấn đề tốt. Luôn tích cực tham gia các dự án thực hành và sẵn sàng thử sức tại các kỳ thực tập doanh nghiệp.";
@@ -459,7 +440,7 @@ include __DIR__ . '/includes/page-banner.php';
                         <line x1="9" y1="15" x2="15" y2="15"></line>
                     </svg>
                     <div>
-                        <strong>File mẫu chuẩn FTalentHub (.CSV / Excel)</strong>
+                        <strong>File mẫu chuẩn TalentHub (.CSV / Excel)</strong>
                         <p>Bao gồm các cột: Họ và tên, Email, Mã lớp, Chuyên ngành, Số điện thoại, Ngày sinh.</p>
                     </div>
                 </div>
@@ -611,7 +592,7 @@ Nguyễn Văn A,nguyenvana@school.edu.vn,10A1,Công nghệ thông tin,0901234567
         <!-- Footer -->
         <div class="school-flex-between" style="background: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 0.85rem 1.65rem;">
             <span style="font-size: 0.75rem; color: var(--text-muted);">
-                FTalentHub Academic Portal • Dữ liệu hồ sơ sinh viên
+                TalentHub Academic Portal • Dữ liệu hồ sơ sinh viên
             </span>
             <div style="display: flex; gap: 0.65rem;">
                 <button type="button" onclick="closeStudentDetailModal()" class="btn btn-secondary" style="padding: 0.4rem 1rem; font-weight: 600; cursor: pointer;">
@@ -665,7 +646,7 @@ function openStudentDetail(student) {
         document.getElementById('sd_score').textContent = student.talentScore + '%';
         document.getElementById('sd_score_bar').style.width = student.talentScore + '%';
     } else {
-        document.getElementById('sd_score').textContent = 'Chưa có điểm';
+        document.getElementById('sd_score').textContent = 'Chưa đánh giá';
         document.getElementById('sd_score_bar').style.width = '0%';
     }
 

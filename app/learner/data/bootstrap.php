@@ -109,8 +109,6 @@ require_once $learnerDataRoot . '/Service/SchoolCredentialService.php';
 require_once $learnerDataRoot . '/Database/DatabaseStatisticsRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseBadgeRepository.php';
 require_once $learnerDataRoot . '/Database/DatabaseSchoolCredentialRepository.php';
-require_once $learnerDataRoot . '/Service/ScoreViewer.php';
-require_once $learnerDataRoot . '/Service/EvidenceBackedScoreService.php';
 require_once $learnerDataRoot . '/RepositoryFactory.php';
 require_once dirname($learnerDataRoot) . '/runtime/LearnerRuntime.php';
 

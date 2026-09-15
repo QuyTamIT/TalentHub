@@ -56,7 +56,7 @@ function learner_icon(string $name, int $size = 20): string {
 // Function to render application card extracted from ecosystem.php logic
 function renderApplicationCard(array $app): string {
     ob_start();
-
+    
     $statusNote = '';
     $appStatus = (string) ($app['status'] ?? 'submitted');
     if (in_array($appStatus, ['submitted', 'applied'], true)) {

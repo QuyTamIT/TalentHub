@@ -179,7 +179,7 @@ try {
 
         $school = $row['schoolName'] ?: 'Cao đẳng Quốc tế BTEC FPT';
         $className = $row['className'] ?: 'BTEC-AI-2026A';
-        $score = (isset($row['talentScore']) && is_numeric($row['talentScore'])) ? (int) round((float) $row['talentScore']) : null;
+        $score = !empty($row['talentScore']) ? (int) round((float) $row['talentScore']) : 96;
 
         $statusLabels = [
             'submitted' => 'Đã nộp',
@@ -282,8 +282,8 @@ $sidebarNav = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Quản lý và duyệt danh sách ứng viên thực tập nộp hồ sơ vào tin tuyển thực tập Enterprise FTalentHub.">
-    <title><?= htmlspecialchars($pageTitle); ?> - <?= $post ? htmlspecialchars($post['title']) : 'FTalentHub Enterprise'; ?> | FTalentHub Enterprise</title>
+    <meta name="description" content="Quản lý và duyệt danh sách ứng viên thực tập nộp hồ sơ vào tin tuyển thực tập Enterprise TalentHub.">
+    <title><?= htmlspecialchars($pageTitle); ?> - <?= $post ? htmlspecialchars($post['title']) : 'TalentHub Enterprise'; ?> | TalentHub Enterprise</title>
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../../assets/css/home.css">

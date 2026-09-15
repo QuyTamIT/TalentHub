@@ -27,6 +27,7 @@ final class RoadmapAnalysisValidator
         'phases',
         'primary_direction',
         'recommended_activity_source_ids',
+        'talent_map',
     ];
     private const EXTENDED_FIELDS = [
         'confidence',
@@ -300,9 +301,6 @@ final class RoadmapAnalysisValidator
     /** @param array<string,mixed> $payload */
     private function assertPayloadFields(array $payload): void
     {
-        if (array_key_exists('talent_map', $payload)) {
-            throw new \InvalidArgumentException('Roadmap provider payload must not contain competency scores or talent_map.');
-        }
         $actual = array_keys($payload);
         $allowed = [...self::PAYLOAD_FIELDS, ...self::EXTENDED_FIELDS];
         if (array_diff($actual, $allowed) !== [] || array_diff(self::PAYLOAD_FIELDS, $actual) !== []) {
@@ -321,7 +319,22 @@ final class RoadmapAnalysisValidator
         if (array_key_exists('evidence', $payload)) {
             $this->references($payload['evidence'], $allowedEvidence, true, 'Roadmap evidence references are invalid.');
         }
-        $talentMap = [];
+        $talentMap = $this->extendedRecords($payload['talent_map'] ?? [], ['field', 'score', 'evidence_ref_ids'], 'talent map', static function (array $record): void {
+            $score = $record['score'] ?? null;
+            if (!is_string($record['field'] ?? null) || trim($record['field']) === '' || (!is_int($score) && !is_float($score)) || $score < 0 || $score > 1) {
+                throw new \InvalidArgumentException('Roadmap talent map is invalid.');
+            }
+        });
+        if (count($talentMap) !== 3) {
+            throw new \InvalidArgumentException('Roadmap requires exactly three talent map records.');
+        }
+        $talentFields = array_column($talentMap, 'field');
+        sort($talentFields, SORT_STRING);
+        $expectedTalentFields = self::TALENT_MAP_FIELDS;
+        sort($expectedTalentFields, SORT_STRING);
+        if ($talentFields !== $expectedTalentFields) {
+            throw new \InvalidArgumentException('Roadmap talent map fields are invalid.');
+        }
         $strengths = $this->extendedRecords($payload['strengths'] ?? [], ['text', 'evidence_ref_ids'], 'strengths');
         $improvements = $this->extendedRecords($payload['improvements'] ?? [], ['text', 'evidence_ref_ids'], 'improvements');
         $potentialPaths = $this->extendedRecords($payload['potential_paths'] ?? [], ['label', 'catalog_id', 'evidence_ref_ids'], 'potential paths', function (array $record): void {

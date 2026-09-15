@@ -77,6 +77,30 @@ function teacher_resolve_student_primary_skill(PDO $pdo, string $studentId): ?st
         }
     } catch (Throwable) {}
 
+    // 3. Kỹ năng thực tế từ Hồ sơ năng lực (talent_map trong active roadmap của học viên)
+    try {
+        $stmt = $pdo->prepare("
+            SELECT insightsJson
+            FROM learner_ai_roadmaps
+            WHERE studentId = :sid AND status = 'active'
+            ORDER BY versionNumber DESC, createdAt DESC
+            LIMIT 1
+        ");
+        $stmt->execute(['sid' => $studentId]);
+        $insightsJson = $stmt->fetchColumn();
+        if (!empty($insightsJson)) {
+            $decoded = json_decode((string) $insightsJson, true);
+            $talentMap = $decoded['__ai_extended']['talent_map'] ?? ($decoded['talent_map'] ?? []);
+            if (is_array($talentMap) && !empty($talentMap)) {
+                usort($talentMap, static fn($a, $b) => ($b['score'] ?? 0) <=> ($a['score'] ?? 0));
+                $top = $talentMap[0]['field'] ?? ($talentMap[0]['name'] ?? null);
+                if (!empty($top)) {
+                    return (string) $top;
+                }
+            }
+        }
+    } catch (Throwable) {}
+
     return null;
 }
 
@@ -86,7 +110,7 @@ $sort = trim((string) ($_GET['sort'] ?? ''));
 $dir = strtolower(trim((string) ($_GET['dir'] ?? 'desc'))) === 'asc' ? 'asc' : 'desc';
 
 $teacherInfo = [
-    'full_name' => $user['fullName'] ?? 'Giáo viên FTalentHub',
+    'full_name' => $user['fullName'] ?? 'Giáo viên TalentHub',
     'role_label' => 'Giáo viên / Hướng dẫn viên',
     'school_name' => '',
     'avatar_initials' => 'GV',
@@ -115,7 +139,7 @@ try {
     $teacherId = (string) ($teacher['id'] ?? '');
     $schoolId = (string) ($teacher['schoolId'] ?? '');
     $schoolName = (string) ($teacher['schoolName'] ?? '');
-    $resolvedName = trim((string) ($user['fullName'] ?? ($teacher['fullName'] ?? 'Giáo viên FTalentHub')));
+    $resolvedName = trim((string) ($user['fullName'] ?? ($teacher['fullName'] ?? 'Giáo viên TalentHub')));
 
     $teacherInfo['full_name'] = $resolvedName;
     $teacherInfo['school_name'] = $schoolName;
@@ -281,8 +305,8 @@ $talentScoreSortUrl = './index.php?' . http_build_query($sortUrlParams);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Danh sách học viên đang theo dõi thuộc phạm vi quản lý của giáo viên trên FTalentHub.">
-    <title>Học viên của tôi | FTalentHub</title>
+    <meta name="description" content="Danh sách học viên đang theo dõi thuộc phạm vi quản lý của giáo viên trên TalentHub.">
+    <title>Học viên của tôi | TalentHub</title>
 
     <link rel="stylesheet" href="../../../assets/css/home.css">
     <link rel="stylesheet" href="../../../assets/css/global.css">

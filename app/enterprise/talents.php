@@ -210,8 +210,8 @@ $sidebarNav = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Tìm kiếm nhân tài, kết nối ứng viên tài năng dành cho Doanh nghiệp trên FTalentHub Enterprise.">
-    <title>Tìm nhân tài - Enterprise | FTalentHub</title>
+    <meta name="description" content="Tìm kiếm nhân tài, kết nối ứng viên tài năng dành cho Doanh nghiệp trên TalentHub Enterprise.">
+    <title>Tìm nhân tài - Enterprise | TalentHub</title>
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../assets/css/home.css">
@@ -586,12 +586,12 @@ $sidebarNav = [
                                                         <?= $tName ?>
                                                     </a>
                                                     <?php if ($score !== null): ?>
-                                                        <span class="ent-talent-card-item__score" title="Trung bình kỹ năng đã được chấm">
+                                                        <span class="ent-talent-card-item__score" title="Điểm đánh giá năng lực thực tế từ giáo viên">
                                                             ★ <?= round($score) ?> điểm đánh giá
                                                         </span>
                                                     <?php else: ?>
-                                                        <span class="ent-talent-card-item__score ent-talent-card-item__score--pending" title="Hồ sơ chưa có điểm kỹ năng chính thức">
-                                                            Chưa đủ dữ liệu
+                                                        <span class="ent-talent-card-item__score ent-talent-card-item__score--pending" title="Chưa có điểm đánh giá từ giáo viên">
+                                                            Chưa chấm điểm
                                                         </span>
                                                     <?php endif; ?>
                                                 </div>

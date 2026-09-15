@@ -22,7 +22,7 @@ function teacherDashboardDefaults(): array
         'teacherInfo' => [
             'id' => null,
             'user_id' => null,
-            'full_name' => 'Giáo viên FTalentHub',
+            'full_name' => 'Giáo viên TalentHub',
             'role_label' => 'Giáo viên / Hướng dẫn viên',
             'school_name' => 'Chưa kết nối trường',
             'avatar_initials' => 'GV',
@@ -113,7 +113,7 @@ function teacherDashboardBackendContext(bool $forceRefresh = false): array
             $profile = [
                 'id' => $user['id'],
                 'userId' => $user['id'],
-                'fullName' => $userFullName ?: 'Giáo viên FTalentHub',
+                'fullName' => $userFullName ?: 'Giáo viên TalentHub',
                 'schoolName' => '',
             ];
         }
@@ -197,8 +197,8 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
     $user = is_array($context['user']) ? $context['user'] : null;
 
     $sessionName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
-    $teacherName = trim((string) ($sessionName !== '' ? $sessionName : ($profile['fullName'] ?? ($user['fullName'] ?? 'Giáo viên FTalentHub'))));
-    if (($teacherName === '' || $teacherName === 'Giáo viên FTalentHub') && !empty($_SESSION['user']['email'])) {
+    $teacherName = trim((string) ($sessionName !== '' ? $sessionName : ($profile['fullName'] ?? ($user['fullName'] ?? 'Giáo viên TalentHub'))));
+    if (($teacherName === '' || $teacherName === 'Giáo viên TalentHub') && !empty($_SESSION['user']['email'])) {
         $parts = explode('@', (string)$_SESSION['user']['email']);
         $teacherName = ucwords(str_replace(['.', '_', '-'], ' ', $parts[0] ?? 'Giáo viên'));
     }
@@ -255,7 +255,7 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
     $data['teacherInfo'] = [
         'id' => $profile['id'] ?? ($user['id'] ?? null),
         'user_id' => $profile['userId'] ?? ($user['id'] ?? null),
-        'full_name' => $teacherName !== '' ? $teacherName : 'Giáo viên FTalentHub',
+        'full_name' => $teacherName !== '' ? $teacherName : 'Giáo viên TalentHub',
         'role_label' => !empty($profile['isSchoolAdmin']) ? 'Giáo viên / Quản trị trường' : 'Giáo viên / Hướng dẫn viên',
         'school_name' => $schoolName,
         'managed_class_id' => $managedClassId,
@@ -309,7 +309,7 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
             WHERE c.id = :classId
               AND c.schoolId = :schoolId
               AND sp.studyStatus = 'active'
-              AND sp.talentScore IS NULL
+              AND (sp.talentScore IS NULL OR sp.talentScore = 0)
         ", ['classId' => $managedClassId, 'schoolId' => $schoolId]) ?? 0);
     } elseif ($schoolId !== '') {
         $data['metrics']['pending_assessments'] = (int) (teacherDashboardScalar($pdo, "
@@ -318,7 +318,7 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
             INNER JOIN classes c ON c.id = sp.classId
             WHERE c.schoolId = :schoolId
               AND sp.studyStatus = 'active'
-              AND sp.talentScore IS NULL
+              AND (sp.talentScore IS NULL OR sp.talentScore = 0)
         ", ['schoolId' => $schoolId]) ?? 0);
     } else {
         $data['metrics']['pending_assessments'] = 0;
@@ -347,6 +347,14 @@ function teacherDashboardReadData(bool $forceRefresh = false): array
         $averageScore = null;
     }
 
+    if ($averageScore === null && $teacherId !== '') {
+        $averageScore = teacherDashboardScalar($pdo, "
+            SELECT AVG(overallScore)
+            FROM assessments
+            WHERE teacherId = :teacherId
+              AND LOWER(status) NOT IN ('pending', 'draft', 'new', 'need_review', 'awaiting_review', 'cho_cham', 'chua_cham')
+        ", ['teacherId' => $teacherId]);
+    }
     $data['metrics']['average_score'] = $averageScore !== null ? round((float) $averageScore, 1) : null;
 
     $data['metrics']['registrations'] = (int) (teacherDashboardScalar($pdo, "
@@ -580,39 +588,29 @@ function teacherDashboardRelativeTime(?string $datetime): string
         return 'Chưa rõ thời gian';
     }
 
-    // Helper đã có sẵn xử lý việc convert UTC -> VN + format relative.
-    if (!function_exists('tz_relative')) {
-        $helper = dirname(__DIR__, 2) . '/shared/timezone_helper.php';
-        if (is_file($helper)) {
-            require_once $helper;
-        }
-    }
-    if (!function_exists('tz_to_dt')) {
+    $timestamp = strtotime($datetime);
+    if (!$timestamp) {
         return 'Chưa rõ thời gian';
     }
 
-    try {
-        $tz = new DateTimeZone('Asia/Ho_Chi_Minh');
-        $now = new DateTimeImmutable('now', $tz);
-        $dt = tz_to_dt($datetime)->setTimezone($tz);
-        $diff = $dt->getTimestamp() - $now->getTimestamp();
-        $absolute = abs($diff);
+    $diff = $timestamp - time();
+    $absolute = abs($diff);
 
-        if ($absolute < 60) {
-            return $diff >= 0 ? 'Sắp diễn ra' : 'Vừa xong';
-        }
-        if ($absolute < 3600) {
-            $minutes = (int) floor($absolute / 60);
-            return $diff >= 0 ? "Sau {$minutes} phút" : "{$minutes} phút trước";
-        }
-        if ($absolute < 86400) {
-            $hours = (int) floor($absolute / 3600);
-            return $diff >= 0 ? "Sau {$hours} giờ" : "{$hours} giờ trước";
-        }
-        return $dt->format('d/m/Y H:i');
-    } catch (Throwable) {
-        return 'Chưa rõ thời gian';
+    if ($absolute < 60) {
+        return $diff >= 0 ? 'Sắp diễn ra' : 'Vừa xong';
     }
+
+    if ($absolute < 3600) {
+        $minutes = (int) floor($absolute / 60);
+        return $diff >= 0 ? "Sau {$minutes} phút" : "{$minutes} phút trước";
+    }
+
+    if ($absolute < 86400) {
+        $hours = (int) floor($absolute / 3600);
+        return $diff >= 0 ? "Sau {$hours} giờ" : "{$hours} giờ trước";
+    }
+
+    return date('d/m/Y H:i', $timestamp);
 }
 
 function teacherDashboardPercent(float|int $value, float|int $total): int

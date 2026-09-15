@@ -43,10 +43,7 @@ http_response_code($resolved === null ? 404 : 200);
 if ($resolved !== null && !empty($resolved['studentId']) && $pdo instanceof PDO) {
     $studentId = (string) $resolved['studentId'];
     try {
-        $scoreViewer = $token !== ''
-            ? \TalentHub\Learner\Data\Service\ScoreViewer::fromShareToken($pdo, $token)
-            : \TalentHub\Learner\Data\Service\ScoreViewer::fromPassportCode($pdo, $code);
-        $data = (new \TalentHub\Learner\Data\Database\DatabasePassportCvRepository($pdo, $scoreViewer))->forStudent($studentId);
+        $data = (new \TalentHub\Learner\Data\Database\DatabasePassportCvRepository($pdo))->forStudent($studentId);
         $stamp = (new DateTimeImmutable('now', new DateTimeZone('Asia/Ho_Chi_Minh')))->format('d/m/Y H:i:s');
         $cv = \TalentHub\Learner\Data\ReadModel\PassportCvViewModel::build($data, $stamp);
 
@@ -97,7 +94,7 @@ if ($resolved !== null && !empty($resolved['studentId']) && $pdo instanceof PDO)
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hồ sơ không khả dụng | Xác thực Năng lực FTalentHub</title>
+  <title>Hồ sơ không khả dụng | Xác thực Năng lực TalentHub</title>
   <link rel="stylesheet" href="../../assets/css/learner-passport-cv.css">
   <style>
     body { background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1rem; }
@@ -112,8 +109,8 @@ if ($resolved !== null && !empty($resolved['studentId']) && $pdo instanceof PDO)
   <div class="not-found-card">
     <div class="not-found-icon">🔍</div>
     <h1 class="not-found-title">Không tìm thấy hồ sơ</h1>
-    <p class="not-found-desc">Mã xác thực hoặc liên kết chia sẻ không tồn tại trong hệ thống FTalentHub hoặc đã hết hạn.</p>
-    <a class="not-found-btn" href="/">← Về trang chủ FTalentHub</a>
+    <p class="not-found-desc">Mã xác thực hoặc liên kết chia sẻ không tồn tại trong hệ thống TalentHub hoặc đã hết hạn.</p>
+    <a class="not-found-btn" href="/">← Về trang chủ TalentHub</a>
   </div>
 </body>
 </html>

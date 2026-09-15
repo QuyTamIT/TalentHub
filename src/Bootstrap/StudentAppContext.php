@@ -172,7 +172,7 @@ SQL);
         return [
             'id' => (string) $student['id'],
             'email' => (string) $student['email'],
-            'fullName' => (string) ($student['fullName'] ?? 'Học viên FTalentHub'),
+            'fullName' => (string) ($student['fullName'] ?? 'Học viên TalentHub'),
             'role' => \TalentHub\Rbac\RoleCodes::STUDENT,
             'status' => 'active',
         ];

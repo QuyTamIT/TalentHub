@@ -7443,6 +7443,49 @@ body.has-roadmap-editor {
         width: 100%;
         justify-content: flex-end;
     }
+=======
+    border: 1px solid #f87171;
+    color: #dc2626;
+    font-size: 0.8rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.learner-btn--danger-outline:hover {
+    background: #fee2e2;
+}
+
+.learner-status-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.learner-status-badge.is-submitted,
+.learner-status-badge.is-reviewing {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.learner-status-badge.is-interview {
+    background: #e0e7ff;
+    color: #4338ca;
+}
+
+.learner-status-badge.is-accepted {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.learner-status-badge.is-declined,
+.learner-status-badge.is-withdrawn {
+    background: #e2e8f0;
+    color: #475569;
+>>>>>>> origin/main
 }
 
 /* Partner detail ---------------------------------------------------------- */
@@ -17813,11 +17856,10 @@ body.learner-app .learner-sidebar__brand {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding-bottom: 0.875rem;
+    padding-bottom: 0.75rem;
     border-bottom: 1px solid var(--border) !important;
     margin-bottom: 1rem;
     width: 100%;
-    text-align: center;
 }
 
 body.learner-app .learner-sidebar__brand-link {
@@ -17826,7 +17868,6 @@ body.learner-app .learner-sidebar__brand-link {
     align-items: center;
     text-decoration: none;
     line-height: 1;
-    margin: 0 auto;
     transition: opacity var(--transition-fast, 0.15s ease), transform var(--transition-fast, 0.15s ease);
 }
 
@@ -17842,7 +17883,9 @@ body.learner-app .learner-sidebar__logo-img {
     height: auto;
     object-fit: contain;
     aspect-ratio: 401 / 122;
-    margin: 0 auto;
+    text-align: center;
+    align-items: center;
+    margin-right: 24px
 }
 
 body.learner-app .learner-sidebar__role-tag {
@@ -17854,13 +17897,12 @@ body.learner-app .learner-sidebar__role-tag {
     color: var(--primary-coral, #F83F70) !important;
     background-color: #FFF0EB !important;
     border: 1px solid #FFDACB !important;
-    padding: 3px 12px;
+    padding: 2px 10px;
     border-radius: 999px;
-    margin: 8px auto 0 auto;
+    margin: 10px auto 2px auto;
     letter-spacing: 0.02em;
     line-height: 1.4;
     text-align: center;
-    white-space: nowrap;
 }
 
 body.learner-app .learner-sidebar__link {
@@ -18218,12 +18260,12 @@ body.learner-app table tbody tr:hover {
 }
 
 /* 10. GENERAL LINKS & ACCENTS */
-body.learner-app a:not(.learner-btn):not(.btn):not(.learner-sidebar__link):not(.learner-sidebar__brand):not(.learner-sidebar__brand-link):not(.learner-brand):not(.learner-icon-button):not(.learner-account-menu__item) {
+body.learner-app a:not(.learner-btn):not(.btn):not(.learner-sidebar__link):not(.learner-sidebar__brand):not(.learner-brand):not(.learner-icon-button):not(.learner-account-menu__item) {
     color: var(--primary-coral);
     transition: color 0.15s ease;
 }
 
-body.learner-app a:not(.learner-btn):not(.btn):not(.learner-sidebar__link):not(.learner-sidebar__brand):not(.learner-sidebar__brand-link):not(.learner-brand):not(.learner-icon-button):not(.learner-account-menu__item):hover {
+body.learner-app a:not(.learner-btn):not(.btn):not(.learner-sidebar__link):not(.learner-sidebar__brand):not(.learner-brand):not(.learner-icon-button):not(.learner-account-menu__item):hover {
     color: var(--primary-pink);
 }
 

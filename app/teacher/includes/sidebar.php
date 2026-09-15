@@ -108,9 +108,9 @@ $teacherNav = [
     <div class="teacher-sidebar__brand">
         <a href="<?= htmlspecialchars(function_exists('app_href') ? app_href('/app/teacher/index.php') : '/app/teacher/index.php'); ?>"
            class="teacher-sidebar__brand-link"
-           aria-label="Về trang chủ FTalentHub Giáo viên">
+           aria-label="Về trang chủ TalentHub Giáo viên">
             <img src="<?= htmlspecialchars(function_exists('app_href') ? app_href('/assets/images/talenthub-logo.png') : '/assets/images/talenthub-logo.png'); ?>"
-                 alt="FTalentHub Logo"
+                 alt="TalentHub Logo"
                  class="teacher-sidebar__logo-img" />
         </a>
         <span class="teacher-sidebar__role-tag">Khu vực Giáo viên</span>

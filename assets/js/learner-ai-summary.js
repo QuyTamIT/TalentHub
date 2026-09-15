@@ -189,7 +189,7 @@
                 } else if (state === 'insufficient_data' || state === 'data_insufficient') {
                     setText(nodes.eyebrow, 'Chưa đủ dữ liệu');
                     setText(nodes.title, 'Cần hoàn thành đủ bộ đánh giá');
-                    setText(nodes.message, 'FTalentHub chưa tìm thấy đủ bốn kết quả hợp lệ để tạo lộ trình.');
+                    setText(nodes.message, 'TalentHub chưa tìm thấy đủ bốn kết quả hợp lệ để tạo lộ trình.');
                     setText(nodes.summary, '');
                 } else {
                     setText(nodes.eyebrow, 'Chưa thể phân tích');

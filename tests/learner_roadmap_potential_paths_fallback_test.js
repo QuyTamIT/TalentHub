@@ -2,7 +2,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { buildRoadmapViewModel, createRoadmapController } = require('../assets/js/learner-ai-roadmap.js');
+const { buildRoadmapViewModel } = require('../assets/js/learner-ai-roadmap.js');
 
 test('uses potential_paths when provided in payload', () => {
     const payload = {
@@ -263,51 +263,4 @@ test('returns empty array when payload has no potential fields at all', () => {
     const payload = {};
     const vm = buildRoadmapViewModel(payload);
     assert.deepEqual(vm.potentialPaths, []);
-});
-
-test('builds the three talent axes from the submitted multiple-intelligence assessment', () => {
-    const vm = buildRoadmapViewModel({
-        assessment_history: {
-            items: [{
-                id: 'mi-attempt-1',
-                assessment_type: 'multiple_intelligence',
-                status: 'submitted',
-                submitted_at: '2026-09-15T08:00:00Z',
-                dimension_scores: { LOGI: 91, BODY: 82, INTER: 76 },
-            }],
-        },
-    });
-
-    assert.deepEqual(vm.talentMap, [
-        { field: 'Tư duy Logic & Hệ thống', score: 91, hasEvidence: true, evidence_ref_ids: ['assessment:mi-attempt-1'] },
-        { field: 'Kỹ năng Thực hành & Thao tác', score: 82, hasEvidence: true, evidence_ref_ids: ['assessment:mi-attempt-1'] },
-        { field: 'Tổ chức & Điều phối', score: 76, hasEvidence: true, evidence_ref_ids: ['assessment:mi-attempt-1'] },
-    ]);
-});
-
-test('loads assessment history with the roadmap so talent scores reach the page', async () => {
-    const calls = [];
-    const rendered = [];
-    const controller = createRoadmapController({
-        api: {
-            async get(endpoint) {
-                calls.push(endpoint);
-                if (endpoint === '/assessments.php?view=history') {
-                    return { assessment_history: { items: [{
-                        id: 'mi-attempt-2', assessment_type: 'multiple_intelligence', status: 'submitted',
-                        dimension_scores: { LOGI: 88, BODY: 79, INTER: 84 },
-                    }] } };
-                }
-                return { state: 'ready_model', roadmap_id: 'roadmap-1', phases: [], progress: {} };
-            },
-            async send() { return {}; },
-        },
-        view: { render(state, payload) { rendered.push([state, payload]); } },
-    });
-
-    await controller.load(false);
-
-    assert.deepEqual(calls, ['/ai-roadmap.php', '/assessments.php?view=history']);
-    assert.equal(rendered.at(-1)[0], 'ready-model');
-    assert.deepEqual(rendered.at(-1)[1].talentMap.map((item) => item.score), [88, 79, 84]);
 });

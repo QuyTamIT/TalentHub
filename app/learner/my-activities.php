@@ -46,7 +46,7 @@ $boot = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Hoạt động của tôi | FTalentHub</title>
+    <title>Hoạt động của tôi | TalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">
@@ -117,7 +117,7 @@ $boot = [
                                 <div class="learner-activity-registered-card__cover"><img src="<?= learner_escape($cover); ?>" alt="<?= learner_escape($registration['cover_image_alt'] ?? ('Ảnh ' . ($registration['title'] ?? 'hoạt động'))); ?>" loading="lazy" onerror="this.onerror=null;this.src='assets/activities/illustrations/hero-registered.svg';"></div>
                                 <div class="learner-activity-registered-card__body">
                                     <div class="learner-activity-registered-card__top"><span class="learner-activity-category-chip"><?= learner_escape($registration['filter_category'] ?? $registration['category'] ?? 'Hoạt động'); ?></span><span class="learner-registration-status learner-registration-status--<?= learner_escape($status); ?>"><?= learner_escape($statusLabel); ?></span></div>
-                                    <h2><?= learner_escape($registration['title'] ?? 'Hoạt động FTalentHub'); ?></h2>
+                                    <h2><?= learner_escape($registration['title'] ?? 'Hoạt động TalentHub'); ?></h2>
                                     <p class="learner-activity-registered-card__school"><?= learner_icon('building', 17); ?> <?= learner_escape($registration['organizer_name'] ?? $registration['school_name'] ?? 'Đơn vị tổ chức'); ?></p>
                                     <div class="learner-activity-registered-card__meta">
                                         <span><?= learner_icon('calendar', 17); ?> <?= learner_escape((new DateTimeImmutable((string) ($registration['start_at'] ?? 'now')))->format('d/m/Y · H:i')); ?></span>

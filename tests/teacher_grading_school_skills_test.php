@@ -53,8 +53,7 @@ CREATE TABLE student_profiles (
     id TEXT PRIMARY KEY,
     userId TEXT NOT NULL,
     classId TEXT NOT NULL,
-    studyStatus TEXT NOT NULL DEFAULT 'active',
-    talentScore REAL NULL
+    studyStatus TEXT NOT NULL DEFAULT 'active'
 );
 CREATE TABLE assessment_criteria (
     id TEXT PRIMARY KEY,
@@ -77,9 +76,6 @@ CREATE TABLE assessments (
     comment TEXT NULL,
     status TEXT NOT NULL DEFAULT 'draft',
     publishedAt TEXT NULL,
-    scoreMethod TEXT NULL,
-    formulaVersion TEXT NULL,
-    calculationJson TEXT NULL,
     version INTEGER NOT NULL DEFAULT 1,
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -104,13 +100,9 @@ CREATE TABLE student_skills (
     id TEXT PRIMARY KEY,
     studentId TEXT NOT NULL,
     skillId TEXT NOT NULL,
-    levelScore REAL NULL,
+    levelScore REAL NOT NULL,
     sourceType TEXT NOT NULL,
     verificationStatus TEXT NOT NULL DEFAULT 'self_declared',
-    scoreState TEXT NULL,
-    sourceEvaluationId TEXT NULL,
-    sourceEvidenceId TEXT NULL,
-    formulaVersion TEXT NULL,
     verifiedAt TEXT NULL,
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -129,11 +121,6 @@ CREATE TABLE learner_evaluations (
     comment TEXT NULL,
     status TEXT NOT NULL DEFAULT 'draft',
     publishedAt TEXT NULL,
-    scoreMethod TEXT NULL,
-    formulaVersion TEXT NULL,
-    calculationJson TEXT NULL,
-    supersededAt TEXT NULL,
-    revokedAt TEXT NULL,
     actorUserId TEXT NOT NULL,
     eventKey TEXT NULL UNIQUE,
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -152,12 +139,6 @@ CREATE TABLE learner_evaluation_items (
     comment TEXT NULL,
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(evaluationId, itemKind, itemCode)
-);
-CREATE TABLE learner_skill_evidence (
-    id TEXT PRIMARY KEY, studentId TEXT NOT NULL, skillId TEXT NOT NULL,
-    verificationStatus TEXT, evidenceKind TEXT, sourceType TEXT, sourceId TEXT,
-    sourceVersion INTEGER, observedAt TEXT, actorUserId TEXT, expiresAt TEXT,
-    revokedAt TEXT, supersedesId TEXT
 );
 SQL);
 
@@ -214,7 +195,7 @@ $service->save($ids['teacherUser'], [
     'overallScore' => '82.50',
     'comment' => 'Rubric plus skills',
     'assessmentStatus' => 'published',
-    'criteria' => [$ids['criterion'] => '8.25'],
+    'criteria' => [$ids['criterion'] => '8.00'],
     'skills' => [
         ['skillId' => $ids['python'], 'score' => '88.5', 'category' => 'technical'],
         ['skillName' => 'Piano Performance', 'score' => 71, 'category' => 'music'],
@@ -226,7 +207,7 @@ $assert(is_array($assessment), 'assessment row exists');
 $assert((string) $assessment['status'] === 'published', 'assessment published');
 $assert((float) $assessment['overallScore'] === 82.5, 'overall score stored');
 
-$teacherSkills = $pdo->prepare("SELECT ss.*, s.code FROM student_skills ss JOIN skills s ON s.id = ss.skillId WHERE ss.studentId = ? AND ss.scoreState = 'scored' ORDER BY s.code");
+$teacherSkills = $pdo->prepare("SELECT ss.*, s.code FROM student_skills ss JOIN skills s ON s.id = ss.skillId WHERE ss.studentId = ? AND ss.sourceType = 'teacher' ORDER BY s.code");
 $teacherSkills->execute([$ids['student']]);
 $rows = $teacherSkills->fetchAll();
 $assert(count($rows) === 2, 'two teacher-verified student skills');

@@ -30,7 +30,7 @@ $outputHtml = ob_get_clean();
 assert(str_contains($outputHtml, 'cv-sheet'), "Shared profile must render CV sheet element");
 assert(str_contains($outputHtml, 'cv-sidebar'), "Shared profile must render CV sidebar");
 assert(str_contains($outputHtml, 'cv-main'), "Shared profile must render CV main column");
-assert(str_contains($outputHtml, 'Hồ sơ CV xác thực điện tử bởi FTalentHub'), "Shared profile must show verified guest toolbar");
+assert(str_contains($outputHtml, 'Hồ sơ CV xác thực điện tử bởi TalentHub'), "Shared profile must show verified guest toolbar");
 assert(str_contains($outputHtml, 'In / Tải PDF'), "Shared profile must have print/pdf button for guest");
 assert(!str_contains($outputHtml, '360°'), "Shared profile must not contain 360°");
 

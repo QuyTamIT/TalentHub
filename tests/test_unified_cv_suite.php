@@ -106,7 +106,7 @@ $studentCvHtml = ob_get_clean();
 
 assertTest("Student CV has no '360°'", !str_contains($studentCvHtml, '360°'));
 assertTest("Student CV has no '360 '", !str_contains($studentCvHtml, ' 360 '));
-assertTest("Verified badge is '✓ Xác thực Năng lực FTalentHub'", str_contains($studentCvHtml, '✓ Xác thực Năng lực FTalentHub'));
+assertTest("Verified badge is '✓ Xác thực Năng lực TalentHub'", str_contains($studentCvHtml, '✓ Xác thực Năng lực TalentHub'));
 assertTest("Seal title is 'TALENT PASSPORT'", str_contains($studentCvHtml, '<span class="cv-seal-title">TALENT PASSPORT</span>'));
 assertTest("Student CV toolbar links to profile.php", str_contains($studentCvHtml, 'href="profile.php"'));
 assertTest("Student CV toolbar has 'Lấy dữ liệu mới & xuất PDF'", str_contains($studentCvHtml, 'Lấy dữ liệu mới &amp; xuất PDF'));
@@ -117,7 +117,7 @@ ob_start();
 require dirname(__DIR__) . '/app/learner/includes/passport-cv-template.php';
 $guestCvHtml = ob_get_clean();
 
-assertTest("Guest CV shows 'Hồ sơ CV xác thực điện tử bởi FTalentHub'", str_contains($guestCvHtml, 'Hồ sơ CV xác thực điện tử bởi FTalentHub'));
+assertTest("Guest CV shows 'Hồ sơ CV xác thực điện tử bởi TalentHub'", str_contains($guestCvHtml, 'Hồ sơ CV xác thực điện tử bởi TalentHub'));
 assertTest("Guest CV has 'In / Tải PDF' button", str_contains($guestCvHtml, 'In / Tải PDF'));
 assertTest("Guest CV does NOT contain link to profile.php or internal dashboard", !str_contains($guestCvHtml, 'href="profile.php"'));
 
@@ -143,7 +143,7 @@ if ($activeStudent) {
     assertTest("Shared profile renders identical .cv-sheet element", str_contains($sharedHtml, 'class="cv-sheet"'));
     assertTest("Shared profile renders .cv-sidebar", str_contains($sharedHtml, 'class="cv-sidebar"'));
     assertTest("Shared profile renders .cv-main", str_contains($sharedHtml, 'class="cv-main"'));
-    assertTest("Shared profile renders guest verified toolbar", str_contains($sharedHtml, 'Hồ sơ CV xác thực điện tử bởi FTalentHub'));
+    assertTest("Shared profile renders guest verified toolbar", str_contains($sharedHtml, 'Hồ sơ CV xác thực điện tử bởi TalentHub'));
     assertTest("Shared profile has In / Tải PDF button", str_contains($sharedHtml, 'In / Tải PDF'));
     assertTest("Shared profile does not have 360°", !str_contains($sharedHtml, '360°'));
 } else {
@@ -157,7 +157,7 @@ require dirname(__DIR__) . '/app/learner/shared-profile.php';
 $notFoundHtml = ob_get_clean();
 
 assertTest("Invalid code renders friendly 404 page", str_contains($notFoundHtml, 'Không tìm thấy hồ sơ'));
-assertTest("Invalid code page has link to homepage", str_contains($notFoundHtml, 'Về trang chủ FTalentHub'));
+assertTest("Invalid code page has link to homepage", str_contains($notFoundHtml, 'Về trang chủ TalentHub'));
 
 // ----------------------------------------------------------------------
 // 4. Test CSS A4 Page Fitting Specifications
