@@ -1573,89 +1573,45 @@
         });
 
         const certForm = document.getElementById('learner-certificate-form');
-        let certificateSaving = false;
         certForm?.addEventListener('submit', async (event) => {
             event.preventDefault();
-            if (certificateSaving) return;
             const submitBtn = certForm.querySelector('button[type="submit"]');
             const formData = new FormData(certForm);
             const payload = {
                 title: String(formData.get('title') || '').trim(),
                 issuingOrganization: String(formData.get('issuingOrganization') || '').trim(),
                 issueDate: String(formData.get('issueDate') || '').trim(),
+                expiryDate: String(formData.get('expiryDate') || '').trim() || undefined,
+                credentialId: String(formData.get('credentialId') || '').trim() || undefined,
+                credentialUrl: String(formData.get('credentialUrl') || '').trim() || undefined,
             };
-            const setFieldError = (field, message) => {
-                const input = certForm.querySelector(`[name="${field}"]`);
-                const error = certForm.querySelector(`[data-error-for="${field}"]`);
-                if (input) input.setAttribute('aria-invalid', message ? 'true' : 'false');
-                if (error) error.textContent = message;
-            };
-            const clearErrors = () => ['title', 'issuingOrganization', 'issueDate'].forEach(field => setFieldError(field, ''));
-            clearErrors();
-            let valid = true;
-            for (const field of ['title', 'issuingOrganization']) {
-                const length = Array.from(payload[field]).length;
-                if (length < 2 || length > 255) {
-                    setFieldError(field, 'Vui lòng nhập từ 2 đến 255 ký tự.');
-                    valid = false;
-                }
-            }
-            const now = new Date();
-            const today = certForm.querySelector('[name="issueDate"]')?.max
-                || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-            const parsedDate = new Date(`${payload.issueDate}T00:00:00Z`);
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(payload.issueDate) || Number.isNaN(parsedDate.getTime())
-                || parsedDate.toISOString().slice(0, 10) !== payload.issueDate || payload.issueDate > today) {
-                setFieldError('issueDate', 'Vui lòng chọn ngày cấp hợp lệ, không nằm trong tương lai.');
-                valid = false;
-            }
-            if (!valid) {
-                certForm.querySelector('[aria-invalid="true"]')?.focus();
+
+            if (!payload.title || !payload.issuingOrganization || !payload.issueDate) {
+                showToast('Vui lòng điền đầy đủ các thông tin bắt buộc.', 'error');
                 return;
             }
 
-            certificateSaving = true;
-            const originalLabel = submitBtn?.textContent || 'Lưu chứng chỉ';
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Đang lưu...';
-            }
+            if (submitBtn) submitBtn.disabled = true;
             try {
-                if (!global.TalentHubLearnerApi?.createLearnerApiClient) throw new Error('API chứng chỉ chưa sẵn sàng.');
-                const list = document.querySelector('[data-certificate-list]');
-                const template = document.getElementById('learner-certificate-template');
-                if (!list || !template?.content?.firstElementChild) throw new Error('Không tìm thấy vùng hiển thị chứng chỉ. Vui lòng tải lại trang.');
-                const card = template.content.firstElementChild.cloneNode(true);
-                const titleNode = card.querySelector('[data-certificate-title]');
-                const issuerNode = card.querySelector('[data-certificate-issuer]');
-                const dateNode = card.querySelector('[data-certificate-date]');
-                if (!titleNode || !issuerNode || !dateNode) throw new Error('Giao diện chứng chỉ chưa sẵn sàng. Vui lòng tải lại trang.');
-                const client = global.TalentHubLearnerApi.createLearnerApiClient({ baseUrl: '/app/learner/api/v1' });
-                const res = await client.send('POST', '/certificates.php', payload);
-                const certificate = res && res.certificate;
-                if (!certificate || typeof certificate.title !== 'string' || typeof certificate.issuingOrganization !== 'string'
-                    || typeof certificate.issueDate !== 'string') {
-                    throw new Error('Chưa nhận được thông tin chứng chỉ đã lưu. Vui lòng tải lại trang để kiểm tra trước khi thử lại.');
+                const mutationBackend = resolveMutationBackend(
+                    document.body?.dataset?.learnerSource || '',
+                    Boolean(global.TalentHubLearnerApi),
+                );
+                if (mutationBackend === 'server') {
+                    const client = global.TalentHubLearnerApi.createLearnerApiClient({ baseUrl: '/app/learner/api/v1' });
+                    await client.send('POST', '/certificates.php', payload);
+                    closeModal(certForm.closest('.learner-modal'));
+                    showToast('Chứng chỉ đã được thêm thành công.');
+                } else if (mutationBackend === 'mock') {
+                    closeModal(certForm.closest('.learner-modal'));
+                    showToast('Chứng chỉ demo đã được thêm.');
+                } else {
+                    throw new Error('Không thể lưu chứng chỉ vì API chưa sẵn sàng.');
                 }
-                titleNode.textContent = certificate.title;
-                issuerNode.textContent = certificate.issuingOrganization;
-                dateNode.textContent = certificate.issueDate.split('-').reverse().join('/');
-                dateNode.dateTime = certificate.issueDate;
-                list.prepend(card);
-                const emptyState = document.querySelector('[data-certificate-empty]');
-                if (emptyState) emptyState.hidden = true;
-                certForm.reset();
-                clearErrors();
-                closeModal(certForm.closest('.learner-modal'));
-                showToast('Chứng chỉ đã được lưu thành công.');
             } catch (err) {
                 showToast(err?.message || 'Không thể lưu chứng chỉ.', 'error');
             } finally {
-                certificateSaving = false;
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = originalLabel;
-                }
+                if (submitBtn) submitBtn.disabled = false;
             }
         });
 

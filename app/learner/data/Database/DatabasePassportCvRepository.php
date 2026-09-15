@@ -37,7 +37,7 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
                     $student['bio'] = $details['bio'] ?? null;
                 }
             }
-            $result=['student'=>$student,'skills'=>[],'projects'=>[],'internships'=>[],'teacher_evaluations'=>[],'assessment_results'=>[],'experience'=>['confirmed_entries'=>[],'summary'=>['total_hours'=>0.0,'total_activities'=>0]],'badges'=>[],'certificates'=>[]];
+            $result=['student'=>$student,'skills'=>[],'projects'=>[],'internships'=>[],'teacher_evaluations'=>[],'assessment_results'=>[],'experience'=>['confirmed_entries'=>[],'summary'=>['total_hours'=>0.0,'total_activities'=>0]],'badges'=>[]];
             // Only verified teacher evidence; activity/import/self-declared rows cannot establish CV competence.
             $evidenceGuard='';
             if ($this->has('learner_skill_evidence','studentSkillId')) {
@@ -124,10 +124,6 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
                 $result['badges']=$this->fetchAll('cv badges', "SELECT b.name, b.description, {$timeCol} AS earnedAt
                     FROM badges b INNER JOIN student_badges sb ON sb.badgeId=b.id
                     WHERE sb.studentId=:id ORDER BY {$timeCol} DESC,b.id LIMIT 3", ['id'=>$studentId]);
-            }
-            if ($this->has('certificates','studentId') && $this->has('certificates','verificationStatus')) {
-                $result['certificates']=$this->fetchAll('cv certificates', "SELECT id,title,issuingOrganization,issueDate,verificationStatus,createdAt
-                    FROM certificates WHERE studentId=:id ORDER BY issueDate DESC, createdAt DESC, id", ['id'=>$studentId]);
             }
             if ($this->has('experience_logs','hours')) {
                 $summaryRow=$this->fetchOne('cv experience summary', "SELECT COALESCE(SUM(hours),0) AS totalHours, COUNT(DISTINCT activityId) AS totalActivities

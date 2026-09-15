@@ -189,7 +189,7 @@ $isGuestView = $isGuestView ?? false;
                                             <?php if ($skill['score'] !== null): ?>
                                                 <span class="cv-skill-score"><?= $escapeCv((string)$skill['score']); ?>%</span>
                                             <?php else: ?>
-                                                <span class="cv-skill-score cv-skill-score-verified"><?= ($skill['source_type'] ?? '') === 'internship_evaluation' ? 'Đã hoàn thành qua thực tập' : 'Xác thực'; ?></span>
+                                                <span class="cv-skill-score cv-skill-score-verified">Xác thực</span>
                                             <?php endif; ?>
                                         </div>
                                         <?php if ($skill['score'] !== null): ?>

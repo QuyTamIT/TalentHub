@@ -1,2 +1,0 @@
-# Migration 022 is already applied; preserve its byte-level checksum on Windows.
-Database/migrations/learner/022_extend_portfolio_skill_evidence.php text eol=lf

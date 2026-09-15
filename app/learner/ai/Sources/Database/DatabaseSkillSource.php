@@ -56,7 +56,7 @@ SQL;
                 'code' => (string) $row['code'],
                 'name' => (string) $row['name'],
                 'category' => (string) $row['category'],
-                'level_score' => $row['level_score'] === null ? null : (float) $row['level_score'],
+                'level_score' => (float) $row['level_score'],
                 'source_type' => (string) $row['source_type'],
                 'verification_status' => (string) $row['verification_status'],
                 'verified_at' => self::timestamp($row['verified_at'] ?? null),

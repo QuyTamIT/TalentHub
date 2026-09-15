@@ -415,6 +415,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     const cards=Array.from(discovery.querySelectorAll('[data-activity-card]'));
     const search=discovery.querySelector('[data-activity-search-input]');
     const time=discovery.querySelector('[data-activity-time-filter]');
+    const availability=discovery.querySelector('[data-activity-availability-filter]');
     const categoryButtons=Array.from(discovery.querySelectorAll('[data-activity-filter]'));
     const resultStatus=discovery.querySelector('[data-activity-result-status]');
     const filterEmpty=discovery.querySelector('[data-activity-filter-empty]');
@@ -424,7 +425,7 @@ document.addEventListener('DOMContentLoaded',()=>{
         query:search?.value||'',
         category,
         time:time?.value||'all',
-        onlyAvailable:true
+        onlyAvailable:Boolean(availability?.checked)
       };
       let visible=0;
       cards.forEach(card=>{
@@ -442,6 +443,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     };
     search?.addEventListener('input',renderDiscovery);
     time?.addEventListener('change',renderDiscovery);
+    availability?.addEventListener('change',renderDiscovery);
     categoryButtons.forEach(button=>button.addEventListener('click',()=>{
       category=button.dataset.activityFilter||'Tất cả';
       categoryButtons.forEach(candidate=>candidate.setAttribute('aria-pressed',String(candidate===button)));

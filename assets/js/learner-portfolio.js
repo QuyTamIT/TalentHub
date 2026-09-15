@@ -6,8 +6,7 @@
   return ['draft','changes_requested'].includes(status)?['save','submit']:['verified','revoked'].includes(status)?['newRevision']:[];
  }
  function safeUrl(raw){try{const u=new URL(raw);return ['http:','https:'].includes(u.protocol)&&!u.username&&!u.password?u.href:null;}catch{return null;}}
- function reviewSkillPayload(action,selected,scoreOf){const ids=action==='verified'?Array.from(selected||[]):[];const skillScores={};ids.forEach(id=>{skillScores[id]=typeof scoreOf==='function'?(scoreOf(id)??''):'';});return{skillIds:ids,skillScores};}
- if(typeof module!=='undefined') module.exports={actions,safeUrl,reviewSkillPayload};
+ if(typeof module!=='undefined') module.exports={actions,safeUrl};
  if(!global.document) return;
  const doc=global.document;
  const el=(tag,text,cls)=>{const n=doc.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
@@ -156,12 +155,9 @@
      if(permitted.includes('newRevision')){newRevision=true;form.prepend(el('p','Tạo bản mới sẽ chuyển về nháp; xác nhận cũ được giữ trong lịch sử, không còn dùng cho CV.'));}
     }else{
      field(form,'feedback','Nhận xét (bắt buộc khi yêu cầu sửa hoặc thu hồi)',report.feedback,'textarea',2000);
-     if(status==='submitted'&&item.kind==='project'){
-      const assigned=item.availableSkills||[];const wrap=el('fieldset');wrap.append(el('legend','Kỹ năng được giao cho dự án (chọn và chấm 0–100)'));
-      assigned.forEach(s=>{const label=el('label');const check=el('input');check.type='checkbox';check.name='skillIds';check.value=s.id;const score=el('input');score.type='number';score.name=`skillScore:${s.id}`;score.min='0';score.max='100';score.step='0.01';score.disabled=true;check.addEventListener('change',()=>{score.disabled=!check.checked;if(check.checked)score.required=true;});label.append(check,doc.createTextNode(` ${s.name} `),score);wrap.append(label);});
-      if(!assigned.length)wrap.append(el('p','Dự án chưa được gán kỹ năng để xác nhận.'));form.append(wrap);
-     }else if(status==='submitted'&&item.kind==='internship'){
-      const names=(item.availableSkills||[]).map(s=>s.name);form.append(el('p',report.stage==='completed'?`Khi xác nhận, hệ thống tự ghi nhận hoàn thành: ${names.join(', ')||'không có kỹ năng trong tin thực tập'}. Không chấm điểm năng lực.`:'Báo cáo đang thực tập chỉ có thể yêu cầu sửa; cần báo cáo giai đoạn hoàn thành để xác nhận kỹ năng.'));
+     if(status==='submitted'){
+      const wrap=el('label','Kỹ năng thực sự được xác nhận (tối đa 10, có thể không chọn)');const select=el('select');select.name='skillIds';select.multiple=true;
+      catalog.forEach(s=>{const option=el('option',s.name);option.value=s.id;select.append(option);});wrap.append(select);form.append(wrap);
      }
     }
     const buttons=el('div',undefined,'portfolio-actions');
@@ -173,7 +169,7 @@
      const values=Object.fromEntries(new FormData(form));
      const body={kind:item.kind,expectedVersion:Number(report.version||0)};
      if(role==='student')Object.assign(body,values,{contextId:item.contextId,submit:action==='submit',newRevision});
-     else {const selected=Array.from(form.querySelectorAll('[name=skillIds]:checked'),o=>o.value);const scoreOf=id=>form.querySelector(`[name="skillScore:${CSS.escape(id)}"]`)?.value??'';Object.assign(body,{reportId:report.id,decision:action,feedback:values.feedback||'',...reviewSkillPayload(action,selected,scoreOf)});}
+     else Object.assign(body,{reportId:report.id,decision:action,feedback:values.feedback||'',skillIds:Array.from(form.querySelector('[name=skillIds]')?.selectedOptions||[],o=>o.value)});
      if(['revoked','newRevision'].includes(action)&&!global.confirm('Thao tác này sẽ bỏ xác nhận hiện tại khỏi CV và giữ bản cũ trong lịch sử. Tiếp tục?'))return;
      for(const b of buttons.children)b.disabled=true;
      try{await request(body);await load();}catch(err){error.textContent=err.message;}finally{for(const b of buttons.children)b.disabled=false;}

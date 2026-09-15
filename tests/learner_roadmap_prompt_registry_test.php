@@ -38,12 +38,6 @@ $input = new RecommendationInput(
                 'dimension_scores' => ['R' => 40, 'I' => 35, 'A' => 30],
             ],
         ],
-        'certificates' => [[
-            'title' => 'Data Foundations',
-            'issuing_organization' => 'External Academy',
-            'issue_date' => '2026-08-01',
-            'verification_status' => 'unverified',
-        ]],
     ],
     [],
     [],
@@ -64,17 +58,6 @@ $input = new RecommendationInput(
                 'dimension_scores' => ['R' => 40, 'I' => 35, 'A' => 30],
             ],
         ],
-        [
-            'source_type' => 'certificate',
-            'source_id' => 'cert-1',
-            'observed_at' => '2026-08-02T00:00:00+00:00',
-            'safe_value' => [
-                'title' => 'Data Foundations',
-                'issuing_organization' => 'External Academy',
-                'issue_date' => '2026-08-01',
-                'verification_status' => 'unverified',
-            ],
-        ],
     ]
 );
 
@@ -83,8 +66,6 @@ $context = new RecommendationContext(['skills', 'assessments'], 'request-1', 'ke
 $request = $promptRegistry->create($input, $context);
 $payload = $request->payload();
 $instructions = $payload['instructions'] ?? [];
-$assert(($payload['input']['certificates'][0]['verification_status'] ?? null) === 'unverified', 'Roadmap prompt must serialize certificate facts and preserve verification status.');
-$assert(($payload['input']['certificates'][0]['issuing_organization'] ?? null) === 'External Academy', 'Roadmap certificate allow-list must accept snake_case issuer alias.');
 
 $expectedInstruction1 = 'Luôn phân tích từ 2 đến 3 điểm mạnh nổi bật (strengths) và từ 2 đến 3 hướng tiềm năng mở rộng (potential_paths) phù hợp nhất với học viên dựa trên kết hợp kết quả các bài đánh giá. Mỗi record phải trích dẫn evidence_ref_ids được cung cấp.';
 $expectedInstruction2 = 'potential_paths nêu rõ tên hướng phát triển hoặc vai trò tiềm năng kèm lý giải ngắn gọn trong trường label (catalog_id là tùy chọn, chỉ điền khi có catalog evidence tương ứng).';

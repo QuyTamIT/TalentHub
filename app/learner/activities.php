@@ -148,6 +148,12 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
                             </div>
                         </div>
 
+                        <label class="learner-activity-discovery-availability">
+                            <input type="checkbox" checked data-activity-availability-filter>
+                            <span aria-hidden="true"></span>
+                            <strong>Chỉ hiển thị hoạt động còn hạn và còn chỗ</strong>
+                            <?= learner_icon('info', 16); ?>
+                        </label>
                     </section>
 
                     <section class="learner-activity-matches" data-activity-matches aria-label="Gợi ý hoạt động để phát triển kỹ năng">
