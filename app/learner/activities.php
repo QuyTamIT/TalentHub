@@ -62,8 +62,8 @@ $activityDisplayTimezone = new DateTimeZone('Asia/Ho_Chi_Minh');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="description" content="Khám phá hoạt động trải nghiệm đang mở dành riêng cho trường của bạn trên TalentHub.">
-    <title>Khám phá hoạt động | TalentHub</title>
+    <meta name="description" content="Khám phá hoạt động trải nghiệm đang mở dành riêng cho trường của bạn trên FTalentHub.">
+    <title>Khám phá hoạt động | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">

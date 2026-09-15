@@ -52,11 +52,14 @@ final class PassportCvViewModel
         foreach ($skills as $skill) {
             if (($skill['verification_status'] ?? '') !== 'verified' || empty($skill['verified_at'])
                 || ($skill['skill_status'] ?? '') !== 'active'
-                || !in_array($skill['source_type'] ?? '', ['teacher','project_evaluation','internship_evaluation'],true)) continue;
+                || !in_array($skill['source_type'] ?? '', ['teacher','evaluation','project_evaluation','internship_evaluation'],true)) continue;
             $name=self::text($skill['name'] ?? '',42);
             if ($name==='' || in_array($name,array_column($cv['skills'],'name'),true)) continue;
+            $state = (string) ($skill['score_state'] ?? $skill['state'] ?? '');
             $rawScore = array_key_exists('level_score',$skill) ? $skill['level_score'] : ($skill['levelScore'] ?? ($skill['score'] ?? null));
-            $score = $rawScore === null ? null : max(0, min(100, (int) round((float)$rawScore)));
+            $score = $state === 'evidence_only' || $rawScore === null
+                ? null
+                : max(0, min(100, (int) round((float)$rawScore)));
             $cv['skills'][]=[
                 'name'=>$name,
                 'score'=>$score,

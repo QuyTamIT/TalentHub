@@ -442,9 +442,29 @@ final class AiSourceRegistry
             });
         }
         if ($source instanceof SkillSource) {
-            return self::legacyListAdapter($source, 'skill', 'skills', [
-                'category', 'code', 'level_score', 'source_type', 'source_updated_at', 'verification_status', 'verified_at',
-            ], 'student_skill_id', 'source_updated_at');
+            return new DatabaseLearnerAiExtendedSource(
+                'skill',
+                'skill-1.0.0',
+                'skills',
+                ['category', 'code', 'level_score', 'source_type', 'source_updated_at', 'verification_status', 'verified_at', 'score_state', 'state'],
+                'skill_changed',
+                static function (string $studentId) use ($source): array {
+                    $records = $source->forStudent($studentId);
+                    foreach ($records as &$record) {
+                        if (!is_array($record)) continue;
+                        $record['source_id'] = $record['student_skill_id'] ?? null;
+                        $record['observed_at'] = $record['source_updated_at'] ?? null;
+                        if (!isset($record['state']) && !isset($record['score_state'])) {
+                            if (($record['verification_status'] ?? '') === 'verified' && isset($record['level_score'])) {
+                                $record['state'] = 'scored';
+                                $record['score_state'] = 'scored';
+                            }
+                        }
+                    }
+                    unset($record);
+                    return $records;
+                }
+            );
         }
         if ($source instanceof AssessmentSource) {
             return self::legacyListAdapter($source, 'assessment', 'assessment', [
@@ -618,6 +638,8 @@ final class AiSourceRegistry
                         'code' => $code,
                         'level_score' => (float) $score,
                         'verification_status' => 'verified',
+                        'score_state' => 'scored',
+                        'state' => 'scored',
                         'verified_at' => $record['observed_at'],
                         'source_updated_at' => $at,
                         'source_type' => 'published_evaluation',

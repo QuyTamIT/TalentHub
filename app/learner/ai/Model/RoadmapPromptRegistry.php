@@ -90,7 +90,7 @@ final class RoadmapPromptRegistry
                 'Chưa có lịch rảnh hay ngân sách đã xác nhận: gọi thời lượng là dự kiến, dùng bài tập miễn phí có thể làm trong 15–120 phút, cho phép chia nhỏ; không tuyên bố biết lịch học thực của người học.',
                 'Không suy ra xu hướng tăng/giảm từ một lần đo. talent_map và growth_hypotheses chỉ là định hướng khám phá, không phải xác suất thành công hoặc đánh giá chuyên môn đã xác minh.',
                 'Chứng chỉ chỉ là ngữ cảnh hỗ trợ. Giữ nguyên verification status; chứng chỉ chưa xác minh không chứng minh kỹ năng, điểm số hoặc kinh nghiệm, không được tự động chuyển thành skill/score/experience.',
-                'Trả về duy nhất một JSON object hợp lệ theo learner-roadmap-1.0.0.',
+                'Trả về duy nhất một JSON object hợp lệ theo ' . RoadmapAnalysis::CONTRACT_VERSION . '.',
                 'Tuân thủ chính xác output_schema được cung cấp. Không thêm trường ngoài schema.',
                 'Viết toàn bộ nội dung dành cho học viên bằng tiếng Việt tự nhiên.',
                 'Phân tích đầy đủ bốn bài Holland, MBTI, DISC, Multiple Intelligence cùng trường, lớp, khối và năm học để cá nhân hóa lộ trình.',
@@ -102,7 +102,6 @@ final class RoadmapPromptRegistry
                 'Kết nối mỗi giai đoạn với mục tiêu học tập, kỹ năng trọng tâm, sản phẩm/đầu ra và thước đo; diễn đạt thân thiện, khích lệ, dễ hiểu với lứa tuổi học sinh–sinh viên.',
                 'Không nhắc lại mã MBTI, điểm Holland, biểu đồ DISC hoặc điểm Multiple Intelligence.',
                 'Mỗi insight, phase và task phải trích dẫn evidence_ref_ids được cung cấp.',
-                'talent_map phải có đúng ba record, mỗi record dùng duy nhất một trong ba field chuẩn: Tư duy Logic & Hệ thống; Kỹ năng Thực hành & Thao tác; Tổ chức & Điều phối; mỗi field xuất hiện đúng một lần. Không gộp hai nhóm vào cùng một record.',
                 'insights phải có đúng ba record, mỗi record dùng duy nhất một trong ba category: strength, improvement, potential; mỗi category xuất hiện đúng một lần. Không dùng trùng lặp category.',
                 'Luôn phân tích từ 2 đến 3 điểm mạnh nổi bật (strengths) và từ 2 đến 3 hướng tiềm năng mở rộng (potential_paths) phù hợp nhất với học viên dựa trên kết hợp kết quả các bài đánh giá. Mỗi record phải trích dẫn evidence_ref_ids được cung cấp.',
                 'potential_paths nêu rõ tên hướng phát triển hoặc vai trò tiềm năng kèm lý giải ngắn gọn trong trường label (catalog_id là tùy chọn, chỉ điền khi có catalog evidence tương ứng).',
@@ -204,7 +203,7 @@ final class RoadmapPromptRegistry
             'additionalProperties' => false,
             'required' => [
                 'executive_summary', 'primary_direction', 'alternative_directions', 'insights',
-                'phases', 'recommended_activity_source_ids', 'talent_map',
+                'phases', 'recommended_activity_source_ids',
             ],
             'properties' => [
                 'executive_summary' => $text,
@@ -227,21 +226,6 @@ final class RoadmapPromptRegistry
                     ],
                 ],
                 'phases' => ['type' => 'array', 'items' => $phase, 'minItems' => 3, 'maxItems' => 3],
-                'talent_map' => [
-                    'type' => 'array',
-                    'minItems' => 3,
-                    'maxItems' => 3,
-                    'items' => [
-                        'type' => 'object',
-                        'additionalProperties' => false,
-                        'required' => ['field', 'score', 'evidence_ref_ids'],
-                        'properties' => [
-                            'field' => ['type' => 'string', 'enum' => self::TALENT_MAP_FIELDS],
-                            'score' => ['type' => 'number', 'minimum' => 0, 'maximum' => 1],
-                            'evidence_ref_ids' => $evidence,
-                        ],
-                    ],
-                ],
                 'strengths' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['text', 'evidence_ref_ids'], 'properties' => ['text' => $text, 'evidence_ref_ids' => $evidence]]],
                 'improvements' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['text', 'evidence_ref_ids'], 'properties' => ['text' => $text, 'evidence_ref_ids' => $evidence]]],
                 'potential_paths' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => ['label', 'evidence_ref_ids'], 'properties' => ['label' => $text, 'catalog_id' => $catalogItems, 'evidence_ref_ids' => $evidence]]],

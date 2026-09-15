@@ -149,9 +149,30 @@ final class PortfolioRepository
             $stmt=$this->pdo->prepare("UPDATE {$meta['table']} SET version=:version,status=:status,reviewedAt=:reviewedAt,reviewedByUserId=:reviewer,feedback=:feedback,updatedAt=:updatedAt WHERE id=:id AND version=:expectedVersion");$stmt->execute(['version'=>$version,'status'=>$decision,'reviewedAt'=>$now,'reviewer'=>$teacherUserId,'feedback'=>$this->null($feedback),'updatedAt'=>$now,'id'=>$reportId,'expectedVersion'=>$expectedVersion]);if($stmt->rowCount()!==1)$this->fail(409,'VERSION_CONFLICT','Phiên bản đã thay đổi.');
             $this->pdo->prepare('DELETE FROM learner_portfolio_skills WHERE kind=:kind AND reportId=:id')->execute(['kind'=>$kind,'id'=>$reportId]);
             if($decision==='verified') foreach($skillIds as $skillId) $this->insertPortfolioSkill($kind,$reportId,$skillId,$kind==='project'?(float)$skillScores[$skillId]:null,$kind==='project'?'project_report':'internship_completion');
+            if ($this->tableExists('learner_skill_evidence')) {
+                $sourceType = $kind === 'project' ? 'project_submission' : 'internship_report';
+                if ($decision === 'verified') {
+                    $evStmt = $this->pdo->prepare(<<<'SQL'
+INSERT INTO learner_skill_evidence (id,studentId,skillId,verificationStatus,evidenceKind,sourceType,sourceId,sourceVersion,score,observedAt,actorUserId,expiresAt,revokedAt,supersedesId,eventKey)
+VALUES (:id,:studentId,:skillId,'verified','skill',:sourceType,:sourceId,:sourceVersion,NULL,:observedAt,:actorUserId,NULL,NULL,:supersedesId,:eventKey)
+SQL);
+                    $checkEventStmt = $this->pdo->prepare('SELECT id FROM learner_skill_evidence WHERE eventKey=:eventKey');
+                    $findPrevStmt = $this->pdo->prepare('SELECT id FROM learner_skill_evidence WHERE studentId=:studentId AND sourceType=:sourceType AND sourceId=:sourceId AND skillId=:skillId AND sourceVersion<:sourceVersion ORDER BY sourceVersion DESC,observedAt DESC LIMIT 1');
+                    foreach ($skillIds as $skillId) {
+                        $eventKey=hash('sha256',"portfolio_evidence:{$kind}:{$reportId}:{$version}:{$skillId}");
+                        $checkEventStmt->execute(['eventKey'=>$eventKey]); if($checkEventStmt->fetchColumn()) continue;
+                        $findPrevStmt->execute(['studentId'=>$report['studentId'],'sourceType'=>$sourceType,'sourceId'=>$reportId,'skillId'=>$skillId,'sourceVersion'=>$version]);
+                        $evStmt->execute(['id'=>Uuid::v4(),'studentId'=>$report['studentId'],'skillId'=>$skillId,'sourceType'=>$sourceType,'sourceId'=>$reportId,'sourceVersion'=>$version,'observedAt'=>$now,'actorUserId'=>$teacherUserId,'supersedesId'=>$findPrevStmt->fetchColumn()?:null,'eventKey'=>$eventKey]);
+                    }
+                } elseif (in_array($decision,['revoked','changes_requested'],true)) {
+                    $revoke=$this->pdo->prepare('UPDATE learner_skill_evidence SET revokedAt=:revokedAt WHERE sourceType=:sourceType AND sourceId=:sourceId AND revokedAt IS NULL');
+                    $revoke->execute(['revokedAt'=>$now,'sourceType'=>$sourceType,'sourceId'=>$reportId]);
+                }
+            }
             $snapshot=$this->row($kind,$reportId);$snapshot['skillIds']=$skillIds;$snapshot['skillScores']=$kind==='project'?$skillScores:[];$this->history($kind,$reportId,$version,$decision,$teacherUserId,$snapshot);
             $this->notify('portfolio_reviewed',$student['userId'],['title'=>'Báo cáo portfolio đã được phản hồi','message'=>'Giáo viên đã cập nhật trạng thái báo cáo.','deepLink'=>'/app/learner/profile.php','eventKey'=>"portfolio_reviewed:{$kind}:{$reportId}:{$version}",'studentId'=>$report['studentId']]);
             if(in_array($decision,['verified','revoked'],true) && !TransactionalAiOutboxPublisher::publish($this->pdo,'portfolio_report',$reportId,$version,[$report['studentId']],$decision==='verified'?'portfolio.verified':'portfolio.revoked',['kind'=>$kind,'status'=>$decision,'skill_count'=>count($skillIds)])) $this->fail(500,'AI_OUTBOX_FAILED','Không thể ghi sự kiện làm mới dữ liệu AI.');
+            $this->projectScoresIfSupported($report['studentId']);
             $result=$this->row($kind,$reportId);$this->pdo->commit();return$result;
         } catch(Throwable $e){if($this->pdo->inTransaction())$this->pdo->rollBack();if($e instanceof ApiException)throw$e;$this->fail(500,'PORTFOLIO_WRITE_FAILED','Không thể duyệt báo cáo.');}
     }
@@ -286,4 +307,44 @@ JOIN users u ON u.id=eligible.reviewedByUserId");
     private function date(mixed $v): ?string { $v=$this->null($v);if($v===null||!preg_match('/^\d{4}-\d{2}-\d{2}$/',$v))return null;$d=DateTimeImmutable::createFromFormat('!Y-m-d',$v,new DateTimeZone('UTC'));return$d&&$d->format('Y-m-d')===$v?$v:null; }
     private function null(mixed $v): ?string { if($v===null)return null;$v=trim((string)$v);return$v===''?null:$v; }
     private function fail(int $status,string $code,string $message): never { throw new ApiException($status,$code,$message); }
+    private function tableExists(string $table): bool
+    {
+        try {
+            if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+                $q = $this->pdo->prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name");
+                $q->execute(['name' => $table]);
+                return $q->fetchColumn() !== false;
+            }
+            $q = $this->pdo->prepare('SELECT 1 FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=:name');
+            $q->execute(['name' => $table]);
+            return $q->fetchColumn() !== false;
+        } catch (Throwable) {
+            return false;
+        }
+    }
+    private function projectScoresIfSupported(string $studentId): void
+    {
+        if (!$this->tableExists('learner_skill_evidence') || !$this->tableExists('student_skills')) {
+            return;
+        }
+        if (!class_exists(\TalentHub\Learner\Data\Service\EvidenceBackedScoreService::class)) {
+            $file = dirname(__DIR__, 4) . '/app/learner/data/Service/EvidenceBackedScoreService.php';
+            if (is_file($file)) {
+                require_once $file;
+            }
+        }
+        if (!class_exists(\TalentHub\Learner\Data\Service\EvidenceBackedScoreService::class)) {
+            return;
+        }
+        try {
+            $service = new \TalentHub\Learner\Data\Service\EvidenceBackedScoreService($this->pdo);
+            $service->assertSchemaReady(true);
+            $service->projectOfficialScores($studentId);
+        } catch (\RuntimeException $e) {
+            if (str_starts_with($e->getMessage(), 'SCORE_SCHEMA_NOT_READY')) {
+                return;
+            }
+            throw $e;
+        }
+    }
 }

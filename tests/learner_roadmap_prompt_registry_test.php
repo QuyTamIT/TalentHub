@@ -176,11 +176,6 @@ $mockPayload = [
     ],
     'phases' => $phases,
     'recommended_activity_source_ids' => [],
-    'talent_map' => [
-        ['field' => 'Tư duy Logic & Hệ thống', 'score' => 0.8, 'evidence_ref_ids' => [$refs[0]]],
-        ['field' => 'Kỹ năng Thực hành & Thao tác', 'score' => 0.7, 'evidence_ref_ids' => [$refs[0]]],
-        ['field' => 'Tổ chức & Điều phối', 'score' => 0.6, 'evidence_ref_ids' => [$refs[1] ?? $refs[0]]],
-    ],
     'strengths' => [
         [
             'text' => 'Tư duy logic mạch lạc trong việc giải quyết vấn đề kỹ thuật.',
@@ -246,9 +241,9 @@ try {
         $assert(false, 'Duplicate insight categories must be rejected, not relabeled.');
     } catch (InvalidArgumentException) {}
 
-    // Test duplicate talent_map field healing
+    // The provider must never invent a competency map, even with unique fields.
     $payloadWithDuplicateTalent = $mockPayload;
-    $payloadWithDuplicateTalent['talent_map'][2]['field'] = 'Tư duy Logic & Hệ thống'; // duplicate!
+    $payloadWithDuplicateTalent['talent_map'] = [['field'=>'Tư duy Logic & Hệ thống','score'=>0.8,'evidence_ref_ids'=>[$refs[0]]]];
     try {
         $validator->fromProviderPayload($payloadWithDuplicateTalent, $engineMetadata);
         $assert(false, 'Duplicate talent fields must be rejected without reassigning scores.');

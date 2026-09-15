@@ -143,7 +143,7 @@ if (($_GET['action'] ?? '') === 'queue_feed') {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
-    <title><?= htmlspecialchars($headerTitle) ?> | TalentHub Admin</title>
+    <title><?= htmlspecialchars($headerTitle) ?> | FTalentHub Admin</title>
     <link rel="icon" href="<?= app_href('/assets/images/logo.svg'); ?>" type="image/svg+xml">
     <link rel="stylesheet" href="<?= app_href('/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="<?= app_href('/assets/css/global.css'); ?>">
@@ -299,7 +299,7 @@ if (($_GET['action'] ?? '') === 'queue_feed') {
                 <div>
                     <p class="eyebrow">Trung tâm vận hành</p>
                     <h1 id="page-title">Chào buổi sáng, <?= htmlspecialchars($adminFirstName) ?>.</h1>
-                    <p>Mọi tín hiệu quan trọng của TalentHub tại một nơi. Ưu tiên ngoại lệ trước, số liệu sau.</p>
+                    <p>Mọi tín hiệu quan trọng của FTalentHub tại một nơi. Ưu tiên ngoại lệ trước, số liệu sau.</p>
                 </div>
                 <div class="heading-actions">
                     <span class="last-updated"><span class="status-dot is-ok"></span>Cập nhật 20 giây trước</span>
@@ -527,10 +527,10 @@ if (($_GET['action'] ?? '') === 'queue_feed') {
 
 <dialog class="action-dialog" data-action-dialog aria-labelledby="action-title">
     <form method="dialog" data-action-form>
-        <div class="action-dialog-header"><div><p class="eyebrow">Xác nhận thao tác</p><h2 id="action-title" data-action-title>Thay đổi trạng thái</h2></div><button class="icon-button" value="cancel" aria-label="Đóng"><?= icon('close') ?></button></div>
+        <div class="action-dialog-header"><div><p class="eyebrow">Xác nhận thao tác</p><h2 id="action-title" data-action-title>Thay đổi trạng thái</h2></div><button type="button" class="icon-button" data-action-close aria-label="Đóng"><?= icon('close') ?></button></div>
         <p data-action-description></p>
         <label class="field-label" for="organization-decision" data-decision-field hidden>Quyết định</label>
-        <select id="organization-decision" class="typeui-select" data-organization-decision hidden><option value="verified">Phê duyệt</option><option value="rejected">Từ chối</option><option value="pending">Chuyển về chờ duyệt</option></select>
+        <select id="organization-decision" class="typeui-select" data-organization-decision hidden><option value="verified">Phê duyệt</option><option value="rejected">Từ chối</option><option value="pending">Chuyển về chờ duyệt</option><option value="suspended">Đình chỉ</option></select>
         <label class="field-label" for="action-reason">Lý do <span aria-hidden="true">*</span></label>
         <textarea id="action-reason" rows="4" minlength="5" required placeholder="Nhập lý do để ghi vào audit log..."></textarea>
         <div class="dialog-actions"><button class="button secondary" value="cancel">Hủy</button><button class="button primary" type="submit" value="confirm" data-action-submit>Xác nhận</button></div>

@@ -53,8 +53,8 @@ $schools=[];foreach($classes as $class){$schools[$class['schoolId']]=['id'=>$cla
     <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Tạo tài khoản học viên TalentHub và bắt đầu xây dựng hồ sơ năng lực.">
-    <title>Đăng ký học viên | TalentHub</title>
+    <meta name="description" content="Tạo tài khoản học viên FTalentHub và bắt đầu xây dựng hồ sơ năng lực.">
+    <title>Đăng ký học viên | FTalentHub</title>
     <link rel="stylesheet" href="assets/css/home.css">
     <link rel="stylesheet" href="assets/css/global.css">
     <link rel="stylesheet" href="assets/css/brand-component.css">
@@ -79,7 +79,7 @@ $schools=[];foreach($classes as $class){$schools[$class['schoolId']]=['id'=>$cla
                 <p><strong>Vai trò mặc định</strong><span>Học viên · không thể tự nâng quyền khi đăng ký.</span></p>
             </div>
         </div>
-        <p class="auth-brand__footer">Thông tin trường và lớp được lấy từ dữ liệu đang hoạt động trên TalentHub.</p>
+        <p class="auth-brand__footer">Thông tin trường và lớp được lấy từ dữ liệu đang hoạt động trên FTalentHub.</p>
     </section>
     <section class="auth-panel" aria-labelledby="register-title">
         <div class="auth-panel__inner auth-panel__inner--wide">

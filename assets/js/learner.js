@@ -423,7 +423,7 @@
             event.preventDefault();
             const input = document.getElementById('learner-search-input');
             const query = input?.value.trim() || '';
-            showToast(query ? `Đang tìm kiếm “${query}” trong TalentHub.` : 'Nhập từ khóa để tìm hoạt động hoặc kỹ năng.', 'info');
+            showToast(query ? `Đang tìm kiếm “${query}” trong FTalentHub.` : 'Nhập từ khóa để tìm hoạt động hoặc kỹ năng.', 'info');
         });
 
         const openModal = (modal, trigger) => {

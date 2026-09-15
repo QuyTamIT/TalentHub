@@ -20,8 +20,8 @@ $sidebarNav = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Trung tâm thông báo dành cho Doanh nghiệp TalentHub.">
-    <title>Thông báo Doanh nghiệp | TalentHub</title>
+    <meta name="description" content="Trung tâm thông báo dành cho Doanh nghiệp FTalentHub.">
+    <title>Thông báo Doanh nghiệp | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">

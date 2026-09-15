@@ -10,9 +10,27 @@ use TalentHub\Learner\Data\Readiness\TalentPassportOptionalSchema;
 use TalentHub\Learner\Data\Support\Uuid;
 use Throwable;
 
+require_once __DIR__ . '/../Service/EvidenceBackedScoreService.php';
+
 final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository implements TalentPassportRepository
 {
     private ?SchemaInspector $schemaInspector = null;
+
+    public function __construct(\PDO $pdo, private readonly ?\TalentHub\Learner\Data\Service\ScoreViewer $scoreViewer = null)
+    {
+        parent::__construct($pdo);
+    }
+
+    private function officialScores(string $studentId): array
+    {
+        try {
+            return (new \TalentHub\Learner\Data\Service\EvidenceBackedScoreService($this->pdo))->forStudent(
+                $studentId, $this->scoreViewer ?? \TalentHub\Learner\Data\Service\ScoreViewer::fromSession()
+            );
+        } catch (\DomainException) {
+            return ['skills' => [], 'summary' => ['score' => null, 'formula_version' => 'skill-mean-1.0', 'included_skill_ids' => []], 'teacher_context_assessments' => []];
+        }
+    }
 
     public function aggregateForStudent(string $studentId): array
     {
@@ -217,32 +235,17 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
 
     public function skills(string $studentId): array
     {
-        // Older local databases used `student_skills.level` before the canonical
-        // `levelScore` column was introduced. Keep the read path compatible so
-        // a learner dashboard/roadmap does not fail before migrations are run.
-        $levelExpression = $this->inspector()->hasColumn('student_skills', 'levelScore')
-            ? 'ss.levelScore'
-            : ($this->inspector()->hasColumn('student_skills', 'level') ? 'ss.level' : 'NULL');
-        $sql = <<<'SQL'
-            SELECT
-                ss.studentId,
-                ss.skillId,
-                %s AS levelScore,
-                ss.sourceType,
-                ss.verificationStatus,
-                ss.verifiedAt,
-                s.code,
-                s.name,
-                s.category,
-                s.status AS skillStatus
-            FROM student_skills ss
-            INNER JOIN skills s ON s.id = ss.skillId
-            WHERE ss.studentId = :student_id
-            ORDER BY s.category ASC, s.name ASC, ss.skillId ASC
-            SQL;
-
-        $sql = sprintf($sql, $levelExpression);
-        return $this->mergePortfolioSkills($studentId, $this->fetchAll('skills', $sql, ['student_id' => $studentId]));
+        $result = $this->officialScores($studentId);
+        $rows = [];
+        foreach ($result['skills'] as $skill) {
+            if (!in_array($skill['state'], ['scored', 'evidence_only'], true)) continue;
+            $rows[] = array_merge($skill, [
+                'student_id' => $studentId, 'level_score' => $skill['score'], 'score_state' => $skill['state'],
+                'verification_status' => $skill['state'] === 'scored' ? 'verified' : 'pending',
+                'verified_at' => $skill['assessed_at'], 'skill_status' => 'active',
+            ]);
+        }
+        return $rows;
     }
 
     /**
@@ -561,16 +564,25 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
 
     private function teacherEvaluations(string $studentId): array
     {
-        $sql = <<<'SQL'
+        $inspector = $this->inspector();
+        $hasClass = $inspector->hasColumn('assessments', 'classId') && $inspector->hasTable('classes');
+        $hasProject = $inspector->hasColumn('assessments', 'projectId') && $inspector->hasTable('projects');
+        $classCol = $hasClass ? 'a.classId' : 'NULL AS classId';
+        $classNameCol = $hasClass ? 'cl.name AS className' : 'NULL AS className';
+        $classJoin = $hasClass ? 'LEFT JOIN classes cl ON cl.id = a.classId' : '';
+        $projCol = $hasProject ? 'a.projectId' : 'NULL AS projectId';
+        $projTitleCol = $hasProject ? 'pr.title AS projectTitle' : 'NULL AS projectTitle';
+        $projJoin = $hasProject ? 'LEFT JOIN projects pr ON pr.id = a.projectId' : '';
+        $sql = <<<SQL
             SELECT
                 a.id,
                 a.teacherId,
                 a.studentId,
                 a.activityId,
-                a.classId,
-                a.projectId,
-                cl.name AS className,
-                pr.title AS projectTitle,
+                {$classCol},
+                {$projCol},
+                {$classNameCol},
+                {$projTitleCol},
                 a.overallScore,
                 a.comment,
                 a.status,
@@ -582,12 +594,11 @@ final class DatabaseTalentPassportRepository extends AbstractDatabaseRepository 
             LEFT JOIN teacher_profiles tp ON tp.id = a.teacherId
             LEFT JOIN users u ON u.id = tp.userId
             LEFT JOIN activities act ON act.id = a.activityId
-            LEFT JOIN classes cl ON cl.id = a.classId
-            LEFT JOIN projects pr ON pr.id = a.projectId
+            {$classJoin}
+            {$projJoin}
             WHERE a.studentId = :student_id AND a.status = 'published' AND a.publishedAt IS NOT NULL
             ORDER BY a.publishedAt DESC, a.id DESC
             SQL;
-
         $evaluations = $this->fetchAll('teacherEvaluations', $sql, ['student_id' => $studentId]);
         if ($evaluations === []) {
             return [];

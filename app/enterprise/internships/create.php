@@ -262,8 +262,8 @@ $sidebarNav = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Đăng tin tuyển thực tập doanh nghiệp trên TalentHub Enterprise.">
-    <title><?= htmlspecialchars($pageTitle); ?> | TalentHub Enterprise</title>
+    <meta name="description" content="Đăng tin tuyển thực tập doanh nghiệp trên FTalentHub Enterprise.">
+    <title><?= htmlspecialchars($pageTitle); ?> | FTalentHub Enterprise</title>
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../../assets/css/home.css">
@@ -272,6 +272,7 @@ $sidebarNav = [
     <link rel="stylesheet" href="../../../assets/css/polish.css">
     <link rel="stylesheet" href="../../../assets/css/enterprise.css">
     <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
+    <link rel="stylesheet" href="../../../assets/css/enterprise-internship-create.css">
 </head>
 <body class="enterprise-dashboard" data-post-status="<?= htmlspecialchars((string) ($editingPost['status'] ?? '')); ?>">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
@@ -290,12 +291,16 @@ $sidebarNav = [
 
             <!-- Page Body Content -->
             <main class="ent-body" id="main-content">
-                <div class="container-fluid" style="max-width: 960px;">
+                <div class="container-fluid ent-create-container">
                     
                     <!-- Back Link Bar -->
                     <div class="ent-back-bar">
                         <a href="<?= function_exists('app_href') ? app_href('/app/enterprise/internships/index.php') : 'index.php'; ?>" class="ent-back-link">
-                            &larr; Quay lại Danh sách Tin tuyển thực tập
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="19" y1="12" x2="5" y2="12"></line>
+                                <polyline points="12 19 5 12 12 5"></polyline>
+                            </svg>
+                            <span>Quay lại danh sách Tin tuyển thực tập</span>
                         </a>
                     </div>
 
@@ -305,15 +310,22 @@ $sidebarNav = [
                         </div>
                     <?php endif; ?>
 
-                    <!-- Page Form Header -->
-                    <div class="ent-section-box mb-4">
+                    <!-- Page Form Header Banner -->
+                    <div class="ent-create-header-card mb-4">
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                             <div>
-                                <h2 class="ent-section-box__title">
+                                <div class="ent-create-header__tag">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                                    </svg>
+                                    <span>Tuyển dụng thực tập</span>
+                                </div>
+                                <h2 class="ent-create-header__title">
                                     <?= $isEdit ? 'Chỉnh sửa Tin tuyển thực tập' : 'Tạo Tin tuyển thực tập Mới'; ?>
                                 </h2>
-                                <p class="ent-section-box__subtitle">
-                                    <?= $isEdit ? ('Đang chỉnh sửa bài đăng ID #' . htmlspecialchars((string) $editingPost['id'])) : 'Nhập thông tin chi tiết để kết nối với các ứng viên phù hợp trên hệ thống TalentHub.'; ?>
+                                <p class="ent-create-header__desc">
+                                    <?= $isEdit ? ('Đang chỉnh sửa bài đăng ID #' . htmlspecialchars((string) $editingPost['id'])) : 'Nhập thông tin chi tiết để kết nối với các ứng viên phù hợp trên hệ thống FTalentHub.'; ?>
                                 </p>
                             </div>
                             <?php if ($isEdit): ?>
@@ -334,26 +346,29 @@ $sidebarNav = [
                         <input type="hidden" id="form-skills-json" name="skills" value="<?= htmlspecialchars(json_encode($isEdit ? array_column($editingPost['skills'], 'name') : [])); ?>">
                         
                         <!-- 1. General Info Section -->
-                        <section class="ent-section-box mb-4">
-                            <h3 class="ent-section-box__title mb-3" style="font-size: 1.0625rem;">1. Thông tin chung về vị trí thực tập</h3>
+                        <section class="ent-create-section mb-4">
+                            <div class="ent-create-section__header">
+                                <h3 class="ent-create-section__title">1. Thông tin chung về vị trí thực tập</h3>
+                                <p class="ent-create-section__subtitle">Thông tin cơ bản về vị trí, số lượng và thời gian thực tập của doanh nghiệp</p>
+                            </div>
                             
-                            <div class="ent-form-grid">
+                            <div class="ent-create-form-grid">
                                 <!-- Tiêu đề thực tập -->
-                                <div class="ent-form-group col-12">
-                                    <label for="form-title" class="ent-form-label required">Tiêu đề vị trí thực tập</label>
+                                <div class="ent-create-form-group ent-col-12">
+                                    <label for="form-title" class="ent-create-label required">Tiêu đề vị trí thực tập</label>
                                     <input type="text" 
                                            id="form-title" 
                                            name="title"
-                                           class="ent-form-input" 
+                                           class="ent-create-input" 
                                            placeholder="Ví dụ: Thực tập sinh Frontend Developer (React / TypeScript)"
                                            value="<?= $isEdit ? htmlspecialchars((string) $editingPost['title']) : ''; ?>" 
                                            required>
                                 </div>
 
                                 <!-- Lĩnh vực -->
-                                <div class="ent-form-group col-md-6">
-                                    <label for="form-field" class="ent-form-label required">Lĩnh vực / Chuyên môn</label>
-                                    <select id="form-field" name="field" class="ent-form-select typeui-select" required>
+                                <div class="ent-create-form-group ent-col-8">
+                                    <label for="form-field" class="ent-create-label required">Lĩnh vực / Chuyên môn</label>
+                                    <select id="form-field" name="field" class="ent-create-select typeui-select" required>
                                         <option value="">-- Chọn lĩnh vực --</option>
                                         <?php 
                                         $fields = ['Công nghệ thông tin', 'AI / Machine Learning', 'Thiết kế UI/UX', 'Marketing Digital', 'Khoa học Dữ liệu', 'Kỹ thuật Phần mềm'];
@@ -366,12 +381,12 @@ $sidebarNav = [
                                 </div>
 
                                 <!-- Số lượng tuyển -->
-                                <div class="ent-form-group col-md-6">
-                                    <label for="form-slots" class="ent-form-label required">Số lượng cần tuyển (Chỉ tiêu)</label>
+                                <div class="ent-create-form-group ent-col-4">
+                                    <label for="form-slots" class="ent-create-label required">Số lượng cần tuyển (Chỉ tiêu)</label>
                                     <input type="number" 
                                            id="form-slots" 
                                            name="slots"
-                                           class="ent-form-input" 
+                                           class="ent-create-input" 
                                            min="1" 
                                            max="100" 
                                            placeholder="Ví dụ: 5"
@@ -380,9 +395,9 @@ $sidebarNav = [
                                 </div>
 
                                 <!-- Địa điểm làm việc -->
-                                <div class="ent-form-group col-12">
-                                    <label for="form-location" class="ent-form-label required">Địa điểm làm việc</label>
-                                    <select id="form-location" name="location" class="ent-form-select typeui-select" required>
+                                <div class="ent-create-form-group ent-col-12">
+                                    <label for="form-location" class="ent-create-label required">Địa điểm làm việc</label>
+                                    <select id="form-location" name="location" class="ent-create-select typeui-select" required>
                                         <option value="">-- Chọn địa điểm --</option>
                                         <?php 
                                         $provinces = [
@@ -409,9 +424,9 @@ $sidebarNav = [
                                 </div>
 
                                 <!-- Hình thức làm việc -->
-                                <div class="ent-form-group col-md-6">
-                                    <label for="form-work-type" class="ent-form-label">Hình thức làm việc</label>
-                                    <select id="form-work-type" name="workType" class="ent-form-select typeui-select">
+                                <div class="ent-create-form-group ent-col-6">
+                                    <label for="form-work-type" class="ent-create-label">Hình thức làm việc</label>
+                                    <select id="form-work-type" name="workType" class="ent-create-select typeui-select">
                                         <?php 
                                         $types = ['Full-time / Hybrid', 'Full-time / On-site', 'Bán thời gian / Remote', 'Linh hoạt'];
                                         foreach ($types as $t):
@@ -423,9 +438,9 @@ $sidebarNav = [
                                 </div>
 
                                 <!-- Thời gian thực tập -->
-                                <div class="ent-form-group col-md-6">
-                                    <label for="form-duration" class="ent-form-label">Thời gian thực tập</label>
-                                    <select id="form-duration" name="duration" class="ent-form-select typeui-select">
+                                <div class="ent-create-form-group ent-col-6">
+                                    <label for="form-duration" class="ent-create-label">Thời gian thực tập</label>
+                                    <select id="form-duration" name="duration" class="ent-create-select typeui-select">
                                         <?php 
                                         $durations = ['3 tháng', '6 tháng', '2 tháng', 'Linh hoạt theo trường'];
                                         foreach ($durations as $d):
@@ -437,9 +452,9 @@ $sidebarNav = [
                                 </div>
 
                                 <!-- Trình độ đối tượng -->
-                                <div class="ent-form-group col-md-6">
-                                    <label for="form-edu-level" class="ent-form-label">Đối tượng / Trình độ yêu cầu</label>
-                                    <select id="form-edu-level" name="educationLevel" class="ent-form-select typeui-select">
+                                <div class="ent-create-form-group ent-col-6">
+                                    <label for="form-edu-level" class="ent-create-label">Đối tượng / Trình độ yêu cầu</label>
+                                    <select id="form-edu-level" name="educationLevel" class="ent-create-select typeui-select">
                                         <?php 
                                         $edus = ['Đại học / Cao đẳng', 'Tất cả bậc học', 'Đại học', 'Cao đẳng', 'THPT / THCS'];
                                         foreach ($edus as $e):
@@ -451,12 +466,12 @@ $sidebarNav = [
                                 </div>
 
                                 <!-- Hạn ứng tuyển -->
-                                <div class="ent-form-group col-md-6">
-                                    <label for="form-deadline" class="ent-form-label required">Hạn chót nhận hồ sơ</label>
+                                <div class="ent-create-form-group ent-col-6">
+                                    <label for="form-deadline" class="ent-create-label required">Hạn chót nhận hồ sơ</label>
                                     <input type="date" 
                                            id="form-deadline" 
                                            name="deadline"
-                                           class="ent-form-input" 
+                                           class="ent-create-input" 
                                            value="<?= $isEdit ? htmlspecialchars(date('Y-m-d', strtotime((string) $editingPost['deadline']))) : date('Y-m-d', strtotime('+30 days')); ?>" 
                                            required>
                                 </div>
@@ -464,33 +479,36 @@ $sidebarNav = [
                         </section>
 
                         <!-- 2. Detailed Description & Skills Section -->
-                        <section class="ent-section-box mb-4">
-                            <h3 class="ent-section-box__title mb-3">2. Mô tả công việc & Kỹ năng yêu cầu</h3>
+                        <section class="ent-create-section mb-4">
+                            <div class="ent-create-section__header">
+                                <h3 class="ent-create-section__title">2. Mô tả công việc & Kỹ năng yêu cầu</h3>
+                                <p class="ent-create-section__subtitle">Mô tả chi tiết nhiệm vụ và các tiêu chuẩn kỹ năng cho ứng viên</p>
+                            </div>
 
                             <!-- Mô tả công việc -->
-                            <div class="ent-form-group mb-4">
-                                <label for="form-description" class="ent-form-label required">Mô tả chi tiết công việc</label>
+                            <div class="ent-create-form-group mb-4">
+                                <label for="form-description" class="ent-create-label required">Mô tả chi tiết công việc</label>
                                 <textarea id="form-description" 
                                           name="description"
-                                          class="ent-form-textarea" 
+                                          class="ent-create-textarea ent-create-textarea--desc" 
                                           rows="5" 
                                           placeholder="Nhập mô tả nhiệm vụ, trách nhiệm chính của thực tập sinh trong quá trình làm việc..." 
                                           required><?= $isEdit ? htmlspecialchars((string) $editingPost['description']) : ''; ?></textarea>
                             </div>
 
                             <!-- Kỹ năng yêu cầu Section -->
-                            <div class="ent-form-group mb-5">
-                                <div class="ent-field-header mb-3">
-                                    <label class="ent-form-label required mb-1">Yêu cầu kỹ năng (Tags)</label>
-                                    <p class="ent-form-help-text mb-0">Chọn hoặc nhập các kỹ năng cần thiết cho vị trí thực tập.</p>
+                            <div class="ent-create-form-group mb-4">
+                                <div class="d-flex flex-column gap-1 mb-2">
+                                    <label class="ent-create-label required">Yêu cầu kỹ năng (Tags)</label>
+                                    <p class="ent-create-section__subtitle">Chọn hoặc nhập các kỹ năng cần thiết cho vị trí thực tập.</p>
                                 </div>
 
-                                <div class="ent-skill-picker-card" id="skill-picker-container" data-initial-skills="<?= htmlspecialchars(json_encode($isEdit ? $editingPost['skills'] : [])); ?>">
+                                <div class="ent-skill-unified-wrapper" id="skill-picker-container" data-initial-skills="<?= htmlspecialchars(json_encode($isEdit ? $editingPost['skills'] : [])); ?>">
                                     <!-- 1. Selected Skills Area -->
-                                    <div class="ent-skill-selected-area" id="selected-skills-area">
-                                        <div class="ent-skill-area-header">
-                                            <span class="ent-skill-area-title">
-                                                Kỹ năng đã chọn (<span id="selected-skills-count">0</span>)
+                                    <div class="ent-selected-skills-box" id="selected-skills-area">
+                                        <div class="ent-selected-skills-header">
+                                            <span class="ent-selected-skills-title">
+                                                Kỹ năng đã chọn <span class="ent-selected-badge" id="selected-skills-count">0</span>
                                             </span>
                                             <button type="button" class="btn-clear-all-skills" id="btn-clear-skills" style="display: none;">
                                                 Xóa tất cả
@@ -502,10 +520,10 @@ $sidebarNav = [
                                     </div>
 
                                     <!-- 2. Technical Skills Section -->
-                                    <div class="ent-skill-block">
-                                        <div class="ent-skill-block-header">
-                                            <h4 class="ent-skill-block-title">Kỹ năng chuyên môn</h4>
-                                            <p class="ent-skill-block-subtitle" id="tech-skill-field-label">Gợi ý theo lĩnh vực: ...</p>
+                                    <div class="ent-skill-group-section">
+                                        <div class="ent-skill-group-header">
+                                            <h4 class="ent-skill-group-title">Kỹ năng chuyên môn</h4>
+                                            <p class="ent-skill-group-desc" id="tech-skill-field-label">Gợi ý theo lĩnh vực: ...</p>
                                         </div>
                                         <div class="ent-chip-cloud" id="tech-skills-suggestions">
                                             <!-- Dynamically populated tech skill chips -->
@@ -513,10 +531,10 @@ $sidebarNav = [
                                     </div>
 
                                     <!-- 3. Soft Skills Section -->
-                                    <div class="ent-skill-block">
-                                        <div class="ent-skill-block-header">
-                                            <h4 class="ent-skill-block-title">Kỹ năng mềm</h4>
-                                            <p class="ent-skill-block-subtitle">Có thể áp dụng cho mọi lĩnh vực</p>
+                                    <div class="ent-skill-group-section">
+                                        <div class="ent-skill-group-header">
+                                            <h4 class="ent-skill-group-title">Kỹ năng mềm</h4>
+                                            <p class="ent-skill-group-desc">Có thể áp dụng cho mọi lĩnh vực</p>
                                         </div>
                                         <div class="ent-chip-cloud" id="soft-skills-suggestions">
                                             <!-- Static soft skill chips -->
@@ -539,57 +557,59 @@ $sidebarNav = [
                             </div>
 
                             <!-- Quyền lợi & Phụ cấp -->
-                            <div class="ent-form-group">
-                                <label for="form-benefits" class="ent-form-label">Quyền lợi & Mức phụ cấp / Lương</label>
+                            <div class="ent-create-form-group">
+                                <label for="form-benefits" class="ent-create-label">Quyền lợi & Mức phụ cấp / Lương</label>
                                 <textarea id="form-benefits" 
                                           name="benefits"
-                                          class="ent-form-textarea" 
+                                          class="ent-create-textarea ent-create-textarea--benefits" 
                                           rows="3" 
                                           placeholder="Ví dụ: Hỗ trợ phụ cấp 3.000.000 - 5.000.000 VNĐ/tháng, hỗ trợ dấu thực tập tốt nghiệp, cơ hội trở thành nhân viên chính thức..."><?= $isEdit ? htmlspecialchars((string) ($editingPost['benefits'] ?? '')) : ''; ?></textarea>
                             </div>
                         </section>
 
                         <!-- 3. Audience & Partner Schools Targeting Section -->
-                        <section class="ent-section-box mb-4">
-                            <h3 class="ent-section-box__title mb-3">3. Phạm vi tuyển thực tập & Đối tượng hướng đích</h3>
-                            <p class="text-muted small mb-3">Chọn đối tượng sinh viên có thể xem và nộp hồ sơ ứng tuyển vị trí này.</p>
+                        <section class="ent-create-section mb-4">
+                            <div class="ent-create-section__header">
+                                <h3 class="ent-create-section__title">3. Phạm vi tuyển thực tập & Đối tượng hướng đích</h3>
+                                <p class="ent-create-section__subtitle">Chọn đối tượng sinh viên có thể xem và nộp hồ sơ ứng tuyển vị trí này.</p>
+                            </div>
 
-                            <div class="ent-form-group mb-3">
-                                <div class="ent-radio-cards-grid d-flex gap-3 flex-wrap">
-                                    <label class="ent-radio-card flex-grow-1 p-3 border rounded <?= $postAudience === 'public' ? 'border-primary bg-light' : ''; ?>" style="cursor:pointer; min-width:260px;">
-                                        <div class="d-flex align-items-center gap-2 mb-1">
-                                            <input type="radio" name="audience" value="public" id="audience-public" <?= $postAudience === 'public' ? 'checked' : ''; ?>>
-                                            <strong>Công khai toàn hệ thống (Public)</strong>
-                                        </div>
-                                        <div class="text-muted small ps-4">
-                                            Tất cả học sinh, sinh viên trên TalentHub đều có thể tìm thấy và nộp hồ sơ.
+                            <div class="ent-create-form-group mb-3">
+                                <div class="ent-radio-cards-grid">
+                                    <label class="ent-radio-card <?= $postAudience === 'public' ? 'border-primary' : ''; ?>" for="audience-public">
+                                        <input type="radio" name="audience" value="public" id="audience-public" <?= $postAudience === 'public' ? 'checked' : ''; ?>>
+                                        <div class="ent-radio-card-content">
+                                            <strong class="ent-radio-card-title">Công khai toàn hệ thống (Public)</strong>
+                                            <p class="ent-radio-card-desc">
+                                                Tất cả học sinh, sinh viên trên FTalentHub đều có thể tìm thấy và nộp hồ sơ.
+                                            </p>
                                         </div>
                                     </label>
 
-                                    <label class="ent-radio-card flex-grow-1 p-3 border rounded <?= $postAudience === 'partner_schools' ? 'border-primary bg-light' : ''; ?>" style="cursor:pointer; min-width:260px;">
-                                        <div class="d-flex align-items-center gap-2 mb-1">
-                                            <input type="radio" name="audience" value="partner_schools" id="audience-partner-schools" <?= $postAudience === 'partner_schools' ? 'checked' : ''; ?>>
-                                            <strong>Chỉ dành cho Trường đối tác (Partner Schools)</strong>
-                                        </div>
-                                        <div class="text-muted small ps-4">
-                                            Chỉ sinh viên thuộc các trường đại học/cao đẳng đã ký kết hợp tác được chọn mới thấy tin.
+                                    <label class="ent-radio-card <?= $postAudience === 'partner_schools' ? 'border-primary' : ''; ?>" for="audience-partner-schools">
+                                        <input type="radio" name="audience" value="partner_schools" id="audience-partner-schools" <?= $postAudience === 'partner_schools' ? 'checked' : ''; ?>>
+                                        <div class="ent-radio-card-content">
+                                            <strong class="ent-radio-card-title">Chỉ dành cho Trường đối tác (Partner Schools)</strong>
+                                            <p class="ent-radio-card-desc">
+                                                Chỉ sinh viên thuộc các trường đại học/cao đẳng đã ký kết hợp tác được chọn mới thấy tin.
+                                            </p>
                                         </div>
                                     </label>
                                 </div>
                             </div>
 
                             <!-- Target Schools Picker Area -->
-                            <div id="target-schools-container" class="mt-3 p-4" style="<?= $postAudience === 'partner_schools' ? 'display:block;' : 'display:none;'; ?> background-color: #FFFDFB; border: 1.5px solid #F0E6DD; border-radius: 12px;">
+                            <div id="target-schools-container" class="ent-target-schools-box mt-3" style="<?= $postAudience === 'partner_schools' ? 'display:block;' : 'display:none;'; ?>">
                                 <!-- Header & Summary -->
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #F0E6DD; padding-bottom: 0.75rem;">
-                                    <label class="ent-form-label required mb-0" style="font-size: 1rem; font-weight: 700; color: #322014;">Danh sách Trường đối tác áp dụng</label>
-                                    <div style="background: #FFFFFF; border: 1px solid #F0E6DD; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; color: #6B5548;">
-                                        Đã chọn: <span id="target-schools-count" style="color: var(--primary-coral); font-weight: 800;"><?= count($selectedTargetSchoolIds); ?></span> trường
+                                <div class="ent-schools-header">
+                                    <label class="ent-schools-header-title">Danh sách Trường đối tác áp dụng</label>
+                                    <div class="ent-schools-count-badge">
+                                        Đã chọn: <span id="target-schools-count"><?= count($selectedTargetSchoolIds); ?></span> trường
                                     </div>
                                 </div>
 
                                 <?php if (empty($approvedPartners)): ?>
-                                    <div class="alert alert-warning mb-0 py-2 small">
+                                    <div class="alert alert-warning mb-0 py-2 small" style="border-radius: 8px;">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1 inline-block">
                                             <circle cx="12" cy="12" r="10"></circle>
                                             <line x1="12" y1="8" x2="12" y2="12"></line>
@@ -598,27 +618,27 @@ $sidebarNav = [
                                         Hiện chưa có trường đối tác nào được phê duyệt hoạt động trên hệ thống.
                                     </div>
                                 <?php else: ?>
-                                    <div style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto; padding-right: 0.5rem;">
+                                    <div class="ent-schools-list">
                                         <!-- Select All Item -->
-                                        <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1.5px solid #F0E6DD; border-radius: 10px; background-color: #FFFFFF; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px rgba(50,32,20,0.02);" onmouseover="this.style.backgroundColor='#FFF7F2'" onmouseout="this.style.backgroundColor='#FFFFFF'">
-                                            <input type="checkbox" id="selectAllSchools" class="form-check-input mt-0" style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
-                                            <strong style="font-size: 0.95rem; color: var(--primary-coral);">Tất cả các trường đối tác</strong>
+                                        <label class="ent-school-item ent-school-item--all">
+                                            <input type="checkbox" id="selectAllSchools" class="form-check-input mt-0" style="width: 1.15rem; height: 1.15rem; accent-color: #E04058; cursor: pointer;">
+                                            <strong style="font-size: 0.875rem; color: #E04058;">Tất cả các trường đối tác</strong>
                                         </label>
 
                                         <!-- School Items -->
                                         <?php foreach ($approvedPartners as $school):
                                             $checked = in_array((string) $school['id'], array_map('strval', $selectedTargetSchoolIds), true) ? 'checked' : '';
                                         ?>
-                                            <label style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1px solid #F0E6DD; border-radius: 10px; background-color: transparent; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#FFFFFF'; this.style.boxShadow='0 2px 6px rgba(50,32,20,0.06)';" onmouseout="this.style.backgroundColor='transparent'; this.style.boxShadow='none';">
-                                                <input type="checkbox" name="targetSchoolIds[]" value="<?= htmlspecialchars((string) $school['id']); ?>" <?= $checked; ?> class="target-school-checkbox form-check-input mt-0" style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
+                                            <label class="ent-school-item">
+                                                <input type="checkbox" name="targetSchoolIds[]" value="<?= htmlspecialchars((string) $school['id']); ?>" <?= $checked; ?> class="target-school-checkbox form-check-input mt-0" style="width: 1.15rem; height: 1.15rem; accent-color: #E04058; cursor: pointer;">
                                                 <div style="display: flex; align-items: center; justify-content: space-between; flex-grow: 1;">
-                                                    <span style="font-weight: 600; font-size: 0.95rem; color: #322014;"><?= htmlspecialchars((string) $school['name']); ?></span>
+                                                    <span style="font-weight: 600; font-size: 0.875rem; color: #1E293B;"><?= htmlspecialchars((string) $school['name']); ?></span>
                                                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                                                         <?php if (!empty($school['code'])): ?>
-                                                            <span style="background: #FFF0EB; color: #E04058; border: 1px solid #FFDACB; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px;"><?= htmlspecialchars((string) $school['code']); ?></span>
+                                                            <span style="background: #FFF0EB; color: #E04058; border: 1px solid rgba(224, 64, 88, 0.2); padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px;"><?= htmlspecialchars((string) $school['code']); ?></span>
                                                         <?php endif; ?>
                                                         <?php if (!empty($school['level'])): ?>
-                                                            <span style="color: #9E897D; font-size: 0.8rem; font-weight: 500;"><?= htmlspecialchars((string) $school['level']); ?></span>
+                                                            <span style="color: #64748B; font-size: 0.75rem; font-weight: 500;"><?= htmlspecialchars((string) $school['level']); ?></span>
                                                         <?php endif; ?>
                                                     </div>
                                                 </div>
@@ -645,9 +665,9 @@ $sidebarNav = [
                                             
                                             // Update styling of the radio cards
                                             radioCards.forEach(card => {
-                                                card.classList.remove('border-primary', 'bg-light');
+                                                card.classList.remove('border-primary');
                                                 if (card.querySelector('input').checked) {
-                                                    card.classList.add('border-primary', 'bg-light');
+                                                    card.classList.add('border-primary');
                                                 }
                                             });
                                         });
@@ -679,10 +699,12 @@ $sidebarNav = [
                         </section>
 
                         <!-- Form Actions Bar -->
-                        <div class="ent-form-actions-bar">
-                            <a href="<?= function_exists('app_href') ? app_href('/app/enterprise/internships/index.php') : 'index.php'; ?>" class="btn btn-secondary">Hủy bỏ</a>
+                        <div class="ent-create-actions-bar">
+                            <a href="<?= function_exists('app_href') ? app_href('/app/enterprise/internships/index.php') : 'index.php'; ?>" class="ent-action-btn ent-action-btn--tertiary">
+                                Hủy bỏ
+                            </a>
                             <div class="d-flex align-items-center gap-2">
-                                <button type="button" class="btn btn-secondary" id="btn-save-draft">
+                                <button type="button" class="ent-action-btn ent-action-btn--secondary" id="btn-save-draft">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                                         <polyline points="17 21 17 13 7 13 7 21"></polyline>
@@ -690,7 +712,7 @@ $sidebarNav = [
                                     </svg>
                                     <span>Lưu bản nháp</span>
                                 </button>
-                                <button type="button" class="btn btn-primary" id="btn-publish-post">
+                                <button type="button" class="ent-action-btn ent-action-btn--primary" id="btn-publish-post">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="20 6 9 17 4 12"></polyline>
                                     </svg>

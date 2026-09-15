@@ -51,7 +51,7 @@ final class RuleRoadmapEngine implements RoadmapEngine
                 ]),
                 $this->phase(3, 61, 90, 'month_3_leadership', 'Tháng 3: Trưởng nhóm Dự án & Hoàn thiện Đề án', 'Đảm nhiệm vai trò Trưởng nhóm và đóng gói đề tài nghiên cứu', 'Quản trị đề tài, CSR Doanh nghiệp & Đóng gói', 'Hồ sơ đề án & Talent Passport', '6 giờ/tuần', 'Được doanh nghiệp bảo trợ tài trợ và nghiệm thu xuất sắc', $reference(2), [
                     ['Đảm nhiệm vai trò Trưởng nhóm đề án', 'Chủ trì hoàn thiện kiến trúc hệ thống Smart Garden IoT / AI Healthcare.'],
-                    ['Kêu gọi Doanh nghiệp tài trợ CSR', 'Lập hồ sơ kêu gọi tài trợ trên TalentHub và làm việc cùng FPT Software.'],
+                    ['Kêu gọi Doanh nghiệp tài trợ CSR', 'Lập hồ sơ kêu gọi tài trợ trên FTalentHub và làm việc cùng FPT Software.'],
                     ['Báo cáo nghiệm thu & Cấp chứng nhận Talent Passport', 'Hoàn thành báo cáo tiến độ, xuất bản Talent Passport đạt cấp độ Master.'],
                 ]),
             ],

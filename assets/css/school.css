@@ -123,17 +123,22 @@ body.school-sidebar-open {
 .school-sidebar__brand {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    padding-bottom: 0.75rem;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 0.875rem;
     border-bottom: 1px solid var(--border, #F0E6DD);
     margin-bottom: 1rem;
     width: 100%;
+    text-align: center;
 }
 
 .school-sidebar__brand-link {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-decoration: none;
     line-height: 1;
+    margin: 0 auto;
     transition: opacity var(--transition-fast, 0.15s ease), transform var(--transition-fast, 0.15s ease);
 }
 
@@ -149,6 +154,7 @@ body.school-sidebar-open {
     height: auto;
     object-fit: contain;
     aspect-ratio: 401 / 122;
+    margin: 0 auto;
 }
 
 .school-sidebar__role-tag {
@@ -160,14 +166,13 @@ body.school-sidebar-open {
     color: var(--primary-coral, #F83F70);
     background-color: #FFF0EB;
     border: 1px solid #FFDACB;
-    padding: 2px 9px;
+    padding: 3px 12px;
     border-radius: 999px;
-    margin: 10px auto 2px auto;
-    align-self: center;
+    margin: 8px auto 0 auto;
     letter-spacing: 0.02em;
     line-height: 1.4;
     text-align: center;
-    margin-right: 62px;
+    white-space: nowrap;
 }
 /* Sidebar School Card */
 .school-sidebar__school-card {

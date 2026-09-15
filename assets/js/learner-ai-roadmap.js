@@ -156,6 +156,39 @@
         return result;
     }
 
+    function assessmentTalentMap(payload) {
+        const items = Array.isArray(payload?.assessment_history?.items)
+            ? payload.assessment_history.items
+            : [];
+        const submitted = items.filter((item) => {
+            if (!item || typeof item !== 'object') return false;
+            const status = text(item.status).toLowerCase();
+            if (status && status !== 'submitted') return false;
+            const declaredType = text(item.assessment_type).toLowerCase();
+            const codeType = text(item.assessment_code || item.code).toLowerCase().replace(/_(middle|high|college)$/, '');
+            return (declaredType || codeType) === 'multiple_intelligence';
+        }).sort((left, right) => {
+            const timestamp = (item) => Date.parse(item?.submitted_at || item?.result_created_at || item?.created_at || '') || 0;
+            return timestamp(right) - timestamp(left);
+        });
+        const latest = submitted[0];
+        const scores = latest?.dimension_scores && typeof latest.dimension_scores === 'object'
+            ? latest.dimension_scores
+            : {};
+        const evidenceId = text(latest?.id);
+        const evidence_ref_ids = evidenceId ? [`assessment:${evidenceId}`] : [];
+        const dimensions = [
+            ['Tư duy Logic & Hệ thống', 'LOGI'],
+            ['Kỹ năng Thực hành & Thao tác', 'BODY'],
+            ['Tổ chức & Điều phối', 'INTER'],
+        ];
+        const records = dimensions.flatMap(([field, code]) => {
+            const numeric = Number(scores[code]);
+            return Number.isFinite(numeric) ? [{ field, score: numeric, evidence_ref_ids }] : [];
+        });
+        return completeTalentMap(records);
+    }
+
     function formatRoadmapMinutes(value) {
         const minutes = integer(value);
         if (minutes < 60) return `${minutes} phút`;
@@ -320,7 +353,7 @@
             activities,
             evidenceTotal,
             confidenceLabel: confidenceLabel(payload?.confidence_band),
-            talentMap: completeTalentMap(payload?.talent_map),
+            talentMap: assessmentTalentMap(payload),
             strengths: records(payload?.strengths),
             improvements: records(payload?.improvements),
             potentialPaths,
@@ -385,6 +418,7 @@
         let pendingHandle = null;
         let lastGenerationAction = 'refresh';
         const pendingTaskRequests = new Map();
+        let assessmentHistoryPayload = {};
         const pendingCompletionSchedules = new Map();
 
         function stopPolling(reset = true) {
@@ -404,6 +438,12 @@
         }
 
         function render(payload) {
+            if (payload?.assessment_history && typeof payload.assessment_history === 'object') {
+                assessmentHistoryPayload = { assessment_history: payload.assessment_history };
+            }
+            if (payload && typeof payload === 'object' && assessmentHistoryPayload.assessment_history) {
+                payload = { ...payload, ...assessmentHistoryPayload };
+            }
             let state = presentationState(payload);
             if (READY_STATES.has(state)) lastReadyPayload = payload;
             // Giữ bản roadmap gần nhất khi lần cập nhật mới lỗi (Gemini timeout,
@@ -428,8 +468,18 @@
 
         async function load(showLoading = true) {
             if (showLoading) view.render('loading', { mode: 'initial-load' });
-            try { return render(await api.get('/ai-roadmap.php')); }
-            catch (error) { return render({ state: 'source_unavailable', message: error?.message }); }
+            try {
+                const [roadmapPayload, historyPayload] = await Promise.all([
+                    api.get('/ai-roadmap.php'),
+                    api.get('/assessments.php?view=history').catch(() => ({})),
+                ]);
+                if (historyPayload?.assessment_history) {
+                    assessmentHistoryPayload = { assessment_history: historyPayload.assessment_history };
+                }
+                return render(roadmapPayload);
+            } catch (error) {
+                return render({ state: 'source_unavailable', message: error?.message });
+            }
         }
 
         async function loadVersion(version) {
@@ -864,7 +914,7 @@
             if (snapshot?.status === 'success') {
                 set(nodes.processingLabel, 'ĐÃ HOÀN TẤT');
                 set(nodes.processingTitle, 'Lộ trình mới đã sẵn sàng');
-                set(nodes.processingCopy, 'TalentHub đã hoàn thiện và kiểm tra lộ trình 90 ngày mới.');
+                set(nodes.processingCopy, 'FTalentHub đã hoàn thiện và kiểm tra lộ trình 90 ngày mới.');
                 set(nodes.processingNote, 'Nội dung mới đang được hiển thị bên dưới.');
                 return;
             }
@@ -876,10 +926,10 @@
                 return;
             }
             const activeCopy = [
-                'TalentHub đang tổng hợp dữ liệu đã được bạn cho phép.',
+                'FTalentHub đang tổng hợp dữ liệu đã được bạn cho phép.',
                 'Gemini đang phân tích điểm mạnh và hướng phát triển phù hợp.',
                 'AI đang xây dựng ba giai đoạn trong lộ trình 90 ngày.',
-                'TalentHub đang kiểm tra cấu trúc, đầu ra và cách đo lường.',
+                'FTalentHub đang kiểm tra cấu trúc, đầu ra và cách đo lường.',
             ];
             set(nodes.processingCopy, activeCopy[integer(snapshot?.activeIndex)] || activeCopy[0]);
         }
@@ -909,7 +959,7 @@
             set(nodes.processingTitle, processingPreserveReady ? 'AI đang cập nhật lộ trình của bạn' : 'AI đang tạo lộ trình của bạn');
             set(nodes.processingNote, processingPreserveReady
                 ? 'Bạn có thể tiếp tục xem lộ trình hiện tại trong lúc chờ.'
-                : 'Bạn có thể để trang mở; TalentHub sẽ hiển thị kết quả ngay khi hoàn tất.');
+                : 'Bạn có thể để trang mở; FTalentHub sẽ hiển thị kết quả ngay khi hoàn tất.');
             setGenerateDisabled(true);
             processingTracker.start();
             nodes.processing?.scrollIntoView?.({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });

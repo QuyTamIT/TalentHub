@@ -3,7 +3,7 @@ if (!isset($learnerPageBanner) || !is_array($learnerPageBanner)) {
     return;
 }
 
-$learnerBannerTitle = learner_escape((string) ($learnerPageBanner['title'] ?? 'TalentHub'));
+$learnerBannerTitle = learner_escape((string) ($learnerPageBanner['title'] ?? 'FTalentHub'));
 $learnerBannerId = learner_escape((string) ($learnerPageBanner['id'] ?? 'learner-page-banner-title'));
 $learnerBannerIcon = $learnerPageBanner['icon'] ?? null;
 ?>
@@ -14,7 +14,7 @@ $learnerBannerIcon = $learnerPageBanner['icon'] ?? null;
     </span>
     <?php endif; ?>
     <div>
-        <span class="learner-page-banner__eyebrow"><?= learner_escape((string) ($learnerPageBanner['eyebrow'] ?? 'TalentHub')); ?></span>
+        <span class="learner-page-banner__eyebrow"><?= learner_escape((string) ($learnerPageBanner['eyebrow'] ?? 'FTalentHub')); ?></span>
         <h1 id="<?= $learnerBannerId; ?>"><?= $learnerBannerTitle; ?></h1>
         <p><?= learner_escape((string) ($learnerPageBanner['description'] ?? '')); ?></p>
     </div>

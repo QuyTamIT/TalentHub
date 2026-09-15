@@ -519,11 +519,11 @@
             const sourceName = isEnterpriseOpportunity
                 ? 'Cơ hội do doanh nghiệp công bố'
                 : itemType === 'project' || source.source_type === 'project'
-                    ? 'Dự án đã công bố trên TalentHub'
+                    ? 'Dự án đã công bố trên FTalentHub'
                     : itemType === 'activity' || safeValue.opportunity_type === 'activity' || source.source_type === 'activity'
                         ? 'Hoạt động chính thức'
                         : source.source_type === 'catalog'
-                            ? 'Danh mục TalentHub'
+                            ? 'Danh mục FTalentHub'
                             : '';
             const facts = [
                 sourceName,

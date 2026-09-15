@@ -65,9 +65,9 @@ $label = $type === 'school' ? 'Nhà trường' : 'Doanh nghiệp';
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Gửi yêu cầu đăng ký tổ chức trên TalentHub.">
+    <meta name="description" content="Gửi yêu cầu đăng ký tổ chức trên FTalentHub.">
     <link rel="icon" href="./assets/images/logo.svg" type="image/svg+xml">
-    <title>Đăng ký <?= oe($label) ?> | TalentHub</title>
+    <title>Đăng ký <?= oe($label) ?> | FTalentHub</title>
     <link rel="stylesheet" href="assets/css/home.css">
     <link rel="stylesheet" href="assets/css/global.css">
     <link rel="stylesheet" href="assets/css/auth.css">
@@ -82,7 +82,7 @@ $label = $type === 'school' ? 'Nhà trường' : 'Doanh nghiệp';
         </a>
         <div class="auth-brand__content">
             <p class="auth-eyebrow">Đăng ký có xác minh</p>
-            <h1 id="organization-brand-title">Đăng ký <?= oe($label) ?> trên TalentHub</h1>
+            <h1 id="organization-brand-title">Đăng ký <?= oe($label) ?> trên FTalentHub</h1>
             <p>Bước này chỉ gửi yêu cầu đến quản trị viên; tài khoản sẽ được tạo sau khi hồ sơ được duyệt.</p>
             <div class="auth-data-summary" aria-label="Quy trình duyệt hồ sơ">
                 <p><strong>1. Gửi yêu cầu</strong><span>Thông tin tổ chức và người đại diện được lưu an toàn.</span></p>

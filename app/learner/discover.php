@@ -25,8 +25,8 @@ $onboardingStateLabels = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Khám phá năng khiếu và định hướng phát triển của bạn trên TalentHub.">
-    <title>Khám phá năng khiếu | TalentHub</title>
+    <meta name="description" content="Khám phá năng khiếu và định hướng phát triển của bạn trên FTalentHub.">
+    <title>Khám phá năng khiếu | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">
@@ -61,7 +61,7 @@ $onboardingStateLabels = [
                     <?php if (($onboarding['status'] ?? '') === 'completed' && ($_GET['onboarding'] ?? '') === 'completed'): ?>
                     <div class="learner-onboarding-progress__success" role="status">
                         <strong>Bạn đã hoàn thành đủ 4/4 bài đánh giá.</strong>
-                        <span>TalentHub đã mở toàn bộ không gian sinh viên cho tài khoản của bạn.</span>
+                        <span>FTalentHub đã mở toàn bộ không gian sinh viên cho tài khoản của bạn.</span>
                         <a class="learner-btn learner-btn--primary" href="<?= learner_escape(app_href('/app/learner/index.php')); ?>">Về tổng quan</a>
                     </div>
                     <?php endif; ?>
