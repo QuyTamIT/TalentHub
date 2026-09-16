@@ -740,17 +740,24 @@ if (!function_exists('learner_ecosystem_can_apply')) {
 
         if (($opportunity['audience'] ?? 'public') === 'partner_schools') {
             $studentSchoolId ??= (string) ($GLOBALS['student']['school_id'] ?? ($GLOBALS['learner_page_context']['student']['school']['id'] ?? ''));
+            if ($studentSchoolId === '') {
+                return false;
+            }
             if ($studentSchoolId !== '') {
                 try {
                     $config = require dirname(__DIR__, 3) . '/config/database.php';
                     $db = (new \TalentHub\Database\Connection($config))->connect();
-                    $stmt = $db->prepare('SELECT 1 FROM internship_post_target_schools WHERE postId = ? AND schoolId = ? LIMIT 1');
+                    $stmt = $db->prepare("SELECT 1 FROM internship_post_target_schools target
+                        INNER JOIN internship_posts post ON post.id = target.postId
+                        INNER JOIN schools s ON s.id = target.schoolId AND s.status = 'active'
+                        INNER JOIN school_enterprise_partnerships sep ON sep.schoolId = target.schoolId AND sep.enterpriseId = post.enterpriseId AND sep.status = 'approved'
+                        WHERE target.postId = ? AND target.schoolId = ? LIMIT 1");
                     $stmt->execute([(string) ($opportunity['id'] ?? ''), $studentSchoolId]);
                     if ($stmt->fetchColumn() === false) {
                         return false;
                     }
                 } catch (\Throwable) {
-                    // Safe fallback
+                    return false;
                 }
             }
         }

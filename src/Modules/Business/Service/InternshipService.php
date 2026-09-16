@@ -21,9 +21,9 @@ final class InternshipService
     public function __construct(private readonly InternshipRepository $repository) {}
 
     /** @return list<array<string,mixed>> */
-    public function listApprovedPartnerSchools(): array
+    public function listApprovedPartnerSchools(string $userId): array
     {
-        return $this->repository->listApprovedPartnerSchools();
+        return $this->repository->listApprovedPartnerSchools($this->repository->enterpriseIdForUser($userId));
     }
 
     public function listPosts(string $userId): array { return $this->repository->posts($this->repository->enterpriseIdForUser($userId)); }

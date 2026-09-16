@@ -659,6 +659,12 @@ if (!function_exists('getStudentSingleInitial')) {
             margin: 0;
             padding: 0;
         }
+        .criterion-weight {
+            margin-left: 0.35rem;
+            font-weight: 600;
+            color: #475569;
+            white-space: nowrap;
+        }
         .criterion-score-badge {
             font-size: 0.85rem;
             font-weight: 700;
@@ -1102,6 +1108,9 @@ if (!function_exists('getStudentSingleInitial')) {
                                                 <div class="criterion-row-top">
                                                     <label class="criterion-name" for="slider_<?= htmlspecialchars($cid); ?>">
                                                         <?= htmlspecialchars($crit['name']); ?>
+                                                        <?php if ($cWeight !== null): ?>
+                                                            <span class="criterion-weight"><?= (int) $cWeight; ?>%</span>
+                                                        <?php endif; ?>
                                                     </label>
                                                     <div class="criterion-score-badge">
                                                         <strong id="val_display_<?= htmlspecialchars($cid); ?>" 

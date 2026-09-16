@@ -150,13 +150,16 @@ final class StatisticsService
         $evaluation = $this->repository->latestPublishedEvaluation($studentId);
         $projects = $this->repository->projectStatistics($studentId);
 
-        $competency = $this->computeCompetencyScore($skills, $evaluation);
+        // Use the stored published total, independently of verified skill scores.
+        $competency = is_numeric($evaluation['total_score'] ?? null)
+            ? (float) $evaluation['total_score']
+            : null;
 
         $kpis = [
             [
                 'id' => 'competency',
                 'label' => 'Điểm năng lực',
-                'value' => $competency . '/100',
+                'value' => $competency === null ? 'Chưa đủ dữ liệu' : $competency . '/100',
                 'suffix' => 'điểm',
                 'tone' => 'primary',
                 'icon' => 'star',
@@ -594,28 +597,6 @@ final class StatisticsService
         $normalized = strtolower(trim($role));
 
         return str_contains($normalized, 'lead') || str_contains($normalized, 'truong') || str_contains($normalized, 'trưởng');
-    }
-
-    /**
-     * @param list<array{name: string, category: string, score: float}> $skills
-     * @param array{total_score: float|null, criteria: list<array<string,mixed>>} $evaluation
-     */
-    private function computeCompetencyScore(array $skills, array $evaluation): int
-    {
-        if ($skills !== []) {
-            $sum = 0.0;
-            foreach ($skills as $skill) {
-                $sum += (float) $skill['score'];
-            }
-
-            return (int) max(0, min(100, round($sum / count($skills))));
-        }
-
-        if ($evaluation['total_score'] !== null) {
-            return (int) max(0, min(100, round((float) $evaluation['total_score'])));
-        }
-
-        return 0;
     }
 
     /**

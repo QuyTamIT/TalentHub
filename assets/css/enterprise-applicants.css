@@ -1,0 +1,523 @@
+/* Applicant management: one responsive list, isolated from shared table styles.
+   Spacing: 4 / 8 / 12 / 16 / 24 / 32px. No profile or drawer styling. */
+.ent-applicants-page {
+    --app-ink: #322014;
+    --app-muted: #786659;
+    --app-border: #eadfd5;
+    --app-soft: #fbf5ef;
+    --app-accent: #ae305b;
+    --app-section-gap: 2rem;
+    --app-inset: 1.5rem;
+
+    --app-purple: #7140a1;
+    --app-rose-surface: #fff0f3;
+    --app-purple-surface: #f5effb;
+    --typeui-select-border-hover: #c4acbc;
+    --typeui-select-surface-hover: #fdf7f1;
+    --typeui-select-accent: var(--app-accent);
+    --typeui-select-accent-strong: var(--app-accent);
+    color: var(--app-ink);
+    background: #FDF7F1;
+}
+
+.ent-applicants-page .applicants-workspace {
+    width: 100%;
+    max-width: 1120px;
+    min-width: 0;
+    margin-inline: auto;
+    container: applicants / inline-size;
+}
+
+.ent-applicants-page .ent-back-bar { margin: 0 0 1rem; }
+.ent-applicants-page .ent-back-link { font-size: 0.8125rem;
+    color: var(--app-muted);
+}
+.ent-applicants-page .applicants-page-heading { margin-bottom: var(--app-section-gap); }
+.ent-applicants-page .applicants-page-heading .ent-page-title {
+    margin: 0;
+    font-size: clamp(1.5rem, 2vw, 1.875rem);
+    line-height: 1.35;
+    letter-spacing: -0.025em;
+    color: var(--app-ink);
+}
+.ent-applicants-page .applicants-page-heading p {
+    margin: 0.5rem 0 0;
+    color: var(--app-muted);
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+
+.ent-applicants-page .applicants-job {
+    padding: var(--app-inset);
+    margin-bottom: var(--app-section-gap);
+    background: #fff;
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+}
+.ent-applicants-page .applicants-job__heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+}
+.ent-applicants-page .applicants-job__title-group {
+    display: flex;
+    flex: 1 1 18rem;
+    min-width: 0;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+}
+.ent-applicants-page .applicants-job__title-group h2 {
+    margin: 0;
+    font-size: clamp(1.125rem, 1.8vw, 1.375rem);
+    font-weight: 700;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    color: var(--app-ink);
+}
+.ent-applicants-page .applicants-job .ent-status-pill {
+    flex-shrink: 0;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    border: 1px solid var(--app-border);
+    background: var(--app-soft);
+    color: var(--app-muted);
+}
+.ent-applicants-page .applicants-job__facts {
+    display: grid;
+    grid-template-columns: 1.2fr 1.2fr 1fr 0.6fr;
+    gap: 1.25rem 1.5rem;
+    margin: 1.25rem 0 0;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--app-border);
+}
+.ent-applicants-page :is(.applicants-job__facts, .applicant-entry__assessment) > div { min-width: 0; }
+.ent-applicants-page :is(.applicants-job__facts, .applicant-entry__assessment) dt,
+.ent-applicants-page .applicants-label {
+    display: block;
+    margin: 0 0 0.5rem;
+    color: var(--app-muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.5;
+}
+.ent-applicants-page :is(.applicants-job__facts, .applicant-entry__assessment) dd {
+    margin: 0;
+    color: var(--app-ink);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.ent-applicants-page .applicants-panel {
+    min-width: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+}
+.ent-applicants-page .applicants-panel__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    padding: 0 0 1rem;
+}
+.ent-applicants-page .applicants-panel__heading h2 {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.625rem;
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+.ent-applicants-page .applicants-total {
+    padding: 0.125rem 0.5rem;
+    border-radius: 8px;
+    background: var(--app-purple-surface);
+    color: var(--app-purple);
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+}
+.ent-applicants-page #applicants-result-summary {
+    margin: 0;
+    color: var(--app-muted);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+.ent-applicants-page .applicants-controls { padding: 1.25rem var(--app-inset);
+    background: #fff;
+    border: 1px solid var(--app-border);
+    border-radius: 14px;
+}
+.ent-applicants-page .applicants-tabs {
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--app-border);
+    padding-bottom: 1rem;
+}
+.ent-applicants-page .ent-pipeline-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.ent-applicants-page .ent-pipeline-tab {
+    min-height: 44px;
+    padding: 0.625rem 0.75rem;
+    gap: 0.5rem;
+    border: 0;
+    
+    border-radius: 8px;
+    background: transparent;
+    color: var(--app-muted);
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.5;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+.ent-applicants-page .ent-pipeline-tab:hover { color: var(--app-ink);
+    background: var(--app-soft);
+}
+.ent-applicants-page .ent-pipeline-tab.is-active {
+    color: var(--app-accent);
+    background: var(--app-rose-surface);
+    font-weight: 600;
+}
+.ent-applicants-page .ent-pipeline-tab__count {
+    min-width: 1.25rem;
+    padding: 0.0625rem 0.3125rem;
+    border-radius: 4px;
+    background: var(--app-soft);
+    color: var(--app-muted);
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+}
+.ent-applicants-page .ent-pipeline-tab.is-active .ent-pipeline-tab__count {
+    background: var(--app-accent);
+    color: #fff;
+}
+.ent-applicants-page .applicants-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr);
+    gap: 1rem;
+    align-items: end;
+}
+.ent-applicants-page .applicants-field { min-width: 0; }
+.ent-applicants-page .applicants-field label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--app-muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.5;
+}
+.ent-applicants-page .applicants-search { position: relative; }
+.ent-applicants-page .applicants-search > svg {
+    position: absolute;
+    top: 50%;
+    left: 0.875rem;
+    transform: translateY(-50%);
+    color: var(--app-muted);
+    pointer-events: none;
+}
+.ent-applicants-page .applicants-input,
+.ent-applicants-page select.typeui-select {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    height: 44px;
+    margin: 0;
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    background-color: #fff;
+    color: var(--app-ink);
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1.5;
+    box-shadow: none;
+}
+.ent-applicants-page .applicants-input { padding: 0.625rem 2.75rem 0.625rem 2.5rem; }
+.ent-applicants-page .applicants-input::placeholder { color: var(--app-muted); opacity: 1; }
+.ent-applicants-page .applicants-input:focus { border-color: var(--app-accent); }
+.ent-applicants-page .applicants-search__clear {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--app-muted);
+    font-size: 1.25rem;
+    cursor: pointer;
+}
+
+/* Content-driven rows: identity / qualification / actions, without table widths. */
+.ent-applicants-page .applicant-entry {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) 9rem;
+    align-items: start;
+    gap: 1.5rem;
+    padding: var(--app-inset);
+    border: 1px solid var(--app-border);
+    border-radius: 14px;
+    background: #fff;
+}
+.ent-applicants-page .applicant-entry:focus-within { border-color: #c8a8bb; }
+.ent-applicants-page .applicant-entry__identity { display: flex; align-items: flex-start; gap: 0.875rem; min-width: 0; }
+.ent-applicants-page .applicant-entry__avatar {
+    display: grid;
+    place-items: center;
+    flex: 0 0 48px;
+    width: 48px;
+    height: 48px;
+    overflow: hidden;
+    border-radius: 50%;
+    background: var(--app-rose-surface);
+    color: var(--app-accent);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+.ent-applicants-page .applicant-entry__avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ent-applicants-page .applicant-entry__person { min-width: 0; }
+.ent-applicants-page .applicant-entry__name { margin: 0 0 0.5rem; line-height: 1.5; }
+.ent-applicants-page .applicant-entry__name button {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--app-ink);
+    font-family: inherit;
+    font-size: 1.0625rem;
+    font-weight: 700;
+    line-height: 1.5;
+    text-align: left;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+.ent-applicants-page .applicant-entry__name button:hover { color: var(--app-accent); text-decoration: underline; text-underline-offset: 3px; }
+.ent-applicants-page :is(.applicant-entry__school, .applicant-entry__class) {
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+.ent-applicants-page .applicant-entry__school { color: var(--app-ink); }
+.ent-applicants-page .applicant-entry__class { margin-top: 0.125rem; color: var(--app-muted); }
+.ent-applicants-page :is(.applicant-entry__school, .applicant-entry__class):empty { display: none; }
+.ent-applicants-page .applicant-entry__date {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+    margin: 0.875rem 0 0;
+    color: var(--app-ink);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+}
+.ent-applicants-page .applicant-entry__date span { color: var(--app-muted); }
+.ent-applicants-page .applicant-entry__details { min-width: 0; display: grid; gap: 1.25rem; }
+.ent-applicants-page .applicants-skills { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.ent-applicants-page .ent-skill-tag-compact {
+    height: auto;
+    max-width: 100%;
+    margin: 0;
+    padding: 0.25rem 0.625rem;
+    border-radius: 6px;
+    background: var(--app-purple-surface);
+    color: #674582;
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1.5;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.ent-applicants-page .applicant-entry__assessment {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 0;
+}
+.ent-applicants-page :is(.ent-job-match-tag, .ent-app-status-pill) {
+    max-width: 100%;
+    padding: 0.3125rem 0.625rem;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums;
+    border-radius: 6px;
+}
+.ent-applicants-page .ent-job-match-tag--unavailable {
+    padding: 0.3125rem 0.625rem;
+    border: 1px solid var(--app-border);
+    background: var(--app-soft);
+    color: var(--app-muted);
+    font-weight: 400;
+}
+.ent-applicants-page .ent-app-status-pill {
+    gap: 0.375rem;
+    border: 1px solid var(--app-border);
+    background: var(--app-soft);
+    color: var(--app-muted);
+}
+.ent-applicants-page .ent-app-status-pill .dot { flex: 0 0 6px; background: currentColor; }
+.ent-applicants-page :is(.ent-app-status-pill--reviewing, .ent-app-status-pill--invited) { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.ent-applicants-page .ent-app-status-pill--interview { background: var(--app-purple-surface); border-color: #dfcdeb; color: var(--app-purple); }
+.ent-applicants-page .ent-app-status-pill--accepted { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.ent-applicants-page .ent-app-status-pill--declined { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
+.ent-applicants-page .applicant-entry__actions { display: grid; gap: 0.5rem; min-width: 0; }
+.ent-applicants-page .applicant-entry__secondary-actions { display: flex; justify-content: flex-end; align-items: center; gap: 0.5rem; }
+.ent-applicants-page .applicants-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--app-muted);
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.5;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+.ent-applicants-page .applicants-action:hover:not(:disabled) { background: var(--app-soft); color: var(--app-ink); }
+.ent-applicants-page .applicants-action--primary { background: linear-gradient(rgb(50 32 20 / 32%), rgb(50 32 20 / 32%)), var(--primary-gradient); color: #fff; font-weight: 700; }
+.ent-applicants-page .applicants-action--primary:hover:not(:disabled) { background: linear-gradient(rgb(50 32 20 / 42%), rgb(50 32 20 / 42%)), var(--primary-gradient); color: #fff; }
+.ent-applicants-page .applicants-action--icon { width: 44px; flex-shrink: 0; }
+.ent-applicants-page .applicants-action:disabled { color: var(--app-muted); cursor: not-allowed; opacity: 0.65; }
+.ent-applicants-page .ent-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    left: auto;
+    min-width: 12rem;
+    max-width: calc(100vw - 3rem);
+    border-color: var(--app-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgb(15 23 42 / 10%);
+    z-index: 20;
+}
+.ent-applicants-page .ent-dropdown.opens-above .ent-dropdown-menu { top: auto; bottom: calc(100% + 4px); }
+.ent-applicants-page .ent-dropdown-item { min-height: 44px; font-family: inherit; white-space: normal; }
+.ent-applicants-page :is(button, a, input, select):focus-visible { outline: 2px solid var(--app-accent); outline-offset: 3px; }
+.ent-applicants-page .applicants-empty { padding: 2rem var(--app-inset); border: 1px solid var(--app-border); text-align: center;
+    margin-top: 1rem;
+    border-radius: 14px;
+    background: #fff;
+}
+.ent-applicants-page .applicants-empty h3 { max-width: 36rem; margin: 0.75rem auto; font-size: 1rem; line-height: 1.6; }
+.ent-applicants-page .applicants-empty p { max-width: 38rem; margin: 0 auto 1.25rem; font-size: 0.875rem; line-height: 1.7; color: var(--app-muted); }
+.ent-applicants-page #applicants-empty-actions { flex-wrap: wrap; gap: 0.75rem; }
+
+
+.ent-applicants-page .ent-back-link:hover { color: var(--app-accent); }
+.ent-applicants-page .applicants-job .ent-status-pill--active { background: #edf7ee; border-color: #cce4d0; color: #28613c; }
+.ent-applicants-page .applicants-job .ent-status-pill--draft { background: var(--app-purple-surface); color: var(--app-purple); }
+.ent-applicants-page .applicants-job .ent-status-pill--cancelled { background: var(--app-rose-surface); color: #a43250; }
+.ent-applicants-page .applicants-job .ent-status-pill .dot { background: currentColor; }
+.ent-applicants-page .applicants-job__facts dd { font-size: 0.875rem; font-weight: 600; }
+.ent-applicants-page .applicants-input:hover:not(:focus) { border-color: var(--typeui-select-border-hover); }
+.ent-applicants-page select.typeui-select:active { background-color: var(--app-soft); }
+.ent-applicants-page .applicants-list { display: grid; gap: 0.875rem; margin-top: 1rem; }
+.ent-applicants-page .applicant-entry:hover { border-color: #d5bfc9; }
+.ent-applicants-page .ent-skill-tag-compact--more { color: var(--app-purple); font-weight: 700; }
+.ent-applicants-page .ent-job-match-tag--high { background: #edf7ee; color: #28613c; }
+.ent-applicants-page .ent-job-match-tag--medium { background: var(--app-purple-surface); color: var(--app-purple); }
+.ent-applicants-page .ent-job-match-tag--low { background: #fff5e7; color: #865419; }
+.ent-applicants-page :is(.ent-app-status-pill--submitted, .ent-app-status-pill--new) { background: var(--app-rose-surface); border-color: #f0cbd7; color: var(--app-accent); }
+.ent-applicants-page .applicant-entry__secondary-actions > .applicants-action--quiet { flex: 1; border-color: var(--app-border); }
+
+@container applicants (max-width: 980px) {
+    .ent-applicants-page .applicants-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ent-applicants-page .applicants-field--search { grid-column: 1 / -1; }
+}
+@container applicants (max-width: 800px) {
+    .ent-applicants-page .applicant-entry { grid-template-columns: minmax(0, 1fr) 9rem; gap: 1.25rem; }
+    .ent-applicants-page .applicant-entry__identity { grid-column: 1; grid-row: 1; }
+    .ent-applicants-page .applicant-entry__details { grid-column: 1; grid-row: 2; padding-left: calc(48px + 0.875rem); }
+    .ent-applicants-page .applicant-entry__actions { grid-column: 2; grid-row: 1 / 3; }
+    .ent-applicants-page .applicants-job__facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container applicants (max-width: 580px) {
+    .ent-applicants-page .applicants-job,
+    .ent-applicants-page .applicants-panel { --app-inset: 1rem; }
+    .ent-applicants-page .applicants-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ent-applicants-page .applicants-field:last-child { grid-column: 1 / -1; }
+    .ent-applicants-page .applicant-entry { grid-template-columns: minmax(0, 1fr); }
+    .ent-applicants-page .applicant-entry__details { padding-left: 0; }
+    .ent-applicants-page .applicant-entry__actions {
+        grid-column: 1;
+        grid-row: 3;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        padding-top: 1rem;
+        border-top: 1px solid var(--app-border);
+    }
+    .ent-applicants-page .applicants-input,
+    .ent-applicants-page select.typeui-select { font-size: 1rem; }
+}
+@container applicants (max-width: 400px) {
+    .ent-applicants-page .applicants-filters { grid-template-columns: minmax(0, 1fr); }
+    .ent-applicants-page .applicants-job__title-group { flex-basis: 100%; }
+    .ent-applicants-page .applicant-entry__assessment { gap: 0.75rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ent-applicants-page :is(.ent-pipeline-tab, .applicants-action) { transition: none; }
+}
+
+/* Shared Student CV inside the applicant modal: only the iframe content scrolls. */
+#ent-cv-modal .ats-cv-dialog {
+    max-width: 1040px;
+}
+#ent-cv-modal :is(.ats-cv-header, .ats-cv-recruiter-bar, .ats-cv-footer) {
+    flex-shrink: 0;
+}
+#ent-cv-modal .ats-cv-header__meta,
+#ent-cv-modal .ats-cv-recruiter-bar {
+    flex-wrap: wrap;
+}
+#ent-cv-modal #cv-modal-content-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+    padding: 0;
+    overflow: auto;
+    background: #fff;
+}
+#ent-cv-modal .applicant-cv-frame {
+    display: block;
+    flex: 1 1 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    border: 0;
+    background: #fff;
+}
+#ent-cv-modal #cv-modal-content-body > :not(iframe) {
+    margin: 1.5rem;
+}

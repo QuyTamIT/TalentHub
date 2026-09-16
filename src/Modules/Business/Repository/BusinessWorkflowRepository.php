@@ -89,6 +89,16 @@ final class BusinessWorkflowRepository
         $started = !$this->pdo->inTransaction();
         if ($started) $this->pdo->beginTransaction();
         try {
+            if ($to === 'active' && $this->hasColumn('internship_posts', 'audience')) {
+                $post = $this->pdo->prepare('SELECT audience FROM internship_posts WHERE id = ? AND enterpriseId = ? AND status = ?' . $this->lockSuffix());
+                $post->execute([$id, $enterpriseId, $from]);
+                $row = $post->fetch(PDO::FETCH_ASSOC);
+                if (!is_array($row)) {
+                    if ($started) $this->pdo->rollBack();
+                    return false;
+                }
+                $this->getInternshipRepository()->assertPublishableAudience($enterpriseId, $id, (string) ($row['audience'] ?? 'public'));
+            }
             $statement = $this->pdo->prepare('UPDATE internship_posts SET status=? WHERE id=? AND enterpriseId=? AND status=?');
             $statement->execute([$to, $id, $enterpriseId, $from]);
             if ($statement->rowCount() !== 1) {
@@ -113,12 +123,12 @@ final class BusinessWorkflowRepository
     {
         $order = ['createdAt' => 'ip.createdAt', 'title' => 'ip.title', 'deadline' => 'ip.deadline'][$query->sort] ?? 'ip.createdAt';
         $direction = strtoupper($query->direction) === 'ASC' ? 'ASC' : 'DESC';
-        $hasTarget = $this->tableExists('internship_post_target_schools');
+        $hasTarget = $this->tableExists('internship_post_target_schools') && $this->tableExists('school_enterprise_partnerships');
         $hasAudience = $this->hasColumn('internship_posts', 'audience');
 
         $audienceCondition = ($hasAudience && $hasTarget)
-            ? "AND (ip.audience = 'public' OR ip.audience IS NULL OR (ip.audience = 'partner_schools' AND EXISTS (SELECT 1 FROM internship_post_target_schools ipt INNER JOIN student_profiles scoped_student ON scoped_student.id=:studentId INNER JOIN classes scoped_class ON scoped_class.id=scoped_student.classId WHERE ipt.postId=ip.id AND ipt.schoolId=scoped_class.schoolId)))"
-            : "";
+            ? "AND (ip.audience = 'public' OR ip.audience IS NULL OR (ip.audience = 'partner_schools' AND EXISTS (SELECT 1 FROM internship_post_target_schools ipt INNER JOIN student_profiles scoped_student ON scoped_student.id=:studentId INNER JOIN classes scoped_class ON scoped_class.id=scoped_student.classId INNER JOIN schools scoped_school ON scoped_school.id=scoped_class.schoolId AND scoped_school.status='active' INNER JOIN school_enterprise_partnerships sep ON sep.schoolId=scoped_class.schoolId AND sep.enterpriseId=ip.enterpriseId WHERE ipt.postId=ip.id AND ipt.schoolId=scoped_class.schoolId AND sep.status='approved')))"
+            : ($hasAudience ? "AND (ip.audience = 'public' OR ip.audience IS NULL)" : "");
 
         $statement = $this->pdo->prepare(
             "SELECT ip.id, ip.enterpriseId, ip.title, ip.field, ip.description, ip.location, ip.workType, 

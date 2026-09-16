@@ -146,8 +146,6 @@ if ($isDatabaseMode && !$deferTalentPassport) {
     $level = $badgeOverview['level'] ?? \TalentHub\Learner\Data\Domain\LevelProgression::fromHours($confirmedHours);
     $awardedBadgeCount = count($badgeOverview['badges'] ?? $tp['badges']);
 
-    $verifiedSkillScores = [];
-    $allSkillScores = [];
     $skills = [];
     foreach ($tp['skills'] as $dbSkill) {
         $skillStatus = (string) ($dbSkill['skillStatus'] ?? $dbSkill['skill_status'] ?? 'active');
@@ -160,10 +158,6 @@ if ($isDatabaseMode && !$deferTalentPassport) {
         $score = $scoreValue === null ? null : max(0, min(100, (int) round((float) $scoreValue)));
         $sourceType = strtolower(trim((string) ($dbSkill['sourceType'] ?? $dbSkill['source_type'] ?? '')));
         $evidenceLabel = trim((string) ($dbSkill['evidenceLabel'] ?? $dbSkill['evidence_label'] ?? ''));
-        if ($score !== null) {
-            $allSkillScores[] = $score;
-            if ($verificationStatus === 'verified') $verifiedSkillScores[] = $score;
-        }
         $levelLabel = $score === null && $evidenceLabel !== ''
             ? $evidenceLabel
             : ($score === null
@@ -192,10 +186,9 @@ if ($isDatabaseMode && !$deferTalentPassport) {
         ];
     }
     usort($skills, static fn (array $a, array $b): int => ($b['score'] ?? -1) <=> ($a['score'] ?? -1));
-    $competencyScores = $verifiedSkillScores !== [] ? $verifiedSkillScores : $allSkillScores;
-    $competencyScore = $competencyScores === []
-        ? null
-        : (int) round(array_sum($competencyScores) / count($competencyScores));
+    // The repository returns published assessments newest first; skills are separate evidence.
+    $publishedOverallScore = $tp['teacher_evaluations'][0]['overall_score'] ?? null;
+    $competencyScore = is_numeric($publishedOverallScore) ? (float) $publishedOverallScore : null;
     $competencyValue = $competencyScore === null ? 'Chưa đủ dữ liệu' : $competencyScore . '/100';
 
     $dashboardKpis = [

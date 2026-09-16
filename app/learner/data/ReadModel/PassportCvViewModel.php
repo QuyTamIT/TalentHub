@@ -4,6 +4,16 @@ namespace TalentHub\Learner\Data\ReadModel;
 
 final class PassportCvViewModel
 {
+    public static function safeUrl(mixed $value): string
+    {
+        if (!is_string($value) || preg_match('/[\x00-\x20]/', $value)) return '';
+        if (str_contains($value, '\\')) return '';
+        if (str_starts_with($value, '/') && !str_starts_with($value, '//')) return $value;
+        $parts = parse_url($value);
+        return is_array($parts) && in_array(strtolower($parts['scheme'] ?? ''), ['https', 'http'], true)
+            && !empty($parts['host']) && !isset($parts['user']) && !isset($parts['pass']) ? $value : '';
+    }
+
     public static function text(mixed $value, int $limit): string
     {
         $text = trim((string)preg_replace('/\s+/u', ' ', strip_tags(is_scalar($value) ? (string)$value : '')));
@@ -11,8 +21,10 @@ final class PassportCvViewModel
         return rtrim(mb_substr($text, 0, $limit - 1)) . '…';
     }
 
-    public static function build(array $data, string $generatedAt): array
+    public static function build(array $data, string $generatedAt, bool $compact = true): array
     {
+        // Student PDF keeps its one-page limits; application capture retains all CV content.
+        $text = static fn(mixed $value, int $limit): string => self::text($value, $compact ? $limit : PHP_INT_MAX);
         // This aggregate is produced only by PortfolioRepository::verifiedForStudent,
         // never by browser input. No own declaration establishes verified competence.
         $portfolio=$data['verified_portfolio']??['projects'=>[],'internships'=>[],'skills'=>[]];
@@ -26,20 +38,20 @@ final class PassportCvViewModel
             $initials = count($nameParts) >= 2 ? mb_substr($nameParts[0], 0, 1) . mb_substr($nameParts[count($nameParts) - 1], 0, 1) : mb_substr($nameParts[0], 0, 2);
         }
         $cv = [
-            'name'=>self::text($fullName, PHP_INT_MAX),
+            'name'=>$text($fullName, PHP_INT_MAX),
             'initials'=>mb_strtoupper($initials),
             'avatar_url'=>!empty($student['avatarUrl']) ? (string)$student['avatarUrl'] : (!empty($student['avatar_url']) ? (string)$student['avatar_url'] : ''),
-            'headline'=>self::text($student['headline'] ?? '', 80),
-            'location'=>self::text($student['location'] ?? 'Việt Nam', 50),
-            'email'=>self::text($student['email'] ?? '', PHP_INT_MAX),
-            'phone'=>self::text($student['phone'] ?? '', PHP_INT_MAX),
-            'school'=>self::text($student['school_name'] ?? '', 130),
-            'class'=>self::text($student['class_name'] ?? '', 70),
+            'headline'=>$text($student['headline'] ?? '', 80),
+            'location'=>$text($student['location'] ?? '', 50),
+            'email'=>$text($student['email'] ?? '', PHP_INT_MAX),
+            'phone'=>$text($student['phone'] ?? '', PHP_INT_MAX),
+            'school'=>$text($student['school_name'] ?? '', 130),
+            'class'=>$text($student['class_name'] ?? '', 70),
             'generated_at'=>$generatedAt,
             'skills'=>[], 'projects'=>[], 'internships'=>[], 'evaluations'=>[], 'activities'=>[],
             'badges'=>[], 'assessments'=>[], 'certificates'=>[], 'activity_summary'=>['total_hours'=>0.0,'total_activities'=>0],
             'passport_code'=>!empty($student['id']) ? ('TP-' . strtoupper(substr(str_replace('-', '', (string)$student['id']), 0, 8))) : '',
-            'has_experience'=>false, 'strengths_summary'=>'',
+            'has_experience'=>false, 'strengths_summary'=>'', 'is_verified'=>false,
             'omitted'=>0,
         ];
         $skills = $data['skills'] ?? [];
@@ -52,8 +64,8 @@ final class PassportCvViewModel
         foreach ($skills as $skill) {
             if (($skill['verification_status'] ?? '') !== 'verified' || empty($skill['verified_at'])
                 || ($skill['skill_status'] ?? '') !== 'active'
-                || !in_array($skill['source_type'] ?? '', ['teacher','evaluation','project_evaluation','internship_evaluation'],true)) continue;
-            $name=self::text($skill['name'] ?? '',42);
+                || !in_array($skill['source_type'] ?? '', ['teacher','evaluation','project_evaluation','internship_evaluation','evidence'],true)) continue;
+            $name=$text($skill['name'] ?? '',42);
             if ($name==='' || in_array($name,array_column($cv['skills'],'name'),true)) continue;
             $state = (string) ($skill['score_state'] ?? $skill['state'] ?? '');
             $rawScore = array_key_exists('level_score',$skill) ? $skill['level_score'] : ($skill['levelScore'] ?? ($skill['score'] ?? null));
@@ -66,7 +78,9 @@ final class PassportCvViewModel
                 'score'=>$score,
                 'category'=>(string)($skill['category'] ?? ''),
                 'source_type'=>(string)($skill['source_type']??''),
-                'source'=>self::text($skill['evidence_label'] ?? 'Giảng viên xác nhận',55),
+                'state'=>$state,
+                'item_kind'=>(string)($skill['item_kind'] ?? 'skill'),
+                'source'=>$text($skill['evidence_label'] ?? 'Giảng viên xác nhận',55),
             ];
         }
         $projects=$data['projects'] ?? [];
@@ -75,7 +89,7 @@ final class PassportCvViewModel
         }
         usort($projects,static fn($a,$b)=>strcmp($b['updated_at'] ?? $b['end_at'] ?? '',$a['updated_at'] ?? $a['end_at'] ?? '') ?: strcmp($a['id']??'',$b['id']??''));
         foreach ($projects as $project) {
-            if (!in_array($project['member_status']??'', ['active','completed'],true) || !in_array($project['status']??'', ['active','in_progress','published','completed'],true)) continue;
+            if (empty($project['_snapshot_captured']) && (!in_array($project['member_status']??'', ['active','completed'],true) || !in_array($project['status']??'', ['active','in_progress','published','completed'],true))) continue;
             $evidence=$projectEvidence[$project['id']??'']??null;
             $categoryLabel = match(strtolower((string)($project['category'] ?? ''))) {
                 'career_technical', 'technical', 'tech' => 'Kỹ thuật & Công nghệ',
@@ -84,36 +98,37 @@ final class PassportCvViewModel
                 'career_sports_academic', 'research' => 'Nghiên cứu & Học thuật',
                 default => (string)($project['category'] ?? ''),
             };
-            $cv['projects'][]=['title'=>self::text($project['title']??'',95),
-                'category'=>self::text($categoryLabel, 40),
-                'mentor'=>self::text($project['mentor_name']??$project['mentorName']??'', 60),
-                'role'=>self::text(($project['role']??'')==='member' ? 'Thành viên' : ($project['role']??''),60),
-                'status_label'=>$evidence?'Bài nộp đã được giảng viên nghiệm thu':(($project['status']??'')==='completed' ? 'Dự án đã hoàn thành' : 'Đang triển khai'),
-                'contribution'=>self::text($evidence['notes']??$project['contribution']??$project['description']??'',180)];
+            $cv['projects'][]=['title'=>$text($project['title']??'',95),
+                'category'=>$text($categoryLabel, 40),
+                'mentor'=>$text($project['mentor_name']??$project['mentorName']??'', 60),
+                'role'=>$text(($project['role']??'')==='member' ? 'Thành viên' : ($project['role']??''),60),
+                'status_label'=>$evidence?'Bài nộp đã được giảng viên nghiệm thu':(empty($project['status']) ? '' : ($project['status']==='completed' ? 'Dự án đã hoàn thành' : 'Đang triển khai')),
+                'url'=>self::safeUrl($project['project_url'] ?? ''),
+                'contribution'=>$text($evidence['notes']??$project['contribution']??$project['description']??'',180)];
         }
         // Verified experience takes precedence over its original recruitment application.
         $verifiedApplications=[];
         foreach ($portfolio['internships'] as $internship) {
             $verifiedApplications[]=$internship['contextId'];
-            $cv['internships'][]=['title'=>self::text($internship['title'],85),'enterprise'=>self::text($internship['organization'],85),
+            $cv['internships'][]=['title'=>$text($internship['title'],85),'enterprise'=>$text($internship['organization'],85),
                 'status_label'=>($internship['stage']==='completed'?'Hoàn thành thực tập':'Đang thực tập').' · Giảng viên xác nhận',
-                'details'=>self::text(implode(' · ',array_filter([$internship['startDate'].' → '.($internship['endDate']?:'hiện tại'),(string)$internship['hours'].' giờ'])),110)];
+                'details'=>$text(implode(' · ',array_filter([$internship['startDate'].' → '.($internship['endDate']?:'hiện tại'),(string)$internship['hours'].' giờ'])),110)];
         }
         foreach ($data['internships'] ?? [] as $internship) {
             if (($internship['status']??'')!=='accepted') continue;
             if (in_array($internship['application_id']??'', $verifiedApplications,true)) continue;
-            $cv['internships'][]=['title'=>self::text($internship['title']??'',85),'enterprise'=>self::text($internship['enterprise_name']??'',85),
+            $cv['internships'][]=['title'=>$text($internship['title']??'',85),'enterprise'=>$text($internship['enterprise_name']??'',85),
                 'status_label'=>'Đã được tiếp nhận; chưa xác nhận bắt đầu'];
         }
         $generalEvaluations = [];
         $activityEvaluations = [];
         foreach ($data['teacher_evaluations'] ?? [] as $evaluation) {
             if (($evaluation['status']??'')!=='published' || empty($evaluation['published_at'])) continue;
-            $comment=self::text($evaluation['comment']??'',220);
+            $comment=$text($evaluation['comment']??'',220);
             if ($comment==='') continue;
             $evalItem = [
                 'comment'=>$comment,
-                'teacher'=>self::text($evaluation['teacher_name']??$evaluation['teacherName']??'Giảng viên hướng dẫn',70),
+                'teacher'=>$text($evaluation['teacher_name']??$evaluation['teacherName']??'Giảng viên hướng dẫn',70),
                 'date'=>substr((string)$evaluation['published_at'],0,10),
             ];
             if (empty($evaluation['activity_id']) && ($evaluation['context_type']??'')!=='activity') {
@@ -122,38 +137,50 @@ final class PassportCvViewModel
                 $activityEvaluations[] = $evalItem;
             }
         }
-        $cv['evaluations'] = !empty($generalEvaluations) ? $generalEvaluations : $activityEvaluations;
+        $cv['evaluations'] = $compact
+            ? (!empty($generalEvaluations) ? $generalEvaluations : $activityEvaluations)
+            : array_merge($generalEvaluations, $activityEvaluations);
+        if (!$compact) {
+            foreach (array_merge($portfolio['projects'], $portfolio['internships']) as $evidence) {
+                $comment = $text($evidence['feedback'] ?? '', 220);
+                if ($comment === '') continue;
+                $item = ['comment'=>$comment, 'teacher'=>$text($evidence['reviewerName'] ?? '', 70),
+                    'date'=>substr((string)($evidence['reviewedAt'] ?? ''), 0, 10)];
+                if (!in_array($item, $cv['evaluations'], true)) $cv['evaluations'][] = $item;
+            }
+        }
         foreach ($data['experience']['confirmed_entries'] ?? [] as $activity) {
             if (($activity['status']??'')!=='confirmed' || empty($activity['confirmed_at'])) continue;
-            $title=self::text($activity['activity_title']??'',100);
+            $title=$text($activity['activity_title']??'',100);
             if ($title==='' || in_array($title,array_column($cv['activities'],'title'),true)) continue;
             $cv['activities'][]=['title'=>$title,'date'=>substr($activity['confirmed_at'],0,10)];
         }
-        foreach (['skills'=>6,'projects'=>2,'internships'=>1,'evaluations'=>2,'activities'=>2] as $key=>$limit) {
+        foreach ($compact ? ['skills'=>6,'projects'=>2,'internships'=>1,'evaluations'=>2,'activities'=>2] : [] as $key=>$limit) {
             $cv['omitted']+=max(0,count($cv[$key])-$limit);
             $cv[$key]=array_slice($cv[$key],0,$limit);
         }
         foreach ($data['badges'] ?? [] as $b) {
-            $name = self::text($b['name'] ?? '', 50);
+            $name = $text($b['name'] ?? '', 50);
             if ($name === '') continue;
             $cv['badges'][] = [
                 'name' => $name,
-                'description' => self::text($b['description'] ?? '', 70),
+                'description' => $text($b['description'] ?? '', 70),
                 'earned_at' => substr((string)($b['earnedAt'] ?? $b['earned_at'] ?? ''), 0, 10),
             ];
         }
-        $cv['badges'] = array_slice($cv['badges'], 0, 3);
+        if ($compact) $cv['badges'] = array_slice($cv['badges'], 0, 3);
         foreach ($data['certificates'] ?? [] as $certificate) {
-            $title=self::text($certificate['title'] ?? '',95);
+            $title=$text($certificate['title'] ?? '',95);
             if ($title==='') continue;
             $cv['certificates'][]=[
                 'title'=>$title,
-                'issuing_organization'=>self::text($certificate['issuing_organization'] ?? $certificate['issuingOrganization'] ?? '',85),
+                'issuing_organization'=>$text($certificate['issuing_organization'] ?? $certificate['issuingOrganization'] ?? '',85),
                 'issue_date'=>substr((string)($certificate['issue_date'] ?? $certificate['issueDate'] ?? ''),0,10),
                 'verification_status'=>(string)($certificate['verification_status'] ?? $certificate['verificationStatus'] ?? ''),
+                'url'=>self::safeUrl($certificate['credential_url'] ?? ''),
             ];
         }
-        $cv['certificates']=array_slice($cv['certificates'],0,8);
+        if ($compact) $cv['certificates']=array_slice($cv['certificates'],0,8);
         $seenTests = [];
         foreach ($data['assessment_results'] ?? [] as $a) {
             $testType = strtolower(trim((string)($a['test_type'] ?? $a['testType'] ?? '')));
@@ -171,10 +198,10 @@ final class PassportCvViewModel
                 'type' => $baseKey,
                 'label' => $label,
                 'code' => trim((string)($a['result_code'] ?? $a['resultCode'] ?? '')),
-                'summary' => self::text($a['summary'] ?? '', 100),
+                'summary' => $text($a['summary'] ?? '', 100),
             ];
         }
-        $cv['assessments'] = array_slice($cv['assessments'], 0, 4);
+        if ($compact) $cv['assessments'] = array_slice($cv['assessments'], 0, 4);
         $summary = $data['experience']['summary'] ?? [];
         $totalHours = (float)($summary['total_hours'] ?? 0);
         $totalActivities = (int)($summary['total_activities'] ?? 0);
@@ -206,16 +233,13 @@ final class PassportCvViewModel
                 $headline = '';
             }
         }
-        $cv['headline'] = self::text($headline, 80);
-        $cv['strengths_summary'] = '';
+        $cv['headline'] = $text($headline, 80);
+        $cv['is_verified'] = !empty($cv['skills']) || !empty($cv['evaluations']);
+        $cv['strengths_summary'] = $text($student['bio'] ?? '', 500);
         $verifiedSkillNames = array_column($cv['skills'], 'name');
-        if (!empty($verifiedSkillNames)) {
+        if ($cv['strengths_summary'] === '' && !empty($verifiedSkillNames)) {
             $skillList = implode(', ', array_slice($verifiedSkillNames, 0, 4));
-            $cv['strengths_summary'] = 'Tôi có năng lực và thế mạnh đã được chứng thực về: ' . $skillList . '. Tôi luôn có tinh thần học hỏi nghiêm túc, tư duy chủ động và sẵn sàng cống hiến, tham gia các đề án thực tế cũng như chương trình thực tập tại doanh nghiệp.';
-        } elseif (!empty($cv['evaluations'])) {
-            $cv['strengths_summary'] = 'Tôi được thầy cô ghi nhận và đánh giá cao về tinh thần học hỏi, tư duy giải quyết vấn đề và sự tích cực trong các hoạt động rèn luyện chuyên môn.';
-        } else {
-            $cv['strengths_summary'] = 'Tôi đang tích cực trau dồi kiến thức chuyên môn, hoàn thiện hồ sơ năng lực và sẵn sàng đón nhận các cơ hội thử thách trong môi trường làm việc thực tế.';
+            $cv['strengths_summary'] = 'Năng lực có minh chứng: ' . $skillList . '.';
         }
         return $cv;
     }
