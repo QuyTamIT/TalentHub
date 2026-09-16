@@ -336,6 +336,8 @@ $totalPledgedDisplay  = $totalPledgedAmount > 0
     <meta name="color-scheme" content="light">
     <meta name="description" content="Sàn ươm mầm sáng tạo và tài trợ các dự án nghiên cứu đột phá từ học sinh, sinh viên - TalentHub Enterprise.">
     <title>Tài trợ Dự án & Ươm mầm Sáng tạo - Enterprise | TalentHub</title>
+    <meta name="description" content="Sàn ươm mầm sáng tạo và tài trợ các dự án nghiên cứu đột phá từ học sinh, sinh viên - FTalentHub Enterprise.">
+    <title>Tài trợ Dự án & Ươm mầm Sáng tạo - Enterprise | FTalentHub</title>
 
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../../assets/css/home.css">

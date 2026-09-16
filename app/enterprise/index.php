@@ -159,7 +159,20 @@ $avatarColors = ['#F97316', '#3B82F6', '#8B5CF6', '#10B981', '#06B6D4'];
 
 if ($pdo !== null) {
     try {
-        $sqlFeatured = <<<'SQL'
+        $hasScoreState = false;
+        try {
+            $pdo->query("SELECT scoreState FROM student_skills LIMIT 0");
+            $hasScoreState = true;
+        } catch (\Throwable) {}
+
+        $scoredSubquery = $hasScoreState
+            ? "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = sp.id AND ss.scoreState = 'scored')"
+            : "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = sp.id AND ss.levelScore > 0)";
+        $whereSkills = $hasScoreState
+            ? "EXISTS (SELECT 1 FROM student_skills ss WHERE ss.studentId = sp.id AND ss.scoreState = 'scored' AND ss.levelScore > 0)"
+            : "EXISTS (SELECT 1 FROM student_skills ss WHERE ss.studentId = sp.id AND ss.levelScore > 0)";
+
+        $sqlFeatured = <<<SQL
             SELECT 
                 sp.id AS studentId,
                 u.id AS userId,
@@ -169,8 +182,7 @@ if ($pdo !== null) {
                 COALESCE(spd.headline, '') AS majorField,
                 COALESCE(
                     sp.talentScore,
-                    (SELECT ROUND(AVG(sa.overallScore), 0) FROM assessments sa WHERE sa.studentId = sp.id AND sa.overallScore IS NOT NULL),
-                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = sp.id AND ss.levelScore > 0)
+                    {$scoredSubquery}
                 ) AS talentScore,
                 COALESCE(
                     (SELECT GROUP_CONCAT(sk.name ORDER BY (ss.verificationStatus = 'verified') DESC, ss.levelScore DESC SEPARATOR ', ')
@@ -188,8 +200,7 @@ if ($pdo !== null) {
             WHERE u.status = 'active'
               AND (
                   (sp.talentScore IS NOT NULL AND sp.talentScore > 0)
-                  OR EXISTS (SELECT 1 FROM assessments sa WHERE sa.studentId = sp.id AND sa.overallScore IS NOT NULL AND sa.overallScore > 0)
-                  OR EXISTS (SELECT 1 FROM student_skills ss WHERE ss.studentId = sp.id AND ss.levelScore > 0)
+                  OR {$whereSkills}
               )
             ORDER BY 
                 talentScore DESC, 
@@ -250,6 +261,8 @@ if ($pdo !== null) {
     <meta name="color-scheme" content="light">
     <meta name="description" content="TalentHub Enterprise Dashboard - Quản lý tuyển thực tập và kết nối tài năng dành cho Doanh nghiệp.">
     <title>Dashboard Doanh Nghiệp - <?= htmlspecialchars($enterpriseInfo['company_name']); ?> | TalentHub</title>
+    <meta name="description" content="FTalentHub Enterprise Dashboard - Quản lý tuyển thực tập và kết nối tài năng dành cho Doanh nghiệp.">
+    <title>Dashboard Doanh Nghiệp - <?= htmlspecialchars($enterpriseInfo['company_name']); ?> | FTalentHub</title>
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../assets/css/home.css">

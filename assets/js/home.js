@@ -179,6 +179,24 @@ function initStatsCounter() {
 
     let animated = false;
 
+    const showFinalValues = () => {
+        document.querySelectorAll('.stat-number[data-target]').forEach(el => {
+            const target = Number.parseInt(el.dataset.target, 10);
+            const suffix = el.dataset.suffix || '';
+
+            if (Number.isFinite(target)) {
+                el.textContent = target.toLocaleString('vi-VN') + suffix;
+            }
+        });
+    };
+
+    // Avoid a first-paint jump for users who prefer less motion and for browsers
+    // without IntersectionObserver support.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+        showFinalValues();
+        return;
+    }
+
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting && !animated) {
@@ -193,36 +211,35 @@ function initStatsCounter() {
 }
 
 function animateStatNumbers() {
-    const statElements = document.querySelectorAll('.stat-number[data-target]');
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const duration = 1500;
+    const startTime = performance.now();
+    const targets = Array.from(document.querySelectorAll('.stat-number[data-target]')).map(el => ({
+        el,
+        target: Number.parseInt(el.dataset.target, 10),
+        suffix: el.dataset.suffix || ''
+    })).filter(item => Number.isFinite(item.target));
 
-    statElements.forEach(el => {
-        const target = parseInt(el.getAttribute('data-target'), 10);
-        const suffix = el.getAttribute('data-suffix') || '';
+    if (!targets.length) return;
 
-        if (reduceMotion || isNaN(target)) {
-            el.textContent = (isNaN(target) ? '0' : target.toLocaleString('vi-VN')) + suffix;
-            return;
-        }
+    const update = (now) => {
+        const progress = Math.min((now - startTime) / duration, 1);
+        const easedProgress = 1 - Math.pow(1 - progress, 2);
 
-        const duration = 1500;
-        const frameRate = 1000 / 60;
-        const totalFrames = Math.round(duration / frameRate);
-        let frame = 0;
-
-        const counter = setInterval(() => {
-            frame++;
-            const progress = frame / totalFrames;
-            const currentNumber = Math.round(target * (1 - Math.pow(1 - progress, 2)));
-
+        targets.forEach(({ el, target, suffix }) => {
+            const currentNumber = Math.round(target * easedProgress);
             el.textContent = currentNumber.toLocaleString('vi-VN') + suffix;
+        });
 
-            if (frame >= totalFrames) {
+        if (progress < 1) {
+            window.requestAnimationFrame(update);
+        } else {
+            targets.forEach(({ el, target, suffix }) => {
                 el.textContent = target.toLocaleString('vi-VN') + suffix;
-                clearInterval(counter);
-            }
-        }, frameRate);
-    });
+            });
+        }
+    };
+
+    window.requestAnimationFrame(update);
 }
 
 /* ==========================================================================

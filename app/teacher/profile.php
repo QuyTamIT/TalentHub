@@ -115,7 +115,7 @@ if ($teacherService && $teacherId !== '') {
 
 $rawSessionName = $_SESSION['user']['fullName'] ?? ($_SESSION['user']['full_name'] ?? ($_SESSION['user_name'] ?? ''));
 $displayName = (string) ($dbUser['fullName'] ?? ($profile['fullName'] ?? ($rawSessionName !== '' ? $rawSessionName : 'Giáo viên')));
-if (($displayName === '' || $displayName === 'Giáo viên' || $displayName === 'Giáo viên TalentHub') && !empty($_SESSION['user']['email'])) {
+if (($displayName === '' || $displayName === 'Giáo viên' || $displayName === 'Giáo viên TalentHub' || $displayName === 'Giáo viên FTalentHub') && !empty($_SESSION['user']['email'])) {
     $parts = explode('@', (string)$_SESSION['user']['email']);
     $displayName = ucwords(str_replace(['.', '_', '-'], ' ', $parts[0] ?? 'Giáo viên'));
 }
@@ -188,6 +188,7 @@ $sidebarNav = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light">
     <title><?= htmlspecialchars($pageTitle); ?> | TalentHub Teacher</title>
+    <title><?= htmlspecialchars($pageTitle); ?> | FTalentHub Teacher</title>
     
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/global.css">

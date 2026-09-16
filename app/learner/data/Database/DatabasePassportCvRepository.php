@@ -5,9 +5,16 @@ namespace TalentHub\Learner\Data\Database;
 use PDO;
 use TalentHub\Learner\Data\Support\Uuid;
 
+require_once __DIR__ . '/../Service/EvidenceBackedScoreService.php';
+
 /** CV-only reader: no shared AI/export contracts changed; all reads are learner-scoped. */
 final class DatabasePassportCvRepository extends AbstractDatabaseRepository
 {
+    public function __construct(PDO $pdo, private readonly ?\TalentHub\Learner\Data\Service\ScoreViewer $scoreViewer = null)
+    {
+        parent::__construct($pdo);
+    }
+
     private function has(string $table, string $column): bool
     {
         if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME)==='sqlite') {
@@ -24,6 +31,10 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
         $ownsTransaction=!$this->pdo->inTransaction();
         if ($ownsTransaction) $this->pdo->beginTransaction();
         try {
+            $viewer = $this->scoreViewer ?? \TalentHub\Learner\Data\Service\ScoreViewer::fromSession();
+            $official=(new \TalentHub\Learner\Data\Service\EvidenceBackedScoreService($this->pdo))->forStudent(
+                $studentId, $viewer
+            );
             $student=(new DatabaseStudentRepository($this->pdo))->findById($studentId);
             if (!$student) throw new \RuntimeException('CV student not found');
             if ($this->has('student_profile_details', 'studentId')) {
@@ -37,23 +48,14 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
                     $student['bio'] = $details['bio'] ?? null;
                 }
             }
-            $result=['student'=>$student,'skills'=>[],'projects'=>[],'internships'=>[],'teacher_evaluations'=>[],'assessment_results'=>[],'experience'=>['confirmed_entries'=>[],'summary'=>['total_hours'=>0.0,'total_activities'=>0]],'badges'=>[]];
-            // Only verified teacher evidence; activity/import/self-declared rows cannot establish CV competence.
-            $evidenceGuard='';
-            if ($this->has('learner_skill_evidence','studentSkillId')) {
-                $invalid="ev.verificationStatus <> 'verified'";
-                if ($this->has('learner_skill_evidence','revokedAt')) $invalid.=' OR ev.revokedAt IS NOT NULL';
-                if ($this->has('learner_skill_evidence','expiresAt')) $invalid.=' OR (ev.expiresAt IS NOT NULL AND ev.expiresAt <= CURRENT_TIMESTAMP)';
-                $evidenceGuard=" AND NOT EXISTS (SELECT 1 FROM learner_skill_evidence ev WHERE ev.studentSkillId=ss.id
-                    AND ev.id=(SELECT latest.id FROM learner_skill_evidence latest WHERE latest.studentSkillId=ss.id ORDER BY latest.observedAt DESC,latest.id DESC LIMIT 1)
-                    AND ({$invalid}))";
+            $result=['student'=>$student,'skills'=>[],'projects'=>[],'internships'=>[],'teacher_evaluations'=>[],'assessment_results'=>[],'experience'=>['confirmed_entries'=>[],'summary'=>['total_hours'=>0.0,'total_activities'=>0]],'badges'=>[],'certificates'=>[]];
+            foreach ($official['skills'] as $skill) {
+                if ($skill['state'] !== 'scored' || $skill['score'] === null) continue;
+                $result['skills'][]=array_merge($skill, [
+                    'level_score'=>$skill['score'], 'score_state'=>'scored', 'skill_status'=>'active',
+                    'verification_status'=>'verified', 'verified_at'=>$skill['assessed_at'],
+                ]);
             }
-            $levelCol = $this->has('student_skills', 'levelScore') ? 'ss.levelScore' : ($this->has('student_skills', 'level') ? 'ss.level' : 'NULL');
-            $catCol = $this->has('skills', 'category') ? 's.category' : "'general'";
-            $result['skills']=$this->fetchAll('cv skills', "SELECT s.name, {$catCol} AS category, {$levelCol} AS levelScore, s.status AS skillStatus, ss.verificationStatus, ss.verifiedAt, ss.sourceType
-                FROM student_skills ss JOIN skills s ON s.id=ss.skillId WHERE ss.studentId=:id AND ss.sourceType='teacher'
-                AND ss.verificationStatus='verified' AND ss.verifiedAt IS NOT NULL AND s.status='active' {$evidenceGuard}
-                ORDER BY {$levelCol} DESC, s.name ASC", ['id'=>$studentId]);
             if ($this->has('projects','title') && $this->has('project_members','status')) {
                 $descCol = $this->has('projects', 'description') ? 'p.description' : "''";
                 $catCol = $this->has('projects', 'category') ? 'p.category' : "'general'";
@@ -92,30 +94,12 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
                     FROM internship_applications ia JOIN internship_posts ip ON ip.id=ia.postId JOIN enterprises e ON e.id=ip.enterpriseId
                     WHERE ia.studentId=:id AND ia.status='accepted' ORDER BY ia.updatedAt DESC,ia.id", ['id'=>$studentId]);
             }
-            $canonical=$this->has('learner_evaluations','seriesId');
-            if ($canonical) {
-                $result['teacher_evaluations']=$this->fetchAll('cv evaluations', "SELECT ev.id,ev.status,ev.comment,ev.publishedAt,ev.contextType,u.fullName AS teacherName
-                    FROM learner_evaluations ev JOIN teacher_profiles tp ON tp.id=ev.teacherId JOIN users u ON u.id=tp.userId
-                    WHERE ev.studentId=:id AND ev.status='published' AND ev.publishedAt IS NOT NULL
-                    AND ev.revision=(SELECT MAX(newer.revision) FROM learner_evaluations newer WHERE newer.seriesId=ev.seriesId)
-                    ORDER BY ev.publishedAt DESC,ev.id", ['id'=>$studentId]);
+            foreach ($official['teacher_context_assessments'] as $context) {
+                $result['teacher_evaluations'][]=array_merge($context, [
+                    'id'=>$context['assessment_id'], 'status'=>'published', 'teacher_name'=>$context['evaluator'],
+                ]);
             }
-            $legacyExclusion=$canonical ? ' AND NOT EXISTS (SELECT 1 FROM learner_evaluations ev WHERE ev.legacyAssessmentId=a.id)' : '';
-            $legacy=$this->fetchAll('cv legacy evaluations', "SELECT a.id,a.status,a.comment,a.publishedAt,a.activityId,u.fullName AS teacherName
-                FROM assessments a JOIN teacher_profiles tp ON tp.id=a.teacherId JOIN users u ON u.id=tp.userId
-                WHERE a.studentId=:id AND a.status='published' AND a.publishedAt IS NOT NULL {$legacyExclusion}
-                ORDER BY a.publishedAt DESC,a.id", ['id'=>$studentId]);
-            $result['teacher_evaluations']=array_merge($result['teacher_evaluations'],$legacy);
-            usort($result['teacher_evaluations'],static fn($a,$b)=>strcmp($b['published_at'],$a['published_at']) ?: strcmp($a['id'],$b['id']));
-            if ($this->has('learner_evaluation_items','skillId')) {
-                $skillEvaluations=$this->fetchAll('cv evaluated skills', "SELECT s.name,s.status AS skillStatus,'verified' AS verificationStatus,ev.publishedAt AS verifiedAt,
-                    'project_evaluation' AS sourceType,'Đánh giá giảng viên đã công bố' AS evidenceLabel
-                    FROM learner_evaluation_items item JOIN learner_evaluations ev ON ev.id=item.evaluationId JOIN skills s ON s.id=item.skillId
-                    WHERE ev.studentId=:id AND ev.status='published' AND ev.publishedAt IS NOT NULL AND ev.contextType IN ('class','project','general')
-                    AND item.confirmed=1 AND s.status='active'
-                    AND ev.revision=(SELECT MAX(newer.revision) FROM learner_evaluations newer WHERE newer.seriesId=ev.seriesId)", ['id'=>$studentId]);
-                $result['skills']=array_merge($result['skills'],$skillEvaluations);
-            }
+            usort($result['teacher_evaluations'],static fn($a,$b)=>strcmp($b['published_at'],$a['published_at']) ?: strcmp($b['id'],$a['id']));
             $result['experience']['confirmed_entries']=$this->fetchAll('cv extracurricular', "SELECT a.title AS activityTitle,el.status,el.confirmedAt
                 FROM experience_logs el JOIN activities a ON a.id=el.activityId
                 WHERE el.studentId=:id AND el.status='confirmed' AND el.confirmedAt IS NOT NULL ORDER BY el.confirmedAt DESC,el.id", ['id'=>$studentId]);
@@ -124,6 +108,10 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
                 $result['badges']=$this->fetchAll('cv badges', "SELECT b.name, b.description, {$timeCol} AS earnedAt
                     FROM badges b INNER JOIN student_badges sb ON sb.badgeId=b.id
                     WHERE sb.studentId=:id ORDER BY {$timeCol} DESC,b.id LIMIT 3", ['id'=>$studentId]);
+            }
+            if ($this->has('certificates','studentId') && $this->has('certificates','verificationStatus')) {
+                $result['certificates']=$this->fetchAll('cv certificates', "SELECT id,title,issuingOrganization,issueDate,verificationStatus,createdAt
+                    FROM certificates WHERE studentId=:id ORDER BY issueDate DESC, createdAt DESC, id", ['id'=>$studentId]);
             }
             if ($this->has('experience_logs','hours')) {
                 $summaryRow=$this->fetchOne('cv experience summary', "SELECT COALESCE(SUM(hours),0) AS totalHours, COUNT(DISTINCT activityId) AS totalActivities
@@ -138,11 +126,53 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
             if ($this->has('project_submissions','id')) {
                 $result['verified_portfolio']=(new \TalentHub\Modules\Student\Repository\PortfolioRepository($this->pdo))->verifiedForStudent($studentId);
             }
+            if ($viewer->isShared()) {
+                $fields = $viewer->sharedProfile($this->pdo)['fields'];
+                $result = $this->filterSharedFields($result, $fields);
+            }
             if ($ownsTransaction) $this->pdo->commit();
             return $result;
         } catch (\Throwable $e) {
             if ($ownsTransaction && $this->pdo->inTransaction()) $this->pdo->rollBack();
             throw $e;
         }
+    }
+
+    /** Keep consent filtering at the data boundary, including portfolio-derived CV sections. */
+    private function filterSharedFields(array $result, array $fields): array
+    {
+        $studentKeys = [
+            'fullName'=>['full_name','fullName','avatar_url','avatarUrl'], 'headline'=>['headline'],
+            'bio'=>['bio'], 'location'=>['location'], 'school'=>['school_name','school'],
+            'class'=>['class_name','class'], 'email'=>['email'], 'phone'=>['phone'],
+        ];
+        foreach ($studentKeys as $field=>$keys) {
+            if (in_array($field, $fields, true)) continue;
+            foreach ($keys as $key) $result['student'][$key] = '';
+        }
+        if (!in_array('skills', $fields, true)) {
+            $result['skills'] = [];
+            $result['verified_portfolio']['skills'] = [];
+        }
+        if (!in_array('projects', $fields, true)) {
+            $result['projects'] = [];
+            $result['verified_portfolio']['projects'] = [];
+        }
+        if (!in_array('experience', $fields, true)) {
+            $result['internships'] = [];
+            $result['verified_portfolio']['internships'] = [];
+            $result['experience'] = ['confirmed_entries'=>[], 'summary'=>['total_hours'=>0.0,'total_activities'=>0]];
+        }
+        if (!in_array('certificates', $fields, true)) { $result['badges'] = []; $result['certificates'] = []; }
+        $result['teacher_evaluations'] = [];
+        $result['assessment_results'] = [];
+        foreach ($result['projects'] as &$project) {
+            unset($project['mentorName'], $project['mentor_name']);
+        }
+        unset($project);
+        if (isset($result['verified_portfolio'])) {
+            $result['verified_portfolio'] += ['projects'=>[], 'internships'=>[], 'skills'=>[]];
+        }
+        return $result;
     }
 }

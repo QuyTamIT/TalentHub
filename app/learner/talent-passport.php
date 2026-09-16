@@ -38,14 +38,30 @@ $evalComment = '';
 $evalReviewer = 'Giảng viên hướng dẫn';
 $evalOrg = !empty($studentSchool) && $studentSchool !== 'Chưa cập nhật trường' ? $studentSchool : 'Đơn vị đào tạo';
 
+// Ưu tiên official_score_summary.score (skill-mean từ EvidenceBackedScoreService, luôn dùng
+// latest published learner_evaluations revision) để tránh hiển thị overallScore cũ từ assessments table.
+$officialSummary = $talentPassport['official_score_summary'] ?? null;
+$officialScore = is_array($officialSummary) && is_numeric($officialSummary['score'] ?? null)
+    ? (float) $officialSummary['score']
+    : null;
+
+if ($officialScore !== null) {
+    $overallScore = $officialScore;
+    $hasOverallScore = true;
+    $gradeClassification = \TalentHub\Support\GradeClassifier::getClassification($overallScore);
+}
+
 if (!empty($talentPassport['teacher_evaluations'][0])) {
     $firstEval = $talentPassport['teacher_evaluations'][0];
-    if (array_key_exists('overall_score', $firstEval) || array_key_exists('overallScore', $firstEval)) {
-        $rawOverallScore = $firstEval['overall_score'] ?? $firstEval['overallScore'] ?? null;
-        $hasOverallScore = $rawOverallScore !== null;
-        $overallScore = (float) $rawOverallScore;
+    // overallScore từ assessments table chỉ dùng làm fallback nếu official_score_summary chưa có.
+    if (!$hasOverallScore) {
+        if (array_key_exists('overall_score', $firstEval) || array_key_exists('overallScore', $firstEval)) {
+            $rawOverallScore = $firstEval['overall_score'] ?? $firstEval['overallScore'] ?? null;
+            $hasOverallScore = $rawOverallScore !== null;
+            $overallScore = (float) $rawOverallScore;
+        }
     }
-    if (!empty($firstEval['classification'])) {
+    if ($hasOverallScore && $gradeClassification === 'Chưa xếp loại' && !empty($firstEval['classification'])) {
         $gradeClassification = (string) $firstEval['classification'];
     }
     $evalContext = trim(($firstEval['context_label'] ?? '') . ' · ' . ($firstEval['context_title'] ?? ''), " ·");
@@ -118,13 +134,19 @@ if (!empty($rawSkills)) {
         }
         $skCode = strtolower(trim((string) ($sk['code'] ?? $sk['name'] ?? '')));
         $skName = $skillNameMap[$skCode] ?? (string) ($sk['name'] ?? 'Kỹ năng chuyên môn');
-        $skScore = max(0, min(100, (int) round((float) ($sk['level_score'] ?? $sk['levelScore'] ?? $sk['score'] ?? $sk['level'] ?? 0))));
+        $state = (string) ($sk['state'] ?? $sk['score_state'] ?? '');
+        $rawVal = $sk['level_score'] ?? $sk['levelScore'] ?? $sk['score'] ?? $sk['level'] ?? null;
+        $isEvidenceOnly = $state === 'evidence_only' || ($rawVal === null && $state !== 'scored');
+        $skScore = !$isEvidenceOnly && $rawVal !== null && is_numeric($rawVal)
+            ? max(0, min(100, (int) round((float) $rawVal)))
+            : null;
         $skCategory = strtolower((string) ($sk['category'] ?? ''));
         $isSoft = in_array($skCategory, ['soft', 'general'], true) || in_array($skCode, ['teamwork', 'communication'], true);
 
         $displaySkills[] = [
             'name' => $skName,
             'score' => $skScore,
+            'is_evidence_only' => $isEvidenceOnly,
             'type' => $isSoft ? 'soft' : 'technical',
             'verified' => true,
         ];
@@ -193,7 +215,7 @@ if (!empty($rawActivities)) {
         $actCategory = trim((string) ($act['display_category'] ?? $act['category'] ?? 'Thực hành'));
         $rawTime = $act['activity_start_at'] ?? $act['time'] ?? null;
         $actTime = !empty($rawTime) && strtotime((string)$rawTime) !== false ? date('d/m/Y', strtotime((string)$rawTime)) : (string)($rawTime ?: '2026');
-        $actLocation = trim((string) ($act['location_name'] ?? $act['location'] ?? 'TalentHub Lab'));
+        $actLocation = trim((string) ($act['location_name'] ?? $act['location'] ?? 'FTalentHub Lab'));
         $actHours = (float) ($act['confirmed_hours'] ?? $act['hours'] ?? $act['hours_spent'] ?? 0);
         $displayActivities[] = [
             'title' => $actTitle,
@@ -228,7 +250,7 @@ $professionalSummary = trim((string) ($student['bio'] ?? ''));
 if ($professionalSummary === '') {
     $topSkillNames = array_slice(array_column($displaySkills, 'name'), 0, 3);
     $skillsText = !empty($topSkillNames) ? implode(', ', $topSkillNames) : 'công nghệ và kỹ năng số';
-    $schoolText = !empty($studentSchool) && $studentSchool !== 'Chưa cập nhật trường' ? $studentSchool : 'TalentHub';
+    $schoolText = !empty($studentSchool) && $studentSchool !== 'Chưa cập nhật trường' ? $studentSchool : 'FTalentHub';
     $hoursText = (int) ($student['experience_hours'] ?? ($talentPassport['experience']['confirmed_hours'] ?? 0));
     $headlineText = !empty($studentHeadline) ? $studentHeadline : 'Học viên đam mê nghiên cứu và đổi mới sáng tạo';
     $professionalSummary = "{$headlineText} tại {$schoolText} với hơn {$hoursText} giờ trải nghiệm thực tế. Có thế mạnh về {$skillsText}, định hướng chủ động phát triển các dự án thực tiễn và sẵn sàng tham gia nghiên cứu, thực tập trong môi trường doanh nghiệp chuyên nghiệp.";
@@ -243,7 +265,7 @@ if ($professionalSummary === '') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light">
     <meta name="description" content="Talent Passport 360° - Hộ chiếu Năng lực Số của <?= learner_escape($studentName); ?> được chứng thực bởi <?= learner_escape($studentSchool); ?>.">
-    <title>Talent Passport 360° | <?= learner_escape($studentName); ?> | TalentHub</title>
+    <title>Talent Passport 360° | <?= learner_escape($studentName); ?> | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
@@ -1321,7 +1343,7 @@ if ($professionalSummary === '') {
                                     <div class="passport-sidebar-status">
                                         <span class="passport-verified-pill">
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                                            Sinh viên Xác thực TalentHub
+                                            Sinh viên Xác thực FTalentHub
                                         </span>
                                     </div>
                                 </div>
@@ -1371,7 +1393,7 @@ if ($professionalSummary === '') {
                                                 <span class="passport-score-scale">THANG ĐIỂM 10</span>
                                             </div>
                                             <div class="passport-score-badge"><?= learner_escape($gradeClassification); ?> • <?= learner_escape($rankingPercentile); ?></div>
-                                            <p class="passport-score-hint">Điểm và xếp loại lấy từ đánh giá đã được ghi nhận trong tài khoản TalentHub.</p>
+                                            <p class="passport-score-hint">Điểm và xếp loại lấy từ đánh giá đã được ghi nhận trong tài khoản FTalentHub.</p>
                                         </div>
                                     <?php endif; ?>
                                 </div>
@@ -1423,11 +1445,17 @@ if ($professionalSummary === '') {
                                                     <div class="passport-skill-row">
                                                         <div class="skill-meta">
                                                             <span><?= learner_escape($sk['name']); ?></span>
-                                                            <span class="skill-val"><?= (int)$sk['score']; ?>/100</span>
+                                                            <?php if (!empty($sk['is_evidence_only']) || $sk['score'] === null): ?>
+                                                                <span class="skill-val" style="font-size: 0.75rem; color: #6b7280;">Minh chứng đã duyệt</span>
+                                                            <?php else: ?>
+                                                                <span class="skill-val"><?= (int)$sk['score']; ?>/100</span>
+                                                            <?php endif; ?>
                                                         </div>
-                                                        <div class="skill-bar">
-                                                            <span style="width: <?= (int)$sk['score']; ?>%;"></span>
-                                                        </div>
+                                                        <?php if (empty($sk['is_evidence_only']) && $sk['score'] !== null): ?>
+                                                            <div class="skill-bar">
+                                                                <span style="width: <?= (int)$sk['score']; ?>%;"></span>
+                                                            </div>
+                                                        <?php endif; ?>
                                                     </div>
                                                 <?php endforeach; ?>
                                             </div>
@@ -1440,11 +1468,17 @@ if ($professionalSummary === '') {
                                                     <div class="passport-skill-row">
                                                         <div class="skill-meta">
                                                             <span><?= learner_escape($sk['name']); ?></span>
-                                                            <span class="skill-val" style="color: #059669;"><?= (int)$sk['score']; ?>/100</span>
+                                                            <?php if (!empty($sk['is_evidence_only']) || $sk['score'] === null): ?>
+                                                                <span class="skill-val" style="font-size: 0.75rem; color: #6b7280;">Minh chứng đã duyệt</span>
+                                                            <?php else: ?>
+                                                                <span class="skill-val" style="color: #059669;"><?= (int)$sk['score']; ?>/100</span>
+                                                            <?php endif; ?>
                                                         </div>
-                                                        <div class="skill-bar">
-                                                            <span style="width: <?= (int)$sk['score']; ?>%; background: #10B981;"></span>
-                                                        </div>
+                                                        <?php if (empty($sk['is_evidence_only']) && $sk['score'] !== null): ?>
+                                                            <div class="skill-bar">
+                                                                <span style="width: <?= (int)$sk['score']; ?>%; background: #10B981;"></span>
+                                                            </div>
+                                                        <?php endif; ?>
                                                     </div>
                                                 <?php endforeach; ?>
                                             </div>
@@ -1626,7 +1660,7 @@ if ($professionalSummary === '') {
                         <!-- Footer -->
                         <footer class="passport-footer">
                             <div>
-                                <span>Được xuất từ <strong>Hệ sinh thái TalentHub &amp; <?= learner_escape($studentSchool); ?></strong></span>
+                                <span>Được xuất từ <strong>Hệ sinh thái FTalentHub &amp; <?= learner_escape($studentSchool); ?></strong></span>
                             </div>
                             <div>
                                 <span>Thời gian xuất: <strong><?= date('d/m/Y H:i'); ?></strong> (QR hiệu lực 30 ngày)</span>

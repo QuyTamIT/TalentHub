@@ -156,19 +156,24 @@ if ($isDatabaseMode && !$deferTalentPassport) {
             continue;
         }
 
-        $rawScore = (float) ($dbSkill['levelScore'] ?? $dbSkill['level_score'] ?? 0);
-        $score = max(0, min(100, (int) round($rawScore)));
-        $allSkillScores[] = $score;
-        if ($verificationStatus === 'verified') {
-            $verifiedSkillScores[] = $score;
+        $scoreValue = $dbSkill['levelScore'] ?? $dbSkill['level_score'] ?? null;
+        $score = $scoreValue === null ? null : max(0, min(100, (int) round((float) $scoreValue)));
+        $sourceType = strtolower(trim((string) ($dbSkill['sourceType'] ?? $dbSkill['source_type'] ?? '')));
+        $evidenceLabel = trim((string) ($dbSkill['evidenceLabel'] ?? $dbSkill['evidence_label'] ?? ''));
+        if ($score !== null) {
+            $allSkillScores[] = $score;
+            if ($verificationStatus === 'verified') $verifiedSkillScores[] = $score;
         }
-
-        $levelLabel = match (true) {
-            $score >= 85 => 'Rất tốt',
-            $score >= 70 => 'Tốt',
-            $score >= 50 => 'Trung bình',
-            default => 'Cơ bản',
-        };
+        $levelLabel = $score === null && $evidenceLabel !== ''
+            ? $evidenceLabel
+            : ($score === null
+                ? (in_array($sourceType, ['internship_completion', 'internship_report'], true) ? 'Đã hoàn thành qua thực tập' : ($verificationStatus === 'verified' ? 'Đã xác minh' : 'Chưa có điểm đánh giá'))
+                : match (true) {
+                $score >= 85 => 'Rất tốt',
+                $score >= 70 => 'Tốt',
+                $score >= 50 => 'Trung bình',
+                default => 'Cơ bản',
+            });
         $tone = match ($dbSkill['category'] ?? '') {
             'technical' => 'primary',
             'soft' => 'secondary',
@@ -183,15 +188,15 @@ if ($isDatabaseMode && !$deferTalentPassport) {
             'tone' => $tone,
             'icon' => 'sparkles',
             'verified' => $verificationStatus === 'verified',
+            'source' => $sourceType,
         ];
     }
-    usort($skills, static fn (array $a, array $b): int => $b['score'] <=> $a['score']);
-
+    usort($skills, static fn (array $a, array $b): int => ($b['score'] ?? -1) <=> ($a['score'] ?? -1));
     $competencyScores = $verifiedSkillScores !== [] ? $verifiedSkillScores : $allSkillScores;
     $competencyScore = $competencyScores === []
         ? null
         : (int) round(array_sum($competencyScores) / count($competencyScores));
-    $competencyValue = $competencyScore === null ? 'Chưa có dữ liệu' : $competencyScore . '/100';
+    $competencyValue = $competencyScore === null ? 'Chưa đủ dữ liệu' : $competencyScore . '/100';
 
     $dashboardKpis = [
         ['id' => 'competency', 'label' => 'Điểm năng lực', 'value' => $competencyValue, 'icon' => 'star', 'tone' => 'primary'],
@@ -274,63 +279,6 @@ if ($isDatabaseMode) {
 }
 
 $dashboardSkillsFromAssessment = false;
-if ($isDatabaseMode && $skills === []) {
-    $roadmapAnalysis = is_array($schoolCredentialData['roadmap_analysis'] ?? null)
-        ? $schoolCredentialData['roadmap_analysis']
-        : null;
-    $skillAnalysis = is_array($aiCapabilityProfile) ? $aiCapabilityProfile : $roadmapAnalysis;
-    $talentMap = is_array($skillAnalysis['talent_map'] ?? null) ? $skillAnalysis['talent_map'] : [];
-    $skillTones = ['primary', 'secondary', 'success', 'warning'];
-
-    foreach ($talentMap as $index => $talent) {
-        if (!is_array($talent)) {
-            continue;
-        }
-        $name = trim((string) ($talent['field'] ?? $talent['label'] ?? $talent['name'] ?? ''));
-        if ($name === '' || !is_numeric($talent['score'] ?? null)) {
-            continue;
-        }
-        $score = (float) $talent['score'];
-        if ($score <= 1) {
-            $score *= 100;
-        }
-        $score = max(0, min(100, (int) round($score)));
-        $skills[] = [
-            'name' => $name,
-            'short_name' => $name,
-            'score' => $score,
-            'level' => match (true) {
-                $score >= 85 => 'Rất tốt',
-                $score >= 70 => 'Tốt',
-                $score >= 50 => 'Khá',
-                default => 'Đang phát triển',
-            },
-            'tone' => $skillTones[$index % count($skillTones)],
-            'icon' => 'sparkles',
-            'verified' => false,
-            'source' => 'ai_assessment',
-        ];
-    }
-
-    if ($skills !== []) {
-        usort($skills, static fn (array $left, array $right): int => $right['score'] <=> $left['score']);
-        $dashboardSkillsFromAssessment = true;
-        $competencyScore = (int) round(array_sum(array_column($skills, 'score')) / count($skills));
-        $competencyValue = $competencyScore . '/100';
-        foreach ($dashboardKpis as &$dashboardKpi) {
-            if (($dashboardKpi['id'] ?? '') === 'competency') {
-                $dashboardKpi['value'] = $competencyValue;
-            }
-        }
-        unset($dashboardKpi);
-        foreach ($profileKpis as &$profileKpi) {
-            if (($profileKpi['label'] ?? '') === 'Điểm năng lực') {
-                $profileKpi['value'] = $competencyValue;
-            }
-        }
-        unset($profileKpi);
-    }
-}
 
 $activityCategories = ['Tất cả', 'Kỹ thuật', 'Kinh doanh', 'Sáng tạo', 'Cộng đồng'];
 

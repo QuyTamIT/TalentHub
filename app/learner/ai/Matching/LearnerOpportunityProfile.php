@@ -62,6 +62,15 @@ final class LearnerOpportunityProfile
 
     /** @var array<string,list<string>> skill code => evidence references */
     private readonly array $skillEvidenceRefs;
+    /**
+     * External certificate metadata is supporting context only. It is kept
+     * separate from scored skills and confirmed experience so an unverified
+     * certificate can never change deterministic matching scores.
+     *
+     * @var list<array{source_id:string,title:string,issuer:string,issue_date:?string,verification_status:string}>
+     */
+    private readonly array $certificates;
+
 
     private function __construct(
         ?string $educationBand,
@@ -72,6 +81,7 @@ final class LearnerOpportunityProfile
         array $confirmedExperienceTags,
         array $evidenceRefs,
         array $skillEvidenceRefs,
+        array $certificates,
     ) {
         $this->educationBand = $educationBand;
         $this->skills = $skills;
@@ -81,6 +91,7 @@ final class LearnerOpportunityProfile
         $this->confirmedExperienceTags = $confirmedExperienceTags;
         $this->evidenceRefs = $evidenceRefs;
         $this->skillEvidenceRefs = $skillEvidenceRefs;
+        $this->certificates = $certificates;
     }
 
     public static function fromInput(RecommendationInput $input): self
@@ -96,6 +107,7 @@ final class LearnerOpportunityProfile
             self::collectConfirmedExperienceTags($payload, $input),
             self::collectEvidenceRefs($input),
             self::collectSkillEvidenceRefs($input),
+            self::collectCertificates($payload, $input),
         );
     }
 
@@ -168,6 +180,14 @@ final class LearnerOpportunityProfile
     {
         return $this->evidenceRefs;
     }
+    /**
+     * @return list<array{source_id:string,title:string,issuer:string,issue_date:?string,verification_status:string}>
+     */
+    public function certificates(): array
+    {
+        return $this->certificates;
+    }
+
 
     /** @param array<string,mixed> $payload */
     private static function resolveEducationBand(array $payload): ?string
@@ -224,9 +244,18 @@ final class LearnerOpportunityProfile
             if (!is_string($rawCode) || trim($rawCode) === '') {
                 throw new InvalidArgumentException('Learner opportunity profile requires a non-empty skill code.');
             }
+            $state = $entry['score_state'] ?? $entry['scoreState'] ?? $entry['state'] ?? null;
+            if ($state !== null) {
+                if (strtolower(trim((string) $state)) !== 'scored') {
+                    continue;
+                }
+            } elseif (array_key_exists('verification_status', $entry) || array_key_exists('verificationStatus', $entry)) {
+                // Legacy rows with verification status but without explicit scored state are rejected.
+                continue;
+            }
             $rawScore = $entry['score'] ?? $entry['level_score'] ?? null;
             if (!is_numeric($rawScore)) {
-                throw new InvalidArgumentException('Learner opportunity profile requires a numeric skill score.');
+                continue;
             }
             $score = (int) round((float) $rawScore);
             if ($score < 0 || $score > 100) {
@@ -506,6 +535,117 @@ final class LearnerOpportunityProfile
                 self::appendCanonicalSkillTags($tags, $code);
             }
         }
+    }
+
+    /**
+     * Extract a bounded, metadata-only certificate context. Certificate
+     * titles and issuers are never interpreted as skill codes, scores or
+     * experience tags. Evidence is required because it carries the canonical
+     * source id used by model evidence allow-lists; payload aliases can only
+     * supplement a matching evidence-backed row.
+     *
+     * @param array<string,mixed> $payload
+     * @return list<array{source_id:string,title:string,issuer:string,issue_date:?string,verification_status:string}>
+     */
+    private static function collectCertificates(array $payload, RecommendationInput $input): array
+    {
+        $rows = [];
+        foreach ($input->evidenceReferences() as $reference) {
+            if (($reference['source_type'] ?? null) !== 'certificate' || !is_array($reference['safe_value'] ?? null)) {
+                continue;
+            }
+            $sourceId = self::safeCertificateText($reference['source_id'] ?? null, 128);
+            $certificate = self::certificateContext($reference['safe_value'], $sourceId);
+            if ($certificate === null) {
+                continue;
+            }
+            $rows[$sourceId] = [
+                'certificate' => $certificate,
+                'freshness' => self::safeCertificateText($reference['observed_at'] ?? null, 40),
+            ];
+        }
+
+        $payloadRows = $payload['certificates'] ?? [];
+        if (is_array($payloadRows)) {
+            foreach ($payloadRows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $payloadSourceId = self::safeCertificateText($row['source_id'] ?? $row['sourceId'] ?? $row['id'] ?? null, 128);
+                foreach ($rows as $sourceId => $existing) {
+                    if ($payloadSourceId !== '' && $payloadSourceId !== $sourceId) {
+                        continue;
+                    }
+                    $payloadTitle = self::safeCertificateText($row['title'] ?? $row['certificate_title'] ?? $row['certificateTitle'] ?? null, 160);
+                    if ($payloadSourceId === '' && $payloadTitle !== $existing['certificate']['title']) {
+                        continue;
+                    }
+                    $merged = array_replace($row, [
+                        'title' => $existing['certificate']['title'],
+                        'source_id' => $sourceId,
+                    ]);
+                    $certificate = self::certificateContext($merged, $sourceId);
+                    if ($certificate !== null) {
+                        $rows[$sourceId]['certificate'] = $certificate;
+                        $rows[$sourceId]['freshness'] = self::safeCertificateText(
+                            $row['updated_at'] ?? $row['updatedAt'] ?? $rows[$sourceId]['freshness'],
+                            40,
+                        );
+                    }
+                    break;
+                }
+            }
+        }
+
+        uasort($rows, static fn (array $left, array $right): int => [
+            $right['freshness'], $right['certificate']['issue_date'] ?? '', $right['certificate']['source_id'],
+        ] <=> [
+            $left['freshness'], $left['certificate']['issue_date'] ?? '', $left['certificate']['source_id'],
+        ]);
+        return array_values(array_map(
+            static fn (array $row): array => $row['certificate'],
+            array_slice($rows, 0, 10, true),
+        ));
+    }
+
+    /**
+     * @param array<string,mixed> $row
+     * @return array{source_id:string,title:string,issuer:string,issue_date:?string,verification_status:string}|null
+     */
+    private static function certificateContext(array $row, string $sourceId): ?array
+    {
+        $title = self::safeCertificateText($row['title'] ?? $row['certificate_title'] ?? $row['certificateTitle'] ?? null, 160);
+        if ($sourceId === '' || $title === '') {
+            return null;
+        }
+        $issuer = self::safeCertificateText($row['issuer'] ?? $row['issuing_organization'] ?? $row['issuingOrganization'] ?? null, 160);
+        $issueDate = self::safeCertificateText($row['issue_date'] ?? $row['issueDate'] ?? null, 40);
+        $status = strtolower(self::safeCertificateText($row['verification_status'] ?? $row['verificationStatus'] ?? null, 32));
+        if ($status === '' || preg_match('/\A[a-z0-9_-]+\z/', $status) !== 1) {
+            $status = 'unknown';
+        }
+        return [
+            'source_id' => $sourceId,
+            'title' => $title,
+            'issuer' => $issuer,
+            'issue_date' => $issueDate === '' ? null : $issueDate,
+            'verification_status' => $status,
+        ];
+    }
+
+    private static function safeCertificateText(mixed $value, int $maxLength): string
+    {
+        if (!is_string($value)) {
+            return '';
+        }
+        $value = trim((string) preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $value));
+        if ($value === '') {
+            return '';
+        }
+        if (preg_match('/(?:ignore|bỏ\s+qua|quên)\s+(?:all\s+)?(?:previous|prior|mọi|các)?\s*(?:instructions?|chỉ\s+dẫn|hướng\s+dẫn)|system\s+prompt|developer\s+message/iu', $value) === 1) {
+            return '[filtered]';
+        }
+        return mb_substr($value, 0, $maxLength, 'UTF-8');
     }
 
     /** @return list<string> */

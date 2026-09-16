@@ -89,6 +89,8 @@ if ($dashboardAiSummary === '') {
     <meta name="color-scheme" content="light">
     <meta name="description" content="Tổng quan hành trình phát triển năng lực của <?= learner_escape($student['name']); ?> trên TalentHub.">
     <title>Tổng quan Học sinh | TalentHub</title>
+    <meta name="description" content="Tổng quan hành trình phát triển năng lực của <?= learner_escape($student['name']); ?> trên FTalentHub.">
+    <title>Tổng quan Học sinh | FTalentHub</title>
     <meta name="csrf-token" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
     <meta name="csrfToken" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
@@ -260,7 +262,7 @@ if ($dashboardAiSummary === '') {
                                         <span><?= learner_escape($activityWhen['time']); ?></span>
                                     </time>
                                     <div>
-                                        <h3><?= learner_escape($activity['title'] ?? 'Hoạt động TalentHub'); ?></h3>
+                                        <h3><?= learner_escape($activity['title'] ?? 'Hoạt động FTalentHub'); ?></h3>
                                         <p><?= learner_icon('map-pin', 14); ?><?= learner_escape($activityLocation); ?></p>
                                         <a href="activity-detail.php?id=<?= rawurlencode($activityId); ?>">Xem chi tiết <?= learner_icon('arrow-right', 14); ?></a>
                                     </div>
@@ -300,6 +302,42 @@ if ($dashboardAiSummary === '') {
                         ?>
                     <?php endif; ?>
                 </section>
+
+                <section class="learner-card learner-certificates" aria-labelledby="dashboard-external-certificate-title" data-dashboard-external-certificates>
+                    <div class="learner-section-heading">
+                        <div>
+                            <h2 id="dashboard-external-certificate-title">Chứng chỉ bên ngoài của bạn</h2>
+                            <p>Các chứng chỉ đã lưu trong hồ sơ năng lực.</p>
+                        </div>
+                        <a href="profile.php#certificates-title">Xem hồ sơ <?= learner_icon('arrow-right', 16); ?></a>
+                    </div>
+                    <?php if (empty($certificates)): ?>
+                        <div class="learner-empty-state"><p>Bạn chưa thêm chứng chỉ bên ngoài.</p></div>
+                    <?php else: ?>
+                        <div class="learner-certificate-list">
+                            <?php foreach ($certificates as $certificate): ?>
+                                <?php
+                                $certificateTitle = $certificate['title'] ?? $certificate['name'] ?? '';
+                                $certificateIssuer = $certificate['issuing_organization'] ?? $certificate['issuingOrganization'] ?? $certificate['issuer'] ?? '';
+                                $certificateDate = (string) ($certificate['issue_date'] ?? $certificate['issueDate'] ?? $certificate['year'] ?? '');
+                                $certificateDateFormatted = preg_match('/^\d{4}-\d{2}-\d{2}$/', $certificateDate)
+                                    ? implode('/', array_reverse(explode('-', $certificateDate))) : $certificateDate;
+                                ?>
+                                <article class="learner-certificate learner-certificate--external">
+                                    <span class="learner-certificate__icon" aria-hidden="true"><?= learner_icon('award', 24); ?></span>
+                                    <div class="learner-certificate__content">
+                                        <h3 data-dashboard-certificate-title><?= learner_escape($certificateTitle); ?></h3>
+                                        <p data-dashboard-certificate-issuer><?= learner_escape($certificateIssuer); ?></p>
+                                        <div class="learner-certificate__date">
+                                            <?= learner_icon('calendar', 15); ?>
+                                            <span>Ngày cấp: <time data-dashboard-certificate-date datetime="<?= learner_escape($certificateDate); ?>"><?= learner_escape($certificateDateFormatted); ?></time></span>
+                                        </div>
+                                    </div>
+                                </article>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </section>
             </main>
         </div>
     </div>
@@ -317,7 +355,7 @@ if ($dashboardAiSummary === '') {
         >
             <span class="learner-onboarding__eyebrow">Bước bắt buộc cho tài khoản mới</span>
             <h2 id="onboarding-title">Hoàn thành đánh giá ban đầu</h2>
-            <p id="onboarding-description">Hoàn thành bốn bài đánh giá để TalentHub hiểu sở thích, năng khiếu và cá nhân hóa lộ trình phát triển của bạn.</p>
+            <p id="onboarding-description">Hoàn thành bốn bài đánh giá để FTalentHub hiểu sở thích, năng khiếu và cá nhân hóa lộ trình phát triển của bạn.</p>
             <ul class="learner-onboarding__tests" aria-label="Bốn bài đánh giá bắt buộc">
                 <li>Holland</li>
                 <li>MBTI</li>

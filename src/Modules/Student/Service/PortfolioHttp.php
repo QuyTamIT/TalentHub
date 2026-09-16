@@ -17,14 +17,14 @@ final class PortfolioHttp
         if ($request->method==='GET') {
             $completedOnly = ($request->queryParam('filter') ?? '') === 'completed';
             $data=$role==='student' ? $repository->listForStudent($identity['studentId'], $completedOnly) : ['items'=>$repository->listForTeacher($identity['userId'])];
-            if ($role==='teacher') $data['skills']=$pdo->query("SELECT id,name FROM skills WHERE status='active' ORDER BY name,id")->fetchAll(PDO::FETCH_ASSOC);
+            if ($role==='teacher') $data['skills']=[]; // assigned per report as availableSkills
             $data['csrfToken']=$session->csrfToken();
             return $data;
         }
         if ($request->method!=='POST') throw new ApiException(405,'METHOD_NOT_ALLOWED','Chỉ hỗ trợ GET và POST.');
         $session->assertCsrf($request->header('x-csrf-token'));
         $input=$request->json();
-        $allowed=$role==='student' ? ['kind','contextId','expectedVersion','notes','repositoryUrl','demoUrl','startDate','endDate','hours','stage','submit','newRevision'] : ['kind','reportId','expectedVersion','decision','feedback','skillIds'];
+        $allowed=$role==='student' ? ['kind','contextId','expectedVersion','notes','repositoryUrl','demoUrl','startDate','endDate','hours','stage','submit','newRevision'] : ['kind','reportId','expectedVersion','decision','feedback','skillIds','skillScores'];
         if (array_diff(array_keys($input),$allowed)) throw new ApiException(422,'VALIDATION_FAILED','Yêu cầu chứa trường không được phép.');
         if (!is_int($input['expectedVersion']??null) || $input['expectedVersion']<0) throw new ApiException(422,'VALIDATION_FAILED','Phiên bản không hợp lệ.');
         foreach (array_intersect(array_keys($input),['kind','contextId','reportId','notes','repositoryUrl','demoUrl','startDate','endDate','stage','decision','feedback']) as $key) {
@@ -36,6 +36,9 @@ final class PortfolioHttp
         if ($role==='student') return ['report'=>$repository->save($identity['studentId'],$input['kind']??'',$input['contextId']??'',$input['expectedVersion'],$input)];
         $skills=$input['skillIds']??[];
         if (!is_array($skills)||!array_is_list($skills)||count($skills)>10||count(array_filter($skills,'is_string'))!==count($skills)) throw new ApiException(422,'VALIDATION_FAILED','Danh sách kỹ năng không hợp lệ.');
-        return ['report'=>$repository->review($identity['userId'],$input['kind']??'',$input['reportId']??'',$input['expectedVersion'],$input['decision']??'',$input['feedback']??'',$skills)];
+        $scores=$input['skillScores']??[];
+        if(!is_array($scores)||array_is_list($scores)&&$scores!==[])throw new ApiException(422,'VALIDATION_FAILED','Bảng điểm kỹ năng không hợp lệ.');
+        foreach($scores as $skillId=>$score)if(!is_string($skillId)||$skillId===''||(!is_int($score)&&!is_float($score)&&!is_string($score))||!is_numeric($score)||!is_finite((float)$score)||(float)$score<0||(float)$score>100)throw new ApiException(422,'VALIDATION_FAILED','Điểm kỹ năng phải là số hữu hạn từ 0 đến 100.');
+        return ['report'=>$repository->review($identity['userId'],$input['kind']??'',$input['reportId']??'',$input['expectedVersion'],$input['decision']??'',$input['feedback']??'',$skills,$scores)];
     }
 }

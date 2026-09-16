@@ -53,6 +53,8 @@ if (!function_exists('learner_project_money')) {
     <meta name="color-scheme" content="light">
     <meta name="description" content="Thông tin đầy đủ của dự án trường trên TalentHub.">
     <title><?= learner_escape($project['title'] ?? $pageTitle); ?> | TalentHub</title>
+    <meta name="description" content="Thông tin đầy đủ của dự án trường trên FTalentHub.">
+    <title><?= learner_escape($project['title'] ?? $pageTitle); ?> | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/learner.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/learner.css'); ?>">
 </head>

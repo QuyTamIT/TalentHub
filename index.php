@@ -149,7 +149,7 @@ $audiences = [
 
             <!-- Navigation Links (Desktop) -->
             <nav class="site-nav" aria-label="Điều hướng chính">
-                <a href="#hero" class="site-nav__link">Về TalentHub</a>
+                <a href="#hero" class="site-nav__link">Về FTalentHub</a>
                 <a href="#statistics" class="site-nav__link">Thống kê</a>
                 <a href="#modules" class="site-nav__link">Tính năng (8 mô-đun)</a>
                 <a href="#audiences" class="site-nav__link">Đối tượng</a>
@@ -161,7 +161,7 @@ $audiences = [
                     Đăng nhập
                 </a>
                 
-                <a href="./role-selection.php" class="btn btn-primary site-header__app-btn">
+                <a href="./role-selection.php" class="btn btn-primary site-header__app-btn" style="display: flex; align-items: center; gap: 8px;">
                     Đăng ký
                     <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -182,7 +182,7 @@ $audiences = [
         <!-- Mobile Navigation Drawer Overlay -->
         <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
             <nav class="mobile-menu__nav" aria-label="Điều hướng di động">
-                <a href="#hero" class="mobile-menu__link">Về TalentHub</a>
+                <a href="#hero" class="mobile-menu__link">Về FTalentHub</a>
                 <a href="#statistics" class="mobile-menu__link">Thống kê</a>
                 <a href="#modules" class="mobile-menu__link">Tính năng (8 mô-đun)</a>
                 <a href="#audiences" class="mobile-menu__link">Đối tượng</a>
@@ -601,7 +601,7 @@ $audiences = [
                 <div>
                     <h4 class="footer-title">Khám phá</h4>
                     <ul class="footer-links">
-                        <li><a href="#hero">Về TalentHub</a></li>
+                        <li><a href="#hero">Về FTalentHub</a></li>
                         <li><a href="#statistics">Thống kê nền tảng</a></li>
                         <li><a href="#modules">8 mô-đun hệ thống</a></li>
                         <li><a href="#audiences">Đối tượng người dùng</a></li>
@@ -632,7 +632,7 @@ $audiences = [
             </div>
 
             <div class="footer-bottom">
-                <p>&copy; <?= date('Y'); ?> TalentHub. Tất cả quyền được bảo lưu.</p>
+                <p>&copy; <?= date('Y'); ?> FTalentHub. Tất cả quyền được bảo lưu.</p>
                 <p>Thiết kế dành riêng cho hệ sinh thái giáo dục và phát triển tài năng.</p>
             </div>
         </div>

@@ -248,7 +248,7 @@
     const titles = window.SECTION_TITLES || {};
     const next = (section && titles[section]) ? titles[section] : sectionTitleFallback;
     if (document.title) {
-      document.title = `${next} | TalentHub Admin`;
+      document.title = `${next} | FTalentHub Admin`;
     }
     topbarTitle.textContent = next;
   };

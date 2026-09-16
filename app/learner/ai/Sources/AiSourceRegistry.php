@@ -70,12 +70,16 @@ final class AiSourceRegistry
         }
         try {
             foreach ($this->sources as $source) {
-                if (!isset($allowed[$source->consentScope()])) {
+                $scope = $source->consentScope();
+                if ($scope !== '' && $scope !== 'public' && $scope !== 'unrestricted' && !isset($allowed[$scope])) {
                     continue;
                 }
                 foreach ($source->readForStudent($studentId) as $record) {
                     $normalized = $this->normalizeRecord($source, $record);
                     if ($normalized !== null) {
+                        if ($source->sourceType() === 'opportunity' && ($normalized['data']['opportunity_type'] ?? '') === 'activity' && !isset($allowed['activity'])) {
+                            continue;
+                        }
                         $records[] = $normalized;
                     }
                 }
@@ -101,7 +105,8 @@ final class AiSourceRegistry
     {
         $allowed = array_fill_keys($this->normalizeScopes($allowedScopes), true);
         foreach ($this->sources as $source) {
-            if (isset($allowed[$source->consentScope()]) && $source->changedSince($studentId, $versionOrTimestamp)) {
+            $scope = $source->consentScope();
+            if (($scope === '' || $scope === 'public' || $scope === 'unrestricted' || isset($allowed[$scope])) && $source->changedSince($studentId, $versionOrTimestamp)) {
                 return true;
             }
         }
@@ -131,7 +136,7 @@ final class AiSourceRegistry
         };
         $this->register(new DatabaseLearnerAiExtendedSource(
             'certificate', 'certificate-1.0.0', 'skills',
-            ['title', 'issuingOrganization', 'issuing_organization', 'issueDate', 'issue_date', 'expiryDate', 'expiry_date', 'credentialId', 'credential_id', 'verificationStatus', 'verification_status', 'verifiedAt', 'verified_at', 'updatedAt', 'updated_at'],
+            ['title', 'issuer', 'issuingOrganization', 'issuing_organization', 'issueDate', 'issue_date', 'expiryDate', 'expiry_date', 'credentialId', 'credential_id', 'verificationStatus', 'verification_status', 'verifiedAt', 'verified_at', 'updatedAt', 'updated_at'],
             'certificate_changed',
             static function (string $studentId) use ($aggregateReader): array {
                 $aggregate = $aggregateReader($studentId);
@@ -207,8 +212,8 @@ final class AiSourceRegistry
             },
         ));
         $this->register(new DatabaseLearnerAiExtendedSource(
-            'portfolio_skill', 'portfolio-skill-1.0.0', 'skills',
-            ['code', 'name', 'category', 'source_type', 'verification_status', 'verified_at', 'skill_tags', 'skill_codes', 'kind', 'updated_at'],
+            'portfolio_skill', 'portfolio-skill-1.1.0', 'skills',
+            ['code', 'name', 'category', 'level_score', 'score', 'source_type', 'verification_status', 'verified_at', 'evidence_label', 'skill_tags', 'skill_codes', 'kind', 'report_id', 'updated_at'],
             'portfolio_skill_changed',
             static function (string $studentId) use ($aggregateReader): array {
                 $aggregate = $aggregateReader($studentId);
@@ -226,10 +231,13 @@ final class AiSourceRegistry
                         continue;
                     }
                     $verifiedAt = $row['verified_at'] ?? $row['verifiedAt'] ?? null;
+                    $score = array_key_exists('level_score',$row) ? $row['level_score'] : ($row['score'] ?? null);
                     $normalized[] = [
                         ...$row,
                         'source_id' => $kind . ':' . $reportId . ':' . $skillId,
                         'code' => $code,
+                        'score' => $score === null ? null : (float)$score,
+                        'level_score' => $score === null ? null : (float)$score,
                         'skill_codes' => [$code],
                         'skill_tags' => [['code' => $code, 'name' => (string) ($row['name'] ?? $code)]],
                         'verification_status' => 'verified',
@@ -380,7 +388,10 @@ final class AiSourceRegistry
         ksort($sourceUpdatedAt, SORT_STRING);
         $registeredScopes = [];
         foreach ($this->sources as $source) {
-            $registeredScopes[$source->consentScope()] = true;
+            $scope = $source->consentScope();
+            if ($scope !== '' && $scope !== 'public' && $scope !== 'unrestricted') {
+                $registeredScopes[$scope] = true;
+            }
         }
         $missing = array_values(array_diff(array_keys($registeredScopes), $allowedScopes));
         sort($missing, SORT_STRING);
@@ -412,12 +423,13 @@ final class AiSourceRegistry
     public static function fromLegacySources(array $legacySources): self
     {
         $registry = new self();
-        foreach ($legacySources as $source) {
+        foreach ($legacySources as $key => $source) {
             if ($source instanceof LearnerAiExtendedSource) {
                 $registry->register($source);
                 continue;
             }
-            $adapter = self::legacyAdapter($source);
+            $targetType = is_string($key) ? $key : null;
+            $adapter = self::legacyAdapter($source, $targetType, $registry);
             if ($adapter !== null) {
                 $registry->register($adapter);
             }
@@ -425,9 +437,9 @@ final class AiSourceRegistry
         return $registry;
     }
 
-    private static function legacyAdapter(object $source): ?LearnerAiExtendedSource
+    private static function legacyAdapter(object $source, ?string $targetType = null, ?self $registry = null): ?LearnerAiExtendedSource
     {
-        if ($source instanceof StudentProfileSource) {
+        if (($targetType === 'profile' || ($targetType === null && ($registry === null || !isset($registry->sources['profile'])))) && $source instanceof StudentProfileSource) {
             return new DatabaseLearnerAiExtendedSource('profile', 'profile-1.0.0', 'assessment', [
                 'academic_year', 'class_name', 'grade_level', 'school_name', 'study_status', 'updated_at',
             ], 'profile_changed', static function (string $studentId) use ($source): array {
@@ -438,29 +450,49 @@ final class AiSourceRegistry
                 return [$record];
             });
         }
-        if ($source instanceof SkillSource) {
-            return self::legacyListAdapter($source, 'skill', 'skills', [
-                'category', 'code', 'level_score', 'source_type', 'source_updated_at', 'verification_status', 'verified_at',
-            ], 'student_skill_id', 'source_updated_at');
+        if (($targetType === 'skill' || ($targetType === null && ($registry === null || !isset($registry->sources['skill'])))) && $source instanceof SkillSource) {
+            return new DatabaseLearnerAiExtendedSource(
+                'skill',
+                'skill-1.0.0',
+                'skills',
+                ['category', 'code', 'level_score', 'source_type', 'source_updated_at', 'verification_status', 'verified_at', 'score_state', 'state'],
+                'skill_changed',
+                static function (string $studentId) use ($source): array {
+                    $records = $source->forStudent($studentId);
+                    foreach ($records as &$record) {
+                        if (!is_array($record)) continue;
+                        $record['source_id'] = $record['student_skill_id'] ?? null;
+                        $record['observed_at'] = $record['source_updated_at'] ?? null;
+                        if (!isset($record['state']) && !isset($record['score_state'])) {
+                            if (($record['verification_status'] ?? '') === 'verified' && isset($record['level_score'])) {
+                                $record['state'] = 'scored';
+                                $record['score_state'] = 'scored';
+                            }
+                        }
+                    }
+                    unset($record);
+                    return $records;
+                }
+            );
         }
-        if ($source instanceof AssessmentSource) {
+        if (($targetType === 'assessment' || ($targetType === null && ($registry === null || !isset($registry->sources['assessment'])))) && $source instanceof AssessmentSource) {
             return self::legacyListAdapter($source, 'assessment', 'assessment', [
                 'assessment_version', 'dimension_scores', 'result_code', 'scoring_version', 'submitted_at', 'test_code', 'test_type',
             ], 'result_id', 'submitted_at');
         }
-        if ($source instanceof ActivityExperienceSource) {
+        if (($targetType === 'activity_experience' || ($targetType === null && ($registry === null || !isset($registry->sources['activity_experience'])))) && $source instanceof ActivityExperienceSource) {
             return self::legacyListAdapter($source, 'activity_experience', 'activity', [
                 'activity_category', 'confirmed_at', 'hours', 'skill_tags', 'skill_codes', 'skills',
             ], 'experience_id', 'confirmed_at');
         }
-        if ($source instanceof PublishedEvaluationSource) {
+        if (($targetType === 'evaluation' || ($targetType === null && ($registry === null || !isset($registry->sources['evaluation'])))) && $source instanceof PublishedEvaluationSource) {
             return self::legacyListAdapter($source, 'evaluation', 'evaluation', [
                 'overall_score', 'presentation_score', 'published_at', 'skill_tags', 'skill_codes', 'skills',
                 'context_type', 'context_id', 'updated_at', 'skill_scores', 'tags', 'feedback', 'revision',
             ], 'evaluation_id', 'published_at');
         }
-        if ($source instanceof OpportunitySource) {
-            return self::legacyListAdapter($source, 'opportunity', 'activity', [
+        if (($targetType === 'opportunity' || ($targetType === null && ($registry === null || !isset($registry->sources['opportunity'])))) && $source instanceof OpportunitySource) {
+            return self::legacyListAdapter($source, 'opportunity', 'public', [
                 'action', 'availability', 'catalog_id', 'category', 'deadline_at', 'location', 'opportunity_type', 'status', 'title', 'url',
             ], 'opportunity_id', 'deadline_at');
         }
@@ -615,6 +647,8 @@ final class AiSourceRegistry
                         'code' => $code,
                         'level_score' => (float) $score,
                         'verification_status' => 'verified',
+                        'score_state' => 'scored',
+                        'state' => 'scored',
                         'verified_at' => $record['observed_at'],
                         'source_updated_at' => $at,
                         'source_type' => 'published_evaluation',

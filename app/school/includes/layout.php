@@ -41,6 +41,8 @@ $bodyClass    = trim('school-dashboard ' . ($bodyClass ?? ''));
     <meta name="color-scheme" content="light">
     <meta name="description" content="TalentHub School Dashboard - Quản lý hoạt động năng khiếu cho Nhà trường.">
     <title><?= htmlspecialchars($pageTitle); ?> - <?= htmlspecialchars($schoolInfo['name']); ?> | TalentHub</title>
+    <meta name="description" content="FTalentHub School Dashboard - Quản lý hoạt động năng khiếu cho Nhà trường.">
+    <title><?= htmlspecialchars($pageTitle); ?> - <?= htmlspecialchars($schoolInfo['name']); ?> | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">

@@ -96,14 +96,109 @@ if (!function_exists('learner_ecosystem_enterprise_posts')) {
             return $posts;
         }
 
-        if (is_array($GLOBALS['mockInternships'] ?? null)) {
+        if (is_array($GLOBALS['mockInternships'] ?? null) && !empty($GLOBALS['mockInternships'])) {
             $posts = $GLOBALS['mockInternships'];
             return $posts;
         }
 
         $mockInternships = [];
-        require_once dirname(__DIR__, 2) . '/enterprise/includes/internships-data.php';
-        $posts = is_array($mockInternships) ? $mockInternships : [];
+        $bridgePath = dirname(__DIR__, 2) . '/enterprise/includes/internships-data.php';
+        if (file_exists($bridgePath)) {
+            require_once $bridgePath;
+        }
+        if (is_array($mockInternships) && !empty($mockInternships)) {
+            $posts = $mockInternships;
+            $GLOBALS['mockInternships'] = $posts;
+            return $posts;
+        }
+
+        $posts = [
+            [
+                'id' => 1,
+                'title' => 'Thực tập sinh Frontend Developer (React / TypeScript)',
+                'field' => 'Công nghệ thông tin',
+                'status' => 'active',
+                'status_label' => 'Đang tuyển',
+                'created_at' => '2026-08-01',
+                'deadline' => '2026-08-30',
+                'slots' => 5,
+                'applicant_count' => 18,
+                'work_type' => 'Full-time / Hybrid',
+                'duration' => '3 tháng',
+                'education_level' => 'Đại học / Cao đẳng',
+                'description' => 'Tham gia cùng đội ngũ Frontend FPT Software phát triển các giao diện sản phẩm SaaS enterprise bằng React.js, TypeScript và CSS Modules. Được hướng dẫn trực tiếp từ các Senior Tech Lead.',
+                'skills' => ['React', 'TypeScript', 'HTML/CSS', 'Git', 'REST API'],
+                'benefits' => 'Trợ cấp thực tập 5.000.000 - 8.000.000 VNĐ/tháng. Hỗ trợ con dấu báo cáo thực tập. Cơ hội chuyển chính thức sau khi tốt nghiệp.'
+            ],
+            [
+                'id' => 2,
+                'title' => 'Thực tập sinh AI Research & Data Science 2026',
+                'field' => 'AI / Machine Learning',
+                'status' => 'active',
+                'status_label' => 'Đang tuyển',
+                'created_at' => '2026-08-05',
+                'deadline' => '2026-08-20',
+                'slots' => 3,
+                'applicant_count' => 12,
+                'work_type' => 'Full-time',
+                'duration' => '6 tháng',
+                'education_level' => 'Đại học',
+                'description' => 'Tham gia nghiên cứu và xây dựng mô hình Học máy, xử lý ngôn ngữ tự nhiên (NLP) và Thị giác máy tính (Computer Vision) phục vụ cho dự án AI Enterprise.',
+                'skills' => ['Python', 'PyTorch', 'SQL', 'Data Analytics', 'TensorFlow'],
+                'benefits' => 'Trợ cấp thực tập 8.000.000 - 12.000.000 VNĐ/tháng. Tham gia công bố bài báo khoa học cùng giảng viên và chuyên gia AI.'
+            ],
+            [
+                'id' => 3,
+                'title' => 'Thực tập sinh Lập trình Backend (PHP / Laravel / Node.js)',
+                'field' => 'Công nghệ thông tin',
+                'status' => 'active',
+                'status_label' => 'Đang tuyển',
+                'created_at' => '2026-07-25',
+                'deadline' => '2026-08-25',
+                'slots' => 4,
+                'applicant_count' => 14,
+                'work_type' => 'Full-time / On-site',
+                'duration' => '3 tháng',
+                'education_level' => 'Đại học / Cao đẳng',
+                'description' => 'Thiết kế RESTful APIs, quản lý cơ sở dữ liệu MySQL/PostgreSQL và tối ưu truy vấn hệ thống Backend cho các dịch vụ quy mô lớn.',
+                'skills' => ['PHP', 'Laravel', 'Node.js', 'MySQL', 'Docker'],
+                'benefits' => 'Trợ cấp 6.000.000 VNĐ/tháng. Phụ cấp ăn trưa tại FPT Tower. Cấp máy tính xách tay cấu hình cao.'
+            ],
+            [
+                'id' => 4,
+                'title' => 'Thực tập sinh Thiết kế UI/UX & Product Design',
+                'field' => 'Thiết kế UI/UX',
+                'status' => 'draft',
+                'status_label' => 'Bản nháp',
+                'created_at' => '2026-08-10',
+                'deadline' => '2026-09-15',
+                'slots' => 2,
+                'applicant_count' => 0,
+                'work_type' => 'Bán thời gian / Remote',
+                'duration' => '3 tháng',
+                'education_level' => 'Tất cả bậc học',
+                'description' => 'Thiết kế Wireframe, UI Kit và Prototype giao diện người dùng trên Figma cho các hệ thống ứng dụng quản trị doanh nghiệp.',
+                'skills' => ['Figma', 'UI/UX Design', 'Wireframing', 'Prototyping'],
+                'benefits' => 'Thời gian linh hoạt phù hợp lịch học. Trợ cấp 4.000.000 - 6.000.000 VNĐ/tháng.'
+            ],
+            [
+                'id' => 5,
+                'title' => 'Thực tập sinh Digital Marketing & Content TalentHub',
+                'field' => 'Marketing Digital',
+                'status' => 'closed',
+                'status_label' => 'Đang đóng',
+                'created_at' => '2026-06-15',
+                'deadline' => '2026-07-30',
+                'slots' => 3,
+                'applicant_count' => 25,
+                'work_type' => 'Full-time',
+                'duration' => '3 tháng',
+                'education_level' => 'Đại học / Cao đẳng',
+                'description' => 'Xây dựng nội dung truyền thông tuyển dụng thương hiệu FPT Software trên các kênh mạng xã hội và quản lý chiến dịch kết nối tài năng sinh viên.',
+                'skills' => ['Marketing', 'Content Writing', 'Social Media', 'SEO', 'Communication'],
+                'benefits' => 'Đã tuyển đủ số lượng ứng viên đợt 1 năm 2026.'
+            ]
+        ];
         $GLOBALS['mockInternships'] = $posts;
 
         return $posts;
@@ -366,7 +461,61 @@ if (!function_exists('learner_ecosystem_mock_opportunities')) {
 if (!function_exists('learner_ecosystem_mock_applications')) {
     function learner_ecosystem_mock_applications(): array
     {
-        return [];
+        return [
+            [
+                'id' => 'APP-2026-0812',
+                'opportunity_type' => 'internship',
+                'opportunity_id' => 1,
+                'title' => 'Thực tập sinh Frontend Developer (React / TypeScript)',
+                'partner_name' => 'FPT Software',
+                'submitted_at' => '12/08/2026',
+                'updated_at' => '13/08/2026',
+                'status' => 'reviewing',
+                'status_label' => 'Đang xem xét',
+                'can_withdraw' => true,
+                'timeline' => [
+                    ['label' => 'Đã nộp hồ sơ', 'date' => '12/08/2026', 'state' => 'complete'],
+                    ['label' => 'Doanh nghiệp đang xem xét', 'date' => '13/08/2026', 'state' => 'current'],
+                    ['label' => 'Phỏng vấn', 'date' => 'Chờ cập nhật', 'state' => 'pending'],
+                    ['label' => 'Kết quả', 'date' => 'Chờ cập nhật', 'state' => 'pending'],
+                ],
+            ],
+            [
+                'id' => 'APP-2026-0728',
+                'opportunity_type' => 'internship',
+                'opportunity_id' => 2,
+                'title' => 'Thực tập sinh AI Research & Data Science 2026',
+                'partner_name' => 'FPT Software',
+                'submitted_at' => '28/07/2026',
+                'updated_at' => '05/08/2026',
+                'status' => 'interview',
+                'status_label' => 'Mời phỏng vấn',
+                'can_withdraw' => true,
+                'timeline' => [
+                    ['label' => 'Đã nộp hồ sơ', 'date' => '28/07/2026', 'state' => 'complete'],
+                    ['label' => 'Đã duyệt hồ sơ', 'date' => '02/08/2026', 'state' => 'complete'],
+                    ['label' => 'Phỏng vấn trực tuyến', 'date' => '15:00 · 18/08/2026', 'state' => 'current'],
+                    ['label' => 'Kết quả', 'date' => 'Chờ cập nhật', 'state' => 'pending'],
+                ],
+            ],
+            [
+                'id' => 'APP-2026-0615',
+                'opportunity_type' => 'internship',
+                'opportunity_id' => 5,
+                'title' => 'Thực tập sinh Digital Marketing & Content TalentHub',
+                'partner_name' => 'FPT Software',
+                'submitted_at' => '15/06/2026',
+                'updated_at' => '02/07/2026',
+                'status' => 'declined',
+                'status_label' => 'Chưa phù hợp',
+                'can_withdraw' => false,
+                'timeline' => [
+                    ['label' => 'Đã nộp hồ sơ', 'date' => '15/06/2026', 'state' => 'complete'],
+                    ['label' => 'Đã xem xét', 'date' => '25/06/2026', 'state' => 'complete'],
+                    ['label' => 'Kết quả: Chưa phù hợp', 'date' => '02/07/2026', 'state' => 'declined'],
+                ],
+            ],
+        ];
     }
 }
 

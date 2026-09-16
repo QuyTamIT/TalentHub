@@ -45,6 +45,8 @@ $bootData = [
     <meta name="color-scheme" content="light">
     <meta name="description" content="Thực hiện bài đánh giá năng khiếu trên TalentHub.">
     <title><?= learner_escape($assessmentName); ?> | TalentHub</title>
+    <meta name="description" content="Thực hiện bài đánh giá năng khiếu trên FTalentHub.">
+    <title><?= learner_escape($assessmentName); ?> | FTalentHub</title>
     <meta name="csrf-token" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
     <meta name="csrfToken" content="<?= learner_escape($GLOBALS['learner_page_context']['csrfToken'] ?? ($_SESSION['csrfToken'] ?? $_SESSION['csrf_token'] ?? '')); ?>">
     <link rel="stylesheet" href="../../assets/css/home.css">
@@ -68,7 +70,7 @@ $bootData = [
                     <section class="learner-card learner-assessment-state" data-assessment-loading>
                         <span class="learner-assessment-spinner" aria-hidden="true"></span>
                         <h1>Đang tải bài đánh giá...</h1>
-                        <p>TalentHub đang đồng bộ dữ liệu phiên bản và câu hỏi từ hệ thống.</p>
+                        <p>FTalentHub đang đồng bộ dữ liệu phiên bản và câu hỏi từ hệ thống.</p>
                     </section>
 
                     <!-- Source error state -->

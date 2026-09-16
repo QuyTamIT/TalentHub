@@ -134,36 +134,58 @@ final class EnterpriseTalentRepository
         $whereClause = implode(' AND ', $where);
 
         $talentScoreCol = $this->columnExists('student_profiles', 'talentScore') ? 'sp.talentScore' : 'NULL';
-        $talentScoreSubquery = $hasAssessments
-            ? "(SELECT ROUND(AVG(sa.overallScore), 0) FROM assessments sa WHERE sa.studentId = sp.id AND sa.overallScore IS NOT NULL)"
-            : "NULL";
+        $hasScoreState = $this->columnExists('student_skills', 'scoreState');
+        $hasClasses = $this->tableExists('classes');
+        $hasSchools = $this->tableExists('schools');
+        $hasSpd = $this->tableExists('student_profile_details');
+
+        $classJoin = $hasClasses ? 'LEFT JOIN classes c ON c.id = sp.classId' : '';
+        $schoolJoin = '';
+        if ($hasSchools) {
+            if ($hasClasses) {
+                $schoolJoin = 'LEFT JOIN schools s ON s.id = c.schoolId';
+            } elseif ($this->columnExists('student_profiles', 'schoolId')) {
+                $schoolJoin = 'LEFT JOIN schools s ON s.id = sp.schoolId';
+            }
+        }
+        $spdJoin = $hasSpd ? 'LEFT JOIN student_profile_details spd ON spd.studentId = sp.id' : '';
+
+        $schoolNameSelect = $hasSchools ? 's.name AS school_name,' : "'' AS school_name,";
+        $classNameSelect = $hasClasses ? 'c.name AS class_name,' : "'' AS class_name,";
+        $headlineSelect = $hasSpd ? 'spd.headline,' : "'' AS headline,";
+        $bioSelect = $hasSpd ? 'spd.bio,' : "'' AS bio,";
+        $locationSelect = $hasSpd ? 'spd.location,' : "'' AS location,";
+        $avatarSelect = $hasSpd ? 'spd.avatarUrl AS avatar_url,' : 'NULL AS avatar_url,';
+        $studyStatusSelect = $this->columnExists('student_profiles', 'studyStatus') ? 'sp.studyStatus AS study_status,' : "'' AS study_status,";
+
+        $scoredSubquery = $hasScoreState
+            ? "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = sp.id AND ss.scoreState = 'scored')"
+            : "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = sp.id AND ss.levelScore > 0)";
 
         $sql = <<<SQL
-            SELECT 
+            SELECT
                 sp.id AS student_id,
                 u.id AS user_id,
                 u.fullName AS display_name,
-                s.name AS school_name,
-                c.name AS class_name,
-                spd.headline,
-                spd.bio,
-                spd.location,
-                spd.avatarUrl AS avatar_url,
-                sp.studyStatus AS study_status,
+                {$schoolNameSelect}
+                {$classNameSelect}
+                {$headlineSelect}
+                {$bioSelect}
+                {$locationSelect}
+                {$avatarSelect}
+                {$studyStatusSelect}
                 COALESCE(
                     {$talentScoreCol},
-                    {$talentScoreSubquery},
-                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = sp.id AND ss.levelScore > 0)
+                    {$scoredSubquery}
                 ) AS talent_score
             FROM student_profiles sp
             INNER JOIN users u ON u.id = sp.userId
-            LEFT JOIN classes c ON c.id = sp.classId
-            LEFT JOIN schools s ON s.id = c.schoolId
-            LEFT JOIN student_profile_details spd ON spd.studentId = sp.id
+            {$classJoin}
+            {$schoolJoin}
+            {$spdJoin}
             WHERE {$whereClause}
             ORDER BY sp.id ASC
         SQL;
-
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         $candidates = [];
@@ -174,6 +196,7 @@ final class EnterpriseTalentRepository
                 continue;
             }
             $candidates[$studentId] = [
+                'id' => $studentId,
                 'student_id' => $studentId,
                 'user_id' => (string) ($row['user_id'] ?? ''),
                 'display_name' => (string) ($row['display_name'] ?? 'Ứng viên'),
@@ -197,8 +220,10 @@ final class EnterpriseTalentRepository
         }
 
         // Fetch skills for all candidates
-        $skillSql = <<<'SQL'
-            SELECT ss.studentId, sk.id AS skill_id, sk.name AS skill_name, sk.category AS skill_category, ss.levelScore AS level_score, ss.verificationStatus
+        $hasScoreState = $this->columnExists('student_skills', 'scoreState');
+        $scoreStateSelect = $hasScoreState ? 'ss.scoreState,' : 'NULL AS scoreState,';
+        $skillSql = <<<SQL
+            SELECT ss.studentId, sk.id AS skill_id, sk.name AS skill_name, sk.category AS skill_category, ss.levelScore AS level_score, ss.verificationStatus, {$scoreStateSelect} ss.sourceType
             FROM student_skills ss
             INNER JOIN skills sk ON sk.id = ss.skillId AND sk.status = 'active'
             ORDER BY ss.studentId ASC, sk.name ASC
@@ -209,10 +234,15 @@ final class EnterpriseTalentRepository
             if (isset($candidates[$sId])) {
                 $candidates[$sId]['skills'][] = [
                     'skill_id' => (string) $sRow['skill_id'],
+                    'skillId' => (string) $sRow['skill_id'],
+                    'id' => (string) $sRow['skill_id'],
                     'name' => (string) $sRow['skill_name'],
                     'category' => (string) ($sRow['skill_category'] ?? 'technical'),
                     'level_score' => (float) ($sRow['level_score'] ?? 0),
                     'verification_status' => (string) ($sRow['verificationStatus'] ?? ''),
+                    'score_state' => $sRow['scoreState'] !== null ? (string) $sRow['scoreState'] : null,
+                    'scoreState' => $sRow['scoreState'] !== null ? (string) $sRow['scoreState'] : null,
+                    'source_type' => (string) ($sRow['sourceType'] ?? ''),
                 ];
             }
         }
@@ -262,7 +292,7 @@ final class EnterpriseTalentRepository
             $contribCol = $hasContrib ? 'pm.contribution,' : "'' AS contribution,";
 
             $pSql = <<<SQL
-                SELECT 
+                SELECT
                     pm.studentId,
                     p.id AS project_id,
                     p.title,
@@ -315,6 +345,86 @@ final class EnterpriseTalentRepository
     public function findMatchCandidates(string $enterpriseId, array $requiredSkills = []): array
     {
         return $this->matchCandidates($enterpriseId, $requiredSkills);
+    }
+    /**
+     * Find featured talents preserving NULL talentScore for unscored students.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function findFeaturedTalents(int $limit = 10): array
+    {
+        $hasScoreState = $this->columnExists('student_skills', 'scoreState');
+        $scoredSubquery = $hasScoreState
+            ? "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = sp.id AND ss.scoreState = 'scored')"
+            : "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = sp.id AND ss.levelScore > 0)";
+
+        $sql = <<<SQL
+            SELECT
+                sp.id,
+                sp.id AS studentId,
+                u.id AS userId,
+                u.fullName AS name,
+                COALESCE(
+                    sp.talentScore,
+                    {$scoredSubquery}
+                ) AS talentScore
+            FROM student_profiles sp
+            JOIN users u ON u.id = sp.userId
+            WHERE u.status = 'active'
+            ORDER BY
+                CASE WHEN sp.talentScore IS NULL AND {$scoredSubquery} IS NULL THEN 1 ELSE 0 END,
+                talentScore DESC
+            LIMIT :limit
+        SQL;
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($rows as &$row) {
+            if ($row['talentScore'] !== null) {
+                $row['talentScore'] = (float) $row['talentScore'];
+            }
+        }
+        return $rows;
+    }
+
+    /**
+     * Find talent by ID preserving NULL talentScore for unscored profiles.
+     *
+     * @return ?array<string,mixed>
+     */
+    public function findTalentById(string $studentId): ?array
+    {
+        $hasScoreState = $this->columnExists('student_skills', 'scoreState');
+        $scoredSubquery = $hasScoreState
+            ? "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = sp.id AND ss.scoreState = 'scored')"
+            : "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = sp.id AND ss.levelScore > 0)";
+
+        $sql = <<<SQL
+            SELECT
+                sp.id,
+                sp.id AS studentId,
+                u.id AS userId,
+                u.fullName AS name,
+                COALESCE(
+                    sp.talentScore,
+                    {$scoredSubquery}
+                ) AS talentScore
+            FROM student_profiles sp
+            JOIN users u ON u.id = sp.userId
+            WHERE (sp.id = :id OR u.id = :idAlt)
+            LIMIT 1
+        SQL;
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([':id' => $studentId, ':idAlt' => $studentId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            return null;
+        }
+        if ($row['talentScore'] !== null) {
+            $row['talentScore'] = (float) $row['talentScore'];
+        }
+        return $row;
     }
 
     /** @return ?array<string,mixed> */
@@ -669,9 +779,10 @@ final class EnterpriseTalentRepository
 
         $talentScoreCol = $this->columnExists('student_profiles', 'talentScore') ? 'student.talentScore' : 'NULL';
         $groupTalentScore = $this->columnExists('student_profiles', 'talentScore') ? ', student.talentScore' : '';
-        $assessSub = $this->tableExists('assessments')
-            ? "(SELECT ROUND(AVG(sa.overallScore), 0) FROM assessments sa WHERE sa.studentId = student.id AND sa.overallScore IS NOT NULL)"
-            : "NULL";
+        $hasScoreState = $this->columnExists('student_skills', 'scoreState');
+        $scoredSubquery = $hasScoreState
+            ? "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.scoreState = 'scored')"
+            : "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0)";
 
         $sql = <<<SQL
             SELECT
@@ -691,8 +802,7 @@ final class EnterpriseTalentRepository
                 accessGrant.expiresAt,
                 COALESCE(
                     {$talentScoreCol},
-                    {$assessSub},
-                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0)
+                    {$scoredSubquery}
                 ) AS talentScore,
                 COUNT(DISTINCT studentSkill.id) AS skillCount,
                 COUNT(DISTINCT CASE WHEN studentSkill.verificationStatus = 'verified' THEN studentSkill.id END) AS verifiedSkillCount,
@@ -765,7 +875,7 @@ final class EnterpriseTalentRepository
             if ($allIdKeys !== []) {
                 $placeholders = implode(',', array_fill(0, count($allIdKeys), '?'));
                 $pSql = <<<SQL
-                    SELECT 
+                    SELECT
                         pm.studentId,
                         p.id AS project_id,
                         p.title,
@@ -831,7 +941,7 @@ final class EnterpriseTalentRepository
             if ($filterSkills !== []) {
                 $hasAllSkills = true;
                 $lowerSkills = array_map('mb_strtolower', $skills);
-                
+
                 $aliases = [
                     'nghiên cứu thị trường' => ['phân tích thị trường', 'nghiên cứu thị trường', 'market research', 'market analysis'],
                     'phân tích thị trường' => ['phân tích thị trường', 'nghiên cứu thị trường', 'market research', 'market analysis'],
@@ -848,7 +958,7 @@ final class EnterpriseTalentRepository
                 foreach ($filterSkills as $requiredSkill) {
                     $reqLow = mb_strtolower($requiredSkill);
                     $checkList = $aliases[$reqLow] ?? [$reqLow];
-                    
+
                     $skillMatched = false;
                     foreach ($lowerSkills as $candSkill) {
                         foreach ($checkList as $target) {
@@ -858,7 +968,7 @@ final class EnterpriseTalentRepository
                             }
                         }
                     }
-                    
+
                     if (!$skillMatched) {
                         $hasAllSkills = false;
                         break;
@@ -926,9 +1036,10 @@ final class EnterpriseTalentRepository
         $whereClause = implode(' AND ', $where);
 
         $talentScoreCol = $this->columnExists('student_profiles', 'talentScore') ? 'student.talentScore' : 'NULL';
-        $assessSub = $this->tableExists('assessments')
-            ? "(SELECT ROUND(AVG(sa.overallScore), 0) FROM assessments sa WHERE sa.studentId = student.id AND sa.overallScore IS NOT NULL)"
-            : "NULL";
+        $hasScoreState = $this->columnExists('student_skills', 'scoreState');
+        $scoredSubquery = $hasScoreState
+            ? "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.scoreState = 'scored')"
+            : "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0)";
 
         $sql = <<<SQL
             SELECT
@@ -948,8 +1059,7 @@ final class EnterpriseTalentRepository
                 spd.avatarUrl,
                 COALESCE(
                     {$talentScoreCol},
-                    {$assessSub},
-                    (SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0)
+                    {$scoredSubquery}
                 ) AS talentScore,
                 EXISTS(
                     SELECT 1 FROM enterprise_talent_access_grants contactGrant
@@ -1396,13 +1506,16 @@ final class EnterpriseTalentRepository
     /** @return list<string> */
     private function verifiedSkillsForStudent(string $studentId): array
     {
-        $stmt = $this->pdo->prepare(<<<'SQL'
+        $order = $this->columnExists('student_skills', 'createdAt')
+            ? 'ORDER BY ss.levelScore DESC, ss.createdAt ASC'
+            : 'ORDER BY ss.levelScore DESC, ss.id ASC';
+        $stmt = $this->pdo->prepare(<<<SQL
             SELECT s.name
             FROM student_skills ss
             INNER JOIN skills s ON s.id = ss.skillId
             WHERE ss.studentId = :studentId
               AND ss.verificationStatus = 'verified'
-            ORDER BY ss.levelScore DESC, ss.createdAt ASC
+            {$order}
         SQL);
         $stmt->execute(['studentId' => $studentId]);
         $names = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
@@ -1410,11 +1523,16 @@ final class EnterpriseTalentRepository
     }
 
     /** @return list<array<string,mixed>> */
-    private function skillsWithDetailsForStudent(string $studentId): array
+    public function skillsWithDetailsForStudent(string $studentId): array
     {
-        $stmt = $this->pdo->prepare(<<<'SQL'
-            SELECT ss.id, s.name AS skillName, s.name AS name, ss.levelScore,
-                   ss.verificationStatus, ss.verifiedAt, ss.createdAt,
+        $hasScoreState = $this->columnExists('student_skills', 'scoreState');
+        $hasCreatedAt = $this->columnExists('student_skills', 'createdAt');
+        $scoreStateCol = $hasScoreState ? 'ss.scoreState,' : 'NULL AS scoreState,';
+        $createdAtCol = $hasCreatedAt ? 'ss.createdAt,' : 'NULL AS createdAt,';
+        $orderCreatedAt = $hasCreatedAt ? ', ss.createdAt ASC' : ', ss.id ASC';
+        $stmt = $this->pdo->prepare(<<<SQL
+            SELECT ss.id, ss.skillId, s.name AS skillName, s.name AS name, ss.levelScore,
+                   ss.verificationStatus, ss.verifiedAt, {$createdAtCol} {$scoreStateCol}
                    CASE
                        WHEN ss.levelScore >= 85 THEN 'Nâng cao'
                        WHEN ss.levelScore >= 65 THEN 'Trung bình'
@@ -1423,7 +1541,7 @@ final class EnterpriseTalentRepository
             FROM student_skills ss
             INNER JOIN skills s ON s.id = ss.skillId
             WHERE ss.studentId = :studentId
-            ORDER BY (ss.verificationStatus = 'verified') DESC, ss.levelScore DESC, ss.createdAt ASC
+            ORDER BY (ss.verificationStatus = 'verified') DESC, ss.levelScore DESC{$orderCreatedAt}
         SQL);
         $stmt->execute(['studentId' => $studentId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];

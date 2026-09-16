@@ -104,6 +104,8 @@ $managedActivities = $dashboardData['managedActivities'] ?? [];
     <meta name="color-scheme" content="light">
     <meta name="description" content="TalentHub Bảng điều khiển Giáo viên - Tổng quan quản lý học viên, sân chơi, chấm điểm và điểm danh QR.">
     <title>Tổng quan Giáo viên | TalentHub</title>
+    <meta name="description" content="FTalentHub Bảng điều khiển Giáo viên - Tổng quan quản lý học viên, sân chơi, chấm điểm và điểm danh QR.">
+    <title>Tổng quan Giáo viên | FTalentHub</title>
 
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/global.css">

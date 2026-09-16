@@ -124,7 +124,7 @@ final class ActivityReadModel
             'school_id' => '',
             'school_name' => '',
             'responsible_teacher_name' => '',
-            'title' => 'Hoạt động TalentHub',
+            'title' => 'Hoạt động FTalentHub',
             'category' => 'Chưa phân loại',
             'display_category' => '',
             'filter_category' => 'Chưa phân loại',
@@ -229,13 +229,13 @@ final class ActivityReadModel
     public static function availabilityState(array $activity, ?\DateTimeImmutable $now = null): array
     {
         $status = strtolower(trim((string) ($activity['status'] ?? '')));
-        if (in_array($status, ['ongoing', 'active'], true)) {
+        if ($status === 'ongoing') {
             return ['code' => 'ongoing', 'label' => 'Đang diễn ra', 'explanation' => 'Hoạt động đang diễn ra và không nhận đăng ký mới.'];
         }
         if ($status === 'completed') {
             return ['code' => 'completed', 'label' => 'Đã kết thúc', 'explanation' => 'Hoạt động đã kết thúc.'];
         }
-        if ($status !== 'published') {
+        if (!in_array($status, ['published', 'active'], true)) {
             return ['code' => 'unavailable', 'label' => 'Không nhận đăng ký', 'explanation' => 'Hoạt động hiện không nhận đăng ký.'];
         }
 
@@ -258,13 +258,15 @@ final class ActivityReadModel
         if ($closes === null || $current >= $closes) {
             return ['code' => 'expired', 'label' => 'Đã hết hạn đăng ký', 'explanation' => 'Hoạt động đã hết hạn đăng ký.'];
         }
-        $capacity = (int) ($activity['capacity'] ?? 0);
-        $participants = (int) ($activity['participants'] ?? 0);
-        $remaining = array_key_exists('remaining', $activity)
-            ? (int) $activity['remaining']
-            : $capacity - $participants;
-        if ($capacity <= 0 || $participants >= $capacity || $remaining <= 0) {
+        if (array_key_exists('remaining', $activity) && (int) $activity['remaining'] <= 0) {
             return ['code' => 'full', 'label' => 'Đã hết chỗ', 'explanation' => 'Hoạt động đã đủ số lượng đăng ký.'];
+        }
+        if (isset($activity['capacity'])) {
+            $capacity = (int) $activity['capacity'];
+            $participants = (int) ($activity['participants'] ?? 0);
+            if ($capacity > 0 && $participants >= $capacity) {
+                return ['code' => 'full', 'label' => 'Đã hết chỗ', 'explanation' => 'Hoạt động đã đủ số lượng đăng ký.'];
+            }
         }
         return ['code' => 'open', 'label' => 'Đang mở đăng ký', 'explanation' => 'Hoạt động đang nhận đăng ký.'];
     }

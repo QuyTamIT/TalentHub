@@ -39,6 +39,62 @@ final class DatabaseAssessmentRepository extends AbstractDatabaseRepository impl
         WHERE ta.studentId = :student_id AND ta.testId = :assessment_id
         ORDER BY ta.startedAt DESC, ta.id DESC
         SQL;
+    private const EVALUATIONS_SQL = <<<'SQL'
+        SELECT
+            a.id,
+            a.teacherId,
+            a.studentId,
+            a.activityId,
+            a.overallScore,
+            a.comment,
+            a.status,
+            sc.id AS scoreId,
+            sc.criteriaId,
+            sc.score,
+            c.name AS criteriaName,
+            c.minScore,
+            c.maxScore
+        FROM assessments a
+        LEFT JOIN assessment_scores sc ON sc.assessmentId = a.id
+        LEFT JOIN assessment_criteria c ON c.id = sc.criteriaId
+        WHERE a.studentId = :student_id
+        ORDER BY a.id, sc.id
+        SQL;
+
+    private const PUBLISHED_EVALUATIONS_BASE_SQL = <<<'SQL'
+        SELECT
+            a.id,
+            a.teacherId,
+            a.studentId,
+            a.activityId,
+            NULL AS classId,
+            NULL AS projectId,
+            NULL AS className,
+            NULL AS projectTitle,
+            a.overallScore,
+            a.comment,
+            a.status,
+            a.publishedAt,
+            act.title AS activityTitle,
+            u.fullName AS reviewerName,
+            sc.id AS scoreId,
+            sc.criteriaId,
+            sc.score,
+            c.code AS criteriaCode,
+            c.name AS criteriaName,
+            c.minScore,
+            c.maxScore
+        FROM assessments a
+        LEFT JOIN activities act ON act.id = a.activityId
+        LEFT JOIN teacher_profiles tp ON tp.id = a.teacherId
+        LEFT JOIN users u ON u.id = tp.userId
+        LEFT JOIN assessment_scores sc ON sc.assessmentId = a.id
+        LEFT JOIN assessment_criteria c ON c.id = sc.criteriaId
+        WHERE a.studentId = :student_id
+          AND a.status = 'published'
+          AND a.publishedAt IS NOT NULL
+        ORDER BY a.publishedAt DESC, a.id DESC, sc.id ASC
+        SQL;
     /**
      * Published-only Teacher evaluation read. Drafts and rows without a publish timestamp
      * are excluded in SQL, never in PHP, so a mapping change cannot leak a draft.
@@ -136,17 +192,65 @@ final class DatabaseAssessmentRepository extends AbstractDatabaseRepository impl
 
     public function evaluationsForStudent(string $studentId): array
     {
-        return $this->publishedEvaluationsForStudent($studentId);
+        $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
+        $rows = $this->fetchAll(
+            'evaluationsForStudent',
+            self::EVALUATIONS_SQL,
+            ['student_id' => $studentId]
+        );
+        $evaluations = [];
+
+        foreach ($rows as $row) {
+            $evaluationId = Uuid::normalizeDatabase((string) $row['id'], 'assessments.id');
+            if (!isset($evaluations[$evaluationId])) {
+                $evaluations[$evaluationId] = [
+                    'id' => $evaluationId,
+                    'teacher_id' => Uuid::normalizeDatabase((string) $row['teacher_id'], 'assessments.teacherId'),
+                    'student_id' => Uuid::normalizeDatabase((string) $row['student_id'], 'assessments.studentId'),
+                    'activity_id' => $row['activity_id'] === null ? null : Uuid::normalizeDatabase((string) $row['activity_id'], 'assessments.activityId'),
+                    'overall_score' => $row['overall_score'],
+                    'comment' => $row['comment'],
+                    'status' => EvaluationStatus::normalize($row['status'] ?? null)->value,
+                    'scores' => [],
+                    'id_origin' => 'database',
+                ];
+            }
+
+            if (($row['score_id'] ?? null) !== null) {
+                $evaluations[$evaluationId]['scores'][] = [
+                    'id' => Uuid::normalizeDatabase((string) $row['score_id'], 'assessment_scores.id'),
+                    'criteria_id' => Uuid::normalizeDatabase(
+                        (string) $row['criteria_id'],
+                        'assessment_scores.criteriaId'
+                    ),
+                    'score' => $row['score'],
+                    'criteria_name' => $row['criteria_name'],
+                    'min_score' => $row['min_score'],
+                    'max_score' => $row['max_score'],
+                ];
+            }
+        }
+
+        return array_values($evaluations);
     }
 
     public function publishedEvaluationsForStudent(string $studentId): array
     {
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
-        $rows = $this->fetchAll(
-            'publishedEvaluationsForStudent',
-            self::PUBLISHED_EVALUATIONS_SQL,
-            ['student_id' => $studentId]
-        );
+        try {
+            $rows = $this->fetchAll(
+                'publishedEvaluationsForStudent',
+                self::PUBLISHED_EVALUATIONS_SQL,
+                ['student_id' => $studentId]
+            );
+        } catch (\Throwable) {
+            $rows = $this->fetchAll(
+                'publishedEvaluationsForStudent.base',
+                self::PUBLISHED_EVALUATIONS_BASE_SQL,
+                ['student_id' => $studentId]
+            );
+        }
+
         $evaluations = [];
 
         foreach ($rows as $row) {

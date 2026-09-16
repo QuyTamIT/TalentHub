@@ -26,6 +26,8 @@ $sidebarNav = [
     <meta name="color-scheme" content="light">
     <meta name="description" content="Trung tâm thông báo dành cho Giáo viên TalentHub.">
     <title>Thông báo Giáo viên | TalentHub</title>
+    <meta name="description" content="Trung tâm thông báo dành cho Giáo viên FTalentHub.">
+    <title>Thông báo Giáo viên | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">

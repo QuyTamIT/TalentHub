@@ -62,7 +62,7 @@ final class EnterpriseAiGeminiMatcher
             'required_skills' => array_values((array) ($job['required_skills'] ?? [])),
         ];
 
-        $systemInstruction = "You are TalentHub Enterprise AI Matcher. Evaluate anonymous candidate projections against internship job requirements based on verified skills, real practical projects, domain/major, achievements, and teacher competency assessment scores.\n"
+        $systemInstruction = "You are FTalentHub Enterprise AI Matcher. Evaluate anonymous candidate projections against internship job requirements based on verified skills, real practical projects, domain/major, achievements, and teacher competency assessment scores.\n"
             . "CRITICAL MATCHING & RANKING RULES:\n"
             . "1. DIRECT PROFESSIONAL SKILLS & REAL PRACTICAL PROJECTS FIRST: Technical and specialized domain skills directly required by the job position—demonstrated either via verified skills or real practical projects (e.g. project title, topic, description, technologies)—MUST have the highest weight and priority.\n"
             . "2. HIERARCHY OF RELEVANCE:\n"

@@ -859,7 +859,7 @@ button, input {
 
 .stats-split-container {
     display: grid;
-    grid-template-columns: 1fr 1.6fr;
+    grid-template-columns: minmax(20rem, 0.75fr) minmax(0, 1.85fr);
     gap: 3.5rem;
     align-items: center;
 }
@@ -870,12 +870,17 @@ button, input {
 
 .stats-strip {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns:
+        minmax(17rem, 1.6fr)
+        minmax(9.8125rem, 1fr)
+        minmax(10.75rem, 1.1fr)
+        minmax(8.1875rem, 0.85fr);
     gap: 1.5rem;
 }
 
 .stat-col {
     position: relative;
+    min-width: 0;
     padding-right: 1rem;
 }
 
@@ -896,6 +901,8 @@ button, input {
     line-height: 1.1;
     letter-spacing: -0.03em;
     margin-bottom: 0.35rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .stat-label {
@@ -1427,6 +1434,18 @@ button, input {
 /* --------------------------------------------------------------------------
    12. Responsive Breakpoints
    -------------------------------------------------------------------------- */
+@media (min-width: 1025px) and (max-width: 1440px) {
+    .stats-split-container {
+        grid-template-columns: 1fr;
+        gap: 2.5rem;
+    }
+
+    .stats-editorial-left {
+        max-width: 100%;
+        text-align: center;
+    }
+}
+
 @media (max-width: 1024px) {
     .site-nav { gap: 1.25rem; }
 
@@ -1487,6 +1506,17 @@ button, input {
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+}
+
+@media (max-width: 900px) {
+    .stats-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.5rem 1rem;
+    }
+
+    .stat-col:not(:last-child)::after {
+        display: none;
     }
 }
 

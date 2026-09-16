@@ -529,7 +529,7 @@ final class SchoolRepository
     public function listStudents(string $schoolId, int $limit = 50, int $offset = 0): array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT sp.id, sp.userId, sp.classId, sp.dateOfBirth, sp.phone, sp.studyStatus,
+            'SELECT sp.id, sp.userId, sp.classId, sp.talentScore, sp.dateOfBirth, sp.phone, sp.studyStatus,
                     u.email, u.fullName, u.status AS userStatus,
                     c.name AS className, c.gradeLevel
              FROM student_profiles sp

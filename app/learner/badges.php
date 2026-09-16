@@ -79,6 +79,8 @@ function badgeMilestoneLabel(array $criteria, array $factLabels): string
     <meta name="color-scheme" content="light">
     <meta name="description" content="Theo dõi cấp độ và bộ sưu tập huy hiệu cá nhân của học sinh, sinh viên trên TalentHub.">
     <title>Huy hiệu và cấp độ | TalentHub</title>
+    <meta name="description" content="Theo dõi cấp độ và bộ sưu tập huy hiệu cá nhân của học sinh, sinh viên trên FTalentHub.">
+    <title>Huy hiệu và cấp độ | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/global.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/global.css'); ?>">
     <link rel="stylesheet" href="../../assets/css/brand-component.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/brand-component.css'); ?>">
@@ -193,7 +195,7 @@ function badgeMilestoneLabel(array $criteria, array $factLabels): string
                     <div class="learner-badge-section__heading">
                         <div>
                             <h2 id="learner-badge-collection-title">Huy hiệu toàn hệ thống</h2>
-                            <p>Các cột mốc chung của TalentHub dựa trên trải nghiệm, hoạt động và bài đánh giá.</p>
+                            <p>Các cột mốc chung của FTalentHub dựa trên trải nghiệm, hoạt động và bài đánh giá.</p>
                         </div>
                         <div class="learner-filter-list" aria-label="Lọc huy hiệu theo trạng thái">
                             <?php foreach ($learnerBadgeFilters as $index => $filter): ?>

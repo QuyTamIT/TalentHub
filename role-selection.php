@@ -95,6 +95,8 @@ unset($role);
     <meta name="color-scheme" content="light">
     <meta name="description" content="TalentHub - Chọn vai trò để bắt đầu đăng ký tài khoản phù hợp.">
     <title>Chọn vai trò đăng ký | TalentHub</title>
+    <meta name="description" content="FTalentHub - Chọn vai trò để bắt đầu đăng ký tài khoản phù hợp.">
+    <title>Chọn vai trò đăng ký | FTalentHub</title>
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="assets/css/home.css">
@@ -129,7 +131,7 @@ unset($role);
         <div class="container">
             <!-- Section Header -->
             <div class="role-selection-intro">
-                <span class="section-tag">Bắt đầu cùng TalentHub</span>
+                <span class="section-tag">Bắt đầu cùng FTalentHub</span>
                 <h1 class="role-selection-title">Bạn muốn đăng ký với vai trò nào?</h1>
                 <p class="role-selection-description">
                     Chọn vai trò phù hợp để tiếp tục đến biểu mẫu đăng ký dành riêng cho bạn.

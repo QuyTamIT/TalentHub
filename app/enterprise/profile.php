@@ -122,6 +122,8 @@ $sidebarNav = [
     <meta name="color-scheme" content="light">
     <meta name="description" content="Hồ sơ doanh nghiệp TalentHub - Quản lý thông tin đơn vị, liên hệ và nhận diện thương hiệu tuyển dụng.">
     <title>Hồ sơ doanh nghiệp - <?= htmlspecialchars($enterprise['name']); ?> | TalentHub</title>
+    <meta name="description" content="Hồ sơ doanh nghiệp FTalentHub - Quản lý thông tin đơn vị, liên hệ và nhận diện thương hiệu tuyển dụng.">
+    <title>Hồ sơ doanh nghiệp - <?= htmlspecialchars($enterprise['name']); ?> | FTalentHub</title>
     
     <!-- CSS Assets -->
     <link rel="stylesheet" href="../../assets/css/home.css?v=<?= filemtime(dirname(__DIR__, 2) . '/assets/css/home.css'); ?>">

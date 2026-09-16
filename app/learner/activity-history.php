@@ -36,8 +36,8 @@ $formatHours = static fn (float $hours): string => rtrim(rtrim(number_format($ho
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="description" content="Xem lại lịch sử hoạt động đã được xác nhận trên TalentHub.">
-    <title>Lịch sử hoạt động | TalentHub</title>
+    <meta name="description" content="Xem lại lịch sử hoạt động đã được xác nhận trên FTalentHub.">
+    <title>Lịch sử hoạt động | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">
@@ -93,7 +93,7 @@ $formatHours = static fn (float $hours): string => rtrim(rtrim(number_format($ho
                                     <article class="learner-activity-history-card learner-activity-history-card--<?= learner_escape($status); ?>" data-history-card data-status="<?= learner_escape($status); ?>" data-history-timestamp="<?= learner_escape($date?->format(DATE_ATOM) ?? ''); ?>">
                                         <span class="learner-activity-history-card__marker" aria-hidden="true"></span>
                                         <div class="learner-activity-history-card__header"><span><?= learner_escape($historyItem['filter_category'] ?? $historyItem['category'] ?? 'Hoạt động'); ?></span><strong><?= $isNoShow ? 'Vắng mặt' : 'Đã tham gia'; ?></strong></div>
-                                        <h3><?= learner_escape($historyItem['title'] ?? 'Hoạt động TalentHub'); ?></h3>
+                                        <h3><?= learner_escape($historyItem['title'] ?? 'Hoạt động FTalentHub'); ?></h3>
                                         <p><?= learner_escape($historyItem['school_name'] ?? $historyItem['organizer_name'] ?? 'Đơn vị tổ chức'); ?></p>
                                         <div class="learner-activity-history-card__meta">
                                             <span><?= learner_icon('calendar', 17); ?> <?= learner_escape($date?->format('d/m/Y · H:i') ?? 'Chưa cập nhật'); ?></span>

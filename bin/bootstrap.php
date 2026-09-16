@@ -68,6 +68,10 @@ spl_autoload_register(static function(string $class): void {
     }
     // Map TalentHub\Learner\Data\* → app/learner/data/ (legacy namespace)
     if (str_starts_with($class, 'TalentHub\\Learner\\Data\\')) {
+        $dataBootstrap = dirname(__DIR__) . '/app/learner/data/bootstrap.php';
+        if (is_file($dataBootstrap)) {
+            require_once $dataBootstrap;
+        }
         $relative = str_replace('\\', '/', substr($class, strlen('TalentHub\\Learner\\Data\\')));
         $path = dirname(__DIR__) . '/app/learner/data/' . $relative . '.php';
         if (is_file($path)) { require_once $path; return; }

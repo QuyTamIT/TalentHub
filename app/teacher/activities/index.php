@@ -246,7 +246,8 @@ $pdo = $teacherId !== '' ? teacherDashboardConnect() : null;
 $schoolId = $pdo && $teacherId !== '' ? teacherActivitiesSchoolId($pdo, $teacherId) : null;
 $activityService = $pdo ? teacherActivitiesService($pdo) : null;
 
-$pageTitle = 'Hoạt động / Sân chơi của tôi';
+$teacherSlideUi = empty($_GET['action']);
+$pageTitle = 'Sân chơi của tôi';
 $currentRoute = 'index.php';
 $teacherSidebarHomeHref = '../index.php';
 $teacherSidebarRoleHref = '../../../role-selection.php';
@@ -325,6 +326,7 @@ if ($pdo && $teacherId !== '' && $activityId !== '') {
     $selectedActivity = teacherActivitiesFind($pdo, $teacherId, $activityId);
 }
 
+$defaultActivityStart = new DateTimeImmutable('+2 days 09:00');
 $formValues = [
     'title' => '',
     'categoryChoice' => '',
@@ -354,12 +356,12 @@ $formValues = [
     'certificateLabel' => 'Minh chứng tham gia trên TalentHub',
     'responsibleTeacherId' => $teacherId,
     'registrationOpensAt' => (new DateTimeImmutable('now'))->format('Y-m-d\TH:i'),
-    'registrationClosesAt' => (new DateTimeImmutable('+2 days -2 hours'))->format('Y-m-d\TH:i'),
-    'cancellationClosesAt' => (new DateTimeImmutable('+1 day'))->format('Y-m-d\TH:i'),
+    'registrationClosesAt' => $defaultActivityStart->modify('-2 hours')->format('Y-m-d\TH:i'),
+    'cancellationClosesAt' => $defaultActivityStart->modify('-1 day')->format('Y-m-d\TH:i'),
     'approvalMode' => 'automatic',
     'confirmedHours' => '2.00',
-    'startAt' => (new DateTimeImmutable('+2 days 09:00'))->format('Y-m-d\TH:i'),
-    'endAt' => (new DateTimeImmutable('+2 days 12:00'))->format('Y-m-d\TH:i'),
+    'startAt' => $defaultActivityStart->format('Y-m-d\TH:i'),
+    'endAt' => $defaultActivityStart->modify('+3 hours')->format('Y-m-d\TH:i'),
     'capacity' => '30',
 ];
 
@@ -854,7 +856,7 @@ foreach ($responsibleTeachers as $rt) {
 $responsibleTeachers = array_values($dedupedTeachers);
 
 $showForm = in_array($action, ['create', 'edit'], true);
-$formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo hoạt động mới';
+$formHeading = $action === 'edit' ? 'Chỉnh sửa hoạt động' : 'Tạo sân chơi mới';
 ?><!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -877,29 +879,27 @@ $teacherAssetUrl = static function (string $relPath): string {
     <link rel="stylesheet" href="<?= teacherActivitiesEscape($teacherAssetUrl('/assets/css/polish.css')); ?>">
     <link rel="stylesheet" href="<?= teacherActivitiesEscape($teacherAssetUrl('/assets/css/teacher.css')); ?>">
     <link rel="stylesheet" href="<?= teacherActivitiesEscape($teacherAssetUrl('/assets/css/typeui-selects.css')); ?>">
+    <link rel="stylesheet" href="<?= app_href('/assets/css/teacher-slide.css'); ?>">
 </head>
-<body class="teacher-dashboard teacher-activities-page">
+<body class="teacher-dashboard teacher-slide-ui teacher-activities-page">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
-    <div class="teacher-layout">
-        <?php require_once __DIR__ . '/../includes/sidebar.php'; ?>
+    <div class="slide-layout">
+        <?php require_once __DIR__ . '/../includes/slide-sidebar.php'; ?>
 
-        <div class="teacher-main-wrapper">
-            <?php require_once __DIR__ . '/../includes/header.php'; ?>
-
-            <main class="teacher-body" id="main-content">
-                <div class="teacher-container">
+        <div class="slide-main-wrapper">
+            <main class="slide-main-content" id="main-content">
                     <section class="teacher-activities-heading">
                         <div>
                             <span class="teacher-welcome__tag">Quản lý giáo viên</span>
-                            <h2 class="teacher-activities-heading__title">Hoạt động / Sân chơi của tôi</h2>
-                            <p class="teacher-activities-heading__description">Theo dõi lịch hoạt động, số lượng đăng ký và vòng đời hoạt động.</p>
+                            <h1 class="teacher-activities-heading__title">Sân chơi của tôi</h1>
+                            <p class="teacher-activities-heading__description">Tạo, mở đăng ký và quản lý các hoạt động bạn phụ trách.</p>
                         </div>
                         <a href="?action=create" class="btn btn-primary teacher-activities-create">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                                 <line x1="12" y1="5" x2="12" y2="19"></line>
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                             </svg>
-                            <span>Tạo hoạt động mới</span>
+                            <span>Tạo sân chơi mới</span>
                         </a>
                     </section>
 
@@ -1019,7 +1019,9 @@ $teacherAssetUrl = static function (string $relPath): string {
                                                             </div>
                                                         </div>
                                                         <div class="teacher-cover-tip-item">
-                                                            <span class="teacher-cover-tip-icon">✨</span>
+                                                            <span class="teacher-cover-tip-icon" aria-hidden="true">
+                                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>
+                                                            </span>
                                                             <div class="teacher-cover-tip-text">
                                                                 <strong>Thư viện ảnh mẫu có sẵn</strong>
                                                                 <p>Nhấp <em>"Chọn ảnh mẫu (15)"</em> để sử dụng ngay các ảnh WebP sắc nét theo đúng 4 nhóm chủ đề.</p>
@@ -1576,7 +1578,7 @@ $teacherAssetUrl = static function (string $relPath): string {
                                 </div>
                                 <h3 class="teacher-empty-state__title">Chưa có hoạt động phù hợp</h3>
                                 <p class="teacher-empty-state__desc">Hoạt động do giáo viên phụ trách sẽ xuất hiện ở đây khi có dữ liệu trong database.</p>
-                                <a href="?action=create" class="btn btn-secondary btn-sm teacher-empty-state__action">Tạo hoạt động mới</a>
+                                <a href="?action=create" class="btn btn-secondary btn-sm teacher-empty-state__action">Tạo sân chơi mới</a>
                             </div>
                         <?php else: ?>
                             <div class="teacher-activities-table-wrap">
@@ -1584,9 +1586,9 @@ $teacherAssetUrl = static function (string $relPath): string {
                                     <thead>
                                         <tr>
                                             <th>Hoạt động</th>
+                                            <th>Lĩnh vực</th>
                                             <th>Thời gian</th>
-                                            <th>Địa điểm</th>
-                                            <th>Đăng ký / sức chứa</th>
+                                            <th>Học viên</th>
                                             <th>Trạng thái</th>
                                             <th class="teacher-activities-table__actions-heading">Thao tác</th>
                                         </tr>
@@ -1596,16 +1598,14 @@ $teacherAssetUrl = static function (string $relPath): string {
                                             <?php $rowLifecycleAction = teacherActivitiesLifecycleAction($activity); ?>
                                             <tr>
                                                 <td data-label="Hoạt động">
-                                                    <a href="?action=view&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-title"><?= teacherActivitiesEscape($activity['title']); ?></a>
-                                                    <?php if (!empty($activity['category_label'])): ?>
-                                                        <span class="teacher-activity-category"><?= teacherActivitiesEscape($activity['category_label']); ?></span>
-                                                    <?php endif; ?>
+                                                    <a href="?action=view&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-title"><span class="teacher-playground-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"></path></svg></span><?= teacherActivitiesEscape($activity['title']); ?></a>
+                                                    <small class="teacher-text-muted"><?= teacherActivitiesEscape($activity['locationName'] ?? ''); ?></small>
                                                 </td>
+                                                <td data-label="Lĩnh vực"><span class="teacher-slide-tag"><?= teacherActivitiesEscape($activity['category_label'] ?? 'Chưa phân loại'); ?></span></td>
                                                 <td data-label="Thời gian">
                                                     <span class="teacher-activity-time"><?= teacherActivitiesEscape($activity['start_label']); ?></span>
                                                     <span class="teacher-activity-time teacher-text-muted">đến <?= teacherActivitiesEscape($activity['end_label']); ?></span>
                                                 </td>
-                                                <td data-label="Địa điểm"><span><?= teacherActivitiesEscape($activity['locationName'] ?? 'Chưa xác định địa điểm'); ?></span></td>
                                                 <td data-label="Đăng ký"><strong><?= teacherActivitiesEscape((string) $activity['registered_count']); ?> / <?= teacherActivitiesEscape((string) $activity['capacity']); ?></strong></td>
                                                 <td data-label="Trạng thái">
                                                     <span class="teacher-status-pill teacher-status-pill--<?= teacherActivitiesEscape($activity['status_class']); ?>"><?= teacherActivitiesEscape($activity['status_label']); ?></span>
@@ -1615,7 +1615,7 @@ $teacherAssetUrl = static function (string $relPath): string {
                                                     <span class="teacher-registration-pill teacher-registration-pill--<?= $activity['registration_available'] ? 'available' : 'unavailable'; ?>"><?= teacherActivitiesEscape($activity['registration_label']); ?></span>
                                                 </td>
                                                 <td data-label="Thao tác">
-                                                    <div class="teacher-activities-row-actions">
+                                                    <details class="teacher-row-menu"><summary aria-label="Thao tác sân chơi">•••</summary><div class="teacher-activities-row-actions">
                                                         <a href="?action=view&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-action">Chi tiết</a>
                                                         <a href="?action=edit&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-action">Chỉnh sửa</a>
                                                         <a href="?action=registrations&amp;id=<?= teacherActivitiesEscape($activity['id']); ?>" class="teacher-activity-action teacher-activity-action--students" title="Xem danh sách sinh viên đã đăng ký hoạt động này">
@@ -1637,7 +1637,7 @@ $teacherAssetUrl = static function (string $relPath): string {
                                                                 ><?= teacherActivitiesEscape($rowLifecycleAction['label']); ?></button>
                                                             </form>
                                                         <?php endif; ?>
-                                                    </div>
+                                                    </div></details>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -1647,9 +1647,9 @@ $teacherAssetUrl = static function (string $relPath): string {
                         <?php endif; ?>
                     </section>
                     <?php endif; /* $action !== 'registrations' */ ?>
-                </div>
             </main>
         </div>
+        <div class="slide-footer-gradient"></div>
     </div>
 
     <!-- Preset Cover Gallery Modal (Top-level overlay) -->

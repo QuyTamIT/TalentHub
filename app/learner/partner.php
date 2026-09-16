@@ -51,6 +51,8 @@ $partnerTypeLabel = $isEnterprise
     <meta name="color-scheme" content="light">
     <meta name="description" content="Chi tiết đối tác trong hệ sinh thái TalentHub dành cho học sinh, sinh viên.">
     <title><?= learner_escape($partner['name'] ?? 'Không tìm thấy đối tác'); ?> | TalentHub</title>
+    <meta name="description" content="Chi tiết đối tác trong hệ sinh thái FTalentHub dành cho học sinh, sinh viên.">
+    <title><?= learner_escape($partner['name'] ?? 'Không tìm thấy đối tác'); ?> | FTalentHub</title>
     <link rel="stylesheet" href="../../assets/css/home.css">
     <link rel="stylesheet" href="../../assets/css/global.css">
     <link rel="stylesheet" href="../../assets/css/brand-component.css">
@@ -235,7 +237,7 @@ $partnerTypeLabel = $isEnterprise
                             </dl>
                             <div class="learner-data-note">
                                 <?= learner_icon('info', 17); ?>
-                                <p><?= learner_escape($isDatabaseSource ? 'Thông tin được đọc trực tiếp từ dữ liệu TalentHub hiện có.' : 'Thông tin đang hiển thị theo nguồn dữ liệu được cấu hình cho môi trường này.'); ?></p>
+                                <p><?= learner_escape($isDatabaseSource ? 'Thông tin được đọc trực tiếp từ dữ liệu FTalentHub hiện có.' : 'Thông tin đang hiển thị theo nguồn dữ liệu được cấu hình cho môi trường này.'); ?></p>
                             </div>
                         </aside>
                     </div>

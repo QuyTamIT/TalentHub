@@ -12,8 +12,26 @@ use TalentHub\Learner\Data\Contracts\StatisticsRepository;
 use TalentHub\Learner\Data\Exceptions\LearnerDataQueryException;
 use TalentHub\Learner\Data\Support\Uuid;
 
+require_once __DIR__ . '/../Service/EvidenceBackedScoreService.php';
+
 final class DatabaseStatisticsRepository extends AbstractDatabaseRepository implements StatisticsRepository
 {
+    public function __construct(PDO $pdo, private readonly ?\TalentHub\Learner\Data\Service\ScoreViewer $scoreViewer = null)
+    {
+        parent::__construct($pdo);
+    }
+
+    private function officialScores(string $studentId): array
+    {
+        try {
+            return (new \TalentHub\Learner\Data\Service\EvidenceBackedScoreService($this->pdo))->forStudent(
+                $studentId, $this->scoreViewer ?? \TalentHub\Learner\Data\Service\ScoreViewer::fromSession()
+            );
+        } catch (\Throwable) {
+            return ['skills' => [], 'summary' => ['score' => null], 'teacher_context_assessments' => []];
+        }
+    }
+
     public function lifetimeFacts(string $studentId): array
     {
         $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
@@ -286,37 +304,13 @@ final class DatabaseStatisticsRepository extends AbstractDatabaseRepository impl
 
     public function skillCompetencies(string $studentId): array
     {
-        $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
-
-        if (!$this->hasTable('student_skills') || !$this->hasTable('skills')) {
-            return [];
-        }
-
-        $skillsSql = <<<'SQL'
-            SELECT s.name AS skill_name, s.category AS skill_category, ss.levelScore AS level_score
-            FROM student_skills ss
-            INNER JOIN skills s ON s.id = ss.skillId
-            WHERE ss.studentId = :student_id
-              AND ss.verificationStatus IN ('self_declared', 'pending', 'verified')
-              AND s.status = 'active'
-            ORDER BY ss.levelScore DESC, s.name ASC
-        SQL;
-
-        try {
-            $rows = $this->fetchAll('skillCompetencies', $skillsSql, ['student_id' => $studentId]);
-        } catch (LearnerDataQueryException) {
-            return [];
-        }
-
+        $result = $this->officialScores(Uuid::normalizeDatabase($studentId, 'student_id'));
         $skills = [];
-        foreach ($rows as $row) {
-            $skills[] = [
-                'name' => (string) ($row['skill_name'] ?? ''),
-                'category' => (string) ($row['skill_category'] ?? 'soft'),
-                'score' => round((float) ($row['level_score'] ?? 0.0), 1),
-            ];
+        foreach ($result['skills'] as $skill) {
+            if ($skill['state'] !== 'scored' || $skill['score'] === null) continue;
+            $skills[] = ['name' => $skill['name'], 'category' => $skill['category'], 'score' => $skill['score']];
         }
-
+        usort($skills, static fn($a, $b) => ($b['score'] <=> $a['score']) ?: strcmp($a['name'], $b['name']));
         return $skills;
     }
 
@@ -411,68 +405,11 @@ final class DatabaseStatisticsRepository extends AbstractDatabaseRepository impl
 
     public function latestPublishedEvaluation(string $studentId): array
     {
-        $studentId = Uuid::normalizeDatabase($studentId, 'student_id');
-
-        $evaluation = [
-            'total_score' => null,
-            'comment' => '',
-            'published_at' => null,
-            'criteria' => [],
-        ];
-
-        $evalSql = <<<'SQL'
-            SELECT a.id AS assessment_id, a.overallScore AS overall_score, a.comment AS teacher_comment, a.publishedAt AS published_at
-            FROM assessments a
-            WHERE a.studentId = :student_id
-              AND a.status = 'published'
-              AND a.publishedAt IS NOT NULL
-            ORDER BY a.publishedAt DESC, a.id ASC
-            LIMIT 1
-        SQL;
-
-        try {
-            $row = $this->fetchOne('latestPublishedEvaluation', $evalSql, ['student_id' => $studentId]);
-        } catch (LearnerDataQueryException) {
-            return $evaluation;
-        }
-
-        if ($row === null) {
-            return $evaluation;
-        }
-
-        $evaluation['total_score'] = $row['overall_score'] === null ? null : round((float) $row['overall_score'], 1);
-        $evaluation['comment'] = (string) ($row['teacher_comment'] ?? '');
-        $evaluation['published_at'] = (string) ($row['published_at'] ?? '');
-
-        $criteriaSql = <<<'SQL'
-            SELECT ac.code AS criteria_code, ac.name AS criteria_name, ac.maxScore AS max_score, s.score AS criteria_score
-            FROM assessment_scores s
-            INNER JOIN assessment_criteria ac ON ac.id = s.criteriaId
-            WHERE s.assessmentId = :assessment_id
-            ORDER BY ac.displayOrder ASC, ac.code ASC
-        SQL;
-
-        try {
-            $criteriaRows = $this->fetchAll('evaluationCriteria', $criteriaSql, [
-                'assessment_id' => (string) ($row['assessment_id'] ?? ''),
-            ]);
-        } catch (LearnerDataQueryException) {
-            $criteriaRows = [];
-        }
-
-        foreach ($criteriaRows as $criteriaRow) {
-            $max = (float) ($criteriaRow['max_score'] ?? 0.0);
-            $score = (float) ($criteriaRow['criteria_score'] ?? 0.0);
-            $evaluation['criteria'][] = [
-                'code' => (string) ($criteriaRow['criteria_code'] ?? ''),
-                'name' => (string) ($criteriaRow['criteria_name'] ?? ''),
-                'score' => round($score, 1),
-                'max' => round($max, 1),
-                'percentage' => $max > 0 ? (int) min(100, max(0, round($score / $max * 100))) : 0,
-            ];
-        }
-
-        return $evaluation;
+        $rows = $this->officialScores(Uuid::normalizeDatabase($studentId, 'student_id'))['teacher_context_assessments'];
+        usort($rows, static fn($a,$b) => strcmp($b['published_at'],$a['published_at']) ?: strcmp($b['assessment_id'],$a['assessment_id']));
+        $row = $rows[0] ?? null;
+        return ['total_score' => $row['overall_score'] ?? null, 'comment' => $row['comment'] ?? '',
+            'published_at' => $row['published_at'] ?? null, 'criteria' => $row['criteria'] ?? []];
     }
 
     public function projectStatistics(string $studentId): array
@@ -552,6 +489,24 @@ final class DatabaseStatisticsRepository extends AbstractDatabaseRepository impl
         }
         $stmt = $this->pdo->prepare('SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?');
         $stmt->execute([$table]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    private function hasColumn(string $table, string $column): bool
+    {
+        $driver = (string) $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $stmt = $this->pdo->prepare("PRAGMA table_info({$table})");
+            $stmt->execute();
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $col) {
+                if (strcasecmp((string) ($col['name'] ?? ''), $column) === 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        $stmt = $this->pdo->prepare('SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?');
+        $stmt->execute([$table, $column]);
         return (bool) $stmt->fetchColumn();
     }
 }
