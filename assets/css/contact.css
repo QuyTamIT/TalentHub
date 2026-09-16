@@ -618,31 +618,63 @@
 }
 
 /* --------------------------------------------------------------------------
-   Harmonize Contact buttons with homepage primary button styles
-   (keep gradients and text; avoid pill-shaped corners)
+   Match homepage header buttons exactly on contact page
    -------------------------------------------------------------------------- */
-.contact-page .btn,
+.contact-page .site-header__login-btn {
+    background-color: var(--surface) !important;
+    color: var(--text-primary) !important;
+    border: 1.5px solid var(--border) !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+    padding: 0.625rem 1.25rem;
+    min-height: 2.75rem;
+    border-radius: var(--radius-md);
+}
+
+.contact-page .site-header__login-btn:hover:not(:disabled) {
+    background-color: var(--surface-hover) !important;
+    color: var(--primary-coral) !important;
+    border-color: var(--border-hover) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(248, 63, 112, 0.12) !important;
+}
+
+.contact-page .site-header__app-btn {
+    background: var(--primary-gradient) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 14px rgba(248, 63, 112, 0.28) !important;
+    padding: 0.625rem 1.25rem;
+    min-height: 2.75rem;
+    border-radius: var(--radius-md);
+}
+
+.contact-page .site-header__app-btn:hover:not(:disabled) {
+    box-shadow: 0 6px 20px rgba(248, 63, 112, 0.38) !important;
+    transform: translateY(-1px) !important;
+    filter: brightness(1.04) !important;
+}
+
 .contact-page .site-header__actions .btn,
 .contact-page .site-header__login-btn,
 .contact-page .site-header__app-btn {
-    padding: 0.5625rem 1.25rem; /* same as .btn (md) */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
     font-size: var(--text-base);
-    font-weight: var(--font-semibold);
     line-height: var(--leading-snug);
-    border-radius: var(--radius-sm); /* not pill */
-    min-height: 2.75rem; /* consistent height */
-    border: 1px solid transparent;
-    box-shadow: 0 4px 14px rgba(249, 115, 22, 0.3);
     transition: background-color var(--transition-fast),
                 border-color var(--transition-fast),
                 color var(--transition-fast),
                 box-shadow var(--transition-fast),
-                transform var(--transition-fast);
+                transform var(--transition-fast),
+                filter var(--transition-fast);
 }
 
 .contact-page .btn-primary,
 .contact-page .contact-submit {
-    /* keep existing gradient / text color; apply landing shadow and subtle border */
     box-shadow: 0 4px 14px rgba(249, 115, 22, 0.3);
     border: 1px solid rgba(234, 88, 12, 0.3);
 }
