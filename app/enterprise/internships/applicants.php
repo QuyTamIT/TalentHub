@@ -101,17 +101,14 @@ try {
     $pdo = (new \TalentHub\Database\Connection($config))->connect();
 
     $entId = (string) ($enterprise['id'] ?? '');
-    $entEmail = (string) ($enterprise['email'] ?? '');
-
-    $whereClause = "ia.postId = :postId";
-    $params = ['postId' => $postId];
-
-    // If no postId provided or postId is empty, query all applications for this enterprise
-    if (empty($postId) || $postId === 'all') {
-        $whereClause = "(ip.enterpriseId = :enterpriseId OR ip.enterpriseId IN (SELECT id FROM enterprises WHERE email = :entEmail))";
-        $params = ['enterpriseId' => $entId, 'entEmail' => $entEmail];
+    $whereClause = "ip.enterpriseId = :enterpriseId";
+    $params = ['enterpriseId' => $entId];
+    if (!empty($postId) && $postId !== 'all') {
+        $whereClause .= " AND ia.postId = :postId";
+        $params['postId'] = $postId;
     }
 
+    $snapshotSelection = (new \TalentHub\Learner\Data\Database\ApplicationSnapshotVersions($pdo))->selection();
     $stmtApps = $pdo->prepare("
         SELECT 
             ia.id,
@@ -123,23 +120,14 @@ try {
             ia.appliedAt,
             ia.createdAt,
             ia.updatedAt,
-            u.id as userId,
-            u.fullName as studentName,
-            u.email as studentEmail,
             sp.talentScore,
-            sp.studyStatus,
-            spd.avatarUrl,
-            spd.location as studentLocation,
-            s.name as schoolName,
-            c.name as className,
+            {$snapshotSelection['payload']} AS snapshotPayload,
             ip.title as postTitle
         FROM internship_applications ia
         JOIN student_profiles sp ON sp.id = ia.studentId
-        JOIN users u ON u.id = sp.userId
         JOIN internship_posts ip ON ip.id = ia.postId
-        LEFT JOIN classes c ON c.id = sp.classId
-        LEFT JOIN schools s ON s.id = c.schoolId
-        LEFT JOIN student_profile_details spd ON spd.studentId = sp.id
+        LEFT JOIN application_profile_snapshots aps ON aps.applicationId = ia.id
+        {$snapshotSelection['join']}
         WHERE {$whereClause}
         ORDER BY ia.updatedAt DESC, ia.createdAt DESC
     ");
@@ -153,32 +141,24 @@ try {
     }
 
     foreach ($dbAppRows as $row) {
-        $stmtSkills = $pdo->prepare("
-            SELECT s.name as skillName, ss.levelScore
-            FROM student_skills ss
-            JOIN skills s ON s.id = ss.skillId
-            WHERE ss.studentId = ?
-            ORDER BY ss.levelScore DESC
-        ");
-        $stmtSkills->execute([$row['studentId']]);
-        $skillRows = $stmtSkills->fetchAll(PDO::FETCH_ASSOC);
+        $snapshot = json_decode((string) ($row['snapshotPayload'] ?? ''), true);
+        $snapshot = is_array($snapshot) ? $snapshot : [];
+        $student = is_array($snapshot['student'] ?? null) ? $snapshot['student'] : [];
+        $skillRows = is_array($snapshot['skills'] ?? null) ? $snapshot['skills'] : [];
         $skillNames = array_column($skillRows, 'skillName');
-        if (empty($skillNames)) {
-            $skillNames = ['Machine Learning', 'Computer Vision', 'Python / AI'];
-        }
 
-        $name = $row['studentName'] ?: 'Trần Minh Đức';
+        $name = $student['fullName'] ?? 'Ứng viên';
         $parts = preg_split('/\s+/u', trim($name)) ?: [];
         if (count($parts) >= 2) {
             $initials = mb_strtoupper(mb_substr($parts[0], 0, 1) . mb_substr($parts[count($parts) - 1], 0, 1));
         } elseif (count($parts) === 1) {
             $initials = mb_strtoupper(mb_substr($parts[0], 0, 2));
         } else {
-            $initials = 'TĐ';
+            $initials = '';
         }
 
-        $school = $row['schoolName'] ?: 'Cao đẳng Quốc tế BTEC FPT';
-        $className = $row['className'] ?: 'BTEC-AI-2026A';
+        $school = $student['schoolName'] ?? '';
+        $className = $student['className'] ?? '';
         $score = (isset($row['talentScore']) && is_numeric($row['talentScore'])) ? (int) round((float) $row['talentScore']) : null;
 
         $statusLabels = [
@@ -202,32 +182,22 @@ try {
             'student_id' => (string) $row['studentId'],
             'name' => $name,
             'avatar_initials' => $initials,
-            'avatar_url' => !empty($row['avatarUrl']) ? (string) $row['avatarUrl'] : null,
+            'avatar_url' => $student['avatarUrl'] ?? null,
             'school' => $school,
             'class_code' => $className,
-            'education_level' => 'Cao đẳng (Chuẩn bị tốt nghiệp)',
-            'location' => !empty($row['studentLocation']) ? (string) $row['studentLocation'] : 'Hà Nội',
+            'education_level' => '',
+            'location' => $student['location'] ?? '',
             'message' => (string) ($row['message'] ?? ''),
             'status' => $status,
             'status_label' => $statusLabel,
             'applied_at' => $appliedDate,
             'reviewer_note' => (string) ($row['reviewerNote'] ?? ''),
-            'experience_hours' => 240,
+            'experience_hours' => $snapshot['experience']['totalConfirmedHours'] ?? null,
             'main_skills' => array_slice($skillNames, 0, 3),
             'matching_skills' => array_slice($skillNames, 0, 3),
             'missing_requirements' => [],
             'match_score' => $score,
             'talent_score' => $score,
-            'snapshot' => [
-                'student' => [
-                    'fullName' => $name,
-                    'email' => $row['studentEmail'],
-                    'schoolName' => $school,
-                    'className' => $className,
-                    'avatarUrl' => !empty($row['avatarUrl']) ? (string) $row['avatarUrl'] : null,
-                ],
-                'skills' => $skillRows
-            ]
         ];
     }
 } catch (\Throwable $e) {}
@@ -295,6 +265,7 @@ $sidebarNav = [
     <link rel="stylesheet" href="../../../assets/css/polish.css">
     <link rel="stylesheet" href="../../../assets/css/enterprise.css">
     <link rel="stylesheet" href="../../../assets/css/typeui-selects.css">
+    <link rel="stylesheet" href="../../../assets/css/enterprise-applicants.css?v=<?= filemtime(dirname(__DIR__, 3) . '/assets/css/enterprise-applicants.css'); ?>">
 </head>
 <body class="enterprise-dashboard">
     <a class="skip-link" href="#main-content">Bỏ qua đến nội dung chính</a>
@@ -312,8 +283,8 @@ $sidebarNav = [
             <?php include __DIR__ . '/../includes/header.php'; ?>
 
             <!-- Page Body Content -->
-            <main class="ent-body" id="main-content">
-                <div class="container-fluid">
+            <main class="ent-body ent-applicants-page" id="main-content">
+                <div class="applicants-workspace">
                     
                     <!-- Back Breadcrumb Bar -->
                     <div class="ent-back-bar">
@@ -323,7 +294,10 @@ $sidebarNav = [
                     </div>
 
                     <!-- Clean H1 Page Header -->
-                    <h1 class="ent-page-title">Quản lý ứng viên</h1>
+                    <header class="applicants-page-heading">
+                        <h1 class="ent-page-title">Quản lý ứng viên</h1>
+                        <p>Theo dõi hồ sơ và lựa chọn ứng viên cho vị trí thực tập.</p>
+                    </header>
 
                     <?php if (!$post): ?>
                         <!-- Empty State: Invalid Post ID -->
@@ -342,109 +316,109 @@ $sidebarNav = [
 
                     <?php else: ?>
 
-                        <!-- 1. Internship Context Header Card -->
-                        <div class="ent-applicant-context-card">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-                                <div>
-                                    <div class="d-flex align-items-center gap-2 mb-1">
-                                        <h2 class="ent-applicant-context-card__title">
-                                            <?= htmlspecialchars($post['title']); ?>
-                                        </h2>
-                                        <span class="ent-status-pill ent-status-pill--<?= $post['status']; ?>">
-                                            <span class="dot"></span>
-                                            <?= htmlspecialchars($post['status_label']); ?>
-                                        </span>
-                                    </div>
-                                    <div class="ent-applicant-context-card__meta">
-                                        <?= htmlspecialchars($post['field']); ?> &bull; 
-                                        <?= htmlspecialchars($post['work_type']); ?> &bull; 
-                                        Hạn nộp <?= htmlspecialchars($post['deadline']); ?> &bull; 
-                                        Chỉ tiêu <?= htmlspecialchars($post['slots']); ?>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center gap-2">
-                                    <a href="create.php?id=<?= $post['id']; ?>" class="btn btn-secondary btn-sm" title="Chỉnh sửa tin đăng">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                        </svg>
-                                        Sửa tin
-                                    </a>
-                                    <span class="ent-applicant-count-badge">
-                                        <?= count($applicants); ?> ứng viên đã nộp
+                        <section class="applicants-job" aria-labelledby="applicants-job-title">
+                            <div class="applicants-job__heading">
+                                <div class="applicants-job__title-group">
+                                    <h2 id="applicants-job-title"><?= htmlspecialchars($post['title']); ?></h2>
+                                    <span class="ent-status-pill ent-status-pill--<?= $post['status']; ?>">
+                                        <span class="dot"></span>
+                                        <?= htmlspecialchars($post['status_label']); ?>
                                     </span>
                                 </div>
+                                <a href="create.php?id=<?= $post['id']; ?>" class="applicants-action applicants-action--quiet" title="Chỉnh sửa tin đăng">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                    Sửa tin
+                                </a>
                             </div>
-                        </div>
+                            <dl class="applicants-job__facts">
+                                <div><dt>Lĩnh vực</dt><dd><?= htmlspecialchars($post['field']); ?></dd></div>
+                                <div><dt>Hình thức</dt><dd><?= htmlspecialchars($post['work_type']); ?></dd></div>
+                                <div><dt>Hạn ứng tuyển</dt><dd><?= htmlspecialchars($post['deadline']); ?></dd></div>
+                                <div><dt>Chỉ tiêu</dt><dd><?= htmlspecialchars($post['slots']); ?></dd></div>
+                            </dl>
+                        </section>
 
-                            <!-- 2. Applicant Pipeline Status Filter Tabs -->
-                            <div class="ent-pipeline-tabs-wrapper">
-                                <ul class="ent-pipeline-nav" role="tablist" aria-label="Bộ lọc trạng thái ứng viên">
-                                    <li role="presentation">
-                                        <button type="button" role="tab" class="ent-pipeline-tab is-active" data-status-filter="all" aria-selected="true">
-                                            <span>Tất cả</span>
-                                            <span class="ent-pipeline-tab__count"><?= $pipelineCounts['all']; ?></span>
-                                        </button>
-                                    </li>
-                                    <li role="presentation">
-                                        <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="submitted" aria-selected="false">
-                                            <span>Mới</span>
-                                            <span class="ent-pipeline-tab__count"><?= $pipelineCounts['submitted']; ?></span>
-                                        </button>
-                                    </li>
-                                    <li role="presentation">
-                                        <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="reviewing" aria-selected="false">
-                                            <span>Đang xem xét</span>
-                                            <span class="ent-pipeline-tab__count"><?= $pipelineCounts['reviewing']; ?></span>
-                                        </button>
-                                    </li>
-                                    <li role="presentation">
-                                        <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="interview" aria-selected="false">
-                                            <span>Phỏng vấn</span>
-                                            <span class="ent-pipeline-tab__count"><?= $pipelineCounts['interview']; ?></span>
-                                        </button>
-                                    </li>
-                                    <li role="presentation">
-                                        <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="accepted" aria-selected="false">
-                                            <span>Đã nhận</span>
-                                            <span class="ent-pipeline-tab__count"><?= $pipelineCounts['accepted']; ?></span>
-                                        </button>
-                                    </li>
-                                    <li role="presentation">
-                                        <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="declined" aria-selected="false">
-                                            <span>Từ chối</span>
-                                            <span class="ent-pipeline-tab__count"><?= $pipelineCounts['declined']; ?></span>
-                                        </button>
-                                    </li>
-                                    <li role="presentation">
-                                        <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="invited" aria-selected="false">
-                                            <span>Đã mời</span>
-                                            <span class="ent-pipeline-tab__count"><?= $pipelineCounts['invited']; ?></span>
-                                        </button>
-                                    </li>
-                                </ul>
+                        <section class="applicants-panel" aria-labelledby="applicants-list-title">
+                            <div class="applicants-panel__heading">
+                                <h2 id="applicants-list-title">Danh sách ứng viên <span class="applicants-total"><?= count($applicants); ?></span></h2>
+                                <p id="applicants-result-summary" role="status" aria-live="polite"></p>
                             </div>
 
-                            <!-- 3. Search / Filter / Sort Toolbar -->
-                            <div class="ent-search-toolbar">
-                                <div class="ent-internship-filter-row">
+                            <!-- Unified list controls -->
+                            <div class="applicants-controls">
+                                <div class="applicants-tabs">
+                                    <ul class="ent-pipeline-nav" role="tablist" aria-label="Bộ lọc trạng thái ứng viên">
+                                        <li role="presentation">
+                                            <button type="button" role="tab" class="ent-pipeline-tab is-active" data-status-filter="all" aria-selected="true">
+                                                <span>Tất cả</span>
+                                                <span class="ent-pipeline-tab__count"><?= $pipelineCounts['all']; ?></span>
+                                            </button>
+                                        </li>
+                                        <li role="presentation">
+                                            <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="submitted" aria-selected="false">
+                                                <span>Mới</span>
+                                                <span class="ent-pipeline-tab__count"><?= $pipelineCounts['submitted']; ?></span>
+                                            </button>
+                                        </li>
+                                        <li role="presentation">
+                                            <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="reviewing" aria-selected="false">
+                                                <span>Đang xem xét</span>
+                                                <span class="ent-pipeline-tab__count"><?= $pipelineCounts['reviewing']; ?></span>
+                                            </button>
+                                        </li>
+                                        <li role="presentation">
+                                            <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="interview" aria-selected="false">
+                                                <span>Phỏng vấn</span>
+                                                <span class="ent-pipeline-tab__count"><?= $pipelineCounts['interview']; ?></span>
+                                            </button>
+                                        </li>
+                                        <li role="presentation">
+                                            <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="accepted" aria-selected="false">
+                                                <span>Đã nhận</span>
+                                                <span class="ent-pipeline-tab__count"><?= $pipelineCounts['accepted']; ?></span>
+                                            </button>
+                                        </li>
+                                        <li role="presentation">
+                                            <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="declined" aria-selected="false">
+                                                <span>Từ chối</span>
+                                                <span class="ent-pipeline-tab__count"><?= $pipelineCounts['declined']; ?></span>
+                                            </button>
+                                        </li>
+                                        <li role="presentation">
+                                            <button type="button" role="tab" class="ent-pipeline-tab" data-status-filter="invited" aria-selected="false">
+                                                <span>Đã mời</span>
+                                                <span class="ent-pipeline-tab__count"><?= $pipelineCounts['invited']; ?></span>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <!-- Search / Filter / Sort -->
+                                <div class="applicants-filters" role="search" aria-label="Tìm và lọc ứng viên">
                                     <!-- Keyword Search Input -->
-                                    <div class="ent-search-input-wrapper">
-                                        <svg class="ent-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="11" cy="11" r="8"></circle>
-                                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                                        </svg>
-                                        <input type="text" 
-                                               id="applicant-search-input" 
-                                               class="ent-search-input" 
-                                               placeholder="Tìm kiếm ứng viên theo tên, trường, lớp hoặc kỹ năng..."
-                                               aria-label="Tìm kiếm ứng viên">
-                                        <button type="button" class="ent-search-clear" id="applicant-search-clear" aria-label="Xóa tìm kiếm" style="display: none;">&times;</button>
+                                    <div class="applicants-field applicants-field--search">
+                                        <label for="applicant-search-input">Tìm ứng viên</label>
+                                        <div class="applicants-search">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                                                <circle cx="11" cy="11" r="8"></circle>
+                                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                            </svg>
+                                            <input type="text" 
+                                                   id="applicant-search-input" 
+                                                   class="applicants-input" 
+                                                   placeholder="Tên, trường, lớp hoặc kỹ năng"
+                                                   aria-label="Tìm kiếm ứng viên">
+                                            <button type="button" class="applicants-search__clear" id="applicant-search-clear" aria-label="Xóa tìm kiếm" style="display: none;">&times;</button>
+                                        </div>
                                     </div>
 
                                     <!-- Status Filter Dropdown -->
-                                    <div class="ent-filter-select-wrapper">
-                                        <select id="filter-app-status-select" class="ent-filter-select typeui-select typeui-select--compact" aria-label="Lọc ứng viên theo trạng thái">
+                                    <div class="applicants-field">
+                                        <label for="filter-app-status-select">Trạng thái</label>
+                                        <select id="filter-app-status-select" class="typeui-select" aria-label="Lọc ứng viên theo trạng thái">
                                             <option value="">Tất cả trạng thái</option>
                                             <option value="submitted">Mới</option>
                                             <option value="reviewing">Đang xem xét</option>
@@ -456,8 +430,9 @@ $sidebarNav = [
                                     </div>
 
                                     <!-- Score Match Filter -->
-                                    <div class="ent-filter-select-wrapper">
-                                        <select id="filter-score-select" class="ent-filter-select typeui-select typeui-select--compact" aria-label="Lọc ứng viên theo điểm phù hợp">
+                                    <div class="applicants-field">
+                                        <label for="filter-score-select">Độ phù hợp</label>
+                                        <select id="filter-score-select" class="typeui-select" aria-label="Lọc ứng viên theo điểm phù hợp">
                                             <option value="all">Tất cả độ phù hợp</option>
                                             <option value="90_plus">&ge; 90% phù hợp</option>
                                             <option value="80_89">80% - 89% phù hợp</option>
@@ -466,8 +441,9 @@ $sidebarNav = [
                                     </div>
 
                                     <!-- Sort Dropdown -->
-                                    <div class="ent-filter-select-wrapper">
-                                        <select id="sort-applicant-select" class="ent-filter-select typeui-select typeui-select--compact" aria-label="Sắp xếp danh sách ứng viên">
+                                    <div class="applicants-field">
+                                        <label for="sort-applicant-select">Sắp xếp</label>
+                                        <select id="sort-applicant-select" class="typeui-select" aria-label="Sắp xếp danh sách ứng viên">
                                             <option value="score_desc">% phù hợp cao nhất</option>
                                             <option value="date_desc">Mới ứng tuyển</option>
                                             <option value="date_asc">Cũ nhất</option>
@@ -476,34 +452,13 @@ $sidebarNav = [
                                 </div>
                             </div>
 
-                            <!-- 4. Desktop Table View (>= 768px) -->
-                            <div class="ent-section-box p-0 overflow-hidden mb-4 ent-desktop-table-container" id="applicants-table-container" style="<?= count($applicants) === 0 ? 'display: none;' : ''; ?>">
-                                <div class="table-responsive">
-                                    <table class="ent-applicant-table" id="applicants-table">
-                                        <thead>
-                                            <tr>
-                                                <th style="width: 26%; min-width: 160px;">Ứng viên</th>
-                                                <th style="width: 20%; min-width: 130px;">Kỹ năng chính</th>
-                                                <th style="width: 100px; min-width: 90px;">Ngày ứng tuyển</th>
-                                                <th style="width: 100px; min-width: 95px; text-align: center;">Độ phù hợp</th>
-                                                <th style="width: 115px; min-width: 105px;">Trạng thái</th>
-                                                <th style="width: 185px; min-width: 175px; text-align: right;">Thao tác</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="applicants-tbody">
-                                            <!-- Dynamically populated via applicant-management.js -->
-                                        </tbody>
-                                    </table>
-                                </div>
+                            <!-- One responsive list for desktop and mobile. -->
+                            <div id="applicants-list-container" style="<?= count($applicants) === 0 ? 'display: none;' : ''; ?>">
+                                <div class="applicants-list" id="applicants-list" role="list" aria-labelledby="applicants-list-title"></div>
                             </div>
 
-                            <!-- 5. Mobile Cards View (< 768px) -->
-                            <div class="ent-mobile-cards-container mb-4" id="applicants-mobile-cards">
-                                <!-- Dynamically populated via applicant-management.js -->
-                            </div>
-
-                            <!-- 6. Empty State: No Applicants Yet OR Empty Filter Results -->
-                            <div class="ent-section-box text-center py-5" id="applicants-empty-state" style="<?= count($applicants) === 0 ? 'display: block;' : 'display: none;'; ?> padding: 3.5rem 1.5rem;">
+                            <!-- Empty list or no matching filter results -->
+                            <div class="applicants-empty" id="applicants-empty-state" style="<?= count($applicants) === 0 ? 'display: block;' : 'display: none;'; ?>">
                                 <div class="ent-empty-state__icon mb-3">
                                     <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#FF6B45" stroke-width="1.5" aria-hidden="true">
                                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -512,25 +467,26 @@ $sidebarNav = [
                                         <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                                     </svg>
                                 </div>
-                                <h3 class="ent-section-box__title mb-2" id="applicants-empty-title">
+                                <h3 id="applicants-empty-title">
                                     Chưa có ứng viên nào ứng tuyển hoặc được tiếp nhận cho vị trí này
                                 </h3>
-                                <p class="ent-section-box__subtitle max-w-600 auto-x mb-4" id="applicants-empty-desc">
+                                <p id="applicants-empty-desc">
                                     Hiện tại chưa có ứng viên nào nộp hồ sơ hoặc nhận lời mời thực tập cho vị trí <strong>"<?= htmlspecialchars($post['title']); ?>"</strong>. Bạn có thể sử dụng công cụ Tìm nhân tài để kết nối với các ứng viên phù hợp.
                                 </p>
                                 <div class="d-flex align-items-center justify-content-center gap-2" id="applicants-empty-actions">
-                                    <a href="../talents.php" class="btn btn-primary">
+                                    <a href="../talents.php" class="applicants-action applicants-action--primary">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                             <circle cx="11" cy="11" r="8"></circle>
                                             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                                         </svg>
                                         <span>Tìm kiếm nhân tài</span>
                                     </a>
-                                    <a href="index.php" class="btn btn-secondary">
+                                    <a href="index.php" class="applicants-action applicants-action--quiet">
                                         Quay lại Tuyển thực tập
                                     </a>
                                 </div>
                             </div>
+                        </section>
 
                     <?php endif; ?>
 
@@ -774,26 +730,17 @@ $sidebarNav = [
                 <div class="ats-cv-header__main">
                     <div class="ats-cv-header__title-row">
                         <span class="ats-cv-badge">Hồ sơ ứng viên</span>
-                        <h3 class="ats-cv-candidate-name" id="cv-modal-student-name">Nguyễn Văn An</h3>
+                        <h3 class="ats-cv-candidate-name" id="cv-modal-student-name">Hồ sơ ứng viên</h3>
                     </div>
                     <div class="ats-cv-header__meta">
                         <span id="cv-modal-position-title"><?= htmlspecialchars($post ? $post['title'] : 'Thực tập sinh'); ?></span>
                         <span class="ats-meta-divider">&bull;</span>
-                        <span id="cv-modal-applied-time">Nộp ngày 10/08/2026</span>
+                        <span id="cv-modal-applied-time"></span>
                     </div>
                 </div>
 
                 <div class="ats-cv-header__actions">
-                    <a href="#" id="btn-cv-modal-passport" class="ats-action-btn ats-action-btn--passport" title="Hồ sơ bất biến đã chụp khi ứng tuyển">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <rect x="3" y="4" width="18" height="16" rx="2"></rect>
-                            <circle cx="9" cy="10" r="2"></circle>
-                            <line x1="15" y1="8" x2="17" y2="8"></line>
-                            <line x1="15" y1="12" x2="17" y2="12"></line>
-                        </svg>
-                        <span>Hồ sơ đã chụp</span>
-                    </a>
-                    <button type="button" class="ats-close-btn" id="ent-cv-modal-close" aria-label="Đóng CV">&times;</button>
+                    <button type="button" class="ats-close-btn" id="ent-cv-modal-close" aria-label="Đóng hồ sơ ứng viên">&times;</button>
                 </div>
             </div>
 
@@ -814,8 +761,8 @@ $sidebarNav = [
                 </div>
                 <div class="ats-cv-recruiter-divider"></div>
                 <div class="ats-cv-recruiter-item">
-                    <span class="ats-cv-recruiter-label">Hồ sơ đính kèm</span>
-                    <span class="ats-cv-recruiter-value ats-cv-filename" id="cv-modal-filename">Snapshot 1.0.0</span>
+                    <span class="ats-cv-recruiter-label">Nguồn hồ sơ</span>
+                    <span class="ats-cv-recruiter-value ats-cv-filename" id="cv-modal-filename"></span>
                 </div>
             </div>
 
@@ -830,7 +777,7 @@ $sidebarNav = [
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" aria-hidden="true">
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                     </svg>
-                    <span>Hồ sơ được chụp theo đồng ý chia sẻ tại thời điểm ứng tuyển</span>
+                    <span>Chỉ hiển thị dữ liệu trong hồ sơ đã chia sẻ khi ứng tuyển</span>
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <button type="button" class="ats-footer-btn ats-footer-btn--secondary" id="btn-cv-close-bottom">Đóng</button>
@@ -865,6 +812,6 @@ $sidebarNav = [
     </script>
     <!-- JavaScript Assets -->
     <script src="<?= app_href('/assets/js/enterprise.js'); ?>"></script>
-    <script src="<?= app_href('/assets/js/applicant-management.js'); ?>"></script>
+    <script src="<?= app_href('/assets/js/applicant-management.js'); ?>?v=<?= filemtime(dirname(__DIR__, 3) . '/assets/js/applicant-management.js'); ?>"></script>
 </body>
 </html>

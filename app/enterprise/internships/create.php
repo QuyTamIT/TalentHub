@@ -210,13 +210,25 @@ if ($editingPost) {
 
 $postAudience = $editingPost ? ($editingPost['audience'] ?? 'public') : 'public';
 $selectedTargetSchoolIds = $editingPost ? ($editingPost['targetSchoolIds'] ?? []) : [];
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    $submittedAudience = (string) ($_POST['audience'] ?? $postAudience);
+    if (in_array($submittedAudience, ['public', 'partner_schools'], true)) {
+        $postAudience = $submittedAudience;
+    }
+    $selectedTargetSchoolIds = isset($_POST['targetSchoolIds']) && is_array($_POST['targetSchoolIds'])
+        ? array_values(array_filter($_POST['targetSchoolIds'], 'is_string'))
+        : [];
+}
 
 $rawApprovedSchools = [];
+$partnerSchoolsError = null;
 try {
-    $rawApprovedSchools = $internshipService->listApprovedPartnerSchools();
+    $rawApprovedSchools = $internshipService->listApprovedPartnerSchools((string) $user['id']);
 } catch (\Throwable) {
     $rawApprovedSchools = [];
+    $partnerSchoolsError = 'Không thể tải danh sách trường đối tác. Vui lòng tải lại trang.';
 }
+$selectedTargetSchoolIds = array_values(array_unique(array_intersect($selectedTargetSchoolIds, array_column($rawApprovedSchools, 'id'))));
 
 $approvedPartners = [];
 foreach ($rawApprovedSchools as $schoolRow) {
@@ -636,7 +648,7 @@ $sidebarNav = [
                                             <line x1="12" y1="8" x2="12" y2="12"></line>
                                             <line x1="12" y1="16" x2="12.01" y2="16"></line>
                                         </svg>
-                                        Hiện chưa có trường đối tác nào được phê duyệt hoạt động trên hệ thống.
+                                        <?= htmlspecialchars($partnerSchoolsError ?? 'Doanh nghiệp của bạn chưa có trường đối tác đang hoạt động. Nhà trường cần thêm doanh nghiệp làm đối tác trước khi bạn đăng tin trong phạm vi này.', ENT_QUOTES, 'UTF-8'); ?>
                                     </div>
                                 <?php else: ?>
                                     <div class="ent-schools-list">

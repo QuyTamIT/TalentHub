@@ -19,6 +19,7 @@ $flash = null;
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $session->assertCsrf(isset($_POST['csrfToken']) ? (string) $_POST['csrfToken'] : null);
     try {
+        $context['permissions']->require($userId, 'partnership.review_own_school');
         $action = (string) ($_POST['action'] ?? 'review');
         if ($action === 'request_partnership') {
             $enterpriseId = trim((string) ($_POST['enterpriseId'] ?? ''));
@@ -26,7 +27,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 throw new ApiException(422, 'VALIDATION_FAILED', 'Mã doanh nghiệp không hợp lệ.');
             }
             $service->requestPartnershipFromSchool($userId, ['enterpriseId' => $enterpriseId]);
-            $flash = 'Đã gửi yêu cầu hợp tác tới doanh nghiệp thành công.';
+            $flash = 'Đã thêm đối tác. Quan hệ hợp tác có hiệu lực ngay.';
         } else {
             $partnershipId = trim((string) ($_POST['partnershipId'] ?? $_POST['relationshipId'] ?? $_POST['id'] ?? ''));
             $status = trim((string) ($_POST['status'] ?? ''));
@@ -35,9 +36,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
             $service->reviewPartnership($userId, $partnershipId, ['status' => $status]);
             $flash = match ($status) {
-                'approved' => 'Đã chấp thuận quan hệ đối tác.',
+                'approved' => 'Đang hợp tác với doanh nghiệp.',
                 'rejected' => 'Đã từ chối yêu cầu hợp tác.',
-                'suspended' => 'Đã tạm dừng quan hệ đối tác.',
+                'suspended' => 'Đã hủy hợp tác với doanh nghiệp.',
                 default => 'Đã cập nhật quan hệ đối tác.',
             };
         }
@@ -69,25 +70,25 @@ $schoolInfo = [
 ];
 $currentRoute = '/app/school/partnerships.php';
 $pageTitle = 'Đối tác doanh nghiệp';
-$labels = ['pending' => 'Chờ duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Đã từ chối', 'suspended' => 'Tạm dừng'];
+$labels = ['pending' => 'Chờ duyệt', 'approved' => 'Đang hợp tác', 'rejected' => 'Đã từ chối', 'suspended' => 'Đã hủy hợp tác'];
 
 $pdo = $context['pdo'] ?? null;
 $availableEnterprises = [];
 if ($pdo instanceof PDO) {
     try {
-        $entStmt = $pdo->query("SELECT id, name FROM enterprises WHERE status = 'active' ORDER BY name ASC");
-        $allEnterprises = $entStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-        $existingPartnerEnterpriseIds = array_column($partnerships, 'enterpriseId');
-        $availableEnterprises = array_values(array_filter(
-            $allEnterprises,
-            fn($ent) => !in_array($ent['id'], $existingPartnerEnterpriseIds, true)
-        ));
+        $entStmt = $pdo->prepare("SELECT e.id, e.name FROM enterprises e
+            WHERE e.status = 'active' AND e.verificationStatus IN ('verified', 'approved')
+              AND NOT EXISTS (SELECT 1 FROM school_enterprise_partnerships sep
+                  WHERE sep.enterpriseId = e.id AND sep.schoolId = :schoolId AND sep.status = 'approved')
+            ORDER BY e.name ASC");
+        $entStmt->execute(['schoolId' => (string) $context['school']['id']]);
+        $availableEnterprises = $entStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } catch (\Throwable) {}
 }
 
 ob_start();
 ?>
-<?php $pageDescription = 'Xét duyệt doanh nghiệp được phép kết nối và nhắm mục tiêu cơ hội tới trường.'; include __DIR__ . '/includes/page-banner.php'; ?>
+<?php $pageDescription = 'Thêm doanh nghiệp đã được Admin duyệt làm đối tác để kết nối cơ hội thực tập cho sinh viên.'; include __DIR__ . '/includes/page-banner.php'; ?>
 <?php if ($flash): ?><div class="school-flash school-flash--success"><?= htmlspecialchars($flash); ?></div><?php endif; ?>
 <?php if ($error): ?><div class="school-flash school-flash--error"><?= htmlspecialchars($error); ?></div><?php endif; ?>
 <div class="school-section-box">
@@ -111,7 +112,7 @@ ob_start();
         </div>
     </div>
     <?php if ($partnerships === []): ?>
-        <p><?= $statusFilter ? 'Chưa có yêu cầu hợp tác phù hợp.' : 'Chưa có yêu cầu hợp tác.'; ?></p>
+        <p><?= $statusFilter ? 'Chưa có quan hệ hợp tác phù hợp.' : 'Chưa có đối tác doanh nghiệp. Chọn Thêm đối tác để bắt đầu hợp tác.'; ?></p>
     <?php else: ?>
         <table class="school-class-table"><thead><tr><th>Doanh nghiệp</th><th>Ngành</th><th>Trạng thái</th><th>Cập nhật</th><th style="text-align:right">Thao tác</th></tr></thead><tbody>
         <?php foreach ($partnerships as $item): ?><tr>
@@ -128,7 +129,7 @@ ob_start();
             <td><span class="<?= $badgeClass ?>"><?= htmlspecialchars($labels[(string) $item['status']] ?? (string) $item['status']); ?></span></td>
             <td><?= htmlspecialchars((string) $item['updatedAt']); ?> UTC</td>
             <td style="text-align:right"><div style="display:flex;gap:.4rem;justify-content:flex-end">
-                <?php foreach ((($item['status'] ?? '') === 'pending' ? ['approved' => 'Chấp thuận', 'rejected' => 'Từ chối'] : (($item['status'] ?? '') === 'approved' ? ['suspended' => 'Tạm dừng'] : [])) as $status => $label): ?>
+                <?php foreach ((($item['status'] ?? '') === 'pending' ? ['approved' => 'Chấp thuận', 'rejected' => 'Từ chối'] : (($item['status'] ?? '') === 'approved' ? ['suspended' => 'Hủy hợp tác'] : [])) as $status => $label): ?>
                 <form method="post"><input type="hidden" name="csrfToken" value="<?= htmlspecialchars($session->csrfToken(), ENT_QUOTES, 'UTF-8'); ?>"><input type="hidden" name="partnershipId" value="<?= htmlspecialchars((string) $item['id']); ?>"><input type="hidden" name="status" value="<?= $status; ?>"><button class="btn btn-sm btn-outline" type="submit" data-confirm="Xác nhận cập nhật quan hệ đối tác?"><?= htmlspecialchars($label); ?></button></form>
                 <?php endforeach; ?>
             </div></td>
@@ -137,7 +138,7 @@ ob_start();
     <?php endif; ?>
 </div>
 
-<!-- Modal Thêm Đối Tác (Mock UI) -->
+<!-- Thêm đối tác doanh nghiệp -->
 <div id="addPartnerModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; align-items: center; justify-content: center;">
     <div style="background: #fff; width: 100%; max-width: 500px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 1.5rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
@@ -152,12 +153,8 @@ ob_start();
             <input type="hidden" name="action" value="request_partnership">
             
             <div style="margin-bottom: 3rem;">
-                <label style="display: block; font-size: 0.9rem; font-weight: 500; color: #475569; margin-bottom: 0.5rem;">Tìm kiếm doanh nghiệp...</label>
-                <!-- MOCK LOGIC REQUIREMENTS:
-                     The options inside this select MUST be filtered to exclude existing partners.
-                     e.g. options = allEnterprises.filter(enterprise => !currentPartnerIds.includes(enterprise.id))
-                -->
-                <select name="enterpriseId" class="typeui-select" required>
+                <label for="partnerEnterpriseId" style="display: block; font-size: 0.9rem; font-weight: 500; color: #475569; margin-bottom: 0.5rem;">Doanh nghiệp đã được Admin duyệt</label>
+                <select id="partnerEnterpriseId" name="enterpriseId" class="typeui-select" required>
                     <?php if ($availableEnterprises === []): ?>
                         <option value="">-- Không còn doanh nghiệp nào khả dụng --</option>
                     <?php else: ?>
@@ -167,11 +164,12 @@ ob_start();
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </select>
+                <p>Quan hệ hợp tác có hiệu lực ngay khi bạn xác nhận thêm đối tác.</p>
             </div>
             
             <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid #E2E8F0;">
                 <button type="button" class="btn btn-outline" onclick="closeAddPartnerModal()">Hủy</button>
-                <button type="submit" class="btn" style="background-color: #C2410C; border-color: #C2410C; color: #fff;">Gửi lời mời</button>
+                <button type="submit" class="btn" <?= $availableEnterprises === [] ? 'disabled' : ''; ?> style="background-color: #C2410C; border-color: #C2410C; color: #fff;">Xác nhận thêm đối tác</button>
             </div>
         </form>
     </div>

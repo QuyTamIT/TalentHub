@@ -12,6 +12,16 @@ if (!function_exists('app_href') && is_file(__DIR__ . '/../../../bin/bootstrap.p
     require_once __DIR__ . '/../../../bin/bootstrap.php';
 }
 require_once dirname(__DIR__, 2) . '/shared/BrandHeader.php';
+
+// Share the partnership entry across pages that supply their own navigation.
+if (!in_array('/app/enterprise/partnerships.php', array_column($sidebarNav, 'route'), true)) {
+    $sidebarNav[] = [
+        'title' => 'Đối tác trường học',
+        'route' => '/app/enterprise/partnerships.php',
+        'icon' => 'building',
+        'active' => false,
+    ];
+}
 ?>
 <!-- Sidebar Overlay Backdrop for Mobile & Tablet -->
 <div class="ent-sidebar-backdrop" id="ent-sidebar-backdrop" aria-hidden="true"></div>

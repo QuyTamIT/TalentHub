@@ -2,10 +2,13 @@
 declare(strict_types=1);
 
 require dirname(__DIR__, 3) . '/bin/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/learner/includes/icons.php';
 
 use TalentHub\Auth\Session\SessionManager;
 use TalentHub\Bootstrap\PortalGuard;
 use TalentHub\Database\Connection;
+use TalentHub\Learner\Data\Database\DatabaseTalentPassportRepository;
+use TalentHub\Learner\Data\Service\ScoreViewer;
 use TalentHub\Rbac\RoleCodes;
 
 date_default_timezone_set('Asia/Ho_Chi_Minh');
@@ -36,48 +39,43 @@ function teacher_student_initials(string $fullName): string
     return mb_strtoupper(mb_substr($parts[0], 0, 1) . mb_substr($parts[count($parts) - 1], 0, 1));
 }
 
-/**
- * Xác định Năng khiếu chính từ dữ liệu kỹ năng/năng lực thực tế của học viên trong khu vực Student → Hồ sơ năng lực.
- * Tuyệt đối không suy đoán từ điểm đánh giá giáo viên (Chuyên môn, Sáng tạo...), không lấy từ tên hoạt động hay mock.
- */
-function teacher_resolve_student_primary_skill(PDO $pdo, string $studentId): ?string
+/** Display qualified aptitude groups using the Student skill source and shared taxonomy. */
+function teacher_student_aptitudes(array $skills, array $groups, array $skillGroups): ?string
 {
-    // 1. Kỹ năng thực tế từ student_skills trong Hồ sơ năng lực Student
-    try {
-        $stmt = $pdo->prepare("
-            SELECT s.name
-            FROM student_skills ss
-            JOIN skills s ON s.id = ss.skillId
-            WHERE ss.studentId = :sid AND s.status = 'active'
-            ORDER BY (ss.verificationStatus = 'verified') DESC, ss.levelScore DESC
-            LIMIT 1
-        ");
-        $stmt->execute(['sid' => $studentId]);
-        $name = $stmt->fetchColumn();
-        if (!empty($name)) {
-            return (string) $name;
+    $qualifiedGroups = [];
+    foreach ($skills as $skill) {
+        $score = $skill['level_score'] ?? null;
+        if (($skill['verification_status'] ?? '') !== 'verified'
+            || ($skill['category'] ?? '') === 'soft'
+            || !is_numeric($score) || (float) $score < 85) {
+            continue;
         }
-    } catch (Throwable) {}
 
-    // 2. Kỹ năng dự án / thực tập từ learner_portfolio_skills
-    try {
-        $stmt = $pdo->prepare("
-            SELECT s.name
-            FROM learner_portfolio_skills ps
-            JOIN skills s ON s.id = ps.skillId AND s.status = 'active'
-            LEFT JOIN project_submissions r ON r.id = ps.reportId AND ps.kind = 'project'
-            LEFT JOIN learner_internship_reports ir ON ir.id = ps.reportId AND ps.kind = 'internship'
-            WHERE (r.studentId = :sid1 OR ir.studentId = :sid2)
-            LIMIT 1
-        ");
-        $stmt->execute(['sid1' => $studentId, 'sid2' => $studentId]);
-        $name = $stmt->fetchColumn();
-        if (!empty($name)) {
-            return (string) $name;
+        // Direct group scores stay group scores; individual skills use catalog membership.
+        $groupCodes = !empty($skill['group_code'])
+            ? [(string) $skill['group_code']]
+            : ($skillGroups[(string) ($skill['skill_id'] ?? '')] ?? []);
+        foreach ($groupCodes as $code) {
+            if ($code !== 'soft_skills' && isset($groups[$code])) {
+                $qualifiedGroups[$code] = true;
+            }
         }
-    } catch (Throwable) {}
+    }
 
-    return null;
+    $labels = [];
+    foreach ($groups as $code => $name) {
+        if (!isset($qualifiedGroups[$code])) {
+            continue;
+        }
+        $label = match ($code) {
+            'frontend', 'backend' => 'Lập trình',
+            'ui_ux' => 'Thiết kế',
+            default => $name,
+        };
+        $labels[$label] = true;
+    }
+
+    return $labels === [] ? null : implode(' · ', array_keys($labels));
 }
 
 $error = null;
@@ -223,6 +221,26 @@ try {
     $stmt->execute($queryParams);
     $rawRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    $aptitudeGroups = [];
+    $aptitudeSkillGroups = [];
+    $studentSkillRepository = new DatabaseTalentPassportRepository(
+        $pdo,
+        new ScoreViewer(ScoreViewer::ROLE_TEACHER, (string) $user['id'])
+    );
+    if ($rawRows !== []) {
+        $taxonomy = $pdo->query("SELECT g.code, g.name, m.skillId
+            FROM skill_groups g
+            LEFT JOIN skill_group_members m ON m.groupCode = g.code
+            WHERE g.status = 'active' AND g.code <> 'soft_skills'
+            ORDER BY g.displayOrder, g.code, m.skillId");
+        foreach ($taxonomy->fetchAll(PDO::FETCH_ASSOC) as $group) {
+            $aptitudeGroups[$group['code']] = $group['name'];
+            if ($group['skillId'] !== null) {
+                $aptitudeSkillGroups[$group['skillId']][] = $group['code'];
+            }
+        }
+    }
+
     // Format rows for display
     foreach ($rawRows as $r) {
         $badges = [];
@@ -233,9 +251,6 @@ try {
             }
         }
 
-        // Năng khiếu chính từ Hồ sơ năng lực Student
-        $primarySkill = teacher_resolve_student_primary_skill($pdo, (string) $r['studentId']);
-
         $rows[] = [
             'studentId' => $r['studentId'],
             'fullName' => $r['fullName'],
@@ -245,7 +260,11 @@ try {
             'talentScore' => $r['talentScore'] !== null ? (float) $r['talentScore'] : null,
             'experienceHours' => (float) ($r['experienceHours'] ?? 0),
             'badges' => $badges,
-            'primarySkill' => $primarySkill,
+            'primaryAptitude' => teacher_student_aptitudes(
+                $studentSkillRepository->skills((string) $r['studentId']),
+                $aptitudeGroups,
+                $aptitudeSkillGroups
+            ),
         ];
     }
 } catch (Throwable $e) {
@@ -420,7 +439,7 @@ $talentScoreSortUrl = './index.php?' . http_build_query($sortUrlParams);
                                                 </a>
                                             </th>
                                             <th style="min-width: 130px;">Giờ trải nghiệm</th>
-                                            <th style="min-width: 120px;">Huy hiệu</th>
+                                            <th style="min-width: 120px; text-align: center;">Huy hiệu</th>
                                             <th style="min-width: 180px;">Năng khiếu</th>
                                         </tr>
                                     </thead>
@@ -480,42 +499,43 @@ $talentScoreSortUrl = './index.php?' . http_build_query($sortUrlParams);
                                                     <?php endif; ?>
                                                 </td>
 
-                                                <!-- 5. Huy hiệu: CHỈ HIỂN THỊ LOGO/ICON CỦA HUY HIỆU, KHÔNG HIỂN THỊ TÊN TEXT DÀI -->
-                                                <td data-label="Huy hiệu">
-                                                    <?php if (!empty($row['badges'])): ?>
-                                                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                                                            <?php foreach ($row['badges'] as $b): ?>
-                                                                <?php if (!empty($b['iconUrl'])): ?>
-                                                                    <img src="<?= teacher_students_escape($b['iconUrl']); ?>" 
-                                                                         alt="<?= teacher_students_escape($b['name']); ?>" 
-                                                                         title="<?= teacher_students_escape($b['name']); ?>" 
-                                                                         style="width: 2.25rem; height: 2.25rem; object-fit: contain; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                                                                <?php else: ?>
-                                                                    <span class="teacher-badge-emblem" 
-                                                                          title="<?= teacher_students_escape($b['name']); ?>" 
-                                                                          aria-label="<?= teacher_students_escape($b['name']); ?>" 
-                                                                          style="display: inline-flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border-radius: 50%; background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); color: #D97706; border: 1.5px solid #F59E0B; box-shadow: 0 2px 4px rgba(217, 119, 6, 0.15); cursor: default;">
-                                                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1">
-                                                                            <circle cx="12" cy="8" r="6"></circle>
-                                                                            <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" fill="#D97706"></path>
-                                                                        </svg>
-                                                                    </span>
-                                                                <?php endif; ?>
-                                                            <?php endforeach; ?>
-                                                        </div>
-                                                    <?php else: ?>
-                                                        <span class="teacher-students-empty" style="color: var(--text-muted); font-size: 0.875rem;">Chưa có</span>
-                                                    <?php endif; ?>
+                                                <!-- 5. Tổng số huy hiệu thực tế, kèm tối đa một icon có sẵn. -->
+                                                <td data-label="Huy hiệu" style="text-align: center; vertical-align: middle;">
+                                                    <?php
+                                                    $badgeCount = count($row['badges']);
+                                                    $representativeBadge = null;
+                                                    foreach ($row['badges'] as $badge) {
+                                                        if (trim((string) ($badge['iconUrl'] ?? '')) !== '') {
+                                                            $representativeBadge = $badge;
+                                                            break;
+                                                        }
+                                                    }
+                                                    ?>
+                                                    <div title="<?= $badgeCount; ?> huy hiệu" style="display: inline-flex; align-items: center; justify-content: center; justify-self: center; gap: 0.5rem; min-height: 1.75rem; white-space: nowrap;">
+                                                        <strong style="margin: 0; font-size: 1.125rem; line-height: 1.25; font-weight: 700; font-variant-numeric: tabular-nums; color: <?= $badgeCount > 0 ? '#7140A1' : 'var(--text-secondary)'; ?>;"><?= $badgeCount; ?></strong>
+                                                        <?php if ($representativeBadge !== null): ?>
+                                                            <img src="<?= teacher_students_escape($representativeBadge['iconUrl']); ?>"
+                                                                 alt=""
+                                                                 title="<?= teacher_students_escape($representativeBadge['name']); ?>"
+                                                                 width="24" height="24"
+                                                                 style="display: block; width: 1.5rem; height: 1.5rem; flex-shrink: 0; object-fit: contain;">
+                                                        <?php elseif ($badgeCount > 0): ?>
+                                                            <?php // Reuse the awarded-badge symbol from Student badges.php when no uploaded logo exists. ?>
+                                                            <span aria-hidden="true" style="display: inline-flex; flex-shrink: 0; color: #7140A1;">
+                                                                <?= learner_icon('award', 24); ?>
+                                                            </span>
+                                                        <?php endif; ?>
+                                                    </div>
                                                 </td>
 
-                                                <!-- 6. Năng khiếu: CHỈ HIỂN THỊ NĂNG KHIẾU CHÍNH TỪ HỒ SƠ NĂNG LỰC STUDENT -->
+                                                <!-- 6. Nhóm năng khiếu chuyên môn đạt từ 85 điểm, không lặp nhóm. -->
                                                 <td data-label="Năng khiếu">
-                                                    <?php if (!empty($row['primarySkill'])): ?>
-                                                        <span class="teacher-status-pill teacher-status-pill--info" style="font-size: 0.8125rem; padding: 0.3rem 0.65rem; display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 500;">
-                                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <?php if (!empty($row['primaryAptitude'])): ?>
+                                                        <span class="teacher-status-pill teacher-status-pill--info" title="<?= teacher_students_escape($row['primaryAptitude']); ?>" style="font-size: 0.8125rem; padding: 0.3rem 0.65rem; display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 500; max-width: 11rem; box-sizing: border-box; white-space: nowrap;">
+                                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="flex-shrink: 0;">
                                                                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                                                             </svg>
-                                                            <?= teacher_students_escape($row['primarySkill']); ?>
+                                                            <span style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><?= teacher_students_escape($row['primaryAptitude']); ?></span>
                                                         </span>
                                                     <?php else: ?>
                                                         <span class="teacher-students-empty" style="color: var(--text-muted); font-size: 0.875rem;">Chưa có</span>

@@ -25,7 +25,7 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
         $stmt->execute([$table,$column]); return (int)$stmt->fetchColumn()===1;
     }
 
-    public function forStudent(string $studentId): array
+    public function forStudent(string $studentId, bool $forApplicationSnapshot = false): array
     {
         $studentId=Uuid::normalizeDatabase($studentId,'student_id');
         $ownsTransaction=!$this->pdo->inTransaction();
@@ -50,20 +50,23 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
             }
             $result=['student'=>$student,'skills'=>[],'projects'=>[],'internships'=>[],'teacher_evaluations'=>[],'assessment_results'=>[],'experience'=>['confirmed_entries'=>[],'summary'=>['total_hours'=>0.0,'total_activities'=>0]],'badges'=>[],'certificates'=>[]];
             foreach (array_merge($official['skills'], $official['skill_groups'] ?? []) as $skill) {
-                if ($skill['state'] !== 'scored' || $skill['score'] === null) continue;
+                if (!in_array($skill['state'], ['scored', 'evidence_only'], true)) continue;
+                if ($skill['state'] === 'scored' && $skill['score'] === null) continue;
                 $result['skills'][]=array_merge($skill, [
-                    'level_score'=>$skill['score'], 'score_state'=>'scored', 'skill_status'=>'active',
+                    'level_score'=>$skill['score'], 'score_state'=>$skill['state'], 'skill_status'=>'active',
                     'verification_status'=>'verified', 'verified_at'=>$skill['assessed_at'],
                 ]);
             }
             if ($this->has('projects','title') && $this->has('project_members','status')) {
                 $descCol = $this->has('projects', 'description') ? 'p.description' : "''";
                 $catCol = $this->has('projects', 'category') ? 'p.category' : "'general'";
-                $result['projects']=$this->fetchAll('cv projects', "SELECT p.id,p.title, {$catCol} AS category, {$descCol} AS description, p.status,p.endAt,p.updatedAt,pm.role,pm.contribution,pm.status AS memberStatus
+                $urlCol = $this->has('projects', 'projectUrl') ? 'p.projectUrl' : "''";
+                $result['projects']=$this->fetchAll('cv projects', "SELECT p.id,p.title, {$catCol} AS category, {$descCol} AS description, {$urlCol} AS projectUrl, p.status,p.endAt,p.updatedAt,pm.role,pm.contribution,pm.status AS memberStatus
                     FROM projects p JOIN project_members pm ON pm.projectId=p.id WHERE pm.studentId=:id AND pm.status='active'
                     ORDER BY p.updatedAt DESC,p.id", ['id'=>$studentId]);
             }
-            if (empty($result['projects']) && $this->has('projects', 'schoolId') && $this->has('student_profiles', 'classId')) {
+            // Applications may only claim the applicant's own participation, not school-wide projects.
+            if (!$forApplicationSnapshot && empty($result['projects']) && $this->has('projects', 'schoolId') && $this->has('student_profiles', 'classId')) {
                 $descCol = $this->has('projects', 'description') ? 'p.description' : "''";
                 $catCol = $this->has('projects', 'category') ? 'p.category' : "'general'";
                 $mentorJoin = ($this->has('projects', 'mentorTeacherId') && $this->has('teacher_profiles', 'userId'))
@@ -81,6 +84,7 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
                     WHERE sp.id = :id AND sp.studyStatus = 'active' AND p.status IN ('in_progress', 'completed')
                     ORDER BY p.updatedAt DESC, p.id", ['id'=>$studentId]);
             }
+            // Capture aptitude alongside the Student CV. Public sharing is still filtered below.
             if ($this->has('test_attempts', 'studentId') && $this->has('talent_tests', 'type') && $this->has('test_results', 'resultCode')) {
                 $result['assessment_results']=$this->fetchAll('cv assessments', "SELECT tt.name AS testName, tt.type AS testType, tr.resultCode, tr.summary
                     FROM test_attempts ta
@@ -105,12 +109,14 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
                 WHERE el.studentId=:id AND el.status='confirmed' AND el.confirmedAt IS NOT NULL ORDER BY el.confirmedAt DESC,el.id", ['id'=>$studentId]);
             if ($this->has('badges','id') && $this->has('student_badges','studentId')) {
                 $timeCol = $this->has('student_badges','awardedAt') ? 'sb.awardedAt' : ($this->has('student_badges','earnedAt') ? 'sb.earnedAt' : 'sb.id');
+                $badgeLimit = $forApplicationSnapshot ? '' : ' LIMIT 3';
                 $result['badges']=$this->fetchAll('cv badges', "SELECT b.name, b.description, {$timeCol} AS earnedAt
                     FROM badges b INNER JOIN student_badges sb ON sb.badgeId=b.id
-                    WHERE sb.studentId=:id ORDER BY {$timeCol} DESC,b.id LIMIT 3", ['id'=>$studentId]);
+                    WHERE sb.studentId=:id ORDER BY {$timeCol} DESC,b.id{$badgeLimit}", ['id'=>$studentId]);
             }
             if ($this->has('certificates','studentId') && $this->has('certificates','verificationStatus')) {
-                $result['certificates']=$this->fetchAll('cv certificates', "SELECT id,title,issuingOrganization,issueDate,verificationStatus,createdAt
+                $urlCol = $this->has('certificates', 'credentialUrl') ? 'credentialUrl' : "''";
+                $result['certificates']=$this->fetchAll('cv certificates', "SELECT id,title,issuingOrganization,issueDate,verificationStatus,createdAt,{$urlCol} AS credentialUrl
                     FROM certificates WHERE studentId=:id ORDER BY issueDate DESC, createdAt DESC, id", ['id'=>$studentId]);
             }
             if ($this->has('experience_logs','hours')) {
@@ -118,8 +124,8 @@ final class DatabasePassportCvRepository extends AbstractDatabaseRepository
                     FROM experience_logs WHERE studentId=:id AND status='confirmed'", ['id'=>$studentId]);
                 if ($summaryRow) {
                     $result['experience']['summary']=[
-                        'total_hours'=>(float)($summaryRow['totalHours']??0),
-                        'total_activities'=>(int)($summaryRow['totalActivities']??0),
+                        'total_hours'=>(float)($summaryRow['total_hours']??0),
+                        'total_activities'=>(int)($summaryRow['total_activities']??0),
                     ];
                 }
             }

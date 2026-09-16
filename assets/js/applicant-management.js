@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
             body: JSON.stringify(body),
         });
         const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.data) throw new Error(payload?.error?.message || 'Không thể cập nhật hồ sơ ứng viên.');
+        if (!response.ok || !payload?.data) throw new Error(payload?.error?.message || (method === 'GET' ? 'Không thể tải hồ sơ ứng viên.' : 'Không thể cập nhật hồ sơ ứng viên.'));
         return payload.data;
     }
 
@@ -85,8 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const scoreSelect = document.getElementById('filter-score-select');
     const sortSelect = document.getElementById('sort-applicant-select');
     
-    const tableBody = document.getElementById('applicants-tbody');
-    const mobileCardsContainer = document.getElementById('applicants-mobile-cards');
+    const applicantList = document.getElementById('applicants-list');
+    const resultSummary = document.getElementById('applicants-result-summary');
     const emptyStateContainer = document.getElementById('applicants-empty-state');
     const resetFilterBtn = document.getElementById('reset-applicant-filter-btn');
 
@@ -269,16 +269,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. Render Desktop Table Rows & Mobile Cards
+    // 4. Render the responsive applicant list
     function renderList() {
         updateTabCounters();
         const filtered = getFilteredApplicants();
-        const tableContainer = document.getElementById('applicants-table-container');
+        const listContainer = document.getElementById('applicants-list-container');
+        if (resultSummary) resultSummary.textContent = `Hiển thị ${filtered.length} / ${applicants.length} ứng viên`;
 
         if (filtered.length === 0) {
-            if (tableBody) tableBody.innerHTML = '';
-            if (mobileCardsContainer) mobileCardsContainer.innerHTML = '';
-            if (tableContainer) tableContainer.style.display = 'none';
+            if (applicantList) applicantList.innerHTML = '';
+            if (listContainer) listContainer.style.display = 'none';
 
             if (emptyStateContainer) {
                 emptyStateContainer.style.display = 'block';
@@ -291,21 +291,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (emptyDesc) emptyDesc.innerHTML = 'Hiện tại chưa có ứng viên nào nộp hồ sơ hoặc nhận lời mời thực tập cho vị trí này. Bạn có thể sử dụng công cụ Tìm nhân tài để kết nối với các ứng viên phù hợp.';
                     if (emptyActions) {
                         emptyActions.innerHTML = `
-                            <a href="../talents.php" class="btn btn-primary">
+                            <a href="../talents.php" class="applicants-action applicants-action--primary">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                     <circle cx="11" cy="11" r="8"></circle>
                                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                                 </svg>
                                 <span>Tìm kiếm nhân tài</span>
                             </a>
-                            <a href="index.php" class="btn btn-secondary">Quay lại Tuyển thực tập</a>
+                            <a href="index.php" class="applicants-action applicants-action--quiet">Quay lại Tuyển thực tập</a>
                         `;
                     }
                 } else {
                     if (emptyTitle) emptyTitle.textContent = 'Không tìm thấy ứng viên phù hợp';
                     if (emptyDesc) emptyDesc.textContent = 'Không có ứng viên nào khớp với từ khóa tìm kiếm hoặc bộ lọc hiện tại.';
                     if (emptyActions) {
-                        emptyActions.innerHTML = `<button type="button" class="btn btn-secondary" id="reset-applicant-filter-btn">Đặt lại bộ lọc</button>`;
+                        emptyActions.innerHTML = `<button type="button" class="applicants-action applicants-action--quiet" id="reset-applicant-filter-btn">Đặt lại bộ lọc</button>`;
                         const newResetBtn = document.getElementById('reset-applicant-filter-btn');
                         if (newResetBtn) {
                             newResetBtn.addEventListener('click', () => {
@@ -324,131 +324,65 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (tableContainer) tableContainer.style.display = 'block';
+        if (listContainer) listContainer.style.display = 'block';
         if (emptyStateContainer) emptyStateContainer.style.display = 'none';
 
-        // Render Desktop Table Rows
-        if (tableBody) {
-            tableBody.innerHTML = filtered.map(app => {
+        // Keep every candidate in one DOM representation at every viewport size.
+        if (applicantList) {
+            applicantList.innerHTML = filtered.map(app => {
                 const isAccepted = (app.status === 'accepted');
                 const isDecisionMade = (app.status === 'accepted' || app.status === 'declined' || app.status === 'withdrawn');
                 const primaryBtnText = isAccepted ? 'Đã duyệt' : (isDecisionMade ? 'Chi tiết' : 'Duyệt');
-                const primaryBtnClass = isAccepted ? 'btn-secondary is-approved' : (isDecisionMade ? 'btn-secondary' : 'btn-primary');
                 const approveActionClass = isAccepted ? 'btn-review-app' : 'btn-approve-candidate';
                 const approveDisabled = isAccepted ? 'disabled' : '';
-                const formattedSub = `${escapeHtml(app.school)} &bull; ${escapeHtml(app.class_code ? (app.class_code.startsWith('Lớp ') ? app.class_code : 'Lớp ' + app.class_code) : (app.education_level || ''))}`;
+                const classLabel = app.class_code ? (app.class_code.startsWith('Lớp ') ? app.class_code : 'Lớp ' + app.class_code) : (app.education_level || '');
 
                 return `
-                    <tr data-applicant-id="${app.id}">
-                        <td>
-                            <div class="ent-applicant-identity">
+                    <article class="applicant-entry" role="listitem" data-applicant-id="${app.id}" aria-label="${escapeHtml(app.name)}">
+                        <div class="applicant-entry__identity">
+                            <div class="applicant-entry__avatar" aria-hidden="true">
                                 ${app.avatar_url
-                                    ? `<div class="ent-applicant-avatar" style="overflow: hidden; padding: 0; border: 1.5px solid #FFDACB !important; box-shadow: 0 2px 5px rgba(248,63,112,0.2) !important;"><img src="${escapeHtml(app.avatar_url)}" alt="${escapeHtml(app.name)}" style="width: 100%; height: 100%; object-fit: cover; display: block;"></div>`
-                                    : `<div class="ent-applicant-avatar" style="background: var(--primary-gradient) !important; color: #ffffff !important; font-weight: 800 !important; border: 1.5px solid #FFDACB !important; box-shadow: 0 2px 5px rgba(248,63,112,0.2) !important;">${escapeHtml(app.avatar_initials)}</div>`
+                                    ? `<img src="${escapeHtml(app.avatar_url)}" alt="">`
+                                    : escapeHtml(app.avatar_initials)
                                 }
-                                <div class="ent-applicant-info">
-                                    <button type="button" class="ent-applicant-info__name btn-view-cv" data-app-id="${app.id}" title="Xem hồ sơ ứng viên">
-                                        ${escapeHtml(app.name)}
-                                    </button>
-                                    <div class="ent-applicant-info__sub" title="${escapeHtml(app.school)} • ${escapeHtml(app.class_code || app.education_level)}">
-                                        ${formattedSub}
-                                    </div>
-                                </div>
                             </div>
-                        </td>
-                        <td>
-                            <div class="d-flex flex-wrap align-items-center">${renderSkillsHtml(app.main_skills)}</div>
-                        </td>
-                        <td>
-                            <span class="text-secondary" style="font-size:0.8125rem;">${escapeHtml(app.applied_at ? app.applied_at.split(' ')[0] : '-')}</span>
-                        </td>
-                        <td class="text-center">
-                            ${renderMatchScoreBadge(app.match_score)}
-                        </td>
-                        <td>
-                            ${renderStatusPillHtml(app.status, app.status_label)}
-                        </td>
-                        <td class="text-right">
-                            <div class="ent-action-group">
-                                <button type="button" class="btn btn-secondary btn-sm btn-view-cv" data-app-id="${app.id}" title="Xem hồ sơ chi tiết">Xem hồ sơ</button>
-                                <button type="button" 
-                                        class="btn ${primaryBtnClass} btn-sm ${approveActionClass}" 
-                                        data-app-id="${app.id}"
-                                        ${approveDisabled}
-                                        title="${isAccepted ? 'Hồ sơ đã duyệt / Chi tiết hợp đồng' : 'Duyệt tiếp nhận hồ sơ ứng viên'}">
-                                    ${primaryBtnText}
-                                </button>
-                                <div class="ent-dropdown">
-                                    <button type="button" class="btn btn-secondary btn-sm ent-dropdown-toggle" aria-label="Thao tác khác" aria-haspopup="menu" aria-expanded="false">
-                                        &ctdot;
-                                    </button>
-                                    <div class="ent-dropdown-menu" role="menu">
-                                        <button type="button" class="ent-dropdown-item btn-view-cv" role="menuitem" data-app-id="${app.id}">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                                <polyline points="14 2 14 8 20 8"></polyline>
-                                            </svg>
-                                            Xem CV
-                                        </button>
-                                        <button type="button" class="ent-dropdown-item btn-review-app" role="menuitem" data-app-id="${app.id}">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
-                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                            </svg>
-                                            Đánh giá chi tiết
-                                        </button>
-                                    </div>
-                                </div>
+                            <div class="applicant-entry__person">
+                                <h3 class="applicant-entry__name">
+                                    <button type="button" class="btn-view-cv" data-app-id="${app.id}" title="Xem hồ sơ ứng viên">${escapeHtml(app.name)}</button>
+                                </h3>
+                                <p class="applicant-entry__school">${escapeHtml(app.school)}</p>
+                                <p class="applicant-entry__class">${escapeHtml(classLabel)}</p>
+                                <p class="applicant-entry__date"><span>Ngày ứng tuyển</span> ${escapeHtml(app.applied_at ? app.applied_at.split(' ')[0] : '-')}</p>
                             </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        // Render Mobile Stacked Cards
-        if (mobileCardsContainer) {
-            mobileCardsContainer.innerHTML = filtered.map(app => {
-                const isAccepted = (app.status === 'accepted');
-                const isDecisionMade = (app.status === 'accepted' || app.status === 'declined' || app.status === 'withdrawn');
-                const primaryBtnText = isAccepted ? 'Đã duyệt' : (isDecisionMade ? 'Chi tiết' : 'Duyệt hồ sơ');
-                const primaryBtnClass = isAccepted ? 'btn-secondary is-approved' : (isDecisionMade ? 'btn-secondary' : 'btn-primary');
-                const approveActionClass = isAccepted ? 'btn-review-app' : 'btn-approve-candidate';
-                const approveDisabled = isAccepted ? 'disabled' : '';
-                const formattedSub = `${escapeHtml(app.school)} &bull; ${escapeHtml(app.class_code ? (app.class_code.startsWith('Lớp ') ? app.class_code : 'Lớp ' + app.class_code) : (app.education_level || ''))}`;
-
-                return `
-                    <article class="ent-applicant-mobile-card" data-applicant-id="${app.id}">
-                        <div class="ent-applicant-mobile-card__header">
-                            <div class="ent-applicant-identity">
-                                ${app.avatar_url
-                                    ? `<div class="ent-applicant-avatar" style="width:34px; height:34px; overflow:hidden; padding:0; border: 1.5px solid #FFDACB !important;"><img src="${escapeHtml(app.avatar_url)}" alt="${escapeHtml(app.name)}" style="width:100%; height:100%; object-fit:cover; display:block;"></div>`
-                                    : `<div class="ent-applicant-avatar" style="width:34px; height:34px; font-size:0.8rem; background: var(--primary-gradient) !important; color: #ffffff !important; font-weight: 800 !important; border: 1.5px solid #FFDACB !important;">${escapeHtml(app.avatar_initials)}</div>`
-                                }
-                                <div class="ent-applicant-info">
-                                    <button type="button" class="ent-applicant-info__name btn-view-cv" data-app-id="${app.id}">
-                                        ${escapeHtml(app.name)}
-                                    </button>
-                                    <div class="ent-applicant-info__sub">${formattedSub}</div>
-                                </div>
-                            </div>
-                            ${renderMatchScoreBadge(app.match_score)}
                         </div>
-
-                        <div class="mb-2">
-                            <div class="d-flex flex-wrap align-items-center">${renderSkillsHtml(app.main_skills)}</div>
+                        <div class="applicant-entry__details">
+                            <div class="applicant-entry__skills">
+                                <span class="applicants-label">Kỹ năng chính</span>
+                                <div class="applicants-skills">${renderSkillsHtml(app.main_skills)}</div>
+                            </div>
+                            <dl class="applicant-entry__assessment">
+                                <div>
+                                    <dt>Độ phù hợp</dt>
+                                    <dd>${renderMatchScoreBadge(app.match_score)}</dd>
+                                </div>
+                                <div>
+                                    <dt>Trạng thái</dt>
+                                    <dd>${renderStatusPillHtml(app.status, app.status_label)}</dd>
+                                </div>
+                            </dl>
                         </div>
-
-                        <div class="d-flex align-items-center justify-content-between pt-2 border-top">
-                            <div>${renderStatusPillHtml(app.status, app.status_label)}</div>
-                            <div class="ent-action-group">
-                                <button type="button" class="btn btn-secondary btn-sm btn-view-cv" data-app-id="${app.id}">Xem hồ sơ</button>
-                                <button type="button" class="btn ${primaryBtnClass} btn-sm ${approveActionClass}" data-app-id="${app.id}" ${approveDisabled}>${primaryBtnText}</button>
+                        <div class="applicant-entry__actions">
+                            <button type="button" class="applicants-action applicants-action--primary btn-view-cv" data-app-id="${app.id}">Xem hồ sơ</button>
+                            <div class="applicant-entry__secondary-actions">
+                                <button type="button" class="applicants-action applicants-action--quiet ${approveActionClass}" data-app-id="${app.id}" ${approveDisabled}
+                                    title="${isAccepted ? 'Hồ sơ đã duyệt / Chi tiết hợp đồng' : 'Duyệt tiếp nhận hồ sơ ứng viên'}">${primaryBtnText}</button>
                                 <div class="ent-dropdown">
-                                    <button type="button" class="btn btn-secondary btn-sm ent-dropdown-toggle" aria-label="Thao tác khác" aria-haspopup="menu" aria-expanded="false">&ctdot;</button>
+                                    <button type="button" class="applicants-action applicants-action--icon ent-dropdown-toggle" aria-label="Thao tác khác" aria-haspopup="menu" aria-expanded="false">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.75"/><circle cx="12" cy="12" r="1.75"/><circle cx="19" cy="12" r="1.75"/></svg>
+                                    </button>
                                     <div class="ent-dropdown-menu" role="menu">
                                         <button type="button" class="ent-dropdown-item btn-view-cv" role="menuitem" data-app-id="${app.id}">Xem CV</button>
-                                        <button type="button" class="ent-dropdown-item btn-review-app" role="menuitem" data-app-id="${app.id}">Đổi trạng thái</button>
+                                        <button type="button" class="ent-dropdown-item btn-review-app" role="menuitem" data-app-id="${app.id}">Đánh giá chi tiết</button>
                                     </div>
                                 </div>
                             </div>
@@ -506,6 +440,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeAllDropdowns();
                 if (!isOpen) {
                     dropdown.classList.add('is-active');
+                    const menu = dropdown.querySelector('.ent-dropdown-menu');
+                    if (menu && dropdown.closest('.ent-applicants-page')) {
+                        const anchor = toggle.getBoundingClientRect();
+                        const menuHeight = menu.offsetHeight;
+                        dropdown.classList.toggle('opens-above',
+                            anchor.bottom + menuHeight + 8 > document.documentElement.clientHeight
+                            && anchor.top > menuHeight + 8);
+                    }
                 }
                 toggle.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
             });
@@ -518,6 +460,18 @@ document.addEventListener('DOMContentLoaded', () => {
             d.querySelector('.ent-dropdown-toggle')?.setAttribute('aria-expanded', 'false');
         });
     }
+
+    // Dismiss list menus when the viewport or scroll position changes.
+    window.addEventListener('resize', closeAllDropdowns);
+    document.addEventListener('scroll', (event) => {
+        if (!event.target.closest?.('.ent-dropdown-menu')) closeAllDropdowns();
+    }, true);
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        const toggle = document.querySelector('.ent-applicants-page .ent-dropdown.is-active .ent-dropdown-toggle');
+        closeAllDropdowns();
+        toggle?.focus();
+    });
 
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.ent-dropdown')) {
@@ -647,7 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const expEl = document.getElementById('drawer-snapshot-exp');
         if (expEl) {
-            const hours = Number(app.experience_hours);
+            const hours = app.experience_hours === null || app.experience_hours === undefined ? NaN : Number(app.experience_hours);
             expEl.textContent = Number.isFinite(hours) ? `${hours}h đã xác nhận` : 'Chưa có dữ liệu';
         }
 
@@ -813,177 +767,90 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // CV Lightbox Modal Functions
-    function openCvModal(appId) {
+    // PHP renders the same Passport template used by Student, from the stored snapshot.
+    // Isolate its existing CSS from Enterprise; never navigate to the live Student route.
+    function renderApplicationCv(html) {
+        const frame = document.createElement('iframe');
+        frame.title = 'CV / Talent Passport đã lưu khi ứng tuyển';
+        frame.setAttribute('sandbox', 'allow-same-origin allow-popups allow-popups-to-escape-sandbox');
+        frame.referrerPolicy = 'no-referrer';
+        frame.className = 'applicant-cv-frame';
+        frame.addEventListener('load', () => {
+            frame.contentDocument?.addEventListener('keydown', event => {
+                if (event.key === 'Escape') closeCvModal();
+            });
+        });
+        frame.srcdoc = html;
+        cvModalBody.replaceChildren(frame);
+    }
+
+    let cvRequestVersion = 0;
+    let cvReturnFocus = null;
+
+    async function openCvModal(appId) {
         const app = applicants.find(a => a.id === appId);
-        if (!app) return;
-
+        if (!app || !cvModal || !cvModalBody) return;
+        const requestVersion = ++cvRequestVersion;
+        if (!cvModal.classList.contains('is-open')) cvReturnFocus = document.activeElement;
         currentActiveAppId = appId;
-        const snapshot = app.snapshot && typeof app.snapshot === 'object' ? app.snapshot : {};
-        const student = {
-            ...(snapshot.student || {}),
-            bio: snapshot.student?.bio || '',
-            skills: snapshot.skills || [],
-            certificates: snapshot.certificates || [],
-            projects: snapshot.projects || [],
-            experience_logs: snapshot.experience || {},
-        };
-
-        // 1. Pinned Modal Header
-        if (cvModalName) cvModalName.textContent = app.name;
-        
+        cvModal.classList.add('is-open');
+        cvModal.style.display = 'flex';
+        cvModalBody.setAttribute('aria-busy', 'true');
+        cvModalBody.innerHTML = '<p class="ats-resume-text" role="status">Đang tải hồ sơ đã lưu khi ứng tuyển…</p>';
+        cvModalBody.scrollTop = 0;
+        if (cvModalName) cvModalName.textContent = 'Hồ sơ ứng viên';
         const appliedTimeEl = document.getElementById('cv-modal-applied-time');
-        if (appliedTimeEl) {
-            appliedTimeEl.textContent = `Nộp ngày ${app.applied_at ? app.applied_at.split(' ')[0] : '-'}`;
-        }
-
-        const passportModalBtn = document.getElementById('btn-cv-modal-passport');
-        if (passportModalBtn) {
-            passportModalBtn.onclick = (event) => event.preventDefault();
-        }
-
-        // 2. Recruiter Context Bar
-        const matchScoreEl = document.getElementById('cv-modal-match-score');
-        if (matchScoreEl) {
-            matchScoreEl.textContent = app.match_score === null || app.match_score === undefined
-                ? 'Chưa có dữ liệu phù hợp'
-                : `${Number(app.match_score)}% phù hợp`;
-        }
-
-        const statusPillEl = document.getElementById('cv-modal-status-pill');
-        if (statusPillEl) {
-            statusPillEl.innerHTML = renderStatusPillHtml(app.status, app.status_label);
-        }
-
+        if (appliedTimeEl) appliedTimeEl.textContent = app.applied_at ? `Nộp ngày ${app.applied_at}` : '';
+        const positionEl = document.getElementById('cv-modal-position-title');
+        if (positionEl) positionEl.textContent = '';
         const filenameEl = document.getElementById('cv-modal-filename');
-        if (filenameEl) {
-            filenameEl.textContent = `Snapshot ${escapeHtml(snapshot.schemaVersion || '1.0.0')}`;
-        }
+        if (filenameEl) filenameEl.textContent = 'Đang tải';
+        const matchScoreEl = document.getElementById('cv-modal-match-score');
+        if (matchScoreEl) matchScoreEl.textContent = app.match_score === null || app.match_score === undefined
+            ? 'Chưa có dữ liệu phù hợp' : `${Number(app.match_score)}% phù hợp`;
+        const statusPillEl = document.getElementById('cv-modal-status-pill');
+        if (statusPillEl) statusPillEl.innerHTML = renderStatusPillHtml(app.status, app.status_label);
+        cvModalCloseBtn?.focus();
 
-        // 3. Render Authentic Resume Paper
-        if (cvModalBody) {
-            const headline = student.headline || '';
-            const bioText = student.bio || '';
-            
-            // Skills tags
-            const skills = student.skills || [];
-            const skillsHtml = skills.length > 0
-                ? skills.map(s => `<span class="ats-resume-skill-tag">${escapeHtml(s.skillName)} · ${escapeHtml(s.level)}</span>`).join('')
-                : '<span class="text-muted">Chưa có kỹ năng trong snapshot</span>';
-
-            // Certificates
-            let certsHtml = '';
-            if (student.certificates && student.certificates.length > 0) {
-                certsHtml = student.certificates.map(c => `
-                    <div class="ats-resume-item mt-2">
-                        <div class="ats-resume-item__header">
-                            <h4 class="ats-resume-item__title" style="font-size:0.8125rem;">📜 ${escapeHtml(c.name)}</h4>
-                            <span class="ats-resume-item__date">${escapeHtml(c.issueDate || '')}</span>
-                        </div>
-                        <div class="ats-resume-item__desc">Tổ chức cấp: ${escapeHtml(c.issuingOrganization || '')}</div>
-                    </div>
-                `).join('');
+        try {
+            // Existing endpoint enforces Enterprise role, CV permission and application ownership.
+            const data = await enterpriseRequest('GET', `/businesses/me/internship-applications/${encodeURIComponent(appId)}`);
+            if (requestVersion !== cvRequestVersion) return;
+            const application = data.application;
+            if (!application || application.id !== appId) throw new Error('Không thể xác định hồ sơ ứng tuyển.');
+            const snapshot = application.snapshot;
+            if (positionEl) positionEl.textContent = application.title || '';
+            if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
+                if (filenameEl) filenameEl.textContent = 'Chưa có hồ sơ đã lưu';
+                cvModalBody.innerHTML = '<p class="ats-resume-text" role="status">Ứng tuyển này chưa có bản hồ sơ được lưu. Không có dữ liệu để hiển thị.</p>';
+                return;
             }
-
-            // Projects / Experience
-            let projectsHtml = '';
-            if (student.projects && student.projects.length > 0) {
-                projectsHtml = student.projects.map(p => `
-                    <div class="ats-resume-item">
-                        <div class="ats-resume-item__header">
-                            <h3 class="ats-resume-item__title">${escapeHtml(p.title)}</h3>
-                            <span class="ats-resume-item__date">${escapeHtml(p.role || '')}</span>
-                        </div>
-                        <div class="ats-resume-item__desc">${escapeHtml(p.summary || '')}</div>
-                    </div>
-                `).join('');
-            } else {
-                projectsHtml = '<p class="text-muted">Chưa có dự án trong snapshot.</p>';
+            if (cvModalName) cvModalName.textContent = snapshot.passportCv?.name || snapshot.passport_cv?.name || snapshot.student?.fullName || snapshot.student?.full_name || 'Hồ sơ ứng viên';
+            if (filenameEl) filenameEl.textContent = 'Bản lưu khi ứng tuyển';
+            if (typeof application.cvHtml !== 'string' || application.cvHtml.trim() === '') {
+                throw new Error('Chưa thể dựng CV từ hồ sơ đã lưu. Vui lòng thử lại.');
             }
-
-            cvModalBody.innerHTML = `
-                <article class="ats-resume-paper">
-                    <!-- Candidate Resume Header -->
-                    <header class="ats-resume-header">
-                        <div class="ats-resume-title-wrap">
-                            <h1 class="ats-resume-name">${escapeHtml(app.name)}</h1>
-                            <p class="ats-resume-headline">${escapeHtml(headline)}</p>
-                        </div>
-                        <div class="ats-resume-contact-bar">
-                            <span>🏛️ ${escapeHtml(app.school)}</span>
-                            <span class="ats-meta-divider">&bull;</span>
-                            <span>📚 ${escapeHtml(app.class_code || app.education_level)}</span>
-                            <span class="ats-meta-divider">&bull;</span>
-                            <span>📍 ${escapeHtml(student.location || '')}</span>
-                        </div>
-                    </header>
-
-                    <div class="ats-resume-divider"></div>
-
-                    <!-- 1. Mục tiêu nghề nghiệp -->
-                    <section class="ats-resume-section">
-                        <h2 class="ats-resume-section__title">Mục tiêu nghề nghiệp & Tổng quan</h2>
-                        <p class="ats-resume-text">${escapeHtml(bioText)}</p>
-                    </section>
-
-                    <!-- 2. Kỹ năng chuyên môn -->
-                    <section class="ats-resume-section">
-                        <h2 class="ats-resume-section__title">Kỹ năng chuyên môn</h2>
-                        <div class="ats-resume-skills-list">
-                            ${skillsHtml}
-                        </div>
-                    </section>
-
-                    <!-- 3. Học vấn & Bằng cấp -->
-                    <section class="ats-resume-section">
-                        <h2 class="ats-resume-section__title">Học vấn & Bằng cấp</h2>
-                        <div class="ats-resume-timeline">
-                            <div class="ats-resume-item">
-                                <div class="ats-resume-item__header">
-                                    <h3 class="ats-resume-item__title">${escapeHtml(app.school)}</h3>
-                                    <span class="ats-resume-item__date">${escapeHtml(student.studyStatus || '')}</span>
-                                </div>
-                                <div class="ats-resume-item__desc">Lớp: <strong>${escapeHtml(student.className || '')}</strong></div>
-                            </div>
-                            ${certsHtml}
-                        </div>
-                    </section>
-
-                    <!-- 4. Dự án & Kinh nghiệm thực án -->
-                    <section class="ats-resume-section">
-                        <h2 class="ats-resume-section__title">Dự án tiêu biểu & Kinh nghiệm thực án</h2>
-                        <div class="ats-resume-timeline">
-                            ${projectsHtml}
-                        </div>
-                    </section>
-
-                    <!-- Immutable snapshot provenance -->
-                    <footer class="ats-resume-footer">
-                        <div class="ats-resume-cert-row">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" aria-hidden="true">
-                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                            </svg>
-                            <span>Hồ sơ bất biến chụp lúc ứng tuyển</span>
-                            <span class="ats-meta-divider">&bull;</span>
-                            <span style="color:#16A34A; font-weight:600;">Có đồng ý chia sẻ tại thời điểm ứng tuyển</span>
-                        </div>
-                    </footer>
-                </article>
-            `;
-        }
-
-        if (cvModal) {
-            cvModal.classList.add('is-open');
-            cvModal.style.display = 'flex';
+            renderApplicationCv(application.cvHtml);
+        } catch (error) {
+            if (requestVersion !== cvRequestVersion) return;
+            if (filenameEl) filenameEl.textContent = 'Chưa tải được hồ sơ';
+            cvModalBody.innerHTML = `<p class="ats-resume-text" role="alert">${escapeHtml(error?.message || 'Không thể tải hồ sơ ứng viên.')}</p>
+                <button type="button" class="ats-footer-btn ats-footer-btn--secondary" data-retry-snapshot>Thử lại</button>`;
+            cvModalBody.querySelector('[data-retry-snapshot]')?.addEventListener('click', () => openCvModal(appId));
+        } finally {
+            if (requestVersion === cvRequestVersion) cvModalBody.removeAttribute('aria-busy');
         }
     }
 
     function closeCvModal() {
+        ++cvRequestVersion;
+        const wasOpen = cvModal?.classList.contains('is-open');
         if (cvModal) {
             cvModal.classList.remove('is-open');
             cvModal.style.display = 'none';
         }
+        cvModalBody?.removeAttribute('aria-busy');
+        if (wasOpen && cvReturnFocus?.isConnected) cvReturnFocus.focus();
     }
 
     if (cvModalCloseBtn) cvModalCloseBtn.addEventListener('click', closeCvModal);
@@ -1007,6 +874,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cvModal) {
         cvModal.addEventListener('click', (e) => {
             if (e.target === cvModal) closeCvModal();
+        });
+        cvModal.addEventListener('keydown', (e) => {
+            if (e.key !== 'Tab') return;
+            const controls = Array.from(cvModal.querySelectorAll('button:not([disabled]), a[href], iframe, [tabindex="0"]'))
+                .filter(element => element.getClientRects().length > 0);
+            const first = controls[0];
+            const last = controls[controls.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last?.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first?.focus();
+            }
         });
     }
 

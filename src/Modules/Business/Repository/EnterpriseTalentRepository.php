@@ -793,12 +793,7 @@ final class EnterpriseTalentRepository
 
         $whereClause = implode(' AND ', $where);
 
-        $talentScoreCol = $this->columnExists('student_profiles', 'talentScore') ? 'student.talentScore' : 'NULL';
-        $groupTalentScore = $this->columnExists('student_profiles', 'talentScore') ? ', student.talentScore' : '';
-        $hasScoreState = $this->columnExists('student_skills', 'scoreState');
-        $scoredSubquery = $hasScoreState
-            ? "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.scoreState = 'scored')"
-            : "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0)";
+        $publishedScoreSql = $this->publishedAssessmentScoreSql();
 
         $sql = <<<SQL
             SELECT
@@ -817,10 +812,7 @@ final class EnterpriseTalentRepository
                 accessGrant.grantedAt,
                 accessGrant.expiresAt,
                 student.createdAt AS studentCreatedAt,
-                COALESCE(
-                    {$talentScoreCol},
-                    {$scoredSubquery}
-                ) AS talentScore,
+                {$publishedScoreSql} AS talentScore,
                 COUNT(DISTINCT studentSkill.id) AS skillCount,
                 COUNT(DISTINCT CASE WHEN studentSkill.verificationStatus = 'verified' THEN studentSkill.id END) AS verifiedSkillCount,
                 EXISTS(
@@ -851,7 +843,7 @@ final class EnterpriseTalentRepository
              AND accessGrant.expiresAt > :nowGrant
             WHERE {$whereClause}
             GROUP BY student.id, u.id, u.fullName, s.id, s.name, c.id, c.name, student.studyStatus,
-                     spd.location, spd.headline, spd.bio, spd.avatarUrl{$groupTalentScore}, accessGrant.grantedAt, accessGrant.expiresAt
+                     spd.location, spd.headline, spd.bio, spd.avatarUrl, accessGrant.grantedAt, accessGrant.expiresAt
         SQL;
 
         $params['enterpriseIdContact'] = $enterpriseId;
@@ -948,7 +940,7 @@ final class EnterpriseTalentRepository
             $currentSkills = $snapshot !== null ? $this->mapCurrentSkills($snapshot['skills']) : $this->skillsWithDetailsForStudent($studentId, $enterpriseId);
             $dbSkills = array_values(array_unique(array_column($currentSkills, 'name')));
             $studentProjects = $studentProjectsMap[$studentId] ?? $studentProjectsMap[$userId] ?? [];
-            if ($hasCurrentScores && $currentSkills === [] && $studentProjects === []) continue;
+            if ($hasCurrentScores && $currentSkills === [] && $studentProjects === [] && !is_numeric($row['talentScore'] ?? null)) continue;
 
             // Extract inferred skills from project content — chỉ dùng cho AI matching/filter,
             // KHÔNG được gọi là "xác thực" vì không có nguồn gốc từ student_skills.
@@ -1012,7 +1004,7 @@ final class EnterpriseTalentRepository
                 }
             }
 
-            $score = $snapshot !== null ? $snapshot['summary']['score'] : (is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null);
+            $score = is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null;
             $items[] = [
                 'studentId' => $studentId,
                 'userId' => $userId,
@@ -1086,11 +1078,7 @@ final class EnterpriseTalentRepository
 
         $whereClause = implode(' AND ', $where);
 
-        $talentScoreCol = $this->columnExists('student_profiles', 'talentScore') ? 'student.talentScore' : 'NULL';
-        $hasScoreState = $this->columnExists('student_skills', 'scoreState');
-        $scoredSubquery = $hasScoreState
-            ? "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.scoreState = 'scored')"
-            : "(SELECT ROUND(AVG(ss.levelScore), 0) FROM student_skills ss WHERE ss.studentId = student.id AND ss.levelScore > 0)";
+        $publishedScoreSql = $this->publishedAssessmentScoreSql();
 
         $sql = <<<SQL
             SELECT
@@ -1108,10 +1096,7 @@ final class EnterpriseTalentRepository
                 spd.headline,
                 spd.bio,
                 spd.avatarUrl,
-                COALESCE(
-                    {$talentScoreCol},
-                    {$scoredSubquery}
-                ) AS talentScore,
+                {$publishedScoreSql} AS talentScore,
                 EXISTS(
                     SELECT 1 FROM enterprise_talent_access_grants contactGrant
                     WHERE contactGrant.studentId = student.id
@@ -1180,7 +1165,7 @@ final class EnterpriseTalentRepository
             'headline' => (string) ($row['headline'] ?? ''),
             'bio' => (string) ($row['bio'] ?? ''),
             'avatarUrl' => $row['avatarUrl'] !== null ? (string) $row['avatarUrl'] : null,
-            'talent_score' => $snapshot !== null ? $snapshot['summary']['score'] : (is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null),
+            'talent_score' => is_numeric($row['talentScore'] ?? null) ? (float) $row['talentScore'] : null,
             'contactAllowed' => $contactAllowed,
             'hasPendingContactRequest' => $hasPendingContact,
             'skills' => $skills,
@@ -1606,6 +1591,22 @@ final class EnterpriseTalentRepository
         SQL);
         $stmt->execute(['studentId' => $studentId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    /** Same published assessment total and ordering as the Student talent passport reader. */
+    private function publishedAssessmentScoreSql(): string
+    {
+        if (!$this->tableExists('assessments')) {
+            return 'NULL';
+        }
+
+        return <<<'SQL'
+            (SELECT a.overallScore FROM assessments a
+             WHERE a.studentId = student.id
+               AND a.status = 'published' AND a.publishedAt IS NOT NULL
+             ORDER BY a.publishedAt DESC, a.id DESC
+             LIMIT 1)
+            SQL;
     }
 
     private function discoveryScores(string $studentId, string $enterpriseId): ?array

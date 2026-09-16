@@ -10,6 +10,7 @@ use PDO;
 use TalentHub\Http\ApiException;
 use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
 use TalentHub\Learner\Data\Service\NotificationService;
+use TalentHub\Learner\Data\ReadModel\ApplicationSnapshotCvAdapter;
 use TalentHub\Support\Uuid;
 
 final class InternshipRepository
@@ -77,12 +78,17 @@ final class InternshipRepository
             if (empty($targetSchoolIds)) {
                 throw new ApiException(422, 'VALIDATION_FAILED', 'Vui lòng chọn ít nhất 1 trường đối tác.');
             }
-            $this->assertApprovedPartnerSchools($enterpriseId, $targetSchoolIds);
         }
 
         $this->pdo->beginTransaction();
         try {
+            if ($audience === 'partner_schools') {
+                $this->assertApprovedPartnerSchools($enterpriseId, $targetSchoolIds, true);
+            }
             $hasAudienceCol = $this->hasColumn('internship_posts', 'audience');
+            if ($audience === 'partner_schools' && (!$hasAudienceCol || !$this->tableExists('internship_post_target_schools'))) {
+                throw new ApiException(422, 'VALIDATION_FAILED', 'Dữ liệu trường đối tác chưa sẵn sàng để đăng tin.');
+            }
             $insertData = [
                 'id' => $id,
                 'enterpriseId' => $enterpriseId,
@@ -171,11 +177,16 @@ final class InternshipRepository
             unset($fields['targetSchoolIds']);
 
             $effectiveAudience = $audience ?? (string) ($post['audience'] ?? 'public');
-            if ($effectiveAudience === 'partner_schools' && $hasTargetIds) {
+            if ($effectiveAudience === 'partner_schools') {
+                if (!$hasTargetIds) {
+                    $targets = $this->pdo->prepare('SELECT schoolId FROM internship_post_target_schools WHERE postId = ?' . $this->lockSuffix());
+                    $targets->execute([$postId]);
+                    $targetSchoolIds = $targets->fetchAll(PDO::FETCH_COLUMN) ?: [];
+                }
                 if (empty($targetSchoolIds)) {
                     throw new ApiException(422, 'VALIDATION_FAILED', 'Vui lòng chọn ít nhất 1 trường đối tác.');
                 }
-                $this->assertApprovedPartnerSchools($enterpriseId, $targetSchoolIds);
+                $this->assertApprovedPartnerSchools($enterpriseId, $targetSchoolIds, true);
             }
 
             $now = $this->now();
@@ -287,13 +298,16 @@ final class InternshipRepository
             ? ' LEFT JOIN internship_application_locks placementLock ON placementLock.applicationId = ia.id'
             : '';
         if ($hasSnap) {
+            $snapshotSelection = (new \TalentHub\Learner\Data\Database\ApplicationSnapshotVersions($this->pdo))->selection();
             $statement = $this->pdo->prepare(<<<SQL
                 SELECT ia.id, ia.postId, ia.studentId, ia.status, ia.message, ia.reviewerNote,
-                       ia.reviewedAt, ia.appliedAt, ip.title, aps.schemaVersion, aps.snapshotPayload,
+                       ia.reviewedAt, ia.appliedAt, ip.title,
+                       {$snapshotSelection['version']} AS schemaVersion, {$snapshotSelection['payload']} AS snapshotPayload,
                        aps.createdAt AS snapshotCreatedAt{$lockSelect}
                 FROM internship_applications ia
                 INNER JOIN internship_posts ip ON ip.id = ia.postId
                 LEFT JOIN application_profile_snapshots aps ON aps.applicationId = ia.id
+                {$snapshotSelection['join']}
                 {$lockJoin}
                 WHERE ia.id = :applicationId AND ip.enterpriseId = :enterpriseId
                 LIMIT 1
@@ -303,20 +317,26 @@ final class InternshipRepository
             if (!is_array($row)) {
                 throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hồ sơ ứng tuyển.');
             }
+            $row['snapshot'] = null;
             if (!empty($row['snapshotPayload'])) {
-                $row['snapshot'] = json_decode((string) $row['snapshotPayload'], true, 512, JSON_THROW_ON_ERROR);
+                $snapshot = json_decode((string) $row['snapshotPayload'], true, 512, JSON_THROW_ON_ERROR);
+                // An absent or malformed snapshot must never fall back to a live profile.
+                if (is_array($snapshot) && $snapshot !== [] && !array_is_list($snapshot)) {
+                    $row['snapshot'] = $snapshot;
+                }
             }
             unset($row['snapshotPayload']);
+            $row['cvHtml'] = $row['snapshot'] !== null
+                ? ApplicationSnapshotCvAdapter::render($row['snapshot'], $row['snapshotCreatedAt'] ?? null)
+                : null;
             $row['history'] = $this->history($applicationId);
             return $row;
         }
 
         $statement = $this->pdo->prepare(<<<SQL
-            SELECT ia.*, ip.title AS postTitle, u.fullName AS studentName, u.email AS studentEmail{$lockSelect}
+            SELECT ia.*, ip.title, ip.title AS postTitle{$lockSelect}
             FROM internship_applications ia
             INNER JOIN internship_posts ip ON ip.id = ia.postId
-            INNER JOIN student_profiles sp ON sp.id = ia.studentId
-            INNER JOIN users u ON u.id = sp.userId
             {$lockJoin}
             WHERE ia.id = :id AND ip.enterpriseId = :enterpriseId
             LIMIT 1
@@ -326,6 +346,10 @@ final class InternshipRepository
         if (!is_array($row)) {
             throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hồ sơ ứng tuyển.');
         }
+        $row['snapshot'] = null;
+        $row['schemaVersion'] = null;
+        $row['snapshotCreatedAt'] = null;
+        $row['cvHtml'] = null;
         $row['history'] = $this->history($applicationId);
         return $row;
     }
@@ -542,9 +566,16 @@ final class InternshipRepository
     }
 
     /** @return list<array<string,mixed>> */
-    public function listApprovedPartnerSchools(): array
+    public function listApprovedPartnerSchools(string $enterpriseId): array
     {
-        $stmt = $this->pdo->query("SELECT id, name, level, logoUrl FROM schools WHERE status = 'active' ORDER BY name ASC");
+        $stmt = $this->pdo->prepare(<<<'SQL'
+            SELECT s.id, s.name, s.level, s.logoUrl
+            FROM schools s
+            INNER JOIN school_enterprise_partnerships sep ON sep.schoolId = s.id
+            WHERE s.status = 'active' AND sep.enterpriseId = :enterpriseId AND sep.status = 'approved'
+            ORDER BY s.name ASC
+        SQL);
+        $stmt->execute(['enterpriseId' => $enterpriseId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
@@ -556,17 +587,22 @@ final class InternshipRepository
 
         $placeholders = implode(',', array_fill(0, count($schoolIds), '?'));
         $lockClause = $lock ? $this->lockSuffix() : '';
-        $stmt = $this->pdo->prepare("SELECT id FROM schools WHERE status = 'active' AND id IN ({$placeholders}) ORDER BY id{$lockClause}");
-        $stmt->execute($schoolIds);
+        $stmt = $this->pdo->prepare("SELECT s.id FROM schools s
+            INNER JOIN school_enterprise_partnerships sep ON sep.schoolId = s.id
+            INNER JOIN enterprises e ON e.id = sep.enterpriseId
+            WHERE s.status = 'active' AND sep.enterpriseId = ? AND sep.status = 'approved'
+              AND e.status = 'active' AND e.verificationStatus IN ('verified', 'approved')
+              AND s.id IN ({$placeholders}) ORDER BY s.id{$lockClause}");
+        $stmt->execute([$enterpriseId, ...$schoolIds]);
         $approvedIds = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
 
         $diff = array_diff($schoolIds, $approvedIds);
         if (!empty($diff)) {
-            throw new ApiException(422, 'VALIDATION_FAILED', 'Trường đối tác được chọn chưa được phê duyệt hoạt động trên hệ thống.');
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Chỉ được chọn trường đang hoạt động và đang hợp tác với doanh nghiệp của bạn.');
         }
     }
 
-    private function assertPublishableAudience(string $enterpriseId, string $postId, string $audience): void
+    public function assertPublishableAudience(string $enterpriseId, string $postId, string $audience): void
     {
         if ($audience === 'public') {
             return;

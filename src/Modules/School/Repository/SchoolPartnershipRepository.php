@@ -170,52 +170,70 @@ final class SchoolPartnershipRepository
             throw new ApiException(422, 'VALIDATION_FAILED', 'Mã doanh nghiệp không hợp lệ.');
         }
 
-        // Verify enterprise exists and is active
-        $stmtEnt = $this->pdo->prepare('SELECT id, name FROM enterprises WHERE id = ? AND status = \'active\' LIMIT 1');
-        $stmtEnt->execute([$enterpriseId]);
-        $enterprise = $stmtEnt->fetch(PDO::FETCH_ASSOC);
-        if (!is_array($enterprise)) {
-            throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy doanh nghiệp hoặc doanh nghiệp đang tạm dừng.');
-        }
+        $this->pdo->beginTransaction();
+        try {
+            $school = $this->pdo->prepare("SELECT id FROM schools WHERE id = ? AND status = 'active' LIMIT 1" . $this->lockSuffix());
+            $school->execute([$schoolId]);
+            if ($school->fetchColumn() === false) {
+                throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy trường đang hoạt động.');
+            }
+            $this->assertActiveVerifiedEnterprise($enterpriseId, true);
 
-        // Check if partnership already exists
-        $stmtExisting = $this->pdo->prepare('SELECT id, status FROM school_enterprise_partnerships WHERE schoolId = ? AND enterpriseId = ? LIMIT 1');
-        $stmtExisting->execute([$schoolId, $enterpriseId]);
-        $existing = $stmtExisting->fetch(PDO::FETCH_ASSOC);
-
-        $now = $this->now();
-        $id = is_array($existing) ? (string) $existing['id'] : Uuid::v4();
-
-        if (is_array($existing)) {
-            $currentStatus = (string) $existing['status'];
-            if ($currentStatus === 'approved' || $currentStatus === 'pending') {
-                return $this->getPartnership($id);
+            $stmtExisting = $this->pdo->prepare('SELECT id, status FROM school_enterprise_partnerships WHERE schoolId = ? AND enterpriseId = ? LIMIT 1' . $this->lockSuffix());
+            $stmtExisting->execute([$schoolId, $enterpriseId]);
+            $existing = $stmtExisting->fetch(PDO::FETCH_ASSOC);
+            $id = is_array($existing) ? (string) $existing['id'] : Uuid::v4();
+            if (is_array($existing) && $existing['status'] === 'approved') {
+                $result = $this->getPartnership($id);
+                $this->pdo->commit();
+                return $result;
             }
 
-            // Re-request if rejected or suspended
-            $stmtUpd = $this->pdo->prepare('UPDATE school_enterprise_partnerships SET status = \'pending\', requestedByUserId = :userId, reviewedByUserId = NULL, reviewedAt = NULL, updatedAt = :now WHERE id = :id');
-            $stmtUpd->execute(['userId' => $userId, 'now' => $now, 'id' => $id]);
-        } else {
-            $stmtInsert = $this->pdo->prepare(<<<'SQL'
-                INSERT INTO school_enterprise_partnerships
-                    (id, schoolId, enterpriseId, status, requestedByUserId, createdAt, updatedAt)
-                VALUES
-                    (:id, :schoolId, :enterpriseId, 'pending', :userId, :createdAt, :updatedAt)
+            $now = $this->now();
+            if (is_array($existing)) {
+                $statement = $this->pdo->prepare(<<<'SQL'
+                    UPDATE school_enterprise_partnerships
+                    SET status = 'approved', requestedByUserId = :userId,
+                        reviewedByUserId = :reviewerId, reviewedAt = :reviewedAt, updatedAt = :updatedAt
+                    WHERE id = :id AND schoolId = :schoolId AND enterpriseId = :enterpriseId
+                SQL);
+            } else {
+                $statement = $this->pdo->prepare(<<<'SQL'
+                    INSERT INTO school_enterprise_partnerships
+                        (id, schoolId, enterpriseId, status, requestedByUserId, reviewedByUserId, reviewedAt, createdAt, updatedAt)
+                    VALUES
+                        (:id, :schoolId, :enterpriseId, 'approved', :userId, :reviewerId, :reviewedAt, :createdAt, :updatedAt)
+                SQL);
+            }
+            $parameters = [
+                'id' => $id, 'schoolId' => $schoolId, 'enterpriseId' => $enterpriseId,
+                'userId' => $userId, 'reviewerId' => $userId, 'reviewedAt' => $now, 'updatedAt' => $now,
+            ];
+            if (!is_array($existing)) {
+                $parameters['createdAt'] = $now;
+            }
+            $statement->execute($parameters);
+
+            $audit = $this->pdo->prepare(<<<'SQL'
+                INSERT INTO audit_logs (id, userId, action, entityType, entityId, metadata)
+                VALUES (:id, :userId, 'SCHOOL_PARTNERSHIP_APPROVED', 'school_enterprise_partnership', :entityId, :metadata)
             SQL);
-            $stmtInsert->execute([
-                'id' => $id,
-                'schoolId' => $schoolId,
-                'enterpriseId' => $enterpriseId,
+            $audit->execute([
+                'id' => Uuid::v4(),
                 'userId' => $userId,
-                'createdAt' => $now,
-                'updatedAt' => $now,
+                'entityId' => $id,
+                'metadata' => json_encode(['schoolId' => $schoolId, 'fromStatus' => $existing['status'] ?? null, 'toStatus' => 'approved'], JSON_THROW_ON_ERROR),
             ]);
+            $this->notifyEnterprise($enterpriseId, 'Nhà trường đã thêm doanh nghiệp làm đối tác', 'Quan hệ hợp tác đã có hiệu lực.', '/app/enterprise/partnerships.php');
+            $result = $this->getPartnership($id);
+            $this->pdo->commit();
+            return $result;
+        } catch (Throwable $exception) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
         }
-
-        // Notify Enterprise
-        $this->notifyEnterprise($enterpriseId, 'Yêu cầu hợp tác mới từ Nhà trường', 'Nhà trường đã gửi yêu cầu hợp tác với doanh nghiệp.', '/app/enterprise/partnerships.php');
-
-        return $this->getPartnership($id);
     }
 
     /** @return list<array<string,mixed>> */
@@ -256,6 +274,10 @@ final class SchoolPartnershipRepository
 
             if (!is_array($partnership)) {
                 throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy quan hệ đối tác.');
+            }
+
+            if ($targetStatus === 'approved') {
+                $this->assertActiveVerifiedEnterprise((string) $partnership['enterpriseId'], true);
             }
 
             $allowedTransitions = [
@@ -341,6 +363,18 @@ final class SchoolPartnershipRepository
             throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy thông tin quan hệ hợp tác.');
         }
         return $res;
+    }
+
+    private function assertActiveVerifiedEnterprise(string $enterpriseId, bool $lock = false): void
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT id FROM enterprises WHERE id = ? AND status = 'active' AND verificationStatus IN ('verified', 'approved') LIMIT 1"
+            . ($lock ? $this->lockSuffix() : '')
+        );
+        $statement->execute([$enterpriseId]);
+        if ($statement->fetchColumn() === false) {
+            throw new ApiException(422, 'VALIDATION_FAILED', 'Chỉ có thể hợp tác với doanh nghiệp đã được Admin duyệt và đang hoạt động.');
+        }
     }
 
     private function notifySchool(string $schoolId, string $title, string $message, string $deepLink): void

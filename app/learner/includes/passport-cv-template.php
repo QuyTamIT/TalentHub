@@ -1,8 +1,14 @@
 <?php
-/** @var array $cv Fresh, bounded PassportCvViewModel output. No database or sharing side effects here. */
+/** @var array $cv Shared PassportCvViewModel output. No database or sharing side effects here. */
 $escapeCv = static fn($value): string => htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $cvVerificationUrl = $verificationUrl ?? ((function_exists('app_href') ? app_href('/app/learner/shared-profile.php') : '/app/learner/shared-profile.php') . '?code=' . urlencode($cv['passport_code'] ?? ''));
 $isGuestView = $isGuestView ?? false;
+$isApplicationSnapshot = $isApplicationSnapshot ?? false;
+$cvStylesheet = (function_exists('app_href') ? app_href('/assets/css/learner-passport-cv.css') : '/assets/css/learner-passport-cv.css');
+$renderCvSupportingSection = static function (string $section) use ($cv, $isApplicationSnapshot, $escapeCv, $cvVerificationUrl): void {
+    require __DIR__ . '/passport-cv-supporting-sections.php';
+};
+
 ?>
 <!doctype html>
 <html lang="vi">
@@ -10,9 +16,10 @@ $isGuestView = $isGuestView ?? false;
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title><?= $escapeCv($cv['name']); ?> - CV Năng lực FTalentHub</title>
-    <link rel="stylesheet" href="../../assets/css/learner-passport-cv.css?v=<?= @filemtime(dirname(__DIR__, 3) . '/assets/css/learner-passport-cv.css') ?: time(); ?>">
+    <link rel="stylesheet" href="<?= $escapeCv($cvStylesheet); ?>?v=<?= @filemtime(dirname(__DIR__, 3) . '/assets/css/learner-passport-cv.css') ?: time(); ?>">
 </head>
-<body data-cv-preview>
+<body data-cv-preview<?= $isApplicationSnapshot ? ' class="cv-application-snapshot"' : ''; ?>>
+    <?php if (!$isApplicationSnapshot): ?>
     <nav class="cv-toolbar" aria-label="Xuất CV">
         <?php if ($isGuestView): ?>
             <span style="font-weight: 700; color: #1e3a8a; display: inline-flex; align-items: center; gap: 6px;">
@@ -31,7 +38,8 @@ $isGuestView = $isGuestView ?? false;
         <?php endif; ?>
     </nav>
     <p class="cv-error" data-cv-error role="alert" hidden></p>
-    <main class="cv-sheet" aria-label="CV một trang A4">
+    <?php endif; ?>
+    <main class="cv-sheet" aria-label="CV năng lực FTalentHub">
         <div class="cv-content" data-cv-content>
             <div class="cv-grid">
                 <!-- CỘT TRÁI (SIDEBAR ~33%) -->
@@ -39,14 +47,16 @@ $isGuestView = $isGuestView ?? false;
                     <div class="cv-side-top">
                         <div class="cv-profile-block">
                             <div class="cv-avatar">
-                                <?php if (!empty($cv['avatar_url'])): ?>
-                                     <img src="<?= $escapeCv($cv['avatar_url']); ?>" alt="<?= $escapeCv($cv['name']); ?>">
+                                <?php if (\TalentHub\Learner\Data\ReadModel\PassportCvViewModel::safeUrl($cv['avatar_url'] ?? '') !== ''): ?>
+                                     <img src="<?= $escapeCv($cv['avatar_url']); ?>" alt="<?= $escapeCv($cv['name']); ?>" referrerpolicy="no-referrer">
                                 <?php else: ?>
                                     <span><?= $escapeCv($cv['initials'] ?: 'SV'); ?></span>
                                 <?php endif; ?>
                             </div>
                             <h1 class="cv-name<?= mb_strlen($cv['name']) > 50 ? ' cv-name-sm' : ''; ?>"><?= $escapeCv($cv['name'] ?: 'Chưa cập nhật họ tên'); ?></h1>
-                            <div class="cv-badge-verified">✓ Xác thực Năng lực FTalentHub</div>
+                            <?php if (!empty($cv['is_verified'])): ?>
+                                <div class="cv-badge-verified">✓ Xác thực Năng lực FTalentHub</div>
+                            <?php endif; ?>
                             <?php if (!empty($cv['headline'])): ?>
                                 <p class="cv-headline"><?= $escapeCv($cv['headline']); ?></p>
                             <?php elseif (!empty($cv['class'])): ?>
@@ -82,6 +92,9 @@ $isGuestView = $isGuestView ?? false;
                                         <span class="cv-contact-val"><?= $escapeCv($cv['location']); ?></span>
                                     </li>
                                 <?php endif; ?>
+                                <?php if ($isApplicationSnapshot && !empty($cv['date_of_birth'])): ?>
+                                    <li><span class="cv-contact-val">Ngày sinh: <?= $escapeCv($cv['date_of_birth']); ?></span></li>
+                                <?php endif; ?>
                             </ul>
                         </section>
 
@@ -92,95 +105,41 @@ $isGuestView = $isGuestView ?? false;
                             <div class="cv-edu-item">
                                 <?php if (!empty($cv['school'])): ?><div class="cv-strong"><?= $escapeCv($cv['school']); ?></div><?php endif; ?>
                                 <?php if (!empty($cv['class'])): ?><div class="cv-meta"><?= $escapeCv($cv['class']); ?></div><?php endif; ?>
-                            </div>
-                        </section>
-                        <?php endif; ?>
-
-                        <!-- Hồ sơ 4 bài đánh giá năng khiếu & hành vi -->
-                        <?php if (!empty($cv['assessments'])): ?>
-                        <section class="cv-side-section">
-                            <h2 class="cv-side-title">Định hướng &amp; Năng khiếu</h2>
-                            <div class="cv-assessment-grid">
-                                <?php foreach ($cv['assessments'] as $a): ?>
-                                    <div class="cv-assessment-item">
-                                        <span class="cv-assessment-tag"><?= $escapeCv($a['label']); ?></span>
-                                        <span class="cv-assessment-code"><?= $escapeCv($a['code']); ?></span>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </section>
-                        <?php endif; ?>
-
-                        <!-- Chứng chỉ & Huy hiệu số -->
-                        <?php if (!empty($cv['badges'])): ?>
-                        <section class="cv-side-section">
-                            <h2 class="cv-side-title">Huy hiệu &amp; Chứng thực số</h2>
-                            <ul class="cv-badges-list">
-                                <?php foreach ($cv['badges'] as $badge): ?>
-                                    <li>
-                                        <div class="cv-badge-name">★ <?= $escapeCv($badge['name']); ?></div>
-                                        <?php if (!empty($badge['description'])): ?><div class="cv-meta-sm"><?= $escapeCv($badge['description']); ?></div><?php endif; ?>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </section>
-                        <?php endif; ?>
-
-                        <!-- Phong trào & Rèn luyện -->
-                        <?php if (!empty($cv['activities']) || !empty($cv['activity_summary']['total_activities'])): ?>
-                        <section class="cv-side-section">
-                            <h2 class="cv-side-title">Phong trào &amp; Rèn luyện</h2>
-                            <div class="cv-activity-stats">
-                                <strong><?= $escapeCv((string)$cv['activity_summary']['total_activities']); ?> hoạt động xác nhận</strong>
-                                <?php if (!empty($cv['activity_summary']['total_hours']) && (float)$cv['activity_summary']['total_hours'] > 0): ?>
-                                    <span class="cv-meta">(<?= $escapeCv((string)$cv['activity_summary']['total_hours']); ?>h)</span>
+                                <?php if ($isApplicationSnapshot && !empty($cv['study_status'])): ?>
+                                    <div class="cv-meta"><?= $escapeCv(match ($cv['study_status']) {
+                                        'active' => 'Đang theo học', 'graduated' => 'Đã tốt nghiệp',
+                                        'paused' => 'Tạm dừng học', default => $cv['study_status'],
+                                    }); ?></div>
                                 <?php endif; ?>
                             </div>
-                            <?php if (!empty($cv['activities'])): ?>
-                                <ul class="cv-activity-list">
-                                    <?php foreach ($cv['activities'] as $activity): ?>
-                                        <li>• <?= $escapeCv($activity['title']); ?></li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            <?php endif; ?>
                         </section>
                         <?php endif; ?>
-                    </div>
 
-                    <!-- Khung bảo chứng Talent Passport ở chân sidebar -->
-                    <div class="cv-passport-seal">
-                        <div class="cv-seal-inner">
-                            <div class="cv-seal-header">
-                                <span class="cv-seal-emblem">🛡️</span>
-                                <span class="cv-seal-title">TALENT PASSPORT</span>
-                            </div>
-                            <div class="cv-seal-qr-wrap">
-                                <div class="cv-seal-qr" id="cv-seal-qr" data-qr-url="<?= $escapeCv($cvVerificationUrl); ?>" role="img" aria-label="Mã QR xác thực CV FTalentHub">
-                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&amp;data=<?= urlencode($cvVerificationUrl); ?>" alt="QR xác thực CV" class="cv-seal-qr-img" width="58" height="58">
-                                </div>
-                            </div>
-                            <div class="cv-seal-id">Mã số: <?= !empty($cv['passport_code']) ? $escapeCv($cv['passport_code']) : 'PASSPORT-TEST-002'; ?></div>
-                            <div class="cv-seal-status">✓ ĐÃ THẨM ĐỊNH NĂNG LỰC SỐ</div>
-                            <div class="cv-seal-org">Hệ sinh thái Giáo dục FTalentHub</div>
-                        </div>
+                        <?php foreach (['assessments','badges','activities'] as $section) $renderCvSupportingSection($section); ?>
                     </div>
+                    <?php $renderCvSupportingSection('passport'); ?>
                 </aside>
 
                 <!-- CỘT PHẢI (MAIN CONTENT ~67%) -->
                 <main class="cv-main">
                     <div class="cv-main-top">
                         <!-- Tóm tắt mục tiêu & năng lực -->
+                        <?php if ($cv['strengths_summary'] !== '' || ($isApplicationSnapshot && !empty($cv['objective']))): ?>
                         <section class="cv-main-section">
                             <h2 class="cv-section-title">Mục tiêu &amp; Tóm tắt năng lực</h2>
                             <div class="cv-summary-card">
-                                <p><?= $escapeCv($cv['strengths_summary']); ?></p>
+                                <?php if ($isApplicationSnapshot && !empty($cv['objective']) && $cv['objective'] !== $cv['strengths_summary']): ?>
+                                    <p><?= $escapeCv($cv['objective']); ?></p>
+                                <?php endif; ?>
+                                <?php if ($cv['strengths_summary'] !== ''): ?><p><?= $escapeCv($cv['strengths_summary']); ?></p><?php endif; ?>
                             </div>
                         </section>
+                        <?php endif; ?>
 
                         <!-- Kỹ năng cốt lõi đã xác thực -->
                         <?php if (!empty($cv['skills'])): ?>
                         <section class="cv-main-section">
-                            <h2 class="cv-section-title">Bảng năng lực cốt lõi (Giảng viên xác thực)</h2>
+                            <h2 class="cv-section-title">Bảng năng lực cốt lõi</h2>
                             <div class="cv-skills-grid">
                                 <?php foreach ($cv['skills'] as $skill): ?>
                                     <div class="cv-skill-row">
@@ -189,17 +148,32 @@ $isGuestView = $isGuestView ?? false;
                                             <?php if ($skill['score'] !== null): ?>
                                                 <span class="cv-skill-score"><?= $escapeCv((string)$skill['score']); ?>%</span>
                                             <?php else: ?>
-                                                <span class="cv-skill-score cv-skill-score-verified"><?= ($skill['source_type'] ?? '') === 'internship_evaluation' ? 'Đã hoàn thành qua thực tập' : 'Xác thực'; ?></span>
+                                                <span class="cv-skill-score cv-skill-score-verified"><?= ($skill['state'] ?? '') === 'evidence_only' ? 'Có minh chứng · Chưa chấm điểm' : (($skill['source_type'] ?? '') === 'internship_evaluation' ? 'Đã hoàn thành qua thực tập' : 'Xác thực'); ?></span>
                                             <?php endif; ?>
                                         </div>
                                         <?php if ($skill['score'] !== null): ?>
                                             <div class="cv-skill-bar-bg">
-                                                <div class="cv-skill-bar-fill" style="width: <?= max(5, min(100, (int)$skill['score'])); ?>%"></div>
+                                                <div class="cv-skill-bar-fill" style="width: <?= max(0, min(100, (float)$skill['score'])); ?>%"></div>
                                             </div>
                                         <?php endif; ?>
+                                        <?php if ($isApplicationSnapshot && !empty($skill['source'])): ?><p class="cv-meta-sm"><?= $escapeCv($skill['source']); ?></p><?php endif; ?>
                                     </div>
                                 <?php endforeach; ?>
                             </div>
+                        </section>
+                        <?php endif; ?>
+
+                        <?php if ($isApplicationSnapshot && !empty($cv['unverified_skills'])): ?>
+                        <section class="cv-main-section">
+                            <h2 class="cv-section-title">Kỹ năng ghi trong hồ sơ</h2>
+                            <p class="cv-meta">Bản lưu chưa có đủ thông tin xác thực cho các kỹ năng dưới đây.</p>
+                            <?php foreach ($cv['unverified_skills'] as $skill): ?>
+                                <div class="cv-skill-row">
+                                    <div class="cv-skill-header"><span class="cv-skill-name"><?= $escapeCv($skill['name']); ?></span></div>
+                                    <?php if ($skill['level'] !== ''): ?><p class="cv-meta">Mức độ đã lưu: <?= $escapeCv($skill['level']); ?></p><?php endif; ?>
+                                    <?php if ($skill['score'] !== null): ?><p class="cv-meta">Điểm đã lưu: <?= $escapeCv((string)$skill['score']); ?></p><?php endif; ?>
+                                </div>
+                            <?php endforeach; ?>
                         </section>
                         <?php endif; ?>
 
@@ -211,15 +185,21 @@ $isGuestView = $isGuestView ?? false;
                                 <article class="cv-project-card">
                                     <div class="cv-card-header">
                                         <h3 class="cv-project-title"><?= $escapeCv($project['title']); ?></h3>
-                                        <span class="cv-badge-status"><?= $escapeCv($project['status_label']); ?></span>
+                                        <?php if ($project['status_label'] !== ''): ?><span class="cv-badge-status"><?= $escapeCv($project['status_label']); ?></span><?php endif; ?>
                                     </div>
                                     <div class="cv-project-meta">
                                         <?php if (!empty($project['category'])): ?><span class="cv-project-cat"><?= $escapeCv($project['category']); ?></span><?php endif; ?>
                                         <?php if (!empty($project['role'])): ?><span class="cv-role-label"> · Vai trò: <?= $escapeCv($project['role']); ?></span><?php endif; ?>
                                         <?php if (!empty($project['mentor'])): ?><span class="cv-mentor-label"> · Hướng dẫn: <?= $escapeCv($project['mentor']); ?></span><?php endif; ?>
                                     </div>
+                                    <?php if ($isApplicationSnapshot && !empty($project['description']) && $project['description'] !== ($project['contribution'] ?? '')): ?>
+                                        <div class="cv-bullet-point"><?= $escapeCv($project['description']); ?></div>
+                                    <?php endif; ?>
                                     <?php if (!empty($project['contribution'])): ?>
                                         <div class="cv-bullet-point"><?= $escapeCv($project['contribution']); ?></div>
+                                    <?php endif; ?>
+                                    <?php if (\TalentHub\Learner\Data\ReadModel\PassportCvViewModel::safeUrl($project['url'] ?? '') !== ''): ?>
+                                        <a href="<?= $escapeCv($project['url']); ?>" target="_blank" rel="noopener noreferrer">Xem dự án</a>
                                     <?php endif; ?>
                                 </article>
                             <?php endforeach; ?>
@@ -245,6 +225,29 @@ $isGuestView = $isGuestView ?? false;
                         </section>
                         <?php endif; ?>
 
+                        <?php if (!empty($cv['certificates'])): ?>
+                        <section class="cv-main-section">
+                            <h2 class="cv-section-title">Chứng chỉ &amp; Chứng thực số</h2>
+                            <?php foreach ($cv['certificates'] as $certificate): ?>
+                                <article class="cv-project-card">
+                                    <h3 class="cv-project-title"><?= $escapeCv($certificate['title']); ?></h3>
+                                    <p class="cv-meta"><?= $escapeCv(implode(' · ', array_filter([$certificate['issuing_organization'], $certificate['issue_date']]))); ?></p>
+                                    <?php if ($isApplicationSnapshot): ?>
+                                        <p class="cv-meta"><?= $escapeCv(match ($certificate['verification_status'] ?? '') {
+                                            'verified'=>'Đã xác thực', 'unverified'=>'Chưa xác thực',
+                                            'pending'=>'Chờ xác thực', 'rejected'=>'Không được xác thực',
+                                            'revoked'=>'Đã thu hồi xác thực', ''=>'Chưa ghi nhận trạng thái xác thực',
+                                            default=>$certificate['verification_status'],
+                                        }); ?></p>
+                                    <?php endif; ?>
+                                    <?php if (\TalentHub\Learner\Data\ReadModel\PassportCvViewModel::safeUrl($certificate['url'] ?? '') !== ''): ?>
+                                        <a href="<?= $escapeCv($certificate['url']); ?>" target="_blank" rel="noopener noreferrer">Xem chứng chỉ</a>
+                                    <?php endif; ?>
+                                </article>
+                            <?php endforeach; ?>
+                        </section>
+                        <?php endif; ?>
+
                         <!-- Nhận xét chứng thực từ Giảng viên -->
                         <?php if (!empty($cv['evaluations'])): ?>
                         <section class="cv-main-section">
@@ -263,14 +266,16 @@ $isGuestView = $isGuestView ?? false;
 
                     <!-- Footer nhỏ gọn -->
                     <footer class="cv-footer">
-                        <span>Dữ liệu số xác thực từ Hệ sinh thái FTalentHub · Thời gian xuất: <?= $escapeCv($cv['generated_at']); ?>.</span>
-                        <?php if ($cv['omitted']): ?><span> (Bản tóm lược chuẩn A4; còn <?= $escapeCv((string)$cv['omitted']); ?> mục trên hồ sơ gốc).</span><?php endif; ?>
+                        <span><?= $isApplicationSnapshot ? 'Hồ sơ được lưu khi ứng tuyển' : 'CV năng lực FTalentHub · Thời gian xuất'; ?><?= $cv['generated_at'] !== '' ? ': ' . $escapeCv($cv['generated_at']) : ''; ?>.</span>
+                        <?php if (!$isApplicationSnapshot && $cv['omitted']): ?><span> (Bản CV tóm lược; <?= $escapeCv((string)$cv['omitted']); ?> mục không nằm trong bản này).</span><?php endif; ?>
                     </footer>
                 </main>
             </div>
         </div>
     </main>
+    <?php if (!$isApplicationSnapshot): ?>
     <script src="../../assets/vendor/qrcodejs/qrcode.min.js"></script>
     <script src="../../assets/js/learner-passport-cv.js?v=<?= @filemtime(dirname(__DIR__, 3) . '/assets/js/learner-passport-cv.js') ?: time(); ?>"></script>
+    <?php endif; ?>
 </body>
 </html>

@@ -19,12 +19,13 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
     private const ENTERPRISES_SQL = 'SELECT ' . self::ENTERPRISE_COLUMNS . ' FROM enterprises WHERE ' . self::ENTERPRISE_VISIBLE_SQL . ' ORDER BY name, id';
     private const ENTERPRISE_SQL = 'SELECT ' . self::ENTERPRISE_COLUMNS . ' FROM enterprises WHERE id = :partner_id AND ' . self::ENTERPRISE_VISIBLE_SQL . ' LIMIT 1';
     private const ENTERPRISE_SCHOOL_PARTNERS_SQL = 'SELECT DISTINCT e.id, e.name, e.status, e.logoUrl, e.industry, e.description, e.email, e.phone, e.website, e.address, e.verificationStatus, e.verificationNote, e.verifiedAt, e.verifiedBy, e.createdAt, e.updatedAt FROM enterprises e INNER JOIN school_enterprise_partnerships sep ON sep.enterpriseId = e.id WHERE sep.schoolId = :school_id AND sep.status = \'approved\' AND e.status = :enterprise_status AND (e.verificationStatus IN (:verification_verified, :verification_approved) OR e.verificationStatus IS NULL OR e.verificationStatus = \'pending\') ORDER BY e.name, e.id';
-    private const OPPORTUNITY_COLUMNS = 'ip.id, ip.enterpriseId, ip.title, ip.field, ip.location, ip.workType, ip.duration, ip.educationLevel, ip.description, ip.benefits, ip.skillsJson, ip.requirementsJson, ip.slots, ip.deadline, ip.createdAt, ip.updatedAt, ip.status, e.name AS enterpriseName';
-    private const OPPORTUNITY_COLUMNS_WITH_APPLICATION = 'ip.id, ip.enterpriseId, ip.title, ip.field, ip.location, ip.workType, ip.duration, ip.educationLevel, ip.description, ip.benefits, ip.skillsJson, ip.requirementsJson, ip.slots, ip.deadline, ip.createdAt, ip.updatedAt, ip.status, e.name AS enterpriseName, ia.id AS application_id, ia.status AS application_status';
+    private const OPPORTUNITY_COLUMNS = 'ip.id, ip.enterpriseId, ip.title, ip.field, ip.location, ip.workType, ip.duration, ip.educationLevel, ip.description, ip.benefits, ip.skillsJson, ip.requirementsJson, ip.slots, ip.deadline, ip.createdAt, ip.updatedAt, ip.status, ip.audience, e.name AS enterpriseName';
+    private const OPPORTUNITY_COLUMNS_WITH_APPLICATION = self::OPPORTUNITY_COLUMNS . ', ia.id AS application_id, ia.status AS application_status';
     private const OPPORTUNITY_VISIBLE_SQL = "ip.status IN (:opportunity_status, 'published') AND (ip.deadline IS NULL OR ip.deadline >= CURRENT_TIMESTAMP) AND e.status = :enterprise_status AND (e.verificationStatus IN (:verification_verified, :verification_approved) OR e.verificationStatus IS NULL OR e.verificationStatus = 'pending')";
-    private const OPPORTUNITIES_SQL = 'SELECT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId WHERE ' . self::OPPORTUNITY_VISIBLE_SQL . ' ORDER BY ip.createdAt DESC, ip.id DESC';
-    private const OPPORTUNITY_SQL = 'SELECT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId WHERE ip.id = :opportunity_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' LIMIT 1';
-    private const PARTNER_OPPORTUNITIES_SQL = 'SELECT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId WHERE ip.enterpriseId = :enterprise_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' ORDER BY ip.createdAt DESC, ip.id DESC';
+    private const PUBLIC_AUDIENCE_SQL = "AND (ip.audience = 'public' OR ip.audience IS NULL)";
+    private const OPPORTUNITIES_SQL = 'SELECT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId WHERE ' . self::OPPORTUNITY_VISIBLE_SQL . ' ' . self::PUBLIC_AUDIENCE_SQL . ' ORDER BY ip.createdAt DESC, ip.id DESC';
+    private const OPPORTUNITY_SQL = 'SELECT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId WHERE ip.id = :opportunity_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' ' . self::PUBLIC_AUDIENCE_SQL . ' LIMIT 1';
+    private const PARTNER_OPPORTUNITIES_SQL = 'SELECT ' . self::OPPORTUNITY_COLUMNS . ' FROM internship_posts ip INNER JOIN enterprises e ON e.id = ip.enterpriseId WHERE ip.enterpriseId = :enterprise_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' ' . self::PUBLIC_AUDIENCE_SQL . ' ORDER BY ip.createdAt DESC, ip.id DESC';
 
     public function partners(?string $type = null, ?string $schoolId = null): array
     {
@@ -160,8 +161,9 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
                 $sql = 'SELECT ' . self::OPPORTUNITY_COLUMNS_WITH_APPLICATION . ' FROM internship_posts ip ' .
                        'INNER JOIN enterprises e ON e.id = ip.enterpriseId ' .
                        'LEFT JOIN internship_applications ia ON ia.postId = ip.id AND ia.studentId = :student_id ' .
-                       'WHERE ip.id = :opportunity_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' LIMIT 1';
+                       'WHERE ip.id = :opportunity_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' ' . $this->studentAudienceSql() . ' LIMIT 1';
                 $params['student_id'] = $studentId;
+                $params['student_id_audience'] = $studentId;
             } else {
                 $sql = self::OPPORTUNITY_SQL;
             }
@@ -184,9 +186,10 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
                 $sql = 'SELECT ' . self::OPPORTUNITY_COLUMNS_WITH_APPLICATION . ' FROM internship_posts ip ' .
                        'INNER JOIN enterprises e ON e.id = ip.enterpriseId ' .
                        'LEFT JOIN internship_applications ia ON ia.postId = ip.id AND ia.studentId = :student_id ' .
-                       'WHERE ip.enterpriseId = :enterprise_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' ' .
+                       'WHERE ip.enterpriseId = :enterprise_id AND ' . self::OPPORTUNITY_VISIBLE_SQL . ' ' . $this->studentAudienceSql() . ' ' .
                        'ORDER BY ip.createdAt DESC, ip.id DESC';
                 $params['student_id'] = $studentId;
+                $params['student_id_audience'] = $studentId;
             } else {
                 $sql = self::PARTNER_OPPORTUNITIES_SQL;
             }
@@ -218,14 +221,21 @@ final class DatabaseEcosystemRepository extends AbstractDatabaseRepository imple
         ];
     }
 
-    private function studentOpportunitiesSql(bool $requireSkillMatch): string
+    private function studentAudienceSql(): string
     {
-        $audienceSql = "AND (ip.audience = 'public' OR ip.audience IS NULL OR (ip.audience = 'partner_schools' AND EXISTS ("
+        return "AND (ip.audience = 'public' OR ip.audience IS NULL OR (ip.audience = 'partner_schools' AND e.verificationStatus IN ('verified', 'approved') AND EXISTS ("
             . 'SELECT 1 FROM internship_post_target_schools ipt '
             . 'INNER JOIN student_profiles scoped_student ON scoped_student.id = :student_id_audience '
             . 'INNER JOIN classes scoped_class ON scoped_class.id = scoped_student.classId '
-            . 'WHERE ipt.postId = ip.id AND ipt.schoolId = scoped_class.schoolId'
+            . "INNER JOIN schools scoped_school ON scoped_school.id = scoped_class.schoolId AND scoped_school.status = 'active' "
+            . 'INNER JOIN school_enterprise_partnerships sep ON sep.schoolId = scoped_class.schoolId AND sep.enterpriseId = ip.enterpriseId '
+            . "WHERE ipt.postId = ip.id AND ipt.schoolId = scoped_class.schoolId AND sep.status = 'approved'"
             . ')))';
+    }
+
+    private function studentOpportunitiesSql(bool $requireSkillMatch): string
+    {
+        $audienceSql = $this->studentAudienceSql();
 
         $skillSql = '';
         if ($requireSkillMatch) {

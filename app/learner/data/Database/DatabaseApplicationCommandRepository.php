@@ -12,14 +12,18 @@ use TalentHub\Http\ApiException;
 use TalentHub\Learner\Data\Contracts\InternshipApplicationCommandRepository;
 use TalentHub\Learner\Data\Database\DatabaseNotificationRepository;
 use TalentHub\Learner\Data\Service\NotificationService;
+use TalentHub\Learner\Data\ReadModel\ApplicationProfileSnapshot;
 use TalentHub\Learner\Data\Support\Uuid;
 use TalentHub\Support\Uuid as SupportUuid;
+
+require_once __DIR__ . '/../ReadModel/ApplicationProfileSnapshot.php';
+require_once __DIR__ . '/DatabaseApplicationSnapshotRepository.php';
 
 class DatabaseApplicationCommandRepository implements InternshipApplicationCommandRepository
 {
     private const CONSENT_SCOPE = 'application_profile_share';
     private const CONSENT_POLICY = 'application-profile-share-1.0';
-    private const SNAPSHOT_VERSION = '1.0.0';
+    private const SNAPSHOT_VERSION = ApplicationProfileSnapshot::VERSION;
 
     public function __construct(
         protected readonly PDO $pdo,
@@ -121,7 +125,7 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
 
             $applicationId = SupportUuid::v4();
             $now = $this->now();
-            $snapshot = $this->buildSnapshot($studentId, (string) $consent['id'], $now);
+            $snapshot = $this->buildSnapshot($studentId, $userId, (string) $consent['id'], $now);
             $application = $this->pdo->prepare(<<<'SQL'
                 INSERT INTO internship_applications
                     (id, postId, studentId, status, message, appliedAt, createdAt, updatedAt)
@@ -293,7 +297,7 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
         if (($post['audience'] ?? 'public') !== 'partner_schools') {
             return true;
         }
-        if (!$this->hasTable('internship_post_target_schools')) {
+        if (!$this->hasTable('internship_post_target_schools') || !$this->hasTable('school_enterprise_partnerships')) {
             return false;
         }
         $statement = $this->pdo->prepare(
@@ -301,10 +305,12 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
              FROM student_profiles sp
              INNER JOIN classes c ON c.id = sp.classId
              INNER JOIN internship_post_target_schools target ON target.schoolId = c.schoolId
+             INNER JOIN schools s ON s.id = c.schoolId AND s.status = \'active\'
+             INNER JOIN school_enterprise_partnerships sep ON sep.schoolId = c.schoolId AND sep.enterpriseId = :enterpriseId AND sep.status = \'approved\'
              WHERE sp.id = :studentId AND target.postId = :postId
              LIMIT 1'
         );
-        $statement->execute(['studentId' => $studentId, 'postId' => $post['id']]);
+        $statement->execute(['studentId' => $studentId, 'postId' => $post['id'], 'enterpriseId' => $post['enterpriseId']]);
         return $statement->fetchColumn() !== false;
     }
 
@@ -420,56 +426,10 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
     }
 
 
-    private function buildSnapshot(string $studentId, string $consentId, string $capturedAt): array
+    private function buildSnapshot(string $studentId, string $userId, string $consentId, string $capturedAt): array
     {
-        $profileStatement = $this->pdo->prepare(<<<'SQL'
-            SELECT sp.id AS studentProfileId, u.fullName, u.email, sp.phone, sp.dateOfBirth,
-                   sp.studyStatus, c.name AS className, s.name AS schoolName,
-                   spd.headline, spd.location, spd.bio, spd.avatarUrl
-            FROM student_profiles sp
-            INNER JOIN users u ON u.id = sp.userId
-            LEFT JOIN classes c ON c.id = sp.classId
-            LEFT JOIN schools s ON s.id = c.schoolId
-            LEFT JOIN student_profile_details spd ON spd.studentId = sp.id
-            WHERE sp.id = :studentId LIMIT 1
-        SQL);
-        $profileStatement->execute(['studentId' => $studentId]);
-        $student = $profileStatement->fetch(PDO::FETCH_ASSOC);
-        if (!is_array($student)) {
-            throw new ApiException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy hồ sơ học viên.');
-        }
-        $skills = array_map(
-            static fn (array $skill): array => [
-                'skillName' => (string) $skill['skillName'],
-                'level' => self::snapshotSkillLevel((float) $skill['levelScore']),
-                'category' => (string) $skill['category'],
-            ],
-            $this->fetchAll("SELECT s.name AS skillName, ss.levelScore, s.category FROM student_skills ss INNER JOIN skills s ON s.id = ss.skillId WHERE ss.studentId = :studentId AND s.status = 'active' ORDER BY s.category, s.name, s.id", ['studentId' => $studentId])
-        );
-        $certificates = $this->fetchAll("SELECT id AS certificateId, title AS name, issuingOrganization, issueDate, credentialUrl FROM certificates WHERE studentId = :studentId AND verificationStatus = 'verified' ORDER BY issueDate DESC, id", ['studentId' => $studentId]);
-        $projects = $this->fetchAll("SELECT p.id AS projectId, p.title, p.category, pm.role, p.description AS summary, p.projectUrl AS link FROM projects p INNER JOIN project_members pm ON pm.projectId = p.id WHERE pm.studentId = :studentId AND pm.status = 'active' AND p.status IN ('in_progress', 'completed') ORDER BY p.createdAt DESC, p.id", ['studentId' => $studentId]);
-        $student['avatarUrl'] = self::safeSnapshotUrl($student['avatarUrl'] ?? null);
-        $certificates = array_map(static function (array $certificate): array {
-            $certificate['credentialUrl'] = self::safeSnapshotUrl($certificate['credentialUrl'] ?? null);
-            return $certificate;
-        }, $certificates);
-        $projects = array_map(static function (array $project): array {
-            $project['link'] = self::safeSnapshotUrl($project['link'] ?? null);
-            return $project;
-        }, $projects);
-        $experience = $this->pdo->prepare("SELECT COALESCE(SUM(hours), 0) AS totalConfirmedHours, COUNT(DISTINCT activityId) AS totalActivitiesAttended FROM experience_logs WHERE studentId = :studentId AND status = 'confirmed'");
-        $experience->execute(['studentId' => $studentId]);
-        $experienceRow = $experience->fetch(PDO::FETCH_ASSOC) ?: [];
-        return [
-            'schemaVersion' => self::SNAPSHOT_VERSION,
-            'capturedAt' => str_replace(' ', 'T', $capturedAt) . 'Z',
-            'consentId' => $consentId,
-            'student' => $student,
-            'skills' => $skills,
-            'certificates' => $certificates,
-            'projects' => $projects,
-            'experience' => ['totalConfirmedHours' => round((float) ($experienceRow['totalConfirmedHours'] ?? 0), 2), 'totalActivitiesAttended' => (int) ($experienceRow['totalActivitiesAttended'] ?? 0)],
-        ];
+        $data = (new DatabaseApplicationSnapshotRepository($this->pdo))->forStudent($studentId, $userId);
+        return ApplicationProfileSnapshot::build($data, $consentId, $capturedAt);
     }
 
     private function appendHistory(string $applicationId, ?string $fromStatus, string $toStatus, string $userId, string $role, string $note, string $now): void
@@ -490,30 +450,6 @@ class DatabaseApplicationCommandRepository implements InternshipApplicationComma
         $statement = $this->pdo->prepare($sql);
         $statement->execute($parameters);
         return $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
-    }
-
-    private static function snapshotSkillLevel(float $score): string
-    {
-        return match (true) {
-            $score >= 80 => 'advanced',
-            $score >= 50 => 'intermediate',
-            default => 'beginner',
-        };
-    }
-
-    private static function safeSnapshotUrl(mixed $value): ?string
-    {
-        if (!is_string($value) || $value === '' || strlen($value) > 500) {
-            return null;
-        }
-        $parts = parse_url($value);
-        if (!is_array($parts) || strtolower((string) ($parts['scheme'] ?? '')) !== 'https' || empty($parts['host'])) {
-            return null;
-        }
-        if (isset($parts['user']) || isset($parts['pass'])) {
-            return null;
-        }
-        return $value;
     }
 
     private function rollback(): void { if ($this->pdo->inTransaction()) { $this->pdo->rollBack(); } }
